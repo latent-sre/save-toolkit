@@ -1,0 +1,109 @@
+{
+  "agent_inputs_dirty": false,
+  "agent_source_sha256": "8328effa9f5a31b182635778a715d0c377ec4d843621b38589efd5ac63731bdd",
+  "auth_boundary": "The isolated CODEX_HOME contains auth.json and temporary session rollouts during the run; both are deleted before this sanitized report is returned.",
+  "base_runner_sha256": "8fdf226d76a21c274b9ec002b2a6bf464bcb5c1f87aec57648e1a710d6820357",
+  "duration_ms": 12937,
+  "generated_at": "2026-07-31T22:26:27.202357Z",
+  "harness_inputs_dirty": false,
+  "installed_agent_count": 6,
+  "installed_agent_sha256": "aba657f0764016596ace9fab50d579e9c9d51530a0d37c89ea07efbcf4b34383",
+  "manifest_sha256": "b132cfe74c029870e6b9a6e553d035d7ed39912192cf025d160c0a9ec258b824",
+  "plugin_inputs_dirty": false,
+  "plugin_inventory_sha256": "5ca9c14bdcabf4e9a4dd3eb9b78d6f009b3f842c9be209c9dfb7df9427cf9226",
+  "plugin_source_sha256": "744921e4e90c4025d815817d2ad3238e9c98abc58d7ad697cbb393b83082d64a",
+  "raw_transcript_persisted": false,
+  "repository_commit": "7ea8a6c162e17c960b62d4a2a48f3b699b8d9adc",
+  "results": [
+    {
+      "agent": "reviewer",
+      "agent_instruction_sha256": "a2aaddc0d2847cfa581c8a8c46ba847597f292198885bb491e216e3bfcf8543e",
+      "agent_sha256": "835fa4e20542a3a3bf4ba40172e0d69244d66edfb7b39ad8fd0ea93452009e94",
+      "approval_policy": "never",
+      "cli_version": "codex-cli 0.145.0",
+      "diagnostics": {
+        "agent_instruction_sha256": "a2aaddc0d2847cfa581c8a8c46ba847597f292198885bb491e216e3bfcf8543e",
+        "agent_instructions_loaded": true,
+        "child_metadata": [
+          {
+            "agent_path": "/root/reviewer_canary",
+            "agent_role": "reviewer",
+            "source_agent_role": "reviewer",
+            "source_parent_matched": true
+          }
+        ],
+        "child_response_matched": true,
+        "child_rollout_count": 1,
+        "child_runtime_contract_matched": true,
+        "child_tool_call_count": 0,
+        "parent_child_delivery_count": 1,
+        "parent_oracle_matched": true,
+        "parent_rollout_count": 1,
+        "parent_runtime_contract_matched": true,
+        "rollout_count": 2,
+        "runtime_error_count": 0,
+        "spawn_arguments": {
+          "agent_type": "reviewer",
+          "fork_turns": "none",
+          "task_name": "reviewer_canary"
+        },
+        "spawn_call_count": 1,
+        "spawn_output": {
+          "task_name": "/root/reviewer_canary"
+        },
+        "spawn_succeeded": true,
+        "stdout_thread_id": "019fba49-06ef-7ab0-aef5-6a2ecf7d8601",
+        "stdout_trace_complete": true,
+        "wait_call_count": 1,
+        "wait_succeeded": true
+      },
+      "duration_ms": 12203,
+      "ended_at": "2026-07-31T22:26:27.000746Z",
+      "event_count": 6,
+      "exit_code": 0,
+      "expected": {
+        "agent": "reviewer",
+        "delegated": true,
+        "instruction_canary": "Zero noise over perfect coverage: a review with three real findings beats one with twenty theoretical ones."
+      },
+      "kind": "agent-delegation",
+      "lane_id": "codex-sol-reviewer-delegation",
+      "observed_model_exposed": true,
+      "observed_models": [
+        "gpt-5.6-sol"
+      ],
+      "prompt_digest": "c782e25a588afc002fe357b8471be8cf73b92395097cac21717161d16e6ad889",
+      "reason": "successful named delegation, child profile load, runtime contract, and exact oracles verified",
+      "reasoning_effort": "high",
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "agent": "reviewer",
+        "delegated": true,
+        "instruction_canary": "Zero noise over perfect coverage: a review with three real findings beats one with twenty theoretical ones."
+      },
+      "rollout_digest": "829610806f1625ca65fc965eafb52ea376006b347e36add92ec7b1264f839516",
+      "sandbox": "read-only",
+      "started_at": "2026-07-31T22:26:14.806777Z",
+      "stdout_stderr_digest": "8812f231be1652931e6f65a5811d0cc3c965d6710ed6a922a72b2917c9c2fa06",
+      "task_name": "reviewer_canary",
+      "timed_out": false,
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 26880,
+        "input_tokens": 45669,
+        "output_tokens": 186,
+        "reasoning_output_tokens": 42
+      },
+      "verdict": "pass"
+    }
+  ],
+  "runner_sha256": "43e9f29d89bd355e5bdf666c47dc5d4353f2bbfb5062b158155026daef5f649e",
+  "schema_version": 1,
+  "started_at": "2026-07-31T22:26:14.265456Z",
+  "summary": {
+    "fail": 0,
+    "inconclusive": 0,
+    "pass": 1
+  }
+}
