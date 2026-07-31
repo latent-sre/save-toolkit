@@ -52,6 +52,15 @@ rewriting or handing work to another agent.
 
 Promotion to `release` is **blocked** until the promotion controls land: a default-rule CODEOWNERS, the
 protected exact-SHA promotion workflow with a named maintainer plus a distinct release operator, and
-canary machinery. Until then: never merge a PR into, push directly to, reset, force-push, or directly
-revert `release`, and never promote a feature or canary ref. The full control design (promotion steps,
-ownership boundary, rename/skew rules) is preserved in git history at tag `pre-cleanup-2026-07-15`.
+the live GitHub rules/environment/App configuration. Until then: never merge a PR into, push directly
+to, reset, force-push, or directly revert `release`, and never promote a feature or canary ref. The full
+control design (promotion steps, ownership boundary, rename/skew rules) is preserved in git history at
+tag `pre-cleanup-2026-07-15`.
+
+The repository-side canary harness is [`.github/workflows/validate-canary.yml`](.github/workflows/validate-canary.yml).
+After that workflow reaches protected `main`, dispatch it from `main` with a full candidate SHA and the
+matching immutable `canary/<phase>/<full-sha>` ref. Its three-OS Gate A result is structural canary
+evidence, not behavioral runtime evidence and not release authorization. It runs candidate-controlled
+code only on ephemeral hosted runners with read-only repository authority, no persisted checkout
+credential, and no protected environment or secrets; a fresh trusted job rechecks the canary ref and
+writes the evidence artifact.
