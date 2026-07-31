@@ -1,5 +1,44 @@
 # Fleet evals
 
+## Codex/Sol conformance
+
+Codex has a separate conformance runner because its plugin discovery, custom-agent surface, CLI
+trace, and model identifiers are not Claude contracts. It never rewrites or combines the historical
+Claude/Opus baselines in this directory.
+
+The committed manifest pins `gpt-5.6-sol`, high reasoning, a read-only sandbox, and approval policy
+`never`. A direct-skill lane passes only when both conditions hold:
+
+- the final JSON matches the deterministic oracle; and
+- the trace contains exactly one completed command against the selected skill under the isolated run
+  root (installed cache, frozen marketplace, or a Codex-owned staging path), and its output matches
+  the full plugin skill after UTF-8/Windows PowerShell decoding normalization and, where present, one
+  terminal transport newline. Chained commands, redirects, environment reads, and credential-file
+  references cannot satisfy this oracle.
+
+Validate the offline contract in Gate A. Run the live lane manually:
+
+```powershell
+py -3 evals/run_codex_conformance.py --validate
+py -3 evals/run_codex_conformance.py --run --output result.json
+```
+
+The live runner copies only `auth.json` into a temporary `CODEX_HOME`, registers a frozen local
+marketplace snapshot, installs exactly one plugin, and executes from an empty temporary git root with
+an allowlisted process environment. Raw JSONL is reduced in memory to deterministic facts and hashes;
+it is not saved. This is not a credential sandbox: Codex's read-only shell can read its temporary
+config tree. Therefore the runner accepts only fixed prompts committed in the manifest, and a
+live runs fail closed unless both plugin and harness inputs match HEAD. Live execution also refuses
+custom manifest paths so an arbitrary prompt cannot share the temporary credential boundary. Missing
+auth, CLI/model failure, timeout, or an incomplete trace is `INCONCLUSIVE`, never a fleet failure.
+During deliberate development of team-authored inputs, `--allow-dirty-plugin` and
+`--allow-dirty-harness` opt out of those checks separately; never use either for imported or
+unreviewed content.
+
+Codex plugin skills and standalone custom agents are separate host surfaces. This first lane proves
+plugin installation and direct skill loading; it does not yet claim direct custom-agent behavioral
+coverage.
+
 Behavioral evals for the agents and skills, above the structural `scripts/gate_a.py` gate. The
 unified runner measures two different properties and never blends their scores:
 

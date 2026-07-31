@@ -98,6 +98,17 @@ Gate A owns its step list; do not copy that list into documentation. Behavioral 
 [`evals/`](evals) are intentionally manual and never run in CI. They execute only after source-trust and
 disposable-harness requirements are satisfied.
 
+Codex/Sol plugin conformance is a separate lane from the Claude runner:
+
+```powershell
+py -3 evals/run_codex_conformance.py --validate
+py -3 evals/run_codex_conformance.py --run --output result.json
+```
+
+See [`evals/README.md`](evals/README.md) for the credential boundary, pass oracle, and provenance
+record. The current lane covers installed Codex skills; standalone Codex custom-agent behavior remains
+a separate follow-up surface.
+
 ## Contribute
 
 Start with [AGENTS.md](AGENTS.md) for the repository workflow and [CONTRIBUTING.md](CONTRIBUTING.md) for

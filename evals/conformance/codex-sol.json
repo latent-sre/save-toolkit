@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "description": "Isolated Codex plugin conformance baselines. Every lane pins gpt-5.6-sol and proves that the installed plugin skill, not model recall, supplied the answer.",
+  "plugin": {
+    "marketplace": "latent-sre",
+    "plugin_id": "sre-agents@latent-sre",
+    "name": "sre-agents",
+    "version": "1.0.0"
+  },
+  "lanes": [
+    {
+      "id": "codex-sol-stack-profile-direct",
+      "kind": "skill-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "stack-profile",
+      "prompt": "Use $stack-profile. Return exactly one JSON object and no markdown with keys marker and canary. Set marker to SRE_CODEX_SOL_OK. Set canary to the exact token after the words profile canary colon in that skill.",
+      "expected": {
+        "marker": "SRE_CODEX_SOL_OK",
+        "canary": "sp_7c2e"
+      },
+      "timeout_seconds": 300,
+      "required": true
+    }
+  ]
+}
