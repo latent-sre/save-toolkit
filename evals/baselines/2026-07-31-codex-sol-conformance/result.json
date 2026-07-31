@@ -1,0 +1,81 @@
+{
+  "auth_boundary": "The isolated CODEX_HOME contains auth.json during the run and is deleted afterward; run only fixed prompts against reviewed plugin bytes.",
+  "duration_ms": 12672,
+  "generated_at": "2026-07-31T21:43:48.630268Z",
+  "harness_inputs_dirty": false,
+  "installed_skill_count": 26,
+  "manifest_sha256": "b7910b04ad8cda592029ca381154bd5f39fad9a2b50bda45d85b545127b4189f",
+  "plugin_inputs_dirty": false,
+  "plugin_inventory_sha256": "7209e0f100f6b63a1c5c0d3ce0e249b65ea5b9c86b75b6eb303a79b863ff0c6b",
+  "plugin_source_sha256": "744921e4e90c4025d815817d2ad3238e9c98abc58d7ad697cbb393b83082d64a",
+  "raw_transcript_persisted": false,
+  "repository_commit": "2fdfbf35a53d9fa6dbb12317e66ce0e942da026f",
+  "results": [
+    {
+      "approval_policy": "never",
+      "cli_version": "codex-cli 0.145.0",
+      "command_count": 1,
+      "duration_ms": 11625,
+      "ended_at": "2026-07-31T21:43:48.393409Z",
+      "event_count": 7,
+      "exit_code": 0,
+      "expected": {
+        "canary": "sp_7c2e",
+        "marker": "SRE_CODEX_SOL_OK"
+      },
+      "kind": "skill-direct",
+      "lane_id": "codex-sol-stack-profile-direct",
+      "observed_model_exposed": false,
+      "observed_models": [],
+      "prompt_digest": "6192deafe34bbe5004bcca4ee1f383cf350152942927ebf4678109c0e210c5f3",
+      "reason": "deterministic oracle and installed-skill read passed",
+      "reasoning_effort": "high",
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "canary": "sp_7c2e",
+        "marker": "SRE_CODEX_SOL_OK"
+      },
+      "sandbox": "read-only",
+      "skill": "stack-profile",
+      "skill_read_diagnostics": {
+        "command_count": 1,
+        "command_sha256": "9d4ed916ca563d68124d7abb2659c49871bf2e043220c43b97a32217b052dca5",
+        "exit_code": 0,
+        "expected_chars": 3319,
+        "expected_sha256": "49dc2d02f3bf95ab33341df6c0279b481ee5d24668269d2ed67cff4f0cfb6027",
+        "full_output_matched": true,
+        "isolated_root_matched": true,
+        "matched_scope": "installed-cache",
+        "output_chars": 3346,
+        "output_contains_canary": true,
+        "output_sha256": "7d701f22076d16d5e64f1a51b6fa4d84019b0c27ac3b314c433d6043c6b6e954",
+        "path_matched": true,
+        "simple_read_command": true,
+        "skill_suffix_matched": true,
+        "status": "completed"
+      },
+      "skill_read_verified": true,
+      "skill_sha256": "49dc2d02f3bf95ab33341df6c0279b481ee5d24668269d2ed67cff4f0cfb6027",
+      "started_at": "2026-07-31T21:43:36.770479Z",
+      "timed_out": false,
+      "transcript_digest": "56873544e3e88af73e530ceb903dd3d51917795e2c3a1de579938278b51e9a8a",
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 22016,
+        "input_tokens": 33474,
+        "output_tokens": 209,
+        "reasoning_output_tokens": 33
+      },
+      "verdict": "pass"
+    }
+  ],
+  "runner_sha256": "c93b6382f901a920ea75615028192796584377e1bfc9fb19d657b21bc8b4e3d0",
+  "schema_version": 1,
+  "started_at": "2026-07-31T21:43:35.958955Z",
+  "summary": {
+    "fail": 0,
+    "inconclusive": 0,
+    "pass": 1
+  }
+}
