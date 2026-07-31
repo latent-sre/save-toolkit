@@ -106,8 +106,8 @@ py -3 evals/run_codex_conformance.py --run --output result.json
 ```
 
 See [`evals/README.md`](evals/README.md) for the credential boundary, pass oracle, and provenance
-record. The current lane covers installed Codex skills; standalone Codex custom-agent behavior remains
-a separate follow-up surface.
+record. The current lanes cover installed Codex skills and selected progressive-disclosure references;
+standalone Codex custom-agent behavior remains a separate follow-up surface.
 
 ## Contribute
 

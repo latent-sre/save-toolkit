@@ -26,7 +26,7 @@ import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, Mapping, Sequence
 
 
@@ -138,7 +138,7 @@ def validate_manifest(manifest: Mapping[str, object]) -> None:
     if not isinstance(lanes, list) or not lanes:
         raise ConformanceError("manifest must contain at least one lane")
     ids: set[str] = set()
-    expected_fields = {
+    base_fields = {
         "id",
         "kind",
         "model",
@@ -152,14 +152,21 @@ def validate_manifest(manifest: Mapping[str, object]) -> None:
         "required",
     }
     for lane in lanes:
-        if not isinstance(lane, dict) or set(lane) != expected_fields:
+        if not isinstance(lane, dict):
+            raise ConformanceError("each lane must be an object")
+        lane_fields = set(lane)
+        if lane.get("kind") == "skill-direct":
+            expected_fields = base_fields
+        elif lane.get("kind") == "reference-direct":
+            expected_fields = base_fields | {"references"}
+        else:
+            raise ConformanceError(f"lane {lane.get('id')!r}: unsupported lane kind")
+        if lane_fields != expected_fields:
             raise ConformanceError("each lane has missing or unknown fields")
         lane_id = lane["id"]
         if not isinstance(lane_id, str) or not lane_id or lane_id in ids:
             raise ConformanceError("lane IDs must be unique non-empty strings")
         ids.add(lane_id)
-        if lane["kind"] != "skill-direct":
-            raise ConformanceError(f"lane {lane_id!r}: only skill-direct is supported")
         if lane["model"] != SOL_MODEL:
             raise ConformanceError(f"lane {lane_id!r}: model must be {SOL_MODEL}")
         if lane["reasoning_effort"] != "high":
@@ -180,6 +187,27 @@ def validate_manifest(manifest: Mapping[str, object]) -> None:
             raise ConformanceError(f"lane {lane_id!r}: timeout must be between 1 and 900 seconds")
         if not isinstance(lane["required"], bool):
             raise ConformanceError(f"lane {lane_id!r}: required must be boolean")
+        if lane["kind"] == "reference-direct":
+            references = lane["references"]
+            if not isinstance(references, list) or not 1 <= len(references) <= 3:
+                raise ConformanceError(
+                    f"lane {lane_id!r}: references must contain one to three paths"
+                )
+            if not all(isinstance(reference, str) for reference in references):
+                raise ConformanceError(f"lane {lane_id!r}: reference path must be a string")
+            if len(set(references)) != len(references):
+                raise ConformanceError(f"lane {lane_id!r}: reference paths must be unique")
+            for reference in references:
+                parsed = PurePosixPath(reference)
+                if (
+                    parsed.is_absolute()
+                    or parsed.as_posix() != reference
+                    or not parsed.parts
+                    or parsed.parts[0] != "references"
+                    or any(part in {".", ".."} for part in parsed.parts)
+                    or parsed.suffix != ".md"
+                ):
+                    raise ConformanceError(f"lane {lane_id!r}: invalid reference path {reference!r}")
     if not any(lane["required"] for lane in lanes):
         raise ConformanceError("manifest must contain at least one required lane")
 
@@ -219,6 +247,15 @@ def validate_local_plugin_contract(root: Path, manifest: Mapping[str, object]) -
         _assert_no_indirection(root, skill, f"lane {lane['id']!r} skill")
         if not skill.is_file() or _is_link_or_reparse(skill):
             raise ConformanceError(f"lane {lane['id']!r} targets a missing or linked skill")
+        for reference in lane.get("references", []):
+            reference_path = root / PLUGIN_DIRECTORY / "skills" / lane["skill"] / reference
+            _assert_no_indirection(
+                root, reference_path, f"lane {lane['id']!r} reference {reference!r}"
+            )
+            if not reference_path.is_file() or _is_link_or_reparse(reference_path):
+                raise ConformanceError(
+                    f"lane {lane['id']!r} targets a missing or linked reference {reference!r}"
+                )
 
 
 def build_exec_command(executable: str, workspace: Path, lane: Mapping[str, object]) -> list[str]:
@@ -496,6 +533,101 @@ def _is_simple_skill_read_command(rendered: str) -> bool:
     return powershell_read or posix_read
 
 
+def _verify_artifact_command(
+    command: Mapping[str, object],
+    *,
+    relative_path: str,
+    expected_text: str,
+    allowed_paths: Mapping[str, Path],
+    isolated_root: Path | None,
+) -> tuple[bool, dict[str, object]]:
+    rendered = _normalized_windows_pathish(str(command.get("command") or ""))
+    output = str(command.get("aggregated_output") or "")
+    normalized_output = _normalized_text(output)
+    normalized_expected = _normalized_text(expected_text)
+    normalized_paths = {
+        scope: _normalized_windows_pathish(str(path)) for scope, path in allowed_paths.items()
+    }
+    matched_scope: str | None = next(
+        (scope for scope, expected_path in normalized_paths.items() if expected_path in rendered),
+        None,
+    )
+    normalized_isolated_root = (
+        _normalized_windows_pathish(str(isolated_root)) if isolated_root is not None else None
+    )
+    artifact_suffix = _normalized_windows_pathish(relative_path)
+    isolated_root_matched = bool(
+        normalized_isolated_root and normalized_isolated_root in rendered
+    )
+    artifact_suffix_matched = artifact_suffix in rendered
+    if matched_scope is None and isolated_root_matched and artifact_suffix_matched:
+        matched_scope = "host-staged-isolated"
+    simple_read_command = _is_simple_skill_read_command(rendered)
+    output_matched = _command_output_matches(output, expected_text)
+    diagnostics = {
+        "relative_path": relative_path,
+        "status": command.get("status"),
+        "exit_code": command.get("exit_code"),
+        "path_matched": matched_scope is not None,
+        "matched_scope": matched_scope,
+        "isolated_root_matched": isolated_root_matched,
+        "artifact_suffix_matched": artifact_suffix_matched,
+        "simple_read_command": simple_read_command,
+        "command_sha256": hashlib.sha256(rendered.encode("utf-8")).hexdigest(),
+        "output_chars": len(normalized_output),
+        "expected_chars": len(normalized_expected),
+        "output_sha256": hashlib.sha256(normalized_output.encode("utf-8")).hexdigest(),
+        "expected_sha256": hashlib.sha256(normalized_expected.encode("utf-8")).hexdigest(),
+        "full_output_matched": output_matched,
+    }
+    verified = (
+        command.get("status") == "completed"
+        and command.get("exit_code") == 0
+        and matched_scope is not None
+        and simple_read_command
+        and output_matched
+    )
+    return verified, diagnostics
+
+
+def _trace_instrument_failure(
+    parsed: Mapping[str, object],
+    *,
+    returncode: int | None,
+    stderr: str,
+    timed_out: bool,
+    diagnostics: dict[str, object],
+) -> Score | None:
+    if timed_out:
+        return Score("inconclusive", "Codex timed out", None, False, diagnostics)
+    if returncode != 0:
+        detail = "authentication or model access failed" if any(
+            marker in stderr.lower()
+            for marker in ("auth", "not logged in", "not available", "rate limit", "access")
+        ) else "Codex exited non-zero"
+        return Score("inconclusive", detail, None, False, diagnostics)
+    if (
+        parsed.get("malformed_line_count")
+        or parsed.get("turn_completed_count") != 1
+        or parsed.get("unfinished_command_count")
+    ):
+        diagnostics.update(
+            {
+                "malformed_line_count": parsed.get("malformed_line_count"),
+                "turn_completed_count": parsed.get("turn_completed_count"),
+                "unfinished_command_count": parsed.get("unfinished_command_count"),
+            }
+        )
+        return Score(
+            "inconclusive", "Codex trace was malformed or incomplete", None, False, diagnostics
+        )
+    if not parsed.get("last_message"):
+        return Score(
+            "inconclusive", "Codex emitted no final agent message", None, False, diagnostics
+        )
+    return None
+
+
 def score_trace(
     parsed: Mapping[str, object],
     *,
@@ -625,6 +757,105 @@ def score_trace(
     return Score(
         "pass",
         "deterministic oracle and installed-skill read passed",
+        response,
+        True,
+        diagnostics,
+    )
+
+
+def score_reference_trace(
+    parsed: Mapping[str, object],
+    *,
+    lane: Mapping[str, object],
+    artifact_texts: Mapping[str, str],
+    artifact_paths: Mapping[str, Mapping[str, Path]],
+    isolated_root: Path,
+    returncode: int | None,
+    stderr: str,
+    timed_out: bool,
+) -> Score:
+    commands = parsed.get("commands") if isinstance(parsed.get("commands"), list) else []
+    diagnostics: dict[str, object] = {
+        "command_count": len(commands),
+        "expected_artifact_count": len(artifact_texts),
+        "verified_artifact_count": 0,
+        "artifacts": [],
+    }
+    instrument_failure = _trace_instrument_failure(
+        parsed,
+        returncode=returncode,
+        stderr=stderr,
+        timed_out=timed_out,
+        diagnostics=diagnostics,
+    )
+    if instrument_failure is not None:
+        return instrument_failure
+
+    response = _extract_object(parsed["last_message"])
+    observed = parsed.get("observed_models")
+    if isinstance(observed, list) and observed and lane["model"] not in observed:
+        return Score(
+            "fail", "observed model differs from requested model", response, False, diagnostics
+        )
+    if response != lane["expected"]:
+        return Score(
+            "fail",
+            "final response did not match the deterministic oracle",
+            response,
+            False,
+            diagnostics,
+        )
+
+    used_commands: set[int] = set()
+    artifact_diagnostics: list[dict[str, object]] = []
+    all_verified = len(commands) == len(artifact_texts)
+    for relative_path, expected_text in artifact_texts.items():
+        candidates: list[tuple[int, bool, dict[str, object]]] = []
+        for index, command in enumerate(commands):
+            if not isinstance(command, dict):
+                continue
+            verified, command_diagnostics = _verify_artifact_command(
+                command,
+                relative_path=relative_path,
+                expected_text=expected_text,
+                allowed_paths=artifact_paths[relative_path],
+                isolated_root=isolated_root,
+            )
+            if command_diagnostics["path_matched"]:
+                candidates.append((index, verified, command_diagnostics))
+        if len(candidates) != 1:
+            artifact_diagnostics.append(
+                {
+                    "relative_path": relative_path,
+                    "verified": False,
+                    "candidate_command_count": len(candidates),
+                }
+            )
+            all_verified = False
+            continue
+        index, verified, command_diagnostics = candidates[0]
+        if index in used_commands:
+            verified = False
+            command_diagnostics["reused_command"] = True
+        used_commands.add(index)
+        command_diagnostics["verified"] = verified
+        artifact_diagnostics.append(command_diagnostics)
+        all_verified = all_verified and verified
+
+    verified_count = sum(bool(item.get("verified")) for item in artifact_diagnostics)
+    diagnostics["verified_artifact_count"] = verified_count
+    diagnostics["artifacts"] = artifact_diagnostics
+    if not all_verified or len(used_commands) != len(commands):
+        return Score(
+            "fail",
+            "oracle matched without every required artifact read",
+            response,
+            False,
+            diagnostics,
+        )
+    return Score(
+        "pass",
+        "deterministic oracle and every required artifact read passed",
         response,
         True,
         diagnostics,
@@ -847,31 +1078,65 @@ def run_live(
         for lane in manifest["lanes"]:
             lane_started = _timestamp()
             lane_start = time.monotonic()
-            skill_path = installed_path / "skills" / lane["skill"] / "SKILL.md"
-            frozen_skill_path = (
-                marketplace / PLUGIN_DIRECTORY / "skills" / lane["skill"] / "SKILL.md"
+            relative_paths = [f'skills/{lane["skill"]}/SKILL.md']
+            relative_paths.extend(
+                f'skills/{lane["skill"]}/{reference}'
+                for reference in lane.get("references", [])
             )
-            if not skill_path.is_file() or _is_link_or_reparse(skill_path):
-                raise ConformanceError(f"installed skill is missing or linked: {skill_path}")
-            if not frozen_skill_path.is_file() or _is_link_or_reparse(frozen_skill_path):
-                raise ConformanceError(f"frozen skill is missing or linked: {frozen_skill_path}")
-            skill_text = skill_path.read_text(encoding="utf-8")
+            artifact_texts: dict[str, str] = {}
+            artifact_paths: dict[str, dict[str, Path]] = {}
+            artifact_sha256: dict[str, str] = {}
+            for relative_path in relative_paths:
+                parts = PurePosixPath(relative_path).parts
+                installed_artifact = installed_path.joinpath(*parts)
+                frozen_artifact = (marketplace / PLUGIN_DIRECTORY).joinpath(*parts)
+                if not installed_artifact.is_file() or _is_link_or_reparse(installed_artifact):
+                    raise ConformanceError(
+                        f"installed artifact is missing or linked: {installed_artifact}"
+                    )
+                if not frozen_artifact.is_file() or _is_link_or_reparse(frozen_artifact):
+                    raise ConformanceError(
+                        f"frozen artifact is missing or linked: {frozen_artifact}"
+                    )
+                if installed_artifact.read_bytes() != frozen_artifact.read_bytes():
+                    raise ConformanceError(
+                        f"installed artifact differs from frozen source: {relative_path}"
+                    )
+                artifact_texts[relative_path] = installed_artifact.read_text(encoding="utf-8")
+                artifact_paths[relative_path] = {
+                    "installed-cache": installed_artifact,
+                    "frozen-marketplace": frozen_artifact,
+                }
+                artifact_sha256[relative_path] = hashlib.sha256(
+                    installed_artifact.read_bytes()
+                ).hexdigest()
+            skill_relative_path = relative_paths[0]
+            skill_path = artifact_paths[skill_relative_path]["installed-cache"]
             command = build_exec_command(executable, workspace, lane)
             execution = runner(command, workspace, lane["timeout_seconds"], env)
             parsed = parse_codex_jsonl(execution.stdout)
-            score = score_trace(
-                parsed,
-                lane=lane,
-                allowed_skill_paths={
-                    "installed-cache": skill_path,
-                    "frozen-marketplace": frozen_skill_path,
-                },
-                isolated_root=temporary_root,
-                expected_skill_text=skill_text,
-                returncode=execution.returncode,
-                stderr=execution.stderr,
-                timed_out=execution.timed_out,
-            )
+            if lane["kind"] == "reference-direct":
+                score = score_reference_trace(
+                    parsed,
+                    lane=lane,
+                    artifact_texts=artifact_texts,
+                    artifact_paths=artifact_paths,
+                    isolated_root=temporary_root,
+                    returncode=execution.returncode,
+                    stderr=execution.stderr,
+                    timed_out=execution.timed_out,
+                )
+            else:
+                score = score_trace(
+                    parsed,
+                    lane=lane,
+                    allowed_skill_paths=artifact_paths[skill_relative_path],
+                    isolated_root=temporary_root,
+                    expected_skill_text=artifact_texts[skill_relative_path],
+                    returncode=execution.returncode,
+                    stderr=execution.stderr,
+                    timed_out=execution.timed_out,
+                )
             transcript = execution.stdout + execution.stderr
             results.append(
                 {
@@ -894,8 +1159,13 @@ def run_live(
                     "expected": lane["expected"],
                     "response": score.response,
                     "skill": lane["skill"],
+                    "references": lane.get("references", []),
                     "skill_sha256": hashlib.sha256(skill_path.read_bytes()).hexdigest(),
-                    "skill_read_verified": score.skill_read_verified,
+                    "artifact_sha256": artifact_sha256,
+                    "artifact_reads_verified": score.skill_read_verified,
+                    "skill_read_verified": (
+                        score.skill_read_verified if lane["kind"] == "skill-direct" else None
+                    ),
                     "skill_read_diagnostics": score.skill_read_diagnostics,
                     "event_count": parsed["event_count"],
                     "command_count": len(parsed["commands"]),

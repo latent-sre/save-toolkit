@@ -23,6 +23,125 @@
       },
       "timeout_seconds": 300,
       "required": true
+    },
+    {
+      "id": "codex-sol-backend-api-reference",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "backend-craft",
+      "references": [
+        "references/api-design.md"
+      ],
+      "prompt": "Use $backend-craft. Read the API surface design reference named in that skill before answering. Return exactly one JSON object and no markdown with keys marker, long_running_status, cursor_fetch, and deprecation_requires_sunset. Set marker to SRE_API_REFERENCE_OK, long_running_status to 202, cursor_fetch to limit + 1, and deprecation_requires_sunset to true.",
+      "expected": {
+        "marker": "SRE_API_REFERENCE_OK",
+        "long_running_status": 202,
+        "cursor_fetch": "limit + 1",
+        "deprecation_requires_sunset": true
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-database-restore-reference",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "database-reliability",
+      "references": [
+        "references/restore-drill.md"
+      ],
+      "prompt": "Use $database-reliability. Read the restore drill reference named in that skill before answering. Return exactly one JSON object and no markdown with keys marker, default_target, timing_phases, and incomplete_scope_verdict. Set marker to SRE_RESTORE_REFERENCE_OK, default_target to scratch, timing_phases to the ordered array locate, restore, verify, and incomplete_scope_verdict to pass with findings.",
+      "expected": {
+        "marker": "SRE_RESTORE_REFERENCE_OK",
+        "default_target": "scratch",
+        "timing_phases": [
+          "locate",
+          "restore",
+          "verify"
+        ],
+        "incomplete_scope_verdict": "pass with findings"
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-frontend-a11y-ux-references",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "frontend-craft",
+      "references": [
+        "references/design-language.md",
+        "references/interaction-a11y.md",
+        "references/ux-writing.md"
+      ],
+      "prompt": "Use $frontend-craft. Read the design language, interaction accessibility, and interface copy references named in that skill, reading each file separately before answering. Return exactly one JSON object and no markdown with keys marker, themes, dialog_close_focus, async_status_role, placeholder_replaces_label, and voice. Set marker to SRE_FRONTEND_REFERENCES_OK, themes to the ordered array light, dark, system, dialog_close_focus to opener, async_status_role to status, placeholder_replaces_label to false, and voice to active.",
+      "expected": {
+        "marker": "SRE_FRONTEND_REFERENCES_OK",
+        "themes": [
+          "light",
+          "dark",
+          "system"
+        ],
+        "dialog_close_focus": "opener",
+        "async_status_role": "status",
+        "placeholder_replaces_label": false,
+        "voice": "active"
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-typescript-reference",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "craft",
+      "references": [
+        "references/typescript.md"
+      ],
+      "prompt": "Use $craft. Read the TypeScript reference named in that skill before answering. Return exactly one JSON object and no markdown with keys marker, unknown_boundary, independent_async, idempotency_key_lifetime, and destructive_optimistic. Set marker to SRE_TYPESCRIPT_REFERENCE_OK, unknown_boundary to schema or type guard, independent_async to Promise.all, idempotency_key_lifetime to once per logical action, and destructive_optimistic to false.",
+      "expected": {
+        "marker": "SRE_TYPESCRIPT_REFERENCE_OK",
+        "unknown_boundary": "schema or type guard",
+        "independent_async": "Promise.all",
+        "idempotency_key_lifetime": "once per logical action",
+        "destructive_optimistic": false
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-multi-component-reference",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "ops-tooling",
+      "references": [
+        "references/multi-component.md"
+      ],
+      "prompt": "Use $ops-tooling. Read the multi-component builds reference named in that skill before answering. Return exactly one JSON object and no markdown with keys marker, first_slice, contract_owner_count, final_verification, and mockup_before_framework. Set marker to SRE_MULTI_COMPONENT_REFERENCE_OK, first_slice to walking skeleton, contract_owner_count to 1, final_verification to one real mission transaction, and mockup_before_framework to true.",
+      "expected": {
+        "marker": "SRE_MULTI_COMPONENT_REFERENCE_OK",
+        "first_slice": "walking skeleton",
+        "contract_owner_count": 1,
+        "final_verification": "one real mission transaction",
+        "mockup_before_framework": true
+      },
+      "timeout_seconds": 300,
+      "required": true
     }
   ]
 }

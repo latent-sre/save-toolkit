@@ -16,6 +16,12 @@ The committed manifest pins `gpt-5.6-sol`, high reasoning, a read-only sandbox, 
   terminal transport newline. Chained commands, redirects, environment reads, and credential-file
   references cannot satisfy this oracle.
 
+A `reference-direct` lane adds every named progressive-disclosure file to that same proof. It passes
+only when the trace contains one separate, simple, full-content read for the skill and for every
+required reference; a correct-looking answer with one missing, duplicated, chained, unrelated, or
+partial read fails. The current reference lanes cover API design, TypeScript, database restore drills,
+frontend design/accessibility/interface copy, and multi-component tooling.
+
 Validate the offline contract in Gate A. Run the live lane manually:
 
 ```powershell
@@ -28,16 +34,16 @@ marketplace snapshot, installs exactly one plugin, and executes from an empty te
 an allowlisted process environment. Raw JSONL is reduced in memory to deterministic facts and hashes;
 it is not saved. This is not a credential sandbox: Codex's read-only shell can read its temporary
 config tree. Therefore the runner accepts only fixed prompts committed in the manifest, and a
-live runs fail closed unless both plugin and harness inputs match HEAD. Live execution also refuses
+live run fails closed unless both plugin and harness inputs match HEAD. Live execution also refuses
 custom manifest paths so an arbitrary prompt cannot share the temporary credential boundary. Missing
 auth, CLI/model failure, timeout, or an incomplete trace is `INCONCLUSIVE`, never a fleet failure.
 During deliberate development of team-authored inputs, `--allow-dirty-plugin` and
 `--allow-dirty-harness` opt out of those checks separately; never use either for imported or
 unreviewed content.
 
-Codex plugin skills and standalone custom agents are separate host surfaces. This first lane proves
-plugin installation and direct skill loading; it does not yet claim direct custom-agent behavioral
-coverage.
+Codex plugin skills and standalone custom agents are separate host surfaces. These lanes prove plugin
+installation plus direct skill/reference loading; they do not yet claim direct custom-agent
+behavioral coverage.
 
 Behavioral evals for the agents and skills, above the structural `scripts/gate_a.py` gate. The
 unified runner measures two different properties and never blends their scores:

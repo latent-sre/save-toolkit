@@ -21,6 +21,9 @@ class CodexConformanceTests(unittest.TestCase):
         self.manifest = conformance.load_manifest(conformance.DEFAULT_MANIFEST)
         self.lane = self.manifest["lanes"][0]
 
+    def _reference_lane(self, lane_id: str = "codex-sol-backend-api-reference"):
+        return next(lane for lane in self.manifest["lanes"] if lane["id"] == lane_id)
+
     def test_manifest_is_sol_only_and_preserves_runtime_boundaries(self) -> None:
         self.assertEqual("gpt-5.6-sol", self.lane["model"])
         self.assertEqual("high", self.lane["reasoning_effort"])
@@ -44,8 +47,21 @@ class CodexConformanceTests(unittest.TestCase):
 
         no_required = copy.deepcopy(self.manifest)
         no_required["lanes"][0]["required"] = False
+        for lane in no_required["lanes"]:
+            lane["required"] = False
         with self.assertRaisesRegex(conformance.ConformanceError, "required lane"):
             conformance.validate_manifest(no_required)
+
+        traversal = copy.deepcopy(self.manifest)
+        self._lane_from(traversal, "codex-sol-backend-api-reference")["references"] = [
+            "../auth.json"
+        ]
+        with self.assertRaisesRegex(conformance.ConformanceError, "reference path"):
+            conformance.validate_manifest(traversal)
+
+    @staticmethod
+    def _lane_from(manifest, lane_id):
+        return next(lane for lane in manifest["lanes"] if lane["id"] == lane_id)
 
     def test_exec_command_places_approval_policy_before_subcommand(self) -> None:
         command = conformance.build_exec_command(
@@ -382,6 +398,85 @@ class CodexConformanceTests(unittest.TestCase):
             json.dumps({"type": "thread.started", "metadata": {"model": "gpt-test-model"}})
         )
         self.assertEqual(["gpt-test-model"], parsed["observed_models"])
+
+    def test_reference_lane_requires_full_skill_and_reference_reads(self) -> None:
+        lane = self._reference_lane()
+        installed_root = Path("C:/isolated/codex-home/plugins/cache/sre-agents")
+        frozen_root = Path("C:/isolated/marketplace/plugins/sre-agents")
+        artifact_texts = {
+            "skills/backend-craft/SKILL.md": "backend skill\n",
+            "skills/backend-craft/references/api-design.md": "api reference\n",
+        }
+        artifact_paths = {
+            relative: {
+                "installed-cache": installed_root / Path(relative),
+                "frozen-marketplace": frozen_root / Path(relative),
+            }
+            for relative in artifact_texts
+        }
+
+        def trace(include_reference: bool) -> str:
+            events = []
+            selected = list(artifact_texts)
+            if not include_reference:
+                selected = selected[:1]
+            for index, relative in enumerate(selected):
+                events.append(
+                    json.dumps(
+                        {
+                            "type": "item.completed",
+                            "item": {
+                                "id": f"command-{index}",
+                                "type": "command_execution",
+                                "command": f"Get-Content -Raw '{artifact_paths[relative]['installed-cache']}'",
+                                "aggregated_output": artifact_texts[relative],
+                                "exit_code": 0,
+                                "status": "completed",
+                            },
+                        }
+                    )
+                )
+            events.extend(
+                (
+                    json.dumps(
+                        {
+                            "type": "item.completed",
+                            "item": {
+                                "type": "agent_message",
+                                "text": json.dumps(lane["expected"]),
+                            },
+                        }
+                    ),
+                    json.dumps({"type": "turn.completed", "usage": {}}),
+                )
+            )
+            return "\n".join(events)
+
+        passed = conformance.score_reference_trace(
+            conformance.parse_codex_jsonl(trace(True)),
+            lane=lane,
+            artifact_texts=artifact_texts,
+            artifact_paths=artifact_paths,
+            isolated_root=Path("C:/isolated"),
+            returncode=0,
+            stderr="",
+            timed_out=False,
+        )
+        self.assertEqual("pass", passed.verdict)
+        self.assertTrue(passed.skill_read_verified)
+        self.assertEqual(2, passed.skill_read_diagnostics["verified_artifact_count"])
+
+        missing = conformance.score_reference_trace(
+            conformance.parse_codex_jsonl(trace(False)),
+            lane=lane,
+            artifact_texts=artifact_texts,
+            artifact_paths=artifact_paths,
+            isolated_root=Path("C:/isolated"),
+            returncode=0,
+            stderr="",
+            timed_out=False,
+        )
+        self.assertEqual("fail", missing.verdict)
 
     def test_git_status_failure_is_not_clean(self) -> None:
         failed = type(
