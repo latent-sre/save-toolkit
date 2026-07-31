@@ -10,9 +10,8 @@ baseline says so ("treat as a LOWER BOUND").
 
 CLAUDE_CONFIG_DIR relocates the whole user config -- "If you set CLAUDE_CONFIG_DIR, every ~/.claude
 path on this page lives under that directory instead" (code.claude.com/docs/en/claude-directory).
-Point it at a temp dir holding ONLY the credentials and the model sees the project's .claude/ and
-nothing else. Probed: sde-ladder (project) YES / eng-ladder (personal) NO / backend-craft
-(personal + plugin) NO.
+Point it at a temp dir holding ONLY the credentials, then load the repository explicitly with
+`--plugin-dir`. The model sees this plugin and none of the operator's personal fleet.
 
 WHY THIS MODULE REFUSES RATHER THAN DEGRADES
 An EMPTY config dir breaks auth, and that failure is silent in the worst possible way: `claude -p`
@@ -192,8 +191,8 @@ def clean_env():
     """Yield an env whose CLAUDE_CONFIG_DIR holds ONLY the credentials (or nothing, for API-key/
     Bedrock/Vertex auth -- see has_api_key_auth()).
 
-    The model then sees the project's .claude/skills and .claude/agents and nothing else: no personal
-    skills, no personal agents, no installed plugins, no personal CLAUDE.md.
+    The caller loads this repository with `--plugin-dir`; the model then sees that plugin and
+    nothing else from the operator's personal Claude configuration.
     """
     warn_if_settings_local_present()
     creds = None if has_api_key_auth() else require_credentials()

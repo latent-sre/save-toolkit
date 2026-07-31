@@ -22,8 +22,8 @@ python evals/run_evals.py --list         # show scenarios
 python evals/run_evals.py --run          # invoke the fleet and grade (needs a Claude-enabled runner)
 ```
 
-`--run` shells out to `"$CLAUDE_BIN" -p <prompt>` (default `claude`) in a **fresh process per trial** —
-a fresh session so leftover authoring context can't mask gaps (per the skills best-practice). Swap
+`--run` shells out to `"$CLAUDE_BIN" -p <prompt> --plugin-dir <repo>` (default `claude`) in a
+**fresh process per trial** — a fresh session so leftover authoring context can't mask gaps. Swap
 `run_agent()` in `run_evals.py` for the Agent SDK if you'd rather drive it programmatically.
 
 ## Discovery (routing *without* a target hint) — retired, re-author against the shipped fleet
@@ -33,15 +33,15 @@ a fresh session so leftover authoring context can't mask gaps (per the skills be
 skill on its own. A discovery probe (`discovery_probe.py` + `discovery/*.yaml`) used to fill that
 gap, but the whole set was authored against the retired legacy fleet and was removed in the
 2026-07 cleanup — recoverable at tag `pre-cleanup-2026-07-15`, along with its measured baselines.
-Re-author both the probe and its scenarios against the shipped layout (`skills/`,
-`generated/claude/agents/`) when discovery measurement is needed again.
+Re-author both the probe and its scenarios against the canonical plugin (`agents/`, `skills/`) when
+discovery measurement is needed again.
 
 ## The clean room (and why a baseline states its namespace)
 
 Every trial runs with `CLAUDE_CONFIG_DIR` pointed at a temp dir holding only your credentials
-(`evals/clean_room.py`). The model therefore sees this project's `.claude/skills` and
-`.claude/agents` and **nothing else** — not your personal `~/.claude` skills or agents, not your
-installed plugins, not your global `CLAUDE.md`.
+(`evals/clean_room.py`) while `--plugin-dir` loads this repository explicitly. The model therefore
+sees this plugin and **nothing else** from the operator's personal agents, skills, installed plugins,
+or global `CLAUDE.md`.
 
 This is not tidiness. Those things do not shadow the fleet by name; they **compete with it for
 discovery** — the property a discovery probe exists to measure. Before the clean room, every

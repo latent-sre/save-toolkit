@@ -1,0 +1,22 @@
+{
+  "name": "sre-agents",
+  "description": "Application-engineering and site-reliability agents and reusable skills.",
+  "version": "1.0.0",
+  "author": {
+    "name": "latent-sre",
+    "url": "https://github.com/latent-sre"
+  },
+  "homepage": "https://github.com/latent-sre/sre-agents",
+  "repository": "https://github.com/latent-sre/sre-agents",
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "skills",
+    "sre",
+    "observability",
+    "pcf"
+  ],
+  "agents": "./.github/agents/",
+  "skills": "./platforms/copilot/skills/",
+  "hooks": "./hooks/copilot-hooks.json"
+}

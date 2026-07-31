@@ -1,11 +1,12 @@
 # SRE Agents — fleet guide
 
-A Claude Code fleet for application engineering and site reliability work: **6 agents, 26 skills**,
-living under [`.claude/`](.claude/) as directly edited source — no generator, no projections. Routing
-is native: agent descriptions select the lane; skills load by description match or `/name`.
+A multi-host engineering plugin with **6 canonical agents and 26 canonical skills**. Claude Code
+loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code and Codex adapters are
+generated and committed from those sources; edit neither projection by hand. Routing is native:
+descriptions select lanes and Claude components are invoked as `sre-agents:<name>`.
 
 The stack, the stay-in-lane rule, and the platform boundary live in **one** place: the
-[`stack-profile`](.claude/skills/stack-profile/SKILL.md) skill. Load it before recommending any
+[`stack-profile`](skills/stack-profile/SKILL.md) skill. Load it before recommending any
 runtime, tool, or infrastructure change; nothing in this file restates it.
 
 ## The roster
@@ -21,7 +22,7 @@ runtime, tool, or infrastructure change; nothing in this file restates it.
 
 No agent pins a `model:` — the whole fleet inherits the session model (zero sync maintenance; the
 trade-off and the revisit condition are recorded in
-[`agent-authoring/references/roster.md`](.claude/skills/agent-authoring/references/roster.md)).
+[`agent-authoring/references/roster.md`](skills/agent-authoring/references/roster.md)).
 
 ## Enforcement: two mechanisms, in preference order
 
@@ -29,7 +30,9 @@ trade-off and the revisit condition are recorded in
    Bash and no Write; `sre-steward` holds no web tools — lookups delegate to `researcher`.
 2. **The allowlist guard** for agents that need live Bash reads (`sre`, `sre-steward`):
    [`scripts/readonly-guard.py`](scripts/readonly-guard.py), fail-closed, allowlist-not-denylist,
-   wired per-agent via frontmatter `PreToolUse` hooks. It sees only Bash. `WebFetch` on `sde`,
+   wired once at plugin scope in [`hooks/hooks.json`](hooks/hooks.json) and self-scoped to exact
+   guarded `agent_type` values. Plugin agent frontmatter hooks are ignored and forbidden here. The
+   guard sees only Bash. `WebFetch` on `sde`,
    `sre`, and `prompt-engineer` is an egress channel no hook inspects — the load-bearing egress
    control is the host/network outbound allowlist, and "read-only agent" never means "cannot
    exfiltrate".
@@ -38,10 +41,14 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 
 - `Agent(target)` grants in `tools:` document and enforce delegation edges for a **main-thread**
   agent; at subagent depth the type list is silently ignored (probed platform fact — see
-  [`claude-code-frontmatter.md`](.claude/skills/agent-authoring/references/claude-code-frontmatter.md)).
+  [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md)).
   The graph is a convention plus main-thread enforcement, not a universal control.
 - The guard is a command filter, not a sandbox; OS-level least privilege remains the load-bearing
   control underneath it.
+- Host projections preserve intent without pretending enforcement equivalence: guarded Copilot/
+  VS Code agents receive no `execute` tool; Codex agents request `read-only` or `workspace-write`
+  sandbox mode but parent permissions may override it and custom-agent TOML has no per-agent tool
+  allowlist. These differences are stated in every generated adapter.
 - `cf env`, `cf service-key`, and `CF_TRACE` output are denied to agents outright — those reads
   leak credentials next to egress. A human runs them and pastes the sanitized excerpt.
 
@@ -64,7 +71,7 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 ## Typical flows
 
 - **Ship a feature:** `sde` → `reviewer` (both lenses) → `merge-gate`; a human release owner runs
-  `release-gate` → `/pcf-deploy` → `sre-steward` documents new ops steps.
+  `release-gate` → `/sre-agents:pcf-deploy` → `sre-steward` documents new ops steps.
 - **Production incident:** `sre` (triage + RCA, `incident-command` loaded for process/comms); a
   human release owner executes mitigation; `sde` fixes root cause; `sre-steward` closes the
   detection gap, then writes the postmortem.

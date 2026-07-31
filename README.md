@@ -1,21 +1,27 @@
 # SRE Agents
 
-SRE Agents is a **Claude Code** fleet of **6 agents and 26 skills** for application engineering and
-site reliability work. Everything lives under [`.claude/`](.claude/) as directly edited source —
-there is no generator and no projection; the file you edit is the file the runtime loads.
+SRE Agents is a multi-host plugin containing **6 agents and 26 skills** for application engineering
+and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
+sources directly. GitHub Copilot/VS Code and Codex receive committed, host-native projections made by
+one deterministic generator; generated files are never edited by hand.
 
 ## Layout
 
-- [`.claude/agents/`](.claude/agents) — the six agent definitions (frontmatter carries the
-  authority: `tools`, delegation grants, guard hooks).
-- [`.claude/skills/`](.claude/skills) — the 26 Agent Skills with their `references/`, `assets/`,
-  and `scripts/`.
-- [`.claude/commands/adr.md`](.claude/commands/adr.md) — the manual ADR scaffold (`/adr`).
+- [`agents/`](agents) — the six canonical Claude plugin agent definitions; `tools` carries authority.
+- [`skills/`](skills) — the 26 canonical skills and their progressive-disclosure `references/`,
+  `assets/`, and `scripts/` bundles.
+- [`commands/adr.md`](commands/adr.md) — the canonical Claude `/sre-agents:adr` scaffold.
+- [`.claude-plugin/`](.claude-plugin) and [`hooks/`](hooks) — Claude manifest/marketplace plus the
+  session-scoped guarded-Bash hook.
+- [`plugin.json`](plugin.json), [`.github/agents/`](.github/agents), and
+  [`platforms/copilot/skills/`](platforms/copilot/skills) — Copilot/VS Code plugin and projections.
+- [`plugins/sre-agents/`](plugins/sre-agents) and [`.codex/agents/`](.codex/agents) — Codex skills
+  plugin plus standalone custom-agent projections.
 - [`scripts/`](scripts) — the structural gate (`gate_a.py`), the read-only allowlist guard
-  (`readonly-guard.py` + launcher), and their tests.
+  (`readonly-guard.py`), generator, optional Codex agent installer, validators, and mutation tests.
 
-Routing is native: agent descriptions select the lane; skills load by description match or `/name`.
-The roster, enforcement model, and shared conventions are in [AGENTS.md](AGENTS.md).
+Routing is native. Claude plugin components are namespaced as `sre-agents:<name>`; generated hosts
+use their native bare component names. The roster and enforcement model are in [AGENTS.md](AGENTS.md).
 
 ## Fleet inventory
 
@@ -70,6 +76,22 @@ Microsoft Store stub):
 
 ```powershell
 py -3 scripts/gate_a.py
+```
+
+Regenerate projections only after editing canonical sources:
+
+```powershell
+py -3 scripts/generate_platform_adapters.py --write
+py -3 scripts/generate_platform_adapters.py
+claude plugin validate . --strict
+```
+
+Codex currently discovers plugin skills separately from standalone custom agents. To install the
+generated agents into an explicit project/user scope without overwriting user-owned files:
+
+```powershell
+py -3 scripts/install_codex_agents.py --target C:\path\to\project\.codex\agents
+# or, intentionally: py -3 scripts/install_codex_agents.py --user
 ```
 
 Gate A owns its step list; do not copy that list into documentation. Behavioral evaluations under

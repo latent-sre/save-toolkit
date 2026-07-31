@@ -1,0 +1,33 @@
+# Multi-component builds — contracts, batches, and ownership
+
+Read as soon as the design contains more than one independently buildable component. The pipeline
+in `../SKILL.md` remains authoritative.
+
+## Design additions
+
+- Instantiate `../assets/contract.template.md` as a repository artifact with concrete request,
+  response, and error examples. It is versioned and living: an implementation that diverges updates
+  the contract in the same change.
+- Name one owner for the contract during each batch. Other builders are read-only on it and route
+  change requests through the orchestrator, which propagates the new version to every consumer.
+- Draw a dependency graph. Serialize the walking skeleton and genuine prerequisites; group
+  independent slices into batches with disjoint file ownership.
+- If a UI is included, approve a static mockup for key screens and both themes before framework code.
+
+## Build additions
+
+1. Build the thinnest end-to-end walking skeleton against the real contract and verify it first.
+2. Keep safety-critical slices behind per-slice review. Build lower-blast-radius independent slices
+   in parallel batches and verify at each batch boundary.
+3. Give each builder exact file ownership, the contract path and version, acceptance criteria, and
+   the checkpoint it must reach. A builder cites the artifact, never another builder's partial code.
+4. When a contract change is necessary, stop only affected consumers, update once through the owner,
+   and resume from the new pinned version.
+
+## Review additions
+
+- Give the reviewer the mission, threat model, immutable target identity, and contract artifact.
+  Compare served shapes and error cases to the pinned contract.
+- Review contract changes explicitly: compatibility, generated clients, migrations, and rollback.
+- The final verification crosses every component with one real mission transaction; green unit
+  suites on each side do not prove the integration.

@@ -64,11 +64,10 @@ def load_scenarios() -> list[dict]:
 
 
 def target_exists(target: str) -> bool:
-    # Shipped plugin layout: skills at the plugin root, agents as the generated Claude projections.
-    for skills, agents in ((".claude/skills", ".claude/agents"),):
-        if (ROOT / skills / target / "SKILL.md").is_file() or (ROOT / agents / f"{target}.md").is_file():
-            return True
-    return False
+    return (
+        (ROOT / "skills" / target / "SKILL.md").is_file()
+        or (ROOT / "agents" / f"{target}.md").is_file()
+    )
 
 
 def validate(scenarios: list[dict]) -> list[str]:
@@ -113,7 +112,7 @@ def run_agent(prompt: str, target: str, env: dict[str, str] | None = None) -> st
     claude = os.environ.get("CLAUDE_BIN", "claude")
     hint = f"(Use the {target} skill/agent.)\n\n" if target else ""
     proc = subprocess.run(
-        [claude, "-p", hint + prompt],
+        [claude, "-p", hint + prompt, "--plugin-dir", str(ROOT)],
         capture_output=True, text=True, timeout=300, check=False,
         # Decode as UTF-8 explicitly: text=True alone uses the locale codec, which on Windows is
         # cp1252 and dies on the em-dashes/box-drawing the fleet emits. The reader thread then

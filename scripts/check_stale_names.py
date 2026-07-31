@@ -12,8 +12,8 @@ from pathlib import Path
 
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 STALE = (
-    # `researcher` and `prompt-engineer` are NOT here: both were reinstated as Claude-only
-    # survivors in the 2026-07-17 adoption. `observer` and `scribe` retired into `sre-steward`.
+    # `researcher` and `prompt-engineer` remain canonical plugin agents.
+    # `observer` and `scribe` retired into `sre-steward`.
     "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
     "test-engineer", "sre-monitor", "runbook-author",
     "observer", "scribe",
@@ -64,7 +64,7 @@ def _scan_file(path: Path) -> list[str]:
 
 def _scan_tree(root: Path) -> list[str]:
     failures = []
-    for relative in (Path(".claude/skills"), Path(".claude/agents"), Path(".claude/commands")):
+    for relative in (Path("skills"), Path("agents"), Path("commands")):
         base = root / relative
         if not base.is_dir():
             continue

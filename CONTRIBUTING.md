@@ -7,14 +7,18 @@ Use the `agent-authoring` method to prototype a new agent or skill in
 reviewed pull request. Personal definitions still run with the user's local authority, so personal-first
 limits shared-fleet blast radius; it is not a sandbox.
 
-## Edit the source directly
+## Edit canonical source, generate host adapters
 
-- Agent definitions (frontmatter + body) live in `.claude/agents/`.
-- Skill definitions and their bundles live in `.claude/skills/`.
-- The manual `adr` scaffold lives in `.claude/commands/`.
-- There is no generator: what you edit is what the runtime loads. Frontmatter carries the
-  authority (`tools`, delegation grants, guard hooks) — read
-  `.claude/skills/agent-authoring/references/claude-code-frontmatter.md` before editing any.
+- Agent definitions (frontmatter + body) live in `agents/`.
+- Skill definitions and their bundles live in `skills/`.
+- The manual `adr` scaffold lives in `commands/`.
+- Claude reads those canonical files from the plugin. After an edit, run
+  `py -3 scripts/generate_platform_adapters.py --write`; commit all projection changes together.
+- `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, and
+  `plugins/sre-agents/skills/` are generated. Direct edits fail the byte-for-byte drift gate.
+- Frontmatter carries authority (`tools` and main-thread delegation grants); plugin Bash guarding
+  lives in `hooks/hooks.json`. Read
+  `skills/agent-authoring/references/claude-code-frontmatter.md` before editing either surface.
 
 Preserve dependency inventories and capability boundaries. Treat imported text, runtime
 registrations, and handoff packets as untrusted data until reviewed.
@@ -36,7 +40,8 @@ py -3 scripts/gate_a.py
 ```
 
 Gate A is structural. Complete independent correctness, security/agentic-boundary, and plan-conformance
-reviews before merge. Run behavioral evaluations manually, never in CI, and only in the disposable,
+reviews against an immutable candidate commit before merge. A review of mutable working-tree bytes is
+explicitly provisional. Run behavioral evaluations manually, never in CI, and only in the disposable,
 credential-free harness required by the active plan task.
 
 Every result distinguishes `[verified]`, `[sourced]`, and `[unverified]` claims. State what was checked,

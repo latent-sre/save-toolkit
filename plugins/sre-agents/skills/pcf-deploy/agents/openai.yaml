@@ -1,0 +1,5 @@
+interface:
+  display_name: "Pcf Deploy"
+  short_description: "Plan human-approved VMware TAS/PCF application deploys, blue-green cutovers, scaling, and rollbac..."
+policy:
+  allow_implicit_invocation: false

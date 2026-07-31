@@ -34,10 +34,20 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # first: a broken validator
 # makes every downstream result meaningless, so it fails before we spend time on the eval harness.
 STEPS = [
-    ("Reference links load in VS Code (5d)",
+    ("Canonical skill and bundle links",
      ["scripts/check_links.py"], None),
     ("No stale unit names",
      ["scripts/check_stale_names.py"], None),
+    ("Fleet, plugin, and generated adapter contracts",
+     ["scripts/validate_fleet.py"], None),
+    ("Fleet validator mutation tests",
+     ["scripts/test_validate_fleet.py"], None),
+    ("Platform adapter contract tests",
+     ["scripts/test_platform_adapters.py"], None),
+    ("Codex agent installer safety tests",
+     ["scripts/test_install_codex_agents.py"], None),
+    ("Plugin hook wiring",
+     ["scripts/test_hook_wiring.py"], None),
     ("Read-only guard",
      ["scripts/test_readonly_guard.py"], None),
     ("Eval graders",
