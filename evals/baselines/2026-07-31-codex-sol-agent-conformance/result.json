@@ -3,18 +3,182 @@
   "agent_source_sha256": "8328effa9f5a31b182635778a715d0c377ec4d843621b38589efd5ac63731bdd",
   "auth_boundary": "The isolated CODEX_HOME contains auth.json and temporary session rollouts during the run; both are deleted before this sanitized report is returned.",
   "base_runner_sha256": "8fdf226d76a21c274b9ec002b2a6bf464bcb5c1f87aec57648e1a710d6820357",
-  "duration_ms": 12937,
-  "generated_at": "2026-07-31T22:26:27.202357Z",
+  "duration_ms": 88797,
+  "generated_at": "2026-07-31T22:36:56.894734Z",
   "harness_inputs_dirty": false,
   "installed_agent_count": 6,
   "installed_agent_sha256": "aba657f0764016596ace9fab50d579e9c9d51530a0d37c89ea07efbcf4b34383",
-  "manifest_sha256": "b132cfe74c029870e6b9a6e553d035d7ed39912192cf025d160c0a9ec258b824",
+  "manifest_sha256": "6b8d1233a9eb9f97fabada3fc6aa667ebe29c8d6066621646c155f25a09a32af",
   "plugin_inputs_dirty": false,
-  "plugin_inventory_sha256": "5ca9c14bdcabf4e9a4dd3eb9b78d6f009b3f842c9be209c9dfb7df9427cf9226",
+  "plugin_inventory_sha256": "d96fc7b58cc6acd6205ce7d8db3fbc0e8860bc32ca676d2254df5085785ec48b",
   "plugin_source_sha256": "744921e4e90c4025d815817d2ad3238e9c98abc58d7ad697cbb393b83082d64a",
   "raw_transcript_persisted": false,
-  "repository_commit": "7ea8a6c162e17c960b62d4a2a48f3b699b8d9adc",
+  "repository_commit": "807a35e28b049dc910663c1e2901dc91113aa581",
   "results": [
+    {
+      "agent": "prompt-engineer",
+      "agent_instruction_sha256": "36cf3bca674056bf382d9274300758cacfbfff2ec47f774643bc947b43f8ceca",
+      "agent_sha256": "e4a6313d7c5059c960dfff423fe6238b35d09e80dd84cbf6d18dca20074b70cd",
+      "approval_policy": "never",
+      "cli_version": "codex-cli 0.145.0",
+      "diagnostics": {
+        "agent_instruction_sha256": "36cf3bca674056bf382d9274300758cacfbfff2ec47f774643bc947b43f8ceca",
+        "agent_instructions_loaded": true,
+        "child_metadata": [
+          {
+            "agent_path": "/root/prompt_engineer_canary",
+            "agent_role": "prompt-engineer",
+            "source_agent_role": "prompt-engineer",
+            "source_parent_matched": true
+          }
+        ],
+        "child_response_matched": true,
+        "child_rollout_count": 1,
+        "child_runtime_contract_matched": true,
+        "child_tool_call_count": 0,
+        "parent_child_delivery_count": 1,
+        "parent_oracle_matched": true,
+        "parent_rollout_count": 1,
+        "parent_runtime_contract_matched": true,
+        "rollout_count": 2,
+        "runtime_error_count": 0,
+        "spawn_arguments": {
+          "agent_type": "prompt-engineer",
+          "fork_turns": "none",
+          "task_name": "prompt_engineer_canary"
+        },
+        "spawn_call_count": 1,
+        "spawn_output": {
+          "task_name": "/root/prompt_engineer_canary"
+        },
+        "spawn_succeeded": true,
+        "stdout_thread_id": "019fba51-789b-7c70-a87e-afc451f0b74b",
+        "stdout_trace_complete": true,
+        "wait_call_count": 1,
+        "wait_succeeded": true
+      },
+      "duration_ms": 19047,
+      "ended_at": "2026-07-31T22:35:47.791431Z",
+      "event_count": 6,
+      "exit_code": 0,
+      "expected": {
+        "agent": "prompt-engineer",
+        "delegated": true,
+        "instruction_canary": "Prompt diffs get reviewed like code diffs."
+      },
+      "kind": "agent-delegation",
+      "lane_id": "codex-sol-prompt-engineer-delegation",
+      "observed_model_exposed": true,
+      "observed_models": [
+        "gpt-5.6-sol"
+      ],
+      "prompt_digest": "2979884e8cc1c52fcbd6cddd253d7af796a8ba8364ecc1913fb9d68ca5925151",
+      "reason": "successful named delegation, child profile load, runtime contract, and exact oracles verified",
+      "reasoning_effort": "high",
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "agent": "prompt-engineer",
+        "delegated": true,
+        "instruction_canary": "Prompt diffs get reviewed like code diffs."
+      },
+      "rollout_digest": "879e8b9d6c36abee0eeda6bbb96598c06205a7e9b246afdc043cfbf69d86e3ef",
+      "sandbox": "read-only",
+      "started_at": "2026-07-31T22:35:28.739312Z",
+      "stdout_stderr_digest": "4ce88346d517ca6dafe3bff92aeb932eef25caef1becf92a7cc9dc5784219549",
+      "task_name": "prompt_engineer_canary",
+      "timed_out": false,
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 26880,
+        "input_tokens": 45783,
+        "output_tokens": 223,
+        "reasoning_output_tokens": 97
+      },
+      "verdict": "pass"
+    },
+    {
+      "agent": "researcher",
+      "agent_instruction_sha256": "9f18a58c09ff7420a375f8c8d3179c2b63026598efa94895ce5b603368dcaa53",
+      "agent_sha256": "2737a3a5d633ee1c19146196d3432ea39ee4d3f806eba59cabeba0201f75b6a3",
+      "approval_policy": "never",
+      "cli_version": "codex-cli 0.145.0",
+      "diagnostics": {
+        "agent_instruction_sha256": "9f18a58c09ff7420a375f8c8d3179c2b63026598efa94895ce5b603368dcaa53",
+        "agent_instructions_loaded": true,
+        "child_metadata": [
+          {
+            "agent_path": "/root/researcher_canary",
+            "agent_role": "researcher",
+            "source_agent_role": "researcher",
+            "source_parent_matched": true
+          }
+        ],
+        "child_response_matched": true,
+        "child_rollout_count": 1,
+        "child_runtime_contract_matched": true,
+        "child_tool_call_count": 0,
+        "parent_child_delivery_count": 1,
+        "parent_oracle_matched": true,
+        "parent_rollout_count": 1,
+        "parent_runtime_contract_matched": true,
+        "rollout_count": 4,
+        "runtime_error_count": 0,
+        "spawn_arguments": {
+          "agent_type": "researcher",
+          "fork_turns": "none",
+          "task_name": "researcher_canary"
+        },
+        "spawn_call_count": 1,
+        "spawn_output": {
+          "task_name": "/root/researcher_canary"
+        },
+        "spawn_succeeded": true,
+        "stdout_thread_id": "019fba51-c136-7922-b089-6607ddd8497c",
+        "stdout_trace_complete": true,
+        "wait_call_count": 1,
+        "wait_succeeded": true
+      },
+      "duration_ms": 11516,
+      "ended_at": "2026-07-31T22:35:59.312071Z",
+      "event_count": 6,
+      "exit_code": 0,
+      "expected": {
+        "agent": "researcher",
+        "delegated": true,
+        "instruction_canary": "Never send private or uncommitted text to an external evidence service."
+      },
+      "kind": "agent-delegation",
+      "lane_id": "codex-sol-researcher-delegation",
+      "observed_model_exposed": true,
+      "observed_models": [
+        "gpt-5.6-sol"
+      ],
+      "prompt_digest": "6259dabedf327accad3970835a79bc45017c81df69e13f7db2ea3f7a173f81e0",
+      "reason": "successful named delegation, child profile load, runtime contract, and exact oracles verified",
+      "reasoning_effort": "high",
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "agent": "researcher",
+        "delegated": true,
+        "instruction_canary": "Never send private or uncommitted text to an external evidence service."
+      },
+      "rollout_digest": "5c0c65a78a18572e1f1080fbedced7cfa474731b6634a7241d1ad49cdaf9fd5d",
+      "sandbox": "read-only",
+      "started_at": "2026-07-31T22:35:47.791945Z",
+      "stdout_stderr_digest": "16ba49ca749ac73c2b3ebc6fd953eb19d813127583789b8ccd019035fa60564c",
+      "task_name": "researcher_canary",
+      "timed_out": false,
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 36096,
+        "input_tokens": 45686,
+        "output_tokens": 192,
+        "reasoning_output_tokens": 54
+      },
+      "verdict": "pass"
+    },
     {
       "agent": "reviewer",
       "agent_instruction_sha256": "a2aaddc0d2847cfa581c8a8c46ba847597f292198885bb491e216e3bfcf8543e",
@@ -40,7 +204,7 @@
         "parent_oracle_matched": true,
         "parent_rollout_count": 1,
         "parent_runtime_contract_matched": true,
-        "rollout_count": 2,
+        "rollout_count": 6,
         "runtime_error_count": 0,
         "spawn_arguments": {
           "agent_type": "reviewer",
@@ -52,13 +216,13 @@
           "task_name": "/root/reviewer_canary"
         },
         "spawn_succeeded": true,
-        "stdout_thread_id": "019fba49-06ef-7ab0-aef5-6a2ecf7d8601",
+        "stdout_thread_id": "019fba51-eebd-7470-a00b-239a1f9e134c",
         "stdout_trace_complete": true,
         "wait_call_count": 1,
         "wait_succeeded": true
       },
-      "duration_ms": 12203,
-      "ended_at": "2026-07-31T22:26:27.000746Z",
+      "duration_ms": 11468,
+      "ended_at": "2026-07-31T22:36:10.775569Z",
       "event_count": 6,
       "exit_code": 0,
       "expected": {
@@ -82,28 +246,274 @@
         "delegated": true,
         "instruction_canary": "Zero noise over perfect coverage: a review with three real findings beats one with twenty theoretical ones."
       },
-      "rollout_digest": "829610806f1625ca65fc965eafb52ea376006b347e36add92ec7b1264f839516",
+      "rollout_digest": "3d9b3b8a9b5e3ef667c21b9734517b10e66cd928d21ffb2c4b75dedaa9d309f8",
       "sandbox": "read-only",
-      "started_at": "2026-07-31T22:26:14.806777Z",
-      "stdout_stderr_digest": "8812f231be1652931e6f65a5811d0cc3c965d6710ed6a922a72b2917c9c2fa06",
+      "started_at": "2026-07-31T22:35:59.312071Z",
+      "stdout_stderr_digest": "43151eaf9bc2b280b9d5940785255119421f221e25c64ee47f48e1cf03f2a02a",
       "task_name": "reviewer_canary",
       "timed_out": false,
       "usage": {
         "cache_write_input_tokens": 0,
-        "cached_input_tokens": 26880,
-        "input_tokens": 45669,
-        "output_tokens": 186,
-        "reasoning_output_tokens": 42
+        "cached_input_tokens": 41216,
+        "input_tokens": 45656,
+        "output_tokens": 182,
+        "reasoning_output_tokens": 48
+      },
+      "verdict": "pass"
+    },
+    {
+      "agent": "sde",
+      "agent_instruction_sha256": "6e1d1210d61e1ccb8494daa25d1d35cb95d2c9f704b9814c7d7b368b9829d115",
+      "agent_sha256": "68424a809a69bb5e1ace6930c72995ceb670009372afee76925c13a9f96061ba",
+      "approval_policy": "never",
+      "cli_version": "codex-cli 0.145.0",
+      "diagnostics": {
+        "agent_instruction_sha256": "6e1d1210d61e1ccb8494daa25d1d35cb95d2c9f704b9814c7d7b368b9829d115",
+        "agent_instructions_loaded": true,
+        "child_metadata": [
+          {
+            "agent_path": "/root/sde_canary",
+            "agent_role": "sde",
+            "source_agent_role": "sde",
+            "source_parent_matched": true
+          }
+        ],
+        "child_response_matched": true,
+        "child_rollout_count": 1,
+        "child_runtime_contract_matched": true,
+        "child_tool_call_count": 0,
+        "parent_child_delivery_count": 1,
+        "parent_oracle_matched": true,
+        "parent_rollout_count": 1,
+        "parent_runtime_contract_matched": true,
+        "rollout_count": 8,
+        "runtime_error_count": 0,
+        "spawn_arguments": {
+          "agent_type": "sde",
+          "fork_turns": "none",
+          "task_name": "sde_canary"
+        },
+        "spawn_call_count": 1,
+        "spawn_output": {
+          "task_name": "/root/sde_canary"
+        },
+        "spawn_succeeded": true,
+        "stdout_thread_id": "019fba52-1b05-7d72-8a51-ba40443feb0e",
+        "stdout_trace_complete": true,
+        "wait_call_count": 1,
+        "wait_succeeded": true
+      },
+      "duration_ms": 15828,
+      "ended_at": "2026-07-31T22:36:26.605676Z",
+      "event_count": 6,
+      "exit_code": 0,
+      "expected": {
+        "agent": "sde",
+        "delegated": true,
+        "instruction_canary": "You build and run code the team authored; you are not a sandbox for untrusted diffs \u2014 that evidence comes from CI or not at all."
+      },
+      "kind": "agent-delegation",
+      "lane_id": "codex-sol-sde-delegation",
+      "observed_model_exposed": true,
+      "observed_models": [
+        "gpt-5.6-sol"
+      ],
+      "prompt_digest": "fc6d771c7a19ca1689562a37e2680d78e999bd40c7f75a33b5d805364b6f1e08",
+      "reason": "successful named delegation, child profile load, runtime contract, and exact oracles verified",
+      "reasoning_effort": "high",
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "agent": "sde",
+        "delegated": true,
+        "instruction_canary": "You build and run code the team authored; you are not a sandbox for untrusted diffs \u2014 that evidence comes from CI or not at all."
+      },
+      "rollout_digest": "86d31c5235e818f8b56f7a5335a671dd6e6b04bd74aee6d2bb25972227945291",
+      "sandbox": "read-only",
+      "started_at": "2026-07-31T22:36:10.775569Z",
+      "stdout_stderr_digest": "723366f360432d32be68dca7c47098a7e466c58be59e4603b7d68953cf9f8696",
+      "task_name": "sde_canary",
+      "timed_out": false,
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 43264,
+        "input_tokens": 45728,
+        "output_tokens": 222,
+        "reasoning_output_tokens": 68
+      },
+      "verdict": "pass"
+    },
+    {
+      "agent": "sre",
+      "agent_instruction_sha256": "66c382c08f7a8841a4fa706c363fa955c44c15e1f2c73183e76279bd914adcea",
+      "agent_sha256": "4068a9a9341c4d43c8073700e1da1debf8897bab4e384d833666e0b77c16a741",
+      "approval_policy": "never",
+      "cli_version": "codex-cli 0.145.0",
+      "diagnostics": {
+        "agent_instruction_sha256": "66c382c08f7a8841a4fa706c363fa955c44c15e1f2c73183e76279bd914adcea",
+        "agent_instructions_loaded": true,
+        "child_metadata": [
+          {
+            "agent_path": "/root/sre_canary",
+            "agent_role": "sre",
+            "source_agent_role": "sre",
+            "source_parent_matched": true
+          }
+        ],
+        "child_response_matched": true,
+        "child_rollout_count": 1,
+        "child_runtime_contract_matched": true,
+        "child_tool_call_count": 0,
+        "parent_child_delivery_count": 1,
+        "parent_oracle_matched": true,
+        "parent_rollout_count": 1,
+        "parent_runtime_contract_matched": true,
+        "rollout_count": 10,
+        "runtime_error_count": 0,
+        "spawn_arguments": {
+          "agent_type": "sre",
+          "fork_turns": "none",
+          "task_name": "sre_canary"
+        },
+        "spawn_call_count": 1,
+        "spawn_output": {
+          "task_name": "/root/sre_canary"
+        },
+        "spawn_succeeded": true,
+        "stdout_thread_id": "019fba52-5910-7653-b715-901c455c9652",
+        "stdout_trace_complete": true,
+        "wait_call_count": 1,
+        "wait_succeeded": true
+      },
+      "duration_ms": 14188,
+      "ended_at": "2026-07-31T22:36:40.785943Z",
+      "event_count": 6,
+      "exit_code": 0,
+      "expected": {
+        "agent": "sre",
+        "delegated": true,
+        "instruction_canary": "Eliminate; don't confirm-bias."
+      },
+      "kind": "agent-delegation",
+      "lane_id": "codex-sol-sre-delegation",
+      "observed_model_exposed": true,
+      "observed_models": [
+        "gpt-5.6-sol"
+      ],
+      "prompt_digest": "99a0e437634e0a8c523164164432949813261d7c9105ea110587f1282d8e8ed8",
+      "reason": "successful named delegation, child profile load, runtime contract, and exact oracles verified",
+      "reasoning_effort": "high",
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "agent": "sre",
+        "delegated": true,
+        "instruction_canary": "Eliminate; don't confirm-bias."
+      },
+      "rollout_digest": "79a3e7b418735944f5b6a35c6f696c72cde9de25d45e6f0c90202c90343b3eb4",
+      "sandbox": "read-only",
+      "started_at": "2026-07-31T22:36:26.605676Z",
+      "stdout_stderr_digest": "54c990655a97c81cad5dfc03fe13f2a46f75b49e80e926b984cc5b7f62382bb3",
+      "task_name": "sre_canary",
+      "timed_out": false,
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 40192,
+        "input_tokens": 45753,
+        "output_tokens": 220,
+        "reasoning_output_tokens": 96
+      },
+      "verdict": "pass"
+    },
+    {
+      "agent": "sre-steward",
+      "agent_instruction_sha256": "c6ca2bcb48eb7f697a5fec2dd892f61f832ec04ebddb0da7b665c23e5b08d4eb",
+      "agent_sha256": "0f2ab996c7a82af6be456e8aaaa7d45a5ffe5ed2671dda5699b12fd438e1dcea",
+      "approval_policy": "never",
+      "cli_version": "codex-cli 0.145.0",
+      "diagnostics": {
+        "agent_instruction_sha256": "c6ca2bcb48eb7f697a5fec2dd892f61f832ec04ebddb0da7b665c23e5b08d4eb",
+        "agent_instructions_loaded": true,
+        "child_metadata": [
+          {
+            "agent_path": "/root/sre_steward_canary",
+            "agent_role": "sre-steward",
+            "source_agent_role": "sre-steward",
+            "source_parent_matched": true
+          }
+        ],
+        "child_response_matched": true,
+        "child_rollout_count": 1,
+        "child_runtime_contract_matched": true,
+        "child_tool_call_count": 0,
+        "parent_child_delivery_count": 1,
+        "parent_oracle_matched": true,
+        "parent_rollout_count": 1,
+        "parent_runtime_contract_matched": true,
+        "rollout_count": 12,
+        "runtime_error_count": 0,
+        "spawn_arguments": {
+          "agent_type": "sre-steward",
+          "fork_turns": "none",
+          "task_name": "sre_steward_canary"
+        },
+        "spawn_call_count": 1,
+        "spawn_output": {
+          "task_name": "/root/sre_steward_canary"
+        },
+        "spawn_succeeded": true,
+        "stdout_thread_id": "019fba52-9057-7320-88ca-d2bcc30d5811",
+        "stdout_trace_complete": true,
+        "wait_call_count": 0,
+        "wait_succeeded": false
+      },
+      "duration_ms": 15906,
+      "ended_at": "2026-07-31T22:36:56.702330Z",
+      "event_count": 4,
+      "exit_code": 0,
+      "expected": {
+        "agent": "sre-steward",
+        "delegated": true,
+        "instruction_canary": "Do not document commands you have not verified or sourced without marking them clearly as unverified."
+      },
+      "kind": "agent-delegation",
+      "lane_id": "codex-sol-sre-steward-delegation",
+      "observed_model_exposed": true,
+      "observed_models": [
+        "gpt-5.6-sol"
+      ],
+      "prompt_digest": "22cbd969b19eddae4b1fa14bc158fbcec6a57df332d37c3d045623878c427cb0",
+      "reason": "successful named delegation, child profile load, runtime contract, and exact oracles verified",
+      "reasoning_effort": "high",
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "agent": "sre-steward",
+        "delegated": true,
+        "instruction_canary": "Do not document commands you have not verified or sourced without marking them clearly as unverified."
+      },
+      "rollout_digest": "79180445c167162439ee81b8cd377ffddf14942fd6daff831d8f09109d4a9e54",
+      "sandbox": "read-only",
+      "started_at": "2026-07-31T22:36:40.785943Z",
+      "stdout_stderr_digest": "8c4d92721a7ad98f0a5457c02905649f2597db189af3f47795bae31b96c8d1c5",
+      "task_name": "sre_steward_canary",
+      "timed_out": false,
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 22016,
+        "input_tokens": 30428,
+        "output_tokens": 153,
+        "reasoning_output_tokens": 29
       },
       "verdict": "pass"
     }
   ],
   "runner_sha256": "43e9f29d89bd355e5bdf666c47dc5d4353f2bbfb5062b158155026daef5f649e",
   "schema_version": 1,
-  "started_at": "2026-07-31T22:26:14.265456Z",
+  "started_at": "2026-07-31T22:35:28.103414Z",
   "summary": {
     "fail": 0,
     "inconclusive": 0,
-    "pass": 1
+    "pass": 6
   }
 }
