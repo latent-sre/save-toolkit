@@ -31,7 +31,8 @@ py -3 evals/run_codex_conformance.py --run --output result.json
 
 The live runner copies only `auth.json` into a temporary `CODEX_HOME`, registers a frozen local
 marketplace snapshot, installs exactly one plugin, and executes from an empty temporary git root with
-an allowlisted process environment. Raw JSONL is reduced in memory to deterministic facts and hashes;
+an allowlisted process environment. `HOME`, `USERPROFILE`, `APPDATA`, and `LOCALAPPDATA` point into
+that same disposable root, so personal `.agents` content is outside discovery. Raw JSONL is reduced in memory to deterministic facts and hashes;
 it is not saved. This is not a credential sandbox: Codex's read-only shell can read its temporary
 config tree. Therefore the runner accepts only fixed prompts committed in the manifest, and a
 live run fails closed unless both plugin and harness inputs match HEAD. Live execution also refuses
@@ -42,8 +43,33 @@ During deliberate development of team-authored inputs, `--allow-dirty-plugin` an
 unreviewed content.
 
 Codex plugin skills and standalone custom agents are separate host surfaces. These lanes prove plugin
-installation plus direct skill/reference loading; they do not yet claim direct custom-agent
-behavioral coverage.
+installation plus direct skill/reference loading. The standalone agent runner proves its own surface:
+
+```powershell
+py -3 evals/run_codex_agent_conformance.py --validate
+py -3 evals/run_codex_agent_conformance.py --run --output agent-result.json
+```
+
+The agent runner freezes and installs all six generated custom-agent TOMLs in the same isolated
+Codex home as the plugin, then asks the main Sol thread to delegate to `reviewer` with a no-history
+fork. A lane passes only when the private session rollouts prove all of the following:
+
+- exactly one successful `spawn_agent` call names `reviewer` and `fork_turns: none`;
+- the parent successfully waits for the named child;
+- exactly one child session is linked to the parent with `agent_role: reviewer`;
+- the child receives the exact installed `developer_instructions` bytes;
+- parent and child runtime contexts expose `gpt-5.6-sol`, high reasoning, read-only sandboxing, and
+  approval policy `never`; and
+- the text-only child makes no tool calls, its canary matches, the parent's exact JSON oracle matches,
+  and stderr contains no runtime error.
+
+Self-reported delegation is deliberately insufficient. This catches the observed failure mode where
+Codex rejected an incompatible spawn request but the main model still returned `delegated: true`.
+Unlike the ephemeral skill JSONL, the temporary parent/child turn context exposes the resolved model.
+The runner reduces those rollouts to hashes and structural facts, then deletes the complete temporary
+Codex home (including `auth.json` and the raw sessions) before writing the sanitized report. Live
+agent runs require clean plugin, generated-agent, and harness inputs by default; the three separate
+dirty-development switches are never suitable for publishable evidence.
 
 Behavioral evals for the agents and skills, above the structural `scripts/gate_a.py` gate. The
 unified runner measures two different properties and never blends their scores:

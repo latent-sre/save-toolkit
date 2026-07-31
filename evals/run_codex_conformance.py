@@ -409,9 +409,23 @@ def require_auth_file() -> Path:
     return auth
 
 
-def scrubbed_child_env(codex_home: Path) -> dict[str, str]:
+def scrubbed_child_env(codex_home: Path, neutral_profile: Path | None = None) -> dict[str, str]:
     env = {key: os.environ[key] for key in SAFE_ENV_KEYS if os.environ.get(key)}
     env["CODEX_HOME"] = str(codex_home)
+    if neutral_profile is not None:
+        neutral_profile.mkdir(parents=True, exist_ok=True)
+        roaming = neutral_profile / "AppData" / "Roaming"
+        local = neutral_profile / "AppData" / "Local"
+        roaming.mkdir(parents=True)
+        local.mkdir(parents=True)
+        env.update(
+            {
+                "HOME": str(neutral_profile),
+                "USERPROFILE": str(neutral_profile),
+                "APPDATA": str(roaming),
+                "LOCALAPPDATA": str(local),
+            }
+        )
     return env
 
 
@@ -1096,7 +1110,7 @@ def run_live(
         )
         if top.returncode != 0 or Path(top.stdout.strip()).resolve() != workspace.resolve():
             raise ConformanceError("neutral Codex workspace is not its own git-root boundary")
-        env = scrubbed_child_env(codex_home)
+        env = scrubbed_child_env(codex_home, temporary_root / "user-profile")
         version, installed_path, inventory_digest = _bootstrap_plugin(
             executable,
             marketplace,

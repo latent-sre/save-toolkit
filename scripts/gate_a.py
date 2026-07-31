@@ -60,6 +60,10 @@ STEPS = [
      ["evals/test_run_codex_conformance.py"], None),
     ("Codex/Sol conformance manifest",
      ["evals/run_codex_conformance.py", "--validate"], None),
+    ("Codex/Sol agent conformance contracts",
+     ["evals/test_run_codex_agent_conformance.py"], None),
+    ("Codex/Sol agent conformance manifest",
+     ["evals/run_codex_agent_conformance.py", "--validate"], None),
     ("Eval suite parses (shipped fleet)",
      ["evals/run_evals.py", "--validate"], None),
 ]

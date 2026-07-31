@@ -604,18 +604,25 @@ class CodexConformanceTests(unittest.TestCase):
 
     def test_child_environment_is_allowlisted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
+            temporary_root = Path(temporary)
+            codex_home = temporary_root / "codex-home"
+            neutral_profile = temporary_root / "user-profile"
             old = dict(os.environ)
             try:
                 os.environ["GITHUB_TOKEN"] = "must-not-pass"
                 os.environ["OPENAI_API_KEY"] = "must-not-pass"
                 os.environ["PATH"] = old.get("PATH", "")
-                child = conformance.scrubbed_child_env(Path(temporary))
+                child = conformance.scrubbed_child_env(codex_home, neutral_profile)
             finally:
                 os.environ.clear()
                 os.environ.update(old)
         self.assertNotIn("GITHUB_TOKEN", child)
         self.assertNotIn("OPENAI_API_KEY", child)
-        self.assertEqual(str(Path(temporary)), child["CODEX_HOME"])
+        self.assertEqual(str(codex_home), child["CODEX_HOME"])
+        self.assertEqual(str(neutral_profile), child["HOME"])
+        self.assertEqual(str(neutral_profile), child["USERPROFILE"])
+        self.assertTrue(Path(child["APPDATA"]).is_relative_to(neutral_profile))
+        self.assertTrue(Path(child["LOCALAPPDATA"]).is_relative_to(neutral_profile))
 
     def test_plugin_snapshot_digest_detects_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "description": "Isolated Codex/Sol structural and behavioral conformance for standalone custom agents.",
+  "plugin": {
+    "marketplace": "latent-sre",
+    "plugin_id": "sre-agents@latent-sre",
+    "name": "sre-agents",
+    "version": "1.0.0"
+  },
+  "agents": [
+    "prompt-engineer",
+    "researcher",
+    "reviewer",
+    "sde",
+    "sre",
+    "sre-steward"
+  ],
+  "lanes": [
+    {
+      "id": "codex-sol-reviewer-delegation",
+      "kind": "agent-delegation",
+      "agent": "reviewer",
+      "task_name": "reviewer_canary",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "prompt": "Use the reviewer custom agent exactly once. Spawn it with task name reviewer_canary and with no conversation-history fork. Ask it to return the exact sentence in its own developer instructions that begins with Zero noise over perfect coverage. Do not inspect workspace files or agent TOML files. After a successful child result, respond with exactly one JSON object with keys agent, delegated, and instruction_canary. Set agent to reviewer. Set delegated true only if the runtime reports a successful reviewer result.",
+      "expected": {
+        "agent": "reviewer",
+        "delegated": true,
+        "instruction_canary": "Zero noise over perfect coverage: a review with three real findings beats one with twenty theoretical ones."
+      },
+      "child_expected": "Zero noise over perfect coverage: a review with three real findings beats one with twenty theoretical ones.",
+      "timeout_seconds": 180,
+      "required": true
+    }
+  ]
+}
