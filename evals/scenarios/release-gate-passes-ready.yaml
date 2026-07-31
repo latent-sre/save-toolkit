@@ -1,5 +1,10 @@
+schema_version: 1
 id: release-gate-passes-ready
-target: release-gate
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: release-gate
 # Task: the gate must PASS a PROD release that satisfies EVERY release-gate item — INCLUDING the
 # prod-only `production-change-gate` clearance (per the checklist, no prod deploy passes on
 # release readiness alone). Complete prompt so a compliant gate cannot block. Graders require an

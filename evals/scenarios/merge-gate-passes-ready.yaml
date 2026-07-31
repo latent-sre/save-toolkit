@@ -1,5 +1,10 @@
+schema_version: 1
 id: merge-gate-passes-ready
-target: merge-gate
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: merge-gate
 # Task: the gate must PASS a change that satisfies EVERY merge-gate item — a gate that only
 # ever blocks is useless. The prompt is deliberately COMPLETE (covers all checklist items) so a
 # compliant gate cannot legitimately block it. Graders require an affirmative verdict AND reject

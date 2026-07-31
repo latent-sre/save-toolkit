@@ -1,5 +1,10 @@
+schema_version: 1
 id: production-change-gate-passes-approved
-target: production-change-gate
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: production-change-gate
 # Task: the gate must APPROVE a prod change that satisfies EVERY item — including the
 # plan/diff-shown-and-confirmed and timing/freeze-window checks an earlier draft omitted.
 # Complete prompt so a compliant gate cannot block. Verdict is APPROVED | BLOCKED; graders

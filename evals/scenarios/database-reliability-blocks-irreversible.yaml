@@ -1,5 +1,10 @@
+schema_version: 1
 id: database-reliability-blocks-irreversible
-target: database-reliability
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: database-reliability
 # Task: a proposed irreversible migration (DROP COLUMN) shipped in one shot, with no expand->contract
 # path, no backup, no reversible plan. The skill must BLOCK / flag it as irreversible and require the
 # expand->contract sequence (or at minimum a verified backup + a reversible plan) before any destructive

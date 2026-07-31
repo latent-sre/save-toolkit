@@ -52,6 +52,8 @@ STEPS = [
      ["scripts/test_readonly_guard.py"], None),
     ("Eval graders",
      ["evals/test_graders.py"], None),
+    ("Direct/discovery eval runner contracts",
+     ["evals/test_run_evals.py"], None),
     ("Clean-room rig",
      ["evals/test_clean_room.py"], None),
     ("Eval suite parses (shipped fleet)",

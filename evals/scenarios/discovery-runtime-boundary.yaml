@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-runtime-boundary
+mode: discovery
+split: held_out
+target:
+  kind: skill
+  name: stack-profile
+prompt: |
+  For an application we need to ship next week, should this team standardize its deployment and
+  alerting around EKS and the Prometheus Operator? Base the answer on what the team actually runs
+  today and call out ownership boundaries.
+routing:
+  expect: fire
+success_criteria:
+  - Loads the team's current stack definition before recommending a runtime
+  - Rejects Kubernetes as the current target and identifies PCF/TAS and the platform boundary
+graders:
+  - type: contains_any
+    of: ["pcf", "tanzu application service", "tas"]
+  - type: contains_any
+    of: ["no kubernetes", "not kubernetes", "do not", "not the current", "outside"]
+  - type: contains_any
+    of: ["platform team", "platform boundary", "we own", "application"]
+

@@ -1,0 +1,22 @@
+schema_version: 1
+id: discovery-independent-change-review
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: reviewer
+prompt: |
+  A change is said to be ready for an independent correctness and security review, but no diff,
+  branch, or commit was attached. Determine what can be concluded now and identify the exact
+  immutable evidence needed for a real verdict.
+routing:
+  expect: fire
+success_criteria:
+  - Delegates to the read-only change-review lane
+  - Refuses a final approval without a diff and immutable revision
+graders:
+  - type: contains_any
+    of: ["commit", "sha", "revision", "diff"]
+  - type: contains_any
+    of: ["cannot", "can't", "provisional", "need", "missing", "not enough"]
+

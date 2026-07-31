@@ -14,3 +14,6 @@ __pycache__/
 # CLAUDE_CONFIG_DIR (see evals/clean_room.py's warn_if_settings_local_present()) — never commit it.
 .claude/settings.local.json
 
+# Live model-eval transcripts can contain prompts, tool results, and environment metadata.
+.eval-runs/
+

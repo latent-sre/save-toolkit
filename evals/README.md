@@ -1,90 +1,122 @@
 # Fleet evals
 
-Behavioral evals for the agents + skills — the layer above the structural gate
-(`scripts/gate_a.py`, which only checks structure/spec). These check that the fleet *behaves*: that a request routes
-to the right place, a gate blocks what it should, and an agent treats untrusted content as data.
+Behavioral evals for the agents and skills, above the structural `scripts/gate_a.py` gate. The
+unified runner measures two different properties and never blends their scores:
 
-Built on Anthropic's eval shape (["Demystifying evals for AI agents"](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)):
+- **Discovery**: can Claude select the right component from an ordinary, unhinted request? A passing
+  response is insufficient; the stream trace must contain a completed, non-error invocation.
+- **Direct contract compliance**: once the component is explicitly pinned, does its response satisfy
+  the behavioral contract?
 
-- **Task** — a scenario file in `scenarios/*.yaml`: a `prompt`, human-readable `success_criteria`, and
-  machine `graders`.
-- **Trial** — one attempt. Model output varies, so run several (`--trials`, default 3) and aggregate.
-- **Grader** — scores the **outcome** (what the response decided), *not the path taken*. Prefer the
-  deterministic graders in `graders.py`; add a model-based judge only for genuinely subjective quality.
+The suite follows Anthropic's task/trial/grader shape from
+[Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents).
+A task is one YAML scenario, a trial is one fresh model process, and deterministic graders score the
+response. Discovery adds a separate deterministic routing grader over the invocation trace.
 
 ## Run it
 
 ```bash
-python3 -m pip install -r requirements-dev.txt   # one-time: the eval harness needs PyYAML
-                                                 # (the fleet validator + guard tests are stdlib-only)
-python evals/run_evals.py --validate     # check the suite itself (no model) — the CI-safe gate; wire into CI or run locally
-python evals/run_evals.py --list         # show scenarios
-python evals/run_evals.py --run          # invoke the fleet and grade (needs a Claude-enabled runner)
+python3 -m pip install -r requirements-dev.txt
+python evals/run_evals.py --validate
+python evals/run_evals.py --list
+python evals/run_evals.py --run --mode discovery --split calibration --trials 3
+python evals/run_evals.py --run --mode discovery --split held_out --trials 3
+python evals/run_evals.py --run --mode direct --match merge-gate --trials 3
 ```
 
-`--run` shells out to `"$CLAUDE_BIN" -p <prompt> --plugin-dir <repo>` (default `claude`) in a
-**fresh process per trial** — a fresh session so leftover authoring context can't mask gaps. Swap
-`run_agent()` in `run_evals.py` for the Agent SDK if you'd rather drive it programmatically.
+`--validate` is the CI-safe schema, target, and grader check. `--run` needs a Claude-enabled runner
+and starts a fresh non-persistent process for every trial. It supports `--mode`, `--split`, `--match`,
+`--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`.
 
-## Discovery (routing *without* a target hint) — retired, re-author against the shipped fleet
+Direct skills are pinned with `/sre-agents:<skill>`; direct agents use
+`--agent sre-agents:<agent>`. Discovery passes the scenario prompt byte-for-byte: no slash command,
+agent flag, English hint, or target rewrite. The runner requests `stream-json` and credits a component
+only when a `tool_use.id` has a matching, non-error `tool_result.tool_use_id`. Attempted, denied,
+timed-out, malformed, and incomplete calls never count as successful routing.
 
-`run_evals.py` prepends `"(Use the <target> skill/agent.)"` to every prompt, so it grades the
-**outcome given the right skill** — it cannot tell you whether the model *discovers* the right
-skill on its own. A discovery probe (`discovery_probe.py` + `discovery/*.yaml`) used to fill that
-gap, but the whole set was authored against the retired legacy fleet and was removed in the
-2026-07 cleanup — recoverable at tag `pre-cleanup-2026-07-15`, along with its measured baselines.
-Re-author both the probe and its scenarios against the canonical plugin (`agents/`, `skills/`) when
-discovery measurement is needed again.
+The live result states are `PASS`, `FAIL`, and `INCONCLUSIVE`. A timeout, authentication or runner
+failure, malformed trace, or missing final result is `INCONCLUSIVE`, never a fleet failure. Threshold
+aggregation uses the planned trial count: a scenario passes when it already has enough passes, fails
+when even all inconclusive trials could not reach the threshold, and otherwise remains inconclusive.
+Exit codes are 0 pass, 1 fail, 2 inconclusive or runner unavailable, and 3 invalid suite or selection.
 
-## The clean room (and why a baseline states its namespace)
+## Clean-room boundary
 
-Every trial runs with `CLAUDE_CONFIG_DIR` pointed at a temp dir holding only your credentials
-(`evals/clean_room.py`) while `--plugin-dir` loads this repository explicitly. The model therefore
-sees this plugin and **nothing else** from the operator's personal agents, skills, installed plugins,
-or global `CLAUDE.md`.
+For `--run`, a parent bootstrap first copies the runner, graders, clean-room module, and scenarios to
+a temporary suite image, verifies stable source/copy digests, and executes that image. Every trial
+then points `CLAUDE_CONFIG_DIR` at a temporary directory holding only the selected Claude credential,
+while `--plugin-dir` loads a stable copy of this plugin created once per batch. The plugin copy is
+accepted only when its full input digest matches the worktree digest measured before and after
+copying. The child environment is rebuilt from an allowlist, so unrelated host tokens do not reach
+model-invoked tools. Trials run from an empty
+temporary directory outside this repository, preventing root `AGENTS.md`, `CLAUDE.md`, and local
+settings from teaching the discovery runner the routing answer. Runtime init must report exactly one
+plugin with the snapshot's name, version, inline source, and resolved path. Strict MCP mode supplies
+an explicit empty server set, preventing account-level connectors from joining the namespace. Claude's built-in
+components remain present and are recorded separately from the `sre-agents` plugin. The CLI receives
+an exact built-in tool allowlist of `Skill,Task`; a broad deny list covering filesystem, shell, web,
+notification, scheduling, workflow, worktree, and task-state tools remains as defense in depth.
 
-This is not tidiness. Those things do not shadow the fleet by name; they **compete with it for
-discovery** — the property a discovery probe exists to measure. Before the clean room, every
-number the retired probe produced was a property of the machine it ran on — and every baseline
-note said so ("treat as a LOWER BOUND").
+This is a narrow evaluation boundary, not an OS security sandbox. Claude authentication remains
+available to the CLI process, and the plugin source remains readable by the host. Use only reviewed,
+non-secret scenario prompts and keep raw traces private.
 
-**A baseline note must state the namespace it was taken in.** A number without one is not a
-baseline. Notes marked `namespace: CONTAMINATED` predate the clean room and are not comparable to
-clean numbers.
+The harness refuses to grade an unauthenticated run. Claude login credentials and direct
+`ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` are supported. Bedrock and Vertex modes are refused
+because safely copying their provider-specific host credential environment is outside this
+least-privilege harness.
 
-The harness **aborts** if it cannot authenticate. It does not degrade: a credential-less run still
-emits a well-formed trace containing no `Skill()` call, which would score as a clean no-route —
-turning a broken instrument into a fake finding about the fleet. (If you authenticate via
-`ANTHROPIC_API_KEY`/Bedrock/Vertex instead of `/login`, there is no `.credentials.json` to copy at
-all — the clean room detects this and yields an empty config dir; isolation is unaffected.)
+Raw stdout, stderr, and `summary.json` land under `.eval-runs/<run-id>/`. The directory is gitignored.
+The runner enforces and verifies owner-only POSIX modes or a current-user-only Windows ACL; inability
+to prove that boundary is an instrument failure, not a fleet result. The manifest records CLI
+path/version, requested model, resolved per-trial model, plugin commit and snapshot hashes, dirty state,
+scenario hashes bound to the eval-snapshot bytes, neutral fixture identity, exact argv, duration,
+cost, and observed invocations. Plugin-snapshot and eval-suite digests are checked again before the
+summary is accepted; drift makes the batch `INCONCLUSIVE`. Use
+`--require-clean-plugin` for a publishable plugin baseline; a dirty eval harness remains identifiable
+through its suite digest when the plugin inputs themselves still match the recorded commit.
 
-**Run clean trials from a throwaway git worktree**, not your working checkout — the same mandate
-`--agents` already carries. `CLAUDE_CONFIG_DIR` isolates `~/.claude`, but Claude Code also reads
-`.claude/settings.local.json` from the **CWD** on every invocation, regardless of `CLAUDE_CONFIG_DIR`.
-That file is untracked and usually benign (Bash allow-rules today), but it can carry `env`, `hooks`,
-and plugin keys — operator-machine state inside the "clean" namespace. `clean_env()` prints a WARNING
-(not a refusal) if it finds one; a throwaway worktree avoids the question entirely.
+## Scenario contract
 
-## Discipline (how to add a scenario)
+Every YAML scenario has `schema_version: 1`, `mode`, `split`, and an explicit target kind/name. The
+explicit kind prevents a future agent/skill name collision from silently changing invocation:
 
-1. **Eval before docs — for skills with a *gradeable* outcome.** When writing/changing a skill whose
-   behavior is deterministic and checkable — a gate that must BLOCK, a guard that must DENY, a routing
-   decision, an injection it must refuse — add ≥1 scenario that fails without it first. For prose-quality
-   skills (e.g. `craft`, `api-design`, `runbook-template`) a keyword grader can't judge quality, so a
-   scenario is **optional**, not mandated — don't write a tautological eval just to satisfy a rule.
-2. Grade the **outcome**, not the trajectory — don't require a specific tool order.
-3. Keep graders deterministic where you can; if you need a judge, calibrate it against a few hand-graded
-   cases before trusting it.
-4. Read a transcript occasionally even when graders pass — confirm the agent got there legitimately.
+```yaml
+schema_version: 1
+id: discovery-merge-readiness
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: merge-gate
+prompt: |
+  A change has no CI run or regression test. Is it ready?
+routing:
+  expect: fire
+success_criteria:
+  - Invokes the readiness checklist and blocks the change
+graders:
+  - type: contains_any
+    of: [blocked, do not merge]
+```
 
-## Graders available (`graders.py`)
+For `routing.expect: not_fire`, set `expected_alternative: inline` or name the component expected
+instead. A negative scenario does not pass merely because the forbidden target stayed absent; the
+expected alternative and response graders must also pass.
 
-`contains_all` · `contains_any` · `not_contains` · `regex` · `not_regex` (passes iff the pattern does
-*not* match — used for "must not propose to act" checks). Each scores the response text and returns
-`(passed, detail)`. Add new ones to the `REGISTRY`. The graders and the stream-json parser are
-unit-tested offline (run them in CI or locally): `python evals/test_graders.py` (includes adversarial
-should-fail verdicts — e.g. a `BLOCKED … does not pass` that must not score as PASS).
+Existing tuned cases are `direct/calibration`. Never relabel a case held-out after tuning against it.
+Add a genuinely new held-out prompt, run calibration while iterating, then run held-out once before
+accepting the prompt change. Record numerator/denominator, CLI/model, plugin commit, and suite digest.
 
-> The bundled graders are keyword/structural proxies — fast, deterministic, and good at catching
-> "it routed to the wrong agent" or "it complied with an injection." They do **not** judge prose
-> quality; that's a deliberate trade for CI-stability. Layer a model-based grader where nuance matters.
+## Adding scenarios
+
+1. Add an eval before changing a skill or agent when the outcome is gradeable: routing, gates,
+   authorization, prompt-injection refusal, or another deterministic decision.
+2. Grade the response outcome rather than incidental tool order. Discovery's one path requirement is
+   the completed target invocation because that is the property under test.
+3. Keep graders deterministic where possible. Calibrate any model judge against hand-graded cases.
+4. Read passing transcripts occasionally to catch keyword matches reached for the wrong reason.
+
+Available response graders are `contains_all`, `contains_any`, `not_contains`, `regex`, and
+`not_regex`. Their offline adversarial tests live in `evals/test_graders.py`; runner and trace
+contracts live in `evals/test_run_evals.py`.

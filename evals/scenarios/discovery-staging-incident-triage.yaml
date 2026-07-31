@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-staging-incident-triage
+mode: discovery
+split: held_out
+target:
+  kind: agent
+  name: sre
+prompt: |
+  Checkout in staging jumped from normal traffic to sustained 503 responses after a release. We
+  have not changed production and have not authorized any mitigation. Triage severity and blast
+  radius, list the first evidence to gather, and form testable hypotheses without changing state.
+routing:
+  expect: fire
+success_criteria:
+  - Delegates to the incident investigation lane
+  - Produces severity, blast-radius, evidence, and hypothesis guidance without acting
+graders:
+  - type: contains_any
+    of: ["severity", "sev", "impact", "blast radius"]
+  - type: contains_any
+    of: ["hypothesis", "evidence", "503", "timeline"]
+  - type: contains_any
+    of: ["not change", "read-only", "approval", "recommend", "do not"]
+
