@@ -1,15 +1,15 @@
 {
   "auth_boundary": "The isolated CODEX_HOME contains auth.json during the run and is deleted afterward; run only fixed prompts against reviewed plugin bytes.",
-  "duration_ms": 116000,
-  "generated_at": "2026-07-31T22:01:28.328879Z",
+  "duration_ms": 110109,
+  "generated_at": "2026-07-31T22:23:24.088259Z",
   "harness_inputs_dirty": false,
   "installed_skill_count": 26,
   "manifest_sha256": "40044e47781685a2a748c71be07f4e929f53c8a25316244fd12d273f45445af0",
   "plugin_inputs_dirty": false,
-  "plugin_inventory_sha256": "fbba6e00cf811e5379f07ffe75629dda285e1228d8d4aeb426a8e9921628c6fa",
+  "plugin_inventory_sha256": "c24708224e09805151bc01b742806f6d2aac27e0dbc3223db9728f6544879f7d",
   "plugin_source_sha256": "744921e4e90c4025d815817d2ad3238e9c98abc58d7ad697cbb393b83082d64a",
   "raw_transcript_persisted": false,
-  "repository_commit": "dd2c21537be0d968c7284940d11b9acb8915d395",
+  "repository_commit": "4a5eff9136f067e4de9cc6547444bd015babe8aa",
   "results": [
     {
       "approval_policy": "never",
@@ -19,8 +19,8 @@
       },
       "cli_version": "codex-cli 0.145.0",
       "command_count": 1,
-      "duration_ms": 10516,
-      "ended_at": "2026-07-31T21:59:43.339083Z",
+      "duration_ms": 14797,
+      "ended_at": "2026-07-31T22:21:49.419717Z",
       "event_count": 7,
       "exit_code": 0,
       "expected": {
@@ -45,7 +45,7 @@
       "skill": "stack-profile",
       "skill_read_diagnostics": {
         "command_count": 1,
-        "command_sha256": "544513af7edc2e39cb989d8f5eac641eb779191ff8fc5636e971671e9cc4ee19",
+        "command_sha256": "c6448ae08c8bbe46c9a9e8b861de14467f35f02cf9b484e8044a0dc86e9221c4",
         "exit_code": 0,
         "expected_chars": 3319,
         "expected_sha256": "49dc2d02f3bf95ab33341df6c0279b481ee5d24668269d2ed67cff4f0cfb6027",
@@ -62,15 +62,15 @@
       },
       "skill_read_verified": true,
       "skill_sha256": "49dc2d02f3bf95ab33341df6c0279b481ee5d24668269d2ed67cff4f0cfb6027",
-      "started_at": "2026-07-31T21:59:32.816557Z",
+      "started_at": "2026-07-31T22:21:34.625202Z",
       "timed_out": false,
-      "transcript_digest": "62e2343836bfdd82c1a206a9f585dda6a5feab4051339755241a39428b258999",
+      "transcript_digest": "01225059c36aaa1a706c99bc53999b944bd70fd2ed3ea4ab6d77c9494f14560e",
       "usage": {
         "cache_write_input_tokens": 0,
-        "cached_input_tokens": 12800,
-        "input_tokens": 33494,
-        "output_tokens": 206,
-        "reasoning_output_tokens": 26
+        "cached_input_tokens": 25088,
+        "input_tokens": 33502,
+        "output_tokens": 208,
+        "reasoning_output_tokens": 20
       },
       "verdict": "pass"
     },
@@ -83,9 +83,9 @@
       },
       "cli_version": "codex-cli 0.145.0",
       "command_count": 2,
-      "duration_ms": 17562,
-      "ended_at": "2026-07-31T22:00:00.907056Z",
-      "event_count": 9,
+      "duration_ms": 17860,
+      "ended_at": "2026-07-31T22:22:07.283228Z",
+      "event_count": 8,
       "exit_code": 0,
       "expected": {
         "cursor_fetch": "limit + 1",
@@ -117,7 +117,7 @@
         "artifacts": [
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "27aabaacad484cd51534d339621bddf008af25d0832547800116e712d9441ed8",
+            "command_sha256": "f72a5d67ef076893a85084b88c6ba3daeaebc4a97652a360e63a4554da99c105",
             "exit_code": 0,
             "expected_chars": 9948,
             "expected_sha256": "9e9b68fb381f99ec57902caf71003deda4519038c37a55c8e26241b220c1becf",
@@ -134,7 +134,7 @@
           },
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "8640da31cefc11d5ee568a4aaeb4cc215e747118094b5dd3f4678d6e8679c429",
+            "command_sha256": "2f1044aa46b1eddf973ded8f8b6967c956300a0b2427dfb1d5f4c87706623ed2",
             "exit_code": 0,
             "expected_chars": 2646,
             "expected_sha256": "c40a3d0b3343274a0eac4e862f2af1c6a222016d7a692585368d50f383b35078",
@@ -156,15 +156,15 @@
       },
       "skill_read_verified": null,
       "skill_sha256": "9e9b68fb381f99ec57902caf71003deda4519038c37a55c8e26241b220c1becf",
-      "started_at": "2026-07-31T21:59:43.339083Z",
+      "started_at": "2026-07-31T22:21:49.420234Z",
       "timed_out": false,
-      "transcript_digest": "6e1b03878afc7ddcfb8ab463363441a003021b38c29a8510966a330112a5a24e",
+      "transcript_digest": "5a527b134a637a6883d0365622d6aadafba67122880db2e6238b4ebcc64255aa",
       "usage": {
         "cache_write_input_tokens": 0,
         "cached_input_tokens": 44288,
-        "input_tokens": 54697,
-        "output_tokens": 390,
-        "reasoning_output_tokens": 63
+        "input_tokens": 54892,
+        "output_tokens": 453,
+        "reasoning_output_tokens": 156
       },
       "verdict": "pass"
     },
@@ -177,9 +177,9 @@
       },
       "cli_version": "codex-cli 0.145.0",
       "command_count": 2,
-      "duration_ms": 21469,
-      "ended_at": "2026-07-31T22:00:22.375416Z",
-      "event_count": 10,
+      "duration_ms": 17125,
+      "ended_at": "2026-07-31T22:22:24.396936Z",
+      "event_count": 9,
       "exit_code": 0,
       "expected": {
         "default_target": "scratch",
@@ -219,7 +219,7 @@
         "artifacts": [
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "537920fbd11e1531f383fb6cbd51638d72de2dc774524538075e1f520fbae4e1",
+            "command_sha256": "13a20743b0b291c690077bca95894f3d5e869fcfe0c7a03a40c7e103e4708097",
             "exit_code": 0,
             "expected_chars": 8674,
             "expected_sha256": "5173deae2359967b224996a22c78f32d043d3cd438184a2de3bdb67e4a1696f5",
@@ -236,7 +236,7 @@
           },
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "0016fdde1f462d394b44e273d069cc16650a992354c1ee984dd305bf6b65bc1e",
+            "command_sha256": "783cd64151346bbc708eb99193baf612b9f5184998c2134e3bb67a0bc4433bcd",
             "exit_code": 0,
             "expected_chars": 2069,
             "expected_sha256": "7c2805201f2dbc5c94ae22e20b5d56f2c168b06e1f7f8b579ae1c0af9e3c98d3",
@@ -258,15 +258,15 @@
       },
       "skill_read_verified": null,
       "skill_sha256": "5173deae2359967b224996a22c78f32d043d3cd438184a2de3bdb67e4a1696f5",
-      "started_at": "2026-07-31T22:00:00.907056Z",
+      "started_at": "2026-07-31T22:22:07.283228Z",
       "timed_out": false,
-      "transcript_digest": "cd616dcd3e4876a18dfefb98d3cd2aedb53087824ee6ec7719bf8cf470629b0f",
+      "transcript_digest": "5c58b7992fe8b8bdd07e7c7fc44122a0c1820cc7f1148ae9c5849cd5d720fee2",
       "usage": {
         "cache_write_input_tokens": 0,
         "cached_input_tokens": 44288,
-        "input_tokens": 54383,
-        "output_tokens": 498,
-        "reasoning_output_tokens": 114
+        "input_tokens": 54436,
+        "output_tokens": 509,
+        "reasoning_output_tokens": 173
       },
       "verdict": "pass"
     },
@@ -281,8 +281,8 @@
       },
       "cli_version": "codex-cli 0.145.0",
       "command_count": 4,
-      "duration_ms": 28735,
-      "ended_at": "2026-07-31T22:00:51.109989Z",
+      "duration_ms": 26140,
+      "ended_at": "2026-07-31T22:22:50.541306Z",
       "event_count": 13,
       "exit_code": 0,
       "expected": {
@@ -329,7 +329,7 @@
         "artifacts": [
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "8d3ab27f178b6f0d9cfe0de42ea59c037c827456e02d3e0e604a10017d28187e",
+            "command_sha256": "19e9ba3b5977d485135f65442439ccc01c70314eac29659e32d4c9fdcdeb338c",
             "exit_code": 0,
             "expected_chars": 11544,
             "expected_sha256": "4ebf03d886707077566d5eab1c6fcaf7f072b87034e794d6ecf9943eb749ebb1",
@@ -346,7 +346,7 @@
           },
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "b567aef93c7710e52a1af9c982ea946be162c71b4fe553c42c0d3d60aed07453",
+            "command_sha256": "46faf4f3344e696d7f8cd40ea3b702ccddb2f172f6a8bd1317660b8d9ab45532",
             "exit_code": 0,
             "expected_chars": 1868,
             "expected_sha256": "20d4be9c94dda84e207f935cb23e0c0db041103dfa2f592c10608583b6666786",
@@ -363,7 +363,7 @@
           },
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "4711f3ff42a4010fddc9ff5b304496851f5c9b81bba68b6a97eac86b88b70161",
+            "command_sha256": "d6b10dcae2c870f05e8dff76bd1ede727fd91cc199281ef5efe3aada7c510e51",
             "exit_code": 0,
             "expected_chars": 1617,
             "expected_sha256": "653f80009943269da5a5a690936edaddf7dc8969ff3ec44318dfc8a32b7bf3fa",
@@ -380,7 +380,7 @@
           },
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "fecbfd1a837bd49ee09ef3070450c15fb36ef99b2230b69988a9e1bf314b1f01",
+            "command_sha256": "2879596aa8efb9f95b1fc1468c838ce6288b7e37883caed4b23a33f7d78e3022",
             "exit_code": 0,
             "expected_chars": 1040,
             "expected_sha256": "d8617ece265f5982931471fecb48f11be3b44299f6ae605a5c16e748c4174b5e",
@@ -402,15 +402,15 @@
       },
       "skill_read_verified": null,
       "skill_sha256": "4ebf03d886707077566d5eab1c6fcaf7f072b87034e794d6ecf9943eb749ebb1",
-      "started_at": "2026-07-31T22:00:22.375416Z",
+      "started_at": "2026-07-31T22:22:24.397975Z",
       "timed_out": false,
-      "transcript_digest": "8f210f4064fb917faff8c463a0ae8163277ddb8b974da517a8751d6c1177a154",
+      "transcript_digest": "45f8ec7642e869cd73035b5fdf401b16a1a85aa6f4e95a317d8a55210a81d687",
       "usage": {
         "cache_write_input_tokens": 0,
-        "cached_input_tokens": 77568,
-        "input_tokens": 96049,
-        "output_tokens": 652,
-        "reasoning_output_tokens": 45
+        "cached_input_tokens": 83712,
+        "input_tokens": 96523,
+        "output_tokens": 776,
+        "reasoning_output_tokens": 149
       },
       "verdict": "pass"
     },
@@ -423,8 +423,8 @@
       },
       "cli_version": "codex-cli 0.145.0",
       "command_count": 2,
-      "duration_ms": 16125,
-      "ended_at": "2026-07-31T22:01:07.227988Z",
+      "duration_ms": 18782,
+      "ended_at": "2026-07-31T22:23:09.327339Z",
       "event_count": 9,
       "exit_code": 0,
       "expected": {
@@ -459,7 +459,7 @@
         "artifacts": [
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "d8b3c55c2d22f260637379034af81b84fd1ee6d9b6141b5298f6aafddf391efc",
+            "command_sha256": "1f9286bcfb57a153574c4809f23f88727923a8e95e2426ab783b05bb3a0c4b05",
             "exit_code": 0,
             "expected_chars": 2372,
             "expected_sha256": "92f1b67ce39d429489c0ca9fc226c3c1d553802ea577bc48c7b7a9c8675e336a",
@@ -476,7 +476,7 @@
           },
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "f56f344b052edba516332c794b79b879e550fe6f56a1822c2eebd92e6c3be66d",
+            "command_sha256": "3a971a6ee68e47a8095cd4b36c6005617fac737a3cf8b4b77e65d33db6618cf6",
             "exit_code": 0,
             "expected_chars": 2297,
             "expected_sha256": "6c69784a29d75ce9d4dfd8f166a0b77095dd013e0eb1eeb363c4a21f23ff52f1",
@@ -498,15 +498,15 @@
       },
       "skill_read_verified": null,
       "skill_sha256": "92f1b67ce39d429489c0ca9fc226c3c1d553802ea577bc48c7b7a9c8675e336a",
-      "started_at": "2026-07-31T22:00:51.109989Z",
+      "started_at": "2026-07-31T22:22:50.541306Z",
       "timed_out": false,
-      "transcript_digest": "d638fc4d7fb4fcb74a1513f1455c9b121566b121bb13e4e838cc7edc907e9337",
+      "transcript_digest": "74b680a77a9fe01b809920127dd88dce085b3afdaebfa3615d0975155d029362",
       "usage": {
         "cache_write_input_tokens": 0,
-        "cached_input_tokens": 32256,
-        "input_tokens": 51064,
-        "output_tokens": 335,
-        "reasoning_output_tokens": 0
+        "cached_input_tokens": 42240,
+        "input_tokens": 51245,
+        "output_tokens": 394,
+        "reasoning_output_tokens": 61
       },
       "verdict": "pass"
     },
@@ -519,9 +519,9 @@
       },
       "cli_version": "codex-cli 0.145.0",
       "command_count": 2,
-      "duration_ms": 20875,
-      "ended_at": "2026-07-31T22:01:28.103568Z",
-      "event_count": 9,
+      "duration_ms": 14562,
+      "ended_at": "2026-07-31T22:23:23.877602Z",
+      "event_count": 8,
       "exit_code": 0,
       "expected": {
         "contract_owner_count": 1,
@@ -555,7 +555,7 @@
         "artifacts": [
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "37b828676c7757c96042cfbf470bb69020c833a2a2790abaa9b021542850615e",
+            "command_sha256": "5ea4034c0d5e7966141a147a1a6db32d1aa4385835a154c1a09e19109b74d685",
             "exit_code": 0,
             "expected_chars": 12452,
             "expected_sha256": "3413959fe49072abbd9a81350ab973265505281fb74abade5f6af0ceefce35a0",
@@ -572,7 +572,7 @@
           },
           {
             "artifact_suffix_matched": true,
-            "command_sha256": "76140b05b3d279aaa10226725354ad0c63086260a6093edbde4ac06846b64c22",
+            "command_sha256": "a8b7816d38de5888f250d30c6ae073a2a4ebad87b456a3ffdf21eb23ae544a29",
             "exit_code": 0,
             "expected_chars": 1951,
             "expected_sha256": "a8a87fca7c04c9d394362daac6286c1dc0ba83971574ea386e220d06e8a5eaa0",
@@ -594,22 +594,22 @@
       },
       "skill_read_verified": null,
       "skill_sha256": "3413959fe49072abbd9a81350ab973265505281fb74abade5f6af0ceefce35a0",
-      "started_at": "2026-07-31T22:01:07.227988Z",
+      "started_at": "2026-07-31T22:23:09.327339Z",
       "timed_out": false,
-      "transcript_digest": "c715627873b4e3a60eb336046bdfa9e5b1d8281a4324ae4834877874d544cbac",
+      "transcript_digest": "921725c25de3c5392a7e9a6ff9833c5101757cdd594502c9cd1d1742b612607d",
       "usage": {
         "cache_write_input_tokens": 0,
-        "cached_input_tokens": 44288,
-        "input_tokens": 55412,
-        "output_tokens": 513,
-        "reasoning_output_tokens": 169
+        "cached_input_tokens": 48384,
+        "input_tokens": 55142,
+        "output_tokens": 364,
+        "reasoning_output_tokens": 60
       },
       "verdict": "pass"
     }
   ],
-  "runner_sha256": "d7a5a9e0890b1c5e2a768b548445b02f4625539c0adeeee05d11bf2a2b879897",
+  "runner_sha256": "8fdf226d76a21c274b9ec002b2a6bf464bcb5c1f87aec57648e1a710d6820357",
   "schema_version": 1,
-  "started_at": "2026-07-31T21:59:32.330085Z",
+  "started_at": "2026-07-31T22:21:33.982731Z",
   "summary": {
     "fail": 0,
     "inconclusive": 0,

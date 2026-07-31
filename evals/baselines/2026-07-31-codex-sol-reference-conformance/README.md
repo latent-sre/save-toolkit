@@ -12,7 +12,7 @@ baselines and does not change or relabel them.
 
 ## Provenance
 
-- Repository commit: `dd2c21537be0d968c7284940d11b9acb8915d395`
+- Repository commit: `4a5eff9136f067e4de9cc6547444bd015babe8aa`
 - Codex CLI: `codex-cli 0.145.0`
 - Requested model: `gpt-5.6-sol`
 - Reasoning effort: `high`
@@ -21,10 +21,10 @@ baselines and does not change or relabel them.
 - Plugin inputs dirty: `false`
 - Harness inputs dirty: `false`
 - Installed skill count: `26`
-- Runner SHA-256: `d7a5a9e0890b1c5e2a768b548445b02f4625539c0adeeee05d11bf2a2b879897`
+- Runner SHA-256: `8fdf226d76a21c274b9ec002b2a6bf464bcb5c1f87aec57648e1a710d6820357`
 - Manifest SHA-256: `40044e47781685a2a748c71be07f4e929f53c8a25316244fd12d273f45445af0`
 - Plugin-source SHA-256: `744921e4e90c4025d815817d2ad3238e9c98abc58d7ad697cbb393b83082d64a`
-- Result SHA-256: `23269cf25b89e73b786fcd60a13ff97164c801bf3d114466de86a44aac680253`
+- Result SHA-256: `a3dd63b941575034602fd17f8e54c823ccd09d9fe13baa5609574e060c5c41ce`
 - Raw transcript persisted: `false`
 
 Codex 0.145.0 JSONL did not expose a resolved model identifier. The requested model is proven by
@@ -44,7 +44,9 @@ the accepted explicit CLI argument, not independently repeated by a trace field.
 
 The grader required one simple, successful, full-content read per artifact; exact path containment
 under the isolated installed cache; exact command cardinality; and an exact JSON response. The run
-recorded 13 verified reads for 13 artifacts in 116 seconds.
+recorded 13 verified reads for 13 artifacts in 110 seconds. The process environment redirected the
+user profile and application-data roots into the disposable run root, excluding personal `.agents`
+content from discovery.
 
 The full sanitized machine result is [`result.json`](result.json). Raw JSONL was reduced in memory
 to deterministic facts and hashes and then discarded.
