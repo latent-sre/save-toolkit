@@ -14,7 +14,9 @@ import run_codex_agent_conformance as conformance
 class CodexAgentConformanceTests(unittest.TestCase):
     def setUp(self) -> None:
         self.manifest = conformance.load_manifest(conformance.DEFAULT_MANIFEST)
-        self.lane = self.manifest["lanes"][0]
+        self.lane = next(
+            lane for lane in self.manifest["lanes"] if lane["agent"] == "reviewer"
+        )
         self.instructions = (
             "Reviewer rules.\n"
             "Zero noise over perfect coverage: a review with three real findings beats one with "
@@ -173,20 +175,27 @@ class CodexAgentConformanceTests(unittest.TestCase):
 
     def test_manifest_is_sol_only_and_canary_is_not_disclosed(self) -> None:
         conformance.validate_manifest(self.manifest)
-        self.assertEqual("gpt-5.6-sol", self.lane["model"])
-        self.assertNotIn(self.lane["child_expected"], self.lane["prompt"])
+        self.assertEqual(
+            set(self.manifest["agents"]),
+            {lane["agent"] for lane in self.manifest["lanes"]},
+        )
+        self.assertEqual(len(self.manifest["agents"]), len(self.manifest["lanes"]))
+        self.assertTrue(all(lane["model"] == "gpt-5.6-sol" for lane in self.manifest["lanes"]))
+        self.assertTrue(
+            all(lane["child_expected"] not in lane["prompt"] for lane in self.manifest["lanes"])
+        )
 
     def test_manifest_rejects_prompt_that_discloses_child_canary(self) -> None:
         manifest = copy.deepcopy(self.manifest)
-        manifest["lanes"][0]["prompt"] += " " + self.lane["child_expected"]
+        lane = next(lane for lane in manifest["lanes"] if lane["agent"] == "reviewer")
+        lane["prompt"] += " " + lane["child_expected"]
         with self.assertRaises(conformance.base.ConformanceError):
             conformance.validate_manifest(manifest)
 
     def test_manifest_requires_bound_task_name(self) -> None:
         manifest = copy.deepcopy(self.manifest)
-        manifest["lanes"][0]["prompt"] = manifest["lanes"][0]["prompt"].replace(
-            "reviewer_canary", "the child task"
-        )
+        lane = next(lane for lane in manifest["lanes"] if lane["agent"] == "reviewer")
+        lane["prompt"] = lane["prompt"].replace("reviewer_canary", "the child task")
         with self.assertRaises(conformance.base.ConformanceError):
             conformance.validate_manifest(manifest)
 

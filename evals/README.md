@@ -51,13 +51,13 @@ py -3 evals/run_codex_agent_conformance.py --run --output agent-result.json
 ```
 
 The agent runner freezes and installs all six generated custom-agent TOMLs in the same isolated
-Codex home as the plugin, then asks the main Sol thread to delegate to `reviewer` with a no-history
-fork. A lane passes only when the private session rollouts prove all of the following:
+Codex home as the plugin, then runs one no-history delegation lane per agent. A lane passes only when
+the private session rollouts prove all of the following:
 
-- exactly one successful `spawn_agent` call names `reviewer` and `fork_turns: none`;
+- exactly one successful `spawn_agent` call names the expected role and `fork_turns: none`;
 - the parent receives exactly one completion from the named child (an explicit wait is optional when
   the child completes before the parent's next turn);
-- exactly one child session is linked to the parent with `agent_role: reviewer`;
+- exactly one child session is linked to the parent with the expected `agent_role`;
 - the child receives the exact installed `developer_instructions` bytes;
 - parent and child runtime contexts expose `gpt-5.6-sol`, high reasoning, read-only sandboxing, and
   approval policy `never`; and

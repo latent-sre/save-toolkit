@@ -17,6 +17,44 @@
   ],
   "lanes": [
     {
+      "id": "codex-sol-prompt-engineer-delegation",
+      "kind": "agent-delegation",
+      "agent": "prompt-engineer",
+      "task_name": "prompt_engineer_canary",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "prompt": "Use the prompt-engineer custom agent exactly once. Spawn it with task name prompt_engineer_canary and with no conversation-history fork. Ask it to return the exact sentence in its own developer instructions that begins with Prompt diffs get reviewed. Do not inspect workspace files or agent TOML files. After a successful child result, respond with exactly one JSON object with keys agent, delegated, and instruction_canary. Set agent to prompt-engineer. Set delegated true only if the runtime reports a successful prompt-engineer result.",
+      "expected": {
+        "agent": "prompt-engineer",
+        "delegated": true,
+        "instruction_canary": "Prompt diffs get reviewed like code diffs."
+      },
+      "child_expected": "Prompt diffs get reviewed like code diffs.",
+      "timeout_seconds": 180,
+      "required": true
+    },
+    {
+      "id": "codex-sol-researcher-delegation",
+      "kind": "agent-delegation",
+      "agent": "researcher",
+      "task_name": "researcher_canary",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "prompt": "Use the researcher custom agent exactly once. Spawn it with task name researcher_canary and with no conversation-history fork. Ask it to return the exact sentence in its own developer instructions that begins with Never send private or uncommitted text. Do not inspect workspace files or agent TOML files. After a successful child result, respond with exactly one JSON object with keys agent, delegated, and instruction_canary. Set agent to researcher. Set delegated true only if the runtime reports a successful researcher result.",
+      "expected": {
+        "agent": "researcher",
+        "delegated": true,
+        "instruction_canary": "Never send private or uncommitted text to an external evidence service."
+      },
+      "child_expected": "Never send private or uncommitted text to an external evidence service.",
+      "timeout_seconds": 180,
+      "required": true
+    },
+    {
       "id": "codex-sol-reviewer-delegation",
       "kind": "agent-delegation",
       "agent": "reviewer",
@@ -32,6 +70,63 @@
         "instruction_canary": "Zero noise over perfect coverage: a review with three real findings beats one with twenty theoretical ones."
       },
       "child_expected": "Zero noise over perfect coverage: a review with three real findings beats one with twenty theoretical ones.",
+      "timeout_seconds": 180,
+      "required": true
+    },
+    {
+      "id": "codex-sol-sde-delegation",
+      "kind": "agent-delegation",
+      "agent": "sde",
+      "task_name": "sde_canary",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "prompt": "Use the sde custom agent exactly once. Spawn it with task name sde_canary and with no conversation-history fork. Ask it to return the exact sentence in its own developer instructions that begins with You build and run code the team authored. Do not inspect workspace files or agent TOML files. After a successful child result, respond with exactly one JSON object with keys agent, delegated, and instruction_canary. Set agent to sde. Set delegated true only if the runtime reports a successful sde result.",
+      "expected": {
+        "agent": "sde",
+        "delegated": true,
+        "instruction_canary": "You build and run code the team authored; you are not a sandbox for untrusted diffs — that evidence comes from CI or not at all."
+      },
+      "child_expected": "You build and run code the team authored; you are not a sandbox for untrusted diffs — that evidence comes from CI or not at all.",
+      "timeout_seconds": 180,
+      "required": true
+    },
+    {
+      "id": "codex-sol-sre-delegation",
+      "kind": "agent-delegation",
+      "agent": "sre",
+      "task_name": "sre_canary",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "prompt": "Use the sre custom agent exactly once. Spawn it with task name sre_canary and with no conversation-history fork. Ask it to return the exact sentence in its own developer instructions that begins with Eliminate semicolon don't confirm-bias. Do not inspect workspace files or agent TOML files. After a successful child result, respond with exactly one JSON object with keys agent, delegated, and instruction_canary. Set agent to sre. Set delegated true only if the runtime reports a successful sre result.",
+      "expected": {
+        "agent": "sre",
+        "delegated": true,
+        "instruction_canary": "Eliminate; don't confirm-bias."
+      },
+      "child_expected": "Eliminate; don't confirm-bias.",
+      "timeout_seconds": 180,
+      "required": true
+    },
+    {
+      "id": "codex-sol-sre-steward-delegation",
+      "kind": "agent-delegation",
+      "agent": "sre-steward",
+      "task_name": "sre_steward_canary",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "prompt": "Use the sre-steward custom agent exactly once. Spawn it with task name sre_steward_canary and with no conversation-history fork. Ask it to return the exact sentence in its own developer instructions that begins with Do not document commands. Do not inspect workspace files or agent TOML files. After a successful child result, respond with exactly one JSON object with keys agent, delegated, and instruction_canary. Set agent to sre-steward. Set delegated true only if the runtime reports a successful sre-steward result.",
+      "expected": {
+        "agent": "sre-steward",
+        "delegated": true,
+        "instruction_canary": "Do not document commands you have not verified or sourced without marking them clearly as unverified."
+      },
+      "child_expected": "Do not document commands you have not verified or sourced without marking them clearly as unverified.",
       "timeout_seconds": 180,
       "required": true
     }
