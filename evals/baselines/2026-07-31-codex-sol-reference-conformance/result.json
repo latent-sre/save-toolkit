@@ -1,0 +1,618 @@
+{
+  "auth_boundary": "The isolated CODEX_HOME contains auth.json during the run and is deleted afterward; run only fixed prompts against reviewed plugin bytes.",
+  "duration_ms": 116000,
+  "generated_at": "2026-07-31T22:01:28.328879Z",
+  "harness_inputs_dirty": false,
+  "installed_skill_count": 26,
+  "manifest_sha256": "40044e47781685a2a748c71be07f4e929f53c8a25316244fd12d273f45445af0",
+  "plugin_inputs_dirty": false,
+  "plugin_inventory_sha256": "fbba6e00cf811e5379f07ffe75629dda285e1228d8d4aeb426a8e9921628c6fa",
+  "plugin_source_sha256": "744921e4e90c4025d815817d2ad3238e9c98abc58d7ad697cbb393b83082d64a",
+  "raw_transcript_persisted": false,
+  "repository_commit": "dd2c21537be0d968c7284940d11b9acb8915d395",
+  "results": [
+    {
+      "approval_policy": "never",
+      "artifact_reads_verified": true,
+      "artifact_sha256": {
+        "skills/stack-profile/SKILL.md": "49dc2d02f3bf95ab33341df6c0279b481ee5d24668269d2ed67cff4f0cfb6027"
+      },
+      "cli_version": "codex-cli 0.145.0",
+      "command_count": 1,
+      "duration_ms": 10516,
+      "ended_at": "2026-07-31T21:59:43.339083Z",
+      "event_count": 7,
+      "exit_code": 0,
+      "expected": {
+        "canary": "sp_7c2e",
+        "marker": "SRE_CODEX_SOL_OK"
+      },
+      "kind": "skill-direct",
+      "lane_id": "codex-sol-stack-profile-direct",
+      "observed_model_exposed": false,
+      "observed_models": [],
+      "prompt_digest": "6192deafe34bbe5004bcca4ee1f383cf350152942927ebf4678109c0e210c5f3",
+      "reason": "deterministic oracle and installed-skill read passed",
+      "reasoning_effort": "high",
+      "references": [],
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "canary": "sp_7c2e",
+        "marker": "SRE_CODEX_SOL_OK"
+      },
+      "sandbox": "read-only",
+      "skill": "stack-profile",
+      "skill_read_diagnostics": {
+        "command_count": 1,
+        "command_sha256": "544513af7edc2e39cb989d8f5eac641eb779191ff8fc5636e971671e9cc4ee19",
+        "exit_code": 0,
+        "expected_chars": 3319,
+        "expected_sha256": "49dc2d02f3bf95ab33341df6c0279b481ee5d24668269d2ed67cff4f0cfb6027",
+        "full_output_matched": true,
+        "isolated_root_matched": true,
+        "matched_scope": "installed-cache",
+        "output_chars": 3346,
+        "output_contains_canary": true,
+        "output_sha256": "7d701f22076d16d5e64f1a51b6fa4d84019b0c27ac3b314c433d6043c6b6e954",
+        "path_matched": true,
+        "simple_read_command": true,
+        "skill_suffix_matched": true,
+        "status": "completed"
+      },
+      "skill_read_verified": true,
+      "skill_sha256": "49dc2d02f3bf95ab33341df6c0279b481ee5d24668269d2ed67cff4f0cfb6027",
+      "started_at": "2026-07-31T21:59:32.816557Z",
+      "timed_out": false,
+      "transcript_digest": "62e2343836bfdd82c1a206a9f585dda6a5feab4051339755241a39428b258999",
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 12800,
+        "input_tokens": 33494,
+        "output_tokens": 206,
+        "reasoning_output_tokens": 26
+      },
+      "verdict": "pass"
+    },
+    {
+      "approval_policy": "never",
+      "artifact_reads_verified": true,
+      "artifact_sha256": {
+        "skills/backend-craft/SKILL.md": "9e9b68fb381f99ec57902caf71003deda4519038c37a55c8e26241b220c1becf",
+        "skills/backend-craft/references/api-design.md": "c40a3d0b3343274a0eac4e862f2af1c6a222016d7a692585368d50f383b35078"
+      },
+      "cli_version": "codex-cli 0.145.0",
+      "command_count": 2,
+      "duration_ms": 17562,
+      "ended_at": "2026-07-31T22:00:00.907056Z",
+      "event_count": 9,
+      "exit_code": 0,
+      "expected": {
+        "cursor_fetch": "limit + 1",
+        "deprecation_requires_sunset": true,
+        "long_running_status": 202,
+        "marker": "SRE_API_REFERENCE_OK"
+      },
+      "kind": "reference-direct",
+      "lane_id": "codex-sol-backend-api-reference",
+      "observed_model_exposed": false,
+      "observed_models": [],
+      "prompt_digest": "bef00a415da750aeb464a24edc09d5ca7a2726393615703abace92f3f43d2d11",
+      "reason": "deterministic oracle and every required artifact read passed",
+      "reasoning_effort": "high",
+      "references": [
+        "references/api-design.md"
+      ],
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "cursor_fetch": "limit + 1",
+        "deprecation_requires_sunset": true,
+        "long_running_status": 202,
+        "marker": "SRE_API_REFERENCE_OK"
+      },
+      "sandbox": "read-only",
+      "skill": "backend-craft",
+      "skill_read_diagnostics": {
+        "artifacts": [
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "27aabaacad484cd51534d339621bddf008af25d0832547800116e712d9441ed8",
+            "exit_code": 0,
+            "expected_chars": 9948,
+            "expected_sha256": "9e9b68fb381f99ec57902caf71003deda4519038c37a55c8e26241b220c1becf",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 10019,
+            "output_sha256": "db0da181023612b9d820f0fdf50de5158559564ec225f129aa1589ba4bed7736",
+            "path_matched": true,
+            "relative_path": "skills/backend-craft/SKILL.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          },
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "8640da31cefc11d5ee568a4aaeb4cc215e747118094b5dd3f4678d6e8679c429",
+            "exit_code": 0,
+            "expected_chars": 2646,
+            "expected_sha256": "c40a3d0b3343274a0eac4e862f2af1c6a222016d7a692585368d50f383b35078",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 2647,
+            "output_sha256": "8125f761a2ed7349aa7fad27152689a884ffba018992fe39fabb823c13c25d9a",
+            "path_matched": true,
+            "relative_path": "skills/backend-craft/references/api-design.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          }
+        ],
+        "command_count": 2,
+        "expected_artifact_count": 2,
+        "verified_artifact_count": 2
+      },
+      "skill_read_verified": null,
+      "skill_sha256": "9e9b68fb381f99ec57902caf71003deda4519038c37a55c8e26241b220c1becf",
+      "started_at": "2026-07-31T21:59:43.339083Z",
+      "timed_out": false,
+      "transcript_digest": "6e1b03878afc7ddcfb8ab463363441a003021b38c29a8510966a330112a5a24e",
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 44288,
+        "input_tokens": 54697,
+        "output_tokens": 390,
+        "reasoning_output_tokens": 63
+      },
+      "verdict": "pass"
+    },
+    {
+      "approval_policy": "never",
+      "artifact_reads_verified": true,
+      "artifact_sha256": {
+        "skills/database-reliability/SKILL.md": "5173deae2359967b224996a22c78f32d043d3cd438184a2de3bdb67e4a1696f5",
+        "skills/database-reliability/references/restore-drill.md": "7c2805201f2dbc5c94ae22e20b5d56f2c168b06e1f7f8b579ae1c0af9e3c98d3"
+      },
+      "cli_version": "codex-cli 0.145.0",
+      "command_count": 2,
+      "duration_ms": 21469,
+      "ended_at": "2026-07-31T22:00:22.375416Z",
+      "event_count": 10,
+      "exit_code": 0,
+      "expected": {
+        "default_target": "scratch",
+        "incomplete_scope_verdict": "pass with findings",
+        "marker": "SRE_RESTORE_REFERENCE_OK",
+        "timing_phases": [
+          "locate",
+          "restore",
+          "verify"
+        ]
+      },
+      "kind": "reference-direct",
+      "lane_id": "codex-sol-database-restore-reference",
+      "observed_model_exposed": false,
+      "observed_models": [],
+      "prompt_digest": "955a56a073ad110a8ef0b3c5f2aac2f32a760c7ad0e0a023ea3c48d2c493b258",
+      "reason": "deterministic oracle and every required artifact read passed",
+      "reasoning_effort": "high",
+      "references": [
+        "references/restore-drill.md"
+      ],
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "default_target": "scratch",
+        "incomplete_scope_verdict": "pass with findings",
+        "marker": "SRE_RESTORE_REFERENCE_OK",
+        "timing_phases": [
+          "locate",
+          "restore",
+          "verify"
+        ]
+      },
+      "sandbox": "read-only",
+      "skill": "database-reliability",
+      "skill_read_diagnostics": {
+        "artifacts": [
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "537920fbd11e1531f383fb6cbd51638d72de2dc774524538075e1f520fbae4e1",
+            "exit_code": 0,
+            "expected_chars": 8674,
+            "expected_sha256": "5173deae2359967b224996a22c78f32d043d3cd438184a2de3bdb67e4a1696f5",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 8733,
+            "output_sha256": "26da78f07010317b57fbd447bc172eabff91672adb83619918ba0b48ed9f5bf6",
+            "path_matched": true,
+            "relative_path": "skills/database-reliability/SKILL.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          },
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "0016fdde1f462d394b44e273d069cc16650a992354c1ee984dd305bf6b65bc1e",
+            "exit_code": 0,
+            "expected_chars": 2069,
+            "expected_sha256": "7c2805201f2dbc5c94ae22e20b5d56f2c168b06e1f7f8b579ae1c0af9e3c98d3",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 2082,
+            "output_sha256": "2547cef09901bc1b4fc42a62af684bc7545aabd9674e78f91bf20d12e436817a",
+            "path_matched": true,
+            "relative_path": "skills/database-reliability/references/restore-drill.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          }
+        ],
+        "command_count": 2,
+        "expected_artifact_count": 2,
+        "verified_artifact_count": 2
+      },
+      "skill_read_verified": null,
+      "skill_sha256": "5173deae2359967b224996a22c78f32d043d3cd438184a2de3bdb67e4a1696f5",
+      "started_at": "2026-07-31T22:00:00.907056Z",
+      "timed_out": false,
+      "transcript_digest": "cd616dcd3e4876a18dfefb98d3cd2aedb53087824ee6ec7719bf8cf470629b0f",
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 44288,
+        "input_tokens": 54383,
+        "output_tokens": 498,
+        "reasoning_output_tokens": 114
+      },
+      "verdict": "pass"
+    },
+    {
+      "approval_policy": "never",
+      "artifact_reads_verified": true,
+      "artifact_sha256": {
+        "skills/frontend-craft/SKILL.md": "4ebf03d886707077566d5eab1c6fcaf7f072b87034e794d6ecf9943eb749ebb1",
+        "skills/frontend-craft/references/design-language.md": "20d4be9c94dda84e207f935cb23e0c0db041103dfa2f592c10608583b6666786",
+        "skills/frontend-craft/references/interaction-a11y.md": "653f80009943269da5a5a690936edaddf7dc8969ff3ec44318dfc8a32b7bf3fa",
+        "skills/frontend-craft/references/ux-writing.md": "d8617ece265f5982931471fecb48f11be3b44299f6ae605a5c16e748c4174b5e"
+      },
+      "cli_version": "codex-cli 0.145.0",
+      "command_count": 4,
+      "duration_ms": 28735,
+      "ended_at": "2026-07-31T22:00:51.109989Z",
+      "event_count": 13,
+      "exit_code": 0,
+      "expected": {
+        "async_status_role": "status",
+        "dialog_close_focus": "opener",
+        "marker": "SRE_FRONTEND_REFERENCES_OK",
+        "placeholder_replaces_label": false,
+        "themes": [
+          "light",
+          "dark",
+          "system"
+        ],
+        "voice": "active"
+      },
+      "kind": "reference-direct",
+      "lane_id": "codex-sol-frontend-a11y-ux-references",
+      "observed_model_exposed": false,
+      "observed_models": [],
+      "prompt_digest": "0574ae589e34de45709133c261891bb18f02c513df59847a78b105607bc9bc34",
+      "reason": "deterministic oracle and every required artifact read passed",
+      "reasoning_effort": "high",
+      "references": [
+        "references/design-language.md",
+        "references/interaction-a11y.md",
+        "references/ux-writing.md"
+      ],
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "async_status_role": "status",
+        "dialog_close_focus": "opener",
+        "marker": "SRE_FRONTEND_REFERENCES_OK",
+        "placeholder_replaces_label": false,
+        "themes": [
+          "light",
+          "dark",
+          "system"
+        ],
+        "voice": "active"
+      },
+      "sandbox": "read-only",
+      "skill": "frontend-craft",
+      "skill_read_diagnostics": {
+        "artifacts": [
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "8d3ab27f178b6f0d9cfe0de42ea59c037c827456e02d3e0e604a10017d28187e",
+            "exit_code": 0,
+            "expected_chars": 11544,
+            "expected_sha256": "4ebf03d886707077566d5eab1c6fcaf7f072b87034e794d6ecf9943eb749ebb1",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 11639,
+            "output_sha256": "6929bfc416383940d9de6e1820dc15600093542b94a4a1adb22d1f944686eef6",
+            "path_matched": true,
+            "relative_path": "skills/frontend-craft/SKILL.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          },
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "b567aef93c7710e52a1af9c982ea946be162c71b4fe553c42c0d3d60aed07453",
+            "exit_code": 0,
+            "expected_chars": 1868,
+            "expected_sha256": "20d4be9c94dda84e207f935cb23e0c0db041103dfa2f592c10608583b6666786",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 1873,
+            "output_sha256": "525412f14a8d4ce1101a4c1ad42b537a70b97f200fb5ae4a51214ba6be90c54a",
+            "path_matched": true,
+            "relative_path": "skills/frontend-craft/references/design-language.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          },
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "4711f3ff42a4010fddc9ff5b304496851f5c9b81bba68b6a97eac86b88b70161",
+            "exit_code": 0,
+            "expected_chars": 1617,
+            "expected_sha256": "653f80009943269da5a5a690936edaddf7dc8969ff3ec44318dfc8a32b7bf3fa",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 1620,
+            "output_sha256": "c854e3f03f47c5dfd822583c6a4f8e1803653070653c950307511211fb882865",
+            "path_matched": true,
+            "relative_path": "skills/frontend-craft/references/interaction-a11y.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          },
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "fecbfd1a837bd49ee09ef3070450c15fb36ef99b2230b69988a9e1bf314b1f01",
+            "exit_code": 0,
+            "expected_chars": 1040,
+            "expected_sha256": "d8617ece265f5982931471fecb48f11be3b44299f6ae605a5c16e748c4174b5e",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 1079,
+            "output_sha256": "ab08d4dbf1351a8ffe81a39a262d081e7b592baba601a24620adace0d06841ff",
+            "path_matched": true,
+            "relative_path": "skills/frontend-craft/references/ux-writing.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          }
+        ],
+        "command_count": 4,
+        "expected_artifact_count": 4,
+        "verified_artifact_count": 4
+      },
+      "skill_read_verified": null,
+      "skill_sha256": "4ebf03d886707077566d5eab1c6fcaf7f072b87034e794d6ecf9943eb749ebb1",
+      "started_at": "2026-07-31T22:00:22.375416Z",
+      "timed_out": false,
+      "transcript_digest": "8f210f4064fb917faff8c463a0ae8163277ddb8b974da517a8751d6c1177a154",
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 77568,
+        "input_tokens": 96049,
+        "output_tokens": 652,
+        "reasoning_output_tokens": 45
+      },
+      "verdict": "pass"
+    },
+    {
+      "approval_policy": "never",
+      "artifact_reads_verified": true,
+      "artifact_sha256": {
+        "skills/craft/SKILL.md": "92f1b67ce39d429489c0ca9fc226c3c1d553802ea577bc48c7b7a9c8675e336a",
+        "skills/craft/references/typescript.md": "6c69784a29d75ce9d4dfd8f166a0b77095dd013e0eb1eeb363c4a21f23ff52f1"
+      },
+      "cli_version": "codex-cli 0.145.0",
+      "command_count": 2,
+      "duration_ms": 16125,
+      "ended_at": "2026-07-31T22:01:07.227988Z",
+      "event_count": 9,
+      "exit_code": 0,
+      "expected": {
+        "destructive_optimistic": false,
+        "idempotency_key_lifetime": "once per logical action",
+        "independent_async": "Promise.all",
+        "marker": "SRE_TYPESCRIPT_REFERENCE_OK",
+        "unknown_boundary": "schema or type guard"
+      },
+      "kind": "reference-direct",
+      "lane_id": "codex-sol-typescript-reference",
+      "observed_model_exposed": false,
+      "observed_models": [],
+      "prompt_digest": "265c6904adee4451c83401e451c1d14ab5a19ab6a805c7307f5460e5d330f312",
+      "reason": "deterministic oracle and every required artifact read passed",
+      "reasoning_effort": "high",
+      "references": [
+        "references/typescript.md"
+      ],
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "destructive_optimistic": false,
+        "idempotency_key_lifetime": "once per logical action",
+        "independent_async": "Promise.all",
+        "marker": "SRE_TYPESCRIPT_REFERENCE_OK",
+        "unknown_boundary": "schema or type guard"
+      },
+      "sandbox": "read-only",
+      "skill": "craft",
+      "skill_read_diagnostics": {
+        "artifacts": [
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "d8b3c55c2d22f260637379034af81b84fd1ee6d9b6141b5298f6aafddf391efc",
+            "exit_code": 0,
+            "expected_chars": 2372,
+            "expected_sha256": "92f1b67ce39d429489c0ca9fc226c3c1d553802ea577bc48c7b7a9c8675e336a",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 2407,
+            "output_sha256": "0fc36163c87a37c1c521815be68ada61308540257aa1f285a9cefd1c3242dba7",
+            "path_matched": true,
+            "relative_path": "skills/craft/SKILL.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          },
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "f56f344b052edba516332c794b79b879e550fe6f56a1822c2eebd92e6c3be66d",
+            "exit_code": 0,
+            "expected_chars": 2297,
+            "expected_sha256": "6c69784a29d75ce9d4dfd8f166a0b77095dd013e0eb1eeb363c4a21f23ff52f1",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 2300,
+            "output_sha256": "1a35933b05d6802bafbf43ba80222b8d3dac744ed24bc74ad4b820332abd12c2",
+            "path_matched": true,
+            "relative_path": "skills/craft/references/typescript.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          }
+        ],
+        "command_count": 2,
+        "expected_artifact_count": 2,
+        "verified_artifact_count": 2
+      },
+      "skill_read_verified": null,
+      "skill_sha256": "92f1b67ce39d429489c0ca9fc226c3c1d553802ea577bc48c7b7a9c8675e336a",
+      "started_at": "2026-07-31T22:00:51.109989Z",
+      "timed_out": false,
+      "transcript_digest": "d638fc4d7fb4fcb74a1513f1455c9b121566b121bb13e4e838cc7edc907e9337",
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 32256,
+        "input_tokens": 51064,
+        "output_tokens": 335,
+        "reasoning_output_tokens": 0
+      },
+      "verdict": "pass"
+    },
+    {
+      "approval_policy": "never",
+      "artifact_reads_verified": true,
+      "artifact_sha256": {
+        "skills/ops-tooling/SKILL.md": "3413959fe49072abbd9a81350ab973265505281fb74abade5f6af0ceefce35a0",
+        "skills/ops-tooling/references/multi-component.md": "a8a87fca7c04c9d394362daac6286c1dc0ba83971574ea386e220d06e8a5eaa0"
+      },
+      "cli_version": "codex-cli 0.145.0",
+      "command_count": 2,
+      "duration_ms": 20875,
+      "ended_at": "2026-07-31T22:01:28.103568Z",
+      "event_count": 9,
+      "exit_code": 0,
+      "expected": {
+        "contract_owner_count": 1,
+        "final_verification": "one real mission transaction",
+        "first_slice": "walking skeleton",
+        "marker": "SRE_MULTI_COMPONENT_REFERENCE_OK",
+        "mockup_before_framework": true
+      },
+      "kind": "reference-direct",
+      "lane_id": "codex-sol-multi-component-reference",
+      "observed_model_exposed": false,
+      "observed_models": [],
+      "prompt_digest": "09116773f3021932ebfe50e2c9451b545dd30d9707ce40db4513f7e11ded1fe8",
+      "reason": "deterministic oracle and every required artifact read passed",
+      "reasoning_effort": "high",
+      "references": [
+        "references/multi-component.md"
+      ],
+      "requested_model": "gpt-5.6-sol",
+      "required": true,
+      "response": {
+        "contract_owner_count": 1,
+        "final_verification": "one real mission transaction",
+        "first_slice": "walking skeleton",
+        "marker": "SRE_MULTI_COMPONENT_REFERENCE_OK",
+        "mockup_before_framework": true
+      },
+      "sandbox": "read-only",
+      "skill": "ops-tooling",
+      "skill_read_diagnostics": {
+        "artifacts": [
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "37b828676c7757c96042cfbf470bb69020c833a2a2790abaa9b021542850615e",
+            "exit_code": 0,
+            "expected_chars": 12452,
+            "expected_sha256": "3413959fe49072abbd9a81350ab973265505281fb74abade5f6af0ceefce35a0",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 12571,
+            "output_sha256": "53cfa6e1447f9dd2b29a785ff91d5527cfa62f2a8ecd18452b6dacbb961bf2c4",
+            "path_matched": true,
+            "relative_path": "skills/ops-tooling/SKILL.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          },
+          {
+            "artifact_suffix_matched": true,
+            "command_sha256": "76140b05b3d279aaa10226725354ad0c63086260a6093edbde4ac06846b64c22",
+            "exit_code": 0,
+            "expected_chars": 1951,
+            "expected_sha256": "a8a87fca7c04c9d394362daac6286c1dc0ba83971574ea386e220d06e8a5eaa0",
+            "full_output_matched": true,
+            "isolated_root_matched": true,
+            "matched_scope": "installed-cache",
+            "output_chars": 1954,
+            "output_sha256": "194aea2b5c6dcfd890f730ce0b7363cfce4856bf4b44656bb9ea751d7633cc72",
+            "path_matched": true,
+            "relative_path": "skills/ops-tooling/references/multi-component.md",
+            "simple_read_command": true,
+            "status": "completed",
+            "verified": true
+          }
+        ],
+        "command_count": 2,
+        "expected_artifact_count": 2,
+        "verified_artifact_count": 2
+      },
+      "skill_read_verified": null,
+      "skill_sha256": "3413959fe49072abbd9a81350ab973265505281fb74abade5f6af0ceefce35a0",
+      "started_at": "2026-07-31T22:01:07.227988Z",
+      "timed_out": false,
+      "transcript_digest": "c715627873b4e3a60eb336046bdfa9e5b1d8281a4324ae4834877874d544cbac",
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 44288,
+        "input_tokens": 55412,
+        "output_tokens": 513,
+        "reasoning_output_tokens": 169
+      },
+      "verdict": "pass"
+    }
+  ],
+  "runner_sha256": "d7a5a9e0890b1c5e2a768b548445b02f4625539c0adeeee05d11bf2a2b879897",
+  "schema_version": 1,
+  "started_at": "2026-07-31T21:59:32.330085Z",
+  "summary": {
+    "fail": 0,
+    "inconclusive": 0,
+    "pass": 6
+  }
+}
