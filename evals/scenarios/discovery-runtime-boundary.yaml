@@ -21,4 +21,3 @@ graders:
     of: ["no kubernetes", "not kubernetes", "do not", "not the current", "outside"]
   - type: contains_any
     of: ["platform team", "platform boundary", "we own", "application"]
-

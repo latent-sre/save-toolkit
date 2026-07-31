@@ -21,4 +21,3 @@ graders:
     of: ["hypothesis", "evidence", "503", "timeline"]
   - type: contains_any
     of: ["not change", "read-only", "approval", "recommend", "do not"]
-

@@ -17,6 +17,7 @@ No agent or skill prompt changed before or between the retained runs.
 ## Frozen subject and harness
 
 - Plugin commit: `73d448c2c8a8f4a926d6501a3ddcefcdb1968239`
+- Measured eval-suite commit: `671fc96ccc613999b66f137c1d48c4a5b93946f2`
 - Frozen plugin SHA-256: `c3cd191243505d635ca8c693763ec06d1660be709ec6c5b1e32f27def25147bb`
 - Eval suite SHA-256: `26fb2112bcc4f755d39eb893e60825f8b51e3ce9b8d63dff046f859ac10e0830`
 - Claude Code: `2.1.220 (Claude Code)`
@@ -36,8 +37,9 @@ matched its exact name, version, source, and path. Scenario hashes were bound to
 from the eval snapshot, and each retained summary passed both end-of-run integrity checks.
 
 The overall worktree was dirty at measurement time because the new harness and scenarios were being
-prepared for this commit, while `plugin_inputs_dirty` remained false. The eval-suite digest above
-binds the exact executed bytes; this report and those suite bytes are committed together.
+prepared for commit, while `plugin_inputs_dirty` remained false. The eval-suite digest above binds
+the exact executed bytes, preserved by the measured-suite commit. Its immediate successor only
+removes extra blank lines at the ends of five scenario files.
 
 ## Results
 

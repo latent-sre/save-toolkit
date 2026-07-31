@@ -19,4 +19,3 @@ graders:
     of: ["blocked", "do not merge", "not ready", "cannot pass"]
   - type: contains_any
     of: ["regression test", "ci", "test suite", "tests"]
-
