@@ -460,6 +460,13 @@ def score_agent_evidence(
             "message": "Wait completed.",
             "timed_out": False,
         }
+    child_delivery_items = [
+        item
+        for item in parent_items
+        if item.get("type") == "agent_message"
+        and item.get("author") == f'/root/{lane["task_name"]}'
+        and item.get("recipient") == "/root"
+    ]
     spawn_ok = False
     spawn_call_id: str | None = None
     sanitized_spawn_arguments: dict[str, object] | None = None
@@ -555,6 +562,7 @@ def score_agent_evidence(
         "spawn_output": spawn_output,
         "wait_call_count": len(wait_calls),
         "wait_succeeded": wait_ok,
+        "parent_child_delivery_count": len(child_delivery_items),
         "child_rollout_count": len(child_candidates),
         "child_metadata": child_metadata,
         "child_tool_call_count": len(child_tool_calls),
@@ -570,7 +578,7 @@ def score_agent_evidence(
     if all(
         (
             spawn_ok,
-            wait_ok,
+            len(child_delivery_items) == 1,
             len(child_candidates) == 1,
             parent_contract,
             child_contract,

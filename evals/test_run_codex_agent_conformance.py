@@ -75,6 +75,17 @@ class CodexAgentConformanceTests(unittest.TestCase):
             {
                 "type": "response_item",
                 "payload": {
+                    "type": "agent_message",
+                    "author": "/root/reviewer_canary",
+                    "recipient": "/root",
+                    "content": [
+                        {"type": "input_text", "text": self.lane["child_expected"]}
+                    ],
+                },
+            },
+            {
+                "type": "response_item",
+                "payload": {
                     "type": "function_call",
                     "name": "wait_agent",
                     "call_id": wait_call_id,
@@ -185,6 +196,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
         self.assertEqual(("gpt-5.6-sol",), score.observed_models)
         self.assertTrue(score.diagnostics["spawn_succeeded"])
         self.assertTrue(score.diagnostics["wait_succeeded"])
+        self.assertEqual(1, score.diagnostics["parent_child_delivery_count"])
         self.assertTrue(score.diagnostics["agent_instructions_loaded"])
 
     def test_self_report_without_spawn_cannot_pass(self) -> None:
@@ -216,7 +228,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
         self.assertEqual("fail", score.verdict)
         self.assertEqual(1, score.diagnostics["child_tool_call_count"])
 
-    def test_parent_must_wait_for_child(self) -> None:
+    def test_explicit_wait_is_optional_after_direct_child_delivery(self) -> None:
         parent = self._parent()
         parent[:] = [
             row
@@ -231,8 +243,23 @@ class CodexAgentConformanceTests(unittest.TestCase):
             )
         ]
         score = self._score(parent=parent)
-        self.assertEqual("fail", score.verdict)
+        self.assertEqual("pass", score.verdict)
         self.assertFalse(score.diagnostics["wait_succeeded"])
+
+    def test_parent_must_receive_child_completion(self) -> None:
+        parent = self._parent()
+        parent[:] = [
+            row
+            for row in parent
+            if not (
+                row.get("type") == "response_item"
+                and isinstance(row.get("payload"), dict)
+                and row["payload"].get("type") == "agent_message"
+            )
+        ]
+        score = self._score(parent=parent)
+        self.assertEqual("fail", score.verdict)
+        self.assertEqual(0, score.diagnostics["parent_child_delivery_count"])
 
     def test_child_must_run_the_requested_sol_contract(self) -> None:
         score = self._score(child=self._child(model="gpt-5.6-terra"))

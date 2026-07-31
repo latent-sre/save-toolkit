@@ -55,7 +55,8 @@ Codex home as the plugin, then asks the main Sol thread to delegate to `reviewer
 fork. A lane passes only when the private session rollouts prove all of the following:
 
 - exactly one successful `spawn_agent` call names `reviewer` and `fork_turns: none`;
-- the parent successfully waits for the named child;
+- the parent receives exactly one completion from the named child (an explicit wait is optional when
+  the child completes before the parent's next turn);
 - exactly one child session is linked to the parent with `agent_role: reviewer`;
 - the child receives the exact installed `developer_instructions` bytes;
 - parent and child runtime contexts expose `gpt-5.6-sol`, high reasoning, read-only sandboxing, and
