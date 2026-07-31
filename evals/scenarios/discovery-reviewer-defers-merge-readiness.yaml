@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-reviewer-defers-merge-readiness
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: reviewer
+prompt: |
+  Independent correctness and security inspection is complete with no P0 or P1 findings. I am not
+  asking for another code review. CI has not run, the candidate commit is not frozen, and no rollback
+  evidence is attached. Decide whether this change is ready to merge and name the blocking evidence.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: merge-gate
+success_criteria:
+  - Routes merge readiness to the checklist rather than repeating code review
+  - Blocks merge because CI, immutable identity, and rollback evidence are missing
+graders:
+  - type: contains_any
+    of: ["blocked", "do not merge", "not ready", "cannot pass"]
+  - type: contains_any
+    of: ["ci", "test suite", "checks"]
+  - type: contains_any
+    of: ["commit", "sha", "immutable", "frozen"]

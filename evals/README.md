@@ -34,6 +34,13 @@ agent flag, English hint, or target rewrite. The runner requests `stream-json` a
 only when a `tool_use.id` has a matching, non-error `tool_result.tool_use_id`. Attempted, denied,
 timed-out, malformed, and incomplete calls never count as successful routing.
 
+Agent descriptions are routing hints, not a dispatch guarantee. In one-shot headless Claude Code,
+the main model can answer a request inline even when the matching plugin agent is available and its
+description says to use it proactively. Treat agent-discovery scores as an observational host/model
+metric; do not infer that a failed discovery trial means the agent's behavior is broken. Direct agent
+contracts pin the agent with `--agent` and are the behavioral gate. For deterministic interactive use,
+select the plugin agent explicitly rather than depending on autonomous delegation.
+
 The live result states are `PASS`, `FAIL`, and `INCONCLUSIVE`. A timeout, authentication or runner
 failure, malformed trace, or missing final result is `INCONCLUSIVE`, never a fleet failure. Threshold
 aggregation uses the planned trial count: a scenario passes when it already has enough passes, fails
@@ -56,6 +63,10 @@ an explicit empty server set, preventing account-level connectors from joining t
 components remain present and are recorded separately from the `sre-agents` plugin. The CLI receives
 an exact built-in tool allowlist of `Skill,Task`; a broad deny list covering filesystem, shell, web,
 notification, scheduling, workflow, worktree, and task-state tools remains as defense in depth.
+The main-thread and direct-skill runtime must report that exact allowlist. A directly pinned agent can
+further reduce it through its own frontmatter; the harness derives and requires the exact effective
+intersection (`Skill` and/or the runtime's `Task` name for an `Agent(...)` grant). Missing and extra
+tools both make the trial inconclusive.
 
 This is a narrow evaluation boundary, not an OS security sandbox. Claude authentication remains
 available to the CLI process, and the plugin source remains readable by the host. Use only reviewed,

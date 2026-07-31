@@ -399,11 +399,68 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
     )
 
 
-def enforce_runtime_boundary(parsed: ParsedTrace, expected_plugin_root: Path = ROOT) -> None:
+def _split_tool_specs(raw: object) -> list[str]:
+    if isinstance(raw, list):
+        return [item.strip() for item in raw if isinstance(item, str) and item.strip()]
+    if not isinstance(raw, str):
+        return []
+    specs: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for char in raw:
+        if char == "(":
+            depth += 1
+        elif char == ")" and depth:
+            depth -= 1
+        if char == "," and depth == 0:
+            spec = "".join(current).strip()
+            if spec:
+                specs.append(spec)
+            current = []
+        else:
+            current.append(char)
+    spec = "".join(current).strip()
+    if spec:
+        specs.append(spec)
+    return specs
+
+
+def expected_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[str, ...]:
+    """Return the exact effective built-in ceiling for this invocation plan."""
+    target = scenario["target"]
+    if scenario["mode"] != "direct" or target["kind"] != "agent":
+        return ALLOWED_BUILTIN_TOOLS
+    path = plugin_root / "agents" / f"{target['name']}.md"
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if not lines or lines[0].strip() != "---":
+            raise ValueError("missing opening frontmatter")
+        end = next(index for index in range(1, len(lines)) if lines[index].strip() == "---")
+        fields = yaml.safe_load("\n".join(lines[1:end])) or {}
+        if not isinstance(fields, dict) or "tools" not in fields:
+            raise ValueError("frontmatter must be a mapping with an explicit tools field")
+    except (OSError, UnicodeError, ValueError, StopIteration, yaml.YAMLError) as exc:
+        raise clean_room.RunnerFailed(f"cannot derive direct-agent tool boundary from {path}: {exc}") from exc
+    bases = {spec.split("(", 1)[0].strip() for spec in _split_tool_specs(fields.get("tools"))}
+    effective = []
+    if "Skill" in bases:
+        effective.append("Skill")
+    if "Agent" in bases:
+        effective.append("Task")
+    return tuple(effective)
+
+
+def enforce_runtime_boundary(
+    parsed: ParsedTrace,
+    expected_plugin_root: Path = ROOT,
+    *,
+    expected_tools: tuple[str, ...] = ALLOWED_BUILTIN_TOOLS,
+) -> None:
     """Refuse a measurement if the CLI did not honor the requested namespace/tool boundary."""
-    if set(parsed.available_tools) != set(ALLOWED_BUILTIN_TOOLS):
+    observed_tools = set(parsed.available_tools)
+    if observed_tools != set(expected_tools):
         raise clean_room.RunnerFailed(
-            f"runtime tool boundary mismatch: expected {sorted(ALLOWED_BUILTIN_TOOLS)}, "
+            f"runtime tool boundary mismatch: expected exactly {sorted(expected_tools)}, "
             f"observed {sorted(parsed.available_tools)}"
         )
     if parsed.mcp_servers:
@@ -545,7 +602,11 @@ def run_agent(
         )
     try:
         parsed = parse_stream_trace(proc.stdout)
-        enforce_runtime_boundary(parsed, plugin_root)
+        enforce_runtime_boundary(
+            parsed,
+            plugin_root,
+            expected_tools=expected_runtime_tools(scenario, plugin_root),
+        )
     except clean_room.AuthUnavailable as exc:
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,

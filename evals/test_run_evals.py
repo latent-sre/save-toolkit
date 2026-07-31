@@ -215,6 +215,33 @@ class StreamTraceTests(unittest.TestCase):
         with self.assertRaises(clean_room.RunnerFailed):
             run_evals.enforce_runtime_boundary(substituted_plugin)
 
+    def test_runtime_boundary_uses_exact_direct_agent_tools(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._trace())
+        reduced_tools = run_evals.ParsedTrace(**{**parsed.__dict__, "available_tools": ("Skill",)})
+        run_evals.enforce_runtime_boundary(reduced_tools, expected_tools=("Skill",))
+        with self.assertRaises(clean_room.RunnerFailed):
+            run_evals.enforce_runtime_boundary(reduced_tools)
+
+        missing_tools = run_evals.ParsedTrace(**{**parsed.__dict__, "available_tools": ()})
+        with self.assertRaises(clean_room.RunnerFailed):
+            run_evals.enforce_runtime_boundary(missing_tools, expected_tools=("Skill",))
+
+        extra_tool = run_evals.ParsedTrace(
+            **{**parsed.__dict__, "available_tools": ("Skill", "Bash")}
+        )
+        with self.assertRaises(clean_room.RunnerFailed):
+            run_evals.enforce_runtime_boundary(extra_tool, expected_tools=("Skill",))
+
+    def test_direct_agent_tools_are_derived_from_frontmatter(self) -> None:
+        reviewer = {"mode": "direct", "target": {"kind": "agent", "name": "reviewer"}}
+        sre = {"mode": "direct", "target": {"kind": "agent", "name": "sre"}}
+        researcher = {"mode": "direct", "target": {"kind": "agent", "name": "researcher"}}
+        discovery = {"mode": "discovery", "target": {"kind": "agent", "name": "reviewer"}}
+        self.assertEqual(run_evals.expected_runtime_tools(reviewer), ("Skill",))
+        self.assertEqual(run_evals.expected_runtime_tools(sre), ("Skill", "Task"))
+        self.assertEqual(run_evals.expected_runtime_tools(researcher), ("Skill",))
+        self.assertEqual(run_evals.expected_runtime_tools(discovery), ("Skill", "Task"))
+
     def test_missing_result_event_is_inconclusive_not_a_response(self) -> None:
         incomplete = json.dumps({"type": "system", "subtype": "init"})
         with self.assertRaises(clean_room.RunnerFailed):
