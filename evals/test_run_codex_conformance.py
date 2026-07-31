@@ -216,6 +216,51 @@ class CodexConformanceTests(unittest.TestCase):
         self.assertEqual("pass", score.verdict)
         self.assertTrue(score.skill_read_verified)
 
+    def test_windows_powershell_preserves_undefined_cp1252_bytes(self) -> None:
+        skill_path = Path("C:/isolated/skills/stack-profile/SKILL.md")
+        skill_text = "warning \u26a0\ufe0f profile canary: sp_7c2e\n"
+        powershell_text = conformance._dotnet_windows_1252_decode(
+            skill_text.encode("utf-8")
+        ) + "\r\n"
+        self.assertTrue(conformance._command_output_matches(powershell_text, skill_text))
+
+        trace = "\n".join(
+            (
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "command_execution",
+                            "command": f"Get-Content -Raw '{skill_path}'",
+                            "aggregated_output": powershell_text,
+                            "exit_code": 0,
+                            "status": "completed",
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "agent_message",
+                            "text": json.dumps(self.lane["expected"]),
+                        },
+                    }
+                ),
+                json.dumps({"type": "turn.completed", "usage": {}}),
+            )
+        )
+        score = conformance.score_trace(
+            conformance.parse_codex_jsonl(trace),
+            lane=self.lane,
+            installed_skill=skill_path,
+            expected_skill_text=skill_text,
+            returncode=0,
+            stderr="",
+            timed_out=False,
+        )
+        self.assertEqual("pass", score.verdict)
+
     def test_frozen_marketplace_source_is_allowed_but_unrelated_copy_is_not(self) -> None:
         installed = Path(
             "C:/isolated/codex-home/plugins/cache/latent-sre/sre-agents/1.0.0/"
