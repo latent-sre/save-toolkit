@@ -47,8 +47,14 @@ validation passing.
 plugin checks pass; packaging/authority, eval/conformance, and canary/release changes receive
 independent review; conflicting PR #70 is closed as superseded with a link to the replacement.
 
-**Next action:** Open the draft PR from `codex/sister-plugin-migration` and let trusted CI evaluate
-the current branch.
+**Current evidence:** Draft PR #71 supersedes the now-closed PR #70. Its implementation head
+`9efc45e6e1ccfa17a7e01aa80c4acd9a1aaf0cd0` received an exact-SHA three-pass approval with no P0-P3
+findings and zero independently found P0/P1s. Hosted run 30682831998 passed Gate A on Ubuntu, macOS,
+and Windows plus the strict Claude plugin contract. The branch is not merged and no canary ran.
+
+**Next action:** Obtain human owner review and merge PR #71. Treat `9efc45e` as the reviewed
+implementation boundary; if executable, workflow, prompt, or authority bytes change, repeat the
+applicable exact-SHA review and hosted checks before merge.
 
 ### SAFE-001 — separate research trust zones and normalize evidence
 
@@ -78,11 +84,12 @@ without checkout before a credential-free trusted extractor materializes only bo
 plugin/agent blobs. Skill lanes disable delegation; agent lanes permit only trusted-main prompt bytes
 plus one live child under a shared rollout budget. The fleet also uses host-portable reviewer
 integrity language and adds a real reviewer authorization lane. The earlier Sol runtime results are
-revoked; these remediations currently have offline evidence only.
+revoked. The remediations now have an exact-SHA independent approval and hosted structural evidence
+on all three operating systems, but no fresh live model evidence.
 
-**Next action:** Bind the focused three-pass re-review and draft PR to the committed candidate. After
-the broker workflow reaches trusted `main`, wait for PROTECT-001 and distinct promotion authority;
-only then run it against an immutable reviewed canary SHA.
+**Next action:** Merge the reviewed candidate through PR #71. After the broker workflow reaches
+trusted `main`, wait for PROTECT-001 and distinct promotion authority; only then run it against an
+immutable reviewed canary SHA.
 
 ## Active runtime work
 
@@ -109,8 +116,8 @@ a model or modifying host installations. This machine has Claude, Codex, and VS 
 CLI remains unavailable, and the doctor reports that lane as `skip` rather than `pass`. Local live
 Codex conformance is now rejected because the Windows/same-user credential boundary is insufficient.
 
-**Next action:** Add disposable install/uninstall probes only for available hosts; keep Copilot and
-VS Code behavioral lanes explicitly incomplete until their drivers can prove them.
+**Next action:** After MERGE-001, add disposable install/uninstall probes only for available hosts;
+keep Copilot and VS Code behavioral lanes explicitly incomplete until their drivers can prove them.
 
 ### VERIFY-001 — isolate executable verification
 
@@ -141,8 +148,12 @@ unsafe engines, unpinned images, source
 indirection, Git metadata, digest drift, timeouts, output overflow, oversized scratch, missing image, cleanup
 failure, foreign name collision, and container residue.
 
-**Next action:** Independently review the boundary and keep the verification-agent roster decision
-deferred until a real workflow demonstrates a separate consumer.
+**Review evidence:** The boundary and its hosted-runner portability changes received exact-SHA
+independent approval; Gate A exercised its deterministic contracts on Ubuntu, macOS, and Windows.
+This is not evidence of a separate workflow consumer and does not reopen the roster decision.
+
+**Next action:** Merge the reviewed boundary through PR #71. Keep the verification-agent roster
+decision deferred until a real workflow demonstrates a separate consumer.
 
 ### EVAL-001 — expand risk-weighted Sol coverage
 
@@ -173,11 +184,16 @@ credential-free extractor writes raw allowlisted blobs. Skill lanes have no coll
 agent lanes require trusted prompt bytes while bounding V1/V2 concurrency and shared rollout usage.
 Five static routing collision cases remain in the ordinary eval suite.
 
-**Next action:** Complete the exact-SHA three-pass review and merge the trusted evaluator workflow if
-approved. Do **not** create a canary or dispatch the live run until PROTECT-001 and the distinct
-promotion-authority control are complete, as required by `CONTRIBUTING.md`. Only then evaluate the
-reviewed immutable canary and retain both reduced reports with the fresh-runner attestation. Keep
-implicit routing observational rather than turning it into a release gate.
+**Review evidence:** The trusted evaluator at implementation commit
+`9efc45e6e1ccfa17a7e01aa80c4acd9a1aaf0cd0` received exact-SHA three-pass approval with no P0-P3
+findings, and its structural contracts passed the hosted three-OS matrix. No live model run was
+dispatched.
+
+**Next action:** Merge the trusted evaluator through PR #71. Do **not** create a canary or dispatch
+the live run until PROTECT-001 and the distinct promotion-authority control are complete, as required
+by `CONTRIBUTING.md`. Only then evaluate the reviewed immutable canary and retain both reduced reports
+with the fresh-runner attestation. Keep implicit routing observational rather than turning it into a
+release gate.
 
 ## Decision needed
 
