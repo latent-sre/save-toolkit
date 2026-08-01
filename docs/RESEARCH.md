@@ -1,6 +1,6 @@
 # Research & provenance
 
-Why the fleet is built the way it is, with sources. Current as of **2026-07-31**. Formats and product
+Why the fleet is built the way it is, with sources. Current as of **2026-08-01**. Formats and product
 names move fast — re-verify load-bearing specifics (and label anything you can't confirm "unverified",
 per the `researcher` agent's rules).
 
@@ -25,6 +25,48 @@ Raw cross-host copies look portable but silently misstate tool and hook enforcem
 `anthropics/anthropic-cookbook` (agent/skill/eval patterns) · `ComposioHQ/awesome-claude-skills`
 (community skills) · `affaan-m/ecc` (harness-native operator system; skill-first + per-language rules +
 cross-harness adapters).
+
+## Preserved internal source material (2026-08-01)
+
+### PR #70 — native VS Code agents and skills experiment
+
+This closed, unmerged experiment is retained as source material for future agent, skill, and
+multi-platform packaging work. It is **not** the accepted fleet architecture and must not be merged
+wholesale. Re-evaluate individual ideas against current `main`, the current platform contracts, and
+the accepted decisions before adopting them.
+
+| Field | Preserved value |
+|---|---|
+| Pull request | [`#70 — Move skills to .github/skills; remove generated agent projections`](https://github.com/latent-sre/sre-agents/pull/70) |
+| Original branch | `claude/vscode-native-agents-skills-xy27mw` |
+| Pinned commit | `9e9553b5d8586f916a672179e38ae72e226be852` |
+| Annotated tag | `source-material/claude-vscode-native-agents-skills-2026-08-01` |
+| Branch protection | [verified] Active ruleset [`20191052`](https://github.com/latent-sre/sre-agents/rules/20191052): updates, deletion, and force pushes blocked; no bypass actors |
+| Tag protection | [verified] Active ruleset [`20191066`](https://github.com/latent-sre/sre-agents/rules/20191066): `source-material/*` updates, deletion, and force pushes blocked; no bypass actors |
+| Retention reason | Nine commits remain unique to the closed experiment and contain potentially useful native-layout, identity, and validation patterns |
+
+Unique commits, oldest first:
+
+1. `14425878` — scrub build scaffolding from shipped skills and gate against recurrence.
+2. `6b9bba2b` — gate the content-checker unit tests.
+3. `eecea4ed` — remove the dangling stack-profile tripwire claim.
+4. `f82a70c3` — move native skill authoring to `.github/skills/`.
+5. `1906a4fb` — project native agents and prompts into `.github/`.
+6. `93eac678` — strip cross-runtime skill IDs from per-runtime agent identities.
+7. `72c7f9a1` — document the native layout and authoring exception.
+8. `6a6a9c9b` — neutralize skill cross-references to one canonical identity.
+9. `9e9553b5` — track the `.github/agents` projections.
+
+Inspect without changing the current checkout:
+
+```bash
+git fetch origin tag source-material/claude-vscode-native-agents-skills-2026-08-01
+git show source-material/claude-vscode-native-agents-skills-2026-08-01
+git worktree add ../sre-agents-pr70-source source-material/claude-vscode-native-agents-skills-2026-08-01
+```
+
+The worktree starts detached at the immutable tag. Create a new branch from it before making any
+changes; do not attempt to update either preserved ref.
 
 ## Fleet adoption provenance (2026-07-17)
 
