@@ -367,6 +367,57 @@ class CodexAgentConformanceTests(unittest.TestCase):
         self.assertEqual(2, status)
         self.assertIn("separate candidate checkout", stderr.getvalue())
 
+    def test_sparse_candidate_is_clean_for_only_the_agent_bytes_it_evaluates(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "candidate"
+            clone = conformance.subprocess.run(
+                [
+                    "git",
+                    "clone",
+                    "--no-checkout",
+                    "--no-local",
+                    str(conformance.REPO_ROOT),
+                    str(candidate),
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            self.assertEqual(0, clone.returncode, clone.stderr)
+            remove_remote = conformance.subprocess.run(
+                ["git", "-C", str(candidate), "remote", "remove", "origin"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            self.assertEqual(0, remove_remote.returncode, remove_remote.stderr)
+            commit = conformance.base._git_value(candidate, ["rev-parse", "HEAD"])
+            conformance.base.materialize_git_tree.materialize(
+                candidate,
+                commit,
+                conformance.base.CANDIDATE_MATERIALIZATION_PATHS,
+            )
+
+            conformance.base.validate_candidate_materialization(candidate)
+            self.assertEqual("", conformance._agent_git_status(candidate))
+            omitted_authoring_status = conformance._git_status(
+                candidate, conformance.LOCAL_AGENT_INPUT_PATHS
+            )
+            self.assertIn("agents/", omitted_authoring_status)
+            self.assertEqual(
+                (".codex/agents",), conformance.CANDIDATE_AGENT_INPUT_PATHS
+            )
+            self.assertIn(
+                "scripts/install_codex_agents.py", conformance.HARNESS_INPUT_PATHS
+            )
+            self.assertIn(
+                "scripts/generate_platform_adapters.py", conformance.HARNESS_INPUT_PATHS
+            )
+
     def test_candidate_agent_unknown_fields_cannot_activate_runtime_capabilities(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             candidate = Path(temporary) / "candidate"

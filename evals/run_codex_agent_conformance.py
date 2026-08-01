@@ -40,17 +40,18 @@ from scripts import install_codex_agents as installer  # noqa: E402
 
 DEFAULT_MANIFEST = REPO_ROOT / "evals" / "conformance" / "codex-sol-agents.json"
 AGENT_SOURCE_DIRECTORY = Path(".codex/agents")
-AGENT_INPUT_PATHS = (
+LOCAL_AGENT_INPUT_PATHS = (
     "agents",
     ".codex/agents",
-    "scripts/generate_platform_adapters.py",
-    "scripts/install_codex_agents.py",
 )
+CANDIDATE_AGENT_INPUT_PATHS = (AGENT_SOURCE_DIRECTORY.as_posix(),)
 HARNESS_INPUT_PATHS = (
     "evals/run_codex_agent_conformance.py",
     "evals/run_codex_conformance.py",
     "evals/conformance/codex-sol-agents.json",
     "scripts/evidence_envelope.py",
+    "scripts/generate_platform_adapters.py",
+    "scripts/install_codex_agents.py",
     "schemas/evidence-envelope-v1.schema.json",
 )
 ERROR_LINE = re.compile(r"(?:^|\s)ERROR(?:\s|:)|\berror=")
@@ -298,6 +299,17 @@ def agent_source_digest(root: Path) -> str:
 
 def _git_status(root: Path, paths: Sequence[str]) -> str:
     return base._git_status(root, paths)
+
+
+def _agent_git_status(root: Path) -> str:
+    """Check only candidate bytes used by the run; keep authoring closure local to main."""
+
+    paths = (
+        LOCAL_AGENT_INPUT_PATHS
+        if root.resolve() == REPO_ROOT.resolve()
+        else CANDIDATE_AGENT_INPUT_PATHS
+    )
+    return _git_status(root, paths)
 
 
 def build_exec_command(executable: str, workspace: Path, lane: Mapping[str, object]) -> list[str]:
@@ -680,7 +692,7 @@ def run_live(
     plugin_digest_before = base.codex_plugin_digest(root)
     agent_digest_before = agent_source_digest(root)
     plugin_status = base._plugin_git_status(root)
-    agent_status = _git_status(root, AGENT_INPUT_PATHS)
+    agent_status = _agent_git_status(root)
     # The evaluator and installer come from trusted main; the candidate contributes only agent and
     # plugin bytes. Checking candidate HEAD is not a substitute for evaluator independence.
     harness_status = _git_status(REPO_ROOT, HARNESS_INPUT_PATHS)
