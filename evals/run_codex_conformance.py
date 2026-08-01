@@ -757,55 +757,34 @@ def score_trace(
         for scope, path in allowed_skill_paths.items()
     }
     skill_read_verified = False
-    if len(commands) == 1 and isinstance(commands[0], dict):
-        command = commands[0]
-        rendered = _normalized_windows_pathish(str(command.get("command") or ""))
-        output = str(command.get("aggregated_output") or "")
-        normalized_output = _normalized_text(output)
-        normalized_expected = _normalized_text(expected_skill_text)
-        matched_scope: str | None = next(
-            (scope for scope, expected_path in normalized_paths.items() if expected_path in rendered),
-            None,
+    command_diagnostics: list[dict[str, object]] = []
+    relative_skill = str(Path("skills") / str(lane["skill"]) / "SKILL.md")
+    for command in commands:
+        if not isinstance(command, dict):
+            command_diagnostics.append({"valid_command_event": False})
+            continue
+        verified, item = _verify_artifact_command(
+            command,
+            relative_path=relative_skill,
+            expected_text=expected_skill_text,
+            allowed_paths=allowed_skill_paths,
+            isolated_root=isolated_root,
         )
-        normalized_isolated_root = (
-            _normalized_windows_pathish(str(isolated_root)) if isolated_root is not None else None
+        item["skill_suffix_matched"] = item.pop("artifact_suffix_matched")
+        item["output_contains_canary"] = str(lane["expected"].get("canary", "")) in _normalized_text(
+            str(command.get("aggregated_output") or "")
         )
-        skill_suffix = _normalized_windows_pathish(
-            str(Path("skills") / str(lane["skill"]) / "SKILL.md")
-        )
-        isolated_root_matched = bool(
-            normalized_isolated_root and normalized_isolated_root in rendered
-        )
-        skill_suffix_matched = skill_suffix in rendered
-        simple_read_command = _is_simple_skill_read_command(rendered)
-        if matched_scope is None and isolated_root_matched and skill_suffix_matched:
-            matched_scope = "host-staged-isolated"
-        diagnostics.update(
-            {
-                "status": command.get("status"),
-                "exit_code": command.get("exit_code"),
-                "path_matched": matched_scope is not None,
-                "matched_scope": matched_scope,
-                "isolated_root_matched": isolated_root_matched,
-                "skill_suffix_matched": skill_suffix_matched,
-                "simple_read_command": simple_read_command,
-                "command_sha256": hashlib.sha256(rendered.encode("utf-8")).hexdigest(),
-                "output_chars": len(normalized_output),
-                "expected_chars": len(normalized_expected),
-                "output_sha256": hashlib.sha256(normalized_output.encode("utf-8")).hexdigest(),
-                "expected_sha256": hashlib.sha256(normalized_expected.encode("utf-8")).hexdigest(),
-                "full_output_matched": _command_output_matches(output, expected_skill_text),
-                "output_contains_canary": str(lane["expected"].get("canary", ""))
-                in normalized_output,
-            }
-        )
-        skill_read_verified = (
-            command.get("status") == "completed"
-            and command.get("exit_code") == 0
-            and matched_scope is not None
-            and simple_read_command
-            and _command_output_matches(output, expected_skill_text)
-        )
+        item["verified"] = verified
+        command_diagnostics.append(item)
+
+    if len(command_diagnostics) == 1:
+        diagnostics.update(command_diagnostics[0])
+        skill_read_verified = bool(command_diagnostics[0].get("verified"))
+    elif command_diagnostics:
+        # Preserve the exact-one-read safety contract, but expose enough non-secret structure
+        # to distinguish a duplicate skill read from an unrelated command. Raw argv and output
+        # remain absent; only hashes, lengths, and allowlisted-path match facts are retained.
+        diagnostics["commands"] = command_diagnostics
 
     observed = parsed.get("observed_models")
     if isinstance(observed, list) and observed and lane["model"] not in observed:

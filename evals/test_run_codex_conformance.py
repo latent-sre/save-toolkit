@@ -188,6 +188,52 @@ class CodexConformanceTests(unittest.TestCase):
         self.assertEqual("fail", score.verdict)
         self.assertFalse(score.skill_read_verified)
 
+    def test_multiple_commands_fail_with_sanitized_per_command_diagnostics(self) -> None:
+        skill_path = Path("C:/isolated/skills/stack-profile/SKILL.md")
+        skill_text = "profile canary: sp_7c2e\n"
+        command = {
+            "type": "item.completed",
+            "item": {
+                "type": "command_execution",
+                "command": f"Get-Content -Raw '{skill_path}'",
+                "aggregated_output": skill_text,
+                "exit_code": 0,
+                "status": "completed",
+            },
+        }
+        trace = "\n".join(
+            (
+                json.dumps(command),
+                json.dumps(command),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "agent_message",
+                            "text": json.dumps(self.lane["expected"]),
+                        },
+                    }
+                ),
+                json.dumps({"type": "turn.completed", "usage": {}}),
+            )
+        )
+        score = conformance.score_trace(
+            conformance.parse_codex_jsonl(trace),
+            lane=self.lane,
+            installed_skill=skill_path,
+            expected_skill_text=skill_text,
+            returncode=0,
+            stderr="",
+            timed_out=False,
+        )
+        self.assertEqual("fail", score.verdict)
+        self.assertEqual(2, score.skill_read_diagnostics["command_count"])
+        diagnostics = score.skill_read_diagnostics["commands"]
+        self.assertEqual(2, len(diagnostics))
+        self.assertTrue(all(item["path_matched"] for item in diagnostics))
+        self.assertTrue(all("command_sha256" in item for item in diagnostics))
+        self.assertTrue(all("command" not in item for item in diagnostics))
+
     def test_windows_powershell_legacy_decode_is_an_exact_accepted_rendering(self) -> None:
         skill_path = Path("C:/isolated/plugins/cache/latent-sre/sre-agents/1.0.0/skills/stack-profile/SKILL.md")
         skill_text = "stack profile — profile canary: sp_7c2e\n"
