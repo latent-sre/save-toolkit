@@ -46,6 +46,23 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__search_language",
     "mcp__plugin_githits_githits__search_status",
 }
+SCRIBE_RUNBOOK_EXECUTION_DIRECTIVES = (
+    (
+        "imperative execution language",
+        re.compile(
+            r"(?i)\b(?:run|execute|invoke|rehearse|test|try|validate|verify|perform|conduct)\s+"
+            r"(?:(?:the|these|those|a|an|any|each|all|supplied|read-only|live|realistic)\s+)*"
+            r"(?:commands?|procedures?|runbooks?|game[\s/-]?days?|drills?|syntax|outputs?|targets?|ones?)\b"
+        ),
+    ),
+    (
+        "documentation-agent execution language",
+        re.compile(
+            r"(?i)\b(?:scribe|you|this agent|the documentation agent)\b"
+            r"[^\n.!?]{0,100}\b(?:run|execute|invoke|rehearse|test|try|validate|verify|perform|conduct)\b"
+        ),
+    ),
+)
 EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 EXPECTED_AUTHORITY = {
@@ -193,11 +210,17 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
 
 
 def validate_scribe_bundle(root: Path) -> list[str]:
-    """Keep scribe's loaded skills and template inside its no-execution ownership boundary."""
+    """Guard known scribe bundle boundaries; outer tool isolation remains load-bearing.
+
+    These structural checks catch ownership regressions and broad classes of authoring directives.
+    They are not a semantic proof that arbitrary prose cannot imply execution.
+    """
 
     contracts = {
         Path("skills/runbook/SKILL.md"): {
             "required": (
+                "A named human or service owner runs game days\n"
+                "or drills under approved, realistic conditions; `scribe` only records the supplied results",
                 "never execute from\n  this documentation lane, including a read-only command",
             ),
             "forbidden": ("run read-only ones to confirm syntax",),
@@ -229,6 +252,13 @@ def validate_scribe_bundle(root: Path) -> list[str]:
         for forbidden in contract["forbidden"]:
             if forbidden in text:
                 failures.append(f"{path}: stale scribe bundle contract: {forbidden!r}")
+        if relative == Path("skills/runbook/SKILL.md"):
+            for label, pattern in SCRIBE_RUNBOOK_EXECUTION_DIRECTIVES:
+                match = pattern.search(text)
+                if match:
+                    failures.append(
+                        f"{path}: scribe execution directive ({label}): {match.group(0)!r}"
+                    )
     return failures
 
 

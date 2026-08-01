@@ -36,7 +36,8 @@ Full fill-in template: [runbook template](./assets/runbook-template.md) — copy
 Rules:
 - Every command copy-pasteable as written — real paths and real names. A `<placeholder>` is allowed only for truly variable values, and then say where to find the value.
 - "Common failures" lists only what has been observed or is clearly plausible for this service — no padding to make the section look complete.
-- If you couldn't verify a command works (service not running, no access), mark it `[unverified]` rather than presenting it as tested.
+- If supplied evidence is insufficient to establish that a command works (service not running, no
+  access), mark it `[unverified]` rather than presenting it as tested.
 
 ## Runbook vs playbook vs SOP
 - **Runbook** — steps to handle *one* alert/task/failure mode (this template).
@@ -44,8 +45,10 @@ Rules:
   playbook). Ownership map only—not a load: the `incident-command` skill owns live-incident coordination.
 - **SOP** — a fixed procedure for routine operations (not incident-driven).
 
-Keep them current the only way that works: **rehearse them.** Run game days / drills under realistic
-conditions, and bump `last_verified` after each.
+Keep them current through evidence-backed rehearsal. A named human or service owner runs game days
+or drills under approved, realistic conditions; `scribe` only records the supplied results. Preserve
+`last_verified` only when incoming evidence binds the exact artifact/version, target, actor,
+timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`.
 
 ## Authoring rules
 - **Numbered, imperative steps.** Copy-pasteable commands with real values or clearly templated

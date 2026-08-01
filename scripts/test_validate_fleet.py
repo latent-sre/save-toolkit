@@ -60,6 +60,21 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_scribe_loaded_bundle_cannot_execute_or_route_docs_to_steward(self) -> None:
         self.assertEqual([], validate_fleet.validate_scribe_bundle(ROOT))
+        execution_directives = (
+            "Run game days / drills under realistic conditions.",
+            "You should execute commands to verify their output.",
+            "The documentation agent must rehearse the runbook.",
+        )
+        for directive in execution_directives:
+            with self.subTest(directive=directive), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                target = root / "skills/runbook/SKILL.md"
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source = (ROOT / "skills/runbook/SKILL.md").read_text(encoding="utf-8")
+                target.write_text(f"{source}\n{directive}\n", encoding="utf-8")
+                failures = validate_fleet.validate_scribe_bundle(root)
+            self.assertIn("scribe execution directive", "\n".join(failures))
+
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             for relative in (
@@ -87,6 +102,7 @@ class FleetValidatorTests(unittest.TestCase):
             failures = validate_fleet.validate_scribe_bundle(root)
         rendered = "\n".join(failures)
         self.assertIn("run read-only ones to confirm syntax", rendered)
+        self.assertIn("scribe execution directive", rendered)
         self.assertIn("operating documentation → typed `sre-steward`", rendered)
         self.assertIn("timeline and evidence to the `sre-steward` agent", rendered)
 
