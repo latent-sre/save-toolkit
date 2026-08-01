@@ -59,11 +59,13 @@ runs the *process*, not the debugging, keeping the response moving toward mitiga
   mitigation using the inline decision below, and make that call explicit; a human executes it.
 - **One source of truth.** Keep a single running **timeline** (UTC) of what is known, tried, and next.
 - **Assign roles:** Investigation lead (typed `sre` agent), Ops/remediation (a human release owner),
-  Comms/scribe (the IC or typed `sre-steward` agent on a large SEV1). Confirm who owns what.
+  Comms/timeline scribe (a named human during the live incident—not the typed `scribe` documentation
+  agent). Confirm who owns what.
 - **Track every action** — each "someone should…" becomes an owned, tracked item.
-- **Resolve & close.** Confirm impact has ended (verify via the investigator and typed `sre-steward` agent),
-  send the **Resolution** update, and hand the timeline to the typed `sre-steward` agent for the durable
-  retrospective.
+- **Resolve & close.** Confirm impact has ended (verify via the investigator and typed `sre-steward`
+  agent), send the **Resolution** update, then hand the authoritative timeline to typed `scribe` for
+  the durable retrospective and learning dispositions. `sre-steward` supplies recovery/detection
+  evidence; it does not author the postmortem.
 
 ### Status — one authoritative block, kept live
 
@@ -98,8 +100,9 @@ large SEV1, split **Comms lead** and **Scribe** off from the IC; otherwise the I
 
 Downgrade or resolve only when the **golden signals are back to baseline and stay there** for a
 sustained window (not just "the graph turned green" — a metastable system can re-break). Verify recovery
-via the investigator and typed `sre-steward` agent first, then send the **Resolution** update and give the
-typed `sre-steward` agent the timeline with preserved `[verified]`, `[sourced]`, and `[unverified]` labels.
+via the investigator and typed `sre-steward` agent first, then send the **Resolution** update and give
+typed `scribe` the authoritative timeline with preserved `[verified]`, `[sourced]`, and `[unverified]`
+labels for postmortem and operational-learning closeout.
 
 ## Choose the mitigation (the rollback decision)
 
@@ -132,15 +135,15 @@ until the human release owner validates the exact target, capability, command, a
    golden signals for 1–2 minutes before the next action — so you know what worked.
 3. **Restart is a stopgap, not a fix.** If a restart "fixes" it, the cause is still there (leak, poison
    input, dependency) — capture `cf events`/logs first, then keep investigating with the typed `sre` agent.
-4. **Record everything** (UTC) for the timeline and give it to the typed `sre-steward` agent.
+4. **Record everything** (UTC) in the IC-owned timeline; after resolution give it to typed `scribe`.
 5. **Confirm before executing.** Every command here changes production. Show the exact target, command,
    blast radius, verification, and rollback; attach existing human approval, then the human executes.
 
 ### After mitigation
 
-User pain stopped ≠ incident over. Hand root-cause work to the typed `sre` agent and fix-forward execution
-to a human release owner; the typed `sre-steward` agent confirms recovery and the typed `sre-steward` agent captures
-durable operating guidance.
+User pain stopped ≠ incident over. Hand root-cause work to the typed `sre` agent and fix-forward
+execution to a human release owner; typed `sre-steward` confirms recovery and owns detection changes;
+after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions.
 
 ## Pairs with
 

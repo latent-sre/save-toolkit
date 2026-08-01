@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-operational-learning-skill-defers-writing
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: operational-learning
+prompt: |
+  The catalog service and its alerts are approved. Directly write the repository service card,
+  alert cards, operations index links, and missing-runbook dispositions from the supplied evidence.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: scribe
+success_criteria:
+  - Routes direct operational-knowledge writing through scribe
+  - Keeps the skill as a method loaded after the agent selects knowledge closeout
+graders:
+  - type: contains_any
+    of: ["scribe", "knowledge closeout", "operations KB"]
+  - type: contains_any
+    of: ["service card", "alert card", "runbook", "disposition"]

@@ -46,7 +46,7 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__search_language",
     "mcp__plugin_githits_githits__search_status",
 }
-SCRIBE_RUNBOOK_EXECUTION_DIRECTIVES = (
+SCRIBE_BUNDLE_EXECUTION_DIRECTIVES = (
     (
         "imperative execution language",
         re.compile(
@@ -217,6 +217,10 @@ def validate_scribe_bundle(root: Path) -> list[str]:
     """
 
     contracts = {
+        Path("agents/scribe.md"): {
+            "required": ("**Knowledge closeout mode**", "`operational-learning`"),
+            "forbidden": (),
+        },
         Path("skills/runbook/SKILL.md"): {
             "required": (
                 "A named human or service owner runs game days\n"
@@ -226,16 +230,46 @@ def validate_scribe_bundle(root: Path) -> list[str]:
             "forbidden": ("run read-only ones to confirm syntax",),
         },
         Path("skills/postmortem/SKILL.md"): {
-            "required": ("operating documentation → typed `scribe`",),
+            "required": (
+                "operating documentation → typed `scribe`",
+                "every new operational fact has a **learning disposition**",
+            ),
             "forbidden": ("operating documentation → typed `sre-steward`",),
+        },
+        Path("skills/operational-learning/SKILL.md"): {
+            "required": (
+                "A discovery is learned only when evidence and an\nexplicit disposition",
+                "permits proposals only—no prepared KB change",
+            ),
+            "forbidden": (),
+        },
+        Path("skills/service-onboarding/SKILL.md"): {
+            "required": ("emit a **learning disposition**\n   packet to `scribe`",),
+            "forbidden": (),
+        },
+        Path("skills/incident-command/SKILL.md"): {
+            "required": (
+                "after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions",
+            ),
+            "forbidden": (
+                "hand the timeline to the typed `sre-steward` agent for the durable",
+                "typed `sre-steward` agent captures\ndurable operating guidance",
+            ),
         },
         Path("skills/runbook/assets/runbook-template.md"): {
             "required": (
                 "hand the timeline and evidence to the `scribe` agent for retrospective documentation",
+                "last_verified: null",
+                "Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version",
             ),
             "forbidden": (
                 "hand the timeline and evidence to the `sre-steward` agent for retrospective documentation",
+                "bump `last_verified`",
             ),
+        },
+        Path("skills/postmortem/assets/postmortem-template.md"): {
+            "required": ("## Operational knowledge dispositions",),
+            "forbidden": (),
         },
     }
     failures: list[str] = []
@@ -252,8 +286,11 @@ def validate_scribe_bundle(root: Path) -> list[str]:
         for forbidden in contract["forbidden"]:
             if forbidden in text:
                 failures.append(f"{path}: stale scribe bundle contract: {forbidden!r}")
-        if relative == Path("skills/runbook/SKILL.md"):
-            for label, pattern in SCRIBE_RUNBOOK_EXECUTION_DIRECTIVES:
+        if relative in {
+            Path("skills/runbook/SKILL.md"),
+            Path("skills/operational-learning/SKILL.md"),
+        }:
+            for label, pattern in SCRIBE_BUNDLE_EXECUTION_DIRECTIVES:
                 match = pattern.search(text)
                 if match:
                     failures.append(

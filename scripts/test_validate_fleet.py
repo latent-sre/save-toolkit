@@ -26,7 +26,8 @@ class FleetValidatorTests(unittest.TestCase):
             validate_fleet._tool_bases(fields["tools"]),
         )
         self.assertIn("Do not execute anything", body)
-        self.assertIn("## Pick exactly one mode", body)
+        self.assertIn("## Pick one primary mode", body)
+        self.assertIn("**Knowledge closeout mode**", body)
 
     def test_sre_steward_no_longer_owns_operational_documentation(self) -> None:
         fields, body, _ = validate_fleet.adapters.parse_frontmatter(
@@ -60,32 +61,50 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_scribe_loaded_bundle_cannot_execute_or_route_docs_to_steward(self) -> None:
         self.assertEqual([], validate_fleet.validate_scribe_bundle(ROOT))
-        execution_directives = (
-            "Run game days / drills under realistic conditions.",
-            "You should execute commands to verify their output.",
-            "The documentation agent must rehearse the runbook.",
+        bundle_paths = (
+            Path("agents/scribe.md"),
+            Path("skills/runbook/SKILL.md"),
+            Path("skills/postmortem/SKILL.md"),
+            Path("skills/operational-learning/SKILL.md"),
+            Path("skills/service-onboarding/SKILL.md"),
+            Path("skills/incident-command/SKILL.md"),
+            Path("skills/runbook/assets/runbook-template.md"),
+            Path("skills/postmortem/assets/postmortem-template.md"),
         )
-        for directive in execution_directives:
-            with self.subTest(directive=directive), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary)
-                target = root / "skills/runbook/SKILL.md"
+
+        def copy_bundle(root: Path) -> None:
+            for relative in bundle_paths:
+                target = root / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
-                source = (ROOT / "skills/runbook/SKILL.md").read_text(encoding="utf-8")
+                target.write_text((ROOT / relative).read_text(encoding="utf-8"), encoding="utf-8")
+
+        execution_directives = (
+            (Path("skills/runbook/SKILL.md"), "Run game days / drills under realistic conditions."),
+            (
+                Path("skills/operational-learning/SKILL.md"),
+                "You should execute commands to verify their output.",
+            ),
+            (
+                Path("skills/operational-learning/SKILL.md"),
+                "The documentation agent must rehearse the runbook.",
+            ),
+        )
+        for relative, directive in execution_directives:
+            with self.subTest(path=relative, directive=directive), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                copy_bundle(root)
+                target = root / relative
+                source = target.read_text(encoding="utf-8")
                 target.write_text(f"{source}\n{directive}\n", encoding="utf-8")
                 failures = validate_fleet.validate_scribe_bundle(root)
             self.assertIn("scribe execution directive", "\n".join(failures))
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            for relative in (
-                Path("skills/runbook/SKILL.md"),
-                Path("skills/postmortem/SKILL.md"),
-                Path("skills/runbook/assets/runbook-template.md"),
-            ):
-                source = ROOT / relative
+            copy_bundle(root)
+            for relative in bundle_paths:
                 target = root / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                text = source.read_text(encoding="utf-8")
+                text = target.read_text(encoding="utf-8")
                 text = text.replace(
                     "never execute from\n  this documentation lane, including a read-only command",
                     "run read-only ones to confirm syntax",
@@ -98,6 +117,11 @@ class FleetValidatorTests(unittest.TestCase):
                     "hand the timeline and evidence to the `scribe` agent for retrospective documentation",
                     "hand the timeline and evidence to the `sre-steward` agent for retrospective documentation",
                 )
+                text = text.replace("last_verified: null", "last_verified: <bump after incident>")
+                text = text.replace(
+                    "after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions",
+                    "typed `sre-steward` agent captures\ndurable operating guidance",
+                )
                 target.write_text(text, encoding="utf-8")
             failures = validate_fleet.validate_scribe_bundle(root)
         rendered = "\n".join(failures)
@@ -105,6 +129,8 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("scribe execution directive", rendered)
         self.assertIn("operating documentation → typed `sre-steward`", rendered)
         self.assertIn("timeline and evidence to the `sre-steward` agent", rendered)
+        self.assertIn("last_verified: null", rendered)
+        self.assertIn("typed `sre-steward` agent captures", rendered)
 
     def test_inert_plugin_hook_and_missing_tools_fail(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

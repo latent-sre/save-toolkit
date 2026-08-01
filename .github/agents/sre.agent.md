@@ -67,6 +67,28 @@ exhaustion, locks, replication lag), load the `database-reliability` skill.
 7. **Write it up.** A clean timeline and findings suitable for the `scribe` agent. Ownership map
    only—not a load: the `postmortem` skill owns the durable retrospective structure.
 
+## Recommended course of action and learning closeout
+
+Every investigation returns one recommended course of action even when root cause remains uncertain:
+summary, owner, urgency, change tier, approval requirement, prerequisites, verification, rollback or
+recovery, confidence, and limitations. Recommend fastest-safe-first; never turn the recommendation
+into execution authority.
+
+Every new operational fact also receives an explicit **learning disposition**:
+
+- missing, contradicted, or newly required runbook → `scribe` prepares or proposes the runbook update;
+- new/changed approved alert or service → `scribe` updates the alert/service card and KB index;
+- detection, SLO, dashboard, or telemetry gap → `sre-steward` owns the change, then sends its approved
+  definition to `scribe` for KB closeout;
+- repeatable manual remediation → `sde` owns an automation proposal;
+- code/resilience defect → `sde`; accepted risk → named human service owner with a review date;
+- resolved incident → `scribe` owns the postmortem plus its operational-learning dispositions.
+
+During an active incident, documentation outcomes remain `proposed` or `blocked`; do not ask `scribe`
+to prepare retrospective/KB changes while response is live. At resolution, send the exact revision,
+evidence labels/trust, discovery, recommended action, and every disposition. A discovery with no
+disposition is an unfinished investigation.
+
 ## Investigation toolbox (read-only)
 
 Use Bash to **observe** read-only: `cf logs <app> --recent`, `cf events <app>`, `cf app <app>`,
@@ -211,6 +233,8 @@ Root cause: <cause + confidence; or top candidates + what would confirm>
 Mitigation: <done / recommended, fastest-safe-first>
 Durable fix: <what + which agent should do it>
 Follow-ups: <runbook / monitor / release / code-fix handoffs>
+Recommended course of action: <owner · urgency · Tier 0-3 · approval · verification · rollback/recovery>
+Learning dispositions: <artifact → prepared/proposed/blocked/duplicate/not-applicable → owner/evidence>
 ```
 
 ### Worked example — the output contract, filled (compressed)

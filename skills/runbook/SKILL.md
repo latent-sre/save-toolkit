@@ -60,9 +60,11 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
 - **Trigger-anchored** — starts from a concrete trigger (this alert/symptom/task), ends at "resolved or
   escalate to <whom>."
 - **Current or deleted** — date it, own it, prune what's wrong. A wrong runbook is worse than none.
-- **Machine-linkable frontmatter** — give each runbook YAML frontmatter (`alert_names`, `owner`,
-  `severity`, `last_verified`, `version`) so alerts auto-link and a linter can flag any not
-  verified in ~90 days.
+- **Machine-linkable frontmatter** — give each runbook YAML frontmatter (`schema_version`,
+  `runbook_id`, `service_id`, `status`, `alert_names`, `owner`, `severity`, `source_revision`,
+  `last_reviewed`, `last_verified`, `verification_evidence`, `version`). Both dates start `null`;
+  only human/authorized document review changes `last_reviewed`, and only bound rehearsal evidence
+  changes `last_verified`.
 - **Preserve command evidence before publishing** — use only supplied, authorized execution evidence
   for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
   this documentation lane, including a read-only command, merely to confirm syntax or output.
@@ -71,6 +73,9 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
 
 Link every paging alert to its runbook. When investigation is needed, hand the trigger and evidence
 to the `sre` agent; when code remediation is needed, hand the defect and evidence to the `sde` agent.
+When a new alert/service, drill, audit, or resolved incident exposes a missing or contradicted
+runbook, record an `operational-learning` disposition and have `scribe` prepare the evidence-bound
+create/update. Do not let a chat-only observation disappear or silently bump `last_verified`.
 If a step is fully mechanical, recommend automating it along the **Crawl → Walk → Run** path: document
 the manual steps (crawl), wrap them in a checked script the on-call runs by hand (walk), then trigger
 it automatically once proven (run). Data-drive the alert→runbook link so saved searches/alerts surface

@@ -60,6 +60,10 @@ something to work around.
    replayed data — and confirm it does **not** fire on a healthy window. A rule never seen to fire is
    unverified; say so.
 8. **Report health** when asked: SLO status, budget remaining, top noisy alerts, coverage gaps.
+9. **Close the knowledge seam.** For every approved new/changed alert, emit a **learning disposition**
+   for its alert card, service-card link, knowledge index, and runbook target. Send the authoritative
+   definition, exact revision, trusted approval record, evidence labels/trust, verification state,
+   and recommended first action to `scribe`; do not author those KB records in this observability lane.
 
 ### Change authority
 
@@ -103,6 +107,8 @@ guard; anything beyond them, ask a human to run and preserve the exact evidence.
   expected page volume / false-positive risk.
 - For health reports: SLO/budget status, trend, saturation/capacity outlook, recommended actions.
 - Always name coverage gaps you noticed (journeys with no SLI, alerts with no runbook).
+- For every approved alert addition/change: the learning disposition for alert card, service card,
+  knowledge index, and runbook, including one recommended course of action and next owner.
 
 #### Worked example — the output contract, filled (compressed)
 
@@ -119,8 +125,9 @@ guard; anything beyond them, ask a human to run and preserve the exact evidence.
 ## Handoffs
 
 - ← from `sre`: close a detection gap after an investigation.
-- → `scribe`: every paging alert needs a linked runbook; send the alert definition and evidence packet
-  rather than authoring the document in this lane.
+- → `scribe`: every approved new/changed paging alert needs an alert-card/service-card/index learning
+  disposition and a linked runbook; send the authoritative definition and evidence packet rather than
+  authoring the KB documents in this lane.
 - → `scribe`: after a resolved incident, send the finalized detection findings for the postmortem.
 - → `sde`: automate a repetitive operational step or build supporting tooling.
 - → `researcher`: confirm a vendor fact or public observability contract from a sanitized question.

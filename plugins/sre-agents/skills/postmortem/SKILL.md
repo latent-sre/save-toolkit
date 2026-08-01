@@ -69,6 +69,15 @@ Status: <draft|final>   Authors: <…>   Date: <…>
   agent.
 - Be honest about what you don't know; mark unconfirmed causes `[unverified]` and state how to confirm them.
 
+## Operational learning closeout
+
+A postmortem is incomplete until every new operational fact has a **learning disposition**. Apply the
+`operational-learning` policy after the primary postmortem is written: prepare or propose updates for
+runbook, service card, alert card, knowledge index, observability, automation, code, and accepted
+risk. Each outcome is `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable`, with evidence
+and one owner. The typed `scribe` agent may prepare documentation only; other lanes receive handoffs.
+No action item may end as chat-only advice.
+
 ## Lessons — include "where we got lucky"
 
 Capture three things, not just what broke: **what went well** (keep doing it), **what went wrong** (the

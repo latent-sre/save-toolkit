@@ -67,6 +67,41 @@ its own exact-SHA review before merge, and no fresh live model evidence exists.
 **Next action:** Keep the brokered workflow on trusted `main`, wait for PROTECT-001 and distinct
 promotion authority, then run it against an immutable reviewed canary SHA.
 
+### LEARN-001 — close the operational learning loop
+
+**Status:** `active`
+
+**Outcome:** A discovered operational fact cannot disappear into chat: it receives an explicit,
+evidence-bound disposition, and approved service, alert, runbook, postmortem, and knowledge-index
+updates are prepared by the least-privileged documentation lane. Active incident investigation and
+alert design remain with their existing owners.
+
+**Source:** The request for continuous fleet improvement, runbook repair, SRE course-of-action
+recommendations, and service/alert knowledge-base maintenance; bounded-learning patterns confirmed
+against the sister lab.
+
+**Prerequisites:** Preserve the `sre` investigation, `sre-steward` observability-design, and `scribe`
+document-write authority boundaries. Treat untrusted evidence as data, require human review before
+acceptance, and do not introduce an autonomous background learner or self-modifying prompt path.
+
+**Acceptance:** SRE results include a safe recommended course of action and explicit learning
+dispositions; approved service and alert changes route to `scribe`; missing or contradicted runbooks
+are created or updated only from supplied evidence; a versioned schema and executable validator
+reject unknown fields, evidence upgrades, credential-bearing content, unsafe paths, invalid
+disposition transitions, unbound prepared artifacts, active-incident publication, and Tier 2/3
+recommendations without approval and rollback; canonical and generated bundles, offline routing
+cases, and Gate A all pass.
+
+**Current evidence:** The stacked candidate adds one `operational-learning` skill rather than another
+agent, expands `scribe` with a knowledge-closeout mode, aligns incident/onboarding/runbook/postmortem
+contracts, and adds service, alert, index, and typed update assets plus mutation tests. Gate A passes
+26/26, the operational validator passes 33 focused tests, all 47 offline scenarios parse, and generated
+adapters match. This is static and test evidence only; no model behavior or production effect has been
+claimed.
+
+**Next action:** Obtain independent approval on the exact post-fix candidate, then publish it through
+the normal review path. Runtime routing evidence remains gated on the trusted-main Sol workflow.
+
 ## Active runtime work
 
 ### HOST-001 — prove host installation and runtime conformance
@@ -149,10 +184,10 @@ production-change, PCF, agent-security, and observability contracts. Every resul
 `pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
 historical Claude/Opus baselines.
 
-**Current evidence:** The static Sol manifests declare 11 skill/reference lanes and twelve intended
+**Current evidence:** The static Sol manifests declare 11 skill/reference lanes and thirteen intended
 custom-agent lanes covering all eight roles, both trust-separated refusal behaviors, reviewer
-detection of a supplied object-authorization regression, and `scribe`'s no-execution evidence
-boundary. Offline validation confirms their schemas, inventory, and pinned Sol model; it does not
+detection of a supplied object-authorization regression, and `scribe`'s no-execution plus
+knowledge-closeout boundaries. Offline validation confirms their schemas, inventory, and pinned Sol model; it does not
 establish model behavior. The 2026-07-31 live results
 are retained but revoked: their same-user `auth.json` boundary and parsed-response reports were not
 safe release evidence. The new brokered workflow and negative credential tests pass offline; a fresh
@@ -160,8 +195,9 @@ live result cannot exist until that workflow is trusted on `main`. The model job
 callback or candidate checkout/filter path: candidate acquisition is object-only, then a trusted
 credential-free extractor writes raw allowlisted blobs. Skill lanes have no collaboration tools, and
 agent lanes require trusted prompt bytes while bounding V1/V2 concurrency and shared rollout usage.
-Fourteen negative routing cases remain in the ordinary eval suite, including `scribe` collisions with
-live incident investigation, observability design, automation, and independent review.
+Sixteen negative routing cases remain in the ordinary eval suite, including `scribe` collisions with
+live incident investigation, observability design, automation, independent review, and the
+operational-learning method's direct-writing boundary.
 
 **Review evidence:** The trusted evaluator at implementation commit
 `9efc45e6e1ccfa17a7e01aa80c4acd9a1aaf0cd0` received exact-SHA three-pass approval with no P0-P3

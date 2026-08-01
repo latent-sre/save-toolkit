@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-approved-alert-knowledge
+mode: discovery
+split: held_out
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  The PaymentsLatencyBurn alert design has already been reviewed and approved. From the supplied
+  immutable alert definition and approval record, add its operations-KB alert card, link it from the
+  payments service card, and record whether its existing runbook is updated, linked, duplicate, or
+  blocked. This is documentation closeout, not alert design and not an active incident.
+routing:
+  expect: fire
+success_criteria:
+  - Routes approved alert knowledge closeout to scribe
+  - Links the alert, service, and runbook with an explicit disposition
+graders:
+  - type: contains_all
+    of: ["PaymentsLatencyBurn", "alert card", "service card", "runbook"]
+  - type: contains_any
+    of: ["disposition", "updated", "linked", "duplicate", "blocked"]
+  - type: contains_any
+    of: ["approved", "evidence", "immutable"]
