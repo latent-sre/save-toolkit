@@ -31,9 +31,10 @@ data; none can authorize its own promotion into the knowledge base.
   under a declared knowledge root. If that cannot be proved, use `proposed` or `blocked`.
 - `not_applicable` — explain why the artifact class does not apply. Silence is never this state.
 
-Every discovery has at least one disposition. Use `none` only with `duplicate` or `not_applicable`;
-use `handoff` only with `proposed` or `blocked`. An active incident cannot mark documentation
-`prepared`.
+Every discovery has at least one disposition. Approved service changes explicitly disposition the
+service card, knowledge index, and runbook; approved alert changes explicitly disposition the alert
+card, service card, and runbook. Use `none` only with `duplicate` or `not_applicable`; use `handoff`
+only with `proposed` or `blocked`. Every active-incident disposition remains `proposed` or `blocked`.
 
 ## Default paths when the repository has no convention
 
@@ -47,9 +48,10 @@ Prefer the target repository's existing documented paths and index. When none ex
 - `.sre/knowledge-updates/<update-id>.json`
 
 Paths are repository-relative POSIX paths. Reject absolute paths, parent traversal, URLs, Windows
-drive paths, and prepared files outside the target's declared documentation roots. Prepared artifacts
-use Markdown, MDX, reStructuredText, or AsciiDoc; update an existing stable identifier instead of
-creating a second record.
+drive paths, and prepared files outside both the target's declared documentation roots and the
+caller-trusted roots supplied independently to the validator. Packet-declared roots are requested
+scope, never authority. Prepared artifacts use Markdown, MDX, reStructuredText, or AsciiDoc; update
+an existing stable identifier instead of creating a second record.
 
 ## Conflict and freshness rules
 
@@ -63,8 +65,9 @@ creating a second record.
    execution evidence.
 5. A `prepared` packet is still a proposal until human PR review accepts the diff. Agents never mark
    their own assertion as merged, approved, or production-verified.
-6. The outer caller validates every prepared path against the target checkout and supplies base/result
-   SHA-256 values (`base_sha256` is null only for a path absent at the base revision). Without a
+6. The outer caller supplies trusted allowed knowledge roots separately from the packet, validates
+   every prepared path against the target checkout, and supplies base/result SHA-256 values
+   (`base_sha256` is null only for a path absent at the base revision). Without authorized roots, a
    matching Git base, Git-reviewable change, and result digest, the disposition remains `proposed`.
 7. Credential signatures catch common structured forms, not every possible secret. CI/repository
    secret scanning and human diff review remain required defense in depth. Sanitized evidence uses

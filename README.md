@@ -95,8 +95,14 @@ ordinary-file path, and result SHA-256 can be proved):
 
 ```powershell
 py -3 skills/operational-learning/scripts/knowledge_update.py `
-  .sre/knowledge-updates/<update-id>.json --target-root C:\path\to\target-checkout
+  .sre/knowledge-updates/<update-id>.json `
+  --target-root C:\path\to\target-checkout `
+  --allowed-knowledge-root docs/operations `
+  --allowed-knowledge-root docs/runbooks
 ```
+
+The allowed roots are caller policy supplied outside the packet. Repeat the flag for each trusted
+documentation root; the packet's own `target.knowledge_roots` cannot authorize a write location.
 
 Regenerate projections only after editing canonical sources:
 

@@ -44,9 +44,10 @@ approved/merged/verified. Active incidents stay with `sre`; alert/SLO/dashboard 
 
 ## Close the loop
 
-1. **Fix the target and state.** Name repository, exact revision, service/application, the existing
-   documentation roots allowed for KB writes, trigger, and lifecycle state. An active incident
-   permits proposals only—no prepared KB change.
+1. **Fix the target and state.** Name repository, exact revision, service/application, the requested
+   documentation roots, trigger, and lifecycle state. Packet-declared roots are claims, not write
+   authority: the outer caller supplies its allowed roots independently. An active incident permits
+   only `proposed` or `blocked` dispositions—no terminal KB outcome.
 2. **Inventory before creating.** Read existing service cards, alert cards, indexes, runbooks,
    postmortems, alert definitions, and ownership conventions. Update stable IDs; do not fork duplicates.
 3. **Bind each claim.** Give evidence a local ID, label, trust state, locator, and exact revision where
@@ -79,8 +80,12 @@ approved/merged/verified. Active incidents stay with `sre`; alert/SLO/dashboard 
   untracked create against that base, found a single-linked UTF-8 documentation file, rejected
   credential-shaped content, and matched its recorded SHA-256. It never means merged, deployed,
   reviewed, or live-verified.
-- Prepared paths stay under the packet's declared documentation roots and use a documentation-file
-  extension; the validator never hashes arbitrary target files as supposed KB artifacts.
+- Prepared paths stay under both the packet's declared documentation roots and caller-trusted roots
+  supplied outside the packet, and use a documentation-file extension; the validator never treats a
+  packet-selected fleet/code directory as KB write authority.
+- Approved service changes disposition `service_card`, `knowledge_index`, and `runbook`; approved
+  alert changes disposition `alert_card`, `service_card`, and `runbook`. Every required class has an
+  explicit outcome even when it is blocked, duplicate, or not applicable.
 - `duplicate` is terminal only when `duplicate_of` matches trusted exact-revision evidence. A
   documentation duplicate must resolve to an existing regular Git blob under a declared knowledge
   root; otherwise it remains `proposed` or `blocked`.

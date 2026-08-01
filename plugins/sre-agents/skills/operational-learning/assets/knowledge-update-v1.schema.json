@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/latent-sre/sre-agents/skills/operational-learning/assets/knowledge-update-v1.schema.json",
   "title": "Operational knowledge update v1",
-  "description": "A reviewable learning disposition. The bundled operational-learning validator additionally enforces evidence-label monotonicity, reference integrity, safe repository paths, exact-revision duplicate owners, single-linked UTF-8 prepared files, raw and Git-normalized object binding, exact Git-reviewable changes, lifecycle deferral, and structured credential rejection.",
+  "description": "A reviewable learning disposition. The bundled operational-learning validator additionally enforces evidence-label monotonicity, reference integrity, caller-authorized knowledge roots, safe repository paths, trigger-specific disposition coverage, exact-revision duplicate owners, single-linked UTF-8 prepared files, raw and Git-normalized object binding, exact Git-reviewable changes, lifecycle deferral, and structured credential rejection.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -42,6 +42,7 @@
         },
         "service": { "$ref": "#/$defs/nonempty" },
         "knowledge_roots": {
+          "description": "Packet-declared documentation roots requested for this update. These are not write authority; the validator requires prepared and duplicate paths to also fall under caller-trusted allowed knowledge roots supplied outside the packet.",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
@@ -266,6 +267,79 @@
               },
               "required": ["kind", "label", "trust"]
             }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "trigger": {
+            "properties": {
+              "kind": { "const": "incident" },
+              "state": { "const": "active" }
+            },
+            "required": ["kind", "state"]
+          }
+        },
+        "required": ["trigger"]
+      },
+      "then": {
+        "properties": {
+          "dispositions": {
+            "items": {
+              "properties": { "status": { "enum": ["proposed", "blocked"] } }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "trigger": {
+            "properties": {
+              "kind": { "enum": ["service_added", "service_changed"] },
+              "state": { "const": "approved" }
+            },
+            "required": ["kind", "state"]
+          }
+        },
+        "required": ["trigger"]
+      },
+      "then": {
+        "properties": {
+          "dispositions": {
+            "allOf": [
+              { "contains": { "properties": { "artifact": { "const": "service_card" } }, "required": ["artifact"] } },
+              { "contains": { "properties": { "artifact": { "const": "knowledge_index" } }, "required": ["artifact"] } },
+              { "contains": { "properties": { "artifact": { "const": "runbook" } }, "required": ["artifact"] } }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "trigger": {
+            "properties": {
+              "kind": { "enum": ["alert_added", "alert_changed"] },
+              "state": { "const": "approved" }
+            },
+            "required": ["kind", "state"]
+          }
+        },
+        "required": ["trigger"]
+      },
+      "then": {
+        "properties": {
+          "dispositions": {
+            "allOf": [
+              { "contains": { "properties": { "artifact": { "const": "alert_card" } }, "required": ["artifact"] } },
+              { "contains": { "properties": { "artifact": { "const": "service_card" } }, "required": ["artifact"] } },
+              { "contains": { "properties": { "artifact": { "const": "runbook" } }, "required": ["artifact"] } }
+            ]
           }
         }
       }

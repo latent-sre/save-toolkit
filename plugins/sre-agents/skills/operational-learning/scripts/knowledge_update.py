@@ -62,6 +62,12 @@ REQUIRED_LIFECYCLE_EVIDENCE = {
     ("incident", "resolved"): {"incident"},
     ("drill", "completed"): {"execution_record"},
 }
+REQUIRED_ARTIFACT_DISPOSITIONS = {
+    ("service_added", "approved"): {"service_card", "knowledge_index", "runbook"},
+    ("service_changed", "approved"): {"service_card", "knowledge_index", "runbook"},
+    ("alert_added", "approved"): {"alert_card", "service_card", "runbook"},
+    ("alert_changed", "approved"): {"alert_card", "service_card", "runbook"},
+}
 TRUST_LEVELS = {"trusted", "untrusted"}
 EVIDENCE_LABELS = {"verified", "sourced", "unverified"}
 EVIDENCE_KINDS = {
@@ -274,6 +280,32 @@ def _safe_relative_path(value: object, field: str) -> str:
             f"{field} must be a normalized repository-relative POSIX path"
         )
     return rendered
+
+
+def _path_is_within_roots(path: str, roots: Sequence[str]) -> bool:
+    return any(path == root or path.startswith(f"{root}/") for root in roots)
+
+
+def _caller_trusted_knowledge_roots(
+    value: Sequence[str] | None,
+) -> list[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, (str, bytes)) or not isinstance(value, Sequence):
+        raise KnowledgeUpdateValidationError(
+            "allowed_knowledge_roots must be a sequence of repository-relative paths"
+        )
+    roots = [
+        _safe_relative_path(root, f"allowed_knowledge_roots[{index}]")
+        for index, root in enumerate(value)
+    ]
+    if not roots:
+        raise KnowledgeUpdateValidationError(
+            "allowed_knowledge_roots must contain at least one caller-trusted root"
+        )
+    if len(set(roots)) != len(roots):
+        raise KnowledgeUpdateValidationError("allowed_knowledge_roots must not contain duplicates")
+    return roots
 
 
 def _is_link_or_reparse(path: Path) -> bool:
@@ -744,9 +776,11 @@ def _validate_dispositions(
     value: object,
     evidence: Mapping[str, Mapping[str, object]],
     *,
+    trigger_kind: str,
     trigger_state: str,
     target_revision: str,
     knowledge_roots: list[str],
+    allowed_knowledge_roots: list[str] | None,
     target_root: Path | None,
 ) -> None:
     if not isinstance(value, list) or not value:
@@ -765,10 +799,12 @@ def _validate_dispositions(
         "reason",
         "evidence_ids",
     }
+    disposition_artifacts: set[str] = set()
     for index, raw in enumerate(value):
         item = _mapping(raw, f"dispositions[{index}]")
         _exact_fields(item, fields, f"dispositions[{index}]")
         artifact = _enum(item["artifact"], ARTIFACT_KINDS, f"dispositions[{index}].artifact")
+        disposition_artifacts.add(artifact)
         action = _enum(item["action"], DISPOSITION_ACTIONS, f"dispositions[{index}].action")
         status = _enum(item["status"], DISPOSITION_STATUSES, f"dispositions[{index}].status")
         _string(item["owner"], f"dispositions[{index}].owner", maximum=256)
@@ -789,6 +825,15 @@ def _validate_dispositions(
         artifact_sha256 = item["artifact_sha256"]
         base_sha256 = item["base_sha256"]
 
+        if (
+            trigger_kind == "incident"
+            and trigger_state == "active"
+            and status not in {"proposed", "blocked"}
+        ):
+            raise KnowledgeUpdateValidationError(
+                "active incident dispositions must remain proposed or blocked"
+            )
+
         if status == "prepared":
             if artifact not in DOCUMENTATION_ARTIFACTS:
                 raise KnowledgeUpdateValidationError(
@@ -806,7 +851,7 @@ def _validate_dispositions(
                 raise KnowledgeUpdateValidationError(
                     f"dispositions[{index}].path must name a documentation file"
                 )
-            if not any(path.startswith(f"{root}/") for root in knowledge_roots):
+            if not _path_is_within_roots(path, knowledge_roots):
                 raise KnowledgeUpdateValidationError(
                     f"dispositions[{index}].path is outside target.knowledge_roots"
                 )
@@ -830,6 +875,15 @@ def _validate_dispositions(
             if target_root is None:
                 raise KnowledgeUpdateValidationError(
                     "prepared dispositions require target_root for artifact verification"
+                )
+            if allowed_knowledge_roots is None:
+                raise KnowledgeUpdateValidationError(
+                    "prepared dispositions require caller-trusted allowed_knowledge_roots"
+                )
+            if not _path_is_within_roots(path, allowed_knowledge_roots):
+                raise KnowledgeUpdateValidationError(
+                    f"dispositions[{index}].path is outside caller-trusted "
+                    "allowed_knowledge_roots"
                 )
             artifact_content = _verify_prepared_artifact(target_root, path, artifact_digest)
             _verify_reviewable_diff(
@@ -885,9 +939,7 @@ def _validate_dispositions(
                     raise KnowledgeUpdateValidationError(
                         f"dispositions[{index}].duplicate_of must name a documentation file"
                     )
-                if not any(
-                    duplicate_path.startswith(f"{root}/") for root in knowledge_roots
-                ):
+                if not _path_is_within_roots(duplicate_path, knowledge_roots):
                     raise KnowledgeUpdateValidationError(
                         f"dispositions[{index}].duplicate_of is outside target.knowledge_roots"
                     )
@@ -900,6 +952,16 @@ def _validate_dispositions(
                 if target_root is None:
                     raise KnowledgeUpdateValidationError(
                         "documentation duplicate dispositions require target_root"
+                    )
+                if allowed_knowledge_roots is None:
+                    raise KnowledgeUpdateValidationError(
+                        "documentation duplicate dispositions require caller-trusted "
+                        "allowed_knowledge_roots"
+                    )
+                if not _path_is_within_roots(duplicate_path, allowed_knowledge_roots):
+                    raise KnowledgeUpdateValidationError(
+                        f"dispositions[{index}].duplicate_of is outside caller-trusted "
+                        "allowed_knowledge_roots"
                     )
                 _verify_duplicate_artifact(
                     target_root,
@@ -919,8 +981,23 @@ def _validate_dispositions(
                 f"dispositions[{index}].duplicate_of must be null unless status is duplicate"
             )
 
+    required_artifacts = REQUIRED_ARTIFACT_DISPOSITIONS.get(
+        (trigger_kind, trigger_state), set()
+    )
+    missing_artifacts = sorted(required_artifacts - disposition_artifacts)
+    if missing_artifacts:
+        raise KnowledgeUpdateValidationError(
+            f"{trigger_kind} trigger state {trigger_state!r} is missing required artifact "
+            f"dispositions: {missing_artifacts}"
+        )
 
-def validate_update(update: Mapping[str, object], *, target_root: Path | None = None) -> None:
+
+def validate_update(
+    update: Mapping[str, object],
+    *,
+    target_root: Path | None = None,
+    allowed_knowledge_roots: Sequence[str] | None = None,
+) -> None:
     """Validate one operational knowledge update packet."""
 
     _exact_fields(update, TOP_LEVEL_FIELDS, "knowledge update")
@@ -950,6 +1027,7 @@ def validate_update(update: Mapping[str, object], *, target_root: Path | None = 
             _string_list(target["knowledge_roots"], "target.knowledge_roots", nonempty=True)
         )
     ]
+    trusted_knowledge_roots = _caller_trusted_knowledge_roots(allowed_knowledge_roots)
 
     trigger = _mapping(update["trigger"], "trigger")
     _exact_fields(trigger, {"kind", "reference", "state", "trust"}, "trigger")
@@ -1025,9 +1103,11 @@ def validate_update(update: Mapping[str, object], *, target_root: Path | None = 
     _validate_dispositions(
         update["dispositions"],
         evidence,
+        trigger_kind=trigger_kind,
         trigger_state=trigger_state,
         target_revision=target_revision,
         knowledge_roots=knowledge_roots,
+        allowed_knowledge_roots=trusted_knowledge_roots,
         target_root=target_root,
     )
 
@@ -1083,6 +1163,15 @@ def _parser() -> argparse.ArgumentParser:
             "documentation duplicate"
         ),
     )
+    parser.add_argument(
+        "--allowed-knowledge-root",
+        action="append",
+        dest="allowed_knowledge_roots",
+        help=(
+            "caller-trusted repository-relative documentation root; repeat for multiple roots; "
+            "required for prepared artifacts and documentation duplicates"
+        ),
+    )
     return parser
 
 
@@ -1092,7 +1181,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         data = json.loads(args.path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             raise KnowledgeUpdateValidationError("knowledge update must be a JSON object")
-        validate_update(data, target_root=args.target_root)
+        validate_update(
+            data,
+            target_root=args.target_root,
+            allowed_knowledge_roots=args.allowed_knowledge_roots,
+        )
     except (OSError, json.JSONDecodeError, KnowledgeUpdateValidationError) as exc:
         print(f"invalid knowledge update: {exc}", file=sys.stderr)
         return 1

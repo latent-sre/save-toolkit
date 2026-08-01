@@ -10,16 +10,19 @@ prompt: |
   revision, owner, dependency list, approved alert definitions, and evidence labels, update the
   repository operations knowledge base: prepare its service card, alert cards, index links, and an
   explicit disposition for each missing or stale runbook. Do not redesign the alerts or query a live
-  target.
+  target. No target checkout, changed paths, or artifact digests are attached to this request. Return
+  exactly one compact JSON object with no markdown and keys service_card, alert_card,
+  knowledge_index, runbook, and evidence. Each artifact value is its disposition status; evidence is
+  either no_target_checkout or no_reviewable_diff.
 routing:
   expect: fire
 success_criteria:
   - Routes approved service knowledge closeout to scribe
-  - Produces evidence-bound KB artifacts and explicit runbook dispositions
+  - Returns explicit evidence-bound artifact statuses
+  - Uses only proposed or blocked when no target checkout and reviewable diff are available
 graders:
-  - type: contains_all
-    of: ["service card", "alert card", "index", "runbook"]
-  - type: contains_any
-    of: ["disposition", "prepared", "proposed", "blocked"]
-  - type: contains_any
-    of: ["evidence", "source revision", "exact revision"]
+  - type: json_artifact_statuses
+    artifacts: ["service_card", "alert_card", "knowledge_index", "runbook"]
+    allowed_statuses: ["proposed", "blocked"]
+    allowed_evidence: ["no_target_checkout", "no_reviewable_diff"]
+    evidence_key: "evidence"

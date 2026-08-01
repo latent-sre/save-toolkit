@@ -94,7 +94,11 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         artifact.write_bytes(self.ARTIFACT_CONTENT)
 
     def _validate(self, packet: dict[str, object]) -> None:
-        knowledge_update.validate_update(packet, target_root=self.target_root)
+        knowledge_update.validate_update(
+            packet,
+            target_root=self.target_root,
+            allowed_knowledge_roots=("docs",),
+        )
 
     def _valid_update(self) -> dict[str, object]:
         return {
@@ -159,6 +163,18 @@ class OperationalLearningBaselineTests(unittest.TestCase):
                     "base_sha256": None,
                     "artifact_sha256": None,
                     "reason": "The paging alert has no runbook target.",
+                    "evidence_ids": ["e1", "e2"],
+                },
+                {
+                    "artifact": "service_card",
+                    "action": "handoff",
+                    "status": "proposed",
+                    "owner": "scribe",
+                    "path": None,
+                    "duplicate_of": None,
+                    "base_sha256": None,
+                    "artifact_sha256": None,
+                    "reason": "Link the approved alert from the service card.",
                     "evidence_ids": ["e1", "e2"],
                 },
             ],
@@ -312,9 +328,126 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         packet["trigger"]["state"] = "active"  # type: ignore[index]
         with self.assertRaisesRegex(
             knowledge_update.KnowledgeUpdateValidationError,
-            "cannot mark dispositions prepared",
+            "active incident dispositions must remain proposed or blocked",
         ):
             self._validate(packet)
+
+    def test_active_incident_allows_only_nonterminal_dispositions(self) -> None:
+        packet = self._valid_update()
+        packet["trigger"].update(  # type: ignore[union-attr]
+            {"kind": "incident", "state": "active", "trust": "untrusted"}
+        )
+        packet["dispositions"] = [
+            {
+                "artifact": "postmortem",
+                "action": "none",
+                "status": "not_applicable",
+                "owner": "scribe",
+                "path": None,
+                "duplicate_of": None,
+                "base_sha256": None,
+                "artifact_sha256": None,
+                "reason": "The incident is still active.",
+                "evidence_ids": ["e1"],
+            }
+        ]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "active incident dispositions must remain proposed or blocked",
+        ):
+            self._validate(packet)
+
+        packet["dispositions"] = [
+            {
+                "artifact": "postmortem",
+                "action": "handoff",
+                "status": "proposed",
+                "owner": "scribe",
+                "path": None,
+                "duplicate_of": None,
+                "base_sha256": None,
+                "artifact_sha256": None,
+                "reason": "Defer retrospective work until the incident is resolved.",
+                "evidence_ids": ["e1"],
+            }
+        ]
+        self._validate(packet)
+
+    def test_approved_triggers_require_their_artifact_disposition_set(self) -> None:
+        approved_alert = self._valid_update()
+        approved_alert["dispositions"] = [approved_alert["dispositions"][0]]  # type: ignore[index]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "alert_added.*missing required artifact dispositions.*runbook.*service_card",
+        ):
+            self._validate(approved_alert)
+
+        approved_service = self._valid_update()
+        approved_service["trigger"]["kind"] = "service_added"  # type: ignore[index]
+        approved_service["dispositions"] = [
+            {
+                "artifact": "code",
+                "action": "none",
+                "status": "not_applicable",
+                "owner": "sde",
+                "path": None,
+                "duplicate_of": None,
+                "base_sha256": None,
+                "artifact_sha256": None,
+                "reason": "No code change belongs in documentation closeout.",
+                "evidence_ids": ["e1"],
+            }
+        ]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "service_added.*missing required artifact dispositions.*knowledge_index.*runbook.*service_card",
+        ):
+            self._validate(approved_service)
+
+        approved_service["dispositions"] = [
+            {
+                "artifact": artifact,
+                "action": "handoff",
+                "status": "proposed",
+                "owner": "scribe",
+                "path": None,
+                "duplicate_of": None,
+                "base_sha256": None,
+                "artifact_sha256": None,
+                "reason": f"Prepare the {artifact} in a reviewable documentation diff.",
+                "evidence_ids": ["e1", "e2"],
+            }
+            for artifact in ("service_card", "knowledge_index", "runbook")
+        ]
+        self._validate(approved_service)
+
+    def test_prepared_paths_require_caller_trusted_knowledge_roots(self) -> None:
+        packet = self._valid_update()
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "prepared dispositions require caller-trusted allowed_knowledge_roots",
+        ):
+            knowledge_update.validate_update(packet, target_root=self.target_root)
+
+        untrusted_packet_root = self._valid_update()
+        untrusted_packet_root["target"]["knowledge_roots"] = ["agents"]  # type: ignore[index]
+        untrusted_packet_root["dispositions"][0]["path"] = "agents/sre.md"  # type: ignore[index]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            r"dispositions\[0\].path is outside caller-trusted allowed_knowledge_roots",
+        ):
+            knowledge_update.validate_update(
+                untrusted_packet_root,
+                target_root=self.target_root,
+                allowed_knowledge_roots=("docs",),
+            )
+
+        packet_scope_can_be_broader_than_caller_scope = self._valid_update()
+        knowledge_update.validate_update(
+            packet_scope_can_be_broader_than_caller_scope,
+            target_root=self.target_root,
+            allowed_knowledge_roots=("docs/operations/alerts",),
+        )
 
     def test_trigger_lifecycle_and_approval_evidence_fail_closed(self) -> None:
         mismatched = self._valid_update()
@@ -752,6 +885,8 @@ class OperationalLearningBaselineTests(unittest.TestCase):
                 str(packet_path),
                 "--target-root",
                 str(self.target_root),
+                "--allowed-knowledge-root",
+                "docs",
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -770,6 +905,25 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         )
         self.assertEqual(1, missing_root.returncode)
         self.assertIn("prepared dispositions require target_root", missing_root.stderr)
+
+        missing_allowed_root = subprocess.run(
+            [
+                sys.executable,
+                str(VALIDATOR_PATH),
+                str(packet_path),
+                "--target-root",
+                str(self.target_root),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(1, missing_allowed_root.returncode)
+        self.assertIn(
+            "prepared dispositions require caller-trusted allowed_knowledge_roots",
+            missing_allowed_root.stderr,
+        )
 
     def test_tier_two_and_three_require_approval_and_rollback(self) -> None:
         for tier in (2, 3):
@@ -1142,6 +1296,45 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         self.assertIn(
             "duplicate_of",
             schema["$defs"]["disposition"]["required"],
+        )
+        encoded_required_artifacts: dict[tuple[str, str], set[str]] = {}
+        active_incident_statuses: set[str] | None = None
+        for rule in schema["allOf"]:
+            trigger_properties = (
+                rule.get("if", {})
+                .get("properties", {})
+                .get("trigger", {})
+                .get("properties", {})
+            )
+            kind_rule = trigger_properties.get("kind", {})
+            state_rule = trigger_properties.get("state", {})
+            disposition_rule = (
+                rule.get("then", {})
+                .get("properties", {})
+                .get("dispositions", {})
+            )
+            if state_rule.get("const") == "approved" and "enum" in kind_rule:
+                artifacts = {
+                    constraint["contains"]["properties"]["artifact"]["const"]
+                    for constraint in disposition_rule.get("allOf", [])
+                }
+                for trigger_kind in kind_rule["enum"]:
+                    encoded_required_artifacts[(trigger_kind, "approved")] = artifacts
+            if (
+                kind_rule.get("const") == "incident"
+                and state_rule.get("const") == "active"
+            ):
+                active_incident_statuses = set(
+                    disposition_rule["items"]["properties"]["status"]["enum"]
+                )
+        self.assertEqual(
+            knowledge_update.REQUIRED_ARTIFACT_DISPOSITIONS,
+            encoded_required_artifacts,
+        )
+        self.assertEqual({"proposed", "blocked"}, active_incident_statuses)
+        self.assertIn(
+            "not write authority",
+            schema["properties"]["target"]["properties"]["knowledge_roots"]["description"],
         )
         self.assertFalse(schema["additionalProperties"])
 
