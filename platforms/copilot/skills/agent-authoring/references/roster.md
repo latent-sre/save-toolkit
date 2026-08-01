@@ -23,6 +23,12 @@ That routing choice is a reasoned default, not a measured result: neither shape 
 this fleet. Apply the bar symmetrically and change the architecture if a controlled A/B shows that a
 coordinator agent outperforms the in-session skill after token, latency, and routing quality are counted.
 
+The local/external research split is the fleet's concrete example. `repository-investigator` receives
+only local `Read`/`Grep`/`Glob`; `researcher` receives only external web, Context7, and GitHits
+authority. Keeping both jobs in one prompt would preserve the sensitive-data plus untrusted-content
+plus egress combination, so this boundary warrants two agents. A mixed question is orchestrated by
+the caller with a sanitized public handoff, never by giving either worker both evidence domains.
+
 ## Orchestration shapes
 
 - **Orchestrator–workers** — the main session owns plan + synthesis; workers get bounded mandates

@@ -50,8 +50,9 @@ py -3 evals/run_codex_agent_conformance.py --validate
 py -3 evals/run_codex_agent_conformance.py --run --output agent-result.json
 ```
 
-The agent runner freezes and installs all six generated custom-agent TOMLs in the same isolated
-Codex home as the plugin, then runs one no-history delegation lane per agent. A lane passes only when
+The agent runner freezes and installs all seven generated custom-agent TOMLs in the same isolated
+Codex home as the plugin, then runs one no-history delegation lane per agent plus refusal-behavior
+lanes for both trust-separated research roles. A lane passes only when
 the private session rollouts prove all of the following:
 
 - exactly one successful `spawn_agent` call names the expected role and `fork_turns: none`;
@@ -61,8 +62,8 @@ the private session rollouts prove all of the following:
 - the child receives the exact installed `developer_instructions` bytes;
 - parent and child runtime contexts expose `gpt-5.6-sol`, high reasoning, read-only sandboxing, and
   approval policy `never`; and
-- the text-only child makes no tool calls, its canary matches, the parent's exact JSON oracle matches,
-  and stderr contains no runtime error.
+- the text-only child makes no tool calls, its canary or structured refusal oracle matches, the
+  parent's exact JSON oracle matches, and stderr contains no runtime error.
 
 Self-reported delegation is deliberately insufficient. This catches the observed failure mode where
 Codex rejected an incompatible spawn request but the main model still returned `delegated: true`.

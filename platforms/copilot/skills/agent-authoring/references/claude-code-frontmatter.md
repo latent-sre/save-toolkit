@@ -28,7 +28,7 @@ Authority lives in frontmatter, not in prose — the fields that carry it:
 | `hooks` | Agent-scoped lifecycle hooks are real at project/user scope and **inert in a plugin** (probed). This fleet ships `hooks/hooks.json` session-wide and self-scopes to exact guarded `agent_type` values. Canonical agent frontmatter containing `hooks` fails validation. |
 | `skills` | Preloads full skill content at startup — prefer this over putting `Skill` in `tools` when the agent needs the skill every run. Don't list a `disable-model-invocation: true` skill here. |
 | `model` | Aliases `haiku \| sonnet \| opus \| fable \| inherit`, or a full ID; defaults to `inherit`. This fleet pins nothing — the whole roster inherits the session model (a deliberate, documented decision; see AGENTS.md). |
-| `memory` | `user \| project \| local`. **Setting it auto-enables Read, Write, and Edit** — never add it to a read-only agent (`reviewer`, `researcher`); it would silently widen the mandate. |
+| `memory` | `user \| project \| local`. **Setting it auto-enables Read, Write, and Edit** — never add it to a read-only agent (`reviewer`, `repository-investigator`, `researcher`); it would silently widen the mandate and give the external-only researcher local access. |
 
 Also: `maxTurns` (int), `background` (bool), `effort` (`low|medium|high|xhigh|max`), `isolation`
 (`worktree`), `color`, `initialPrompt` (main-session only).
@@ -73,5 +73,5 @@ Fields the fleet deliberately does not use — considered, not overlooked. Reope
 - **`maxTurns`** — loop bounds are task-shaped prose rules (three-strikes, two-round review caps),
   which fail with a diagnosis; a turn cap fails mid-thought. Revisit if a runaway loop is observed.
 - **`memory`** — agents are stateless by design; durable knowledge lives in the repo (runbooks,
-  docs). And setting `memory` auto-enables Read/Write/Edit, so it must never reach `reviewer` or
-  `researcher`.
+  docs). And setting `memory` auto-enables Read/Write/Edit, so it must never reach `reviewer`,
+  `repository-investigator`, or `researcher`.

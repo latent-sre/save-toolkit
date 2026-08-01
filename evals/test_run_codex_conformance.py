@@ -641,6 +641,65 @@ class CodexConformanceTests(unittest.TestCase):
         with self.assertRaisesRegex(conformance.ConformanceError, "version"):
             conformance.validate_local_plugin_contract(ROOT, wrong)
 
+    def test_runtime_report_reduces_to_typed_evidence(self) -> None:
+        report = {
+            "started_at": "2026-07-31T12:00:00Z",
+            "generated_at": "2026-07-31T12:00:01Z",
+            "repository_commit": "a" * 40,
+            "plugin_inputs_dirty": False,
+            "harness_inputs_dirty": False,
+            "summary": {"pass": 1, "fail": 0, "inconclusive": 0},
+            "manifest_sha256": "b" * 64,
+            "runner_sha256": "c" * 64,
+            "plugin_source_sha256": "d" * 64,
+            "results": [
+                {
+                    "required": True,
+                    "requested_model": "gpt-5.6-sol",
+                    "observed_model_exposed": True,
+                    "cli_version": "codex-cli test",
+                    "reasoning_effort": "high",
+                    "sandbox": "read-only",
+                    "approval_policy": "never",
+                }
+            ],
+        }
+        envelope = conformance.build_conformance_evidence(
+            report,
+            producer="codex_skill_conformance",
+            role="codex-skill-conformance",
+            target_root=ROOT,
+            tree_digest="e" * 64,
+            criterion="required lanes pass",
+        )
+        conformance.evidence_envelope.validate_envelope(envelope)
+        self.assertEqual("pass", envelope["status"])
+        self.assertEqual(["gpt-5.6-sol"], envelope["environment"]["requested_models"])
+
+        report["summary"] = {"pass": 1, "fail": 0, "inconclusive": 1}
+        inconclusive = conformance.build_conformance_evidence(
+            report,
+            producer="codex_skill_conformance",
+            role="codex-skill-conformance",
+            target_root=ROOT,
+            tree_digest="e" * 64,
+            criterion="required lanes pass",
+        )
+        self.assertEqual("inconclusive", inconclusive["status"])
+
+        report["summary"] = {"pass": 1, "fail": 0, "inconclusive": 0}
+        report["plugin_inputs_dirty"] = True
+        dirty = conformance.build_conformance_evidence(
+            report,
+            producer="codex_skill_conformance",
+            role="codex-skill-conformance",
+            target_root=ROOT,
+            tree_digest="e" * 64,
+            criterion="required lanes pass",
+        )
+        self.assertEqual("inconclusive", dirty["status"])
+        self.assertTrue(any("not exact-revision evidence" in item for item in dirty["limitations"]))
+
 
 if __name__ == "__main__":
     unittest.main()

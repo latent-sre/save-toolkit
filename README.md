@@ -1,13 +1,13 @@
 # SRE Agents
 
-SRE Agents is a multi-host plugin containing **6 agents and 26 skills** for application engineering
+SRE Agents is a multi-host plugin containing **7 agents and 26 skills** for application engineering
 and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
 sources directly. GitHub Copilot/VS Code and Codex receive committed, host-native projections made by
 one deterministic generator; generated files are never edited by hand.
 
 ## Layout
 
-- [`agents/`](agents) — the six canonical Claude plugin agent definitions; `tools` carries authority.
+- [`agents/`](agents) — the seven canonical Claude plugin agent definitions; `tools` carries authority.
 - [`skills/`](skills) — the 26 canonical skills and their progressive-disclosure `references/`,
   `assets/`, and `scripts/` bundles.
 - [`commands/adr.md`](commands/adr.md) — the canonical Claude `/sre-agents:adr` scaffold.
@@ -18,7 +18,11 @@ one deterministic generator; generated files are never edited by hand.
 - [`plugins/sre-agents/`](plugins/sre-agents) and [`.codex/agents/`](.codex/agents) — Codex skills
   plugin plus standalone custom-agent projections.
 - [`scripts/`](scripts) — the structural gate (`gate_a.py`), the read-only allowlist guard
-  (`readonly-guard.py`), generator, optional Codex agent installer, validators, and mutation tests.
+  (`readonly-guard.py`), generator, optional Codex agent installer, typed evidence validator,
+  read-only fleet doctor, and mutation tests.
+- [`schemas/evidence-envelope-v1.schema.json`](schemas/evidence-envelope-v1.schema.json) — the
+  portable runtime-evidence contract; the executable secret-field checks live in
+  [`scripts/evidence_envelope.py`](scripts/evidence_envelope.py).
 
 Routing is native. Claude plugin components are namespaced as `sre-agents:<name>`; generated hosts
 use their native bare component names. The roster and enforcement model are in [AGENTS.md](AGENTS.md).
@@ -26,15 +30,16 @@ use their native bare component names. The roster and enforcement model are in [
 ## Fleet inventory
 
 <!-- fleet-inventory:start -->
-### Agents (6)
+### Agents (7)
 
 | Agent | Lane | Routing |
 |---|---|---|
-| `sde` | Build, fix, refactor, and test code or operations tooling | Delegates review to `reviewer`; hands documentation to `sre-steward` |
+| `sde` | Build, fix, refactor, and test code or operations tooling | Delegates review to `reviewer` and sanitized public lookups to `researcher` |
 | `reviewer` | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `sde`; terminal |
+| `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
 | `sre` | Investigate active production or staging failures (guarded read-only Bash) | Delegates steady-state work to `sre-steward`, fact checks to `researcher` |
 | `sre-steward` | Steady state: observability as code + runbooks/postmortems (guarded Bash) | Hands active incidents to `sre`, automation to `sde`, lookups to `researcher` |
-| `researcher` | Cited fact-finding and verification for any agent | Web + read only; returns to caller |
+| `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
 | `prompt-engineer` | The fleet's own files: agents, skills, descriptions, evals | Hands helper code to `sde`, injection review to `reviewer` |
 
 ### Skills (26)
@@ -94,6 +99,22 @@ py -3 scripts/install_codex_agents.py --target C:\path\to\project\.codex\agents
 # or, intentionally: py -3 scripts/install_codex_agents.py --user
 ```
 
+Inspect repository and installed-host health without generating, installing, fetching, or starting a
+model session:
+
+```powershell
+py -3 scripts/fleet_doctor.py
+py -3 scripts/fleet_doctor.py --json
+```
+
+Each doctor check is a versioned evidence envelope with `pass`, `fail`, `skip`, or `inconclusive`
+status. Missing CLIs and unexecuted runtime behavior never count as passing evidence.
+
+For repository-controlled executable checks, use the digest-bound, networkless container boundary in
+[`docs/verification-sandbox.md`](docs/verification-sandbox.md). It requires a reviewed link-free
+snapshot, full revision, preapproved tree digest, and a locally present digest-pinned image; it does
+not add an autonomous verification agent or live-effect authority.
+
 Gate A owns its step list; do not copy that list into documentation. Behavioral evaluations under
 [`evals/`](evals) are intentionally manual and never run in CI. They execute only after source-trust and
 disposable-harness requirements are satisfied.
@@ -106,8 +127,24 @@ py -3 evals/run_codex_conformance.py --run --output result.json
 ```
 
 See [`evals/README.md`](evals/README.md) for the credential boundary, pass oracle, and provenance
-record. The current lanes cover installed Codex skills and selected progressive-disclosure references;
-standalone Codex custom-agent behavior remains a separate follow-up surface.
+record. The retained historical Sol baselines prove six selected skill/reference lanes and the
+then-current six standalone Codex custom-agent profiles. They do not prove implicit agent
+routing or Claude-equivalent per-agent tool narrowing; those remain separate host/runtime questions.
+
+## Current status
+
+- Canonical source, generated host adapters, hook wiring, manifests, installer collision behavior,
+  eval contracts, and the protected-main canary are structurally gated.
+- Claude marketplace validation and isolated plugin loading are verified on the recorded CLI version.
+- Codex/Sol direct skill/reference loading and explicit custom-agent delegation are verified by the
+  committed baselines under [`evals/baselines/`](evals/baselines/).
+- Copilot/VS Code runtime loading remains unverified because that runtime is not available on the
+  current validation host. Static adapter success must not be presented as a live runtime pass.
+- Publication is blocked on repository protection, distinct promotion authority, host install smoke
+  tests, and rollback evidence.
+
+The only live backlog is [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md). The large documents under
+`docs/superpowers/plans/` are preserved implementation history and are not executable task lists.
 
 ## Contribute
 

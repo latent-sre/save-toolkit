@@ -17,28 +17,47 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PlatformAdapterTests(unittest.TestCase):
+    @staticmethod
+    def _copilot_tools(name: str) -> list[str]:
+        rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
+        frontmatter = rendered.split("---", 2)[1]
+        return json.loads(
+            next(line for line in frontmatter.splitlines() if line.startswith("tools: "))[7:]
+        )
+
     def test_committed_outputs_match_canonical_sources(self) -> None:
         self.assertEqual([], adapters.validate_generated_outputs(ROOT))
 
     def test_guarded_copilot_agents_do_not_receive_execute(self) -> None:
         for name in sorted(adapters.GUARDED_AGENTS):
-            rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
-            frontmatter = rendered.split("---", 2)[1]
-            tools = json.loads(next(line for line in frontmatter.splitlines() if line.startswith("tools: "))[7:])
-            self.assertNotIn("execute", tools, name)
+            self.assertNotIn("execute", self._copilot_tools(name), name)
 
     def test_builder_copilot_agent_keeps_edit_and_execute(self) -> None:
-        rendered = adapters.render_copilot_agent(ROOT / "agents/sde.md")
-        frontmatter = rendered.split("---", 2)[1]
-        tools = json.loads(next(line for line in frontmatter.splitlines() if line.startswith("tools: "))[7:])
+        tools = self._copilot_tools("sde")
         self.assertIn("edit", tools)
         self.assertIn("execute", tools)
+
+    def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
+        self.assertEqual(["read", "search"], self._copilot_tools("repository-investigator"))
+        self.assertEqual(["web"], self._copilot_tools("researcher"))
+        for name in sorted(
+            path.stem for path in (ROOT / "agents").glob("*.md") if path.stem != "researcher"
+        ):
+            self.assertNotIn("web", self._copilot_tools(name), name)
 
     def test_codex_sandbox_follows_write_authority(self) -> None:
         reviewer = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/reviewer.md"))
         builder = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/sde.md"))
         self.assertEqual("read-only", reviewer["sandbox_mode"])
         self.assertEqual("workspace-write", builder["sandbox_mode"])
+
+    def test_codex_research_boundaries_require_outer_isolation(self) -> None:
+        local = tomllib.loads(
+            adapters.render_codex_agent(ROOT / "agents/repository-investigator.md")
+        )
+        external = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/researcher.md"))
+        self.assertIn("disable network egress", local["developer_instructions"])
+        self.assertIn("do not mount the private repository", external["developer_instructions"])
 
     def test_generated_agent_descriptions_use_host_native_names(self) -> None:
         for source in sorted((ROOT / "agents").glob("*.md")):

@@ -51,10 +51,58 @@ class FleetValidatorTests(unittest.TestCase):
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "sde.md":
-                    text = text.replace("Agent(reviewer)", "Agent(does-not-exist)")
+                    text = text.replace("Agent(reviewer, researcher)", "Agent(does-not-exist)")
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
         self.assertIn("does not exist", "\n".join(failures))
+
+    def test_local_investigator_external_egress_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            for source in (ROOT / "agents").glob("*.md"):
+                text = source.read_text(encoding="utf-8")
+                if source.name == "repository-investigator.md":
+                    text = text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, WebSearch")
+                (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            _, failures = validate_fleet.validate_agents(root)
+        self.assertIn("forbidden tool(s): WebSearch", "\n".join(failures))
+
+    def test_external_researcher_local_read_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            for source in (ROOT / "agents").glob("*.md"):
+                text = source.read_text(encoding="utf-8")
+                if source.name == "researcher.md":
+                    text = text.replace("  - WebSearch\n", "  - Read\n  - WebSearch\n")
+                (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            _, failures = validate_fleet.validate_agents(root)
+        self.assertIn("forbidden tool(s): Read", "\n".join(failures))
+
+    def test_local_agent_direct_web_access_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            for source in (ROOT / "agents").glob("*.md"):
+                text = source.read_text(encoding="utf-8")
+                if source.name == "sde.md":
+                    text = text.replace("Write, Skill", "Write, WebFetch, Skill")
+                (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            _, failures = validate_fleet.validate_agents(root)
+        self.assertIn("forbidden tool(s): WebFetch", "\n".join(failures))
+
+    def test_delegation_contract_is_exact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            for source in (ROOT / "agents").glob("*.md"):
+                text = source.read_text(encoding="utf-8")
+                if source.name == "sde.md":
+                    text = text.replace("Agent(reviewer, researcher)", "Agent(reviewer)")
+                (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            _, failures = validate_fleet.validate_agents(root)
+        self.assertIn("delegation mismatch", "\n".join(failures))
 
 
 if __name__ == "__main__":

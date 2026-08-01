@@ -236,10 +236,15 @@ class StreamTraceTests(unittest.TestCase):
         reviewer = {"mode": "direct", "target": {"kind": "agent", "name": "reviewer"}}
         sre = {"mode": "direct", "target": {"kind": "agent", "name": "sre"}}
         researcher = {"mode": "direct", "target": {"kind": "agent", "name": "researcher"}}
+        repository_investigator = {
+            "mode": "direct",
+            "target": {"kind": "agent", "name": "repository-investigator"},
+        }
         discovery = {"mode": "discovery", "target": {"kind": "agent", "name": "reviewer"}}
         self.assertEqual(run_evals.expected_runtime_tools(reviewer), ("Skill",))
         self.assertEqual(run_evals.expected_runtime_tools(sre), ("Skill", "Task"))
-        self.assertEqual(run_evals.expected_runtime_tools(researcher), ("Skill",))
+        self.assertEqual(run_evals.expected_runtime_tools(researcher), ())
+        self.assertEqual(run_evals.expected_runtime_tools(repository_investigator), ())
         self.assertEqual(run_evals.expected_runtime_tools(discovery), ("Skill", "Task"))
 
     def test_missing_result_event_is_inconclusive_not_a_response(self) -> None:

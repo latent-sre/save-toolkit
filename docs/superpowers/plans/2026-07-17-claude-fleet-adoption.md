@@ -1,5 +1,10 @@
 # Claude Fleet Adoption Implementation Plan
 
+> **Status: implemented, then superseded — historical implementation record.** The six-agent
+> adoption landed, but its Claude-only layout and generator deletion were replaced by the accepted
+> multi-platform plugin ADR. Do not execute this checklist. Current unfinished work lives only in
+> [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Adopt the `origin/codex/cleanup` fleet (5 agents / 26 skills, content-complete), collapse it to a directly-edited `.claude/` single source for Claude Code only, reshape the roster to 6 agents (merge `observer`+`scribe` → `sre-steward`; reinstate `researcher` and `prompt-engineer`), port the sister repo's fail-closed allowlist guard onto `sre`/`sre-steward`, graft the sister repo's post-import improvements, and rewrite the root docs.

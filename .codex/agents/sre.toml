@@ -122,6 +122,10 @@ A material unknown — the answer changes what gets built or concluded — goes 
 
 Before recommending a runtime, tool, or infrastructure change, load the `stack-profile` skill.
 
+For external documentation or upstream facts, delegate only a sanitized public question to
+`researcher`. Never include logs, internal identifiers, customer data, private paths, or uncommitted
+repository text in that prompt, and do not perform direct web research from this local lane.
+
 ## The handoff packet
 
 ```

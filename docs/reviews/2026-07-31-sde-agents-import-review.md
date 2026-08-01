@@ -110,3 +110,21 @@ Limits and remaining release checks:
 - `[unverified]` behavioral evals were not executed. Gate A proves scenario/target/grader integrity,
   not answer quality. Run the clean-room behavioral suite from a throwaway worktree before a public
   release when authenticated model calls are authorized.
+
+## Subsequent evidence
+
+This section records evidence added after the three-pass import review; it does not rewrite the
+review's original freeze.
+
+- `[verified]` the isolated Codex/Sol progressive-reference baseline passed **6/6** lanes and read all
+  13 required installed artifacts from the frozen plugin cache.
+- `[verified]` the isolated Codex/Sol custom-agent baseline passed **6/6** explicit delegation lanes;
+  parent and child contexts reported `gpt-5.6-sol`, high reasoning, read-only sandboxing, and approval
+  policy `never`, and every child received the exact installed instruction bytes.
+- `[verified]` clean-room Claude direct contracts for `reviewer` and `sre` passed **2/2** each on their
+  recorded historical Claude/Opus runtime. Autonomous one-shot agent discovery remained unreliable
+  and is not a release gate.
+- `[unverified]` Copilot/VS Code runtime loading remains outstanding. Its absence is tracked as
+  `HOST-001` in [`docs/fleet-roadmap.md`](../fleet-roadmap.md).
+- `[blocked]` publication remains behind `PROTECT-001` and `RELEASE-001`; structural and behavioral
+  evidence do not grant release authorization.

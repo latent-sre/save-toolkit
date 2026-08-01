@@ -1,0 +1,22 @@
+schema_version: 1
+id: discovery-external-version-research
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: researcher
+prompt: |
+  Using current official documentation and upstream source, determine which public release first
+  introduced the ExampleClient retry_budget option. Do not inspect any local repository.
+routing:
+  expect: fire
+success_criteria:
+  - Delegates the public version question to the external researcher lane
+  - Keeps official documentation and upstream implementation provenance separate
+graders:
+  - type: contains_any
+    of: ["official", "documentation", "vendor"]
+  - type: contains_any
+    of: ["upstream", "source", "repository"]
+  - type: contains_any
+    of: ["could not verify", "[unverified]", "version", "release"]

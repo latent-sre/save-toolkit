@@ -48,14 +48,22 @@ Every result distinguishes `[verified]`, `[sourced]`, and `[unverified]` claims.
 what passed, and every residual item that could not be verified. Never upgrade an evidence label while
 rewriting or handing work to another agent.
 
+Runtime probes and isolated verification controls emit
+[`schemas/evidence-envelope-v1.schema.json`](schemas/evidence-envelope-v1.schema.json) through the
+executable validator in `scripts/evidence_envelope.py`. Do not add ad-hoc "success" JSON. Unknown
+fields, secret-bearing field names, credential-shaped argv, invalid statuses, and incomplete identity
+are rejected. A missing tool or unavailable host is `skip` or `inconclusive`, never `pass`.
+
 ## Promotion
 
-Promotion to `release` is **blocked** until the promotion controls land: a default-rule CODEOWNERS, the
-protected exact-SHA promotion workflow with a named maintainer plus a distinct release operator, and
-the live GitHub rules/environment/App configuration. Until then: never merge a PR into, push directly
-to, reset, force-push, or directly revert `release`, and never promote a feature or canary ref. The full
-control design (promotion steps, ownership boundary, rename/skew rules) is preserved in git history at
-tag `pre-cleanup-2026-07-15`.
+Publication is **blocked** until the promotion controls land: a satisfiable default-rule CODEOWNERS,
+protected required reviews and checks, an exact-SHA promotion workflow with a named maintainer plus a
+distinct release operator, and the live GitHub rules/environment/App configuration. Do not create or
+move a `release` ref merely because the superseded plan named one: first verify whether each host's
+current distribution contract needs a moving ref or can consume an immutable version tag. Until then,
+never publish a feature or canary ref. The live prerequisites and acceptance evidence are
+`PROTECT-001` and `RELEASE-001` in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); the old branch-based
+design remains recoverable at tag `pre-cleanup-2026-07-15` as historical rationale only.
 
 The repository-side canary harness is [`.github/workflows/validate-canary.yml`](.github/workflows/validate-canary.yml).
 After that workflow reaches protected `main`, dispatch it from `main` with a full candidate SHA and the

@@ -50,6 +50,8 @@ HARNESS_INPUT_PATHS = (
     "evals/run_codex_agent_conformance.py",
     "evals/run_codex_conformance.py",
     "evals/conformance/codex-sol-agents.json",
+    "scripts/evidence_envelope.py",
+    "schemas/evidence-envelope-v1.schema.json",
 )
 ERROR_LINE = re.compile(r"(?:^|\s)ERROR(?:\s|:)|\berror=")
 
@@ -140,7 +142,7 @@ def validate_manifest(manifest: Mapping[str, object]) -> None:
         if not isinstance(lane_id, str) or not lane_id or lane_id in seen:
             raise base.ConformanceError("agent lane IDs must be unique non-empty strings")
         seen.add(lane_id)
-        if lane["kind"] != "agent-delegation":
+        if lane["kind"] not in {"agent-delegation", "agent-behavior"}:
             raise base.ConformanceError(f"lane {lane_id!r}: unsupported lane kind")
         if lane["agent"] not in agents:
             raise base.ConformanceError(f"lane {lane_id!r}: agent is outside the inventory")
@@ -171,12 +173,34 @@ def validate_manifest(manifest: Mapping[str, object]) -> None:
             raise base.ConformanceError(f"lane {lane_id!r}: child_expected must be non-empty")
         if child_expected in prompt:
             raise base.ConformanceError(
-                f"lane {lane_id!r}: prompt must not disclose the child instruction canary"
+                f"lane {lane_id!r}: prompt must not disclose the child oracle"
             )
         if expected.get("agent") != lane["agent"] or expected.get("delegated") is not True:
             raise base.ConformanceError(f"lane {lane_id!r}: expected delegation contract is invalid")
-        if expected.get("instruction_canary") != child_expected:
-            raise base.ConformanceError(f"lane {lane_id!r}: parent and child oracles differ")
+        if lane["kind"] == "agent-delegation":
+            if set(expected) != {"agent", "delegated", "instruction_canary"}:
+                raise base.ConformanceError(
+                    f"lane {lane_id!r}: delegation oracle fields are invalid"
+                )
+            if expected.get("instruction_canary") != child_expected:
+                raise base.ConformanceError(f"lane {lane_id!r}: parent and child oracles differ")
+        else:
+            try:
+                child_result = json.loads(child_expected)
+            except json.JSONDecodeError as exc:
+                raise base.ConformanceError(
+                    f"lane {lane_id!r}: behavioral child oracle must be JSON"
+                ) from exc
+            if not isinstance(child_result, dict) or not child_result:
+                raise base.ConformanceError(
+                    f"lane {lane_id!r}: behavioral child oracle must be a non-empty object"
+                )
+            if set(expected) != {"agent", "delegated", "child_result"} or expected.get(
+                "child_result"
+            ) != child_result:
+                raise base.ConformanceError(
+                    f"lane {lane_id!r}: behavioral parent and child oracles differ"
+                )
         if not isinstance(lane["timeout_seconds"], int) or not 1 <= lane["timeout_seconds"] <= 900:
             raise base.ConformanceError(f"lane {lane_id!r}: timeout must be between 1 and 900")
         if not isinstance(lane["required"], bool):
@@ -241,6 +265,8 @@ def validate_local_contract(root: Path, manifest: Mapping[str, object]) -> None:
         if "model" in document:
             raise base.ConformanceError(f"Codex agent {name!r} must inherit the session model")
     for lane in manifest["lanes"]:
+        if lane["kind"] != "agent-delegation":
+            continue
         document = _agent_document(source / f'{lane["agent"]}.toml')
         if lane["child_expected"] not in document["developer_instructions"]:
             raise base.ConformanceError(
@@ -591,7 +617,7 @@ def score_agent_evidence(
     ):
         return AgentScore(
             "pass",
-            "successful named delegation, child profile load, runtime contract, and exact oracles verified",
+            "successful named delegation, child profile load, runtime contract, zero child tool calls, and exact oracles verified",
             response,
             observed_models,
             diagnostics,
@@ -771,7 +797,7 @@ def run_live(
         verdict: sum(item["verdict"] == verdict for item in results)
         for verdict in sorted(base.VERDICTS)
     }
-    return {
+    report: dict[str, object] = {
         "schema_version": 1,
         "generated_at": base._timestamp(),
         "started_at": started_at,
@@ -796,6 +822,20 @@ def run_live(
         "summary": summary,
         "results": results,
     }
+    report["evidence"] = base.build_conformance_evidence(
+        report,
+        producer="codex_agent_conformance",
+        role="codex-agent-conformance",
+        target_root=root,
+        tree_digest=agent_digest_before,
+        criterion="all required Codex/Sol custom-agent delegation lanes pass",
+        source_extra={
+            "agent_source_sha256": agent_digest_before,
+            "installed_agent_sha256": installed_agent_digest,
+            "agent_count": len(manifest["agents"]),
+        },
+    )
+    return report
 
 
 def _parser() -> argparse.ArgumentParser:

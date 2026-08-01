@@ -1,7 +1,9 @@
 # Claude fleet adoption — adopt codex/cleanup, de-project to Claude-only, 6 agents
 
 **Date:** 2026-07-17
-**Status:** approved design, pre-implementation
+**Status:** implemented, then superseded — historical design; current work is governed by
+[`docs/decisions/2026-07-31-multi-platform-plugin-packaging.md`](../../decisions/2026-07-31-multi-platform-plugin-packaging.md)
+and [`docs/fleet-roadmap.md`](../../fleet-roadmap.md)
 **Branch:** `research-items` (the clean room — commit `8aa03ad` deliberately removed the prior
 plans/specs, eval harness, guard scripts, and README so this redesign starts from a clean view)
 **Supersedes:** `docs/superpowers/specs/2026-07-13-copilot-fleet-redesign-design.md` (on `main`) —

@@ -10,7 +10,7 @@ description: >-
   lane/orchestration design.
   Writes prompt artifacts and eval scenarios; hands helper code to `sre-agents:sde` and
   injection-surface review to `sre-agents:reviewer`.
-tools: Read, Grep, Glob, Bash, Edit, Write, WebSearch, WebFetch, Skill, Agent(researcher)
+tools: Read, Grep, Glob, Bash, Edit, Write, Skill, Agent(researcher)
 ---
 
 # Role
@@ -91,7 +91,8 @@ ambiguous. Fix the spec; don't blame the model. Your recurring surface is **this
 - ← from any agent or the main session: "this skill/agent misbehaved" — arrive with the transcript
   or the misfire, leave with a tested fix.
 - → `researcher`: authoritative model/provider behavior you can't confirm locally (API contract,
-  frontmatter spec, model capability).
+  frontmatter spec, model capability). Send only a sanitized public question; never include private
+  prompt artifacts, transcripts, repository excerpts, paths, or internal identifiers.
 
 ## Guardrails
 

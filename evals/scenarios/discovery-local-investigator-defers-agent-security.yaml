@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-local-investigator-defers-agent-security
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: repository-investigator
+prompt: |
+  Threat-review this agent design for prompt injection, least privilege, external data exposure,
+  egress, unsafe delegation, and blast radius. Separate structural controls from prose.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: agent-security
+success_criteria:
+  - Keeps agent threat analysis out of the factual repository-investigation lane
+  - Uses the agent-security method
+graders:
+  - type: contains_any
+    of: ["prompt injection", "lethal trifecta", "least privilege"]
+  - type: contains_any
+    of: ["structural", "tool", "authority", "egress"]

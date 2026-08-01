@@ -24,6 +24,8 @@ BUILTIN_TOOLS = {
     "WebFetch", "WebSearch", "Write",
 }
 WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
+LOCAL_READ_TOOLS = {"Read", "Grep", "Glob"}
+WEB_TOOLS = {"WebFetch", "WebSearch"}
 EVIDENCE_MCP_TOOLS = {
     "mcp__claude_ai_Context7__query-docs",
     "mcp__claude_ai_Context7__resolve-library-id",
@@ -44,13 +46,47 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__search_language",
     "mcp__plugin_githits_githits__search_status",
 }
+EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 EXPECTED_AUTHORITY = {
-    "reviewer": {"required": {"Read", "Grep", "Glob", "Skill"}, "forbidden": {"Bash", "Agent", *WRITE_TOOLS}},
-    "researcher": {"required": {"Read", "Grep", "Glob", "ToolSearch", *EVIDENCE_MCP_TOOLS}, "forbidden": {"Bash", "Agent", *WRITE_TOOLS}},
-    "sde": {"required": {"Read", "Bash", "Edit", "Write", "Agent"}, "forbidden": set()},
-    "sre": {"required": {"Read", "Bash", "Agent"}, "forbidden": WRITE_TOOLS},
-    "sre-steward": {"required": {"Read", "Bash", "Edit", "Write", "Agent"}, "forbidden": {"WebFetch", "WebSearch"}},
-    "prompt-engineer": {"required": {"Read", "Bash", "Edit", "Write", "Agent"}, "forbidden": set()},
+    "reviewer": {
+        "required": {*LOCAL_READ_TOOLS, "Skill"},
+        "forbidden": {"Bash", "Agent", *WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
+    },
+    "repository-investigator": {
+        "required": LOCAL_READ_TOOLS,
+        "forbidden": {
+            "Bash", "Agent", "Skill", *WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS,
+        },
+    },
+    "researcher": {
+        "required": EXTERNAL_EVIDENCE_TOOLS,
+        "forbidden": {"Read", "Grep", "Glob", "Bash", "Agent", "Skill", *WRITE_TOOLS},
+    },
+    "sde": {
+        "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
+        "forbidden": EXTERNAL_EVIDENCE_TOOLS,
+    },
+    "sre": {
+        "required": {"Read", "Bash", "Skill", "Agent"},
+        "forbidden": {*WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
+    },
+    "sre-steward": {
+        "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
+        "forbidden": EXTERNAL_EVIDENCE_TOOLS,
+    },
+    "prompt-engineer": {
+        "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
+        "forbidden": EXTERNAL_EVIDENCE_TOOLS,
+    },
+}
+EXPECTED_DELEGATION = {
+    "reviewer": set(),
+    "repository-investigator": set(),
+    "researcher": set(),
+    "sde": {"reviewer", "researcher"},
+    "sre": {"sre-steward", "researcher"},
+    "sre-steward": {"researcher"},
+    "prompt-engineer": {"researcher"},
 }
 
 
@@ -134,7 +170,15 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
             failures.append(f"{path}: missing required tool(s): {', '.join(missing)}")
         if forbidden:
             failures.append(f"{path}: forbidden tool(s): {', '.join(forbidden)}")
-        for target in sorted(_delegates(fields["tools"])):
+        delegates = _delegates(fields["tools"])
+        expected_delegates = EXPECTED_DELEGATION[name]
+        if delegates != expected_delegates:
+            failures.append(
+                f"{path}: delegation mismatch; expected "
+                f"{', '.join(sorted(expected_delegates)) or 'none'}; found "
+                f"{', '.join(sorted(delegates)) or 'none'}"
+            )
+        for target in sorted(delegates):
             if target not in expected_names:
                 failures.append(f"{path}: Agent target {target!r} does not exist")
         if name in adapters.GUARDED_AGENTS and "Bash" not in bases:

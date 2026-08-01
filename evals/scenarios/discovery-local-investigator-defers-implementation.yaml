@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-local-investigator-defers-implementation
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: repository-investigator
+prompt: |
+  Fix the retry-delay calculation in this checkout, update the configuration parser, and add
+  regression tests. Run the relevant suite before handing back the diff.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: sde
+success_criteria:
+  - Keeps implementation and test execution out of the read-only repository-investigation lane
+  - Delegates to sde
+graders:
+  - type: contains_any
+    of: ["sde", "builder", "implementation"]
+  - type: contains_any
+    of: ["test", "regression", "suite"]

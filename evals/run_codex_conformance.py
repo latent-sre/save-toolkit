@@ -31,6 +31,11 @@ from typing import Callable, Mapping, Sequence
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts import evidence_envelope  # noqa: E402
+
 DEFAULT_MANIFEST = REPO_ROOT / "evals" / "conformance" / "codex-sol.json"
 MARKETPLACE_MANIFEST = Path(".agents/plugins/marketplace.json")
 PLUGIN_DIRECTORY = Path("plugins/sre-agents")
@@ -964,8 +969,105 @@ def _harness_git_status(root: Path) -> str:
         [
             "evals/run_codex_conformance.py",
             "evals/conformance/codex-sol.json",
+            "scripts/evidence_envelope.py",
+            "schemas/evidence-envelope-v1.schema.json",
         ],
     ) or ""
+
+
+def build_conformance_evidence(
+    report: Mapping[str, object],
+    *,
+    producer: str,
+    role: str,
+    target_root: Path,
+    tree_digest: str,
+    criterion: str,
+    source_extra: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Reduce a multi-lane report to the fleet's portable verdict envelope."""
+
+    summary = report["summary"]
+    if not isinstance(summary, Mapping):
+        raise ConformanceError("conformance summary must be an object")
+    inputs_dirty = bool(
+        report.get("plugin_inputs_dirty")
+        or report.get("agent_inputs_dirty")
+        or report.get("harness_inputs_dirty")
+    )
+    if inputs_dirty:
+        status = "inconclusive"
+    elif summary.get("fail", 0):
+        status = "fail"
+    elif summary.get("inconclusive", 0):
+        status = "inconclusive"
+    else:
+        status = "pass"
+    results = report["results"]
+    if not isinstance(results, list) or not results:
+        raise ConformanceError("conformance evidence requires at least one lane result")
+    requested_models = sorted(
+        {item["requested_model"] for item in results if isinstance(item, dict)}
+    )
+    limitations = ["Raw model transcripts were reduced to hashes and were not persisted."]
+    missing_model_evidence = sum(
+        isinstance(item, dict) and not item.get("observed_model_exposed") for item in results
+    )
+    if missing_model_evidence:
+        limitations.append(
+            f"The runtime did not expose the resolved model for {missing_model_evidence} lane(s)."
+        )
+    if inputs_dirty:
+        limitations.append(
+            "Inputs differed from HEAD, so this result is not exact-revision evidence."
+        )
+    source: dict[str, object] = {
+        "kind": "codex-sol-conformance",
+        "lane_count": len(results),
+        "required_lane_count": sum(
+            bool(item.get("required")) for item in results if isinstance(item, dict)
+        ),
+        "summary": dict(summary),
+        "manifest_sha256": report["manifest_sha256"],
+        "runner_sha256": report["runner_sha256"],
+        "plugin_source_sha256": report["plugin_source_sha256"],
+    }
+    source.update(dict(source_extra or {}))
+    started = evidence_envelope.parse_timestamp(report["started_at"], "started_at")
+    ended = evidence_envelope.parse_timestamp(report["generated_at"], "generated_at")
+    run_id = producer.replace("_", "-") + "-" + started.strftime("%Y%m%dT%H%M%SZ")
+    return evidence_envelope.new_envelope(
+        producer=producer,
+        role=role,
+        target_root=str(target_root),
+        target_revision=str(report["repository_commit"]),
+        tree_digest=tree_digest,
+        criterion=criterion,
+        status=status,
+        started_at=started,
+        ended_at=ended,
+        source=source,
+        run_id=run_id,
+        task_id="required-lanes",
+        attempt_id="attempt-1",
+        environment={
+            "cli_version": results[0]["cli_version"],
+            "requested_models": requested_models,
+            "reasoning_effort": sorted(
+                {item["reasoning_effort"] for item in results if isinstance(item, dict)}
+            ),
+            "sandbox": sorted({item["sandbox"] for item in results if isinstance(item, dict)}),
+            "approval_policy": sorted(
+                {item["approval_policy"] for item in results if isinstance(item, dict)}
+            ),
+        },
+        isolation={
+            "disposable_home": True,
+            "read_only_sandbox_requested": True,
+            "raw_transcript_persisted": False,
+        },
+        limitations=limitations,
+    )
 
 
 def _parse_json_object(text: str, label: str) -> dict[str, object]:
@@ -1233,7 +1335,7 @@ def run_live(
     if source_digest_after != source_digest_before:
         raise ConformanceError("Codex plugin inputs changed during the live run")
     summary = {verdict: sum(item["verdict"] == verdict for item in results) for verdict in sorted(VERDICTS)}
-    return {
+    report: dict[str, object] = {
         "schema_version": 1,
         "generated_at": _timestamp(),
         "started_at": started_at,
@@ -1254,6 +1356,15 @@ def run_live(
         "summary": summary,
         "results": results,
     }
+    report["evidence"] = build_conformance_evidence(
+        report,
+        producer="codex_skill_conformance",
+        role="codex-skill-conformance",
+        target_root=root,
+        tree_digest=source_digest_before,
+        criterion="all required Codex/Sol skill and reference lanes pass",
+    )
+    return report
 
 
 def _parser() -> argparse.ArgumentParser:

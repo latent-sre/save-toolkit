@@ -26,11 +26,14 @@ patch; you contain it. *[sourced: industry consensus; Simon Willison, "The letha
 
 ## Runtime boundary
 
-The execution boundary today: `reviewer` and `researcher` hold no Bash or Write (enforced by tool
-absence); `sre` and `sre-steward` run Bash under the fail-closed allowlist guard
-(the repo's `readonly-guard.py`, wired through the plugin-level session hook); `sde` runs unguarded Bash by
-stated trust decision, for team-authored code only. Verify a guard claim against the agent's
-frontmatter and the guard's tests — never infer enforcement from prose.
+The execution boundary today: `reviewer` and `repository-investigator` are local-only and hold no
+Bash, Write, web, or external MCP tools; `researcher` is external-only and holds no local read, Bash,
+Write, Skill, or Agent tool. `sre` and `sre-steward` run Bash under the fail-closed allowlist guard
+(the repo's `readonly-guard.py`, wired through the plugin-level session hook). `sde` and
+`prompt-engineer` retain unguarded Bash for team-authored repository work, so host/network egress
+controls remain load-bearing even though their direct web tools are absent. Verify every claim
+against agent frontmatter and guard tests; generated Codex profiles need outer isolation because
+their TOML cannot deny inherited tools.
 
 ## The lethal trifecta
 An agent is exploitable by a single injected prompt when it combines **all three**:
@@ -39,6 +42,12 @@ An agent is exploitable by a single injected prompt when it combines **all three
 3. **The ability to exfiltrate / act externally** (send data out, write to prod, open network calls).
 
 Breaking one leg interrupts this high-impact A→B→C chain; it does not eliminate prompt injection or lower-impact harm. Defense in depth remains required. *[sourced: Simon Willison, "The lethal trifecta for AI agents"]*
+
+For mixed local-plus-external questions, the main session sequences two isolated tasks: first obtain
+local `file:line` evidence from `repository-investigator`, then construct a sanitized public question
+for `researcher`, and finally compare the separately labeled results. Never copy private excerpts,
+paths, internal identifiers, logs, or uncommitted text into the external task. This handoff discipline
+is cooperative; a brokered redaction and egress boundary would be stronger.
 
 > **Rule of Two.** An agent running **without a human in the loop** should satisfy **at most two** of the
 > three. Wanting all three means a human must approve the sensitive step. *[sourced: Meta, "Agents Rule of Two"]*

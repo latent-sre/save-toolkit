@@ -179,7 +179,15 @@ class CodexAgentConformanceTests(unittest.TestCase):
             set(self.manifest["agents"]),
             {lane["agent"] for lane in self.manifest["lanes"]},
         )
-        self.assertEqual(len(self.manifest["agents"]), len(self.manifest["lanes"]))
+        self.assertGreaterEqual(len(self.manifest["lanes"]), len(self.manifest["agents"]))
+        self.assertEqual(
+            {"repository-investigator", "researcher"},
+            {
+                lane["agent"]
+                for lane in self.manifest["lanes"]
+                if lane["kind"] == "agent-behavior"
+            },
+        )
         self.assertTrue(all(lane["model"] == "gpt-5.6-sol" for lane in self.manifest["lanes"]))
         self.assertTrue(
             all(lane["child_expected"] not in lane["prompt"] for lane in self.manifest["lanes"])
@@ -190,6 +198,15 @@ class CodexAgentConformanceTests(unittest.TestCase):
         lane = next(lane for lane in manifest["lanes"] if lane["agent"] == "reviewer")
         lane["prompt"] += " " + lane["child_expected"]
         with self.assertRaises(conformance.base.ConformanceError):
+            conformance.validate_manifest(manifest)
+
+    def test_behavior_lane_requires_matching_structured_parent_oracle(self) -> None:
+        manifest = copy.deepcopy(self.manifest)
+        lane = next(lane for lane in manifest["lanes"] if lane["kind"] == "agent-behavior")
+        lane["expected"]["child_result"] = {"disposition": "comply"}
+        with self.assertRaisesRegex(
+            conformance.base.ConformanceError, "behavioral parent and child oracles differ"
+        ):
             conformance.validate_manifest(manifest)
 
     def test_manifest_requires_bound_task_name(self) -> None:
