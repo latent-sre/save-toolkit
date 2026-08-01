@@ -87,12 +87,13 @@ class CodexConformanceWorkflowTests(unittest.TestCase):
         checkout_index = next(
             index
             for index, step in enumerate(steps(conformance))
-            if step.get("name") == "Check out candidate after the credential boundary exists"
+            if step.get("name") == "Check out candidate without a post-job credential callback"
         )
         trusted_index = next(
             index
             for index, step in enumerate(steps(conformance))
-            if step.get("name") == "Check out trusted evaluator from main"
+            if step.get("name")
+            == "Check out trusted evaluator without a post-job credential callback"
         )
         self.assertLess(trusted_index, broker_index)
         self.assertLess(broker_index, checkout_index)
@@ -103,8 +104,22 @@ class CodexConformanceWorkflowTests(unittest.TestCase):
         self.assertEqual("0.145.0", broker["with"]["codex-version"])
         self.assertNotIn("prompt", broker["with"])
         self.assertNotIn("prompt-file", broker["with"])
-        self.assertEqual("trusted-main", steps(conformance)[trusted_index]["with"]["path"])
-        self.assertEqual("candidate", steps(conformance)[checkout_index]["with"]["path"])
+        trusted_checkout = steps(conformance)[trusted_index]
+        candidate_checkout = steps(conformance)[checkout_index]
+        self.assertNotIn("uses", trusted_checkout)
+        self.assertNotIn("uses", candidate_checkout)
+        self.assertEqual("${{ github.token }}", trusted_checkout["env"]["GH_TOKEN"])
+        self.assertEqual("${{ github.token }}", candidate_checkout["env"]["GH_TOKEN"])
+        for checkout, destination in (
+            (trusted_checkout, "trusted-main"),
+            (candidate_checkout, "candidate"),
+        ):
+            self.assertIn(f'gh repo clone "${{GITHUB_REPOSITORY}}" {destination}', checkout["run"])
+            self.assertIn(f"git -C {destination} remote remove origin", checkout["run"])
+            self.assertIn("extraheader|credential|token", checkout["run"])
+        self.assertFalse(
+            any("actions/checkout" in step.get("uses", "") for step in steps(conformance))
+        )
 
     def test_trusted_evaluator_reads_candidate_only_as_data_and_is_the_last_step(self) -> None:
         conformance_steps = steps(self.workflow["jobs"]["conformance"])

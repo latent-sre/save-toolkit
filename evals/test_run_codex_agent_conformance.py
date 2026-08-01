@@ -325,6 +325,21 @@ class CodexAgentConformanceTests(unittest.TestCase):
         self.assertNotIn("--ephemeral", command)
         self.assertNotIn("--ignore-user-config", command)
         self.assertIn("multi_agent", command)
+        self.assertIn("--strict-config", command)
+        expected_config = {
+            "agents.max_concurrent_threads_per_session=1",
+            "agents.max_depth=1",
+            "features.multi_agent_v2.max_concurrent_threads_per_session=2",
+            "features.rollout_budget.enabled=true",
+            f"features.rollout_budget.limit_tokens={conformance.base.ROLLOUT_BUDGET_LIMIT_TOKENS}",
+            "features.rollout_budget.reminder_at_remaining_tokens=[70000,35000,10000]",
+            "features.rollout_budget.sampling_token_weight=1.0",
+            "features.rollout_budget.prefill_token_weight=1.0",
+        }
+        self.assertTrue(expected_config.issubset(command))
+        self.assertTrue(
+            all(command.index(value) < command.index("exec") for value in expected_config)
+        )
         self.assertIn("gpt-5.6-sol", command)
         self.assertLess(command.index("--ask-for-approval"), command.index("exec"))
         self.assertEqual(
@@ -376,6 +391,66 @@ class CodexAgentConformanceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(conformance.base.ConformanceError, "active or unknown"):
+                conformance.validate_local_contract(candidate, self.manifest)
+
+    def test_candidate_agent_prompt_and_capability_bytes_must_be_trusted_first(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "candidate"
+            (candidate / conformance.base.MARKETPLACE_MANIFEST.parent).mkdir(parents=True)
+            conformance.shutil.copy2(
+                conformance.REPO_ROOT / conformance.base.MARKETPLACE_MANIFEST,
+                candidate / conformance.base.MARKETPLACE_MANIFEST,
+            )
+            conformance.shutil.copytree(
+                conformance.REPO_ROOT / conformance.base.PLUGIN_DIRECTORY,
+                candidate / conformance.base.PLUGIN_DIRECTORY,
+            )
+            conformance.shutil.copytree(
+                conformance.REPO_ROOT / conformance.AGENT_SOURCE_DIRECTORY,
+                candidate / conformance.AGENT_SOURCE_DIRECTORY,
+            )
+            reviewer = candidate / conformance.AGENT_SOURCE_DIRECTORY / "reviewer.toml"
+            reviewer.write_text(
+                reviewer.read_text(encoding="utf-8").replace(
+                    'sandbox_mode = "read-only"', 'sandbox_mode = "workspace-write"'
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                conformance.base.ConformanceError, "differs from trusted main"
+            ):
+                conformance.validate_local_contract(candidate, self.manifest)
+
+    def test_candidate_plugin_prompt_bytes_must_be_trusted_before_agent_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "candidate"
+            (candidate / conformance.base.MARKETPLACE_MANIFEST.parent).mkdir(parents=True)
+            conformance.shutil.copy2(
+                conformance.REPO_ROOT / conformance.base.MARKETPLACE_MANIFEST,
+                candidate / conformance.base.MARKETPLACE_MANIFEST,
+            )
+            conformance.shutil.copytree(
+                conformance.REPO_ROOT / conformance.base.PLUGIN_DIRECTORY,
+                candidate / conformance.base.PLUGIN_DIRECTORY,
+            )
+            conformance.shutil.copytree(
+                conformance.REPO_ROOT / conformance.AGENT_SOURCE_DIRECTORY,
+                candidate / conformance.AGENT_SOURCE_DIRECTORY,
+            )
+            skill = (
+                candidate
+                / conformance.base.PLUGIN_DIRECTORY
+                / "skills"
+                / "stack-profile"
+                / "SKILL.md"
+            )
+            skill.write_text(
+                skill.read_text(encoding="utf-8") + "\nUntrusted instruction.\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                conformance.base.ConformanceError, "plugin differs from trusted main"
+            ):
                 conformance.validate_local_contract(candidate, self.manifest)
 
     def test_brokered_live_agent_reduction_never_stages_auth_or_reports_model_text(self) -> None:

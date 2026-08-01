@@ -73,8 +73,11 @@ evidence-envelope validator, JSON Schema, fleet doctor, and Codex/Sol result wra
 tests. A later independent review found the live runner's `auth.json` boundary unsafe and the
 generated reviewer self-disabling on inherited Codex capabilities. The candidate now requires the
 pinned trusted-main Responses API broker, removes raw/parsed response fields, detects credential-like
-output, uses host-portable reviewer integrity language, and adds a real reviewer authorization lane.
-The earlier Sol runtime results are revoked; these remediations currently have offline evidence only.
+output, avoids token-bearing checkout post callbacks in the model job, disables delegation in skill
+lanes, and permits only trusted-main prompt bytes plus one live child under a shared rollout budget in
+agent lanes. It also uses host-portable reviewer integrity language and adds a real reviewer
+authorization lane. The earlier Sol runtime results are revoked; these remediations currently have
+offline evidence only.
 
 **Next action:** Bind the focused three-pass re-review and draft PR to the committed candidate. After
 the broker workflow reaches trusted `main`, wait for PROTECT-001 and distinct promotion authority;
@@ -163,8 +166,10 @@ lanes covering all seven roles, both trust-separated refusal behaviors, and revi
 supplied object-authorization regression without executing or delegating. The 2026-07-31 live results
 are retained but revoked: their same-user `auth.json` boundary and parsed-response reports were not
 safe release evidence. The new brokered workflow and negative credential tests pass offline; a fresh
-live result cannot exist until that workflow is trusted on `main`. Five static routing collision cases
-remain in the ordinary eval suite.
+live result cannot exist until that workflow is trusted on `main`. The model job has no checkout post
+callback, skill lanes have no collaboration tools, and agent lanes require trusted prompt bytes while
+bounding V1/V2 concurrency and shared rollout usage. Five static routing collision cases remain in
+the ordinary eval suite.
 
 **Next action:** Complete the exact-SHA three-pass review and merge the trusted evaluator workflow if
 approved. Do **not** create a canary or dispatch the live run until PROTECT-001 and the distinct

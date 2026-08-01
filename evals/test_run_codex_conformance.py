@@ -89,6 +89,31 @@ class CodexConformanceTests(unittest.TestCase):
         self.assertIn('model_reasoning_effort="high"', command)
         self.assertIn("--ephemeral", command)
         self.assertIn("--ignore-rules", command)
+        self.assertIn("--strict-config", command)
+        disabled = [
+            command[index + 1]
+            for index, argument in enumerate(command[:-1])
+            if argument == "--disable"
+        ]
+        self.assertEqual(["multi_agent_v2", "multi_agent"], disabled)
+        expected_config = {
+            "agents.enabled=false",
+            "features.rollout_budget.enabled=true",
+            f"features.rollout_budget.limit_tokens={conformance.ROLLOUT_BUDGET_LIMIT_TOKENS}",
+            "features.rollout_budget.reminder_at_remaining_tokens=[70000,35000,10000]",
+            "features.rollout_budget.sampling_token_weight=1.0",
+            "features.rollout_budget.prefill_token_weight=1.0",
+        }
+        self.assertTrue(expected_config.issubset(command))
+        self.assertTrue(
+            all(command.index(value) < command.index("exec") for value in expected_config)
+        )
+        self.assertTrue(
+            all(
+                reminder < conformance.ROLLOUT_BUDGET_LIMIT_TOKENS
+                for reminder in conformance.ROLLOUT_BUDGET_REMINDER_TOKENS
+            )
+        )
         self.assertNotIn("--ignore-user-config", command)
         self.assertEqual("--", command[-2])
         self.assertEqual(self.lane["prompt"], command[-1])

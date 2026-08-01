@@ -36,8 +36,12 @@ not a credential boundary. After PROTECT-001 and the promotion-authority control
 `canary/<phase>/<full-sha>` ref. That trusted workflow gives the pinned OpenAI action the repository
 secret `CODEX_CONFORMANCE_OPENAI_API_KEY` before candidate checkout, starts a Responses API proxy,
 removes sudo, and supplies only the trusted-main evaluator with the proxy's tokenless loopback
-provider config. The fixed evaluator and manifests come from `main`; candidate plugin and generated
-agent files are treated as data and candidate Python is never executed. The runners reject
+provider config. The model-bearing job deliberately has no `actions/checkout` step: authenticated
+shell clones finish, remove their remotes, and reject credential configuration before model
+execution, so no checkout post callback can reconstruct `INPUT_TOKEN` afterward. The fixed evaluator
+and manifests come from `main`; candidate Python is never executed. Skill lanes inspect candidate
+plugin bytes as data, while agent lanes require the candidate plugin and generated-agent prompt bytes
+to match trusted main before any delegation. The runners reject
 Windows/local execution, a same-checkout evaluator and candidate, readable `auth.json`, passwordless
 sudo, credential-bearing provider fields, non-loopback endpoints, and credential-shaped volatile
 output.
@@ -47,11 +51,16 @@ executes from an empty temporary git root with an allowlisted process environmen
 parsed final messages are reduced to hashes and equality facts; neither is written to the report.
 The two complete reduced reports cross the job boundary under a 128 KiB-per-report limit, are
 digest-checked and contract-checked on a fresh runner, and are retained with the attestation.
-Each lane and each suite also has a trusted numeric token acceptance ceiling; a missing, malformed,
-or excessive post-response usage record stops execution before another model lane can begin. This is
-not a provider-side spend limit, so the dedicated API project must retain its own quota controls. The
-workflow adds a 120-minute hard ceiling around the conformance job, per-lane subprocess timeouts, and
-ten-minute bounds around preflight and evidence reduction.
+Skill invocations structurally remove collaboration tools by setting `agents.enabled=false` and
+disabling both multi-agent feature versions. Agent invocations pin the V1 registry to one live child
+with depth one and the V2 registry to root plus one live child. Both runners also enable Codex's
+140,000-token rollout budget, which is shared by the root and subagents. That runtime budget accounts
+weighted non-cached input and output after each response, so one response can cross it and cached
+input is outside that counter. Each lane and suite therefore retains a separate trusted numeric
+post-response acceptance ceiling; a missing, malformed, or excessive usage record stops execution
+before another lane. These controls are not a provider-side spend limit, so the dedicated API project
+must retain its own quota. The workflow adds a 120-minute hard ceiling around the conformance job,
+per-lane subprocess timeouts, and ten-minute bounds around preflight and evidence reduction.
 The live path requires fixed manifests and clean plugin/harness inputs. Missing broker setup,
 CLI/model failure, timeout, or an incomplete trace is `INCONCLUSIVE`, never a fleet failure. Dirty
 development switches exist for locally authored harness work but are never publishable evidence.
@@ -65,8 +74,10 @@ py -3 evals/run_codex_agent_conformance.py --validate
 
 The agent runner freezes and installs all seven generated custom-agent TOMLs in the same isolated
 Codex home as the plugin, then runs one no-history delegation lane per agent plus behavior lanes for
-both trust-separated research roles and a supplied-diff authorization review by `reviewer`. A lane
-passes only when
+both trust-separated research roles and a supplied-diff authorization review by `reviewer`. The full
+plugin bundle and every custom-agent TOML must first match the trusted-main bytes; prompt or capability
+changes are staged and reviewed before a live agent baseline can exercise them. A lane passes only
+when
 the private session rollouts prove all of the following:
 
 - exactly one successful `spawn_agent` call names the expected role and `fork_turns: none`;

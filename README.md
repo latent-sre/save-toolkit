@@ -133,6 +133,10 @@ remain for diagnosis, but there is no current Sol runtime baseline until the tru
 workflow evaluates an exact reviewed SHA. The static manifests now cover 11 skill/reference lanes
 and ten custom-agent lanes, including both trust-separated refusals and reviewer authorization
 behavior. None of these lanes proves implicit routing or Claude-equivalent per-agent tool narrowing.
+The brokered skill lane disables both Codex multi-agent implementations. The agent lane accepts only
+trusted-main plugin/agent prompt bytes, caps V1 and V2 at one live child with no V1 descendants, and
+shares a runtime rollout budget across root and child; post-response usage ceilings and the provider
+project quota remain independent outer checks.
 
 ## Current status
 

@@ -60,6 +60,8 @@ MAX_SUITE_USAGE_TOKENS = {
     "output_tokens": 200_000,
     "reasoning_output_tokens": 200_000,
 }
+ROLLOUT_BUDGET_LIMIT_TOKENS = 140_000
+ROLLOUT_BUDGET_REMINDER_TOKENS = (70_000, 35_000, 10_000)
 
 SAFE_ENV_KEYS = (
     "PATH",
@@ -168,6 +170,28 @@ def add_suite_usage(total: dict[str, int], lane: Mapping[str, int]) -> None:
         total[key] += lane[key]
         if total[key] > limit:
             raise ConformanceError(f"Codex suite exceeded the trusted {key} limit")
+
+
+def rollout_budget_args() -> list[str]:
+    """Return a shared root-and-subagent rollout ceiling for one Codex invocation.
+
+    Codex accounts this budget after each response, so a final response can cross the threshold.
+    Provider-project quota remains the outer spend boundary.
+    """
+
+    reminders = ",".join(str(value) for value in ROLLOUT_BUDGET_REMINDER_TOKENS)
+    return [
+        "-c",
+        "features.rollout_budget.enabled=true",
+        "-c",
+        f"features.rollout_budget.limit_tokens={ROLLOUT_BUDGET_LIMIT_TOKENS}",
+        "-c",
+        f"features.rollout_budget.reminder_at_remaining_tokens=[{reminders}]",
+        "-c",
+        "features.rollout_budget.sampling_token_weight=1.0",
+        "-c",
+        "features.rollout_budget.prefill_token_weight=1.0",
+    ]
 
 
 def load_manifest(path: Path) -> dict[str, object]:
@@ -373,6 +397,14 @@ def build_exec_command(executable: str, workspace: Path, lane: Mapping[str, obje
         executable,
         "--ask-for-approval",
         lane["approval_policy"],
+        "--strict-config",
+        "-c",
+        "agents.enabled=false",
+        "--disable",
+        "multi_agent_v2",
+        "--disable",
+        "multi_agent",
+        *rollout_budget_args(),
         "exec",
         "--json",
         "--ephemeral",

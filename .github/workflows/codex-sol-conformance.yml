@@ -3,9 +3,10 @@ name: Brokered Codex Sol conformance
 # This workflow is the only supported live path for the Codex conformance runners. Dispatch it from
 # trusted main against an immutable canary ref. The API key is consumed by the pinned OpenAI action
 # before candidate code is checked out; that action starts a tokenless loopback proxy and removes
-# sudo. Evaluator code and manifests come only from trusted main. Candidate plugin and generated-agent
-# files are read as data; candidate Python is never executed and model-controlled commands never
-# receive the key.
+# sudo. Evaluator code and manifests come only from trusted main. Candidate plugin files are read as
+# data by the no-delegation skill lanes; live agent lanes require the plugin and generated-agent
+# prompts to match trusted main byte-for-byte. Candidate Python is never executed, and
+# model-controlled commands never receive the key.
 on:
   workflow_dispatch:
     inputs:
@@ -91,12 +92,24 @@ jobs:
       skill_report_b64: ${{ steps.run.outputs.skill_report_b64 }}
       agent_report_b64: ${{ steps.run.outputs.agent_report_b64 }}
     steps:
-      - name: Check out trusted evaluator from main
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.sha }}
-          path: trusted-main
-          persist-credentials: false
+      # Do not use actions/checkout in this job. Its Node post callback receives INPUT_TOKEN again
+      # after the model step even with persist-credentials:false. A trusted shell clone has no
+      # secret-bearing post callback, removes its remote, and leaves no credential configuration.
+      - name: Check out trusted evaluator without a post-job credential callback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          gh repo clone "${GITHUB_REPOSITORY}" trusted-main -- --filter=blob:none --no-checkout
+          git -C trusted-main fetch --no-tags --depth=1 origin "${WORKFLOW_SHA}"
+          git -C trusted-main checkout --detach "${WORKFLOW_SHA}"
+          git -C trusted-main remote remove origin
+          if git -C trusted-main config --local --name-only --get-regexp '(extraheader|credential|token)'; then
+            echo "Trusted evaluator checkout retained credential configuration." >&2
+            exit 1
+          fi
 
       # Source reviewed at openai/codex-action commit dd78cb653811af44014baa08fe954e28d32c1bf9.
       # No prompt is supplied: this invocation only starts the Responses API proxy, writes its
@@ -109,12 +122,21 @@ jobs:
           codex-home: ${{ runner.temp }}/sre-agents-broker-home
           safety-strategy: drop-sudo
 
-      - name: Check out candidate after the credential boundary exists
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ inputs.candidate_sha }}
-          path: candidate
-          persist-credentials: false
+      - name: Check out candidate without a post-job credential callback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          gh repo clone "${GITHUB_REPOSITORY}" candidate -- --filter=blob:none --no-checkout
+          git -C candidate fetch --no-tags --depth=1 origin "${CANDIDATE_SHA}"
+          git -C candidate checkout --detach "${CANDIDATE_SHA}"
+          git -C candidate remote remove origin
+          if git -C candidate config --local --name-only --get-regexp '(extraheader|credential|token)'; then
+            echo "Candidate checkout retained credential configuration." >&2
+            exit 1
+          fi
 
       - name: Recheck candidate and immutable canary before model execution
         shell: bash

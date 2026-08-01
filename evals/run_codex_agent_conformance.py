@@ -243,6 +243,12 @@ def validate_local_contract(root: Path, manifest: Mapping[str, object]) -> None:
             ],
         },
     )
+    if root.resolve() != REPO_ROOT.resolve():
+        if base.codex_plugin_digest(root) != base.codex_plugin_digest(REPO_ROOT):
+            raise base.ConformanceError(
+                "candidate Codex plugin differs from trusted main; "
+                "stage plugin prompt changes before live agent conformance"
+            )
     source = root / AGENT_SOURCE_DIRECTORY
     base._assert_no_indirection(root, source, "Codex agent source directory")
     actual = sorted(path.stem for path in source.glob("*.toml") if path.is_file())
@@ -268,6 +274,14 @@ def validate_local_contract(root: Path, manifest: Mapping[str, object]) -> None:
             raise base.ConformanceError(f"Codex agent {name!r} has no developer instructions")
         if document.get("sandbox_mode") not in {"read-only", "workspace-write"}:
             raise base.ConformanceError(f"Codex agent {name!r} has an unsupported sandbox request")
+        if root.resolve() != REPO_ROOT.resolve():
+            trusted_path = REPO_ROOT / AGENT_SOURCE_DIRECTORY / f"{name}.toml"
+            base._assert_no_indirection(REPO_ROOT, trusted_path, f"trusted Codex agent {name!r}")
+            if path.read_bytes() != trusted_path.read_bytes():
+                raise base.ConformanceError(
+                    f"candidate Codex agent {name!r} differs from trusted main; "
+                    "stage agent prompt and capability changes before live conformance"
+                )
     for lane in manifest["lanes"]:
         if lane["kind"] != "agent-delegation":
             continue
@@ -291,13 +305,21 @@ def build_exec_command(executable: str, workspace: Path, lane: Mapping[str, obje
         executable,
         "--ask-for-approval",
         lane["approval_policy"],
+        "--strict-config",
+        "--enable",
+        "multi_agent",
+        "-c",
+        "agents.max_concurrent_threads_per_session=1",
+        "-c",
+        "agents.max_depth=1",
+        "-c",
+        "features.multi_agent_v2.max_concurrent_threads_per_session=2",
+        *base.rollout_budget_args(),
         "exec",
         "--json",
         "--ignore-rules",
         "--color",
         "never",
-        "--enable",
-        "multi_agent",
         "--model",
         lane["model"],
         "--sandbox",
