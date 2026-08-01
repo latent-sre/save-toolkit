@@ -150,7 +150,7 @@ class CodexReportReducerTests(unittest.TestCase):
 
     def test_valid_reports_produce_inspectable_attestation_facts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             skill = root / "skills.json"
             agent = root / "agents.json"
             skill_sha = self._write(skill, self._report("skill"))
@@ -170,7 +170,7 @@ class CodexReportReducerTests(unittest.TestCase):
         report = self._report("skill")
         report["results"][0]["response"] = {"secret": "model text"}
         with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "report.json"
+            path = Path(temporary).resolve() / "report.json"
             digest = self._write(path, report)
             with self.assertRaisesRegex(reducer.ReductionError, "forbidden raw fields"):
                 reducer.validate_report(
@@ -183,7 +183,7 @@ class CodexReportReducerTests(unittest.TestCase):
 
     def test_digest_and_revision_mismatches_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "report.json"
+            path = Path(temporary).resolve() / "report.json"
             digest = self._write(path, self._report("skill"))
             with self.assertRaisesRegex(reducer.ReductionError, "digest mismatch"):
                 reducer.validate_report(
@@ -211,7 +211,7 @@ class CodexReportReducerTests(unittest.TestCase):
             "input_tokens"
         ]
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             over = root / "over.json"
             digest = self._write(over, report)
             with self.assertRaisesRegex(reducer.ReductionError, "usage limit"):
@@ -236,7 +236,7 @@ class CodexReportReducerTests(unittest.TestCase):
 
     def test_cli_writes_new_attestation_without_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             skill = root / "skills.json"
             agent = root / "agents.json"
             skill_sha = self._write(skill, self._report("skill"))
@@ -272,7 +272,7 @@ class CodexReportReducerTests(unittest.TestCase):
 
     def test_truncated_or_swapped_suite_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             truncated = self._report("skill")
             truncated["results"].pop()
             path = root / "truncated.json"

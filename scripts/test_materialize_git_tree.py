@@ -81,7 +81,7 @@ class MaterializeGitTreeTests(unittest.TestCase):
 
     def test_materializes_selected_raw_blobs_and_binds_clean_head(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             source, commit = self._source(root)
             repository = self._object_store(root, source)
             marker = materializer.materialize(repository, commit, self._paths())
@@ -118,7 +118,7 @@ class MaterializeGitTreeTests(unittest.TestCase):
 
     def test_candidate_lfs_attributes_never_activate_configured_filter(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             source, _ = self._source(root)
             attributes = source / "plugins/sre-agents/.gitattributes"
             attributes.write_text("payload.bin filter=lfs\n", encoding="utf-8")
@@ -158,7 +158,7 @@ class MaterializeGitTreeTests(unittest.TestCase):
 
     def test_rejects_a_live_credential_or_retained_remote(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             source, commit = self._source(root)
             repository = self._object_store(root, source)
             with mock.patch.dict(os.environ, {"GH_TOKEN": "must-not-survive"}):
@@ -175,7 +175,7 @@ class MaterializeGitTreeTests(unittest.TestCase):
 
     def test_rejects_existing_worktree_content_and_missing_selection(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             source, commit = self._source(root)
             repository = self._object_store(root, source)
             (repository / "unexpected.txt").write_text("not empty", encoding="utf-8")
@@ -196,6 +196,21 @@ class MaterializeGitTreeTests(unittest.TestCase):
                 materializer.MaterializationError, "linked, submodule, or unsupported"
             ):
                 materializer._parse_tree(raw)
+
+    def test_repository_layout_compares_filesystem_identity_not_path_spelling(self) -> None:
+        repository = Path("logical-candidate")
+        git_directory = repository / ".git"
+        with (
+            mock.patch.object(
+                materializer,
+                "_git",
+                side_effect=[b"physical-candidate\n", b"physical-candidate/.git\n"],
+            ),
+            mock.patch.object(Path, "samefile", autospec=True, return_value=True) as samefile,
+        ):
+            materializer._assert_repository_layout(repository, git_directory)
+
+        self.assertEqual(2, samefile.call_count)
 
     def test_rejects_traversal_git_metadata_and_case_collisions(self) -> None:
         for path in ("../escape", "/absolute", "safe/../../escape", ".git/config", "a\\b"):

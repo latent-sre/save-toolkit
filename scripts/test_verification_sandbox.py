@@ -22,7 +22,9 @@ REVISION = "b" * 40
 class VerificationSandboxTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
-        self.base = Path(self.temporary.name)
+        # macOS exposes tempfile paths through /var, an OS-owned alias of /private/var. Resolve the
+        # trusted allocation before exercising the sandbox's deliberate no-indirection boundary.
+        self.base = Path(self.temporary.name).resolve()
         self.source = self.base / "source"
         self.source.mkdir()
         (self.source / "fixture.txt").write_text("fixed input\n", encoding="utf-8")
@@ -353,7 +355,7 @@ class VerificationSandboxTests(unittest.TestCase):
                 clear=True,
             ):
                 environment = verification_sandbox._engine_environment(
-                    Path(temporary) / "client", "docker"
+                    Path(temporary).resolve() / "client", "docker"
                 )
         self.assertEqual("C:/tools", environment["PATH"])
         self.assertNotEqual("tcp://remote.example:2375", environment["DOCKER_HOST"])

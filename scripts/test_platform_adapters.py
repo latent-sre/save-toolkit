@@ -100,7 +100,7 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_byte_drift_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             shutil.copytree(ROOT / "agents", root / "agents")
             shutil.copytree(ROOT / "skills", root / "skills")
             for relative in adapters.GENERATED_ROOTS:
@@ -112,7 +112,7 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_directory_swap_failure_restores_every_existing_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             shutil.copytree(ROOT / "agents", root / "agents")
             shutil.copytree(ROOT / "skills", root / "skills")
             for relative in adapters.GENERATED_ROOTS:

@@ -1440,7 +1440,9 @@ def run_live(
     suite_usage = {key: 0 for key in MAX_SUITE_USAGE_TOKENS}
 
     with tempfile.TemporaryDirectory(prefix="sre-agents-codex-sol-") as temporary:
-        temporary_root = Path(temporary)
+        # tempfile may return an OS alias such as macOS /var -> /private/var. This directory was
+        # allocated by this process, so canonicalize it before applying no-indirection checks below.
+        temporary_root = Path(temporary).resolve()
         if temporary_root.resolve().is_relative_to(root.resolve()):
             raise ConformanceError("isolated Codex workspace resolved inside the plugin repository")
         if _is_link_or_reparse(temporary_root):

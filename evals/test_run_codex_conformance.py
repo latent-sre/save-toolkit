@@ -151,7 +151,7 @@ class CodexConformanceTests(unittest.TestCase):
             "links_materialized": False,
         }
         with tempfile.TemporaryDirectory() as temporary:
-            candidate = Path(temporary) / "candidate"
+            candidate = Path(temporary).resolve() / "candidate"
             with mock.patch.object(
                 conformance.materialize_git_tree,
                 "verify_materialization",
@@ -670,7 +670,7 @@ class CodexConformanceTests(unittest.TestCase):
 
     def test_bootstrap_rejects_disabled_plugin_inventory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            base = Path(temporary)
+            base = Path(temporary).resolve()
             codex_home = base / "codex-home"
             installed_path = codex_home / "plugins" / "cache" / "sre-agents"
             workspace = base / "workspace"
@@ -741,7 +741,7 @@ class CodexConformanceTests(unittest.TestCase):
 
     def test_child_environment_is_allowlisted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            temporary_root = Path(temporary)
+            temporary_root = Path(temporary).resolve()
             codex_home = temporary_root / "codex-home"
             neutral_profile = temporary_root / "user-profile"
             old = dict(os.environ)
@@ -765,7 +765,7 @@ class CodexConformanceTests(unittest.TestCase):
 
     def test_broker_config_is_exact_tokenless_loopback_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             source = root / "broker-home" / "config.toml"
             source.parent.mkdir()
             source.write_text(
@@ -796,7 +796,7 @@ class CodexConformanceTests(unittest.TestCase):
 
     def test_broker_config_rejects_auth_file_and_non_loopback_endpoint(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             source = root / "config.toml"
             template = (
                 'model_provider = "codex-action-responses-proxy"\n\n'
@@ -819,7 +819,7 @@ class CodexConformanceTests(unittest.TestCase):
             "provider": conformance.BROKER_PROVIDER,
         }
         with tempfile.TemporaryDirectory() as temporary:
-            clean_home = Path(temporary)
+            clean_home = Path(temporary).resolve()
             with (
                 mock.patch.object(conformance, "load_broker_config", return_value=broker),
                 mock.patch.object(conformance.sys, "platform", "linux"),
@@ -904,7 +904,7 @@ class CodexConformanceTests(unittest.TestCase):
 
     def test_brokered_live_reduction_never_stages_auth_or_reports_model_text(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             broker_config = root / "broker-home" / "config.toml"
             broker_config.parent.mkdir()
             broker_config.write_text(
@@ -1045,7 +1045,7 @@ class CodexConformanceTests(unittest.TestCase):
 
     def test_plugin_snapshot_digest_detects_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            snapshot = Path(temporary) / "marketplace"
+            snapshot = Path(temporary).resolve() / "marketplace"
             before = conformance.codex_plugin_digest(ROOT)
             conformance.copy_codex_marketplace_snapshot(ROOT, snapshot)
             self.assertEqual(before, conformance.codex_plugin_digest(snapshot))
@@ -1067,7 +1067,7 @@ class CodexConformanceTests(unittest.TestCase):
 
     def test_candidate_plugin_metadata_and_active_components_are_not_self_authorizing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            candidate = Path(temporary) / "candidate"
+            candidate = Path(temporary).resolve() / "candidate"
             conformance.copy_codex_marketplace_snapshot(ROOT, candidate)
             conformance.validate_local_plugin_contract(candidate, self.manifest)
 
@@ -1081,7 +1081,7 @@ class CodexConformanceTests(unittest.TestCase):
                 conformance.validate_local_plugin_contract(candidate, self.manifest)
 
         with tempfile.TemporaryDirectory() as temporary:
-            candidate = Path(temporary) / "candidate"
+            candidate = Path(temporary).resolve() / "candidate"
             conformance.copy_codex_marketplace_snapshot(ROOT, candidate)
             (candidate / conformance.PLUGIN_DIRECTORY / "hooks").mkdir()
             with self.assertRaisesRegex(conformance.ConformanceError, "active or unknown"):

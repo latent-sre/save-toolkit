@@ -146,8 +146,18 @@ def _is_link_or_reparse(path: Path) -> bool:
     return stat.S_ISLNK(attributes.st_mode) or bool(file_attributes & reparse_flag)
 
 
-def _normalized_host_path(path: Path) -> str:
-    return os.path.normcase(os.path.abspath(path))
+def _same_existing_path(left: Path, right: Path) -> bool:
+    """Compare filesystem identity instead of path spelling.
+
+    Windows runners can hand Python a short (8.3) temporary path while Git reports the long path.
+    Both names identify the same directory, but string normalization cannot prove that. ``samefile``
+    compares the underlying file identity and fails closed when either path cannot be inspected.
+    """
+
+    try:
+        return left.samefile(right)
+    except OSError:
+        return False
 
 
 def _assert_repository_layout(repository: Path, git_directory: Path) -> None:
@@ -155,9 +165,9 @@ def _assert_repository_layout(repository: Path, git_directory: Path) -> None:
     actual_git_directory = Path(
         _git(repository, ["rev-parse", "--absolute-git-dir"]).decode().strip()
     )
-    if _normalized_host_path(top_level) != _normalized_host_path(repository):
+    if not _same_existing_path(top_level, repository):
         raise MaterializationError("object-store Git worktree resolves outside the repository")
-    if _normalized_host_path(actual_git_directory) != _normalized_host_path(git_directory):
+    if not _same_existing_path(actual_git_directory, git_directory):
         raise MaterializationError("object-store Git metadata resolves outside the repository")
     for relative in ("objects/info/alternates", "objects/info/http-alternates"):
         if (git_directory / relative).exists():

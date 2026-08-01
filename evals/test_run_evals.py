@@ -294,6 +294,29 @@ class StreamTraceTests(unittest.TestCase):
 
 
 class ArtifactTests(unittest.TestCase):
+    def test_windows_acl_inspection_avoids_module_autoloading(self) -> None:
+        completed = mock.Mock(
+            returncode=0,
+            stdout="S-1-5-21-1234\tAllow\t2032127\tFalse\n",
+            stderr="",
+        )
+        with mock.patch.object(run_evals.subprocess, "run", return_value=completed) as invoked:
+            entries = run_evals._windows_acl(Path("artifact"))
+
+        command = invoked.call_args.args[0]
+        self.assertNotIn("Get-Acl", command[-1])
+        self.assertIn("GetAccessControl", command[-1])
+        self.assertEqual(
+            [{"sid": "S-1-5-21-1234", "type": "Allow", "rights": 2032127, "inherited": False}],
+            entries,
+        )
+
+    def test_windows_acl_inspection_rejects_malformed_output(self) -> None:
+        completed = mock.Mock(returncode=0, stdout="not-an-acl\n", stderr="")
+        with mock.patch.object(run_evals.subprocess, "run", return_value=completed):
+            with self.assertRaisesRegex(clean_room.RunnerFailed, "malformed Windows ACL"):
+                run_evals._windows_acl(Path("artifact"))
+
     def test_raw_trace_and_summary_are_persisted(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

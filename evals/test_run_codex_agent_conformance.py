@@ -369,7 +369,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
 
     def test_sparse_candidate_is_clean_for_only_the_agent_bytes_it_evaluates(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            candidate = Path(temporary) / "candidate"
+            candidate = Path(temporary).resolve() / "candidate"
             clone = conformance.subprocess.run(
                 [
                     "git",
@@ -420,7 +420,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
 
     def test_candidate_agent_unknown_fields_cannot_activate_runtime_capabilities(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            candidate = Path(temporary) / "candidate"
+            candidate = Path(temporary).resolve() / "candidate"
             (candidate / conformance.base.MARKETPLACE_MANIFEST.parent).mkdir(parents=True)
             conformance.shutil.copy2(
                 conformance.REPO_ROOT / conformance.base.MARKETPLACE_MANIFEST,
@@ -446,7 +446,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
 
     def test_candidate_agent_prompt_and_capability_bytes_must_be_trusted_first(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            candidate = Path(temporary) / "candidate"
+            candidate = Path(temporary).resolve() / "candidate"
             (candidate / conformance.base.MARKETPLACE_MANIFEST.parent).mkdir(parents=True)
             conformance.shutil.copy2(
                 conformance.REPO_ROOT / conformance.base.MARKETPLACE_MANIFEST,
@@ -474,7 +474,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
 
     def test_candidate_plugin_prompt_bytes_must_be_trusted_before_agent_execution(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            candidate = Path(temporary) / "candidate"
+            candidate = Path(temporary).resolve() / "candidate"
             (candidate / conformance.base.MARKETPLACE_MANIFEST.parent).mkdir(parents=True)
             conformance.shutil.copy2(
                 conformance.REPO_ROOT / conformance.base.MARKETPLACE_MANIFEST,
@@ -507,7 +507,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
     def test_brokered_live_agent_reduction_never_stages_auth_or_reports_model_text(self) -> None:
         root = conformance.REPO_ROOT
         with tempfile.TemporaryDirectory() as temporary:
-            temporary_root = Path(temporary)
+            temporary_root = Path(temporary).resolve()
             broker_config = temporary_root / "broker-home" / "config.toml"
             broker_config.parent.mkdir()
             broker_config.write_text(
@@ -633,7 +633,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
 
     def test_rollout_reader_rejects_malformed_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "sessions" / "bad.jsonl"
+            path = Path(temporary).resolve() / "sessions" / "bad.jsonl"
             path.parent.mkdir()
             path.write_text("{not-json}\n", encoding="utf-8")
             with self.assertRaises(conformance.base.ConformanceError):
@@ -641,7 +641,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
 
     def test_rollout_reader_rejects_credential_shaped_output_without_echoing_it(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "sessions" / "leak.jsonl"
+            path = Path(temporary).resolve() / "sessions" / "leak.jsonl"
             path.parent.mkdir()
             marker = "sk-proj-0123456789abcdefghijklmnop"
             path.write_text(json.dumps({"payload": marker}) + "\n", encoding="utf-8")

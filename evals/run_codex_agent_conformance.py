@@ -712,7 +712,8 @@ def run_live(
     base_runner_sha256 = hashlib.sha256(Path(base.__file__).read_bytes()).hexdigest()
 
     with tempfile.TemporaryDirectory(prefix="sre-agents-codex-sol-agent-") as temporary:
-        temporary_root = Path(temporary)
+        # Canonicalize this process-owned allocation before enforcing the no-indirection boundary.
+        temporary_root = Path(temporary).resolve()
         if temporary_root.resolve().is_relative_to(root.resolve()):
             raise base.ConformanceError("isolated Codex agent root resolved inside the repository")
         if base._is_link_or_reparse(temporary_root):

@@ -706,12 +706,25 @@ def _windows_sid() -> str:
 
 
 def _windows_acl(path: Path) -> list[dict]:
+    # Do not use Get-Acl here. It depends on Microsoft.PowerShell.Security module autoloading,
+    # which is not reliable on current Windows hosted runners. DirectoryInfo/FileInfo expose the
+    # same Windows security descriptor through .NET without importing a PowerShell module.
     script = (
-        "$acl=Get-Acl -LiteralPath $env:FLEET_EVAL_ACL_PATH; "
-        "@($acl.Access | ForEach-Object { [pscustomobject]@{"
-        "sid=$_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value;"
-        "type=$_.AccessControlType.ToString();rights=[int]$_.FileSystemRights;"
-        "inherited=[bool]$_.IsInherited} }) | ConvertTo-Json -Compress"
+        "$ErrorActionPreference='Stop'; try { "
+        "$path=$env:FLEET_EVAL_ACL_PATH; "
+        "if ([System.IO.Directory]::Exists($path)) { "
+        "$item=[System.IO.DirectoryInfo]::new($path) "
+        "} elseif ([System.IO.File]::Exists($path)) { "
+        "$item=[System.IO.FileInfo]::new($path) "
+        "} else { throw 'ACL path is missing' }; "
+        "$acl=$item.GetAccessControl(); "
+        "foreach ($entry in $acl.Access) { "
+        "$sid=$entry.IdentityReference.Translate("
+        "[System.Security.Principal.SecurityIdentifier]).Value; "
+        "$fields=@($sid,$entry.AccessControlType.ToString(),"
+        "([int]$entry.FileSystemRights).ToString(),([bool]$entry.IsInherited).ToString()); "
+        "[Console]::Out.WriteLine(($fields -join [char]9)) "
+        "} } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"
     )
     acl_env = os.environ.copy()
     acl_env["FLEET_EVAL_ACL_PATH"] = str(path)
@@ -723,11 +736,35 @@ def _windows_acl(path: Path) -> list[dict]:
         raise clean_room.RunnerFailed(
             f"could not inspect Windows ACL for {path}: {proc.stderr.strip()[:300]}"
         )
-    try:
-        parsed = json.loads(proc.stdout)
-    except json.JSONDecodeError as exc:
-        raise clean_room.RunnerFailed(f"malformed Windows ACL output for {path}: {exc}") from exc
-    return parsed if isinstance(parsed, list) else [parsed]
+    entries: list[dict] = []
+    for line in proc.stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 4:
+            raise clean_room.RunnerFailed(f"malformed Windows ACL output for {path}")
+        sid, access_type, raw_rights, raw_inherited = fields
+        if (
+            not re.fullmatch(r"S-\d+(?:-\d+)+", sid)
+            or access_type not in {"Allow", "Deny"}
+            or raw_inherited.casefold() not in {"true", "false"}
+        ):
+            raise clean_room.RunnerFailed(f"malformed Windows ACL output for {path}")
+        try:
+            rights = int(raw_rights)
+        except ValueError as exc:
+            raise clean_room.RunnerFailed(f"malformed Windows ACL output for {path}") from exc
+        if rights < 0:
+            raise clean_room.RunnerFailed(f"malformed Windows ACL output for {path}")
+        entries.append(
+            {
+                "sid": sid,
+                "type": access_type,
+                "rights": rights,
+                "inherited": raw_inherited.casefold() == "true",
+            }
+        )
+    if not entries:
+        raise clean_room.RunnerFailed(f"Windows ACL output has no access entries for {path}")
+    return entries
 
 
 def _set_windows_private_acl(path: Path, *, directory: bool) -> None:
