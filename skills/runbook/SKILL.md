@@ -60,8 +60,9 @@ conditions, and bump `last_verified` after each.
 - **Machine-linkable frontmatter** — give each runbook YAML frontmatter (`alert_names`, `owner`,
   `severity`, `last_verified`, `version`) so alerts auto-link and a linter can flag any not
   verified in ~90 days.
-- **Verify commands before publishing** — run read-only ones to confirm syntax; never run destructive
-  steps to "test" them; mark anything `[unverified]`.
+- **Preserve command evidence before publishing** — use only supplied, authorized execution evidence
+  for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
+  this documentation lane, including a read-only command, merely to confirm syntax or output.
 
 ## Alert → runbook links and the Crawl → Walk → Run path
 

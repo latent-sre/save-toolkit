@@ -58,6 +58,38 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("forbidden tool(s): Agent, Bash, WebSearch", rendered)
         self.assertIn("delegation mismatch", rendered)
 
+    def test_scribe_loaded_bundle_cannot_execute_or_route_docs_to_steward(self) -> None:
+        self.assertEqual([], validate_fleet.validate_scribe_bundle(ROOT))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for relative in (
+                Path("skills/runbook/SKILL.md"),
+                Path("skills/postmortem/SKILL.md"),
+                Path("skills/runbook/assets/runbook-template.md"),
+            ):
+                source = ROOT / relative
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                text = source.read_text(encoding="utf-8")
+                text = text.replace(
+                    "never execute from\n  this documentation lane, including a read-only command",
+                    "run read-only ones to confirm syntax",
+                )
+                text = text.replace(
+                    "operating documentation → typed `scribe`",
+                    "operating documentation → typed `sre-steward`",
+                )
+                text = text.replace(
+                    "hand the timeline and evidence to the `scribe` agent for retrospective documentation",
+                    "hand the timeline and evidence to the `sre-steward` agent for retrospective documentation",
+                )
+                target.write_text(text, encoding="utf-8")
+            failures = validate_fleet.validate_scribe_bundle(root)
+        rendered = "\n".join(failures)
+        self.assertIn("run read-only ones to confirm syntax", rendered)
+        self.assertIn("operating documentation → typed `sre-steward`", rendered)
+        self.assertIn("timeline and evidence to the `sre-steward` agent", rendered)
+
     def test_inert_plugin_hook_and_missing_tools_fail(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

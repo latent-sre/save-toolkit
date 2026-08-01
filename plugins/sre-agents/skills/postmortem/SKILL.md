@@ -65,7 +65,7 @@ Status: <draft|final>   Authors: <…>   Date: <…>
 
 - Each item is **owned, dated, tracked** — an un-owned action item is a wish. Use typed handoffs:
   resilience/code → typed `sde` agent; detection/SLO → typed `sre-steward` agent; investigation follow-up →
-  typed `sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `sre-steward`
+  typed `sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `scribe`
   agent.
 - Be honest about what you don't know; mark unconfirmed causes `[unverified]` and state how to confirm them.
 

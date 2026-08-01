@@ -192,8 +192,49 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
     return names, failures
 
 
+def validate_scribe_bundle(root: Path) -> list[str]:
+    """Keep scribe's loaded skills and template inside its no-execution ownership boundary."""
+
+    contracts = {
+        Path("skills/runbook/SKILL.md"): {
+            "required": (
+                "never execute from\n  this documentation lane, including a read-only command",
+            ),
+            "forbidden": ("run read-only ones to confirm syntax",),
+        },
+        Path("skills/postmortem/SKILL.md"): {
+            "required": ("operating documentation → typed `scribe`",),
+            "forbidden": ("operating documentation → typed `sre-steward`",),
+        },
+        Path("skills/runbook/assets/runbook-template.md"): {
+            "required": (
+                "hand the timeline and evidence to the `scribe` agent for retrospective documentation",
+            ),
+            "forbidden": (
+                "hand the timeline and evidence to the `sre-steward` agent for retrospective documentation",
+            ),
+        },
+    }
+    failures: list[str] = []
+    for relative, contract in contracts.items():
+        path = root / relative
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            failures.append(f"{path}: cannot validate scribe bundle contract: {exc}")
+            continue
+        for required in contract["required"]:
+            if required not in text:
+                failures.append(f"{path}: missing scribe bundle contract: {required!r}")
+        for forbidden in contract["forbidden"]:
+            if forbidden in text:
+                failures.append(f"{path}: stale scribe bundle contract: {forbidden!r}")
+    return failures
+
+
 def validate_repo(root: Path = ROOT) -> tuple[list[str], list[str]]:
     names, failures = validate_agents(root)
+    failures.extend(validate_scribe_bundle(root))
     failures.extend(adapters.validate_platform_support(root))
     return names, failures
 

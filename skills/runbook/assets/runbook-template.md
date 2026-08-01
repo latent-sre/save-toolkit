@@ -59,7 +59,7 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 ## Post-Incident
 - [ ] **Update this runbook** with anything learned, and bump `last_verified`.
 - [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets.
-- [ ] If this was an incident, after recovery, hand the timeline and evidence to the `sre-steward` agent for retrospective documentation.
+- [ ] If this was an incident, after recovery, hand the timeline and evidence to the `scribe` agent for retrospective documentation.
 
 ## References
 - Related runbooks: <…>
