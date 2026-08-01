@@ -327,6 +327,10 @@ class CodexAgentConformanceTests(unittest.TestCase):
         self.assertIn("multi_agent", command)
         self.assertIn("gpt-5.6-sol", command)
         self.assertLess(command.index("--ask-for-approval"), command.index("exec"))
+        self.assertEqual(
+            conformance.REPO_ROOT,
+            conformance._parser().parse_args(["--run"]).target_root,
+        )
 
     def test_live_agent_cli_refuses_without_trusted_broker_config(self) -> None:
         stderr = io.StringIO()
@@ -334,6 +338,45 @@ class CodexAgentConformanceTests(unittest.TestCase):
             status = conformance.main(["--run"])
         self.assertEqual(2, status)
         self.assertIn("--run requires --broker-config", stderr.getvalue())
+
+    def test_live_agent_cli_refuses_candidate_and_evaluator_in_same_checkout(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch("sys.stderr", stderr):
+            status = conformance.main(
+                [
+                    "--run",
+                    "--broker-config",
+                    str(conformance.REPO_ROOT / "config.toml"),
+                ]
+            )
+        self.assertEqual(2, status)
+        self.assertIn("separate candidate checkout", stderr.getvalue())
+
+    def test_candidate_agent_unknown_fields_cannot_activate_runtime_capabilities(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "candidate"
+            (candidate / conformance.base.MARKETPLACE_MANIFEST.parent).mkdir(parents=True)
+            conformance.shutil.copy2(
+                conformance.REPO_ROOT / conformance.base.MARKETPLACE_MANIFEST,
+                candidate / conformance.base.MARKETPLACE_MANIFEST,
+            )
+            conformance.shutil.copytree(
+                conformance.REPO_ROOT / conformance.base.PLUGIN_DIRECTORY,
+                candidate / conformance.base.PLUGIN_DIRECTORY,
+            )
+            conformance.shutil.copytree(
+                conformance.REPO_ROOT / conformance.AGENT_SOURCE_DIRECTORY,
+                candidate / conformance.AGENT_SOURCE_DIRECTORY,
+            )
+            conformance.validate_local_contract(candidate, self.manifest)
+
+            reviewer = candidate / conformance.AGENT_SOURCE_DIRECTORY / "reviewer.toml"
+            reviewer.write_text(
+                reviewer.read_text(encoding="utf-8") + '\nmodel = "untrusted-model"\n',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(conformance.base.ConformanceError, "active or unknown"):
+                conformance.validate_local_contract(candidate, self.manifest)
 
     def test_brokered_live_agent_reduction_never_stages_auth_or_reports_model_text(self) -> None:
         root = conformance.REPO_ROOT
@@ -448,6 +491,13 @@ class CodexAgentConformanceTests(unittest.TestCase):
                 )
 
         self.assertTrue(observed_homes)
+        self.assertEqual(
+            conformance.base._git_value(conformance.REPO_ROOT, ["rev-parse", "HEAD"]),
+            report["evaluator_commit"],
+        )
+        self.assertEqual(
+            report["evaluator_commit"], report["evidence"]["source"]["evaluator_revision"]
+        )
         result = report["results"][0]
         self.assertTrue(result["response_matched"])
         self.assertEqual(64, len(result["response_sha256"]))

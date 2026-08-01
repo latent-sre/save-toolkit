@@ -46,6 +46,20 @@ PLUGIN_DIRECTORY = Path("plugins/sre-agents")
 SOL_MODEL = "gpt-5.6-sol"
 VERDICTS = {"pass", "fail", "inconclusive"}
 BROKER_PROVIDER = "codex-action-responses-proxy"
+MAX_LANE_USAGE_TOKENS = {
+    "input_tokens": 120_000,
+    "cached_input_tokens": 120_000,
+    "cache_write_input_tokens": 120_000,
+    "output_tokens": 20_000,
+    "reasoning_output_tokens": 20_000,
+}
+MAX_SUITE_USAGE_TOKENS = {
+    "input_tokens": 1_500_000,
+    "cached_input_tokens": 1_500_000,
+    "cache_write_input_tokens": 1_500_000,
+    "output_tokens": 200_000,
+    "reasoning_output_tokens": 200_000,
+}
 
 SAFE_ENV_KEYS = (
     "PATH",
@@ -127,6 +141,33 @@ def response_evidence(
         ),
         "response_matched": response == expected,
     }
+
+
+def bounded_usage_evidence(value: object) -> dict[str, int]:
+    """Retain numeric usage only and fail closed when one model lane exceeds its budget."""
+
+    if not isinstance(value, Mapping):
+        raise ConformanceError("Codex runtime did not expose numeric usage evidence")
+    result: dict[str, int] = {}
+    for key, limit in MAX_LANE_USAGE_TOKENS.items():
+        amount = value.get(key, 0)
+        if isinstance(amount, bool) or not isinstance(amount, int) or amount < 0:
+            raise ConformanceError(f"Codex runtime returned invalid usage field {key!r}")
+        if amount > limit:
+            raise ConformanceError(f"Codex lane exceeded the trusted {key} limit")
+        result[key] = amount
+    if result["input_tokens"] == 0:
+        raise ConformanceError("Codex runtime reported zero input tokens")
+    return result
+
+
+def add_suite_usage(total: dict[str, int], lane: Mapping[str, int]) -> None:
+    """Accumulate reduced usage and stop the suite before another lane can exceed its ceiling."""
+
+    for key, limit in MAX_SUITE_USAGE_TOKENS.items():
+        total[key] += lane[key]
+        if total[key] > limit:
+            raise ConformanceError(f"Codex suite exceeded the trusted {key} limit")
 
 
 def load_manifest(path: Path) -> dict[str, object]:
@@ -260,6 +301,26 @@ def validate_local_plugin_contract(root: Path, manifest: Mapping[str, object]) -
     plugin_manifest_path = root / PLUGIN_DIRECTORY / ".codex-plugin" / "plugin.json"
     _assert_no_indirection(root, marketplace_path, "Codex marketplace manifest")
     _assert_no_indirection(root, plugin_manifest_path, "Codex plugin manifest")
+    # Marketplace and plugin metadata can activate more than skills on capable hosts. Until a new
+    # trusted evaluator revision explicitly accepts such a change, candidate metadata must be byte-
+    # identical to trusted main and the candidate bundle may contain only passive skill data.
+    if root.resolve() != REPO_ROOT.resolve():
+        for relative_path, label in (
+            (MARKETPLACE_MANIFEST, "Codex marketplace manifest"),
+            (PLUGIN_DIRECTORY / ".codex-plugin" / "plugin.json", "Codex plugin manifest"),
+        ):
+            trusted_path = REPO_ROOT / relative_path
+            candidate_path = root / relative_path
+            _assert_no_indirection(REPO_ROOT, trusted_path, f"trusted {label}")
+            if candidate_path.read_bytes() != trusted_path.read_bytes():
+                raise ConformanceError(
+                    f"candidate {label} differs from trusted main; stage evaluator metadata first"
+                )
+    plugin_root = root / PLUGIN_DIRECTORY
+    if {path.name for path in plugin_root.iterdir()} != {".codex-plugin", "skills"}:
+        raise ConformanceError("candidate Codex plugin bundle contains an active or unknown component")
+    if {path.name for path in (plugin_root / ".codex-plugin").iterdir()} != {"plugin.json"}:
+        raise ConformanceError("candidate Codex plugin metadata directory contains unknown files")
     try:
         marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
         plugin_manifest = json.loads(plugin_manifest_path.read_text(encoding="utf-8"))
@@ -1172,6 +1233,7 @@ def build_conformance_evidence(
         )
     source: dict[str, object] = {
         "kind": "codex-sol-conformance",
+        "evaluator_revision": report["evaluator_commit"],
         "lane_count": len(results),
         "required_lane_count": sum(
             bool(item.get("required")) for item in results if isinstance(item, dict)
@@ -1313,7 +1375,9 @@ def run_live(
     require_brokered_ci_boundary(broker_config)
     source_digest_before = codex_plugin_digest(root)
     plugin_status = _plugin_git_status(root)
-    harness_status = _harness_git_status(root)
+    # The evaluator is repository code from the trusted-main checkout. Candidate files are data;
+    # never use the candidate's copy of this runner, manifest, schema, or evidence reducer.
+    harness_status = _harness_git_status(REPO_ROOT)
     runner_sha256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     if require_clean_plugin and plugin_status:
         raise ConformanceError("Codex plugin inputs differ from HEAD; refusing publishable baseline")
@@ -1323,6 +1387,7 @@ def run_live(
     started_at = _timestamp()
     start = time.monotonic()
     results: list[dict[str, object]] = []
+    suite_usage = {key: 0 for key in MAX_SUITE_USAGE_TOKENS}
 
     with tempfile.TemporaryDirectory(prefix="sre-agents-codex-sol-") as temporary:
         temporary_root = Path(temporary)
@@ -1429,6 +1494,8 @@ def run_live(
                 sensitive_values=sensitive_values,
             )
             parsed = parse_codex_jsonl(execution.stdout)
+            usage_tokens = bounded_usage_evidence(parsed["usage"])
+            add_suite_usage(suite_usage, usage_tokens)
             if lane["kind"] == "reference-direct":
                 score = score_reference_trace(
                     parsed,
@@ -1485,7 +1552,7 @@ def run_live(
                     "skill_read_diagnostics": score.skill_read_diagnostics,
                     "event_count": parsed["event_count"],
                     "command_count": len(parsed["commands"]),
-                    "usage_observed": isinstance(parsed["usage"], dict),
+                    "usage_tokens": usage_tokens,
                     "exit_code": execution.returncode,
                     "timed_out": execution.timed_out,
                     "transcript_digest": hashlib.sha256(transcript.encode("utf-8")).hexdigest(),
@@ -1502,6 +1569,7 @@ def run_live(
         "started_at": started_at,
         "duration_ms": round((time.monotonic() - start) * 1000),
         "repository_commit": _git_value(root, ["rev-parse", "HEAD"]),
+        "evaluator_commit": _git_value(REPO_ROOT, ["rev-parse", "HEAD"]),
         "plugin_inputs_dirty": bool(plugin_status),
         "harness_inputs_dirty": bool(harness_status),
         "runner_sha256": runner_sha256,
@@ -1509,6 +1577,11 @@ def run_live(
         "manifest_sha256": hashlib.sha256(_canonical_json(manifest)).hexdigest(),
         "plugin_inventory_sha256": inventory_digest,
         "broker_config_sha256": broker_config_sha256,
+        "usage_limits": {
+            "per_lane": dict(MAX_LANE_USAGE_TOKENS),
+            "per_suite": dict(MAX_SUITE_USAGE_TOKENS),
+        },
+        "usage_totals": suite_usage,
         "installed_skill_count": installed_skill_count,
         "raw_transcript_persisted": False,
         "auth_boundary": (
@@ -1539,6 +1612,12 @@ def _parser() -> argparse.ArgumentParser:
         help="run live Codex/Sol conformance inside the trusted broker workflow",
     )
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument(
+        "--target-root",
+        type=Path,
+        default=REPO_ROOT,
+        help="candidate checkout whose plugin bytes are evaluated as data",
+    )
     parser.add_argument("--codex-bin", default="codex")
     parser.add_argument(
         "--broker-config",
@@ -1563,8 +1642,11 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         manifest = load_manifest(args.manifest)
-        validate_local_plugin_contract(REPO_ROOT, manifest)
-        plugin_digest = codex_plugin_digest(REPO_ROOT)
+        target_root = args.target_root.expanduser().resolve()
+        if not target_root.is_dir():
+            raise ConformanceError(f"candidate target root is not a directory: {target_root}")
+        validate_local_plugin_contract(target_root, manifest)
+        plugin_digest = codex_plugin_digest(target_root)
         if args.validate:
             report: dict[str, object] = {
                 "schema_version": 1,
@@ -1585,11 +1667,15 @@ def main(argv: list[str] | None = None) -> int:
                 )
             if args.broker_config is None:
                 raise ConformanceError("--run requires --broker-config from the trusted workflow")
+            if target_root == REPO_ROOT.resolve():
+                raise ConformanceError(
+                    "live runs require a separate candidate checkout; the evaluator must come from trusted main"
+                )
             executable = shutil.which(args.codex_bin)
             if executable is None:
                 raise ConformanceError(f"Codex executable is not on PATH: {args.codex_bin}")
             report = run_live(
-                REPO_ROOT,
+                target_root,
                 manifest,
                 executable=executable,
                 broker_config=args.broker_config,

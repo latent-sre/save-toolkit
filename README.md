@@ -117,7 +117,8 @@ not add an autonomous verification agent or live-effect authority.
 
 Gate A owns its step list; do not copy that list into documentation. Claude behavioral evaluations
 under [`evals/`](evals) remain manual. Live Codex/Sol conformance runs only through the manually
-dispatched, brokered CI workflow after source-trust and immutable-canary requirements are satisfied.
+dispatched, brokered CI workflow after source-trust, repository-protection, promotion-authority, and
+immutable-canary requirements are satisfied.
 
 Codex/Sol plugin conformance is a separate lane from the Claude runner:
 

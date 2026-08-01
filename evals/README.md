@@ -30,16 +30,28 @@ py -3 evals/run_codex_conformance.py --validate
 
 Local live execution is intentionally unsupported. A model-controlled read-only shell can still read
 same-user credential files or process memory, so copying `auth.json` into a disposable directory is
-not a credential boundary. Dispatch `.github/workflows/codex-sol-conformance.yml` from `main` against
-an immutable `canary/<phase>/<full-sha>` ref instead. That trusted workflow gives the pinned OpenAI
-action the repository secret `CODEX_CONFORMANCE_OPENAI_API_KEY` before candidate checkout, starts a
-Responses API proxy, removes sudo, and supplies the runners only the proxy's tokenless loopback
-provider config. The runners reject Windows/local execution, readable `auth.json`, passwordless sudo,
-credential-bearing provider fields, non-loopback endpoints, and credential-shaped volatile output.
+not a credential boundary. After PROTECT-001 and the promotion-authority controls in
+[`docs/fleet-roadmap.md`](../docs/fleet-roadmap.md) are complete, dispatch
+`.github/workflows/codex-sol-conformance.yml` from `main` against an immutable
+`canary/<phase>/<full-sha>` ref. That trusted workflow gives the pinned OpenAI action the repository
+secret `CODEX_CONFORMANCE_OPENAI_API_KEY` before candidate checkout, starts a Responses API proxy,
+removes sudo, and supplies only the trusted-main evaluator with the proxy's tokenless loopback
+provider config. The fixed evaluator and manifests come from `main`; candidate plugin and generated
+agent files are treated as data and candidate Python is never executed. The runners reject
+Windows/local execution, a same-checkout evaluator and candidate, readable `auth.json`, passwordless
+sudo, credential-bearing provider fields, non-loopback endpoints, and credential-shaped volatile
+output.
 
 The isolated run still registers a frozen marketplace snapshot, installs exactly one plugin, and
 executes from an empty temporary git root with an allowlisted process environment. Raw JSONL and
 parsed final messages are reduced to hashes and equality facts; neither is written to the report.
+The two complete reduced reports cross the job boundary under a 128 KiB-per-report limit, are
+digest-checked and contract-checked on a fresh runner, and are retained with the attestation.
+Each lane and each suite also has a trusted numeric token acceptance ceiling; a missing, malformed,
+or excessive post-response usage record stops execution before another model lane can begin. This is
+not a provider-side spend limit, so the dedicated API project must retain its own quota controls. The
+workflow adds a 120-minute hard ceiling around the conformance job, per-lane subprocess timeouts, and
+ten-minute bounds around preflight and evidence reduction.
 The live path requires fixed manifests and clean plugin/harness inputs. Missing broker setup,
 CLI/model failure, timeout, or an incomplete trace is `INCONCLUSIVE`, never a fleet failure. Dirty
 development switches exist for locally authored harness work but are never publishable evidence.
@@ -88,7 +100,8 @@ including the former current snapshots:
 
 The JSON results remain unchanged so the historical bytes are inspectable; each affected README now
 carries the revocation. A new current Sol baseline does not exist until the brokered workflow runs on
-an exact reviewed SHA after this workflow reaches trusted `main`.
+an exact reviewed SHA after the workflow reaches trusted `main` and PROTECT-001 permits creation of
+the required canary ref.
 
 Behavioral evals for the agents and skills, above the structural `scripts/gate_a.py` gate. The
 unified runner measures two different properties and never blends their scores:

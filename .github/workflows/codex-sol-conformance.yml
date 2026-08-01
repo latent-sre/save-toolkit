@@ -3,7 +3,9 @@ name: Brokered Codex Sol conformance
 # This workflow is the only supported live path for the Codex conformance runners. Dispatch it from
 # trusted main against an immutable canary ref. The API key is consumed by the pinned OpenAI action
 # before candidate code is checked out; that action starts a tokenless loopback proxy and removes
-# sudo. Candidate code and model-controlled commands never receive the key.
+# sudo. Evaluator code and manifests come only from trusted main. Candidate plugin and generated-agent
+# files are read as data; candidate Python is never executed and model-controlled commands never
+# receive the key.
 on:
   workflow_dispatch:
     inputs:
@@ -27,6 +29,7 @@ jobs:
   preflight:
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       tree_sha: ${{ steps.bind.outputs.tree_sha }}
       workflow_blob_sha: ${{ steps.bind.outputs.workflow_blob_sha }}
@@ -81,10 +84,20 @@ jobs:
   conformance:
     needs: preflight
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     outputs:
       skill_report_sha256: ${{ steps.run.outputs.skill_report_sha256 }}
       agent_report_sha256: ${{ steps.run.outputs.agent_report_sha256 }}
+      skill_report_b64: ${{ steps.run.outputs.skill_report_b64 }}
+      agent_report_b64: ${{ steps.run.outputs.agent_report_b64 }}
     steps:
+      - name: Check out trusted evaluator from main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          path: trusted-main
+          persist-credentials: false
+
       # Source reviewed at openai/codex-action commit dd78cb653811af44014baa08fe954e28d32c1bf9.
       # No prompt is supplied: this invocation only starts the Responses API proxy, writes its
       # credential-free provider config, removes sudo, and verifies that sudo no longer works.
@@ -100,6 +113,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.candidate_sha }}
+          path: candidate
           persist-credentials: false
 
       - name: Recheck candidate and immutable canary before model execution
@@ -108,10 +122,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
           CANARY_REF: ${{ inputs.canary_ref }}
+          EXPECTED_TREE_SHA: ${{ needs.preflight.outputs.tree_sha }}
+          EXPECTED_WORKFLOW_BLOB_SHA: ${{ needs.preflight.outputs.workflow_blob_sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [[ "$(git rev-parse HEAD)" != "${CANDIDATE_SHA}" ]]; then
+          if [[ "$(git -C trusted-main rev-parse HEAD)" != "${WORKFLOW_SHA}" ]]; then
+            echo "Trusted evaluator checkout changed after preflight." >&2
+            exit 1
+          fi
+          if [[ "$(git -C trusted-main hash-object .github/workflows/codex-sol-conformance.yml)" != "${EXPECTED_WORKFLOW_BLOB_SHA}" ]]; then
+            echo "Trusted workflow bytes changed after preflight." >&2
+            exit 1
+          fi
+          if [[ "$(git -C candidate rev-parse HEAD)" != "${CANDIDATE_SHA}" ]]; then
             echo "Candidate checkout changed after preflight." >&2
+            exit 1
+          fi
+          if [[ "$(git -C candidate rev-parse 'HEAD^{tree}')" != "${EXPECTED_TREE_SHA}" ]]; then
+            echo "Candidate tree changed after preflight." >&2
             exit 1
           fi
           REMOTE_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${CANARY_REF}" --jq .object.sha)"
@@ -120,22 +149,30 @@ jobs:
             exit 1
           fi
 
-      # Keep this last. The runners reduce model output to hashes, and no later step in this job
-      # receives a GitHub token or other secret after model-controlled processes have existed.
+      # Keep this last. The trusted runners reduce model output to bounded, credential-scanned facts;
+      # no later step in this job receives a GitHub token or another secret.
       - name: Run pinned Sol skill and agent conformance
         id: run
         shell: bash
         env:
           CODEX_HOME: ${{ runner.temp }}/sre-agents-broker-home
+          CANDIDATE_ROOT: ${{ github.workspace }}/candidate
+          TRUSTED_MAIN: ${{ github.workspace }}/trusted-main
         run: |
           set +e
-          python3 -X utf8 evals/run_codex_conformance.py \
+          python3 -B -X utf8 "${TRUSTED_MAIN}/evals/run_codex_conformance.py" \
             --run \
+            --target-root "${CANDIDATE_ROOT}" \
             --broker-config "${CODEX_HOME}/config.toml" \
             --output "${RUNNER_TEMP}/codex-sol-skills.json"
           SKILL_STATUS=$?
-          python3 -X utf8 evals/run_codex_agent_conformance.py \
+          if [[ ! -s "${RUNNER_TEMP}/codex-sol-skills.json" ]]; then
+            echo "The trusted skill evaluator did not produce a reduced report; stopping before another model lane." >&2
+            exit 2
+          fi
+          python3 -B -X utf8 "${TRUSTED_MAIN}/evals/run_codex_agent_conformance.py" \
             --run \
+            --target-root "${CANDIDATE_ROOT}" \
             --broker-config "${CODEX_HOME}/config.toml" \
             --output "${RUNNER_TEMP}/codex-sol-agents.json"
           AGENT_STATUS=$?
@@ -145,8 +182,16 @@ jobs:
             echo "A sanitized conformance report was not produced." >&2
             exit 2
           fi
+          for REPORT in "${RUNNER_TEMP}/codex-sol-skills.json" "${RUNNER_TEMP}/codex-sol-agents.json"; do
+            if [[ "$(stat -c %s "${REPORT}")" -gt 131072 ]]; then
+              echo "A reduced report exceeded the 128 KiB trusted-transfer limit." >&2
+              exit 2
+            fi
+          done
           echo "skill_report_sha256=$(sha256sum "${RUNNER_TEMP}/codex-sol-skills.json" | cut -d' ' -f1)" >> "${GITHUB_OUTPUT}"
           echo "agent_report_sha256=$(sha256sum "${RUNNER_TEMP}/codex-sol-agents.json" | cut -d' ' -f1)" >> "${GITHUB_OUTPUT}"
+          echo "skill_report_b64=$(base64 -w0 "${RUNNER_TEMP}/codex-sol-skills.json")" >> "${GITHUB_OUTPUT}"
+          echo "agent_report_b64=$(base64 -w0 "${RUNNER_TEMP}/codex-sol-agents.json")" >> "${GITHUB_OUTPUT}"
           if [[ ${SKILL_STATUS} -ne 0 || ${AGENT_STATUS} -ne 0 ]]; then
             echo "Required Sol conformance lanes did not all pass." >&2
             exit 1
@@ -154,72 +199,76 @@ jobs:
 
   evidence:
     needs: [preflight, conformance]
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.conformance.result == 'success' || needs.conformance.result == 'failure') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Recheck immutable canary ref
+      - name: Check out trusted evidence reducer from main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          path: trusted-main
+          persist-credentials: false
+
+      - name: Recheck trusted reducer and immutable canary ref
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
           CANARY_REF: ${{ inputs.canary_ref }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          EXPECTED_WORKFLOW_BLOB_SHA: ${{ needs.preflight.outputs.workflow_blob_sha }}
         run: |
           set -euo pipefail
+          if [[ "$(git -C trusted-main rev-parse HEAD)" != "${WORKFLOW_SHA}" ]]; then
+            echo "Trusted evidence reducer checkout differs from the workflow SHA." >&2
+            exit 1
+          fi
+          if [[ "$(git -C trusted-main hash-object .github/workflows/codex-sol-conformance.yml)" != "${EXPECTED_WORKFLOW_BLOB_SHA}" ]]; then
+            echo "Trusted workflow bytes changed before evidence reduction." >&2
+            exit 1
+          fi
           REMOTE_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${CANARY_REF}" --jq .object.sha)"
           if [[ "${REMOTE_SHA}" != "${CANDIDATE_SHA}" ]]; then
             echo "Canary ref moved or disappeared during conformance." >&2
             exit 1
           fi
 
-      - name: Write trusted brokered-run attestation
+      - name: Reconstruct, validate, and attest reduced reports
         shell: bash
         env:
-          REPOSITORY: ${{ github.repository }}
-          WORKFLOW_REF: ${{ github.ref }}
-          WORKFLOW_SHA: ${{ github.sha }}
-          WORKFLOW_BLOB_SHA: ${{ needs.preflight.outputs.workflow_blob_sha }}
-          WORKFLOW_RUN_ID: ${{ github.run_id }}
-          WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
-          ACTOR: ${{ github.actor }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
-          CANARY_REF: ${{ inputs.canary_ref }}
-          TREE_SHA: ${{ needs.preflight.outputs.tree_sha }}
-          SKILL_REPORT_SHA256: ${{ needs.conformance.outputs.skill_report_sha256 }}
-          AGENT_REPORT_SHA256: ${{ needs.conformance.outputs.agent_report_sha256 }}
+          SKILL_REPORT_B64: ${{ needs.conformance.outputs.skill_report_b64 }}
+          AGENT_REPORT_B64: ${{ needs.conformance.outputs.agent_report_b64 }}
         run: |
-          python3 - <<'PY'
-          import datetime
-          import json
-          import os
+          set -euo pipefail
+          printf '%s' "${SKILL_REPORT_B64}" | base64 --decode > codex-sol-skills.json
+          printf '%s' "${AGENT_REPORT_B64}" | base64 --decode > codex-sol-agents.json
+          python3 -B -X utf8 trusted-main/scripts/reduce_codex_conformance_reports.py \
+            --skill-report codex-sol-skills.json \
+            --agent-report codex-sol-agents.json \
+            --skill-report-sha256 "${{ needs.conformance.outputs.skill_report_sha256 }}" \
+            --agent-report-sha256 "${{ needs.conformance.outputs.agent_report_sha256 }}" \
+            --candidate-sha "${{ inputs.candidate_sha }}" \
+            --evaluator-sha "${{ github.sha }}" \
+            --repository "${{ github.repository }}" \
+            --workflow-ref "${{ github.ref }}" \
+            --workflow-blob-sha "${{ needs.preflight.outputs.workflow_blob_sha }}" \
+            --workflow-run-id "${{ github.run_id }}" \
+            --workflow-run-attempt "${{ github.run_attempt }}" \
+            --actor "${{ github.actor }}" \
+            --canary-ref "${{ inputs.canary_ref }}" \
+            --tree-sha "${{ needs.preflight.outputs.tree_sha }}" \
+            --conformance-job-result "${{ needs.conformance.result }}" \
+            --output codex-sol-conformance-attestation.json
 
-          evidence = {
-              "schema_version": 1,
-              "repository": os.environ["REPOSITORY"],
-              "workflow_path": ".github/workflows/codex-sol-conformance.yml",
-              "workflow_ref": os.environ["WORKFLOW_REF"],
-              "workflow_sha": os.environ["WORKFLOW_SHA"],
-              "workflow_blob_sha": os.environ["WORKFLOW_BLOB_SHA"],
-              "workflow_run_id": int(os.environ["WORKFLOW_RUN_ID"]),
-              "workflow_run_attempt": int(os.environ["WORKFLOW_RUN_ATTEMPT"]),
-              "actor": os.environ["ACTOR"],
-              "candidate_sha": os.environ["CANDIDATE_SHA"],
-              "canary_ref": os.environ["CANARY_REF"],
-              "tree_sha": os.environ["TREE_SHA"],
-              "model": "gpt-5.6-sol",
-              "codex_action_sha": "dd78cb653811af44014baa08fe954e28d32c1bf9",
-              "skill_report_sha256": os.environ["SKILL_REPORT_SHA256"],
-              "agent_report_sha256": os.environ["AGENT_REPORT_SHA256"],
-              "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-          }
-          with open("codex-sol-conformance-attestation.json", "w", encoding="utf-8", newline="\n") as handle:
-              json.dump(evidence, handle, indent=2, sort_keys=True)
-              handle.write("\n")
-          PY
-
-      - name: Upload brokered-run attestation
+      - name: Upload validated reduced reports and attestation
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codex-sol-conformance-${{ inputs.candidate_sha }}
-          path: codex-sol-conformance-attestation.json
+          path: |
+            codex-sol-skills.json
+            codex-sol-agents.json
+            codex-sol-conformance-attestation.json
           if-no-files-found: error
           retention-days: 90
           overwrite: false

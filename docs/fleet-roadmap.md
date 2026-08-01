@@ -76,8 +76,9 @@ pinned trusted-main Responses API broker, removes raw/parsed response fields, de
 output, uses host-portable reviewer integrity language, and adds a real reviewer authorization lane.
 The earlier Sol runtime results are revoked; these remediations currently have offline evidence only.
 
-**Next action:** Bind the focused three-pass re-review and draft PR to the committed candidate; after
-the broker workflow reaches trusted `main`, run it against an immutable reviewed canary SHA.
+**Next action:** Bind the focused three-pass re-review and draft PR to the committed candidate. After
+the broker workflow reaches trusted `main`, wait for PROTECT-001 and distinct promotion authority;
+only then run it against an immutable reviewed canary SHA.
 
 ## Active runtime work
 
@@ -165,9 +166,11 @@ safe release evidence. The new brokered workflow and negative credential tests p
 live result cannot exist until that workflow is trusted on `main`. Five static routing collision cases
 remain in the ordinary eval suite.
 
-**Next action:** Complete the exact-SHA three-pass review, merge the trusted workflow, then dispatch it
-against the reviewed immutable canary and retain the new attestation. Keep implicit routing
-observational rather than turning it into a release gate.
+**Next action:** Complete the exact-SHA three-pass review and merge the trusted evaluator workflow if
+approved. Do **not** create a canary or dispatch the live run until PROTECT-001 and the distinct
+promotion-authority control are complete, as required by `CONTRIBUTING.md`. Only then evaluate the
+reviewed immutable canary and retain both reduced reports with the fresh-runner attestation. Keep
+implicit routing observational rather than turning it into a release gate.
 
 ## Decision needed
 

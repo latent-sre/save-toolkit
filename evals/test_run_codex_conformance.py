@@ -95,6 +95,7 @@ class CodexConformanceTests(unittest.TestCase):
         args = conformance._parser().parse_args(["--run"])
         self.assertFalse(args.allow_dirty_plugin)
         self.assertFalse(args.allow_dirty_harness)
+        self.assertEqual(ROOT, args.target_root)
 
     def test_live_cli_refuses_without_trusted_broker_config(self) -> None:
         stderr = io.StringIO()
@@ -102,6 +103,15 @@ class CodexConformanceTests(unittest.TestCase):
             status = conformance.main(["--run"])
         self.assertEqual(2, status)
         self.assertIn("--run requires --broker-config", stderr.getvalue())
+
+    def test_live_cli_refuses_candidate_and_evaluator_in_same_checkout(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch("sys.stderr", stderr):
+            status = conformance.main(
+                ["--run", "--broker-config", str(ROOT / "config.toml")]
+            )
+        self.assertEqual(2, status)
+        self.assertIn("separate candidate checkout", stderr.getvalue())
 
     def test_windows_command_path_normalization_collapses_codex_escaping(self) -> None:
         escaped = r'C:\\isolated\\session\\resources\\skills\\stack-profile\\SKILL.md'
@@ -808,6 +818,31 @@ class CodexConformanceTests(unittest.TestCase):
         self.assertFalse(evidence["response_matched"])
         self.assertEqual(64, len(evidence["response_sha256"]))
 
+    def test_usage_evidence_is_numeric_reduced_and_bounded(self) -> None:
+        usage = conformance.bounded_usage_evidence(
+            {
+                "input_tokens": 42,
+                "cached_input_tokens": 7,
+                "output_tokens": 3,
+                "reasoning_output_tokens": 2,
+                "untrusted_extra": "not retained",
+            }
+        )
+        self.assertEqual(set(conformance.MAX_LANE_USAGE_TOKENS), set(usage))
+        self.assertNotIn("untrusted_extra", usage)
+
+        too_large = {
+            "input_tokens": conformance.MAX_LANE_USAGE_TOKENS["input_tokens"] + 1
+        }
+        with self.assertRaisesRegex(conformance.ConformanceError, "input_tokens limit"):
+            conformance.bounded_usage_evidence(too_large)
+
+        total = {key: 0 for key in conformance.MAX_SUITE_USAGE_TOKENS}
+        lane = {key: 0 for key in conformance.MAX_LANE_USAGE_TOKENS}
+        lane["input_tokens"] = 1
+        conformance.add_suite_usage(total, lane)
+        self.assertEqual(1, total["input_tokens"])
+
     def test_brokered_live_reduction_never_stages_auth_or_reports_model_text(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -927,6 +962,13 @@ class CodexConformanceTests(unittest.TestCase):
                 )
 
         self.assertTrue(observed_homes)
+        self.assertEqual(
+            conformance._git_value(ROOT, ["rev-parse", "HEAD"]),
+            report["evaluator_commit"],
+        )
+        self.assertEqual(
+            report["evaluator_commit"], report["evidence"]["source"]["evaluator_revision"]
+        )
         result = report["results"][0]
         self.assertTrue(result["response_matched"])
         self.assertEqual(64, len(result["response_sha256"]))
@@ -964,17 +1006,45 @@ class CodexConformanceTests(unittest.TestCase):
         with self.assertRaisesRegex(conformance.ConformanceError, "canary is absent"):
             conformance.validate_local_plugin_contract(ROOT, stale_canary)
 
+    def test_candidate_plugin_metadata_and_active_components_are_not_self_authorizing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "candidate"
+            conformance.copy_codex_marketplace_snapshot(ROOT, candidate)
+            conformance.validate_local_plugin_contract(candidate, self.manifest)
+
+            plugin_manifest = (
+                candidate / conformance.PLUGIN_DIRECTORY / ".codex-plugin" / "plugin.json"
+            )
+            document = json.loads(plugin_manifest.read_text(encoding="utf-8"))
+            document["mcpServers"] = {"candidate": {"command": "candidate-code"}}
+            plugin_manifest.write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaisesRegex(conformance.ConformanceError, "differs from trusted main"):
+                conformance.validate_local_plugin_contract(candidate, self.manifest)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "candidate"
+            conformance.copy_codex_marketplace_snapshot(ROOT, candidate)
+            (candidate / conformance.PLUGIN_DIRECTORY / "hooks").mkdir()
+            with self.assertRaisesRegex(conformance.ConformanceError, "active or unknown"):
+                conformance.validate_local_plugin_contract(candidate, self.manifest)
+
     def test_runtime_report_reduces_to_typed_evidence(self) -> None:
         report = {
             "started_at": "2026-07-31T12:00:00Z",
             "generated_at": "2026-07-31T12:00:01Z",
             "repository_commit": "a" * 40,
+            "evaluator_commit": "f" * 40,
             "plugin_inputs_dirty": False,
             "harness_inputs_dirty": False,
             "summary": {"pass": 1, "fail": 0, "inconclusive": 0},
             "manifest_sha256": "b" * 64,
             "runner_sha256": "c" * 64,
             "plugin_source_sha256": "d" * 64,
+            "usage_limits": {
+                "per_lane": dict(conformance.MAX_LANE_USAGE_TOKENS),
+                "per_suite": dict(conformance.MAX_SUITE_USAGE_TOKENS),
+            },
+            "usage_totals": {key: 1 for key in conformance.MAX_SUITE_USAGE_TOKENS},
             "results": [
                 {
                     "required": True,
@@ -998,6 +1068,7 @@ class CodexConformanceTests(unittest.TestCase):
         conformance.evidence_envelope.validate_envelope(envelope)
         self.assertEqual("pass", envelope["status"])
         self.assertEqual(["gpt-5.6-sol"], envelope["environment"]["requested_models"])
+        self.assertEqual("f" * 40, envelope["source"]["evaluator_revision"])
 
         report["summary"] = {"pass": 1, "fail": 0, "inconclusive": 1}
         inconclusive = conformance.build_conformance_evidence(

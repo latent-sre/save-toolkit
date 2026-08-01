@@ -254,6 +254,10 @@ def validate_local_contract(root: Path, manifest: Mapping[str, object]) -> None:
         if base._is_link_or_reparse(path):
             raise base.ConformanceError(f"Codex agent is linked or reparsed: {path}")
         document = _agent_document(path)
+        if set(document) != {"name", "description", "sandbox_mode", "developer_instructions"}:
+            raise base.ConformanceError(
+                f"Codex agent {name!r} has an active or unknown configuration field"
+            )
         if document.get("name") != name:
             raise base.ConformanceError(f"Codex agent {name!r} has a mismatched name")
         if not isinstance(document.get("description"), str) or not document["description"].strip():
@@ -262,8 +266,8 @@ def validate_local_contract(root: Path, manifest: Mapping[str, object]) -> None:
             "developer_instructions"
         ].strip():
             raise base.ConformanceError(f"Codex agent {name!r} has no developer instructions")
-        if "model" in document:
-            raise base.ConformanceError(f"Codex agent {name!r} must inherit the session model")
+        if document.get("sandbox_mode") not in {"read-only", "workspace-write"}:
+            raise base.ConformanceError(f"Codex agent {name!r} has an unsupported sandbox request")
     for lane in manifest["lanes"]:
         if lane["kind"] != "agent-delegation":
             continue
@@ -653,7 +657,9 @@ def run_live(
     agent_digest_before = agent_source_digest(root)
     plugin_status = base._plugin_git_status(root)
     agent_status = _git_status(root, AGENT_INPUT_PATHS)
-    harness_status = _git_status(root, HARNESS_INPUT_PATHS)
+    # The evaluator and installer come from trusted main; the candidate contributes only agent and
+    # plugin bytes. Checking candidate HEAD is not a substitute for evaluator independence.
+    harness_status = _git_status(REPO_ROOT, HARNESS_INPUT_PATHS)
     if require_clean_plugin and plugin_status:
         raise base.ConformanceError("Codex plugin inputs differ from HEAD; refusing publishable baseline")
     if require_clean_agents and agent_status:
@@ -665,6 +671,7 @@ def run_live(
     started_at = base._timestamp()
     start = time.monotonic()
     results: list[dict[str, object]] = []
+    suite_usage = {key: 0 for key in base.MAX_SUITE_USAGE_TOKENS}
     runner_sha256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     base_runner_sha256 = hashlib.sha256(Path(base.__file__).read_bytes()).hexdigest()
 
@@ -727,6 +734,8 @@ def run_live(
                 sensitive_values=sensitive_values,
             )
             stdout_trace = base.parse_codex_jsonl(execution.stdout)
+            usage_tokens = base.bounded_usage_evidence(stdout_trace["usage"])
+            base.add_suite_usage(suite_usage, usage_tokens)
             try:
                 rollouts, rollout_digest = _read_rollouts(
                     codex_home / "sessions", sensitive_values=sensitive_values
@@ -783,7 +792,7 @@ def run_live(
                     ).hexdigest(),
                     "diagnostics": score.diagnostics,
                     "event_count": stdout_trace["event_count"],
-                    "usage_observed": isinstance(stdout_trace["usage"], dict),
+                    "usage_tokens": usage_tokens,
                     "exit_code": execution.returncode,
                     "timed_out": execution.timed_out,
                     "stdout_stderr_digest": hashlib.sha256(transcript.encode("utf-8")).hexdigest(),
@@ -805,6 +814,7 @@ def run_live(
         "started_at": started_at,
         "duration_ms": round((time.monotonic() - start) * 1000),
         "repository_commit": base._git_value(root, ["rev-parse", "HEAD"]),
+        "evaluator_commit": base._git_value(REPO_ROOT, ["rev-parse", "HEAD"]),
         "plugin_inputs_dirty": bool(plugin_status),
         "agent_inputs_dirty": bool(agent_status),
         "harness_inputs_dirty": bool(harness_status),
@@ -816,6 +826,11 @@ def run_live(
         "manifest_sha256": hashlib.sha256(base._canonical_json(manifest)).hexdigest(),
         "plugin_inventory_sha256": inventory_digest,
         "broker_config_sha256": broker_config_sha256,
+        "usage_limits": {
+            "per_lane": dict(base.MAX_LANE_USAGE_TOKENS),
+            "per_suite": dict(base.MAX_SUITE_USAGE_TOKENS),
+        },
+        "usage_totals": suite_usage,
         "installed_agent_count": len(manifest["agents"]),
         "raw_transcript_persisted": False,
         "auth_boundary": (
@@ -851,6 +866,12 @@ def _parser() -> argparse.ArgumentParser:
         help="run live Codex/Sol agent conformance inside the trusted broker workflow",
     )
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument(
+        "--target-root",
+        type=Path,
+        default=REPO_ROOT,
+        help="candidate checkout whose generated agents and plugin bytes are evaluated as data",
+    )
     parser.add_argument("--codex-bin", default="codex")
     parser.add_argument(
         "--broker-config",
@@ -868,9 +889,12 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         manifest = load_manifest(args.manifest)
-        validate_local_contract(REPO_ROOT, manifest)
-        plugin_digest = base.codex_plugin_digest(REPO_ROOT)
-        agent_digest = agent_source_digest(REPO_ROOT)
+        target_root = args.target_root.expanduser().resolve()
+        if not target_root.is_dir():
+            raise base.ConformanceError(f"candidate target root is not a directory: {target_root}")
+        validate_local_contract(target_root, manifest)
+        plugin_digest = base.codex_plugin_digest(target_root)
+        agent_digest = agent_source_digest(target_root)
         if args.validate:
             report: dict[str, object] = {
                 "schema_version": 1,
@@ -895,11 +919,16 @@ def main(argv: list[str] | None = None) -> int:
                 raise base.ConformanceError(
                     "--run requires --broker-config from the trusted workflow"
                 )
+            if target_root == REPO_ROOT.resolve():
+                raise base.ConformanceError(
+                    "live agent runs require a separate candidate checkout; "
+                    "the evaluator must come from trusted main"
+                )
             executable = shutil.which(args.codex_bin)
             if executable is None:
                 raise base.ConformanceError(f"Codex executable is not on PATH: {args.codex_bin}")
             report = run_live(
-                REPO_ROOT,
+                target_root,
                 manifest,
                 executable=executable,
                 broker_config=args.broker_config,

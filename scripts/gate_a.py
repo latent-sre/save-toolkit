@@ -60,6 +60,8 @@ STEPS = [
      ["scripts/test_canary_workflow.py"], None),
     ("Brokered Codex/Sol workflow contract",
      ["scripts/test_codex_conformance_workflow.py"], None),
+    ("Reduced Codex/Sol report contracts",
+     ["scripts/test_reduce_codex_conformance_reports.py"], None),
     ("Plugin hook wiring",
      ["scripts/test_hook_wiring.py"], None),
     ("Read-only guard",

@@ -89,6 +89,12 @@ class CodexConformanceWorkflowTests(unittest.TestCase):
             for index, step in enumerate(steps(conformance))
             if step.get("name") == "Check out candidate after the credential boundary exists"
         )
+        trusted_index = next(
+            index
+            for index, step in enumerate(steps(conformance))
+            if step.get("name") == "Check out trusted evaluator from main"
+        )
+        self.assertLess(trusted_index, broker_index)
         self.assertLess(broker_index, checkout_index)
         broker = steps(conformance)[broker_index]
         self.assertEqual(f"openai/codex-action@{CODEX_ACTION_SHA}", broker["uses"])
@@ -97,44 +103,99 @@ class CodexConformanceWorkflowTests(unittest.TestCase):
         self.assertEqual("0.145.0", broker["with"]["codex-version"])
         self.assertNotIn("prompt", broker["with"])
         self.assertNotIn("prompt-file", broker["with"])
+        self.assertEqual("trusted-main", steps(conformance)[trusted_index]["with"]["path"])
+        self.assertEqual("candidate", steps(conformance)[checkout_index]["with"]["path"])
 
-    def test_candidate_executes_only_after_sha_recheck_and_is_the_last_step(self) -> None:
+    def test_trusted_evaluator_reads_candidate_only_as_data_and_is_the_last_step(self) -> None:
         conformance_steps = steps(self.workflow["jobs"]["conformance"])
         run = conformance_steps[-1]
         self.assertEqual("Run pinned Sol skill and agent conformance", run["name"])
         self.assertEqual("run", run["id"])
-        self.assertEqual({"CODEX_HOME": "${{ runner.temp }}/sre-agents-broker-home"}, run["env"])
+        self.assertEqual(
+            {
+                "CODEX_HOME": "${{ runner.temp }}/sre-agents-broker-home",
+                "CANDIDATE_ROOT": "${{ github.workspace }}/candidate",
+                "TRUSTED_MAIN": "${{ github.workspace }}/trusted-main",
+            },
+            run["env"],
+        )
         command = run["run"]
-        self.assertIn("run_codex_conformance.py", command)
-        self.assertIn("run_codex_agent_conformance.py", command)
+        self.assertIn('${TRUSTED_MAIN}/evals/run_codex_conformance.py', command)
+        self.assertIn('${TRUSTED_MAIN}/evals/run_codex_agent_conformance.py', command)
+        self.assertNotIn("candidate/evals/run_codex", command)
+        self.assertEqual(2, command.count("--target-root"))
+        self.assertEqual(2, command.count('"${CANDIDATE_ROOT}"'))
+        self.assertNotIn("--manifest", command)
         self.assertEqual(2, command.count("--broker-config"))
         self.assertNotIn("auth.json", command)
         self.assertIn("skill_report_sha256", command)
         self.assertIn("agent_report_sha256", command)
+        self.assertIn("skill_report_b64", command)
+        self.assertIn("agent_report_b64", command)
+        self.assertIn("131072", command)
+        self.assertIn("stopping before another model lane", command)
         recheck = conformance_steps[-2]
-        self.assertIn("git rev-parse HEAD", recheck["run"])
+        self.assertIn("git -C trusted-main rev-parse HEAD", recheck["run"])
+        self.assertIn("git -C candidate rev-parse HEAD", recheck["run"])
+        self.assertIn("HEAD^{tree}", recheck["run"])
+        self.assertIn("EXPECTED_WORKFLOW_BLOB_SHA", recheck["run"])
         self.assertIn("git/ref/heads/${CANARY_REF}", recheck["run"])
 
-    def test_attestation_is_written_on_a_fresh_runner(self) -> None:
+    def test_reports_are_reconstructed_validated_and_attested_on_a_fresh_runner(self) -> None:
         evidence = self.workflow["jobs"]["evidence"]
         self.assertEqual({"preflight", "conformance"}, set(evidence["needs"]))
         self.assertFalse(any("openai/codex-action" in step.get("uses", "") for step in steps(evidence)))
-        writer = next(
-            step for step in steps(evidence) if step.get("name") == "Write trusted brokered-run attestation"
+        checkout = next(
+            step
+            for step in steps(evidence)
+            if step.get("name") == "Check out trusted evidence reducer from main"
         )
-        for field in (
-            "candidate_sha",
-            "canary_ref",
-            "tree_sha",
-            "workflow_blob_sha",
-            "codex_action_sha",
-            "skill_report_sha256",
-            "agent_report_sha256",
+        self.assertEqual("${{ github.sha }}", checkout["with"]["ref"])
+        self.assertEqual("trusted-main", checkout["with"]["path"])
+        self.assertFalse(checkout["with"]["persist-credentials"])
+        recheck = next(
+            step
+            for step in steps(evidence)
+            if step.get("name") == "Recheck trusted reducer and immutable canary ref"
+        )
+        self.assertIn("git -C trusted-main rev-parse HEAD", recheck["run"])
+        self.assertIn("EXPECTED_WORKFLOW_BLOB_SHA", recheck["run"])
+        writer = next(
+            step
+            for step in steps(evidence)
+            if step.get("name") == "Reconstruct, validate, and attest reduced reports"
+        )
+        for contract in (
+            "SKILL_REPORT_B64",
+            "AGENT_REPORT_B64",
+            "base64 --decode",
+            "trusted-main/scripts/reduce_codex_conformance_reports.py",
+            "--candidate-sha",
+            "--evaluator-sha",
+            "--workflow-blob-sha",
+            "--tree-sha",
+            "--conformance-job-result",
+            "--output codex-sol-conformance-attestation.json",
         ):
-            self.assertIn(field, writer["run"])
+            self.assertIn(contract, writer["run"])
+        self.assertNotIn("candidate/scripts", writer["run"])
         upload = next(step for step in steps(evidence) if "actions/upload-artifact" in step.get("uses", ""))
         self.assertEqual("codex-sol-conformance-${{ inputs.candidate_sha }}", upload["with"]["name"])
-        self.assertEqual("codex-sol-conformance-attestation.json", upload["with"]["path"])
+        for filename in (
+            "codex-sol-skills.json",
+            "codex-sol-agents.json",
+            "codex-sol-conformance-attestation.json",
+        ):
+            self.assertIn(filename, upload["with"]["path"])
+
+    def test_every_job_has_a_hard_timeout(self) -> None:
+        jobs = self.workflow["jobs"]
+        self.assertEqual({"preflight", "conformance", "evidence"}, set(jobs))
+        for name, job in jobs.items():
+            timeout = job.get("timeout-minutes")
+            self.assertIsInstance(timeout, int, name)
+            self.assertGreater(timeout, 0, name)
+            self.assertLessEqual(timeout, 120, name)
 
 
 if __name__ == "__main__":
