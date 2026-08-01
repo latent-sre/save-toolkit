@@ -675,6 +675,8 @@ def run_live(
     runner: base.Runner = base._run,
 ) -> dict[str, object]:
     base.require_brokered_ci_boundary(broker_config)
+    if root.resolve() != REPO_ROOT.resolve():
+        base.validate_candidate_materialization(root)
     plugin_digest_before = base.codex_plugin_digest(root)
     agent_digest_before = agent_source_digest(root)
     plugin_status = base._plugin_git_status(root)

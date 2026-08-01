@@ -138,6 +138,40 @@ class CodexConformanceTests(unittest.TestCase):
         self.assertEqual(2, status)
         self.assertIn("separate candidate checkout", stderr.getvalue())
 
+    def test_live_candidate_reproves_exact_raw_materialization(self) -> None:
+        marker = {
+            "schema_version": 1,
+            "repository_commit": "1" * 40,
+            "repository_tree": "2" * 40,
+            "paths": list(conformance.CANDIDATE_MATERIALIZATION_PATHS),
+            "entry_count": 3,
+            "byte_count": 100,
+            "selection_sha256": "3" * 64,
+            "filters_executed": False,
+            "links_materialized": False,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "candidate"
+            with mock.patch.object(
+                conformance.materialize_git_tree,
+                "verify_materialization",
+                return_value=marker,
+            ) as verify:
+                self.assertEqual(marker, conformance.validate_candidate_materialization(candidate))
+                verify.assert_called_once_with(
+                    candidate, conformance.CANDIDATE_MATERIALIZATION_PATHS
+                )
+
+            with mock.patch.object(
+                conformance.materialize_git_tree,
+                "verify_materialization",
+                side_effect=conformance.materialize_git_tree.MaterializationError(
+                    "materialized bytes differ from the Git blob"
+                ),
+            ):
+                with self.assertRaisesRegex(conformance.ConformanceError, "bytes differ"):
+                    conformance.validate_candidate_materialization(candidate)
+
     def test_windows_command_path_normalization_collapses_codex_escaping(self) -> None:
         escaped = r'C:\\isolated\\session\\resources\\skills\\stack-profile\\SKILL.md'
         normal = r'C:\isolated\session\resources\skills\stack-profile\SKILL.md'

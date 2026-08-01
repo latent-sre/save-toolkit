@@ -34,14 +34,17 @@ not a credential boundary. After PROTECT-001 and the promotion-authority control
 [`docs/fleet-roadmap.md`](../docs/fleet-roadmap.md) are complete, dispatch
 `.github/workflows/codex-sol-conformance.yml` from `main` against an immutable
 `canary/<phase>/<full-sha>` ref. That trusted workflow gives the pinned OpenAI action the repository
-secret `CODEX_CONFORMANCE_OPENAI_API_KEY` before candidate checkout, starts a Responses API proxy,
+secret `CODEX_CONFORMANCE_OPENAI_API_KEY` before candidate object acquisition, starts a Responses API proxy,
 removes sudo, and supplies only the trusted-main evaluator with the proxy's tokenless loopback
-provider config. The model-bearing job deliberately has no `actions/checkout` step: authenticated
-shell clones finish, remove their remotes, and reject credential configuration before model
-execution, so no checkout post callback can reconstruct `INPUT_TOKEN` afterward. The fixed evaluator
-and manifests come from `main`; candidate Python is never executed. Skill lanes inspect candidate
-plugin bytes as data, while agent lanes require the candidate plugin and generated-agent prompt bytes
-to match trusted main before any delegation. The runners reject
+provider config. The model-bearing job deliberately has no `actions/checkout` step. Candidate
+acquisition uses a full `--no-checkout` object clone; that step removes every remote, rejects
+credential/promisor/partial-clone configuration, proves object completeness, and ends before a
+trusted-main raw extractor runs in a credential-free shell. The extractor uses NUL-safe
+`git ls-tree` plus length-delimited `git cat-file --batch`, accepts only bounded regular blobs from
+the plugin/agent allowlist, and rejects links, submodules, path collisions, and escapes. It never
+invokes candidate attributes, filters, hooks, or Python. The fixed evaluator and manifests come from
+`main`. Skill lanes inspect candidate plugin bytes as data, while agent lanes require the candidate
+plugin and generated-agent prompt bytes to match trusted main before any delegation. The runners reject
 Windows/local execution, a same-checkout evaluator and candidate, readable `auth.json`, passwordless
 sudo, credential-bearing provider fields, non-loopback endpoints, and credential-shaped volatile
 output.

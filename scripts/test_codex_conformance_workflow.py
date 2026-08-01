@@ -68,7 +68,7 @@ class CodexConformanceWorkflowTests(unittest.TestCase):
             for step in steps(job)
             if "uses" in step
         ]
-        self.assertGreaterEqual(len(action_steps), 5)
+        self.assertGreaterEqual(len(action_steps), 4)
         for step in action_steps:
             match = PINNED_ACTION.fullmatch(step["uses"])
             self.assertIsNotNone(match, step["uses"])
@@ -84,10 +84,26 @@ class CodexConformanceWorkflowTests(unittest.TestCase):
             for index, step in enumerate(steps(conformance))
             if step.get("name") == "Establish credential broker and drop sudo"
         )
-        checkout_index = next(
+        candidate_fetch_index = next(
             index
             for index, step in enumerate(steps(conformance))
-            if step.get("name") == "Check out candidate without a post-job credential callback"
+            if step.get("name") == "Fetch candidate objects without checkout or callbacks"
+        )
+        materialize_index = next(
+            index
+            for index, step in enumerate(steps(conformance))
+            if step.get("name") == "Materialize candidate raw blobs without filters or hooks"
+        )
+        local_recheck_index = next(
+            index
+            for index, step in enumerate(steps(conformance))
+            if step.get("name")
+            == "Recheck local evaluator and candidate bindings before model execution"
+        )
+        remote_recheck_index = next(
+            index
+            for index, step in enumerate(steps(conformance))
+            if step.get("name") == "Recheck immutable canary ref before model execution"
         )
         trusted_index = next(
             index
@@ -96,7 +112,10 @@ class CodexConformanceWorkflowTests(unittest.TestCase):
             == "Check out trusted evaluator without a post-job credential callback"
         )
         self.assertLess(trusted_index, broker_index)
-        self.assertLess(broker_index, checkout_index)
+        self.assertLess(broker_index, candidate_fetch_index)
+        self.assertLess(candidate_fetch_index, materialize_index)
+        self.assertLess(materialize_index, local_recheck_index)
+        self.assertLess(local_recheck_index, remote_recheck_index)
         broker = steps(conformance)[broker_index]
         self.assertEqual(f"openai/codex-action@{CODEX_ACTION_SHA}", broker["uses"])
         self.assertEqual(secret_reference, broker["with"]["openai-api-key"])
@@ -105,18 +124,52 @@ class CodexConformanceWorkflowTests(unittest.TestCase):
         self.assertNotIn("prompt", broker["with"])
         self.assertNotIn("prompt-file", broker["with"])
         trusted_checkout = steps(conformance)[trusted_index]
-        candidate_checkout = steps(conformance)[checkout_index]
+        candidate_fetch = steps(conformance)[candidate_fetch_index]
+        materialize = steps(conformance)[materialize_index]
+        local_recheck = steps(conformance)[local_recheck_index]
+        remote_recheck = steps(conformance)[remote_recheck_index]
         self.assertNotIn("uses", trusted_checkout)
-        self.assertNotIn("uses", candidate_checkout)
+        self.assertNotIn("uses", candidate_fetch)
+        self.assertNotIn("uses", materialize)
         self.assertEqual("${{ github.token }}", trusted_checkout["env"]["GH_TOKEN"])
-        self.assertEqual("${{ github.token }}", candidate_checkout["env"]["GH_TOKEN"])
-        for checkout, destination in (
-            (trusted_checkout, "trusted-main"),
-            (candidate_checkout, "candidate"),
+        self.assertEqual("${{ github.token }}", candidate_fetch["env"]["GH_TOKEN"])
+        self.assertIn("gh repo clone", trusted_checkout["run"])
+        self.assertIn('"https://github.com/${GITHUB_REPOSITORY}.git"', trusted_checkout["run"])
+        self.assertIn("--no-upstream --", trusted_checkout["run"])
+        self.assertIn("trusted-main", trusted_checkout["run"])
+        self.assertIn("git -C trusted-main remote remove origin", trusted_checkout["run"])
+        self.assertIn("gh repo clone", candidate_fetch["run"])
+        self.assertIn('"https://github.com/${GITHUB_REPOSITORY}.git"', candidate_fetch["run"])
+        self.assertIn("--no-upstream --", candidate_fetch["run"])
+        self.assertIn("candidate", candidate_fetch["run"])
+        self.assertIn("--no-checkout --single-branch --depth=1", candidate_fetch["run"])
+        self.assertNotIn("--filter=blob:none", candidate_fetch["run"])
+        self.assertNotIn("git -C candidate checkout", candidate_fetch["run"])
+        self.assertIn("git -C candidate remote remove origin", candidate_fetch["run"])
+        self.assertIn("unset GH_TOKEN GITHUB_TOKEN GIT_ASKPASS SSH_ASKPASS", candidate_fetch["run"])
+        self.assertIn("promisor|partialclone", candidate_fetch["run"])
+        self.assertIn("GIT_NO_LAZY_FETCH=1", candidate_fetch["run"])
+        self.assertIn("--missing=print", candidate_fetch["run"])
+        self.assertIn("mktemp", candidate_fetch["run"])
+        self.assertIn("trap 'rm -f", candidate_fetch["run"])
+        self.assertNotIn("GH_TOKEN", materialize["env"])
+        self.assertNotIn("GITHUB_TOKEN", materialize["env"])
+        self.assertIn(
+            '${TRUSTED_MAIN}/scripts/materialize_git_tree.py', materialize["run"]
+        )
+        for path in (
+            ".agents/plugins/marketplace.json",
+            "plugins/sre-agents",
+            ".codex/agents",
         ):
-            self.assertIn(f'gh repo clone "${{GITHUB_REPOSITORY}}" {destination}', checkout["run"])
-            self.assertIn(f"git -C {destination} remote remove origin", checkout["run"])
-            self.assertIn("extraheader|credential|token", checkout["run"])
+            self.assertIn(f"--path {path}", materialize["run"])
+        self.assertNotIn("GH_TOKEN", local_recheck["env"])
+        self.assertNotIn("GITHUB_TOKEN", local_recheck["env"])
+        self.assertIn("git -C candidate", local_recheck["run"])
+        self.assertEqual({"GH_TOKEN", "CANDIDATE_SHA", "CANARY_REF"}, set(remote_recheck["env"]))
+        self.assertIn("gh api", remote_recheck["run"])
+        self.assertNotIn("git -C candidate", remote_recheck["run"])
+        self.assertNotIn("git -C trusted-main", remote_recheck["run"])
         self.assertFalse(
             any("actions/checkout" in step.get("uses", "") for step in steps(conformance))
         )
@@ -149,12 +202,28 @@ class CodexConformanceWorkflowTests(unittest.TestCase):
         self.assertIn("agent_report_b64", command)
         self.assertIn("131072", command)
         self.assertIn("stopping before another model lane", command)
-        recheck = conformance_steps[-2]
-        self.assertIn("git -C trusted-main rev-parse HEAD", recheck["run"])
-        self.assertIn("git -C candidate rev-parse HEAD", recheck["run"])
-        self.assertIn("HEAD^{tree}", recheck["run"])
-        self.assertIn("EXPECTED_WORKFLOW_BLOB_SHA", recheck["run"])
-        self.assertIn("git/ref/heads/${CANARY_REF}", recheck["run"])
+        local_recheck = conformance_steps[-3]
+        self.assertIn("git -C trusted-main rev-parse HEAD", local_recheck["run"])
+        self.assertIn("git -C candidate rev-parse HEAD", local_recheck["run"])
+        self.assertIn("HEAD^{tree}", local_recheck["run"])
+        self.assertIn("EXPECTED_WORKFLOW_BLOB_SHA", local_recheck["run"])
+        remote_recheck = conformance_steps[-2]
+        self.assertIn("git/ref/heads/${CANARY_REF}", remote_recheck["run"])
+        self.assertNotIn("git -C", remote_recheck["run"])
+
+    def test_preflight_reads_candidate_identity_without_materializing_candidate_files(self) -> None:
+        preflight = self.workflow["jobs"]["preflight"]
+        self.assertFalse(
+            any(
+                step.get("with", {}).get("path") == "candidate"
+                for step in steps(preflight)
+                if isinstance(step.get("with"), dict)
+            )
+        )
+        bind = next(step for step in steps(preflight) if step.get("id") == "bind")
+        self.assertIn("git/commits/${CANDIDATE_SHA}", bind["run"])
+        self.assertIn("[.sha, .tree.sha]", bind["run"])
+        self.assertNotIn("git -C candidate", bind["run"])
 
     def test_reports_are_reconstructed_validated_and_attested_on_a_fresh_runner(self) -> None:
         evidence = self.workflow["jobs"]["evidence"]

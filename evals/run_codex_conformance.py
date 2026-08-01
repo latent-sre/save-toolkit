@@ -38,11 +38,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts import evidence_envelope  # noqa: E402
+from scripts import evidence_envelope, materialize_git_tree  # noqa: E402
 
 DEFAULT_MANIFEST = REPO_ROOT / "evals" / "conformance" / "codex-sol.json"
 MARKETPLACE_MANIFEST = Path(".agents/plugins/marketplace.json")
 PLUGIN_DIRECTORY = Path("plugins/sre-agents")
+CANDIDATE_MATERIALIZATION_PATHS = (
+    ".agents/plugins/marketplace.json",
+    "plugins/sre-agents",
+    ".codex/agents",
+)
 SOL_MODEL = "gpt-5.6-sol"
 VERDICTS = {"pass", "fail", "inconclusive"}
 BROKER_PROVIDER = "codex-action-responses-proxy"
@@ -519,6 +524,17 @@ def codex_plugin_digest(root: Path = REPO_ROOT) -> str:
         raise ConformanceError(f"refusing missing, linked, or reparse marketplace manifest: {manifest}")
     files = [manifest, *_checked_files(plugin)]
     return _digest_files(root, files)
+
+
+def validate_candidate_materialization(root: Path) -> dict[str, object]:
+    """Re-prove the trusted raw-object materialization before a candidate enters a live run."""
+
+    try:
+        return materialize_git_tree.verify_materialization(
+            root, CANDIDATE_MATERIALIZATION_PATHS
+        )
+    except materialize_git_tree.MaterializationError as exc:
+        raise ConformanceError(f"candidate raw materialization is invalid: {exc}") from exc
 
 
 def copy_codex_marketplace_snapshot(source_root: Path, destination_root: Path) -> None:
@@ -1405,6 +1421,8 @@ def run_live(
     runner: Runner = _run,
 ) -> dict[str, object]:
     require_brokered_ci_boundary(broker_config)
+    if root.resolve() != REPO_ROOT.resolve():
+        validate_candidate_materialization(root)
     source_digest_before = codex_plugin_digest(root)
     plugin_status = _plugin_git_status(root)
     # The evaluator is repository code from the trusted-main checkout. Candidate files are data;

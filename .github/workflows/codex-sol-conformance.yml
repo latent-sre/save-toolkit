@@ -2,11 +2,12 @@ name: Brokered Codex Sol conformance
 
 # This workflow is the only supported live path for the Codex conformance runners. Dispatch it from
 # trusted main against an immutable canary ref. The API key is consumed by the pinned OpenAI action
-# before candidate code is checked out; that action starts a tokenless loopback proxy and removes
-# sudo. Evaluator code and manifests come only from trusted main. Candidate plugin files are read as
-# data by the no-delegation skill lanes; live agent lanes require the plugin and generated-agent
-# prompts to match trusted main byte-for-byte. Candidate Python is never executed, and
-# model-controlled commands never receive the key.
+# before candidate objects are acquired; that action starts a tokenless loopback proxy and removes
+# sudo. The candidate tree is never checked out: a credential-free trusted extractor materializes
+# only raw allowlisted blobs. Evaluator code and manifests come only from trusted main. Candidate
+# plugin files are data for the no-delegation skill lanes; live agent lanes require the plugin and
+# generated-agent prompts to match trusted main byte-for-byte. Candidate Python is never executed,
+# and model-controlled commands never receive the key.
 on:
   workflow_dispatch:
     inputs:
@@ -42,13 +43,6 @@ jobs:
           path: trusted-main
           persist-credentials: false
 
-      - name: Check out candidate without credentials
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ inputs.candidate_sha }}
-          path: candidate
-          persist-credentials: false
-
       - name: Bind trusted workflow, candidate, and canary ref
         id: bind
         shell: bash
@@ -70,8 +64,12 @@ jobs:
             echo "canary_ref must end with candidate_sha." >&2
             exit 1
           fi
-          if [[ "$(git -C candidate rev-parse HEAD)" != "${CANDIDATE_SHA}" ]]; then
-            echo "Candidate checkout did not resolve to candidate_sha." >&2
+          read -r REMOTE_COMMIT_SHA TREE_SHA < <(
+            gh api "repos/${GITHUB_REPOSITORY}/git/commits/${CANDIDATE_SHA}" \
+              --jq '[.sha, .tree.sha] | @tsv'
+          )
+          if [[ "${REMOTE_COMMIT_SHA}" != "${CANDIDATE_SHA}" || ! "${TREE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Candidate commit or tree did not resolve exactly." >&2
             exit 1
           fi
           REMOTE_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${CANARY_REF}" --jq .object.sha)"
@@ -79,7 +77,7 @@ jobs:
             echo "Remote immutable canary ref does not equal candidate_sha." >&2
             exit 1
           fi
-          echo "tree_sha=$(git -C candidate rev-parse 'HEAD^{tree}')" >> "${GITHUB_OUTPUT}"
+          echo "tree_sha=${TREE_SHA}" >> "${GITHUB_OUTPUT}"
           echo "workflow_blob_sha=$(git -C trusted-main hash-object .github/workflows/codex-sol-conformance.yml)" >> "${GITHUB_OUTPUT}"
 
   conformance:
@@ -93,8 +91,8 @@ jobs:
       agent_report_b64: ${{ steps.run.outputs.agent_report_b64 }}
     steps:
       # Do not use actions/checkout in this job. Its Node post callback receives INPUT_TOKEN again
-      # after the model step even with persist-credentials:false. A trusted shell clone has no
-      # secret-bearing post callback, removes its remote, and leaves no credential configuration.
+      # after the model step even with persist-credentials:false. The trusted-main clone can safely
+      # materialize reviewed main bytes during its one authenticated command; it has no action post.
       - name: Check out trusted evaluator without a post-job credential callback
         shell: bash
         env:
@@ -102,9 +100,13 @@ jobs:
           WORKFLOW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          gh repo clone "${GITHUB_REPOSITORY}" trusted-main -- --filter=blob:none --no-checkout
-          git -C trusted-main fetch --no-tags --depth=1 origin "${WORKFLOW_SHA}"
-          git -C trusted-main checkout --detach "${WORKFLOW_SHA}"
+          gh repo clone "https://github.com/${GITHUB_REPOSITORY}.git" trusted-main \
+            --no-upstream -- \
+            --single-branch --depth=1 --branch main
+          if [[ "$(git -C trusted-main rev-parse HEAD)" != "${WORKFLOW_SHA}" ]]; then
+            echo "Trusted main moved after workflow dispatch." >&2
+            exit 1
+          fi
           git -C trusted-main remote remove origin
           if git -C trusted-main config --local --name-only --get-regexp '(extraheader|credential|token)'; then
             echo "Trusted evaluator checkout retained credential configuration." >&2
@@ -122,28 +124,69 @@ jobs:
           codex-home: ${{ runner.temp }}/sre-agents-broker-home
           safety-strategy: drop-sudo
 
-      - name: Check out candidate without a post-job credential callback
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
-        run: |
-          set -euo pipefail
-          gh repo clone "${GITHUB_REPOSITORY}" candidate -- --filter=blob:none --no-checkout
-          git -C candidate fetch --no-tags --depth=1 origin "${CANDIDATE_SHA}"
-          git -C candidate checkout --detach "${CANDIDATE_SHA}"
-          git -C candidate remote remove origin
-          if git -C candidate config --local --name-only --get-regexp '(extraheader|credential|token)'; then
-            echo "Candidate checkout retained credential configuration." >&2
-            exit 1
-          fi
-
-      - name: Recheck candidate and immutable canary before model execution
+      # This authenticated step fetches Git objects only. --no-checkout prevents candidate
+      # attributes, LFS filters, and hooks from running while GH_TOKEN exists. The next step starts
+      # in a fresh credential-free shell and materializes an allowlisted raw-object selection.
+      - name: Fetch candidate objects without checkout or callbacks
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
           CANARY_REF: ${{ inputs.canary_ref }}
+        run: |
+          set -euo pipefail
+          gh repo clone "https://github.com/${GITHUB_REPOSITORY}.git" candidate \
+            --no-upstream -- \
+            --no-checkout --single-branch --depth=1 --branch "${CANARY_REF}"
+          if [[ "$(git -C candidate rev-parse HEAD)" != "${CANDIDATE_SHA}" ]]; then
+            echo "Candidate object store did not resolve to candidate_sha." >&2
+            exit 1
+          fi
+          git -C candidate remote remove origin
+          unset GH_TOKEN GITHUB_TOKEN GIT_ASKPASS SSH_ASKPASS
+          if [[ -n "$(git -C candidate remote)" ]]; then
+            echo "Candidate object store retained a remote." >&2
+            exit 1
+          fi
+          if git -C candidate config --local --name-only --get-regexp \
+            '(extraheader|credential|token|promisor|partialclone|^filter\.|^lfs\.)'; then
+            echo "Candidate object store retained unsafe configuration." >&2
+            exit 1
+          fi
+          if find candidate -mindepth 1 -maxdepth 1 ! -name .git -print -quit | grep -q .; then
+            echo "Candidate object acquisition unexpectedly materialized worktree files." >&2
+            exit 1
+          fi
+          OBJECT_LIST="$(mktemp "${RUNNER_TEMP}/candidate-objects.XXXXXX")"
+          trap 'rm -f -- "${OBJECT_LIST}"' EXIT
+          if ! GIT_NO_LAZY_FETCH=1 git -C candidate rev-list \
+            --objects --missing=print "${CANDIDATE_SHA}" > "${OBJECT_LIST}"; then
+            echo "Candidate object completeness check failed." >&2
+            exit 1
+          fi
+          if grep -q '^?' "${OBJECT_LIST}"; then
+            echo "Candidate object store is incomplete or promisor-backed." >&2
+            exit 1
+          fi
+
+      - name: Materialize candidate raw blobs without filters or hooks
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          TRUSTED_MAIN: ${{ github.workspace }}/trusted-main
+        run: |
+          set -euo pipefail
+          python3 -B -X utf8 "${TRUSTED_MAIN}/scripts/materialize_git_tree.py" \
+            --repository candidate \
+            --commit "${CANDIDATE_SHA}" \
+            --path .agents/plugins/marketplace.json \
+            --path plugins/sre-agents \
+            --path .codex/agents
+
+      - name: Recheck local evaluator and candidate bindings before model execution
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
           EXPECTED_TREE_SHA: ${{ needs.preflight.outputs.tree_sha }}
           EXPECTED_WORKFLOW_BLOB_SHA: ${{ needs.preflight.outputs.workflow_blob_sha }}
           WORKFLOW_SHA: ${{ github.sha }}
@@ -165,6 +208,15 @@ jobs:
             echo "Candidate tree changed after preflight." >&2
             exit 1
           fi
+
+      - name: Recheck immutable canary ref before model execution
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CANARY_REF: ${{ inputs.canary_ref }}
+        run: |
+          set -euo pipefail
           REMOTE_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${CANARY_REF}" --jq .object.sha)"
           if [[ "${REMOTE_SHA}" != "${CANDIDATE_SHA}" ]]; then
             echo "Canary ref moved or disappeared before conformance." >&2

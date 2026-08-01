@@ -19,7 +19,7 @@ one deterministic generator; generated files are never edited by hand.
   plugin plus standalone custom-agent projections.
 - [`scripts/`](scripts) — the structural gate (`gate_a.py`), the read-only allowlist guard
   (`readonly-guard.py`), generator, optional Codex agent installer, typed evidence validator,
-  read-only fleet doctor, and mutation tests.
+  credential-free raw Git materializer, read-only fleet doctor, and mutation tests.
 - [`schemas/evidence-envelope-v1.schema.json`](schemas/evidence-envelope-v1.schema.json) — the
   portable runtime-evidence contract; the executable secret-field checks live in
   [`scripts/evidence_envelope.py`](scripts/evidence_envelope.py).
@@ -136,7 +136,9 @@ behavior. None of these lanes proves implicit routing or Claude-equivalent per-a
 The brokered skill lane disables both Codex multi-agent implementations. The agent lane accepts only
 trusted-main plugin/agent prompt bytes, caps V1 and V2 at one live child with no V1 descendants, and
 shares a runtime rollout budget across root and child; post-response usage ceilings and the provider
-project quota remain independent outer checks.
+project quota remain independent outer checks. Candidate acquisition is object-only while
+authenticated; a later credential-free trusted extractor materializes bounded raw plugin/agent blobs
+without Git checkout filters, hooks, links, or submodules.
 
 ## Current status
 
