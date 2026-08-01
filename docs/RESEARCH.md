@@ -1,6 +1,6 @@
 # Research & provenance
 
-Why the fleet is built the way it is, with sources. Current as of **2026-07-31**. Formats and product
+Why the fleet is built the way it is, with sources. Current as of **2026-08-01**. Formats and product
 names move fast — re-verify load-bearing specifics (and label anything you can't confirm "unverified",
 per the `researcher` agent's rules).
 
@@ -41,8 +41,8 @@ the accepted decisions before adopting them.
 | Original branch | `claude/vscode-native-agents-skills-xy27mw` |
 | Pinned commit | `9e9553b5d8586f916a672179e38ae72e226be852` |
 | Annotated tag | `source-material/claude-vscode-native-agents-skills-2026-08-01` |
-| Branch protection | Active ruleset [`20191052`](https://github.com/latent-sre/sre-agents/settings/rulesets/20191052): updates, deletion, and force pushes blocked; no bypass actors |
-| Tag protection | Active ruleset [`20191066`](https://github.com/latent-sre/sre-agents/settings/rulesets/20191066): `source-material/*` updates, deletion, and force pushes blocked; no bypass actors |
+| Branch protection | [verified] Active ruleset [`20191052`](https://github.com/latent-sre/sre-agents/rules/20191052): updates, deletion, and force pushes blocked; no bypass actors |
+| Tag protection | [verified] Active ruleset [`20191066`](https://github.com/latent-sre/sre-agents/rules/20191066): `source-material/*` updates, deletion, and force pushes blocked; no bypass actors |
 | Retention reason | Nine commits remain unique to the closed experiment and contain potentially useful native-layout, identity, and validation patterns |
 
 Unique commits, oldest first:
