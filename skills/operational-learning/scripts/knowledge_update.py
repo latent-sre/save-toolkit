@@ -108,6 +108,9 @@ UPDATE_ID_RE = re.compile(r"^ku_[a-z0-9][a-z0-9._-]{2,95}$")
 EVIDENCE_ID_RE = re.compile(r"^e[1-9][0-9]*$")
 CONTENT_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 GIT_REVISION_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+RFC3339_UTC_TIMESTAMP_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$"
+)
 TYPED_REDACTION_RE = re.compile(r"\[REDACTED:[a-z0-9][a-z0-9._-]{0,63}\]")
 TYPED_REDACTION_SENTINEL = "__TYPED_REDACTION__"
 TYPED_REDACTION_BOUNDARY = r"(?=$|[\s.,;:!?)}\]`>])"
@@ -216,7 +219,7 @@ def _string_list(value: object, field: str, *, nonempty: bool = False) -> list[s
 
 def _timestamp(value: object, field: str) -> str:
     rendered = _string(value, field, maximum=64)
-    if not rendered.endswith("Z"):
+    if not RFC3339_UTC_TIMESTAMP_RE.fullmatch(rendered):
         raise KnowledgeUpdateValidationError(f"{field} must be an RFC3339 UTC timestamp ending in Z")
     try:
         datetime.fromisoformat(rendered[:-1] + "+00:00")

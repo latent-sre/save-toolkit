@@ -288,6 +288,15 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         ):
             self._validate(boolean_version)
 
+    def test_created_at_requires_rfc3339_t_separator(self) -> None:
+        packet = self._valid_update()
+        packet["created_at"] = "2026-08-01 12:00:00Z"
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "RFC3339 UTC timestamp ending in Z",
+        ):
+            self._validate(packet)
+
     def test_evidence_label_cannot_upgrade_weakest_source(self) -> None:
         packet = self._valid_update()
         packet["discovery"]["evidence_status"] = "verified"  # type: ignore[index]
