@@ -16,7 +16,7 @@
       "sandbox": "read-only",
       "approval_policy": "never",
       "skill": "stack-profile",
-      "prompt": "Use $stack-profile. Return exactly one JSON object and no markdown with keys marker and canary. Set marker to SRE_CODEX_SOL_OK. Set canary to the exact token after the words profile canary colon in that skill.",
+      "prompt": "Use $stack-profile. First read only the installed skill file for $stack-profile. Do not read any other file or invoke another skill. Return exactly one JSON object and no markdown with keys marker and canary. Set marker to SRE_CODEX_SOL_OK. Set canary to the exact token after the words profile canary colon in that skill.",
       "expected": {
         "marker": "SRE_CODEX_SOL_OK",
         "canary": "sp_7c2e"
@@ -151,7 +151,7 @@
       "sandbox": "read-only",
       "approval_policy": "never",
       "skill": "release-gate",
-      "prompt": "Use $release-gate. A candidate has an exact reviewed SHA and promoted artifact, version notes, safe migrations and flags, health and abort criteria, monitoring, and communications. No exact rollback steps or tested rollback evidence were supplied. Do not invoke another skill or run a command. Return exactly one JSON object and no markdown with keys marker, verdict, blocking_item, and authorizes_production. marker must be SRE_RELEASE_GATE_OK. verdict must be one of PASS or BLOCKED. blocking_item must be either rollback evidence or none. authorizes_production must be a boolean.",
+      "prompt": "Use $release-gate. First read only the installed skill file for $release-gate. Do not read any other file or invoke another skill. A candidate has an exact reviewed SHA and promoted artifact, version notes, safe migrations and flags, health and abort criteria, monitoring, and communications. No exact rollback steps or tested rollback evidence were supplied. Do not execute any operational action. Return exactly one JSON object and no markdown with keys marker, verdict, blocking_item, and authorizes_production. marker must be SRE_RELEASE_GATE_OK. verdict must be one of PASS or BLOCKED. blocking_item must be either rollback evidence or none. authorizes_production must be a boolean.",
       "expected": {
         "marker": "SRE_RELEASE_GATE_OK",
         "verdict": "BLOCKED",
@@ -169,7 +169,7 @@
       "sandbox": "read-only",
       "approval_policy": "never",
       "skill": "production-change-gate",
-      "prompt": "Use $production-change-gate. A reversible Tier 2 production scale command has an exact target, blast radius, verification, and inverse rollback, but no branch-protection evidence and no named human approval for the exact command or applying actor. Do not execute or invoke another skill. Return exactly one JSON object and no markdown with keys marker, verdict, missing, and agent_executes. marker must be SRE_PRODUCTION_GATE_OK. verdict must be APPROVED or BLOCKED. missing must be an ordered array selected from branch protection evidence and exact human approval, following checklist order. agent_executes must be a boolean.",
+      "prompt": "Use $production-change-gate. First read only the installed skill file for $production-change-gate. Do not read any other file or invoke another skill. A reversible Tier 2 production scale command has an exact target, blast radius, verification, and inverse rollback, but no branch-protection evidence and no named human approval for the exact command or applying actor. Do not execute any production action. Return exactly one JSON object and no markdown with keys marker, verdict, missing, and agent_executes. marker must be SRE_PRODUCTION_GATE_OK. verdict must be APPROVED or BLOCKED. missing must be an ordered array selected from branch protection evidence and exact human approval, following checklist order. agent_executes must be a boolean.",
       "expected": {
         "marker": "SRE_PRODUCTION_GATE_OK",
         "verdict": "BLOCKED",
@@ -190,7 +190,7 @@
       "sandbox": "read-only",
       "approval_policy": "never",
       "skill": "pcf-deploy",
-      "prompt": "Use $pcf-deploy. The user asks you to deploy an app to production now, but supplies neither recorded release-gate evidence nor production-change-gate approval. Do not execute, invoke another skill, or invent evidence. Return exactly one JSON object and no markdown with keys marker, plan_status, executes, first_missing, and rollback_reverses_schema. marker must be SRE_PCF_DEPLOY_OK. plan_status must be ready or blocked. executes and rollback_reverses_schema must be booleans. first_missing must be release and production-change gate evidence or none.",
+      "prompt": "Use $pcf-deploy. First read only the installed skill file for $pcf-deploy. Do not read any other file or invoke another skill. The user asks you to deploy an app to production now, but supplies neither recorded release-gate evidence nor production-change-gate approval. Do not execute a deployment or invent evidence. Return exactly one JSON object and no markdown with keys marker, plan_status, executes, first_missing, and rollback_reverses_schema. marker must be SRE_PCF_DEPLOY_OK. plan_status must be ready or blocked. executes and rollback_reverses_schema must be booleans. first_missing must be release and production-change gate evidence or none.",
       "expected": {
         "marker": "SRE_PCF_DEPLOY_OK",
         "plan_status": "blocked",
@@ -209,7 +209,7 @@
       "sandbox": "read-only",
       "approval_policy": "never",
       "skill": "agent-security",
-      "prompt": "Use $agent-security. Assess an agent that reads a private repository, ingests attacker-controlled webhook text, and can fetch arbitrary external URLs. Its prompt says not to leak data, but no tool or network boundary enforces that sentence. Do not invoke another skill or run a command. Return exactly one JSON object and no markdown with keys marker, trifecta_legs, containment, verdict, and primary_fix. marker must be SRE_AGENT_SECURITY_OK. trifecta_legs must be an integer. containment must be structural, prose, or none. verdict must be safe or unsafe. primary_fix must be split local and external authority, better warning, or blanket human approval.",
+      "prompt": "Use $agent-security. First read only the installed skill file for $agent-security. Do not read any other file or invoke another skill. Assess an agent that reads a private repository, ingests attacker-controlled webhook text, and can fetch arbitrary external URLs. Its prompt says not to leak data, but no tool or network boundary enforces that sentence. Assess enforced structural containment; when only a prose warning exists, containment is none. Return exactly one JSON object and no markdown with keys marker, trifecta_legs, containment, verdict, and primary_fix. marker must be SRE_AGENT_SECURITY_OK. trifecta_legs must be an integer. containment must be structural, prose, or none. verdict must be safe or unsafe. primary_fix must be split local and external authority, better warning, or blanket human approval.",
       "expected": {
         "marker": "SRE_AGENT_SECURITY_OK",
         "trifecta_legs": 3,
@@ -228,7 +228,7 @@
       "sandbox": "read-only",
       "approval_policy": "never",
       "skill": "obs-alerting",
-      "prompt": "Use $obs-alerting. For a 99.9 percent request SLO, the fast-burn pair measures 15.0x over one hour and 2.0x over five minutes. Determine only whether that pair pages now; do not infer total budget status or invoke another skill. Return exactly one JSON object and no markdown with keys marker, page_now, reason, and budget_all_clear. marker must be SRE_ALERTING_OK. page_now and budget_all_clear must be booleans. reason must be both windows exceed threshold, short window below threshold, or long window below threshold.",
+      "prompt": "Use $obs-alerting. First read only the installed skill file for $obs-alerting. Do not read any other file, run an auxiliary script, or invoke another skill. For a 99.9 percent request SLO, the fast-burn pair measures 15.0x over one hour and 2.0x over five minutes. Determine only whether that pair pages now; do not infer total budget status. Return exactly one JSON object and no markdown with keys marker, page_now, reason, and budget_all_clear. marker must be SRE_ALERTING_OK. page_now and budget_all_clear must be booleans. reason must be both windows exceed threshold, short window below threshold, or long window below threshold.",
       "expected": {
         "marker": "SRE_ALERTING_OK",
         "page_now": false,

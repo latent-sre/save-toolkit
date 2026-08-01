@@ -59,6 +59,20 @@ class CodexConformanceTests(unittest.TestCase):
         with self.assertRaisesRegex(conformance.ConformanceError, "reference path"):
             conformance.validate_manifest(traversal)
 
+        missing_read = copy.deepcopy(self.manifest)
+        direct_lane = self._lane_from(missing_read, "codex-sol-release-gate-missing-rollback")
+        direct_lane["prompt"] = "Use $release-gate. Return the gate verdict."
+        with self.assertRaisesRegex(conformance.ConformanceError, "exact installed-skill read"):
+            conformance.validate_manifest(missing_read)
+
+        contradictory_read = copy.deepcopy(self.manifest)
+        direct_lane = self._lane_from(
+            contradictory_read, "codex-sol-release-gate-missing-rollback"
+        )
+        direct_lane["prompt"] += " Do not run a command."
+        with self.assertRaisesRegex(conformance.ConformanceError, "must not forbid"):
+            conformance.validate_manifest(contradictory_read)
+
     @staticmethod
     def _lane_from(manifest, lane_id):
         return next(lane for lane in manifest["lanes"] if lane["id"] == lane_id)

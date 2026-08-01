@@ -186,6 +186,16 @@ def validate_manifest(manifest: Mapping[str, object]) -> None:
             raise ConformanceError(f"lane {lane_id!r}: prompt must be non-empty")
         if f'${lane["skill"]}' not in lane["prompt"]:
             raise ConformanceError(f"lane {lane_id!r}: prompt must explicitly select its skill")
+        if lane["kind"] == "skill-direct":
+            read_directive = f'First read only the installed skill file for ${lane["skill"]}.'
+            if read_directive not in lane["prompt"]:
+                raise ConformanceError(
+                    f"lane {lane_id!r}: skill-direct prompt must require the exact installed-skill read"
+                )
+            if "do not run a command" in lane["prompt"].lower():
+                raise ConformanceError(
+                    f"lane {lane_id!r}: prompt must not forbid its required installed-skill read"
+                )
         if not isinstance(lane["expected"], dict) or not lane["expected"]:
             raise ConformanceError(f"lane {lane_id!r}: expected must be a non-empty object")
         if not isinstance(lane["timeout_seconds"], int) or not 1 <= lane["timeout_seconds"] <= 900:
