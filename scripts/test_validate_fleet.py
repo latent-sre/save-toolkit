@@ -13,6 +13,26 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FleetValidatorTests(unittest.TestCase):
+    SCRIBE_LOADED_PATHS = (
+        Path("agents/scribe.md"),
+        Path("skills/runbook/SKILL.md"),
+        Path("skills/postmortem/SKILL.md"),
+        Path("skills/operational-learning/SKILL.md"),
+        Path("skills/service-onboarding/SKILL.md"),
+        Path("skills/incident-command/SKILL.md"),
+        Path("skills/runbook/assets/runbook-template.md"),
+        Path("skills/postmortem/assets/postmortem-template.md"),
+    )
+
+    def _copy_scribe_bundle(self, root: Path) -> None:
+        for relative in self.SCRIBE_LOADED_PATHS:
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(
+                (ROOT / relative).read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+
     def test_current_agents_pass(self) -> None:
         names, failures = validate_fleet.validate_agents(ROOT)
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
@@ -61,22 +81,7 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_scribe_loaded_bundle_cannot_execute_or_route_docs_to_steward(self) -> None:
         self.assertEqual([], validate_fleet.validate_scribe_bundle(ROOT))
-        bundle_paths = (
-            Path("agents/scribe.md"),
-            Path("skills/runbook/SKILL.md"),
-            Path("skills/postmortem/SKILL.md"),
-            Path("skills/operational-learning/SKILL.md"),
-            Path("skills/service-onboarding/SKILL.md"),
-            Path("skills/incident-command/SKILL.md"),
-            Path("skills/runbook/assets/runbook-template.md"),
-            Path("skills/postmortem/assets/postmortem-template.md"),
-        )
-
-        def copy_bundle(root: Path) -> None:
-            for relative in bundle_paths:
-                target = root / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text((ROOT / relative).read_text(encoding="utf-8"), encoding="utf-8")
+        bundle_paths = self.SCRIBE_LOADED_PATHS
 
         execution_directives = (
             (Path("skills/runbook/SKILL.md"), "Run game days / drills under realistic conditions."),
@@ -92,7 +97,7 @@ class FleetValidatorTests(unittest.TestCase):
         for relative, directive in execution_directives:
             with self.subTest(path=relative, directive=directive), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                copy_bundle(root)
+                self._copy_scribe_bundle(root)
                 target = root / relative
                 source = target.read_text(encoding="utf-8")
                 target.write_text(f"{source}\n{directive}\n", encoding="utf-8")
@@ -101,7 +106,7 @@ class FleetValidatorTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            copy_bundle(root)
+            self._copy_scribe_bundle(root)
             for relative in bundle_paths:
                 target = root / relative
                 text = target.read_text(encoding="utf-8")
@@ -131,6 +136,79 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("timeline and evidence to the `sre-steward` agent", rendered)
         self.assertIn("last_verified: null", rendered)
         self.assertIn("typed `sre-steward` agent captures", rendered)
+
+    def test_scribe_bundle_allows_explicit_non_execution_language(self) -> None:
+        safe_statements = (
+            (Path("agents/scribe.md"), "Do not execute commands."),
+            (Path("skills/runbook/SKILL.md"), "Never run commands."),
+            (
+                Path("skills/runbook/assets/runbook-template.md"),
+                "Only a human should execute commands.",
+            ),
+            (Path("skills/postmortem/SKILL.md"), "`scribe` must not run commands."),
+            (
+                Path("skills/postmortem/assets/postmortem-template.md"),
+                "Do not ask `scribe` to run commands.",
+            ),
+            (
+                Path("skills/postmortem/assets/postmortem-template.md"),
+                "Do not ask the `scribe` to run commands.",
+            ),
+        )
+        for relative, statement in safe_statements:
+            with self.subTest(path=relative, statement=statement), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._copy_scribe_bundle(root)
+                target = root / relative
+                target.write_text(
+                    f"{target.read_text(encoding='utf-8')}\n{statement}\n",
+                    encoding="utf-8",
+                )
+                failures = validate_fleet.validate_scribe_bundle(root)
+            self.assertNotIn("scribe execution directive", "\n".join(failures))
+
+    def test_every_scribe_loaded_source_rejects_positive_execution_language(self) -> None:
+        self.assertEqual(
+            self.SCRIBE_LOADED_PATHS,
+            validate_fleet.SCRIBE_LOADED_SOURCES,
+        )
+        directives = (
+            "The documentation agent must execute commands against the target.",
+            "Scribe must not browse, but scribe should execute commands.",
+            "Scribe must not browse, but should execute commands.",
+            'The instruction is: "Scribe should execute commands."',
+        )
+        for relative in self.SCRIBE_LOADED_PATHS:
+            for directive in directives:
+                with self.subTest(path=relative, directive=directive), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    self._copy_scribe_bundle(root)
+                    target = root / relative
+                    target.write_text(
+                        f"{target.read_text(encoding='utf-8')}\n{directive}\n",
+                        encoding="utf-8",
+                    )
+                    failures = validate_fleet.validate_scribe_bundle(root)
+                self.assertIn("scribe execution directive", "\n".join(failures))
+
+    def test_scribe_returns_runbook_link_to_observability_owner(self) -> None:
+        _, body, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/scribe.md")
+        self.assertNotIn("and link it from the alert", body)
+        self.assertIn(
+            "Return the exact runbook path or URL and alert name to `sre-steward`",
+            body,
+        )
+
+    def test_runbook_template_does_not_upgrade_last_verified_without_evidence(self) -> None:
+        template = (ROOT / "skills/runbook/assets/runbook-template.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("bump `last_verified`", template)
+        self.assertIn(
+            "Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version",
+            template,
+        )
+        self.assertIn("otherwise leave it unchanged", template)
 
     def test_inert_plugin_hook_and_missing_tools_fail(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

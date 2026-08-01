@@ -67,7 +67,8 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 - [ ] Create a learning disposition for every missing, contradicted, or newly useful step.
 - [ ] **Update this runbook** from supplied evidence when a disposition requires it.
 - [ ] Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version,
-      target, actor, timestamp, and outcome; otherwise leave it `null`/unchanged and record the gap.
+      target, actor, timestamp, and outcome; otherwise leave it unchanged (including `null`) and
+      record the gap.
 - [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets.
 - [ ] If this was an incident, after recovery, hand the timeline and evidence to the `scribe` agent for retrospective documentation.
 
