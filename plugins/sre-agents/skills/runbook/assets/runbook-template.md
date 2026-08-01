@@ -57,7 +57,9 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 - Initial / update / resolved message owner: <role>
 
 ## Post-Incident
-- [ ] **Update this runbook** with anything learned, and bump `last_verified`.
+- [ ] **Update this runbook** with anything learned from supplied evidence.
+- [ ] Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version,
+      target, actor, timestamp, and outcome; otherwise leave it unchanged and record the gap.
 - [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets.
 - [ ] If this was an incident, after recovery, hand the timeline and evidence to the `scribe` agent for retrospective documentation.
 

@@ -46,22 +46,42 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__search_language",
     "mcp__plugin_githits_githits__search_status",
 }
-SCRIBE_RUNBOOK_EXECUTION_DIRECTIVES = (
-    (
-        "imperative execution language",
-        re.compile(
-            r"(?i)\b(?:run|execute|invoke|rehearse|test|try|validate|verify|perform|conduct)\s+"
-            r"(?:(?:the|these|those|a|an|any|each|all|supplied|read-only|live|realistic)\s+)*"
-            r"(?:commands?|procedures?|runbooks?|game[\s/-]?days?|drills?|syntax|outputs?|targets?|ones?)\b"
-        ),
-    ),
-    (
-        "documentation-agent execution language",
-        re.compile(
-            r"(?i)\b(?:scribe|you|this agent|the documentation agent)\b"
-            r"[^\n.!?]{0,100}\b(?:run|execute|invoke|rehearse|test|try|validate|verify|perform|conduct)\b"
-        ),
-    ),
+SCRIBE_EXECUTION_VERBS = (
+    r"(?:run|execute|invoke|rehearse|test|try|validate|verify|perform|conduct)"
+)
+SCRIBE_EXECUTION_OBJECTS = (
+    r"(?:commands?|procedures?|runbooks?|game[\s/-]?days?|drills?|syntax|outputs?|targets?|ones?)"
+)
+SCRIBE_IMPERATIVE_EXECUTION_RE = re.compile(
+    rf"(?i)^(?:please\s+)?(?P<verb>{SCRIBE_EXECUTION_VERBS})\s+"
+    rf"(?:(?:the|these|those|a|an|any|each|all|supplied|read-only|live|realistic)\s+)*"
+    rf"(?P<object>{SCRIBE_EXECUTION_OBJECTS})\b"
+)
+SCRIBE_ACTOR_EXECUTION_RE = re.compile(
+    rf"(?i)\b(?P<actor>scribe|you|this agent|the documentation agent)\b"
+    rf"(?=(?P<context>[^\n.!?;]{{0,120}}?)\b(?P<verb>{SCRIBE_EXECUTION_VERBS})\b)"
+)
+SCRIBE_NEGATED_ACTOR_RE = re.compile(
+    r"(?i)\b(?:not|never|cannot|can't|mustn't|shouldn't|won't|doesn't|isn't|aren't|"
+    r"forbidden|prohibited|disallowed|unable)\b"
+)
+SCRIBE_NEGATED_REQUEST_RE = re.compile(
+    r"(?i)\b(?:do\s+not|don't|never)\s+"
+    r"(?:ask|tell|allow|permit|require|instruct|let)(?:\s+(?:the|this))?\s*$"
+)
+SCRIBE_POLARITY_RESET_RE = re.compile(r"(?i)\b(?:but|however|instead)\b")
+SCRIBE_FENCED_CODE_RE = re.compile(r"(?s)(?:```|~~~).*?(?:```|~~~)")
+SCRIBE_PRESSURE_TABLE_ROW_RE = re.compile(
+    r'(?im)^\|\s*"[^"\n]*"\s*\|\s*(?:do\s+not|never|stop\b)[^|\n]*\|\s*$'
+)
+SCRIBE_CLAUSE_SPLIT_RE = re.compile(r"(?:[.!?;]\s+|\n+)")
+SCRIBE_MARKDOWN_LEAD_RE = re.compile(r"^\s*(?:(?:[-+*>#]+|\d+[.)])\s*)+")
+SCRIBE_LOADED_SOURCES = (
+    Path("agents/scribe.md"),
+    Path("skills/runbook/SKILL.md"),
+    Path("skills/runbook/assets/runbook-template.md"),
+    Path("skills/postmortem/SKILL.md"),
+    Path("skills/postmortem/assets/postmortem-template.md"),
 )
 EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
@@ -209,6 +229,48 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
     return names, failures
 
 
+def _scribe_instruction_clauses(text: str) -> list[str]:
+    """Return prose clauses while excluding code and quoted pressure examples."""
+
+    prose = SCRIBE_FENCED_CODE_RE.sub(" ", text)
+    prose = SCRIBE_PRESSURE_TABLE_ROW_RE.sub(" ", prose).replace("`", "")
+    clauses: list[str] = []
+    for raw_clause in SCRIBE_CLAUSE_SPLIT_RE.split(prose):
+        clause = " ".join(raw_clause.split())
+        clause = SCRIBE_MARKDOWN_LEAD_RE.sub("", clause).lstrip("| ").strip()
+        if clause:
+            clauses.append(clause)
+    return clauses
+
+
+def _find_scribe_execution_directive(text: str) -> tuple[str, str] | None:
+    """Find affirmative execution language aimed at the documentation lane.
+
+    This is a bounded structural guard, not a semantic classifier. Bare imperatives in trusted
+    instruction prose are treated as addressed to the loading agent. Explicit scribe-agent clauses
+    are allowed only when their execution verb is negated or when a negated request governs the
+    actor, such as "Do not ask scribe to run commands."
+    """
+
+    for clause in _scribe_instruction_clauses(text):
+        for actor_match in SCRIBE_ACTOR_EXECUTION_RE.finditer(clause):
+            context = actor_match.group("context")
+            governed_prefix = clause[: actor_match.start()]
+            polarity_context = SCRIBE_POLARITY_RESET_RE.split(context)[-1]
+            request_is_negated = (
+                not SCRIBE_POLARITY_RESET_RE.search(context)
+                and SCRIBE_NEGATED_REQUEST_RE.search(governed_prefix) is not None
+            )
+            if not SCRIBE_NEGATED_ACTOR_RE.search(polarity_context) and not request_is_negated:
+                excerpt = clause[actor_match.start() : actor_match.end("verb")]
+                return "documentation-agent execution language", excerpt
+
+        imperative_match = SCRIBE_IMPERATIVE_EXECUTION_RE.search(clause)
+        if imperative_match is not None:
+            return "imperative execution language", imperative_match.group(0)
+    return None
+
+
 def validate_scribe_bundle(root: Path) -> list[str]:
     """Guard known scribe bundle boundaries; outer tool isolation remains load-bearing.
 
@@ -217,6 +279,12 @@ def validate_scribe_bundle(root: Path) -> list[str]:
     """
 
     contracts = {
+        Path("agents/scribe.md"): {
+            "required": (
+                "Return the exact runbook path or URL and alert name to `sre-steward`",
+            ),
+            "forbidden": ("and link it from the alert",),
+        },
         Path("skills/runbook/SKILL.md"): {
             "required": (
                 "A named human or service owner runs game days\n"
@@ -232,14 +300,30 @@ def validate_scribe_bundle(root: Path) -> list[str]:
         Path("skills/runbook/assets/runbook-template.md"): {
             "required": (
                 "hand the timeline and evidence to the `scribe` agent for retrospective documentation",
+                "Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version",
+                "otherwise leave it unchanged",
             ),
             "forbidden": (
                 "hand the timeline and evidence to the `sre-steward` agent for retrospective documentation",
+                "bump `last_verified`",
             ),
+        },
+        Path("skills/postmortem/assets/postmortem-template.md"): {
+            "required": ("## Verification gaps",),
+            "forbidden": (),
         },
     }
     failures: list[str] = []
-    for relative, contract in contracts.items():
+    loaded_sources = set(SCRIBE_LOADED_SOURCES)
+    contract_sources = set(contracts)
+    if loaded_sources != contract_sources:
+        failures.append(
+            "scribe bundle source roster mismatch: "
+            f"missing contracts={sorted(loaded_sources - contract_sources)}; "
+            f"unexpected contracts={sorted(contract_sources - loaded_sources)}"
+        )
+    for relative in SCRIBE_LOADED_SOURCES:
+        contract = contracts.get(relative, {"required": (), "forbidden": ()})
         path = root / relative
         try:
             text = path.read_text(encoding="utf-8")
@@ -252,13 +336,12 @@ def validate_scribe_bundle(root: Path) -> list[str]:
         for forbidden in contract["forbidden"]:
             if forbidden in text:
                 failures.append(f"{path}: stale scribe bundle contract: {forbidden!r}")
-        if relative == Path("skills/runbook/SKILL.md"):
-            for label, pattern in SCRIBE_RUNBOOK_EXECUTION_DIRECTIVES:
-                match = pattern.search(text)
-                if match:
-                    failures.append(
-                        f"{path}: scribe execution directive ({label}): {match.group(0)!r}"
-                    )
+        directive = _find_scribe_execution_directive(text)
+        if directive is not None:
+            label, excerpt = directive
+            failures.append(
+                f"{path}: scribe execution directive ({label}): {excerpt!r}"
+            )
     return failures
 
 

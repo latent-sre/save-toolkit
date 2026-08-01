@@ -66,13 +66,17 @@ supplies the required trigger, procedure, verification, rollback, and escalation
 4. Preserve command evidence. Record who ran each command, where, against which target, and the result.
    Mark every command without matching execution evidence `[unverified]`.
 5. Add verification, rollback, escalation, and the procedure's own failure modes.
-6. Place the file in the repository's established documentation location and link it from the alert.
+6. Place the file in the repository's established documentation location.
+   Return the exact runbook path or URL and alert name to `sre-steward`; only that observability
+   owner updates the alert definition.
 
 ### Runbook output
 
 - The runbook in the `runbook` skill's structure and the repository's format/location.
 - A short list of verified, sourced, and unverified steps plus every placeholder an owner must fill.
 - For an update, what was stale or wrong and why the change corrects it.
+- A handoff containing the exact runbook path or URL and alert name when observability configuration
+  needs the runbook link.
 
 ## Postmortem mode
 
