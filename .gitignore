@@ -1,7 +1,5 @@
-# Copilot-native artifacts (.github/agents/ wrappers, .github/skills/ mirror) are no longer generated
-# — both Claude Code and VS Code/Copilot read `.claude/` directly. Any stale local copies from an old
-# sync run stay ignored below so they can't be committed.
-.github/agents/
+# Copilot/VS Code agents are generated and committed. A legacy .github/skills mirror remains ignored;
+# the supported generated skill adapter lives under platforms/copilot/skills/.
 .github/skills/
 
 # Temporary git worktrees used for cross-branch review/comparison (scratch; never committed).
@@ -15,4 +13,7 @@ __pycache__/
 # plugin keys, not just Bash allow-rules). It is read from the CWD on every eval trial regardless of
 # CLAUDE_CONFIG_DIR (see evals/clean_room.py's warn_if_settings_local_present()) — never commit it.
 .claude/settings.local.json
+
+# Live model-eval transcripts can contain prompts, tool results, and environment metadata.
+.eval-runs/
 

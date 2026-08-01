@@ -1,0 +1,25 @@
+# Starter cf v8 manifest; adapt only after independent target confirmation.
+# Keep secrets out: use service bindings / a credential service, never plaintext env values.
+applications:
+  - name: oncall-tool
+    instances: 3                     # >1 so one bad instance does not remove all capacity
+    memory: 512M
+    disk_quota: 1G
+    health-check-type: http
+    health-check-http-endpoint: /healthz
+    health-check-invocation-timeout: 5
+    # Static SPA bundles follow the frontend build output contract and require a fallback route.
+    buildpacks:
+      - python_buildpack
+    routes:
+      - route: oncall-tool.apps.example.internal
+    env:
+      LOG_LEVEL: info
+      APP_ENV: production
+    services:
+      - oncall-db
+      - oncall-secrets
+# Blue-green uses a stable live name: push `oncall-tool-green` beside `oncall-tool`, test, map prod,
+# unmap the stable app, soak, then rotate `oncall-tool-green` to `oncall-tool` after the soak.
+# Production execution requires current human release-owner approval evidence for the exact
+# target, manifest diff, commands, verification, and rollback.

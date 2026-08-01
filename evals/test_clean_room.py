@@ -100,16 +100,39 @@ def test_api_key_auth_bypasses_the_credentials_file_requirement() -> None:
         cfg.mkdir()  # exists, but no credentials -- would normally raise AuthUnavailable
         os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
         os.environ["ANTHROPIC_API_KEY"] = "sk-test-not-a-real-key"
+        os.environ["GITHUB_TOKEN"] = "must-not-reach-model-tools"
         try:
             with clean_room.clean_env() as env:
                 room = Path(env["CLAUDE_CONFIG_DIR"])
                 check(room.is_dir(), "clean_env yields a temp dir even with no credentials file")
                 check(list(room.iterdir()) == [], "the temp dir is empty -- no credentials to copy")
+                check(env.get("ANTHROPIC_API_KEY") == "sk-test-not-a-real-key",
+                      "the selected Claude authentication variable is retained")
+                check("GITHUB_TOKEN" not in env, "unrelated host secrets are scrubbed from the child env")
+                check(bool(env.get("PATH")), "the executable PATH is retained")
         except clean_room.AuthUnavailable:
             check(False, "an API-key operator must NOT be refused for lacking a credentials file")
         finally:
             del os.environ["CLAUDE_CONFIG_DIR"]
             del os.environ["ANTHROPIC_API_KEY"]
+            del os.environ["GITHUB_TOKEN"]
+
+
+def test_neutral_workspace_is_empty_outside_the_repository_and_removed() -> None:
+    room = None
+    with clean_room.neutral_workspace() as workspace:
+        room = workspace
+        check(workspace.is_dir(), "neutral workspace exists during the trial")
+        check(sorted(path.name for path in workspace.iterdir()) == [".git"],
+              "neutral workspace contains only its git-root boundary")
+        check(not workspace.is_relative_to(Path.cwd()), "neutral workspace is outside the plugin repository")
+        import subprocess
+        top = subprocess.run(
+            ["git", "-C", str(workspace), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True, encoding="utf-8",
+        ).stdout.strip()
+        check(Path(top).resolve() == workspace.resolve(), "neutral workspace is its own git root")
+    check(room is not None and not room.exists(), "neutral workspace is removed after the trial")
 
 
 def test_is_auth_failure_recognises_a_real_not_logged_in_trace() -> None:
@@ -163,12 +186,20 @@ def test_run_evals_aborts_on_auth_failure_instead_of_grading_the_error_string() 
     fake = subprocess.CompletedProcess(
         args=[], returncode=1, stdout="Not logged in · Please run /login", stderr="",
     )
+    scenario = {"mode": "direct", "target": {"kind": "skill", "name": "root-cause"}, "prompt": "hi"}
     with mock.patch.object(run_evals.subprocess, "run", return_value=fake) as m:
         try:
-            run_evals.run_agent("hi", "sde-ladder", env={"CLAUDE_CONFIG_DIR": "/tmp/room"})
+            run_evals.run_agent(
+                scenario, env={"CLAUDE_CONFIG_DIR": "/tmp/room"}, cwd=Path.cwd(),
+                timeout=10, model=None, claude_bin="claude",
+            )
             check(False, "auth failure must raise, NOT return a string for the graders to score")
-        except clean_room.AuthUnavailable:
-            check(True, "run_agent raises AuthUnavailable instead of returning an error string")
+        except run_evals.InconclusiveTrial as exc:
+            check(True, "run_agent raises an inconclusive trial instead of returning an auth error string")
+            check(exc.returncode == 1 and bool(exc.raw_trace),
+                  "auth inconclusive retains return code and raw trace")
+            check(exc.duration_seconds is not None and bool(exc.command),
+                  "auth inconclusive retains duration and exact argv")
     kwargs = m.call_args.kwargs
     check((kwargs.get("env") or {}).get("CLAUDE_CONFIG_DIR") == "/tmp/room",
           "run_agent passes the clean env to subprocess.run")
@@ -187,9 +218,13 @@ def test_run_evals_raises_runner_failed_on_a_non_auth_nonzero_exit() -> None:
     fake = subprocess.CompletedProcess(
         args=[], returncode=1, stdout="", stderr="upstream 529: overloaded, try again later",
     )
+    scenario = {"mode": "direct", "target": {"kind": "skill", "name": "root-cause"}, "prompt": "hi"}
     with mock.patch.object(run_evals.subprocess, "run", return_value=fake):
         try:
-            result = run_evals.run_agent("hi", "sde-ladder", env={"CLAUDE_CONFIG_DIR": "/tmp/room"})
+            result = run_evals.run_agent(
+                scenario, env={"CLAUDE_CONFIG_DIR": "/tmp/room"}, cwd=Path.cwd(),
+                timeout=10, model=None, claude_bin="claude",
+            )
             check(False, f"non-auth runner failure must raise RunnerFailed, not return {result!r}")
         except clean_room.AuthUnavailable:
             check(False, "a non-auth failure must NOT be misclassified as AuthUnavailable")
@@ -203,6 +238,7 @@ def main() -> int:
         test_clean_env_is_removed_even_when_the_body_raises,
         test_missing_credentials_raises_instead_of_running,
         test_api_key_auth_bypasses_the_credentials_file_requirement,
+        test_neutral_workspace_is_empty_outside_the_repository_and_removed,
         test_is_auth_failure_recognises_a_real_not_logged_in_trace,
         test_is_auth_failure_does_not_fire_on_a_healthy_trace,
         test_is_auth_failure_is_gated_on_exit_code_not_just_text,

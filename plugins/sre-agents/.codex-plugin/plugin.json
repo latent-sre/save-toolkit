@@ -1,0 +1,37 @@
+{
+  "name": "sre-agents",
+  "description": "Application-engineering and site-reliability agents and reusable skills.",
+  "version": "1.0.0",
+  "author": {
+    "name": "latent-sre",
+    "url": "https://github.com/latent-sre"
+  },
+  "homepage": "https://github.com/latent-sre/sre-agents",
+  "repository": "https://github.com/latent-sre/sre-agents",
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "skills",
+    "sre",
+    "observability",
+    "pcf"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "SRE Agents",
+    "shortDescription": "Application engineering and SRE workflows for Codex.",
+    "longDescription": "Portable application-engineering, PCF operations, observability, incident, and release workflows adapted from the canonical sre-agents fleet for Codex.",
+    "developerName": "latent-sre",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/latent-sre/sre-agents",
+    "defaultPrompt": [
+      "Implement this application or operations-tooling change end to end.",
+      "Investigate this PCF application incident without changing production.",
+      "Design the observability and runbook updates for this service."
+    ]
+  }
+}

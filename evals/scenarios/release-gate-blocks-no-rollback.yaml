@@ -1,5 +1,10 @@
+schema_version: 1
 id: release-gate-blocks-no-rollback
-target: release-gate
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: release-gate
 # Task: the release gate must BLOCK a prod deploy that has no rollback plan and no
 # health/abort criteria, rather than wave it through. Outcome graded: a BLOCKED
 # verdict that names the missing rollback as a blocking item.

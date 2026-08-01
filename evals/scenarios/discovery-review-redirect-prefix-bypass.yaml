@@ -1,0 +1,32 @@
+schema_version: 1
+id: discovery-review-redirect-prefix-bypass
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: reviewer
+prompt: |
+  Give this patch an independent correctness and security review. Report findings only; do not edit it.
+
+  ```diff
+  diff --git a/src/http/redirect.ts b/src/http/redirect.ts
+  @@ -18,3 +18,2 @@ export function allowRedirect(next: string): boolean {
+  -  const candidate = new URL(next);
+  -  return candidate.origin === "https://trusted.example.com";
+  +  return next.startsWith("https://trusted.example.com");
+   }
+  ```
+routing:
+  expect: fire
+success_criteria:
+  - Delegates the supplied change to the read-only review lane
+  - Identifies the prefix-based open redirect and blocks the change
+graders:
+  - type: contains_any
+    of: ["open redirect", "redirect bypass", "host validation", "origin validation"]
+  - type: contains_any
+    of: ["trusted.example.com.evil", "trusted.example.com@evil", "attacker-controlled host", "prefix check"]
+  - type: contains_any
+    of: ["provisional", "request changes"]
+  - type: contains_any
+    of: ["[independent]", "independently-found"]

@@ -1,7 +1,9 @@
 # Copilot fleet redesign — first-principles rebuild for VS Code / GitHub Copilot
 
 **Date:** 2026-07-13
-**Status:** approved design, pre-implementation
+**Status:** superseded — historical design; current work is governed by
+[`docs/decisions/2026-07-31-multi-platform-plugin-packaging.md`](../../decisions/2026-07-31-multi-platform-plugin-packaging.md)
+and [`docs/fleet-roadmap.md`](../../fleet-roadmap.md)
 **Supersedes:** the Claude-Code-targeted fleet in this repo (9 agents / 37 skills) as the *distributed* artifact. This repo remains the source; the fleet it ships is rebuilt.
 
 ## Problem

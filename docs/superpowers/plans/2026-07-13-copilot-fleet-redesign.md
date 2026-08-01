@@ -1,5 +1,10 @@
 # Copilot Fleet Redesign — Implementation Plan
 
+> **Status: superseded — historical implementation record.** Do not execute this checklist. Its
+> five-agent, Copilot-first layout was superseded first by the Claude adoption and then by the
+> accepted multi-platform plugin ADR. Current unfinished work lives only in
+> [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Rebuild this repo's fleet as a VS Code Copilot agent plugin — 5 agents / 26 skills — from first principles, fixing the audit's six Tier-2 bugs during the port and never porting them as-is.
@@ -1525,5 +1530,4 @@ to catch.
 - **When a probe or eval fails consistently, that is a finding, not a flake** — re-run twice (routing is probabilistic), then act on the design's stated fallback (pull content into the core / fix the boundary / take it to the owner). Do not paper over by hinting at file names in prompts.
 - **Descriptions are the fleet's routing surface.** Every description edit after Task 36 re-runs the affected cluster before merge (manually — never wire it into CI).
 - **Nothing is exempt by path.** If some helper ever seems to need a guard exemption, pin its content hash, not its path — a reviewer sits in a checkout of untrusted code.
-
 

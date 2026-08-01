@@ -34,10 +34,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
 
@@ -64,3 +64,20 @@ jobs:
       # Bash call sailed through unguarded. A Linux-only CI would never have seen it. Hence the matrix.
       - name: Gate A -- mechanical audit
         run: ${{ matrix.py }} scripts/gate_a.py
+
+  claude-plugin-contract:
+    # The repository validator enforces fleet-specific authority and projection rules. Claude's
+    # own strict validator independently checks manifest, component discovery, frontmatter, and
+    # hook schema. It is local/offline and needs no API key.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      # Pin the CLI so an upstream release cannot change the contract in the middle of a PR.
+      # Bump this together with an explicit plugin probe and recorded migration evidence.
+      - name: Install the Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@2.1.219
+
+      - name: Validate plugin manifest, frontmatter, and hooks
+        run: claude plugin validate . --strict

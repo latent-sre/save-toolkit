@@ -9,3 +9,11 @@
 *.yml  text eol=lf
 *.yaml text eol=lf
 *.json text eol=lf
+*.toml text eol=lf
+
+# Host projections are generated from agents/ and skills/. These attributes help review tools
+# collapse the copies without changing their runtime behavior.
+/.github/agents/** linguist-generated=true
+/.codex/agents/** linguist-generated=true
+/platforms/copilot/skills/** linguist-generated=true
+/plugins/sre-agents/skills/** linguist-generated=true

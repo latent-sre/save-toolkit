@@ -1,5 +1,10 @@
 # Eval Clean Room — Implementation Plan
 
+> **Status: implemented — historical implementation record.** The clean-room work landed in PR #52
+> and has since been extended by the current eval harness. Do not execute the unchecked steps in this
+> preserved plan. Current unfinished work lives only in
+> [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the behavioural eval harnesses measure the *fleet* rather than the operator's laptop, and make them abort loudly instead of converting their own breakage into fake findings.

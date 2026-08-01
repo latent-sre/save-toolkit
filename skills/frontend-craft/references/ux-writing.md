@@ -1,0 +1,15 @@
+# Interface copy — one vocabulary, actionable states
+
+Read when changing labels, buttons, headings, empty states, validation, toasts, or errors. Mechanics
+stay in `../SKILL.md` and `forms.md`; this reference owns wording.
+
+- Name concepts from the user's side, not the implementation: “Notifications,” not “Webhook
+  configuration.” Prefer specific plain language to cleverness.
+- Controls state the result: “Save changes,” “Delete 3 files,” or “Export CSV,” not “Submit” or “OK.”
+  Keep the same verb through the button, confirmation, and history entry.
+- Choose one term per concept across every view. Competing synonyms are navigation bugs.
+- Use active voice, sentence case, and one job per element. A placeholder demonstrates format; it
+  never replaces a persistent label.
+- Errors say what happened and the next safe step without exposing internals. Empty states name the
+  next action. Confirmations repeat the completed action and offer undo when it is real.
+- Avoid “we,” vague apologies, and generic “something went wrong” copy.

@@ -1,0 +1,21 @@
+schema_version: 1
+id: discovery-diagnose-before-fix
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: root-cause
+prompt: |
+  Our command-line tool exits with code 1 only on one Windows runner, and rerunning sometimes makes
+  it disappear. Diagnose this before proposing a code change. Explain how you would reproduce it,
+  separate evidence from hypotheses, and prove the cause.
+routing:
+  expect: fire
+success_criteria:
+  - Autonomously invokes the root-cause workflow
+  - Starts with reproduction and evidence before a fix
+graders:
+  - type: contains_any
+    of: ["reproduce", "reproduction", "minimal repro"]
+  - type: contains_any
+    of: ["hypothesis", "evidence", "verify", "observation"]

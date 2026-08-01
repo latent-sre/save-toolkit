@@ -1,0 +1,5 @@
+interface:
+  display_name: "Service Onboarding"
+  short_description: "Onboard a service onto the platform and the observability stack — or audit an existing one agains..."
+policy:
+  allow_implicit_invocation: false

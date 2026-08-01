@@ -4,8 +4,8 @@ Runs the guard exactly as the hook does: as a subprocess with the pending tool c
 JSON on stdin. A deny is a permissionDecision JSON on stdout with exit EXIT_DENY; an allow is
 empty stdout with exit EXIT_ALLOW. No network, no model, stdlib only.
 
-In this repo the guard is wired per-agent (frontmatter hooks on `sre` and `sre-steward`), but it
-still scopes itself on the payload's agent identity. Two consequences shape every test here:
+In this repo one plugin-level hook receives all Bash events; the guard scopes itself on the
+payload's exact agent identity. Two consequences shape every test here:
 
   * The guard no-ops unless the payload's `agent_type` names a guarded agent. A payload WITHOUT
     `agent_type` therefore exercises nothing at all — so `bash_call` supplies the sre agent by

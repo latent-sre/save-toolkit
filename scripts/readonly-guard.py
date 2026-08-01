@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """PreToolUse guard — enforce read-only agents at the command level, by ALLOWLIST.
 
-Wired in THIS repo per-agent: `sre` and `sre-steward` are project-scope agents whose frontmatter
-`hooks:` invoke scripts/readonly-guard-hook.sh (probed platform fact: frontmatter hooks FIRE for
-project-scope agents, and are silently ignored only for plugin-shipped ones). The guard still
-scopes ITSELF on the payload's agent identity as defense in depth: a copy registered session-wide
-must no-op for everything not in GUARDED_AGENTS.
+Wired in THIS repo at plugin scope: `hooks/hooks.json` receives every Bash `PreToolUse` event and
+this guard acts only when `agent_type` identifies `sre` or `sre-steward`. Claude Code silently
+ignores hooks embedded in plugin-shipped agent frontmatter, so the session hook is load-bearing.
+The guard scopes ITSELF on the payload's agent identity and no-ops for everything else.
 
 Why it cannot simply live on the agent, as it used to: a plugin-shipped agent's `hooks:` frontmatter
 is SILENTLY IGNORED ("For security reasons, `hooks`, `mcpServers`, and `permissionMode` are not
 supported for plugin-shipped agents" — code.claude.com/docs/en/plugins-reference). Probed on CLI
 2.1.200: a plugin agent's frontmatter hook never fired, while a byte-identical hook on a
-project-scope agent did. Leaving `hooks:` on the agent would read as armor and provide none, so
+project-scope agent did. Leaving `hooks:` on a plugin agent would read as armor and provide none, so
 validate_fleet.py now rejects that key outright.
 
 Nor can the `tools:` field do this job. A scoped grant like `tools: Bash(git diff:*)` LOOKS like it
@@ -359,7 +358,7 @@ def _tokenize(line: str) -> list[str]:
 def is_allowed(command: str, agent: str = "") -> bool:
     """True only if every segment of every line of `command` is a known read-only command.
 
-    `agent` is the BARE agent name (namespace already stripped); it gates the per-agent extras
+    `agent` is the BARE agent name (namespace already stripped); it gates agent-specific extras
     (sre-steward's config validators) and nothing else.
     """
     if not command.strip():
@@ -394,8 +393,8 @@ def main() -> None:
     if data.get("tool_name") != "Bash":
         _allow()
 
-    # In this repo the hook is wired per-agent (frontmatter), but the guard scopes itself anyway
-    # so a session-wide registration would also be safe. The main loop carries NO `agent_type`
+    # The plugin hook is session-wide, so scope here before inspecting the command. The main loop
+    # carries NO `agent_type`
     # key, so the user's own Bash exits here and is never inspected.
     agent = data.get("agent_type")
     if agent not in GUARDED_AGENTS:

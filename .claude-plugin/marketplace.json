@@ -1,0 +1,16 @@
+{
+  "name": "latent-sre",
+  "description": "Application-engineering and site-reliability agents and skills from latent-sre.",
+  "owner": {
+    "name": "latent-sre",
+    "url": "https://github.com/latent-sre"
+  },
+  "plugins": [
+    {
+      "name": "sre-agents",
+      "source": "./",
+      "version": "1.0.0",
+      "description": "Application-engineering and site-reliability agents and reusable skills."
+    }
+  ]
+}

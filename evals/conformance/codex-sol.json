@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "description": "Isolated Codex plugin conformance baselines. Every lane pins gpt-5.6-sol and proves that the installed plugin skill, not model recall, supplied the answer.",
+  "plugin": {
+    "marketplace": "latent-sre",
+    "plugin_id": "sre-agents@latent-sre",
+    "name": "sre-agents",
+    "version": "1.0.0"
+  },
+  "lanes": [
+    {
+      "id": "codex-sol-stack-profile-direct",
+      "kind": "skill-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "stack-profile",
+      "prompt": "Use $stack-profile. First read only the installed skill file for $stack-profile. Do not read any other file or invoke another skill. Return exactly one JSON object and no markdown with keys marker and canary. Set marker to SRE_CODEX_SOL_OK. Set canary to the exact token after the words profile canary colon in that skill.",
+      "expected": {
+        "marker": "SRE_CODEX_SOL_OK",
+        "canary": "sp_7c2e"
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-backend-api-reference",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "backend-craft",
+      "references": [
+        "references/api-design.md"
+      ],
+      "prompt": "Use $backend-craft. Read the API surface design reference named in that skill before answering. Return exactly one JSON object and no markdown with keys marker, long_running_status, cursor_fetch, and deprecation_requires_sunset. Set marker to SRE_API_REFERENCE_OK, long_running_status to 202, cursor_fetch to limit + 1, and deprecation_requires_sunset to true.",
+      "expected": {
+        "marker": "SRE_API_REFERENCE_OK",
+        "long_running_status": 202,
+        "cursor_fetch": "limit + 1",
+        "deprecation_requires_sunset": true
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-database-restore-reference",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "database-reliability",
+      "references": [
+        "references/restore-drill.md"
+      ],
+      "prompt": "Use $database-reliability. Read the restore drill reference named in that skill before answering. Return exactly one JSON object and no markdown with keys marker, default_target, timing_phases, and incomplete_scope_verdict. Set marker to SRE_RESTORE_REFERENCE_OK, default_target to scratch, timing_phases to the ordered array locate, restore, verify, and incomplete_scope_verdict to pass with findings.",
+      "expected": {
+        "marker": "SRE_RESTORE_REFERENCE_OK",
+        "default_target": "scratch",
+        "timing_phases": [
+          "locate",
+          "restore",
+          "verify"
+        ],
+        "incomplete_scope_verdict": "pass with findings"
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-frontend-a11y-ux-references",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "frontend-craft",
+      "references": [
+        "references/design-language.md",
+        "references/interaction-a11y.md",
+        "references/ux-writing.md"
+      ],
+      "prompt": "Use $frontend-craft. Read the design language, interaction accessibility, and interface copy references named in that skill, reading each file separately before answering. Return exactly one JSON object and no markdown with keys marker, themes, dialog_close_focus, async_status_role, placeholder_replaces_label, and voice. Set marker to SRE_FRONTEND_REFERENCES_OK, themes to the ordered array light, dark, system, dialog_close_focus to opener, async_status_role to status, placeholder_replaces_label to false, and voice to active.",
+      "expected": {
+        "marker": "SRE_FRONTEND_REFERENCES_OK",
+        "themes": [
+          "light",
+          "dark",
+          "system"
+        ],
+        "dialog_close_focus": "opener",
+        "async_status_role": "status",
+        "placeholder_replaces_label": false,
+        "voice": "active"
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-typescript-reference",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "craft",
+      "references": [
+        "references/typescript.md"
+      ],
+      "prompt": "Use $craft. Read the TypeScript reference named in that skill before answering. Return exactly one JSON object and no markdown with keys marker, unknown_boundary, independent_async, idempotency_key_lifetime, and destructive_optimistic. Set marker to SRE_TYPESCRIPT_REFERENCE_OK, unknown_boundary to schema or type guard, independent_async to Promise.all, idempotency_key_lifetime to once per logical action, and destructive_optimistic to false.",
+      "expected": {
+        "marker": "SRE_TYPESCRIPT_REFERENCE_OK",
+        "unknown_boundary": "schema or type guard",
+        "independent_async": "Promise.all",
+        "idempotency_key_lifetime": "once per logical action",
+        "destructive_optimistic": false
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-multi-component-reference",
+      "kind": "reference-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "ops-tooling",
+      "references": [
+        "references/multi-component.md"
+      ],
+      "prompt": "Use $ops-tooling. Read the multi-component builds reference named in that skill before answering. Return exactly one JSON object and no markdown with keys marker, first_slice, contract_owner_count, final_verification, and mockup_before_framework. Set marker to SRE_MULTI_COMPONENT_REFERENCE_OK, first_slice to walking skeleton, contract_owner_count to 1, final_verification to one real mission transaction, and mockup_before_framework to true.",
+      "expected": {
+        "marker": "SRE_MULTI_COMPONENT_REFERENCE_OK",
+        "first_slice": "walking skeleton",
+        "contract_owner_count": 1,
+        "final_verification": "one real mission transaction",
+        "mockup_before_framework": true
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-release-gate-missing-rollback",
+      "kind": "skill-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "release-gate",
+      "prompt": "Use $release-gate. First read only the installed skill file for $release-gate. Do not read any other file or invoke another skill. A candidate has an exact reviewed SHA and promoted artifact, version notes, safe migrations and flags, health and abort criteria, monitoring, and communications. No exact rollback steps or tested rollback evidence were supplied. Do not execute any operational action. Return exactly one JSON object and no markdown with keys marker, verdict, blocking_item, and authorizes_production. marker must be SRE_RELEASE_GATE_OK. verdict must be one of PASS or BLOCKED. blocking_item must be either rollback evidence or none. authorizes_production must be a boolean.",
+      "expected": {
+        "marker": "SRE_RELEASE_GATE_OK",
+        "verdict": "BLOCKED",
+        "blocking_item": "rollback evidence",
+        "authorizes_production": false
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-production-change-gate-unapproved",
+      "kind": "skill-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "production-change-gate",
+      "prompt": "Use $production-change-gate. First read only the installed skill file for $production-change-gate. Do not read any other file or invoke another skill. A reversible Tier 2 production scale command has an exact target, blast radius, verification, and inverse rollback, but no branch-protection evidence and no named human approval for the exact command or applying actor. Do not execute any production action. Return exactly one JSON object and no markdown with keys marker, verdict, missing, and agent_executes. marker must be SRE_PRODUCTION_GATE_OK. verdict must be APPROVED or BLOCKED. missing must be an ordered array selected from branch protection evidence and exact human approval, following checklist order. agent_executes must be a boolean.",
+      "expected": {
+        "marker": "SRE_PRODUCTION_GATE_OK",
+        "verdict": "BLOCKED",
+        "missing": [
+          "branch protection evidence",
+          "exact human approval"
+        ],
+        "agent_executes": false
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-pcf-deploy-requires-gates",
+      "kind": "skill-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "pcf-deploy",
+      "prompt": "Use $pcf-deploy. First read only the installed skill file for $pcf-deploy. Do not read any other file or invoke another skill. The user asks you to deploy an app to production now, but supplies neither recorded release-gate evidence nor production-change-gate approval. Do not execute a deployment or invent evidence. Return exactly one JSON object and no markdown with keys marker, canary, plan_status, executes, first_missing, and rollback_reverses_schema. marker must be SRE_PCF_DEPLOY_OK. Set canary to the exact token after the words deploy-plan canary colon in that skill. plan_status must be ready or blocked. executes and rollback_reverses_schema must be booleans. first_missing must be release and production-change gate evidence or none.",
+      "expected": {
+        "marker": "SRE_PCF_DEPLOY_OK",
+        "canary": "pd_4c91",
+        "plan_status": "blocked",
+        "executes": false,
+        "first_missing": "release and production-change gate evidence",
+        "rollback_reverses_schema": false
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-agent-security-trifecta",
+      "kind": "skill-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "agent-security",
+      "prompt": "Use $agent-security. First read only the installed skill file for $agent-security. Do not read any other file or invoke another skill. Assess an agent that reads a private repository, ingests attacker-controlled webhook text, and can fetch arbitrary external URLs. Its prompt says not to leak data, but no tool or network boundary enforces that sentence. Assess enforced structural containment; when only a prose warning exists, containment is none. Return exactly one JSON object and no markdown with keys marker, trifecta_legs, containment, verdict, and primary_fix. marker must be SRE_AGENT_SECURITY_OK. trifecta_legs must be an integer. containment must be structural, prose, or none. verdict must be safe or unsafe. primary_fix must be split local and external authority, better warning, or blanket human approval.",
+      "expected": {
+        "marker": "SRE_AGENT_SECURITY_OK",
+        "trifecta_legs": 3,
+        "containment": "none",
+        "verdict": "unsafe",
+        "primary_fix": "split local and external authority"
+      },
+      "timeout_seconds": 300,
+      "required": true
+    },
+    {
+      "id": "codex-sol-alerting-two-window",
+      "kind": "skill-direct",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "skill": "obs-alerting",
+      "prompt": "Use $obs-alerting. First read only the installed skill file for $obs-alerting. Do not read any other file, run an auxiliary script, or invoke another skill. For a 99.9 percent request SLO, the fast-burn pair measures 15.0x over one hour and 2.0x over five minutes. Determine only whether that pair pages now; do not infer total budget status. Return exactly one JSON object and no markdown with keys marker, page_now, reason, and budget_all_clear. marker must be SRE_ALERTING_OK. page_now and budget_all_clear must be booleans. reason must be both windows exceed threshold, short window below threshold, or long window below threshold.",
+      "expected": {
+        "marker": "SRE_ALERTING_OK",
+        "page_now": false,
+        "reason": "short window below threshold",
+        "budget_all_clear": false
+      },
+      "timeout_seconds": 300,
+      "required": true
+    }
+  ]
+}

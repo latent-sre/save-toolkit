@@ -1,0 +1,85 @@
+# Starter OpenAPI 3.1 for an ops API — copy and adapt. Embodies the backend contract starter rules:
+# problem+json errors, cursor pagination, bearer auth, idempotency key, health endpoint.
+# Validate/lint in CI (e.g. `redocly lint` or `spectral lint`) and generate the typed
+# client for the UI consumer contract from this file.
+openapi: 3.1.0
+info:
+  title: On-call Tool API
+  version: 1.0.0          # SemVer; breaking change -> major. Path-version at /v1 (expand->contract).
+servers:
+  - url: https://oncall.apps.example.internal/v1
+security:
+  - bearerAuth: []        # validated on EVERY request; authorize per-object in the handler.
+paths:
+  /healthz:
+    get:
+      summary: Liveness/readiness probe for PCF.
+      security: []        # health is unauthenticated.
+      responses: { "200": { description: OK } }
+  /incidents:
+    get:
+      summary: List incidents (cursor-paginated).
+      parameters:
+        - { name: cursor, in: query, schema: { type: string }, description: Opaque cursor from next_cursor. }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+        - { name: status, in: query, schema: { type: string, enum: [open, closed] }, description: Allowlisted filter. }
+      responses:
+        "200":
+          description: A page of incidents.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IncidentPage" }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      summary: Create an incident (idempotent via Idempotency-Key).
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IncidentCreate" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } } }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }   # OIDC/OAuth2 via corp SSO/UAA.
+  responses:
+    Problem:
+      description: RFC 9457 problem+json. `type`/codes are part of the contract.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    Problem:                # RFC 9457
+      type: object
+      properties:
+        type: { type: string, format: uri, description: Stable URI identifying the error class. }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors:             # your extension for field-level validation
+          type: array
+          items: { type: object, properties: { field: { type: string }, message: { type: string } } }
+      required: [type, title, status]
+    Incident:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [open, closed] }
+        title: { type: string }
+      required: [id, status, title]
+    IncidentCreate:
+      type: object
+      properties: { title: { type: string, minLength: 1 } }
+      required: [title]
+      additionalProperties: false   # reject unknown fields.
+    IncidentPage:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Incident" } }
+        next_cursor: { type: [string, "null"], description: "Pass back as ?cursor= for the next page." }
+      required: [data]

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Phase-2 5d gate: frontmatter, links, and direct bundle reachability.
+"""Check canonical skill/command frontmatter, links, and bundle reachability.
 
-This is intentionally a narrow, stdlib-only bridge to validator v2.  It checks
-the fleet skills and command bodies under .claude/; frontmatter, links, and
-bundle reachability.
+The authored plugin sources live at root-level skills/ and commands/. Generated
+host adapters are consequences and are checked separately by the adapter generator.
 """
 
 from __future__ import annotations
@@ -269,7 +268,7 @@ def _check_direct_bundle_links(skill_path: Path, body: str) -> list[str]:
 def check(root: Path = ROOT) -> list[str]:
     root = Path(root).resolve()
     failures: list[str] = []
-    skill_root = root / ".claude" / "skills"
+    skill_root = root / "skills"
     if skill_root.is_dir():
         for skill_path in sorted(skill_root.glob("*/SKILL.md")):
             try:
@@ -294,7 +293,7 @@ def check(root: Path = ROOT) -> list[str]:
                         )
                     except (OSError, UnicodeError) as exc:
                         failures.append(f"{reference.as_posix()}: cannot read UTF-8: {exc}")
-    command_root = root / ".claude" / "commands"
+    command_root = root / "commands"
     if command_root.is_dir():
         for command in sorted(command_root.glob("*.md")):
             try:
