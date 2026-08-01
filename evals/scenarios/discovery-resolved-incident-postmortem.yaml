@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-resolved-incident-postmortem
+mode: discovery
+split: held_out
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  INC-804 is resolved and its RCA packet is final. Turn the authoritative UTC timeline, impact
+  data, systemic cause, detection gap, response notes, and owned dated follow-ups into a blameless
+  repository postmortem. Preserve every evidence label and unresolved hypothesis.
+routing:
+  expect: fire
+success_criteria:
+  - Delegates resolved-incident documentation to scribe
+  - Produces the blameless evidence-bound postmortem outcome
+graders:
+  - type: contains_any
+    of: ["postmortem", "retrospective", "resolved incident"]
+  - type: contains_any
+    of: ["timeline", "impact", "root cause", "systemic cause"]
+  - type: contains_any
+    of: ["action item", "owner", "due date", "follow-up"]

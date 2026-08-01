@@ -75,9 +75,10 @@ installation plus direct skill/reference loading. The standalone agent runner pr
 py -3 evals/run_codex_agent_conformance.py --validate
 ```
 
-The agent runner freezes and installs all seven generated custom-agent TOMLs in the same isolated
+The agent runner freezes and installs all eight generated custom-agent TOMLs in the same isolated
 Codex home as the plugin, then runs one no-history delegation lane per agent plus behavior lanes for
-both trust-separated research roles and a supplied-diff authorization review by `reviewer`. The full
+both trust-separated research roles, a supplied-diff authorization review by `reviewer`, and the
+non-executing evidence boundary of `scribe`. The full
 plugin bundle and every custom-agent TOML must first match the trusted-main bytes; prompt or capability
 changes are staged and reviewed before a live agent baseline can exercise them. A lane passes only
 when

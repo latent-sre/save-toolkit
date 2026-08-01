@@ -18,6 +18,46 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
+    def test_scribe_is_a_non_executing_document_writer(self) -> None:
+        path = ROOT / "agents" / "scribe.md"
+        fields, body, _ = validate_fleet.adapters.parse_frontmatter(path)
+        self.assertEqual(
+            {"Read", "Grep", "Glob", "Edit", "Write", "Skill"},
+            validate_fleet._tool_bases(fields["tools"]),
+        )
+        self.assertIn("Do not execute anything", body)
+        self.assertIn("## Pick exactly one mode", body)
+
+    def test_sre_steward_no_longer_owns_operational_documentation(self) -> None:
+        fields, body, _ = validate_fleet.adapters.parse_frontmatter(
+            ROOT / "agents" / "sre-steward.md"
+        )
+        description = str(fields["description"]).lower()
+        self.assertIn("for runbooks or postmortems use sre-agents:scribe", description)
+        self.assertNotIn("operational documentation", description)
+        self.assertNotIn("## Documentation lane", body)
+        self.assertNotIn("- `runbook` —", body)
+        self.assertNotIn("- `postmortem` —", body)
+        self.assertNotIn("documentation output, filled", body)
+        self.assertIn("→ `scribe`", body)
+
+    def test_scribe_execute_egress_and_delegation_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            for source in (ROOT / "agents").glob("*.md"):
+                text = source.read_text(encoding="utf-8")
+                if source.name == "scribe.md":
+                    text = text.replace(
+                        "tools: Read, Grep, Glob, Edit, Write, Skill",
+                        "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(researcher)",
+                    )
+                (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            _, failures = validate_fleet.validate_agents(root)
+        rendered = "\n".join(failures)
+        self.assertIn("forbidden tool(s): Agent, Bash, WebSearch", rendered)
+        self.assertIn("delegation mismatch", rendered)
+
     def test_inert_plugin_hook_and_missing_tools_fail(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -51,7 +91,9 @@ class FleetValidatorTests(unittest.TestCase):
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "sde.md":
-                    text = text.replace("Agent(reviewer, researcher)", "Agent(does-not-exist)")
+                    text = text.replace(
+                        "Agent(reviewer, scribe, researcher)", "Agent(does-not-exist)"
+                    )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
         self.assertIn("does not exist", "\n".join(failures))
@@ -99,7 +141,9 @@ class FleetValidatorTests(unittest.TestCase):
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "sde.md":
-                    text = text.replace("Agent(reviewer, researcher)", "Agent(reviewer)")
+                    text = text.replace(
+                        "Agent(reviewer, scribe, researcher)", "Agent(reviewer)"
+                    )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
         self.assertIn("delegation mismatch", "\n".join(failures))

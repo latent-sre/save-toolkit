@@ -1,11 +1,11 @@
 ---
 name: runbook
 description: >-
-  Write or update an operational runbook or operating doc — how to check, restart, and recover a
-  service, written for the stressed 3am reader. Triggers: 'write a runbook', 'document this
-  procedure', 'how do we handle X at 3am'. Every slot is filled or marked 'n/a — why'; commands
-  carry evidence labels. Ownership map only—not a load: the `postmortem` skill owns post-incident
-  retrospective structure.
+  Apply the standard operational-runbook structure after the scribe agent selects runbook mode, or
+  when a user explicitly invokes this skill. Covers how to check, restart, recover, verify, roll
+  back, and escalate for one task or failure mode. Direct operational-document writing belongs to
+  scribe; post-incident retrospectives use postmortem. Triggers:
+  'runbook mode selected', 'apply the runbook structure', 'use the runbook template'.
 argument-hint: "[service or tool]"
 ---
 

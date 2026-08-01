@@ -183,7 +183,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
         )
         self.assertGreaterEqual(len(self.manifest["lanes"]), len(self.manifest["agents"]))
         self.assertEqual(
-            {"repository-investigator", "researcher", "reviewer"},
+            {"repository-investigator", "researcher", "reviewer", "scribe"},
             {
                 lane["agent"]
                 for lane in self.manifest["lanes"]
@@ -208,6 +208,21 @@ class CodexAgentConformanceTests(unittest.TestCase):
                 "delegated": False,
             },
             reviewer_behavior["expected"]["child_result"],
+        )
+        scribe_behavior = next(
+            lane
+            for lane in self.manifest["lanes"]
+            if lane["id"] == "codex-sol-scribe-unverified-command"
+        )
+        self.assertEqual("agent-behavior", scribe_behavior["kind"])
+        self.assertEqual(
+            {
+                "disposition": "document_unverified",
+                "command_evidence": "unverified",
+                "executed": False,
+                "delegated": False,
+            },
+            scribe_behavior["expected"]["child_result"],
         )
 
     def test_manifest_rejects_prompt_that_discloses_child_canary(self) -> None:

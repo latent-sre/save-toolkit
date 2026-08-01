@@ -13,10 +13,10 @@ from pathlib import Path
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 STALE = (
     # `researcher` and `prompt-engineer` remain canonical plugin agents.
-    # `observer` and `scribe` retired into `sre-steward`.
+    # `observer` retired into `sre-steward`; `scribe` is canonical again.
     "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
     "test-engineer", "sre-monitor", "runbook-author",
-    "observer", "scribe",
+    "observer",
     "incident-severity", "blameless-postmortem",
     "rollback-mitigation", "github-actions-ci", "wavefront-queries",
     "splunk-triage", "grafana-dashboards", "moogsoft-correlation",

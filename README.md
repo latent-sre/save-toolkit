@@ -1,13 +1,13 @@
 # SRE Agents
 
-SRE Agents is a multi-host plugin containing **7 agents and 26 skills** for application engineering
+SRE Agents is a multi-host plugin containing **8 agents and 26 skills** for application engineering
 and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
 sources directly. GitHub Copilot/VS Code and Codex receive committed, host-native projections made by
 one deterministic generator; generated files are never edited by hand.
 
 ## Layout
 
-- [`agents/`](agents) — the seven canonical Claude plugin agent definitions; `tools` carries authority.
+- [`agents/`](agents) — the eight canonical Claude plugin agent definitions; `tools` carries authority.
 - [`skills/`](skills) — the 26 canonical skills and their progressive-disclosure `references/`,
   `assets/`, and `scripts/` bundles.
 - [`commands/adr.md`](commands/adr.md) — the canonical Claude `/sre-agents:adr` scaffold.
@@ -30,15 +30,16 @@ use their native bare component names. The roster and enforcement model are in [
 ## Fleet inventory
 
 <!-- fleet-inventory:start -->
-### Agents (7)
+### Agents (8)
 
 | Agent | Lane | Routing |
 |---|---|---|
-| `sde` | Build, fix, refactor, and test code or operations tooling | Delegates review to `reviewer` and sanitized public lookups to `researcher` |
+| `sde` | Build, fix, refactor, and test code or operations tooling | Delegates review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `reviewer` | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `sde`; terminal |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
-| `sre` | Investigate active production or staging failures (guarded read-only Bash) | Delegates steady-state work to `sre-steward`, fact checks to `researcher` |
-| `sre-steward` | Steady state: observability as code + runbooks/postmortems (guarded Bash) | Hands active incidents to `sre`, automation to `sde`, lookups to `researcher` |
+| `sre` | Investigate active production or staging failures (guarded read-only Bash) | Delegates observability follow-up to `sre-steward`, operational docs to `scribe`, and fact checks to `researcher` |
+| `sre-steward` | Steady-state observability as code (guarded read-only Bash) | Hands docs to `scribe`, active incidents to `sre`, automation to `sde`, and lookups to `researcher` |
+| `scribe` | Write evidence-bound runbooks and resolved-incident postmortems | Local document writer with no shell, web, external MCP, or delegation authority |
 | `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
 | `prompt-engineer` | The fleet's own files: agents, skills, descriptions, evals | Hands helper code to `sde`, injection review to `reviewer` |
 
@@ -131,8 +132,9 @@ record. The five 2026-07-31 Codex/Sol snapshots are revoked as release evidence 
 runner exposed `auth.json` to model-controlled reads and retained parsed final responses. Their bytes
 remain for diagnosis, but there is no current Sol runtime baseline until the trusted-main broker
 workflow evaluates an exact reviewed SHA. The static manifests now cover 11 skill/reference lanes
-and ten custom-agent lanes, including both trust-separated refusals and reviewer authorization
-behavior. None of these lanes proves implicit routing or Claude-equivalent per-agent tool narrowing.
+and twelve custom-agent lanes, including both trust-separated refusals, reviewer authorization
+behavior, and `scribe`'s non-execution contract. None of these lanes proves implicit routing or
+Claude-equivalent per-agent tool narrowing.
 The brokered skill lane disables both Codex multi-agent implementations. The agent lane accepts only
 trusted-main plugin/agent prompt bytes, caps V1 and V2 at one live child with no V1 descendants, and
 shares a runtime rollout budget across root and child; post-response usage ceilings and the provider

@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-scribe-defers-observability
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  Design a checkout availability SLO, fast- and slow-burn alerts, and a Grafana dashboard that
+  drills from the SLO into latency and saturation. The alert should link a runbook later, but this
+  request is only for the observability definitions.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: sre-steward
+success_criteria:
+  - Keeps dashboards, alerts, and SLOs in the observability lane
+  - Delegates to sre-steward rather than authoring a runbook
+graders:
+  - type: contains_any
+    of: ["sre-steward", "observability", "SLO"]
+  - type: contains_any
+    of: ["burn", "alert", "dashboard"]

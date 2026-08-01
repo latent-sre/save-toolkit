@@ -29,33 +29,6 @@ history and archived source documents retain the implementation detail.
 
 ## Active
 
-### MERGE-001 — land the multi-platform migration through review
-
-**Status:** `active`
-
-**Outcome:** The canonical plugin, generated adapters, Sol conformance lanes, and protected-main
-canary reach `main` through one reviewable pull request without reviving the conflicting historical
-layout.
-
-**Source:** The accepted multi-platform packaging decision and the three-pass sister-lab import
-review.
-
-**Prerequisites:** A clean candidate branch with generated output current and local structural
-validation passing.
-
-**Acceptance:** A draft PR binds the full candidate SHA; Ubuntu, macOS, Windows, and strict Claude
-plugin checks pass; packaging/authority, eval/conformance, and canary/release changes receive
-independent review; conflicting PR #70 is closed as superseded with a link to the replacement.
-
-**Current evidence:** Draft PR #71 supersedes the now-closed PR #70. Its implementation head
-`9efc45e6e1ccfa17a7e01aa80c4acd9a1aaf0cd0` received an exact-SHA three-pass approval with no P0-P3
-findings and zero independently found P0/P1s. Hosted run 30682831998 passed Gate A on Ubuntu, macOS,
-and Windows plus the strict Claude plugin contract. The branch is not merged and no canary ran.
-
-**Next action:** Obtain human owner review and merge PR #71. Treat `9efc45e` as the reviewed
-implementation boundary; if executable, workflow, prompt, or authority bytes change, repeat the
-applicable exact-SHA review and hosted checks before merge.
-
 ### SAFE-001 — separate research trust zones and normalize evidence
 
 **Status:** `active`
@@ -74,7 +47,10 @@ tools; the external researcher has no local read/search tools; negative routing 
 debugging, security-audit, and implementation lanes; a versioned evidence schema rejects unknown or
 secret-bearing fields; deterministic tests and generated drift checks pass.
 
-**Current evidence:** Seven canonical roles now pass authority and generated-adapter checks; the
+**Current evidence:** PR #71 merged the reviewed multi-platform boundary to `main` at
+`46099aaec6c61a8d592af1eae7b89e7645706cbe`. The current candidate adds an eighth canonical role,
+`scribe`, with local documentation-write authority but no shell, web, external MCP, or delegation.
+The roles pass authority and generated-adapter checks; the
 evidence-envelope validator, JSON Schema, fleet doctor, and Codex/Sol result wrappers have mutation
 tests. A later independent review found the live runner's `auth.json` boundary unsafe and the
 generated reviewer self-disabling on inherited Codex capabilities. The candidate now requires the
@@ -84,12 +60,12 @@ without checkout before a credential-free trusted extractor materializes only bo
 plugin/agent blobs. Skill lanes disable delegation; agent lanes permit only trusted-main prompt bytes
 plus one live child under a shared rollout budget. The fleet also uses host-portable reviewer
 integrity language and adds a real reviewer authorization lane. The earlier Sol runtime results are
-revoked. The remediations now have an exact-SHA independent approval and hosted structural evidence
-on all three operating systems, but no fresh live model evidence.
+revoked. Those pre-`scribe` PR #71 remediations—not this candidate delta—have exact-SHA independent
+approval and hosted structural evidence on all three operating systems. The `scribe` delta requires
+its own exact-SHA review before merge, and no fresh live model evidence exists.
 
-**Next action:** Merge the reviewed candidate through PR #71. After the broker workflow reaches
-trusted `main`, wait for PROTECT-001 and distinct promotion authority; only then run it against an
-immutable reviewed canary SHA.
+**Next action:** Keep the brokered workflow on trusted `main`, wait for PROTECT-001 and distinct
+promotion authority, then run it against an immutable reviewed canary SHA.
 
 ## Active runtime work
 
@@ -102,8 +78,8 @@ model evidence independently; an unavailable host reports `skip` or `inconclusiv
 
 **Source:** Multi-platform packaging ADR and the import review's unverified-runtime limits.
 
-**Prerequisites:** MERGE-001; a disposable installation root; authenticated host access only for
-the lane being measured. Codex model credentials must remain in the trusted broker, never in the
+**Prerequisites:** A disposable installation root; authenticated host access only for the lane being
+measured. Codex model credentials must remain in the trusted broker, never in the
 candidate runner's files, environment, or OS identity.
 
 **Acceptance:** Each supported host proves install, inventory/discovery, one authority boundary, and
@@ -116,8 +92,8 @@ a model or modifying host installations. This machine has Claude, Codex, and VS 
 CLI remains unavailable, and the doctor reports that lane as `skip` rather than `pass`. Local live
 Codex conformance is now rejected because the Windows/same-user credential boundary is insufficient.
 
-**Next action:** After MERGE-001, add disposable install/uninstall probes only for available hosts;
-keep Copilot and VS Code behavioral lanes explicitly incomplete until their drivers can prove them.
+**Next action:** Add disposable install/uninstall probes only for available hosts; keep Copilot and
+VS Code behavioral lanes explicitly incomplete until their drivers can prove them.
 
 ### VERIFY-001 — isolate executable verification
 
@@ -152,8 +128,8 @@ failure, foreign name collision, and container residue.
 independent approval; Gate A exercised its deterministic contracts on Ubuntu, macOS, and Windows.
 This is not evidence of a separate workflow consumer and does not reopen the roster decision.
 
-**Next action:** Merge the reviewed boundary through PR #71. Keep the verification-agent roster
-decision deferred until a real workflow demonstrates a separate consumer.
+**Next action:** Keep the verification-agent roster decision deferred until a real workflow
+demonstrates a separate consumer.
 
 ### EVAL-001 — expand risk-weighted Sol coverage
 
@@ -173,27 +149,29 @@ production-change, PCF, agent-security, and observability contracts. Every resul
 `pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
 historical Claude/Opus baselines.
 
-**Current evidence:** The static Sol manifests validate 11 skill/reference lanes and ten custom-agent
-lanes covering all seven roles, both trust-separated refusal behaviors, and reviewer detection of a
-supplied object-authorization regression without executing or delegating. The 2026-07-31 live results
+**Current evidence:** The static Sol manifests declare 11 skill/reference lanes and twelve intended
+custom-agent lanes covering all eight roles, both trust-separated refusal behaviors, reviewer
+detection of a supplied object-authorization regression, and `scribe`'s no-execution evidence
+boundary. Offline validation confirms their schemas, inventory, and pinned Sol model; it does not
+establish model behavior. The 2026-07-31 live results
 are retained but revoked: their same-user `auth.json` boundary and parsed-response reports were not
 safe release evidence. The new brokered workflow and negative credential tests pass offline; a fresh
 live result cannot exist until that workflow is trusted on `main`. The model job has no checkout post
 callback or candidate checkout/filter path: candidate acquisition is object-only, then a trusted
 credential-free extractor writes raw allowlisted blobs. Skill lanes have no collaboration tools, and
 agent lanes require trusted prompt bytes while bounding V1/V2 concurrency and shared rollout usage.
-Five static routing collision cases remain in the ordinary eval suite.
+Fourteen negative routing cases remain in the ordinary eval suite, including `scribe` collisions with
+live incident investigation, observability design, automation, and independent review.
 
 **Review evidence:** The trusted evaluator at implementation commit
 `9efc45e6e1ccfa17a7e01aa80c4acd9a1aaf0cd0` received exact-SHA three-pass approval with no P0-P3
 findings, and its structural contracts passed the hosted three-OS matrix. No live model run was
 dispatched.
 
-**Next action:** Merge the trusted evaluator through PR #71. Do **not** create a canary or dispatch
-the live run until PROTECT-001 and the distinct promotion-authority control are complete, as required
-by `CONTRIBUTING.md`. Only then evaluate the reviewed immutable canary and retain both reduced reports
-with the fresh-runner attestation. Keep implicit routing observational rather than turning it into a
-release gate.
+**Next action:** Do **not** create a canary or dispatch the live run until PROTECT-001 and the distinct
+promotion-authority control are complete, as required by `CONTRIBUTING.md`. Only then evaluate the
+reviewed immutable canary and retain both reduced reports with the fresh-runner attestation. Keep
+implicit routing observational rather than turning it into a release gate.
 
 ## Decision needed
 
@@ -228,7 +206,7 @@ without rebuilding or moving an unprotected ref.
 **Source:** The historical distribution plan, rewritten for the accepted multi-platform plugin
 architecture.
 
-**Prerequisites:** MERGE-001, PROTECT-001, HOST-001, and the exact-SHA canary on trusted `main`.
+**Prerequisites:** PROTECT-001, HOST-001, and the exact-SHA canary on trusted `main`.
 
 **Acceptance:** Version parity and changelog pass; `claude plugin tag --dry-run` validates the Claude
 manifest/marketplace pair; every host's publication mechanism is verified before choosing an

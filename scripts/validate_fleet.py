@@ -47,6 +47,7 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__search_status",
 }
 EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
+SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 EXPECTED_AUTHORITY = {
     "reviewer": {
         "required": {*LOCAL_READ_TOOLS, "Skill"},
@@ -74,6 +75,10 @@ EXPECTED_AUTHORITY = {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
+    "scribe": {
+        "required": SCRIBE_TOOLS,
+        "forbidden": {*(BUILTIN_TOOLS - SCRIBE_TOOLS), *EXTERNAL_EVIDENCE_TOOLS},
+    },
     "prompt-engineer": {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
@@ -83,9 +88,10 @@ EXPECTED_DELEGATION = {
     "reviewer": set(),
     "repository-investigator": set(),
     "researcher": set(),
-    "sde": {"reviewer", "researcher"},
-    "sre": {"sre-steward", "researcher"},
-    "sre-steward": {"researcher"},
+    "sde": {"reviewer", "scribe", "researcher"},
+    "sre": {"sre-steward", "scribe", "researcher"},
+    "sre-steward": {"scribe", "researcher"},
+    "scribe": set(),
     "prompt-engineer": {"researcher"},
 }
 
