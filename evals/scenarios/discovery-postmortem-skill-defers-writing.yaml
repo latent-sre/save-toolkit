@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-postmortem-skill-defers-writing
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: postmortem
+prompt: |
+  The incident is resolved and the RCA packet is complete. Write a blameless repository
+  retrospective with the authoritative UTC timeline, systemic causes, detection and response
+  analysis, and owned dated action items.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: scribe
+success_criteria:
+  - Routes ordinary postmortem writing through scribe rather than loading the structure inline
+  - Preserves the blameless evidence-bound postmortem outcome
+graders:
+  - type: contains_any
+    of: ["scribe", "postmortem", "retrospective"]
+  - type: contains_any
+    of: ["timeline", "systemic", "action item", "evidence"]

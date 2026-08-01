@@ -10,6 +10,7 @@ Each grader returns (passed: bool, detail: str).
 """
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 
@@ -50,12 +51,77 @@ def not_regex(response: str, pattern: str) -> tuple[bool, str]:
     return (m is None, f"/{pattern}/ {detail}")
 
 
+def json_artifact_statuses(
+    response: str,
+    artifacts: list[str],
+    allowed_statuses: list[str],
+    allowed_evidence: list[str],
+    evidence_key: str = "evidence",
+) -> tuple[bool, str]:
+    """Require one exact JSON object with bounded artifact statuses and evidence values."""
+
+    if not artifacts or any(
+        not isinstance(artifact, str) or not artifact.strip() for artifact in artifacts
+    ):
+        raise ValueError("json_artifact_statuses requires non-empty artifact field names")
+    if not allowed_statuses or any(
+        not isinstance(status, str) or not status.strip() for status in allowed_statuses
+    ):
+        raise ValueError("json_artifact_statuses requires non-empty allowed statuses")
+    if not allowed_evidence or any(
+        not isinstance(evidence, str) or not evidence.strip() for evidence in allowed_evidence
+    ):
+        raise ValueError("json_artifact_statuses requires non-empty allowed evidence values")
+    if not isinstance(evidence_key, str) or not evidence_key.strip():
+        raise ValueError("json_artifact_statuses requires a non-empty evidence key")
+
+    duplicate_keys: list[str] = []
+
+    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        parsed: dict[str, object] = {}
+        for key, value in pairs:
+            if key in parsed:
+                duplicate_keys.append(key)
+            parsed[key] = value
+        return parsed
+
+    try:
+        payload = json.loads(response, object_pairs_hook=reject_duplicate_keys)
+    except json.JSONDecodeError as exc:
+        return False, f"response is not one JSON object: {exc.msg}"
+    if duplicate_keys:
+        return False, f"duplicate JSON field(s): {sorted(set(duplicate_keys))}"
+    if not isinstance(payload, dict):
+        return False, "response JSON must be an object"
+
+    expected_fields = set(artifacts) | {evidence_key}
+    actual_fields = set(payload)
+    if actual_fields != expected_fields:
+        return False, (
+            f"JSON fields mismatch: missing={sorted(expected_fields - actual_fields)}, "
+            f"extra={sorted(actual_fields - expected_fields)}"
+        )
+    allowed = set(allowed_statuses)
+    invalid_statuses = {
+        artifact: payload[artifact]
+        for artifact in artifacts
+        if not isinstance(payload[artifact], str) or payload[artifact] not in allowed
+    }
+    if invalid_statuses:
+        return False, f"invalid artifact statuses: {invalid_statuses}"
+    evidence = payload[evidence_key]
+    if not isinstance(evidence, str) or evidence not in set(allowed_evidence):
+        return False, f"invalid {evidence_key} value: {evidence!r}"
+    return True, "artifact statuses and evidence match the JSON contract"
+
+
 REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "contains_all": contains_all,
     "contains_any": contains_any,
     "not_contains": not_contains,
     "regex": regex,
     "not_regex": not_regex,
+    "json_artifact_statuses": json_artifact_statuses,
 }
 
 

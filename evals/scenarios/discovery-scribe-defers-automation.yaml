@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-scribe-defers-automation
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  Replace the six manual recovery steps in our existing runbook with an idempotent CLI command,
+  add dry-run support and regression tests, and run the relevant suite before handing back the diff.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: sde
+success_criteria:
+  - Keeps implementation and test execution out of the documentation lane
+  - Delegates the automation work to sde
+graders:
+  - type: contains_any
+    of: ["sde", "implementation", "automation", "builder"]
+  - type: contains_any
+    of: ["idempotent", "dry-run", "test", "regression"]

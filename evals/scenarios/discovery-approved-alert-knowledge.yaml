@@ -1,0 +1,28 @@
+schema_version: 1
+id: discovery-approved-alert-knowledge
+mode: discovery
+split: held_out
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  The PaymentsLatencyBurn alert design has already been reviewed and approved. From the supplied
+  immutable alert definition and approval record, add its operations-KB alert card, link it from the
+  payments service card, and record whether its existing runbook is updated, linked, duplicate, or
+  blocked. This is documentation closeout, not alert design and not an active incident. No target
+  checkout, changed paths, or artifact digests are attached to this request. Return exactly one
+  compact JSON object with no markdown and keys alert_card, service_card, runbook, and evidence. Each
+  artifact value is its disposition status; evidence is either no_target_checkout or
+  no_reviewable_diff.
+routing:
+  expect: fire
+success_criteria:
+  - Routes approved alert knowledge closeout to scribe
+  - Returns explicit evidence-bound alert, service, and runbook statuses
+  - Uses only proposed or blocked when no target checkout and reviewable diff are available
+graders:
+  - type: json_artifact_statuses
+    artifacts: ["alert_card", "service_card", "runbook"]
+    allowed_statuses: ["proposed", "blocked"]
+    allowed_evidence: ["no_target_checkout", "no_reviewable_diff"]
+    evidence_key: "evidence"

@@ -1,14 +1,14 @@
 # SRE Agents
 
-SRE Agents is a multi-host plugin containing **7 agents and 26 skills** for application engineering
+SRE Agents is a multi-host plugin containing **8 agents and 27 skills** for application engineering
 and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
 sources directly. GitHub Copilot/VS Code and Codex receive committed, host-native projections made by
 one deterministic generator; generated files are never edited by hand.
 
 ## Layout
 
-- [`agents/`](agents) — the seven canonical Claude plugin agent definitions; `tools` carries authority.
-- [`skills/`](skills) — the 26 canonical skills and their progressive-disclosure `references/`,
+- [`agents/`](agents) — the eight canonical Claude plugin agent definitions; `tools` carries authority.
+- [`skills/`](skills) — the 27 canonical skills and their progressive-disclosure `references/`,
   `assets/`, and `scripts/` bundles.
 - [`commands/adr.md`](commands/adr.md) — the canonical Claude `/sre-agents:adr` scaffold.
 - [`.claude-plugin/`](.claude-plugin) and [`hooks/`](hooks) — Claude manifest/marketplace plus the
@@ -23,6 +23,10 @@ one deterministic generator; generated files are never edited by hand.
 - [`schemas/evidence-envelope-v1.schema.json`](schemas/evidence-envelope-v1.schema.json) — the
   portable runtime-evidence contract; the executable secret-field checks live in
   [`scripts/evidence_envelope.py`](scripts/evidence_envelope.py).
+- [`skills/operational-learning/assets/knowledge-update-v1.schema.json`](skills/operational-learning/assets/knowledge-update-v1.schema.json)
+  — the portable operational-learning contract; cross-record, lifecycle, prepared-file digest, and
+  secret checks live in its bundled
+  [`knowledge_update.py`](skills/operational-learning/scripts/knowledge_update.py).
 
 Routing is native. Claude plugin components are namespaced as `sre-agents:<name>`; generated hosts
 use their native bare component names. The roster and enforcement model are in [AGENTS.md](AGENTS.md).
@@ -30,19 +34,20 @@ use their native bare component names. The roster and enforcement model are in [
 ## Fleet inventory
 
 <!-- fleet-inventory:start -->
-### Agents (7)
+### Agents (8)
 
 | Agent | Lane | Routing |
 |---|---|---|
-| `sde` | Build, fix, refactor, and test code or operations tooling | Delegates review to `reviewer` and sanitized public lookups to `researcher` |
+| `sde` | Build, fix, refactor, and test code or operations tooling | Delegates review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `reviewer` | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `sde`; terminal |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
-| `sre` | Investigate active production or staging failures (guarded read-only Bash) | Delegates steady-state work to `sre-steward`, fact checks to `researcher` |
-| `sre-steward` | Steady state: observability as code + runbooks/postmortems (guarded Bash) | Hands active incidents to `sre`, automation to `sde`, lookups to `researcher` |
+| `sre` | Investigate active production or staging failures (guarded read-only Bash) | Delegates observability follow-up to `sre-steward`, operational docs to `scribe`, and fact checks to `researcher` |
+| `sre-steward` | Steady-state observability as code (guarded read-only Bash) | Hands docs to `scribe`, active incidents to `sre`, automation to `sde`, and lookups to `researcher` |
+| `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
 | `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
 | `prompt-engineer` | The fleet's own files: agents, skills, descriptions, evals | Hands helper code to `sde`, injection review to `reviewer` |
 
-### Skills (26)
+### Skills (27)
 
 | Skill | Purpose |
 |---|---|
@@ -63,6 +68,7 @@ use their native bare component names. The roster and enforcement model are in [
 | `production-change-gate` | Human authorization for production change |
 | `incident-command` | Incident severity, roles, communications, and timeline |
 | `postmortem` | Blameless post-incident learning |
+| `operational-learning` | Evidence-bound service, alert, runbook, and knowledge-index closeout |
 | `service-onboarding` | Ordered service onboarding and audit |
 | `agent-authoring` | Agent, skill, tool, prompt, and roster authoring |
 | `agent-security` | Agentic threat modeling and boundary review |
@@ -82,6 +88,21 @@ Microsoft Store stub):
 ```powershell
 py -3 scripts/gate_a.py
 ```
+
+Validate a knowledge-update packet after its documentation diff exists (prepared artifacts and
+documentation duplicates require the exact Git worktree so their base transition or existing owner,
+ordinary-file path, and result SHA-256 can be proved):
+
+```powershell
+py -3 skills/operational-learning/scripts/knowledge_update.py `
+  .sre/knowledge-updates/<update-id>.json `
+  --target-root C:\path\to\target-checkout `
+  --allowed-knowledge-root docs/operations `
+  --allowed-knowledge-root docs/runbooks
+```
+
+The allowed roots are caller policy supplied outside the packet. Repeat the flag for each trusted
+documentation root; the packet's own `target.knowledge_roots` cannot authorize a write location.
 
 Regenerate projections only after editing canonical sources:
 
@@ -131,8 +152,9 @@ record. The five 2026-07-31 Codex/Sol snapshots are revoked as release evidence 
 runner exposed `auth.json` to model-controlled reads and retained parsed final responses. Their bytes
 remain for diagnosis, but there is no current Sol runtime baseline until the trusted-main broker
 workflow evaluates an exact reviewed SHA. The static manifests now cover 11 skill/reference lanes
-and ten custom-agent lanes, including both trust-separated refusals and reviewer authorization
-behavior. None of these lanes proves implicit routing or Claude-equivalent per-agent tool narrowing.
+and thirteen custom-agent lanes, including both trust-separated refusals, reviewer authorization
+behavior, and `scribe`'s non-execution plus knowledge-closeout contracts. None of these lanes proves implicit routing or
+Claude-equivalent per-agent tool narrowing.
 The brokered skill lane disables both Codex multi-agent implementations. The agent lane accepts only
 trusted-main plugin/agent prompt bytes, caps V1 and V2 at one live child with no V1 descendants, and
 shares a runtime rollout budget across root and child; post-response usage ceilings and the provider

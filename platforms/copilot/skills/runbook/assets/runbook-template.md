@@ -1,8 +1,15 @@
 ---
-alert_names: [<exact alert name(s) that link here>]
+schema_version: 1
+runbook_id: <stable-runbook-slug>
+service_id: <stable-service-slug>
+status: draft | active | retired
+alert_names: []
 owner: <team/role>
 severity: <SEV-n / page | ticket>
-last_verified: <YYYY-MM-DD>
+source_revision: <repository@full-sha or reviewed release identifier>
+last_reviewed: null
+last_verified: null
+verification_evidence: []
 version: 1
 ---
 
@@ -57,11 +64,17 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 - Initial / update / resolved message owner: <role>
 
 ## Post-Incident
-- [ ] **Update this runbook** with anything learned, and bump `last_verified`.
+- [ ] Create a learning disposition for every missing, contradicted, or newly useful step.
+- [ ] **Update this runbook** from supplied evidence when a disposition requires it.
+- [ ] Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version,
+      target, actor, timestamp, and outcome; otherwise leave it unchanged (including `null`) and
+      record the gap.
 - [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets.
-- [ ] If this was an incident, after recovery, hand the timeline and evidence to the `sre-steward` agent for retrospective documentation.
+- [ ] If this was an incident, after recovery, hand the timeline and evidence to the `scribe` agent for retrospective documentation.
 
 ## References
 - Related runbooks: <…>
 - Postmortems: <…>
 - Alert definition / SLO: <…>
+- Service card / alert card / knowledge index: <…>
+- Knowledge update IDs: <…>

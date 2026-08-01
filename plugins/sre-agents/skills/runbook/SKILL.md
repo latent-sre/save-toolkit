@@ -1,11 +1,11 @@
 ---
 name: runbook
 description: >-
-  Write or update an operational runbook or operating doc — how to check, restart, and recover a
-  service, written for the stressed 3am reader. Triggers: 'write a runbook', 'document this
-  procedure', 'how do we handle X at 3am'. Every slot is filled or marked 'n/a — why'; commands
-  carry evidence labels. Ownership map only—not a load: the `postmortem` skill owns post-incident
-  retrospective structure.
+  Apply the standard operational-runbook structure after the scribe agent selects runbook mode, or
+  when a user explicitly invokes this skill. Covers how to check, restart, recover, verify, roll
+  back, and escalate for one task or failure mode. Direct operational-document writing belongs to
+  scribe; post-incident retrospectives use postmortem. Triggers:
+  'runbook mode selected', 'apply the runbook structure', 'use the runbook template'.
 argument-hint: "[service or tool]"
 ---
 
@@ -41,7 +41,8 @@ Full fill-in template: [runbook template](./assets/runbook-template.md) — copy
 Rules:
 - Every command copy-pasteable as written — real paths and real names. A `<placeholder>` is allowed only for truly variable values, and then say where to find the value.
 - "Common failures" lists only what has been observed or is clearly plausible for this service — no padding to make the section look complete.
-- If you couldn't verify a command works (service not running, no access), mark it `[unverified]` rather than presenting it as tested.
+- If supplied evidence is insufficient to establish that a command works (service not running, no
+  access), mark it `[unverified]` rather than presenting it as tested.
 
 ## Runbook vs playbook vs SOP
 - **Runbook** — steps to handle *one* alert/task/failure mode (this template).
@@ -49,8 +50,10 @@ Rules:
   playbook). Ownership map only—not a load: the `incident-command` skill owns live-incident coordination.
 - **SOP** — a fixed procedure for routine operations (not incident-driven).
 
-Keep them current the only way that works: **rehearse them.** Run game days / drills under realistic
-conditions, and bump `last_verified` after each.
+Keep them current through evidence-backed rehearsal. A named human or service owner runs game days
+or drills under approved, realistic conditions; `scribe` only records the supplied results. Preserve
+`last_verified` only when incoming evidence binds the exact artifact/version, target, actor,
+timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`.
 
 ## Authoring rules
 - **Numbered, imperative steps.** Copy-pasteable commands with real values or clearly templated
@@ -62,16 +65,22 @@ conditions, and bump `last_verified` after each.
 - **Trigger-anchored** — starts from a concrete trigger (this alert/symptom/task), ends at "resolved or
   escalate to <whom>."
 - **Current or deleted** — date it, own it, prune what's wrong. A wrong runbook is worse than none.
-- **Machine-linkable frontmatter** — give each runbook YAML frontmatter (`alert_names`, `owner`,
-  `severity`, `last_verified`, `version`) so alerts auto-link and a linter can flag any not
-  verified in ~90 days.
-- **Verify commands before publishing** — run read-only ones to confirm syntax; never run destructive
-  steps to "test" them; mark anything `[unverified]`.
+- **Machine-linkable frontmatter** — give each runbook YAML frontmatter (`schema_version`,
+  `runbook_id`, `service_id`, `status`, `alert_names`, `owner`, `severity`, `source_revision`,
+  `last_reviewed`, `last_verified`, `verification_evidence`, `version`). Both dates start `null`;
+  only human/authorized document review changes `last_reviewed`, and only bound rehearsal evidence
+  changes `last_verified`.
+- **Preserve command evidence before publishing** — use only supplied, authorized execution evidence
+  for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
+  this documentation lane, including a read-only command, merely to confirm syntax or output.
 
 ## Alert → runbook links and the Crawl → Walk → Run path
 
 Link every paging alert to its runbook. When investigation is needed, hand the trigger and evidence
 to the `sre` agent; when code remediation is needed, hand the defect and evidence to the `sde` agent.
+When a new alert/service, drill, audit, or resolved incident exposes a missing or contradicted
+runbook, record an `operational-learning` disposition and have `scribe` prepare the evidence-bound
+create/update. Do not let a chat-only observation disappear or silently bump `last_verified`.
 If a step is fully mechanical, recommend automating it along the **Crawl → Walk → Run** path: document
 the manual steps (crawl), wrap them in a checked script the on-call runs by hand (walk), then trigger
 it automatically once proven (run). Data-drive the alert→runbook link so saved searches/alerts surface

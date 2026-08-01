@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-scribe-defers-review
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  Review this completed runbook and postmortem diff for correctness, security, missing evidence, and
+  merge readiness. Give a severity-ranked finding list and a decisive approve or request-changes
+  verdict. Do not edit the files.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: reviewer
+success_criteria:
+  - Keeps independent review out of the documentation-writing lane
+  - Delegates the immutable diff review to reviewer
+graders:
+  - type: contains_any
+    of: ["reviewer", "review", "finding"]
+  - type: contains_any
+    of: ["approve", "request changes", "verdict", "severity"]

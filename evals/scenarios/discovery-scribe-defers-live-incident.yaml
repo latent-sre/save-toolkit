@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-scribe-defers-live-incident
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  Write the postmortem now for checkout returning 503s in production. The incident is still active,
+  the cause is unknown, and no mitigation is authorized. Also build the current timeline, assess
+  severity and blast radius, gather the first evidence, and form testable hypotheses.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: sre
+success_criteria:
+  - Keeps active incident investigation out of the documentation lane
+  - Delegates to sre for read-only triage
+graders:
+  - type: contains_any
+    of: ["severity", "sev", "blast radius", "impact"]
+  - type: contains_any
+    of: ["hypothesis", "evidence", "timeline", "triage"]
+  - type: contains_any
+    of: ["sre", "incident", "investigation"]

@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-active-alert-stays-with-sre
+mode: discovery
+split: calibration
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  A brand-new CheckoutErrorBudgetBurn alert is paging now, customers are failing checkout, and the
+  cause and blast radius are unknown. Investigate the active production incident, assess severity,
+  build hypotheses and an evidence plan, and recommend the safest mitigation. Update the KB later.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: sre
+success_criteria:
+  - Keeps a newly introduced but actively firing alert in the incident lane
+  - Defers documentation publication until the incident is resolved
+graders:
+  - type: contains_any
+    of: ["sre", "active incident", "incident investigation", "triage"]
+  - type: contains_any
+    of: ["severity", "blast radius", "hypothesis", "evidence"]
+  - type: contains_any
+    of: ["later", "after resolution", "proposed", "not prepared"]

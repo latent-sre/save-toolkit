@@ -1,11 +1,11 @@
 ---
 name: postmortem
 description: >-
-  Structure and principles for a blameless postmortem after an incident. Use after an incident is resolved
-  to write up what happened, the systemic cause and contributing factors, the timeline, and owned, dated
-  action items. Covers the blameless stance and the standard sections. Pairs with incident-command (the
-  incident timeline) and the sre agent (root cause). Triggers: "write the incident postmortem", "document
-  what happened", "create follow-up actions".
+  Apply the standard blameless postmortem structure after the scribe agent selects postmortem mode,
+  or when a user explicitly invokes this skill. Covers the resolved incident, systemic causes,
+  timeline, detection, response, and owned action items. Direct retrospective writing belongs to
+  scribe; active incidents route to sre and incident-command. Triggers:
+  "postmortem mode selected", "apply the postmortem structure", "use the postmortem template".
 ---
 
 > **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
@@ -60,9 +60,18 @@ Status: <draft|final>   Authors: <…>   Date: <…>
 
 - Each item is **owned, dated, tracked** — an un-owned action item is a wish. Use typed handoffs:
   resilience/code → typed `sde` agent; detection/SLO → typed `sre-steward` agent; investigation follow-up →
-  typed `sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `sre-steward`
+  typed `sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `scribe`
   agent.
 - Be honest about what you don't know; mark unconfirmed causes `[unverified]` and state how to confirm them.
+
+## Operational learning closeout
+
+A postmortem is incomplete until every new operational fact has a **learning disposition**. Apply the
+`operational-learning` policy after the primary postmortem is written: prepare or propose updates for
+runbook, service card, alert card, knowledge index, observability, automation, code, and accepted
+risk. Each outcome is `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable`, with evidence
+and one owner. The typed `scribe` agent may prepare documentation only; other lanes receive handoffs.
+No action item may end as chat-only advice.
 
 ## Lessons — include "where we got lucky"
 

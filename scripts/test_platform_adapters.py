@@ -37,6 +37,9 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("edit", tools)
         self.assertIn("execute", tools)
 
+    def test_scribe_copilot_agent_can_edit_but_cannot_execute_or_delegate(self) -> None:
+        self.assertEqual(["read", "search", "edit"], self._copilot_tools("scribe"))
+
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
         self.assertEqual(["read", "search"], self._copilot_tools("repository-investigator"))
         self.assertEqual(["web"], self._copilot_tools("researcher"))
@@ -48,8 +51,13 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_codex_sandbox_follows_write_authority(self) -> None:
         reviewer = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/reviewer.md"))
         builder = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/sde.md"))
+        scribe = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/scribe.md"))
         self.assertEqual("read-only", reviewer["sandbox_mode"])
         self.assertEqual("workspace-write", builder["sandbox_mode"])
+        self.assertEqual("workspace-write", scribe["sandbox_mode"])
+        self.assertIn("Do not execute anything", scribe["developer_instructions"])
+        self.assertIn("Codex custom-agent TOML cannot deny inherited tools", scribe["developer_instructions"])
+        self.assertIn("disable network egress and external MCP tools", scribe["developer_instructions"])
 
     def test_codex_reviewer_does_not_self_disable_on_inherited_capability_visibility(self) -> None:
         reviewer = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/reviewer.md"))

@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-runbook-skill-defers-writing
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: runbook
+prompt: |
+  Create a repository operating guide from the completed checkout-pool recovery transcript and
+  alert definition. Preserve the evidence labels, mark the untested health check, and make the
+  requested documentation edit for the stressed on-call reader.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: scribe
+success_criteria:
+  - Routes ordinary operational-document writing through scribe rather than loading the structure inline
+  - Preserves the evidence-bound runbook outcome
+graders:
+  - type: contains_any
+    of: ["scribe", "runbook", "documentation"]
+  - type: contains_any
+    of: ["[unverified]", "unverified", "evidence"]

@@ -1,6 +1,6 @@
 # SRE Agents — fleet guide
 
-A multi-host engineering plugin with **7 canonical agents and 26 canonical skills**. Claude Code
+A multi-host engineering plugin with **8 canonical agents and 27 canonical skills**. Claude Code
 loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code and Codex adapters are
 generated and committed from those sources; edit neither projection by hand. Routing is native:
 descriptions select lanes and Claude components are invoked as `sre-agents:<name>`.
@@ -13,11 +13,12 @@ runtime, tool, or infrastructure change; nothing in this file restates it.
 
 | Agent | Lane | Tools posture | Delegates to |
 |---|---|---|---|
-| `sde` | Build, fix, refactor code and ops tooling; absorbs test-writing | Local read/write + **unguarded Bash** for **team-authored** code; no direct web tools | `reviewer`, `researcher` |
+| `sde` | Build, fix, refactor code and ops tooling; absorbs test-writing | Local read/write + **unguarded Bash** for **team-authored** code; no direct web tools | `reviewer`, `scribe`, `researcher` |
 | `reviewer` | Correctness + security review of a change, two lenses in one pass | **Local read-only by tool absence** — no Bash, Write, web, or external MCP; terminal | — |
 | `repository-investigator` | Answer bounded questions from the current private or uncommitted checkout | **Local read-only by tool absence** — only `Read`/`Grep`/`Glob`; terminal | — |
-| `sre` | Investigate production/staging failures: triage, severity, hypothesis-driven root cause | **Guarded Bash** — read-only `cf`/`git`/`gh` triage under the allowlist; recommends mitigation, never applies it | `sre-steward`, `researcher` |
-| `sre-steward` | Steady state, two lanes: observability as code (dashboards, alerts, SLOs, pipelines) and operational docs (runbooks, postmortems) | **Guarded Bash** — the `sre` read set plus config validators (`promtool check`, `jq empty`, `yamllint`); writes obs-config and docs | `researcher` |
+| `sre` | Investigate production/staging failures: triage, severity, hypothesis-driven root cause | **Guarded Bash** — read-only `cf`/`git`/`gh` triage under the allowlist; recommends mitigation, never applies it | `sre-steward`, `scribe`, `researcher` |
+| `sre-steward` | Steady-state observability as code: dashboards, alerts, SLOs, error budgets, pipelines | **Guarded Bash** — the `sre` read set plus config validators (`promtool check`, `jq empty`, `yamllint`); writes obs-config | `scribe`, `researcher` |
+| `scribe` | Evidence-bound operational documentation: runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local read/write, but **no Bash, web, or delegation**; terminal | — |
 | `researcher` | Cited public fact-finding from official docs, upstream code, packages, and advisories | **External-only by tool absence** — no local read, Bash, Write, Skill, or Agent | — |
 | `prompt-engineer` | The fleet's own files: agents, skills, descriptions, evals | Local read/write + Bash for repo tooling; no direct web tools | `researcher` |
 
@@ -29,6 +30,7 @@ trade-off and the revisit condition are recorded in
 
 1. **Tool absence** (platform-enforced, zero moving parts): `reviewer` and
    `repository-investigator` are local-only without Bash, Write, web, or external MCP;
+   `scribe` has local document write authority but no Bash, web, external MCP, or Agent;
    `researcher` is external-only without local file reads, Bash, Write, Skill, or Agent. Every other
    canonical local role also lacks direct `WebFetch`/`WebSearch`; public lookups use a sanitized
    handoff to `researcher`.
@@ -72,17 +74,25 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   protection and protected environments are the real enforcement.
 - **Handoffs use the packet convention** carried in each agent's body: one owner, pinned SHAs,
   evidence labels preserved, taint marked, "what I did NOT do" stated.
+- **Learning is reviewable repository state, not model memory.** Every durable operational discovery
+  receives a `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable` disposition with
+  evidence and an owner. An agent never treats its own assertion as accepted knowledge.
 - **Lead with the conclusion**, then evidence, then next steps. **Blameless** language for all
   incident work.
 
 ## Typical flows
 
 - **Ship a feature:** `sde` → `reviewer` (both lenses) → `merge-gate`; a human release owner runs
-  `release-gate` → `/sre-agents:pcf-deploy` → `sre-steward` documents new ops steps.
+  `release-gate` → `/sre-agents:pcf-deploy` → `scribe` documents new ops steps.
 - **Production incident:** `sre` (triage + RCA, `incident-command` loaded for process/comms); a
   human release owner executes mitigation; `sde` fixes root cause; `sre-steward` closes the
-  detection gap, then writes the postmortem.
-- **Reliability hardening:** `sre-steward` defines SLOs/alerts and links runbooks.
+  detection gap; `scribe` writes the postmortem.
+- **Reliability hardening:** `sre-steward` defines SLOs/alerts and hands missing runbooks to `scribe`.
+- **New or changed service/application:** after human approval, `service-onboarding` hands the service
+  definition, alert set, and evidence to `scribe`, which prepares the service card, alert cards, index
+  links, and explicit runbook dispositions.
+- **New or changed alert:** `sre-steward` owns alert design and validation; after approval, `scribe`
+  updates the alert card and service/runbook links. An actively firing alert stays with `sre`.
 
 ## Current work
 

@@ -48,6 +48,8 @@ STEPS = [
      ["scripts/test_validate_fleet.py"], None),
     ("Typed evidence envelope contracts",
      ["scripts/test_evidence_envelope.py"], None),
+    ("Operational knowledge update contracts",
+     ["scripts/test_operational_learning.py"], None),
     ("Read-only fleet doctor contracts",
      ["scripts/test_fleet_doctor.py"], None),
     ("Digest-bound verification sandbox contracts",
