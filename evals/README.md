@@ -22,37 +22,39 @@ required reference; a correct-looking answer with one missing, duplicated, chain
 partial read fails. The current reference lanes cover API design, TypeScript, database restore drills,
 frontend design/accessibility/interface copy, and multi-component tooling.
 
-Validate the offline contract in Gate A. Run the live lane manually:
+Validate the offline contract in Gate A:
 
 ```powershell
 py -3 evals/run_codex_conformance.py --validate
-py -3 evals/run_codex_conformance.py --run --output result.json
 ```
 
-The live runner copies only `auth.json` into a temporary `CODEX_HOME`, registers a frozen local
-marketplace snapshot, installs exactly one plugin, and executes from an empty temporary git root with
-an allowlisted process environment. `HOME`, `USERPROFILE`, `APPDATA`, and `LOCALAPPDATA` point into
-that same disposable root, so personal `.agents` content is outside discovery. Raw JSONL is reduced in memory to deterministic facts and hashes;
-it is not saved. This is not a credential sandbox: Codex's read-only shell can read its temporary
-config tree. Therefore the runner accepts only fixed prompts committed in the manifest, and a
-live run fails closed unless both plugin and harness inputs match HEAD. Live execution also refuses
-custom manifest paths so an arbitrary prompt cannot share the temporary credential boundary. Missing
-auth, CLI/model failure, timeout, or an incomplete trace is `INCONCLUSIVE`, never a fleet failure.
-During deliberate development of team-authored inputs, `--allow-dirty-plugin` and
-`--allow-dirty-harness` opt out of those checks separately; never use either for imported or
-unreviewed content.
+Local live execution is intentionally unsupported. A model-controlled read-only shell can still read
+same-user credential files or process memory, so copying `auth.json` into a disposable directory is
+not a credential boundary. Dispatch `.github/workflows/codex-sol-conformance.yml` from `main` against
+an immutable `canary/<phase>/<full-sha>` ref instead. That trusted workflow gives the pinned OpenAI
+action the repository secret `CODEX_CONFORMANCE_OPENAI_API_KEY` before candidate checkout, starts a
+Responses API proxy, removes sudo, and supplies the runners only the proxy's tokenless loopback
+provider config. The runners reject Windows/local execution, readable `auth.json`, passwordless sudo,
+credential-bearing provider fields, non-loopback endpoints, and credential-shaped volatile output.
+
+The isolated run still registers a frozen marketplace snapshot, installs exactly one plugin, and
+executes from an empty temporary git root with an allowlisted process environment. Raw JSONL and
+parsed final messages are reduced to hashes and equality facts; neither is written to the report.
+The live path requires fixed manifests and clean plugin/harness inputs. Missing broker setup,
+CLI/model failure, timeout, or an incomplete trace is `INCONCLUSIVE`, never a fleet failure. Dirty
+development switches exist for locally authored harness work but are never publishable evidence.
 
 Codex plugin skills and standalone custom agents are separate host surfaces. These lanes prove plugin
 installation plus direct skill/reference loading. The standalone agent runner proves its own surface:
 
 ```powershell
 py -3 evals/run_codex_agent_conformance.py --validate
-py -3 evals/run_codex_agent_conformance.py --run --output agent-result.json
 ```
 
 The agent runner freezes and installs all seven generated custom-agent TOMLs in the same isolated
-Codex home as the plugin, then runs one no-history delegation lane per agent plus refusal-behavior
-lanes for both trust-separated research roles. A lane passes only when
+Codex home as the plugin, then runs one no-history delegation lane per agent plus behavior lanes for
+both trust-separated research roles and a supplied-diff authorization review by `reviewer`. A lane
+passes only when
 the private session rollouts prove all of the following:
 
 - exactly one successful `spawn_agent` call names the expected role and `fork_turns: none`;
@@ -69,19 +71,24 @@ Self-reported delegation is deliberately insufficient. This catches the observed
 Codex rejected an incompatible spawn request but the main model still returned `delegated: true`.
 Unlike the ephemeral skill JSONL, the temporary parent/child turn context exposes the resolved model.
 The runner reduces those rollouts to hashes and structural facts, then deletes the complete temporary
-Codex home (including `auth.json` and the raw sessions) before writing the sanitized report. Live
-agent runs require clean plugin, generated-agent, and harness inputs by default; the three separate
-dirty-development switches are never suitable for publishable evidence.
+credential-free Codex home and raw sessions before writing the sanitized report. Live agent runs
+require the same broker boundary plus clean plugin, generated-agent, and harness inputs by default;
+the three separate dirty-development switches are never suitable for publishable evidence.
 
-The current clean-SHA Sol evidence is retained separately:
+The 2026-07-31 Codex/Sol results are retained as historical diagnostics but are **revoked as release
+evidence**. Their harness put `auth.json` in a filesystem visible to model-controlled tools and wrote
+parsed model responses into reports. No credential disclosure was observed, but the method could not
+prove that property. This revocation applies to all five `2026-07-31-codex-sol-*` directories,
+including the former current snapshots:
 
 - [`2026-07-31-codex-sol-expanded-conformance`](baselines/2026-07-31-codex-sol-expanded-conformance)
-  - 11/11 skill and progressive-reference lanes;
+  - formerly 11/11 skill and progressive-reference lanes;
 - [`2026-07-31-codex-sol-seven-agent-conformance`](baselines/2026-07-31-codex-sol-seven-agent-conformance)
-  - 9/9 custom-agent delegation and trust-boundary behavior lanes.
+  - formerly 9/9 custom-agent delegation and trust-boundary behavior lanes.
 
-Older baseline directories remain immutable historical snapshots; they are not combined with or
-relabeled as the current result.
+The JSON results remain unchanged so the historical bytes are inspectable; each affected README now
+carries the revocation. A new current Sol baseline does not exist until the brokered workflow runs on
+an exact reviewed SHA after this workflow reaches trusted `main`.
 
 Behavioral evals for the agents and skills, above the structural `scripts/gate_a.py` gate. The
 unified runner measures two different properties and never blends their scores:

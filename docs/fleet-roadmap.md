@@ -70,12 +70,14 @@ secret-bearing fields; deterministic tests and generated drift checks pass.
 
 **Current evidence:** Seven canonical roles now pass authority and generated-adapter checks; the
 evidence-envelope validator, JSON Schema, fleet doctor, and Codex/Sol result wrappers have mutation
-tests. An initial independent review found evidence-integrity and coverage gaps; those remediations
-are implemented. Clean commit `6e165e4` passed all nine Sol custom-agent lanes, including zero-tool
-refusals for both sides of the local/external research boundary.
+tests. A later independent review found the live runner's `auth.json` boundary unsafe and the
+generated reviewer self-disabling on inherited Codex capabilities. The candidate now requires the
+pinned trusted-main Responses API broker, removes raw/parsed response fields, detects credential-like
+output, uses host-portable reviewer integrity language, and adds a real reviewer authorization lane.
+The earlier Sol runtime results are revoked; these remediations currently have offline evidence only.
 
-**Next action:** Bind the focused re-review and draft PR to the committed candidate; keep this item
-active until that evidence reaches `main`.
+**Next action:** Bind the focused three-pass re-review and draft PR to the committed candidate; after
+the broker workflow reaches trusted `main`, run it against an immutable reviewed canary SHA.
 
 ## Active runtime work
 
@@ -89,7 +91,8 @@ model evidence independently; an unavailable host reports `skip` or `inconclusiv
 **Source:** Multi-platform packaging ADR and the import review's unverified-runtime limits.
 
 **Prerequisites:** MERGE-001; a disposable installation root; authenticated host access only for
-the lane being measured.
+the lane being measured. Codex model credentials must remain in the trusted broker, never in the
+candidate runner's files, environment, or OS identity.
 
 **Acceptance:** Each supported host proves install, inventory/discovery, one authority boundary, and
 uninstall without modifying user-owned components. Results record CLI/version, requested and observed
@@ -98,7 +101,8 @@ their runtime is actually available.
 
 **Current evidence:** `fleet_doctor.py` now emits typed static/availability evidence without starting
 a model or modifying host installations. This machine has Claude, Codex, and VS Code CLIs; Copilot
-CLI remains unavailable, and the doctor reports that lane as `skip` rather than `pass`.
+CLI remains unavailable, and the doctor reports that lane as `skip` rather than `pass`. Local live
+Codex conformance is now rejected because the Windows/same-user credential boundary is insufficient.
 
 **Next action:** Add disposable install/uninstall probes only for available hosts; keep Copilot and
 VS Code behavioral lanes explicitly incomplete until their drivers can prove them.
@@ -153,14 +157,17 @@ production-change, PCF, agent-security, and observability contracts. Every resul
 `pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
 historical Claude/Opus baselines.
 
-**Current evidence:** Clean commit `6e165e4` passed all 11 skill/reference lanes and all nine
-custom-agent lanes on `gpt-5.6-sol` with high reasoning. The skill run verified 18 exact installed
-artifact reads; the agent run covered all seven roles plus both trust-separated refusal behaviors.
-The sanitized reports retain typed provenance under `evals/baselines/`. Five static routing
-collision cases remain in the ordinary eval suite.
+**Current evidence:** The static Sol manifests validate 11 skill/reference lanes and ten custom-agent
+lanes covering all seven roles, both trust-separated refusal behaviors, and reviewer detection of a
+supplied object-authorization regression without executing or delegating. The 2026-07-31 live results
+are retained but revoked: their same-user `auth.json` boundary and parsed-response reports were not
+safe release evidence. The new brokered workflow and negative credential tests pass offline; a fresh
+live result cannot exist until that workflow is trusted on `main`. Five static routing collision cases
+remain in the ordinary eval suite.
 
-**Next action:** Bind the evidence to the draft PR and keep implicit routing observational rather
-than turning it into a release gate.
+**Next action:** Complete the exact-SHA three-pass review, merge the trusted workflow, then dispatch it
+against the reviewed immutable canary and retain the new attestation. Keep implicit routing
+observational rather than turning it into a release gate.
 
 ## Decision needed
 

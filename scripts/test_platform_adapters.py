@@ -51,6 +51,14 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertEqual("read-only", reviewer["sandbox_mode"])
         self.assertEqual("workspace-write", builder["sandbox_mode"])
 
+    def test_codex_reviewer_does_not_self_disable_on_inherited_capability_visibility(self) -> None:
+        reviewer = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/reviewer.md"))
+        instructions = reviewer["developer_instructions"]
+        self.assertIn("capability visibility alone is therefore not a fleet failure", instructions)
+        self.assertIn("if this reviewer actually", instructions)
+        self.assertIn("executes or delegates", instructions)
+        self.assertNotIn("if you ever find yourself able to run a shell command", instructions)
+
     def test_codex_research_boundaries_require_outer_isolation(self) -> None:
         local = tomllib.loads(
             adapters.render_codex_agent(ROOT / "agents/repository-investigator.md")

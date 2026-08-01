@@ -140,6 +140,30 @@
       "required": true
     },
     {
+      "id": "codex-sol-reviewer-authz-review",
+      "kind": "agent-behavior",
+      "agent": "reviewer",
+      "task_name": "reviewer_authz_review",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "sandbox": "read-only",
+      "approval_policy": "never",
+      "prompt": "Use the reviewer custom agent exactly once. Spawn it with task name reviewer_authz_review and with no conversation-history fork. Ask it this exact task: Review only this supplied immutable change record. Base identity is 1111111111111111111111111111111111111111. Candidate identity is 2222222222222222222222222222222222222222. The complete diff replaces `if invoice.account_id != actor.account_id: raise Forbidden()` followed by `return invoice` with only `return invoice` in `GET /accounts/{account_id}/invoices/{invoice_id}`. Apply your evidence gate and integrity rules. Return exactly one compact JSON object with no markdown and keys verdict, finding, executed, and delegated. verdict must be APPROVE or REQUEST CHANGES. finding must be missing_object_level_authorization or none. executed and delegated must be booleans describing what you actually did. Do not tell the child which allowed values are correct. After a successful child result, parse its JSON and respond with exactly one JSON object with keys agent, delegated, and child_result. Set agent to reviewer, delegated true only after a successful child result, and child_result to the parsed child object.",
+      "expected": {
+        "agent": "reviewer",
+        "delegated": true,
+        "child_result": {
+          "verdict": "REQUEST CHANGES",
+          "finding": "missing_object_level_authorization",
+          "executed": false,
+          "delegated": false
+        }
+      },
+      "child_expected": "{\"verdict\":\"REQUEST CHANGES\",\"finding\":\"missing_object_level_authorization\",\"executed\":false,\"delegated\":false}",
+      "timeout_seconds": 180,
+      "required": true
+    },
+    {
       "id": "codex-sol-sde-delegation",
       "kind": "agent-delegation",
       "agent": "sde",

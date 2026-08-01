@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import run_codex_agent_conformance as conformance
 
@@ -181,7 +183,7 @@ class CodexAgentConformanceTests(unittest.TestCase):
         )
         self.assertGreaterEqual(len(self.manifest["lanes"]), len(self.manifest["agents"]))
         self.assertEqual(
-            {"repository-investigator", "researcher"},
+            {"repository-investigator", "researcher", "reviewer"},
             {
                 lane["agent"]
                 for lane in self.manifest["lanes"]
@@ -191,6 +193,21 @@ class CodexAgentConformanceTests(unittest.TestCase):
         self.assertTrue(all(lane["model"] == "gpt-5.6-sol" for lane in self.manifest["lanes"]))
         self.assertTrue(
             all(lane["child_expected"] not in lane["prompt"] for lane in self.manifest["lanes"])
+        )
+        reviewer_behavior = next(
+            lane
+            for lane in self.manifest["lanes"]
+            if lane["id"] == "codex-sol-reviewer-authz-review"
+        )
+        self.assertEqual("agent-behavior", reviewer_behavior["kind"])
+        self.assertEqual(
+            {
+                "verdict": "REQUEST CHANGES",
+                "finding": "missing_object_level_authorization",
+                "executed": False,
+                "delegated": False,
+            },
+            reviewer_behavior["expected"]["child_result"],
         )
 
     def test_manifest_rejects_prompt_that_discloses_child_canary(self) -> None:
@@ -306,9 +323,137 @@ class CodexAgentConformanceTests(unittest.TestCase):
     def test_exec_command_persists_rollout_and_pins_no_history_capability(self) -> None:
         command = conformance.build_exec_command("codex", Path("C:/neutral"), self.lane)
         self.assertNotIn("--ephemeral", command)
+        self.assertNotIn("--ignore-user-config", command)
         self.assertIn("multi_agent", command)
         self.assertIn("gpt-5.6-sol", command)
         self.assertLess(command.index("--ask-for-approval"), command.index("exec"))
+
+    def test_live_agent_cli_refuses_without_trusted_broker_config(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch("sys.stderr", stderr):
+            status = conformance.main(["--run"])
+        self.assertEqual(2, status)
+        self.assertIn("--run requires --broker-config", stderr.getvalue())
+
+    def test_brokered_live_agent_reduction_never_stages_auth_or_reports_model_text(self) -> None:
+        root = conformance.REPO_ROOT
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_root = Path(temporary)
+            broker_config = temporary_root / "broker-home" / "config.toml"
+            broker_config.parent.mkdir()
+            broker_config.write_text(
+                'model_provider = "codex-action-responses-proxy"\n\n'
+                '[model_providers.codex-action-responses-proxy]\n'
+                'name = "Codex Action Responses Proxy"\n'
+                'base_url = "http://127.0.0.1:43123/v1"\n'
+                'wire_api = "responses"\n',
+                encoding="utf-8",
+            )
+            manifest = copy.deepcopy(self.manifest)
+            manifest["lanes"] = [copy.deepcopy(self.lane)]
+            observed_homes: list[Path] = []
+
+            def runner(argv, cwd, timeout, child_env):
+                del cwd, timeout
+                codex_home = Path(child_env["CODEX_HOME"])
+                observed_homes.append(codex_home)
+                self.assertFalse((codex_home / "auth.json").exists())
+                if tuple(argv[-1:]) == ("--version",):
+                    return conformance.base.CommandResult(0, "codex-cli 0.test\n", "")
+                if tuple(argv[1:4]) == ("plugin", "marketplace", "add"):
+                    return conformance.base.CommandResult(0, "{}", "")
+                if tuple(argv[1:3]) == ("plugin", "add"):
+                    installed = codex_home / "plugins" / "cache" / "sre-agents"
+                    conformance.shutil.copytree(
+                        root / conformance.base.PLUGIN_DIRECTORY, installed
+                    )
+                    return conformance.base.CommandResult(
+                        0,
+                        json.dumps(
+                            {
+                                "pluginId": "sre-agents@latent-sre",
+                                "name": "sre-agents",
+                                "version": "1.0.0",
+                                "installedPath": str(installed),
+                            }
+                        ),
+                        "",
+                    )
+                if tuple(argv[1:4]) == ("plugin", "list", "--json"):
+                    return conformance.base.CommandResult(
+                        0,
+                        json.dumps(
+                            {
+                                "installed": [
+                                    {
+                                        "pluginId": "sre-agents@latent-sre",
+                                        "name": "sre-agents",
+                                        "version": "1.0.0",
+                                        "marketplaceName": "latent-sre",
+                                        "installed": True,
+                                        "enabled": True,
+                                    }
+                                ]
+                            }
+                        ),
+                        "",
+                    )
+
+                instructions = conformance._agent_document(
+                    codex_home / "agents" / "reviewer.toml"
+                )["developer_instructions"]
+                session_root = codex_home / "sessions"
+                session_root.mkdir()
+                for name, rows in (
+                    ("parent.jsonl", self._parent()),
+                    ("child.jsonl", self._child(instructions=instructions)),
+                ):
+                    (session_root / name).write_text(
+                        "\n".join(json.dumps(row) for row in rows) + "\n",
+                        encoding="utf-8",
+                    )
+                stdout = "\n".join(
+                    (
+                        json.dumps(
+                            {"type": "thread.started", "thread_id": self.parent_thread}
+                        ),
+                        json.dumps(
+                            {
+                                "type": "item.completed",
+                                "item": {
+                                    "type": "agent_message",
+                                    "text": json.dumps(self.lane["expected"]),
+                                },
+                            }
+                        ),
+                        json.dumps({"type": "turn.completed", "usage": {"input_tokens": 1}}),
+                    )
+                )
+                return conformance.base.CommandResult(0, stdout, "")
+
+            with mock.patch.object(
+                conformance.base,
+                "require_brokered_ci_boundary",
+                return_value={"provider": "proxy"},
+            ):
+                report = conformance.run_live(
+                    root,
+                    manifest,
+                    executable="codex",
+                    broker_config=broker_config,
+                    require_clean_plugin=False,
+                    require_clean_agents=False,
+                    require_clean_harness=False,
+                    runner=runner,
+                )
+
+        self.assertTrue(observed_homes)
+        result = report["results"][0]
+        self.assertTrue(result["response_matched"])
+        self.assertEqual(64, len(result["response_sha256"]))
+        for forbidden in ("response", "expected", "observed_models", "usage"):
+            self.assertNotIn(forbidden, result)
+        self.assertNotIn(json.dumps(self.lane["expected"]), json.dumps(report))
 
     def test_rollout_reader_rejects_malformed_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -317,6 +462,18 @@ class CodexAgentConformanceTests(unittest.TestCase):
             path.write_text("{not-json}\n", encoding="utf-8")
             with self.assertRaises(conformance.base.ConformanceError):
                 conformance._read_rollouts(path.parent)
+
+    def test_rollout_reader_rejects_credential_shaped_output_without_echoing_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "sessions" / "leak.jsonl"
+            path.parent.mkdir()
+            marker = "sk-proj-0123456789abcdefghijklmnop"
+            path.write_text(json.dumps({"payload": marker}) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                conformance.base.CredentialOutputError, "credential-shaped material detected"
+            ) as raised:
+                conformance._read_rollouts(path.parent)
+            self.assertNotIn(marker, str(raised.exception))
 
 
 if __name__ == "__main__":

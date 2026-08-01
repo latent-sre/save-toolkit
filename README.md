@@ -115,35 +115,35 @@ For repository-controlled executable checks, use the digest-bound, networkless c
 snapshot, full revision, preapproved tree digest, and a locally present digest-pinned image; it does
 not add an autonomous verification agent or live-effect authority.
 
-Gate A owns its step list; do not copy that list into documentation. Behavioral evaluations under
-[`evals/`](evals) are intentionally manual and never run in CI. They execute only after source-trust and
-disposable-harness requirements are satisfied.
+Gate A owns its step list; do not copy that list into documentation. Claude behavioral evaluations
+under [`evals/`](evals) remain manual. Live Codex/Sol conformance runs only through the manually
+dispatched, brokered CI workflow after source-trust and immutable-canary requirements are satisfied.
 
 Codex/Sol plugin conformance is a separate lane from the Claude runner:
 
 ```powershell
 py -3 evals/run_codex_conformance.py --validate
-py -3 evals/run_codex_conformance.py --run --output result.json
 ```
 
 See [`evals/README.md`](evals/README.md) for the credential boundary, pass oracle, and provenance
-record. The current clean-SHA Sol baselines prove 11 selected skill/reference lanes and nine lanes
-covering all seven standalone Codex agents, including the two trust-separated refusal behaviors.
-Older six-lane/six-agent results remain immutable historical snapshots. None of these baselines prove
-implicit routing or Claude-equivalent per-agent tool narrowing; those remain separate host/runtime
-questions.
+record. The five 2026-07-31 Codex/Sol snapshots are revoked as release evidence because their former
+runner exposed `auth.json` to model-controlled reads and retained parsed final responses. Their bytes
+remain for diagnosis, but there is no current Sol runtime baseline until the trusted-main broker
+workflow evaluates an exact reviewed SHA. The static manifests now cover 11 skill/reference lanes
+and ten custom-agent lanes, including both trust-separated refusals and reviewer authorization
+behavior. None of these lanes proves implicit routing or Claude-equivalent per-agent tool narrowing.
 
 ## Current status
 
 - Canonical source, generated host adapters, hook wiring, manifests, installer collision behavior,
   eval contracts, and the protected-main canary are structurally gated.
 - Claude marketplace validation and isolated plugin loading are verified on the recorded CLI version.
-- Codex/Sol direct skill/reference loading and explicit custom-agent delegation are verified by the
-  committed baselines under [`evals/baselines/`](evals/baselines/).
+- Codex/Sol manifests, broker enforcement, response reduction, and explicit custom-agent contracts
+  pass offline validation; live results remain pending the trusted-main brokered workflow.
 - Copilot/VS Code runtime loading remains unverified because that runtime is not available on the
   current validation host. Static adapter success must not be presented as a live runtime pass.
-- Publication is blocked on repository protection, distinct promotion authority, host install smoke
-  tests, and rollback evidence.
+- Publication is blocked on repository protection, distinct promotion authority, a fresh brokered Sol
+  baseline, host install smoke tests, and rollback evidence.
 
 The only live backlog is [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md). The large documents under
 `docs/superpowers/plans/` are preserved implementation history and are not executable task lists.

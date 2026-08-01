@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import os
 import tempfile
@@ -94,6 +95,13 @@ class CodexConformanceTests(unittest.TestCase):
         args = conformance._parser().parse_args(["--run"])
         self.assertFalse(args.allow_dirty_plugin)
         self.assertFalse(args.allow_dirty_harness)
+
+    def test_live_cli_refuses_without_trusted_broker_config(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch("sys.stderr", stderr):
+            status = conformance.main(["--run"])
+        self.assertEqual(2, status)
+        self.assertIn("--run requires --broker-config", stderr.getvalue())
 
     def test_windows_command_path_normalization_collapses_codex_escaping(self) -> None:
         escaped = r'C:\\isolated\\session\\resources\\skills\\stack-profile\\SKILL.md'
@@ -671,6 +679,7 @@ class CodexConformanceTests(unittest.TestCase):
             try:
                 os.environ["GITHUB_TOKEN"] = "must-not-pass"
                 os.environ["OPENAI_API_KEY"] = "must-not-pass"
+                os.environ["HTTPS_PROXY"] = "http://proxy-user:proxy-password@example.invalid"
                 os.environ["PATH"] = old.get("PATH", "")
                 child = conformance.scrubbed_child_env(codex_home, neutral_profile)
             finally:
@@ -678,11 +687,260 @@ class CodexConformanceTests(unittest.TestCase):
                 os.environ.update(old)
         self.assertNotIn("GITHUB_TOKEN", child)
         self.assertNotIn("OPENAI_API_KEY", child)
+        self.assertNotIn("HTTPS_PROXY", child)
         self.assertEqual(str(codex_home), child["CODEX_HOME"])
         self.assertEqual(str(neutral_profile), child["HOME"])
         self.assertEqual(str(neutral_profile), child["USERPROFILE"])
         self.assertTrue(Path(child["APPDATA"]).is_relative_to(neutral_profile))
         self.assertTrue(Path(child["LOCALAPPDATA"]).is_relative_to(neutral_profile))
+
+    def test_broker_config_is_exact_tokenless_loopback_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "broker-home" / "config.toml"
+            source.parent.mkdir()
+            source.write_text(
+                'model_provider = "codex-action-responses-proxy"\n\n'
+                '[model_providers.codex-action-responses-proxy]\n'
+                'name = "Codex Action Responses Proxy"\n'
+                'base_url = "http://127.0.0.1:43123/v1"\n'
+                'wire_api = "responses"\n',
+                encoding="utf-8",
+            )
+            broker = conformance.load_broker_config(source)
+            self.assertEqual("http://127.0.0.1:43123/v1", broker["base_url"])
+
+            destination = root / "isolated-home"
+            destination.mkdir()
+            digest = conformance.stage_broker_config(source, destination)
+            rendered = (destination / "config.toml").read_text(encoding="utf-8")
+            self.assertEqual(64, len(digest))
+            self.assertNotIn("env_key", rendered)
+            self.assertNotIn("token", rendered.lower())
+            self.assertFalse((destination / "auth.json").exists())
+
+            source.write_text(
+                rendered + 'env_key = "OPENAI_API_KEY"\n', encoding="utf-8"
+            )
+            with self.assertRaisesRegex(conformance.ConformanceError, "credential-bearing"):
+                conformance.load_broker_config(source)
+
+    def test_broker_config_rejects_auth_file_and_non_loopback_endpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "config.toml"
+            template = (
+                'model_provider = "codex-action-responses-proxy"\n\n'
+                '[model_providers.codex-action-responses-proxy]\n'
+                'name = "Codex Action Responses Proxy"\n'
+                'base_url = "{}"\n'
+                'wire_api = "responses"\n'
+            )
+            source.write_text(template.format("https://api.openai.com/v1"), encoding="utf-8")
+            with self.assertRaisesRegex(conformance.ConformanceError, "tokenless"):
+                conformance.load_broker_config(source)
+            source.write_text(template.format("http://127.0.0.1:43123/v1"), encoding="utf-8")
+            (root / "auth.json").write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(conformance.ConformanceError, "must not contain auth.json"):
+                conformance.load_broker_config(source)
+
+    def test_broker_runtime_boundary_requires_linux_ci_non_root_and_no_sudo(self) -> None:
+        broker = {
+            "base_url": "http://127.0.0.1:43123/v1",
+            "provider": conformance.BROKER_PROVIDER,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            clean_home = Path(temporary)
+            with (
+                mock.patch.object(conformance, "load_broker_config", return_value=broker),
+                mock.patch.object(conformance.sys, "platform", "linux"),
+                mock.patch.dict(
+                    os.environ,
+                    {"GITHUB_ACTIONS": "true", "RUNNER_OS": "Linux", "CI": "true"},
+                    clear=True,
+                ),
+                mock.patch.object(conformance.Path, "home", return_value=clean_home),
+                mock.patch.object(conformance.os, "geteuid", return_value=1000, create=True),
+                mock.patch.object(conformance.shutil, "which", return_value=None),
+            ):
+                self.assertEqual(
+                    broker,
+                    conformance.require_brokered_ci_boundary(clean_home / "config.toml"),
+                )
+
+            sudo_ok = type("Result", (), {"returncode": 0})()
+            with (
+                mock.patch.object(conformance, "load_broker_config", return_value=broker),
+                mock.patch.object(conformance.sys, "platform", "linux"),
+                mock.patch.dict(
+                    os.environ,
+                    {"GITHUB_ACTIONS": "true", "RUNNER_OS": "Linux", "CI": "true"},
+                    clear=True,
+                ),
+                mock.patch.object(conformance.Path, "home", return_value=clean_home),
+                mock.patch.object(conformance.os, "geteuid", return_value=1000, create=True),
+                mock.patch.object(conformance.shutil, "which", return_value="/usr/bin/sudo"),
+                mock.patch.object(conformance.subprocess, "run", return_value=sudo_ok),
+            ):
+                with self.assertRaisesRegex(conformance.ConformanceError, "sudo to be removed"):
+                    conformance.require_brokered_ci_boundary(clean_home / "config.toml")
+
+    def test_broker_runtime_boundary_rejects_spoofable_local_default(self) -> None:
+        with (
+            mock.patch.object(
+                conformance,
+                "load_broker_config",
+                return_value={"base_url": "http://127.0.0.1:43123/v1"},
+            ),
+            mock.patch.object(conformance.sys, "platform", "linux"),
+            mock.patch.dict(os.environ, {}, clear=True),
+        ):
+            with self.assertRaisesRegex(conformance.ConformanceError, "trusted Linux"):
+                conformance.require_brokered_ci_boundary(Path("config.toml"))
+
+    def test_response_evidence_never_retains_model_text(self) -> None:
+        marker = "model-controlled-private-marker"
+        evidence = conformance.response_evidence(
+            {"answer": marker}, {"answer": "expected"}
+        )
+        rendered = json.dumps(evidence, sort_keys=True)
+        self.assertNotIn(marker, rendered)
+        self.assertFalse(evidence["response_matched"])
+        self.assertEqual(64, len(evidence["response_sha256"]))
+
+    def test_brokered_live_reduction_never_stages_auth_or_reports_model_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            broker_config = root / "broker-home" / "config.toml"
+            broker_config.parent.mkdir()
+            broker_config.write_text(
+                'model_provider = "codex-action-responses-proxy"\n\n'
+                '[model_providers.codex-action-responses-proxy]\n'
+                'name = "Codex Action Responses Proxy"\n'
+                'base_url = "http://127.0.0.1:43123/v1"\n'
+                'wire_api = "responses"\n',
+                encoding="utf-8",
+            )
+            manifest = copy.deepcopy(self.manifest)
+            manifest["lanes"] = [copy.deepcopy(self.lane)]
+            observed_homes: list[Path] = []
+
+            def runner(argv, cwd, timeout, child_env):
+                del cwd, timeout
+                codex_home = Path(child_env["CODEX_HOME"])
+                observed_homes.append(codex_home)
+                self.assertFalse((codex_home / "auth.json").exists())
+                if tuple(argv[-1:]) == ("--version",):
+                    return conformance.CommandResult(0, "codex-cli 0.test\n", "")
+                if tuple(argv[1:4]) == ("plugin", "marketplace", "add"):
+                    return conformance.CommandResult(0, "{}", "")
+                if tuple(argv[1:3]) == ("plugin", "add"):
+                    installed = codex_home / "plugins" / "cache" / "sre-agents"
+                    conformance.shutil.copytree(ROOT / conformance.PLUGIN_DIRECTORY, installed)
+                    return conformance.CommandResult(
+                        0,
+                        json.dumps(
+                            {
+                                "pluginId": "sre-agents@latent-sre",
+                                "name": "sre-agents",
+                                "version": "1.0.0",
+                                "installedPath": str(installed),
+                            }
+                        ),
+                        "",
+                    )
+                if tuple(argv[1:4]) == ("plugin", "list", "--json"):
+                    return conformance.CommandResult(
+                        0,
+                        json.dumps(
+                            {
+                                "installed": [
+                                    {
+                                        "pluginId": "sre-agents@latent-sre",
+                                        "name": "sre-agents",
+                                        "version": "1.0.0",
+                                        "marketplaceName": "latent-sre",
+                                        "installed": True,
+                                        "enabled": True,
+                                    }
+                                ]
+                            }
+                        ),
+                        "",
+                    )
+                installed_skill = (
+                    codex_home
+                    / "plugins"
+                    / "cache"
+                    / "sre-agents"
+                    / "skills"
+                    / self.lane["skill"]
+                    / "SKILL.md"
+                )
+                skill_text = installed_skill.read_text(encoding="utf-8")
+                trace = "\n".join(
+                    (
+                        json.dumps(
+                            {
+                                "type": "thread.started",
+                                "thread_id": "thread-1",
+                                "metadata": {"model": "gpt-5.6-sol"},
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "type": "item.completed",
+                                "item": {
+                                    "type": "command_execution",
+                                    "command": f"Get-Content -Raw '{installed_skill}'",
+                                    "aggregated_output": skill_text,
+                                    "exit_code": 0,
+                                    "status": "completed",
+                                },
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "type": "item.completed",
+                                "item": {
+                                    "type": "agent_message",
+                                    "text": json.dumps(self.lane["expected"]),
+                                },
+                            }
+                        ),
+                        json.dumps({"type": "turn.completed", "usage": {"input_tokens": 1}}),
+                    )
+                )
+                return conformance.CommandResult(0, trace, "")
+
+            with mock.patch.object(
+                conformance, "require_brokered_ci_boundary", return_value={"provider": "proxy"}
+            ):
+                report = conformance.run_live(
+                    ROOT,
+                    manifest,
+                    executable="codex",
+                    broker_config=broker_config,
+                    require_clean_plugin=False,
+                    require_clean_harness=False,
+                    runner=runner,
+                )
+
+        self.assertTrue(observed_homes)
+        result = report["results"][0]
+        self.assertTrue(result["response_matched"])
+        self.assertEqual(64, len(result["response_sha256"]))
+        for forbidden in ("response", "expected", "observed_models", "usage"):
+            self.assertNotIn(forbidden, result)
+        self.assertNotIn(json.dumps(self.lane["expected"]), json.dumps(report))
+
+    def test_credential_detector_fails_closed_without_echoing_value(self) -> None:
+        marker = "sk-proj-0123456789abcdefghijklmnop"
+        with self.assertRaisesRegex(
+            conformance.CredentialOutputError, "credential-shaped material detected"
+        ) as raised:
+            conformance.assert_no_credential_output(f"result={marker}")
+        self.assertNotIn(marker, str(raised.exception))
 
     def test_plugin_snapshot_digest_detects_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

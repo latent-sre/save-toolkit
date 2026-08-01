@@ -1,5 +1,11 @@
 # Codex/Sol seven-agent conformance baseline - 2026-07-31
 
+> [!WARNING]
+> **REVOKED AS RELEASE EVIDENCE (2026-07-31).** The former runner placed `auth.json` where
+> model-controlled read tools could access it and retained parsed final responses. The result below
+> is preserved only as historical diagnostic data; it is not a current pass and must not gate merge
+> or release. No disclosure was observed, but this method could not prove credential isolation.
+
 ## Outcome
 
 **PASS - 9/9 required lanes, 0 failed, 0 inconclusive.** Codex installed all seven generated custom

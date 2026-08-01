@@ -7,8 +7,8 @@ requires persisted parent/child runtime evidence. A final answer that merely cla
 never pass.
 
 Raw CLI JSONL and Codex session rollouts are reduced inside the temporary directory to deterministic
-facts and hashes. The entire directory, including its temporary ``auth.json`` copy, is deleted before
-the sanitized report is returned.
+facts and hashes. The live runner accepts only the tokenless loopback provider configuration created
+by the trusted Linux broker workflow; it never reads or copies ``auth.json`` or an API key.
 """
 
 from __future__ import annotations
@@ -289,7 +289,6 @@ def build_exec_command(executable: str, workspace: Path, lane: Mapping[str, obje
         lane["approval_policy"],
         "exec",
         "--json",
-        "--ignore-user-config",
         "--ignore-rules",
         "--color",
         "never",
@@ -308,16 +307,20 @@ def build_exec_command(executable: str, workspace: Path, lane: Mapping[str, obje
     ]
 
 
-def _read_rollouts(session_root: Path) -> tuple[list[list[dict[str, object]]], str]:
+def _read_rollouts(
+    session_root: Path, *, sensitive_values: Sequence[str] = ()
+) -> tuple[list[list[dict[str, object]]], str]:
     rollouts: list[list[dict[str, object]]] = []
     digest = hashlib.sha256()
     for path in sorted(session_root.rglob("*.jsonl")) if session_root.is_dir() else []:
         raw = path.read_bytes()
+        decoded = raw.decode("utf-8", errors="replace")
+        base.assert_no_credential_output(decoded, sensitive_values=sensitive_values)
         digest.update(path.relative_to(session_root).as_posix().encode("utf-8"))
         digest.update(b"\0")
         digest.update(raw)
         rows: list[dict[str, object]] = []
-        for number, line in enumerate(raw.decode("utf-8", errors="replace").splitlines(), 1):
+        for number, line in enumerate(decoded.splitlines(), 1):
             try:
                 row = json.loads(line)
             except json.JSONDecodeError as exc:
@@ -430,7 +433,7 @@ def score_agent_evidence(
 ) -> AgentScore:
     response = base._extract_object(stdout_trace.get("last_message"))
     base_diagnostics: dict[str, object] = {
-        "stdout_thread_id": stdout_trace.get("thread_id"),
+        "stdout_thread_id_present": isinstance(stdout_trace.get("thread_id"), str),
         "stdout_trace_complete": bool(
             stdout_trace.get("turn_completed_count") == 1
             and stdout_trace.get("malformed_line_count") == 0
@@ -495,8 +498,8 @@ def score_agent_evidence(
     ]
     spawn_ok = False
     spawn_call_id: str | None = None
-    sanitized_spawn_arguments: dict[str, object] | None = None
     spawn_output: dict[str, object] | None = None
+    spawn_arguments_matched = False
     if len(spawn_calls) == 1:
         spawn_call_id = spawn_calls[0].get("call_id") if isinstance(
             spawn_calls[0].get("call_id"), str
@@ -507,13 +510,10 @@ def score_agent_evidence(
             "fork_turns": "none",
             "task_name": lane["task_name"],
         }
-        if arguments is not None:
-            sanitized_spawn_arguments = {
-                key: arguments.get(key) for key in ("agent_type", "fork_turns", "task_name")
-            }
         if arguments is not None and all(
             arguments.get(key) == expected for key, expected in expected_arguments.items()
         ):
+            spawn_arguments_matched = True
             outputs = [
                 _decode_object(item.get("output"))
                 for item in parent_items
@@ -525,26 +525,14 @@ def score_agent_evidence(
             spawn_ok = spawn_output == {"task_name": f'/root/{lane["task_name"]}'}
 
     child_candidates = []
-    child_metadata: list[dict[str, object]] = []
+    child_metadata_count = 0
     for rows in rollouts:
         metadata = _meta(rows) or {}
         source = metadata.get("source")
         subagent = source.get("subagent") if isinstance(source, dict) else None
         thread_spawn = subagent.get("thread_spawn") if isinstance(subagent, dict) else None
         if metadata.get("parent_thread_id") == parent_thread_id:
-            child_metadata.append(
-                {
-                    "agent_role": metadata.get("agent_role"),
-                    "agent_path": metadata.get("agent_path"),
-                    "source_agent_role": (
-                        thread_spawn.get("agent_role") if isinstance(thread_spawn, dict) else None
-                    ),
-                    "source_parent_matched": bool(
-                        isinstance(thread_spawn, dict)
-                        and thread_spawn.get("parent_thread_id") == parent_thread_id
-                    ),
-                }
-            )
+            child_metadata_count += 1
         if (
             metadata.get("parent_thread_id") == parent_thread_id
             and metadata.get("agent_role") == lane["agent"]
@@ -584,13 +572,13 @@ def score_agent_evidence(
         "parent_rollout_count": 1,
         "spawn_call_count": len(spawn_calls),
         "spawn_succeeded": spawn_ok,
-        "spawn_arguments": sanitized_spawn_arguments,
-        "spawn_output": spawn_output,
+        "spawn_arguments_matched": spawn_arguments_matched,
+        "spawn_output_matched": spawn_output == {"task_name": f'/root/{lane["task_name"]}'},
         "wait_call_count": len(wait_calls),
         "wait_succeeded": wait_ok,
         "parent_child_delivery_count": len(child_delivery_items),
         "child_rollout_count": len(child_candidates),
-        "child_metadata": child_metadata,
+        "child_metadata_count": child_metadata_count,
         "child_tool_call_count": len(child_tool_calls),
         "parent_runtime_contract_matched": parent_contract,
         "child_runtime_contract_matched": child_contract,
@@ -654,11 +642,13 @@ def run_live(
     manifest: Mapping[str, object],
     *,
     executable: str,
+    broker_config: Path,
     require_clean_plugin: bool,
     require_clean_agents: bool,
     require_clean_harness: bool,
     runner: base.Runner = base._run,
 ) -> dict[str, object]:
+    base.require_brokered_ci_boundary(broker_config)
     plugin_digest_before = base.codex_plugin_digest(root)
     agent_digest_before = agent_source_digest(root)
     plugin_status = base._plugin_git_status(root)
@@ -671,7 +661,7 @@ def run_live(
     if require_clean_harness and harness_status:
         raise base.ConformanceError("Codex agent harness differs from HEAD; refusing publishable baseline")
 
-    auth = base.require_auth_file()
+    sensitive_values = base._sensitive_host_values()
     started_at = base._timestamp()
     start = time.monotonic()
     results: list[dict[str, object]] = []
@@ -692,8 +682,9 @@ def run_live(
         codex_home.mkdir()
         workspace.mkdir()
         os.chmod(codex_home, stat.S_IRWXU)
-        shutil.copyfile(auth, codex_home / base.AUTH_FILE)
-        os.chmod(codex_home / base.AUTH_FILE, stat.S_IRUSR | stat.S_IWUSR)
+        broker_config_sha256 = base.stage_broker_config(broker_config, codex_home)
+        if (codex_home / "auth.json").exists():
+            raise base.ConformanceError("disposable Codex agent home must remain credential-free")
         base.copy_codex_marketplace_snapshot(root, marketplace)
         shutil.copytree(root / AGENT_SOURCE_DIRECTORY, frozen_agents)
         if base.codex_plugin_digest(marketplace) != plugin_digest_before:
@@ -730,9 +721,18 @@ def run_live(
             installed_document = _agent_document(agent_path)
             command = build_exec_command(executable, workspace, lane)
             execution = runner(command, workspace, lane["timeout_seconds"], env)
+            base.assert_no_credential_output(
+                execution.stdout,
+                execution.stderr,
+                sensitive_values=sensitive_values,
+            )
             stdout_trace = base.parse_codex_jsonl(execution.stdout)
             try:
-                rollouts, rollout_digest = _read_rollouts(codex_home / "sessions")
+                rollouts, rollout_digest = _read_rollouts(
+                    codex_home / "sessions", sensitive_values=sensitive_values
+                )
+            except base.CredentialOutputError:
+                raise
             except base.ConformanceError as exc:
                 score = AgentScore(
                     "inconclusive",
@@ -765,14 +765,16 @@ def run_live(
                     "duration_ms": round((time.monotonic() - lane_start) * 1000),
                     "cli_version": version,
                     "requested_model": lane["model"],
-                    "observed_models": list(score.observed_models),
+                    "observed_model_count": len(score.observed_models),
+                    "observed_model_verified": bool(score.observed_models) and all(
+                        model == lane["model"] for model in score.observed_models
+                    ),
                     "observed_model_exposed": bool(score.observed_models),
                     "reasoning_effort": lane["reasoning_effort"],
                     "sandbox": lane["sandbox"],
                     "approval_policy": lane["approval_policy"],
                     "prompt_digest": hashlib.sha256(lane["prompt"].encode("utf-8")).hexdigest(),
-                    "expected": lane["expected"],
-                    "response": score.response,
+                    **base.response_evidence(score.response, lane["expected"]),
                     "agent": lane["agent"],
                     "task_name": lane["task_name"],
                     "agent_sha256": hashlib.sha256(agent_path.read_bytes()).hexdigest(),
@@ -781,7 +783,7 @@ def run_live(
                     ).hexdigest(),
                     "diagnostics": score.diagnostics,
                     "event_count": stdout_trace["event_count"],
-                    "usage": stdout_trace["usage"],
+                    "usage_observed": isinstance(stdout_trace["usage"], dict),
                     "exit_code": execution.returncode,
                     "timed_out": execution.timed_out,
                     "stdout_stderr_digest": hashlib.sha256(transcript.encode("utf-8")).hexdigest(),
@@ -813,11 +815,12 @@ def run_live(
         "installed_agent_sha256": installed_agent_digest,
         "manifest_sha256": hashlib.sha256(base._canonical_json(manifest)).hexdigest(),
         "plugin_inventory_sha256": inventory_digest,
+        "broker_config_sha256": broker_config_sha256,
         "installed_agent_count": len(manifest["agents"]),
         "raw_transcript_persisted": False,
         "auth_boundary": (
-            "The isolated CODEX_HOME contains auth.json and temporary session rollouts during the "
-            "run; both are deleted before this sanitized report is returned."
+            "The trusted Linux workflow holds the API key in a separate Responses API proxy, "
+            "removes sudo, and gives this runner only a tokenless loopback provider config."
         ),
         "summary": summary,
         "results": results,
@@ -842,9 +845,18 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--validate", action="store_true", help="validate fixed local contracts")
-    action.add_argument("--run", action="store_true", help="run live Codex/Sol agent conformance")
+    action.add_argument(
+        "--run",
+        action="store_true",
+        help="run live Codex/Sol agent conformance inside the trusted broker workflow",
+    )
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--codex-bin", default="codex")
+    parser.add_argument(
+        "--broker-config",
+        type=Path,
+        help="tokenless config.toml emitted by the trusted Codex Responses API proxy workflow",
+    )
     parser.add_argument("--allow-dirty-plugin", action="store_true", help="development only")
     parser.add_argument("--allow-dirty-agents", action="store_true", help="development only")
     parser.add_argument("--allow-dirty-harness", action="store_true", help="development only")
@@ -879,6 +891,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise base.ConformanceError(
                     "live agent runs require the fixed codex-sol-agents.json manifest"
                 )
+            if args.broker_config is None:
+                raise base.ConformanceError(
+                    "--run requires --broker-config from the trusted workflow"
+                )
             executable = shutil.which(args.codex_bin)
             if executable is None:
                 raise base.ConformanceError(f"Codex executable is not on PATH: {args.codex_bin}")
@@ -886,6 +902,7 @@ def main(argv: list[str] | None = None) -> int:
                 REPO_ROOT,
                 manifest,
                 executable=executable,
+                broker_config=args.broker_config,
                 require_clean_plugin=not args.allow_dirty_plugin,
                 require_clean_agents=not args.allow_dirty_agents,
                 require_clean_harness=not args.allow_dirty_harness,

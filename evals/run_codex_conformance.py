@@ -7,9 +7,10 @@ CODEX_HOME, runs from an empty git-root fixture, and records Codex/Sol evidence 
 or blending the historical Claude/Opus results.
 
 Raw JSONL is held in memory and reduced to hashes and deterministic facts. It is not persisted.
-The isolated CODEX_HOME contains a temporary copy of ``auth.json`` because the CLI cannot run an
-authenticated model call without it. Codex's read-only shell can read that config tree, so live
-lanes are restricted to clean, reviewed plugin bytes and fixed prompts from this manifest.
+Live calls are accepted only from the repository's trusted Linux CI workflow after that workflow
+has started a credential-holding Responses API proxy and irreversibly removed sudo. The runner
+receives only a validated, tokenless loopback provider configuration; it never reads or copies
+``auth.json`` or an API key.
 """
 
 from __future__ import annotations
@@ -18,16 +19,19 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Callable, Mapping, Sequence
+from urllib.parse import urlsplit
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -39,9 +43,9 @@ from scripts import evidence_envelope  # noqa: E402
 DEFAULT_MANIFEST = REPO_ROOT / "evals" / "conformance" / "codex-sol.json"
 MARKETPLACE_MANIFEST = Path(".agents/plugins/marketplace.json")
 PLUGIN_DIRECTORY = Path("plugins/sre-agents")
-AUTH_FILE = "auth.json"
 SOL_MODEL = "gpt-5.6-sol"
 VERDICTS = {"pass", "fail", "inconclusive"}
+BROKER_PROVIDER = "codex-action-responses-proxy"
 
 SAFE_ENV_KEYS = (
     "PATH",
@@ -58,21 +62,25 @@ SAFE_ENV_KEYS = (
     "LOCALAPPDATA",
     "LANG",
     "LC_ALL",
-    "SSL_CERT_FILE",
-    "SSL_CERT_DIR",
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "NO_PROXY",
-    "ALL_PROXY",
-    "http_proxy",
-    "https_proxy",
-    "no_proxy",
-    "all_proxy",
+)
+
+_SENSITIVE_ENV_NAME = re.compile(r"(?:^|_)(?:API_?KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)(?:_|$)", re.I)
+_CREDENTIAL_PATTERNS = (
+    re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{16,}", re.I),
+    re.compile(
+        r'"(?:access_token|refresh_token|id_token|api_key)"\s*:\s*"[^"\r\n]{8,}"',
+        re.I,
+    ),
 )
 
 
 class ConformanceError(ValueError):
     """The suite or local runtime cannot produce a trustworthy measurement."""
+
+
+class CredentialOutputError(ConformanceError):
+    """Volatile model output resembled a credential and must not reach a report."""
 
 
 @dataclass(frozen=True)
@@ -105,6 +113,20 @@ def _timestamp() -> str:
 
 def _canonical_json(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def response_evidence(
+    response: Mapping[str, object] | None, expected: Mapping[str, object]
+) -> dict[str, object]:
+    """Reduce a final message to equality and hashes without retaining model text."""
+
+    return {
+        "oracle_sha256": hashlib.sha256(_canonical_json(expected)).hexdigest(),
+        "response_sha256": (
+            hashlib.sha256(_canonical_json(response)).hexdigest() if response is not None else None
+        ),
+        "response_matched": response == expected,
+    }
 
 
 def load_manifest(path: Path) -> dict[str, object]:
@@ -421,17 +443,143 @@ def copy_codex_marketplace_snapshot(source_root: Path, destination_root: Path) -
         raise ConformanceError("Codex plugin inputs changed while the snapshot was being copied")
 
 
-def source_codex_home() -> Path:
-    return Path(os.environ.get("CODEX_HOME") or (Path.home() / ".codex")).expanduser().resolve()
+def _assert_regular_unlinked_file(path: Path, label: str) -> Path:
+    """Reject a missing file and indirection in any existing path component."""
+
+    absolute = path.expanduser().absolute()
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        if (current.exists() or current.is_symlink()) and _is_link_or_reparse(current):
+            raise ConformanceError(f"{label} traverses a linked or reparse path: {current}")
+    if not absolute.is_file() or _is_link_or_reparse(absolute):
+        raise ConformanceError(f"{label} must be a regular, unlinked file: {absolute}")
+    return absolute
 
 
-def require_auth_file() -> Path:
-    auth = source_codex_home() / AUTH_FILE
-    if not auth.is_file() or _is_link_or_reparse(auth):
+def load_broker_config(path: Path) -> dict[str, str]:
+    """Validate the tokenless provider config emitted by the pinned Codex action."""
+
+    config_path = _assert_regular_unlinked_file(path, "broker config")
+    auth_path = config_path.parent / "auth.json"
+    if auth_path.exists() or auth_path.is_symlink():
+        raise ConformanceError("broker CODEX_HOME must not contain auth.json")
+    try:
+        document = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise ConformanceError(f"cannot parse broker config: {exc}") from exc
+    if set(document) != {"model_provider", "model_providers"}:
+        raise ConformanceError("broker config has missing or unknown top-level fields")
+    if document.get("model_provider") != BROKER_PROVIDER:
+        raise ConformanceError("broker config does not select the pinned Responses API proxy")
+    providers = document.get("model_providers")
+    if not isinstance(providers, dict) or set(providers) != {BROKER_PROVIDER}:
+        raise ConformanceError("broker config must define exactly one pinned provider")
+    provider = providers[BROKER_PROVIDER]
+    if not isinstance(provider, dict) or set(provider) != {"name", "base_url", "wire_api"}:
+        raise ConformanceError("broker provider has missing or credential-bearing fields")
+    if provider.get("name") != "Codex Action Responses Proxy" or provider.get("wire_api") != "responses":
+        raise ConformanceError("broker provider identity or wire API is invalid")
+    base_url = provider.get("base_url")
+    if not isinstance(base_url, str):
+        raise ConformanceError("broker base_url must be a string")
+    parsed = urlsplit(base_url)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ConformanceError("broker base_url has an invalid port") from exc
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname != "127.0.0.1"
+        or port is None
+        or parsed.path.rstrip("/") != "/v1"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ConformanceError("broker base_url must be tokenless http://127.0.0.1:<port>/v1")
+    return {"base_url": f"http://127.0.0.1:{port}/v1", "provider": BROKER_PROVIDER}
+
+
+def stage_broker_config(source: Path, codex_home: Path) -> str:
+    """Write a normalized credential-free provider config into the disposable home."""
+
+    broker = load_broker_config(source)
+    rendered = (
+        f'model_provider = "{BROKER_PROVIDER}"\n\n'
+        f'[model_providers.{BROKER_PROVIDER}]\n'
+        'name = "Codex Action Responses Proxy"\n'
+        f'base_url = "{broker["base_url"]}"\n'
+        'wire_api = "responses"\n'
+    )
+    target = codex_home / "config.toml"
+    target.write_text(rendered, encoding="utf-8", newline="\n")
+    os.chmod(target, stat.S_IRUSR | stat.S_IWUSR)
+    return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+
+
+def require_brokered_ci_boundary(broker_config: Path) -> dict[str, str]:
+    """Fail closed unless the trusted Linux workflow established the OS boundary."""
+
+    broker = load_broker_config(broker_config)
+    if sys.platform != "linux" or os.environ.get("GITHUB_ACTIONS") != "true":
         raise ConformanceError(
-            f"no regular Codex credential file at {auth}; run `codex login` before live conformance"
+            "live conformance is restricted to the trusted Linux GitHub Actions broker workflow"
         )
-    return auth
+    if os.environ.get("RUNNER_OS") != "Linux" or os.environ.get("CI") != "true":
+        raise ConformanceError("live conformance requires the Linux CI runner contract")
+    getuid = getattr(os, "geteuid", None)
+    if getuid is None or getuid() == 0:
+        raise ConformanceError("live conformance must run as a non-root OS identity")
+    for candidate in {
+        Path.home() / ".codex" / "auth.json",
+        Path(os.environ.get("CODEX_HOME", "")) / "auth.json" if os.environ.get("CODEX_HOME") else None,
+    }:
+        if candidate is not None and (candidate.exists() or candidate.is_symlink()):
+            raise ConformanceError("live conformance identity must not have a readable auth.json")
+    sudo = shutil.which("sudo")
+    if sudo:
+        check = subprocess.run(
+            [sudo, "-n", "true"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=10,
+        )
+        if check.returncode == 0:
+            raise ConformanceError("live conformance requires passwordless sudo to be removed")
+    return broker
+
+
+def _sensitive_host_values() -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            {
+                value
+                for key, value in os.environ.items()
+                if _SENSITIVE_ENV_NAME.search(key) and len(value) >= 8
+            },
+            key=len,
+            reverse=True,
+        )
+    )
+
+
+def assert_no_credential_output(
+    *texts: str, sensitive_values: Sequence[str] = ()
+) -> None:
+    """Abort without echoing when volatile output resembles credential material."""
+
+    for value in texts:
+        if any(secret in value for secret in sensitive_values) or any(
+            pattern.search(value) for pattern in _CREDENTIAL_PATTERNS
+        ):
+            raise CredentialOutputError(
+                "credential-shaped material detected in volatile Codex output; no report emitted"
+            )
 
 
 def scrubbed_child_env(codex_home: Path, neutral_profile: Path | None = None) -> dict[str, str]:
@@ -1008,7 +1156,9 @@ def build_conformance_evidence(
     requested_models = sorted(
         {item["requested_model"] for item in results if isinstance(item, dict)}
     )
-    limitations = ["Raw model transcripts were reduced to hashes and were not persisted."]
+    limitations = [
+        "Raw model transcripts and parsed final messages were reduced to hashes and were not persisted."
+    ]
     missing_model_evidence = sum(
         isinstance(item, dict) and not item.get("observed_model_exposed") for item in results
     )
@@ -1064,6 +1214,8 @@ def build_conformance_evidence(
             "disposable_home": True,
             "read_only_sandbox_requested": True,
             "raw_transcript_persisted": False,
+            "loopback_model_transport": True,
+            "sudo_removed_by_trusted_workflow": True,
         },
         limitations=limitations,
     )
@@ -1153,10 +1305,12 @@ def run_live(
     manifest: Mapping[str, object],
     *,
     executable: str,
+    broker_config: Path,
     require_clean_plugin: bool,
     require_clean_harness: bool,
     runner: Runner = _run,
 ) -> dict[str, object]:
+    require_brokered_ci_boundary(broker_config)
     source_digest_before = codex_plugin_digest(root)
     plugin_status = _plugin_git_status(root)
     harness_status = _harness_git_status(root)
@@ -1165,7 +1319,7 @@ def run_live(
         raise ConformanceError("Codex plugin inputs differ from HEAD; refusing publishable baseline")
     if require_clean_harness and harness_status:
         raise ConformanceError("Codex conformance harness differs from HEAD; refusing publishable baseline")
-    auth = require_auth_file()
+    sensitive_values = _sensitive_host_values()
     started_at = _timestamp()
     start = time.monotonic()
     results: list[dict[str, object]] = []
@@ -1182,8 +1336,9 @@ def run_live(
         codex_home.mkdir()
         workspace.mkdir()
         os.chmod(codex_home, stat.S_IRWXU)
-        shutil.copyfile(auth, codex_home / AUTH_FILE)
-        os.chmod(codex_home / AUTH_FILE, stat.S_IRUSR | stat.S_IWUSR)
+        broker_config_sha256 = stage_broker_config(broker_config, codex_home)
+        if (codex_home / "auth.json").exists():
+            raise ConformanceError("disposable Codex home must remain credential-free")
         copy_codex_marketplace_snapshot(root, marketplace)
         snapshot_digest = codex_plugin_digest(marketplace)
         if snapshot_digest != source_digest_before:
@@ -1268,6 +1423,11 @@ def run_live(
             skill_path = artifact_paths[skill_relative_path]["installed-cache"]
             command = build_exec_command(executable, workspace, lane)
             execution = runner(command, workspace, lane["timeout_seconds"], env)
+            assert_no_credential_output(
+                execution.stdout,
+                execution.stderr,
+                sensitive_values=sensitive_values,
+            )
             parsed = parse_codex_jsonl(execution.stdout)
             if lane["kind"] == "reference-direct":
                 score = score_reference_trace(
@@ -1304,14 +1464,16 @@ def run_live(
                     "duration_ms": round((time.monotonic() - lane_start) * 1000),
                     "cli_version": version,
                     "requested_model": lane["model"],
-                    "observed_models": parsed["observed_models"],
+                    "observed_model_count": len(parsed["observed_models"]),
+                    "observed_model_verified": bool(parsed["observed_models"]) and all(
+                        model == lane["model"] for model in parsed["observed_models"]
+                    ),
                     "observed_model_exposed": bool(parsed["observed_models"]),
                     "reasoning_effort": lane["reasoning_effort"],
                     "sandbox": lane["sandbox"],
                     "approval_policy": lane["approval_policy"],
                     "prompt_digest": hashlib.sha256(lane["prompt"].encode("utf-8")).hexdigest(),
-                    "expected": lane["expected"],
-                    "response": score.response,
+                    **response_evidence(score.response, lane["expected"]),
                     "skill": lane["skill"],
                     "references": lane.get("references", []),
                     "skill_sha256": hashlib.sha256(skill_path.read_bytes()).hexdigest(),
@@ -1323,7 +1485,7 @@ def run_live(
                     "skill_read_diagnostics": score.skill_read_diagnostics,
                     "event_count": parsed["event_count"],
                     "command_count": len(parsed["commands"]),
-                    "usage": parsed["usage"],
+                    "usage_observed": isinstance(parsed["usage"], dict),
                     "exit_code": execution.returncode,
                     "timed_out": execution.timed_out,
                     "transcript_digest": hashlib.sha256(transcript.encode("utf-8")).hexdigest(),
@@ -1346,11 +1508,12 @@ def run_live(
         "plugin_source_sha256": source_digest_before,
         "manifest_sha256": hashlib.sha256(_canonical_json(manifest)).hexdigest(),
         "plugin_inventory_sha256": inventory_digest,
+        "broker_config_sha256": broker_config_sha256,
         "installed_skill_count": installed_skill_count,
         "raw_transcript_persisted": False,
         "auth_boundary": (
-            "The isolated CODEX_HOME contains auth.json during the run and is deleted afterward; "
-            "run only fixed prompts against reviewed plugin bytes."
+            "The trusted Linux workflow holds the API key in a separate Responses API proxy, "
+            "removes sudo, and gives this runner only a tokenless loopback provider config."
         ),
         "summary": summary,
         "results": results,
@@ -1370,9 +1533,18 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--validate", action="store_true", help="validate manifest and plugin bytes; no model")
-    action.add_argument("--run", action="store_true", help="run live Codex/Sol conformance")
+    action.add_argument(
+        "--run",
+        action="store_true",
+        help="run live Codex/Sol conformance inside the trusted broker workflow",
+    )
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--codex-bin", default="codex")
+    parser.add_argument(
+        "--broker-config",
+        type=Path,
+        help="tokenless config.toml emitted by the trusted Codex Responses API proxy workflow",
+    )
     parser.add_argument(
         "--allow-dirty-plugin",
         action="store_true",
@@ -1411,6 +1583,8 @@ def main(argv: list[str] | None = None) -> int:
                     "live runs require the repository's fixed codex-sol.json manifest; "
                     "custom manifests are validation-only"
                 )
+            if args.broker_config is None:
+                raise ConformanceError("--run requires --broker-config from the trusted workflow")
             executable = shutil.which(args.codex_bin)
             if executable is None:
                 raise ConformanceError(f"Codex executable is not on PATH: {args.codex_bin}")
@@ -1418,6 +1592,7 @@ def main(argv: list[str] | None = None) -> int:
                 REPO_ROOT,
                 manifest,
                 executable=executable,
+                broker_config=args.broker_config,
                 require_clean_plugin=not args.allow_dirty_plugin,
                 require_clean_harness=not args.allow_dirty_harness,
             )
