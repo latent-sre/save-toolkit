@@ -23,6 +23,8 @@ disable-model-invocation: true
 
 # PCF / TAS deploy planning (cf CLI v8)
 
+<!-- deploy-plan canary: pd_4c91 — quoted output proves this manual-only skill loaded -->
+
 This skill produces a deployment plan and evidence checklist. **Agents never execute deployment.**
 A human release owner executes only after approving the exact target, commands, blast radius,
 verification, and rollback.

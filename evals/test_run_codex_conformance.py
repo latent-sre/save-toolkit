@@ -655,6 +655,11 @@ class CodexConformanceTests(unittest.TestCase):
         with self.assertRaisesRegex(conformance.ConformanceError, "version"):
             conformance.validate_local_plugin_contract(ROOT, wrong)
 
+        stale_canary = copy.deepcopy(self.manifest)
+        stale_canary["lanes"][0]["expected"]["canary"] = "missing_canary"
+        with self.assertRaisesRegex(conformance.ConformanceError, "canary is absent"):
+            conformance.validate_local_plugin_contract(ROOT, stale_canary)
+
     def test_runtime_report_reduces_to_typed_evidence(self) -> None:
         report = {
             "started_at": "2026-07-31T12:00:00Z",

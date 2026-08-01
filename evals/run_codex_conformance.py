@@ -198,6 +198,11 @@ def validate_manifest(manifest: Mapping[str, object]) -> None:
                 )
         if not isinstance(lane["expected"], dict) or not lane["expected"]:
             raise ConformanceError(f"lane {lane_id!r}: expected must be a non-empty object")
+        if "canary" in lane["expected"] and (
+            not isinstance(lane["expected"]["canary"], str)
+            or not lane["expected"]["canary"].strip()
+        ):
+            raise ConformanceError(f"lane {lane_id!r}: expected canary must be a non-empty string")
         if not isinstance(lane["timeout_seconds"], int) or not 1 <= lane["timeout_seconds"] <= 900:
             raise ConformanceError(f"lane {lane_id!r}: timeout must be between 1 and 900 seconds")
         if not isinstance(lane["required"], bool):
@@ -262,6 +267,11 @@ def validate_local_plugin_contract(root: Path, manifest: Mapping[str, object]) -
         _assert_no_indirection(root, skill, f"lane {lane['id']!r} skill")
         if not skill.is_file() or _is_link_or_reparse(skill):
             raise ConformanceError(f"lane {lane['id']!r} targets a missing or linked skill")
+        canary = lane["expected"].get("canary")
+        if isinstance(canary, str) and canary not in skill.read_text(encoding="utf-8"):
+            raise ConformanceError(
+                f"lane {lane['id']!r} expected canary is absent from the installed skill"
+            )
         for reference in lane.get("references", []):
             reference_path = root / PLUGIN_DIRECTORY / "skills" / lane["skill"] / reference
             _assert_no_indirection(
