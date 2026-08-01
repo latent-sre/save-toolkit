@@ -127,9 +127,11 @@ py -3 evals/run_codex_conformance.py --run --output result.json
 ```
 
 See [`evals/README.md`](evals/README.md) for the credential boundary, pass oracle, and provenance
-record. The retained historical Sol baselines prove six selected skill/reference lanes and the
-then-current six standalone Codex custom-agent profiles. They do not prove implicit agent
-routing or Claude-equivalent per-agent tool narrowing; those remain separate host/runtime questions.
+record. The current clean-SHA Sol baselines prove 11 selected skill/reference lanes and nine lanes
+covering all seven standalone Codex agents, including the two trust-separated refusal behaviors.
+Older six-lane/six-agent results remain immutable historical snapshots. None of these baselines prove
+implicit routing or Claude-equivalent per-agent tool narrowing; those remain separate host/runtime
+questions.
 
 ## Current status
 

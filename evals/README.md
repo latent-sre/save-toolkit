@@ -73,6 +73,16 @@ Codex home (including `auth.json` and the raw sessions) before writing the sanit
 agent runs require clean plugin, generated-agent, and harness inputs by default; the three separate
 dirty-development switches are never suitable for publishable evidence.
 
+The current clean-SHA Sol evidence is retained separately:
+
+- [`2026-07-31-codex-sol-expanded-conformance`](baselines/2026-07-31-codex-sol-expanded-conformance)
+  - 11/11 skill and progressive-reference lanes;
+- [`2026-07-31-codex-sol-seven-agent-conformance`](baselines/2026-07-31-codex-sol-seven-agent-conformance)
+  - 9/9 custom-agent delegation and trust-boundary behavior lanes.
+
+Older baseline directories remain immutable historical snapshots; they are not combined with or
+relabeled as the current result.
+
 Behavioral evals for the agents and skills, above the structural `scripts/gate_a.py` gate. The
 unified runner measures two different properties and never blends their scores:
 

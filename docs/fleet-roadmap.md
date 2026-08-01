@@ -71,10 +71,11 @@ secret-bearing fields; deterministic tests and generated drift checks pass.
 **Current evidence:** Seven canonical roles now pass authority and generated-adapter checks; the
 evidence-envelope validator, JSON Schema, fleet doctor, and Codex/Sol result wrappers have mutation
 tests. An initial independent review found evidence-integrity and coverage gaps; those remediations
-are implemented and awaiting focused re-review plus a clean Sol runtime baseline.
+are implemented. Clean commit `6e165e4` passed all nine Sol custom-agent lanes, including zero-tool
+refusals for both sides of the local/external research boundary.
 
-**Next action:** Complete the focused re-review, commit the candidate, and run all nine clean
-Codex/Sol custom-agent lanes.
+**Next action:** Bind the focused re-review and draft PR to the committed candidate; keep this item
+active until that evidence reaches `main`.
 
 ## Active runtime work
 
@@ -152,13 +153,14 @@ production-change, PCF, agent-security, and observability contracts. Every resul
 `pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
 historical Claude/Opus baselines.
 
-**Current evidence:** Offline validation now covers seven custom agents through nine lanes, including
-zero-tool refusal behavior for both trust-separated research roles; five trust-separation routing
-collisions; and five new risk-weighted skill lanes for release, production change, PCF, agent security,
-and two-window alerting. All live lanes remain pinned to `gpt-5.6-sol` with high reasoning.
+**Current evidence:** Clean commit `6e165e4` passed all 11 skill/reference lanes and all nine
+custom-agent lanes on `gpt-5.6-sol` with high reasoning. The skill run verified 18 exact installed
+artifact reads; the agent run covered all seven roles plus both trust-separated refusal behaviors.
+The sanitized reports retain typed provenance under `evals/baselines/`. Five static routing
+collision cases remain in the ordinary eval suite.
 
-**Next action:** Commit the candidate so clean-input checks can hold, then run the eleven skill/reference
-lanes and nine custom-agent lanes in disposable Codex homes and retain the typed results.
+**Next action:** Bind the evidence to the draft PR and keep implicit routing observational rather
+than turning it into a release gate.
 
 ## Decision needed
 
