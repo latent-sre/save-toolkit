@@ -15,6 +15,23 @@ PLAN_ROOT = Path("docs/superpowers/plans")
 SPEC_ROOT = Path("docs/superpowers/specs")
 ROOT_POINTERS = (Path("AGENTS.md"), Path("README.md"), Path("CONTRIBUTING.md"))
 HISTORICAL_MARKERS = ("implemented", "superseded", "historical")
+VOLATILE_PASS_COUNT_RE = re.compile(
+    r"(?ix)(?:"
+    r"\bpasses?\s+\d+(?:/\d+)?(?:\s+focused)?\s+(?:tests?|scenarios?|cases?|steps?)\b"
+    r"|\bpasses?\s+\d+/\d+\b"
+    r"|\b(?:reports?|reported)\s+\d+\s+passed\b"
+    r"|\b\d+/\d+(?:\s+focused)?\s+(?:tests?|scenarios?|cases?|steps?)\s+passed?\b"
+    r"|\b(?:gate\s+[a-z0-9-]+|suite)\s+is\s+\d+\s*/\s*\d+\b"
+    r"|\b\d+\s+(?:test\s+)?pass(?:es)?\b"
+    r"|\ball\s+\d+\s+(?:offline\s+)?(?:tests?|scenarios?|cases?|steps?)\s+"
+    r"(?:pass|parse|succeed)\b"
+    r"|\ball\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+    r"thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|"
+    r"forty|fifty|sixty|seventy|eighty|ninety)(?:-(?:one|two|three|four|five|six|"
+    r"seven|eight|nine))?\s+(?:tests?|scenarios?|cases?|steps?)\s+"
+    r"(?:pass|parse|succeed)\b"
+    r")"
+)
 
 
 def _read(root: Path, relative: Path) -> tuple[str | None, str | None]:
@@ -48,6 +65,38 @@ def _status_state(value: str) -> str:
     return re.split(r"\s*(?:,|;|\(|—|–|\s-\s)\s*", normalized, maxsplit=1)[0].strip()
 
 
+def _volatile_current_evidence_lines(text: str) -> list[int]:
+    """Find transcribed result counts inside live ``Current evidence`` blocks."""
+
+    matches: list[int] = []
+    start_line: int | None = None
+    block_lines: list[str] = []
+
+    def finish() -> None:
+        nonlocal start_line, block_lines
+        if start_line is not None:
+            normalized = " ".join(" ".join(block_lines).split())
+            if VOLATILE_PASS_COUNT_RE.search(normalized):
+                matches.append(start_line)
+        start_line = None
+        block_lines = []
+
+    for line_number, raw_line in enumerate(text.splitlines(), start=1):
+        stripped = raw_line.strip()
+        if stripped.startswith("**Current evidence:**"):
+            finish()
+            start_line = line_number
+            block_lines.append(stripped)
+        elif start_line is not None and (
+            stripped.startswith("**") or stripped.startswith("#")
+        ):
+            finish()
+        elif start_line is not None:
+            block_lines.append(stripped)
+    finish()
+    return matches
+
+
 def check(root: Path = ROOT) -> list[str]:
     """Return every planning-governance failure under *root*."""
 
@@ -63,6 +112,11 @@ def check(root: Path = ROOT) -> list[str]:
         if "only document" not in front or "unfinished" not in front:
             failures.append(
                 "docs/fleet-roadmap.md: must declare itself the only unfinished-work registry"
+            )
+        for line_number in _volatile_current_evidence_lines(roadmap):
+            failures.append(
+                f"docs/fleet-roadmap.md:{line_number}: Current evidence contains a volatile "
+                "numeric pass count; cite an immutable report, CI run, or exact revision instead"
             )
 
     plan_dir = root / PLAN_ROOT

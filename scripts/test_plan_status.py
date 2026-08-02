@@ -91,6 +91,38 @@ class PlanStatusTests(unittest.TestCase):
         self.assertTrue(any(item.startswith("README.md:") for item in failures))
         self.assertTrue(any("Historical snapshot" in item for item in failures))
 
+    def test_current_evidence_rejects_volatile_numeric_pass_counts(self) -> None:
+        samples = (
+            "Gate A passes 26/26, the validator passes 33 focused tests.",
+            "Gate A passes\n27/27 structural steps.",
+            "Gate A is 29/29.",
+            "The lifecycle suite is 52/52.",
+            "The evidence-envelope suite is 10/10.",
+            "The ledger suite has 11 passes plus one skipped.",
+            "The ledger suite recorded 11 passes.",
+            "The focused suite has 11 test passes.",
+            "The single-case suite has 1 pass.",
+            "pytest reports 18 passed.",
+            "33/33 focused tests passed.",
+            "all forty-seven scenarios pass.",
+        )
+        for sample in samples:
+            with self.subTest(sample=sample):
+                (self.root / "docs/fleet-roadmap.md").write_text(
+                    "# Fleet roadmap\n\n"
+                    "> **Status: live.**\n"
+                    "> This is the only document for unfinished work.\n\n"
+                    "## Active\n\n"
+                    "### LEARN-001 -- stale evidence\n\n"
+                    f"**Current evidence:** {sample}\n",
+                    encoding="utf-8",
+                )
+                failures = check_plan_status.check(self.root)
+                self.assertTrue(
+                    any("volatile numeric pass count" in item for item in failures),
+                    failures,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

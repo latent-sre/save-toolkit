@@ -42,7 +42,7 @@ EVAL_SNAPSHOT_ROOT_ENV = "FLEET_EVAL_SNAPSHOT_ROOT"
 EVAL_INPUT_PATHS = ("run_evals.py", "graders.py", "clean_room.py", "scenarios")
 SCHEMA_VERSION = 1
 MODES = {"direct", "discovery"}
-SPLITS = {"calibration", "held_out"}
+SPLITS = {"calibration", "regression"}
 TARGET_KINDS = {"skill", "agent"}
 ROUTING_EXPECTATIONS = {"fire", "not_fire"}
 DEFAULT_TRIALS = 3
@@ -267,8 +267,8 @@ def validate(scenarios: list[dict]) -> list[str]:
 
     if scenarios and not any(s.get("mode") == "discovery" for s in scenarios):
         problems.append("suite: at least one discovery scenario is required")
-    if scenarios and not any(s.get("split") == "held_out" for s in scenarios):
-        problems.append("suite: at least one genuinely new held_out scenario is required")
+    if scenarios and not any(s.get("split") == "regression" for s in scenarios):
+        problems.append("suite: at least one visible regression scenario is required")
     return problems
 
 
@@ -1147,8 +1147,11 @@ def main() -> int:
     if args.validate:
         direct = sum(s["mode"] == "direct" for s in scenarios)
         discovery = len(scenarios) - direct
-        held_out = sum(s["split"] == "held_out" for s in scenarios)
-        print(f"eval suite OK -- {len(scenarios)} scenarios ({direct} direct, {discovery} discovery, {held_out} held-out).")
+        regression = sum(s["split"] == "regression" for s in scenarios)
+        print(
+            f"eval suite OK -- {len(scenarios)} scenarios "
+            f"({direct} direct, {discovery} discovery, {regression} regression)."
+        )
         return 0
 
     selected = _filter_scenarios(scenarios, args)

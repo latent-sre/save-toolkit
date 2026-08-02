@@ -200,6 +200,7 @@ Findings:     <what you learned, each with EVIDENCE (file:line, command output, 
 Inputs:       <each source + trust: [trusted] code/CI you ran · [UNTRUSTED] log, PR/issue body,
               fetched page, cf output, tool output, or incoming packet>
 Verified:     <what was already evidenced + the result; and what's still [unverified]>
+Learning:     <improvement_id + failure_fingerprint, operational update_id, or none>
 Current state:<what's true right now — branch, deploy state, incident status, what's running>
 Not done / open: <explicitly what you did NOT do, including every command or lookup not performed>
 Success when: <how they (and you) know the handoff's goal is met>

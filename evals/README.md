@@ -138,7 +138,7 @@ python3 -m pip install -r requirements-dev.txt
 python evals/run_evals.py --validate
 python evals/run_evals.py --list
 python evals/run_evals.py --run --mode discovery --split calibration --trials 3
-python evals/run_evals.py --run --mode discovery --split held_out --trials 3
+python evals/run_evals.py --run --mode discovery --split regression --trials 3
 python evals/run_evals.py --run --mode direct --match merge-gate --trials 3
 ```
 
@@ -233,9 +233,84 @@ For `routing.expect: not_fire`, set `expected_alternative: inline` or name the c
 instead. A negative scenario does not pass merely because the forbidden target stayed absent; the
 expected alternative and response graders must also pass.
 
-Existing tuned cases are `direct/calibration`. Never relabel a case held-out after tuning against it.
-Add a genuinely new held-out prompt, run calibration while iterating, then run held-out once before
-accepting the prompt change. Record numerator/denominator, CLI/model, plugin commit, and suite digest.
+Repository-visible cases are `calibration` or `regression`; neither is hidden from the artifact
+author. Add a new regression prompt before tuning, run calibration while iterating, then run the
+regression split once before review. A genuine promotion shadow set must be human-owned outside the
+authoring checkout; record only its digest, case count, result, evaluator identity, and evidence ID.
+Record numerator/denominator, CLI/model, plugin commit, and suite digest for every run.
+
+## Bounded improvement ledger
+
+Measured recurring fleet failures and one material safety/authority failure can be retained as typed
+records under `evals/improvements/<improvement-id>/record.json`. The portable contract is the
+[`fleet-improvement-v1` schema](../skills/agent-authoring/assets/fleet-improvement-v1.schema.json);
+the bundled [validator](../skills/agent-authoring/scripts/fleet_improvement.py) additionally enforces
+append-only observations/evidence/attempts/reviews, predeclared reservations plus evaluator-recorded
+actual usage, cumulative three-attempt and resource budgets, legal transitions, caller-owned path
+roots, resolved evidence-envelope hashes, exact candidate/review/merge/monitor/rollback bindings,
+and external transition authority. The portable contract hard-caps each record at 60 model turns,
+60 evaluator calls, 1,000,000 tokens, 14,400 wall-clock seconds, USD 100, and a 16 KiB aggregate
+target-path argv; trusted callers may lower those ceilings, while record content cannot raise them.
+For a fresh evaluation, the envelope producer must match `evaluation.evaluator`, the envelope must
+repeat the reservation and `actual_usage` exactly, and each actual value must fit its reservation.
+Monitoring evidence is likewise bound to `monitoring.observed_by`. Any retained protected-shadow
+result must pass before review or promotion, duplicate JSON object keys are rejected before lifecycle
+validation, and schema plus executable validation require literal uppercase `T` and `Z` in UTC
+timestamps.
+
+The canonical `sre-agents-git-artifact-selection-v1` digest covers the requested path set and each
+selected regular Git blob's mode, canonical path, size, and raw SHA-256. Candidate subjects must be
+real commits descended from their recorded parent and touch every declared target. Promotion is the
+exact reviewed commit or a two-parent merge with it as one direct parent. The other parent must
+descend from the base and have the base target digest; that base must be the parents' unique actual
+merge base; and an object-only full-tree comparison rejects merge-only files or divergent parent
+changes. Raw trees must use canonical Git ordering and valid modes/types, contain no empty injected
+directories, stay within hard bounds, expose a cross-host-portable UTF-8 NFC namespace, and prove
+that every non-gitlink leaf exists as an actual Git blob. The merge cannot change the reviewed
+artifact digest. Trusted Git queries ignore commit graphs, grafts, and replace objects and supervise
+input, output, and process completion under one deadline.
+
+A rollback must be the exact one-parent inverse of the candidate-exclusive promoted delta, or a
+two-parent object-only application merge of that revert. It must preserve unrelated pre-rollback
+bytes, reject later candidate-path drift and rollback-only injection, descend from the promotion,
+and restore the base artifact digest. Prior monitoring remains attached when a later security,
+authority, merge, or owner trigger fires. A direct `merged -> rolled_back` transition cannot add
+monitoring; monitoring failures and inconclusive results must first enter `monitoring`, then roll
+back separately. An encoded terminal lesson must resolve to a regular Git blob at its ledger
+revision. Subject-bound shadow, evaluation, and review envelopes name the exact digest algorithm,
+so older incompatible repository digests cannot become promotion evidence. A `changes_requested`
+review first enters `in_review`; an author retry back to `candidate` or a reviewer/protected-workflow
+rejection is a separate transition. Records must predeclare `monitoring_fail`,
+`monitoring_inconclusive`, `security_finding`, `authority_revoked`, and `merge_error` as rollback
+triggers; `manual_owner_decision` is optional.
+
+The corpus scanner, `py -3 scripts/validate_improvement_ledger.py --repository-root .`, discovers
+every record and rejects promoted bootstrap states, deletions anywhere in merged history including
+merge-result-only deletions, non-linear record histories, and cross-record
+fingerprint/event/evidence duplication, then replays retained Git transitions. It requires complete
+history (for GitHub Actions, `actions/checkout` needs `fetch-depth: 0`). Its synthetic history roles
+validate structure only; protected workflows authenticate the real actors. This is an
+encounter-driven Git ledger, not a runtime collector or autonomous self-modifier.
+
+Run the corpus scanner and repository evidence validator only from an `sre-agents` source checkout.
+An installed skill bundle includes the portable schema and standalone validator, but not the
+repository-root `scripts/evidence_envelope.py` or `scripts/validate_improvement_ledger.py`; installed
+callers must supply equivalent trusted code or use the source checkout. The manually disabled
+**Validate fleet** workflow stays untouched; before re-enabling it, set its checkout to
+`fetch-depth: 0` so the ledger scan does not run against shallow history.
+
+The first pilot, [`fi_agent_routing_discovery`](improvements/fi_agent_routing_discovery/record.json),
+imports the 2026-07-31 reviewer-discovery experiment as `rejected`. It deliberately keeps unknown
+historical usage and unreconstructable intermediate candidate identity as null, marks its budget
+retrospective, and cannot enter review or promotion. That negative result demonstrates the intended
+behavior: preserve what failed, encode the direct-contract lesson, and do not relabel a historical
+experiment as approved learning.
+
+For promotable records, each evidence ID resolves to a regular, single-linked file below a
+caller-approved evidence root. Evaluation, shadow, review, monitoring, and rollback evidence uses
+the repository evidence-envelope schema; source fields bind it to the exact attempt, reviewer,
+predeclared monitoring criterion, or rollback trigger. Commit lifecycle transitions separately and
+do not squash away their record history.
 
 ## Adding scenarios
 

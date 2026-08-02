@@ -47,6 +47,9 @@ SENSITIVE_KEY_FRAGMENTS = {
 EVIDENCE_ID_RE = re.compile(r"^ev_[0-9a-f]{32}$")
 CONTEXT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+RFC3339_UTC_TIMESTAMP_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$"
+)
 SENSITIVE_ARG_RE = re.compile(
     r"(?i)(?:^|[-_])(?:api[-_]?key|authorization|cookie|credential|password|secret|token)(?:$|[=_-])"
 )
@@ -57,6 +60,17 @@ URI_CREDENTIAL_RE = re.compile(
 
 class EnvelopeValidationError(ValueError):
     """Raised when evidence does not satisfy the strict schema."""
+
+
+def _reject_duplicate_json_pairs(
+    pairs: Sequence[tuple[str, object]],
+) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, child in pairs:
+        if key in value:
+            raise EnvelopeValidationError(f"duplicate JSON object key {key!r}")
+        value[key] = child
+    return value
 
 
 def utc_now() -> datetime:
@@ -70,7 +84,7 @@ def format_timestamp(value: datetime) -> str:
 
 
 def parse_timestamp(value: object, field: str) -> datetime:
-    if not isinstance(value, str) or not value.endswith("Z"):
+    if not isinstance(value, str) or RFC3339_UTC_TIMESTAMP_RE.fullmatch(value) is None:
         raise EnvelopeValidationError(f"{field} must be an RFC3339 UTC timestamp ending in Z")
     try:
         parsed = datetime.fromisoformat(value[:-1] + "+00:00")
@@ -190,6 +204,14 @@ def _reject_sensitive_keys(value: object, path: str = "environment") -> None:
     if isinstance(value, Mapping):
         for key, child in value.items():
             normalized = str(key).lower().replace("-", "_")
+            if (
+                normalized == "tokens"
+                and path in {"source.reservation", "source.actual_usage"}
+                and isinstance(child, int)
+                and not isinstance(child, bool)
+                and child >= 0
+            ):
+                continue
             if any(fragment in normalized for fragment in SENSITIVE_KEY_FRAGMENTS):
                 raise EnvelopeValidationError(
                     f"{path}.{key} looks secret-bearing; evidence must not contain credentials"
@@ -326,7 +348,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "digest":
             print(sha256_file(args.path))
             return 0
-        data = json.loads(args.path.read_text(encoding="utf-8"))
+        data = json.loads(
+            args.path.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_json_pairs,
+        )
         if not isinstance(data, dict):
             raise EnvelopeValidationError("evidence document must be a JSON object")
         validate_envelope(data)

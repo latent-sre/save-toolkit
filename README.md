@@ -27,6 +27,11 @@ one deterministic generator; generated files are never edited by hand.
   — the portable operational-learning contract; cross-record, lifecycle, prepared-file digest, and
   secret checks live in its bundled
   [`knowledge_update.py`](skills/operational-learning/scripts/knowledge_update.py).
+- [`skills/agent-authoring/assets/fleet-improvement-v1.schema.json`](skills/agent-authoring/assets/fleet-improvement-v1.schema.json)
+  — the portable bounded fleet-improvement ledger; its executable transition, budget,
+  exact-subject, external-authority, and credential checks live in
+  [`fleet_improvement.py`](skills/agent-authoring/scripts/fleet_improvement.py). Records live under
+  [`evals/improvements/`](evals/improvements).
 
 Routing is native. Claude plugin components are namespaced as `sre-agents:<name>`; generated hosts
 use their native bare component names. The roster and enforcement model are in [AGENTS.md](AGENTS.md).
@@ -103,6 +108,67 @@ py -3 skills/operational-learning/scripts/knowledge_update.py `
 
 The allowed roots are caller policy supplied outside the packet. Repeat the flag for each trusted
 documentation root; the packet's own `target.knowledge_roots` cannot authorize a write location.
+
+Validate a fleet-improvement record with caller-owned artifact roots. These commands are for an
+`sre-agents` source checkout: an installed `agent-authoring` bundle includes the portable schema and
+standalone validator, but not the repository-root evidence validator or corpus scanner. Installed
+callers must provide equivalent trusted code or run repository validation from the source checkout.
+
+```powershell
+py -3 skills/agent-authoring/scripts/fleet_improvement.py `
+  evals/improvements/<improvement-id>/record.json `
+  --repository-root . `
+  --expected-repository latent-sre/sre-agents `
+  --allowed-root agents --allowed-root skills --allowed-root evals `
+  --allowed-root scripts --allowed-root schemas --allowed-root hooks --allowed-root commands `
+  --allowed-evidence-root evals/evidence --allowed-evidence-root evals/baselines `
+  --evidence-validator scripts/evidence_envelope.py `
+  --authority-actor AUTHENTICATED_IDENTITY --authority-role triage
+
+py -3 scripts/validate_improvement_ledger.py --repository-root .
+```
+
+This ledger activates only from measured encounters. It does not poll in the background or let an
+agent approve, merge, deploy, or rewrite itself. See the
+[`agent-authoring` lifecycle](skills/agent-authoring/references/improvement-lifecycle.md) for the
+qualification rule, predeclared reservations and measured usage, three-attempt cumulative cap,
+resolved evidence-envelope boundary, external shadow-set rule, retained Git history, and
+authenticated outer-transition requirement. The repository scanner proves transition structure,
+global fingerprint/event/evidence deduplication, and authoritative Git object relationships—not the
+identity of historical actors; protected workflows remain the authority boundary. It fails
+closed on a shallow clone, so any automation that runs Gate A must check out complete history. The
+manually disabled **Validate fleet** workflow remains untouched; its checkout must use
+`fetch-depth: 0` before it is re-enabled.
+
+The v1 contract hard-caps a record at 60 model turns, 60 evaluator calls, 1,000,000 tokens, 14,400
+wall-clock seconds, USD 100, and a 16 KiB aggregate target-path argv; a trusted caller may impose
+lower ceilings. Fresh evaluation envelopes bind evaluator identity, reservation, and actual usage,
+while monitoring envelopes bind the observer. Any retained protected-shadow result must pass before
+review or promotion. Duplicate JSON keys fail before lifecycle validation. Schema and executable
+validation both require literal uppercase `T` and `Z` in UTC timestamps.
+
+The canonical `sre-agents-git-artifact-selection-v1` digest binds exact selected Git blob bytes and
+metadata: candidate subjects must follow the recorded ancestry chain and touch every declared target.
+Promotion is either the exact reviewed commit or a two-parent merge. For a merge, the reviewed commit
+is one direct parent; the other parent descends from and has not drifted from the target base; and
+that recorded base is their unique actual merge base. Promotion cannot change selected artifacts or
+introduce a merge-only tree entry. Raw trees must be canonically ordered, structurally valid, bounded,
+and portable across supported hosts, and every non-gitlink leaf must resolve to an existing Git blob.
+Trusted queries disable Git commit-graph, graft, and replacement overlays and supervise stdin,
+output, and process completion under one deadline. Divergent parent changes require rebase and
+reevaluation.
+
+Rollbacks must be exact one-parent inverses of the candidate-exclusive delta, or object-only
+two-parent application merges of such a revert. They preserve unrelated bytes, reject later
+target-path drift or rollback-only injection, descend from the promotion, and restore the base
+artifact digest. Prior monitoring remains attached when a later non-monitoring trigger fires. A
+direct `merged -> rolled_back` transition cannot add monitoring; monitoring failures and
+inconclusive results must first enter `monitoring`, then roll back separately. An encoded terminal
+lesson must resolve to a regular Git blob at the ledger revision. A `changes_requested` verdict
+enters `in_review`; retrying as `candidate` or rejecting the record is a separate authorized
+transition. Every record predeclares the mandatory rollback triggers for failed or inconclusive
+monitoring, a security finding, revoked authority, and a merge error; owner-requested rollback is
+optional.
 
 Regenerate projections only after editing canonical sources:
 

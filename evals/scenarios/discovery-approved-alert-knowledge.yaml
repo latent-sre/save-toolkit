@@ -1,7 +1,7 @@
 schema_version: 1
 id: discovery-approved-alert-knowledge
 mode: discovery
-split: held_out
+split: regression
 target:
   kind: agent
   name: scribe

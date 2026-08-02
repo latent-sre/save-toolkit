@@ -23,6 +23,14 @@ Delegation is not isolation. A clean-context subagent is not a sandbox.
    a metric**. For fleet artifacts, a subagent given a realistic task tells you whether the thing
    triggers *and* complies.
 
+One encounter does not authorize an open-ended rewrite loop. When the same normalized failure
+recurs—or one material safety/authority failure occurs—open the
+[bounded fleet-improvement lifecycle](./improvement-lifecycle.md): assign a stable fingerprint and
+owner, freeze visible calibration/regression cases, cap the record at three cumulative attempts,
+bind every result to the exact candidate revision, and preserve negative results. A human-owned
+shadow set remains outside the authoring checkout. Stop at `blocked_pending_rescope` when the budget
+or original scope is exhausted; the artifact never approves or promotes itself.
+
 ## Descriptions: trigger, not workflow
 
 The frontmatter `description` states **when to invoke** — in the words a user actually says — and
@@ -62,6 +70,8 @@ fixtures. Prose guardrails are for cooperative agents; structural enforcement ho
   and carry 2–4 quoted trigger phrasings. Canonical validation enforces these constraints.
 - Add an eval scenario only when the outcome is gradeable (a gate blocks, routing lands, or a refusal
   happens) — no tautological evals for prose quality.
+- Treat every repository-visible eval as calibration or regression. Call a set shadow only when its
+  cases are withheld by a human/protected evaluator outside the authoring checkout.
 - House style: trigger descriptions, [verified]/[sourced]/[unverified] labels, explicit [UNTRUSTED]
   input, lead with the conclusion, and use blameless language.
 
