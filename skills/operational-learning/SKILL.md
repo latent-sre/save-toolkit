@@ -88,7 +88,9 @@ approved/merged/verified. Active incidents stay with `sre`; alert/SLO/dashboard 
   human diff review remain required defense in depth before any KB change is accepted.
 - Tier 2/3 recommendations name explicit human approval and rollback/recovery; agents do not apply them.
 - Fleet prompt/skill/agent lessons route to `prompt-engineer` plus eval/review. Operational content
-  never rewrites the fleet directly.
+  never rewrites the fleet directly. Carry the operational `update_id` and evidence IDs into the
+  handoff; `prompt-engineer` creates the separate typed fleet observation/fingerprint only when the
+  same normalized failure recurs or one material safety/authority failure occurs.
 
 ## Output contract
 

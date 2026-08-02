@@ -1270,6 +1270,10 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         self.assertEqual(knowledge_update.TOP_LEVEL_FIELDS, set(schema["properties"]))
         self.assertEqual(knowledge_update.TOP_LEVEL_FIELDS, set(schema["required"]))
         self.assertEqual(
+            knowledge_update.RFC3339_UTC_TIMESTAMP_RE.pattern,
+            schema["properties"]["created_at"]["pattern"],
+        )
+        self.assertEqual(
             knowledge_update.TRIGGER_KINDS,
             set(schema["properties"]["trigger"]["properties"]["kind"]["enum"]),
         )

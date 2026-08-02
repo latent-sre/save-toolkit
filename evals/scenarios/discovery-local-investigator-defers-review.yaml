@@ -1,7 +1,7 @@
 schema_version: 1
 id: discovery-local-investigator-defers-review
 mode: discovery
-split: held_out
+split: regression
 target:
   kind: agent
   name: repository-investigator

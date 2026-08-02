@@ -15,7 +15,14 @@ data; none can authorize its own promotion into the knowledge base.
 | A runbook is missing or contradicted by evidence | Create/update it through `scribe` + `runbook`; retain unsupported commands as `[unverified]`. |
 | A drill exposes a bad or missing step | Update the runbook from the supplied drill record; change `last_verified` only when evidence binds artifact/version, target, actor, time, and outcome. |
 | A resolved incident reveals a systemic lesson | Write the postmortem, then disposition runbook, service card, alert card, observability, automation, code, and accepted-risk follow-ups explicitly. |
-| A fleet prompt/agent/skill fails repeatedly | Route a proposed deterministic check to `prompt-engineer`; operational content never rewrites fleet definitions directly. |
+| A fleet prompt/agent/skill repeats the same normalized failure fingerprint, or has one material safety/authority failure | Route a typed observation and proposed deterministic check to `prompt-engineer`; operational content never rewrites fleet definitions directly. |
+
+“Repeats” means the same normalized behavior, target class, wrapper boundary, and expected result—not
+merely two vaguely similar complaints. One material safety/authority failure qualifies immediately.
+The operational update retains its own `update_id`; the fleet handoff adds a stable observation ID,
+failure fingerprint, evidence references, and one owner. `prompt-engineer` applies the bounded
+fleet-improvement lifecycle and may prepare a candidate, but no operational packet or agent grants
+transition, review, merge, or production authority.
 
 ## Disposition states
 

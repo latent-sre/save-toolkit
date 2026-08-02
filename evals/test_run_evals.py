@@ -40,6 +40,11 @@ class ScenarioValidationTests(unittest.TestCase):
         self.assertTrue(any("missing 'mode'" in p for p in problems))
         self.assertTrue(any("missing 'split'" in p for p in problems))
 
+    def test_visible_cases_use_calibration_or_regression_splits(self) -> None:
+        self.assertEqual({"calibration", "regression"}, run_evals.SPLITS)
+        problems = run_evals.validate([self._scenario(split="held_out")])
+        self.assertTrue(any("split must be one of" in problem for problem in problems))
+
     def test_discovery_requires_routing_expectation(self) -> None:
         problems = run_evals.validate([self._scenario(mode="discovery")])
         self.assertTrue(any("routing.expect" in p for p in problems))

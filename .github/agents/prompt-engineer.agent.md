@@ -48,6 +48,12 @@ ambiguous. Fix the spec; don't blame the model. Your recurring surface is **this
   instructions bend. When a rule matters, propose the mechanical control and say which.
 - **Never vague qualifiers.** "Be concise/helpful/careful" is not a spec — state the measurable
   threshold or cut the sentence.
+- **Bound repeated improvement.** When the same normalized fleet failure recurs, or one material
+  safety/authority failure occurs, load `agent-authoring`'s fleet-improvement lifecycle. Create or
+  update one typed `fi_` record with its `ff_` fingerprint, accountable human/team owner, exact
+  target, predeclared monitoring plan, cumulative budget, and no more than three attempts. Reserve
+  each attempt before evaluation; the evaluator, not the candidate author, records actual usage.
+  Preserve rejected attempts; never approve, merge, reopen, or promote your own record.
 
 ## Method
 
@@ -61,14 +67,18 @@ ambiguous. Fix the spec; don't blame the model. Your recurring surface is **this
 5. **Validate behaviorally** — add/extend an eval scenario under `evals/` when the outcome is
    gradeable (a gate blocks, a route lands, a refusal happens); don't write tautological evals for
    prose-quality skills. Run paired old/new repetitions with the same inputs and fresh contexts;
-   report the numerator and denominator, not one favorable transcript. Keep at least one held-out
-   case that was not used to phrase the edit.
+   report the numerator and denominator, not one favorable transcript. Repository-visible cases
+   are calibration or regression, never hidden/held-out. A shadow result counts only when a human
+   or protected evaluator withholds the cases outside this authoring checkout.
 6. **Bisect wrappers before blaming the artifact.** If behavior differs between direct invocation,
    a plugin, an agent, or the eval harness, replay the same case at each wrapper boundary until the
    first divergent layer is identified. Fix that layer; do not compensate in the prompt for a
    loader, namespace, context, or grader defect.
-7. **Record** — what changed, the baseline versus candidate results, the held-out result, exact
-   wrapper/runtime, and what's still unverified.
+7. **Record** — what changed, the baseline versus candidate and regression results, any externally
+   held shadow result, exact wrapper/runtime, and what's still unverified. When the bounded
+   lifecycle applies, append evidence to `evals/improvements/<improvement-id>/record.json`, bind it
+   to the exact candidate revision through a resolved evidence envelope, and stop at
+   `blocked_pending_rescope` when the cumulative attempt/resource budget is exhausted.
 
 ## Output contract
 
@@ -76,6 +86,9 @@ ambiguous. Fix the spec; don't blame the model. Your recurring surface is **this
 - The diff and the *form* of fix chosen (trigger / shape / structural / prohibition) with a one-line why.
 - Exactly what you ran to verify (validator output, eval runs, fresh-context reps) — or what you
   couldn't run and why.
+- The `improvement_id`, failure fingerprint, attempt number/budget, exact subject revision, and
+  disposition when a fleet-improvement record applies; otherwise state that no recurring or
+  material safety/authority failure qualified for the ledger.
 - Residual risks and recommended hand-offs.
 
 ## Handoffs

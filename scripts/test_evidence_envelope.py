@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -43,6 +45,28 @@ class EvidenceEnvelopeTests(unittest.TestCase):
         self.assertEqual(rendered, evidence_envelope.canonical_json(envelope))
         self.assertRegex(envelope["evidence_id"], r"^ev_[0-9a-f]{32}$")
 
+    def test_cli_rejects_duplicate_json_object_keys(self) -> None:
+        envelope = self._valid()
+        rendered = json.dumps(envelope)
+        expected = '"status": "pass"'
+        self.assertEqual(1, rendered.count(expected))
+        rendered = rendered.replace(
+            expected,
+            '"status": "shadowed", ' + expected,
+            1,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "duplicate-key.json"
+            path.write_text(rendered, encoding="utf-8")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                result = evidence_envelope.main(["validate", str(path)])
+
+        self.assertEqual(1, result)
+        self.assertRegex(stderr.getvalue(), "duplicate JSON object key.*status")
+        self.assertNotIn("Valid evidence envelope", stdout.getvalue())
+
     def test_command_must_be_direct_argv_not_a_shell_string(self) -> None:
         envelope = self._valid()
         envelope["command"]["argv"] = "python scripts/validate_fleet.py"  # type: ignore[index]
@@ -71,6 +95,15 @@ class EvidenceEnvelopeTests(unittest.TestCase):
         with self.assertRaisesRegex(evidence_envelope.EnvelopeValidationError, "cannot precede"):
             evidence_envelope.validate_envelope(envelope)
 
+    def test_space_separated_timestamp_is_rejected(self) -> None:
+        envelope = self._valid()
+        envelope["started_at"] = "2026-07-31 12:00:00Z"
+        with self.assertRaisesRegex(
+            evidence_envelope.EnvelopeValidationError,
+            "started_at must be an RFC3339 UTC timestamp",
+        ):
+            evidence_envelope.validate_envelope(envelope)
+
     def test_secret_bearing_keys_are_rejected_recursively(self) -> None:
         envelope = self._valid()
         envelope["environment"]["service"] = {"api_token": "do-not-record"}  # type: ignore[index]
@@ -79,6 +112,32 @@ class EvidenceEnvelopeTests(unittest.TestCase):
             "must not contain credentials",
         ):
             evidence_envelope.validate_envelope(envelope)
+
+    def test_numeric_usage_tokens_are_allowed_only_in_typed_usage_source(self) -> None:
+        envelope = self._valid()
+        envelope["source"] = {
+            "reservation": {"tokens": 1200},
+            "actual_usage": {"tokens": 900},
+        }
+        evidence_envelope.validate_envelope(envelope)
+
+        for path, value in (
+            (("source", "reservation", "tokens"), "credential-like-value"),
+            (("source", "tokens"), 900),
+            (("environment", "tokens"), 900),
+        ):
+            invalid = self._valid()
+            if path[0] == "source" and len(path) == 3:
+                invalid["source"] = {path[1]: {path[2]: value}}
+            elif path[0] == "source":
+                invalid["source"] = {path[1]: value}
+            else:
+                invalid[path[0]][path[1]] = value  # type: ignore[index]
+            with self.subTest(path=path), self.assertRaisesRegex(
+                evidence_envelope.EnvelopeValidationError,
+                "must not contain credentials",
+            ):
+                evidence_envelope.validate_envelope(invalid)
 
     def test_invalid_status_unknown_fields_and_missing_fields_are_rejected(self) -> None:
         invalid_status = self._valid()
@@ -120,6 +179,14 @@ class EvidenceEnvelopeTests(unittest.TestCase):
         self.assertEqual(evidence_envelope.TOP_LEVEL_FIELDS, set(schema["properties"]))
         self.assertEqual(evidence_envelope.TOP_LEVEL_FIELDS, set(schema["required"]))
         self.assertEqual(evidence_envelope.STATUSES, set(schema["properties"]["status"]["enum"]))
+        self.assertEqual(
+            evidence_envelope.RFC3339_UTC_TIMESTAMP_RE.pattern,
+            schema["properties"]["started_at"]["pattern"],
+        )
+        self.assertEqual(
+            evidence_envelope.RFC3339_UTC_TIMESTAMP_RE.pattern,
+            schema["properties"]["ended_at"]["pattern"],
+        )
         self.assertFalse(schema["additionalProperties"])
 
 

@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "improvement_id": "fi_agent_routing_discovery",
+  "created_at": "2026-07-31T18:36:34Z",
+  "updated_at": "2026-07-31T19:16:53Z",
+  "target": {
+    "repository": "latent-sre/sre-agents",
+    "base_revision": "12d7d2ff230c0f636ffbe01d2d0267585fef961c",
+    "artifact_kind": "agent",
+    "artifact_paths": [
+      "agents/reviewer.md"
+    ]
+  },
+  "owner": {
+    "name": "latent-sre",
+    "kind": "team",
+    "agent_lane": "prompt-engineer"
+  },
+  "related_improvement_id": null,
+  "severity": "medium",
+  "failure_fingerprint": "ff_e7e5f8e14ac3ed446b5e377e4933005345927e4c2647a993c7584c5865932dd6",
+  "observations": [
+    {
+      "event_id": "fo_reviewer_discovery_20260731",
+      "kind": "routing_misfire",
+      "observed_at": "2026-07-31T18:36:34Z",
+      "source": {
+        "kind": "eval_result",
+        "locator": "evals/baselines/2026-07-31-agent-contracts-and-routing-loop/README.md",
+        "revision": "10b9c9202242df7c7970722b9d019bcc80c3875c",
+        "sha256": "5e45cf51bc5c09e84f3dd32ca39561b163d57c2afb5c145146d4cbb681ca8775"
+      },
+      "trust": "trusted",
+      "summary": "One-shot headless discovery answered reviewer tasks inline without a completed reviewer invocation.",
+      "evidence_ids": [
+        "ev_5e45cf51bc5c09e84f3dd32ca39561b1"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    {
+      "evidence_id": "ev_5e45cf51bc5c09e84f3dd32ca39561b1",
+      "kind": "historical_report",
+      "locator": "evals/baselines/2026-07-31-agent-contracts-and-routing-loop/README.md",
+      "sha256": "5e45cf51bc5c09e84f3dd32ca39561b163d57c2afb5c145146d4cbb681ca8775"
+    }
+  ],
+  "status": "rejected",
+  "success_criteria": [
+    "Ordinary review requests produce a completed reviewer invocation in the measured wrapper.",
+    "Merge-readiness requests continue to select merge-gate instead of reviewer.",
+    "Direct reviewer authorization behavior remains intact."
+  ],
+  "monitoring_plan": {
+    "criterion_id": "fm_reviewer_routing_regression",
+    "criterion": "Direct reviewer contracts and the merge-readiness routing negative remain green after promotion.",
+    "rollback_triggers": [
+      "monitoring_fail",
+      "monitoring_inconclusive",
+      "security_finding",
+      "authority_revoked",
+      "merge_error",
+      "manual_owner_decision"
+    ]
+  },
+  "budget": {
+    "origin": "retrospective_import",
+    "max_attempts": 3,
+    "max_model_turns": 12,
+    "max_evaluator_calls": 12,
+    "max_tokens": 1000000,
+    "max_wall_seconds": 7200,
+    "max_cost_usd": 100.0
+  },
+  "attempts": [
+    {
+      "attempt_id": "fa_historical_reviewer_descriptions",
+      "iteration": 1,
+      "parent_revision": "12d7d2ff230c0f636ffbe01d2d0267585fef961c",
+      "subject_revision": null,
+      "subject_sha256": null,
+      "change_summary": "Historical aggregate of two reviewer-description variants tested before the bounded lifecycle existed.",
+      "author": {
+        "name": "historical import",
+        "role": "prompt-engineer"
+      },
+      "reservation": null,
+      "actual_usage": null,
+      "case_sets": {
+        "calibration": {
+          "sha256": "6088d364695d15e1e93ba60c227bc88eb37b3d6bafdbc3dd20babbd7425e2ffe",
+          "case_count": 2
+        },
+        "regression": {
+          "sha256": "140130266a3f6de177d5a26022ecd065914a46eda19f71b8a4626ee0ff11ad23",
+          "case_count": 1
+        },
+        "shadow": null
+      },
+      "evaluation": {
+        "kind": "historical_report",
+        "evaluator": null,
+        "evidence_id": "ev_5e45cf51bc5c09e84f3dd32ca39561b1",
+        "locator": "evals/baselines/2026-07-31-agent-contracts-and-routing-loop/README.md",
+        "sha256": "5e45cf51bc5c09e84f3dd32ca39561b163d57c2afb5c145146d4cbb681ca8775",
+        "subject_revision": null,
+        "evaluator_revision": "ed2a1b646d2f1ebaaae29103223b568736d56757",
+        "runner_sha256": null,
+        "suite_sha256": "5132437c6bc36d1344d54594dd7293a907348facb22c0c63206fb7f557f9c0f6",
+        "case_set_sha256": "0b385434b2789ff513de19002993806b588818f54575425b074c8618aef8f326",
+        "requested_model": "claude-opus-5[1m]",
+        "observed_model": "claude-opus-5[1m]",
+        "reasoning_mode": "unrecorded",
+        "trial_count": 12,
+        "result": "fail",
+        "safety_regression": false,
+        "authority_regression": false
+      },
+      "outcome": "fail",
+      "stop_reason": "Autonomous reviewer discovery remained absent while the merge-readiness negative continued to pass; stop tuning description adjectives."
+    }
+  ],
+  "reviews": [],
+  "merge": null,
+  "monitoring": null,
+  "rollback": null,
+  "lesson": {
+    "status": "encoded",
+    "control_path": "evals/scenarios/agent-direct-reviewer-authz-block.yaml",
+    "reason": "Use pinned direct contracts as the behavioral gate and retain discovery only as an observational host/model metric."
+  },
+  "disposition_reason": "Rejected as a description-tuning strategy because it produced no measured discovery improvement; the negative result is retained instead of being rewritten as success.",
+  "limitations": [
+    "This experiment predates v1 and aggregates two material description variants into one archival attempt.",
+    "The exact intermediate candidate bytes are not reconstructable, so subject revision and digest are explicitly null and the record cannot promote.",
+    "Usage and cost were not retained; retrospective budget values are ingestion limits, not a claim that the historical run was prebudgeted.",
+    "Calibration and regression digests were reconstructed from sorted case labels stated in the report, not from separately retained case-set archives.",
+    "The historical report uses the former held-out term; this record classifies all repository-visible cases as calibration or regression.",
+    "Raw traces remain private and are not part of this ledger record."
+  ]
+}

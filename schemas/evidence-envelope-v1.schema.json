@@ -61,8 +61,16 @@
     },
     "criterion": { "type": "string", "minLength": 1 },
     "status": { "enum": ["pass", "fail", "skip", "inconclusive"] },
-    "started_at": { "type": "string", "format": "date-time", "pattern": "Z$" },
-    "ended_at": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "ended_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
     "command": {
       "oneOf": [
         { "type": "null" },

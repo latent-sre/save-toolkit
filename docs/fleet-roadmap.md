@@ -48,59 +48,62 @@ debugging, security-audit, and implementation lanes; a versioned evidence schema
 secret-bearing fields; deterministic tests and generated drift checks pass.
 
 **Current evidence:** PR #71 merged the reviewed multi-platform boundary to `main` at
-`46099aaec6c61a8d592af1eae7b89e7645706cbe`. The current candidate adds an eighth canonical role,
-`scribe`, with local documentation-write authority but no shell, web, external MCP, or delegation.
-The roles pass authority and generated-adapter checks; the
-evidence-envelope validator, JSON Schema, fleet doctor, and Codex/Sol result wrappers have mutation
-tests. A later independent review found the live runner's `auth.json` boundary unsafe and the
-generated reviewer self-disabling on inherited Codex capabilities. The candidate now requires the
-pinned trusted-main Responses API broker, removes raw/parsed response fields, detects credential-like
-output, avoids token-bearing checkout post callbacks in the model job, and fetches candidate objects
-without checkout before a credential-free trusted extractor materializes only bounded raw
-plugin/agent blobs. Skill lanes disable delegation; agent lanes permit only trusted-main prompt bytes
-plus one live child under a shared rollout budget. The fleet also uses host-portable reviewer
-integrity language and adds a real reviewer authorization lane. The earlier Sol runtime results are
-revoked. Those pre-`scribe` PR #71 remediations—not this candidate delta—have exact-SHA independent
-approval and hosted structural evidence on all three operating systems. The `scribe` delta requires
-its own exact-SHA review before merge, and no fresh live model evidence exists.
+`46099aaec6c61a8d592af1eae7b89e7645706cbe`. PR #73 then merged the least-privileged `scribe` lane
+and operational-learning contracts at `7b952d42f279cfb0d07a3d666ed0c32dcf7aea31`, and PR #75
+preserved the reviewed sister-lab source catalog at
+`4aa716285cadb949f49da9db4e6001aa465593de`. The evidence-envelope validator, fleet doctor, brokered Codex/Sol workflow,
+credential-free candidate materializer, and reduced result wrappers have mutation coverage. The
+workflow requires a pinned trusted-main Responses API broker, avoids raw/parsed response retention,
+rejects credential-shaped output, and permits only trusted-main agent prompt bytes plus one bounded
+child. Earlier local Sol runtime reports remain revoked; no fresh live model result exists. SAFE-001
+therefore remains active only for repository protection, distinct promotion authority, and the first
+immutable brokered canary—not for the already-merged `scribe` or operational-learning work.
 
 **Next action:** Keep the brokered workflow on trusted `main`, wait for PROTECT-001 and distinct
 promotion authority, then run it against an immutable reviewed canary SHA.
 
-### LEARN-001 — close the operational learning loop
+### IMPROVE-001 — enforce a bounded fleet-improvement lifecycle
 
 **Status:** `active`
 
-**Outcome:** A discovered operational fact cannot disappear into chat: it receives an explicit,
-evidence-bound disposition, and approved service, alert, runbook, postmortem, and knowledge-index
-updates are prepared by the least-privileged documentation lane. Active incident investigation and
-alert design remain with their existing owners.
+**Outcome:** A recurring measured agent/skill failure—or one material safety/authority failure—is
+deduplicated into a typed, owner-assigned Git ledger, receives a small evidence-bound candidate loop,
+and either closes with a durable control or retains an honest rejected/blocked/rolled-back result.
+No agent can authorize its own transition or promotion.
 
-**Source:** The request for continuous fleet improvement, runbook repair, SRE course-of-action
-recommendations, and service/alert knowledge-base maintenance; bounded-learning patterns confirmed
-against the sister lab.
+**Source:** The request for consistent ongoing agent improvement after the operational-learning loop,
+the 2026-07-31 routing experiment, and the bounded-control findings from the sister-lab review.
 
-**Prerequisites:** Preserve the `sre` investigation, `sre-steward` observability-design, and `scribe`
-document-write authority boundaries. Treat untrusted evidence as data, require human review before
-acceptance, and do not introduce an autonomous background learner or self-modifying prompt path.
+**Prerequisites:** Preserve the merged operational-learning and `scribe` boundaries; keep raw traces
+private; distinguish visible calibration/regression cases from externally held shadow cases; require
+exact candidate identity, independent review, and human/protected-workflow promotion. Do not add a
+daemon, scheduler, event bus, background collector, or autonomous self-modifying path in this item.
 
-**Acceptance:** SRE results include a safe recommended course of action and explicit learning
-dispositions; approved service and alert changes route to `scribe`; missing or contradicted runbooks
-are created or updated only from supplied evidence; a versioned schema and executable validator
-reject unknown fields, evidence upgrades, credential-bearing content, unsafe paths, invalid
-disposition transitions, unbound prepared artifacts, active-incident publication, and Tier 2/3
-recommendations without approval and rollback; canonical and generated bundles, offline routing
-cases, and Gate A all pass.
+**Acceptance:** The agent-authoring bundle carries a portable record schema, executable validator,
+legal lifecycle with a separate author retry after `changes_requested`, a three-attempt limit and
+hard caller ceilings of 60 model turns, 60 evaluator calls, 1,000,000 tokens, 14,400 seconds, and
+USD 100, envelope-bound evaluator/observer identity and actual usage, caller-owned path scope,
+credential rejection, append-only Git history, full-corpus discovery, resolved evidence envelopes,
+the canonical `sre-agents-git-artifact-selection-v1` digest, real Git ancestry plus merge-unchanged
+and canonical object-only full-tree proof, exact rollback inverse/application checks, cross-record
+deduplication, bounded Git capture, mandatory rollback triggers, and caller-supplied transition
+authority;
+prompt-engineer/reviewer/handoff contracts route encounters consistently; a historical negative
+pilot validates without pretending it can promote; generated adapters match; Gate A and focused
+tests pass; an independent exact-revision review has no open P0/P1 findings.
 
-**Current evidence:** The stacked candidate adds one `operational-learning` skill rather than another
-agent, expands `scribe` with a knowledge-closeout mode, aligns incident/onboarding/runbook/postmortem
-contracts, and adds service, alert, index, and typed update assets plus mutation tests. Gate A passes
-26/26, the operational validator passes 33 focused tests, all 47 offline scenarios parse, and generated
-adapters match. This is static and test evidence only; no model behavior or production effect has been
-claimed.
+**Current evidence:** The working candidate contains the typed schema and executable lifecycle
+validator, real evidence-envelope resolution, Git-history corpus replay, adversarial mutation
+coverage, explicit calibration/regression terminology, shared learning handoff field, and a rejected
+historical reviewer-discovery record. Repository-level evidence and corpus validation are explicitly
+source-checkout-only because installed skill bundles do not carry the root validator scripts. The
+manually disabled Validate fleet workflow remains untouched and needs `fetch-depth: 0` before it is
+re-enabled. The candidate carries Gate A, generated-byte drift, strict plugin validation, and focused
+lifecycle, evidence-envelope, and ledger contract coverage. This remains mutable working-tree
+evidence; fresh model behavior and immutable exact-revision review are not claimed.
 
-**Next action:** Obtain independent approval on the exact post-fix candidate, then publish it through
-the normal review path. Runtime routing evidence remains gated on the trusted-main Sol workflow.
+**Next action:** If the final three-lane working-tree review has no open P0/P1 finding, freeze an
+authorized commit and repeat the exact-revision review before merge.
 
 ## Active runtime work
 

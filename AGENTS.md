@@ -77,6 +77,11 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 - **Learning is reviewable repository state, not model memory.** Every durable operational discovery
   receives a `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable` disposition with
   evidence and an owner. An agent never treats its own assertion as accepted knowledge.
+- **Fleet improvement is encounter-driven and bounded.** A recurring normalized fleet failure—or
+  one material safety/authority failure—gets a typed `fi_` ledger record, exact-subject evidence,
+  one accountable owner, and at most three cumulative attempts. Agents may observe, prepare, test,
+  or review within their lanes; only a human/protected workflow promotes or rolls back. There is no
+  background self-modifying process.
 - **Lead with the conclusion**, then evidence, then next steps. **Blameless** language for all
   incident work.
 
