@@ -123,6 +123,74 @@ class PlanStatusTests(unittest.TestCase):
                     failures,
                 )
 
+    def _write_roadmap_item(
+        self,
+        *,
+        item_id: str = "HOST-001",
+        status: str = "active",
+        include_acceptance: bool = True,
+        prerequisites: str = "None.",
+        reopen_trigger: str | None = None,
+    ) -> None:
+        acceptance = "\n**Acceptance:** The observable result is recorded.\n" if include_acceptance else "\n"
+        reopen = f"\n**Reopen trigger:** {reopen_trigger}\n" if reopen_trigger else ""
+        (self.root / "docs/fleet-roadmap.md").write_text(
+            "# Fleet roadmap\n\n"
+            "> **Status: live.**\n"
+            "> This is the only document for unfinished work.\n\n"
+            "## Active runtime work\n\n"
+            f"### {item_id} -- test item\n\n"
+            f"**Status:** `{status}`\n\n"
+            "**Outcome:** A measurable result exists.\n\n"
+            "**Source:** Test decision.\n\n"
+            f"**Prerequisites:** {prerequisites}\n"
+            f"{acceptance}"
+            "**Next action:** Perform the smallest safe step.\n"
+            f"{reopen}",
+            encoding="utf-8",
+        )
+
+    def test_roadmap_item_contract_passes(self) -> None:
+        self._write_roadmap_item()
+        self.assertEqual([], check_plan_status.check(self.root))
+
+    def test_roadmap_item_rejects_undocumented_status(self) -> None:
+        self._write_roadmap_item(status="parked")
+        failures = check_plan_status.check(self.root)
+        self.assertTrue(any("unsupported status 'parked'" in item for item in failures), failures)
+
+    def test_roadmap_item_requires_acceptance(self) -> None:
+        self._write_roadmap_item(include_acceptance=False)
+        failures = check_plan_status.check(self.root)
+        self.assertTrue(any("missing field 'Acceptance'" in item for item in failures), failures)
+
+    def test_roadmap_item_ids_are_unique(self) -> None:
+        self._write_roadmap_item()
+        roadmap = self.root / "docs/fleet-roadmap.md"
+        roadmap.write_text(
+            roadmap.read_text(encoding="utf-8")
+            + "\n### HOST-001 -- duplicate\n\n"
+            "**Status:** `ready`\n\n"
+            "**Outcome:** Duplicate.\n\n"
+            "**Source:** Test.\n\n"
+            "**Prerequisites:** None.\n\n"
+            "**Acceptance:** Never.\n\n"
+            "**Next action:** None.\n",
+            encoding="utf-8",
+        )
+        failures = check_plan_status.check(self.root)
+        self.assertTrue(any("duplicate roadmap item ID" in item for item in failures), failures)
+
+    def test_roadmap_item_rejects_unknown_prerequisite_id(self) -> None:
+        self._write_roadmap_item(prerequisites="MISSING-999.")
+        failures = check_plan_status.check(self.root)
+        self.assertTrue(any("unknown prerequisite MISSING-999" in item for item in failures), failures)
+
+    def test_deferred_item_requires_reopen_trigger(self) -> None:
+        self._write_roadmap_item(status="deferred")
+        failures = check_plan_status.check(self.root)
+        self.assertTrue(any("deferred item lacks 'Reopen trigger'" in item for item in failures), failures)
+
 
 if __name__ == "__main__":
     unittest.main()

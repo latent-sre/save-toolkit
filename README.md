@@ -24,9 +24,10 @@ bare component names.
 - [`scripts/`](scripts) — the structural gate (`gate_a.py`), the read-only allowlist guard
   (`readonly-guard.py`), the projection generator, supporting validators, and their tests.
 - [`schemas/`](schemas) and the skill-bundled schema/validator pairs — portable evidence contracts:
-  the [evidence envelope](schemas/evidence-envelope-v1.schema.json)
+  the [schema catalog](schemas/catalog-v1.json), the
+  [evidence envelope](schemas/evidence-envelope-v1.schema.json)
   ([`evidence_envelope.py`](scripts/evidence_envelope.py)), the
-  [knowledge update](skills/operational-learning/assets/knowledge-update-v1.schema.json)
+  [current knowledge update](skills/operational-learning/assets/knowledge-update-v2.schema.json)
   ([`knowledge_update.py`](skills/operational-learning/scripts/knowledge_update.py)), and the
   [fleet-improvement ledger](skills/agent-authoring/assets/fleet-improvement-v1.schema.json)
   (schema and records under [`evals/improvements/`](evals/improvements); the executable
@@ -104,7 +105,8 @@ py -3 scripts/fleet_doctor.py --json
 
 Validate a knowledge-update packet after its documentation diff exists. The allowed roots are caller
 policy supplied outside the packet — the packet's own `target.knowledge_roots` cannot authorize a
-write location:
+write location. The validator accepts v1 and v2; new packets use v2. The
+[compatibility policy](docs/schema-compatibility.md) documents versioning and migration:
 
 ```powershell
 py -3 skills/operational-learning/scripts/knowledge_update.py `
@@ -112,6 +114,14 @@ py -3 skills/operational-learning/scripts/knowledge_update.py `
   --target-root C:\path\to\target-checkout `
   --allowed-knowledge-root docs/operations `
   --allowed-knowledge-root docs/runbooks
+```
+
+Migrate a v1 service packet to the current component-aware v2 shape without changing the source:
+
+```powershell
+py -3 skills/operational-learning/scripts/migrate_v1_to_v2.py `
+  .sre/knowledge-updates/<update-id>.json `
+  --output .sre/knowledge-updates/<update-id>-v2.json
 ```
 
 Fleet-improvement records under [`evals/improvements/`](evals/improvements) follow the schema and

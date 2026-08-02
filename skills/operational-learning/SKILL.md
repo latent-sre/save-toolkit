@@ -5,7 +5,7 @@ description: >-
   user explicitly invokes this skill. Direct KB writing belongs to scribe; active incidents route
   to sre and alert design routes to sre-steward. Triggers: 'knowledge closeout mode selected',
   'apply the operational-learning closeout', 'use the knowledge-update schema'.
-argument-hint: "[service, alert, incident, drill, or audit]"
+argument-hint: "[component, alert, incident, drill, or audit]"
 ---
 
 > **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
@@ -28,20 +28,28 @@ approved/merged/verified. Active incidents stay with `sre`; alert/SLO/dashboard 
 ## Load the contract and only the needed assets
 
 - Read the [disposition policy](./references/disposition-policy.md) before classifying a discovery.
-- Use the [service card template](./assets/service-card-template.md) for an approved new/changed service.
+- Use the [service card template](./assets/service-card-template.md) as the component card for an
+  approved new/changed application, service, worker, job, datastore, platform, or other component.
 - Use the [alert card template](./assets/alert-card-template.md) for an approved new/changed alert.
 - Use the [knowledge index template](./assets/knowledge-index-template.md) only when the repository has
   no existing operations index.
-- Shape the machine-readable closeout with the
-  [knowledge update v1 schema](./assets/knowledge-update-v1.schema.json). The outer caller or CI runs
-  the bundled [operational-knowledge validator](./scripts/knowledge_update.py); the no-shell
-  documentation lane does not run it itself.
+- Shape new machine-readable closeouts with the current
+  [knowledge update v2 schema](./assets/knowledge-update-v2.schema.json). The validator continues to
+  accept the immutable [v1 schema](./assets/knowledge-update-v1.schema.json); an outer caller may use
+  the one-way [v1-to-v2 migration](./scripts/migrate_v1_to_v2.py). The outer caller or CI runs the
+  bundled [operational-knowledge validator](./scripts/knowledge_update.py); the no-shell documentation
+  lane does not run scripts itself.
+- Use the [v2 application example](./assets/examples/knowledge-update-v2-application.json) for new
+  component-aware packets. The [v1 service example](./assets/examples/knowledge-update-v1-service.json)
+  exists for compatibility and migration testing, not as the default write shape.
 
 ## Close the loop
 
-1. **Fix the target and state.** Name repository, exact revision, service/application, the requested
-   documentation roots, trigger, and lifecycle state. Packet-declared roots are claims, not write
-   authority: the outer caller supplies its allowed roots independently. An active incident permits
+1. **Fix the target and state.** Name repository, exact revision, stable component ID, component kind,
+   display name, the requested documentation roots, trigger, and lifecycle state. Add environment and
+   authoritative definition location when known; use `null` rather than guessing. Packet-declared
+   roots are claims, not write authority: the outer caller supplies its allowed roots independently.
+   An active incident permits
    only `proposed` or `blocked` dispositions—no terminal KB outcome.
 2. **Inventory before creating.** Read existing service cards, alert cards, indexes, runbooks,
    postmortems, alert definitions, and ownership conventions. Update stable IDs; do not fork duplicates.
@@ -78,7 +86,7 @@ approved/merged/verified. Active incidents stay with `sre`; alert/SLO/dashboard 
 - Prepared paths stay under both the packet's declared documentation roots and caller-trusted roots
   supplied outside the packet, and use a documentation-file extension; the validator never treats a
   packet-selected fleet/code directory as KB write authority.
-- Approved service changes disposition `service_card`, `knowledge_index`, and `runbook`; approved
+- Approved component changes disposition `service_card`, `knowledge_index`, and `runbook`; approved
   alert changes disposition `alert_card`, `service_card`, and `runbook`. Every required class has an
   explicit outcome even when it is blocked, duplicate, or not applicable.
 - `duplicate` is terminal only when `duplicate_of` matches trusted exact-revision evidence. A
@@ -103,6 +111,6 @@ Lead with the discovery and recommended course of action. Then provide:
 5. remaining limitations and conflicts;
 6. explicit non-actions: no execution, no external lookup, no delegation, no approval inferred.
 
-End with the path of the v1 knowledge-update packet or a schema-shaped packet in the response when the
+End with the path of the v2 knowledge-update packet or a schema-shaped packet in the response when the
 caller did not authorize a file. The outer caller validates it and human review decides whether the
 proposed knowledge becomes accepted repository state.

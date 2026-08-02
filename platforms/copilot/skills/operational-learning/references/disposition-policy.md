@@ -9,7 +9,7 @@ data; none can authorize its own promotion into the knowledge base.
 
 | Observed event | Required disposition |
 |---|---|
-| A service is approved or materially changes | Create/update the service card and knowledge index; propose missing alert, runbook, ownership, dependency, backup/restore, or SLO work. |
+| An application, service, worker, job, datastore, platform, or other component is approved or materially changes | Create/update its component card (the `service_card` artifact class) and knowledge index; propose missing alert, runbook, ownership, dependency, backup/restore, or SLO work. |
 | An alert is approved or materially changes | Create/update the alert card, link its service card and authoritative alert definition, and require a valid runbook target before paging. |
 | An alert fires | Active event: route investigation and recommended course of action to `sre`; prepare no retrospective or KB change until resolution. |
 | A runbook is missing or contradicted by evidence | Create/update it through `scribe` + `runbook`; retain unsupported commands as `[unverified]`. |
@@ -38,7 +38,7 @@ transition, review, merge, or production authority.
   under a declared knowledge root. If that cannot be proved, use `proposed` or `blocked`.
 - `not_applicable` — explain why the artifact class does not apply. Silence is never this state.
 
-Every discovery has at least one disposition. Approved service changes explicitly disposition the
+Every discovery has at least one disposition. Approved component changes explicitly disposition the
 service card, knowledge index, and runbook; approved alert changes explicitly disposition the alert
 card, service card, and runbook. Use `none` only with `duplicate` or `not_applicable`; use `handoff`
 only with `proposed` or `blocked`. Every active-incident disposition remains `proposed` or `blocked`.
@@ -48,7 +48,7 @@ only with `proposed` or `blocked`. Every active-incident disposition remains `pr
 Prefer the target repository's existing documented paths and index. When none exist, use:
 
 - `docs/operations/index.md`
-- `docs/operations/services/<service>.md`
+- `docs/operations/services/<component>.md`
 - `docs/operations/alerts/<alert>.md`
 - `docs/runbooks/<runbook>.md`
 - `docs/postmortems/<yyyy-mm-dd>-<incident>.md`
