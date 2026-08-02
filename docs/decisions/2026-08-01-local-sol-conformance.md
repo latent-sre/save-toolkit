@@ -1,7 +1,8 @@
 # Local Sol conformance for externally reviewed source
 
 - **Date:** 2026-08-01
-- **Status:** accepted
+- **Status:** accepted; runners parked 2026-08-02 at tag `pre-trim-2026-08-02` (beta trim — this
+  contract governs any recovered use)
 - **Scope:** Codex/Sol skill and custom-agent behavioral evaluation
 
 ## Decision

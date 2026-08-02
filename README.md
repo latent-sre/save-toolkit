@@ -29,8 +29,8 @@ bare component names.
   [knowledge update](skills/operational-learning/assets/knowledge-update-v1.schema.json)
   ([`knowledge_update.py`](skills/operational-learning/scripts/knowledge_update.py)), and the
   [fleet-improvement ledger](skills/agent-authoring/assets/fleet-improvement-v1.schema.json)
-  ([`fleet_improvement.py`](skills/agent-authoring/scripts/fleet_improvement.py)) with records under
-  [`evals/improvements/`](evals/improvements).
+  (schema and records under [`evals/improvements/`](evals/improvements); the executable
+  validators are parked at tag `pre-trim-2026-08-02`).
 - [`evals/`](evals) — offline behavioral contracts, the manual Claude runner, operator-run local
   Codex/Sol conformance runners, baseline records, and the bounded improvement ledger; see
   [`evals/README.md`](evals/README.md).
@@ -114,46 +114,23 @@ py -3 skills/operational-learning/scripts/knowledge_update.py `
   --allowed-knowledge-root docs/runbooks
 ```
 
-Validate a fleet-improvement record and the ledger corpus from a full-history source checkout (the
-scanner fails closed on a shallow clone):
-
-```powershell
-py -3 skills/agent-authoring/scripts/fleet_improvement.py `
-  evals/improvements/<improvement-id>/record.json `
-  --repository-root . `
-  --expected-repository latent-sre/sre-agents `
-  --allowed-root agents --allowed-root skills --allowed-root evals `
-  --allowed-root scripts --allowed-root schemas --allowed-root hooks --allowed-root commands `
-  --allowed-evidence-root evals/evidence --allowed-evidence-root evals/baselines `
-  --evidence-validator scripts/evidence_envelope.py `
-  --authority-actor AUTHENTICATED_IDENTITY --authority-role triage
-
-py -3 scripts/validate_improvement_ledger.py --repository-root .
-```
-
-The ledger's lifecycle rules, budget ceilings, artifact-selection digest, and rollback contract are
-specified in one place:
+Fleet-improvement records under [`evals/improvements/`](evals/improvements) follow the schema and
+the lifecycle contract in
 [`skills/agent-authoring/references/improvement-lifecycle.md`](skills/agent-authoring/references/improvement-lifecycle.md).
-It activates only from measured encounters and does not let an agent approve, merge, deploy, or
-rewrite itself; protected workflows remain the authority boundary.
+The executable lifecycle and corpus validators are parked at tag `pre-trim-2026-08-02` until the
+ledger carries enough real records to justify them; the contract still holds: records come only from
+measured encounters, and no agent approves, merges, deploys, or rewrites itself — protected
+workflows remain the authority boundary.
 
-### Behavioral and conformance evals
+### Behavioral evals
 
-Claude behavioral evaluations under [`evals/`](evals) remain manual. Codex/Sol conformance is also
-manual and local: the runners accept only this repository checkout with fixed manifests, copy the
-operator's existing Codex login into a disposable same-user home, and delete it before the report is
-returned — behavioral evidence, not hostile-code containment. Every report labels source review as
-unverified and sets independent evaluation, baseline eligibility, and release grant to false; commit
-and independently review the exact revision before a live run. The design and its limits are recorded
-in [`docs/decisions/2026-08-01-local-sol-conformance.md`](docs/decisions/2026-08-01-local-sol-conformance.md).
-
-```powershell
-py -3 evals/run_codex_conformance.py --validate
-```
-
-The credential boundary, pass oracle, provenance record, and the status of the revoked 2026-07-31
-Sol baselines are documented in [`evals/README.md`](evals/README.md). For repository-controlled
-executable checks, use the digest-bound, networkless container boundary in
+Claude behavioral evaluations under [`evals/`](evals) remain manual; see
+[`evals/README.md`](evals/README.md) for the clean-room boundary, scenario contract, and the status
+of the revoked 2026-07-31 Sol baselines. The Codex/Sol conformance runners and manifests are parked
+at tag `pre-trim-2026-08-02` — Gate A plus the local Claude runner is the active verification
+surface; the parked design and its limits are recorded in
+[`docs/decisions/2026-08-01-local-sol-conformance.md`](docs/decisions/2026-08-01-local-sol-conformance.md).
+For repository-controlled executable checks, use the digest-bound, networkless container boundary in
 [`docs/verification-sandbox.md`](docs/verification-sandbox.md).
 
 ## Current status
@@ -161,10 +138,9 @@ executable checks, use the digest-bound, networkless container boundary in
 - Canonical source, generated host adapters, hook wiring, manifests, and eval contracts are
   structurally gated (Gate A); Claude marketplace validation and isolated plugin loading are
   verified on the recorded CLI version.
-- Codex/Sol manifests, local same-user auth handling, response reduction, and explicit custom-agent
-  contracts pass offline validation; a fresh exact-revision run plus external review remains
-  pending. Copilot/VS Code runtime loading remains unverified because that runtime is not available
-  on the current validation host.
+- Codex/Sol conformance is parked at tag `pre-trim-2026-08-02` with no current runtime baseline.
+  Copilot/VS Code runtime loading remains unverified because that runtime is not available on the
+  current validation host.
 - Publication is blocked on repository protection, distinct promotion authority, host install smoke
   tests, and rollback evidence — tracked in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 

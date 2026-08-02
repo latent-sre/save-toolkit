@@ -1,126 +1,22 @@
 # Fleet evals
 
-## Codex/Sol conformance
+## Codex/Sol conformance (parked)
 
-Codex has a separate conformance runner because its plugin discovery, custom-agent surface, CLI
-trace, and model identifiers are not Claude contracts. It never rewrites or combines the historical
-Claude/Opus baselines in this directory.
-
-The committed manifest pins `gpt-5.6-sol`, high reasoning, a read-only sandbox, and approval policy
-`never`. A direct-skill lane passes only when both conditions hold:
-
-- the final JSON matches the deterministic oracle; and
-- the trace contains exactly one completed command against the selected skill under the isolated run
-  root (installed cache, frozen marketplace, or a Codex-owned staging path), and its output matches
-  the full plugin skill after UTF-8/Windows PowerShell decoding normalization and, where present, one
-  terminal transport newline. Chained commands, redirects, environment reads, and credential-file
-  references cannot satisfy this oracle.
-
-A `reference-direct` lane adds every named progressive-disclosure file to that same proof. It passes
-only when the trace contains one separate, simple, full-content read for the skill and for every
-required reference; a correct-looking answer with one missing, duplicated, chained, unrelated, or
-partial read fails. The current reference lanes cover API design, TypeScript, database restore drills,
-frontend design/accessibility/interface copy, and multi-component tooling.
-
-Validate the offline contract in Gate A:
-
-```powershell
-py -3 evals/run_codex_conformance.py --validate
-```
-
-Live execution is an operator-run local operation. Source review is a separate prerequisite:
-
-```powershell
-py -3 evals/run_codex_conformance.py --run --output .eval-runs/codex-sol-skills.json
-py -3 evals/run_codex_agent_conformance.py --run --output .eval-runs/codex-sol-agents.json
-```
-
-Each `--output` path must be new. A repository-local report is accepted only under `.eval-runs/`;
-the runner never overwrites an existing file or follows a linked/reparse output path.
-
-The runners use the existing Codex login from `CODEX_HOME` (or `~/.codex/auth.json`), copy only
-`auth.json` into a disposable home, and delete that home before returning a sanitized report. An
-explicit `--auth-file` is available for an equivalent operator-owned login file. This is not a
-security boundary: model-controlled read-only tools can read the same-user session file. Therefore
-the live runners accept only this repository checkout and the fixed committed manifests. Review and
-commit source before running; never use this mode to inspect a hostile or unreviewed external PR.
-
-The isolated run still registers a frozen marketplace snapshot, installs exactly one plugin, and
-executes from an empty temporary git root with an allowlisted process environment. Raw JSONL and
-parsed final messages are reduced to hashes and equality facts; neither is written to the report.
-The reports retain exact commit/tree identities, input digests, verdicts, usage, timeouts, and typed
-evidence envelopes, but no auth-file path, auth digest, raw response, or parsed final message.
-Skill invocations structurally remove collaboration tools by setting `agents.enabled=false` and
-disabling both multi-agent feature versions. Agent invocations pin the V1 registry to one live child
-with depth one and the V2 registry to root plus one live child. Both runners also enable Codex's
-140,000-token rollout budget, which is shared by the root and subagents. That runtime budget accounts
-weighted non-cached input and output after each response, so one response can cross it and cached
-input is outside that counter. Each lane and suite therefore retains a separate trusted numeric
-post-response acceptance ceiling; a missing, malformed, or excessive usage record stops execution
-before another lane. These controls are not a provider-side spend limit, so the operator's account
-must retain its own quota. The live path requires fixed manifests and clean plugin/harness inputs by
-default; scoped ignored untracked files count as dirty because the plugin snapshot would otherwise
-include bytes absent from the commit. Scoped tracked files marked `assume-unchanged` or
-`skip-worktree` also count as dirty rather than hiding working-tree changes. Missing login,
-CLI/model failure, timeout, or an incomplete trace is `INCONCLUSIVE`, never a
-fleet failure. Dirty development switches remain available for harness iteration, but the resulting
-report has `exact_revision: false` and an `inconclusive` evidence verdict. Every report—clean or
-dirty—sets `source_review` to `not-verified-by-runner`, `independent_evaluator` to false, and both
-`baseline_eligible` and `release_granted` to false. To accept a behavioral baseline, pair a
-clean exact-revision report with independent review evidence for the same immutable commit; that
-outside review never changes the runner's authority labels.
-
-Codex plugin skills and standalone custom agents are separate host surfaces. These lanes prove plugin
-installation plus direct skill/reference loading. The standalone agent runner proves its own surface:
-
-```powershell
-py -3 evals/run_codex_agent_conformance.py --validate
-```
-
-The agent runner freezes and installs all eight generated custom-agent TOMLs in the same isolated
-Codex home as the plugin, then runs one no-history delegation lane per agent plus behavior lanes for
-both trust-separated research roles, a supplied-diff authorization review by `reviewer`, and the
-non-executing evidence boundary of `scribe`. The full
-plugin snapshot must contain only passive skill components, and every custom-agent TOML must use the
-fixed constrained field set. Prompt or capability changes are committed and independently reviewed
-before a live agent baseline can exercise them. A lane passes only
-when
-the private session rollouts prove all of the following:
-
-- exactly one successful `spawn_agent` call names the expected role and `fork_turns: none`;
-- the parent receives exactly one completion from the named child (an explicit wait is optional when
-  the child completes before the parent's next turn);
-- exactly one child session is linked to the parent with the expected `agent_role`;
-- the child receives the exact installed `developer_instructions` bytes;
-- parent and child runtime contexts expose `gpt-5.6-sol`, high reasoning, read-only sandboxing, and
-  approval policy `never`; and
-- the text-only child makes no tool calls, its canary or structured refusal oracle matches, the
-  parent's exact JSON oracle matches, and stderr contains no runtime error.
-
-Self-reported delegation is deliberately insufficient. This catches the observed failure mode where
-Codex rejected an incompatible spawn request but the main model still returned `delegated: true`.
-Unlike the ephemeral skill JSONL, the temporary parent/child turn context exposes the resolved model.
-The runner reduces those rollouts to hashes and structural facts, then deletes the complete temporary
-Codex home, its copied login, and raw sessions before writing the sanitized report. Live agent runs
-require clean plugin, generated-agent, and harness inputs by default; the three separate
-dirty-development switches always produce non-exact, inconclusive evidence.
+The Codex/Sol conformance runners, their contract tests, and the fixed `gpt-5.6-sol` manifests are
+**parked at repository tag `pre-trim-2026-08-02`**. Gate A plus the local Claude runner below is the
+active verification surface; live Sol runs were already gated on separate independent review of an
+exact committed revision and never produced a post-revocation baseline. The parked design, its
+same-user credential limits, and the reopen rationale are recorded in
+[`docs/decisions/2026-08-01-local-sol-conformance.md`](../docs/decisions/2026-08-01-local-sol-conformance.md).
 
 The 2026-07-31 Codex/Sol results are retained as historical diagnostics but are **revoked as release
-evidence**. Their harness put `auth.json` in a filesystem visible to model-controlled tools and wrote
+evidence**: their harness put `auth.json` in a filesystem visible to model-controlled tools and wrote
 parsed model responses into reports. No credential disclosure was observed, but the method could not
-prove that property. This revocation applies to all five `2026-07-31-codex-sol-*` directories,
-including the former current snapshots:
+prove that property. The revocation applies to all five `2026-07-31-codex-sol-*` directories under
+[`baselines/`](baselines); each affected README carries the revocation banner, and the JSON results
+remain unchanged so the historical bytes stay inspectable. No current Sol runtime baseline exists.
 
-- [`2026-07-31-codex-sol-expanded-conformance`](baselines/2026-07-31-codex-sol-expanded-conformance)
-  - formerly 11/11 skill and progressive-reference lanes;
-- [`2026-07-31-codex-sol-seven-agent-conformance`](baselines/2026-07-31-codex-sol-seven-agent-conformance)
-  - formerly 9/9 custom-agent delegation and trust-boundary behavior lanes.
-
-The JSON results remain unchanged so the historical bytes are inspectable; each affected README now
-carries the revocation. A new current Sol baseline does not exist until both local runners complete
-against a clean committed revision and the sanitized reports are paired with independent review of
-that same revision. The governing rationale and trust labels are recorded in the
-[`local Sol conformance decision`](../docs/decisions/2026-08-01-local-sol-conformance.md).
+## Claude behavioral evals
 
 Behavioral evals for the agents and skills, above the structural `scripts/gate_a.py` gate. The
 unified runner measures two different properties and never blends their scores:
@@ -248,60 +144,12 @@ Record numerator/denominator, CLI/model, plugin commit, and suite digest for eve
 Measured recurring fleet failures and one material safety/authority failure can be retained as typed
 records under `evals/improvements/<improvement-id>/record.json`. The portable contract is the
 [`fleet-improvement-v1` schema](../skills/agent-authoring/assets/fleet-improvement-v1.schema.json);
-the bundled [validator](../skills/agent-authoring/scripts/fleet_improvement.py) additionally enforces
-append-only observations/evidence/attempts/reviews, predeclared reservations plus evaluator-recorded
-actual usage, cumulative three-attempt and resource budgets, legal transitions, caller-owned path
-roots, resolved evidence-envelope hashes, exact candidate/review/merge/monitor/rollback bindings,
-and external transition authority. The portable contract hard-caps each record at 60 model turns,
-60 evaluator calls, 1,000,000 tokens, 14,400 wall-clock seconds, USD 100, and a 16 KiB aggregate
-target-path argv; trusted callers may lower those ceilings, while record content cannot raise them.
-For a fresh evaluation, the envelope producer must match `evaluation.evaluator`, the envelope must
-repeat the reservation and `actual_usage` exactly, and each actual value must fit its reservation.
-Monitoring evidence is likewise bound to `monitoring.observed_by`. Any retained protected-shadow
-result must pass before review or promotion, duplicate JSON object keys are rejected before lifecycle
-validation, and schema plus executable validation require literal uppercase `T` and `Z` in UTC
-timestamps.
-
-The canonical `sre-agents-git-artifact-selection-v1` digest covers the requested path set and each
-selected regular Git blob's mode, canonical path, size, and raw SHA-256. Candidate subjects must be
-real commits descended from their recorded parent and touch every declared target. Promotion is the
-exact reviewed commit or a two-parent merge with it as one direct parent. The other parent must
-descend from the base and have the base target digest; that base must be the parents' unique actual
-merge base; and an object-only full-tree comparison rejects merge-only files or divergent parent
-changes. Raw trees must use canonical Git ordering and valid modes/types, contain no empty injected
-directories, stay within hard bounds, expose a cross-host-portable UTF-8 NFC namespace, and prove
-that every non-gitlink leaf exists as an actual Git blob. The merge cannot change the reviewed
-artifact digest. Trusted Git queries ignore commit graphs, grafts, and replace objects and supervise
-input, output, and process completion under one deadline.
-
-A rollback must be the exact one-parent inverse of the candidate-exclusive promoted delta, or a
-two-parent object-only application merge of that revert. It must preserve unrelated pre-rollback
-bytes, reject later candidate-path drift and rollback-only injection, descend from the promotion,
-and restore the base artifact digest. Prior monitoring remains attached when a later security,
-authority, merge, or owner trigger fires. A direct `merged -> rolled_back` transition cannot add
-monitoring; monitoring failures and inconclusive results must first enter `monitoring`, then roll
-back separately. An encoded terminal lesson must resolve to a regular Git blob at its ledger
-revision. Subject-bound shadow, evaluation, and review envelopes name the exact digest algorithm,
-so older incompatible repository digests cannot become promotion evidence. A `changes_requested`
-review first enters `in_review`; an author retry back to `candidate` or a reviewer/protected-workflow
-rejection is a separate transition. Records must predeclare `monitoring_fail`,
-`monitoring_inconclusive`, `security_finding`, `authority_revoked`, and `merge_error` as rollback
-triggers; `manual_owner_decision` is optional.
-
-The corpus scanner, `py -3 scripts/validate_improvement_ledger.py --repository-root .`, discovers
-every record and rejects promoted bootstrap states, deletions anywhere in merged history including
-merge-result-only deletions, non-linear record histories, and cross-record
-fingerprint/event/evidence duplication, then replays retained Git transitions. It requires complete
-history (for GitHub Actions, `actions/checkout` needs `fetch-depth: 0`). Its synthetic history roles
-validate structure only; protected workflows authenticate the real actors. This is an
-encounter-driven Git ledger, not a runtime collector or autonomous self-modifier.
-
-Run the corpus scanner and repository evidence validator only from an `sre-agents` source checkout.
-An installed skill bundle includes the portable schema and standalone validator, but not the
-repository-root `scripts/evidence_envelope.py` or `scripts/validate_improvement_ledger.py`; installed
-callers must supply equivalent trusted code or use the source checkout. The manually disabled
-**Validate fleet** workflow stays untouched; before re-enabling it, set its checkout to
-`fetch-depth: 0` so the ledger scan does not run against shallow history.
+the lifecycle, budget, promotion, and rollback rules those records must satisfy are specified in
+[`improvement-lifecycle.md`](../skills/agent-authoring/references/improvement-lifecycle.md). The
+executable record validator and repository corpus scanner are parked at repository tag
+`pre-trim-2026-08-02`; recover them from that tag before promoting any record beyond
+`observed`/`rejected`. This is an encounter-driven Git ledger, not a runtime collector or autonomous
+self-modifier.
 
 The first pilot, [`fi_agent_routing_discovery`](improvements/fi_agent_routing_discovery/record.json),
 imports the 2026-07-31 reviewer-discovery experiment as `rejected`. It deliberately keeps unknown

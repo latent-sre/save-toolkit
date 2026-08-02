@@ -100,7 +100,11 @@ demonstrates a separate consumer.
 
 ### EVAL-001 — expand risk-weighted Sol coverage
 
-**Status:** `active`
+**Status:** `parked` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
+manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A plus the local Claude eval runner is
+the active verification surface for the beta. Reopen when a Codex/Sol behavioral baseline is
+actually needed for a release decision; the prerequisites and acceptance below are unchanged and
+still apply at that point.
 
 **Outcome:** The highest-risk skills and every explicitly installed Codex custom agent have direct
 behavioral evidence on `gpt-5.6-sol`, while implicit routing remains an observational metric rather
@@ -136,10 +140,11 @@ Sixteen negative routing cases remain in the ordinary eval suite, including `scr
 live incident investigation, observability design, automation, independent review, and the
 operational-learning method's direct-writing boundary.
 
-**Next action:** Commit this local harness change, independently review that exact commit, then run
-both fixed manifests from its clean checkout. Retain each sanitized report beside the matching review
-packet; acceptance of the pair is an external human/protected-workflow decision, never a field the
-runner grants itself. Keep implicit routing observational rather than making it a release gate.
+**Next action:** None while parked. On reopen: recover the runners from tag `pre-trim-2026-08-02`,
+independently review the exact recovered commit, then run both fixed manifests from its clean
+checkout. Retain each sanitized report beside the matching review packet; acceptance of the pair is
+an external human/protected-workflow decision, never a field the runner grants itself. Keep implicit
+routing observational rather than making it a release gate.
 
 ## Decision needed
 
