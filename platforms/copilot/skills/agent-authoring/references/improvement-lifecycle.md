@@ -216,5 +216,7 @@ different lifecycle values from the same bytes. Schema and executable validation
 literal uppercase `T` and `Z` in UTC timestamps. The validator proves record consistency, not runtime
 isolation, model quality, secret absence, review independence, authenticated actor identity, branch
 protection, or production authorization.
-The corpus scanner deliberately uses synthetic roles only to replay historical transition shape.
-Keep the real controls and their evidence outside the packet.
+The corpus scanner deliberately uses synthetic roles only to replay historical creation and
+transition shape. A synthetic `human_or_protected_workflow` role does not prove that a human or
+protected workflow authorized the historical event. Keep the real controls and their evidence
+outside the packet.

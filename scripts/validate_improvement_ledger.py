@@ -251,6 +251,23 @@ def _synthetic_authority(
     }
 
 
+def _synthetic_initial_authority(
+    current: Mapping[str, object],
+) -> Mapping[str, object]:
+    """Construct initial role shape without claiming historical actor identity."""
+
+    role = (
+        "human_or_protected_workflow"
+        if current.get("status") == "rejected"
+        else "triage"
+    )
+    return {
+        "actor": "repository-history",
+        "role": role,
+        "subject_revision": None,
+    }
+
+
 def _validate_cross_record_uniqueness(
     records: Mapping[str, Mapping[str, object]],
 ) -> None:
@@ -370,9 +387,10 @@ def validate_ledger(repository_root: Path) -> None:
                 )
         first_revision, first = decoded[0]
         try:
-            fleet_improvement.validate_initial_record_structure(
+            fleet_improvement.validate_initial_record(
                 first,
                 allowed_artifact_roots=ALLOWED_ARTIFACT_ROOTS,
+                authority=_synthetic_initial_authority(first),
                 budget_ceilings=LEDGER_BUDGET_CEILINGS,
             )
             for (previous_revision, previous), (current_revision, current) in zip(
