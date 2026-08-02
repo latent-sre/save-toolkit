@@ -8,10 +8,11 @@ behavior and one material safety or authority failure enter this ledger.
 
 The portable record shape is the
 [fleet improvement v1 schema](../assets/fleet-improvement-v1.schema.json). The executable
-[fleet improvement validator](../scripts/fleet_improvement.py) adds transition, cumulative-budget,
+lifecycle validator and repository corpus gate — which added transition, cumulative-budget,
 exact-subject, evidence-resolution, path-scope, credential-rejection, append-only-history, and
-external-authority checks that JSON Schema cannot express. The repository-level corpus gate
-discovers every record and replays its Git history through those checks. Store records at
+external-authority checks that JSON Schema cannot express — are **parked at repository tag
+`pre-trim-2026-08-02`** until the ledger carries enough real records to justify them; this document
+remains the contract those records must satisfy. Store records at
 `evals/improvements/<improvement-id>/record.json`; keep raw traces and provider output under the
 ignored `.eval-runs/` tree, never in the record.
 
@@ -166,57 +167,15 @@ symlink, gitlink, or directory cannot satisfy closeout.
 
 ## Validation
 
-These commands are repository-level validation and must run from an `sre-agents` source checkout.
-An installed `agent-authoring` skill bundle carries the portable schema and standalone record
-validator, but it does not carry the repository-root
-evidence-envelope validator or complete improvement-ledger scanner. An installed caller must supply
-its own trusted envelope
-validator and repository scanner, or validate from a source checkout; packet fields never select
-that trusted code.
+The executable record validator (`fleet_improvement.py`) and repository corpus scanner
+(`validate_improvement_ledger.py`), together with their invocation contracts, are parked at
+repository tag `pre-trim-2026-08-02`; recover them from that tag before promoting any record beyond
+`observed`/`rejected`. Until then, validate new records against the
+[fleet improvement v1 schema](../assets/fleet-improvement-v1.schema.json) and hold every invariant
+in this document by review.
 
-Validate a standalone record with caller-owned path scope:
-
-```powershell
-py -3 skills/agent-authoring/scripts/fleet_improvement.py `
-  evals/improvements/fi_example/record.json `
-  --repository-root . `
-  --expected-repository latent-sre/sre-agents `
-  --allowed-root agents --allowed-root skills --allowed-root evals `
-  --allowed-root scripts --allowed-root schemas --allowed-root hooks --allowed-root commands `
-  --allowed-evidence-root evals/evidence `
-  --allowed-evidence-root evals/baselines `
-  --evidence-validator scripts/evidence_envelope.py `
-  --authority-actor AUTHENTICATED_TRIAGE_IDENTITY --authority-role triage
-```
-
-For an update, materialize the previous bytes from a trusted base revision—not from the candidate
-packet—and pass them with the authenticated outer actor, role, and exact candidate revision:
-
-```powershell
-py -3 skills/agent-authoring/scripts/fleet_improvement.py record.json `
-  --trusted-previous previous.json `
-  --repository-root . `
-  --expected-repository latent-sre/sre-agents `
-  --authority-actor reviewer-identity --authority-role reviewer `
-  --authority-subject-revision FULL_CANDIDATE_REVISION `
-  --allowed-root agents --allowed-root skills --allowed-root evals `
-  --allowed-evidence-root evals/evidence `
-  --evidence-validator scripts/evidence_envelope.py
-```
-
-Validate the complete repository ledger, including creation state, retained Git transitions,
-deletions, path/ID parity, current evidence bytes, and envelope bindings:
-
-```powershell
-py -3 scripts/validate_improvement_ledger.py --repository-root .
-```
-
-JSON ingestion rejects duplicate object keys before validation so different consumers cannot select
-different lifecycle values from the same bytes. Schema and executable validation both require
-literal uppercase `T` and `Z` in UTC timestamps. The validator proves record consistency, not runtime
-isolation, model quality, secret absence, review independence, authenticated actor identity, branch
-protection, or production authorization.
-The corpus scanner deliberately uses synthetic roles only to replay historical creation and
-transition shape. A synthetic `human_or_protected_workflow` role does not prove that a human or
-protected workflow authorized the historical event. Keep the real controls and their evidence
-outside the packet.
+Two properties of the parked validators still bound what any record may claim: validation proved
+record consistency, never runtime isolation, model quality, secret absence, review independence,
+authenticated actor identity, branch protection, or production authorization; and the corpus
+scanner's synthetic replay roles never proved that a human or protected workflow authorized a
+historical event. Keep the real controls and their evidence outside the packet.

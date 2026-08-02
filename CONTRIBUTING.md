@@ -41,13 +41,12 @@ py -3 scripts/gate_a.py
 
 Gate A is structural. Complete independent correctness, security/agentic-boundary, and plan-conformance
 reviews against an immutable candidate commit before merge. A review of mutable working-tree bytes is
-explicitly provisional. Run behavioral evaluations manually, never in CI. Use the disposable harness
-defined by that runner; authenticated Codex/Sol evaluation is limited to fixed manifests and the
-current local checkout because same-user model credentials are not isolated from evaluated content.
-Commit and independently review the exact revision before running. The runner does not verify review
-or evaluator independence and always sets baseline eligibility and release grant to false;
-pair its exact-revision report with the separate immutable review evidence. Report outputs are
-create-only, and repository-local outputs must be under `.eval-runs/`.
+explicitly provisional. Run behavioral evaluations manually, never in CI, through the clean-room
+Claude runner (`evals/run_evals.py`); repository-local outputs must stay under `.eval-runs/`. The
+Codex/Sol conformance runners are parked at tag `pre-trim-2026-08-02` — if they are recovered,
+their same-user credential limits and always-false authority labels in
+[`docs/decisions/2026-08-01-local-sol-conformance.md`](docs/decisions/2026-08-01-local-sol-conformance.md)
+still apply.
 
 Every result distinguishes `[verified]`, `[sourced]`, and `[unverified]` claims. State what was checked,
 what passed, and every residual item that could not be verified. Never upgrade an evidence label while

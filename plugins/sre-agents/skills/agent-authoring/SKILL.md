@@ -70,9 +70,9 @@ Route to the relevant method without loading sibling skills:
 - [context guidance](./references/context.md) for cold-start packets and bounded evidence.
 - [bounded fleet-improvement lifecycle](./references/improvement-lifecycle.md) for turning a
   measured fleet failure into a budgeted, exact-subject candidate without self-promotion. Its
-  portable shape is the [fleet improvement v1 schema](./assets/fleet-improvement-v1.schema.json),
-  and callers enforce lifecycle invariants with the bundled
-  [fleet improvement validator](./scripts/fleet_improvement.py).
+  portable shape is the [fleet improvement v1 schema](./assets/fleet-improvement-v1.schema.json);
+  the executable lifecycle validator is parked at repository tag `pre-trim-2026-08-02` until the
+  ledger carries enough real records to justify it.
 - [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth
   for frontmatter fields and their traps; read it before authoring or debugging any agent or skill
   frontmatter.
