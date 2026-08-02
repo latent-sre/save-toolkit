@@ -10,6 +10,12 @@ The accepted architecture is
 one canonical Claude plugin under `agents/`, `skills/`, and `commands/`, with generated host-native
 adapters for Copilot/VS Code and Codex.
 
+Closed work is retained in the
+[`SAFE-001 closure`](reviews/2026-08-01-safe-001-closure.md) and
+[`IMPROVE-001 closure`](reviews/2026-08-01-fleet-improvement-closure.md). The local Sol evaluator
+decision is recorded separately in
+[`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
+
 ## Item contract
 
 Every live item carries:
@@ -27,84 +33,6 @@ Every live item carries:
 An item leaves this file after its acceptance evidence is committed and the change is merged. Git
 history and archived source documents retain the implementation detail.
 
-## Active
-
-### SAFE-001 — separate research trust zones and normalize evidence
-
-**Status:** `active`
-
-**Outcome:** The fleet offers mutually exclusive local-only and external-only evidence roles, mixed
-questions use a sanitized caller-owned handoff, and new runtime controls emit one validated evidence
-envelope instead of incompatible ad-hoc verdicts.
-
-**Source:** The 2026-07-31 fleet-control review and the sister lab's merged P0/P1 safety controls.
-
-**Prerequisites:** Preserve the current researcher evidence contract, generated-adapter authority
-translation, and explicit agent selection where autonomous routing is unreliable.
-
-**Acceptance:** A local-only repository investigator has no web, MCP, shell, write, or delegation
-tools; the external researcher has no local read/search tools; negative routing cases protect review,
-debugging, security-audit, and implementation lanes; a versioned evidence schema rejects unknown or
-secret-bearing fields; deterministic tests and generated drift checks pass.
-
-**Current evidence:** PR #71 merged the reviewed multi-platform boundary to `main` at
-`46099aaec6c61a8d592af1eae7b89e7645706cbe`. PR #73 then merged the least-privileged `scribe` lane
-and operational-learning contracts at `7b952d42f279cfb0d07a3d666ed0c32dcf7aea31`, and PR #75
-preserved the reviewed sister-lab source catalog at
-`4aa716285cadb949f49da9db4e6001aa465593de`. The evidence-envelope validator, fleet doctor, brokered Codex/Sol workflow,
-credential-free candidate materializer, and reduced result wrappers have mutation coverage. The
-workflow requires a pinned trusted-main Responses API broker, avoids raw/parsed response retention,
-rejects credential-shaped output, and permits only trusted-main agent prompt bytes plus one bounded
-child. Earlier local Sol runtime reports remain revoked; no fresh live model result exists. SAFE-001
-therefore remains active only for repository protection, distinct promotion authority, and the first
-immutable brokered canary—not for the already-merged `scribe` or operational-learning work.
-
-**Next action:** Keep the brokered workflow on trusted `main`, wait for PROTECT-001 and distinct
-promotion authority, then run it against an immutable reviewed canary SHA.
-
-### IMPROVE-001 — enforce a bounded fleet-improvement lifecycle
-
-**Status:** `active`
-
-**Outcome:** A recurring measured agent/skill failure—or one material safety/authority failure—is
-deduplicated into a typed, owner-assigned Git ledger, receives a small evidence-bound candidate loop,
-and either closes with a durable control or retains an honest rejected/blocked/rolled-back result.
-No agent can authorize its own transition or promotion.
-
-**Source:** The request for consistent ongoing agent improvement after the operational-learning loop,
-the 2026-07-31 routing experiment, and the bounded-control findings from the sister-lab review.
-
-**Prerequisites:** Preserve the merged operational-learning and `scribe` boundaries; keep raw traces
-private; distinguish visible calibration/regression cases from externally held shadow cases; require
-exact candidate identity, independent review, and human/protected-workflow promotion. Do not add a
-daemon, scheduler, event bus, background collector, or autonomous self-modifying path in this item.
-
-**Acceptance:** The agent-authoring bundle carries a portable record schema, executable validator,
-legal lifecycle with a separate author retry after `changes_requested`, a three-attempt limit and
-hard caller ceilings of 60 model turns, 60 evaluator calls, 1,000,000 tokens, 14,400 seconds, and
-USD 100, envelope-bound evaluator/observer identity and actual usage, caller-owned path scope,
-credential rejection, append-only Git history, full-corpus discovery, resolved evidence envelopes,
-the canonical `sre-agents-git-artifact-selection-v1` digest, real Git ancestry plus merge-unchanged
-and canonical object-only full-tree proof, exact rollback inverse/application checks, cross-record
-deduplication, bounded Git capture, mandatory rollback triggers, and caller-supplied transition
-authority;
-prompt-engineer/reviewer/handoff contracts route encounters consistently; a historical negative
-pilot validates without pretending it can promote; generated adapters match; Gate A and focused
-tests pass; an independent exact-revision review has no open P0/P1 findings.
-
-**Current evidence:** The working candidate contains the typed schema and executable lifecycle
-validator, real evidence-envelope resolution, Git-history corpus replay, adversarial mutation
-coverage, explicit calibration/regression terminology, shared learning handoff field, and a rejected
-historical reviewer-discovery record. Repository-level evidence and corpus validation are explicitly
-source-checkout-only because installed skill bundles do not carry the root validator scripts. The
-manually disabled Validate fleet workflow remains untouched and needs `fetch-depth: 0` before it is
-re-enabled. The candidate carries Gate A, generated-byte drift, strict plugin validation, and focused
-lifecycle, evidence-envelope, and ledger contract coverage. This remains mutable working-tree
-evidence; fresh model behavior and immutable exact-revision review are not claimed.
-
-**Next action:** If the final three-lane working-tree review has no open P0/P1 finding, freeze an
-authorized commit and repeat the exact-revision review before merge.
-
 ## Active runtime work
 
 ### HOST-001 — prove host installation and runtime conformance
@@ -117,8 +45,8 @@ model evidence independently; an unavailable host reports `skip` or `inconclusiv
 **Source:** Multi-platform packaging ADR and the import review's unverified-runtime limits.
 
 **Prerequisites:** A disposable installation root; authenticated host access only for the lane being
-measured. Codex model credentials must remain in the trusted broker, never in the
-candidate runner's files, environment, or OS identity.
+measured. Codex/Sol behavioral runs use only fixed manifests and reviewed, committed local source;
+the same-user login copy is an explicit limitation, not hostile-candidate containment.
 
 **Acceptance:** Each supported host proves install, inventory/discovery, one authority boundary, and
 uninstall without modifying user-owned components. Results record CLI/version, requested and observed
@@ -128,7 +56,8 @@ their runtime is actually available.
 **Current evidence:** `fleet_doctor.py` now emits typed static/availability evidence without starting
 a model or modifying host installations. This machine has Claude, Codex, and VS Code CLIs; Copilot
 CLI remains unavailable, and the doctor reports that lane as `skip` rather than `pass`. Local live
-Codex conformance is now rejected because the Windows/same-user credential boundary is insufficient.
+Codex conformance now runs in a disposable home on reviewed source and reports that same-user
+authentication isolation is not proven. It is not authorized for external candidate code.
 
 **Next action:** Add disposable install/uninstall probes only for available hosts; keep Copilot and
 VS Code behavioral lanes explicitly incomplete until their drivers can prove them.
@@ -143,9 +72,9 @@ credentials, writable source, host paths, or unrestricted network access.
 **Source:** Agent-security's explicit statement that a worktree is not a sandbox and the sister
 lab's digest-pinned verification runner.
 
-**Prerequisites:** SAFE-001 evidence envelopes; a trusted Docker or Podman engine; a locally present
-image pinned by digest. A verification-agent roster change remains separate until the boundary is
-proven.
+**Prerequisites:** The merged `schemas/evidence-envelope-v1.schema.json` contract and
+`scripts/evidence_envelope.py` validator; a trusted Docker or Podman engine; a locally present image
+pinned by digest. A verification-agent roster change remains separate until the boundary is proven.
 
 **Acceptance:** The trusted runner disables pulls and networking, mounts the exact source revision
 read-only with separate writable scratch, runs non-root with dropped capabilities and resource/time
@@ -180,7 +109,9 @@ than a release gate.
 **Source:** Existing Sol reference and six-agent conformance baselines plus the measured headless
 agent-discovery limitation.
 
-**Prerequisites:** SAFE-001 if the roster changes; clean plugin, generated-agent, and harness inputs.
+**Prerequisites:** Clean committed plugin, generated-agent, and harness inputs; independent review of
+that exact commit; and an operator-owned Codex login. Changes originating in an external branch or PR
+must first be reviewed and committed into this repository before live evaluation.
 
 **Acceptance:** Direct lanes cover the trust-separated research roles and risk-weighted release,
 production-change, PCF, agent-security, and observability contracts. Every result distinguishes
@@ -193,24 +124,22 @@ detection of a supplied object-authorization regression, and `scribe`'s no-execu
 knowledge-closeout boundaries. Offline validation confirms their schemas, inventory, and pinned Sol model; it does not
 establish model behavior. The 2026-07-31 live results
 are retained but revoked: their same-user `auth.json` boundary and parsed-response reports were not
-safe release evidence. The new brokered workflow and negative credential tests pass offline; a fresh
-live result cannot exist until that workflow is trusted on `main`. The model job has no checkout post
-callback or candidate checkout/filter path: candidate acquisition is object-only, then a trusted
-credential-free extractor writes raw allowlisted blobs. Skill lanes have no collaboration tools, and
-agent lanes require trusted prompt bytes while bounding V1/V2 concurrency and shared rollout usage.
+safe release evidence. The local runners now retain only sanitized hashes, verdicts, usage,
+timeouts, exact commit/tree identities, and typed evidence. The local runners copy the operator's
+Codex login into a disposable home only after plugin bootstrap, delete that home before returning,
+reject credential-shaped volatile output, and make dirty development runs non-exact and
+inconclusive. Reports always state that source review is unverified by the runner, the evaluator is
+not independent, and the result is neither baseline-eligible nor release-granting. Skill lanes
+have no collaboration tools, and agent lanes use constrained local prompt/configuration bytes while
+bounding V1/V2 concurrency and shared rollout usage.
 Sixteen negative routing cases remain in the ordinary eval suite, including `scribe` collisions with
 live incident investigation, observability design, automation, independent review, and the
 operational-learning method's direct-writing boundary.
 
-**Review evidence:** The trusted evaluator at implementation commit
-`9efc45e6e1ccfa17a7e01aa80c4acd9a1aaf0cd0` received exact-SHA three-pass approval with no P0-P3
-findings, and its structural contracts passed the hosted three-OS matrix. No live model run was
-dispatched.
-
-**Next action:** Do **not** create a canary or dispatch the live run until PROTECT-001 and the distinct
-promotion-authority control are complete, as required by `CONTRIBUTING.md`. Only then evaluate the
-reviewed immutable canary and retain both reduced reports with the fresh-runner attestation. Keep
-implicit routing observational rather than turning it into a release gate.
+**Next action:** Commit this local harness change, independently review that exact commit, then run
+both fixed manifests from its clean checkout. Retain each sanitized report beside the matching review
+packet; acceptance of the pair is an external human/protected-workflow decision, never a field the
+runner grants itself. Keep implicit routing observational rather than making it a release gate.
 
 ## Decision needed
 
@@ -245,11 +174,11 @@ without rebuilding or moving an unprotected ref.
 **Source:** The historical distribution plan, rewritten for the accepted multi-platform plugin
 architecture.
 
-**Prerequisites:** PROTECT-001, HOST-001, and the exact-SHA canary on trusted `main`.
+**Prerequisites:** PROTECT-001 and HOST-001.
 
 **Acceptance:** Version parity and changelog pass; `claude plugin tag --dry-run` validates the Claude
 manifest/marketplace pair; every host's publication mechanism is verified before choosing an
-immutable tag or protected moving ref; promotion consumes the reviewed SHA and canary evidence;
+immutable tag or protected moving ref; promotion consumes the reviewed SHA and required checks;
 install and uninstall smoke tests pass from the published artifact; rollback or yank is rehearsed and
 documented.
 

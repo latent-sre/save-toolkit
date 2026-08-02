@@ -28,32 +28,28 @@ Validate the offline contract in Gate A:
 py -3 evals/run_codex_conformance.py --validate
 ```
 
-Local live execution is intentionally unsupported. A model-controlled read-only shell can still read
-same-user credential files or process memory, so copying `auth.json` into a disposable directory is
-not a credential boundary. After PROTECT-001 and the promotion-authority controls in
-[`docs/fleet-roadmap.md`](../docs/fleet-roadmap.md) are complete, dispatch
-`.github/workflows/codex-sol-conformance.yml` from `main` against an immutable
-`canary/<phase>/<full-sha>` ref. That trusted workflow gives the pinned OpenAI action the repository
-secret `CODEX_CONFORMANCE_OPENAI_API_KEY` before candidate object acquisition, starts a Responses API proxy,
-removes sudo, and supplies only the trusted-main evaluator with the proxy's tokenless loopback
-provider config. The model-bearing job deliberately has no `actions/checkout` step. Candidate
-acquisition uses a full `--no-checkout` object clone; that step removes every remote, rejects
-credential/promisor/partial-clone configuration, proves object completeness, and ends before a
-trusted-main raw extractor runs in a credential-free shell. The extractor uses NUL-safe
-`git ls-tree` plus length-delimited `git cat-file --batch`, accepts only bounded regular blobs from
-the plugin/agent allowlist, and rejects links, submodules, path collisions, and escapes. It never
-invokes candidate attributes, filters, hooks, or Python. The fixed evaluator and manifests come from
-`main`. Skill lanes inspect candidate plugin bytes as data, while agent lanes require the candidate
-plugin and generated-agent prompt bytes to match trusted main before any delegation. The runners reject
-Windows/local execution, a same-checkout evaluator and candidate, readable `auth.json`, passwordless
-sudo, credential-bearing provider fields, non-loopback endpoints, and credential-shaped volatile
-output.
+Live execution is an operator-run local operation. Source review is a separate prerequisite:
+
+```powershell
+py -3 evals/run_codex_conformance.py --run --output .eval-runs/codex-sol-skills.json
+py -3 evals/run_codex_agent_conformance.py --run --output .eval-runs/codex-sol-agents.json
+```
+
+Each `--output` path must be new. A repository-local report is accepted only under `.eval-runs/`;
+the runner never overwrites an existing file or follows a linked/reparse output path.
+
+The runners use the existing Codex login from `CODEX_HOME` (or `~/.codex/auth.json`), copy only
+`auth.json` into a disposable home, and delete that home before returning a sanitized report. An
+explicit `--auth-file` is available for an equivalent operator-owned login file. This is not a
+security boundary: model-controlled read-only tools can read the same-user session file. Therefore
+the live runners accept only this repository checkout and the fixed committed manifests. Review and
+commit source before running; never use this mode to inspect a hostile or unreviewed external PR.
 
 The isolated run still registers a frozen marketplace snapshot, installs exactly one plugin, and
 executes from an empty temporary git root with an allowlisted process environment. Raw JSONL and
 parsed final messages are reduced to hashes and equality facts; neither is written to the report.
-The two complete reduced reports cross the job boundary under a 128 KiB-per-report limit, are
-digest-checked and contract-checked on a fresh runner, and are retained with the attestation.
+The reports retain exact commit/tree identities, input digests, verdicts, usage, timeouts, and typed
+evidence envelopes, but no auth-file path, auth digest, raw response, or parsed final message.
 Skill invocations structurally remove collaboration tools by setting `agents.enabled=false` and
 disabling both multi-agent feature versions. Agent invocations pin the V1 registry to one live child
 with depth one and the V2 registry to root plus one live child. Both runners also enable Codex's
@@ -61,12 +57,18 @@ with depth one and the V2 registry to root plus one live child. Both runners als
 weighted non-cached input and output after each response, so one response can cross it and cached
 input is outside that counter. Each lane and suite therefore retains a separate trusted numeric
 post-response acceptance ceiling; a missing, malformed, or excessive usage record stops execution
-before another lane. These controls are not a provider-side spend limit, so the dedicated API project
-must retain its own quota. The workflow adds a 120-minute hard ceiling around the conformance job,
-per-lane subprocess timeouts, and ten-minute bounds around preflight and evidence reduction.
-The live path requires fixed manifests and clean plugin/harness inputs. Missing broker setup,
-CLI/model failure, timeout, or an incomplete trace is `INCONCLUSIVE`, never a fleet failure. Dirty
-development switches exist for locally authored harness work but are never publishable evidence.
+before another lane. These controls are not a provider-side spend limit, so the operator's account
+must retain its own quota. The live path requires fixed manifests and clean plugin/harness inputs by
+default; scoped ignored untracked files count as dirty because the plugin snapshot would otherwise
+include bytes absent from the commit. Scoped tracked files marked `assume-unchanged` or
+`skip-worktree` also count as dirty rather than hiding working-tree changes. Missing login,
+CLI/model failure, timeout, or an incomplete trace is `INCONCLUSIVE`, never a
+fleet failure. Dirty development switches remain available for harness iteration, but the resulting
+report has `exact_revision: false` and an `inconclusive` evidence verdict. Every report—clean or
+dirty—sets `source_review` to `not-verified-by-runner`, `independent_evaluator` to false, and both
+`baseline_eligible` and `release_granted` to false. To accept a behavioral baseline, pair a
+clean exact-revision report with independent review evidence for the same immutable commit; that
+outside review never changes the runner's authority labels.
 
 Codex plugin skills and standalone custom agents are separate host surfaces. These lanes prove plugin
 installation plus direct skill/reference loading. The standalone agent runner proves its own surface:
@@ -79,8 +81,9 @@ The agent runner freezes and installs all eight generated custom-agent TOMLs in 
 Codex home as the plugin, then runs one no-history delegation lane per agent plus behavior lanes for
 both trust-separated research roles, a supplied-diff authorization review by `reviewer`, and the
 non-executing evidence boundary of `scribe`. The full
-plugin bundle and every custom-agent TOML must first match the trusted-main bytes; prompt or capability
-changes are staged and reviewed before a live agent baseline can exercise them. A lane passes only
+plugin snapshot must contain only passive skill components, and every custom-agent TOML must use the
+fixed constrained field set. Prompt or capability changes are committed and independently reviewed
+before a live agent baseline can exercise them. A lane passes only
 when
 the private session rollouts prove all of the following:
 
@@ -98,9 +101,9 @@ Self-reported delegation is deliberately insufficient. This catches the observed
 Codex rejected an incompatible spawn request but the main model still returned `delegated: true`.
 Unlike the ephemeral skill JSONL, the temporary parent/child turn context exposes the resolved model.
 The runner reduces those rollouts to hashes and structural facts, then deletes the complete temporary
-credential-free Codex home and raw sessions before writing the sanitized report. Live agent runs
-require the same broker boundary plus clean plugin, generated-agent, and harness inputs by default;
-the three separate dirty-development switches are never suitable for publishable evidence.
+Codex home, its copied login, and raw sessions before writing the sanitized report. Live agent runs
+require clean plugin, generated-agent, and harness inputs by default; the three separate
+dirty-development switches always produce non-exact, inconclusive evidence.
 
 The 2026-07-31 Codex/Sol results are retained as historical diagnostics but are **revoked as release
 evidence**. Their harness put `auth.json` in a filesystem visible to model-controlled tools and wrote
@@ -114,9 +117,10 @@ including the former current snapshots:
   - formerly 9/9 custom-agent delegation and trust-boundary behavior lanes.
 
 The JSON results remain unchanged so the historical bytes are inspectable; each affected README now
-carries the revocation. A new current Sol baseline does not exist until the brokered workflow runs on
-an exact reviewed SHA after the workflow reaches trusted `main` and PROTECT-001 permits creation of
-the required canary ref.
+carries the revocation. A new current Sol baseline does not exist until both local runners complete
+against a clean committed revision and the sanitized reports are paired with independent review of
+that same revision. The governing rationale and trust labels are recorded in the
+[`local Sol conformance decision`](../docs/decisions/2026-08-01-local-sol-conformance.md).
 
 Behavioral evals for the agents and skills, above the structural `scripts/gate_a.py` gate. The
 unified runner measures two different properties and never blends their scores:
