@@ -593,8 +593,17 @@ def stage_local_auth(source: Path, codex_home: Path) -> Path:
     target = codex_home / AUTH_FILE
     if target.exists() or target.is_symlink():
         raise ConformanceError("disposable Codex home already contains auth.json")
-    shutil.copyfile(auth, target)
-    os.chmod(target, stat.S_IRUSR | stat.S_IWUSR)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(target, flags, stat.S_IRUSR | stat.S_IWUSR)
+    try:
+        with os.fdopen(fd, "wb") as dst:
+            dst.write(auth.read_bytes())
+    except BaseException:
+        try:
+            os.unlink(target)
+        except OSError:
+            pass
+        raise
     _assert_regular_unlinked_file(target, "staged Codex authentication file")
     return target
 
