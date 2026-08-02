@@ -15,6 +15,18 @@ PLAN_ROOT = Path("docs/superpowers/plans")
 SPEC_ROOT = Path("docs/superpowers/specs")
 ROOT_POINTERS = (Path("AGENTS.md"), Path("README.md"), Path("CONTRIBUTING.md"))
 HISTORICAL_MARKERS = ("implemented", "superseded", "historical")
+ROADMAP_ITEM_STATUSES = {"ready", "active", "blocked", "deferred", "decision-needed"}
+ROADMAP_REQUIRED_FIELDS = (
+    "Status",
+    "Outcome",
+    "Source",
+    "Prerequisites",
+    "Acceptance",
+    "Next action",
+)
+ROADMAP_ITEM_RE = re.compile(r"^###\s+([A-Z][A-Z0-9]*-\d{3})\b")
+ROADMAP_FIELD_RE = re.compile(r"^\*\*([A-Za-z][A-Za-z ]+):\*\*\s*(.*)$")
+ROADMAP_ITEM_ID_RE = re.compile(r"\b[A-Z][A-Z0-9]*-\d{3}\b")
 VOLATILE_PASS_COUNT_RE = re.compile(
     r"(?ix)(?:"
     r"\bpasses?\s+\d+(?:/\d+)?(?:\s+focused)?\s+(?:tests?|scenarios?|cases?|steps?)\b"
@@ -62,7 +74,8 @@ def _status_value(text: str, lines: int = 14) -> str | None:
 
 def _status_state(value: str) -> str:
     normalized = value.strip().strip("`*_ .").lower()
-    return re.split(r"\s*(?:,|;|\(|—|–|\s-\s)\s*", normalized, maxsplit=1)[0].strip()
+    state = re.split(r"\s*(?:,|;|\(|—|–|\s-\s)\s*", normalized, maxsplit=1)[0]
+    return state.strip().strip("`*_ .")
 
 
 def _volatile_current_evidence_lines(text: str) -> list[int]:
@@ -97,6 +110,99 @@ def _volatile_current_evidence_lines(text: str) -> list[int]:
     return matches
 
 
+def _roadmap_items(text: str) -> list[dict[str, object]]:
+    """Parse live roadmap item headings and their bold field blocks."""
+
+    lines = text.splitlines()
+    starts: list[tuple[int, str]] = []
+    for index, raw_line in enumerate(lines):
+        match = ROADMAP_ITEM_RE.match(raw_line.strip())
+        if match:
+            starts.append((index, match.group(1)))
+
+    items: list[dict[str, object]] = []
+    for position, (start, item_id) in enumerate(starts):
+        end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
+        fields: dict[str, str] = {}
+        duplicate_fields: set[str] = set()
+        current_field: str | None = None
+        for raw_line in lines[start + 1 : end]:
+            stripped = raw_line.strip()
+            field_match = ROADMAP_FIELD_RE.match(stripped)
+            if field_match:
+                current_field = field_match.group(1)
+                if current_field in fields:
+                    duplicate_fields.add(current_field)
+                fields[current_field] = field_match.group(2).strip()
+            elif current_field is not None and stripped and not stripped.startswith("##"):
+                fields[current_field] = (fields[current_field] + " " + stripped).strip()
+        items.append(
+            {
+                "id": item_id,
+                "line": start + 1,
+                "fields": fields,
+                "duplicate_fields": duplicate_fields,
+            }
+        )
+    return items
+
+
+def _roadmap_item_failures(text: str) -> list[str]:
+    failures: list[str] = []
+    items = _roadmap_items(text)
+    ids = [str(item["id"]) for item in items]
+    known_ids = set(ids)
+
+    seen: set[str] = set()
+    for item in items:
+        item_id = str(item["id"])
+        line = int(item["line"])
+        fields = item["fields"]
+        assert isinstance(fields, dict)
+        duplicate_fields = item["duplicate_fields"]
+        assert isinstance(duplicate_fields, set)
+
+        if item_id in seen:
+            failures.append(
+                f"docs/fleet-roadmap.md:{line}: duplicate roadmap item ID {item_id}"
+            )
+        seen.add(item_id)
+
+        for field in sorted(duplicate_fields):
+            failures.append(
+                f"docs/fleet-roadmap.md:{line}: {item_id} repeats field '{field}'"
+            )
+        for field in ROADMAP_REQUIRED_FIELDS:
+            if not str(fields.get(field, "")).strip():
+                failures.append(
+                    f"docs/fleet-roadmap.md:{line}: {item_id} missing field '{field}'"
+                )
+
+        status_value = str(fields.get("Status", ""))
+        status = _status_state(status_value) if status_value else ""
+        if status and status not in ROADMAP_ITEM_STATUSES:
+            failures.append(
+                f"docs/fleet-roadmap.md:{line}: {item_id} has unsupported status {status!r}"
+            )
+        if status == "deferred" and not str(fields.get("Reopen trigger", "")).strip():
+            failures.append(
+                f"docs/fleet-roadmap.md:{line}: {item_id} deferred item lacks 'Reopen trigger'"
+            )
+
+        prerequisites = str(fields.get("Prerequisites", ""))
+        for prerequisite_id in sorted(set(ROADMAP_ITEM_ID_RE.findall(prerequisites))):
+            if prerequisite_id == item_id:
+                failures.append(
+                    f"docs/fleet-roadmap.md:{line}: {item_id} cannot depend on itself"
+                )
+            elif prerequisite_id not in known_ids:
+                failures.append(
+                    f"docs/fleet-roadmap.md:{line}: {item_id} references unknown prerequisite "
+                    f"{prerequisite_id}"
+                )
+    return failures
+
+
 def check(root: Path = ROOT) -> list[str]:
     """Return every planning-governance failure under *root*."""
 
@@ -118,6 +224,7 @@ def check(root: Path = ROOT) -> list[str]:
                 f"docs/fleet-roadmap.md:{line_number}: Current evidence contains a volatile "
                 "numeric pass count; cite an immutable report, CI run, or exact revision instead"
             )
+        failures.extend(_roadmap_item_failures(roadmap))
 
     plan_dir = root / PLAN_ROOT
     if not plan_dir.is_dir():

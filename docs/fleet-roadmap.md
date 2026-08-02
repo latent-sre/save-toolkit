@@ -12,7 +12,8 @@ adapters for Copilot/VS Code and Codex.
 
 Closed work is retained in the
 [`SAFE-001 closure`](reviews/2026-08-01-safe-001-closure.md) and
-[`IMPROVE-001 closure`](reviews/2026-08-01-fleet-improvement-closure.md). The local Sol evaluator
+[`IMPROVE-001 closure`](reviews/2026-08-01-fleet-improvement-closure.md), plus the
+[`VERIFY-001 closure`](reviews/2026-08-02-verify-001-closure.md). The local Sol evaluator
 decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
 
@@ -39,68 +40,33 @@ history and archived source documents retain the implementation detail.
 
 **Status:** `active`
 
-**Outcome:** Claude, Codex, Copilot CLI, and VS Code each report static, discovery, behavioral, and
-model evidence independently; an unavailable host reports `skip` or `inconclusive`, never `pass`.
+**Outcome:** Claude, Codex, Copilot CLI, and VS Code each report disposable installation, inventory,
+discovery, one authority boundary, and uninstall evidence independently; an unavailable host reports
+`skip` or `inconclusive`, never `pass`. Model-behavior baselines remain a separate `EVAL-001` concern.
 
 **Source:** Multi-platform packaging ADR and the import review's unverified-runtime limits.
 
-**Prerequisites:** A disposable installation root; authenticated host access only for the lane being
-measured. Codex/Sol behavioral runs use only fixed manifests and reviewed, committed local source;
-the same-user login copy is an explicit limitation, not hostile-candidate containment.
+**Prerequisites:** A disposable installation root and authenticated host access only when a bounded
+behavioral smoke is explicitly authorized. Host installation evidence must not depend on the parked
+Codex/Sol runners or require writes to user-owned plugin and custom-agent directories.
 
 **Acceptance:** Each supported host proves install, inventory/discovery, one authority boundary, and
 uninstall without modifying user-owned components. Results record CLI/version, requested and observed
 model where exposed, exact source revision, and limitations. Copilot/VS Code remain incomplete until
 their runtime is actually available.
 
-**Current evidence:** `fleet_doctor.py` now emits typed static/availability evidence without starting
-a model or modifying host installations. This machine has Claude, Codex, and VS Code CLIs; Copilot
-CLI remains unavailable, and the doctor reports that lane as `skip` rather than `pass`. Local live
-Codex conformance now runs in a disposable home on reviewed source and reports that same-user
-authentication isolation is not proven. It is not authorized for external candidate code.
+**Current evidence:** `fleet_doctor.py` emits typed static/availability evidence without starting a
+model or modifying host installations. This machine has Claude, Codex, and VS Code CLIs; Copilot CLI
+remains unavailable and reports `skip`. The fleet is absent from the Claude and Codex plugin
+inventories. An unmanaged global Codex `prompt-engineer.toml` conflicts with the generated role, so
+host proof must use an explicit disposable target rather than overwrite that user-owned fleet.
 
-**Next action:** Add disposable install/uninstall probes only for available hosts; keep Copilot and
-VS Code behavioral lanes explicitly incomplete until their drivers can prove them.
-
-### VERIFY-001 — isolate executable verification
-
-**Status:** `active`
-
-**Outcome:** Repository-controlled tests and build hooks can be verified without exposing host
-credentials, writable source, host paths, or unrestricted network access.
-
-**Source:** Agent-security's explicit statement that a worktree is not a sandbox and the sister
-lab's digest-pinned verification runner.
-
-**Prerequisites:** The merged `schemas/evidence-envelope-v1.schema.json` contract and
-`scripts/evidence_envelope.py` validator; a trusted Docker or Podman engine; a locally present image
-pinned by digest. A verification-agent roster change remains separate until the boundary is proven.
-
-**Acceptance:** The trusted runner disables pulls and networking, mounts the exact source revision
-read-only with separate writable scratch, runs non-root with dropped capabilities and resource/time
-limits, confirms automatic cleanup or force-removes only an inspected owned container ID, checks
-residue, and emits typed pass/fail/inconclusive evidence. Negative tests cover unpinned images,
-source indirection, unsafe engines, bounded scratch/output, timeout, and cleanup failure.
-
-**Current evidence:** The adapted runner passed a harmless digest-pinned Alpine command against an
-unchanged committed `.claude-plugin` subtree with network disabled, no pull, read-only source/root
-filesystem, non-root user, dropped capabilities, resource limits, automatic cleanup, no residue, and
-matching pre/post tree digest. A live infinite-output probe was terminated at the 1 MiB cap, then its
-owned container was force-removed with no residue and an `inconclusive` verdict. Negative tests cover
-unsafe engines, unpinned images, source
-indirection, Git metadata, digest drift, timeouts, output overflow, oversized scratch, missing image, cleanup
-failure, foreign name collision, and container residue.
-
-**Review evidence:** The boundary and its hosted-runner portability changes received exact-SHA
-independent approval; Gate A exercised its deterministic contracts on Ubuntu, macOS, and Windows.
-This is not evidence of a separate workflow consumer and does not reopen the roster decision.
-
-**Next action:** Keep the verification-agent roster decision deferred until a real workflow
-demonstrates a separate consumer.
+**Next action:** Add disposable install/check/uninstall probes for Claude, Codex, and VS Code. Keep
+Copilot incomplete until its CLI is available, and keep all model-behavior claims outside this item.
 
 ### EVAL-001 — expand risk-weighted Sol coverage
 
-**Status:** `parked` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
+**Status:** `deferred` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
 manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A plus the local Claude eval runner is
 the active verification surface for the beta. Reopen when a Codex/Sol behavioral baseline is
 actually needed for a release decision; the prerequisites and acceptance below are unchanged and
@@ -122,25 +88,16 @@ production-change, PCF, agent-security, and observability contracts. Every resul
 `pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
 historical Claude/Opus baselines.
 
-**Current evidence:** The static Sol manifests declare 11 skill/reference lanes and thirteen intended
-custom-agent lanes covering all eight roles, both trust-separated refusal behaviors, reviewer
-detection of a supplied object-authorization regression, and `scribe`'s no-execution plus
-knowledge-closeout boundaries. Offline validation confirms their schemas, inventory, and pinned Sol model; it does not
-establish model behavior. The 2026-07-31 live results
-are retained but revoked: their same-user `auth.json` boundary and parsed-response reports were not
-safe release evidence. The local runners now retain only sanitized hashes, verdicts, usage,
-timeouts, exact commit/tree identities, and typed evidence. The local runners copy the operator's
-Codex login into a disposable home only after plugin bootstrap, delete that home before returning,
-reject credential-shaped volatile output, and make dirty development runs non-exact and
-inconclusive. Reports always state that source review is unverified by the runner, the evaluator is
-not independent, and the result is neither baseline-eligible nor release-granting. Skill lanes
-have no collaboration tools, and agent lanes use constrained local prompt/configuration bytes while
-bounding V1/V2 concurrency and shared rollout usage.
-Sixteen negative routing cases remain in the ordinary eval suite, including `scribe` collisions with
-live incident investigation, observability design, automation, independent review, and the
+**Current evidence:** Tag `pre-trim-2026-08-02` retains the fixed manifests, sanitized local runners,
+contract tests, and their documented same-user credential limitation. The 2026-07-31 live results
+remain retained but revoked and there is no current Sol behavioral baseline. The active ordinary
+suite retains negative routing coverage for trust separation, `scribe` collisions, and the
 operational-learning method's direct-writing boundary.
 
-**Next action:** None while parked. On reopen: recover the runners from tag `pre-trim-2026-08-02`,
+**Reopen trigger:** A named release decision requires a current Codex/Sol behavioral baseline that
+the active structural and Claude evaluation surfaces cannot provide.
+
+**Next action:** None while deferred. On reopen: recover the runners from tag `pre-trim-2026-08-02`,
 independently review the exact recovered commit, then run both fixed manifests from its clean
 checkout. Retain each sanitized report beside the matching review packet; acceptance of the pair is
 an external human/protected-workflow decision, never a field the runner grants itself. Keep implicit
@@ -201,6 +158,15 @@ because the superseded plan named one.
 state with versions, leases, cancellation, supersession, revision binding, and evidence-linked
 completion.
 
+**Source:** Fleet authority reviews that distinguish durable coordination state from prompt prose,
+worktrees, and host-native session state.
+
+**Prerequisites:** A named multi-session or multi-worker consumer whose ownership and completion
+cannot be derived safely from Git, pull requests, and evidence artifacts alone.
+
+**Acceptance:** A versioned append-only state contract, migration and rollback plan, lease and
+supersession semantics, evidence-bound completion, and failure tests exist for that named consumer.
+
 **Reopen trigger:** A workflow spans multiple independent workers or sessions and cannot safely derive
 ownership and completion from the pull request, Git commits, and evidence artifacts alone.
 
@@ -212,6 +178,15 @@ ownership and completion from the pull request, Git commits, and evidence artifa
 
 **Outcome:** If protected automation is ever allowed to perform a live effect, approval is bound to
 one exact action, target, argv/executable digest, expiry, nonce, rollback, and replay ledger.
+
+**Source:** Fleet authority reviews that reject prose approval and require an explicit unknown-outcome
+state for externally dispatched effects.
+
+**Prerequisites:** A named workflow approved to cross the current prepare/recommend boundary, a
+separately controlled execution identity, and `PROTECT-001` enforcement.
+
+**Acceptance:** Effect-bound approval, dispatch, unknown-outcome reconciliation, replay prevention,
+expiry, rollback, and operator-resolution tests pass for the named effect target.
 
 **Reopen trigger:** A named workflow is approved to move beyond the fleet's current prepare/recommend
 boundary and has a separately controlled execution identity.

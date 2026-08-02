@@ -26,6 +26,12 @@ historical pilot, routing and handoff contracts, focused mutation coverage, and 
 adapters. Fresh structural verification for this closure is recorded with the change that removes the
 item from the live roadmap.
 
+> **Post-closure update (2026-08-02):** PR #79 parked the executable lifecycle and corpus validators
+> at tag `pre-trim-2026-08-02` for the beta. This section records the acceptance state at closure; it
+> does not claim those executables remain in the current tree. The schema and lifecycle contract
+> remain active, and no record may advance beyond `observed` or `rejected` until the validators are
+> recovered and independently reviewed.
+
 Codex/Sol behavioral evaluation is not an `IMPROVE-001` acceptance condition. It remains tracked
 under `EVAL-001` as an operator-run local measurement whose exact-revision report must be paired with
 separate independent review. The runner is not a baseline or release-authorization mechanism.

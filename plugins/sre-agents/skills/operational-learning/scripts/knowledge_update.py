@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -17,6 +18,8 @@ from typing import Mapping, Sequence
 
 
 SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
+SUPPORTED_SCHEMA_VERSIONS = {SCHEMA_VERSION, CURRENT_SCHEMA_VERSION}
 TOP_LEVEL_FIELDS = {
     "schema_version",
     "update_id",
@@ -56,6 +59,43 @@ TRIGGER_STATES_BY_KIND = {
     "drill": {"completed", "not_applicable"},
     "audit": {"completed", "not_applicable"},
     "manual": {"proposed", "approved", "completed", "not_applicable"},
+}
+V2_TRIGGER_KINDS = {
+    "incident",
+    "alert_added",
+    "alert_changed",
+    "component_added",
+    "component_changed",
+    "drill",
+    "audit",
+    "manual",
+}
+V2_TRIGGER_STATES_BY_KIND = {
+    "incident": {"active", "resolved", "not_applicable"},
+    "alert_added": {"proposed", "approved", "not_applicable"},
+    "alert_changed": {"proposed", "approved", "not_applicable"},
+    "component_added": {"proposed", "approved", "not_applicable"},
+    "component_changed": {"proposed", "approved", "not_applicable"},
+    "drill": {"completed", "not_applicable"},
+    "audit": {"completed", "not_applicable"},
+    "manual": {"proposed", "approved", "completed", "not_applicable"},
+}
+V2_TO_V1_TRIGGER_KIND = {
+    "component_added": "service_added",
+    "component_changed": "service_changed",
+}
+V1_TO_V2_TRIGGER_KIND = {
+    "service_added": "component_added",
+    "service_changed": "component_changed",
+}
+COMPONENT_KINDS = {
+    "application",
+    "service",
+    "worker",
+    "job",
+    "datastore",
+    "platform",
+    "other",
 }
 PREPARATION_ALLOWED_STATES = {"resolved", "approved", "completed"}
 REQUIRED_LIFECYCLE_EVIDENCE = {
@@ -179,7 +219,7 @@ SAFE_GIT_WORKTREE_CONFIG = (
 
 
 class KnowledgeUpdateValidationError(ValueError):
-    """Raised when a knowledge update violates the v1 contract."""
+    """Raised when a knowledge update violates a supported versioned contract."""
 
 
 def _mapping(value: object, field: str) -> Mapping[str, object]:
@@ -992,6 +1032,86 @@ def _validate_dispositions(
         )
 
 
+def _normalize_v2_for_validation(update: Mapping[str, object]) -> dict[str, object]:
+    """Validate v2-only identity fields and map shared semantics onto the v1 core."""
+
+    target = _mapping(update["target"], "target")
+    target_fields = {
+        "repository",
+        "revision",
+        "component_id",
+        "component_kind",
+        "display_name",
+        "environment",
+        "definition_locator",
+        "knowledge_roots",
+    }
+    _exact_fields(target, target_fields, "target")
+    component_id = _string(target["component_id"], "target.component_id", maximum=256)
+    _enum(target["component_kind"], COMPONENT_KINDS, "target.component_kind")
+    _string(target["display_name"], "target.display_name", maximum=256)
+    _nullable_string(target["environment"], "target.environment", maximum=128)
+    definition_locator = _nullable_string(
+        target["definition_locator"], "target.definition_locator", maximum=1024
+    )
+    if definition_locator is not None:
+        _safe_relative_path(definition_locator, "target.definition_locator")
+
+    trigger = _mapping(update["trigger"], "trigger")
+    _exact_fields(trigger, {"kind", "reference", "state", "trust"}, "trigger")
+    trigger_kind = _enum(trigger["kind"], V2_TRIGGER_KINDS, "trigger.kind")
+    trigger_state = _enum(trigger["state"], TRIGGER_STATES, "trigger.state")
+    if trigger_state not in V2_TRIGGER_STATES_BY_KIND[trigger_kind]:
+        raise KnowledgeUpdateValidationError(
+            f"trigger state {trigger_state!r} is invalid for kind {trigger_kind!r}"
+        )
+
+    normalized = copy.deepcopy(dict(update))
+    normalized["schema_version"] = SCHEMA_VERSION
+    normalized["target"] = {
+        "repository": target["repository"],
+        "revision": target["revision"],
+        "service": component_id,
+        "knowledge_roots": copy.deepcopy(target["knowledge_roots"]),
+    }
+    normalized_trigger = copy.deepcopy(dict(trigger))
+    normalized_trigger["kind"] = V2_TO_V1_TRIGGER_KIND.get(trigger_kind, trigger_kind)
+    normalized["trigger"] = normalized_trigger
+    return normalized
+
+
+def migrate_v1_to_v2(update: Mapping[str, object]) -> dict[str, object]:
+    """Return a deterministic v2 copy of a structurally valid v1 packet shape."""
+
+    _exact_fields(update, TOP_LEVEL_FIELDS, "knowledge update")
+    if type(update["schema_version"]) is not int or update["schema_version"] != SCHEMA_VERSION:
+        raise KnowledgeUpdateValidationError("migration requires schema_version 1")
+
+    target = _mapping(update["target"], "target")
+    _exact_fields(target, {"repository", "revision", "service", "knowledge_roots"}, "target")
+    service = _string(target["service"], "target.service", maximum=256)
+    trigger = _mapping(update["trigger"], "trigger")
+    _exact_fields(trigger, {"kind", "reference", "state", "trust"}, "trigger")
+    trigger_kind = _enum(trigger["kind"], TRIGGER_KINDS, "trigger.kind")
+
+    migrated = copy.deepcopy(dict(update))
+    migrated["schema_version"] = CURRENT_SCHEMA_VERSION
+    migrated["target"] = {
+        "repository": target["repository"],
+        "revision": target["revision"],
+        "component_id": service,
+        "component_kind": "service",
+        "display_name": service,
+        "environment": None,
+        "definition_locator": None,
+        "knowledge_roots": copy.deepcopy(target["knowledge_roots"]),
+    }
+    migrated_trigger = copy.deepcopy(dict(trigger))
+    migrated_trigger["kind"] = V1_TO_V2_TRIGGER_KIND.get(trigger_kind, trigger_kind)
+    migrated["trigger"] = migrated_trigger
+    return migrated
+
+
 def validate_update(
     update: Mapping[str, object],
     *,
@@ -1000,11 +1120,17 @@ def validate_update(
 ) -> None:
     """Validate one operational knowledge update packet."""
 
-    _exact_fields(update, TOP_LEVEL_FIELDS, "knowledge update")
-    if type(update["schema_version"]) is not int or update["schema_version"] != SCHEMA_VERSION:
+    original_update = update
+    _exact_fields(original_update, TOP_LEVEL_FIELDS, "knowledge update")
+    if (
+        type(original_update["schema_version"]) is not int
+        or original_update["schema_version"] not in SUPPORTED_SCHEMA_VERSIONS
+    ):
         raise KnowledgeUpdateValidationError(
-            f"unsupported schema_version: {update['schema_version']!r}"
+            f"unsupported schema_version: {original_update['schema_version']!r}"
         )
+    if original_update["schema_version"] == CURRENT_SCHEMA_VERSION:
+        update = _normalize_v2_for_validation(original_update)
     update_id = _string(update["update_id"], "update_id", maximum=99)
     if not UPDATE_ID_RE.fullmatch(update_id):
         raise KnowledgeUpdateValidationError(
@@ -1143,7 +1269,7 @@ def validate_update(
         )
 
     _string_list(update["limitations"], "limitations")
-    _reject_sensitive_values(update)
+    _reject_sensitive_values(original_update)
 
 
 def canonical_json(value: Mapping[str, object]) -> bytes:

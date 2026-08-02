@@ -1,0 +1,109 @@
+{
+  "schema_version": 2,
+  "update_id": "ku_checkout_application_approved",
+  "created_at": "2026-08-02T12:00:00Z",
+  "target": {
+    "repository": "latent-sre/checkout",
+    "revision": "2222222222222222222222222222222222222222",
+    "component_id": "checkout",
+    "component_kind": "application",
+    "display_name": "Checkout",
+    "environment": "production",
+    "definition_locator": "deploy/checkout.yaml",
+    "knowledge_roots": [
+      "docs/operations",
+      "docs/runbooks"
+    ]
+  },
+  "trigger": {
+    "kind": "component_added",
+    "reference": "change/OPS-882",
+    "state": "approved",
+    "trust": "trusted"
+  },
+  "discovery": {
+    "summary": "The approved application needs service-catalog and runbook closeout.",
+    "evidence_status": "sourced",
+    "evidence_ids": [
+      "e1",
+      "e2"
+    ]
+  },
+  "evidence": [
+    {
+      "id": "e1",
+      "label": "sourced",
+      "kind": "repository",
+      "locator": "deploy/checkout.yaml",
+      "revision": "2222222222222222222222222222222222222222",
+      "trust": "trusted"
+    },
+    {
+      "id": "e2",
+      "label": "verified",
+      "kind": "approval",
+      "locator": "change/OPS-882",
+      "revision": "2222222222222222222222222222222222222222",
+      "trust": "trusted"
+    }
+  ],
+  "dispositions": [
+    {
+      "artifact": "service_card",
+      "action": "handoff",
+      "status": "proposed",
+      "owner": "scribe",
+      "path": null,
+      "duplicate_of": null,
+      "base_sha256": null,
+      "artifact_sha256": null,
+      "reason": "Prepare the application card from the approved definition.",
+      "evidence_ids": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "artifact": "knowledge_index",
+      "action": "handoff",
+      "status": "proposed",
+      "owner": "scribe",
+      "path": null,
+      "duplicate_of": null,
+      "base_sha256": null,
+      "artifact_sha256": null,
+      "reason": "Link the approved application from the operations index.",
+      "evidence_ids": [
+        "e1",
+        "e2"
+      ]
+    },
+    {
+      "artifact": "runbook",
+      "action": "handoff",
+      "status": "proposed",
+      "owner": "scribe",
+      "path": null,
+      "duplicate_of": null,
+      "base_sha256": null,
+      "artifact_sha256": null,
+      "reason": "Prepare the missing operating and recovery procedure.",
+      "evidence_ids": [
+        "e1",
+        "e2"
+      ]
+    }
+  ],
+  "recommendation": {
+    "summary": "Prepare and review the application card, index entry, and runbook as one documentation change.",
+    "owner": "service-owner",
+    "urgency": "next",
+    "change_tier": 1,
+    "requires_human_approval": false,
+    "verification": "Review the documentation against the approved application definition.",
+    "rollback": null
+  },
+  "limitations": [
+    "No procedure is marked last_verified without bound execution evidence."
+  ]
+}

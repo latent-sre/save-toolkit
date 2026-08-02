@@ -15,6 +15,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = ROOT / "skills/operational-learning/scripts/knowledge_update.py"
+MIGRATION_PATH = ROOT / "skills/operational-learning/scripts/migrate_v1_to_v2.py"
 SPEC = importlib.util.spec_from_file_location("knowledge_update", VALIDATOR_PATH)
 if SPEC is None or SPEC.loader is None:  # pragma: no cover - import machinery failure
     raise RuntimeError(f"cannot load {VALIDATOR_PATH}")
@@ -190,6 +191,39 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             "limitations": ["The alert has not fired against production traffic."],
         }
 
+    def _valid_v2_application_update(self) -> dict[str, object]:
+        packet = self._valid_update()
+        packet["schema_version"] = 2
+        packet["target"] = {
+            "repository": "latent-sre/checkout",
+            "revision": self.base_revision,
+            "component_id": "checkout",
+            "component_kind": "application",
+            "display_name": "Checkout",
+            "environment": "production",
+            "definition_locator": "deploy/checkout.yaml",
+            "knowledge_roots": ["docs"],
+        }
+        packet["trigger"]["kind"] = "component_added"  # type: ignore[index]
+        for disposition, artifact in zip(  # type: ignore[assignment]
+            packet["dispositions"],
+            ("service_card", "knowledge_index", "runbook"),
+            strict=True,
+        ):
+            disposition.update(
+                {
+                    "artifact": artifact,
+                    "action": "handoff",
+                    "status": "proposed",
+                    "path": None,
+                    "duplicate_of": None,
+                    "base_sha256": None,
+                    "artifact_sha256": None,
+                    "evidence_ids": ["e1", "e2"],
+                }
+            )
+        return packet
+
     def _assert_hidden_worktree_divergence_rejected(self, index_flag: str) -> None:
         existing = self.target_root / "docs/operations/alerts/existing.md"
         existing.write_bytes(b"# Staged alert card\n")
@@ -261,7 +295,13 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             Path("skills/operational-learning/assets/alert-card-template.md"),
             Path("skills/operational-learning/assets/knowledge-index-template.md"),
             Path("skills/operational-learning/assets/knowledge-update-v1.schema.json"),
+            Path("skills/operational-learning/assets/knowledge-update-v2.schema.json"),
+            Path("skills/operational-learning/assets/examples/knowledge-update-v1-service.json"),
+            Path("skills/operational-learning/assets/examples/knowledge-update-v2-application.json"),
             Path("skills/operational-learning/scripts/knowledge_update.py"),
+            Path("skills/operational-learning/scripts/migrate_v1_to_v2.py"),
+            Path("schemas/catalog-v1.json"),
+            Path("docs/schema-compatibility.md"),
         )
         for relative in required:
             with self.subTest(path=relative.as_posix()):
@@ -303,6 +343,129 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             "unsupported schema_version",
         ):
             self._validate(boolean_version)
+
+    def test_v2_application_packet_validates(self) -> None:
+        packet = self._valid_v2_application_update()
+        self._validate(packet)
+
+        invalid_kind = self._valid_v2_application_update()
+        invalid_kind["target"]["component_kind"] = "mystery"  # type: ignore[index]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "target.component_kind",
+        ):
+            self._validate(invalid_kind)
+
+        legacy_trigger = self._valid_v2_application_update()
+        legacy_trigger["trigger"]["kind"] = "service_added"  # type: ignore[index]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "trigger.kind",
+        ):
+            self._validate(legacy_trigger)
+
+    def test_v1_to_v2_migration_is_deterministic_and_valid(self) -> None:
+        spec = importlib.util.spec_from_file_location("migrate_v1_to_v2", MIGRATION_PATH)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader if spec else None)
+        assert spec is not None and spec.loader is not None
+        migration = importlib.util.module_from_spec(spec)
+        sys.modules["knowledge_update"] = knowledge_update
+        spec.loader.exec_module(migration)
+
+        source = self._valid_update()
+        migrated = migration.migrate(source)
+        self.assertEqual(1, source["schema_version"])
+        self.assertEqual(2, migrated["schema_version"])
+        self.assertEqual("checkout", migrated["target"]["component_id"])
+        self.assertEqual("service", migrated["target"]["component_kind"])
+        self.assertEqual("alert_added", migrated["trigger"]["kind"])
+        self.assertEqual(migrated, migration.migrate(source))
+        self._validate(migrated)
+
+        with self.assertRaisesRegex(ValueError, "schema_version 1"):
+            migration.migrate(migrated)
+
+    def test_schema_catalog_and_examples_are_current(self) -> None:
+        def iter_refs(value: object):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    if key == "$ref" and isinstance(child, str):
+                        yield child
+                    yield from iter_refs(child)
+            elif isinstance(value, list):
+                for child in value:
+                    yield from iter_refs(child)
+
+        def resolve_pointer(document: object, fragment: str) -> object:
+            current = document
+            if not fragment:
+                return current
+            self.assertTrue(fragment.startswith("/"), f"invalid JSON pointer: #{fragment}")
+            for raw_part in fragment[1:].split("/"):
+                part = raw_part.replace("~1", "/").replace("~0", "~")
+                if isinstance(current, list):
+                    current = current[int(part)]
+                else:
+                    self.assertIsInstance(current, dict)
+                    current = current[part]  # type: ignore[index]
+            return current
+
+        catalog = json.loads((ROOT / "schemas/catalog-v1.json").read_text(encoding="utf-8"))
+        self.assertEqual(1, catalog["schema_version"])
+        entries = catalog["schemas"]
+        ids = [entry["id"] for entry in entries]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertIn("operational-knowledge-update-v2", ids)
+        self.assertEqual(len(entries), len({entry["uri"] for entry in entries}))
+        self.assertEqual(len(entries), len({entry["canonical_path"] for entry in entries}))
+
+        for entry in entries:
+            with self.subTest(schema=entry["id"]):
+                self.assertEqual(
+                    {
+                        "id",
+                        "uri",
+                        "version",
+                        "status",
+                        "canonical_path",
+                        "validator",
+                        "generated_projections",
+                    },
+                    set(entry),
+                )
+                self.assertIsInstance(entry["version"], int)
+                self.assertGreater(entry["version"], 0)
+                self.assertIn(
+                    entry["status"], {"active", "current", "supported", "contract-only"}
+                )
+                canonical = ROOT / entry["canonical_path"]
+                self.assertTrue(canonical.is_file())
+                schema = json.loads(canonical.read_text(encoding="utf-8"))
+                self.assertEqual(entry["uri"], schema["$id"])
+                for reference in iter_refs(schema):
+                    resource, separator, fragment = reference.partition("#")
+                    referenced_path = canonical if not resource else canonical.parent / resource
+                    self.assertTrue(referenced_path.is_file(), f"missing $ref target: {reference}")
+                    referenced_document = json.loads(
+                        referenced_path.read_text(encoding="utf-8")
+                    )
+                    if separator:
+                        resolve_pointer(referenced_document, fragment)
+                for projection in entry["generated_projections"]:
+                    self.assertEqual(
+                        canonical.read_bytes(),
+                        (ROOT / projection).read_bytes(),
+                        f"generated schema projection drift: {projection}",
+                    )
+
+        for relative in (
+            "skills/operational-learning/assets/examples/knowledge-update-v1-service.json",
+            "skills/operational-learning/assets/examples/knowledge-update-v2-application.json",
+        ):
+            with self.subTest(fixture=relative):
+                packet = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+                knowledge_update.validate_update(packet)
 
     def test_created_at_requires_rfc3339_t_separator(self) -> None:
         packet = self._valid_update()
