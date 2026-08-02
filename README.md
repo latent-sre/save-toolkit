@@ -31,9 +31,9 @@ bare component names.
   [fleet-improvement ledger](skills/agent-authoring/assets/fleet-improvement-v1.schema.json)
   (schema and records under [`evals/improvements/`](evals/improvements); the executable
   validators are parked at tag `pre-trim-2026-08-02`).
-- [`evals/`](evals) — offline behavioral contracts, the manual Claude runner, operator-run local
-  Codex/Sol conformance runners, baseline records, and the bounded improvement ledger; see
-  [`evals/README.md`](evals/README.md).
+- [`evals/`](evals) — offline behavioral contracts, the manual Claude runner, baseline records, and
+  the bounded improvement ledger; the Codex/Sol conformance runners are parked at tag
+  `pre-trim-2026-08-02`; see [`evals/README.md`](evals/README.md).
 - [`docs/`](docs) — the only live backlog is [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md);
   decisions live in [`docs/decisions/`](docs/decisions), closure evidence in
   [`docs/reviews/`](docs/reviews), and the documents under `docs/superpowers/plans/` are preserved
