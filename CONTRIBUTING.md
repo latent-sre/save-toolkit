@@ -41,8 +41,13 @@ py -3 scripts/gate_a.py
 
 Gate A is structural. Complete independent correctness, security/agentic-boundary, and plan-conformance
 reviews against an immutable candidate commit before merge. A review of mutable working-tree bytes is
-explicitly provisional. Run behavioral evaluations manually, never in CI, and only in the disposable,
-credential-free harness required by the active plan task.
+explicitly provisional. Run behavioral evaluations manually, never in CI. Use the disposable harness
+defined by that runner; authenticated Codex/Sol evaluation is limited to fixed manifests and the
+current local checkout because same-user model credentials are not isolated from evaluated content.
+Commit and independently review the exact revision before running. The runner does not verify review
+or evaluator independence and always sets baseline eligibility and release grant to false;
+pair its exact-revision report with the separate immutable review evidence. Report outputs are
+create-only, and repository-local outputs must be under `.eval-runs/`.
 
 Every result distinguishes `[verified]`, `[sourced]`, and `[unverified]` claims. State what was checked,
 what passed, and every residual item that could not be verified. Never upgrade an evidence label while
@@ -61,14 +66,7 @@ protected required reviews and checks, an exact-SHA promotion workflow with a na
 distinct release operator, and the live GitHub rules/environment/App configuration. Do not create or
 move a `release` ref merely because the superseded plan named one: first verify whether each host's
 current distribution contract needs a moving ref or can consume an immutable version tag. Until then,
-never publish a feature or canary ref. The live prerequisites and acceptance evidence are
-`PROTECT-001` and `RELEASE-001` in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); the old branch-based
-design remains recoverable at tag `pre-cleanup-2026-07-15` as historical rationale only.
-
-The repository-side canary harness is [`.github/workflows/validate-canary.yml`](.github/workflows/validate-canary.yml).
-After that workflow reaches protected `main`, dispatch it from `main` with a full candidate SHA and the
-matching immutable `canary/<phase>/<full-sha>` ref. Its three-OS Gate A result is structural canary
-evidence, not behavioral runtime evidence and not release authorization. It runs candidate-controlled
-code only on ephemeral hosted runners with read-only repository authority, no persisted checkout
-credential, and no protected environment or secrets; a fresh trusted job rechecks the canary ref and
-writes the evidence artifact.
+never publish a release artifact or move a release ref. The live prerequisites and acceptance
+evidence are `PROTECT-001` and `RELEASE-001` in
+[`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); the old branch-based design remains recoverable at
+tag `pre-cleanup-2026-07-15` as historical rationale only.

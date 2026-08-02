@@ -357,83 +357,63 @@ class CodexAgentConformanceTests(unittest.TestCase):
         )
         self.assertIn("gpt-5.6-sol", command)
         self.assertLess(command.index("--ask-for-approval"), command.index("exec"))
-        self.assertEqual(
-            conformance.REPO_ROOT,
-            conformance._parser().parse_args(["--run"]).target_root,
-        )
+        self.assertFalse(hasattr(conformance._parser().parse_args(["--run"]), "target_root"))
 
-    def test_live_agent_cli_refuses_without_trusted_broker_config(self) -> None:
-        stderr = io.StringIO()
-        with mock.patch("sys.stderr", stderr):
-            status = conformance.main(["--run"])
+    def test_live_agent_cli_requires_local_codex_authentication(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            missing = Path(temporary).resolve() / "missing-auth.json"
+            stderr = io.StringIO()
+            with (
+                mock.patch("sys.stderr", stderr),
+                mock.patch.object(conformance.shutil, "which", return_value="codex"),
+            ):
+                status = conformance.main(
+                    [
+                        "--run",
+                        "--auth-file",
+                        str(missing),
+                        "--allow-dirty-plugin",
+                        "--allow-dirty-agents",
+                        "--allow-dirty-harness",
+                    ]
+                )
         self.assertEqual(2, status)
-        self.assertIn("--run requires --broker-config", stderr.getvalue())
+        self.assertIn("run `codex login`", stderr.getvalue())
 
-    def test_live_agent_cli_refuses_candidate_and_evaluator_in_same_checkout(self) -> None:
-        stderr = io.StringIO()
-        with mock.patch("sys.stderr", stderr):
-            status = conformance.main(
-                [
-                    "--run",
-                    "--broker-config",
-                    str(conformance.REPO_ROOT / "config.toml"),
-                ]
-            )
-        self.assertEqual(2, status)
-        self.assertIn("separate candidate checkout", stderr.getvalue())
-
-    def test_sparse_candidate_is_clean_for_only_the_agent_bytes_it_evaluates(self) -> None:
+    def test_live_agent_runner_refuses_an_external_checkout(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             candidate = Path(temporary).resolve() / "candidate"
-            clone = conformance.subprocess.run(
-                [
-                    "git",
-                    "clone",
-                    "--no-checkout",
-                    "--no-local",
-                    str(conformance.REPO_ROOT),
-                    str(candidate),
-                ],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-            )
-            self.assertEqual(0, clone.returncode, clone.stderr)
-            remove_remote = conformance.subprocess.run(
-                ["git", "-C", str(candidate), "remote", "remove", "origin"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-            )
-            self.assertEqual(0, remove_remote.returncode, remove_remote.stderr)
-            commit = conformance.base._git_value(candidate, ["rev-parse", "HEAD"])
-            conformance.base.materialize_git_tree.materialize(
-                candidate,
-                commit,
-                conformance.base.CANDIDATE_MATERIALIZATION_PATHS,
-            )
+            auth = Path(temporary).resolve() / "auth.json"
+            candidate.mkdir()
+            auth.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(
+                conformance.base.ConformanceError, "local repository checkout"
+            ):
+                conformance.run_live(
+                    candidate,
+                    self.manifest,
+                    executable="codex",
+                    auth_file=auth,
+                    require_clean_plugin=False,
+                    require_clean_agents=False,
+                    require_clean_harness=False,
+                )
 
-            conformance.base.validate_candidate_materialization(candidate)
-            self.assertEqual("", conformance._agent_git_status(candidate))
-            omitted_authoring_status = conformance._git_status(
-                candidate, conformance.LOCAL_AGENT_INPUT_PATHS
-            )
-            self.assertIn("agents/", omitted_authoring_status)
-            self.assertEqual(
-                (".codex/agents",), conformance.CANDIDATE_AGENT_INPUT_PATHS
-            )
-            self.assertIn(
-                "scripts/install_codex_agents.py", conformance.HARNESS_INPUT_PATHS
-            )
-            self.assertIn(
-                "scripts/generate_platform_adapters.py", conformance.HARNESS_INPUT_PATHS
-            )
+    def test_live_agent_cli_never_overwrites_auth_with_report_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            auth = Path(temporary).resolve() / "auth.json"
+            original = b'{"session":"keep-me"}'
+            auth.write_bytes(original)
+            stderr = io.StringIO()
+            with mock.patch("sys.stderr", stderr):
+                status = conformance.main(
+                    ["--run", "--auth-file", str(auth), "--output", str(auth)]
+                )
+            self.assertEqual(original, auth.read_bytes())
+        self.assertEqual(2, status)
+        self.assertIn("output path already exists", stderr.getvalue())
 
-    def test_candidate_agent_unknown_fields_cannot_activate_runtime_capabilities(self) -> None:
+    def test_agent_snapshot_rejects_unknown_runtime_capabilities(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             candidate = Path(temporary).resolve() / "candidate"
             (candidate / conformance.base.MARKETPLACE_MANIFEST.parent).mkdir(parents=True)
@@ -459,79 +439,14 @@ class CodexAgentConformanceTests(unittest.TestCase):
             with self.assertRaisesRegex(conformance.base.ConformanceError, "active or unknown"):
                 conformance.validate_local_contract(candidate, self.manifest)
 
-    def test_candidate_agent_prompt_and_capability_bytes_must_be_trusted_first(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            candidate = Path(temporary).resolve() / "candidate"
-            (candidate / conformance.base.MARKETPLACE_MANIFEST.parent).mkdir(parents=True)
-            conformance.shutil.copy2(
-                conformance.REPO_ROOT / conformance.base.MARKETPLACE_MANIFEST,
-                candidate / conformance.base.MARKETPLACE_MANIFEST,
-            )
-            conformance.shutil.copytree(
-                conformance.REPO_ROOT / conformance.base.PLUGIN_DIRECTORY,
-                candidate / conformance.base.PLUGIN_DIRECTORY,
-            )
-            conformance.shutil.copytree(
-                conformance.REPO_ROOT / conformance.AGENT_SOURCE_DIRECTORY,
-                candidate / conformance.AGENT_SOURCE_DIRECTORY,
-            )
-            reviewer = candidate / conformance.AGENT_SOURCE_DIRECTORY / "reviewer.toml"
-            reviewer.write_text(
-                reviewer.read_text(encoding="utf-8").replace(
-                    'sandbox_mode = "read-only"', 'sandbox_mode = "workspace-write"'
-                ),
-                encoding="utf-8",
-            )
-            with self.assertRaisesRegex(
-                conformance.base.ConformanceError, "differs from trusted main"
-            ):
-                conformance.validate_local_contract(candidate, self.manifest)
-
-    def test_candidate_plugin_prompt_bytes_must_be_trusted_before_agent_execution(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            candidate = Path(temporary).resolve() / "candidate"
-            (candidate / conformance.base.MARKETPLACE_MANIFEST.parent).mkdir(parents=True)
-            conformance.shutil.copy2(
-                conformance.REPO_ROOT / conformance.base.MARKETPLACE_MANIFEST,
-                candidate / conformance.base.MARKETPLACE_MANIFEST,
-            )
-            conformance.shutil.copytree(
-                conformance.REPO_ROOT / conformance.base.PLUGIN_DIRECTORY,
-                candidate / conformance.base.PLUGIN_DIRECTORY,
-            )
-            conformance.shutil.copytree(
-                conformance.REPO_ROOT / conformance.AGENT_SOURCE_DIRECTORY,
-                candidate / conformance.AGENT_SOURCE_DIRECTORY,
-            )
-            skill = (
-                candidate
-                / conformance.base.PLUGIN_DIRECTORY
-                / "skills"
-                / "stack-profile"
-                / "SKILL.md"
-            )
-            skill.write_text(
-                skill.read_text(encoding="utf-8") + "\nUntrusted instruction.\n",
-                encoding="utf-8",
-            )
-            with self.assertRaisesRegex(
-                conformance.base.ConformanceError, "plugin differs from trusted main"
-            ):
-                conformance.validate_local_contract(candidate, self.manifest)
-
-    def test_brokered_live_agent_reduction_never_stages_auth_or_reports_model_text(self) -> None:
+    def test_local_live_agent_reduction_deletes_auth_and_model_text(self) -> None:
         root = conformance.REPO_ROOT
         with tempfile.TemporaryDirectory() as temporary:
             temporary_root = Path(temporary).resolve()
-            broker_config = temporary_root / "broker-home" / "config.toml"
-            broker_config.parent.mkdir()
-            broker_config.write_text(
-                'model_provider = "codex-action-responses-proxy"\n\n'
-                '[model_providers.codex-action-responses-proxy]\n'
-                'name = "Codex Action Responses Proxy"\n'
-                'base_url = "http://127.0.0.1:43123/v1"\n'
-                'wire_api = "responses"\n',
-                encoding="utf-8",
+            auth_file = temporary_root / "auth.json"
+            auth_marker = "local-agent-auth-marker"
+            auth_file.write_text(
+                json.dumps({"session": auth_marker}), encoding="utf-8"
             )
             manifest = copy.deepcopy(self.manifest)
             manifest["lanes"] = [copy.deepcopy(self.lane)]
@@ -541,7 +456,12 @@ class CodexAgentConformanceTests(unittest.TestCase):
                 del cwd, timeout
                 codex_home = Path(child_env["CODEX_HOME"])
                 observed_homes.append(codex_home)
-                self.assertFalse((codex_home / "auth.json").exists())
+                if "exec" in argv:
+                    self.assertEqual(
+                        auth_file.read_bytes(), (codex_home / "auth.json").read_bytes()
+                    )
+                else:
+                    self.assertFalse((codex_home / "auth.json").exists())
                 if tuple(argv[-1:]) == ("--version",):
                     return conformance.base.CommandResult(0, "codex-cli 0.test\n", "")
                 if tuple(argv[1:4]) == ("plugin", "marketplace", "add"):
@@ -615,23 +535,37 @@ class CodexAgentConformanceTests(unittest.TestCase):
                 )
                 return conformance.base.CommandResult(0, stdout, "")
 
-            with mock.patch.object(
-                conformance.base,
-                "require_brokered_ci_boundary",
-                return_value={"provider": "proxy"},
-            ):
-                report = conformance.run_live(
-                    root,
-                    manifest,
-                    executable="codex",
-                    broker_config=broker_config,
-                    require_clean_plugin=False,
-                    require_clean_agents=False,
-                    require_clean_harness=False,
-                    runner=runner,
-                )
+            report = conformance.run_live(
+                root,
+                manifest,
+                executable="codex",
+                auth_file=auth_file,
+                require_clean_plugin=False,
+                require_clean_agents=False,
+                require_clean_harness=False,
+                runner=runner,
+            )
 
         self.assertTrue(observed_homes)
+        self.assertTrue(all(not home.exists() for home in observed_homes))
+        self.assertEqual("local-same-user", report["execution_trust"])
+        self.assertEqual("not-proven", report["auth_isolation"])
+        self.assertEqual("not-verified-by-runner", report["source_review"])
+        self.assertFalse(report["independent_evaluator"])
+        self.assertFalse(report["baseline_eligible"])
+        self.assertFalse(report["release_granted"])
+        self.assertEqual(
+            not (
+                report["plugin_inputs_dirty"]
+                or report["agent_inputs_dirty"]
+                or report["harness_inputs_dirty"]
+            ),
+            report["exact_revision"],
+        )
+        self.assertEqual(
+            conformance.base._git_value(root, ["rev-parse", "HEAD^{tree}"]),
+            report["repository_tree"],
+        )
         self.assertEqual(
             conformance.base._git_value(conformance.REPO_ROOT, ["rev-parse", "HEAD"]),
             report["evaluator_commit"],
@@ -644,7 +578,10 @@ class CodexAgentConformanceTests(unittest.TestCase):
         self.assertEqual(64, len(result["response_sha256"]))
         for forbidden in ("response", "expected", "observed_models", "usage"):
             self.assertNotIn(forbidden, result)
-        self.assertNotIn(json.dumps(self.lane["expected"]), json.dumps(report))
+        rendered = json.dumps(report)
+        self.assertNotIn(json.dumps(self.lane["expected"]), rendered)
+        self.assertNotIn(auth_marker, rendered)
+        self.assertNotIn(str(auth_file), rendered)
 
     def test_rollout_reader_rejects_malformed_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

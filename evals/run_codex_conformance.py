@@ -7,10 +7,10 @@ CODEX_HOME, runs from an empty git-root fixture, and records Codex/Sol evidence 
 or blending the historical Claude/Opus results.
 
 Raw JSONL is held in memory and reduced to hashes and deterministic facts. It is not persisted.
-Live calls are accepted only from the repository's trusted Linux CI workflow after that workflow
-has started a credential-holding Responses API proxy and irreversibly removed sudo. The runner
-receives only a validated, tokenless loopback provider configuration; it never reads or copies
-``auth.json`` or an API key.
+Live calls use the operator's existing Codex login, copied into a disposable ``CODEX_HOME`` that is
+deleted before the sanitized report is returned. The Codex read-only sandbox can still read that
+same-user session file, so live runs are restricted to this local checkout and fixed repository
+manifests. Operators must review the exact source separately; this runner cannot prove that review.
 """
 
 from __future__ import annotations
@@ -26,31 +26,27 @@ import subprocess
 import sys
 import tempfile
 import time
-import tomllib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Callable, Mapping, Sequence
-from urllib.parse import urlsplit
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts import evidence_envelope, materialize_git_tree  # noqa: E402
+from scripts import evidence_envelope  # noqa: E402
 
 DEFAULT_MANIFEST = REPO_ROOT / "evals" / "conformance" / "codex-sol.json"
 MARKETPLACE_MANIFEST = Path(".agents/plugins/marketplace.json")
 PLUGIN_DIRECTORY = Path("plugins/sre-agents")
-CANDIDATE_MATERIALIZATION_PATHS = (
-    ".agents/plugins/marketplace.json",
-    "plugins/sre-agents",
-    ".codex/agents",
-)
+AUTH_FILE = "auth.json"
 SOL_MODEL = "gpt-5.6-sol"
 VERDICTS = {"pass", "fail", "inconclusive"}
-BROKER_PROVIDER = "codex-action-responses-proxy"
+EXECUTION_TRUST = "local-same-user"
+AUTH_ISOLATION = "not-proven"
+SOURCE_REVIEW = "not-verified-by-runner"
 MAX_LANE_USAGE_TOKENS = {
     "input_tokens": 120_000,
     "cached_input_tokens": 120_000,
@@ -330,44 +326,53 @@ def validate_local_plugin_contract(root: Path, manifest: Mapping[str, object]) -
     plugin_manifest_path = root / PLUGIN_DIRECTORY / ".codex-plugin" / "plugin.json"
     _assert_no_indirection(root, marketplace_path, "Codex marketplace manifest")
     _assert_no_indirection(root, plugin_manifest_path, "Codex plugin manifest")
-    # Marketplace and plugin metadata can activate more than skills on capable hosts. Until a new
-    # trusted evaluator revision explicitly accepts such a change, candidate metadata must be byte-
-    # identical to trusted main and the candidate bundle may contain only passive skill data.
-    if root.resolve() != REPO_ROOT.resolve():
-        for relative_path, label in (
-            (MARKETPLACE_MANIFEST, "Codex marketplace manifest"),
-            (PLUGIN_DIRECTORY / ".codex-plugin" / "plugin.json", "Codex plugin manifest"),
-        ):
-            trusted_path = REPO_ROOT / relative_path
-            candidate_path = root / relative_path
-            _assert_no_indirection(REPO_ROOT, trusted_path, f"trusted {label}")
-            if candidate_path.read_bytes() != trusted_path.read_bytes():
-                raise ConformanceError(
-                    f"candidate {label} differs from trusted main; stage evaluator metadata first"
-                )
+    # Marketplace and plugin metadata can activate more than skills on capable hosts. Keep the
+    # conformance fixture passive and fail closed on unknown top-level component fields.
     plugin_root = root / PLUGIN_DIRECTORY
     if {path.name for path in plugin_root.iterdir()} != {".codex-plugin", "skills"}:
-        raise ConformanceError("candidate Codex plugin bundle contains an active or unknown component")
+        raise ConformanceError("Codex plugin bundle contains an active or unknown component")
     if {path.name for path in (plugin_root / ".codex-plugin").iterdir()} != {"plugin.json"}:
-        raise ConformanceError("candidate Codex plugin metadata directory contains unknown files")
+        raise ConformanceError("Codex plugin metadata directory contains unknown files")
     try:
         marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
         plugin_manifest = json.loads(plugin_manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ConformanceError(f"cannot read local Codex plugin contract: {exc}") from exc
+    if not isinstance(marketplace, dict) or set(marketplace) != {"name", "interface", "plugins"}:
+        raise ConformanceError("Codex marketplace contains an active or unknown field")
     if not isinstance(marketplace, dict) or marketplace.get("name") != plugin_contract["marketplace"]:
         raise ConformanceError("local Codex marketplace name differs from the conformance manifest")
     entries = marketplace.get("plugins")
     if not isinstance(entries, list) or len(entries) != 1 or not isinstance(entries[0], dict):
         raise ConformanceError("local Codex marketplace must contain exactly one plugin")
     entry = entries[0]
+    if set(entry) != {"name", "source", "policy", "category"}:
+        raise ConformanceError("Codex marketplace plugin contains an active or unknown field")
     if entry.get("name") != plugin_contract["name"]:
         raise ConformanceError("local Codex marketplace plugin name differs from the manifest")
     source = entry.get("source")
-    if not isinstance(source, dict) or source.get("source") != "local" or source.get("path") != "./plugins/sre-agents":
+    if (
+        not isinstance(source, dict)
+        or set(source) != {"source", "path"}
+        or source.get("source") != "local"
+        or source.get("path") != "./plugins/sre-agents"
+    ):
         raise ConformanceError("local Codex marketplace source contract is invalid")
     if not isinstance(plugin_manifest, dict):
         raise ConformanceError("local Codex plugin manifest must be an object")
+    if set(plugin_manifest) != {
+        "name",
+        "description",
+        "version",
+        "author",
+        "homepage",
+        "repository",
+        "license",
+        "keywords",
+        "skills",
+        "interface",
+    }:
+        raise ConformanceError("Codex plugin manifest contains an active or unknown field")
     if plugin_manifest.get("name") != plugin_contract["name"]:
         raise ConformanceError("local Codex plugin name differs from the conformance manifest")
     if plugin_manifest.get("version") != plugin_contract["version"]:
@@ -526,17 +531,6 @@ def codex_plugin_digest(root: Path = REPO_ROOT) -> str:
     return _digest_files(root, files)
 
 
-def validate_candidate_materialization(root: Path) -> dict[str, object]:
-    """Re-prove the trusted raw-object materialization before a candidate enters a live run."""
-
-    try:
-        return materialize_git_tree.verify_materialization(
-            root, CANDIDATE_MATERIALIZATION_PATHS
-        )
-    except materialize_git_tree.MaterializationError as exc:
-        raise ConformanceError(f"candidate raw materialization is invalid: {exc}") from exc
-
-
 def copy_codex_marketplace_snapshot(source_root: Path, destination_root: Path) -> None:
     """Copy only the Codex marketplace manifest and plugin bundle into an empty root."""
 
@@ -563,104 +557,77 @@ def _assert_regular_unlinked_file(path: Path, label: str) -> Path:
             raise ConformanceError(f"{label} traverses a linked or reparse path: {current}")
     if not absolute.is_file() or _is_link_or_reparse(absolute):
         raise ConformanceError(f"{label} must be a regular, unlinked file: {absolute}")
+    if int(getattr(absolute.stat(), "st_nlink", 1)) != 1:
+        raise ConformanceError(f"{label} must not have multiple hard links: {absolute}")
     return absolute
 
 
-def load_broker_config(path: Path) -> dict[str, str]:
-    """Validate the tokenless provider config emitted by the pinned Codex action."""
+def source_codex_home() -> Path:
+    """Return the operator's current Codex home without exposing its contents."""
 
-    config_path = _assert_regular_unlinked_file(path, "broker config")
-    auth_path = config_path.parent / "auth.json"
-    if auth_path.exists() or auth_path.is_symlink():
-        raise ConformanceError("broker CODEX_HOME must not contain auth.json")
+    return Path(os.environ.get("CODEX_HOME") or (Path.home() / ".codex")).expanduser().resolve()
+
+
+def require_auth_file(path: Path | None = None) -> Path:
+    """Require an existing regular Codex login file for a local live run."""
+
+    auth = path if path is not None else source_codex_home() / AUTH_FILE
     try:
-        document = tomllib.loads(config_path.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError) as exc:
-        raise ConformanceError(f"cannot parse broker config: {exc}") from exc
-    if set(document) != {"model_provider", "model_providers"}:
-        raise ConformanceError("broker config has missing or unknown top-level fields")
-    if document.get("model_provider") != BROKER_PROVIDER:
-        raise ConformanceError("broker config does not select the pinned Responses API proxy")
-    providers = document.get("model_providers")
-    if not isinstance(providers, dict) or set(providers) != {BROKER_PROVIDER}:
-        raise ConformanceError("broker config must define exactly one pinned provider")
-    provider = providers[BROKER_PROVIDER]
-    if not isinstance(provider, dict) or set(provider) != {"name", "base_url", "wire_api"}:
-        raise ConformanceError("broker provider has missing or credential-bearing fields")
-    if provider.get("name") != "Codex Action Responses Proxy" or provider.get("wire_api") != "responses":
-        raise ConformanceError("broker provider identity or wire API is invalid")
-    base_url = provider.get("base_url")
-    if not isinstance(base_url, str):
-        raise ConformanceError("broker base_url must be a string")
-    parsed = urlsplit(base_url)
-    try:
-        port = parsed.port
-    except ValueError as exc:
-        raise ConformanceError("broker base_url has an invalid port") from exc
-    if (
-        parsed.scheme != "http"
-        or parsed.hostname != "127.0.0.1"
-        or port is None
-        or parsed.path.rstrip("/") != "/v1"
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise ConformanceError("broker base_url must be tokenless http://127.0.0.1:<port>/v1")
-    return {"base_url": f"http://127.0.0.1:{port}/v1", "provider": BROKER_PROVIDER}
-
-
-def stage_broker_config(source: Path, codex_home: Path) -> str:
-    """Write a normalized credential-free provider config into the disposable home."""
-
-    broker = load_broker_config(source)
-    rendered = (
-        f'model_provider = "{BROKER_PROVIDER}"\n\n'
-        f'[model_providers.{BROKER_PROVIDER}]\n'
-        'name = "Codex Action Responses Proxy"\n'
-        f'base_url = "{broker["base_url"]}"\n'
-        'wire_api = "responses"\n'
-    )
-    target = codex_home / "config.toml"
-    target.write_text(rendered, encoding="utf-8", newline="\n")
-    os.chmod(target, stat.S_IRUSR | stat.S_IWUSR)
-    return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
-
-
-def require_brokered_ci_boundary(broker_config: Path) -> dict[str, str]:
-    """Fail closed unless the trusted Linux workflow established the OS boundary."""
-
-    broker = load_broker_config(broker_config)
-    if sys.platform != "linux" or os.environ.get("GITHUB_ACTIONS") != "true":
+        absolute = _assert_regular_unlinked_file(auth, "Codex authentication file")
+    except ConformanceError as exc:
+        if auth.exists() or auth.is_symlink():
+            raise ConformanceError(f"Codex authentication file was refused: {exc}") from exc
         raise ConformanceError(
-            "live conformance is restricted to the trusted Linux GitHub Actions broker workflow"
-        )
-    if os.environ.get("RUNNER_OS") != "Linux" or os.environ.get("CI") != "true":
-        raise ConformanceError("live conformance requires the Linux CI runner contract")
-    getuid = getattr(os, "geteuid", None)
-    if getuid is None or getuid() == 0:
-        raise ConformanceError("live conformance must run as a non-root OS identity")
-    for candidate in {
-        Path.home() / ".codex" / "auth.json",
-        Path(os.environ.get("CODEX_HOME", "")) / "auth.json" if os.environ.get("CODEX_HOME") else None,
-    }:
-        if candidate is not None and (candidate.exists() or candidate.is_symlink()):
-            raise ConformanceError("live conformance identity must not have a readable auth.json")
-    sudo = shutil.which("sudo")
-    if sudo:
-        check = subprocess.run(
-            [sudo, "-n", "true"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=10,
-        )
-        if check.returncode == 0:
-            raise ConformanceError("live conformance requires passwordless sudo to be removed")
-    return broker
+            f"no regular, unlinked Codex authentication file at {auth}; "
+            "run `codex login` before live conformance"
+        ) from exc
+    if absolute.is_relative_to(REPO_ROOT.resolve()):
+        raise ConformanceError("Codex authentication file must be outside the repository checkout")
+    return absolute
+
+
+def stage_local_auth(source: Path, codex_home: Path) -> Path:
+    """Copy same-user Codex authentication into a disposable home with a restricted mode."""
+
+    auth = require_auth_file(source)
+    target = codex_home / AUTH_FILE
+    if target.exists() or target.is_symlink():
+        raise ConformanceError("disposable Codex home already contains auth.json")
+    shutil.copyfile(auth, target)
+    os.chmod(target, stat.S_IRUSR | stat.S_IWUSR)
+    _assert_regular_unlinked_file(target, "staged Codex authentication file")
+    return target
+
+
+def validate_new_output_path(path: Path) -> Path:
+    """Allow only a new, non-indirect report path; repository reports live under .eval-runs."""
+
+    absolute = path.expanduser().absolute()
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        if (current.exists() or current.is_symlink()) and _is_link_or_reparse(current):
+            raise ConformanceError(f"report output traverses a linked or reparse path: {current}")
+    if absolute.exists() or absolute.is_symlink():
+        raise ConformanceError(f"report output path already exists; choose a new path: {absolute}")
+    normalized = absolute.resolve(strict=False)
+    repository = REPO_ROOT.resolve()
+    if normalized.is_relative_to(repository) and not normalized.is_relative_to(
+        repository / ".eval-runs"
+    ):
+        raise ConformanceError("repository-local reports must be written under .eval-runs")
+    return normalized
+
+
+def write_new_report(path: Path, rendered: str) -> Path:
+    """Create one report without overwriting or following an output alias."""
+
+    target = validate_new_output_path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target = validate_new_output_path(target)
+    with target.open("x", encoding="utf-8", newline="\n") as stream:
+        stream.write(rendered)
+    return target
 
 
 def _sensitive_host_values() -> tuple[str, ...]:
@@ -1197,8 +1164,16 @@ def _git_value(root: Path, argv: Sequence[str]) -> str:
 
 
 def _git_status(root: Path, paths: Sequence[str]) -> str:
-    result = subprocess.run(
-        ["git", "status", "--porcelain", "--", *paths],
+    status_result = subprocess.run(
+        [
+            "git",
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all",
+            "--ignored",
+            "--",
+            *paths,
+        ],
         cwd=root,
         capture_output=True,
         text=True,
@@ -1206,11 +1181,35 @@ def _git_status(root: Path, paths: Sequence[str]) -> str:
         errors="replace",
         check=False,
     )
-    if result.returncode != 0:
+    if status_result.returncode != 0:
         raise ConformanceError(
-            f"git status failed: {(result.stderr or result.stdout).strip()[-300:]}"
+            "git status failed: "
+            f"{(status_result.stderr or status_result.stdout).strip()[-300:]}"
         )
-    return result.stdout.strip()
+    index_result = subprocess.run(
+        ["git", "ls-files", "-v", "-z", "--", *paths],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if index_result.returncode != 0:
+        raise ConformanceError(
+            "git index flag inspection failed: "
+            f"{(index_result.stderr or index_result.stdout).strip()[-300:]}"
+        )
+    hidden_index_entries: list[str] = []
+    for entry in filter(None, index_result.stdout.split("\0")):
+        if len(entry) < 3 or entry[1] != " ":
+            raise ConformanceError("git index flag inspection returned malformed output")
+        tag = entry[0]
+        if tag == "S" or tag.islower():
+            hidden_index_entries.append(f"INDEX-FLAG {tag} {entry[2:]}")
+    return "\n".join(
+        part for part in (status_result.stdout.strip(), "\n".join(hidden_index_entries)) if part
+    )
 
 
 def _plugin_git_status(root: Path) -> str:
@@ -1251,6 +1250,7 @@ def build_conformance_evidence(
         or report.get("agent_inputs_dirty")
         or report.get("harness_inputs_dirty")
     )
+    exact_revision = not inputs_dirty
     if inputs_dirty:
         status = "inconclusive"
     elif summary.get("fail", 0):
@@ -1266,7 +1266,15 @@ def build_conformance_evidence(
         {item["requested_model"] for item in results if isinstance(item, dict)}
     )
     limitations = [
-        "Raw model transcripts and parsed final messages were reduced to hashes and were not persisted."
+        "Raw model transcripts and parsed final messages were reduced to hashes and were not persisted.",
+        (
+            "The local runner uses same-user Codex authentication and does not isolate "
+            "that authentication from hostile evaluated content."
+        ),
+        (
+            "The runner cannot verify source review or evaluator independence; pair an exact-revision "
+            "report with external review evidence before accepting a baseline."
+        ),
     ]
     missing_model_evidence = sum(
         isinstance(item, dict) and not item.get("observed_model_exposed") for item in results
@@ -1279,7 +1287,7 @@ def build_conformance_evidence(
         limitations.append(
             "Inputs differed from HEAD, so this result is not exact-revision evidence."
         )
-    source: dict[str, object] = {
+    base_source: dict[str, object] = {
         "kind": "codex-sol-conformance",
         "evaluator_revision": report["evaluator_commit"],
         "lane_count": len(results),
@@ -1290,8 +1298,28 @@ def build_conformance_evidence(
         "manifest_sha256": report["manifest_sha256"],
         "runner_sha256": report["runner_sha256"],
         "plugin_source_sha256": report["plugin_source_sha256"],
+        "repository_tree": report.get("repository_tree"),
     }
-    source.update(dict(source_extra or {}))
+    reserved_source: dict[str, object] = {
+        "execution_trust": EXECUTION_TRUST,
+        "auth_isolation": AUTH_ISOLATION,
+        "source_review": SOURCE_REVIEW,
+        "exact_revision": exact_revision,
+        "baseline_eligible": False,
+        "release_granted": False,
+    }
+    extra = dict(source_extra or {})
+    collisions = sorted(set(extra).intersection(set(base_source) | set(reserved_source)))
+    if collisions:
+        raise ConformanceError(
+            "source_extra cannot override conformance evidence fields: "
+            + ", ".join(collisions)
+        )
+    source: dict[str, object] = {
+        **base_source,
+        **extra,
+        **reserved_source,
+    }
     started = evidence_envelope.parse_timestamp(report["started_at"], "started_at")
     ended = evidence_envelope.parse_timestamp(report["generated_at"], "generated_at")
     run_id = producer.replace("_", "-") + "-" + started.strftime("%Y%m%dT%H%M%SZ")
@@ -1324,8 +1352,9 @@ def build_conformance_evidence(
             "disposable_home": True,
             "read_only_sandbox_requested": True,
             "raw_transcript_persisted": False,
-            "loopback_model_transport": True,
-            "sudo_removed_by_trusted_workflow": True,
+            "same_user_auth_boundary": AUTH_ISOLATION,
+            "hostile_candidate_containment": False,
+            "independent_evaluator": False,
         },
         limitations=limitations,
     )
@@ -1348,8 +1377,12 @@ def _bootstrap_plugin(
     workspace: Path,
     env: Mapping[str, str],
     runner: Runner,
+    sensitive_values: Sequence[str] = (),
 ) -> tuple[str, Path, str]:
     version_result = runner((executable, "--version"), workspace, 30, env)
+    assert_no_credential_output(
+        version_result.stdout, version_result.stderr, sensitive_values=sensitive_values
+    )
     if version_result.returncode != 0 or not version_result.stdout.strip():
         raise ConformanceError("Codex CLI version command failed")
     version = version_result.stdout.strip().splitlines()[0]
@@ -1360,6 +1393,9 @@ def _bootstrap_plugin(
         60,
         env,
     )
+    assert_no_credential_output(
+        add_marketplace.stdout, add_marketplace.stderr, sensitive_values=sensitive_values
+    )
     if add_marketplace.returncode != 0:
         raise ConformanceError(f"Codex marketplace registration failed: {add_marketplace.stderr[-300:]}")
 
@@ -1368,6 +1404,9 @@ def _bootstrap_plugin(
         workspace,
         60,
         env,
+    )
+    assert_no_credential_output(
+        add_plugin.stdout, add_plugin.stderr, sensitive_values=sensitive_values
     )
     if add_plugin.returncode != 0:
         raise ConformanceError(f"Codex plugin installation failed: {add_plugin.stderr[-300:]}")
@@ -1385,6 +1424,9 @@ def _bootstrap_plugin(
         raise ConformanceError("Codex installed plugin outside the isolated CODEX_HOME")
 
     listing_result = runner((executable, "plugin", "list", "--json"), workspace, 60, env)
+    assert_no_credential_output(
+        listing_result.stdout, listing_result.stderr, sensitive_values=sensitive_values
+    )
     if listing_result.returncode != 0:
         raise ConformanceError("Codex plugin inventory command failed")
     listing = _parse_json_object(listing_result.stdout, "Codex plugin inventory")
@@ -1415,24 +1457,27 @@ def run_live(
     manifest: Mapping[str, object],
     *,
     executable: str,
-    broker_config: Path,
+    auth_file: Path,
     require_clean_plugin: bool,
     require_clean_harness: bool,
     runner: Runner = _run,
 ) -> dict[str, object]:
-    require_brokered_ci_boundary(broker_config)
     if root.resolve() != REPO_ROOT.resolve():
-        validate_candidate_materialization(root)
+        raise ConformanceError(
+            "live conformance runs only from the local repository checkout; "
+            "review and commit external candidate bytes before evaluating them"
+        )
+    auth = require_auth_file(auth_file)
     source_digest_before = codex_plugin_digest(root)
     plugin_status = _plugin_git_status(root)
-    # The evaluator is repository code from the trusted-main checkout. Candidate files are data;
-    # never use the candidate's copy of this runner, manifest, schema, or evidence reducer.
+    # The local checkout is both evaluator and subject. Clean scoped inputs can prove exact bytes,
+    # but this runner cannot prove review, evaluator independence, or promotion authority.
     harness_status = _harness_git_status(REPO_ROOT)
     runner_sha256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     if require_clean_plugin and plugin_status:
-        raise ConformanceError("Codex plugin inputs differ from HEAD; refusing publishable baseline")
+        raise ConformanceError("Codex plugin inputs differ from HEAD; refusing exact-revision run")
     if require_clean_harness and harness_status:
-        raise ConformanceError("Codex conformance harness differs from HEAD; refusing publishable baseline")
+        raise ConformanceError("Codex conformance harness differs from HEAD; refusing exact-revision run")
     sensitive_values = _sensitive_host_values()
     started_at = _timestamp()
     start = time.monotonic()
@@ -1453,9 +1498,6 @@ def run_live(
         codex_home.mkdir()
         workspace.mkdir()
         os.chmod(codex_home, stat.S_IRWXU)
-        broker_config_sha256 = stage_broker_config(broker_config, codex_home)
-        if (codex_home / "auth.json").exists():
-            raise ConformanceError("disposable Codex home must remain credential-free")
         copy_codex_marketplace_snapshot(root, marketplace)
         snapshot_digest = codex_plugin_digest(marketplace)
         if snapshot_digest != source_digest_before:
@@ -1491,6 +1533,7 @@ def run_live(
             workspace,
             env,
             runner,
+            sensitive_values,
         )
         snapshot_plugin_digest = directory_digest(marketplace / PLUGIN_DIRECTORY)
         installed_plugin_digest = directory_digest(installed_path)
@@ -1500,6 +1543,7 @@ def run_live(
         installed_skill_count = len(list((installed_path / "skills").glob("*/SKILL.md")))
         if source_skill_count == 0 or installed_skill_count != source_skill_count:
             raise ConformanceError("installed Codex skill inventory differs from the frozen snapshot")
+        stage_local_auth(auth, codex_home)
 
         for lane in manifest["lanes"]:
             lane_started = _timestamp()
@@ -1621,14 +1665,22 @@ def run_live(
         "started_at": started_at,
         "duration_ms": round((time.monotonic() - start) * 1000),
         "repository_commit": _git_value(root, ["rev-parse", "HEAD"]),
+        "repository_tree": _git_value(root, ["rev-parse", "HEAD^{tree}"]),
         "evaluator_commit": _git_value(REPO_ROOT, ["rev-parse", "HEAD"]),
+        "evaluator_tree": _git_value(REPO_ROOT, ["rev-parse", "HEAD^{tree}"]),
         "plugin_inputs_dirty": bool(plugin_status),
         "harness_inputs_dirty": bool(harness_status),
         "runner_sha256": runner_sha256,
         "plugin_source_sha256": source_digest_before,
         "manifest_sha256": hashlib.sha256(_canonical_json(manifest)).hexdigest(),
         "plugin_inventory_sha256": inventory_digest,
-        "broker_config_sha256": broker_config_sha256,
+        "execution_trust": EXECUTION_TRUST,
+        "auth_isolation": AUTH_ISOLATION,
+        "source_review": SOURCE_REVIEW,
+        "exact_revision": not bool(plugin_status or harness_status),
+        "independent_evaluator": False,
+        "baseline_eligible": False,
+        "release_granted": False,
         "usage_limits": {
             "per_lane": dict(MAX_LANE_USAGE_TOKENS),
             "per_suite": dict(MAX_SUITE_USAGE_TOKENS),
@@ -1637,8 +1689,9 @@ def run_live(
         "installed_skill_count": installed_skill_count,
         "raw_transcript_persisted": False,
         "auth_boundary": (
-            "The trusted Linux workflow holds the API key in a separate Responses API proxy, "
-            "removes sudo, and gives this runner only a tokenless loopback provider config."
+            "The operator's existing Codex login is copied into a disposable same-user home and "
+            "deleted before this sanitized report is returned. This does not isolate authentication "
+            "from hostile evaluated content. Source review and baseline acceptance remain external."
         ),
         "summary": summary,
         "results": results,
@@ -1661,20 +1714,14 @@ def _parser() -> argparse.ArgumentParser:
     action.add_argument(
         "--run",
         action="store_true",
-        help="run live Codex/Sol conformance inside the trusted broker workflow",
+        help="run local Codex/Sol conformance with the current Codex login",
     )
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    parser.add_argument(
-        "--target-root",
-        type=Path,
-        default=REPO_ROOT,
-        help="candidate checkout whose plugin bytes are evaluated as data",
-    )
     parser.add_argument("--codex-bin", default="codex")
     parser.add_argument(
-        "--broker-config",
+        "--auth-file",
         type=Path,
-        help="tokenless config.toml emitted by the trusted Codex Responses API proxy workflow",
+        help="Codex auth.json to copy into the disposable home (default: current CODEX_HOME)",
     )
     parser.add_argument(
         "--allow-dirty-plugin",
@@ -1694,9 +1741,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         manifest = load_manifest(args.manifest)
-        target_root = args.target_root.expanduser().resolve()
-        if not target_root.is_dir():
-            raise ConformanceError(f"candidate target root is not a directory: {target_root}")
+        target_root = REPO_ROOT.resolve()
+        output_path = validate_new_output_path(args.output) if args.output else None
         validate_local_plugin_contract(target_root, manifest)
         plugin_digest = codex_plugin_digest(target_root)
         if args.validate:
@@ -1717,20 +1763,15 @@ def main(argv: list[str] | None = None) -> int:
                     "live runs require the repository's fixed codex-sol.json manifest; "
                     "custom manifests are validation-only"
                 )
-            if args.broker_config is None:
-                raise ConformanceError("--run requires --broker-config from the trusted workflow")
-            if target_root == REPO_ROOT.resolve():
-                raise ConformanceError(
-                    "live runs require a separate candidate checkout; the evaluator must come from trusted main"
-                )
             executable = shutil.which(args.codex_bin)
             if executable is None:
                 raise ConformanceError(f"Codex executable is not on PATH: {args.codex_bin}")
+            auth_file = require_auth_file(args.auth_file)
             report = run_live(
                 target_root,
                 manifest,
                 executable=executable,
-                broker_config=args.broker_config,
+                auth_file=auth_file,
                 require_clean_plugin=not args.allow_dirty_plugin,
                 require_clean_harness=not args.allow_dirty_harness,
             )
@@ -1742,9 +1783,8 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 exit_code = 0
         rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
-        if args.output:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(rendered, encoding="utf-8", newline="\n")
+        if output_path:
+            write_new_report(output_path, rendered)
         print(rendered, end="")
         return exit_code
     except (ConformanceError, OSError, ValueError) as exc:
