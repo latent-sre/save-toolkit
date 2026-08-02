@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,6 +108,33 @@ class ImprovementLedgerTests(unittest.TestCase):
             self.assertEqual([label for label, _ in history][-1], "working-tree")
             self.assertEqual(len(history), 2)
             ledger.validate_ledger(root)
+        finally:
+            temporary.cleanup()
+
+    def test_first_revision_authority_shape_is_not_bypassed(self) -> None:
+        temporary, root = self._temporary_repository()
+        try:
+            record = fixtures._record("observed")
+            self._bind_base(root, record)
+            fixtures._materialize_evidence_envelopes(root, record)
+            path = root / "evals/improvements/fi_agent_routing_discovery/record.json"
+            path.write_text(json.dumps(record), encoding="utf-8")
+
+            with mock.patch.object(
+                ledger,
+                "_synthetic_initial_authority",
+                return_value={
+                    "actor": "repository-history",
+                    "role": "author",
+                    "subject_revision": None,
+                },
+                create=True,
+            ):
+                with self.assertRaisesRegex(
+                    ledger.LedgerValidationError,
+                    "authority.role",
+                ):
+                    ledger.validate_ledger(root)
         finally:
             temporary.cleanup()
 
@@ -483,6 +511,23 @@ class ImprovementLedgerTests(unittest.TestCase):
                 )
                 self.assertEqual(role, authority["role"])
                 self.assertEqual(actor, authority["actor"])
+
+    def test_initial_history_authority_uses_creation_roles(self) -> None:
+        pilot = json.loads(fixtures.PILOT_PATH.read_text(encoding="utf-8"))
+        cases = (
+            (fixtures._record("observed"), "triage"),
+            (pilot, "human_or_protected_workflow"),
+        )
+        for record, role in cases:
+            with self.subTest(status=record["status"]):
+                self.assertEqual(
+                    {
+                        "actor": "repository-history",
+                        "role": role,
+                        "subject_revision": None,
+                    },
+                    ledger._synthetic_initial_authority(record),
+                )
 
 
 if __name__ == "__main__":
