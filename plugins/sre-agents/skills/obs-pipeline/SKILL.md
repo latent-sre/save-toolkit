@@ -68,10 +68,8 @@ time series per value and melts the metrics backend.
   ❌  http_request_duration_seconds                <- an EXPORTER's rendering, not an OTel name
   ```
 - **This lands natively on our stack.** Wavefront takes dot-delimited names + point tags
-  (`app.http.requests.latency`) — the OTel shape, near-unchanged. Keep the bounded-tag discipline.
-  Wavefront receives dot-delimited names plus bounded point tags; this section owns the emitted naming/tag contract.
+  (`app.http.requests.latency`) — the OTel shape, near-unchanged. Keep the bounded-tag discipline;
+  this section owns the emitted naming/tag contract.
 - *Portability note (off-stack):* an underscore-style exporter translates **for you** — dots → `_`, a
   unit suffix appended, `_total` on monotonic sums. Never pre-bake that shape into the instrument name
   or it gets applied twice. Authoring the underscore form and calling it OTel is the common error.
-- In **Wavefront** the same metrics arrive as dot-delimited names (`app.http.requests.latency`) + point
-  tags — keep the identical bounded-tag discipline. Wavefront receives dot-delimited names plus bounded point tags; this section owns the emitted naming/tag contract.

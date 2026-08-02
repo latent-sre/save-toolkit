@@ -56,7 +56,10 @@ The example is `[unverified]`: it is the required approval-request shape, not ev
       readiness gate. For a non-release action, mark artifact fields not applicable and attach the current
       reviewed command/diff and named approval instead.
 - [ ] **The boundary is actually ON** — verified, not assumed. Everything below is a record; branch
-      protection is the control and must be checked by an authorized human or protected evidence job:
+      protection is the control and must be checked by an authorized human or protected evidence job.
+      Note: `gh api` is deliberately absent from the guarded-Bash allowlist (it can silently POST), so
+      a guarded `sre`/`sre-steward` session cannot run this itself — a denial here is expected, not a
+      finding; hand the command to the human or evidence job:
 
       ```sh
       gh api repos/{owner}/{repo}/branches/{branch}/protection \

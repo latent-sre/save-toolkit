@@ -48,9 +48,10 @@ jobs:
         run: ${{ matrix.py }} -m pip install -r requirements-dev.txt
 
       # ONE STEP, ONE SOURCE OF TRUTH. Gate A (scripts/gate_a.py) is the mechanical audit: fleet
-      # structure, the validator's own tests, the read-only guard's 505 cases, the eval graders, and
-      # the eval suite's parse check. It is what CI runs and what the spec's run protocol (Section 0)
-      # tells a human or agent to run locally -- the same command, so the two cannot drift.
+      # structure, the validator's own tests, the read-only guard's allow/deny corpus, the eval
+      # graders, and the eval suite's parse check. It is what CI runs and what the spec's run
+      # protocol (Section 0) tells a human or agent to run locally -- the same command, so the two
+      # cannot drift.
       #
       # This used to be six transcribed steps here and a SECOND transcription in the spec. They had
       # already disagreed (the spec's copy dropped the install step above, so a cold checkout died on

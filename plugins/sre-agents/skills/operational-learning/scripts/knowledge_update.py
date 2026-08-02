@@ -1080,8 +1080,19 @@ def _normalize_v2_for_validation(update: Mapping[str, object]) -> dict[str, obje
     return normalized
 
 
-def migrate_v1_to_v2(update: Mapping[str, object]) -> dict[str, object]:
-    """Return a deterministic v2 copy of a structurally valid v1 packet shape."""
+def migrate_v1_to_v2(
+    update: Mapping[str, object],
+    *,
+    target_root: Path | None = None,
+    allowed_knowledge_roots: Sequence[str] | None = None,
+) -> dict[str, object]:
+    """Return a deterministic, validated v2 copy of a v1 packet.
+
+    The migrated packet is validated before it is returned so migration can never
+    emit an invalid v2 packet. Packets carrying prepared dispositions need the same
+    ``target_root``/``allowed_knowledge_roots`` context that ``validate_update``
+    requires; without it their migration fails closed rather than skipping checks.
+    """
 
     _exact_fields(update, TOP_LEVEL_FIELDS, "knowledge update")
     if type(update["schema_version"]) is not int or update["schema_version"] != SCHEMA_VERSION:
@@ -1109,6 +1120,16 @@ def migrate_v1_to_v2(update: Mapping[str, object]) -> dict[str, object]:
     migrated_trigger = copy.deepcopy(dict(trigger))
     migrated_trigger["kind"] = V1_TO_V2_TRIGGER_KIND.get(trigger_kind, trigger_kind)
     migrated["trigger"] = migrated_trigger
+    try:
+        validate_update(
+            migrated,
+            target_root=target_root,
+            allowed_knowledge_roots=allowed_knowledge_roots,
+        )
+    except KnowledgeUpdateValidationError as exc:
+        raise KnowledgeUpdateValidationError(
+            f"migrated packet failed v2 validation: {exc}"
+        ) from exc
     return migrated
 
 

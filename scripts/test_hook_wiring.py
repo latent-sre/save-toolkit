@@ -37,6 +37,37 @@ class HookWiringTests(unittest.TestCase):
             self.assertIn(token, command)
         self.assertNotIn('case "$IN"', command)
 
+    def test_standalone_launcher_matches_inlined_hook_command(self) -> None:
+        """scripts/readonly-guard-hook.sh and the hooks.json command are the same program.
+
+        The launcher exists twice: inlined as the live hook command and as the standalone
+        shell file (a hash input for eval provenance). Without this check the two copies can
+        drift silently — and the drifting copy would be the enforced one.
+        """
+        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
+        inlined = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        script_lines = [
+            line.strip()
+            for line in (ROOT / "scripts/readonly-guard-hook.sh")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        rebuilt: list[str] = []
+        for line in script_lines:
+            if rebuilt and rebuilt[-1].endswith(" do"):
+                rebuilt[-1] = f"{rebuilt[-1]} {line}"
+            elif rebuilt:
+                rebuilt[-1] = f"{rebuilt[-1]}; {line}"
+            else:
+                rebuilt.append(line)
+        self.assertEqual(
+            rebuilt[0],
+            inlined,
+            "hooks.json inline command and scripts/readonly-guard-hook.sh have drifted; "
+            "edit both together (strip comments, join with '; ', keep loop bodies on ' ')",
+        )
+
     def test_plugin_agents_do_not_claim_inert_hooks(self) -> None:
         for path in sorted((ROOT / "agents").glob("*.md")):
             frontmatter = path.read_text(encoding="utf-8").split("---", 2)[1]

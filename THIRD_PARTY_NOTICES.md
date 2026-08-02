@@ -8,6 +8,6 @@ repository:
 - License: MIT
 - Upstream: https://github.com/latent-sre/sde-agents
 
-Adaptations were rewritten for this repository's six-agent PCF/TAS fleet, split observability skills,
+Adaptations were rewritten for this repository's PCF/TAS agent fleet, split observability skills,
 guard roster, manifests, and validation contracts. Generated adapter files identify their generator
 and are derived from this repository's canonical sources.
