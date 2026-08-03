@@ -1089,9 +1089,10 @@ def migrate_v1_to_v2(
     """Return a deterministic, validated v2 copy of a v1 packet.
 
     The migrated packet is validated before it is returned so migration can never
-    emit an invalid v2 packet. Packets carrying prepared dispositions need the same
-    ``target_root``/``allowed_knowledge_roots`` context that ``validate_update``
-    requires; without it their migration fails closed rather than skipping checks.
+    emit an invalid v2 packet. Packets carrying prepared dispositions or documentation
+    duplicates need the same ``target_root``/``allowed_knowledge_roots`` context that
+    ``validate_update`` requires; without it their migration fails closed rather than
+    skipping checks.
     """
 
     _exact_fields(update, TOP_LEVEL_FIELDS, "knowledge update")

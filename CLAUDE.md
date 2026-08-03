@@ -12,5 +12,6 @@ The fleet guide is [AGENTS.md](AGENTS.md).
 - `sre` and `sre-steward` run Bash under `scripts/readonly-guard.py` (allowlist, fail-closed).
   The session hook lives at `hooks/hooks.json` because plugin-agent frontmatter hooks are inert.
   A denied command is a finding, not an obstacle: fix the allowlist by PR if a legitimate read is blocked.
-- Structural checks: `python scripts/gate_a.py` (on Windows use `python` or `py -3` — `python3`
-  is the Microsoft Store stub on this machine).
+- Structural checks: `python scripts/gate_a.py` (on Windows prefer `python` or `py -3`: a bare
+  `python3` may resolve to the Microsoft Store alias stub, which is not an interpreter and exits
+  9009 — that is why `validate.yml` uses `python` on its Windows leg).

@@ -403,6 +403,15 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         ):
             migration.migrate(prepared_without_worktree)
 
+        # Documentation duplicates need the same checkout context as prepared dispositions.
+        # validate_update's copy of this rule is covered elsewhere; bind the MIGRATION path too,
+        # because the CLI help and the compatibility policy both promise it here.
+        duplicate_without_worktree = self._duplicate_update("docs/operations/alerts/existing.md")
+        with self.assertRaisesRegex(
+            ValueError, "documentation duplicate dispositions require target_root"
+        ):
+            migration.migrate(duplicate_without_worktree)
+
     def test_schema_catalog_and_examples_are_current(self) -> None:
         def iter_refs(value: object):
             if isinstance(value, dict):
