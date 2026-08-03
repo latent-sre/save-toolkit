@@ -67,24 +67,21 @@ The 27 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
 
 ## Use it in VS Code (Copilot Chat)
 
-Agents and skills are found by two different mechanisms, and only one of them is a folder scan.
+Both agents and skills are found by workspace folder scans; neither needs a plugin install.
 
 **Agents — automatic.** VS Code scans `.github/agents/` in the open workspace, so opening this
-repository exposes all eight roles in the Chat agent picker with no install step
+repository exposes all eight roles in the Chat agent picker with no setup
 ([custom agents](https://code.visualstudio.com/docs/agent-customization/custom-agents)).
 
-**Skills — need the plugin.** VS Code has no workspace scan for skills; they load from a plugin
-resolved through a configured marketplace
-([agent plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins)). This
-repository is its own marketplace (`.claude-plugin/marketplace.json`), and the root `plugin.json`
-points Copilot at `.github/agents/` and `platforms/copilot/skills/`.
-[`.github/copilot/settings.json`](.github/copilot/settings.json) registers that marketplace and
-enables the plugin so VS Code offers it when this workspace is opened. Confirm it loaded by
-searching `@agentPlugins` in the Extensions view.
+**Skills — one setting.** VS Code scans `.github/skills/`, `.claude/skills/`, and `.agents/skills/`
+for project skills ([agent skills](https://code.visualstudio.com/docs/agent-customization/agent-skills)).
+This fleet keeps its Copilot skill projection at `platforms/copilot/skills/`, the layout the
+[packaging decision](docs/decisions/2026-07-31-multi-platform-plugin-packaging.md) accepted, so
+[`.vscode/settings.json`](.vscode/settings.json) adds that directory through
+`chat.agentSkillsLocations` instead of moving a generated root to suit one host.
 
-Opening the workspace therefore gives agents immediately and skills once the recommended plugin is
-accepted. To use the fleet in *other* workspaces, install the plugin from the same marketplace
-rather than copying agent files — copies arrive without their skills.
+For other workspaces, install at user level rather than copying files: VS Code also scans
+`~/.copilot/agents/` and `~/.copilot/skills/`. Copied agent files arrive without their skills.
 
 ## Validate and evaluate
 
