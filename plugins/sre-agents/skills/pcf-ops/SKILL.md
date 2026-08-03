@@ -87,7 +87,7 @@ cf logs <app>                  # live tail (RTR router logs; APP stdout/stderr)
 ```
 
 RTR lines give status code and response time per request; APP lines are app logs. For history beyond
-the buffer, capture the timestamp and correlation ID and hand the evidence to the `sre` agent for the
+the buffer, capture the timestamp and correlation ID and hand the evidence to the `sre-agents-sre` agent for the
 configured log backend.
 
 ## Reading failures (exit codes, 502/503, health checks)

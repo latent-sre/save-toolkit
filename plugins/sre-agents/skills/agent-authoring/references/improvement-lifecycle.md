@@ -29,7 +29,7 @@ ignored `.eval-runs/` tree, never in the record.
    `not_reproducible`, `not_actionable`, or `duplicate`; a duplicate names the canonical
    `related_improvement_id`. Across the corpus, one fingerprint has exactly one non-duplicate
    canonical record; observation event IDs and evidence IDs are globally unique.
-4. Assign one accountable human or team owner. `prompt-engineer` may author fleet candidates;
+4. Assign one accountable human or team owner. `sre-agents-prompt-engineer` may author fleet candidates;
    ownership and promotion authority remain external.
 
 ## Lifecycle and authority

@@ -56,6 +56,27 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertNotIn("sre-agents:", body)
         self.assertIn("SRE lens", body)
 
+    def test_codex_skill_projection_namespaces_agent_references(self) -> None:
+        """Skills carry sibling references too, and Codex resolves them by bare name.
+
+        The agent-profile rewrite alone left 125 bare backticked references in the Codex
+        skills projection, so a skill saying "route it to `sre`" spawned whichever `sre`
+        another installed suite owned. This asserts over EVERY Codex skill output rather
+        than one file, because a single-file assertion is what let that gap survive.
+        """
+        agent_names = {path.stem for path in (ROOT / "agents").glob("*.md")}
+        offenders = []
+        for path, blob in adapters.expected_outputs(ROOT).items():
+            if path.parts[:3] != ("plugins", "sre-agents", "skills"):
+                continue
+            if path.suffix.lower() not in {".md", ".txt"}:
+                continue
+            text = blob.decode("utf-8")
+            offenders.extend(
+                f"{path.as_posix()}: `{name}`" for name in agent_names if f"`{name}`" in text
+            )
+        self.assertEqual([], sorted(offenders))
+
     def test_codex_agent_filenames_carry_a_fleet_prefix(self) -> None:
         """Codex custom agents share ONE flat global directory with no namespace.
 

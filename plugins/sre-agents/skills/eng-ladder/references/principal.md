@@ -24,7 +24,7 @@ This file is the bar for the principal rung — self-contained.
    contract; version with SemVer (breaking → major) and signal deprecations before removal.
 4. **Plan the rollout.** Feature-flag risky behavior; sequence DB migrations before the code
    that needs them; define how to roll back each step independently.
-5. **Execute at builder altitude** — load [builder](./builder.md) (or hand execution to the `sde` agent)
+5. **Execute at builder altitude** — load [builder](./builder.md) (or hand execution to the `sre-agents-sde` agent)
    and ship the design as small, independently shippable diffs, not one big-bang change. The
    design is principal work; the diffs are builder work.
 6. **Verify across the boundary:** tests for old + new during the expand phase; check the
@@ -45,5 +45,5 @@ Escalating from the main loop means loading [distinguished](./distinguished.md) 
 spawned agent instead reports the decision needed to its caller — it never self-promotes.
 - Org-wide pattern, build-vs-buy, or a decision everything else must live with → the
   distinguished altitude.
-- Execution of the settled design → the builder altitude (or the `sde` agent).
-- New operational steps → the `sre-steward` agent; deployment execution → the human release owner.
+- Execution of the settled design → the builder altitude (or the `sre-agents-sde` agent).
+- New operational steps → the `sre-agents-sre-steward` agent; deployment execution → the human release owner.

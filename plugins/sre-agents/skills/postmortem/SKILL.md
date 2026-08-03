@@ -43,7 +43,7 @@ Status: <draft|final>   Authors: <…>   Date: <…>
 ## Impact             — who/what, how long, magnitude (users, % traffic, $ if known), SLO/budget hit.
 ## Timeline (UTC)     — detection → diagnosis → mitigation → resolution; key decisions; from the IC log.
 ## Root cause & contributing factors — the systemic cause + the factors that aligned (usually several).
-## Detection          — how we found out, and how fast. Could typed `sre-steward` evidence have paged sooner?
+## Detection          — how we found out, and how fast. Could typed `sre-agents-sre-steward` evidence have paged sooner?
 ## Response           — what went well, what was slow/hard (diagnosis, mitigation, comms, tooling).
 ## Five whys          — chain from symptom to systemic cause.
 ## Action items       — table: action | type (mitigative/preventative) | owner | due | tracking link.
@@ -64,8 +64,8 @@ Status: <draft|final>   Authors: <…>   Date: <…>
   ```
 
 - Each item is **owned, dated, tracked** — an un-owned action item is a wish. Use typed handoffs:
-  resilience/code → typed `sde` agent; detection/SLO → typed `sre-steward` agent; investigation follow-up →
-  typed `sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `scribe`
+  resilience/code → typed `sre-agents-sde` agent; detection/SLO → typed `sre-agents-sre-steward` agent; investigation follow-up →
+  typed `sre-agents-sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `sre-agents-scribe`
   agent.
 - Be honest about what you don't know; mark unconfirmed causes `[unverified]` and state how to confirm them.
 
@@ -75,7 +75,7 @@ A postmortem is incomplete until every new operational fact has a **learning dis
 `operational-learning` policy after the primary postmortem is written: prepare or propose updates for
 runbook, service card, alert card, knowledge index, observability, automation, code, and accepted
 risk. Each outcome is `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable`, with evidence
-and one owner. The typed `scribe` agent may prepare documentation only; other lanes receive handoffs.
+and one owner. The typed `sre-agents-scribe` agent may prepare documentation only; other lanes receive handoffs.
 No action item may end as chat-only advice.
 
 ## Lessons — include "where we got lucky"
@@ -87,10 +87,10 @@ to be online). Luck is a preventative action item waiting to be written.
 
 ## Tip
 
-Seed this from the supplied incident timeline and typed `sre` agent's root-cause evidence so it is accurate
+Seed this from the supplied incident timeline and typed `sre-agents-sre` agent's root-cause evidence so it is accurate
 while memory is fresh. Preserve every `[verified]`, `[sourced]`, and `[unverified]` label; never upgrade one.
 
 ## Pairs with
 
-Ownership map only—not a load: the `incident-command` skill owns the live incident; the `sre` agent
+Ownership map only—not a load: the `incident-command` skill owns the live incident; the `sre-agents-sre` agent
 supplies investigation evidence.

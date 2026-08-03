@@ -160,11 +160,22 @@ def _installed_resource(match: re.Match[str]) -> str:
     return f"the installed `{name}` skill's `{tail.lstrip('/')}` resource"
 
 
-def adapt_text(text: str, host: str) -> str:
-    """Remove Claude-only runtime addressing while preserving the authored method."""
+def _canonical_agent_names(root: Path) -> frozenset[str]:
+    return frozenset(path.stem for path in (root / "agents").glob("*.md"))
+
+
+def adapt_text(text: str, host: str, *, agent_names: frozenset[str] = frozenset()) -> str:
+    """Remove Claude-only runtime addressing while preserving the authored method.
+
+    ``agent_names`` namespaces sibling-agent references for Codex, which resolves an agent by
+    its bare name in one shared global directory. Every Codex output routes through here, so
+    this is the single place that has to know about it.
+    """
 
     if host not in {"copilot", "codex"}:
         raise ValueError(f"unknown host {host!r}")
+    if host == "codex" and agent_names:
+        text = _codex_component_tokens(text, agent_names)
     text = text.replace(
         "> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as "
         "`sre-agents:<component>`; generated adapters use the target host's bare component names.\n\n",
@@ -303,16 +314,18 @@ def render_codex_agent(source: Path) -> str:
     return (
         f"# {GENERATED_MARKER}\n"
         f"name = {_toml_string(CODEX_AGENT_PREFIX + name)}\n"
-        f"description = {_toml_string(adapt_text(_codex_component_tokens(_description(fields, source), siblings), 'codex'))}\n"
+        f"description = {_toml_string(adapt_text(_description(fields, source), 'codex', agent_names=siblings))}\n"
         f"sandbox_mode = {_toml_string(sandbox)}\n"
         "developer_instructions = '''\n"
         + contract
-        + adapt_text(_codex_component_tokens(body, siblings), "codex")
+        + adapt_text(body, "codex", agent_names=siblings)
         + "'''\n"
     )
 
 
-def _portable_skill(source: Path, host: str) -> tuple[bytes, bool]:
+def _portable_skill(
+    source: Path, host: str, *, agent_names: frozenset[str] = frozenset()
+) -> tuple[bytes, bool]:
     fields, body, raw_lines = parse_frontmatter(source)
     explicit = str(fields.get("name")) in MANUAL_ONLY or fields.get("disable-model-invocation") == "true"
     kept = []
@@ -320,7 +333,7 @@ def _portable_skill(source: Path, host: str) -> tuple[bytes, bool]:
         if host == "codex" and line.startswith("disable-model-invocation:"):
             continue
         kept.append(line)
-    portable_frontmatter = adapt_text("\n".join(kept), host)
+    portable_frontmatter = adapt_text("\n".join(kept), host, agent_names=agent_names)
     note = [
         f"> **{host.capitalize()} adapter:** Fleet component names are bare in this generated copy.",
         "> Resolve them from the installed plugin using the host's agent or skill picker.",
@@ -338,7 +351,7 @@ def _portable_skill(source: Path, host: str) -> tuple[bytes, bool]:
         + f"<!-- {GENERATED_MARKER} -->\n\n"
         + "\n".join(note)
         + "\n\n"
-        + adapt_text(body, host)
+        + adapt_text(body, host, agent_names=agent_names)
     )
     return rendered.encode("utf-8"), explicit
 
@@ -430,6 +443,7 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
             source
         ).encode("utf-8")
 
+    agent_names = _canonical_agent_names(root)
     skill_files = _canonical_skill_files(root)
     if not any(path.name == "SKILL.md" for path in skill_files):
         raise ValueError(f"{root / 'skills'}: no canonical skills found")
@@ -437,7 +451,7 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
         relative = source.relative_to(root / "skills")
         if source.name == "SKILL.md":
             copilot, _ = _portable_skill(source, "copilot")
-            codex, explicit = _portable_skill(source, "codex")
+            codex, explicit = _portable_skill(source, "codex", agent_names=agent_names)
             outputs[COPILOT_SKILLS / relative] = copilot
             outputs[CODEX_SKILLS / relative] = codex
             if explicit:
@@ -450,7 +464,9 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
         if source.suffix.lower() in {".md", ".txt", ".yaml", ".yml", ".json"}:
             text = source.read_text(encoding="utf-8")
             outputs[COPILOT_SKILLS / relative] = adapt_text(text, "copilot").encode("utf-8")
-            outputs[CODEX_SKILLS / relative] = adapt_text(text, "codex").encode("utf-8")
+            outputs[CODEX_SKILLS / relative] = adapt_text(
+                text, "codex", agent_names=agent_names
+            ).encode("utf-8")
         else:
             outputs[COPILOT_SKILLS / relative] = content
             outputs[CODEX_SKILLS / relative] = content

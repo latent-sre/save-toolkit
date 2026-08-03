@@ -51,7 +51,7 @@ Rules:
 - **SOP** — a fixed procedure for routine operations (not incident-driven).
 
 Keep them current through evidence-backed rehearsal. A named human or service owner runs game days
-or drills under approved, realistic conditions; `scribe` only records the supplied results. Preserve
+or drills under approved, realistic conditions; `sre-agents-scribe` only records the supplied results. Preserve
 `last_verified` only when incoming evidence binds the exact artifact/version, target, actor,
 timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`.
 
@@ -77,9 +77,9 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
 ## Alert → runbook links and the Crawl → Walk → Run path
 
 Link every paging alert to its runbook. When investigation is needed, hand the trigger and evidence
-to the `sre` agent; when code remediation is needed, hand the defect and evidence to the `sde` agent.
+to the `sre-agents-sre` agent; when code remediation is needed, hand the defect and evidence to the `sre-agents-sde` agent.
 When a new alert/service, drill, audit, or resolved incident exposes a missing or contradicted
-runbook, record an `operational-learning` disposition and have `scribe` prepare the evidence-bound
+runbook, record an `operational-learning` disposition and have `sre-agents-scribe` prepare the evidence-bound
 create/update. Do not let a chat-only observation disappear or silently bump `last_verified`.
 If a step is fully mechanical, recommend automating it along the **Crawl → Walk → Run** path: document
 the manual steps (crawl), wrap them in a checked script the on-call runs by hand (walk), then trigger

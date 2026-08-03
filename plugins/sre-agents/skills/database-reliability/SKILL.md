@@ -91,7 +91,7 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
   sign-off — hand it over rather than reaching for it.
 - **Index for the real query patterns** (composite/covering indexes match `WHERE` + `ORDER BY`); avoid
   full scans on hot paths, **N+1** query patterns, and **unbounded result sets**. Paginate, and hand the
-  query/ORM implementation to the `sde` agent with the measured plan and contract.
+  query/ORM implementation to the `sre-agents-sde` agent with the measured plan and contract.
 - Verify the fix with **measured before/after numbers**, not a hunch.
 
 ## Saturation & incident triage
@@ -99,10 +99,10 @@ When a DB-driven incident hits, check the cheap saturation signals first:
 - **Connections** — pool exhaustion (app waits on a free connection); right-size the pool, find leaks.
 - **Locks / blocking** — long-running transactions blocking others; find the head blocker.
 - **Replication lag** — stale reads / failover risk; hand the SLO and burn-evidence request to the
-  `sre-steward` agent with the raw windows, thresholds, and measurements.
+  `sre-agents-sre-steward` agent with the raw windows, thresholds, and measurements.
 - **Disk / IOPS / temp** — space and I/O saturation; runaway sorts/spills.
 - **Recent migrations & deploys** — correlate with "what changed" and hand the incident evidence to
-  the `sre` agent without upgrading a hypothesis.
+  the `sre-agents-sre` agent without upgrading a hypothesis.
 
 Mitigate to stop pain first only when the human release owner acts from the current incident packet
 with the exact approved command and target; then diagnose. Preserve `[verified]`, `[sourced]`, and
@@ -123,7 +123,7 @@ with the exact approved command and target; then diagnose. Preserve `[verified]`
 
 ## Output format
 - **Migrations:** the expand/contract plan, forward **and** rollback scripts, and a lock/risk assessment
-  at production scale. Implementation goes to the `sde` agent.
+  at production scale. Implementation goes to the `sre-agents-sde` agent.
 - **Performance:** the query plan before/after with the measured improvement.
 - Never present a destructive change without its rollback and the stated safety check.
 

@@ -171,7 +171,7 @@ index=<app_index> (request_id="<validated_and_spl_escaped_id>" OR trace_id="<val
 
 Tracing one id is the rare case a broad search is justified — use `index=*` only when the request may
 touch services you can't enumerate, and keep the window tight. If logs lack a correlation id, that's a
-finding — recommend adding one through the `sde` agent.
+finding — recommend adding one through the `sre-agents-sde` agent.
 
 ## Compare before vs after a deploy
 
@@ -212,10 +212,10 @@ index=<app_index> sourcetype=<...> earliest=-1h     ```scope the base search —
   *[sourced: Splunk field/search behavior; unverified target extractions]*
 - `stats`/`timechart`/`tstats` aggregate; `transaction` groups events but is expensive — prefer
   `stats by <id>` for correlation. *[unverified performance guidance for target data]*
-- Record every change and symptom in one UTC incident timeline; hand it to the `sre` agent with
+- Record every change and symptom in one UTC incident timeline; hand it to the `sre-agents-sre` agent with
   confidence labels.
 - Ownership map only—not a load: the `obs-alerting` skill owns Moogsoft correlation. Hand correlated
-  evidence to the `sre-steward` agent.
+  evidence to the `sre-agents-sre-steward` agent.
 
 ## Inert canary example
 

@@ -23,8 +23,8 @@ That routing choice is a reasoned default, not a measured result: neither shape 
 this fleet. Apply the bar symmetrically and change the architecture if a controlled A/B shows that a
 coordinator agent outperforms the in-session skill after token, latency, and routing quality are counted.
 
-The local/external research split is the fleet's concrete example. `repository-investigator` receives
-only local `Read`/`Grep`/`Glob`; `researcher` receives only external web, Context7, and GitHits
+The local/external research split is the fleet's concrete example. `sre-agents-repository-investigator` receives
+only local `Read`/`Grep`/`Glob`; `sre-agents-researcher` receives only external web, Context7, and GitHits
 authority. Keeping both jobs in one prompt would preserve the sensitive-data plus untrusted-content
 plus egress combination, so this boundary warrants two agents. A mixed question is orchestrated by
 the caller with a sanitized public handoff, never by giving either worker both evidence domains.
@@ -72,8 +72,8 @@ session model. That removes per-agent synchronization and lineup maintenance, bu
 cheaply tiering routine agents separately from judgment-heavy agents. Accept the shared tier by
 default. A per-agent `model:` pin is a reviewed roster decision, justified only
 when the cost of a wrong call exceeds that maintenance overhead. Hand single-artifact wording to
-[artifact guidance](./artifact.md), approved implementation to the typed `sde` agent, independent
-findings to the typed `reviewer` agent, and authorization to the human release owner with existing
+[artifact guidance](./artifact.md), approved implementation to the typed `sre-agents-sde` agent, independent
+findings to the typed `sre-agents-reviewer` agent, and authorization to the human release owner with existing
 approval evidence naming the exact target, action, and rollback.
 
 ## When it pays — and when it doesn't

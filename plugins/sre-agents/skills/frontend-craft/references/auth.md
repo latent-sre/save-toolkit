@@ -18,4 +18,4 @@ rules live in `skills/frontend-craft/SKILL.md`. On any conflict, SKILL.md wins.
   exfiltrate it). Silent refresh; guard protected routes; treat the API's `401/403` as the real boundary.
 - **XSS:** rely on framework escaping; avoid `dangerouslySetInnerHTML` on anything untrusted; set a
   **Content-Security-Policy**. **CSRF:** for cookie auth use `SameSite` + a CSRF token. Same-origin or a
-  locked **server-side CORS allowlist**. Hand sensitive flows to the `reviewer` agent.
+  locked **server-side CORS allowlist**. Hand sensitive flows to the `sre-agents-reviewer` agent.

@@ -54,7 +54,7 @@ Before each dependent checklist step, load that row's skill; the names below are
 7. **CI/CD** — build + deploy via Actions (`ci-actions`); promotion gates on.
 8. **Runbook** — check/restart/recover doc exists (`runbook`); on-call knows where it is.
 9. **Knowledge closeout** — after the service and alerts are approved, emit a **learning disposition**
-   packet to `scribe` for the service card, alert cards, operations index, and any missing/stale
+   packet to `sre-agents-scribe` for the service card, alert cards, operations index, and any missing/stale
    runbook. Include exact repository revision, authoritative definitions, owners, links, retained
    evidence labels/trust, the trusted approval record, and one recommended course of action. This
    checklist does not author those KB records or treat an active deployment/incident as resolved
