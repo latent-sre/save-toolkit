@@ -5,7 +5,7 @@ description: >-
   descriptions, graders—or design the roster and orchestration around them. Triggers:
   'write me an agent/skill/prompt', 'my skill never triggers', 'should this be an agent
   or a skill', 'our agents duplicate work / lose context between handoffs'.
-  Personal-first: build in ~/.copilot, promote by PR.
+  Personal-first: build in ~/.claude, promote by PR.
 argument-hint: "[artifact, roster, tool, or context problem]"
 ---
 

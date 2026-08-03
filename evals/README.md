@@ -173,6 +173,10 @@ do not squash away their record history.
 3. Keep graders deterministic where possible. Calibrate any model judge against hand-graded cases.
 4. Read passing transcripts occasionally to catch keyword matches reached for the wrong reason.
 
-Available response graders are `contains_all`, `contains_any`, `not_contains`, `regex`, and
-`not_regex`. Their offline adversarial tests live in `evals/test_graders.py`; runner and trace
-contracts live in `evals/test_run_evals.py`.
+Available response graders are `contains_all`, `contains_any`, `not_contains`, `regex`,
+`not_regex`, and `json_artifact_statuses`. The last parses a JSON object from the response and
+constrains per-artifact `status` values (plus, via `evidence_key`, the allowed evidence enum) —
+use it when the contract under test emits a structured artifact rather than prose; see
+`evals/graders.py` and its uses in `discovery-approved-alert-knowledge.yaml` and
+`discovery-approved-service-knowledge.yaml` for the config shape. Offline adversarial tests live in
+`evals/test_graders.py`; runner and trace contracts live in `evals/test_run_evals.py`.

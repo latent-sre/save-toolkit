@@ -64,46 +64,7 @@ host proof must use an explicit disposable target rather than overwrite that use
 **Next action:** Add disposable install/check/uninstall probes for Claude, Codex, and VS Code. Keep
 Copilot incomplete until its CLI is available, and keep all model-behavior claims outside this item.
 
-### EVAL-001 — expand risk-weighted Sol coverage
-
-**Status:** `deferred` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
-manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A plus the local Claude eval runner is
-the active verification surface for the beta. Reopen when a Codex/Sol behavioral baseline is
-actually needed for a release decision; the prerequisites and acceptance below are unchanged and
-still apply at that point.
-
-**Outcome:** The highest-risk skills and every explicitly installed Codex custom agent have direct
-behavioral evidence on `gpt-5.6-sol`, while implicit routing remains an observational metric rather
-than a release gate.
-
-**Source:** Existing Sol reference and six-agent conformance baselines plus the measured headless
-agent-discovery limitation.
-
-**Prerequisites:** Clean committed plugin, generated-agent, and harness inputs; independent review of
-that exact commit; and an operator-owned Codex login. Changes originating in an external branch or PR
-must first be reviewed and committed into this repository before live evaluation.
-
-**Acceptance:** Direct lanes cover the trust-separated research roles and risk-weighted release,
-production-change, PCF, agent-security, and observability contracts. Every result distinguishes
-`pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
-historical Claude/Opus baselines.
-
-**Current evidence:** Tag `pre-trim-2026-08-02` retains the fixed manifests, sanitized local runners,
-contract tests, and their documented same-user credential limitation. The 2026-07-31 live results
-remain retained but revoked and there is no current Sol behavioral baseline. The active ordinary
-suite retains negative routing coverage for trust separation, `scribe` collisions, and the
-operational-learning method's direct-writing boundary.
-
-**Reopen trigger:** A named release decision requires a current Codex/Sol behavioral baseline that
-the active structural and Claude evaluation surfaces cannot provide.
-
-**Next action:** None while deferred. On reopen: recover the runners from tag `pre-trim-2026-08-02`,
-independently review the exact recovered commit, then run both fixed manifests from its clean
-checkout. Retain each sanitized report beside the matching review packet; acceptance of the pair is
-an external human/protected-workflow decision, never a field the runner grants itself. Keep implicit
-routing observational rather than making it a release gate.
-
-## Decision needed
+## Blocked on an owner decision
 
 ### PROTECT-001 — assign repository protection identities
 
@@ -149,6 +110,45 @@ verify each host's remote distribution contract. Do not create a long-lived `rel
 because the superseded plan named one.
 
 ## Deferred
+
+### EVAL-001 — expand risk-weighted Sol coverage
+
+**Status:** `deferred` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
+manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A plus the local Claude eval runner is
+the active verification surface for the beta. Reopen when a Codex/Sol behavioral baseline is
+actually needed for a release decision; the prerequisites and acceptance below are unchanged and
+still apply at that point.
+
+**Outcome:** The highest-risk skills and every explicitly installed Codex custom agent have direct
+behavioral evidence on `gpt-5.6-sol`, while implicit routing remains an observational metric rather
+than a release gate.
+
+**Source:** Existing Sol reference and six-agent conformance baselines plus the measured headless
+agent-discovery limitation.
+
+**Prerequisites:** Clean committed plugin, generated-agent, and harness inputs; independent review of
+that exact commit; and an operator-owned Codex login. Changes originating in an external branch or PR
+must first be reviewed and committed into this repository before live evaluation.
+
+**Acceptance:** Direct lanes cover the trust-separated research roles and risk-weighted release,
+production-change, PCF, agent-security, and observability contracts. Every result distinguishes
+`pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
+historical Claude/Opus baselines.
+
+**Current evidence:** Tag `pre-trim-2026-08-02` retains the fixed manifests, sanitized local runners,
+contract tests, and their documented same-user credential limitation. The 2026-07-31 live results
+remain retained but revoked and there is no current Sol behavioral baseline. The active ordinary
+suite retains negative routing coverage for trust separation, `scribe` collisions, and the
+operational-learning method's direct-writing boundary.
+
+**Reopen trigger:** A named release decision requires a current Codex/Sol behavioral baseline that
+the active structural and Claude evaluation surfaces cannot provide.
+
+**Next action:** None while deferred. On reopen: recover the runners from tag `pre-trim-2026-08-02`,
+independently review the exact recovered commit, then run both fixed manifests from its clean
+checkout. Retain each sanitized report beside the matching review packet; acceptance of the pair is
+an external human/protected-workflow decision, never a field the runner grants itself. Keep implicit
+routing observational rather than making it a release gate.
 
 ### STATE-001 — durable orchestration state
 

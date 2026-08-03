@@ -50,6 +50,7 @@
     { "$ref": "knowledge-update-v1.schema.json#/allOf/3" },
     { "$ref": "knowledge-update-v1.schema.json#/allOf/4" },
     { "$ref": "knowledge-update-v1.schema.json#/allOf/5" },
+    { "$ref": "knowledge-update-v1.schema.json#/allOf/7" },
     {
       "if": {
         "properties": {

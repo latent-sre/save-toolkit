@@ -22,7 +22,7 @@ description: >-
 # Release gate
 
 A release is ready only when **all** checklist items pass. The gate is owned by a human release owner.
-For production, this PASS establishes readiness only; authorization belongs to a separate, later the `production-change-gate` skill using this recorded evidence.
+For production, this PASS establishes readiness only; authorization belongs to the separate, later `production-change-gate` skill using this recorded evidence.
 
 ## Checklist
 
@@ -44,7 +44,7 @@ For production, this PASS establishes readiness only; authorization belongs to a
 - [ ] **Monitoring in place** — attach existing evidence from the typed `sre-steward` agent that alerts and
       SLOs cover the new behavior and that new paging alerts have operator guidance.
 - [ ] **Comms ready** — stakeholders and on-call know the window and update cadence.
-- [ ] **Production boundary understood** — a prod candidate proceeds only to the separate, later the `production-change-gate` skill; this checklist neither loads that gate nor authorizes the action.
+- [ ] **Production boundary understood** — a prod candidate proceeds only to the separate, later `production-change-gate` skill; this checklist neither loads that gate nor authorizes the action.
 
 ## Verdict
 

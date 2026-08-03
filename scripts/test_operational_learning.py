@@ -374,17 +374,34 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         spec.loader.exec_module(migration)
 
         source = self._valid_update()
-        migrated = migration.migrate(source)
+        context = {
+            "target_root": self.target_root,
+            "allowed_knowledge_roots": ("docs",),
+        }
+        migrated = migration.migrate(source, **context)
         self.assertEqual(1, source["schema_version"])
         self.assertEqual(2, migrated["schema_version"])
         self.assertEqual("checkout", migrated["target"]["component_id"])
         self.assertEqual("service", migrated["target"]["component_kind"])
         self.assertEqual("alert_added", migrated["trigger"]["kind"])
-        self.assertEqual(migrated, migration.migrate(source))
+        self.assertEqual(migrated, migration.migrate(source, **context))
         self._validate(migrated)
 
         with self.assertRaisesRegex(ValueError, "schema_version 1"):
-            migration.migrate(migrated)
+            migration.migrate(migrated, **context)
+
+        invalid_source = self._valid_update()
+        invalid_source["evidence"] = []
+        with self.assertRaisesRegex(
+            ValueError, "migrated packet failed v2 validation"
+        ):
+            migration.migrate(invalid_source, **context)
+
+        prepared_without_worktree = self._valid_update()
+        with self.assertRaisesRegex(
+            ValueError, "prepared dispositions require target_root"
+        ):
+            migration.migrate(prepared_without_worktree)
 
     def test_schema_catalog_and_examples_are_current(self) -> None:
         def iter_refs(value: object):
@@ -1504,6 +1521,70 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             schema["properties"]["target"]["properties"]["knowledge_roots"]["description"],
         )
         self.assertFalse(schema["additionalProperties"])
+
+    def test_v2_schema_inherits_every_applicable_v1_approved_artifact_rule(self) -> None:
+        assets = ROOT / "skills/operational-learning/assets"
+        v1 = json.loads(
+            (assets / "knowledge-update-v1.schema.json").read_text(encoding="utf-8")
+        )
+        v2 = json.loads(
+            (assets / "knowledge-update-v2.schema.json").read_text(encoding="utf-8")
+        )
+
+        def approved_artifact_rules(rules: list[dict]) -> dict[tuple[str, str], set[str]]:
+            encoded: dict[tuple[str, str], set[str]] = {}
+            for rule in rules:
+                trigger_properties = (
+                    rule.get("if", {})
+                    .get("properties", {})
+                    .get("trigger", {})
+                    .get("properties", {})
+                )
+                kind_rule = trigger_properties.get("kind", {})
+                state_rule = trigger_properties.get("state", {})
+                disposition_rule = (
+                    rule.get("then", {}).get("properties", {}).get("dispositions", {})
+                )
+                if state_rule.get("const") == "approved" and "enum" in kind_rule:
+                    artifacts = {
+                        constraint["contains"]["properties"]["artifact"]["const"]
+                        for constraint in disposition_rule.get("allOf", [])
+                    }
+                    for trigger_kind in kind_rule["enum"]:
+                        encoded[(trigger_kind, "approved")] = artifacts
+            return encoded
+
+        ref_prefix = "knowledge-update-v1.schema.json#/allOf/"
+        effective_v2_rules: list[dict] = []
+        for rule in v2["allOf"]:
+            reference = rule.get("$ref")
+            if reference is None:
+                effective_v2_rules.append(rule)
+                continue
+            self.assertTrue(
+                reference.startswith(ref_prefix),
+                f"unexpected v2 top-level allOf ref: {reference}",
+            )
+            effective_v2_rules.append(v1["allOf"][int(reference[len(ref_prefix) :])])
+
+        v1_rules = approved_artifact_rules(v1["allOf"])
+        v2_rules = approved_artifact_rules(effective_v2_rules)
+        v2_trigger_kinds = set(v2["$defs"]["trigger"]["properties"]["kind"]["enum"])
+        self.assertTrue(v1_rules, "v1 schema encodes no approved-artifact rules")
+        for (kind, state), artifacts in v1_rules.items():
+            if kind not in v2_trigger_kinds:
+                continue
+            self.assertIn(
+                (kind, state),
+                v2_rules,
+                f"v2 schema dropped the v1 approved-artifact rule for {kind!r}; "
+                "the standalone JSON Schema contract must stay as strict as v1",
+            )
+            self.assertTrue(
+                artifacts <= v2_rules[(kind, state)],
+                f"v2 schema weakened required artifacts for {kind!r}: "
+                f"{sorted(v2_rules[(kind, state)])} lost {sorted(artifacts)}",
+            )
 
     def test_templates_do_not_claim_human_review_or_verification(self) -> None:
         templates = (

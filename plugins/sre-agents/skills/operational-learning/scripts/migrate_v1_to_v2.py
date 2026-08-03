@@ -12,10 +12,19 @@ from typing import Mapping, Sequence
 import knowledge_update
 
 
-def migrate(packet: Mapping[str, object]) -> dict[str, object]:
-    """Return a deterministic v2 copy without modifying *packet*."""
+def migrate(
+    packet: Mapping[str, object],
+    *,
+    target_root: Path | None = None,
+    allowed_knowledge_roots: Sequence[str] | None = None,
+) -> dict[str, object]:
+    """Return a deterministic, validated v2 copy without modifying *packet*."""
 
-    return knowledge_update.migrate_v1_to_v2(packet)
+    return knowledge_update.migrate_v1_to_v2(
+        packet,
+        target_root=target_root,
+        allowed_knowledge_roots=allowed_knowledge_roots,
+    )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -25,6 +34,17 @@ def _parser() -> argparse.ArgumentParser:
         "--output",
         type=Path,
         help="write the canonical v2 packet to this new or existing file; default is stdout",
+    )
+    parser.add_argument(
+        "--target-root",
+        type=Path,
+        help="target checkout for validating prepared dispositions (same as knowledge_update.py)",
+    )
+    parser.add_argument(
+        "--allowed-knowledge-root",
+        action="append",
+        dest="allowed_knowledge_roots",
+        help="caller-trusted documentation root; repeat per root (same as knowledge_update.py)",
     )
     return parser
 
@@ -37,7 +57,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise knowledge_update.KnowledgeUpdateValidationError(
                 "knowledge update must be a JSON object"
             )
-        migrated = migrate(packet)
+        migrated = migrate(
+            packet,
+            target_root=args.target_root,
+            allowed_knowledge_roots=args.allowed_knowledge_roots,
+        )
         payload = knowledge_update.canonical_json(migrated) + b"\n"
         if args.output is None:
             sys.stdout.buffer.write(payload)
