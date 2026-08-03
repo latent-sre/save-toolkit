@@ -28,6 +28,29 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_committed_outputs_match_canonical_sources(self) -> None:
         self.assertEqual([], adapters.validate_generated_outputs(ROOT))
 
+    def test_codex_agent_filenames_carry_a_fleet_prefix(self) -> None:
+        """Codex custom agents share ONE flat global directory with no namespace.
+
+        Claude loads these as `sre-agents:<name>` and cannot collide. Codex installs bare
+        filenames into `$CODEX_HOME/agents`, where `prompt-engineer.toml`,
+        `repository-investigator.toml` and `researcher.toml` are names other agent suites
+        also use — so an unprefixed projection overwrites user-owned files from another fleet.
+        """
+        emitted = [
+            path
+            for path in adapters.expected_outputs(ROOT)
+            if path.parent == adapters.CODEX_AGENTS
+        ]
+        self.assertTrue(emitted, "no Codex agent adapters were emitted")
+        unprefixed = sorted(
+            path.name for path in emitted if not path.name.startswith("sre-agents-")
+        )
+        self.assertEqual([], unprefixed, "Codex agent filenames must be fleet-prefixed")
+        # `sre-agents-` mirrors the Claude namespace. A bare `sre-` prefix would produce
+        # sre-sre.toml and sre-sre-steward.toml for the two roles already starting with `sre`.
+        self.assertIn(adapters.CODEX_AGENTS / "sre-agents-sre.toml", emitted)
+        self.assertIn(adapters.CODEX_AGENTS / "sre-agents-sre-steward.toml", emitted)
+
     def test_guarded_copilot_agents_do_not_receive_execute(self) -> None:
         for name in sorted(adapters.GUARDED_AGENTS):
             self.assertNotIn("execute", self._copilot_tools(name), name)
