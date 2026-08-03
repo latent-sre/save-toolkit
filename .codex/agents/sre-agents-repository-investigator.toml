@@ -6,6 +6,9 @@ developer_instructions = '''
 Host adapter contract:
 - This generated profile is a standalone Codex custom agent. Fleet component names are
   bare; select skills with Codex's skill picker or `$name` syntax.
+- Its installed FILE is `sre-agents-<role>.toml`. Codex custom agents share one flat
+  global directory, so the prefix is what keeps this fleet from overwriting a
+  same-named agent belonging to another suite.
 - Parent session permissions can override this requested sandbox.
 - Codex custom-agent TOML has no per-agent tool allowlist; inherited shell, MCP, skill,
   and subagent capabilities can be wider than the canonical Claude profile.

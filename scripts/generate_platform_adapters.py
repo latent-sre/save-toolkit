@@ -247,6 +247,9 @@ def render_codex_agent(source: Path) -> str:
         "Host adapter contract:\n"
         "- This generated profile is a standalone Codex custom agent. Fleet component names are\n"
         "  bare; select skills with Codex's skill picker or `$name` syntax.\n"
+        "- Its installed FILE is `sre-agents-<role>.toml`. Codex custom agents share one flat\n"
+        "  global directory, so the prefix is what keeps this fleet from overwriting a\n"
+        "  same-named agent belonging to another suite.\n"
         "- Parent session permissions can override this requested sandbox.\n"
         "- Codex custom-agent TOML has no per-agent tool allowlist; inherited shell, MCP, skill,\n"
         "  and subagent capabilities can be wider than the canonical Claude profile.\n"
@@ -392,7 +395,13 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
         if _is_link_or_reparse(source):
             raise ValueError(f"{source}: canonical source must not be a link/reparse point")
         outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = render_copilot_agent(source).encode("utf-8")
-        outputs[CODEX_AGENTS / f"{source.stem}.toml"] = render_codex_agent(source).encode("utf-8")
+        # Codex custom agents are flat files in ONE global directory with no per-plugin
+        # namespace, so the filename is the only place a fleet boundary can live. Claude loads
+        # the same components as `sre-agents:<name>`; this mirrors that namespace so installing
+        # the fleet cannot overwrite an identically-named agent from someone else's suite.
+        outputs[CODEX_AGENTS / f"sre-agents-{source.stem}.toml"] = render_codex_agent(
+            source
+        ).encode("utf-8")
 
     skill_files = _canonical_skill_files(root)
     if not any(path.name == "SKILL.md" for path in skill_files):
