@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "latent-sre": {
+      "source": {
+        "source": "github",
+        "repo": "latent-sre/sre-agents"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "sre-agents@latent-sre": true
+  }
+}

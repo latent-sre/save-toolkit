@@ -65,6 +65,27 @@ The 27 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
   `obs-pipeline`
 - **The fleet itself** — `agent-authoring`, `agent-security`
 
+## Use it in VS Code (Copilot Chat)
+
+Agents and skills are found by two different mechanisms, and only one of them is a folder scan.
+
+**Agents — automatic.** VS Code scans `.github/agents/` in the open workspace, so opening this
+repository exposes all eight roles in the Chat agent picker with no install step
+([custom agents](https://code.visualstudio.com/docs/agent-customization/custom-agents)).
+
+**Skills — need the plugin.** VS Code has no workspace scan for skills; they load from a plugin
+resolved through a configured marketplace
+([agent plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins)). This
+repository is its own marketplace (`.claude-plugin/marketplace.json`), and the root `plugin.json`
+points Copilot at `.github/agents/` and `platforms/copilot/skills/`.
+[`.github/copilot/settings.json`](.github/copilot/settings.json) registers that marketplace and
+enables the plugin so VS Code offers it when this workspace is opened. Confirm it loaded by
+searching `@agentPlugins` in the Extensions view.
+
+Opening the workspace therefore gives agents immediately and skills once the recommended plugin is
+accepted. To use the fleet in *other* workspaces, install the plugin from the same marketplace
+rather than copying agent files — copies arrive without their skills.
+
 ## Validate and evaluate
 
 Run the single structural entrypoint (on Windows use `python` or `py -3`, never `python3` — the
