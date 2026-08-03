@@ -58,12 +58,20 @@ their runtime is actually available.
 **Current evidence:** `fleet_doctor.py` emits typed static/availability evidence without starting a
 model or modifying host installations. This machine has Claude, Codex, and VS Code CLIs; Copilot CLI
 remains unavailable and reports `skip`. The fleet is absent from the Claude and Codex plugin
-inventories. Three unmanaged global Codex custom agents conflict with generated fleet roles —
-`prompt-engineer.toml`, `repository-investigator.toml`, and `researcher.toml` — because Codex custom
-agents share one flat, unnamespaced global directory that already holds a separate agent fleet using
-those same role names. Claude namespaces the same components as `sre-agents:<name>` and does not
-collide. Host proof must therefore use an explicit disposable target rather than overwrite that
-user-owned fleet.
+inventories. Codex custom agents share one flat, unnamespaced global directory, so the projection
+emits `sre-agents-<role>.toml` mirroring the Claude `sre-agents:<name>` namespace; `build_sync_plan`
+against the real `CODEX_HOME` now reports zero conflicts and eight pending writes, where it
+previously reported three collisions with a separate agent fleet installed under the same role names.
+Host proof must still use an explicit disposable target — but because this item's prerequisites
+forbid writing to user-owned plugin and custom-agent directories at all, not because a name
+collision would otherwise occur.
+
+`host.codex.custom-agents` nonetheless still reports `fail`, now for the remaining "installed set
+differs from the generated roles" condition — which is really *fleet absent from an available host*.
+That is neither the `skip`/`inconclusive` this item's Outcome requires of an unavailable host nor a
+genuine installation failure, and no repository change clears it. Deciding which status an
+absent-but-installable fleet earns is an open question this item must settle before its acceptance
+can be met.
 
 **Next action:** Add disposable install/check/uninstall probes for Claude, Codex, and VS Code. Keep
 Copilot incomplete until its CLI is available, and keep all model-behavior claims outside this item.
@@ -82,6 +90,12 @@ the identity that performs exact-SHA promotion.
 **Prerequisites:** Owner assignment. At present only `latent-sre` is a repository collaborator;
 `agentic-sre-dev` is authenticated locally but is not a collaborator, and no dedicated promotion App
 has been established.
+
+`main` is currently unprotected — `GET branches/main/protection` returns 404 — and no check is
+required to merge, so the `Validate fleet` workflow can be disabled without blocking anything. That
+happened on 2026-08-02 and went unnoticed until 2026-08-03, during which six pull requests merged
+with no structural verification. Until a named required check exists, a switched-off gate is
+indistinguishable from a passing one: it does not fail, it stops running.
 
 **Acceptance:** A default CODEOWNERS rule covers canonical sources, generated adapters, hooks,
 workflows, manifests, executable skill assets, and the ownership file itself; active rules require PR,
