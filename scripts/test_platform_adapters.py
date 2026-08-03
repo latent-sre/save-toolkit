@@ -28,6 +28,34 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_committed_outputs_match_canonical_sources(self) -> None:
         self.assertEqual([], adapters.validate_generated_outputs(ROOT))
 
+    def test_codex_agent_identity_is_namespaced_but_skills_stay_bare(self) -> None:
+        """Codex resolves a custom agent by its `name` field, not its filename.
+
+        Documented at https://learn.chatgpt.com/docs/agent-configuration/subagents:
+        "Codex identifies the custom agent by its `name` field. Matching the filename to the
+        agent name is the simplest convention, but the `name` field is the source of truth."
+
+        So a prefixed FILENAME alone stops an install from overwriting another suite's file
+        but leaves the invocable identity colliding. Sibling-agent references must move with
+        the identity, or a body saying "hand off to researcher" resolves to the OTHER fleet's
+        researcher -- silently crossing this fleet's local/external trust split. Skills are not
+        renamed and must stay bare.
+        """
+        codex = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/sde.md"))
+        body = codex["developer_instructions"]
+        self.assertEqual("sre-agents-sde", codex["name"])
+        # Namespaced reference in the canonical description.
+        self.assertIn("sre-agents-reviewer", codex["description"])
+        # Bare backticked sibling in the body must move with the identity, or it spawns
+        # whichever `reviewer` another installed suite happens to own.
+        self.assertIn("`sre-agents-reviewer`", body)
+        self.assertNotIn("`reviewer`", body)
+        # Skills are not renamed, and prose must not be rewritten.
+        self.assertIn("eng-ladder", body)
+        self.assertNotIn("sre-agents-eng-ladder", body)
+        self.assertNotIn("sre-agents:", body)
+        self.assertIn("SRE lens", body)
+
     def test_codex_agent_filenames_carry_a_fleet_prefix(self) -> None:
         """Codex custom agents share ONE flat global directory with no namespace.
 

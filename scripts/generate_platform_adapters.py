@@ -50,6 +50,11 @@ IDENTITY_FIELDS = (
 
 KEY_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]*(.*))?$")
 PLUGIN_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_-])sre-agents:(?=[a-z0-9])")
+# Codex resolves a custom agent by its `name` field, not its filename, so the fleet boundary has
+# to live in the identity as well as the file. Skills are NOT renamed, so only agent tokens are
+# rewritten; everything else keeps falling through to the bare-name strip above.
+CODEX_AGENT_PREFIX = "sre-agents-"
+PLUGIN_COMPONENT_RE = re.compile(r"(?<![A-Za-z0-9_-])sre-agents:([a-z0-9][a-z0-9-]*)")
 PLUGIN_PATH_RE = re.compile(
     r"`?\$\{CLAUDE_PLUGIN_ROOT\}/(?P<kind>skills|agents)/"
     r"(?P<name>[a-z0-9]+(?:-[a-z0-9]+)*)(?P<tail>/[^`\s]+|\.md)?`?"
@@ -235,9 +240,30 @@ def _toml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _codex_component_tokens(text: str, agent_names: frozenset[str]) -> str:
+    """Rewrite `sre-agents:<agent>` to the prefixed Codex identity; leave skills alone."""
+
+    text = PLUGIN_COMPONENT_RE.sub(
+        lambda match: (
+            f"{CODEX_AGENT_PREFIX}{match.group(1)}"
+            if match.group(1) in agent_names
+            else match.group(1)
+        ),
+        text,
+    )
+    # Canonical bodies also name siblings as bare backticked identifiers (`reviewer`). Those must
+    # move with the identity or they resolve to whoever else owns that name in the shared global
+    # directory. ONLY backticked occurrences are rewritten -- prose ("the SRE lens", "an sde task")
+    # must not move, and longest-first keeps `sre` from reaching inside `sre-steward`.
+    for agent in sorted(agent_names, key=len, reverse=True):
+        text = text.replace(f"`{agent}`", f"`{CODEX_AGENT_PREFIX}{agent}`")
+    return text
+
+
 def render_codex_agent(source: Path) -> str:
     fields, body, _ = parse_frontmatter(source)
     name = str(fields.get("name") or "")
+    siblings = frozenset(path.stem for path in source.parent.glob("*.md"))
     tools = {_tool_base(item) for item in _split_tool_specs(fields.get("tools"))}
     has_external_evidence = any(item.startswith("mcp__") for item in _split_tool_specs(fields.get("tools")))
     sandbox = "workspace-write" if tools & WRITE_TOOLS else "read-only"
@@ -247,9 +273,10 @@ def render_codex_agent(source: Path) -> str:
         "Host adapter contract:\n"
         "- This generated profile is a standalone Codex custom agent. Fleet component names are\n"
         "  bare; select skills with Codex's skill picker or `$name` syntax.\n"
-        "- Its installed FILE is `sre-agents-<role>.toml`. Codex custom agents share one flat\n"
-        "  global directory, so the prefix is what keeps this fleet from overwriting a\n"
-        "  same-named agent belonging to another suite.\n"
+        "- This fleet's agents are named and installed as `sre-agents-<role>`; Codex resolves a\n"
+        "  custom agent by its `name` field, and the flat global agents directory is shared with\n"
+        "  every other installed suite. Spawn a fleet sibling by its prefixed name; an unprefixed\n"
+        "  role name may belong to somebody else's agents.\n"
         "- Parent session permissions can override this requested sandbox.\n"
         "- Codex custom-agent TOML has no per-agent tool allowlist; inherited shell, MCP, skill,\n"
         "  and subagent capabilities can be wider than the canonical Claude profile.\n"
@@ -275,12 +302,12 @@ def render_codex_agent(source: Path) -> str:
         )
     return (
         f"# {GENERATED_MARKER}\n"
-        f"name = {_toml_string(name)}\n"
-        f"description = {_toml_string(adapt_text(_description(fields, source), 'codex'))}\n"
+        f"name = {_toml_string(CODEX_AGENT_PREFIX + name)}\n"
+        f"description = {_toml_string(adapt_text(_codex_component_tokens(_description(fields, source), siblings), 'codex'))}\n"
         f"sandbox_mode = {_toml_string(sandbox)}\n"
         "developer_instructions = '''\n"
         + contract
-        + adapt_text(body, "codex")
+        + adapt_text(_codex_component_tokens(body, siblings), "codex")
         + "'''\n"
     )
 
