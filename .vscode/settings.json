@@ -1,0 +1,9 @@
+{
+  // VS Code scans .github/skills/, .claude/skills/ and .agents/skills/ for project skills. This
+  // fleet keeps its Copilot skill projection at platforms/copilot/skills/ -- the layout the
+  // multi-platform packaging decision accepted -- so the directory is added here rather than
+  // moving a generated root to satisfy one host.
+  "chat.agentSkillsLocations": {
+    "platforms/copilot/skills": true
+  }
+}
