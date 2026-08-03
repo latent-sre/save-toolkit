@@ -58,8 +58,12 @@ their runtime is actually available.
 **Current evidence:** `fleet_doctor.py` emits typed static/availability evidence without starting a
 model or modifying host installations. This machine has Claude, Codex, and VS Code CLIs; Copilot CLI
 remains unavailable and reports `skip`. The fleet is absent from the Claude and Codex plugin
-inventories. An unmanaged global Codex `prompt-engineer.toml` conflicts with the generated role, so
-host proof must use an explicit disposable target rather than overwrite that user-owned fleet.
+inventories. Three unmanaged global Codex custom agents conflict with generated fleet roles —
+`prompt-engineer.toml`, `repository-investigator.toml`, and `researcher.toml` — because Codex custom
+agents share one flat, unnamespaced global directory that already holds a separate agent fleet using
+those same role names. Claude namespaces the same components as `sre-agents:<name>` and does not
+collide. Host proof must therefore use an explicit disposable target rather than overwrite that
+user-owned fleet.
 
 **Next action:** Add disposable install/check/uninstall probes for Claude, Codex, and VS Code. Keep
 Copilot incomplete until its CLI is available, and keep all model-behavior claims outside this item.
