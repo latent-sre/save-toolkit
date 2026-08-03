@@ -9,6 +9,10 @@ on:
   push:
     branches:
       - main
+  # A push/PR-only gate is invisible when it is switched off: it does not fail, it simply stops
+  # running. This workflow was disabled by hand on 2026-08-02 and six PRs merged unverified before
+  # anyone noticed. Manual dispatch makes "is the gate alive?" a ten-second question.
+  workflow_dispatch:
 
 permissions:
   contents: read

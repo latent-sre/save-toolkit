@@ -23,6 +23,35 @@ def available_shell() -> str | None:
     return None
 
 
+def rebuild_inline_command(script_lines: list[str]) -> str:
+    """Join the standalone launcher's stripped lines back into one inlined hook command."""
+    rebuilt: list[str] = []
+    for line in script_lines:
+        if rebuilt and rebuilt[-1].endswith(" do"):
+            rebuilt[-1] = f"{rebuilt[-1]} {line}"
+        elif rebuilt:
+            rebuilt[-1] = f"{rebuilt[-1]}; {line}"
+        else:
+            rebuilt.append(line)
+    if len(rebuilt) != 1:
+        raise AssertionError(
+            "scripts/readonly-guard-hook.sh must rebuild into exactly one command, "
+            f"got {len(rebuilt)}; the launcher is empty or was split into separate statements"
+        )
+    return rebuilt[0]
+
+
+class RebuildInlineCommandTests(unittest.TestCase):
+    def test_an_empty_launcher_is_reported_not_indexed(self) -> None:
+        """A launcher that strips to nothing must name the problem, not raise IndexError.
+
+        The drift check exists to print a specific remedy. Indexing rebuilt[0] on an empty
+        list replaces that remedy with a bare traceback at the moment it is needed most.
+        """
+        with self.assertRaisesRegex(AssertionError, "exactly one command"):
+            rebuild_inline_command([])
+
+
 class HookWiringTests(unittest.TestCase):
     def test_hook_is_session_wide_and_fail_closed_for_guarded_agents(self) -> None:
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
@@ -53,16 +82,8 @@ class HookWiringTests(unittest.TestCase):
             .splitlines()
             if line.strip() and not line.lstrip().startswith("#")
         ]
-        rebuilt: list[str] = []
-        for line in script_lines:
-            if rebuilt and rebuilt[-1].endswith(" do"):
-                rebuilt[-1] = f"{rebuilt[-1]} {line}"
-            elif rebuilt:
-                rebuilt[-1] = f"{rebuilt[-1]}; {line}"
-            else:
-                rebuilt.append(line)
         self.assertEqual(
-            rebuilt[0],
+            rebuild_inline_command(script_lines),
             inlined,
             "hooks.json inline command and scripts/readonly-guard-hook.sh have drifted; "
             "edit both together (strip comments, join with '; ', keep loop bodies on ' ')",

@@ -38,7 +38,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--target-root",
         type=Path,
-        help="target checkout for validating prepared dispositions (same as knowledge_update.py)",
+        help=(
+            "target checkout for validating prepared dispositions and documentation "
+            "duplicates (same as knowledge_update.py)"
+        ),
     )
     parser.add_argument(
         "--allowed-knowledge-root",

@@ -45,8 +45,9 @@ service to a v2 `service` component, preserves evidence and dispositions, and tr
 service lifecycle triggers. It does not infer environment or definition location, so both fields are
 `null` after migration. The migration never mutates its input, does not downgrade v2 packets, and
 validates its own output — an input that would migrate into an invalid v2 packet fails instead of
-being emitted. Packets carrying prepared dispositions need the same `--target-root` and
-`--allowed-knowledge-root` context the validator requires; without it their migration fails closed.
+being emitted. Packets carrying prepared dispositions or documentation duplicates need the same
+`--target-root` and `--allowed-knowledge-root` context the validator requires; without it their
+migration fails closed.
 
 Example packets live beside the schemas in
 [`skills/operational-learning/assets/examples/`](../skills/operational-learning/assets/examples/).
