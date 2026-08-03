@@ -52,6 +52,6 @@ unknowns, and the requested return schema. It returns findings with evidence, so
 - Re-deriving facts already established earlier in the conversation.
 
 ## Handoffs
-- Send independent findings to the typed `reviewer` agent with evidence and unresolved labels.
-- Send approved implementation changes to the typed `sde` agent with exact scope and fixtures.
+- Send independent findings to the typed `sre-agents-reviewer` agent with evidence and unresolved labels.
+- Send approved implementation changes to the typed `sre-agents-sde` agent with exact scope and fixtures.
 - Any production-facing, destructive, authority-changing, or external action stays with the human release owner and requires existing approval evidence naming the exact target, action, and rollback.

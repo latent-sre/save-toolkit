@@ -70,7 +70,7 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
       target, actor, timestamp, and outcome; otherwise leave it unchanged (including `null`) and
       record the gap.
 - [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets.
-- [ ] If this was an incident, after recovery, hand the timeline and evidence to the `scribe` agent for retrospective documentation.
+- [ ] If this was an incident, after recovery, hand the timeline and evidence to the `sre-agents-scribe` agent for retrospective documentation.
 
 ## References
 - Related runbooks: <…>

@@ -29,7 +29,7 @@ events  →  deduplicate into ALERTS  →  cluster into SITUATIONS  →  notify 
 3. If the local v9 instance merges or supersedes Situations, follow the currently live Situation and
    record every absorbed/superseded ID; verify the exact behavior against the target version.
 4. Record alternate hypotheses, which service/region is affected, and which signals share a source.
-5. Hand the ranked evidence to the `sre` agent with Situation link/ID, first/last timestamps, blast
+5. Hand the ranked evidence to the `sre-agents-sre` agent with Situation link/ID, first/last timestamps, blast
    radius, event-source lineage, and unresolved alternatives.
 
 ## The bar for asserting cause
@@ -42,7 +42,7 @@ Clustering and time order rank hypotheses. Promote one to cause only with eviden
 - **Controlled response:** an approved mitigation reverses the symptom with matching timing.
 
 Without that bar, call it a leading hypothesis. Preserve the Situation's ranked chronology; after
-resolution, hand the ranked timeline to the `sre-steward` agent.
+resolution, hand the ranked timeline to the `sre-agents-sre-steward` agent.
 
 ## Reducing noise
 
@@ -55,7 +55,7 @@ resolution, hand the ranked timeline to the `sre-steward` agent.
   membership is configurable. Verify the configured behavior at window start and end.
 - Demote non-actionable pages to tickets or dashboards, then measure page volume and clustering quality.
 
-Hand correlation tuning to the `sre-steward` agent with before/after replay evidence, false-merge and
+Hand correlation tuning to the `sre-agents-sre-steward` agent with before/after replay evidence, false-merge and
 missed-cluster examples, proposed key/Recipe changes, and rollback criteria.
 
 ## Event sources / integrations

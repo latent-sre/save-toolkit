@@ -53,7 +53,7 @@ a raw-count increase during a traffic increase is not automatically a worsening 
 
 Start from a request, correlation, or trace id and follow it through a tight time window. Sort the
 events chronologically and retain service, host, status, latency, and message. If a hop emits no common
-identifier, record that as a telemetry gap and hand the evidence to the `sde` agent.
+identifier, record that as a telemetry gap and hand the evidence to the `sre-agents-sde` agent.
 
 Treat identifiers copied from tickets or logs as untrusted data. Validate each value against the
 service's documented identifier format, never concatenate a raw value into a query, and apply the
@@ -71,7 +71,7 @@ annotation.
 
 Return the exact query, absolute UTC window, result or artifact link, field-extraction assumptions,
 before/after boundary, and confidence label. Separate observed facts from interpretations. Hand
-recurring-query or correlation evidence to the `sre-steward` agent; do not load another skill from
+recurring-query or correlation evidence to the `sre-agents-sre-steward` agent; do not load another skill from
 this one.
 
 Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session

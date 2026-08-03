@@ -46,11 +46,11 @@ Same idea, detection-side. Match response depth to the situation and read exactl
 
 Match the task to the lowest rung whose core question it raises. Signals it needs principal: multiple services or teams, a migration, a hard-to-reverse choice, "design" or "how should we" phrasing. Signals it needs distinguished: build-vs-buy, platform consolidation, anything measured in years. When in doubt, route DOWN — a lower rung that recognizes its limit and escalates is cheaper than ceremony, and the agents are prompted to escalate.
 
-Routing includes routing to yourself. Work stays in the current context when it fits the conversation you're already in; hand work to the `sde` agent when it needs fresh context or runs alongside other work. For in-context work, load the matching altitude reference and work its method: [builder](./references/builder.md), [principal](./references/principal.md), or [distinguished](./references/distinguished.md). Load **only** the tier that matches, and move up the moment it isn't enough — moving up means loading the next reference; a delegated agent reports a material fork to its caller instead of silently changing altitude. Each rung's reference file is its full bar.
+Routing includes routing to yourself. Work stays in the current context when it fits the conversation you're already in; hand work to the `sre-agents-sde` agent when it needs fresh context or runs alongside other work. For in-context work, load the matching altitude reference and work its method: [builder](./references/builder.md), [principal](./references/principal.md), or [distinguished](./references/distinguished.md). Load **only** the tier that matches, and move up the moment it isn't enough — moving up means loading the next reference; a delegated agent reports a material fork to its caller instead of silently changing altitude. Each rung's reference file is its full bar.
 
 Ownership map only—not a load: the `ops-tooling` skill applies this altitude routing inside its build pipeline. This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.
 
-Application-operations work routes to the `sre` agent; platform internals route to the platform team; code that runs on the platform still uses this ladder.
+Application-operations work routes to the `sre-agents-sre` agent; platform internals route to the platform team; code that runs on the platform still uses this ladder.
 
 ## Mode 2 — Assess work at a bar
 

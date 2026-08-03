@@ -16,4 +16,4 @@ The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conf
 - Read credentials from the **bound service / `VCAP_SERVICES`** or env — **never hardcode**, never put a
   token in a flag, log line, error, or the SPA bundle. Load least-privilege scopes.
 - **Refresh expiring tokens** (UAA/OAuth) ahead of expiry; handle a mid-run `401` by re-authing once.
-- Request a `reviewer` security pass for anything touching auth or secrets.
+- Request a `sre-agents-reviewer` security pass for anything touching auth or secrets.

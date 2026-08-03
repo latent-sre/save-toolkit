@@ -96,8 +96,8 @@ Read only the row needed for the task:
 
 ## Handoff
 
-Hand the reviewed alert definition and target-validation gaps to the `sre-steward` agent. Include the SLI
+Hand the reviewed alert definition and target-validation gaps to the `sre-agents-sre-steward` agent. Include the SLI
 formula and exact query evidence, target/window, selected long/short pair, both measured burns, rule
 source and UID, labels, notification route, runbook URL, no-data/error behavior, test evidence, and
 every remaining `[unverified]` item. If a signal represents current user impact or unknown cause, hand
-the time-bounded evidence to the `sre` agent; alert design does not investigate the live incident.
+the time-bounded evidence to the `sre-agents-sre` agent; alert design does not investigate the live incident.

@@ -17,5 +17,5 @@ The server is the source of truth for auth — the frontend's checks are conveni
 
 - **Authorize every resource on the server.** Check that the caller may act on this object, not merely
   that the caller is logged in; missing that object check is broken object-level authorization.
-- A `reviewer` security pass is required for changes to authentication, authorization, token
+- A `sre-agents-reviewer` security pass is required for changes to authentication, authorization, token
   handling, cryptography, or other untrusted-input boundaries.

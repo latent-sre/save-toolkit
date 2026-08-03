@@ -4,7 +4,7 @@ description: >-
   Use when debugging any bug, test failure, or unexpected behavior — before proposing a fix — and
   especially after a fix attempt has already failed, or when guessing has started ("maybe it's X,
   let me try changing it"). Triggers: 'debug this failure', 'why did this test fail', 'the fix did
-  not work'. For a production incident with an unknown cause, the `sre` agent owns the investigation;
+  not work'. For a production incident with an unknown cause, the `sre-agents-sre` agent owns the investigation;
   this skill is the method it (and sde) load.
 argument-hint: "[the bug or unexpected behavior]"
 ---

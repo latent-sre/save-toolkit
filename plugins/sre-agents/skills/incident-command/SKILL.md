@@ -41,7 +41,7 @@ becomes clear.
 - **Bound the blast radius.** One app/route/instance ⇒ likely app-side (yours). Many apps at once, or
   failing/evacuating Diego cells ⇒ platform-side ⇒ escalate to the platform team with evidence: capture
   `cf apps`, `cf app`, `cf events`, and bounded `cf logs --recent` output, or give the packet to the typed
-  `sre` agent. If you **can't yet bound** the blast radius, that alone justifies SEV2 and declaring.
+  `sre-agents-sre` agent. If you **can't yet bound** the blast radius, that alone justifies SEV2 and declaring.
 - **Time-box the responder.** First on scene and not stabilized in **~15 min**, or the impact is
   growing → declare and assign an incident commander (run the process below); don't keep digging solo.
 
@@ -50,7 +50,7 @@ becomes clear.
 Suspected compromise or a security/integrity event exits the generic reliability-mitigation path.
 Immediately escalate to the human security incident owner and preserve state and forensic evidence.
 Do not restart, redeploy, scale, remap routes, or apply the mitigation table unless that owner directs
-the exact action. The typed `sre` agent is limited to the named read-only signal collection requested by
+the exact action. The typed `sre-agents-sre` agent is limited to the named read-only signal collection requested by
 that owner; it does not contain, eradicate, or recover the compromised system.
 
 ## Running the incident (command)
@@ -59,17 +59,17 @@ Once declared, someone owns the **response** — the **incident commander** (oft
 runs the *process*, not the debugging, keeping the response moving toward mitigation.
 
 - **Coordinate, don't solo-debug.** The moment the IC is heads-down in logs, nobody is commanding.
-  Delegate technical RCA to the typed `sre` agent and remediation to a human release owner.
+  Delegate technical RCA to the typed `sre-agents-sre` agent and remediation to a human release owner.
 - **Mitigate first.** User pain stops before root cause is found — push for the fastest safe, reversible
   mitigation using the inline decision below, and make that call explicit; a human executes it.
 - **One source of truth.** Keep a single running **timeline** (UTC) of what is known, tried, and next.
-- **Assign roles:** Investigation lead (typed `sre` agent), Ops/remediation (a human release owner),
-  Comms/timeline scribe (a named human during the live incident—not the typed `scribe` documentation
+- **Assign roles:** Investigation lead (typed `sre-agents-sre` agent), Ops/remediation (a human release owner),
+  Comms/timeline scribe (a named human during the live incident—not the typed `sre-agents-scribe` documentation
   agent). Confirm who owns what.
 - **Track every action** — each "someone should…" becomes an owned, tracked item.
-- **Resolve & close.** Confirm impact has ended (verify via the investigator and typed `sre-steward`
-  agent), send the **Resolution** update, then hand the authoritative timeline to typed `scribe` for
-  the durable retrospective and learning dispositions. `sre-steward` supplies recovery/detection
+- **Resolve & close.** Confirm impact has ended (verify via the investigator and typed `sre-agents-sre-steward`
+  agent), send the **Resolution** update, then hand the authoritative timeline to typed `sre-agents-scribe` for
+  the durable retrospective and learning dispositions. `sre-agents-sre-steward` supplies recovery/detection
   evidence; it does not author the postmortem.
 
 ### Status — one authoritative block, kept live
@@ -105,8 +105,8 @@ large SEV1, split **Comms lead** and **Scribe** off from the IC; otherwise the I
 
 Downgrade or resolve only when the **golden signals are back to baseline and stay there** for a
 sustained window (not just "the graph turned green" — a metastable system can re-break). Verify recovery
-via the investigator and typed `sre-steward` agent first, then send the **Resolution** update and give
-typed `scribe` the authoritative timeline with preserved `[verified]`, `[sourced]`, and `[unverified]`
+via the investigator and typed `sre-agents-sre-steward` agent first, then send the **Resolution** update and give
+typed `sre-agents-scribe` the authoritative timeline with preserved `[verified]`, `[sourced]`, and `[unverified]`
 labels for postmortem and operational-learning closeout.
 
 ## Choose the mitigation (the rollback decision)
@@ -136,19 +136,19 @@ until the human release owner validates the exact target, capability, command, a
 
 1. **Reversible first.** Prefer an action you can undo in seconds (route remap, flag flip) over one you
    can't. Blue-green route remap is the gold standard — instant and reversible.
-2. **One change at a time**, then observe. Have the typed `sre-steward` agent or named human watch the
+2. **One change at a time**, then observe. Have the typed `sre-agents-sre-steward` agent or named human watch the
    golden signals for 1–2 minutes before the next action — so you know what worked.
 3. **Restart is a stopgap, not a fix.** If a restart "fixes" it, the cause is still there (leak, poison
-   input, dependency) — capture `cf events`/logs first, then keep investigating with the typed `sre` agent.
-4. **Record everything** (UTC) in the IC-owned timeline; after resolution give it to typed `scribe`.
+   input, dependency) — capture `cf events`/logs first, then keep investigating with the typed `sre-agents-sre` agent.
+4. **Record everything** (UTC) in the IC-owned timeline; after resolution give it to typed `sre-agents-scribe`.
 5. **Confirm before executing.** Every command here changes production. Show the exact target, command,
    blast radius, verification, and rollback; attach existing human approval, then the human executes.
 
 ### After mitigation
 
-User pain stopped ≠ incident over. Hand root-cause work to the typed `sre` agent and fix-forward
-execution to a human release owner; typed `sre-steward` confirms recovery and owns detection changes;
-after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions.
+User pain stopped ≠ incident over. Hand root-cause work to the typed `sre-agents-sre` agent and fix-forward
+execution to a human release owner; typed `sre-agents-sre-steward` confirms recovery and owns detection changes;
+after resolution typed `sre-agents-scribe` captures the postmortem, operating guidance, and learning dispositions.
 
 ## Pairs with
 

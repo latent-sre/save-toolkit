@@ -42,7 +42,7 @@ Sources reviewed 2026-07-14:
 4. Separate the observed layer from ownership: network evidence goes to the network/platform team;
    clean path plus app errors stays in the application lane.
 
-Hand incident evidence to the `sre` agent with test/agent IDs, target, time range, failing and healthy
+Hand incident evidence to the `sre-agents-sre` agent with test/agent IDs, target, time range, failing and healthy
 vantages, hop/AS and loss/latency deltas, DNS/BGP observations, `cf app` and application logs excerpts,
 timestamps, blast radius, and every alternative that remains unverified.
 
@@ -55,7 +55,7 @@ timestamps, blast radius, and every alternative that remains unverified.
   behavior, owner, notification route, and runbook.
 - Exercise failure, recovery, and notification delivery from a safe target before declaring coverage.
 
-Hand steady-state test tuning to the `sre-steward` agent with the coverage gap, proposed test/vantages,
+Hand steady-state test tuning to the `sre-agents-sre-steward` agent with the coverage gap, proposed test/vantages,
 threshold evidence, expected cost/units, runbook, validation plan, and rollback condition.
 
 ## A path difference is not a cause
@@ -100,7 +100,7 @@ If this bar is not met, label the network path a leading hypothesis and keep app
 
 `[sourced]` The current API guide documents `/v7/tests` and `/v7/agents` management/read paths; verify
 the account role, endpoint, schema, and target in the current developer reference before use. Keep only
-account-group labels and repository paths here—no API tokens. Hand approved automation to the `sde`
+account-group labels and repository paths here—no API tokens. Hand approved automation to the `sre-agents-sde`
 agent and a human release owner; creation, update, or deletion of tests is a controlled external change,
 not permission granted by this reference.
 

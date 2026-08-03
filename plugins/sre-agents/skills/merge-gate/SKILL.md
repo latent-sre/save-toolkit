@@ -37,7 +37,7 @@ everything).
       Show current CI output and **record the SHA it ran at**. If that SHA != `HEAD`, apply the same
       staleness test as below: an empty or test-irrelevant diff may be re-confirmed at `HEAD`; otherwise
       the evidence is stale and the test must re-run.
-- [ ] **Reviewed** — the typed `reviewer` agent supplied its two-lens packet and every P0/P1 finding is
+- [ ] **Reviewed** — the typed `sre-agents-reviewer` agent supplied its two-lens packet and every P0/P1 finding is
       resolved, not merely acknowledged. **Record the SHA the review ran against.** If that SHA != `HEAD`,
       inspect `git diff <review-sha>..HEAD`. If the diff is empty or touches only files outside the
       reviewed set, re-confirm and record the new SHA. If it touches reviewed code, **the approval is
@@ -56,7 +56,7 @@ everything).
       Size matters: ~200–400 LOC is the effective review chunk; defect detection drops past ~400 LOC and
       above ~500 LOC/hr, so cap continuous review at 60–90 min. A reviewer may request a split **solely**
       for size — an oversized change is a blocking finding, not a nit.
-- [ ] **Docs/ops updated** — if behavior or operations changed, update the docs and make a typed `sre-steward`
+- [ ] **Docs/ops updated** — if behavior or operations changed, update the docs and make a typed `sre-agents-sre-steward`
       agent handoff for affected operational guidance, or explicitly record why none is needed.
 
 ## Verdict

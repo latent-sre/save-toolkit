@@ -113,9 +113,9 @@ Prefer wiring a new skill into an existing agent's lane over minting a new agent
 
 ## Handoffs
 
-- Send an independent evaluation or review finding to the typed `reviewer` agent with the exact
+- Send an independent evaluation or review finding to the typed `sre-agents-reviewer` agent with the exact
   artifact, success criteria, evidence, source trust, and unresolved labels.
-- Send an approved implementation or generator change to the typed `sde` agent with the failing
+- Send an approved implementation or generator change to the typed `sre-agents-sde` agent with the failing
   fixture and minimal required scope.
 - Any authority-changing, production-facing, destructive, or external action stays with the
   human release owner and requires existing approval evidence naming the exact target, action,
