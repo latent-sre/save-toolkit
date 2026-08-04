@@ -105,6 +105,33 @@ class TargetValidationTests(unittest.TestCase):
             self.assertTrue(target.is_dir())
             self.assertFalse(any(target.iterdir()))
 
+    @unittest.skipIf(os.name == "nt", "symlink creation requires privilege on Windows")
+    def test_os_resolved_ancestor_symlink_is_accepted(self) -> None:
+        # macOS tempdirs live under /var, a symlink to /private/var; the probe target is created
+        # fresh and removed afterwards, so resolved ancestors must not be rejected.
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            real = base / "real"
+            real.mkdir()
+            (base / "link").symlink_to(real, target_is_directory=True)
+            home = base / "home"
+            home.mkdir()
+            target = probe._validate_target(base / "link" / "child" / "target", root=REPO, home=home)
+            self.assertEqual(real / "child" / "target", target)
+            self.assertTrue(target.is_dir())
+
+    @unittest.skipIf(os.name == "nt", "symlink creation requires privilege on Windows")
+    def test_target_that_is_itself_a_link_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve()
+            real = base / "real"
+            real.mkdir()
+            (base / "linked-target").symlink_to(real, target_is_directory=True)
+            home = base / "home"
+            home.mkdir()
+            with self.assertRaisesRegex(ValueError, "must not itself be a link"):
+                probe._validate_target(base / "linked-target", root=REPO, home=home)
+
     def test_unknown_or_empty_host_selection_fails_before_any_write(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             target = Path(temporary) / "target"
@@ -194,11 +221,11 @@ class AbsentHostTests(unittest.TestCase):
                 which=make_which(copilot="copilot.exe"),
                 now=NOW,
             )
-            target = base / "target"
+            target = (base / "target").resolve()
             for env in envs:
                 if env is None:
                     continue
-                self.assertTrue(str(env["HOME"]).startswith(str(target)))  # type: ignore[index]
+                self.assertTrue(Path(env["HOME"]).resolve().is_relative_to(target))  # type: ignore[arg-type]
         items = checks_by_id(report)
         for criterion in probe.CRITERIA:
             self.assertEqual("pass", items[f"host.copilot.probe-{criterion}"]["status"], criterion)
@@ -316,7 +343,7 @@ class ClaudeProbeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "probe-must-not-inherit"}):
                 report = self._collect(self._claude_run(state, calls, envs), Path(temporary))
-            target = Path(temporary) / "target"
+            target = (Path(temporary) / "target").resolve()
             items = checks_by_id(report)
             for criterion in probe.CRITERIA:
                 self.assertEqual("pass", items[f"host.claude.probe-{criterion}"]["status"], criterion)
@@ -330,7 +357,9 @@ class ClaudeProbeTests(unittest.TestCase):
                 }
                 self.assertLessEqual(set(env), allowed)  # type: ignore[arg-type]
                 self.assertNotIn("ANTHROPIC_API_KEY", env)  # type: ignore[operator]
-                self.assertTrue(str(env["CLAUDE_CONFIG_DIR"]).startswith(str(target)))  # type: ignore[index]
+                self.assertTrue(
+                    Path(env["CLAUDE_CONFIG_DIR"]).resolve().is_relative_to(target)  # type: ignore[arg-type]
+                )
         fleet_doctor.validate_report(report)
 
     def test_cli_verb_failure_is_inconclusive_and_downstream_skips(self) -> None:
@@ -500,6 +529,7 @@ class ReportContractTests(unittest.TestCase):
                     which=make_which(codex="codex.exe"),
                     now=NOW,
                 )
+            self.assertFalse(target.exists())
 
     def test_main_removes_target_unless_kept(self) -> None:
         report = {

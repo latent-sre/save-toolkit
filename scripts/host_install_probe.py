@@ -133,9 +133,18 @@ def _vscode_user_settings(home: Path) -> Path:
 
 
 def _validate_target(target: Path, *, root: Path, home: Path) -> Path:
-    """Resolve the disposable target and prove it cannot alias user- or repo-owned state."""
+    """Resolve the disposable target and prove it cannot alias user- or repo-owned state.
 
-    target = verification_sandbox._absolute_without_indirection(target, "disposable target")
+    Unlike verification_sandbox's source mounts -- where a swapped ancestor silently changes
+    digest-bound bytes, so every ancestor link must be rejected -- this target is created fresh
+    by the probe and removed afterwards, so OS-resolved ancestor links (macOS /var -> /private/var)
+    are safe. Only the final component must never be a link or reparse point itself.
+    """
+
+    expanded = Path(target).expanduser()
+    if os.path.lexists(expanded) and verification_sandbox._is_indirection(expanded):
+        raise ValueError(f"disposable target must not itself be a link or reparse point: {expanded}")
+    target = Path(os.path.abspath(expanded)).resolve()
     user_locations = {
         (home / ".claude").resolve(),
         (home / ".codex").resolve(),
@@ -824,13 +833,13 @@ def collect_report(
         raise ValueError(f"unknown or empty host selection: {sorted(unknown) or 'none selected'}")
     started = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     run_id = "probe-" + started.strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
-    target = _validate_target(target, root=root, home=home)
-    if run is None:
-        run = lambda argv, env: _run_probe(argv, env, root=root)  # noqa: E731
     revision, git_checks = fleet_doctor._git_checks(root, git_run)
     if revision == "unknown":
         detail = git_checks[0].summary if git_checks else "no revision evidence"
         raise ValueError(f"cannot prove a disposable install against an unknown revision: {detail}")
+    target = _validate_target(target, root=root, home=home)
+    if run is None:
+        run = lambda argv, env: _run_probe(argv, env, root=root)  # noqa: E731
 
     checks_by_host: dict[str, tuple[str, list[Check]]] = {}
     for host in hosts:
