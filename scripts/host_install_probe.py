@@ -157,7 +157,7 @@ def _validate_target(target: Path, *, root: Path, home: Path) -> Path:
         location in target.parents or target in location.parents for location in user_locations
     ):
         raise ValueError(f"disposable target must not live inside user-owned configuration: {target}")
-    if target == home or target in home.parents:
+    if target == home or home in target.parents or target in home.parents:
         raise ValueError(f"disposable target must not be or contain the user home: {target}")
     if target == root or root in target.parents or target in root.parents:
         raise ValueError(
