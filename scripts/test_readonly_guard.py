@@ -29,8 +29,8 @@ GUARD = Path(__file__).resolve().parents[1] / "scripts" / "readonly-guard.py"
 EXIT_ALLOW = 42
 EXIT_DENY = 43
 
-SRE = "sre-agents:sre"
-OBS_ENGINEER = "sre-agents:observability-engineer"
+SRE = "save-toolkit:sre"
+OBS_ENGINEER = "save-toolkit:observability-engineer"
 # Backwards-compatible alias used throughout: the default guarded agent for the corpus runs.
 REVIEWER = SRE
 
@@ -427,7 +427,7 @@ class GuardScopingTest(unittest.TestCase):
     def test_other_subagents_are_never_guarded(self) -> None:
         # sde is deliberately unguarded (builds and tests are its job) — and so is any agent
         # outside GUARDED_AGENTS.
-        for agent in ("sre-agents:sde", "sde", "reviewer", "researcher"):
+        for agent in ("save-toolkit:sde", "sde", "reviewer", "researcher"):
             with self.subTest(agent=agent):
                 proc = run_guard(bash_call("git push origin main", agent_type=agent))
                 self.assertEqual(decision(proc), "allow")
@@ -445,7 +445,7 @@ class GuardScopingTest(unittest.TestCase):
         # `tool_input.command` is user-controlled text. A guard that scanned it for the agent name
         # would deny this exact commit — the one someone editing this guard is about to make.
         proc = run_guard(
-            bash_call('git commit -m "fix sre-agents:sre"', agent_type=None)
+            bash_call('git commit -m "fix save-toolkit:sre"', agent_type=None)
         )
         self.assertEqual(decision(proc), "allow")
 
@@ -454,9 +454,14 @@ class GuardScopingTest(unittest.TestCase):
         # payload still carries `agent_type`, so the field-rename canary below never fires, and the
         # exact-match set misses because the namespace moved. Before this check the guard handed
         # `sre` and `observability-engineer` unguarded Bash while looking healthy — `rm -rf` was
-        # allowed under `save-toolkit:sre`. A namespaced payload whose bare name is guarded is one
+        # allowed under the moved namespace. A namespaced payload whose bare name is guarded is one
         # of ours under a moved namespace; deny it.
-        for namespace in ("save-toolkit", "renamed-plugin", "sre-agents-v2"):
+        #
+        # `sre-agents` is this plugin's PREVIOUS name and the concrete case that motivated the
+        # check: a caller still addressing the old namespace must not slip past the guard. Keep
+        # every namespace here different from the live PLUGIN_NAME — the live one is guarded
+        # through the normal allowlist path, so listing it here would test nothing.
+        for namespace in ("sre-agents", "renamed-plugin", "save-toolkit-v2"):
             for bare in ("sre", "observability-engineer"):
                 with self.subTest(agent_type=f"{namespace}:{bare}"):
                     proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=f"{namespace}:{bare}"))
@@ -467,7 +472,7 @@ class GuardScopingTest(unittest.TestCase):
         # The fail-closed above must not become a session-wide denylist. `sde` is deliberately
         # unguarded under ANY namespace, and an unrelated plugin's agents are not ours to police
         # unless their bare name collides with a guarded one.
-        for agent in ("save-toolkit:sde", "sre-agents:sde", "othervendor:reviewer"):
+        for agent in ("save-toolkit:sde", "save-toolkit:sde", "othervendor:reviewer"):
             with self.subTest(agent_type=agent):
                 proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=agent))
                 self.assertEqual(decision(proc), "allow")

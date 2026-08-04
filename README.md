@@ -1,12 +1,12 @@
-# SRE Agents
+# Save Toolkit
 
-SRE Agents is a multi-host plugin containing **8 agents and 27 skills** for application engineering
+Save Toolkit is a multi-host plugin containing **8 agents and 27 skills** for application engineering
 and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
 sources directly. GitHub Copilot/VS Code and Codex receive committed, host-native projections made by
 one deterministic generator; generated files are never edited by hand.
 
 The roster, tool postures, and enforcement model are in [AGENTS.md](AGENTS.md). Routing is native:
-Claude plugin components are namespaced as `sre-agents:<name>`; generated hosts use their native
+Claude plugin components are namespaced as `save-toolkit:<name>`; generated hosts use their native
 bare component names.
 
 ## Layout
@@ -14,12 +14,12 @@ bare component names.
 - [`agents/`](agents) — the eight canonical Claude plugin agent definitions; `tools` carries authority.
 - [`skills/`](skills) — the 27 canonical skills and their progressive-disclosure `references/`,
   `assets/`, and `scripts/` bundles.
-- [`commands/adr.md`](commands/adr.md) — the canonical Claude `/sre-agents:adr` scaffold.
+- [`commands/adr.md`](commands/adr.md) — the canonical Claude `/save-toolkit:adr` scaffold.
 - [`.claude-plugin/`](.claude-plugin) and [`hooks/`](hooks) — Claude manifest/marketplace plus the
   session-scoped guarded-Bash hook.
 - [`plugin.json`](plugin.json), [`.github/agents/`](.github/agents), and
   [`platforms/copilot/skills/`](platforms/copilot/skills) — Copilot/VS Code plugin and projections.
-- [`plugins/sre-agents/`](plugins/sre-agents) and [`.codex/agents/`](.codex/agents) — Codex skills
+- [`plugins/save-toolkit/`](plugins/save-toolkit) and [`.codex/agents/`](.codex/agents) — Codex skills
   plugin plus standalone custom-agent projections.
 - [`scripts/`](scripts) — the structural gate (`gate_a.py`), the read-only allowlist guard
   (`readonly-guard.py`), the projection generator, supporting validators, and their tests.

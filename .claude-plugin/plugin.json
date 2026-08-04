@@ -1,14 +1,14 @@
 {
-  "name": "sre-agents",
-  "displayName": "SRE Agents",
+  "name": "save-toolkit",
+  "displayName": "Save Toolkit",
   "description": "Application-engineering and site-reliability agents and reusable skills.",
   "version": "1.0.0",
   "author": {
     "name": "latent-sre",
     "url": "https://github.com/latent-sre"
   },
-  "homepage": "https://github.com/latent-sre/sre-agents",
-  "repository": "https://github.com/latent-sre/sre-agents",
+  "homepage": "https://github.com/latent-sre/save-toolkit",
+  "repository": "https://github.com/latent-sre/save-toolkit",
   "license": "MIT",
   "keywords": [
     "agents",

@@ -71,7 +71,7 @@ import sys
 
 # The namespace Claude Code would prepend if this repo were ever installed as a plugin; guarding
 # both forms means the guard cannot be sidestepped by installing the agents a different way.
-PLUGIN_NAME = "sre-agents"
+PLUGIN_NAME = "save-toolkit"
 # Agents this guard applies to — the read-only-Bash agents. `sde` is deliberately unguarded (its
 # job is running builds and tests for team-authored code); `reviewer` and `researcher` hold no
 # Bash at all, which is a stronger control than any hook.

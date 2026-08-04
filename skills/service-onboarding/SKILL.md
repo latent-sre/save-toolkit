@@ -3,10 +3,10 @@ name: service-onboarding
 description: >-
   Onboard a service onto the platform and the observability stack — or audit an existing one against
   the standard. Invoke explicitly as Copilot `/service-onboarding` or Claude
-  `/sre-agents:service-onboarding`. Triggers: 'onboard this service', 'bring X up to standard',
+  `/save-toolkit:service-onboarding`. Triggers: 'onboard this service', 'bring X up to standard',
   'audit this service'. Works the checklist in order; audit mode reports evidence-cited findings and
   the top three fixes.
-# Side-effect-shaped: invoke explicitly as `/sre-agents:service-onboarding`; never auto-load.
+# Side-effect-shaped: invoke explicitly as `/save-toolkit:service-onboarding`; never auto-load.
 disable-model-invocation: true
 ---
 

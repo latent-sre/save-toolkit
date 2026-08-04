@@ -18,7 +18,7 @@ success_criteria:
   - Keeps a newly introduced but actively firing alert in the incident lane
   - Defers documentation publication until the incident is resolved
 graders:
-  - type: regex   # `sre` on a name boundary, so the `sre-agents` plugin prefix (present in almost
+  - type: regex   # `sre` on a name boundary, so the `save-toolkit` plugin prefix (present in almost
                   # any answer naming a fleet component) cannot stand in for routing to the lane
     pattern: '(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])|active incident|incident investigation|triage'
   - type: contains_any

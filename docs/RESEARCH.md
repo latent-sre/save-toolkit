@@ -37,12 +37,12 @@ the accepted decisions before adopting them.
 
 | Field | Preserved value |
 |---|---|
-| Pull request | [`#70 — Move skills to .github/skills; remove generated agent projections`](https://github.com/latent-sre/sre-agents/pull/70) |
+| Pull request | [`#70 — Move skills to .github/skills; remove generated agent projections`](https://github.com/latent-sre/save-toolkit/pull/70) |
 | Original branch | `claude/vscode-native-agents-skills-xy27mw` |
 | Pinned commit | `9e9553b5d8586f916a672179e38ae72e226be852` |
 | Annotated tag | `source-material/claude-vscode-native-agents-skills-2026-08-01` |
-| Branch protection | [verified] Active ruleset [`20191052`](https://github.com/latent-sre/sre-agents/rules/20191052): updates, deletion, and force pushes blocked; no bypass actors |
-| Tag protection | [verified] Active ruleset [`20191066`](https://github.com/latent-sre/sre-agents/rules/20191066): `source-material/*` updates, deletion, and force pushes blocked; no bypass actors |
+| Branch protection | [verified] Active ruleset [`20191052`](https://github.com/latent-sre/save-toolkit/rules/20191052): updates, deletion, and force pushes blocked; no bypass actors |
+| Tag protection | [verified] Active ruleset [`20191066`](https://github.com/latent-sre/save-toolkit/rules/20191066): `source-material/*` updates, deletion, and force pushes blocked; no bypass actors |
 | Retention reason | Nine commits remain unique to the closed experiment and contain potentially useful native-layout, identity, and validation patterns |
 
 Unique commits, oldest first:
@@ -62,7 +62,7 @@ Inspect without changing the current checkout:
 ```bash
 git fetch origin tag source-material/claude-vscode-native-agents-skills-2026-08-01
 git show source-material/claude-vscode-native-agents-skills-2026-08-01
-git worktree add ../sre-agents-pr70-source source-material/claude-vscode-native-agents-skills-2026-08-01
+git worktree add ../save-toolkit-pr70-source source-material/claude-vscode-native-agents-skills-2026-08-01
 ```
 
 The worktree starts detached at the immutable tag. Create a new branch from it before making any

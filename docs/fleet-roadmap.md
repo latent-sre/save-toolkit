@@ -59,7 +59,7 @@ their runtime is actually available.
 model or modifying host installations. This machine has Claude, Codex, and VS Code CLIs; Copilot CLI
 remains unavailable and reports `skip`. The fleet is absent from the Claude and Codex plugin
 inventories. Codex custom agents share one flat, unnamespaced global directory, so the projection
-emits `sre-agents-<role>.toml` mirroring the Claude `sre-agents:<name>` namespace; `build_sync_plan`
+emits `save-toolkit-<role>.toml` mirroring the Claude `save-toolkit:<name>` namespace; `build_sync_plan`
 against the real `CODEX_HOME` now reports zero conflicts and eight pending writes, where it
 previously reported three collisions with a separate agent fleet installed under the same role names.
 Host proof must still use an explicit disposable target — but because this item's prerequisites

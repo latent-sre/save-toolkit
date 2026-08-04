@@ -56,7 +56,7 @@ def copilot_run(state: dict[str, object], envs: list[object]):
             return probe.CommandResult(state["install_rc"], "", "")  # type: ignore[arg-type]
         if tail == ("plugin", "list"):
             row = (
-                "Installed plugins:\n  • sre-agents@latent-sre (v1.0.0)\n"
+                "Installed plugins:\n  • save-toolkit@latent-sre (v1.0.0)\n"
                 if state["installed"]
                 else "No plugins installed.\n"
             )
@@ -152,12 +152,12 @@ class CommandAllowlistTests(unittest.TestCase):
             ("code", "--version"),
             ("claude", "plugin", "list"),
             ("claude", "plugin", "marketplace", "add", str(REPO)),
-            ("claude", "plugin", "install", "sre-agents@latent-sre"),
-            ("claude", "plugin", "uninstall", "sre-agents@latent-sre"),
+            ("claude", "plugin", "install", "save-toolkit@latent-sre"),
+            ("claude", "plugin", "uninstall", "save-toolkit@latent-sre"),
             ("copilot", "plugin", "list"),
             ("copilot", "plugin", "marketplace", "add", str(REPO)),
-            ("copilot", "plugin", "install", "sre-agents@latent-sre"),
-            ("copilot", "plugin", "uninstall", "sre-agents@latent-sre"),
+            ("copilot", "plugin", "install", "save-toolkit@latent-sre"),
+            ("copilot", "plugin", "uninstall", "save-toolkit@latent-sre"),
         ):
             with self.subTest(argv=argv):
                 probe._assert_probe_command(argv, root=REPO)
@@ -167,11 +167,11 @@ class CommandAllowlistTests(unittest.TestCase):
             ("claude", "-p", "say hi"),
             ("codex", "exec", "inspect this repo"),
             ("claude", "plugin", "marketplace", "add", "https://example.com/market"),
-            ("claude", "plugin", "install", "sre-agents"),
+            ("claude", "plugin", "install", "save-toolkit"),
             ("claude", "plugin", "uninstall", "other-plugin@latent-sre"),
-            ("codex", "plugin", "install", "sre-agents@latent-sre"),
+            ("codex", "plugin", "install", "save-toolkit@latent-sre"),
             ("copilot", "plugin", "marketplace", "add", "https://example.com/market"),
-            ("copilot", "plugin", "install", "sre-agents"),
+            ("copilot", "plugin", "install", "save-toolkit"),
             ("copilot", "--plugin-dir", str(REPO)),
             ("sh", "-c", "claude plugin list"),
             ("git", "rev-parse", "HEAD"),
@@ -310,7 +310,7 @@ class ClaudeProbeTests(unittest.TestCase):
                 return probe.CommandResult(state["install_rc"], "", "")
             if tail == ("plugin", "list"):
                 row = (
-                    "Installed plugins:\n\n  ❯ sre-agents@latent-sre\n    Version: 1.0.0\n"
+                    "Installed plugins:\n\n  ❯ save-toolkit@latent-sre\n    Version: 1.0.0\n"
                     "    Scope: user\n    Status: ✔ enabled\n"
                     if state["installed"]
                     else ""

@@ -50,8 +50,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 HOSTS = ("claude", "codex", "vscode", "copilot")
 CLI_COMMANDS = {"claude": "claude", "codex": "codex", "vscode": "code", "copilot": "copilot"}
 CRITERIA = ("install", "inventory", "authority", "uninstall")
-CLAUDE_PLUGIN_ID = "sre-agents@latent-sre"
-COPILOT_PLUGIN_ID = "sre-agents@latent-sre"
+CLAUDE_PLUGIN_ID = "save-toolkit@latent-sre"
+COPILOT_PLUGIN_ID = "save-toolkit@latent-sre"
 MODEL_LIMITATION = (
     "No model session was started; requested/observed model fields are absent by design "
     "(model behavior is an EVAL-001 concern)."
@@ -363,7 +363,7 @@ def _probe_claude(root: Path, target: Path, home: Path, run: Runner, *, executab
 
     listing = cli("plugin", "list")
     found = (
-        fleet_doctor._inventory_contains_plugin("claude", listing.stdout, "sre-agents")
+        fleet_doctor._inventory_contains_plugin("claude", listing.stdout, "save-toolkit")
         if listing.returncode == 0
         else None
     )
@@ -400,7 +400,7 @@ def _probe_claude(root: Path, target: Path, home: Path, run: Runner, *, executab
     else:
         after = cli("plugin", "list")
         residue = after.returncode == 0 and fleet_doctor._inventory_contains_plugin(
-            "claude", after.stdout, "sre-agents"
+            "claude", after.stdout, "save-toolkit"
         )
         checks.append(
             Check(
@@ -719,7 +719,7 @@ def _probe_copilot(root: Path, target: Path, home: Path, run: Runner, *, executa
 
     listing = cli("plugin", "list")
     found = (
-        fleet_doctor._inventory_contains_plugin("copilot", listing.stdout, "sre-agents")
+        fleet_doctor._inventory_contains_plugin("copilot", listing.stdout, "save-toolkit")
         if listing.returncode == 0
         else None
     )
@@ -756,7 +756,7 @@ def _probe_copilot(root: Path, target: Path, home: Path, run: Runner, *, executa
     else:
         after = cli("plugin", "list")
         residue = after.returncode == 0 and fleet_doctor._inventory_contains_plugin(
-            "copilot", after.stdout, "sre-agents"
+            "copilot", after.stdout, "save-toolkit"
         )
         checks.append(
             Check(

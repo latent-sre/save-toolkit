@@ -84,7 +84,7 @@ class VerificationSandboxTests(unittest.TestCase):
         self.assertIn("readonly", source_mount)
         self.assertIn("/scratch:rw,nosuid,nodev,size=256m", command)
         self.assertNotIn(str(self.base / "scratch"), command)
-        self.assertIn("sre-agents.verification=sre-verify-0123456789abcdef", command)
+        self.assertIn("save-toolkit.verification=sre-verify-0123456789abcdef", command)
 
     def test_unpinned_image_oversized_scratch_and_root_user_are_rejected(self) -> None:
         with self.assertRaisesRegex(verification_sandbox.SandboxError, "docker or podman"):

@@ -1,9 +1,9 @@
-# SRE Agents — fleet guide
+# Save Toolkit — fleet guide
 
 A multi-host engineering plugin with **8 canonical agents and 27 canonical skills**. Claude Code
 loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code and Codex adapters are
 generated and committed from those sources; edit neither projection by hand. Routing is native:
-descriptions select lanes and Claude components are invoked as `sre-agents:<name>`.
+descriptions select lanes and Claude components are invoked as `save-toolkit:<name>`.
 
 The stack, the stay-in-lane rule, and the platform boundary live in **one** place: the
 [`stack-profile`](skills/stack-profile/SKILL.md) skill. Load it before recommending any
@@ -88,7 +88,7 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 ## Typical flows
 
 - **Ship a feature:** `sde` → `reviewer` (both lenses) → `merge-gate`; a human release owner runs
-  `release-gate` → `/sre-agents:pcf-deploy` → `scribe` documents new ops steps.
+  `release-gate` → `/save-toolkit:pcf-deploy` → `scribe` documents new ops steps.
 - **Production incident:** `sre` (triage + RCA, `incident-command` loaded for process/comms); a
   human release owner executes mitigation; `sde` fixes root cause; `observability-engineer` closes the
   detection gap; `scribe` writes the postmortem.

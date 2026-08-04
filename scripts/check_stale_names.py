@@ -20,6 +20,12 @@ STALE = (
     "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
     "test-engineer", "sre-monitor", "runbook-author",
     "observer", "sre-steward",
+    # The plugin itself was renamed `sre-agents` -> `save-toolkit`, which is what finally removed
+    # the `sre` ⊂ `sre-agents` prefix collision (renaming agents alone could never fix it, because
+    # the namespace carried the collision). Listed here so leftover `sre-agents:<component>`
+    # addressing in agents/, skills/, or commands/ fails the build instead of silently not
+    # resolving. Repository URLs are unaffected: `_hits` skips a match preceded by "/".
+    "sre-agents",
     "incident-severity", "blameless-postmortem",
     "rollback-mitigation", "github-actions-ci", "wavefront-queries",
     "splunk-triage", "grafana-dashboards", "moogsoft-correlation",

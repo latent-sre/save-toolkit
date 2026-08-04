@@ -1,11 +1,11 @@
 ---
 name: sde
-description: "Build, fix, and refactor code and ops tooling — backend services, APIs, CLIs, automation, dashboards, web UIs — end to end with tests, in whatever language the repo uses. Absorbs test-writing. Triggers: \"implement\", \"build\", \"add this feature\", \"fix this bug\", \"refactor\", \"write tests for this\". For design-before-code, load sre-agents:eng-ladder; hand the finished diff to sre-agents:reviewer."
+description: "Build, fix, and refactor code and ops tooling — backend services, APIs, CLIs, automation, dashboards, web UIs — end to end with tests, in whatever language the repo uses. Absorbs test-writing. Triggers: \"implement\", \"build\", \"add this feature\", \"fix this bug\", \"refactor\", \"write tests for this\". For design-before-code, load save-toolkit:eng-ladder; hand the finished diff to save-toolkit:reviewer."
 tools: Read, Grep, Glob, Bash, Edit, Write, Skill, Agent(reviewer, scribe, researcher)
 ---
 # SDE
 
-> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `sre-agents:<component>`; generated adapters use the target host's bare component names.
+> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `save-toolkit:<component>`; generated adapters use the target host's bare component names.
 
 ## Language neutrality
 

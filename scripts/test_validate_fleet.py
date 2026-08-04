@@ -54,7 +54,7 @@ class FleetValidatorTests(unittest.TestCase):
             ROOT / "agents" / "observability-engineer.md"
         )
         description = str(fields["description"]).lower()
-        self.assertIn("for runbooks or postmortems use sre-agents:scribe", description)
+        self.assertIn("for runbooks or postmortems use save-toolkit:scribe", description)
         self.assertNotIn("operational documentation", description)
         self.assertNotIn("## Documentation lane", body)
         self.assertNotIn("- `runbook` —", body)

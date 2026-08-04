@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/latent-sre/sre-agents/skills/operational-learning/assets/knowledge-update-v2.schema.json",
+  "$id": "https://github.com/latent-sre/save-toolkit/skills/operational-learning/assets/knowledge-update-v2.schema.json",
   "title": "Operational knowledge update v2",
   "description": "A reviewable operational-learning disposition with stable component identity. Version 2 replaces the service-only target and service lifecycle triggers with component_id, component_kind, component_added, and component_changed. Shared evidence, disposition, recommendation, and safety definitions remain anchored in the immutable v1 schema; the bundled validator additionally enforces evidence-label monotonicity, reference integrity, caller-authorized knowledge roots, safe repository paths, trigger-specific coverage, exact Git-reviewable changes, lifecycle deferral, and structured credential rejection.",
   "type": "object",

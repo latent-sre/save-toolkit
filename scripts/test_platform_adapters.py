@@ -43,17 +43,17 @@ class PlatformAdapterTests(unittest.TestCase):
         """
         codex = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/sde.md"))
         body = codex["developer_instructions"]
-        self.assertEqual("sre-agents-sde", codex["name"])
+        self.assertEqual("save-toolkit-sde", codex["name"])
         # Namespaced reference in the canonical description.
-        self.assertIn("sre-agents-reviewer", codex["description"])
+        self.assertIn("save-toolkit-reviewer", codex["description"])
         # Bare backticked sibling in the body must move with the identity, or it spawns
         # whichever `reviewer` another installed suite happens to own.
-        self.assertIn("`sre-agents-reviewer`", body)
+        self.assertIn("`save-toolkit-reviewer`", body)
         self.assertNotIn("`reviewer`", body)
         # Skills are not renamed, and prose must not be rewritten.
         self.assertIn("eng-ladder", body)
-        self.assertNotIn("sre-agents-eng-ladder", body)
-        self.assertNotIn("sre-agents:", body)
+        self.assertNotIn("save-toolkit-eng-ladder", body)
+        self.assertNotIn("save-toolkit:", body)
         self.assertIn("SRE lens", body)
 
     def test_codex_skill_projection_namespaces_agent_references(self) -> None:
@@ -67,7 +67,7 @@ class PlatformAdapterTests(unittest.TestCase):
         agent_names = {path.stem for path in (ROOT / "agents").glob("*.md")}
         offenders = []
         for path, blob in adapters.expected_outputs(ROOT).items():
-            if path.parts[:3] != ("plugins", "sre-agents", "skills"):
+            if path.parts[:3] != ("plugins", "save-toolkit", "skills"):
                 continue
             if path.suffix.lower() not in {".md", ".txt"}:
                 continue
@@ -80,7 +80,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_codex_agent_filenames_carry_a_fleet_prefix(self) -> None:
         """Codex custom agents share ONE flat global directory with no namespace.
 
-        Claude loads these as `sre-agents:<name>` and cannot collide. Codex installs bare
+        Claude loads these as `save-toolkit:<name>` and cannot collide. Codex installs bare
         filenames into `$CODEX_HOME/agents`, where `prompt-engineer.toml`,
         `repository-investigator.toml` and `researcher.toml` are names other agent suites
         also use — so an unprefixed projection overwrites user-owned files from another fleet.
@@ -92,13 +92,13 @@ class PlatformAdapterTests(unittest.TestCase):
         ]
         self.assertTrue(emitted, "no Codex agent adapters were emitted")
         unprefixed = sorted(
-            path.name for path in emitted if not path.name.startswith("sre-agents-")
+            path.name for path in emitted if not path.name.startswith("save-toolkit-")
         )
         self.assertEqual([], unprefixed, "Codex agent filenames must be fleet-prefixed")
-        # `sre-agents-` mirrors the Claude namespace. A bare `sre-` prefix would produce
+        # `save-toolkit-` mirrors the Claude namespace. A bare `sre-` prefix would produce
         # sre-sre.toml and sre-observability-engineer.toml for the two roles already starting with `sre`.
-        self.assertIn(adapters.CODEX_AGENTS / "sre-agents-sre.toml", emitted)
-        self.assertIn(adapters.CODEX_AGENTS / "sre-agents-observability-engineer.toml", emitted)
+        self.assertIn(adapters.CODEX_AGENTS / "save-toolkit-sre.toml", emitted)
+        self.assertIn(adapters.CODEX_AGENTS / "save-toolkit-observability-engineer.toml", emitted)
 
     def test_guarded_copilot_agents_do_not_receive_execute(self) -> None:
         for name in sorted(adapters.GUARDED_AGENTS):
@@ -155,8 +155,8 @@ class PlatformAdapterTests(unittest.TestCase):
                 next(line for line in frontmatter.splitlines() if line.startswith("description: "))[13:]
             )
             codex = tomllib.loads(adapters.render_codex_agent(source))
-            self.assertNotIn("sre-agents:", description, source.name)
-            self.assertNotIn("sre-agents:", codex["description"], source.name)
+            self.assertNotIn("save-toolkit:", description, source.name)
+            self.assertNotIn("save-toolkit:", codex["description"], source.name)
         self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/sde.md"))
         self.assertIn("reviewer", tomllib.loads(adapters.render_codex_agent(ROOT / "agents/sde.md"))["description"])
 

@@ -93,7 +93,7 @@ Plugin agents ignore frontmatter hooks, so the read-only Bash guard is wired onc
 In `skills/<name>/SKILL.md`, the frontmatter fields this fleet uses are `name`,
 `description`, `argument-hint`, and `disable-model-invocation`. Keep reusable workflow in the
 body; bundle depth in `references/`, `assets/`, and `scripts/`, each linked from the body. Skills
-are invoked in Claude through the plugin namespace (for example `/sre-agents:pcf-deploy`). The
+are invoked in Claude through the plugin namespace (for example `/save-toolkit:pcf-deploy`). The
 generator rewrites fleet component names to bare host-native forms in other projections.
 
 ## Promotion and composition

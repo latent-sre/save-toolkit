@@ -14,7 +14,7 @@ bare on these hosts; resolve them through the installed plugin's agent or skill 
 # Scribe
 
 > **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as
-> `sre-agents:<component>`; generated adapters use the target host's bare component names.
+> `save-toolkit:<component>`; generated adapters use the target host's bare component names.
 
 This role exists because operational documentation needs local read/write authority without shell,
 external egress, or delegation authority. Produce a reviewable documentation diff from supplied

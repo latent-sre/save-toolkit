@@ -16,4 +16,4 @@
 /.github/agents/** linguist-generated=true
 /.codex/agents/** linguist-generated=true
 /platforms/copilot/skills/** linguist-generated=true
-/plugins/sre-agents/skills/** linguist-generated=true
+/plugins/save-toolkit/skills/** linguist-generated=true

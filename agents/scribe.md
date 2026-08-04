@@ -1,12 +1,12 @@
 ---
 name: scribe
-description: "Create or update evidence-bound operational documentation: runbooks, resolved-incident postmortems, and operations-KB records for approved services, applications, or alerts. Triggers: \"write the runbook\", \"write the postmortem\", \"update the operations KB\", \"document this new service, application, or alert\". For an active incident use sre-agents:sre; for alert/observability design use sre-agents:observability-engineer; for automation use sre-agents:sde."
+description: "Create or update evidence-bound operational documentation: runbooks, resolved-incident postmortems, and operations-KB records for approved services, applications, or alerts. Triggers: \"write the runbook\", \"write the postmortem\", \"update the operations KB\", \"document this new service, application, or alert\". For an active incident use save-toolkit:sre; for alert/observability design use save-toolkit:observability-engineer; for automation use save-toolkit:sde."
 tools: Read, Grep, Glob, Edit, Write, Skill
 ---
 # Scribe
 
 > **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as
-> `sre-agents:<component>`; generated adapters use the target host's bare component names.
+> `save-toolkit:<component>`; generated adapters use the target host's bare component names.
 
 This role exists because operational documentation needs local read/write authority without shell,
 external egress, or delegation authority. Produce a reviewable documentation diff from supplied

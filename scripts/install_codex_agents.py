@@ -24,7 +24,15 @@ except ModuleNotFoundError:
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIRECTORY = REPO_ROOT / ".codex" / "agents"
-INSTALL_MARKER = "# Managed by sre-agents scripts/install_codex_agents.py; do not edit."
+INSTALL_MARKER = "# Managed by save-toolkit scripts/install_codex_agents.py; do not edit."
+# Markers written by earlier releases under a previous plugin name. Ownership is claimed by ANY of
+# these, but only INSTALL_MARKER is ever written. Without this, renaming the plugin silently orphans
+# every already-installed file: `_is_managed` would stop recognizing them, so neither the stale-file
+# prune nor `--uninstall` would touch them, and the user would be left with both generations of the
+# fleet side by side in Codex's flat global agents directory. Never drop an entry from this tuple.
+LEGACY_INSTALL_MARKERS = (
+    "# Managed by sre-agents scripts/install_codex_agents.py; do not edit.",
+)
 
 
 @dataclass(frozen=True)
@@ -57,7 +65,10 @@ def _installed_bytes(source: bytes) -> bytes:
 
 def _is_managed(content: bytes) -> bool:
     first = content.splitlines()[0] if content else b""
-    return first == INSTALL_MARKER.encode("utf-8")
+    return any(
+        first == marker.encode("utf-8")
+        for marker in (INSTALL_MARKER, *LEGACY_INSTALL_MARKERS)
+    )
 
 
 def build_sync_plan(source_directory: Path, target_directory: Path) -> SyncPlan:
@@ -255,7 +266,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if plan.conflicts:
         for conflict in plan.conflicts:
-            print(f"{conflict}: unmanaged file conflicts with an sre-agents role", file=sys.stderr)
+            print(f"{conflict}: unmanaged file conflicts with a save-toolkit role", file=sys.stderr)
         return 2
     if args.check:
         if plan.out_of_sync:
