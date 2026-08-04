@@ -106,6 +106,32 @@ class FleetDoctorTests(unittest.TestCase):
         )
         self.assertTrue(
             fleet_doctor._inventory_contains_plugin(
+                "claude",
+                "Installed plugins:\n\n  ❯ sre-agents@latent-sre\n    Version: 1.0.0\n    Scope: user\n    Status: ✔ enabled\n",
+                "sre-agents",
+            )
+        )
+        self.assertFalse(
+            fleet_doctor._inventory_contains_plugin(
+                "claude", "  ❯ old-sre-agents-test\n    Version: 9.9.9\n", "sre-agents"
+            )
+        )
+        self.assertTrue(
+            fleet_doctor._inventory_contains_plugin(
+                "copilot", "Installed plugins:\n  • sre-agents@latent-sre (v1.0.0)\n", "sre-agents"
+            )
+        )
+        for output in (
+            "No plugins installed.\n",
+            "  • old-sre-agents@latent-sre (v1.0.0)\n",
+            "  • sre-agents-test@latent-sre (v2.0.0)\n",
+        ):
+            with self.subTest(host="copilot", output=output):
+                self.assertFalse(
+                    fleet_doctor._inventory_contains_plugin("copilot", output, "sre-agents")
+                )
+        self.assertTrue(
+            fleet_doctor._inventory_contains_plugin(
                 "codex",
                 "sre-agents@latent-sre  installed, enabled  1.0.0  C:/plugins/sre-agents\n",
                 "sre-agents",

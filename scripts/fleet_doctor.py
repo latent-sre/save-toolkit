@@ -140,7 +140,10 @@ def _inventory_contains_plugin(host: str, stdout: str, plugin_name: str) -> bool
     for line in stdout.splitlines():
         stripped = line.strip()
         if host == "claude":
-            match = re.fullmatch(r">\s+" + plugin_id.pattern, stripped)
+            # The installed-row marker is ❯ (U+276F) in observed Claude CLI output; accept the
+            # legacy > as well. The plugin id must still fullmatch, so annotated lookalike rows
+            # and explanatory text never count.
+            match = re.fullmatch(r"[❯>]\s+" + plugin_id.pattern, stripped)
             if match and match.group("name") == plugin_name:
                 return True
             continue
@@ -149,6 +152,12 @@ def _inventory_contains_plugin(host: str, stdout: str, plugin_name: str) -> bool
             if len(columns) < 2 or not columns[1].lower().startswith("installed"):
                 continue
             match = re.fullmatch(plugin_id, columns[0])
+            if match and match.group("name") == plugin_name:
+                return True
+        if host == "copilot":
+            # Observed Copilot CLI row: "• sre-agents@latent-sre (v1.0.0)". The bullet and the
+            # version annotation are part of the row; the plugin id must still fullmatch.
+            match = re.fullmatch(r"•\s+" + plugin_id.pattern + r"(?:\s+\(v[^)]*\))?", stripped)
             if match and match.group("name") == plugin_name:
                 return True
     return False
