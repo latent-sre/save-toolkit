@@ -417,6 +417,26 @@ def main() -> None:
         #     as a directory component — can never trip it.
         # Residual: a rename to a key without "agent" in it is not caught here; that is what
         # scripts/probe_plugin.py exists to catch after a CLI upgrade.
+        # Second canary, same silent-disarm class on a different axis: the PLUGIN can be renamed
+        # under us. `agent_type` still arrives, still namespaced, but with a namespace PLUGIN_NAME
+        # no longer spells — so the exact-match above misses and the `agent is None` canary below
+        # never fires, because `agent_type` is present. The guard would hand `sre` and
+        # `observability-engineer` unguarded Bash while looking perfectly healthy. A namespaced
+        # payload whose BARE name is guarded is unambiguously one of our agents under a moved
+        # namespace, so deny and say which constant to fix.
+        #
+        # Trade-off, accepted deliberately: an unrelated plugin shipping its own agent named `sre`
+        # is denied too. That is over-reach, but it is loud, self-explanatory, and one constant
+        # away from resolution — whereas the alternative is this fleet's read-only boundary
+        # disappearing silently on a rename.
+        if isinstance(agent, str) and ":" in agent and agent.rsplit(":", 1)[-1] in GUARDED_AGENT_NAMES:
+            _deny(
+                f"Blocked: the read-only guard saw a guarded agent under an unrecognized plugin "
+                f"namespace ({agent!r}), but PLUGIN_NAME in scripts/readonly-guard.py is still "
+                f"{PLUGIN_NAME!r}. The plugin was most likely renamed without updating the guard. "
+                "The guard fails closed rather than silently stop guarding. Update PLUGIN_NAME to "
+                "match the installed plugin."
+            )
         if agent is None and any(
             "agent" in key.lower() and isinstance(value, str) and value in GUARDED_AGENTS
             for key, value in data.items()

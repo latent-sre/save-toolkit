@@ -449,6 +449,29 @@ class GuardScopingTest(unittest.TestCase):
         )
         self.assertEqual(decision(proc), "allow")
 
+    def test_renamed_plugin_namespace_fails_closed(self) -> None:
+        # The other silent-disarm axis: the PLUGIN is renamed but PLUGIN_NAME here is not. The
+        # payload still carries `agent_type`, so the field-rename canary below never fires, and the
+        # exact-match set misses because the namespace moved. Before this check the guard handed
+        # `sre` and `observability-engineer` unguarded Bash while looking healthy — `rm -rf` was
+        # allowed under `save-toolkit:sre`. A namespaced payload whose bare name is guarded is one
+        # of ours under a moved namespace; deny it.
+        for namespace in ("save-toolkit", "renamed-plugin", "sre-agents-v2"):
+            for bare in ("sre", "observability-engineer"):
+                with self.subTest(agent_type=f"{namespace}:{bare}"):
+                    proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=f"{namespace}:{bare}"))
+                    self.assertEqual(decision(proc), "deny")
+                    self.assertIn("unrecognized plugin namespace", proc.stdout.decode("utf-8"))
+
+    def test_renamed_plugin_namespace_does_not_capture_unguarded_or_foreign_agents(self) -> None:
+        # The fail-closed above must not become a session-wide denylist. `sde` is deliberately
+        # unguarded under ANY namespace, and an unrelated plugin's agents are not ours to police
+        # unless their bare name collides with a guarded one.
+        for agent in ("save-toolkit:sde", "sre-agents:sde", "othervendor:reviewer"):
+            with self.subTest(agent_type=agent):
+                proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=agent))
+                self.assertEqual(decision(proc), "allow")
+
     def test_renamed_agent_type_field_fails_closed(self) -> None:
         # The contract canary. `agent_type` is undocumented; if it is ever renamed upstream, every
         # payload would look like the main loop and the guard would silently stop guarding. When
