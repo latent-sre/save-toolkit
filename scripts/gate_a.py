@@ -52,6 +52,8 @@ STEPS = [
      ["scripts/test_operational_learning.py"], None),
     ("Read-only fleet doctor contracts",
      ["scripts/test_fleet_doctor.py"], None),
+    ("Disposable host install probe contracts",
+     ["scripts/test_host_install_probe.py"], None),
     ("Digest-bound verification sandbox contracts",
      ["scripts/test_verification_sandbox.py"], None),
     ("Platform adapter contract tests",

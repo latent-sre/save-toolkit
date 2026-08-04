@@ -84,6 +84,40 @@ class CodexInstallerTests(unittest.TestCase):
             installer.apply_sync_plan(plan)
         self.assertEqual("user-owned = true\n", target.read_text(encoding="utf-8"))
 
+    def test_uninstall_removes_only_managed_files(self) -> None:
+        installer.apply_sync_plan(installer.build_sync_plan(self.source, self.target))
+        self.target.joinpath("personal.toml").write_text("name = \"personal\"\n", encoding="utf-8")
+        plan = installer.build_uninstall_plan(self.target)
+        self.assertEqual((self.target / "sre.toml",), tuple(item.path for item in plan.removals))
+        self.assertFalse(plan.writes)
+        self.assertFalse(plan.conflicts)
+        installer.apply_sync_plan(plan)
+        self.assertFalse((self.target / "sre.toml").exists())
+        self.assertEqual("name = \"personal\"\n", (self.target / "personal.toml").read_text(encoding="utf-8"))
+
+    def test_uninstall_is_idempotent_on_missing_or_empty_target(self) -> None:
+        for target in (self.target, self.target / "missing"):
+            plan = installer.build_uninstall_plan(target)
+            self.assertFalse(plan.out_of_sync)
+            installer.apply_sync_plan(plan)
+
+    def test_uninstall_does_not_delete_a_managed_file_changed_after_preflight(self) -> None:
+        installer.apply_sync_plan(installer.build_sync_plan(self.source, self.target))
+        plan = installer.build_uninstall_plan(self.target)
+        target = self.target / "sre.toml"
+        target.write_text("user-owned = true\n", encoding="utf-8")
+        with self.assertRaises(installer.ConcurrentChangeError):
+            installer.apply_sync_plan(plan)
+        self.assertEqual("user-owned = true\n", target.read_text(encoding="utf-8"))
+
+    def test_main_uninstall_cli(self) -> None:
+        installer.apply_sync_plan(installer.build_sync_plan(self.source, self.target))
+        self.target.joinpath("personal.toml").write_text("name = \"personal\"\n", encoding="utf-8")
+        self.assertEqual(0, installer.main(["--target", str(self.target), "--uninstall"]))
+        self.assertFalse((self.target / "sre.toml").exists())
+        self.assertTrue((self.target / "personal.toml").exists())
+        self.assertEqual(0, installer.main(["--target", str(self.target), "--uninstall"]))
+
 
 if __name__ == "__main__":
     unittest.main()

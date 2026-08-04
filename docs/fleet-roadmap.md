@@ -66,15 +66,42 @@ Host proof must still use an explicit disposable target — but because this ite
 forbid writing to user-owned plugin and custom-agent directories at all, not because a name
 collision would otherwise occur.
 
-`host.codex.custom-agents` nonetheless still reports `fail`, now for the remaining "installed set
-differs from the generated roles" condition — which is really *fleet absent from an available host*.
-That is neither the `skip`/`inconclusive` this item's Outcome requires of an unavailable host nor a
-genuine installation failure, and no repository change clears it. Deciding which status an
-absent-but-installable fleet earns is an open question this item must settle before its acceptance
-can be met.
+The absent-but-installable status question is settled: `fail` now means exactly one thing across the
+doctor's installation checks — an *installed* fleet is unhealthy. `host.codex.custom-agents` reports
+`skip` when an available Codex host carries no marker-managed fleet file at all, matching the
+plugin-inventory check's standing precedent that absence is not a runtime failure; partial, stale,
+or drifted installs and unmanaged conflicts remain `fail`.
 
-**Next action:** Add disposable install/check/uninstall probes for Claude, Codex, and VS Code. Keep
-Copilot incomplete until its CLI is available, and keep all model-behavior claims outside this item.
+`scripts/host_install_probe.py` is the disposable proof surface. Given an explicit, initially empty
+target outside user-owned configuration and the repository, it installs the fleet per host, checks
+inventory, censuses the user-owned config location before and after to prove the write boundary,
+uninstalls, and reports residue — one validated evidence envelope per criterion, recording CLI
+identity/version and the exact source revision. Codex installs through the conflict-safe installer,
+which now owns `--uninstall` (removing only marker-managed files); VS Code installs as workspace
+file placement matching its folder-scan discovery; Claude installs through the CLI's plugin
+marketplace/install/list/uninstall verbs against a credential-free disposable `CLAUDE_CONFIG_DIR`;
+Copilot mirrors the Claude flow against a disposable HOME (its local-path marketplace,
+install/list/uninstall verbs are exercised the same way). A missing CLI is `skip`, a failing CLI
+verb is `inconclusive`, and only a proven boundary violation or uninstall residue is `fail`. No
+model session is started and no credentials are provisioned, so requested/observed model fields
+are absent by design. On a CLI-less machine every host criterion reports `skip`; the probe's
+contract tests run in Gate A.
+
+A full four-host run is recorded [verified on a Cursor cloud VM, Linux x64, CLIs installed from
+public npm/tarball sources, no credentials provisioned]: Claude Code 2.1.221, codex-cli 0.146.0,
+VS Code 1.131.0, and GitHub Copilot CLI 1.0.78 each reported `pass` for install, inventory,
+authority, and uninstall at source revision `ed75c9eb38a0b3273a2ab9b70bb29ad7fad2268b`, with every
+watched user-owned location unchanged and the disposable target removed. The same run settled two
+format questions only real CLIs could answer — Claude's inventory row marker is `❯` and Copilot's
+is a bullet row with a version annotation — and both inventory parsers now require an exact
+fullmatch. Standing limitations: VS Code runtime discovery is UI-bound (inventory is file-level),
+headless Codex agent discovery is unproven, and no model session was started, so model evidence
+remains an EVAL-001 concern.
+
+**Next action:** The owner decides whether the verified cloud-VM run and its recorded limitations
+satisfy this item's acceptance — VS Code UI discovery and headless Codex discovery are documented
+gaps, and model evidence stays with EVAL-001 — or whether a run on the owner workstation topology
+is also required. No repository change is blocking either path.
 
 ## Blocked on an owner decision
 
