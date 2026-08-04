@@ -402,14 +402,33 @@ def _installation_checks(
             )
         )
     elif plan.out_of_sync:
-        checks.append(
-            Check(
-                "host.codex.custom-agents",
-                "fail",
-                "Installed Codex custom agents differ from generated fleet roles.",
-                {"update_count": len(plan.writes), "stale_managed_count": len(plan.removals)},
-            )
+        # Settled HOST-001 semantics: `fail` means an *installed* fleet is unhealthy (partial,
+        # stale, or drifted). A host where no managed fleet file exists at all has no installed
+        # fleet to assess; absence is `skip`, matching the plugin-inventory precedent.
+        managed_present = any(write.expected is not None for write in plan.writes) or bool(
+            plan.removals
         )
+        if not managed_present:
+            checks.append(
+                Check(
+                    "host.codex.custom-agents",
+                    "skip",
+                    "Codex is available but no sre-agents custom agents are installed.",
+                    {"pending_install_count": len(plan.writes)},
+                    limitations=(
+                        "Absence is not an installation failure; nothing installed was assessed.",
+                    ),
+                )
+            )
+        else:
+            checks.append(
+                Check(
+                    "host.codex.custom-agents",
+                    "fail",
+                    "Installed Codex custom agents differ from generated fleet roles.",
+                    {"update_count": len(plan.writes), "stale_managed_count": len(plan.removals)},
+                )
+            )
     else:
         checks.append(
             Check(

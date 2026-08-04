@@ -143,6 +143,53 @@ class FleetDoctorTests(unittest.TestCase):
                 ended_at=datetime(2026, 7, 31, tzinfo=timezone.utc),
             )
 
+    def _codex_fixture(self, temporary: str) -> tuple[Path, Path]:
+        base = Path(temporary)
+        root = base / "repo"
+        source = root / ".codex" / "agents"
+        source.mkdir(parents=True)
+        source.joinpath("sre-agents-sre.toml").write_text('name = "sre"\n', encoding="utf-8")
+        codex_home = base / "codex"
+        (codex_home / "agents").mkdir(parents=True)
+        return root, codex_home
+
+    def _no_fleet_plugin_list(self, argv: tuple[str, ...]) -> fleet_doctor.CommandResult:
+        return fleet_doctor.CommandResult(0, "other-plugin  installed  1.0.0\n", "")
+
+    def test_absent_fleet_on_available_codex_host_is_skip_not_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root, codex_home = self._codex_fixture(temporary)
+            checks = fleet_doctor._installation_checks(
+                root,
+                codex_home.parent,
+                {"codex": "codex.exe"},
+                self._no_fleet_plugin_list,
+                codex_home=codex_home,
+            )
+        custom = next(check for check in checks if check.check_id == "host.codex.custom-agents")
+        self.assertEqual("skip", custom.status)
+        self.assertIn("no sre-agents custom agents are installed", custom.summary)
+        self.assertTrue(custom.limitations)
+
+    def test_drifted_codex_install_is_still_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root, codex_home = self._codex_fixture(temporary)
+            stale = codex_home / "agents" / "sre-agents-retired.toml"
+            stale.write_text(
+                "# Managed by sre-agents scripts/install_codex_agents.py; do not edit.\n",
+                encoding="utf-8",
+            )
+            checks = fleet_doctor._installation_checks(
+                root,
+                codex_home.parent,
+                {"codex": "codex.exe"},
+                self._no_fleet_plugin_list,
+                codex_home=codex_home,
+            )
+        custom = next(check for check in checks if check.check_id == "host.codex.custom-agents")
+        self.assertEqual("fail", custom.status)
+        self.assertIn("differ from generated fleet roles", custom.summary)
+
     def test_main_exits_one_only_for_failing_checks(self) -> None:
         report = {
             "schema_version": 1,
