@@ -8,9 +8,9 @@ plugin, agent, or settings locations, never provisions credentials, and never st
 session. An unavailable host is ``skip``; a CLI that cannot complete a verb is ``inconclusive``;
 only a proven boundary violation or uninstall residue is ``fail``.
 
-The Copilot CLI install surface is not yet mapped: when the CLI exists the probe records its
-availability and reports ``inconclusive`` criteria without attempting an install, keeping Copilot
-incomplete until its runtime and verbs are actually understood.
+The Copilot CLI mirrors the Claude flow: a local-path marketplace registration, an explicit
+plugin id install, an exact-row inventory check, and an uninstall verb, all against a
+credential-free disposable HOME.
 """
 
 from __future__ import annotations
@@ -51,6 +51,7 @@ HOSTS = ("claude", "codex", "vscode", "copilot")
 CLI_COMMANDS = {"claude": "claude", "codex": "codex", "vscode": "code", "copilot": "copilot"}
 CRITERIA = ("install", "inventory", "authority", "uninstall")
 CLAUDE_PLUGIN_ID = "sre-agents@latent-sre"
+COPILOT_PLUGIN_ID = "sre-agents@latent-sre"
 MODEL_LIMITATION = (
     "No model session was started; requested/observed model fields are absent by design "
     "(model behavior is an EVAL-001 concern)."
@@ -84,6 +85,13 @@ def _assert_probe_command(argv: Sequence[str], *, root: Path) -> None:
             ("plugin", "marketplace", "add", str(root)),
             ("plugin", "install", CLAUDE_PLUGIN_ID),
             ("plugin", "uninstall", CLAUDE_PLUGIN_ID),
+        }
+    if name == "copilot":
+        allowed = allowed or tail in {
+            ("plugin", "list"),
+            ("plugin", "marketplace", "add", str(root)),
+            ("plugin", "install", COPILOT_PLUGIN_ID),
+            ("plugin", "uninstall", COPILOT_PLUGIN_ID),
         }
     if not allowed:
         raise ValueError(
@@ -262,30 +270,33 @@ def _unavailable_checks(host: str) -> list[Check]:
     ]
 
 
-def _authority_check(
-    host: str,
-    watched_label: str,
-    before: dict | None,
-    after: dict | None,
-) -> Check:
-    changed = _census_change(before, after)
-    if changed is None:
-        return Check(
-            f"host.{host}.probe-authority",
-            "inconclusive",
-            f"The {watched_label} user location could not be enumerated, so the write boundary is unproven.",
-        )
-    if changed:
+def _authority_check(host: str, watched: Sequence[tuple[str, dict | None, dict | None]]) -> Check:
+    """Compare censuses of user-owned locations; only counts and category labels are reported."""
+
+    changes = 0
+    labels = []
+    for label, before, after in watched:
+        changed = _census_change(before, after)
+        if changed is None:
+            return Check(
+                f"host.{host}.probe-authority",
+                "inconclusive",
+                f"The {label} user location could not be enumerated, so the write boundary is unproven.",
+            )
+        if changed:
+            changes += changed
+            labels.append(label)
+    if changes:
         return Check(
             f"host.{host}.probe-authority",
             "fail",
-            f"{changed} path(s) changed under the {watched_label} user location during the disposable probe.",
-            {"changed_user_path_count": changed},
+            f"{changes} path(s) changed under user-owned location(s) during the disposable probe.",
+            {"changed_user_path_count": changes, "changed_location_count": len(labels)},
         )
     return Check(
         f"host.{host}.probe-authority",
         "pass",
-        f"All probe writes stayed inside the disposable target; the {watched_label} user location is unchanged.",
+        "All probe writes stayed inside the disposable target; watched user locations are unchanged.",
     )
 
 
@@ -326,7 +337,7 @@ def _probe_claude(root: Path, target: Path, home: Path, run: Runner, *, executab
             )
             for criterion in ("inventory", "uninstall")
         )
-        checks.append(_authority_check("claude", "Claude-config", census_before, _stat_census(watched)))
+        checks.append(_authority_check("claude", [("Claude-config", census_before, _stat_census(watched))]))
         return checks
     checks.append(
         Check(
@@ -397,7 +408,7 @@ def _probe_claude(root: Path, target: Path, home: Path, run: Runner, *, executab
                 remove.returncode,
             )
         )
-    checks.append(_authority_check("claude", "Claude-config", census_before, _stat_census(watched)))
+    checks.append(_authority_check("claude", [("Claude-config", census_before, _stat_census(watched))]))
     return checks
 
 
@@ -426,7 +437,7 @@ def _probe_codex(root: Path, target: Path, home: Path) -> list[Check]:
             )
             for criterion in ("inventory", "uninstall")
         )
-        checks.append(_authority_check("codex", "Codex-agents", census_before, _stat_census(watched)))
+        checks.append(_authority_check("codex", [("Codex-agents", census_before, _stat_census(watched))]))
         return checks
 
     plan = install_codex_agents.build_sync_plan(root / ".codex" / "agents", agents)
@@ -490,7 +501,7 @@ def _probe_codex(root: Path, target: Path, home: Path) -> list[Check]:
             limitations=("Uninstall removes only marker-managed files.",),
         )
     )
-    checks.append(_authority_check("codex", "Codex-agents", census_before, _stat_census(watched)))
+    checks.append(_authority_check("codex", [("Codex-agents", census_before, _stat_census(watched))]))
     return checks
 
 
@@ -544,7 +555,7 @@ def _probe_vscode(root: Path, target: Path, home: Path) -> list[Check]:
             for criterion in ("inventory", "uninstall")
         )
         checks.append(
-            _authority_check("vscode", "VS-Code-user-settings", census_before, _stat_census(watched))
+            _authority_check("vscode", [("VS-Code-user-settings", census_before, _stat_census(watched))])
         )
         return checks
 
@@ -632,25 +643,129 @@ def _probe_vscode(root: Path, target: Path, home: Path) -> list[Check]:
         )
     )
     checks.append(
-        _authority_check("vscode", "VS-Code-user-settings", census_before, _stat_census(watched))
+        _authority_check("vscode", [("VS-Code-user-settings", census_before, _stat_census(watched))])
     )
     return checks
 
 
-def _probe_copilot() -> list[Check]:
-    return [
-        Check(
-            f"host.copilot.probe-{criterion}",
-            "inconclusive",
-            "Copilot CLI install verbs are not yet mapped; no disposable install was attempted.",
-            limitations=(
-                "Copilot remains incomplete until its install surface is understood and its runtime is exercised.",
-                MODEL_LIMITATION,
-                CREDENTIAL_LIMITATION,
-            ),
+def _probe_copilot(root: Path, target: Path, home: Path, run: Runner, *, executable: str) -> list[Check]:
+    checks: list[Check] = []
+    env = _child_env(target / "copilot" / "home", {})
+    watched_locations = (home / ".copilot", home / ".cache" / "copilot")
+    census_before = [_stat_census(location) for location in watched_locations]
+
+    def authority() -> Check:
+        watched = [
+            (label, before, _stat_census(location))
+            for label, before, location in zip(
+                ("Copilot-config", "Copilot-cache"), census_before, watched_locations
+            )
+        ]
+        return _authority_check("copilot", watched)
+
+    def cli(*tail: str) -> CommandResult:
+        return run((executable, *tail), env)
+
+    add = cli("plugin", "marketplace", "add", str(root))
+    install = cli("plugin", "install", COPILOT_PLUGIN_ID) if add.returncode == 0 else None
+    if install is None or install.returncode != 0:
+        checks.append(
+            Check(
+                "host.copilot.probe-install",
+                "inconclusive",
+                "The Copilot CLI could not complete the disposable plugin install verbs.",
+                {
+                    "marketplace_add_rc": add.returncode,
+                    "install_rc": None if install is None else install.returncode,
+                },
+                (executable, "plugin", "marketplace", "add", str(root)),
+                str(target),
+                add.returncode,
+                (CREDENTIAL_LIMITATION,),
+            )
         )
-        for criterion in CRITERIA
-    ]
+        checks.extend(
+            Check(
+                f"host.copilot.probe-{criterion}",
+                "skip",
+                "Install did not complete, so there is nothing to inventory or uninstall.",
+                limitations=(MODEL_LIMITATION,),
+            )
+            for criterion in ("inventory", "uninstall")
+        )
+        checks.append(authority())
+        return checks
+    checks.append(
+        Check(
+            "host.copilot.probe-install",
+            "pass",
+            "Fleet plugin installed into a disposable Copilot home.",
+            {"marketplace_add_rc": add.returncode, "install_rc": install.returncode},
+            (executable, "plugin", "install", COPILOT_PLUGIN_ID),
+            str(target),
+            install.returncode,
+            (CREDENTIAL_LIMITATION,),
+        )
+    )
+
+    listing = cli("plugin", "list")
+    found = (
+        fleet_doctor._inventory_contains_plugin("copilot", listing.stdout, "sre-agents")
+        if listing.returncode == 0
+        else None
+    )
+    checks.append(
+        Check(
+            "host.copilot.probe-inventory",
+            "inconclusive" if found is None else ("pass" if found else "fail"),
+            (
+                "Disposable Copilot inventory lists the fleet plugin."
+                if found
+                else "Disposable Copilot inventory could not confirm the fleet plugin."
+            ),
+            {"installed": found},
+            (executable, "plugin", "list"),
+            str(target),
+            listing.returncode,
+            (MODEL_LIMITATION,),
+        )
+    )
+
+    remove = cli("plugin", "uninstall", COPILOT_PLUGIN_ID)
+    if remove.returncode:
+        checks.append(
+            Check(
+                "host.copilot.probe-uninstall",
+                "inconclusive",
+                "The Copilot CLI could not complete the disposable plugin uninstall verb.",
+                {"uninstall_rc": remove.returncode},
+                (executable, "plugin", "uninstall", COPILOT_PLUGIN_ID),
+                str(target),
+                remove.returncode,
+            )
+        )
+    else:
+        after = cli("plugin", "list")
+        residue = after.returncode == 0 and fleet_doctor._inventory_contains_plugin(
+            "copilot", after.stdout, "sre-agents"
+        )
+        checks.append(
+            Check(
+                "host.copilot.probe-uninstall",
+                "fail" if residue else "pass",
+                (
+                    "Fleet plugin remains in the disposable inventory after uninstall."
+                    if residue
+                    else "Fleet plugin is absent from the disposable inventory after uninstall."
+                ),
+                {"residue": residue},
+                (executable, "plugin", "uninstall", COPILOT_PLUGIN_ID),
+                str(target),
+                remove.returncode,
+            )
+        )
+    checks.append(authority())
+    return checks
 
 
 def _to_envelope(
@@ -732,7 +847,10 @@ def collect_report(
         elif host == "vscode":
             checks_by_host[host] = (version, _probe_vscode(root, target, home))
         else:
-            checks_by_host[host] = (version, _probe_copilot())
+            checks_by_host[host] = (
+                version,
+                _probe_copilot(root, target, home, run, executable=executable),
+            )
 
     ended = started if now is not None else datetime.now(timezone.utc)
     envelopes = [

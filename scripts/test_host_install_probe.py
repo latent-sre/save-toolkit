@@ -43,6 +43,33 @@ def make_which(**hosts: str):
     return lambda command: hosts.get(command)
 
 
+def copilot_run(state: dict[str, object], envs: list[object]):
+    def run(argv: tuple[str, ...], env: object) -> probe.CommandResult:
+        envs.append(env)
+        tail = tuple(argv[1:])
+        if tail == ("--version",):
+            return probe.CommandResult(0, "GitHub Copilot CLI 1.0.78\n", "")
+        if tail[:3] == ("plugin", "marketplace", "add"):
+            return probe.CommandResult(state["add_rc"], "", "")  # type: ignore[arg-type]
+        if tail == ("plugin", "install", probe.COPILOT_PLUGIN_ID):
+            state["installed"] = state["add_rc"] == 0
+            return probe.CommandResult(state["install_rc"], "", "")  # type: ignore[arg-type]
+        if tail == ("plugin", "list"):
+            row = (
+                "Installed plugins:\n  • sre-agents@latent-sre (v1.0.0)\n"
+                if state["installed"]
+                else "No plugins installed.\n"
+            )
+            return probe.CommandResult(0, row, "")
+        if tail == ("plugin", "uninstall", probe.COPILOT_PLUGIN_ID):
+            if state["uninstall_rc"] == 0 and not state["residue"]:
+                state["installed"] = False
+            return probe.CommandResult(state["uninstall_rc"], "", "")  # type: ignore[arg-type]
+        raise AssertionError(f"unexpected argv: {argv!r}")
+
+    return run
+
+
 def checks_by_id(report: dict[str, object]) -> dict[str, dict[str, object]]:
     return {item["criterion"]: item for item in report["evidence"]}  # type: ignore[index]
 
@@ -100,6 +127,10 @@ class CommandAllowlistTests(unittest.TestCase):
             ("claude", "plugin", "marketplace", "add", str(REPO)),
             ("claude", "plugin", "install", "sre-agents@latent-sre"),
             ("claude", "plugin", "uninstall", "sre-agents@latent-sre"),
+            ("copilot", "plugin", "list"),
+            ("copilot", "plugin", "marketplace", "add", str(REPO)),
+            ("copilot", "plugin", "install", "sre-agents@latent-sre"),
+            ("copilot", "plugin", "uninstall", "sre-agents@latent-sre"),
         ):
             with self.subTest(argv=argv):
                 probe._assert_probe_command(argv, root=REPO)
@@ -112,6 +143,9 @@ class CommandAllowlistTests(unittest.TestCase):
             ("claude", "plugin", "install", "sre-agents"),
             ("claude", "plugin", "uninstall", "other-plugin@latent-sre"),
             ("codex", "plugin", "install", "sre-agents@latent-sre"),
+            ("copilot", "plugin", "marketplace", "add", "https://example.com/market"),
+            ("copilot", "plugin", "install", "sre-agents"),
+            ("copilot", "--plugin-dir", str(REPO)),
             ("sh", "-c", "claude plugin list"),
             ("git", "rev-parse", "HEAD"),
         ):
@@ -145,24 +179,93 @@ class AbsentHostTests(unittest.TestCase):
         for item in report["evidence"]:
             evidence_envelope.validate_envelope(item)
 
-    def test_copilot_present_is_inconclusive_never_pass(self) -> None:
+    def test_copilot_present_drives_a_real_install_cycle(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
+            state = {"add_rc": 0, "install_rc": 0, "uninstall_rc": 0, "installed": False, "residue": False}
+            envs: list[object] = []
             report = probe.collect_report(
                 REPO,
                 target=base / "target",
                 hosts=("copilot",),
                 home=base / "home",
-                run=version_only_run,
+                run=copilot_run(state, envs),
+                git_run=fake_git,
+                which=make_which(copilot="copilot.exe"),
+                now=NOW,
+            )
+            target = base / "target"
+            for env in envs:
+                if env is None:
+                    continue
+                self.assertTrue(str(env["HOME"]).startswith(str(target)))  # type: ignore[index]
+        items = checks_by_id(report)
+        for criterion in probe.CRITERIA:
+            self.assertEqual("pass", items[f"host.copilot.probe-{criterion}"]["status"], criterion)
+        fleet_doctor.validate_report(report)
+
+    def test_copilot_verb_failure_is_inconclusive_and_downstream_skips(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            state = {"add_rc": 1, "install_rc": 0, "uninstall_rc": 0, "installed": False, "residue": False}
+            report = probe.collect_report(
+                REPO,
+                target=base / "target",
+                hosts=("copilot",),
+                home=base / "home",
+                run=copilot_run(state, []),
                 git_run=fake_git,
                 which=make_which(copilot="copilot.exe"),
                 now=NOW,
             )
         items = checks_by_id(report)
-        for criterion in probe.CRITERIA:
-            item = items[f"host.copilot.probe-{criterion}"]
-            self.assertEqual("inconclusive", item["status"])
-            self.assertIn("not yet mapped", item["source"]["summary"])
+        self.assertEqual("inconclusive", items["host.copilot.probe-install"]["status"])
+        self.assertEqual("skip", items["host.copilot.probe-inventory"]["status"])
+        self.assertEqual("skip", items["host.copilot.probe-uninstall"]["status"])
+        self.assertEqual("pass", items["host.copilot.probe-authority"]["status"])
+
+    def test_copilot_uninstall_residue_is_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            state = {"add_rc": 0, "install_rc": 0, "uninstall_rc": 0, "installed": False, "residue": True}
+            report = probe.collect_report(
+                REPO,
+                target=base / "target",
+                hosts=("copilot",),
+                home=base / "home",
+                run=copilot_run(state, []),
+                git_run=fake_git,
+                which=make_which(copilot="copilot.exe"),
+                now=NOW,
+            )
+        self.assertEqual("fail", checks_by_id(report)["host.copilot.probe-uninstall"]["status"])
+
+    def test_copilot_user_state_write_is_authority_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            watched = base / "home" / ".copilot"
+            state = {"add_rc": 0, "install_rc": 0, "uninstall_rc": 0, "installed": False, "residue": False}
+            base_run = copilot_run(state, [])
+
+            def run(argv: tuple[str, ...], env: object) -> probe.CommandResult:
+                if tuple(argv[1:]) == ("plugin", "install", probe.COPILOT_PLUGIN_ID):
+                    watched.mkdir(parents=True, exist_ok=True)
+                    watched.joinpath("config.json").write_text("{}", encoding="utf-8")
+                return base_run(argv, env)
+
+            report = probe.collect_report(
+                REPO,
+                target=base / "target",
+                hosts=("copilot",),
+                home=base / "home",
+                run=run,
+                git_run=fake_git,
+                which=make_which(copilot="copilot.exe"),
+                now=NOW,
+            )
+        authority = checks_by_id(report)["host.copilot.probe-authority"]
+        self.assertEqual("fail", authority["status"])
+        self.assertNotIn("config.json", repr(authority))
 
 
 class ClaudeProbeTests(unittest.TestCase):
@@ -179,7 +282,12 @@ class ClaudeProbeTests(unittest.TestCase):
                 state["installed"] = state["add_rc"] == 0
                 return probe.CommandResult(state["install_rc"], "", "")
             if tail == ("plugin", "list"):
-                row = "  > sre-agents@latent-sre\n    Version: 1.0.0\n" if state["installed"] else ""
+                row = (
+                    "Installed plugins:\n\n  ❯ sre-agents@latent-sre\n    Version: 1.0.0\n"
+                    "    Scope: user\n    Status: ✔ enabled\n"
+                    if state["installed"]
+                    else ""
+                )
                 return probe.CommandResult(0, row, "")
             if tail == ("plugin", "uninstall", probe.CLAUDE_PLUGIN_ID):
                 if state["uninstall_rc"] == 0 and not state["residue"]:
