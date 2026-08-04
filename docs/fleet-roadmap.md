@@ -80,17 +80,28 @@ identity/version and the exact source revision. Codex installs through the confl
 which now owns `--uninstall` (removing only marker-managed files); VS Code installs as workspace
 file placement matching its folder-scan discovery; Claude installs through the CLI's plugin
 marketplace/install/list/uninstall verbs against a credential-free disposable `CLAUDE_CONFIG_DIR`;
-Copilot records availability and reports `inconclusive`, because its install verbs are not yet
-mapped. A missing CLI is `skip`, a failing CLI verb is `inconclusive`, and only a proven boundary
-violation or uninstall residue is `fail`. No model session is started and no credentials are
-provisioned, so requested/observed model fields are absent by design. On a CLI-less machine every
-host criterion reports `skip`; the probe's contract tests run in Gate A.
+Copilot mirrors the Claude flow against a disposable HOME (its local-path marketplace,
+install/list/uninstall verbs are exercised the same way). A missing CLI is `skip`, a failing CLI
+verb is `inconclusive`, and only a proven boundary violation or uninstall residue is `fail`. No
+model session is started and no credentials are provisioned, so requested/observed model fields
+are absent by design. On a CLI-less machine every host criterion reports `skip`; the probe's
+contract tests run in Gate A.
 
-**Next action:** On each machine with host CLIs, run `scripts/host_install_probe.py` with an
-explicit disposable target per available host and retain the emitted report as this item's
-acceptance evidence: Claude, Codex, and VS Code each need install, inventory, authority, and
-uninstall evidence with limitations recorded. Keep Copilot incomplete until its CLI is available
-and its install verbs are mapped, and keep all model-behavior claims outside this item.
+A full four-host run is recorded [verified on a Cursor cloud VM, Linux x64, CLIs installed from
+public npm/tarball sources, no credentials provisioned]: Claude Code 2.1.221, codex-cli 0.146.0,
+VS Code 1.131.0, and GitHub Copilot CLI 1.0.78 each reported `pass` for install, inventory,
+authority, and uninstall at source revision `ed75c9eb38a0b3273a2ab9b70bb29ad7fad2268b`, with every
+watched user-owned location unchanged and the disposable target removed. The same run settled two
+format questions only real CLIs could answer — Claude's inventory row marker is `❯` and Copilot's
+is a bullet row with a version annotation — and both inventory parsers now require an exact
+fullmatch. Standing limitations: VS Code runtime discovery is UI-bound (inventory is file-level),
+headless Codex agent discovery is unproven, and no model session was started, so model evidence
+remains an EVAL-001 concern.
+
+**Next action:** The owner decides whether the verified cloud-VM run and its recorded limitations
+satisfy this item's acceptance — VS Code UI discovery and headless Codex discovery are documented
+gaps, and model evidence stays with EVAL-001 — or whether a run on the owner workstation topology
+is also required. No repository change is blocking either path.
 
 ## Blocked on an owner decision
 
