@@ -36,7 +36,7 @@ For production, this PASS establishes readiness only; authorization belongs to t
       `[unverified]` until foundation evidence is attached.
 - [ ] **Health gates & abort criteria** — define success and failure signals before the release and state
       exactly what trips an abort.
-- [ ] **Monitoring in place** — attach existing evidence from the typed `sre-steward` agent that alerts and
+- [ ] **Monitoring in place** — attach existing evidence from the typed `observability-engineer` agent that alerts and
       SLOs cover the new behavior and that new paging alerts have operator guidance.
 - [ ] **Comms ready** — stakeholders and on-call know the window and update cadence.
 - [ ] **Production boundary understood** — a prod candidate proceeds only to the separate, later `production-change-gate` skill; this checklist neither loads that gate nor authorizes the action.

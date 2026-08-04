@@ -55,7 +55,7 @@ timestamps, blast radius, and every alternative that remains unverified.
   behavior, owner, notification route, and runbook.
 - Exercise failure, recovery, and notification delivery from a safe target before declaring coverage.
 
-Hand steady-state test tuning to the `sre-agents-sre-steward` agent with the coverage gap, proposed test/vantages,
+Hand steady-state test tuning to the `sre-agents-observability-engineer` agent with the coverage gap, proposed test/vantages,
 threshold evidence, expected cost/units, runbook, validation plan, and rollback condition.
 
 ## A path difference is not a cause

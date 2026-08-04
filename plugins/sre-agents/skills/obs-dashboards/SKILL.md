@@ -101,7 +101,7 @@ Read only the reference needed for the task:
 
 ## Handoff
 
-Hand the reviewed dashboard definition and target-validation gaps to the `sre-agents-sre-steward` agent. Include the
+Hand the reviewed dashboard definition and target-validation gaps to the `sre-agents-observability-engineer` agent. Include the
 dashboard UID/folder, source path, target Grafana version, data-source UIDs, query and variable changes,
 licence checks, screenshots or rendered evidence, and every remaining `[unverified]` item. If the work
 uncovers active user impact or an unknown-cause incident, hand the time-bounded signal evidence to the

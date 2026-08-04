@@ -2,7 +2,7 @@
 """PreToolUse guard — enforce read-only agents at the command level, by ALLOWLIST.
 
 Wired in THIS repo at plugin scope: `hooks/hooks.json` receives every Bash `PreToolUse` event and
-this guard acts only when `agent_type` identifies `sre` or `sre-steward`. Claude Code silently
+this guard acts only when `agent_type` identifies `sre` or `observability-engineer`. Claude Code silently
 ignores hooks embedded in plugin-shipped agent frontmatter, so the session hook is load-bearing.
 The guard scopes ITSELF on the payload's agent identity and no-ops for everything else.
 
@@ -75,7 +75,7 @@ PLUGIN_NAME = "sre-agents"
 # Agents this guard applies to — the read-only-Bash agents. `sde` is deliberately unguarded (its
 # job is running builds and tests for team-authored code); `reviewer` and `researcher` hold no
 # Bash at all, which is a stronger control than any hook.
-GUARDED_AGENT_NAMES = frozenset({"sre", "sre-steward"})
+GUARDED_AGENT_NAMES = frozenset({"sre", "observability-engineer"})
 GUARDED_AGENTS = frozenset(
     set(GUARDED_AGENT_NAMES) | {f"{PLUGIN_NAME}:{name}" for name in GUARDED_AGENT_NAMES}
 )
@@ -209,10 +209,10 @@ _CF_READ = frozenset({
     "app", "apps", "events", "logs", "routes", "services", "spaces", "orgs", "target",
 })
 
-# Commands only sre-steward may run — it validates observability config; sre does not need these,
-# and the smaller each profile is, the better it fails.
-_STEWARD_ONLY = frozenset({"yamllint"})
-# `promtool` is verb-gated like git: only its `check` family reads (steward-only as well).
+# Commands only observability-engineer may run — it validates observability config; sre does not
+# need these, and the smaller each profile is, the better it fails.
+_OBS_ONLY = frozenset({"yamllint"})
+# `promtool` is verb-gated like git: only its `check` family reads (observability-only as well).
 _PROMTOOL_READ_VERB = "check"
 
 _REASON = (
@@ -331,9 +331,13 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
         return _cf_allowed(args)
     if command == "promtool":
         positionals = _positionals(args)
-        return agent == "sre-steward" and bool(positionals) and positionals[0] == _PROMTOOL_READ_VERB
-    if command in _STEWARD_ONLY:
-        return agent == "sre-steward"
+        return (
+            agent == "observability-engineer"
+            and bool(positionals)
+            and positionals[0] == _PROMTOOL_READ_VERB
+        )
+    if command in _OBS_ONLY:
+        return agent == "observability-engineer"
     if command == "find":
         return not any(arg.startswith(_FIND_ACTIONS) for arg in args)
     return command in _SIMPLE_READERS
@@ -359,7 +363,7 @@ def is_allowed(command: str, agent: str = "") -> bool:
     """True only if every segment of every line of `command` is a known read-only command.
 
     `agent` is the BARE agent name (namespace already stripped); it gates agent-specific extras
-    (sre-steward's config validators) and nothing else.
+    (observability-engineer's config validators) and nothing else.
     """
     if not command.strip():
         return True  # nothing to run

@@ -30,7 +30,7 @@ EXIT_ALLOW = 42
 EXIT_DENY = 43
 
 SRE = "sre-agents:sre"
-STEWARD = "sre-agents:sre-steward"
+OBS_ENGINEER = "sre-agents:observability-engineer"
 # Backwards-compatible alias used throughout: the default guarded agent for the corpus runs.
 REVIEWER = SRE
 
@@ -271,7 +271,7 @@ DENIED = [
     "cf set-env my-app KEY value",
     "cf env my-app",
     "cf ssh my-app",
-    # --- steward-only validators are DENIED for sre ------------------------------------------
+    # --- observability-only validators are DENIED for sre ------------------------------------------
     "promtool check rules rules.yml",
     "yamllint alerts.yml",
     # --- CODE EXECUTION: forbidden outright, including this repo's own scripts ----------------
@@ -375,19 +375,19 @@ class ReadonlyGuardTest(unittest.TestCase):
         self.assertEqual(decision(proc), "allow")
 
 
-class StewardProfileTest(unittest.TestCase):
-    """sre-steward = the sre read set PLUS config validators; the extras never leak to sre."""
+class ObservabilityProfileTest(unittest.TestCase):
+    """observability-engineer = the sre read set PLUS config validators; the extras never leak to sre."""
 
-    STEWARD_ALLOWED = [
+    OBS_ALLOWED = [
         "promtool check rules rules.yml",
         "promtool check config prometheus.yml",
         "yamllint alerts.yml",
         "jq empty grafana/alerts.json",
-        # the shared read set works for the steward too
+        # the shared read set works for the observability engineer too
         "cf app my-app",
         "git diff --stat",
     ]
-    STEWARD_DENIED = [
+    OBS_DENIED = [
         "promtool tsdb create-blocks-from rules rules.yml",  # only the check verb reads
         "promtool query instant http://prom:9090 up",         # network query, not a config check
         "cf push my-app",
@@ -395,16 +395,16 @@ class StewardProfileTest(unittest.TestCase):
         "python -m yamllint alerts.yml",                      # no interpreters, even for a validator
     ]
 
-    def test_steward_allowlist(self) -> None:
-        for agent in (STEWARD, "sre-steward"):
-            for command in self.STEWARD_ALLOWED:
+    def test_observability_allowlist(self) -> None:
+        for agent in (OBS_ENGINEER, "observability-engineer"):
+            for command in self.OBS_ALLOWED:
                 with self.subTest(agent=agent, command=command):
                     proc = run_guard(bash_call(command, agent_type=agent))
                     self.assertEqual(decision(proc), "allow", f"falsely denied: {command!r}")
 
-    def test_steward_denylist(self) -> None:
-        for agent in (STEWARD, "sre-steward"):
-            for command in self.STEWARD_DENIED:
+    def test_observability_denylist(self) -> None:
+        for agent in (OBS_ENGINEER, "observability-engineer"):
+            for command in self.OBS_DENIED:
                 with self.subTest(agent=agent, command=command):
                     proc = run_guard(bash_call(command, agent_type=agent))
                     self.assertEqual(decision(proc), "deny", f"falsely allowed: {command!r}")
@@ -436,7 +436,7 @@ class GuardScopingTest(unittest.TestCase):
         # Project/user-scope installs report a bare agent_type (probed on CLI 2.1.200; the
         # --plugin-dir dev loop reports the NAMESPACED form). The guard must not be sidestepped by
         # installing the agent at a different scope.
-        for agent in ("sre", "sre-steward"):
+        for agent in ("sre", "observability-engineer"):
             with self.subTest(agent=agent):
                 proc = run_guard(bash_call("git push origin main", agent_type=agent))
                 self.assertEqual(decision(proc), "deny")
@@ -459,7 +459,7 @@ class GuardScopingTest(unittest.TestCase):
         # (project/user scope). The first canary design searched the envelope only for the
         # namespaced string, so a rename disarmed the guard silently in exactly the scope a
         # hand-installed copy runs in — caught in review, pinned here.
-        for renamed_value in (SRE, "sre", STEWARD, "sre-steward"):
+        for renamed_value in (SRE, "sre", OBS_ENGINEER, "observability-engineer"):
             with self.subTest(agent_type=renamed_value):
                 proc = run_guard(
                     json.dumps(

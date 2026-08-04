@@ -13,12 +13,12 @@ routing:
   expect: not_fire
   expected_alternative:
     kind: agent
-    name: sre-steward
+    name: observability-engineer
 success_criteria:
   - Keeps dashboards, alerts, and SLOs in the observability lane
-  - Delegates to sre-steward rather than authoring a runbook
+  - Delegates to observability-engineer rather than authoring a runbook
 graders:
   - type: contains_any
-    of: ["sre-steward", "observability", "SLO"]
+    of: ["observability-engineer", "observability", "SLO"]
   - type: contains_any
     of: ["burn", "alert", "dashboard"]

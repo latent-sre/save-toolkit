@@ -96,9 +96,9 @@ class PlatformAdapterTests(unittest.TestCase):
         )
         self.assertEqual([], unprefixed, "Codex agent filenames must be fleet-prefixed")
         # `sre-agents-` mirrors the Claude namespace. A bare `sre-` prefix would produce
-        # sre-sre.toml and sre-sre-steward.toml for the two roles already starting with `sre`.
+        # sre-sre.toml and sre-observability-engineer.toml for the two roles already starting with `sre`.
         self.assertIn(adapters.CODEX_AGENTS / "sre-agents-sre.toml", emitted)
-        self.assertIn(adapters.CODEX_AGENTS / "sre-agents-sre-steward.toml", emitted)
+        self.assertIn(adapters.CODEX_AGENTS / "sre-agents-observability-engineer.toml", emitted)
 
     def test_guarded_copilot_agents_do_not_receive_execute(self) -> None:
         for name in sorted(adapters.GUARDED_AGENTS):

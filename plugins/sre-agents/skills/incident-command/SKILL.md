@@ -67,9 +67,9 @@ runs the *process*, not the debugging, keeping the response moving toward mitiga
   Comms/timeline scribe (a named human during the live incident—not the typed `sre-agents-scribe` documentation
   agent). Confirm who owns what.
 - **Track every action** — each "someone should…" becomes an owned, tracked item.
-- **Resolve & close.** Confirm impact has ended (verify via the investigator and typed `sre-agents-sre-steward`
+- **Resolve & close.** Confirm impact has ended (verify via the investigator and typed `sre-agents-observability-engineer`
   agent), send the **Resolution** update, then hand the authoritative timeline to typed `sre-agents-scribe` for
-  the durable retrospective and learning dispositions. `sre-agents-sre-steward` supplies recovery/detection
+  the durable retrospective and learning dispositions. `sre-agents-observability-engineer` supplies recovery/detection
   evidence; it does not author the postmortem.
 
 ### Status — one authoritative block, kept live
@@ -105,7 +105,7 @@ large SEV1, split **Comms lead** and **Scribe** off from the IC; otherwise the I
 
 Downgrade or resolve only when the **golden signals are back to baseline and stay there** for a
 sustained window (not just "the graph turned green" — a metastable system can re-break). Verify recovery
-via the investigator and typed `sre-agents-sre-steward` agent first, then send the **Resolution** update and give
+via the investigator and typed `sre-agents-observability-engineer` agent first, then send the **Resolution** update and give
 typed `sre-agents-scribe` the authoritative timeline with preserved `[verified]`, `[sourced]`, and `[unverified]`
 labels for postmortem and operational-learning closeout.
 
@@ -136,7 +136,7 @@ until the human release owner validates the exact target, capability, command, a
 
 1. **Reversible first.** Prefer an action you can undo in seconds (route remap, flag flip) over one you
    can't. Blue-green route remap is the gold standard — instant and reversible.
-2. **One change at a time**, then observe. Have the typed `sre-agents-sre-steward` agent or named human watch the
+2. **One change at a time**, then observe. Have the typed `sre-agents-observability-engineer` agent or named human watch the
    golden signals for 1–2 minutes before the next action — so you know what worked.
 3. **Restart is a stopgap, not a fix.** If a restart "fixes" it, the cause is still there (leak, poison
    input, dependency) — capture `cf events`/logs first, then keep investigating with the typed `sre-agents-sre` agent.
@@ -147,7 +147,7 @@ until the human release owner validates the exact target, capability, command, a
 ### After mitigation
 
 User pain stopped ≠ incident over. Hand root-cause work to the typed `sre-agents-sre` agent and fix-forward
-execution to a human release owner; typed `sre-agents-sre-steward` confirms recovery and owns detection changes;
+execution to a human release owner; typed `sre-agents-observability-engineer` confirms recovery and owns detection changes;
 after resolution typed `sre-agents-scribe` captures the postmortem, operating guidance, and learning dispositions.
 
 ## Pairs with

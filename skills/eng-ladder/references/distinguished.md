@@ -33,5 +33,5 @@ This file is the bar for the distinguished rung — self-contained.
 - The reversible first step is defined — nothing bets everything on an untested assumption.
 
 ## Hand off
-- Execution of the chosen design → the `sde` agent; operating evidence → `sre`/`sre-steward`;
+- Execution of the chosen design → the `sde` agent; operating evidence → `sre`/`observability-engineer`;
   deployment execution → the human release owner.

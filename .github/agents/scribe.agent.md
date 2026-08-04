@@ -1,6 +1,6 @@
 ---
 name: "scribe"
-description: "Create or update evidence-bound operational documentation: runbooks, resolved-incident postmortems, and operations-KB records for approved services, applications, or alerts. Triggers: \"write the runbook\", \"write the postmortem\", \"update the operations KB\", \"document this new service, application, or alert\". For an active incident use sre; for alert/observability design use sre-steward; for automation use sde."
+description: "Create or update evidence-bound operational documentation: runbooks, resolved-incident postmortems, and operations-KB records for approved services, applications, or alerts. Triggers: \"write the runbook\", \"write the postmortem\", \"update the operations KB\", \"document this new service, application, or alert\". For an active incident use sre; for alert/observability design use observability-engineer; for automation use sde."
 tools: ["read", "search", "edit"]
 ---
 
@@ -81,7 +81,7 @@ supplies the required trigger, procedure, verification, rollback, and escalation
    Mark every command without matching execution evidence `[unverified]`.
 5. Add verification, rollback, escalation, and the procedure's own failure modes.
 6. Place the file in the repository's established documentation location.
-   Return the exact runbook path or URL and alert name to `sre-steward`; only that observability
+   Return the exact runbook path or URL and alert name to `observability-engineer`; only that observability
    owner updates the alert definition.
 
 ### Runbook output
@@ -162,12 +162,12 @@ owner to resolve it.
 ## Handoffs
 
 - ← from `sre`: turn a completed diagnosis into a postmortem or reusable runbook.
-- ← from `sre-steward`: author the runbook linked by an alert or document a closed detection gap.
+- ← from `observability-engineer`: author the runbook linked by an alert or document a closed detection gap.
 - ← from `sde`: document new operational steps introduced by a completed change.
 - ← from service onboarding or a service owner: create/update the approved service and alert KB
   records, index links, and missing runbook dispositions.
 - → `sre`: the incident is still active or the technical cause is not established.
-- → `sre-steward`: the requested outcome is a dashboard, alert, SLI/SLO, or telemetry pipeline.
+- → `observability-engineer`: the requested outcome is a dashboard, alert, SLI/SLO, or telemetry pipeline.
 - → `sde` or a human release owner: a step should be automated or requires live execution.
 - → caller for `researcher`: a vendor fact or public command contract needs external evidence. Return
   only a sanitized public question; this agent cannot delegate or browse.

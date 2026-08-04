@@ -94,7 +94,7 @@ When a DB-driven incident hits, check the cheap saturation signals first:
 - **Connections** — pool exhaustion (app waits on a free connection); right-size the pool, find leaks.
 - **Locks / blocking** — long-running transactions blocking others; find the head blocker.
 - **Replication lag** — stale reads / failover risk; hand the SLO and burn-evidence request to the
-  `sre-steward` agent with the raw windows, thresholds, and measurements.
+  `observability-engineer` agent with the raw windows, thresholds, and measurements.
 - **Disk / IOPS / temp** — space and I/O saturation; runaway sorts/spills.
 - **Recent migrations & deploys** — correlate with "what changed" and hand the incident evidence to
   the `sre` agent without upgrading a hypothesis.

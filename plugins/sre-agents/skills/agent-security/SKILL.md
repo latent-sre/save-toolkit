@@ -28,7 +28,7 @@ patch; you contain it. *[sourced: industry consensus; Simon Willison, "The letha
 
 The execution boundary today: `sre-agents-reviewer` and `sre-agents-repository-investigator` are local-only and hold no
 Bash, Write, web, or external MCP tools; `sre-agents-researcher` is external-only and holds no local read, Bash,
-Write, Skill, or Agent tool. `sre-agents-sre` and `sre-agents-sre-steward` run Bash under the fail-closed allowlist guard
+Write, Skill, or Agent tool. `sre-agents-sre` and `sre-agents-observability-engineer` run Bash under the fail-closed allowlist guard
 (the repo's `readonly-guard.py`, wired through the plugin-level session hook). `sre-agents-sde` and
 `sre-agents-prompt-engineer` retain unguarded Bash for team-authored repository work, so host/network egress
 controls remain load-bearing even though their direct web tools are absent. Verify every claim

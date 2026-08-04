@@ -66,7 +66,7 @@ annotation.
 
 Return the exact query, absolute UTC window, result or artifact link, field-extraction assumptions,
 before/after boundary, and confidence label. Separate observed facts from interpretations. Hand
-recurring-query or correlation evidence to the `sre-steward` agent; do not load another skill from
+recurring-query or correlation evidence to the `observability-engineer` agent; do not load another skill from
 this one.
 
 Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session

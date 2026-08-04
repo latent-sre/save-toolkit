@@ -52,7 +52,7 @@ route, or status. Overlay the exact deploy time and compare equal windows. A ste
 is correlation evidence, not by itself proof that the deploy caused the change.
 
 Confirm unusual functions against the current official backend documentation and retain the URL,
-retrieval date, and evidence label. Hand the `sre-steward` agent the exact query, evaluation window,
+retrieval date, and evidence label. Hand the `observability-engineer` agent the exact query, evaluation window,
 threshold, current value, and missing-data behavior so it can author the alert/SLO follow-up.
 
 ## Build the evidence packet

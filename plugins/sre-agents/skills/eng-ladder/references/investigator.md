@@ -44,5 +44,5 @@ if it's a systemic/distributed failure mode needing prevention design.
 ## Hand off
 - Major-incident trigger and evidence → the `sre-agents-sre` agent while you keep investigating.
 - Mitigation → the human release owner; durable code fix → the `sre-agents-sde` agent.
-- Capture and the detection-gap closure → the `sre-agents-sre-steward` agent.
+- Capture and the detection-gap closure → the `sre-agents-observability-engineer` agent.
 - Systemic/distributed failure needing prevention design → the elite tier.

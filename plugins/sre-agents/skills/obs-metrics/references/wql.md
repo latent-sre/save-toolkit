@@ -176,7 +176,7 @@ staleness conditions.
 ## Investigation handoff
 
 Overlay the exact deploy timestamp, then keep both the aggregate and the dimension that isolates an
-outlier. Hand the `sre-agents-sre-steward` agent the query, window, threshold, value, and missing-data behavior.
+outlier. Hand the `sre-agents-observability-engineer` agent the query, window, threshold, value, and missing-data behavior.
 Ownership map only—not a load: the `obs-alerting` skill owns alert and SLO design.
 
 ## Inert canary example

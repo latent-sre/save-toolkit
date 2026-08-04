@@ -56,7 +56,7 @@ everything).
       Size matters: ~200–400 LOC is the effective review chunk; defect detection drops past ~400 LOC and
       above ~500 LOC/hr, so cap continuous review at 60–90 min. A reviewer may request a split **solely**
       for size — an oversized change is a blocking finding, not a nit.
-- [ ] **Docs/ops updated** — if behavior or operations changed, update the docs and make a typed `sre-steward`
+- [ ] **Docs/ops updated** — if behavior or operations changed, update the docs and make a typed `observability-engineer`
       agent handoff for affected operational guidance, or explicitly record why none is needed.
 
 ## Verdict

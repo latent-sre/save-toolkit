@@ -49,9 +49,9 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("## Pick one primary mode", body)
         self.assertIn("**Knowledge closeout mode**", body)
 
-    def test_sre_steward_no_longer_owns_operational_documentation(self) -> None:
+    def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
         fields, body, _ = validate_fleet.adapters.parse_frontmatter(
-            ROOT / "agents" / "sre-steward.md"
+            ROOT / "agents" / "observability-engineer.md"
         )
         description = str(fields["description"]).lower()
         self.assertIn("for runbooks or postmortems use sre-agents:scribe", description)
@@ -79,7 +79,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("forbidden tool(s): Agent, Bash, WebSearch", rendered)
         self.assertIn("delegation mismatch", rendered)
 
-    def test_scribe_loaded_bundle_cannot_execute_or_route_docs_to_steward(self) -> None:
+    def test_scribe_loaded_bundle_cannot_execute_or_route_docs_to_observability(self) -> None:
         self.assertEqual([], validate_fleet.validate_scribe_bundle(ROOT))
         bundle_paths = self.SCRIBE_LOADED_PATHS
 
@@ -116,26 +116,26 @@ class FleetValidatorTests(unittest.TestCase):
                 )
                 text = text.replace(
                     "operating documentation → typed `scribe`",
-                    "operating documentation → typed `sre-steward`",
+                    "operating documentation → typed `observability-engineer`",
                 )
                 text = text.replace(
                     "hand the timeline and evidence to the `scribe` agent for retrospective documentation",
-                    "hand the timeline and evidence to the `sre-steward` agent for retrospective documentation",
+                    "hand the timeline and evidence to the `observability-engineer` agent for retrospective documentation",
                 )
                 text = text.replace("last_verified: null", "last_verified: <bump after incident>")
                 text = text.replace(
                     "after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions",
-                    "typed `sre-steward` agent captures\ndurable operating guidance",
+                    "typed `observability-engineer` agent captures\ndurable operating guidance",
                 )
                 target.write_text(text, encoding="utf-8")
             failures = validate_fleet.validate_scribe_bundle(root)
         rendered = "\n".join(failures)
         self.assertIn("run read-only ones to confirm syntax", rendered)
         self.assertIn("scribe execution directive", rendered)
-        self.assertIn("operating documentation → typed `sre-steward`", rendered)
-        self.assertIn("timeline and evidence to the `sre-steward` agent", rendered)
+        self.assertIn("operating documentation → typed `observability-engineer`", rendered)
+        self.assertIn("timeline and evidence to the `observability-engineer` agent", rendered)
         self.assertIn("last_verified: null", rendered)
-        self.assertIn("typed `sre-steward` agent captures", rendered)
+        self.assertIn("typed `observability-engineer` agent captures", rendered)
 
     def test_scribe_bundle_allows_explicit_non_execution_language(self) -> None:
         safe_statements = (
@@ -195,7 +195,7 @@ class FleetValidatorTests(unittest.TestCase):
         _, body, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/scribe.md")
         self.assertNotIn("and link it from the alert", body)
         self.assertIn(
-            "Return the exact runbook path or URL and alert name to `sre-steward`",
+            "Return the exact runbook path or URL and alert name to `observability-engineer`",
             body,
         )
 
