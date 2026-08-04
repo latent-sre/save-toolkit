@@ -178,6 +178,87 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_platform_manifests_agree(self) -> None:
         self.assertEqual([], adapters.validate_platform_contracts(ROOT))
 
+    @staticmethod
+    def _cursor_frontmatter(name: str) -> dict[str, str]:
+        rendered = adapters.render_cursor_agent(ROOT / "agents" / f"{name}.md")
+        frontmatter = rendered.split("---", 2)[1]
+        result = {}
+        for line in frontmatter.splitlines():
+            key, _, value = line.partition(": ")
+            result[key] = json.loads(value) if value.startswith('"') else value
+        return result
+
+    def test_cursor_readonly_follows_write_and_shell_authority(self) -> None:
+        # Cursor's only tool-posture knob is `readonly`: it is true exactly when the canonical
+        # role can neither edit files nor run a shell.
+        for name in ("reviewer", "repository-investigator", "researcher"):
+            self.assertEqual("true", self._cursor_frontmatter(name)["readonly"], name)
+        for name in ("sde", "prompt-engineer", "scribe", "sre", "sre-steward"):
+            self.assertEqual("false", self._cursor_frontmatter(name)["readonly"], name)
+
+    def test_cursor_profiles_state_their_enforcement_gaps(self) -> None:
+        guarded = adapters.render_cursor_agent(ROOT / "agents/sre.md")
+        self.assertIn("beforeShellExecution", guarded)
+        self.assertIn("unguarded shell", guarded)
+        scribe = adapters.render_cursor_agent(ROOT / "agents/scribe.md")
+        self.assertIn("no-shell boundary", scribe)
+        self.assertIn("cooperative", scribe)
+        external = adapters.render_cursor_agent(ROOT / "agents/researcher.md")
+        self.assertIn("local-read boundary", external)
+        self.assertIn("mount isolation", external)
+        for source in sorted((ROOT / "agents").glob("*.md")):
+            frontmatter = adapters.render_cursor_agent(source).split("---", 2)[1]
+            self.assertNotIn("tools:", frontmatter, source.name)
+            self.assertNotIn("model:", frontmatter, source.name)
+
+    def test_cursor_skill_frontmatter_is_whitelisted(self) -> None:
+        for path, blob in adapters.expected_outputs(ROOT).items():
+            if path.parent.name == "" or path.name != "SKILL.md":
+                continue
+            if path.parts[:2] != (".cursor", "skills"):
+                continue
+            frontmatter = blob.decode("utf-8").split("---", 2)[1]
+            keys = [line.split(":", 1)[0] for line in frontmatter.splitlines() if line and line[0].isalpha()]
+            unknown = sorted(set(keys) - set(adapters.CURSOR_SKILL_FIELDS))
+            self.assertEqual([], unknown, path.as_posix())
+        pcf = (ROOT / ".cursor/skills/pcf-deploy/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("disable-model-invocation: true", pcf)
+        self.assertIn("explicit-only", pcf)
+        self.assertNotIn("compatibility:", pcf.split("---", 2)[1])
+        runbook = (ROOT / ".cursor/skills/runbook/SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("argument-hint:", runbook.split("---", 2)[1])
+        self.assertIn("Claude-only frontmatter", runbook)
+
+    def test_cursor_namespace_contract(self) -> None:
+        self.assertEqual([], adapters.cursor_namespace_failures(ROOT))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            (root / "agents" / "runbook.md").write_text(
+                "---\nname: runbook\ndescription: x\ntools: Read\n---\nbody\n", encoding="utf-8"
+            )
+            skill = root / "skills" / "runbook"
+            skill.mkdir(parents=True)
+            skill.joinpath("SKILL.md").write_text(
+                "---\nname: runbook\ndescription: x\n---\nbody\n", encoding="utf-8"
+            )
+            mismatched = root / "skills" / "renamed"
+            mismatched.mkdir()
+            mismatched.joinpath("SKILL.md").write_text(
+                "---\nname: original\ndescription: x\n---\nbody\n", encoding="utf-8"
+            )
+            failures = adapters.cursor_namespace_failures(root)
+        self.assertTrue(any("collisions: runbook" in failure for failure in failures), failures)
+        self.assertTrue(any("renamed" in failure for failure in failures), failures)
+
+    def test_cursor_agents_are_emitted_bare_into_project_scope(self) -> None:
+        emitted = [
+            path for path in adapters.expected_outputs(ROOT) if path.parent == adapters.CURSOR_AGENTS
+        ]
+        self.assertEqual(8, len(emitted))
+        prefixed = [path.name for path in emitted if path.name.startswith("sre-agents-")]
+        self.assertEqual([], prefixed)
+
     def test_byte_drift_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()

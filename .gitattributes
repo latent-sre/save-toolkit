@@ -15,5 +15,7 @@
 # collapse the copies without changing their runtime behavior.
 /.github/agents/** linguist-generated=true
 /.codex/agents/** linguist-generated=true
+/.cursor/agents/** linguist-generated=true
+/.cursor/skills/** linguist-generated=true
 /platforms/copilot/skills/** linguist-generated=true
 /plugins/sre-agents/skills/** linguist-generated=true

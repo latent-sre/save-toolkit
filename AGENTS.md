@@ -1,9 +1,9 @@
 # SRE Agents — fleet guide
 
 A multi-host engineering plugin with **8 canonical agents and 27 canonical skills**. Claude Code
-loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code and Codex adapters are
-generated and committed from those sources; edit neither projection by hand. Routing is native:
-descriptions select lanes and Claude components are invoked as `sre-agents:<name>`.
+loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code, Codex, and Cursor
+adapters are generated and committed from those sources; edit no projection by hand. Routing is
+native: descriptions select lanes and Claude components are invoked as `sre-agents:<name>`.
 
 The stack, the stay-in-lane rule, and the platform boundary live in **one** place: the
 [`stack-profile`](skills/stack-profile/SKILL.md) skill. Load it before recommending any
@@ -57,7 +57,10 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   VS Code agents receive no `execute` tool; Codex agents request `read-only` or `workspace-write`
   sandbox mode but parent permissions may override it and custom-agent TOML has no per-agent tool
   allowlist. Codex local-only/external-only roles therefore require outer network or mount isolation,
-  respectively. These differences are stated in every generated adapter.
+  respectively. Cursor has no per-agent tool list — only a `readonly` flag, which read-never-write
+  roles receive — and its shell hook sees no agent identity, so guarded roles inherit an unguarded
+  shell there and write-but-no-shell boundaries are cooperative. These differences are stated in
+  every generated adapter.
 - `cf env`, `cf service-key`, and `CF_TRACE` output are denied to agents outright — those reads
   leak credentials next to egress. A human runs them and pastes the sanitized excerpt.
 

@@ -21,6 +21,8 @@ bare component names.
   [`platforms/copilot/skills/`](platforms/copilot/skills) — Copilot/VS Code plugin and projections.
 - [`plugins/sre-agents/`](plugins/sre-agents) and [`.codex/agents/`](.codex/agents) — Codex skills
   plugin plus standalone custom-agent projections.
+- [`.cursor/agents/`](.cursor/agents) and [`.cursor/skills/`](.cursor/skills) — Cursor subagent
+  and skill projections (workspace folder scan).
 - [`scripts/`](scripts) — the structural gate (`gate_a.py`), the read-only allowlist guard
   (`readonly-guard.py`), the projection generator, supporting validators, and their tests.
 - [`schemas/`](schemas) and the skill-bundled schema/validator pairs — portable evidence contracts:
@@ -82,6 +84,25 @@ This fleet keeps its Copilot skill projection at `platforms/copilot/skills/`, th
 
 For other workspaces, install at user level rather than copying files: VS Code also scans
 `~/.copilot/agents/` and `~/.copilot/skills/`. Copied agent files arrive without their skills.
+
+## Use it in Cursor
+
+Cursor scans `.cursor/agents/` and `.cursor/skills/` in the open workspace
+([subagents](https://cursor.com/docs/subagents), [skills](https://cursor.com/docs/skills)), so
+opening this repository exposes all eight roles and 27 skills with no setup: invoke a role with
+`/sde`, `/reviewer`, or the agent picker, and skills apply themselves or run via `/skill-name`.
+For other workspaces, install at user level under `~/.cursor/agents/` and `~/.cursor/skills/` —
+but that scope is one flat directory shared with every other suite, so project scope is the
+collision-free install.
+
+Two enforcement differences are stated in every generated profile: Cursor has no per-agent tool
+list (only `readonly`), and its `beforeShellExecution` hook sees no agent identity, so the two
+guarded roles inherit an unguarded shell here — the generated `## Host adapter contract` blocks
+carry the exact boundary each role keeps or loses. Skill frontmatter is whitelisted to Cursor's
+documented fields (`name`, `description`, `paths`/`globs`, `disable-model-invocation`,
+`metadata`); Claude-only keys are dropped with a note in each affected file. There is no Cursor
+plugin bundle yet: the `.cursor-plugin` manifest's discovery semantics are unverified without an
+authenticated session, and this repository commits verified surfaces only.
 
 ## Validate and evaluate
 
