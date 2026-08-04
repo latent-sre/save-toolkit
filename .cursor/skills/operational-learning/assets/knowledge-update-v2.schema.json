@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/latent-sre/sre-agents/skills/operational-learning/assets/knowledge-update-v2.schema.json",
+  "title": "Operational knowledge update v2",
+  "description": "A reviewable operational-learning disposition with stable component identity. Version 2 replaces the service-only target and service lifecycle triggers with component_id, component_kind, component_added, and component_changed. Shared evidence, disposition, recommendation, and safety definitions remain anchored in the immutable v1 schema; the bundled validator additionally enforces evidence-label monotonicity, reference integrity, caller-authorized knowledge roots, safe repository paths, trigger-specific coverage, exact Git-reviewable changes, lifecycle deferral, and structured credential rejection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "update_id",
+    "created_at",
+    "target",
+    "trigger",
+    "discovery",
+    "evidence",
+    "dispositions",
+    "recommendation",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "update_id": {
+      "$ref": "knowledge-update-v1.schema.json#/properties/update_id"
+    },
+    "created_at": {
+      "$ref": "knowledge-update-v1.schema.json#/properties/created_at"
+    },
+    "target": { "$ref": "#/$defs/target" },
+    "trigger": { "$ref": "#/$defs/trigger" },
+    "discovery": {
+      "$ref": "knowledge-update-v1.schema.json#/properties/discovery"
+    },
+    "evidence": {
+      "$ref": "knowledge-update-v1.schema.json#/properties/evidence"
+    },
+    "dispositions": {
+      "$ref": "knowledge-update-v1.schema.json#/properties/dispositions"
+    },
+    "recommendation": {
+      "$ref": "knowledge-update-v1.schema.json#/properties/recommendation"
+    },
+    "limitations": {
+      "$ref": "knowledge-update-v1.schema.json#/properties/limitations"
+    }
+  },
+  "allOf": [
+    { "$ref": "knowledge-update-v1.schema.json#/allOf/0" },
+    { "$ref": "knowledge-update-v1.schema.json#/allOf/1" },
+    { "$ref": "knowledge-update-v1.schema.json#/allOf/2" },
+    { "$ref": "knowledge-update-v1.schema.json#/allOf/3" },
+    { "$ref": "knowledge-update-v1.schema.json#/allOf/4" },
+    { "$ref": "knowledge-update-v1.schema.json#/allOf/5" },
+    { "$ref": "knowledge-update-v1.schema.json#/allOf/7" },
+    {
+      "if": {
+        "properties": {
+          "trigger": {
+            "properties": {
+              "kind": { "enum": ["component_added", "component_changed"] },
+              "state": { "const": "approved" }
+            },
+            "required": ["kind", "state"]
+          }
+        },
+        "required": ["trigger"]
+      },
+      "then": {
+        "properties": {
+          "dispositions": {
+            "allOf": [
+              {
+                "contains": {
+                  "properties": { "artifact": { "const": "service_card" } },
+                  "required": ["artifact"]
+                }
+              },
+              {
+                "contains": {
+                  "properties": { "artifact": { "const": "knowledge_index" } },
+                  "required": ["artifact"]
+                }
+              },
+              {
+                "contains": {
+                  "properties": { "artifact": { "const": "runbook" } },
+                  "required": ["artifact"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "revision",
+        "component_id",
+        "component_kind",
+        "display_name",
+        "environment",
+        "definition_locator",
+        "knowledge_roots"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "knowledge-update-v1.schema.json#/$defs/nonempty"
+        },
+        "revision": {
+          "allOf": [
+            { "$ref": "knowledge-update-v1.schema.json#/$defs/nonempty" },
+            { "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" }
+          ]
+        },
+        "component_id": {
+          "allOf": [
+            { "$ref": "knowledge-update-v1.schema.json#/$defs/nonempty" },
+            { "maxLength": 256 }
+          ]
+        },
+        "component_kind": {
+          "enum": [
+            "application",
+            "service",
+            "worker",
+            "job",
+            "datastore",
+            "platform",
+            "other"
+          ]
+        },
+        "display_name": {
+          "allOf": [
+            { "$ref": "knowledge-update-v1.schema.json#/$defs/nonempty" },
+            { "maxLength": 256 }
+          ]
+        },
+        "environment": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "allOf": [
+                { "$ref": "knowledge-update-v1.schema.json#/$defs/nonempty" },
+                { "maxLength": 128 }
+              ]
+            }
+          ]
+        },
+        "definition_locator": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "knowledge-update-v1.schema.json#/$defs/safe_path" }
+          ]
+        },
+        "knowledge_roots": {
+          "description": "Packet-declared documentation roots requested for this update. They are not write authority.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "knowledge-update-v1.schema.json#/$defs/safe_path"
+          }
+        }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reference", "state", "trust"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "incident",
+            "alert_added",
+            "alert_changed",
+            "component_added",
+            "component_changed",
+            "drill",
+            "audit",
+            "manual"
+          ]
+        },
+        "reference": {
+          "$ref": "knowledge-update-v1.schema.json#/$defs/nonempty"
+        },
+        "state": {
+          "$ref": "knowledge-update-v1.schema.json#/properties/trigger/properties/state"
+        },
+        "trust": {
+          "$ref": "knowledge-update-v1.schema.json#/$defs/trust"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "incident" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "state": { "enum": ["active", "resolved", "not_applicable"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "alert_added",
+                  "alert_changed",
+                  "component_added",
+                  "component_changed"
+                ]
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "state": { "enum": ["proposed", "approved", "not_applicable"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "enum": ["drill", "audit"] } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "state": { "enum": ["completed", "not_applicable"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "manual" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "state": {
+                "enum": ["proposed", "approved", "completed", "not_applicable"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

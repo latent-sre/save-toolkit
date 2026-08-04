@@ -1,0 +1,34 @@
+# Starter reusable CI workflow; copy to .github/workflows/ and adapt from reviewed requirements.
+# Reusable via workflow_call. Third-party actions are pinned by SHA; a typed `reviewer` agent reviews
+# action provenance, untrusted inputs, permissions, and secret exposure before merge.
+name: ci
+
+on:
+  workflow_call:
+    # Add typed inputs only when a caller consumes them.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: { python-version: ["3.11", "3.12"] }
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   # v4.2.2
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5.4.2
+        with: { python-version: "${{ matrix.python-version }}" }
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy .
+      - run: uv run pytest -q
+
+  # Deployment belongs in a separate protected-environment job/workflow.
+  # production deployment requires current human release-owner approval evidence for the exact target and rollback.
+  # Use an approved credential source and never place a password in command argv.

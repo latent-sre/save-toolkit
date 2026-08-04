@@ -1,0 +1,48 @@
+# API surface design
+
+Read this before shaping endpoints, resource names, status codes, list-query conventions, or a
+published API evolution. The universal backend rules live in `../SKILL.md`; they win on conflict.
+
+## Resources and methods
+
+- URLs are plural kebab-case nouns. Nest one ownership level when it clarifies the relationship
+  (`/v1/users/{id}/orders`). Use verbs only for genuine non-CRUD actions
+  (`POST /v1/orders/{id}:cancel`).
+- Preserve method semantics: GET is safe and idempotent; PUT replaces and is idempotent; PATCH is a
+  partial update; DELETE is idempotent; POST is non-idempotent unless the operation implements an
+  idempotency key.
+- Long-running work returns `202 Accepted` with a status resource. Do not hold a request open for a
+  deployment, backfill, or report job.
+
+## Status codes are contract
+
+- `200` read/update with a body; `201` create with `Location`; `204` successful no-body operation.
+- `400` malformed input; `422` well-formed but semantically invalid; `401` unauthenticated; `403`
+  authenticated but forbidden; `404` absent; `409` state conflict; `429` rate-limited with
+  `Retry-After`; `503` temporarily unavailable.
+- Never return `200 {"success": false}` or use `500` for caller validation failures.
+
+## Lists
+
+- Filter with allowlisted query fields; parameterize values. Choose one multi-value and range
+  convention and keep it across the API.
+- Use a stable sort ending in a unique key. An opaque cursor contains the ordered key values, not
+  an offset. Fetch `limit + 1`, cap `limit` server-side, and omit total counts unless they are cheap.
+- Offset pagination is acceptable only for small, bounded administrative lists.
+
+## Typed errors
+
+- Domain code raises typed errors carrying a stable code and HTTP status. One global exception
+  mapper emits the top-level RFC 9457 problem shape from `../SKILL.md`.
+- Unexpected exceptions log full internal detail with the request ID and return a generic problem.
+  SQL, stack traces, credentials, and upstream bodies never cross the API boundary.
+- Enumerate stable problem types/codes in OpenAPI; renaming one is a breaking change.
+
+## Evolving the surface
+
+- Extend rather than mutate: add optional fields/parameters and new endpoints. Removing, renaming,
+  changing a type, or tightening auth is breaking and requires an explicit compatibility plan.
+- Deprecation is a protocol: announce it, publish a sunset date, observe callers, and retire only
+  after the supported migration window.
+- Diff the OpenAPI document in CI with a breaking-change detector. A removal, type change, or new
+  required field cannot merge as an unlabeled accident.

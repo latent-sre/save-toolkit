@@ -1,0 +1,60 @@
+---
+schema_version: 1
+alert_id: <stable-alert-slug>
+exact_name: <exact backend alert name>
+service_id: <stable-service-slug>
+status: proposed | active | disabled | retired
+severity: <SEV-n / page | ticket>
+owner: <team/role>
+source_definition: <repository path + full SHA>
+runbook: <repository-relative runbook path>
+last_reviewed: null
+evidence_status: sourced | unverified
+---
+
+# Alert: <exact name>
+
+## Intent and user impact
+
+- Symptom detected: <user-visible failure or actionable saturation condition>
+- Affected service/journey: <service card link + journey>
+- Why this urgency is correct: <page vs ticket rationale>
+
+## Signal summary
+
+- Backend and signal type: <Grafana/Moogsoft/ThousandEyes/etc. + metric/log/synthetic>
+- Authoritative definition: <version-controlled link + full SHA>
+- Condition rationale: <why threshold/window reflects impact; do not copy the full query>
+- Dependencies/labels used for routing: <summary or `[unverified]`>
+
+## Routing and first course of action
+
+- Routed owner: <team/on-call>
+- Runbook: <link; a paging alert without a valid runbook remains proposed>
+- First action: <link to the runbook section; do not duplicate commands here>
+- Escalation: <condition + owner>
+
+## Validation and noise record
+
+- Last reviewed: <date + reviewer evidence>
+- Last observed firing/resolution: <evidence link or `[unverified]`>
+- Expected page volume: <evidence or `[unverified]`>
+- Known false-positive/false-negative risks: <evidence and owner>
+
+## Related knowledge
+
+- Service card: <link>
+- Dashboard/SLO: <links>
+- Related alerts/runbooks/postmortems: <links>
+
+## Evidence and provenance
+
+| Claim | Label | Source / exact revision | Limitation |
+|---|---|---|---|
+|  | `[sourced]` / `[unverified]` |  |  |
+
+## Change log
+
+| Date | Knowledge update ID | Change | Reviewer |
+|---|---|---|---|
+|  |  |  |  |
