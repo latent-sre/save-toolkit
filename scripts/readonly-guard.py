@@ -122,10 +122,11 @@ _SEPARATORS = {"|", "||", "&&", ";", "\n"}
 # Plain readers and filters: they consume input and print. None can write a file on their own (a
 # redirect would be needed, and redirects are refused above). `sed` and `awk` are deliberately ABSENT
 # — both can write files without any redirect (`sed -i`, awk's `print > "f"` and `system()`).
-# `sort`, `tree`, and `less` are likewise absent: `sort -o` and `tree -o` write to a named file with
-# no shell redirect, and `less -o` logs its input to a file (and `less` can also execute a program
-# interactively). All three were allowed here and each was a silent write channel for a read-only
-# agent — caught in review against the sibling fleet's deny corpus.
+# `tree` and `less` are absent: `tree -o` writes to a named file, and `less -o` logs its input to a
+# file (and `less` can also execute a program interactively). `sort` is NOT here — it is flag-gated
+# below like git's readers rather than removed, because `sort -o` is its only write vector and
+# `rg … | sort | uniq` is a core triage idiom; removing it wholesale was a deeper cut than git's own
+# precedent (caught in review).
 _SIMPLE_READERS = frozenset({
     "cat", "head", "tail", "nl", "wc", "uniq", "cut", "tr", "column",
     "grep", "egrep", "fgrep", "rg",
@@ -148,6 +149,9 @@ _SIMPLE_READERS = frozenset({
 # retain with this gate — enumerate EVERY exec-capable flag, since one unlisted flag reopens the
 # hole (proven: `--hostname-bin=/bin/sh` executed before this list grew past `--pre`).
 _RG_EXECUTION_FLAGS = frozenset({"--pre", "--hostname-bin", "--search-zip", "-z"})
+# `-z` (--search-zip) is a bundling short flag: `rg -iz` = `-i` + `-z`, so match the letter in a
+# cluster, not just the standalone token. See _short_cluster_has.
+_RG_EXECUTION_SHORT = frozenset({"z"})
 
 # `git` subcommands that have no write SUBCOMMAND (per `git-<name>(1)` synopsis). Several still
 # accept `--output=<file>`/`-o <file>` to write a report to disk (diff, log, show, diff-tree,
@@ -179,6 +183,9 @@ _GIT_READ_WRITE_FLAGS = frozenset({"-o", "--output"})
 # _git_allowed rejects any `-O`-prefixed arg explicitly. That also denies the benign
 # `git diff -O<orderfile>` — a false positive we accept, per this guard's fail-loud-not-silent rule.
 _GIT_READ_EXEC_FLAGS = frozenset({"--open-files-in-pager"})
+# The SHORT form of the pager-exec flag: `git grep -O<cmd>` runs CMD, and it bundles
+# (`-nO<cmd>` = `-n` + `-O<cmd>`), so a start-of-token test alone misses it. See _short_cluster_has.
+_GIT_READ_EXEC_SHORT = frozenset({"O"})
 # Subcommands whose FIRST POSITIONAL decides read vs write (`git stash list` reads, a bare
 # `git stash` pushes; `git submodule status` reads, `git submodule update` writes;
 # `git reflog show` reads, `git reflog expire` prunes reflog entries).
@@ -236,6 +243,12 @@ _GIT_GLOBAL_BARE = frozenset({"--no-pager", "-P", "--no-replace-objects", "--lit
 # `gh <group> <verb> --web/-w` opens the resource in $BROWSER — launching an application, not a
 # read — so the flag disqualifies any otherwise-allowed pair.
 _GH_EXECUTION_FLAGS = frozenset({"--web", "-w"})
+# `-w` (--web) bundles too (`gh pr view -cw`), so match the letter in a cluster. See
+# _short_cluster_has.
+_GH_EXECUTION_SHORT = frozenset({"w"})
+# `sort` reads unless it is told to write: `-o FILE` / `-oFILE` / `--output[=FILE]`, and `-o`
+# bundles (`-ro FILE`). The short letter is matched in a cluster; the long form by name.
+_SORT_WRITE_SHORT = frozenset({"o"})
 _GH_READ = {
     "pr": frozenset({"view", "diff", "list", "checks", "status"}),
     "issue": frozenset({"view", "list", "status"}),
@@ -309,6 +322,23 @@ def _positionals(args: list[str]) -> list[str]:
     return [arg for arg in args if not arg.startswith("-")]
 
 
+def _short_cluster_has(token: str, letters: frozenset[str]) -> bool:
+    """True if a single-dash short-option token bundles any of `letters`.
+
+    Bundled short options are how an exec flag hides behind a benign one: `git grep -nO<cmd>` is
+    `-n` + `-O<cmd>`, and `rg -iz` is `-i` + `-z` (--search-zip) — both defeated a naive
+    `token in FLAGSET` membership test. We scan the whole cluster (up to any `=`) and treat any
+    occurrence of a dangerous letter as present. That OVER-denies the rare case where the letter is
+    actually another flag's attached value (`rg -ez` = search for 'z'), which is exactly this
+    guard's accepted fail-loud direction: a blocked legitimate read is a one-line allowlist fix, an
+    allowed exec is a breach. `--long` options are not clusters and return False here (their exec
+    forms are matched by name in the callers).
+    """
+    if not token.startswith("-") or token.startswith("--"):
+        return False
+    return any(ch in letters for ch in token[1:].split("=", 1)[0])
+
+
 def _git_allowed(args: list[str]) -> bool:
     # Step over git's global options to find the subcommand.
     index = 0
@@ -334,7 +364,7 @@ def _git_allowed(args: list[str]) -> bool:
             base = arg.split("=", 1)[0]
             if base in _GIT_READ_WRITE_FLAGS or base in _GIT_READ_EXEC_FLAGS:
                 return False
-            if arg.startswith("-O"):  # `-O`, `-O/bin/sh` (git grep pager exec)
+            if _short_cluster_has(arg, _GIT_READ_EXEC_SHORT):  # `-O<cmd>`, `-nO<cmd>` pager exec
                 return False
         return True
 
@@ -359,8 +389,9 @@ def _git_allowed(args: list[str]) -> bool:
 
 
 def _gh_allowed(args: list[str]) -> bool:
-    if any(arg.split("=", 1)[0] in _GH_EXECUTION_FLAGS for arg in args):
-        return False
+    for arg in args:
+        if arg.split("=", 1)[0] in _GH_EXECUTION_FLAGS or _short_cluster_has(arg, _GH_EXECUTION_SHORT):
+            return False  # `--web`, `-w`, or `-w` bundled (`-cw`): launches $BROWSER
     positionals = _positionals(args)
     if len(positionals) < 2:
         return False
@@ -369,8 +400,12 @@ def _gh_allowed(args: list[str]) -> bool:
 
 
 def _rg_allowed(args: list[str]) -> bool:
-    # `rg` reads unless a flag makes it run an external program mid-search (see _RG_EXECUTION_FLAGS).
-    return not any(arg.split("=", 1)[0] in _RG_EXECUTION_FLAGS for arg in args)
+    # `rg` reads unless a flag makes it run an external program mid-search — a named exec flag
+    # (`--pre`, `--search-zip`, `-z`) or `-z` bundled into a short cluster (`-iz`).
+    for arg in args:
+        if arg.split("=", 1)[0] in _RG_EXECUTION_FLAGS or _short_cluster_has(arg, _RG_EXECUTION_SHORT):
+            return False
+    return True
 
 
 def _cf_allowed(args: list[str]) -> bool:
@@ -390,6 +425,11 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
         return _gh_allowed(args)
     if command == "rg":
         return _rg_allowed(args)
+    if command == "sort":
+        return not any(
+            arg.split("=", 1)[0] == "--output" or _short_cluster_has(arg, _SORT_WRITE_SHORT)
+            for arg in args
+        )
     if command == "cf":
         return _cf_allowed(args)
     if command == "promtool":

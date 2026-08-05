@@ -224,6 +224,16 @@ class StaleNameCheckerTests(Fixture):
         failures = check_links._check_guide(self.root)
         self.assertTrue(any("@AGENTS.md" in f for f in failures), failures)
 
+    def test_guide_fenced_or_prose_import_mention_does_not_satisfy(self):
+        # A fenced example or a prose mention must NOT count as the real import line.
+        self.write(
+            "CLAUDE.md",
+            "# entry\nDo not remove the @AGENTS.md line.\n\n```\n@AGENTS.md\n```\n",
+        )
+        self.write("AGENTS.md", "# guide\n")
+        failures = check_links._check_guide(self.root)
+        self.assertTrue(any("@AGENTS.md" in f for f in failures), failures)
+
     def test_guide_dead_markdown_link_is_flagged(self):
         self.write("CLAUDE.md", "@AGENTS.md\n")
         self.write("AGENTS.md", "# guide\nSee [gone](scripts/renamed_away.py).\n")

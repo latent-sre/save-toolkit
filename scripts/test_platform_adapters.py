@@ -224,6 +224,17 @@ class PlatformAdapterTests(unittest.TestCase):
             failures = adapters._gitattributes_failures(root)
         self.assertTrue(any("carries a CR byte" in f for f in failures), failures)
 
+    def test_binary_asset_with_cr_byte_is_not_flagged(self) -> None:
+        # A binary passthrough asset (PNG, etc.) routinely contains 0x0D and must not read as a
+        # line-ending regression — the CR check is scoped to LF-governed text suffixes.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            (root / ".gitattributes").write_bytes((ROOT / ".gitattributes").read_bytes())
+            asset = root / adapters.COPILOT_SKILLS / "probe" / "assets" / "logo.png"
+            asset.parent.mkdir(parents=True)
+            asset.write_bytes(b"\x89PNG\r\n\x1a\n\x00\r\x00binary\r\n")
+            self.assertEqual([], adapters._gitattributes_failures(root))
+
     def test_crlf_code_asset_is_normalized_in_projection(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
