@@ -301,7 +301,7 @@ def _check_guide(root: Path) -> list[str]:
             continue  # commands, namespaces (`save-toolkit:x`), globs, absolute/home paths
         clean = token.rstrip("/")
         first = clean.split("/", 1)[0]
-        if not (root / first).exists():
+        if first in (".", "..") or not (root / first).exists():
             continue  # first segment is not a repo-root entry: a generic or skill-relative mention
         if not (root / Path(clean.replace("/", os.sep))).exists():
             failures.append(f"AGENTS.md: inline-code path does not resolve: '{token}'")
