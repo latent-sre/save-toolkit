@@ -2,6 +2,7 @@
 """Offline contract tests for the unified direct/discovery eval runner."""
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import sys
@@ -58,6 +59,26 @@ class ScenarioValidationTests(unittest.TestCase):
         mixed_case = self._scenario(target={"kind": "skill", "name": "Merge-Gate"})
         problems = run_evals.validate([traversing, mixed_case])
         self.assertGreaterEqual(sum("target name must be a canonical lowercase slug" in p for p in problems), 2)
+
+    def test_not_fire_scenario_rejects_sub_full_threshold(self) -> None:
+        # A negative routing scenario is zero-tolerance; --threshold applies to positives only, so a
+        # declared threshold < 1 is a false-green configuration and must be rejected at validate().
+        scenario = self._scenario(
+            mode="discovery",
+            routing={"expect": "not_fire", "expected_alternative": "inline"},
+            threshold=0.66,
+        )
+        problems = run_evals.validate([scenario])
+        self.assertTrue(any("zero-tolerance" in p for p in problems))
+
+    def test_not_fire_scenario_allows_full_threshold(self) -> None:
+        scenario = self._scenario(
+            mode="discovery",
+            routing={"expect": "not_fire", "expected_alternative": "inline"},
+            threshold=1,
+        )
+        problems = run_evals.validate([scenario])
+        self.assertFalse(any("zero-tolerance" in p for p in problems))
 
     def test_discovery_prompt_cannot_name_the_target(self) -> None:
         scenario = self._scenario(
@@ -297,6 +318,30 @@ class StreamTraceTests(unittest.TestCase):
         passed, _ = run_evals.grade_trial(scenario, parsed)
         self.assertTrue(passed)
 
+    def test_inline_answer_cannot_pass_direct_skill(self) -> None:
+        # Direct-skill twin of test_inline_answer_cannot_pass_discovery_fire: the response text
+        # satisfies the grader, but the pinned skill never completed, so the trial must FAIL.
+        scenario = {
+            "mode": "direct",
+            "target": {"kind": "skill", "name": "merge-gate"},
+            "graders": [{"type": "contains_any", "of": ["blocked"]}],
+        }
+        parsed = run_evals.parse_stream_trace(self._trace(with_skill=False))
+        passed, details = run_evals.grade_trial(scenario, parsed)
+        self.assertFalse(passed)
+        self.assertTrue(any("skill-fired" in detail and "FAIL" in detail for detail in details))
+
+    def test_direct_skill_that_fired_passes(self) -> None:
+        scenario = {
+            "mode": "direct",
+            "target": {"kind": "skill", "name": "merge-gate"},
+            "graders": [{"type": "contains_any", "of": ["blocked"]}],
+        }
+        parsed = run_evals.parse_stream_trace(self._trace(with_skill=True))
+        passed, details = run_evals.grade_trial(scenario, parsed)
+        self.assertTrue(passed)
+        self.assertTrue(any("skill-fired" in detail and "PASS" in detail for detail in details))
+
 
 class ArtifactTests(unittest.TestCase):
     def test_windows_acl_inspection_avoids_module_autoloading(self) -> None:
@@ -345,6 +390,28 @@ class ArtifactTests(unittest.TestCase):
             if sys.platform != "win32":
                 self.assertEqual(trace_path.stat().st_mode & 0o077, 0)
             run_evals.assert_private_path(trace_path)
+
+    def test_summary_records_measurement_conditions(self) -> None:
+        args = argparse.Namespace(
+            timeout=42, trials=5, threshold=0.66, mode="discovery", split="regression", match="merge",
+        )
+        conditions = run_evals.measurement_conditions(args)
+        for key in ("timeout_s", "requested_trials", "requested_threshold", "selected"):
+            self.assertIn(key, conditions)
+        self.assertEqual(conditions["timeout_s"], 42)
+        self.assertEqual(conditions["requested_trials"], 5)
+        self.assertEqual(conditions["requested_threshold"], 0.66)
+        self.assertEqual(
+            conditions["selected"], {"mode": "discovery", "split": "regression", "match": "merge"}
+        )
+        with tempfile.TemporaryDirectory() as td:
+            writer = run_evals.ArtifactWriter(Path(td), {"run_id": "run-1", "conditions": conditions})
+            summary_path = writer.write_summary({"verdict": "PASS"})
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            recorded = summary["provenance"]["conditions"]
+            for key in ("timeout_s", "requested_trials", "requested_threshold", "selected"):
+                self.assertIn(key, recorded)
+            self.assertEqual(recorded["timeout_s"], 42)
 
     def test_artifact_writer_rejects_unsafe_scenario_id_defense_in_depth(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -397,6 +464,34 @@ class AggregateVerdictTests(unittest.TestCase):
         self.assertEqual(run_evals.aggregate_verdict(["PASS", "FAIL"], 1.0), "FAIL")
         self.assertEqual(run_evals.aggregate_verdict(["PASS", "INCONCLUSIVE"], 0.5), "PASS")
         self.assertEqual(run_evals.aggregate_verdict(["FAIL", "INCONCLUSIVE"], 0.5), "INCONCLUSIVE")
+
+    def test_not_fire_threshold_is_clamped_to_full(self) -> None:
+        not_fire = {"mode": "discovery", "routing": {"expect": "not_fire"}}
+        self.assertEqual(run_evals.effective_threshold(not_fire, 0.66), 1.0)
+        # A not_fire scenario would over-trigger on a third of trials and still pass at 0.66 without
+        # the clamp: two firing trials out of three must not reach the required pass count.
+        clamped = run_evals.effective_threshold(not_fire, 0.66)
+        self.assertEqual(
+            run_evals.aggregate_verdict(["FAIL", "PASS", "PASS"], clamped), "FAIL"
+        )
+        # Positives and direct scenarios pass the requested threshold through unchanged.
+        fire = {"mode": "discovery", "routing": {"expect": "fire"}}
+        direct = {"mode": "direct", "target": {"kind": "skill", "name": "merge-gate"}}
+        self.assertEqual(run_evals.effective_threshold(fire, 0.66), 0.66)
+        self.assertEqual(run_evals.effective_threshold(direct, 0.66), 0.66)
+
+    def test_mixed_models_in_one_batch_are_detected(self) -> None:
+        scenario_results = [
+            {"trials": [{"resolved_model": "claude-a"}, {"resolved_model": "claude-b"}]},
+        ]
+        self.assertEqual(
+            run_evals.observed_models(scenario_results), ["claude-a", "claude-b"]
+        )
+        uniform = [{"trials": [{"resolved_model": "claude-a"}, {"resolved_model": "claude-a"}]}]
+        self.assertEqual(run_evals.observed_models(uniform), ["claude-a"])
+        # Inconclusive trials carry resolved_model=None and must not count as a model.
+        with_none = [{"trials": [{"resolved_model": "claude-a"}, {"resolved_model": None}]}]
+        self.assertEqual(run_evals.observed_models(with_none), ["claude-a"])
 
 
 if __name__ == "__main__":

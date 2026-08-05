@@ -2,13 +2,21 @@
 
 Match the repo's existing tooling first; defaults below apply when none is set.
 
+## Establish the version contract first
+- **Read `go.mod` before reasoning about language behavior.** Its `go` directive selects the
+  language version and gates version-dependent semantics (loop-variable scoping, timer behavior,
+  vendoring defaults) — don't infer semantics from whichever toolchain happens to be on `PATH`.
+
 ## Style & tooling
 - **Format with `gofmt`** (non-negotiable — enforce in CI); use `goimports` (superset that also fixes
   imports). Don't hand-format.
 - **Vet with `go vet`** for static correctness; **lint with `golangci-lint`** — baseline `staticcheck`,
   `govet`, `errcheck`, `ineffassign`, `unused`; broaden with `revive`, `gosec`, `gocyclo`, `unparam`.
-- **Accept interfaces, return concrete types.** Small interfaces. Doc comments are full sentences
-  starting with the symbol name.
+- **Accept interfaces, return concrete types.** Small interfaces, defined at the consumer. Doc
+  comments are full sentences starting with the symbol name.
+- **Keep packages cohesive and names specific.** A package called `util`, `common`, or `helpers`
+  usually hides unrelated responsibilities; the package name should tell a caller what capability
+  it imports. Export only what another package needs.
 
 ## Error handling (Go 1.13+)
 - Return errors; don't `panic` for ordinary failures, and don't `_ =` them away.
@@ -28,6 +36,12 @@ Match the repo's existing tooling first; defaults below apply when none is set.
 - Naked returns in long funcs; ignored errors. (Loop-variable capture in closures/goroutines was a
   classic trap, but **Go 1.22+ gives each iteration its own variable** — only watch for it on Go <1.22.)
 - Nil-map writes; unbounded result sets; not closing `rows`/`Body`/files (`defer Close()`).
+- **A nil pointer stored in an error interface is not a nil error** — return the literal `nil` on
+  success, never a possibly-nil `*MyError` converted to `error`.
+- **Slices share backing arrays**: `b := a[:2]; append(b, x)` can overwrite data visible through
+  `a` — clone when ownership crosses an API or concurrent boundary.
+- `defer` runs at *function* exit, not block exit — a defer inside a long loop retains resources
+  until the function returns; extract the iteration into its own function.
 
 ## Tests
 - **Table-driven** with `t.Run` subtests; stdlib `testing` (`t.Errorf`/`t.Fatalf`, no assertion lib

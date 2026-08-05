@@ -300,6 +300,98 @@ class FleetValidatorTests(unittest.TestCase):
             _, failures = validate_fleet.validate_agents(root)
         self.assertIn("delegation mismatch", "\n".join(failures))
 
+    def _agents_with_mutation(self, filename: str, before: str, after: str) -> list[str]:
+        """Copy the agent tree, apply one substitution to one file, return failures."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            for source in (ROOT / "agents").glob("*.md"):
+                text = source.read_text(encoding="utf-8")
+                if source.name == filename:
+                    text = text.replace(before, after)
+                (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            _, failures = validate_fleet.validate_agents(root)
+        return failures
+
+    def test_scoped_grant_on_non_agent_tool_is_rejected(self) -> None:
+        # `Bash(git diff:*)` reads like a narrowed shell and grants an open one — the runtime
+        # ignores the scope. Only Agent(...) scoping is real.
+        failures = self._agents_with_mutation(
+            "sre.md", "Read, Grep, Glob, Bash, Skill", "Read, Grep, Glob, Bash(git diff:*), Skill"
+        )
+        self.assertIn("scoped tool grant", "\n".join(failures))
+
+    def test_duplicate_tool_grant_is_rejected(self) -> None:
+        failures = self._agents_with_mutation(
+            "reviewer.md", "tools: Read, Grep, Glob, Skill", "tools: Read, Grep, Glob, Skill, Read"
+        )
+        self.assertIn("duplicate tool grant", "\n".join(failures))
+
+    def test_incomplete_evidence_triad_is_rejected(self) -> None:
+        # Dropping [sourced] while keeping the other two labels loses the ability to distinguish
+        # "I ran it" from "the file says so"; the triad is all-or-nothing.
+        failures = self._agents_with_mutation("sde.md", "[sourced]", "[srcd]")
+        self.assertIn("incomplete evidence-label triad", "\n".join(failures))
+
+    def test_bash_without_write_must_be_on_guard_roster(self) -> None:
+        # repository-investigator holds no Bash today; granting it Bash with no write tool makes it
+        # read-only-by-intent, whose read-only-ness is only a promise unless the guard scopes it.
+        failures = self._agents_with_mutation(
+            "repository-investigator.md", "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Bash"
+        )
+        self.assertIn("not on the guard roster", "\n".join(failures))
+
+    def _guard_wiring_root(self, temporary: str, guard_mutation=lambda t: t) -> Path:
+        """A minimal root carrying a (possibly mutated) guard and the real Claude manifest."""
+        root = Path(temporary)
+        (root / "scripts").mkdir()
+        (root / ".claude-plugin").mkdir()
+        guard_text = (ROOT / "scripts" / "readonly-guard.py").read_text(encoding="utf-8")
+        (root / "scripts" / "readonly-guard.py").write_text(
+            guard_mutation(guard_text), encoding="utf-8"
+        )
+        (root / ".claude-plugin" / "plugin.json").write_text(
+            (ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        return root
+
+    def test_guard_roster_mismatch_with_generator_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._guard_wiring_root(
+                temporary,
+                lambda t: t.replace(
+                    'frozenset({"sre", "observability-engineer"})',
+                    'frozenset({"sre", "observability-engineer", "sde"})',
+                ),
+            )
+            failures = validate_fleet.validate_guard_wiring(
+                root, sorted(validate_fleet.EXPECTED_AUTHORITY)
+            )
+        self.assertIn("guard roster mismatch", "\n".join(failures))
+
+    def test_guard_roster_naming_a_non_agent_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._guard_wiring_root(
+                temporary,
+                lambda t: t.replace(
+                    'frozenset({"sre", "observability-engineer"})',
+                    'frozenset({"sre", "ghost-agent"})',
+                ),
+            )
+            failures = validate_fleet.validate_guard_wiring(root, ["sre", "observability-engineer"])
+        self.assertIn("non-existent agent", "\n".join(failures))
+
+    def test_guard_plugin_name_mismatch_with_manifest_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._guard_wiring_root(
+                temporary,
+                lambda t: t.replace('PLUGIN_NAME = "save-toolkit"', 'PLUGIN_NAME = "renamed"'),
+            )
+            failures = validate_fleet.validate_guard_wiring(
+                root, sorted(validate_fleet.EXPECTED_AUTHORITY)
+            )
+        self.assertIn("guard PLUGIN_NAME", "\n".join(failures))
+
 
 if __name__ == "__main__":
     unittest.main()

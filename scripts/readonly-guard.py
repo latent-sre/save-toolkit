@@ -91,6 +91,17 @@ GUARDED_AGENTS = frozenset(
 # and moves to the next candidate interpreter, failing closed if none answers correctly.
 EXIT_ALLOW = 42
 EXIT_DENY = 43
+# The third answer, deliberately NOT authoritative: "this input is not something I can vouch for."
+# Input the guard cannot parse must never earn EXIT_ALLOW — 42 stops the hook cold, so a truncated
+# GUARDED payload would silently be permitted (GOV-001: reproduced — the same guarded push that
+# denies intact flipped to allow when the JSON was cut and `except: _allow()` vouched for it).
+# Exiting with neither sentinel makes the hook treat this run like a stand-in interpreter's: it
+# walks to the next candidate and, finding none that answers 42/43, lands on its blanket deny. So a
+# malformed payload denies Bash rather than allowing it. The value only needs to be
+# not-42-and-not-43; it is pinned so the tests can tell a deliberate indeterminate from an uncaught
+# crash's exit 1. Trade-off, accepted: a malformed payload denies session-wide, not only for
+# guarded agents — the same stance the hook already takes when no interpreter answers.
+EXIT_INDETERMINATE = 44
 
 # --- shell constructs we refuse to reason about ---------------------------------------------
 # An allowlist only means something if the string really is the commands we think it is. Command
@@ -111,16 +122,32 @@ _SEPARATORS = {"|", "||", "&&", ";", "\n"}
 # Plain readers and filters: they consume input and print. None can write a file on their own (a
 # redirect would be needed, and redirects are refused above). `sed` and `awk` are deliberately ABSENT
 # — both can write files without any redirect (`sed -i`, awk's `print > "f"` and `system()`).
+# `sort`, `tree`, and `less` are likewise absent: `sort -o` and `tree -o` write to a named file with
+# no shell redirect, and `less -o` logs its input to a file (and `less` can also execute a program
+# interactively). All three were allowed here and each was a silent write channel for a read-only
+# agent — caught in review against the sibling fleet's deny corpus.
 _SIMPLE_READERS = frozenset({
-    "cat", "head", "tail", "less", "nl", "wc", "sort", "uniq", "cut", "tr", "column",
-    "grep", "egrep", "fgrep", "rg", "ag",
-    "ls", "tree", "file", "stat", "du", "basename", "dirname", "realpath", "pwd",
+    "cat", "head", "tail", "nl", "wc", "uniq", "cut", "tr", "column",
+    "grep", "egrep", "fgrep", "rg",
+    "ls", "file", "stat", "du", "basename", "dirname", "realpath", "pwd",
     "echo", "diff", "cmp", "jq", "true", "false",
     # `dig` is on the list for incident triage (is DNS the problem?). It IS an egress channel —
     # a crafted name can tunnel data — which is why `dig $(...)` dies on structure and why the
     # outbound network allowlist remains the load-bearing egress control, not this guard.
     "dig",
 })
+# `ag` (the silver searcher) was here and is deliberately GONE: it documents `--pager COMMAND`, the
+# same execute-a-program lever gated on `rg` below, and it is redundant — `rg` and `grep` both cover
+# search. Per this file's own rule the allowlist carries what a reviewer NEEDS; an un-enumerable
+# tool nothing needs is the easiest to leave off. Restoring it means an `_RG_EXECUTION_FLAGS`-style
+# gate verified against the installed binary, not just putting the name back.
+# ripgrep flags that run an external program (or a PATH-resolved helper) mid-search, turning a
+# reader into code execution. `--pre COMMAND` runs COMMAND on every file; `--hostname-bin COMMAND`
+# runs COMMAND to resolve the hostname for hyperlinks (rg 14+); `--search-zip`/`-z` shells out to
+# decompressors found on PATH, which a planted `gzip` subverts. `rg` is useful enough for review to
+# retain with this gate — enumerate EVERY exec-capable flag, since one unlisted flag reopens the
+# hole (proven: `--hostname-bin=/bin/sh` executed before this list grew past `--pre`).
+_RG_EXECUTION_FLAGS = frozenset({"--pre", "--hostname-bin", "--search-zip", "-z"})
 
 # `git` subcommands that have no write SUBCOMMAND (per `git-<name>(1)` synopsis). Several still
 # accept `--output=<file>`/`-o <file>` to write a report to disk (diff, log, show, diff-tree,
@@ -129,13 +156,29 @@ _SIMPLE_READERS = frozenset({
 _GIT_READ = frozenset({
     "diff", "log", "show", "blame", "status", "shortlog", "describe", "rev-parse", "rev-list",
     "ls-files", "ls-tree", "cat-file", "show-ref", "grep", "whatchanged", "diff-tree",
-    "merge-base", "name-rev", "version", "help",
+    "merge-base", "name-rev", "version", "check-ignore",
 })
+# `check-ignore` earns its slot the way every reader must: a review NEED (proving a secret/key path
+# is actually gitignored, negation rules included — reconstructing that from .gitignore by hand is
+# where a reviewer silently gets it wrong) and a clean surface (per git-check-ignore(1) it prints
+# ignore status and the matching rule, with no exec-capable or output-redirect flag).
+# `help` was on this list and is deliberately GONE: `git help -w/--web` hands off to
+# `git web--browse`, which runs the command named by `web.browser`/`browser.<tool>.cmd` config, and
+# `-i` shells out to an info reader. Removing the SUBCOMMAND closes every viewer spelling at once,
+# where denying the flags would leave the next one to be discovered. Reviewing a diff never needs
+# git's own manual.
 # Flags on _GIT_READ subcommands that redirect output into a file. `--output=<file>` and its
 # separate-argument form `-o <file>` are accepted by diff/log/show/diff-tree/whatchanged (they
 # share the diff plumbing) and write to the named path with no shell redirect involved, so
 # _STRUCTURE_DENY never sees them. Any occurrence is disqualifying.
 _GIT_READ_WRITE_FLAGS = frozenset({"-o", "--output"})
+# Flags on _GIT_READ subcommands that EXECUTE a program — the git twin of `rg --pre`. `git grep`
+# opens matching files in a pager named by `--open-files-in-pager[=CMD]` or its attached short form
+# `-O<CMD>`, and runs CMD even with no TTY (proven: `git grep -O/bin/sh` executed the pager). The
+# `-O` short form can't be caught by the `split("=")` membership test the write-flags use, so
+# _git_allowed rejects any `-O`-prefixed arg explicitly. That also denies the benign
+# `git diff -O<orderfile>` — a false positive we accept, per this guard's fail-loud-not-silent rule.
+_GIT_READ_EXEC_FLAGS = frozenset({"--open-files-in-pager"})
 # Subcommands whose FIRST POSITIONAL decides read vs write (`git stash list` reads, a bare
 # `git stash` pushes; `git submodule status` reads, `git submodule update` writes;
 # `git reflog show` reads, `git reflog expire` prunes reflog entries).
@@ -190,6 +233,9 @@ _GIT_GLOBAL_BARE = frozenset({"--no-pager", "-P", "--no-replace-objects", "--lit
 
 # `gh` read-only subcommand pairs. `gh api` is absent by design: it silently switches to POST when
 # given `-f`/`-F` fields, so "read-only gh api" is a shape too easy to get wrong.
+# `gh <group> <verb> --web/-w` opens the resource in $BROWSER — launching an application, not a
+# read — so the flag disqualifies any otherwise-allowed pair.
+_GH_EXECUTION_FLAGS = frozenset({"--web", "-w"})
 _GH_READ = {
     "pr": frozenset({"view", "diff", "list", "checks", "status"}),
     "issue": frozenset({"view", "list", "status"}),
@@ -280,9 +326,17 @@ def _git_allowed(args: list[str]) -> bool:
     subcommand, rest = args[index], args[index + 1:]
 
     if subcommand in _GIT_READ:
-        # Even for a read subcommand, `--output=<file>` / `-o <file>` writes to disk without any
-        # shell redirect. Reject the flag in every form (`--output=x`, `--output x`, `-o x`).
-        return not any(arg.split("=", 1)[0] in _GIT_READ_WRITE_FLAGS for arg in rest)
+        # Even a read subcommand can escape read-only WITHOUT a shell redirect: `--output=<file>` /
+        # `-o <file>` writes a report to disk, and `git grep --open-files-in-pager[=CMD]` / `-O<CMD>`
+        # executes CMD. Reject every spelling — `--flag`, `--flag=x`, `-o x`, and the attached short
+        # form `-O<CMD>` that the `split("=")` test alone would miss.
+        for arg in rest:
+            base = arg.split("=", 1)[0]
+            if base in _GIT_READ_WRITE_FLAGS or base in _GIT_READ_EXEC_FLAGS:
+                return False
+            if arg.startswith("-O"):  # `-O`, `-O/bin/sh` (git grep pager exec)
+                return False
+        return True
 
     if subcommand in _GIT_READ_VERBS:
         verbs = _positionals(rest)
@@ -305,11 +359,18 @@ def _git_allowed(args: list[str]) -> bool:
 
 
 def _gh_allowed(args: list[str]) -> bool:
+    if any(arg.split("=", 1)[0] in _GH_EXECUTION_FLAGS for arg in args):
+        return False
     positionals = _positionals(args)
     if len(positionals) < 2:
         return False
     group, verb = positionals[0], positionals[1]
     return verb in _GH_READ.get(group, frozenset())
+
+
+def _rg_allowed(args: list[str]) -> bool:
+    # `rg` reads unless a flag makes it run an external program mid-search (see _RG_EXECUTION_FLAGS).
+    return not any(arg.split("=", 1)[0] in _RG_EXECUTION_FLAGS for arg in args)
 
 
 def _cf_allowed(args: list[str]) -> bool:
@@ -327,6 +388,8 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
         return _git_allowed(args)
     if command == "gh":
         return _gh_allowed(args)
+    if command == "rg":
+        return _rg_allowed(args)
     if command == "cf":
         return _cf_allowed(args)
     if command == "promtool":
@@ -392,7 +455,15 @@ def main() -> None:
         raw = sys.stdin.buffer.read().decode("utf-8-sig", errors="replace")
         data = json.loads(raw) if raw.strip() else {}
     except Exception:
-        _allow()  # unparseable input -> don't interfere with the normal permission flow
+        # Never vouch for input you could not read. _allow() here (the old behavior) positively
+        # certified a truncated GUARDED payload as safe — GOV-001. Exit indeterminate so the hook
+        # falls through to its blanket deny instead. See the EXIT_INDETERMINATE comment.
+        sys.exit(EXIT_INDETERMINATE)
+    if not isinstance(data, dict):
+        # Parseable JSON that is not the documented dict envelope (e.g. a bare list) is equally
+        # unreadable to the scoping logic below — before this check it crashed on `.get` and only
+        # failed safe by accident of the hook treating a traceback's exit 1 as not-its-guard.
+        sys.exit(EXIT_INDETERMINATE)
 
     if data.get("tool_name") != "Bash":
         _allow()

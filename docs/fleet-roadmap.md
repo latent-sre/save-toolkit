@@ -103,6 +103,34 @@ satisfy this item's acceptance — VS Code UI discovery and headless Codex disco
 gaps, and model evidence stays with EVAL-001 — or whether a run on the owner workstation topology
 is also required. No repository change is blocking either path.
 
+### ADAPT-001 — finish the bounded sibling-repo adaptations
+
+**Status:** `ready`
+
+**Outcome:** The larger ideas surfaced by the 2026-08-05 `sde-agents` scan that were worth doing but
+out of scope for the first pass are each either implemented behind a test or explicitly dropped with
+a reason — no idea left in an unrecorded "maybe" state.
+
+**Source:** [`2026-08-05-sde-agents-adaptation.md`](reviews/2026-08-05-sde-agents-adaptation.md),
+which committed the guard, validator, gate, eval, and content changes and listed these as follow-on.
+
+**Prerequisites:** None. Each sub-item is independent and stdlib-only; none depends on an owner
+identity or on the deferred `STATE-001`/`EFFECT-001` machinery.
+
+**Acceptance:** Each of the following lands with a fixture or mutation test proven to fail without
+it, or is dropped in this item with a stated reason: (1) a drift watch over `operational-learning`
+packets whose `proposed`/`blocked` destination has since changed in git (advisory by default,
+exit-non-zero only on an unreadable repo, per the sibling's `ledger_drift.py` design); (2) forward
+`review_at`/`expires_at` freshness deadlines on the knowledge-update schema, governed by
+[`schema-compatibility.md`](schema-compatibility.md); (3) AGENTS.md path-and-`@import` drift
+enforcement added to `scripts/check_links.py` and wired into Gate A; (4) a `RETIRED_GENERATED_ROOTS`
+check so a stale generated tree left on disk fails validation; (5) CRLF-independent adapter
+generation covering the `.py`/`.sh`/`.ps1` assets we ship, with a `.gitattributes` companion check.
+
+**Next action:** Take sub-item (3) first — it reuses `check_links.py`'s existing link/path parsing
+and closes a live gap (AGENTS.md now names many concrete paths with nothing verifying they resolve).
+Then (4) and (1); (2) and (5) last, as each touches a schema or generation contract.
+
 ## Blocked on an owner decision
 
 ### PROTECT-001 — assign repository protection identities

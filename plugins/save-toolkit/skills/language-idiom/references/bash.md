@@ -16,9 +16,20 @@ shopt -s inherit_errexit 2>/dev/null || true   # bash>=4.4 only; best-effort on 
 - **`set -e` is leakier than it looks** — suppressed inside `if`/`while`/`&&`/`||` conditions and
   command substitutions `$(...)`. `shopt -s inherit_errexit` makes `-e` reach `$(...)` (bash>=4.4; guard
   as `shopt -s inherit_errexit 2>/dev/null || true` on RHEL7-era on-prem hosts); the `-E` in
-  `set -Eeuo pipefail` makes an `ERR` trap also fire inside functions/subshells.
+  `set -Eeuo pipefail` is `set -o errtrace` — without it an `ERR` trap does **not** fire inside
+  functions/subshells. And a function called from an `if` condition runs with `-e` disabled *inside
+  it too* — a failure there is data, not an exit.
+- **`local x=$(cmd)` swallows failures** — the line takes `local`'s exit status, not `cmd`'s, so `-e`
+  never sees it. Declare, then assign: `local x; x=$(cmd)`. Same trap with `export x=$(cmd)`.
+- **Command substitution inside a string** (`echo "prefix $(cmd)"`) does not trip `-e` when `cmd`
+  fails — capture into a variable first if the exit status matters.
 - `((i++))` **returns non-zero when the result is 0**, which under `-e` exits the script — use
   `((i++)) || true` or `i=$((i+1))`.
+- **`-u` and empty arrays**: `"${arr[@]}"` on an empty array is an unbound-variable error in older
+  bash; write `${arr[@]+"${arr[@]}"}` where the script must run on pre-4.4 hosts.
+
+The honest conclusion: check the exit statuses that matter explicitly. `set -e` is a backstop, not
+a policy.
 
 ## Quoting & tests (the #1 source of bugs)
 - **Quote every expansion:** `"$var"`, `"${arr[@]}"`, `"$(cmd)"`. Unquoted = word-splitting + globbing bugs.

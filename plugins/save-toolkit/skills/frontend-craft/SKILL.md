@@ -32,6 +32,7 @@ This skill is general-purpose — any web UI, not just operator tooling — held
 - **Hierarchy first**: one primary action per view; group related controls; the eye should land on what matters without hunting.
 - **Spacing grid**: consistent scale (4/8px steps), generous whitespace at decision points, higher density where data lives — tables and lists earn compactness, forms and actions earn air.
 - **Constrain line lengths**: max content width; multi-column only when content genuinely parallels.
+- **Stable under state change**: reserve space for the longest content a slot can hold — labels, counts, badges, hover affordances — so interaction and data updates never shift neighboring layout; verify text fit at narrow widths (long labels wrap or truncate by design, never overflow).
 - **Typography**: 4–5 sizes total; hierarchy through size and weight, never color alone.
 - **Color & theme**: all color through theme tokens, both themes from day one. Ship a manual light/dark/system toggle, persisted and defaulting to the OS setting — and set the theme class in an inline `<head>` script *before first paint* so there's no flash of the wrong theme on load. The palette itself lives in Visual character below.
 
@@ -46,6 +47,8 @@ Organized and uncluttered is the floor, not the ceiling. The bar: at home next t
 - **Depth cues, spent sparingly.** Rounded-xl cards, soft elevation shadows, hover lift (small translate + shadow), accent-colored focus rings. If every surface is elevated, nothing is.
 - **Designed states.** Skeleton shimmer instead of spinners for content areas; empty states get an icon and a call to action; icons anchor navigation, actions, and stats.
 - **Every view is a composition.** If the primary content fills only a fraction of the viewport, that's a design defect: either enrich the view (supporting detail, recent activity, a trend over time — whatever the data honestly supports) or constrain the canvas to fit the content. Never ship a screen that is mostly empty page.
+
+**Self-critique as you build** — screenshot what you made and look at it: would a stranger read it as a templated default? Generated UIs cluster around a few stock looks (cream page + serif display + terracotta accent; near-black + one acid accent; hairline-rule broadsheet) and stock component tells (uniform rounded-2xl, purple-to-indigo gradients as the default aesthetic, a shadow on every surface) — a look you fell into is not a decision you made; change one real thing. Spend your boldness in one place: one deliberate risk you can justify, everything around it quiet. Branded or bespoke work sources its distinctive choices from the subject's own world — its materials, instruments, vernacular — never a house style carried from the last project.
 
 ## Motion — smooth, purposeful, alive
 
@@ -77,6 +80,13 @@ The SRE lens is just good engineering pointed at the screen: assume every call c
 - Optimistic updates only with visible rollback on failure.
 - **Toasts** confirm actions (saved / deleted / failed) and carry the retry for a failed background action; they never replace inline validation.
 
+## Interface copy — words are design material
+
+- Words exist to make the UI easier to understand and use, never to decorate — same intent as spacing and color. Write from the user's side of the screen: name things by what people control and recognize, never by system architecture ("Notifications," not "webhook config"). Specific beats clever.
+- A control says exactly what happens when used ("Save changes," not "Submit"), and an action keeps one name through its whole flow — the button that says **Publish** produces the toast that says **Published**. One term per concept everywhere; consistent vocabulary is how people learn the product.
+- **Real content only** — never lorem or placeholder filler. If the content doesn't exist yet, writing it is part of the job.
+- The *mechanics* of loading/error/empty states live in Resilience UX above; their *wording* lives in [interface copy](./references/ux-writing.md), per the table below.
+
 ## Accessibility (baseline, not optional)
 
 Semantic HTML first; every input labeled; keyboard reachable with visible focus; contrast at AA. If a div has an onClick, it wanted to be a button. On route change, move focus to the main heading and scroll to top — SPA navigation is silent to a screen reader otherwise. Responsive by default: the sidebar collapses to a drawer on narrow viewports, touch targets are ≥44px, and data tables reflow or scroll rather than overflow the page.
@@ -91,7 +101,7 @@ Semantic HTML first; every input labeled; keyboard reachable with visible focus;
 
 - **Vitest + React Testing Library + MSW component/contract tests** — test behavior the user can observe (validation, conditional rendering, error/empty states), not implementation details, and mock the API at the network layer. Write the failing regression first.
 - **Playwright critical-path test** for each end-to-end flow whose breakage would page someone. Write the failing regression first, then prove the fixed path in a real browser.
-- Before "done": it typechecks, lints, unit + E2E tests pass, the dev server runs, and the primary flow was exercised in a **real browser render** — evidence in the review packet. A UI that compiles but was never rendered is written, not verified.
+- Before "done": it typechecks, lints, unit + E2E tests pass, the dev server runs, and the primary flow was exercised in a **real browser render**, including a keyboard-only pass — evidence in the review packet. A UI that compiles but was never rendered is written, not verified.
 
 ## Before you write it — load the reference for what you're building
 
@@ -109,5 +119,11 @@ packet.
 | a chart, graph, or metric visualization | [data visualization](./references/data-viz.md) |
 | a form or any user input to submit | [forms](./references/forms.md) |
 | login, tokens, or route guarding | [auth](./references/auth.md) |
+| React UI code — the request names React, touched code imports React, the target UI package declares `react`/`react-dom`, or the greenfield stack selected React | [React](./references/react.md) |
+| Vue UI code — the request names Vue, the target is a Vue `.vue` SFC or Vue composable, or touched code imports from `vue` | [Vue](./references/vue.md) |
+
+"Component," "SPA," JSX, or a `.tsx` suffix is not framework evidence. Preact, Solid, and other JSX
+runtimes are not React. If neither the request nor the target UI package/touched code identifies
+React or Vue, read neither framework reference.
 
 Trips two predicates? Read both. Trips none? The core above is the whole job.

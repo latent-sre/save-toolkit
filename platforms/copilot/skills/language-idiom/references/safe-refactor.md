@@ -9,6 +9,13 @@ Read this before a behavior-preserving reshape — rename, move, contract change
 ## Work in small reversible steps
 - One refactor per commit; **never mix a refactor with a behavior change** — they hide each other in review.
 - Keep the suite green after each step. If it goes red, you changed behavior — stop and reassess.
+- **A test you had to change is a behavior you changed.** That's the tripwire — either the change was
+  intended (say so, in the commit) or you just broke a contract. Rewriting a test to match new output
+  is the most common way a refactor ships a regression.
+- **Preserve the odd branch until you can explain it.** Working code has information in it — a strange
+  branch may be a bug someone already found. `git log -S` and `git blame` on the line usually turn up
+  the incident that put it there; "this looks unnecessary" is a hypothesis, the commit message is
+  evidence.
 - Prefer the tooling's safe operations (rename symbol, extract function) over manual edits.
 
 ## Changing a shared contract → expand → migrate → contract

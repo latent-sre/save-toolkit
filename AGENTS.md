@@ -9,6 +9,42 @@ The stack, the stay-in-lane rule, and the platform boundary live in **one** plac
 [`stack-profile`](skills/stack-profile/SKILL.md) skill. Load it before recommending any
 runtime, tool, or infrastructure change; nothing in this file restates it.
 
+## Map
+
+Each row carries the consequence, not just the location — why editing (or mis-editing) the path
+matters.
+
+| Path | What it is |
+|---|---|
+| [`agents/`](agents) | The 8 canonical agent definitions. `tools:` frontmatter *is* authority; omitting it inherits every tool. Claude loads these directly |
+| [`skills/`](skills) | The 27 canonical skills and their `references/`/`assets/`/`scripts/` bundles. A `references/` file not linked from its `SKILL.md` ships unreachable |
+| [`commands/adr.md`](commands/adr.md) | The canonical `/save-toolkit:adr` scaffold — the one manual command |
+| [`hooks/hooks.json`](hooks/hooks.json) | The Claude-only session guard wiring. Plugin agents cannot carry `hooks:`, so this file is the *only* place the read-only guard fires; it is load-bearing and scoped to exact `agent_type` values |
+| [`hooks/copilot-hooks.json`](hooks/copilot-hooks.json) | The Copilot hook projection. The Claude hook's scoping field is absent from other hosts' payloads, so guarding is not portable through it |
+| [`scripts/readonly-guard.py`](scripts/readonly-guard.py) | The fail-closed allowlist guard for `sre` and `observability-engineer`. Exit codes are a contract: 42 allow, 43 deny, 44 indeterminate — the hook uses them to tell this guard from a stand-in interpreter |
+| [`scripts/readonly-guard-hook.sh`](scripts/readonly-guard-hook.sh) | The shell shim `hooks/hooks.json` invokes; it hands the payload to the guard |
+| [`scripts/gate_a.py`](scripts/gate_a.py) | The single structural entrypoint. It discovers and runs every validator and `test_*.py` itself — do not transcribe its step list (read its docstring for why) |
+| [`scripts/generate_platform_adapters.py`](scripts/generate_platform_adapters.py) | The one deterministic generator for all host projections. Run `--write` after any canonical edit; a hand-edit to a generated root is drift it will erase |
+| [`scripts/validate_fleet.py`](scripts/validate_fleet.py), [`check_links.py`](scripts/check_links.py), [`check_plan_status.py`](scripts/check_plan_status.py), [`check_stale_names.py`](scripts/check_stale_names.py) | The structural validators Gate A runs: fleet/plugin/adapter contracts, skill link/bundle reachability, single-live-roadmap discipline, and retired-name rejection |
+| [`scripts/install_codex_agents.py`](scripts/install_codex_agents.py) | Installs the generated Codex agents into an explicit scope without clobbering user files |
+| [`schemas/`](schemas) | Portable evidence contracts (the catalog and the evidence envelope); versioned per [`docs/schema-compatibility.md`](docs/schema-compatibility.md) |
+| [`evals/`](evals) | Offline routing/behavioral scenarios and the manual clean-room Claude runner. Routing evals need a live API and never run in CI |
+| [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) | The only live backlog; see [`docs/README.md`](docs/README.md) for the full authority map |
+| [`docs/decisions/`](docs/decisions), [`docs/reviews/`](docs/reviews), [`docs/superpowers/`](docs/superpowers) | Accepted ADRs; round-closure evidence; round-scoped plans and specs. Only accepted decisions govern |
+| [`.gitattributes`](.gitattributes) | Line-ending and diff handling that keeps the byte-for-byte adapter gate stable across platforms |
+| `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator; fix the canonical source or the generator and regenerate |
+
+## Validate before you push
+
+- `python scripts/gate_a.py` is the one structural gate (on Windows use `python`, never `python3` —
+  the Microsoft Store stub). CI runs this same script on Linux, macOS, and Windows; do not copy its
+  step list anywhere — that is a deliberate anti-drift design recorded in the file's docstring.
+- After any canonical edit under `agents/`, `skills/`, or `commands/`, run
+  `python scripts/generate_platform_adapters.py --write` and commit the projections with the source.
+- `claude plugin validate . --strict` checks the Claude platform/marketplace contract.
+- Gate A is structural: it proves the fleet is well-formed, never that it is correct. The adversarial
+  correctness/security reviews in [CONTRIBUTING.md](CONTRIBUTING.md) are separate.
+
 ## The roster
 
 | Agent | Lane | Tools posture | Delegates to |
@@ -99,11 +135,58 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 - **New or changed alert:** `observability-engineer` owns alert design and validation; after approval, `scribe`
   updates the alert card and service/runbook links. An actively firing alert stays with `sre`.
 
+## Change playbooks
+
+Keyed by what you touched. Each names the **silent failure** it prevents — the case where nothing
+errors and the change quietly does not work.
+
+- **Any edit** → run `python scripts/gate_a.py`. *Silent failure it prevents:* a broken link,
+  unresolved namespace, or unrun test file shipping green because nothing checked it.
+- **Edited a canonical agent or skill** (`agents/`, `skills/`, `commands/`) → run
+  `python scripts/generate_platform_adapters.py --write` and commit the projections. *Prevents:* the
+  Claude source and the host adapters drifting into subtly different fleets; the byte gate fails a
+  stale projection.
+- **Edited a `description:`** → run the overlapping scenario(s) under `evals/scenarios/` through the
+  clean-room runner, before and after. *Prevents:* a routing change (a component that stops firing,
+  or a near-miss that starts) that no structural check can see. Routing evals need a live API and may
+  be deferred with a stated reason — never with an eyeball standing in for the measurement.
+- **Added or removed a validator rule** → add a fixture or mutation test that **fails without the
+  change**, and confirm it fails. *Prevents:* a rule that asserts nothing — this repo has shipped
+  tests that silently matched nothing after a refactor moved the string they keyed on.
+- **Touched the guard or the hook** (`scripts/readonly-guard.py`, `hooks/hooks.json`) → read their
+  docstrings first, then run `python scripts/test_readonly_guard.py` and
+  `python scripts/test_hook_wiring.py`, diff the allow/deny corpus, and keep the 42 allow / 43 deny /
+  44 indeterminate exit-code contract intact. *Prevents:* a disarmed guard — a collapsed exit code or
+  an interpreter sneaking onto the allowlist reads as "allowed" with no error.
+- **Closed a task that surfaced a discovery** → route it per the operational-learning convention in
+  [`skills/operational-learning/references/disposition-policy.md`](skills/operational-learning/references/disposition-policy.md)
+  (a recurring or material *fleet* failure instead follows
+  [`skills/agent-authoring/references/improvement-lifecycle.md`](skills/agent-authoring/references/improvement-lifecycle.md)).
+  *Prevents:* an agent treating its own assertion as accepted knowledge; a discovery is repository
+  state with an explicit disposition and an owner, never model memory.
+
 ## Current work
 
 [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) is the only live backlog. Dated plans, specs,
 reviews, and audits are evidence or history unless the roadmap cites them from an active item. Never
 resume an unchecked historical checklist solely because its boxes remain open.
+
+## Hard rules
+
+- **Standard library only** for everything under `scripts/` — validators, tests, the guard, and the
+  generator. No new dependencies, no pytest, no third-party YAML parser: every host package must
+  validate anywhere Python does.
+- **Generated adapters are consequences, never sources.** Fix `agents/`, `skills/`, or the generator
+  and regenerate; never hand-edit `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`,
+  or `plugins/save-toolkit/skills/`. The byte-for-byte gate erases a direct fix.
+- **Plugin agents silently ignore `hooks:`, `mcpServers:`, and `permissionMode:`**, and an unknown
+  frontmatter key drops without error. A guard belongs in `hooks/hooks.json`; every new key must be a
+  real Claude Code field.
+- **No `model:` pins.** The whole fleet inherits the session model on purpose; a pin, even a valid
+  one, goes stale silently and is banned.
+- **Authority is host-specific.** Tool absence, the Claude hook guard, Copilot's omitted `execute`,
+  and Codex's `sandbox_mode` do not translate one-to-one. A control proven on one host is not proven
+  on another — the generated adapters state the difference, they do not erase it.
 
 ---
 

@@ -84,6 +84,34 @@ Read only the row needed for the task:
 | Synthetic test, DNS, BGP, path, or external reachability | [ThousandEyes synthetics](./references/thousandeyes.md) |
 | Calculate budget status or a permitted burn-rate pair | [error_budget.py](./scripts/error_budget.py) |
 
+## Scheduled work — alert on staleness, not errors
+
+Burn-rate machinery covers request-driven SLIs; a backup, sync, or scheduled job has no request
+stream to burn, so it needs a freshness signal instead. Have every such job emit
+`*_last_success_timestamp_seconds` and alert on "hasn't succeeded in N hours." That catches the
+silent failures no error rate ever shows, because a job that never ran emits no errors. Set N from
+the job's schedule plus a defensible grace period, and design the no-data case deliberately: a
+missing timestamp is the same silence as a stale one, never an all-clear. This complements the
+burn-rate table above; it does not replace it for request-driven journeys.
+
+## Verify before calling it done
+
+An alert that has never fired is written, not verified. Before handing it off:
+
+- Validate before any reload: rule and config syntax pass their checkers (for Prometheus-format
+  sources, `promtool check rules` / `promtool check config`) so a bad file never reaches the
+  evaluator.
+- **Force the alert's condition and observe it both fire and resolve** — a deliberately failing
+  target, a test rule with an always-true expression, or `promtool test rules` to prove the
+  burn-rate arithmetic and the long/short window pair. A rule that has only ever evaluated false is
+  unverified; so is one never observed resolving after recovery.
+- The notification route delivered to the intended contact point.
+- The runbook link in the alert resolves to a runbook that exists — a dead link at 3 a.m. is a
+  design defect, not a docs chore.
+
+This evidence is the "test evidence" the handoff below requires; anything unforced or unobserved
+stays labeled `[unverified]`.
+
 ## Don't
 
 - Don't choose extra nines because they sound reliable; every nine raises operating cost. Match the

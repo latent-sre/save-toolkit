@@ -115,6 +115,55 @@ def json_artifact_statuses(
     return True, "artifact statuses and evidence match the JSON contract"
 
 
+def _literal_field_occurrences(label: str, lines: list[str]) -> list[str]:
+    """Return values from exact ``Label: value`` lines, tolerating display-only Markdown.
+
+    Prefix matching is intentionally insufficient: ``Verdict summary: ...`` must not satisfy a
+    ``Verdict`` field merely because both begin with the same word. The label must be followed by
+    optional whitespace and then the colon. Leading list markers, blockquote markers, headings, and
+    a single layer of `*`/`_`/`**`/`__`/`` ` `` decoration around the label are accepted because
+    they are display formatting, not part of the value.
+    """
+    literal_label = re.escape(label)
+    decoration = r"\*\*|__|\*|_|`"
+    pattern = re.compile(
+        r"^\s*(?:>\s*)*(?:(?:[-*+]|\d+[.)])\s+)?(?:#{1,6}\s+)?(?:"
+        rf"(?P<outside>{decoration}){literal_label}(?P=outside)\s*:|"
+        rf"(?P<inside>{decoration}){literal_label}\s*:(?P=inside)|"
+        rf"{literal_label}\s*:"
+        r")\s*(?P<value>.*?)\s*$",
+        re.IGNORECASE,
+    )
+    return [match.group("value").strip() for line in lines if (match := pattern.match(line))]
+
+
+def exact_fields(response: str, fields: dict) -> tuple[bool, str]:
+    """Require each declared ``Label: value`` field to appear exactly once with its exact value.
+
+    A closed literal-field assertion for structured packets: unlike `contains_all`, it rejects a
+    prefix match on the label, a duplicated field, and a value that merely contains the expected
+    text. Display-only Markdown around the label is tolerated; the value is compared verbatim.
+    """
+    if not isinstance(fields, dict) or not fields:
+        raise ValueError("exact_fields requires a non-empty {label: value} mapping")
+    for label, value in fields.items():
+        if not isinstance(label, str) or not label.strip():
+            raise ValueError("exact_fields labels must be non-empty strings")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"exact_fields[{label!r}] must be a non-empty exact string value")
+    lines = response.splitlines()
+    problems: list[str] = []
+    for label, expected in fields.items():
+        occurrences = _literal_field_occurrences(label, lines)
+        if len(occurrences) != 1:
+            problems.append(f"{label}: found {len(occurrences)} occurrence(s), need exactly 1")
+            continue
+        actual = occurrences[0]
+        if actual != expected:
+            problems.append(f"{label}: value {actual!r} != {expected!r}")
+    return (not problems, "all exact fields matched" if not problems else "; ".join(problems))
+
+
 REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "contains_all": contains_all,
     "contains_any": contains_any,
@@ -122,6 +171,7 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "regex": regex,
     "not_regex": not_regex,
     "json_artifact_statuses": json_artifact_statuses,
+    "exact_fields": exact_fields,
 }
 
 

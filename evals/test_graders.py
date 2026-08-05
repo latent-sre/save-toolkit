@@ -148,6 +148,47 @@ def test_json_artifact_statuses() -> None:
         check(not ok, f"json_artifact_statuses: malformed/unsafe object rejected: {response!r}")
 
 
+def test_exact_fields() -> None:
+    fields = {"Verdict": "APPROVED", "Owner": "Payments On-call"}
+    ok, _ = graders.exact_fields(
+        "Verdict: APPROVED\nOwner: Payments On-call", fields
+    )
+    check(ok, "exact_fields: exact one-time labels with exact values pass")
+    # Display-only Markdown around the label is tolerated; the value is compared verbatim.
+    ok, _ = graders.exact_fields(
+        "**Verdict**: APPROVED\n- `Owner`: Payments On-call", fields
+    )
+    check(ok, "exact_fields: markdown-decorated labels still match")
+    # Prefix match on the label must NOT satisfy the field.
+    ok, _ = graders.exact_fields(
+        "Verdict summary: APPROVED\nOwner: Payments On-call", fields
+    )
+    check(not ok, "exact_fields: a label prefix ('Verdict summary:') is rejected")
+    # A value that merely contains the expected text is rejected (no prefix pass).
+    ok, _ = graders.exact_fields(
+        "Verdict: APPROVED with caveats\nOwner: Payments On-call", fields
+    )
+    check(not ok, "exact_fields: a superstring value is rejected")
+    # A duplicated field is rejected — exactly once is the contract.
+    ok, _ = graders.exact_fields(
+        "Verdict: APPROVED\nVerdict: APPROVED\nOwner: Payments On-call", fields
+    )
+    check(not ok, "exact_fields: a duplicated field is rejected")
+    # A missing field is rejected.
+    ok, _ = graders.exact_fields("Verdict: APPROVED", fields)
+    check(not ok, "exact_fields: a missing field is rejected")
+    # Empty response cannot pass but must not raise (validate() probes on "").
+    ok, _ = graders.exact_fields("", fields)
+    check(not ok, "exact_fields: empty response fails without raising")
+    # Malformed config raises (mirrors json_artifact_statuses).
+    raised = False
+    try:
+        graders.exact_fields("Verdict: APPROVED", {})
+    except ValueError:
+        raised = True
+    check(raised, "exact_fields: empty fields mapping raises ValueError")
+
+
 def test_run_grader_dispatch() -> None:
     ok, _ = graders.run_grader({"type": "contains_any", "of": ["x"]}, "x y z")
     check(ok, "run_grader: dispatches contains_any")
@@ -176,6 +217,8 @@ def test_run_grader_dispatch() -> None:
                 "allowed_statuses": ["proposed"],
                 "allowed_evidence": ["no_target_checkout"],
             }
+        elif name == "exact_fields":
+            kwargs = {"fields": {"Verdict": "APPROVED"}}
         else:
             kwargs = {"pattern": "x"}
         try:
@@ -515,7 +558,7 @@ def test_held_out_knowledge_closeout_rejects_unsupported_prepared_claims() -> No
 def main() -> int:
     tests = [
         test_contains_all, test_contains_any, test_not_contains, test_regex, test_not_regex,
-        test_json_artifact_statuses,
+        test_json_artifact_statuses, test_exact_fields,
         test_run_grader_dispatch, test_gate_scenarios_adversarial,
         test_readonly_scenario_verbal_discipline, test_injection_scenarios,
         test_pcf_deploy_refusal_is_not_an_endorsement,

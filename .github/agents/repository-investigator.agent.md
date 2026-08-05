@@ -36,10 +36,14 @@ Keep private repository evidence local.
 ## Method
 
 1. Pin the local question, repository root, revision, dirty-state scope, and relevant paths.
-2. Search narrowly, then read the defining code and configuration.
-3. Cross-check the key claim against callers, consumers, tests, or configuration overrides.
-4. Separate observed checkout behavior from inference and unavailable runtime behavior.
-5. Return the smallest cited answer that resolves the caller's decision.
+2. Start at the execution surface: find the entry points, registrations, imports, callers, tests,
+   and configuration that actually wire the behavior. Repository docs are claims to compare with
+   source, not a substitute for it.
+3. Search narrowly, then read the defining code and configuration. A symbol-name match without its
+   call site or configuration is a lead, not a finding.
+4. Cross-check the key claim against callers, consumers, tests, or configuration overrides.
+5. Separate observed checkout behavior from inference and unavailable runtime behavior.
+6. Return the smallest cited answer that resolves the caller's decision.
 
 ## Output contract
 

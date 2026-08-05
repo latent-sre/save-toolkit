@@ -33,7 +33,7 @@ This skill is general-purpose — any backend or API, not just ops tooling — h
   Use top-level problem details, never a nested error envelope. The worked shape is in the
   **Errors — RFC 9457 problem+json** section below.
 - **Serialize through explicit response models** — never return ORM objects or internal dicts directly. A response model is an allowlist: anything not declared in it (password hash, internal flag) *cannot* leak.
-- `/v1` in the path from day one; breaking changes mean a new version, not a mutation.
+- `/v1` in the path from day one; breaking changes mean a new version, not a mutation. Breaking = removing or renaming a field, changing a type, or changing auth; adding fields or optional params is not. Run at most **two live versions**: announce the sunset (`Sunset` header with a date), then `410 Gone` after it — an undated deprecation never completes.
 - Every list endpoint paginates from the start — cursor-based by default (offset is fine for small, bounded admin lists); retrofitting pagination is a breaking change.
 - Compatibility review starts from this rule: a breaking change to a shipped contract is a principal-altitude change:
   expand → migrate → contract, with the compatibility and rollback path explicit.
@@ -103,7 +103,7 @@ These are the system-wide principles. The client-side mechanics for *calling oth
 ## Security
 
 - Secrets from env or a secret store — never in code, images, or logs.
-- Explicit CORS allowlist (never `*` with credentials); rate limiting on anything exposed (token bucket, return `Retry-After`).
+- Explicit CORS allowlist (never `*` with credentials); rate limiting on anything exposed (token bucket; on limit return `429` + `Retry-After`, and publish the budget in `X-RateLimit-Limit`/`-Remaining`/`-Reset` so well-behaved clients can self-throttle).
 - Require `Idempotency-Key` for unsafe retries of non-idempotent writes; bind the stored result to the caller and request fingerprint.
 - **Rate-limit** per principal and route, set request/time limits, and return `429` with `Retry-After`.
 - Never log secrets, tokens, or full request/response bodies.
@@ -113,6 +113,14 @@ These are the system-wide principles. The client-side mechanics for *calling oth
 
 - **Unit** the pure logic; **integration-test** the handlers against a **real ephemeral database** (testcontainers or a throwaway Postgres — not mocks of your own DB).
 - **Mock the upstreams** you consume (respx / WireMock) and **test the failure paths that matter**: a timeout fires, a retry backs off, the circuit breaker opens. Resiliency code is worthless untested.
+- **Every endpoint earns a failure matrix** — of the failure modes that endpoint actually has, not
+  just a happy-path test: auth in its four shapes (missing, expired, malformed credential → 401;
+  authenticated-but-wrong-role → 403), the validation split exercised (400 malformed vs 422
+  semantically invalid), 404 on absent resources, 429 asserting `Retry-After` is present — and
+  where the endpoint takes an idempotency key, replaying the key returns the recorded response,
+  not a second effect. Uploads verify magic bytes, never the extension or declared Content-Type.
+  **Drop the rows the route doesn't have**: a deliberately public `/healthz` has no auth or 404 case,
+  and inventing one to complete the matrix changes the contract instead of testing it.
 - **Contract-test** against the OpenAPI spec so served shapes can't drift from what the frontend builds on.
 - Before "done": the service starts clean, tests pass, and the primary endpoints were exercised with **real requests** (curl/httpie). Record only a bounded, redacted evidence excerpt: method/path, status, request ID, and schema assertion. Strip Authorization headers, cookies, credentials, PII, and full bodies; keep full evidence in an access-controlled local artifact referenced by path and content hash. An API that was never called is written, not verified.
 

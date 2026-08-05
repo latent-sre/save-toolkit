@@ -24,55 +24,48 @@ green over a skill that leaks the production password into argv. The adversarial
 conformance reviews required by CONTRIBUTING.md are the ones that catch that.
 """
 
+import glob
 import os
 import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# (label, argv-after-the-interpreter, environment additions). Ordered cheapest-and-most-foundational
-# first: a broken validator
-# makes every downstream result meaningless, so it fails before we spend time on the eval harness.
-STEPS = [
+# Non-test structural steps that need a fixed position or non-default arguments. Ordered
+# cheapest-and-most-foundational first: a broken validator makes every downstream result
+# meaningless, so it fails before we spend time on the eval harness. The `test_*.py` suites are
+# NOT listed here — they are discovered below, so a new test file can never be silently left
+# unrun. (That is not hypothetical: scripts/test_check_links.py was authored, added to no runner,
+# and executed by nothing until this list stopped being the second source of truth for "what
+# tests exist".)
+STRUCTURAL_STEPS = [
     ("Canonical skill and bundle links",
      ["scripts/check_links.py"], None),
     ("Single live roadmap and historical plan status",
      ["scripts/check_plan_status.py"], None),
-    ("Planning-status regression tests",
-     ["scripts/test_plan_status.py"], None),
     ("No stale unit names",
      ["scripts/check_stale_names.py"], None),
     ("Fleet, plugin, and generated adapter contracts",
      ["scripts/validate_fleet.py"], None),
-    ("Fleet validator mutation tests",
-     ["scripts/test_validate_fleet.py"], None),
-    ("Typed evidence envelope contracts",
-     ["scripts/test_evidence_envelope.py"], None),
-    ("Operational knowledge update contracts",
-     ["scripts/test_operational_learning.py"], None),
-    ("Read-only fleet doctor contracts",
-     ["scripts/test_fleet_doctor.py"], None),
-    ("Disposable host install probe contracts",
-     ["scripts/test_host_install_probe.py"], None),
-    ("Digest-bound verification sandbox contracts",
-     ["scripts/test_verification_sandbox.py"], None),
-    ("Platform adapter contract tests",
-     ["scripts/test_platform_adapters.py"], None),
-    ("Codex agent installer safety tests",
-     ["scripts/test_install_codex_agents.py"], None),
-    ("Plugin hook wiring",
-     ["scripts/test_hook_wiring.py"], None),
-    ("Read-only guard",
-     ["scripts/test_readonly_guard.py"], None),
-    ("Eval graders",
-     ["evals/test_graders.py"], None),
-    ("Direct/discovery eval runner contracts",
-     ["evals/test_run_evals.py"], None),
-    ("Clean-room rig",
-     ["evals/test_clean_room.py"], None),
     ("Eval suite parses (shipped fleet)",
      ["evals/run_evals.py", "--validate"], None),
 ]
+
+
+def _discover_test_steps():
+    """Every scripts/test_*.py and evals/test_*.py, discovered — never a hand-kept roster.
+
+    The label is derived from the path so adding a test file needs no edit here at all; the file's
+    mere existence enrolls it in Gate A.
+    """
+    steps = []
+    for pattern in ("scripts/test_*.py", "evals/test_*.py"):
+        for rel in sorted(glob.glob(pattern, root_dir=ROOT)):
+            steps.append((f"Unit: {rel}", [rel], None))
+    return steps
+
+
+STEPS = STRUCTURAL_STEPS + _discover_test_steps()
 
 
 def preflight():

@@ -20,8 +20,16 @@ description: >-
 
 # Language idiom — pick the language
 
-Match the repo's existing tooling first; the per-language defaults apply when none is set. Load **only**
-the file for the language you're touching.
+Match the repo's existing tooling first; the per-language defaults apply when none is set. Two rules
+hold in every language:
+
+- **The dangerous operations are the silent ones.** A crash is a good outcome; the failure modes worth
+  memorizing continue with wrong state — a swallowed exception, an unchecked error return, a dry-run
+  that dries the wrong half.
+- **Read the neighbors before writing.** Two files near what you're changing tell you more about what
+  will be accepted than any style guide.
+
+Load **only** the file for the language you're touching.
 
 - **Python** — typing, `ruff`/`uv`, `pytest`, exceptions, subprocess/HTTP safety, secrets-safe logging.
   → [`references/python.md`](./references/python.md)
