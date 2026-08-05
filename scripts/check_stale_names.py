@@ -98,6 +98,13 @@ def _scan_value(value: object, json_path: str) -> list[str]:
 
 
 def _scan_metadata(root: Path) -> list[str]:
+    # `canonical/fleet.json` is not part of the current architecture (the fleet generates from
+    # canonical agents/skills/commands, with no separate metadata manifest), so this scan is dormant
+    # on the shipped tree. It is retained, not dead: it is exercised by fixtures in
+    # test_check_links.py (StaleNameCheckerTests), and it guards the reintroduction of any such
+    # manifest against carrying a retired name. A dormant-but-tested guard over a cheap no-op branch
+    # stays; deleting a tested guard because its target file is currently absent is the exact
+    # "the failure can't happen right now" reasoning this repo distrusts.
     path = root / "canonical" / "fleet.json"
     if not path.is_file():
         return []

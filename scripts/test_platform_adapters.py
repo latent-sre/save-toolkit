@@ -72,15 +72,21 @@ class PlatformAdapterTests(unittest.TestCase):
         """
         agent_names = {path.stem for path in (ROOT / "agents").glob("*.md")}
         offenders = []
+        scanned = 0
         for path, blob in adapters.expected_outputs(ROOT).items():
-            if path.parts[:3] != ("plugins", "save-toolkit", "skills"):
+            # Iterate by the generator's own constant, not a hard-coded path tuple: if CODEX_SKILLS
+            # ever moves, a literal tuple would silently match nothing and this test would verify
+            # nothing while staying green.
+            if adapters.CODEX_SKILLS not in path.parents:
                 continue
             if path.suffix.lower() not in {".md", ".txt"}:
                 continue
+            scanned += 1
             text = blob.decode("utf-8")
             offenders.extend(
                 f"{path.as_posix()}: `{name}`" for name in agent_names if f"`{name}`" in text
             )
+        self.assertTrue(scanned, "no Codex skill files were scanned — the projection path moved")
         self.assertEqual([], sorted(offenders))
 
     def test_codex_agent_filenames_carry_a_fleet_prefix(self) -> None:

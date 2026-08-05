@@ -223,6 +223,11 @@ class FleetValidatorTests(unittest.TestCase):
         rendered = "\n".join(failures)
         self.assertIn("unsupported plugin agent field", rendered)
         self.assertIn("missing required tool", rendered)
+        # The inert-field rule emits a distinct, more educational message than the generic
+        # unknown-field one (a `hooks:` guard in plugin frontmatter looks like armor and does
+        # nothing). Assert it specifically, so this test fails if that rule is ever deleted —
+        # without this line it would pass on the unknown-field message alone.
+        self.assertIn("plugin-inert authority field(s) are forbidden", rendered)
 
     def test_mcp_server_wildcard_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
