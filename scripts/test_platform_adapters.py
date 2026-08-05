@@ -18,6 +18,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class PlatformAdapterTests(unittest.TestCase):
     @staticmethod
+    def _copy_canonical_sources(root: Path) -> None:
+        """Copy the authored agents/ and skills/ into a temp root — the generator's inputs."""
+        shutil.copytree(ROOT / "agents", root / "agents")
+        shutil.copytree(ROOT / "skills", root / "skills")
+
+    @staticmethod
     def _copilot_tools(name: str) -> list[str]:
         rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
         frontmatter = rendered.split("---", 2)[1]
@@ -181,8 +187,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_byte_drift_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            shutil.copytree(ROOT / "agents", root / "agents")
-            shutil.copytree(ROOT / "skills", root / "skills")
+            self._copy_canonical_sources(root)
             for relative in adapters.GENERATED_ROOTS:
                 shutil.copytree(ROOT / relative, root / relative)
             target = root / adapters.COPILOT_AGENTS / "sde.agent.md"
@@ -238,8 +243,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_crlf_code_asset_is_normalized_in_projection(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            shutil.copytree(ROOT / "agents", root / "agents")
-            shutil.copytree(ROOT / "skills", root / "skills")
+            self._copy_canonical_sources(root)
             # find a real projected code asset and give the source CRLF line endings
             script = next(
                 p for p in (root / "skills").rglob("*.py")
@@ -261,8 +265,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_directory_swap_failure_restores_every_existing_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            shutil.copytree(ROOT / "agents", root / "agents")
-            shutil.copytree(ROOT / "skills", root / "skills")
+            self._copy_canonical_sources(root)
             for relative in adapters.GENERATED_ROOTS:
                 destination = root / relative
                 destination.mkdir(parents=True)
@@ -288,8 +291,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_generated_root_ancestor_indirection_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            shutil.copytree(ROOT / "agents", root / "agents")
-            shutil.copytree(ROOT / "skills", root / "skills")
+            self._copy_canonical_sources(root)
             (root / ".github").mkdir()
             real_check = adapters._is_link_or_reparse
 
