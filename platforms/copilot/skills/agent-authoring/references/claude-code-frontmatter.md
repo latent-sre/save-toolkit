@@ -92,15 +92,12 @@ Two consequences worth authoring against:
   examples, tool-specific syntax — into a linked bundle file. That is a genuine saving, not a shuffle:
   a script run through Bash returns only its output to context, and its source never enters at all.
 
-### Portability: which frontmatter survives outside Claude Code
+### Portability
 
-[doc-checked 2026-08-05] The Agent Skills spec that other hosts implement accepts only six fields:
-`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`. Everything else this
-fleet uses — `argument-hint`, `disable-model-invocation`, `user-invocable`, `context`, `agent`,
-`paths`, `shell` — is **Claude-only**, and Anthropic's own packaging script rejects a skill that
-carries them when publishing to the portable spec. That is fine here (we ship a Claude plugin and
-generate the other hosts), but it is the reason a skill cannot simply be copied to a non-Claude host
-and be expected to behave the same.
+Only six of these fields survive outside Claude Code, and the portable set can only *grant*
+authority, never restrict it. The field-by-field map is in the sibling reference
+[skill portability](./skill-portability.md); this file stays the source of truth for what each field
+does.
 
 ### Recent platform changes worth knowing
 

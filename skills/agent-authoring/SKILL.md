@@ -71,6 +71,9 @@ Route to the relevant method without loading sibling skills:
 - [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth
   for frontmatter fields and their traps; read it before authoring or debugging any agent or skill
   frontmatter.
+- [skill portability](./references/skill-portability.md) — which frontmatter survives outside Claude
+  Code, and why the portable set can only grant authority, never restrict it. Read it before relying
+  on a frontmatter field to enforce anything, or before publishing a skill beyond this plugin.
 
 ## Runtime quick reference
 
