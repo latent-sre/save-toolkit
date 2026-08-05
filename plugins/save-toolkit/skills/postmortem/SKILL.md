@@ -34,43 +34,20 @@ them so the failure class can't recur. Describe systems and decisions, never peo
   unclear runbook) — fix the system.
 - Separate the **trigger** (what set it off) from the **cause** (why our defenses didn't prevent/catch it).
 
-## Structure
-```
-# Postmortem: <incident title>   (SEV-n)
-Status: <draft|final>   Authors: <…>   Date: <…>
-
-## Summary            — 3–5 sentences: what happened, impact, how it was resolved.
-## Impact             — who/what, how long, magnitude (users, % traffic, $ if known), SLO/budget hit;
-                         data lost or not, stated explicitly with evidence.
-## Timeline (UTC)     — detection → diagnosis → mitigation → resolution; key decisions; from the IC log.
-## Root cause & contributing factors — the systemic cause + the factors that aligned (usually several).
-## Detection          — the named detection source, and how fast. Could typed `save-toolkit-observability-engineer` evidence have paged sooner?
-## Response           — what went well, what was slow/hard (diagnosis, mitigation, comms, tooling).
-## Five whys          — chain from symptom to systemic cause.
-## Action items       — table: action | type (mitigative/preventative) | owner | due | tracking link.
-## Lessons            — what went well / what went wrong / where we got lucky.
-```
-
 Two claims that need evidence, not silence:
 
 - **"No data loss" is a claim that needs evidence, not an assumption of silence** — state explicitly
   what was checked (row counts, checksums, replay of the write path) or mark it `[unverified]`.
 - **Name the detection source.** A *person* noticing is a detection gap, and the gap is a finding —
-  it belongs in Detection and usually seeds a preventative action item.
+  it belongs in Detection and usually seeds a preventative action item. Ask directly: could typed
+  `save-toolkit-observability-engineer` evidence have paged sooner?
 
 ## Action items that actually prevent recurrence
 
 - Prefer **systemic** fixes (a gate, an alert, a guardrail, an automated check) over "be more careful."
 - **Tag every item mitigative vs preventative** — *mitigative* fixes this specific gap; *preventative*
   eliminates the whole failure class. A postmortem with no preventative item rarely stops a recurrence.
-  Track them in a table so none is lost:
-
-  ```
-  | # | Action | Type (mitigative/preventative) | Owner | Due | Tracking link |
-  |---|--------|--------------------------------|-------|-----|---------------|
-  | 1 | <specific, verifiable action>  | preventative | <name> | <date> | <ticket> |
-  ```
-
+  Track them in the template's Action items table so none is lost.
 - Every action names the **artifact** it becomes — a runbook line, an alert, a drill, a validator
   rule — plus a **proof-of-done** check. An action with no artifact will not happen.
 - Each item is **owned, dated, tracked** — an un-owned action item is a wish. Use typed handoffs:

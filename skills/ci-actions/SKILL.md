@@ -108,31 +108,8 @@ checksum-verified package). Authenticate from **environment** secrets and keep s
 `cf auth` with no arguments reads `CF_USERNAME`/`CF_PASSWORD` from the environment — the CLI's own
 recommended form. Never pass them as arguments: argv is visible to every process on the runner.
 *[sourced: cf CLI `command/v7/auth_command.go` help text]*
-```yaml
-deploy-prod:
-  runs-on: [self-hosted, pcf]          # runner group with foundation network access
-  environment: production               # required reviewers approve before this runs
-  concurrency: { group: deploy-prod, cancel-in-progress: false }   # never cancel a deploy
-  steps:
-    - uses: actions/checkout@<pin-to-sha>
-    - uses: actions/download-artifact@<pin-to-sha>   # promote the SAME artifact built earlier
-      with: { name: app-build }
-    - name: Verify cf CLI v8
-      run: |
-        cf version
-    - name: Deploy
-      env:                              # from environment secrets — not echoed, not in ps
-        CF_API: ${{ secrets.CF_API }}
-        CF_USERNAME: ${{ secrets.CF_USERNAME }}
-        CF_PASSWORD: ${{ secrets.CF_PASSWORD }}   # fed to cf auth via env, never argv
-        CF_ORG: ${{ vars.CF_ORG }}
-        CF_SPACE: ${{ vars.CF_SPACE }}
-      run: |
-        cf api "$CF_API"
-        cf auth
-        cf target -o "$CF_ORG" -s "$CF_SPACE"
-        cf push -f manifest.yml --strategy rolling
-```
+
+Paste-ready skeleton: [PCF deploy job](./references/pcf-deploy-job.md).
 
 The deployment job requires an authenticated environment, reviewed manifest, health check, rollback
 job, and current human approval. Require an existing evidence packet for release readiness and the
