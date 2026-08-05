@@ -53,13 +53,24 @@ stealing code) is the cautionary tale — assume any action you don't pin can ch
   usually come from a self-hosted runner's internal store (CredHub auth is via UAA, not GitHub OIDC — see
   the PCF deploy notes below).
 - **Pin third-party actions by full commit SHA** (tags are mutable), version in a trailing comment:
-  `- uses: actions/checkout@<40-char-sha> # v4.2.2`.
+  `- uses: actions/checkout@<40-char-sha> # v4.2.2`. Re-pin deliberately (Dependabot can propose SHA
+  bumps), read the diff when you do, and give routine re-pins a **cooldown** — adopt a release only
+  after it has been public a few days, because compromise campaigns count on fast adoption before
+  detection catches the malicious version. One exception: a fix for a disclosed vulnerability in the
+  SHA you are on skips the cooldown — waiting there keeps you on the known-bad version.
+- **Two kinds of pin:** a GitHub Action pins to a git commit SHA (`actions/checkout@<40-hex>`); a
+  `docker://` step pins to an image manifest **digest** (`docker://image@sha256:…`), because the ref
+  after `@` is resolved by the registry, not by git. A commit SHA on a `docker://` line names an
+  image that does not exist, and the job fails to start.
 - **No script injection:** never interpolate `${{ github.event.* }}` (PR title/body, branch name, etc.)
   directly into a `run:` block — an attacker controls those strings and they execute in your shell. Pass
   them through a quoted `env:` var and reference `"$VAR"`.
 - **Treat `pull_request_target` as dangerous:** it runs *your* workflow with repo secrets but can be
   triggered by untrusted fork PRs ("pwn request"). Don't check out + build fork code under it; prefer
   plain `pull_request` (no secrets) for untrusted contributions.
+- **Fork PRs don't get secrets, by design** — a workflow that requires a secret to pass will always
+  fail on fork contributions. Split it: the required checks run without secrets, the secret-needing
+  job runs post-merge or on a label.
 - Secrets via `secrets:` / environment secrets — never echo them; mask anything sensitive. Enable
   **secret scanning + push protection** on the repo.
 - **Lint workflows in CI** with `actionlint` (syntax/expression bugs) and `zizmor` (security smells like
@@ -72,7 +83,13 @@ the artifact was built by your pipeline from your source, not swapped in. Pin ev
 
 ## Make it fast & correct
 - **Matrix** for multi-version testing: `strategy: { matrix: { python: ['3.11','3.12'] } }`.
-- **Cache** deps with `actions/cache` (or `setup-*` built-in caching).
+- **`timeout-minutes:` on every job** — a hung job holds a runner until the platform's 6-hour cap.
+- **Pin the runner image** (`ubuntu-24.04`, not `ubuntu-latest`) when reproducibility matters —
+  `latest` moves and breaks builds on the platform's schedule, not yours.
+- **Cache the dependency store, not the build output**, with `actions/cache` (or `setup-*` built-in
+  caching), keyed on the lockfile hash. A cache key that ignores the lockfile serves stale
+  dependencies — a debugging nightmare that looks like flakiness. **Never cache anything derived from
+  untrusted PR code into a shared key.**
 - **Concurrency** to cancel superseded runs on a branch: `concurrency: { group: ${{ github.ref }},
   cancel-in-progress: true }` (but **not** for prod deploys — never cancel a deploy mid-flight).
 - Upload build outputs with `actions/upload-artifact`; download in the deploy job to promote the *same*
@@ -128,6 +145,10 @@ GitHub-OIDC→CredHub is **not** a turnkey integration — CredHub authenticates
 JWTs). The target integration remains `[unverified]` until the platform/security owners provide evidence.
 
 ## Tips
+- **A workflow is unverified until it has run.** For ordinary CI (build/test on a branch), push and
+  read the run: the job you expected executed, and the check you added actually fails when the code
+  is wrong — break something on purpose once. A workflow that has only ever been read is a plausible
+  YAML file. (Deploy workflows are the exception — see the next tip and the release-owner rule below.)
 - Validate workflow syntax with static `actionlint` plus existing trusted CI evidence. Do not execute an
   imported or candidate workflow locally. An agent may observe an already-approved run with `gh run watch
   <approved-run-id>`; the human release owner may dispatch only after approval names the exact workflow,

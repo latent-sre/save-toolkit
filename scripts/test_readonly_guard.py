@@ -28,6 +28,7 @@ GUARD = Path(__file__).resolve().parents[1] / "scripts" / "readonly-guard.py"
 # Must match scripts/readonly-guard.py.
 EXIT_ALLOW = 42
 EXIT_DENY = 43
+EXIT_INDETERMINATE = 44
 
 SRE = "save-toolkit:sre"
 OBS_ENGINEER = "save-toolkit:observability-engineer"
@@ -132,7 +133,12 @@ ALLOWED = [
     "cat deploy.sh | grep -c foo",
     "cat notes.py | grep -e todo",
     "git diff | head -100",
-    "rg -l TODO | sort | uniq",
+    "rg -l TODO | uniq",
+    # `git check-ignore` is a read: it prints ignore status and the matching rule, no write flag.
+    "git check-ignore -v secrets.env",
+    # `rg` and `gh` reads that do NOT carry an execution flag stay allowed.
+    "rg --json TODO src/",
+    "gh pr view 12 --json state,title",
     # gh reads
     "gh pr view 12",
     "gh pr diff 12",
@@ -199,6 +205,12 @@ DENIED = [
     "git reflog delete HEAD@{0}",
     "git reflog drop refs/heads/main",
     "git reflog",
+    # `git grep --open-files-in-pager[=CMD]` and its attached short form `-O<CMD>` run CMD even with
+    # no TTY. `git help -w` / `-i` launch a browser/info reader. All were ALLOWED before the fix.
+    "git grep -O/bin/sh TODO",
+    "git grep --open-files-in-pager=/bin/sh TODO",
+    "git help -w git-log",
+    "git help -i git",
     # REGRESSION (reviewer-reported, reproduced): every one of these WROTE and the old denylist
     # allowed it. They are gone now not because each was listed, but because none is a reader.
     "git clone https://github.com/x/y.git",
@@ -215,6 +227,24 @@ DENIED = [
     "gh api repos/o/r/issues -X POST",
     "gh api repos/o/r/pulls",
     "gh repo delete o/r",
+    # `gh ... --web/-w` launches $BROWSER — an application, not a read. Allowed before the fix.
+    "gh pr view 12 --web",
+    "gh issue list -w",
+    "gh repo view --web",
+    # --- readers with an execution or write flag: the reader is fine, the flag is not ---------
+    # Each of these was ALLOWED before the guard grew per-tool flag gates. `rg --pre`/`--hostname-bin`
+    # run an external program mid-search; `sort -o`/`tree -o` write a file with no shell redirect;
+    # `less -o` logs to a file and `less` can execute a program; `ag --pager` executes a program.
+    "rg --pre /bin/sh x .",
+    "rg --hostname-bin=/bin/sh x .",
+    "rg -z pattern archive/",
+    "rg --search-zip pattern .",
+    "sort -o /tmp/pwn.txt README.md",
+    "tree -o /tmp/x .",
+    "less -o /tmp/x README.md",
+    "less README.md",
+    "ag --pager /bin/sh x",
+    "ag pattern .",
     # --- filesystem / process / service ------------------------------------------------------
     "rm -rf build/",
     "/bin/rm -rf build/",
@@ -359,12 +389,28 @@ class ReadonlyGuardTest(unittest.TestCase):
         self.assertEqual(proc.returncode, EXIT_ALLOW)
         self.assertEqual(decision(proc), "allow")
 
-    def test_unparseable_and_empty_input_pass_through(self) -> None:
-        for stdin_text in ("", "not json {", "﻿"):
+    def test_empty_input_passes_through(self) -> None:
+        # Truly empty (and BOM-only) stdin is a no-op main-loop shape, not a corrupted payload:
+        # there is nothing to vouch for, so it allows and stays out of the permission flow.
+        for stdin_text in ("", "﻿"):
             with self.subTest(stdin=stdin_text):
                 proc = run_guard(stdin_text)
                 self.assertEqual(proc.returncode, EXIT_ALLOW)
                 self.assertEqual(decision(proc), "allow")
+
+    def test_unparseable_input_exits_indeterminate(self) -> None:
+        # GOV-001: the guard must NOT positively allow input it could not parse — a truncated
+        # guarded payload used to flip from deny to allow that way. Exit indeterminate so the hook
+        # falls through to its blanket deny instead of taking exit 0 as ALLOW. A bare JSON list is
+        # parseable but is not the documented dict envelope, so it lands here too.
+        for stdin_text in ("not json {", '{"tool_name": "Bash", "agent_type": "save-toolkit:sre"',
+                           '["Bash", "sre"]'):
+            with self.subTest(stdin=stdin_text):
+                proc = run_guard(stdin_text)
+                self.assertEqual(
+                    proc.returncode, EXIT_INDETERMINATE,
+                    f"expected EXIT_INDETERMINATE for {stdin_text!r}, got {proc.returncode}",
+                )
 
     def test_bom_prefixed_payload_is_still_parsed(self) -> None:
         proc = run_guard("﻿" + bash_call("git push origin main"))

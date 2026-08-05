@@ -103,6 +103,38 @@ satisfy this item's acceptance — VS Code UI discovery and headless Codex disco
 gaps, and model evidence stays with EVAL-001 — or whether a run on the owner workstation topology
 is also required. No repository change is blocking either path.
 
+### ADAPT-001 — finish the bounded sibling-repo adaptations
+
+**Status:** `ready`
+
+**Outcome:** The larger ideas surfaced by the 2026-08-05 `sde-agents` scan that were worth doing but
+out of scope for the first pass are each either implemented behind a test or explicitly dropped with
+a reason — no idea left in an unrecorded "maybe" state.
+
+**Source:** [`2026-08-05-sde-agents-adaptation.md`](reviews/2026-08-05-sde-agents-adaptation.md),
+which committed the guard, validator, gate, eval, and content changes and listed these as follow-on.
+
+**Prerequisites:** None. Each sub-item is independent and stdlib-only; none depends on an owner
+identity or on the deferred `STATE-001`/`EFFECT-001` machinery.
+
+**Acceptance:** Each of the following lands with a fixture or mutation test proven to fail without
+it, or is dropped in this item with a stated reason. Sub-items (3), (4), and (5) are **done** and
+committed with tests; the two learning-system sub-items remain: (1) a drift watch over
+`operational-learning` packets whose `proposed`/`blocked` destination has since changed in git
+(advisory by default, exit-non-zero only on an unreadable repo, per the sibling's `ledger_drift.py`
+design); (2) forward `review_at`/`expires_at` freshness deadlines on the knowledge-update schema,
+governed by [`schema-compatibility.md`](schema-compatibility.md). Done: (3) AGENTS.md
+path-and-`@import` drift enforcement in `scripts/check_links.py`, in Gate A; (4) a
+`RETIRED_GENERATED_ROOTS` check that fails on a stale generated tree left on disk; (5) CRLF-independent
+adapter generation for the `.py`/`.sh`/`.ps1` assets we ship, with a `.gitattributes` companion check.
+
+**Next action:** The two remaining sub-items both touch the learning system, which maps onto the
+scribe-bundle-validated `operational-learning` skill and the parked improvement-lifecycle. Scope
+them together against `skills/operational-learning/scripts/knowledge_update.py` and its schema, and
+do not edit the scribe-bundle contract strings the validator pins. `verification_sandbox.py` is
+resolved and needs no work: `host_install_probe.py` consumes its `_is_indirection` helper, so it is
+a live utility, not an orphan.
+
 ## Blocked on an owner decision
 
 ### PROTECT-001 — assign repository protection identities

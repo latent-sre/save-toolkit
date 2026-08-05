@@ -190,6 +190,63 @@ class PlatformAdapterTests(unittest.TestCase):
             failures = adapters.validate_generated_outputs(root)
         self.assertTrue(any("generated output drift" in failure for failure in failures))
 
+    def test_retired_generated_root_present_on_disk_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self.assertEqual([], adapters._retired_generated_root_failures(root))
+            retired = root / adapters.RETIRED_GENERATED_ROOTS[0]
+            retired.mkdir(parents=True)
+            (retired / "leftover.md").write_text("stale mirror\n", encoding="utf-8")
+            failures = adapters._retired_generated_root_failures(root)
+        self.assertTrue(any("retired generated root" in f for f in failures), failures)
+
+    def test_gitattributes_missing_eol_rule_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+            # drop the *.py rule specifically
+            broken = "\n".join(
+                line for line in text.splitlines() if not line.startswith("*.py")
+            ) + "\n"
+            (root / ".gitattributes").write_text(broken, encoding="utf-8", newline="\n")
+            failures = adapters._gitattributes_failures(root)
+        self.assertTrue(any("eol=lf' rule for *.py" in f for f in failures), failures)
+
+    def test_generated_cr_byte_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            (root / ".gitattributes").write_bytes(
+                (ROOT / ".gitattributes").read_bytes()
+            )
+            target = root / adapters.COPILOT_AGENTS / "probe.agent.md"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"line one\r\nline two\r\n")
+            failures = adapters._gitattributes_failures(root)
+        self.assertTrue(any("carries a CR byte" in f for f in failures), failures)
+
+    def test_crlf_code_asset_is_normalized_in_projection(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            shutil.copytree(ROOT / "agents", root / "agents")
+            shutil.copytree(ROOT / "skills", root / "skills")
+            # find a real projected code asset and give the source CRLF line endings
+            script = next(
+                p for p in (root / "skills").rglob("*.py")
+                if "scripts" in p.parts and "__pycache__" not in p.parts
+            )
+            lf = script.read_text(encoding="utf-8")
+            script.write_bytes(lf.replace("\n", "\r\n").encode("utf-8"))
+            outputs = adapters.expected_outputs(root)
+            relative = script.relative_to(root / "skills")
+            projected = [
+                blob for path, blob in outputs.items()
+                if path.parts[-len(relative.parts):] == relative.parts
+                and (adapters.COPILOT_SKILLS in path.parents or adapters.CODEX_SKILLS in path.parents)
+            ]
+            self.assertTrue(projected, "code asset was not projected")
+            for blob in projected:
+                self.assertNotIn(b"\r", blob, "CRLF source leaked into a generated code asset")
+
     def test_directory_swap_failure_restores_every_existing_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()

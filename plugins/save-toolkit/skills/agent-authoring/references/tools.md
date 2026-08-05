@@ -32,6 +32,14 @@ promote the actions that need control. *[sourced: Anthropic, "Writing effective 
 name/description/defaults. Repeat the prototype → evaluate iteration inline against measurable
 fixtures. *[sourced: Anthropic, "Writing effective tools for agents" — prototype→evaluate loop]*
 
+## Tool sprawl
+Every tool definition sits in context on every turn, so the surface has a selection cost of its own.
+Past roughly a dozen tools, selection accuracy drops and the schemas themselves become the dominant
+context cost. When a surface grows past that: group related operations behind one tool with an enum
+`action` parameter, load tool sets by task type rather than all at once, or split the work across
+agents that each carry a coherent subset. Measure it — if the model picks the wrong tool, the fix is
+usually a sharper description or a merged pair, not another tool.
+
 ## In this fleet
 Reach for this when exposing `cf`/Splunk/Wavefront/ThousandEyes capability or an MCP server to an agent.
 Use typed inputs, destination allowlists, bounded output, and least-privilege credentials to keep a

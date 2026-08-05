@@ -265,9 +265,53 @@ def _check_direct_bundle_links(skill_path: Path, body: str) -> list[str]:
     return failures
 
 
+def _check_guide(root: Path) -> list[str]:
+    """Tie the AGENTS.md fleet guide to the tree it describes.
+
+    Three silent-failure classes, none of which any other check sees:
+      * CLAUDE.md loads AGENTS.md via an `@AGENTS.md` import; drop that line and the guide silently
+        loads empty for every Claude session while both files still exist.
+      * A renamed script or doc leaves the guide pointing at nothing — a dead Markdown link that
+        fails nowhere at runtime.
+      * An inline-code path token (`scripts/gate_a.py`, `docs/README.md`) that stops resolving after
+        a rename reads as live guidance and isn't.
+
+    Inline-code tokens are checked only when their FIRST segment is a real top-level repo entry.
+    That is what keeps this from false-positiving on generic mentions (`references/`, `assets/`) and
+    on skill-relative link labels (`` [`agent-authoring/references/roster.md`](skills/...) `` — the
+    code span is the label, unresolvable from root, and correctly skipped).
+    """
+    failures: list[str] = []
+    claude_md = root / "CLAUDE.md"
+    if claude_md.is_file() and "@AGENTS.md" not in claude_md.read_text(encoding="utf-8"):
+        failures.append("CLAUDE.md: missing '@AGENTS.md' import; the fleet guide would load empty")
+    guide = root / "AGENTS.md"
+    if not guide.is_file():
+        return failures  # self-gate: a synthetic root without the guide has nothing to check
+    visible = _strip_fences(guide.read_text(encoding="utf-8"))
+    for _label, raw_target in _links(visible):
+        relative = _relative_target(raw_target)
+        if relative is None:
+            continue
+        if not (root / Path(relative.replace("/", os.sep))).exists():
+            failures.append(f"AGENTS.md: dead link '{relative}'")
+    for match in re.finditer(r"`([^`]+)`", visible):
+        token = match.group(1).strip()
+        if "/" not in token or any(ch in token for ch in " :*") or token.startswith(("/", "#", "~")):
+            continue  # commands, namespaces (`save-toolkit:x`), globs, absolute/home paths
+        clean = token.rstrip("/")
+        first = clean.split("/", 1)[0]
+        if first in (".", "..") or not (root / first).exists():
+            continue  # first segment is not a repo-root entry: a generic or skill-relative mention
+        if not (root / Path(clean.replace("/", os.sep))).exists():
+            failures.append(f"AGENTS.md: inline-code path does not resolve: '{token}'")
+    return failures
+
+
 def check(root: Path = ROOT) -> list[str]:
     root = Path(root).resolve()
     failures: list[str] = []
+    failures.extend(_check_guide(root))
     skill_root = root / "skills"
     if skill_root.is_dir():
         for skill_path in sorted(skill_root.glob("*/SKILL.md")):

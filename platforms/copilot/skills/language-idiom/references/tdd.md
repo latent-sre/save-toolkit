@@ -6,6 +6,15 @@ Read this when writing tests-first or after any bug fix (the regression test is 
 2. **Green.** Write the minimum code to make it pass. Run the suite.
 3. **Refactor.** Clean up with the test as your safety net; keep it green. See the [safe refactoring process](./safe-refactor.md).
 
+The value isn't ritual — it's that **you have seen the test fail**, which is the only proof it *can*
+fail. A test written after the code and never observed red may assert nothing at all; that's the most
+common defect in a test suite, and it's invisible.
+
+**Spike-then-pin carve-out:** full TDD earns its cost where behavior is specifiable up front
+(parsers, calculations, state machines). Exploring an unknown API or a UI's shape? Spike first, then
+write the tests that pin what you learned before calling it done. Either order is fine; shipping
+untested logic is not.
+
 ## Regression-first for bug fixes (non-negotiable)
 Before fixing a bug, write the test that **reproduces it** and **fails on the current (broken) code**.
 Then fix and watch it go green. This proves the bug is real and guards against its return.

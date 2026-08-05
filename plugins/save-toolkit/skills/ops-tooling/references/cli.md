@@ -9,25 +9,44 @@ Starter: [cli_skeleton.py](../assets/cli_skeleton.py).
 
 ## Exit codes & streams (the scripting contract)
 - **Exit `0` on success, distinct non-zero codes for distinct failures** — document them; CI branches on
-  them. Fail loud to **stderr** with a message stating what failed and the next step.
+  them. Fail loud to **stderr** with a message stating what failed and the next step. Reserve `1` for a
+  general failure and `2` for a usage error (bad flags), so a wrapper can tell "you called me wrong"
+  from "the operation failed"; document any tool-specific codes in `--help`.
+- **A partial failure is a failure.** Processing 9 of 10 items exits non-zero and names the one that
+  didn't — successes on stdout, a summary line on stderr. A tool that exits `0` on partial failure gets
+  trusted by a script that then does the wrong thing.
 - **stdout is for the result; stderr is for logs, progress, and diagnostics** — so `| jq` and pipelines
   stay clean. Don't `print` chatter to stdout; in Python, configure `logging` to stderr.
-- **Human-readable by default; `--json` for machines.** Keep the JSON shape stable: version the JSON contract and preserve or explicitly migrate consumers before changing it. Detect a TTY and honor `NO_COLOR`.
+- **Never print a stack trace as the primary error.** Catch the expected failures, print a one-line
+  diagnosis to stderr with the next step, and reserve tracebacks for `--debug`.
+- **Human-readable by default; `--json` for machines.** Keep the JSON shape stable: version the JSON contract and preserve or explicitly migrate consumers before changing it. Detect a TTY and honor `NO_COLOR`. For a stream, prefer JSON Lines — one object per line, flushed — so a caller processes incrementally. Derive the human and machine paths from the same data structure so they never diverge (a field added to one appears in the other).
 
 ## Safety (state-changing CLIs)
 - **`--dry-run` for anything that changes state**, made real: **separate decision from effect** so
-  dry-run computes the plan and calls nothing — prove it in a test with a spy.
-- **Confirm destructive actions** unless `--yes`/`--force`; print the plan + what will change first.
-- **Idempotent and re-runnable** — re-running converges, doesn't double-apply. State-changing
-  cf/platform actions stay gated (human sign-off via a human release owner).
+  dry-run computes the plan and calls nothing — prove it in a test with a spy. A dry-run that is a
+  separate code path proves nothing about the real one.
+- **Confirm destructive actions** unless `--yes`/`--force`; print the plan + what will change first, and
+  name the blast radius in it — how many things, which ones, on which host. When stdin is not a TTY, skip
+  the prompt only if `--yes` was passed; otherwise fail with a usage error rather than hang forever
+  waiting for input nobody can give.
+- **Idempotent and re-runnable** — re-running after a partial failure converges, doesn't double-apply.
+  State-changing cf/platform actions stay gated (human sign-off via a human release owner).
 
 ## Config & secrets
-- **Precedence: flag > env > config file > default.** **Secrets come from env / service binding, never a
-  flag** (flags leak in shell history and `ps`). Never echo a token. External calls set connect/read timeouts, bounded retry/backoff, pagination limits, and response-schema validation.
+- **Precedence: flag > env > config file > default** — documented in `--help`, and printed under
+  `--debug` so "which config did it actually use" never costs an hour; a script's flag must win over the
+  operator's shell env.
+- **Secrets come from env / service binding, never a
+  flag** (flags leak in shell history and `ps`). Never echo a token — not even in the effective-config
+  dump: print the source (`token: <from $CF_TOKEN>`), never the value. External calls set connect/read timeouts, bounded retry/backoff, pagination limits, and response-schema validation.
 
 ## UX
-`--help` on every command with examples; sane defaults; `--verbose/-q`; progress to stderr; stable flag
-names. Small, composable subcommands beat one mega-flag.
+`--help` on every command (with at least one worked example — the example is what people actually read);
+sane defaults; `--verbose/-q`; progress to stderr; stable flag names. Small, composable subcommands beat
+one mega-flag, in a consistent noun-verb shape (`tool service restart`). Add `--version` that prints
+something traceable to a commit. Long-running work reports progress to stderr and enforces a timeout with
+a non-zero exit rather than hanging; handle `SIGINT`/`SIGTERM` by cleaning up (remove the temp dir,
+release the lock) and exiting non-zero, so a Ctrl-C doesn't leave a lock that blocks the next run.
 
 ## Testing
 Test **exit codes, stdout vs stderr, and the `--json` shape**; assert `--dry-run` performs **no** side effects (spy/mock the effect). Write the failing exit/output/side-effect assertion first; tools include `pytest` + Typer/Click runner, `bats`, or `Pester`.
@@ -36,3 +55,10 @@ Test **exit codes, stdout vs stderr, and the `--json` shape**; assert `--dry-run
 Distinct documented exit codes · result on stdout / logs on stderr · `--json` stable · `--dry-run` calls
 nothing and destructive actions confirm · secrets never in flags/logs · idempotent · `--help` is useful ·
 exit codes + dry-run covered by tests.
+
+## Verify
+Run it four ways and paste the evidence: `--help` (documents the precedence), the happy path with
+`--json | jq .` (clean parse), a deliberate failure (non-zero exit, one-line stderr message), and
+`--dry-run` on something destructive (plan printed, nothing changed — proven by a spy or by checking the
+target afterward). The runnable starter [cli_skeleton.py](../assets/cli_skeleton.py) implements every
+rule above.

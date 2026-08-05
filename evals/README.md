@@ -47,10 +47,24 @@ and starts a fresh non-persistent process for every trial. It supports `--mode`,
 `--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`.
 
 Direct skills are pinned with `/save-toolkit:<skill>`; direct agents use
-`--agent save-toolkit:<agent>`. Discovery passes the scenario prompt byte-for-byte: no slash command,
+`--agent save-toolkit:<agent>`. These two pins are not equivalent evidence. `--agent` runs the
+session AS the agent, so the pin itself is the invocation and the direct-agent contract is graded on
+its response alone. A direct-skill pin only prepends `/save-toolkit:<skill>` to the prompt: if that
+slash expansion no-ops, the main model can answer inline and the response graders pass on reasoning
+the skill never contributed. So a direct-skill trial additionally asserts the pinned skill actually
+completed — the same completed-`tool_use`/`tool_result` evidence and namespace resolution the
+discovery routing grader uses — and fails with a `skill-fired` FAIL if it did not.
+Discovery passes the scenario prompt byte-for-byte: no slash command,
 agent flag, English hint, or target rewrite. The runner requests `stream-json` and credits a component
 only when a `tool_use.id` has a matching, non-error `tool_result.tool_use_id`. Attempted, denied,
 timed-out, malformed, and incomplete calls never count as successful routing.
+
+Positive and negative routing use the threshold differently. `--threshold` (and a scenario's
+declared `threshold`) is a POSITIVES-only knob: how often the expected component must fire to pass.
+A negative scenario (`routing.expect: not_fire`) is zero-tolerance — it passes only at a 0% fire
+rate — so its effective threshold is always clamped to 1.0, and `--validate` rejects any not_fire
+scenario that declares `threshold < 1`. Without this, `--threshold 0.66` would let a forbidden
+component over-trigger on a third of trials and still report PASS.
 
 Agent descriptions are routing hints, not a dispatch guarantee. In one-shot headless Claude Code,
 the main model can answer a request inline even when the matching plugin agent is available and its
@@ -104,6 +118,19 @@ cost, and observed invocations. Plugin-snapshot and eval-suite digests are check
 summary is accepted; drift makes the batch `INCONCLUSIVE`. Use
 `--require-clean-plugin` for a publishable plugin baseline; a dirty eval harness remains identifiable
 through its suite digest when the plugin inputs themselves still match the recorded commit.
+
+### Conditions that make two runs comparable
+
+Identity hashes say two runs measured the same plugin; they do not say the runs measured it the same
+way. The manifest also records a `conditions` block under `provenance` carrying the run-shaping
+parameters — `timeout_s`, `requested_trials`, `requested_threshold`, and the mode/split/match
+selection. `--timeout` in particular appears in no other field, and a shorter timeout turns more
+trials inconclusive and moves every rate, so two runs at different timeouts are not comparable even
+though nothing else in their provenance differs. **Pin `--model` and `--timeout` for any run whose
+numbers you intend to diff against another.** The resolved model is read off each trial's trace and
+aggregated into `models_observed`; if a single batch resolved more than one model, the run prints a
+loud warning, records the mixed set, and marks itself `INCONCLUSIVE` — a batch that mixes model tiers
+is not a single baseline and reads a tier difference as a behavior change.
 
 ## Scenario contract
 
@@ -174,7 +201,12 @@ do not squash away their record history.
 4. Read passing transcripts occasionally to catch keyword matches reached for the wrong reason.
 
 Available response graders are `contains_all`, `contains_any`, `not_contains`, `regex`,
-`not_regex`, and `json_artifact_statuses`. The last parses a JSON object from the response and
+`not_regex`, `json_artifact_statuses`, and `exact_fields`. `exact_fields` takes a `fields`
+map of `{label: value}` and requires each `Label: value` line to appear exactly once with its
+exact value — it tolerates display-only Markdown around the label but rejects a label prefix
+(`Verdict summary:` does not satisfy `Verdict`), a duplicated field, and a value that merely
+contains the expected text; use it for closed structured-packet assertions where `contains_all`
+would false-pass on a superstring. `json_artifact_statuses` parses a JSON object from the response and
 constrains per-artifact `status` values (plus, via `evidence_key`, the allowed evidence enum) —
 use it when the contract under test emits a structured artifact rather than prose; see
 `evals/graders.py` and its uses in `discovery-approved-alert-knowledge.yaml` and

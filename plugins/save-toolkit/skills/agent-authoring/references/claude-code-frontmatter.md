@@ -22,7 +22,7 @@ Authority lives in frontmatter, not in prose — the fields that carry it:
 
 | Field | Notes |
 |---|---|
-| `tools` | Allowlist. **Omitting it inherits every tool** — omission is "all tools," not "none." `Agent(worker)` scoping works only for a main-thread agent (`claude --agent`); a subagent silently ignores the type list, so at subagent depth it documents intent rather than enforcing it. Scoped specifiers like `Bash(git diff:*)` are **inert on agents** (probed: agents granted them ran `git status` exactly like bare `Bash`) — per-command scoping on an agent exists only via a `PreToolUse` hook, which is what the repo's `readonly-guard.py` is for. `AskUserQuestion`, `EnterPlanMode`, `ScheduleWakeup`, `WaitForMcpServers` are never available to a subagent, however listed. |
+| `tools` | Allowlist for built-ins **and MCP tools**. **Omitting it inherits every tool** — omission is "all tools," not "none." Exact MCP names use `mcp__<server>__<tool>`; `mcp__<server>` and `mcp__<server>__*` are server-wide patterns that **silently acquire tools the server adds later**, so grant exact entries and include `ToolSearch` when approved MCP tools may be deferred (listed by name until their schema is fetched). `Agent(worker)` scoping works only for a main-thread agent (`claude --agent`); a subagent silently ignores the type list, so at subagent depth it documents intent rather than enforcing it. Scoped specifiers like `Bash(git diff:*)` are **inert on agents** (probed: agents granted them ran `git status` exactly like bare `Bash`) — per-command scoping on an agent exists only via a `PreToolUse` hook, which is what the repo's `readonly-guard.py` is for. `AskUserQuestion`, `EnterPlanMode`, `ScheduleWakeup`, `WaitForMcpServers` are never available to a subagent, however listed. |
 | `disallowedTools` | Denylist; applied before `tools` resolves. |
 | `permissionMode` | `default \| acceptEdits \| auto \| dontAsk \| bypassPermissions \| plan \| manual`. Real at project scope but unused in this fleet; ignored for plugin-shipped agents. |
 | `hooks` | Agent-scoped lifecycle hooks are real at project/user scope and **inert in a plugin** (probed). This fleet ships `hooks/hooks.json` session-wide and self-scopes to exact guarded `agent_type` values. Canonical agent frontmatter containing `hooks` fails validation. |
@@ -64,14 +64,48 @@ Also available: `when_to_use`, `arguments`, `model`, `effort`, `context`, `agent
 
 Keep descriptions lean — they load into context every session.
 
+## Platform environment facts
+
+Perishable — probed/doc-checked against the CLI 2.1.220 era; re-verify after upgrades.
+
+- **`${CLAUDE_PLUGIN_DATA}`** [doc-checked 2026-07-30] — per-plugin persistent, writable data
+  directory (`~/.claude/plugins/data/{id}/`), created on first reference and surviving plugin
+  updates; exported to hook processes. It is the place for generated state, caches, or installed
+  dependencies — never write into the plugin tree itself, which an update overwrites.
+- **`CLAUDE_ENV_FILE`** [doc-checked 2026-07-30] — available to `SessionStart` hooks: append
+  `export` lines to it to persist environment variables for the session's later Bash commands.
+  Append, never truncate — other hooks share the same file.
+- **`/doctor`** [doc-checked 2026-07-30] — a bundled skill (was a built-in command before v2.1.205):
+  diagnoses setup and flags unused skills/MCP servers/plugins against their context cost. Reports
+  first and asks before changing. `claude doctor` from the terminal is the read-only form.
+- **`/verify`** [doc-checked 2026-07-30] — a bundled skill (v2.1.145+) that builds and runs the app
+  to confirm a change does what it should. Since v2.1.215 it runs only when the user invokes it,
+  never autonomously.
+
 ## Fleet decisions on unused fields
 
 Fields the fleet deliberately does not use — considered, not overlooked. Reopen only with a reason:
 
 - **`when_to_use`** — trigger phrasings live in `description` so routing has one surface to tune.
-  Both fields share the same listing cap, so splitting saves nothing.
+  Both fields share the same listing cap (platform limit **1,536 characters** [doc-checked, CLI
+  2.1.220 era]), so splitting saves nothing. This fleet holds *agent* descriptions to a tighter
+  budget than the platform allows: the repo's `validate_fleet.py` fails any agent `description` over
+  **1024 UTF-8 bytes**, so size to that, not to the platform ceiling.
 - **`maxTurns`** — loop bounds are task-shaped prose rules (three-strikes, two-round review caps),
   which fail with a diagnosis; a turn cap fails mid-thought. Revisit if a runaway loop is observed.
 - **`memory`** — agents are stateless by design; durable knowledge lives in the repo (runbooks,
   docs). And setting `memory` auto-enables Read/Write/Edit, so it must never reach `save-toolkit-reviewer`,
   `save-toolkit-repository-investigator`, or `save-toolkit-researcher`.
+
+## Plain-scalar descriptions and the CLI's stricter parser
+
+A plain (unquoted) `description:` whose value contains `: ` (colon-space) or a colon-bearing token
+parses fine in the runtime and in the repo's `validate_fleet.py` but can fail `claude plugin tag` with
+"Unexpected token", **blocking the release path** — observed 2026-08-02 on CLI 2.1.220, while
+`claude plugin validate --strict` and sibling descriptions with a simple `: ` passed. [probed on
+CLI 2.1.220] This bites us directly: several descriptions name a component as `save-toolkit:<name>`
+after a colon. **Double-quote the whole scalar** when a description embeds such a namespaced
+reference; the rendered string is identical, so routing and evals are unaffected. Quoting works only
+while the text needs no internal escapes — the adapter generator copies the raw value, so `\"`
+sequences would land literally in the generated projections; a description that would need escaped
+quotes gets a punctuation reword instead.

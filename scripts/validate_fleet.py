@@ -184,7 +184,13 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
         if "tools" not in fields:
             failures.append(f"{path}: tools must be explicit; omission inherits all tools")
             continue
-        for spec in _tool_specs(fields["tools"]):
+        specs = _tool_specs(fields["tools"])
+        # A repeated grant signals a bad merge and defeats the set-based authority reasoning below,
+        # where the duplicate silently collapses and the mistake never surfaces.
+        duplicates = sorted({spec for spec in specs if specs.count(spec) > 1})
+        if duplicates:
+            failures.append(f"{path}: duplicate tool grant(s): {', '.join(duplicates)}")
+        for spec in specs:
             match = TOOL_RE.fullmatch(spec)
             if not match:
                 failures.append(f"{path}: malformed tool grant {spec!r}")
@@ -197,10 +203,26 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
                     failures.append(f"{path}: MCP grants cannot carry scoped arguments: {spec}")
             elif base not in BUILTIN_TOOLS:
                 failures.append(f"{path}: unknown tool grant {base!r}")
+            elif match.group(2) and base != "Agent":
+                # A scoped grant like `Bash(git diff:*)` READS like a narrowed tool and does nothing:
+                # probed on CLI 2.1.200, an agent granted `Bash(git diff:*)` ran `git status` exactly
+                # like one granted bare `Bash`. Only `Agent(target)` scoping is honored (and only on a
+                # main-thread agent). A scoped grant here is a limit that looks real and is not.
+                failures.append(
+                    f"{path}: scoped tool grant {spec!r} is silently ignored by the runtime; "
+                    f"grant bare {base!r} (per-command scoping lives in the guard, not tools:)"
+                )
         if "## The handoff packet" not in body and "## Handoffs" not in body:
             failures.append(f"{path}: missing handoff contract")
-        if "[verified]" not in body or "[unverified]" not in body:
+        # The evidence triad is all-or-nothing: an agent that keeps [verified]/[unverified] but drops
+        # [sourced] silently loses the ability to distinguish "I ran it" from "the file says so".
+        present = [label for label in ("[verified]", "[sourced]", "[unverified]") if label in body]
+        if not present:
             failures.append(f"{path}: missing evidence-label contract")
+        elif len(present) != 3:
+            missing = [label for label in ("[verified]", "[sourced]", "[unverified]")
+                       if label not in body]
+            failures.append(f"{path}: incomplete evidence-label triad; missing {', '.join(missing)}")
 
     expected_names = set(EXPECTED_AUTHORITY)
     if set(names) != expected_names:
@@ -230,6 +252,16 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
                 failures.append(f"{path}: Agent target {target!r} does not exist")
         if name in adapters.GUARDED_AGENTS and "Bash" not in bases:
             failures.append(f"{path}: guard roster claims an agent without Bash")
+        # The reverse of the line above, and the higher-value half: an agent that holds Bash with no
+        # write tool is a read-only-by-intent agent whose read-only-ness is only a promise unless the
+        # guard actually scopes it. If it is not on the guard roster, that promise has no control
+        # behind it — and adding such an agent is exactly when this is easy to forget.
+        if "Bash" in bases and not (bases & WRITE_TOOLS) and name not in adapters.GUARDED_AGENTS:
+            failures.append(
+                f"{path}: agent holds Bash without a write tool but is not on the guard roster "
+                f"(GUARDED_AGENTS in generate_platform_adapters.py / readonly-guard.py); its "
+                f"read-only posture is unenforced"
+            )
     return names, failures
 
 
@@ -379,9 +411,68 @@ def validate_scribe_bundle(root: Path) -> list[str]:
     return failures
 
 
+def _load_guard(root: Path):
+    """Import scripts/readonly-guard.py by path — its hyphen makes it un-importable by name."""
+    import importlib.util
+
+    guard_path = root / "scripts" / "readonly-guard.py"
+    spec = importlib.util.spec_from_file_location("_readonly_guard", guard_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load guard module from {guard_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def validate_guard_wiring(root: Path, agent_names: list[str]) -> list[str]:
+    """Tie the guard's own roster and namespace to the fleet it claims to protect.
+
+    Three silent-disarm holes, each a one-line edit away:
+      * the guard's roster and the generator's roster are two independent literals that nothing
+        forces to agree — a name added to one but not the other guards nothing or renders no adapter;
+      * a roster entry that resolves to no agent (a typo) makes the guard match nobody, silently;
+      * the guard recognizes its subject by the namespaced `agent_type` (`save-toolkit:sre`), so a
+        plugin rename that misses PLUGIN_NAME makes every payload fail to match and the guard allows
+        everything while looking healthy.
+    """
+    failures: list[str] = []
+    try:
+        guard = _load_guard(root)
+    except Exception as exc:  # a broken guard must fail loudly, never certify a stale one
+        return [f"scripts/readonly-guard.py: cannot load to validate guard wiring: {exc}"]
+
+    guard_roster = set(getattr(guard, "GUARDED_AGENT_NAMES", set()))
+    if guard_roster != set(adapters.GUARDED_AGENTS):
+        failures.append(
+            "guard roster mismatch: readonly-guard.py GUARDED_AGENT_NAMES="
+            f"{sorted(guard_roster)} vs generate_platform_adapters.py GUARDED_AGENTS="
+            f"{sorted(adapters.GUARDED_AGENTS)}; the two must name the same agents"
+        )
+    unknown = sorted(guard_roster - set(agent_names))
+    if unknown:
+        failures.append(
+            f"guard roster names non-existent agent(s): {', '.join(unknown)}; the guard would "
+            f"match nobody for those names"
+        )
+
+    plugin_name = getattr(guard, "PLUGIN_NAME", None)
+    try:
+        manifest_name = adapters._manifest(root / ".claude-plugin/plugin.json").get("name")
+    except (OSError, ValueError) as exc:
+        failures.append(f".claude-plugin/plugin.json: cannot read to check guard PLUGIN_NAME: {exc}")
+        manifest_name = None
+    if manifest_name is not None and plugin_name != manifest_name:
+        failures.append(
+            f"guard PLUGIN_NAME {plugin_name!r} != manifest name {manifest_name!r}; a plugin rename "
+            f"that misses PLUGIN_NAME makes the namespaced agent_type never match and disarms the guard"
+        )
+    return failures
+
+
 def validate_repo(root: Path = ROOT) -> tuple[list[str], list[str]]:
     names, failures = validate_agents(root)
     failures.extend(validate_scribe_bundle(root))
+    failures.extend(validate_guard_wiring(root, names))
     failures.extend(adapters.validate_platform_support(root))
     return names, failures
 

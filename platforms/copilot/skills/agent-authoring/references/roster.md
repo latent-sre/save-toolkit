@@ -93,3 +93,44 @@ approval evidence naming the exact target, action, and rollback.
 - Give each strand an **isolated context** and a **bounded mandate**, and have it return a **short
   summary**, not its transcript (see [context guidance](./context.md)).
 - Combine deliberately: a merge pass reconciling the strands beats naive concatenation.
+
+## Multi-agent pattern catalog (design vocabulary)
+
+Names for the shapes a `save-toolkit:<name>` roster can take — use them so a design says *which*
+pattern it picked and why. The fleet-specific when-to-use guidance lives in **Orchestration shapes**
+above; this is the compact naming reference, including the two shapes that section does not name.
+
+- **Orchestrator–workers** — one agent owns plan + synthesis; workers own bounded subtasks with
+  explicit inputs and return schemas. The fleet default.
+- **Pipeline vs fan-out-with-barrier** — pipeline flows items through stages with no barrier
+  (wall-clock = slowest single-item chain); a barrier is warranted only when a stage genuinely needs
+  ALL prior results at once (dedupe, cross-compare, early-exit on zero), and it idles the fast
+  workers, so justify each one.
+- **Judge panel** — N independent attempts from different angles, scored by parallel judges,
+  synthesized from the winner. For wide solution spaces.
+- **Adversarial verification / finder→verifier** — a finding survives only if independent skeptics
+  prompted to *refute* it fail to; pair a finder with a verifier and make evidence (file:line, query)
+  a required field so an unrefutable claim cannot survive by default. Kills plausible-but-wrong output.
+- **Loop-until-dry** — for unknown-size discovery, iterate until K consecutive rounds surface nothing
+  new; fixed counts miss the tail.
+- **Completeness critic** — a final pass that asks "what's missing?"; its answers become the next
+  round of work. Guards against a roster that stops at the first plausible-looking result.
+
+## Wrapper-layer failure taxonomy
+
+When an agent runs behind prompt-assembly, memory, retry, and delivery layers, the model is rarely
+the first thing to suspect. Diagnose the stack:
+
+- **Wrapper regression** — the model answers correctly on a direct call but fails inside the stack.
+  Bisect the layers before blaming the model.
+- **Hidden second passes** — a repair, retry, or summarize step mutating output between generation
+  and delivery. Make each an explicit contract or remove it; a silent second pass is unaccountable.
+- **Memory poisoning by admission** — the agent's own assertions written into durable memory and
+  later read back as fact. User corrections outrank the agent's self-reports; never let an agent
+  promote its own claim to accepted knowledge (this is the fleet's learning-disposition rule).
+- **Context duplication** — one fact arriving via prompt, history, *and* memory reads as three
+  independent confirmations. Dedupe the source, or it manufactures false certainty.
+- **Transport corruption** — the logs show the right answer but the user sees a wrong one. The defect
+  is rendering or delivery, not generation; check the last hop.
+- **Prompt-only tool mandates** — a required tool the code never actually gates gets skipped under
+  load. If a step must run a tool, enforce it in the harness, not with prose alone.

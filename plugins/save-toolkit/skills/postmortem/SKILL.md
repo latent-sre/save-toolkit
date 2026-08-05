@@ -40,15 +40,23 @@ them so the failure class can't recur. Describe systems and decisions, never peo
 Status: <draft|final>   Authors: <…>   Date: <…>
 
 ## Summary            — 3–5 sentences: what happened, impact, how it was resolved.
-## Impact             — who/what, how long, magnitude (users, % traffic, $ if known), SLO/budget hit.
+## Impact             — who/what, how long, magnitude (users, % traffic, $ if known), SLO/budget hit;
+                         data lost or not, stated explicitly with evidence.
 ## Timeline (UTC)     — detection → diagnosis → mitigation → resolution; key decisions; from the IC log.
 ## Root cause & contributing factors — the systemic cause + the factors that aligned (usually several).
-## Detection          — how we found out, and how fast. Could typed `save-toolkit-observability-engineer` evidence have paged sooner?
+## Detection          — the named detection source, and how fast. Could typed `save-toolkit-observability-engineer` evidence have paged sooner?
 ## Response           — what went well, what was slow/hard (diagnosis, mitigation, comms, tooling).
 ## Five whys          — chain from symptom to systemic cause.
 ## Action items       — table: action | type (mitigative/preventative) | owner | due | tracking link.
 ## Lessons            — what went well / what went wrong / where we got lucky.
 ```
+
+Two claims that need evidence, not silence:
+
+- **"No data loss" is a claim that needs evidence, not an assumption of silence** — state explicitly
+  what was checked (row counts, checksums, replay of the write path) or mark it `[unverified]`.
+- **Name the detection source.** A *person* noticing is a detection gap, and the gap is a finding —
+  it belongs in Detection and usually seeds a preventative action item.
 
 ## Action items that actually prevent recurrence
 
@@ -63,6 +71,8 @@ Status: <draft|final>   Authors: <…>   Date: <…>
   | 1 | <specific, verifiable action>  | preventative | <name> | <date> | <ticket> |
   ```
 
+- Every action names the **artifact** it becomes — a runbook line, an alert, a drill, a validator
+  rule — plus a **proof-of-done** check. An action with no artifact will not happen.
 - Each item is **owned, dated, tracked** — an un-owned action item is a wish. Use typed handoffs:
   resilience/code → typed `save-toolkit-sde` agent; detection/SLO → typed `save-toolkit-observability-engineer` agent; investigation follow-up →
   typed `save-toolkit-sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `save-toolkit-scribe`
@@ -84,6 +94,11 @@ Capture three things, not just what broke: **what went well** (keep doing it), *
 gaps), and **where we got lucky** — latent risks this incident *revealed* that didn't bite us this time
 (an untested backup that happened to work, an alert that fired by coincidence, a key person who happened
 to be online). Luck is a preventative action item waiting to be written.
+
+## Near-misses
+
+A near-miss earns the same write-up at half the length: the incident that almost happened is the
+cheapest one to learn from. Same structure, same owned action items, less prose.
 
 ## Tip
 

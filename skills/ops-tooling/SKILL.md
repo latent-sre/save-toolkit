@@ -15,6 +15,22 @@ argument-hint: "[what the tool should do]"
 
 Announce at start: "Running the ops-tooling pipeline: requirements → right-sized design → build → review → verify."
 
+**Right-size before Phase 0 — the exit is the first gate, not a buried clause.** A scoped change
+with an obvious owner and an existing pattern to copy is not pipeline work: hand it straight to `sde`
+and skip every phase below. The pipeline's ceremony exists for work that earns it — a net-new tool,
+multiple components, real blast radius, or a gate the user (or the human release owner) must hold.
+Exiting immediately *is* the right-sized answer; running six phases on a small ask is a
+proportionality bug, not thoroughness.
+
+This pipeline assumes a **spawn-capable context** — Phases 2–3 drive `sde` builders and the
+`reviewer` gate via the Agent tool. If you cannot spawn agents where you are running, say so up front
+and degrade deliberately: work the phases inline (Phase 0–1 as written, the build directly), and flag
+in the final report that the Phase-3 review was not independent — an inline self-review never counts
+as the gate. For safety-critical work, name both consequences: the Phase-3 independent-review gate is
+**blocked** and the Phase-4 verification verdict is **inconclusive**, so Phase 5 stays blocked and the
+human release owner has nothing to sign off. Execute the inline checks you can as non-independent
+evidence, but never relabel them as either gate.
+
 For any design with more than one independently buildable component, read
 [multi-component builds](./references/multi-component.md) before assigning ownership or spawning a
 builder. It is the contract/batching extension to the phases below.
@@ -41,6 +57,8 @@ Load the `eng-ladder` skill, then read its principal or distinguished reference�
 ## Required on-demand skill dependencies
 - `eng-ladder`
 
+The early exit above already handed purely scoped, pattern-to-copy work to `sde`; what reaches here still needs a design, only one right-sized to its blast radius:
+
 - Single component, low blast radius → design inline at SDE level: a few sentences of plan plus stated assumptions. No ceremony.
 - Multiple services, a data migration, or hard-to-reverse choices → use the principal reference for a short design doc; surface any one-way doors to the user before proceeding.
 - Platform-shaping work (many teams or systems, multi-year consequences) → use the distinguished reference first.
@@ -51,7 +69,7 @@ The design's build order is a **dependency graph, not a sequence**: serialize on
 
 If the tool has a web UI, a static mockup (artifact, key screens, light + dark) gets user approval **before any framework code** — the approved mockup is the visual spec and a named gate in the cadence contract.
 
-Agents do not inherit this conversation. Pass each one full context: the Phase 0 requirements, repo layout and conventions, and constraints.
+Agents do not inherit this conversation. Pass each one full context: the Phase 0 requirements, repo layout and conventions, and constraints. What the handoff omits, the agent will improvise.
 
 ## Phase 2 — Build
 
@@ -67,7 +85,7 @@ For builds with three or more parallel batches, offer the user workflow orchestr
 
 ## Phase 3 — Review
 
-Spawn `reviewer` with the mission and **threat model** (from the environment card), the **contract artifact** (served shapes are checked against it), and focus files seeded from the builders' "Check first" packet entries. **Seed the gate with those and nothing more — never your diagnosis or your fix.** If you already suspect a specific defect, record it in the plan file and let the reviewer report independently first, then reconcile: a reviewer handed your hypothesis can only confirm it, and you will not be able to tell a discovering gate from an echoing one. Read the reviewer's independent P0/P1 count — a gate that returns zero independent findings has not been exercised, and your own suspicions were the only net. Reviews are read-only — run them **concurrently with the next build phase** unless that phase builds on the reviewed code; only safety-critical code treats review as a gate. Route P0/P1 fixes to whichever builder owns the files; report P2/P3 to the user rather than silently applying. For anything network-exposed or auth-bearing, add a security review before deploy artifacts ship. **The gate keys on the file, not the size of the diff**: any later edit to a safety-critical file — including a one-line "nit" the orchestrator is tempted to apply directly — re-enters review before it ships. "Too small to review" is how an unreviewed change lands in exactly the code the gate exists to protect.
+Spawn `reviewer` with the mission and **threat model** (from the environment card), the **contract artifact** (served shapes are checked against it), and focus files seeded from the builders' "Check first" packet entries. **Seed the gate with those and nothing more — never your diagnosis or your fix.** If you already suspect a specific defect, record it in the plan file and let the reviewer report independently first, then reconcile: a reviewer handed your hypothesis can only confirm it, and you will not be able to tell a discovering gate from an echoing one. Read the reviewer's independent P0/P1 count in context. Zero independent P0/P1s on clean work is a valid outcome — the count is never a quota, and a gate must never be pressured toward inventing severity. Judge review quality by declared coverage instead: dimensions reviewed, threat-model paths inspected, evidence cited, scope skipped. What a zero *cannot* do is prove independence by itself — a review that engaged only with your seeded focus files and suspicions, whatever its count, has not independently exercised the code; check the coverage before trusting it. Reviews are read-only — run them **concurrently with the next build phase** unless that phase builds on the reviewed code; only safety-critical code treats review as a gate. Route P0/P1 fixes to whichever builder owns the files; report P2/P3 to the user rather than silently applying. A builder's evidence-based pushback on a finding is yours to reconcile — weigh the cited evidence, never the ranks; a finding on safety-critical code that stays contested goes back through review **once**, and if it returns still contested it escalates to the user with both sides' citations — never settled by assertion, never left to loop. For anything network-exposed or auth-bearing, add a security review before deploy artifacts ship. **The gate keys on the file, not the size of the diff**: any later edit to a safety-critical file — including a one-line "nit" the orchestrator is tempted to apply directly — re-enters review before it ships. "Too small to review" is how an unreviewed change lands in exactly the code the gate exists to protect.
 
 ## Phase 4 — Verify and hand over
 

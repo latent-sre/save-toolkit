@@ -258,6 +258,17 @@ def validate(scenarios: list[dict]) -> list[str]:
                 expected_alt = routing.get("expected_alternative")
                 if routing["expect"] == "not_fire" and expected_alt is None:
                     problems.append(f"{where}: routing.expect not_fire requires expected_alternative")
+                if (
+                    routing["expect"] == "not_fire"
+                    and "threshold" in scenario
+                    and isinstance(scenario_threshold, (int, float))
+                    and not isinstance(scenario_threshold, bool)
+                    and scenario_threshold < 1
+                ):
+                    problems.append(
+                        f"{where}: not_fire scenarios are zero-tolerance; threshold must be 1 "
+                        "(it applies to positives only)"
+                    )
                 if expected_alt is not None and expected_alt != "inline":
                     alt_problem = _target_error(expected_alt)
                     if alt_problem or not target_exists(expected_alt):
@@ -653,6 +664,25 @@ def grade_routing(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
     return alternate_name in alternate_actual, f"routing expected alternative {alternate_name}; saw {sorted(alternate_actual)}"
 
 
+def grade_direct_skill_fired(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
+    """Prove a direct-SKILL invocation actually completed.
+
+    A direct-skill case only PREPENDS `/save-toolkit:<skill>` to the prompt. If that slash
+    expansion no-ops, the main model can answer inline and the response graders pass on reasoning
+    that the skill never contributed. A direct-AGENT case is different: the `--agent` pin runs the
+    session AS the agent, so the pin itself is the invocation. This check therefore applies to
+    skills only, using the same namespace resolution and completed-component evidence as
+    `grade_routing`.
+    """
+    target = scenario["target"]
+    namespace = str(parsed.runtime_plugins[0].get("name")) if parsed.runtime_plugins else plugin_name()
+    expected = f"{namespace}:{target['name']}"
+    actual = _completed_components(parsed, "skill")
+    if expected in actual:
+        return True, f"pinned skill fired {expected}"
+    return False, f"pinned skill {expected} did not complete; saw skills={sorted(actual)}"
+
+
 def grade_trial(scenario: dict, parsed: ParsedTrace) -> tuple[bool, list[str]]:
     details: list[str] = []
     passed_all = True
@@ -660,11 +690,46 @@ def grade_trial(scenario: dict, parsed: ParsedTrace) -> tuple[bool, list[str]]:
         routing_passed, routing_detail = grade_routing(scenario, parsed)
         passed_all &= routing_passed
         details.append(f"    [{'PASS' if routing_passed else 'FAIL'}] routing: {routing_detail}")
+    elif scenario["mode"] == "direct" and scenario["target"]["kind"] == "skill":
+        fired_passed, fired_detail = grade_direct_skill_fired(scenario, parsed)
+        passed_all &= fired_passed
+        details.append(f"    [{'PASS' if fired_passed else 'FAIL'}] skill-fired: {fired_detail}")
     for spec in scenario["graders"]:
         passed, detail = graders.run_grader(spec, parsed.response)
         passed_all &= passed
         details.append(f"    [{'PASS' if passed else 'FAIL'}] {spec['type']}: {detail}")
     return passed_all, details
+
+
+def effective_threshold(scenario: dict, requested: float) -> float:
+    """Clamp a not_fire scenario to zero tolerance regardless of the requested threshold.
+
+    `--threshold` (and a scenario's declared threshold) apply to POSITIVES only: how often the
+    expected component must fire to pass. A negative (routing.expect == not_fire) scenario passes
+    only at a 0% fire rate, so its effective pass threshold is always 1.0 -- otherwise a
+    `--threshold 0.66` batch would let a forbidden component over-trigger on a third of trials and
+    still report PASS.
+    """
+    routing = scenario.get("routing")
+    if isinstance(routing, dict) and routing.get("expect") == "not_fire":
+        return 1.0
+    return requested
+
+
+def observed_models(scenario_results: list[dict]) -> list[str]:
+    """The sorted set of resolved models seen across every trial in a batch.
+
+    We record `resolved_model` per trial but never checked it. More than one entry means the batch
+    silently mixed measurement conditions -- routing and behavior vary by model tier -- so it must
+    not be diffed as a single baseline.
+    """
+    models: set[str] = set()
+    for scenario in scenario_results:
+        for trial in scenario.get("trials", []):
+            model = trial.get("resolved_model")
+            if isinstance(model, str) and model:
+                models.add(model)
+    return sorted(models)
 
 
 def aggregate_verdict(states: list[str], threshold: float) -> str:
@@ -1053,12 +1118,31 @@ def required_command_text(argv: list[str], cwd: Path = ROOT) -> str:
     return proc.stdout.strip()
 
 
+def measurement_conditions(args: argparse.Namespace) -> dict:
+    """Capture the run-shaping parameters that make two batches comparable or not.
+
+    Identity (model, plugin commit, digests) alone does not describe a measurement: `--timeout`
+    appears in no other artifact, so two runs taken at different timeouts look identical in their
+    recorded conditions yet are not comparable. Trials and threshold shape the verdict the same way.
+    The mode/split/match selection states which slice of the suite ran.
+    """
+    return {
+        "timeout_s": args.timeout,
+        "requested_trials": args.trials,
+        "requested_threshold": args.threshold,
+        "selected": {"mode": args.mode, "split": args.split, "match": args.match},
+        "denied_tools": DENIED_TOOLS.split(","),
+        "allowed_builtin_tools": list(ALLOWED_BUILTIN_TOOLS),
+    }
+
+
 def collect_provenance(
     model: str | None,
     workspace: Path,
     claude_bin: str,
     plugin_root: Path,
     suite_sha256: str,
+    conditions: dict | None = None,
 ) -> dict:
     manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
     manifest = plugin_manifest(plugin_root)
@@ -1100,6 +1184,7 @@ def collect_provenance(
         "namespace": "save-toolkit plugin plus Claude built-ins; neutral project; strict empty MCP",
         "denied_tools": DENIED_TOOLS.split(","),
         "allowed_builtin_tools": list(ALLOWED_BUILTIN_TOOLS),
+        "conditions": conditions if conditions is not None else {},
     }
 
 
@@ -1183,6 +1268,7 @@ def main() -> int:
         ):
             provenance = collect_provenance(
                 args.model, workspace, claude_bin, plugin_root, suite_sha256,
+                measurement_conditions(args),
             )
             if args.require_clean_plugin and provenance["plugin_inputs_dirty"]:
                 print("run_evals: plugin inputs differ from HEAD; refusing publishable baseline", file=sys.stderr)
@@ -1194,7 +1280,9 @@ def main() -> int:
             print(f"namespace: {provenance['namespace']} | artifacts: {run_dir}")
             for scenario in selected:
                 trials = args.trials or scenario.get("trials", DEFAULT_TRIALS)
-                threshold = args.threshold or scenario.get("threshold", DEFAULT_THRESHOLD)
+                threshold = effective_threshold(
+                    scenario, args.threshold or scenario.get("threshold", DEFAULT_THRESHOLD)
+                )
                 states: list[str] = []
                 trial_results: list[dict] = []
                 print(f"\n== {scenario['id']} [{scenario['mode']}/{scenario['split']}] ==")
@@ -1288,6 +1376,14 @@ def main() -> int:
                 integrity_errors.append("frozen plugin snapshot changed during execution")
             if eval_suite_digest() != provenance["eval_suite_sha256"]:
                 integrity_errors.append("eval harness or scenario files changed during execution")
+            models_observed = observed_models(scenario_results)
+            if len(models_observed) > 1:
+                integrity_errors.append(f"batch mixed resolved models: {models_observed}")
+                print(
+                    "\n!! WARNING: this batch mixed resolved models "
+                    f"({', '.join(models_observed)}); it mixes measurement conditions and must "
+                    "not be diffed as a single baseline. Pin --model for a comparable run."
+                )
             if integrity_errors:
                 overall = "INCONCLUSIVE"
             summary_path = writer.write_summary({
@@ -1295,6 +1391,7 @@ def main() -> int:
                 "verdict": overall,
                 "selected": {"mode": args.mode, "split": args.split, "match": args.match},
                 "scenarios": scenario_results,
+                "models_observed": models_observed,
                 "integrity": {
                     "state": "PASS" if not integrity_errors else "INCONCLUSIVE",
                     "errors": integrity_errors,
