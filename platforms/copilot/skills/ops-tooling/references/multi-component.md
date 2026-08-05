@@ -9,7 +9,8 @@ in `../SKILL.md` remains authoritative.
   response, and error examples. It is versioned and living: an implementation that diverges updates
   the contract in the same change.
 - Name one owner for the contract during each batch. Other builders are read-only on it and route
-  change requests through the orchestrator, which propagates the new version to every consumer.
+  change requests through the orchestrator, which propagates the new version to every consumer. A
+  contract change is a required review-packet slot — it never rides along unremarked.
 - Draw a dependency graph. Serialize the walking skeleton and genuine prerequisites; group
   independent slices into batches with disjoint file ownership.
 - If a UI is included, approve a static mockup for key screens and both themes before framework code.
@@ -20,7 +21,8 @@ in `../SKILL.md` remains authoritative.
 2. Keep safety-critical slices behind per-slice review. Build lower-blast-radius independent slices
    in parallel batches and verify at each batch boundary.
 3. Give each builder exact file ownership, the contract path and version, acceptance criteria, and
-   the checkpoint it must reach. A builder cites the artifact, never another builder's partial code.
+   the checkpoint it must reach. A builder cites the artifact and the version it built against, never
+   another builder's partial code.
 4. When a contract change is necessary, stop only affected consumers, update once through the owner,
    and resume from the new pinned version.
 

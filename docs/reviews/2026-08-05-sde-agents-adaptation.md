@@ -119,6 +119,39 @@ enforcement all stayed as-is.
 - **The four-command validate block** transcribed into their `AGENTS.md`/PR template — ours points
   at the single `gate_a.py` entrypoint by design.
 
+## Second pass — bundle-level sweep (references, assets, agents)
+
+A follow-up deep sweep compared every `references/`, `assets/`, and schema file on both sides, plus
+the sibling's agents, for content the first (prose-level) pass missed:
+
+- **`skills/backend-craft/references/fastapi.md`** (new) — the Python + FastAPI stack-mechanics
+  reference we lacked entirely, the backend mirror of the react/vue frontend gap: app-factory
+  lifespan, `pydantic-settings` validate-at-startup, `response_model` allowlist, authn/authz DI
+  split, service-layer `IntegrityError`-not-precheck, async-all-the-way, ASGI integration tests.
+  Cross-references retargeted to our layout (migrations point at `save-toolkit:database-reliability`,
+  which we own as a skill rather than a backend reference).
+- **`skills/agent-authoring/references/`** — enriched `claude-code-frontmatter.md` with newer probed
+  platform facts (`${CLAUDE_PLUGIN_DATA}`, `CLAUDE_ENV_FILE` for SessionStart, the plain-scalar
+  `description:` parser trap that can fail `claude plugin tag`, the platform listing cap noted
+  against our tighter 1024-byte validator rule), all time-stamp-labeled; added a JIT-overuse
+  counterbalance and a symptom→cause table to `context.md`, a tool-sprawl heuristic to `tools.md`,
+  and a multi-agent pattern catalog plus a wrapper-layer failure taxonomy to `roster.md` (adapted
+  from the sibling's `multi-agent-architect`, whose remit we do not adopt as an agent).
+- **`skills/ops-tooling/`** — from the sibling's `sre-tool`: right-sizing as an explicit early exit,
+  spawn-capable degradation (inline self-review never counts as the gate — name it blocked /
+  inconclusive), review quality judged by coverage not finding count, contested-finding
+  reconciliation, and "what the handoff omits, the agent will improvise", plus additive CLI and
+  multi-component reference material. The sibling's `run_state.py` control-plane paragraph was not
+  ported (we do not ship that script).
+
+Confirmed strictly stronger and left unchanged: our obs-* six-pack over their five obs references,
+our seven-rung `eng-ladder` over their three, our `frontend-craft/auth.md` and `consuming-apis.md`
+over their trimmed versions, and our versioned schemas (`schemas/`, the knowledge-update pair) —
+the sibling ships no schemas at all. The learning-system method port (`self-improve-loop`
+references, the ledger, `research-basis.md`) remains deferred to `ADAPT-001`: it maps onto our
+scribe-bundle-validated `operational-learning` and the parked improvement-lifecycle, and its
+transferable half is already scoped there.
+
 ## Follow-on work
 
 Captured as roadmap item `ADAPT-001`. The larger sibling ideas worth a later, bounded pass —

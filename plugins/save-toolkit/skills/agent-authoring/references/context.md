@@ -50,6 +50,20 @@ unknowns, and the requested return schema. It returns findings with evidence, so
 - Dumping an entire file/log/repo into context "to be safe" — it dilutes attention and invites context rot.
 - Carrying a completed sub-task's full transcript forward instead of its conclusion.
 - Re-deriving facts already established earlier in the conversation.
+- The opposite failure: forcing an agent to fetch three files before it can start trades tokens for
+  latency and for the chance it fetches the wrong ones. Preload the two things it always needs; keep
+  JIT for what only *some* steps require.
+
+## Diagnosing a context problem
+Match the symptom to the cause before reaching for a bigger model or a longer prompt.
+
+| Symptom | Likely cause |
+|---|---|
+| Ignores an instruction it followed earlier | Context filled; the instruction is far back and diluted. Move it into the output contract, or shorten the run. |
+| Re-reads the same file repeatedly | No durable notes; it is rediscovering. Write findings to a file. |
+| Confidently wrong about a fact that changed | A stale early read is still in context. Re-read explicitly, or rewind past it. |
+| Worker does a subtly different job | The handoff prompt, not the worker's definition — underspecified context. |
+| Degrades only in long sessions | Compaction dropped something load-bearing. Move it to a file. |
 
 ## Handoffs
 - Send independent findings to the typed `save-toolkit-reviewer` agent with evidence and unresolved labels.
