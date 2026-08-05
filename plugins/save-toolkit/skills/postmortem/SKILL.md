@@ -41,7 +41,7 @@ Status: <draft|final>   Authors: <…>   Date: <…>
 
 ## Summary            — 3–5 sentences: what happened, impact, how it was resolved.
 ## Impact             — who/what, how long, magnitude (users, % traffic, $ if known), SLO/budget hit;
-##                      data lost or not, stated explicitly with evidence.
+                         data lost or not, stated explicitly with evidence.
 ## Timeline (UTC)     — detection → diagnosis → mitigation → resolution; key decisions; from the IC log.
 ## Root cause & contributing factors — the systemic cause + the factors that aligned (usually several).
 ## Detection          — the named detection source, and how fast. Could typed `save-toolkit-observability-engineer` evidence have paged sooner?
