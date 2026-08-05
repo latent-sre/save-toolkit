@@ -635,11 +635,16 @@ def _completed_components(parsed: ParsedTrace, kind: str) -> set[str]:
     return set(parsed.skills if kind == "skill" else parsed.agents)
 
 
+def _runtime_namespace(parsed: ParsedTrace) -> str:
+    """The plugin namespace a component fires under — the loaded plugin's name, or the default."""
+    return str(parsed.runtime_plugins[0].get("name")) if parsed.runtime_plugins else plugin_name()
+
+
 def grade_routing(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
     target = scenario["target"]
     routing = scenario["routing"]
     actual = _completed_components(parsed, target["kind"])
-    namespace = str(parsed.runtime_plugins[0].get("name")) if parsed.runtime_plugins else plugin_name()
+    namespace = _runtime_namespace(parsed)
 
     def runtime_target(component: dict) -> str:
         return f"{namespace}:{component['name']}"
@@ -675,8 +680,7 @@ def grade_direct_skill_fired(scenario: dict, parsed: ParsedTrace) -> tuple[bool,
     `grade_routing`.
     """
     target = scenario["target"]
-    namespace = str(parsed.runtime_plugins[0].get("name")) if parsed.runtime_plugins else plugin_name()
-    expected = f"{namespace}:{target['name']}"
+    expected = f"{_runtime_namespace(parsed)}:{target['name']}"
     actual = _completed_components(parsed, "skill")
     if expected in actual:
         return True, f"pinned skill fired {expected}"
@@ -1131,9 +1135,9 @@ def measurement_conditions(args: argparse.Namespace) -> dict:
         "requested_trials": args.trials,
         "requested_threshold": args.threshold,
         "selected": {"mode": args.mode, "split": args.split, "match": args.match},
-        "denied_tools": DENIED_TOOLS.split(","),
-        "allowed_builtin_tools": list(ALLOWED_BUILTIN_TOOLS),
     }
+    # denied_tools / allowed_builtin_tools are NOT run-shaping and are already recorded at the top
+    # level of the provenance object collect_provenance() builds; they are not repeated here.
 
 
 def collect_provenance(

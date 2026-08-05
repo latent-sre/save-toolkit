@@ -25,6 +25,8 @@ BUILTIN_TOOLS = {
 }
 WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
 LOCAL_READ_TOOLS = {"Read", "Grep", "Glob"}
+# The evidence-label triad, pinned once: an agent that uses any label must carry all three.
+EVIDENCE_TRIAD = ("[verified]", "[sourced]", "[unverified]")
 WEB_TOOLS = {"WebFetch", "WebSearch"}
 EVIDENCE_MCP_TOOLS = {
     "mcp__claude_ai_Context7__query-docs",
@@ -216,12 +218,11 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
             failures.append(f"{path}: missing handoff contract")
         # The evidence triad is all-or-nothing: an agent that keeps [verified]/[unverified] but drops
         # [sourced] silently loses the ability to distinguish "I ran it" from "the file says so".
-        present = [label for label in ("[verified]", "[sourced]", "[unverified]") if label in body]
+        present = [label for label in EVIDENCE_TRIAD if label in body]
         if not present:
             failures.append(f"{path}: missing evidence-label contract")
-        elif len(present) != 3:
-            missing = [label for label in ("[verified]", "[sourced]", "[unverified]")
-                       if label not in body]
+        elif len(present) != len(EVIDENCE_TRIAD):
+            missing = [label for label in EVIDENCE_TRIAD if label not in present]
             failures.append(f"{path}: incomplete evidence-label triad; missing {', '.join(missing)}")
 
     expected_names = set(EXPECTED_AUTHORITY)

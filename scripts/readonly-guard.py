@@ -248,6 +248,7 @@ _GH_EXECUTION_FLAGS = frozenset({"--web", "-w"})
 _GH_EXECUTION_SHORT = frozenset({"w"})
 # `sort` reads unless it is told to write: `-o FILE` / `-oFILE` / `--output[=FILE]`, and `-o`
 # bundles (`-ro FILE`). The short letter is matched in a cluster; the long form by name.
+_SORT_WRITE_LONG = frozenset({"--output"})
 _SORT_WRITE_SHORT = frozenset({"o"})
 _GH_READ = {
     "pr": frozenset({"view", "diff", "list", "checks", "status"}),
@@ -339,6 +340,20 @@ def _short_cluster_has(token: str, letters: frozenset[str]) -> bool:
     return any(ch in letters for ch in token[1:].split("=", 1)[0])
 
 
+def _carries_flag(args: list[str], long_flags: frozenset[str], short_letters: frozenset[str]) -> bool:
+    """True if any arg is one of `long_flags` (by name, `=`-value tolerant) or bundles a short letter.
+
+    The one detection mechanism behind every per-command flag gate (git/gh/rg/sort): the auditable
+    POLICY stays in each command's named frozensets, only the error-prone matching mechanics live
+    here once. Threading the cluster-aware form into every call site by hand is how the bundled-flag
+    bypass slipped in; with one predicate that class of fix lands in a single place.
+    """
+    return any(
+        arg.split("=", 1)[0] in long_flags or _short_cluster_has(arg, short_letters)
+        for arg in args
+    )
+
+
 def _git_allowed(args: list[str]) -> bool:
     # Step over git's global options to find the subcommand.
     index = 0
@@ -358,15 +373,10 @@ def _git_allowed(args: list[str]) -> bool:
     if subcommand in _GIT_READ:
         # Even a read subcommand can escape read-only WITHOUT a shell redirect: `--output=<file>` /
         # `-o <file>` writes a report to disk, and `git grep --open-files-in-pager[=CMD]` / `-O<CMD>`
-        # executes CMD. Reject every spelling — `--flag`, `--flag=x`, `-o x`, and the attached short
-        # form `-O<CMD>` that the `split("=")` test alone would miss.
-        for arg in rest:
-            base = arg.split("=", 1)[0]
-            if base in _GIT_READ_WRITE_FLAGS or base in _GIT_READ_EXEC_FLAGS:
-                return False
-            if _short_cluster_has(arg, _GIT_READ_EXEC_SHORT):  # `-O<cmd>`, `-nO<cmd>` pager exec
-                return False
-        return True
+        # (bundled `-nO<CMD>`) executes CMD. Reject every spelling in one check.
+        return not _carries_flag(
+            rest, _GIT_READ_WRITE_FLAGS | _GIT_READ_EXEC_FLAGS, _GIT_READ_EXEC_SHORT
+        )
 
     if subcommand in _GIT_READ_VERBS:
         verbs = _positionals(rest)
@@ -389,9 +399,9 @@ def _git_allowed(args: list[str]) -> bool:
 
 
 def _gh_allowed(args: list[str]) -> bool:
-    for arg in args:
-        if arg.split("=", 1)[0] in _GH_EXECUTION_FLAGS or _short_cluster_has(arg, _GH_EXECUTION_SHORT):
-            return False  # `--web`, `-w`, or `-w` bundled (`-cw`): launches $BROWSER
+    # `--web`/`-w` (bundled `-cw`) launches $BROWSER — an app, not a read.
+    if _carries_flag(args, _GH_EXECUTION_FLAGS, _GH_EXECUTION_SHORT):
+        return False
     positionals = _positionals(args)
     if len(positionals) < 2:
         return False
@@ -400,12 +410,9 @@ def _gh_allowed(args: list[str]) -> bool:
 
 
 def _rg_allowed(args: list[str]) -> bool:
-    # `rg` reads unless a flag makes it run an external program mid-search — a named exec flag
+    # `rg` reads unless a flag runs an external program mid-search: a named exec flag
     # (`--pre`, `--search-zip`, `-z`) or `-z` bundled into a short cluster (`-iz`).
-    for arg in args:
-        if arg.split("=", 1)[0] in _RG_EXECUTION_FLAGS or _short_cluster_has(arg, _RG_EXECUTION_SHORT):
-            return False
-    return True
+    return not _carries_flag(args, _RG_EXECUTION_FLAGS, _RG_EXECUTION_SHORT)
 
 
 def _cf_allowed(args: list[str]) -> bool:
@@ -426,10 +433,7 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
     if command == "rg":
         return _rg_allowed(args)
     if command == "sort":
-        return not any(
-            arg.split("=", 1)[0] == "--output" or _short_cluster_has(arg, _SORT_WRITE_SHORT)
-            for arg in args
-        )
+        return not _carries_flag(args, _SORT_WRITE_LONG, _SORT_WRITE_SHORT)
     if command == "cf":
         return _cf_allowed(args)
     if command == "promtool":
