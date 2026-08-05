@@ -64,6 +64,41 @@ Also available: `when_to_use`, `arguments`, `model`, `effort`, `context`, `agent
 
 Keep descriptions lean — they load into context every session.
 
+### Progressive disclosure: the three levels and their budgets
+
+[doc-checked 2026-08-05, platform Agent Skills overview] A skill loads in three stages, and the
+budget differs per stage. Authoring to the wrong stage is how a skill gets expensive:
+
+| Level | When it loads | Budget | Content |
+|---|---|---|---|
+| 1 — metadata | always, at startup | ~100 tokens per skill | `name` + `description` |
+| 2 — instructions | when the skill is triggered | **under 5k tokens** | the SKILL.md body |
+| 3 — resources | only when a file is actually read | **none until accessed** | bundled reference, asset, and script files |
+
+Two consequences worth authoring against:
+
+- **The 5k-token Level-2 figure is the real target for a SKILL.md body**, not a line count. Measure
+  the body, not the bundle.
+- **Bundled content that is not read costs nothing**, so there is no practical limit on it. When a
+  body approaches its budget, move the subset-only material — long procedures, lookup tables, worked
+  examples, tool-specific syntax — into a linked bundle file. That is a genuine saving, not a shuffle:
+  a script run through Bash returns only its output to context, and its source never enters at all.
+
+### Why a skill may not link outside its own folder
+
+[doc-checked 2026-08-05] A skill is distributed as a **self-contained folder** and is installed
+per-surface: uploaded as a zip on claude.ai, uploaded separately through the API, placed on the
+filesystem for Claude Code, or shipped inside a plugin. Custom skills explicitly do **not** sync
+across surfaces. So a relative link that escapes the skill directory resolves on the authoring
+machine and breaks the moment that folder is zipped, uploaded, or installed alone — the failure is
+silent, because nothing checks it at load time. This is the contract the repo's link checker
+enforces, and it is why shared prose is duplicated between skills rather than factored into a
+common file.
+
+Composition is expressed at the **invocation** layer instead: an agent (or a user) combines skills
+for a multi-step task, and each skill stays an independently shippable unit. The dependency graph
+lives in descriptions and routing, never in filesystem links between skill folders.
+
 ## Platform environment facts
 
 Perishable — probed/doc-checked against the CLI 2.1.220 era; re-verify after upgrades.
