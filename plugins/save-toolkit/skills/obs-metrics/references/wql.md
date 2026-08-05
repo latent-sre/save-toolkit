@@ -17,6 +17,18 @@ Primary references:
 - [`rate()`](https://docs.wavefront.com/ts_rate.html) and [`cs()`](https://docs.wavefront.com/cs_function.html)
 - [missing-data alerts](https://docs.wavefront.com/alerts_missing_data.html)
 
+## Contents
+
+- Select series and filter point tags
+- Aggregate and group — reject the fabricated aggregation clause
+- Percentile latency — combine the request distribution
+- Error ratio depends on counter type
+- Rates, windows, and saturation
+- Missing data
+- WQL and PromQL mapping aid
+- Investigation handoff
+- Inert canary example
+
 ## Select series and filter point tags
 
 `ts()` selects time series. Filter sources, source tags, and point tags inside the selector and confirm

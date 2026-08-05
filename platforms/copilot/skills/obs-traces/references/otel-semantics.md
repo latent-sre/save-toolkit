@@ -16,6 +16,15 @@ Primary references:
 - [OpenTelemetry sampling](https://opentelemetry.io/docs/concepts/sampling/)
 - [W3C Trace Context](https://www.w3.org/TR/trace-context/)
 
+## Contents
+
+- Span kinds describe direction and interaction style
+- Span status is not the protocol status
+- Read stable attributes in context
+- Trace context connects boundaries
+- Sampling makes absence weak evidence
+- Inert canary example
+
 ## Span kinds describe direction and interaction style
 
 *[sourced: OpenTelemetry Tracing API, SpanKind]*

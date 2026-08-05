@@ -16,6 +16,14 @@ remains the contract those records must satisfy. Store records at
 `evals/improvements/<improvement-id>/record.json`; keep raw traces and provider output under the
 ignored `.eval-runs/` tree, never in the record.
 
+## Contents
+
+- Qualify an observation
+- Lifecycle and authority
+- Attempt budget and evidence
+- Closeout and move-left
+- Validation
+
 ## Qualify an observation
 
 1. Create a stable `fo_` observation ID and `ff_<sha256>` failure fingerprint from the normalized

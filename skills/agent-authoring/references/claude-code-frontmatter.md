@@ -9,6 +9,14 @@ This fleet is a **Claude plugin**: canonical agents and skills live at repositor
 manifest lives in `.claude-plugin/`. Project- and user-scope behavior below is comparison context,
 not this fleet's enforcement surface.
 
+## Contents
+
+- Agents
+- Skills
+- Platform environment facts
+- Fleet decisions on unused fields
+- Plain-scalar descriptions and the CLI's stricter parser
+
 ## Agents
 
 Locations: `agents/*.md` in a plugin; `.claude/agents/*.md` project-level; `~/.claude/agents/*.md`
@@ -83,6 +91,35 @@ Two consequences worth authoring against:
   body approaches its budget, move the subset-only material — long procedures, lookup tables, worked
   examples, tool-specific syntax — into a linked bundle file. That is a genuine saving, not a shuffle:
   a script run through Bash returns only its output to context, and its source never enters at all.
+
+### Authoring rules that are checkable
+
+[doc-checked 2026-08-05, platform skill-authoring best practices] Rules with an objective pass/fail,
+so they can be audited rather than argued:
+
+- **SKILL.md body under 500 lines** — the line-based companion to the 5k-token budget. Split into
+  bundle files when approaching it.
+- **A reference file over 100 lines opens with a `## Contents` list.** Claude may *partially* read a
+  long file (previewing with `head`-style reads); without a contents list at the top it cannot see
+  what the rest of the file holds, so material below the preview window is effectively invisible.
+- **Keep bundle references one level deep from SKILL.md.** The anti-pattern is a *chain* — SKILL.md
+  points at A, A points at B, and B holds the answer — because partial reads of A can drop the
+  pointer to B. Sibling cross-links between bundle files are fine as long as every file is also
+  linked directly from SKILL.md; this repo's link checker already requires that direct link, so the
+  depth-1 discovery path is enforced rather than assumed.
+- **Descriptions are third person.** The description is injected into the system prompt; "I can help
+  you…" or "You can use this to…" causes discovery problems. Quoted *user* phrasings inside a
+  `Triggers:` list are not first person and are correct as-is.
+- **Names are noun phrases or gerunds** (`processing-pdfs`, `pdf-processing`), never vague
+  (`helper`, `utils`, `tools`, `data`).
+- **Forward slashes in every path**, even for Windows readers; a backslash path errors on Unix.
+- **Fully qualified MCP tool names in prose** — `ServerName:tool_name`. A bare tool name may not
+  resolve when several MCP servers are present. (Agent `tools:` frontmatter uses the different
+  `mcp__<server>__<tool>` form — see the Agents table above.)
+- **No time-sensitive prose.** Don't write "before August 2026, use X." Put superseded guidance under
+  an "old patterns" heading, or date-stamp the fact the way this file does.
+- **Build evaluations before writing extensive instructions** — measure the gap without the skill
+  first, so the content answers a real failure instead of an imagined one.
 
 ### Why a skill may not link outside its own folder
 

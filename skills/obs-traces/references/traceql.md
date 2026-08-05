@@ -11,6 +11,17 @@ Primary reference:
 - [Grafana Tempo query-builder examples](https://grafana.com/docs/grafana/latest/datasources/tempo/query-editor/traceql-search/)
 - [W3C Trace Context](https://www.w3.org/TR/trace-context/)
 
+## Contents
+
+- Scope and spanset rules
+- Start from a trace id
+- Start from a latency symptom
+- Find a service span with an HTTP 5xx outcome
+- Find a service trace that also contains a database span
+- Find traces with repeated error-status spans for one service
+- Record the result boundary
+- Inert canary example
+
 ## Scope and spanset rules
 
 Curly braces select spans. An intrinsic uses a colon after its scope, while a custom attribute uses a

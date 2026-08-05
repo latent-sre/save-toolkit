@@ -4,6 +4,19 @@ Read this for React UI code. The universal frontend rules live in `skills/fronte
 and the universal TypeScript language rules live in the `language-idiom` skill loaded alongside it.
 On any conflict, those owners and the target repository win.
 
+## Contents
+
+- Establish the React contract
+- State is minimal and identity is structural
+- Hooks and Effects
+- Composition and escape hatches
+- Errors, Suspense, and async work
+- SSR and hydration
+- Security boundaries
+- Performance and testing
+- Verify
+- Primary evidence anchors
+
 ## Establish the React contract
 
 - Read the target package's `package.json`, lockfile, renderer, framework configuration, and build

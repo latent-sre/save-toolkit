@@ -10,6 +10,19 @@ as the deduplication control, and the
 documents maintenance behavior. Confirm exact fields, screens, and enabled algorithms against the
 local v9 installation before changing correlation behavior.
 
+## Contents
+
+- The pipeline
+- During an alert storm
+- The bar for asserting cause
+- Reducing noise
+- Event sources / integrations
+- Dedup signatures
+- Sigaliser tuning
+- Enrichment and routing
+- Maintenance windows
+- Health metrics
+
 ## The pipeline
 
 ```text

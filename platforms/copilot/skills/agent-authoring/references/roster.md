@@ -1,5 +1,18 @@
 # Roster altitude — design the agent system, not one artifact
 
+## Contents
+
+- First question: should this be multi-agent at all?
+- Agent vs. skill (this fleet's decision rule)
+- Orchestration shapes
+- Design principles
+- Failure modes to diagnose
+- Deliverable
+- When it pays — and when it doesn't
+- Right-sizing
+- Multi-agent pattern catalog (design vocabulary)
+- Wrapper-layer failure taxonomy
+
 ## First question: should this be multi-agent at all?
 
 A single agent with good tools beats a committee for most tasks. Reach for multiple agents when: the
