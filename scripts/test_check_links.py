@@ -206,6 +206,48 @@ class StaleNameCheckerTests(Fixture):
             ),
         )
 
+    def test_guide_clean_fixture_is_silent(self):
+        self.write("CLAUDE.md", "# entry\n@AGENTS.md\n")
+        self.write("scripts/gate_a.py", "x\n")
+        self.write("docs/README.md", "x\n")
+        (self.root / "agents").mkdir(exist_ok=True)
+        self.write(
+            "AGENTS.md",
+            "# guide\nRun [gate](scripts/gate_a.py). See the `docs/README.md` map and `references/`\n"
+            "generically, plus [`agent-authoring/references/x.md`](docs/README.md) as a label.\n",
+        )
+        self.assertEqual([], check_links._check_guide(self.root))
+
+    def test_guide_missing_claude_import_is_flagged(self):
+        self.write("CLAUDE.md", "# entry with no import\n")
+        self.write("AGENTS.md", "# guide\n")
+        failures = check_links._check_guide(self.root)
+        self.assertTrue(any("@AGENTS.md" in f for f in failures), failures)
+
+    def test_guide_dead_markdown_link_is_flagged(self):
+        self.write("CLAUDE.md", "@AGENTS.md\n")
+        self.write("AGENTS.md", "# guide\nSee [gone](scripts/renamed_away.py).\n")
+        failures = check_links._check_guide(self.root)
+        self.assertTrue(any("dead link" in f and "renamed_away" in f for f in failures), failures)
+
+    def test_guide_dead_inline_code_path_is_flagged(self):
+        self.write("CLAUDE.md", "@AGENTS.md\n")
+        (self.root / "scripts").mkdir(exist_ok=True)
+        # first segment `scripts` is a real repo entry, so the full token must resolve
+        self.write("AGENTS.md", "# guide\nRun `scripts/does_not_exist.py`.\n")
+        failures = check_links._check_guide(self.root)
+        self.assertTrue(
+            any("inline-code path does not resolve" in f and "does_not_exist" in f for f in failures),
+            failures,
+        )
+
+    def test_guide_generic_and_skill_relative_tokens_are_not_flagged(self):
+        # `references/` (no such root dir) and a skill-relative label whose first segment is not a
+        # repo-root entry must not be treated as broken repo-root paths.
+        self.write("CLAUDE.md", "@AGENTS.md\n")
+        self.write("AGENTS.md", "# guide\nEvery `references/` file; see `agent-authoring/refs/x.md`.\n")
+        self.assertEqual([], check_links._check_guide(self.root))
+
     def test_word_boundary_hit_is_flagged(self):
         self.write("skills/probe/SKILL.md", "Hand this to code-reviewer now.\n")
         self.assertTrue(check_stale_names.check(self.root))
