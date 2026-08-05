@@ -5,7 +5,7 @@ description: >-
   connection pools, schema migrations, and recovery evidence. Triggers: 'this query is slow',
   'plan this schema migration', 'the connection pool is exhausted'. Ownership map only—not a
   load: the `pcf-ops` skill owns app-side triage, the `obs-alerting` skill owns burn alerts,
-  the `backend-craft` skill owns persistence code, and the `craft` skill owns safe refactoring
+  the `backend-craft` skill owns persistence code, and the `language-idiom` skill owns safe refactoring
   and language idiom.
 ---
 
@@ -127,6 +127,6 @@ with the exact approved command and target; then diagnose. Preserve `[verified]`
 - **Performance:** the query plan before/after with the measured improvement.
 - Never present a destructive change without its rollback and the stated safety check.
 
-Ownership map only—not a load: the `craft` skill owns call-site/contract analysis and safe refactoring;
+Ownership map only—not a load: the `language-idiom` skill owns call-site/contract analysis and safe refactoring;
 the `eng-ladder` skill owns principal altitude; the `pcf-ops` skill owns app-side triage. This skill
 contains the database method it requires.

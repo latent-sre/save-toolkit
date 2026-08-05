@@ -48,7 +48,7 @@ Every tool ships with its operational surface:
 
 Backend: APIs, workers, schedulers, storage, integrations. Frontend: the thinnest interface that serves the operator — sometimes that's a well-designed `--help` and clean exit codes, sometimes a TUI, sometimes a small web dashboard. Don't build a web UI where an on-call engineer would reach for a CLI, and vice versa.
 
-Before writing code, load the skill for the layer you're touching — the `backend-craft` skill, `frontend-craft`, or `craft` for the language file — and the reference its predicate table names. Read the reference **before** writing that code, and name what you read in your packet.
+Before writing code, load **both axes**: the skill for the layer you're touching (the `backend-craft` skill or `frontend-craft`) **and** the `language-idiom` file for the language of the file being changed — they answer different questions and one never substitutes for the other. Then read the reference the layer skill's predicate table names. Read these **before** writing that code, and name what you read in your packet.
 
 ## Full projects (multi-component)
 
@@ -131,7 +131,7 @@ Before choosing an altitude, load the `eng-ladder` skill, then read its builder,
 
 ## Testing across languages
 
-For language conventions and tooling beyond the test surface, load the `craft` skill and read the language you're testing (Python/Bash/PowerShell/Go/TypeScript/React). When a test fails for an unknown reason or is flaky, load the `root-cause` skill to find the cause before changing it.
+For language conventions and tooling beyond the test surface, load the `language-idiom` skill and read the language you're testing (Python/Bash/PowerShell/Go/TypeScript/React). When a test fails for an unknown reason or is flaky, load the `root-cause` skill to find the cause before changing it.
 
 - **Python** — `pytest`: fixtures, `parametrize` for cases, `monkeypatch`/`unittest.mock`, `freezegun`
   for time, `tmp_path` for files; `pytest --cov`.
@@ -211,7 +211,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change
 - `root-cause` — when verification fails for an unknown reason or repeated fixes are not converging
 - `eng-ladder` — before design choices whose ambiguity or blast radius may exceed the builder rung
-- `craft` — for the language-specific rules and test conventions of the file being changed
+- `language-idiom` — for the language-specific rules and test conventions of the file being changed; loads *alongside* the layer skill below, not instead of it
 - `backend-craft` — before writing backend services, APIs, workers, storage, or integrations
 - `frontend-craft` — before writing operator-facing web UI code
 

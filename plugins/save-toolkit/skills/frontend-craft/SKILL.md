@@ -2,10 +2,11 @@
 name: frontend-craft
 description: >-
   Build or change a web UI — pages, dashboards-as-app-features, forms, admin panels — from a single
-  page to a full SPA, including serving it on PCF. Owns TypeScript/React idiom whole. Triggers:
-  'build a UI for', 'add a page/form/table', 'make this dashboard page'. Ownership map only—not a
-  load: backend-craft owns the service behind the UI and obs-dashboards owns Grafana operations
-  dashboards.
+  page to a full SPA, including serving it on PCF. Owns UI-layer TypeScript/React idiom — component
+  state, interaction, accessibility, resilience UX. Triggers: 'build a UI for', 'add a
+  page/form/table', 'make this dashboard page'. Ownership map only—not a load: backend-craft owns
+  the service behind the UI, obs-dashboards owns Grafana operations dashboards, and language-idiom
+  owns the universal TypeScript language rules loaded alongside this skill.
 argument-hint: "[the UI to build or change]"
 ---
 

@@ -1,7 +1,8 @@
 # TypeScript — make wrong states hard to represent
 
-Read before writing TypeScript or JavaScript in any layer. The universal language rules live in
-`../SKILL.md`; UI state, accessibility, and resilience UX remain owned by `frontend-craft`.
+Read before writing TypeScript or JavaScript in any layer — including UI work, where this file
+loads alongside `frontend-craft`: this file owns the universal language rules; UI state,
+accessibility, and resilience UX remain owned by `frontend-craft`.
 
 ## Let the compiler carry invariants
 

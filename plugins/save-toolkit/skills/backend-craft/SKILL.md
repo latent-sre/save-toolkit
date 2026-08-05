@@ -5,7 +5,7 @@ description: >-
   a UI — and consume third-party APIs safely (clients, SDK wrappers, sync jobs, webhooks), including
   our platform/obs APIs. Triggers: 'add an endpoint', 'wrap X behind an API', 'write a client for Y'.
   Ownership map only—not a load: frontend-craft owns UI work, database-reliability owns live-data
-  operations, and craft owns language idiom.
+  operations, and language-idiom owns the per-language rules.
 argument-hint: "[the API or service to build or change]"
 ---
 

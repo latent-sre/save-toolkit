@@ -1,4 +1,4 @@
-# Python craft
+# Python idiom
 
 Match the repo's existing tooling first; defaults below apply when none is set.
 

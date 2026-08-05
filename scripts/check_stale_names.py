@@ -37,6 +37,11 @@ STALE = (
     "bamboo-to-actions-migration", "sde-fullstack", "homelab-platform",
     "principal-engineer", "distinguished-architect", "multi-agent-architect",
     "prompt-craft", "sre-tool", "service-onboard", "lab-audit", "sde-agents",
+    # `craft` (the skill) retired into `language-idiom` but is NOT listed here, deliberately: it is
+    # ordinary English, and the boundary regex would flag legitimate prose ("# Frontend craft",
+    # "reads as noise rather than craft" — 19 such hits when probed). This is exactly why common
+    # English words make poor component names: they cannot be machine-protected after retirement.
+    # Drift to the old name is caught by the adapter byte-for-byte check and the router eval instead.
     # Generator-era vocabulary retired by the de-projection (Tasks 2-3 of the adoption plan).
     "required-skills", "generate_fleet",
 )

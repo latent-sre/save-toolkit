@@ -1,6 +1,6 @@
 Read this when the tool is a CLI — exit codes, streams, --dry-run, confirm-before-destruct are the scripting contract.
 
-This file owns CLI shape; language idiom remains the caller's responsibility—the `craft` skill is an ownership label, not a load.
+This file owns CLI shape; language idiom remains the caller’s responsibility — see the `language-idiom` skill.
 
 Starter: [cli_skeleton.py](../assets/cli_skeleton.py).
 

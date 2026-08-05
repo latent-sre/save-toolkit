@@ -6,7 +6,7 @@ description: >-
   distinguished: high-ambiguity architecture, build-vs-buy, a standard others follow) or SRE
   (responder → investigator → elite for alerts and incidents). Triggers: 'how rigorous should this
   be', 'review this at the principal level', 'what tier is this incident work'. A scoped change with
-  an obvious owner and an existing pattern routes straight to its builder or craft skill without
+  an obvious owner and an existing pattern routes straight to its builder or lane skill without
   this. Read exactly one tier file.
 argument-hint: "[task, diff, file, or design doc]"
 ---

@@ -1,5 +1,5 @@
 ---
-name: craft
+name: language-idiom
 description: >-
   Write, review, test, debug, or safely refactor Python, TypeScript, Bash, PowerShell, and Go using
   language-specific conventions plus the bundled tests-first and behavior-preserving-refactoring
@@ -18,7 +18,7 @@ description: >-
 > runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
 > A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
 
-# Craft — pick the language
+# Language idiom — pick the language
 
 Match the repo's existing tooling first; the per-language defaults apply when none is set. Load **only**
 the file for the language you're touching.

@@ -55,7 +55,7 @@ bare component names.
 
 The 27 skills, by area (each `skills/<name>/SKILL.md` carries its own description):
 
-- **Engineering craft** — `craft`, `backend-craft`, `frontend-craft`, `ops-tooling`, `ci-actions`,
+- **Engineering craft** — `language-idiom`, `backend-craft`, `frontend-craft`, `ops-tooling`, `ci-actions`,
   `database-reliability`, `eng-ladder`
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`
 - **Change gates** — `merge-gate`, `release-gate`, `production-change-gate`

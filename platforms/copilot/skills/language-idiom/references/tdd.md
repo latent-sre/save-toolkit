@@ -18,9 +18,9 @@ Then fix and watch it go green. This proves the bug is real and guards against i
 - Prefer many fast unit tests; integration where components meet; a few e2e for critical journeys.
 
 ## Frameworks (this team)
-Per-language frameworks and setup live in **`craft`** (read the language file) — `pytest` (Python),
+Per-language frameworks and setup live in **`language-idiom`** (read the language file) — `pytest` (Python),
 `Pester` (PowerShell), `bats` (Bash), Vitest (TS/React), `testing` (Go). This skill owns the *method*
-(red-green, what to test); `craft` owns the *tooling*.
+(red-green, what to test); `language-idiom` owns the *tooling*.
 
 ## Done
 - New behavior is covered; the bug-fix test fails without the fix.

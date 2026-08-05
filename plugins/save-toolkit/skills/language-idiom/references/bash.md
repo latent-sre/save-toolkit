@@ -1,4 +1,4 @@
-# Bash craft
+# Bash idiom
 
 Shell is for glue and orchestration. If a script grows real logic/data structures, recommend the
 [Python conventions](./python.md) instead.

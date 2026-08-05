@@ -1,4 +1,4 @@
-# PowerShell craft
+# PowerShell idiom
 
 Write cmdlet-style PowerShell that composes in a pipeline and fails safely. **Windows PowerShell 5.1**
 and **PowerShell 7+** differ — state which you target.
