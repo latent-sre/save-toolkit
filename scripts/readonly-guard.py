@@ -51,7 +51,7 @@ narrower and far more defensible than before: nothing outside a short, reviewed 
 runs.
 
 SCOPING CONTRACT (probed, not assumed): the stdin payload carries `agent_type` — namespaced for a
-plugin agent (`sde-agents:code-reviewer`), bare for a project/user-scope one. THE MAIN LOOP CARRIES
+plugin agent (`save-toolkit:sre`), bare for a project/user-scope one. THE MAIN LOOP CARRIES
 NO `agent_type` KEY AT ALL, which is what makes a session-wide hook safe: the user's own Bash can
 never match GUARDED_AGENTS and is never inspected. `agent_type` is UNDOCUMENTED, so if it is ever
 renamed upstream the guard would silently stop guarding — see the contract canary in main().
@@ -482,12 +482,16 @@ def main() -> None:
         # The check is deliberately keyed, not a substring search over the envelope:
         #   * `tool_input` is excluded outright — the command is attacker- and user-controlled
         #     text, and scanning it would deny an ordinary main-session command that merely
-        #     MENTIONS the agent (`git commit -m "fix sde-agents:code-reviewer"`).
+        #     MENTIONS the agent (`git commit -m "fix save-toolkit:sre"`).
         #   * only keys whose NAME contains "agent" are consulted, and only for exact GUARDED
         #     values, so `cwd`/`transcript_path` — which could legitimately contain an agent's name
         #     as a directory component — can never trip it.
-        # Residual: a rename to a key without "agent" in it is not caught here; that is what
-        # scripts/probe_plugin.py exists to catch after a CLI upgrade.
+        # Residual: a rename of the identity key itself to a name without "agent" in it is not
+        # caught here. This fleet ships no automated probe for it; it is caught only by re-probing
+        # the live PreToolUse payload shape after a Claude Code upgrade, the manual step the
+        # SCOPING CONTRACT note at the top of this file requires. test_hook_wiring.py exercises the
+        # payload shapes we know, but a genuinely new key name is an upstream contract change no
+        # offline test can anticipate.
         # Second canary, same silent-disarm class on a different axis: the PLUGIN can be renamed
         # under us. `agent_type` still arrives, still namespaced, but with a namespace PLUGIN_NAME
         # no longer spells — so the exact-match above misses and the `agent is None` canary below
