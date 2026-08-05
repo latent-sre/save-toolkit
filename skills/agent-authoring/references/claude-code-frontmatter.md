@@ -92,6 +92,47 @@ Two consequences worth authoring against:
   examples, tool-specific syntax — into a linked bundle file. That is a genuine saving, not a shuffle:
   a script run through Bash returns only its output to context, and its source never enters at all.
 
+### Portability: which frontmatter survives outside Claude Code
+
+[doc-checked 2026-08-05] The Agent Skills spec that other hosts implement accepts only six fields:
+`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`. Everything else this
+fleet uses — `argument-hint`, `disable-model-invocation`, `user-invocable`, `context`, `agent`,
+`paths`, `shell` — is **Claude-only**, and Anthropic's own packaging script rejects a skill that
+carries them when publishing to the portable spec. That is fine here (we ship a Claude plugin and
+generate the other hosts), but it is the reason a skill cannot simply be copied to a non-Claude host
+and be expected to behave the same.
+
+### Recent platform changes worth knowing
+
+[doc-checked 2026-08-05, CLI 2.1.193–2.1.222 changelog] Perishable — re-verify after upgrades:
+
+- **`context: fork` skills now run in the background by default** (2.1.218). Add `background: false`
+  to keep the old inline-result behavior. This fleet uses neither field today.
+- **Booleans accept `yes`/`no`/`on`/`off`/`1`/`0`** case-insensitively (2.1.218), not just
+  `true`/`false`. Keep writing `true` — the repo's checker pins the literal.
+- **`${user_config.*}` in a shell-form hook command is rejected** (2.1.218, shell-injection fix); use
+  the exec form or read `CLAUDE_PLUGIN_OPTION_<KEY>` from the hook environment. Our hook uses
+  neither.
+- **Hook matcher semantics tightened**: hyphenated matchers are exact-match (2.1.195),
+  comma-separated matchers now fire (2.1.216), and a single-segment `dir/**` matches only one level
+  (2.1.214). Our `PreToolUse` matcher is the plain tool name `Bash`, so none of these apply.
+- **A colon is reserved in agent names** (2.1.214) for the `plugin-name:agent-name` form; existing
+  names keep working. Our kebab-case rule already forbids it.
+- **Re-invoking the same skill no longer re-appends its full text** (2.1.202) — a token-bloat fix,
+  nothing to change.
+- **Agent frontmatter hooks now require accepted workspace trust** (2.1.218). Irrelevant here: plugin
+  agents ignore `hooks` entirely, which is why this fleet's guard lives in `hooks/hooks.json`.
+- **`claude plugin validate --strict` flags unrecognized manifest fields** with typo suggestions
+  (2.1.142+), and `metadata` is recognized rather than flagged (2.1.222). The Claude manifest carries
+  a `$schema` pointer to the published plugin-manifest schema for editor validation; it has no
+  runtime effect.
+
+A note on hook scoping, since the changelog invites it: matchers can express an agent-scoped hook.
+This fleet deliberately does **not** use that for the read-only guard. A matcher that fails to match
+— after an upstream rename, say — silently skips the hook and fails **open**. The guard instead runs
+on every Bash call and scopes itself in Python, so the same rename trips a canary and fails
+**closed**. Keep it that way; the extra invocations are cheap, a disarmed guard is not.
+
 ### Authoring rules that are checkable
 
 [doc-checked 2026-08-05, platform skill-authoring best practices] Rules with an objective pass/fail,
