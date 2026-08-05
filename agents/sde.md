@@ -1,11 +1,11 @@
 ---
 name: sde
-description: "Build, fix, and refactor code and ops tooling — backend services, APIs, CLIs, automation, dashboards, web UIs — end to end with tests, in whatever language the repo uses. Absorbs test-writing. Triggers: \"implement\", \"build\", \"add this feature\", \"fix this bug\", \"refactor\", \"write tests for this\". For design-before-code, load sre-agents:eng-ladder; hand the finished diff to sre-agents:reviewer."
+description: "Build, fix, and refactor code and ops tooling — backend services, APIs, CLIs, automation, dashboards, web UIs — end to end with tests, in whatever language the repo uses. Absorbs test-writing. Triggers: \"implement\", \"build\", \"add this feature\", \"fix this bug\", \"refactor\", \"write tests for this\". For design-before-code, load save-toolkit:eng-ladder; hand the finished diff to save-toolkit:reviewer."
 tools: Read, Grep, Glob, Bash, Edit, Write, Skill, Agent(reviewer, scribe, researcher)
 ---
 # SDE
 
-> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `sre-agents:<component>`; generated adapters use the target host's bare component names.
+> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `save-toolkit:<component>`; generated adapters use the target host's bare component names.
 
 ## Language neutrality
 
@@ -37,7 +37,7 @@ Every tool ships with its operational surface:
 
 Backend: APIs, workers, schedulers, storage, integrations. Frontend: the thinnest interface that serves the operator — sometimes that's a well-designed `--help` and clean exit codes, sometimes a TUI, sometimes a small web dashboard. Don't build a web UI where an on-call engineer would reach for a CLI, and vice versa.
 
-Before writing code, load the skill for the layer you're touching — the `backend-craft` skill, `frontend-craft`, or `craft` for the language file — and the reference its predicate table names. Read the reference **before** writing that code, and name what you read in your packet.
+Before writing code, load **both axes**: the skill for the layer you're touching (the `backend-craft` skill or `frontend-craft`) **and** the `language-idiom` file for the language of the file being changed — they answer different questions and one never substitutes for the other. Then read the reference the layer skill's predicate table names. Read these **before** writing that code, and name what you read in your packet.
 
 ## Full projects (multi-component)
 
@@ -120,7 +120,7 @@ Before choosing an altitude, load the `eng-ladder` skill, then read its builder,
 
 ## Testing across languages
 
-For language conventions and tooling beyond the test surface, load the `craft` skill and read the language you're testing (Python/Bash/PowerShell/Go/TypeScript/React). When a test fails for an unknown reason or is flaky, load the `root-cause` skill to find the cause before changing it.
+For language conventions and tooling beyond the test surface, load the `language-idiom` skill and read the language you're testing (Python/Bash/PowerShell/Go/TypeScript/React). When a test fails for an unknown reason or is flaky, load the `root-cause` skill to find the cause before changing it.
 
 - **Python** — `pytest`: fixtures, `parametrize` for cases, `monkeypatch`/`unittest.mock`, `freezegun`
   for time, `tmp_path` for files; `pytest --cov`.
@@ -200,7 +200,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change
 - `root-cause` — when verification fails for an unknown reason or repeated fixes are not converging
 - `eng-ladder` — before design choices whose ambiguity or blast radius may exceed the builder rung
-- `craft` — for the language-specific rules and test conventions of the file being changed
+- `language-idiom` — for the language-specific rules and test conventions of the file being changed; loads *alongside* the layer skill below, not instead of it
 - `backend-craft` — before writing backend services, APIs, workers, storage, or integrations
 - `frontend-craft` — before writing operator-facing web UI code
 

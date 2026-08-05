@@ -6,7 +6,7 @@ description: >-
   'scale this PCF app'. Ownership map only—not a load: the `release-gate` skill decides
   readiness and the `incident-command` skill owns rollback decisions.
 compatibility: Requires the cf CLI v8 and authorized access to the target PCF foundation/space
-# Deploys are human-initiated: invoke explicitly as `/sre-agents:pcf-deploy`; never auto-load.
+# Deploys are human-initiated: invoke explicitly as `/save-toolkit:pcf-deploy`; never auto-load.
 disable-model-invocation: true
 ---
 

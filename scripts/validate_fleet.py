@@ -112,7 +112,7 @@ EXPECTED_AUTHORITY = {
         "required": {"Read", "Bash", "Skill", "Agent"},
         "forbidden": {*WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
     },
-    "sre-steward": {
+    "observability-engineer": {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
@@ -130,8 +130,8 @@ EXPECTED_DELEGATION = {
     "repository-investigator": set(),
     "researcher": set(),
     "sde": {"reviewer", "scribe", "researcher"},
-    "sre": {"sre-steward", "scribe", "researcher"},
-    "sre-steward": {"scribe", "researcher"},
+    "sre": {"observability-engineer", "scribe", "researcher"},
+    "observability-engineer": {"scribe", "researcher"},
     "scribe": set(),
     "prompt-engineer": {"researcher"},
 }
@@ -287,7 +287,7 @@ def validate_scribe_bundle(root: Path) -> list[str]:
             "required": (
                 "**Knowledge closeout mode**",
                 "`operational-learning`",
-                "Return the exact runbook path or URL and alert name to `sre-steward`",
+                "Return the exact runbook path or URL and alert name to `observability-engineer`",
             ),
             "forbidden": ("and link it from the alert",),
         },
@@ -304,7 +304,7 @@ def validate_scribe_bundle(root: Path) -> list[str]:
                 "operating documentation → typed `scribe`",
                 "every new operational fact has a **learning disposition**",
             ),
-            "forbidden": ("operating documentation → typed `sre-steward`",),
+            "forbidden": ("operating documentation → typed `observability-engineer`",),
         },
         Path("skills/operational-learning/SKILL.md"): {
             "required": (
@@ -323,8 +323,8 @@ def validate_scribe_bundle(root: Path) -> list[str]:
                 "after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions",
             ),
             "forbidden": (
-                "hand the timeline to the typed `sre-steward` agent for the durable",
-                "typed `sre-steward` agent captures\ndurable operating guidance",
+                "hand the timeline to the typed `observability-engineer` agent for the durable",
+                "typed `observability-engineer` agent captures\ndurable operating guidance",
             ),
         },
         Path("skills/runbook/assets/runbook-template.md"): {
@@ -335,7 +335,7 @@ def validate_scribe_bundle(root: Path) -> list[str]:
                 "otherwise leave it unchanged",
             ),
             "forbidden": (
-                "hand the timeline and evidence to the `sre-steward` agent for retrospective documentation",
+                "hand the timeline and evidence to the `observability-engineer` agent for retrospective documentation",
                 "bump `last_verified`",
             ),
         },

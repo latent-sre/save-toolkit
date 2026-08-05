@@ -219,7 +219,7 @@ def tree_digest(root: Path) -> str:
         raise SandboxError("source must be an ordinary directory, not a link or reparse point")
     if root.name.casefold() == ".git":
         raise SandboxError("source snapshots must not expose .git metadata")
-    digest = hashlib.sha256(b"sre-agents-verification-tree-v1\0")
+    digest = hashlib.sha256(b"save-toolkit-verification-tree-v1\0")
     file_count = 0
     byte_count = 0
 
@@ -363,7 +363,7 @@ def build_command(config: SandboxConfig, *, container_name: str) -> list[str]:
         "--name",
         container_name,
         "--label",
-        f"sre-agents.verification={container_name}",
+        f"save-toolkit.verification={container_name}",
         "--rm",
         "--pull",
         "never",
@@ -428,7 +428,7 @@ def _ownership_inspect_command(config: SandboxConfig, container_name: str) -> tu
         "container",
         "inspect",
         "--format",
-        '{{.Id}}|{{ index .Config.Labels "sre-agents.verification" }}',
+        '{{.Id}}|{{ index .Config.Labels "save-toolkit.verification" }}',
         container_name,
     )
 

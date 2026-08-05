@@ -46,8 +46,8 @@ python evals/run_evals.py --run --mode direct --match merge-gate --trials 3
 and starts a fresh non-persistent process for every trial. It supports `--mode`, `--split`, `--match`,
 `--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`.
 
-Direct skills are pinned with `/sre-agents:<skill>`; direct agents use
-`--agent sre-agents:<agent>`. Discovery passes the scenario prompt byte-for-byte: no slash command,
+Direct skills are pinned with `/save-toolkit:<skill>`; direct agents use
+`--agent save-toolkit:<agent>`. Discovery passes the scenario prompt byte-for-byte: no slash command,
 agent flag, English hint, or target rewrite. The runner requests `stream-json` and credits a component
 only when a `tool_use.id` has a matching, non-error `tool_result.tool_use_id`. Attempted, denied,
 timed-out, malformed, and incomplete calls never count as successful routing.
@@ -78,7 +78,7 @@ temporary directory outside this repository, preventing root `AGENTS.md`, `CLAUD
 settings from teaching the discovery runner the routing answer. Runtime init must report exactly one
 plugin with the snapshot's name, version, inline source, and resolved path. Strict MCP mode supplies
 an explicit empty server set, preventing account-level connectors from joining the namespace. Claude's built-in
-components remain present and are recorded separately from the `sre-agents` plugin. The CLI receives
+components remain present and are recorded separately from the `save-toolkit` plugin. The CLI receives
 an exact built-in tool allowlist of `Skill,Task`; a broad deny list covering filesystem, shell, web,
 notification, scheduling, workflow, worktree, and task-state tools remains as defense in depth.
 The main-thread and direct-skill runtime must report that exact allowlist. A directly pinned agent can

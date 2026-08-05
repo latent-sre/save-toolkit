@@ -181,7 +181,7 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             ],
             "recommendation": {
                 "summary": "Keep the alert proposed until its runbook is reviewed and linked.",
-                "owner": "sre-steward",
+                "owner": "observability-engineer",
                 "urgency": "next",
                 "change_tier": 1,
                 "requires_human_approval": False,
@@ -317,7 +317,7 @@ class OperationalLearningBaselineTests(unittest.TestCase):
     def test_operational_producers_emit_learning_dispositions(self) -> None:
         for relative in (
             Path("agents/sre.md"),
-            Path("agents/sre-steward.md"),
+            Path("agents/observability-engineer.md"),
             Path("skills/service-onboarding/SKILL.md"),
         ):
             with self.subTest(path=relative.as_posix()):

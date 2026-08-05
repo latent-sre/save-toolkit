@@ -215,7 +215,7 @@ index=<app_index> sourcetype=<...> earliest=-1h     ```scope the base search —
 - Record every change and symptom in one UTC incident timeline; hand it to the `sre` agent with
   confidence labels.
 - Ownership map only—not a load: the `obs-alerting` skill owns Moogsoft correlation. Hand correlated
-  evidence to the `sre-steward` agent.
+  evidence to the `observability-engineer` agent.
 
 ## Inert canary example
 

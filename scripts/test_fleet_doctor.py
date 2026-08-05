@@ -26,7 +26,7 @@ class FleetDoctorTests(unittest.TestCase):
         for command in (
             ("git", "--no-optional-locks", "-C", str(REPO), "fetch"),
             ("git", "-C", str(REPO), "status", "--short"),
-            ("claude", "plugin", "install", "sre-agents"),
+            ("claude", "plugin", "install", "save-toolkit"),
             ("codex", "exec", "inspect this repo"),
             ("python", "scripts/generate_platform_adapters.py", "--write"),
         ):
@@ -45,7 +45,7 @@ class FleetDoctorTests(unittest.TestCase):
             if tuple(argv[-2:]) == ("status", "--short"):
                 return fleet_doctor.CommandResult(0, "", "")
             if tuple(argv[-2:]) == ("plugin", "list"):
-                return fleet_doctor.CommandResult(0, "sre-agents 1.0.0\n", "")
+                return fleet_doctor.CommandResult(0, "save-toolkit 1.0.0\n", "")
             return fleet_doctor.CommandResult(0, "test-cli 1.0\n", "")
 
         def which(command: str) -> str:
@@ -89,52 +89,52 @@ class FleetDoctorTests(unittest.TestCase):
 
     def test_plugin_inventory_requires_an_exact_installed_row(self) -> None:
         false_positives = (
-            "old-sre-agents-test  installed, enabled  1.0.0  C:/plugins/lookalike\n",
-            "sre-agents@latent-sre  not installed  C:/marketplace/sre-agents\n",
-            "No plugin named sre-agents is installed.\n",
+            "old-save-toolkit-test  installed, enabled  1.0.0  C:/plugins/lookalike\n",
+            "save-toolkit@latent-sre  not installed  C:/marketplace/save-toolkit\n",
+            "No plugin named save-toolkit is installed.\n",
         )
         for host in ("claude", "codex"):
             for output in false_positives:
                 with self.subTest(host=host, output=output):
                     self.assertFalse(
-                        fleet_doctor._inventory_contains_plugin(host, output, "sre-agents")
+                        fleet_doctor._inventory_contains_plugin(host, output, "save-toolkit")
                     )
         self.assertTrue(
             fleet_doctor._inventory_contains_plugin(
-                "claude", "  > sre-agents@latent-sre\n    Version: 1.0.0\n", "sre-agents"
+                "claude", "  > save-toolkit@latent-sre\n    Version: 1.0.0\n", "save-toolkit"
             )
         )
         self.assertTrue(
             fleet_doctor._inventory_contains_plugin(
                 "claude",
-                "Installed plugins:\n\n  ❯ sre-agents@latent-sre\n    Version: 1.0.0\n    Scope: user\n    Status: ✔ enabled\n",
-                "sre-agents",
+                "Installed plugins:\n\n  ❯ save-toolkit@latent-sre\n    Version: 1.0.0\n    Scope: user\n    Status: ✔ enabled\n",
+                "save-toolkit",
             )
         )
         self.assertFalse(
             fleet_doctor._inventory_contains_plugin(
-                "claude", "  ❯ old-sre-agents-test\n    Version: 9.9.9\n", "sre-agents"
+                "claude", "  ❯ old-save-toolkit-test\n    Version: 9.9.9\n", "save-toolkit"
             )
         )
         self.assertTrue(
             fleet_doctor._inventory_contains_plugin(
-                "copilot", "Installed plugins:\n  • sre-agents@latent-sre (v1.0.0)\n", "sre-agents"
+                "copilot", "Installed plugins:\n  • save-toolkit@latent-sre (v1.0.0)\n", "save-toolkit"
             )
         )
         for output in (
             "No plugins installed.\n",
-            "  • old-sre-agents@latent-sre (v1.0.0)\n",
-            "  • sre-agents-test@latent-sre (v2.0.0)\n",
+            "  • old-save-toolkit@latent-sre (v1.0.0)\n",
+            "  • save-toolkit-test@latent-sre (v2.0.0)\n",
         ):
             with self.subTest(host="copilot", output=output):
                 self.assertFalse(
-                    fleet_doctor._inventory_contains_plugin("copilot", output, "sre-agents")
+                    fleet_doctor._inventory_contains_plugin("copilot", output, "save-toolkit")
                 )
         self.assertTrue(
             fleet_doctor._inventory_contains_plugin(
                 "codex",
-                "sre-agents@latent-sre  installed, enabled  1.0.0  C:/plugins/sre-agents\n",
-                "sre-agents",
+                "save-toolkit@latent-sre  installed, enabled  1.0.0  C:/plugins/save-toolkit\n",
+                "save-toolkit",
             )
         )
 
@@ -174,7 +174,7 @@ class FleetDoctorTests(unittest.TestCase):
         root = base / "repo"
         source = root / ".codex" / "agents"
         source.mkdir(parents=True)
-        source.joinpath("sre-agents-sre.toml").write_text('name = "sre"\n', encoding="utf-8")
+        source.joinpath("save-toolkit-sre.toml").write_text('name = "sre"\n', encoding="utf-8")
         codex_home = base / "codex"
         (codex_home / "agents").mkdir(parents=True)
         return root, codex_home
@@ -194,15 +194,15 @@ class FleetDoctorTests(unittest.TestCase):
             )
         custom = next(check for check in checks if check.check_id == "host.codex.custom-agents")
         self.assertEqual("skip", custom.status)
-        self.assertIn("no sre-agents custom agents are installed", custom.summary)
+        self.assertIn("no save-toolkit custom agents are installed", custom.summary)
         self.assertTrue(custom.limitations)
 
     def test_drifted_codex_install_is_still_fail(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root, codex_home = self._codex_fixture(temporary)
-            stale = codex_home / "agents" / "sre-agents-retired.toml"
+            stale = codex_home / "agents" / "save-toolkit-retired.toml"
             stale.write_text(
-                "# Managed by sre-agents scripts/install_codex_agents.py; do not edit.\n",
+                "# Managed by save-toolkit scripts/install_codex_agents.py; do not edit.\n",
                 encoding="utf-8",
             )
             checks = fleet_doctor._installation_checks(

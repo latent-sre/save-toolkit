@@ -30,7 +30,7 @@ If it turns out to have one provable proximate cause in one service, hand back t
 2. **Resilience fixes** that remove the failure mode: bounded timeouts + retries with backoff/jitter,
    circuit breakers / bulkheads, backpressure / load shedding, idempotency, graceful degradation,
    dependency isolation.
-3. Ownership map only—not a load: the `sre-steward` agent owns the follow-up SLI/alert. Provide the
+3. Ownership map only—not a load: the `observability-engineer` agent owns the follow-up SLI/alert. Provide the
    specific detection strategy that should page earlier next time (dependency-latency burn,
    saturation, retry rate).
 4. Ownership map only—not a load: the `postmortem` skill owns the durable write-up. Write a blameless
@@ -44,4 +44,4 @@ If it turns out to have one provable proximate cause in one service, hand back t
 
 ## Hand off
 - Resilience code changes → the `sde` agent at principal altitude.
-- Detection / SLOs, prevention items, and capture → the `sre-steward` agent.
+- Detection / SLOs, prevention items, and capture → the `observability-engineer` agent.

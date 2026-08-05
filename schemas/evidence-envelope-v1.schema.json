@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/latent-sre/sre-agents/schemas/evidence-envelope-v1.schema.json",
-  "title": "SRE Agents evidence envelope v1",
+  "$id": "https://github.com/latent-sre/save-toolkit/schemas/evidence-envelope-v1.schema.json",
+  "title": "Save Toolkit evidence envelope v1",
   "description": "Portable result evidence. scripts/evidence_envelope.py additionally rejects recursively secret-bearing field names and credential-shaped argv entries.",
   "type": "object",
   "additionalProperties": false,

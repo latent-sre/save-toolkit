@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/latent-sre/sre-agents/skills/operational-learning/assets/knowledge-update-v1.schema.json",
+  "$id": "https://github.com/latent-sre/save-toolkit/skills/operational-learning/assets/knowledge-update-v1.schema.json",
   "title": "Operational knowledge update v1",
   "description": "A reviewable learning disposition. The bundled operational-learning validator additionally enforces evidence-label monotonicity, reference integrity, caller-authorized knowledge roots, safe repository paths, trigger-specific disposition coverage, exact-revision duplicate owners, single-linked UTF-8 prepared files, raw and Git-normalized object binding, exact Git-reviewable changes, lifecycle deferral, and structured credential rejection.",
   "type": "object",

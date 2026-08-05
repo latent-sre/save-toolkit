@@ -155,7 +155,7 @@ def _inventory_contains_plugin(host: str, stdout: str, plugin_name: str) -> bool
             if match and match.group("name") == plugin_name:
                 return True
         if host == "copilot":
-            # Observed Copilot CLI row: "• sre-agents@latent-sre (v1.0.0)". The bullet and the
+            # Observed Copilot CLI row: "• save-toolkit@latent-sre (v1.0.0)". The bullet and the
             # version annotation are part of the row; the plugin id must still fullmatch.
             match = re.fullmatch(r"•\s+" + plugin_id.pattern + r"(?:\s+\(v[^)]*\))?", stripped)
             if match and match.group("name") == plugin_name:
@@ -335,14 +335,14 @@ def _plugin_listing_check(host: str, executable: str, run: CommandRunner) -> Che
             str(REPO_ROOT),
             listing.returncode,
         )
-    installed = _inventory_contains_plugin(host, listing.stdout, "sre-agents")
+    installed = _inventory_contains_plugin(host, listing.stdout, "save-toolkit")
     return Check(
         f"host.{host}.plugin-inventory",
         "pass" if installed else "skip",
         (
-            "sre-agents is present in the host plugin inventory."
+            "save-toolkit is present in the host plugin inventory."
             if installed
-            else "sre-agents is absent from the host plugin inventory."
+            else "save-toolkit is absent from the host plugin inventory."
         ),
         {"installed": installed},
         argv,
@@ -422,7 +422,7 @@ def _installation_checks(
                 Check(
                     "host.codex.custom-agents",
                     "skip",
-                    "Codex is available but no sre-agents custom agents are installed.",
+                    "Codex is available but no save-toolkit custom agents are installed.",
                     {"pending_install_count": len(plan.writes)},
                     limitations=(
                         "Absence is not an installation failure; nothing installed was assessed.",

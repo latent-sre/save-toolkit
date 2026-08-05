@@ -13,10 +13,19 @@ from pathlib import Path
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 STALE = (
     # `researcher` and `prompt-engineer` remain canonical plugin agents.
-    # `observer` retired into `sre-steward`; `scribe` is canonical again.
+    # `observer` retired into `sre-steward`, which then retired into `observability-engineer`;
+    # `scribe` is canonical again. `sre-steward` was renamed because `sre` is a strict prefix of
+    # it, which makes substring-matching tooling (eval graders, adapter name rewriting) confuse
+    # the incident lane with the steady-state lane.
     "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
     "test-engineer", "sre-monitor", "runbook-author",
-    "observer",
+    "observer", "sre-steward",
+    # The plugin itself was renamed `sre-agents` -> `save-toolkit`, which is what finally removed
+    # the `sre` ⊂ `sre-agents` prefix collision (renaming agents alone could never fix it, because
+    # the namespace carried the collision). Listed here so leftover `sre-agents:<component>`
+    # addressing in agents/, skills/, or commands/ fails the build instead of silently not
+    # resolving. Repository URLs are unaffected: `_hits` skips a match preceded by "/".
+    "sre-agents",
     "incident-severity", "blameless-postmortem",
     "rollback-mitigation", "github-actions-ci", "wavefront-queries",
     "splunk-triage", "grafana-dashboards", "moogsoft-correlation",
@@ -28,6 +37,11 @@ STALE = (
     "bamboo-to-actions-migration", "sde-fullstack", "homelab-platform",
     "principal-engineer", "distinguished-architect", "multi-agent-architect",
     "prompt-craft", "sre-tool", "service-onboard", "lab-audit", "sde-agents",
+    # `craft` (the skill) retired into `language-idiom` but is NOT listed here, deliberately: it is
+    # ordinary English, and the boundary regex would flag legitimate prose ("# Frontend craft",
+    # "reads as noise rather than craft" — 19 such hits when probed). This is exactly why common
+    # English words make poor component names: they cannot be machine-protected after retirement.
+    # Drift to the old name is caught by the adapter byte-for-byte check and the router eval instead.
     # Generator-era vocabulary retired by the de-projection (Tasks 2-3 of the adoption plan).
     "required-skills", "generate_fleet",
 )

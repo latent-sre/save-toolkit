@@ -3,7 +3,7 @@ name: operational-learning
 description: >-
   Apply the operational-learning closeout after scribe selects knowledge closeout mode, or when a
   user explicitly invokes this skill. Direct KB writing belongs to scribe; active incidents route
-  to sre and alert design routes to sre-steward. Triggers: 'knowledge closeout mode selected',
+  to sre and alert design routes to observability-engineer. Triggers: 'knowledge closeout mode selected',
   'apply the operational-learning closeout', 'use the knowledge-update schema'.
 argument-hint: "[component, alert, incident, drill, or audit]"
 ---
@@ -23,7 +23,7 @@ its own promotion into the knowledge base.
 This is a documentation-only method. `scribe` may read the workspace and prepare documentation
 changes, but it never executes, browses, queries a live target, delegates, or marks its own output
 approved/merged/verified. Active incidents stay with `sre`; alert/SLO/dashboard design stays with
-`sre-steward`; code or automation stays with `sde`.
+`observability-engineer`; code or automation stays with `sde`.
 
 ## Load the contract and only the needed assets
 

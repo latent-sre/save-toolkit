@@ -3,7 +3,7 @@
   "schemas": [
     {
       "id": "evidence-envelope-v1",
-      "uri": "https://github.com/latent-sre/sre-agents/schemas/evidence-envelope-v1.schema.json",
+      "uri": "https://github.com/latent-sre/save-toolkit/schemas/evidence-envelope-v1.schema.json",
       "version": 1,
       "status": "active",
       "canonical_path": "schemas/evidence-envelope-v1.schema.json",
@@ -12,38 +12,38 @@
     },
     {
       "id": "operational-knowledge-update-v1",
-      "uri": "https://github.com/latent-sre/sre-agents/skills/operational-learning/assets/knowledge-update-v1.schema.json",
+      "uri": "https://github.com/latent-sre/save-toolkit/skills/operational-learning/assets/knowledge-update-v1.schema.json",
       "version": 1,
       "status": "supported",
       "canonical_path": "skills/operational-learning/assets/knowledge-update-v1.schema.json",
       "validator": "skills/operational-learning/scripts/knowledge_update.py",
       "generated_projections": [
         "platforms/copilot/skills/operational-learning/assets/knowledge-update-v1.schema.json",
-        "plugins/sre-agents/skills/operational-learning/assets/knowledge-update-v1.schema.json"
+        "plugins/save-toolkit/skills/operational-learning/assets/knowledge-update-v1.schema.json"
       ]
     },
     {
       "id": "operational-knowledge-update-v2",
-      "uri": "https://github.com/latent-sre/sre-agents/skills/operational-learning/assets/knowledge-update-v2.schema.json",
+      "uri": "https://github.com/latent-sre/save-toolkit/skills/operational-learning/assets/knowledge-update-v2.schema.json",
       "version": 2,
       "status": "current",
       "canonical_path": "skills/operational-learning/assets/knowledge-update-v2.schema.json",
       "validator": "skills/operational-learning/scripts/knowledge_update.py",
       "generated_projections": [
         "platforms/copilot/skills/operational-learning/assets/knowledge-update-v2.schema.json",
-        "plugins/sre-agents/skills/operational-learning/assets/knowledge-update-v2.schema.json"
+        "plugins/save-toolkit/skills/operational-learning/assets/knowledge-update-v2.schema.json"
       ]
     },
     {
       "id": "fleet-improvement-v1",
-      "uri": "https://github.com/latent-sre/sre-agents/skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
+      "uri": "https://github.com/latent-sre/save-toolkit/skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
       "version": 1,
       "status": "contract-only",
       "canonical_path": "skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
       "validator": null,
       "generated_projections": [
         "platforms/copilot/skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
-        "plugins/sre-agents/skills/agent-authoring/assets/fleet-improvement-v1.schema.json"
+        "plugins/save-toolkit/skills/agent-authoring/assets/fleet-improvement-v1.schema.json"
       ]
     }
   ]

@@ -4,7 +4,7 @@ description: >-
   Quality gate that must pass before a code change merges. Use after code review and testing, before
   declaring a change done or merging a PR. A pass/fail checklist covering tests, review, security,
   coverage, secrets, compatibility, and docs. Invoke explicitly as Copilot `/merge-gate` or Claude
-  `/sre-agents:merge-gate`. Triggers: "is this ready to merge", "run the merge gate", "can I merge this
+  `/save-toolkit:merge-gate`. Triggers: "is this ready to merge", "run the merge gate", "can I merge this
   PR". Ownership map only—not a load: merge-gate = ready to merge; release-gate = ready to ship;
   production-change-gate = authorized to act on prod.
 ---
@@ -51,7 +51,7 @@ everything).
       Size matters: ~200–400 LOC is the effective review chunk; defect detection drops past ~400 LOC and
       above ~500 LOC/hr, so cap continuous review at 60–90 min. A reviewer may request a split **solely**
       for size — an oversized change is a blocking finding, not a nit.
-- [ ] **Docs/ops updated** — if behavior or operations changed, update the docs and make a typed `sre-steward`
+- [ ] **Docs/ops updated** — if behavior or operations changed, update the docs and make a typed `observability-engineer`
       agent handoff for affected operational guidance, or explicitly record why none is needed.
 
 ## Verdict

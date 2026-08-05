@@ -1097,7 +1097,7 @@ def collect_provenance(
         "fixture_cwd": str(workspace),
         "fixture_sha256": hashlib.sha256(b"neutral-empty-git-root-v1\n").hexdigest(),
         "fixture_kind": "neutral-empty-git-root-v1",
-        "namespace": "sre-agents plugin plus Claude built-ins; neutral project; strict empty MCP",
+        "namespace": "save-toolkit plugin plus Claude built-ins; neutral project; strict empty MCP",
         "denied_tools": DENIED_TOOLS.split(","),
         "allowed_builtin_tools": list(ALLOWED_BUILTIN_TOOLS),
     }

@@ -29,8 +29,8 @@ GUARD = Path(__file__).resolve().parents[1] / "scripts" / "readonly-guard.py"
 EXIT_ALLOW = 42
 EXIT_DENY = 43
 
-SRE = "sre-agents:sre"
-STEWARD = "sre-agents:sre-steward"
+SRE = "save-toolkit:sre"
+OBS_ENGINEER = "save-toolkit:observability-engineer"
 # Backwards-compatible alias used throughout: the default guarded agent for the corpus runs.
 REVIEWER = SRE
 
@@ -271,7 +271,7 @@ DENIED = [
     "cf set-env my-app KEY value",
     "cf env my-app",
     "cf ssh my-app",
-    # --- steward-only validators are DENIED for sre ------------------------------------------
+    # --- observability-only validators are DENIED for sre ------------------------------------------
     "promtool check rules rules.yml",
     "yamllint alerts.yml",
     # --- CODE EXECUTION: forbidden outright, including this repo's own scripts ----------------
@@ -375,19 +375,19 @@ class ReadonlyGuardTest(unittest.TestCase):
         self.assertEqual(decision(proc), "allow")
 
 
-class StewardProfileTest(unittest.TestCase):
-    """sre-steward = the sre read set PLUS config validators; the extras never leak to sre."""
+class ObservabilityProfileTest(unittest.TestCase):
+    """observability-engineer = the sre read set PLUS config validators; the extras never leak to sre."""
 
-    STEWARD_ALLOWED = [
+    OBS_ALLOWED = [
         "promtool check rules rules.yml",
         "promtool check config prometheus.yml",
         "yamllint alerts.yml",
         "jq empty grafana/alerts.json",
-        # the shared read set works for the steward too
+        # the shared read set works for the observability engineer too
         "cf app my-app",
         "git diff --stat",
     ]
-    STEWARD_DENIED = [
+    OBS_DENIED = [
         "promtool tsdb create-blocks-from rules rules.yml",  # only the check verb reads
         "promtool query instant http://prom:9090 up",         # network query, not a config check
         "cf push my-app",
@@ -395,16 +395,16 @@ class StewardProfileTest(unittest.TestCase):
         "python -m yamllint alerts.yml",                      # no interpreters, even for a validator
     ]
 
-    def test_steward_allowlist(self) -> None:
-        for agent in (STEWARD, "sre-steward"):
-            for command in self.STEWARD_ALLOWED:
+    def test_observability_allowlist(self) -> None:
+        for agent in (OBS_ENGINEER, "observability-engineer"):
+            for command in self.OBS_ALLOWED:
                 with self.subTest(agent=agent, command=command):
                     proc = run_guard(bash_call(command, agent_type=agent))
                     self.assertEqual(decision(proc), "allow", f"falsely denied: {command!r}")
 
-    def test_steward_denylist(self) -> None:
-        for agent in (STEWARD, "sre-steward"):
-            for command in self.STEWARD_DENIED:
+    def test_observability_denylist(self) -> None:
+        for agent in (OBS_ENGINEER, "observability-engineer"):
+            for command in self.OBS_DENIED:
                 with self.subTest(agent=agent, command=command):
                     proc = run_guard(bash_call(command, agent_type=agent))
                     self.assertEqual(decision(proc), "deny", f"falsely allowed: {command!r}")
@@ -427,7 +427,7 @@ class GuardScopingTest(unittest.TestCase):
     def test_other_subagents_are_never_guarded(self) -> None:
         # sde is deliberately unguarded (builds and tests are its job) — and so is any agent
         # outside GUARDED_AGENTS.
-        for agent in ("sre-agents:sde", "sde", "reviewer", "researcher"):
+        for agent in ("save-toolkit:sde", "sde", "reviewer", "researcher"):
             with self.subTest(agent=agent):
                 proc = run_guard(bash_call("git push origin main", agent_type=agent))
                 self.assertEqual(decision(proc), "allow")
@@ -436,7 +436,7 @@ class GuardScopingTest(unittest.TestCase):
         # Project/user-scope installs report a bare agent_type (probed on CLI 2.1.200; the
         # --plugin-dir dev loop reports the NAMESPACED form). The guard must not be sidestepped by
         # installing the agent at a different scope.
-        for agent in ("sre", "sre-steward"):
+        for agent in ("sre", "observability-engineer"):
             with self.subTest(agent=agent):
                 proc = run_guard(bash_call("git push origin main", agent_type=agent))
                 self.assertEqual(decision(proc), "deny")
@@ -445,9 +445,37 @@ class GuardScopingTest(unittest.TestCase):
         # `tool_input.command` is user-controlled text. A guard that scanned it for the agent name
         # would deny this exact commit — the one someone editing this guard is about to make.
         proc = run_guard(
-            bash_call('git commit -m "fix sre-agents:sre"', agent_type=None)
+            bash_call('git commit -m "fix save-toolkit:sre"', agent_type=None)
         )
         self.assertEqual(decision(proc), "allow")
+
+    def test_renamed_plugin_namespace_fails_closed(self) -> None:
+        # The other silent-disarm axis: the PLUGIN is renamed but PLUGIN_NAME here is not. The
+        # payload still carries `agent_type`, so the field-rename canary below never fires, and the
+        # exact-match set misses because the namespace moved. Before this check the guard handed
+        # `sre` and `observability-engineer` unguarded Bash while looking healthy — `rm -rf` was
+        # allowed under the moved namespace. A namespaced payload whose bare name is guarded is one
+        # of ours under a moved namespace; deny it.
+        #
+        # `sre-agents` is this plugin's PREVIOUS name and the concrete case that motivated the
+        # check: a caller still addressing the old namespace must not slip past the guard. Keep
+        # every namespace here different from the live PLUGIN_NAME — the live one is guarded
+        # through the normal allowlist path, so listing it here would test nothing.
+        for namespace in ("sre-agents", "renamed-plugin", "save-toolkit-v2"):
+            for bare in ("sre", "observability-engineer"):
+                with self.subTest(agent_type=f"{namespace}:{bare}"):
+                    proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=f"{namespace}:{bare}"))
+                    self.assertEqual(decision(proc), "deny")
+                    self.assertIn("unrecognized plugin namespace", proc.stdout.decode("utf-8"))
+
+    def test_renamed_plugin_namespace_does_not_capture_unguarded_or_foreign_agents(self) -> None:
+        # The fail-closed above must not become a session-wide denylist. `sde` is deliberately
+        # unguarded under ANY namespace, and an unrelated plugin's agents are not ours to police
+        # unless their bare name collides with a guarded one.
+        for agent in ("save-toolkit:sde", "save-toolkit:sde", "othervendor:reviewer"):
+            with self.subTest(agent_type=agent):
+                proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=agent))
+                self.assertEqual(decision(proc), "allow")
 
     def test_renamed_agent_type_field_fails_closed(self) -> None:
         # The contract canary. `agent_type` is undocumented; if it is ever renamed upstream, every
@@ -459,7 +487,7 @@ class GuardScopingTest(unittest.TestCase):
         # (project/user scope). The first canary design searched the envelope only for the
         # namespaced string, so a rename disarmed the guard silently in exactly the scope a
         # hand-installed copy runs in — caught in review, pinned here.
-        for renamed_value in (SRE, "sre", STEWARD, "sre-steward"):
+        for renamed_value in (SRE, "sre", OBS_ENGINEER, "observability-engineer"):
             with self.subTest(agent_type=renamed_value):
                 proc = run_guard(
                     json.dumps(

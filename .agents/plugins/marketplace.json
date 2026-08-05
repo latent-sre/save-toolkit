@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "sre-agents",
+      "name": "save-toolkit",
       "source": {
         "source": "local",
-        "path": "./plugins/sre-agents"
+        "path": "./plugins/save-toolkit"
       },
       "policy": {
         "installation": "AVAILABLE",

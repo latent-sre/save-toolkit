@@ -15,7 +15,7 @@ limits shared-fleet blast radius; it is not a sandbox.
 - Claude reads those canonical files from the plugin. After an edit, run
   `py -3 scripts/generate_platform_adapters.py --write`; commit all projection changes together.
 - `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, and
-  `plugins/sre-agents/skills/` are generated. Direct edits fail the byte-for-byte drift gate.
+  `plugins/save-toolkit/skills/` are generated. Direct edits fail the byte-for-byte drift gate.
 - Frontmatter carries authority (`tools` and main-thread delegation grants); plugin Bash guarding
   lives in `hooks/hooks.json`. Read
   `skills/agent-authoring/references/claude-code-frontmatter.md` before editing either surface.

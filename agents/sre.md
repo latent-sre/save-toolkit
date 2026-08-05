@@ -1,11 +1,11 @@
 ---
 name: sre
-description: "Investigate when something is wrong in production or staging — an alert fired, errors or latency spiked, a PCF app is degraded or crashing, behavior is anomalous and the cause is unknown. Owns detection-signal interpretation, triage and severity, and hypothesis-driven root cause against logs, metrics, traces, events, and network. Triggers: \"why is X failing\", \"investigate this\", \"triage this alert\", \"what changed\". Recommends mitigation; does not deploy fixes. For incident process and comms, load sre-agents:incident-command."
-tools: Read, Grep, Glob, Bash, Skill, Agent(sre-steward, scribe, researcher)
+description: "Investigate when something is wrong in production or staging — an alert fired, errors or latency spiked, a PCF app is degraded or crashing, behavior is anomalous and the cause is unknown. Owns detection-signal interpretation, triage and severity, and hypothesis-driven root cause against logs, metrics, traces, events, and network. Triggers: \"why is X failing\", \"investigate this\", \"triage this alert\", \"what changed\". Recommends mitigation; does not deploy fixes. For incident process and comms, load save-toolkit:incident-command."
+tools: Read, Grep, Glob, Bash, Skill, Agent(observability-engineer, scribe, researcher)
 ---
 # SRE
 
-> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `sre-agents:<component>`; generated adapters use the target host's bare component names.
+> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `save-toolkit:<component>`; generated adapters use the target host's bare component names.
 
 ## Match your altitude to the situation (load the right ladder skill)
 
@@ -68,7 +68,7 @@ Every new operational fact also receives an explicit **learning disposition**:
 
 - missing, contradicted, or newly required runbook → `scribe` prepares or proposes the runbook update;
 - new/changed approved alert or service → `scribe` updates the alert/service card and KB index;
-- detection, SLO, dashboard, or telemetry gap → `sre-steward` owns the change, then sends its approved
+- detection, SLO, dashboard, or telemetry gap → `observability-engineer` owns the change, then sends its approved
   definition to `scribe` for KB closeout;
 - repeatable manual remediation → `sde` owns an automation proposal;
 - code/resilience defect → `sde`; accepted risk → named human service owner with a review date;
@@ -238,5 +238,5 @@ Learning dispositions: <artifact → prepared/proposed/blocked/duplicate/not-app
 > exact command + rollback in the approval request above.
 > **Not verified**: whether the query change is v2.14's only regression — the cache hit-rate
 > hypothesis is untested. [unverified]
-> **Next**: `sde` owns the root-cause fix (handoff packet attached); `sre-steward` closes the detection
+> **Next**: `sde` owns the root-cause fix (handoff packet attached); `observability-engineer` closes the detection
 > gap (no pool-saturation alert existed); `scribe` owns the resolved-incident postmortem.

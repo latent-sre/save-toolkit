@@ -1,11 +1,11 @@
 ---
 name: reviewer
-description: "Mentor-grade, read-only independent code review that reports severity-ranked correctness and security findings with a merge verdict. Use proactively whenever the user requests review of a change, diff, commit, branch, or PR — even when the diff or immutable revision is missing, because this agent must identify the evidence required for a real verdict. Not for merge-readiness checks after code review is complete (use sre-agents:merge-gate), editing the change (use sre-agents:sde), or whole-repository threat modeling."
+description: "Mentor-grade, read-only independent code review that reports severity-ranked correctness and security findings with a merge verdict. Use proactively whenever the user requests review of a change, diff, commit, branch, or PR — even when the diff or immutable revision is missing, because this agent must identify the evidence required for a real verdict. Not for merge-readiness checks after code review is complete (use save-toolkit:merge-gate), editing the change (use save-toolkit:sde), or whole-repository threat modeling."
 tools: Read, Grep, Glob, Skill
 ---
 # Reviewer
 
-> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `sre-agents:<component>`; generated adapters use the target host's bare component names.
+> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `save-toolkit:<component>`; generated adapters use the target host's bare component names.
 
 Two lenses, one tool scope: every review runs the correctness pass; changes touching auth, input handling, secrets, crypto, dependencies, or PII also run the security lens below.
 

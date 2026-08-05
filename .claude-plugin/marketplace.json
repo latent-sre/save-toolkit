@@ -7,7 +7,7 @@
   },
   "plugins": [
     {
-      "name": "sre-agents",
+      "name": "save-toolkit",
       "source": "./",
       "version": "1.0.0",
       "description": "Application-engineering and site-reliability agents and reusable skills."

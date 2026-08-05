@@ -81,7 +81,7 @@ draft. Branch protection, required review, and protected workflows remain the en
   append-only. On exhaustion or when additional work materially changes scope, stop at
   `blocked_pending_rescope` and ask the owner to create or authorize a linked record.
 - Bind candidate, evaluation, independent review, merge, monitoring, and rollback evidence to real,
-  full Git commits. The canonical `sre-agents-git-artifact-selection-v1` digest frames the requested
+  full Git commits. The canonical `save-toolkit-git-artifact-selection-v1` digest frames the requested
   path count and paths, then the selected-file count and every selected regular Git blob's `F`
   marker, canonical UTF-8 path length and bytes, six-byte mode, 64-bit byte size, and raw 32-byte
   content SHA-256, all after the algorithm name and NUL domain separator. Requested paths and files

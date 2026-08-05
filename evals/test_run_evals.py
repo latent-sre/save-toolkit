@@ -63,7 +63,7 @@ class ScenarioValidationTests(unittest.TestCase):
         scenario = self._scenario(
             mode="discovery",
             routing={"expect": "fire"},
-            prompt="Use /sre-agents:merge-gate for this request.",
+            prompt="Use /save-toolkit:merge-gate for this request.",
         )
         problems = run_evals.validate([scenario])
         self.assertTrue(any("names its target" in p for p in problems))
@@ -78,7 +78,7 @@ class InvocationPlanTests(unittest.TestCase):
         }
         command = run_evals.build_command(scenario, model=None)
         self.assertEqual(command[command.index("-p") + 1], scenario["prompt"])
-        self.assertNotIn("sre-agents:merge-gate", command[command.index("-p") + 1])
+        self.assertNotIn("save-toolkit:merge-gate", command[command.index("-p") + 1])
         self.assertIn("--strict-mcp-config", command)
         self.assertEqual(json.loads(command[command.index("--mcp-config") + 1]), {"mcpServers": {}})
         self.assertEqual(command[command.index("--tools") + 1], "Skill,Task")
@@ -87,14 +87,14 @@ class InvocationPlanTests(unittest.TestCase):
         scenario = {"mode": "direct", "target": {"kind": "skill", "name": "merge-gate"}, "prompt": "Assess it."}
         command = run_evals.build_command(scenario, model="sonnet")
         prompt = command[command.index("-p") + 1]
-        self.assertEqual(prompt, "/sre-agents:merge-gate\n\nAssess it.")
+        self.assertEqual(prompt, "/save-toolkit:merge-gate\n\nAssess it.")
         self.assertEqual(command[command.index("--model") + 1], "sonnet")
 
     def test_direct_agent_uses_agent_flag_without_rewriting_prompt(self) -> None:
         scenario = {"mode": "direct", "target": {"kind": "agent", "name": "reviewer"}, "prompt": "Review it."}
         command = run_evals.build_command(scenario, model=None)
         self.assertEqual(command[command.index("-p") + 1], "Review it.")
-        self.assertEqual(command[command.index("--agent") + 1], "sre-agents:reviewer")
+        self.assertEqual(command[command.index("--agent") + 1], "save-toolkit:reviewer")
 
     def test_command_can_bind_an_isolated_plugin_snapshot(self) -> None:
         scenario = {"mode": "direct", "target": {"kind": "skill", "name": "merge-gate"}, "prompt": "Assess it."}
@@ -130,7 +130,7 @@ class StreamTraceTests(unittest.TestCase):
                 "type": "system", "subtype": "init", "session_id": "session-1", "model": "claude-test",
                 "tools": ["Skill", "Task"],
                 "plugins": [{
-                    "name": "sre-agents", "version": "1.0.0", "source": "sre-agents@inline",
+                    "name": "save-toolkit", "version": "1.0.0", "source": "save-toolkit@inline",
                     "path": str(run_evals.ROOT),
                 }],
                 "mcp_servers": [],
@@ -143,7 +143,7 @@ class StreamTraceTests(unittest.TestCase):
                     "type": "tool_use",
                     "id": "skill-call-1",
                     "name": "Skill",
-                    "input": {"skill": "sre-agents:merge-gate"},
+                    "input": {"skill": "save-toolkit:merge-gate"},
                 }]},
             })
             events.append({
@@ -162,7 +162,7 @@ class StreamTraceTests(unittest.TestCase):
                     "type": "tool_use",
                     "id": "agent-call-1",
                     "name": "Agent",
-                    "input": {"subagent_type": "sre-agents:reviewer"},
+                    "input": {"subagent_type": "save-toolkit:reviewer"},
                 }]},
             },
             {
@@ -188,12 +188,12 @@ class StreamTraceTests(unittest.TestCase):
     def test_parser_extracts_response_invocations_and_runtime_metadata(self) -> None:
         parsed = run_evals.parse_stream_trace(self._trace())
         self.assertEqual(parsed.response, "MERGE-GATE: BLOCKED")
-        self.assertEqual(parsed.skills, ("sre-agents:merge-gate",))
-        self.assertEqual(parsed.agents, ("sre-agents:reviewer",))
+        self.assertEqual(parsed.skills, ("save-toolkit:merge-gate",))
+        self.assertEqual(parsed.agents, ("save-toolkit:reviewer",))
         self.assertEqual(parsed.model, "claude-test")
         self.assertEqual(parsed.session_id, "session-1")
         self.assertEqual(parsed.total_cost_usd, 0.01)
-        self.assertEqual(parsed.runtime_plugins[0]["name"], "sre-agents")
+        self.assertEqual(parsed.runtime_plugins[0]["name"], "save-toolkit")
         self.assertEqual(parsed.mcp_servers, ())
         self.assertEqual(parsed.available_tools, ("Skill", "Task"))
         run_evals.enforce_runtime_boundary(parsed)
@@ -213,7 +213,7 @@ class StreamTraceTests(unittest.TestCase):
             run_evals.enforce_runtime_boundary(duplicate_plugin)
         substituted_plugin = run_evals.ParsedTrace(
             **{**parsed.__dict__, "runtime_plugins": ({
-                "name": "sre-agents", "version": "1.0.0", "source": "sre-agents@inline",
+                "name": "save-toolkit", "version": "1.0.0", "source": "save-toolkit@inline",
                 "path": str(run_evals.ROOT.parent / "substitute"),
             },)}
         )
@@ -260,8 +260,8 @@ class StreamTraceTests(unittest.TestCase):
     def test_unmatched_or_errored_tool_calls_do_not_count_as_invocations(self) -> None:
         events = [
             {"type": "assistant", "message": {"content": [
-                {"type": "tool_use", "id": "unmatched", "name": "Skill", "input": {"skill": "sre-agents:merge-gate"}},
-                {"type": "tool_use", "id": "errored", "name": "Agent", "input": {"subagent_type": "sre-agents:reviewer"}},
+                {"type": "tool_use", "id": "unmatched", "name": "Skill", "input": {"skill": "save-toolkit:merge-gate"}},
+                {"type": "tool_use", "id": "errored", "name": "Agent", "input": {"subagent_type": "save-toolkit:reviewer"}},
             ]}},
             {"type": "user", "message": {"content": [
                 {"type": "tool_result", "tool_use_id": "errored", "is_error": True, "content": "denied"},
@@ -271,8 +271,8 @@ class StreamTraceTests(unittest.TestCase):
         parsed = run_evals.parse_stream_trace("\n".join(json.dumps(e) for e in events))
         self.assertEqual(parsed.skills, ())
         self.assertEqual(parsed.agents, ())
-        self.assertEqual(parsed.attempted_skills, ("sre-agents:merge-gate",))
-        self.assertEqual(parsed.attempted_agents, ("sre-agents:reviewer",))
+        self.assertEqual(parsed.attempted_skills, ("save-toolkit:merge-gate",))
+        self.assertEqual(parsed.attempted_agents, ("save-toolkit:reviewer",))
 
     def test_inline_answer_cannot_pass_discovery_fire(self) -> None:
         scenario = {

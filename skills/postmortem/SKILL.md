@@ -38,7 +38,7 @@ Status: <draft|final>   Authors: <…>   Date: <…>
 ## Impact             — who/what, how long, magnitude (users, % traffic, $ if known), SLO/budget hit.
 ## Timeline (UTC)     — detection → diagnosis → mitigation → resolution; key decisions; from the IC log.
 ## Root cause & contributing factors — the systemic cause + the factors that aligned (usually several).
-## Detection          — how we found out, and how fast. Could typed `sre-steward` evidence have paged sooner?
+## Detection          — how we found out, and how fast. Could typed `observability-engineer` evidence have paged sooner?
 ## Response           — what went well, what was slow/hard (diagnosis, mitigation, comms, tooling).
 ## Five whys          — chain from symptom to systemic cause.
 ## Action items       — table: action | type (mitigative/preventative) | owner | due | tracking link.
@@ -59,7 +59,7 @@ Status: <draft|final>   Authors: <…>   Date: <…>
   ```
 
 - Each item is **owned, dated, tracked** — an un-owned action item is a wish. Use typed handoffs:
-  resilience/code → typed `sde` agent; detection/SLO → typed `sre-steward` agent; investigation follow-up →
+  resilience/code → typed `sde` agent; detection/SLO → typed `observability-engineer` agent; investigation follow-up →
   typed `sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `scribe`
   agent.
 - Be honest about what you don't know; mark unconfirmed causes `[unverified]` and state how to confirm them.

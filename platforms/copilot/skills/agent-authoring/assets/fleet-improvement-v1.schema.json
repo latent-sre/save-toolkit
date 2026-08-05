@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/latent-sre/sre-agents/skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
-  "title": "SRE Agents fleet improvement record v1",
+  "$id": "https://github.com/latent-sre/save-toolkit/skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
+  "title": "Save Toolkit fleet improvement record v1",
   "description": "A bounded, reviewable fleet-improvement ledger record. The bundled executable validator additionally enforces legal transitions, caller-supplied authority, append-only history, cumulative reservations and actual usage, resolved evidence envelopes, exact-subject binding, path scope, and credential rejection.",
   "type": "object",
   "additionalProperties": false,
