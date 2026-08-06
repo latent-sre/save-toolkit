@@ -7,14 +7,23 @@ itself. Operational discoveries continue through `operational-learning`; only re
 behavior and one material safety or authority failure enter this ledger.
 
 The portable record shape is the
-[fleet improvement v1 schema](../assets/fleet-improvement-v1.schema.json). The executable
-lifecycle validator and repository corpus gate — which added transition, cumulative-budget,
-exact-subject, evidence-resolution, path-scope, credential-rejection, append-only-history, and
-external-authority checks that JSON Schema cannot express — are **parked at repository tag
-`pre-trim-2026-08-02`** until the ledger carries enough real records to justify them; this document
-remains the contract those records must satisfy. Store records at
-`evals/improvements/<improvement-id>/record.json`; keep raw traces and provider output under the
-ignored `.eval-runs/` tree, never in the record.
+[fleet improvement v1 schema](../assets/fleet-improvement-v1.schema.json). **This loop is live, not
+theoretical.** Every record under `evals/improvements/<improvement-id>/record.json` is validated
+against that schema by `validate_improvements.py` in Gate A — the schema-expressible contract
+(structure, enums, id patterns, the three-attempt and cumulative-budget *ceilings*) is enforced on
+every commit. Store records there; keep raw traces and provider output under the ignored
+`.eval-runs/` tree, never in the record.
+
+What is enforced today is the schema layer. The deeper *semantic* checks — attempt-to-attempt
+transition legality, cumulative budget summed across attempts, exact-subject revision binding,
+append-only history, and external-authority — are not expressible in JSON Schema; they are the
+documented next layer of the validator, and this document remains their contract. Their absence does
+not make the loop optional: the safety invariant below is what actually bounds it.
+
+**The one invariant that never moves:** no agent promotes, merges, or rolls back its own improvement.
+An agent may observe, record, evidence, prepare, and propose; a **human or a protected workflow**
+makes every promotion and rollback decision. The self-learning loop is the *recording and evidence*
+machinery — there is no background self-modifying process, and making the loop live does not add one.
 
 ## Contents
 

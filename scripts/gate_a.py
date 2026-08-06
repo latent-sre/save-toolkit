@@ -47,6 +47,8 @@ STRUCTURAL_STEPS = [
      ["scripts/check_stale_names.py"], None),
     ("Fleet, plugin, and generated adapter contracts",
      ["scripts/validate_fleet.py"], None),
+    ("Fleet-improvement records satisfy their schema",
+     ["scripts/validate_improvements.py"], None),
     ("Eval suite parses (shipped fleet)",
      ["evals/run_evals.py", "--validate"], None),
 ]
