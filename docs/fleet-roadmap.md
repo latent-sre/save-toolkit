@@ -135,34 +135,44 @@ do not edit the scribe-bundle contract strings the validator pins. `verification
 resolved and needs no work: `host_install_probe.py` consumes its `_is_indirection` helper, so it is
 a live utility, not an orphan.
 
-## Blocked on an owner decision
+## Blocked on live configuration
 
-### PROTECT-001 — assign repository protection identities
+### PROTECT-001 — protect main without CODEOWNERS
 
-**Status:** `decision-needed`
+**Status:** `active`
 
-**Outcome:** `main` and publication controls require reviewed changes and separate the code owner from
-the identity that performs exact-SHA promotion.
+**Outcome:** `main` rejects direct pushes and merges without the named status check
+`protection-gate`; administrators cannot bypass; maintainer and promotion identities are named and
+distinct. No CODEOWNERS file exists or is required.
 
-**Source:** `CONTRIBUTING.md` promotion policy and the live GitHub configuration review.
+**Source:** `CONTRIBUTING.md` promotion policy, the live GitHub configuration review, and the
+owner decision to reject CODEOWNERS for this user-owned solo-maintainer repo (supersedes historical
+Task-44 CODEOWNERS designs — do not revive them from old plans).
 
-**Prerequisites:** Owner assignment. At present only `latent-sre` is a repository collaborator;
-`agentic-sre-dev` is authenticated locally but is not a collaborator, and no dedicated promotion App
-has been established.
+**Prerequisites:** Owner decisions recorded below. Identities assigned:
 
-`main` is currently unprotected — `GET branches/main/protection` returns 404 — and no check is
-required to merge, so the `Validate fleet` workflow can be disabled without blocking anything. That
-happened on 2026-08-02 and went unnoticed until 2026-08-03, during which six pull requests merged
-with no structural verification. Until a named required check exists, a switched-off gate is
-indistinguishable from a passing one: it does not fail, it stops running.
+| Role | Identity | Access now |
+|---|---|---|
+| Maintainer / merge authority | `latent-sre` | Admin |
+| Promotion / exact-SHA publish | `agentic-sre-dev` | Read-only until RELEASE-001 |
 
-**Acceptance:** A default CODEOWNERS rule covers canonical sources, generated adapters, hooks,
-workflows, manifests, executable skill assets, and the ownership file itself; active rules require PR,
-code-owner review, and named checks with no administrative bypass; a distinct least-privileged
-operator or repository-scoped GitHub App owns promotion.
+No GitHub App in this item; RELEASE-001 may later replace `agentic-sre-dev` with a least-privileged
+App. Do not elevate `agentic-sre-dev` to Write for this item.
 
-**Next action:** The repository owner assigns maintainer and promotion-operator identities. Do not add
-a CODEOWNERS rule that the current single-collaborator topology cannot satisfy.
+**Owner decision:** No CODEOWNERS. Protection is required PR + named check + no admin bypass, not
+code-owner review. Required approving review count stays `0` so the solo topology remains
+satisfiable.
+
+**Acceptance:** An active repository ruleset on `~DEFAULT_BRANCH` requires a pull request, requires
+status check `protection-gate` (strict), blocks force-push and branch deletion, and has an empty
+bypass list. Classic `GET branches/main/protection` may still 404 — rulesets are authoritative.
+Evidence: ruleset JSON, a canary PR that merges only after `protection-gate` is green, and
+confirmation that disabling Validate fleet leaves `protection-gate` missing so merges cannot
+proceed. CONTRIBUTING Promotion section matches this control plane.
+
+**Next action:** Merge the `protection-gate` workflow job, then update/replace the Priotech
+default-branch ruleset to require PR + `protection-gate` with no bypass. Verify, then remove this
+item from the live roadmap.
 
 ### RELEASE-001 — publish and roll back one immutable release
 

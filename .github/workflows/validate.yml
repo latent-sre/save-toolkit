@@ -86,3 +86,13 @@ jobs:
 
       - name: Validate plugin manifest, frontmatter, and hooks
         run: claude plugin validate . --strict
+
+  # Single stable check name for branch rulesets. Matrix legs produce contexts like
+  # `validate (ubuntu-latest, python3)`; requiring each is brittle. If this workflow is
+  # disabled, `protection-gate` never runs and merges fail — closing the silent-disable hole.
+  protection-gate:
+    needs: [validate, claude-plugin-contract]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All Validate fleet jobs passed
+        run: echo "protection-gate ok"
