@@ -2,7 +2,7 @@
 
 - Date: 2026-08-04
 - Status: Accepted
-- Decision owners: sre-agents maintainers
+- Decision owners: save-toolkit maintainers
 
 ## Context
 
@@ -75,3 +75,10 @@ together, then regenerate adapters with `python scripts/generate_platform_adapte
 revert the canonical agent while leaving generated roots on the new name; `scripts/validate_fleet.py`
 treats that drift as a failure. The eval grader tightening in step 3 stands on its own and should be
 kept on rollback.
+
+## Post-decision note (2026-08-05)
+
+Decision 3 correctly recorded that the `sre-agents` plugin-prefix collision survived any *agent*
+rename. That remaining defect was closed by renaming the plugin namespace to `save-toolkit`
+([`2026-08-05-save-toolkit-rename.md`](2026-08-05-save-toolkit-rename.md)); component addressing is
+now `save-toolkit:observability-engineer`. The Decision text above is left as written on 2026-08-04.

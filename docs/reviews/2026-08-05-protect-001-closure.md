@@ -3,7 +3,9 @@
 - **Roadmap item:** `PROTECT-001` — protect `main` without CODEOWNERS
 - **Closure date:** 2026-08-05 (America/Chicago)
 - **Owner decision:** No CODEOWNERS file for this user-owned solo-maintainer repository.
-  Historical Task-44 CODEOWNERS designs are superseded and must not be revived from old plans.
+  Historical Task-44 CODEOWNERS designs were superseded for this item.
+- **Later policy (2026-08-06):** Live contributor policy no longer forbids adding CODEOWNERS;
+  protection remains the `Protect main` ruleset. This closure still records what PROTECT-001 decided.
 
 ## Identities
 

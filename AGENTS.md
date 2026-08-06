@@ -173,6 +173,10 @@ resume an unchecked historical checklist solely because its boxes remain open.
 
 ## Hard rules
 
+The full must-follow index (structural, authority, process, docs, stack) lives in
+[`docs/rules.md`](docs/rules.md). The five bullets below are the load-bearing subset every change
+must respect:
+
 - **Standard library only** for everything under `scripts/` — validators, tests, the guard, and the
   generator. No new dependencies, no pytest, no third-party YAML parser: every host package must
   validate anywhere Python does.
@@ -191,4 +195,5 @@ resume an unchecked historical checklist solely because its boxes remain open.
 ---
 
 *Working on the fleet itself? Layout, authoring rules, and the verification protocol are in
-[CONTRIBUTING.md](CONTRIBUTING.md); the structural gate is `python scripts/gate_a.py`.*
+[CONTRIBUTING.md](CONTRIBUTING.md); the structural gate is `python scripts/gate_a.py`. The rules
+catalog is [docs/rules.md](docs/rules.md).*

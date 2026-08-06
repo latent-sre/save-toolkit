@@ -2,7 +2,7 @@
 
 - Date: 2026-07-31
 - Status: Accepted
-- Decision owners: sre-agents maintainers
+- Decision owners: save-toolkit maintainers
 - Sister-lab input: `latent-sre/sde-agents@d50eda62c4fec083f5a5b0b3980f845d7ae0d8a1`
 
 ## Context
@@ -23,7 +23,9 @@ guard that never runs.
    by a plugin-level `hooks/hooks.json` that self-scopes to exact agent identities.
 3. `scripts/generate_platform_adapters.py` transactionally generates and byte-checks:
    `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, and
-   `plugins/sre-agents/skills/`.
+   `plugins/save-toolkit/skills/`.
+   (Post-decision: the plugin id was later renamed from `sre-agents` to `save-toolkit`; see
+   [`2026-08-05-save-toolkit-rename.md`](2026-08-05-save-toolkit-rename.md).)
 4. Copilot/VS Code guarded roles receive no execute tool because their plugin contract cannot enforce
    Claude's agent-specific command allowlist.
 5. Codex agents are standalone TOML, not a claimed plugin component. They request sandbox mode from

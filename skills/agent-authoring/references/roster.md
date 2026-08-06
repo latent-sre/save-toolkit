@@ -8,20 +8,19 @@ independent perspectives reduce error (review panels, adversarial verification);
 real wall-clock time. If none of those hold, recommend the single-agent design and say why.
 
 Multi-agent is an architecture decision with real costs — tokens, latency, and information loss at
-every handoff — justified only when one context genuinely can't hold the work, stages need isolation,
-independent perspectives reduce error, or parallelism pays. Fan-out runs **~15× the tokens of a normal
-chat** (single agents already run ~4×), so default to fewer agents with better skills.
+every handoff. Fan-out runs **~15× the tokens of a normal chat** (single agents already run ~4×), so
+weigh that cost when splitting work across agents versus deepening skills on an existing role.
 *[sourced: Anthropic "Building effective agents", "How we built our multi-agent research system"]*
 
-## Agent vs. skill (this fleet's decision rule)
+## Agent vs. skill
 
-An **agent** exists when it needs a **distinct tool-scope**. A distinct guard posture or recurring domain lane justifies a new agent only when it produces genuinely distinct tool authority. Everything else — altitude, method, checklist, playbook — is a **skill**. Seniority tiers are ladder skills, not cloned agents;
-routing and live coordination stay in the main session because a coordinator subagent only adds a
-round-trip for a low-context decision the main session can make inline. Apply this test before adding
-any agent, and record the justification in the agent's own file (or an ADR if it reshapes the roster).
-That routing choice is a reasoned default, not a measured result: neither shape has been A/B tested for
-this fleet. Apply the bar symmetrically and change the architecture if a controlled A/B shows that a
-coordinator agent outperforms the in-session skill after token, latency, and routing quality are counted.
+An **agent** is a roster role with its own tool posture and lane. A **skill** is altitude, method,
+checklist, or playbook loaded into a lane. Seniority tiers are ladder skills, not cloned agents;
+routing and live coordination usually stay in the main session because a coordinator subagent often
+adds a round-trip for a low-context decision the main session can make inline. When adding an agent,
+record why in the agent's own file (or an ADR if it reshapes the roster). Tool-scope splits are a
+common reason — not the only one. That routing choice is a reasoned default, not a measured result:
+neither shape has been A/B tested for this fleet.
 
 The local/external research split is the fleet's concrete example. `repository-investigator` receives
 only local `Read`/`Grep`/`Glob`; `researcher` receives only external web, Context7, and GitHits

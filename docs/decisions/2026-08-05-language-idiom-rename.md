@@ -23,9 +23,11 @@ not a load" apology in `ops-tooling`, and "this skill neither preloads nor loads
 perimeter of signs pointing away from a skill that looked like the parent of its non-siblings.
 
 `craft` ⊂ `backend-craft`/`frontend-craft` was also the fleet's last remaining component-name
-substring collision (see the `observability-engineer` and `save-toolkit` ADRs for why that class
-bites), latent rather than live: the Codex generator's backtick rewrite covers agent names only,
-and no eval grader asserted the bare word.
+substring collision (see the
+[`observability-engineer`](2026-08-04-observability-engineer-rename.md) and
+[`save-toolkit`](2026-08-05-save-toolkit-rename.md) ADRs for why that class bites), latent rather
+than live: the Codex generator's backtick rewrite covers agent names only, and no eval grader
+asserted the bare word.
 
 ## Decision
 

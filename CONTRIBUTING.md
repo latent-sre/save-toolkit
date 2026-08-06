@@ -1,5 +1,8 @@
 # Contributing
 
+Must-follow constraints for this repository are indexed in [`docs/rules.md`](docs/rules.md). This
+file is the contributor protocol — how to change, verify, and promote work.
+
 ## Personal first, promote by PR
 
 Use the `agent-authoring` method to prototype a new agent or skill in
@@ -52,16 +55,13 @@ Every result distinguishes `[verified]`, `[sourced]`, and `[unverified]` claims.
 what passed, and every residual item that could not be verified. Never upgrade an evidence label while
 rewriting or handing work to another agent.
 
-Runtime probes and isolated verification controls emit
-[`schemas/evidence-envelope-v1.schema.json`](schemas/evidence-envelope-v1.schema.json) through the
-executable validator in `scripts/evidence_envelope.py`. Do not add ad-hoc "success" JSON. Unknown
-fields, secret-bearing field names, credential-shaped argv, invalid statuses, and incomplete identity
-are rejected. A missing tool or unavailable host is `skip` or `inconclusive`, never `pass`.
+Runtime probes follow the single probe/schema contract family in
+[`docs/schema-compatibility.md`](docs/schema-compatibility.md) and
+[`docs/verification-sandbox.md`](docs/verification-sandbox.md) (versioned schemas, evidence envelopes
+via `scripts/evidence_envelope.py`, digest-bound sandbox). Prefer those docs over restating the
+shape here.
 
 ## Promotion
-
-There is **no CODEOWNERS** file — owner decision for this user-owned solo-maintainer repo.
-Historical Task-44 CODEOWNERS designs must not be revived from old plans.
 
 `main` is protected by repository ruleset
 [`Protect main`](https://github.com/latent-sre/save-toolkit/rules/17841231): pull requests
