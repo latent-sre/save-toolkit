@@ -63,12 +63,12 @@ are rejected. A missing tool or unavailable host is `skip` or `inconclusive`, ne
 There is **no CODEOWNERS** file — owner decision for this user-owned solo-maintainer repo.
 Historical Task-44 CODEOWNERS designs must not be revived from old plans.
 
-`main` protection is the PROTECT-001 control plane: a repository ruleset that requires a pull
-request, requires the single status check `protection-gate` (from `.github/workflows/validate.yml`),
-blocks force-push and branch deletion, and allows no administrative bypass. Classic branch
-protection may remain absent; rulesets are authoritative. Until PROTECT-001 acceptance evidence is
-recorded and the item leaves [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md), do not treat merge
-to `main` as gated.
+`main` is protected by repository ruleset
+[`Protect main`](https://github.com/latent-sre/save-toolkit/rules/17841231): pull requests
+required, the single status check `protection-gate` (from `.github/workflows/validate.yml`) must
+pass, force-push and branch deletion are blocked, and administrators cannot bypass. Classic branch
+protection may remain absent; rulesets are authoritative. Closure evidence:
+[`docs/reviews/2026-08-05-protect-001-closure.md`](docs/reviews/2026-08-05-protect-001-closure.md).
 
 Maintainer / merge authority: `latent-sre`. Named promotion operator (exact-SHA publish):
 `agentic-sre-dev` (read-only until RELEASE-001; may later be replaced by a least-privileged App).
@@ -77,7 +77,6 @@ Publication remains **blocked** until RELEASE-001 lands: an exact-SHA promotion 
 named promotion operator, plus the live GitHub environment/App configuration that workflow needs.
 Do not create or move a `release` ref merely because the superseded plan named one: first verify
 whether each host's current distribution contract needs a moving ref or can consume an immutable
-version tag. Until then, never publish a release artifact or move a release ref. Live prerequisites
-and acceptance evidence are `PROTECT-001` and `RELEASE-001` in
-[`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); the old branch-based design remains recoverable at
-tag `pre-cleanup-2026-07-15` as historical rationale only.
+version tag. Until then, never publish a release artifact or move a release ref. The live item is
+`RELEASE-001` in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); the old branch-based design
+remains recoverable at tag `pre-cleanup-2026-07-15` as historical rationale only.

@@ -13,7 +13,8 @@ adapters for Copilot/VS Code and Codex.
 Closed work is retained in the
 [`SAFE-001 closure`](reviews/2026-08-01-safe-001-closure.md) and
 [`IMPROVE-001 closure`](reviews/2026-08-01-fleet-improvement-closure.md), plus the
-[`VERIFY-001 closure`](reviews/2026-08-02-verify-001-closure.md). The local Sol evaluator
+[`VERIFY-001 closure`](reviews/2026-08-02-verify-001-closure.md) and
+[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md). The local Sol evaluator
 decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
 
@@ -135,44 +136,7 @@ do not edit the scribe-bundle contract strings the validator pins. `verification
 resolved and needs no work: `host_install_probe.py` consumes its `_is_indirection` helper, so it is
 a live utility, not an orphan.
 
-## Blocked on live configuration
-
-### PROTECT-001 — protect main without CODEOWNERS
-
-**Status:** `active`
-
-**Outcome:** `main` rejects direct pushes and merges without the named status check
-`protection-gate`; administrators cannot bypass; maintainer and promotion identities are named and
-distinct. No CODEOWNERS file exists or is required.
-
-**Source:** `CONTRIBUTING.md` promotion policy, the live GitHub configuration review, and the
-owner decision to reject CODEOWNERS for this user-owned solo-maintainer repo (supersedes historical
-Task-44 CODEOWNERS designs — do not revive them from old plans).
-
-**Prerequisites:** Owner decisions recorded below. Identities assigned:
-
-| Role | Identity | Access now |
-|---|---|---|
-| Maintainer / merge authority | `latent-sre` | Admin |
-| Promotion / exact-SHA publish | `agentic-sre-dev` | Read-only until RELEASE-001 |
-
-No GitHub App in this item; RELEASE-001 may later replace `agentic-sre-dev` with a least-privileged
-App. Do not elevate `agentic-sre-dev` to Write for this item.
-
-**Owner decision:** No CODEOWNERS. Protection is required PR + named check + no admin bypass, not
-code-owner review. Required approving review count stays `0` so the solo topology remains
-satisfiable.
-
-**Acceptance:** An active repository ruleset on `~DEFAULT_BRANCH` requires a pull request, requires
-status check `protection-gate` (strict), blocks force-push and branch deletion, and has an empty
-bypass list. Classic `GET branches/main/protection` may still 404 — rulesets are authoritative.
-Evidence: ruleset JSON, a canary PR that merges only after `protection-gate` is green, and
-confirmation that disabling Validate fleet leaves `protection-gate` missing so merges cannot
-proceed. CONTRIBUTING Promotion section matches this control plane.
-
-**Next action:** Merge the `protection-gate` workflow job, then update/replace the Priotech
-default-branch ruleset to require PR + `protection-gate` with no bypass. Verify, then remove this
-item from the live roadmap.
+## Blocked on prior work
 
 ### RELEASE-001 — publish and roll back one immutable release
 
@@ -182,9 +146,10 @@ item from the live roadmap.
 without rebuilding or moving an unprotected ref.
 
 **Source:** The historical distribution plan, rewritten for the accepted multi-platform plugin
-architecture.
+architecture. Main-branch protection closed under
+[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md).
 
-**Prerequisites:** PROTECT-001 and HOST-001.
+**Prerequisites:** HOST-001.
 
 **Acceptance:** Version parity and changelog pass; `claude plugin tag --dry-run` validates the Claude
 manifest/marketplace pair; every host's publication mechanism is verified before choosing an
@@ -192,9 +157,10 @@ immutable tag or protected moving ref; promotion consumes the reviewed SHA and r
 install and uninstall smoke tests pass from the published artifact; rollback or yank is rehearsed and
 documented.
 
-**Next action:** After protection identities are assigned, write the exact-SHA promotion design and
-verify each host's remote distribution contract. Do not create a long-lived `release` branch merely
-because the superseded plan named one.
+**Next action:** After HOST-001 acceptance, write the exact-SHA promotion design owned by the named
+promotion operator `agentic-sre-dev` (or a later least-privileged App) and verify each host's remote
+distribution contract. Do not create a long-lived `release` branch merely because the superseded
+plan named one.
 
 ## Deferred
 
@@ -270,7 +236,8 @@ one exact action, target, argv/executable digest, expiry, nonce, rollback, and r
 state for externally dispatched effects.
 
 **Prerequisites:** A named workflow approved to cross the current prepare/recommend boundary, a
-separately controlled execution identity, and `PROTECT-001` enforcement.
+separately controlled execution identity, and live `main` ruleset enforcement as recorded in
+[`docs/reviews/2026-08-05-protect-001-closure.md`](reviews/2026-08-05-protect-001-closure.md).
 
 **Acceptance:** Effect-bound approval, dispatch, unknown-outcome reconciliation, replay prevention,
 expiry, rollback, and operator-resolution tests pass for the named effect target.
