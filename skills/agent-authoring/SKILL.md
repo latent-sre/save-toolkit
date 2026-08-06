@@ -61,6 +61,9 @@ Route to the relevant method without loading sibling skills:
   descriptions, and graders.
 - [roster guidance](./references/roster.md) for “agent or skill?”, delegation, fan-out, and
   orchestration.
+- [the delegation graph](./references/delegation-graph.md) — the fleet as a directed graph we
+  engineer: its one enforced source, its validated render, the main-thread-only limit, and the
+  three places an edge change must land together.
 - [tool guidance](./references/tools.md) for tool contracts and promotion from shell prototypes.
 - [context guidance](./references/context.md) for cold-start packets and bounded evidence.
 - [bounded fleet-improvement lifecycle](./references/improvement-lifecycle.md) for turning a

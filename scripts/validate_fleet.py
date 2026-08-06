@@ -470,10 +470,68 @@ def validate_guard_wiring(root: Path, agent_names: list[str]) -> list[str]:
     return failures
 
 
+def validate_roster_graph(root: Path) -> list[str]:
+    """Bind the AGENTS.md roster 'Delegates to' column to the enforced delegation graph.
+
+    The fleet's delegation graph has exactly one enforced SOURCE — each agent's `Agent(...)` grant
+    in frontmatter, checked against EXPECTED_DELEGATION in validate_agents — and one human-readable
+    RENDER: the "Delegates to" column of the roster table in AGENTS.md. Nothing kept the render
+    honest until here. An edge added to (or dropped from) an agent's frontmatter, or a new agent,
+    could leave the roster describing a graph the fleet no longer has — the repo's signature
+    silent-drift failure, one table further out from the code. This turns the render into a
+    validated projection of the enforced graph rather than a hand-kept second story.
+
+    It parses only the LAST cell of each roster row for edges, so backticked tool names in the
+    "Tools posture" cell (`Read`, `cf`, `git`) can never be misread as delegation targets.
+    """
+    path = root / "AGENTS.md"
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        return [str(exc)]
+    documented: dict[str, set[str]] = {}
+    in_table = False
+    for line in lines:
+        stripped = line.strip()
+        if not in_table:
+            if stripped.startswith("|") and "Delegates to" in stripped and "Agent" in stripped:
+                in_table = True
+            continue
+        if not stripped.startswith("|"):
+            break  # first non-table line ends the roster
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) < 4:
+            continue
+        agent_names = re.findall(r"`([a-z0-9-]+)`", cells[0])
+        if not agent_names:
+            continue  # header/separator row, or a row without a backticked agent name
+        documented[agent_names[0]] = set(re.findall(r"`([a-z0-9-]+)`", cells[-1]))
+
+    if not documented:
+        return [f"{path}: could not find the roster 'Delegates to' table to validate the graph"]
+
+    failures: list[str] = []
+    expected_agents = set(EXPECTED_DELEGATION)
+    if set(documented) != expected_agents:
+        failures.append(
+            f"{path}: roster rows {sorted(documented)} do not match the enforced roster "
+            f"{sorted(expected_agents)}"
+        )
+    for agent in sorted(set(documented) & expected_agents):
+        if documented[agent] != EXPECTED_DELEGATION[agent]:
+            failures.append(
+                f"{path}: roster 'Delegates to' for {agent!r} is "
+                f"{', '.join(sorted(documented[agent])) or '—'}, but the enforced graph has "
+                f"{', '.join(sorted(EXPECTED_DELEGATION[agent])) or '—'}"
+            )
+    return failures
+
+
 def validate_repo(root: Path = ROOT) -> tuple[list[str], list[str]]:
     names, failures = validate_agents(root)
     failures.extend(validate_scribe_bundle(root))
     failures.extend(validate_guard_wiring(root, names))
+    failures.extend(validate_roster_graph(root))
     failures.extend(adapters.validate_platform_support(root))
     return names, failures
 
