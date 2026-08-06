@@ -54,6 +54,10 @@ from typing import Mapping, Sequence
 import knowledge_update
 
 PENDING_STATUSES = {"proposed", "blocked"}
+# Bounds the machine-readable payload without hiding the cut: past this many commits the finding
+# sets commits_truncated. The human report shows fewer still and says how many it left out.
+MAX_PAYLOAD_COMMITS = 50
+MAX_PRINTED_COMMITS = 5
 # Repository evidence is conventionally cited as `path` or `path:line` / `path:line-line`.
 # Strip only that trailing line reference; anything else is left for the safety check to judge.
 LINE_REFERENCE_RE = re.compile(r":\d+(?:-\d+)?$")
@@ -97,10 +101,12 @@ def is_known_to_git(root: Path, relative: str) -> bool:
     undistinguished, the second reads as "checked, clean" — the false green this watch exits 2 to
     avoid everywhere else. A path deleted since the baseline still has history, so removing the
     file the packet reasoned about stays drift rather than becoming unwatchable.
+
+    History is the only authority here. Presence in the working tree is not: an untracked or
+    ignored file exists on disk yet yields the same empty log, so trusting the filesystem would
+    reopen the hole this function exists to close.
     """
 
-    if (root / relative).exists():
-        return True
     return bool(git(root, "log", "-1", "--format=%h", "--", relative))
 
 
@@ -242,7 +248,11 @@ def inspect_packet(root: Path, path: Path, now: datetime) -> dict[str, object] |
         "pending_artifacts": pending,
         "baseline_revision": revision,
         "drifted_paths": drifted,
-        "commits": commits[:5],
+        # commit_count counts distinct SHAs while commits holds (path, commit) pairs, so their
+        # lengths differ even when nothing was dropped. A consumer therefore cannot infer
+        # truncation by comparing them, and has to be told outright.
+        "commits": commits[:MAX_PAYLOAD_COMMITS],
+        "commits_truncated": len(commits) > MAX_PAYLOAD_COMMITS,
         "commit_count": len(revisions),
         "freshness": stale,
         "unwatchable_locators": unwatchable,
@@ -273,8 +283,12 @@ def _report(findings: Sequence[Mapping[str, object]]) -> None:
             f"  ({finding['commit_count']} commit(s) since "
             f"{str(finding['baseline_revision'])[:12]})"
         )
-        for entry in finding["commits"]:
+        for entry in finding["commits"][:MAX_PRINTED_COMMITS]:
             print(f"      {entry['path']}: {entry['commit'][:96]}")
+        withheld = len(finding["commits"]) - MAX_PRINTED_COMMITS
+        if withheld > 0:
+            more = "more (payload also truncated)" if finding["commits_truncated"] else "more"
+            print(f"      ... and {withheld} {more}")
         for stale in finding["freshness"]:
             print(f"      freshness: {stale}")
         for locator in finding["unwatchable_locators"]:
@@ -298,25 +312,40 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="emit findings as JSON")
     args = parser.parse_args(argv)
 
+    # A bad clock argument or an unreadable root invalidates every packet, so those stop the run.
     try:
         now = _now(args.now)
         verify_repository(args.root)
-        findings = [
-            finding
-            for packet in args.packets
-            if (finding := inspect_packet(args.root, packet, now)) is not None
-        ]
     except PacketDriftError as exc:
         print(f"packet_drift: {exc}", file=sys.stderr)
         return 2
 
+    # One unreadable packet, by contrast, says nothing about the others. Burying their findings
+    # behind an unrelated corrupt file would lose a genuine review prompt.
+    findings: list[Mapping[str, object]] = []
+    errors: list[str] = []
+    for packet in args.packets:
+        try:
+            finding = inspect_packet(args.root, packet, now)
+        except PacketDriftError as exc:
+            errors.append(str(exc))
+            continue
+        if finding is not None:
+            findings.append(finding)
+
     if args.json:
         print(json.dumps(findings, indent=2))
-    elif not findings:
-        print("OK - no pending packet has drifted or passed a freshness deadline.")
-    else:
+    elif findings:
         _report(findings)
+    elif not errors:
+        # Only claim a clean sweep when every packet was actually inspected.
+        print("OK - no pending packet has drifted or passed a freshness deadline.")
 
+    for error in errors:
+        print(f"packet_drift: {error}", file=sys.stderr)
+
+    if errors:
+        return 2
     return 1 if (findings and args.fail_on_drift) else 0
 
 

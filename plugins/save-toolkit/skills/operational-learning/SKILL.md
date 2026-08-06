@@ -53,8 +53,10 @@ approved/merged/verified. Active incidents stay with `save-toolkit-sre`; alert/S
   and migration testing, not as the default write shape.
 - An outer caller or CI may run the [packet drift watch](./scripts/packet_drift.py) over packets that
   still carry `proposed` or `blocked` dispositions. It reports evidence paths committed to since
-  `target.revision` and passed freshness deadlines. It is advisory by default and exits non-zero only
-  on an unreadable repository or packet; a hit is a prompt to look, never proof of a defect.
+  `target.revision` and passed freshness deadlines. A hit is a prompt to look, never proof of a
+  defect, so the watch is advisory by default: exit 0 with findings, exit 1 only when the caller
+  opts in with `--fail-on-drift`, and exit 2 when a repository, revision, or packet could not be
+  read. It never reports a clean sweep for evidence it did not inspect.
 
 ## Close the loop
 

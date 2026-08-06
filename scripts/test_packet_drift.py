@@ -167,17 +167,16 @@ class PacketDriftTests(unittest.TestCase):
         self._packet()
 
         self.assertEqual(1, self._run("--fail-on-drift").returncode)
-        # The opt-in gate must stay quiet when there is nothing to report.
-        self._write("deploy/checkout.yaml", "name: checkout\n")
-        self._commit("revert")
-        clean = subprocess.run(
-            [sys.executable, str(WATCH_PATH), str(self.packet_path), "--root", str(self.repository)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=False,
-        )
-        self.assertIn("ku_checkout", clean.stdout)
+
+    def test_fail_on_drift_still_exits_zero_when_there_is_nothing_to_report(self) -> None:
+        """The half of the gate contract that is easy to lose: the flag must key on findings, not
+        merely on being passed. Without this, mutating the exit expression to
+        `1 if args.fail_on_drift else 0` fails every clean sweep and no test notices."""
+        self._packet()
+
+        result = self._run("--fail-on-drift")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("no pending packet", result.stdout.lower())
 
     def test_settled_packet_without_pending_dispositions_is_not_watched(self) -> None:
         self._write("deploy/checkout.yaml", "name: checkout\nreplicas: 3\n")
@@ -272,6 +271,20 @@ class PacketDriftTests(unittest.TestCase):
         self.assertEqual([], findings[0]["drifted_paths"])
         self.assertEqual(["deploy/never-existed.yaml"], findings[0]["unwatchable_locators"])
 
+    def test_untracked_file_on_disk_is_unwatchable_not_clean(self) -> None:
+        """Existing on disk is not the same as Git being able to report history for it. An
+        untracked or ignored path yields an empty log for the same reason a never-tracked one
+        does, so deciding watchability from the filesystem re-opens the false-clean hole."""
+        self._write("deploy/untracked.yaml", "name: untracked\n")
+        packet = self._packet()
+        packet["evidence"][0]["locator"] = "deploy/untracked.yaml"  # type: ignore[index]
+        self.packet_path.write_text(json.dumps(packet), encoding="utf-8")
+
+        findings = json.loads(self._run("--json").stdout)
+        self.assertEqual(1, len(findings))
+        self.assertEqual([], findings[0]["drifted_paths"])
+        self.assertEqual(["deploy/untracked.yaml"], findings[0]["unwatchable_locators"])
+
     def test_deleted_evidence_path_still_counts_as_drift(self) -> None:
         """Deleting the file the packet reasoned about is the strongest possible drift signal.
         It must not fall through the never-tracked check into 'unwatchable'."""
@@ -340,6 +353,50 @@ class PacketDriftTests(unittest.TestCase):
         self.assertEqual(["deploy/checkout.yaml"], findings[0]["drifted_paths"])
         self.assertEqual(1, findings[0]["commit_count"])
         self.assertEqual([], findings[0]["unwatchable_locators"])
+
+    def test_one_unreadable_packet_does_not_discard_the_rest_of_the_batch(self) -> None:
+        """A nightly sweep passes many packets. One corrupt file must not bury the genuine
+        review prompts already computed for every other packet — it must be reported alongside
+        them, with the run still exiting 2 so the corruption is never mistaken for a clean pass."""
+        self._write("deploy/checkout.yaml", "name: checkout\nreplicas: 3\n")
+        self._commit("scale checkout")
+        self._packet()
+        broken = self.packet_path.parent / "broken.json"
+        broken.write_text("{not json", encoding="utf-8")
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(WATCH_PATH),
+                str(broken),
+                str(self.packet_path),
+                "--root",
+                str(self.repository),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(2, result.returncode)
+        self.assertIn("packet_drift:", result.stderr)
+        # The healthy packet's finding survives the unreadable one.
+        self.assertIn("ku_checkout_application_approved", result.stdout)
+        self.assertIn("deploy/checkout.yaml", result.stdout)
+
+    def test_json_commit_list_is_not_silently_truncated(self) -> None:
+        """commit_count counts distinct SHAs while commits holds (path, commit) pairs, so a
+        consumer cannot infer truncation by comparing their lengths. Either every commit is
+        present or the payload says outright that some were dropped."""
+        for index in range(7):
+            self._write("deploy/checkout.yaml", f"name: checkout\nreplicas: {index}\n")
+            self._commit(f"scale checkout {index}")
+        self._packet()
+
+        findings = json.loads(self._run("--json").stdout)
+        self.assertEqual(7, findings[0]["commit_count"])
+        self.assertEqual(7, len(findings[0]["commits"]))
+        self.assertFalse(findings[0]["commits_truncated"])
 
     def test_malformed_packet_exits_two(self) -> None:
         self.packet_path.write_text("{not json", encoding="utf-8")
