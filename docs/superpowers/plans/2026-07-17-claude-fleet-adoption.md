@@ -13,7 +13,7 @@
 
 **Tech Stack:** Claude Code agents/skills (Markdown + YAML frontmatter), Python 3 stdlib scripts, Git Bash on Windows.
 
-**Spec:** `docs/superpowers/specs/2026-07-17-claude-fleet-adoption-design.md` (approved). Prior evidence: `docs/superpowers/specs/2026-07-13-copilot-fleet-redesign-design.md`, `docs/AUDIT-2026-07-12.md` (both restored on this branch).
+**Spec:** `docs/superpowers/specs/2026-07-17-claude-fleet-adoption-design.md` (approved). Prior evidence: `docs/superpowers/specs/2026-07-13-copilot-fleet-redesign-design.md`, and the removed `docs/AUDIT-2026-07-12.md` (git history; both restored on this branch at the time).
 
 ## Global Constraints
 
@@ -70,14 +70,14 @@ git diff --name-only --diff-filter=U   # expect: empty
 
 - [ ] **Step 4: Reinstate this branch's docs tree**
 
-The merge auto-deletes docs files that codex removed (`docs/RESEARCH.md`, `docs/AUDIT-2026-07-12.md`, the 2026-07-13 plans/specs) because they are unchanged on our side. Bring back the entire pre-merge `docs/` tree:
+The merge auto-deletes docs files that codex removed (`docs/RESEARCH.md`, then-present `docs/AUDIT-2026-07-12.md`, the 2026-07-13 plans/specs) because they are unchanged on our side. Bring back the entire pre-merge `docs/` tree:
 
 ```bash
 git restore --source=HEAD --staged --worktree docs/
 ls docs docs/superpowers/specs docs/superpowers/plans
 ```
 
-Expected: `RESEARCH.md`, `AUDIT-2026-07-12.md`, both 2026-07-13 specs + plans, the 2026-07-17 spec, both 2026-07-13 plans present.
+Expected (at the time): `RESEARCH.md`, `AUDIT-2026-07-12.md`, both 2026-07-13 specs + plans, the 2026-07-17 spec, both 2026-07-13 plans present. The audit file has since been removed from the tree and lives in git history only.
 
 - [ ] **Step 5: Verify the adopted tree shape**
 

@@ -282,14 +282,6 @@ def check(root: Path = ROOT) -> list[str]:
         elif text is not None and "docs/fleet-roadmap.md" not in text:
             failures.append(f"{relative.as_posix()}: must point to docs/fleet-roadmap.md")
 
-    audit, audit_error = _read(root, Path("docs/AUDIT-2026-07-12.md"))
-    if audit_error:
-        failures.append(audit_error)
-    elif audit is not None and "historical snapshot" not in _front(audit, 12):
-        failures.append(
-            "docs/AUDIT-2026-07-12.md: dated OPEN labels need a Historical snapshot banner"
-        )
-
     return failures
 
 

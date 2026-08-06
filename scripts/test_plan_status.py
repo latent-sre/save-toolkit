@@ -30,10 +30,6 @@ class PlanStatusTests(unittest.TestCase):
             "# Old spec\n\n**Status:** implemented\n",
             encoding="utf-8",
         )
-        (self.root / "docs/AUDIT-2026-07-12.md").write_text(
-            "# Audit\n\n> **Historical snapshot.**\n",
-            encoding="utf-8",
-        )
         for name in ("AGENTS.md", "README.md", "CONTRIBUTING.md"):
             (self.root / name).write_text(
                 "See docs/fleet-roadmap.md for live work.\n", encoding="utf-8"
@@ -82,14 +78,10 @@ class PlanStatusTests(unittest.TestCase):
         self.assertTrue(any("plan status must mark it" in item for item in failures))
         self.assertTrue(any("specification status must mark it" in item for item in failures))
 
-    def test_root_pointer_and_audit_banner_are_required(self) -> None:
+    def test_root_pointer_is_required(self) -> None:
         (self.root / "README.md").write_text("# No backlog pointer\n", encoding="utf-8")
-        (self.root / "docs/AUDIT-2026-07-12.md").write_text(
-            "# Audit\n\nAll findings OPEN.\n", encoding="utf-8"
-        )
         failures = check_plan_status.check(self.root)
         self.assertTrue(any(item.startswith("README.md:") for item in failures))
-        self.assertTrue(any("Historical snapshot" in item for item in failures))
 
     def test_current_evidence_rejects_volatile_numeric_pass_counts(self) -> None:
         samples = (
