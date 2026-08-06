@@ -76,7 +76,16 @@ an existing stable identifier instead of creating a second record.
    every prepared path against the target checkout, and supplies base/result SHA-256 values
    (`base_sha256` is null only for a path absent at the base revision). Without authorized roots, a
    matching Git base, Git-reviewable change, and result digest, the disposition remains `proposed`.
-7. Credential signatures catch common structured forms, not every possible secret. CI/repository
+7. Forward freshness deadlines (`review_at`, `expires_at`, v3 and later) are review prompts, not
+   retractions. Set them only from a stated cadence or a known validity horizon — `null` is the honest
+   value otherwise — and always later than `created_at`, with `review_at` no later than `expires_at`.
+   A packet past its deadline is stale and must be re-verified before reuse; passing the deadline never
+   withdraws the packet, changes a disposition, or authorizes anyone to act.
+8. A pending (`proposed`/`blocked`) packet whose repository evidence has been committed to since
+   `target.revision` needs another look: the work may already be done, or its basis may have moved.
+   That is a prompt to transition the disposition or record why the change was unrelated, never
+   evidence of a defect on its own.
+9. Credential signatures catch common structured forms, not every possible secret. CI/repository
    secret scanning and human diff review remain required defense in depth. Sanitized evidence uses
    the exact typed marker `[REDACTED:<lowercase-kind>]`; the validator masks that marker before
    scanning, including inside redacted credential URIs and ordinary sentence punctuation.

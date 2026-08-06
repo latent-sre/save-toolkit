@@ -18,8 +18,15 @@ from typing import Mapping, Sequence
 
 
 SCHEMA_VERSION = 1
-CURRENT_SCHEMA_VERSION = 2
-SUPPORTED_SCHEMA_VERSIONS = {SCHEMA_VERSION, CURRENT_SCHEMA_VERSION}
+COMPONENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
+SUPPORTED_SCHEMA_VERSIONS = {
+    SCHEMA_VERSION,
+    COMPONENT_SCHEMA_VERSION,
+    CURRENT_SCHEMA_VERSION,
+}
+# v2 and v3 share the component-identity target and trigger vocabulary; only v3 adds freshness.
+COMPONENT_SCHEMA_VERSIONS = {COMPONENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION}
 TOP_LEVEL_FIELDS = {
     "schema_version",
     "update_id",
@@ -31,6 +38,15 @@ TOP_LEVEL_FIELDS = {
     "dispositions",
     "recommendation",
     "limitations",
+}
+FRESHNESS_FIELDS = {"review_at", "expires_at"}
+V3_TOP_LEVEL_FIELDS = TOP_LEVEL_FIELDS | {"freshness"}
+# Published schemas are immutable, so the accepted top-level shape is keyed by version rather
+# than widened in place: a v1 or v2 packet carrying `freshness` is a shape break, not a bonus.
+TOP_LEVEL_FIELDS_BY_VERSION = {
+    SCHEMA_VERSION: TOP_LEVEL_FIELDS,
+    COMPONENT_SCHEMA_VERSION: TOP_LEVEL_FIELDS,
+    CURRENT_SCHEMA_VERSION: V3_TOP_LEVEL_FIELDS,
 }
 TRIGGER_KINDS = {
     "incident",
@@ -272,6 +288,45 @@ def _timestamp(value: object, field: str) -> str:
     except ValueError as exc:
         raise KnowledgeUpdateValidationError(f"{field} is not a valid timestamp") from exc
     return rendered
+
+
+def parse_utc_timestamp(rendered: str) -> datetime:
+    """Parse an already-validated RFC3339 UTC timestamp into an aware datetime."""
+
+    return datetime.fromisoformat(rendered[:-1] + "+00:00")
+
+
+def _validate_freshness(value: object, created_at: str) -> None:
+    """Validate v3 forward review/expiry deadlines.
+
+    Both deadlines are nullable because neither the author nor a migration can invent a review
+    cadence, and a guessed deadline is worse than an absent one. What is enforced is that a
+    stated deadline points forward: a deadline already past at authoring time documents nothing
+    and would make every freshness sweep fire the moment the packet lands.
+    """
+
+    freshness = _mapping(value, "freshness")
+    _exact_fields(freshness, FRESHNESS_FIELDS, "freshness")
+    created = parse_utc_timestamp(created_at)
+    deadlines: dict[str, datetime] = {}
+    for field in sorted(FRESHNESS_FIELDS):
+        raw = freshness[field]
+        if raw is None:
+            continue
+        deadline = parse_utc_timestamp(_timestamp(raw, f"freshness.{field}"))
+        if deadline <= created:
+            raise KnowledgeUpdateValidationError(
+                f"freshness.{field} must be after created_at"
+            )
+        deadlines[field] = deadline
+    if (
+        "review_at" in deadlines
+        and "expires_at" in deadlines
+        and deadlines["review_at"] > deadlines["expires_at"]
+    ):
+        raise KnowledgeUpdateValidationError(
+            "freshness.review_at must not be after freshness.expires_at"
+        )
 
 
 def _enum(value: object, allowed: set[str], field: str) -> str:
@@ -1032,8 +1087,10 @@ def _validate_dispositions(
         )
 
 
-def _normalize_v2_for_validation(update: Mapping[str, object]) -> dict[str, object]:
-    """Validate v2-only identity fields and map shared semantics onto the v1 core."""
+def _normalize_component_packet_for_validation(
+    update: Mapping[str, object],
+) -> dict[str, object]:
+    """Validate component-identity fields (v2/v3) and map shared semantics onto the v1 core."""
 
     target = _mapping(update["target"], "target")
     target_fields = {
@@ -1067,6 +1124,7 @@ def _normalize_v2_for_validation(update: Mapping[str, object]) -> dict[str, obje
         )
 
     normalized = copy.deepcopy(dict(update))
+    normalized.pop("freshness", None)
     normalized["schema_version"] = SCHEMA_VERSION
     normalized["target"] = {
         "repository": target["repository"],
@@ -1107,7 +1165,7 @@ def migrate_v1_to_v2(
     trigger_kind = _enum(trigger["kind"], TRIGGER_KINDS, "trigger.kind")
 
     migrated = copy.deepcopy(dict(update))
-    migrated["schema_version"] = CURRENT_SCHEMA_VERSION
+    migrated["schema_version"] = COMPONENT_SCHEMA_VERSION
     migrated["target"] = {
         "repository": target["repository"],
         "revision": target["revision"],
@@ -1134,6 +1192,41 @@ def migrate_v1_to_v2(
     return migrated
 
 
+def migrate_v2_to_v3(
+    update: Mapping[str, object],
+    *,
+    target_root: Path | None = None,
+    allowed_knowledge_roots: Sequence[str] | None = None,
+) -> dict[str, object]:
+    """Return a deterministic, validated v3 copy of a v2 packet.
+
+    Both freshness deadlines land ``null``: a migration cannot infer a review cadence any more
+    than the v1-to-v2 migration could infer environment or definition location. Like that
+    migration, this one validates its own output and needs the same checkout context when the
+    packet carries prepared dispositions or documentation duplicates.
+    """
+
+    declared_version = update.get("schema_version") if isinstance(update, Mapping) else None
+    if type(declared_version) is not int or declared_version != COMPONENT_SCHEMA_VERSION:
+        raise KnowledgeUpdateValidationError("migration requires schema_version 2")
+    _exact_fields(update, TOP_LEVEL_FIELDS, "knowledge update")
+
+    migrated = copy.deepcopy(dict(update))
+    migrated["schema_version"] = CURRENT_SCHEMA_VERSION
+    migrated["freshness"] = {"review_at": None, "expires_at": None}
+    try:
+        validate_update(
+            migrated,
+            target_root=target_root,
+            allowed_knowledge_roots=allowed_knowledge_roots,
+        )
+    except KnowledgeUpdateValidationError as exc:
+        raise KnowledgeUpdateValidationError(
+            f"migrated packet failed v3 validation: {exc}"
+        ) from exc
+    return migrated
+
+
 def validate_update(
     update: Mapping[str, object],
     *,
@@ -1143,7 +1236,18 @@ def validate_update(
     """Validate one operational knowledge update packet."""
 
     original_update = update
-    _exact_fields(original_update, TOP_LEVEL_FIELDS, "knowledge update")
+    declared_version = (
+        original_update.get("schema_version")
+        if isinstance(original_update, Mapping)
+        else None
+    )
+    _exact_fields(
+        original_update,
+        TOP_LEVEL_FIELDS_BY_VERSION.get(declared_version, TOP_LEVEL_FIELDS)
+        if type(declared_version) is int
+        else TOP_LEVEL_FIELDS,
+        "knowledge update",
+    )
     if (
         type(original_update["schema_version"]) is not int
         or original_update["schema_version"] not in SUPPORTED_SCHEMA_VERSIONS
@@ -1151,14 +1255,16 @@ def validate_update(
         raise KnowledgeUpdateValidationError(
             f"unsupported schema_version: {original_update['schema_version']!r}"
         )
-    if original_update["schema_version"] == CURRENT_SCHEMA_VERSION:
-        update = _normalize_v2_for_validation(original_update)
+    if original_update["schema_version"] in COMPONENT_SCHEMA_VERSIONS:
+        update = _normalize_component_packet_for_validation(original_update)
     update_id = _string(update["update_id"], "update_id", maximum=99)
     if not UPDATE_ID_RE.fullmatch(update_id):
         raise KnowledgeUpdateValidationError(
             "update_id must match ku_<lowercase stable identifier>"
         )
-    _timestamp(update["created_at"], "created_at")
+    created_at = _timestamp(update["created_at"], "created_at")
+    if original_update["schema_version"] == CURRENT_SCHEMA_VERSION:
+        _validate_freshness(original_update["freshness"], created_at)
 
     target = _mapping(update["target"], "target")
     _exact_fields(target, {"repository", "revision", "service", "knowledge_roots"}, "target")

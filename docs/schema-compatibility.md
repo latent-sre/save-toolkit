@@ -35,7 +35,24 @@ it retains.
 
 ## Operational knowledge updates
 
-Version 2 is the current write format. It replaces the v1 service-only target with stable component
+Version 3 is the current write format. It adds one required top-level `freshness` object carrying
+forward `review_at` and `expires_at` deadlines, either of which may be `null`. Because v2 is a closed
+object, that addition could not be made in place; the accepted top-level shape is therefore keyed by
+version inside the validator, and a v1 or v2 packet carrying `freshness` is rejected as a shape break.
+The validator enforces what JSON Schema cannot: a stated deadline is strictly later than `created_at`,
+and `review_at` never falls after `expires_at`. A deadline is a review prompt only — passing it never
+retracts a packet, alters a disposition, or grants authority. The deterministic
+[`migrate_v2_to_v3.py`](../skills/operational-learning/scripts/migrate_v2_to_v3.py) command sets both
+deadlines to `null`, since a migration can no more invent a review cadence than it could invent
+environment or definition location.
+
+The [`packet_drift.py`](../skills/operational-learning/scripts/packet_drift.py) watch reads packets of
+any supported version and reports pending (`proposed`/`blocked`) packets whose repository evidence has
+been committed to since `target.revision`, or whose freshness deadline has passed. It is advisory by
+default and exits non-zero only on an unreadable repository or packet, so an empty report can never be
+confused with an uninspected one.
+
+Version 2 remains supported. It replaces the v1 service-only target with stable component
 identity (`component_id`, `component_kind`, and `display_name`) and uses `component_added` and
 `component_changed` lifecycle triggers. Applications, services, workers, jobs, datastores, platforms,
 and otherwise-classified components can therefore share the same closeout contract.
@@ -52,4 +69,6 @@ migration fails closed.
 
 Example packets live beside the schemas in
 [`skills/operational-learning/assets/examples/`](../skills/operational-learning/assets/examples/).
-Repository tests validate both examples and the v1-to-v2 result with the stronger Python validator.
+Repository tests validate every example and both migration results with the stronger Python validator,
+and assert that exactly one knowledge-update version is catalogued `current` and that it matches the
+validator's own current-version constant.
