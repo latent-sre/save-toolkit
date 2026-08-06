@@ -16,11 +16,36 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = ROOT / "skills/operational-learning/scripts/knowledge_update.py"
 MIGRATION_PATH = ROOT / "skills/operational-learning/scripts/migrate_v1_to_v2.py"
+MIGRATION_V3_PATH = ROOT / "skills/operational-learning/scripts/migrate_v2_to_v3.py"
 SPEC = importlib.util.spec_from_file_location("knowledge_update", VALIDATOR_PATH)
 if SPEC is None or SPEC.loader is None:  # pragma: no cover - import machinery failure
     raise RuntimeError(f"cannot load {VALIDATOR_PATH}")
 knowledge_update = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(knowledge_update)
+
+
+def _approved_artifact_rules(rules: list[dict]) -> dict[tuple[str, str], set[str]]:
+    """Index a schema's top-level allOf by the artifacts each approved trigger kind must carry."""
+
+    encoded: dict[tuple[str, str], set[str]] = {}
+    for rule in rules:
+        trigger_properties = (
+            rule.get("if", {})
+            .get("properties", {})
+            .get("trigger", {})
+            .get("properties", {})
+        )
+        kind_rule = trigger_properties.get("kind", {})
+        state_rule = trigger_properties.get("state", {})
+        disposition_rule = rule.get("then", {}).get("properties", {}).get("dispositions", {})
+        if state_rule.get("const") == "approved" and "enum" in kind_rule:
+            artifacts = {
+                constraint["contains"]["properties"]["artifact"]["const"]
+                for constraint in disposition_rule.get("allOf", [])
+            }
+            for trigger_kind in kind_rule["enum"]:
+                encoded[(trigger_kind, "approved")] = artifacts
+    return encoded
 
 
 class OperationalLearningBaselineTests(unittest.TestCase):
@@ -224,6 +249,15 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             )
         return packet
 
+    def _valid_v3_application_update(self) -> dict[str, object]:
+        packet = self._valid_v2_application_update()
+        packet["schema_version"] = 3
+        packet["freshness"] = {
+            "review_at": "2026-11-01T00:00:00Z",
+            "expires_at": "2027-02-01T00:00:00Z",
+        }
+        return packet
+
     def _assert_hidden_worktree_divergence_rejected(self, index_flag: str) -> None:
         existing = self.target_root / "docs/operations/alerts/existing.md"
         existing.write_bytes(b"# Staged alert card\n")
@@ -296,10 +330,14 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             Path("skills/operational-learning/assets/knowledge-index-template.md"),
             Path("skills/operational-learning/assets/knowledge-update-v1.schema.json"),
             Path("skills/operational-learning/assets/knowledge-update-v2.schema.json"),
+            Path("skills/operational-learning/assets/knowledge-update-v3.schema.json"),
             Path("skills/operational-learning/assets/examples/knowledge-update-v1-service.json"),
             Path("skills/operational-learning/assets/examples/knowledge-update-v2-application.json"),
+            Path("skills/operational-learning/assets/examples/knowledge-update-v3-application.json"),
             Path("skills/operational-learning/scripts/knowledge_update.py"),
             Path("skills/operational-learning/scripts/migrate_v1_to_v2.py"),
+            Path("skills/operational-learning/scripts/migrate_v2_to_v3.py"),
+            Path("skills/operational-learning/scripts/packet_drift.py"),
             Path("schemas/catalog-v1.json"),
             Path("docs/schema-compatibility.md"),
         )
@@ -363,6 +401,112 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             "trigger.kind",
         ):
             self._validate(legacy_trigger)
+
+    def test_v3_freshness_deadlines_are_forward_and_ordered(self) -> None:
+        self._validate(self._valid_v3_application_update())
+
+        # Both deadlines stay nullable. Migration cannot invent a review cadence any more than it
+        # can invent environment or definition_locator, and a guessed deadline is worse than none.
+        unset = self._valid_v3_application_update()
+        unset["freshness"] = {"review_at": None, "expires_at": None}
+        self._validate(unset)
+
+        # "Forward" is the whole point: a deadline already past when the packet was written
+        # documents nothing and would make every freshness sweep fire on arrival.
+        for field in ("review_at", "expires_at"):
+            with self.subTest(field=field):
+                backdated = self._valid_v3_application_update()
+                backdated["freshness"][field] = "2020-01-01T00:00:00Z"  # type: ignore[index]
+                with self.assertRaisesRegex(
+                    knowledge_update.KnowledgeUpdateValidationError,
+                    f"freshness.{field} must be after created_at",
+                ):
+                    self._validate(backdated)
+
+        inverted = self._valid_v3_application_update()
+        inverted["freshness"] = {
+            "review_at": "2027-02-01T00:00:00Z",
+            "expires_at": "2026-11-01T00:00:00Z",
+        }
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "freshness.review_at must not be after freshness.expires_at",
+        ):
+            self._validate(inverted)
+
+        unknown = self._valid_v3_application_update()
+        unknown["freshness"]["retain_until"] = "2028-01-01T00:00:00Z"  # type: ignore[index]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "unknown freshness fields",
+        ):
+            self._validate(unknown)
+
+        naive = self._valid_v3_application_update()
+        naive["freshness"]["expires_at"] = "2027-02-01"  # type: ignore[index]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "freshness.expires_at must be an RFC3339 UTC timestamp",
+        ):
+            self._validate(naive)
+
+    def test_published_v1_and_v2_never_gain_the_v3_freshness_field(self) -> None:
+        """v1 and v2 are published and closed; a new field on either is a shape break, not a bonus."""
+        for builder in (self._valid_update, self._valid_v2_application_update):
+            packet = builder()
+            packet["freshness"] = {"review_at": None, "expires_at": None}
+            with self.subTest(schema_version=packet["schema_version"]):
+                with self.assertRaisesRegex(
+                    knowledge_update.KnowledgeUpdateValidationError,
+                    "unknown knowledge update fields",
+                ):
+                    self._validate(packet)
+
+        missing = self._valid_v3_application_update()
+        del missing["freshness"]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "missing knowledge update fields",
+        ):
+            self._validate(missing)
+
+        # A packet with no schema_version at all must still report the ordinary missing-field
+        # error rather than tripping the version-keyed field lookup.
+        versionless = self._valid_update()
+        del versionless["schema_version"]
+        with self.assertRaisesRegex(
+            knowledge_update.KnowledgeUpdateValidationError,
+            "missing knowledge update fields",
+        ):
+            self._validate(versionless)
+
+    def test_v2_to_v3_migration_is_deterministic_and_leaves_deadlines_unset(self) -> None:
+        spec = importlib.util.spec_from_file_location("migrate_v2_to_v3", MIGRATION_V3_PATH)
+        assert spec is not None and spec.loader is not None
+        migration = importlib.util.module_from_spec(spec)
+        sys.modules["knowledge_update"] = knowledge_update
+        spec.loader.exec_module(migration)
+
+        source = self._valid_v2_application_update()
+        context = {
+            "target_root": self.target_root,
+            "allowed_knowledge_roots": ("docs",),
+        }
+        migrated = migration.migrate(source, **context)
+        self.assertEqual(2, source["schema_version"])
+        self.assertNotIn("freshness", source)
+        self.assertEqual(3, migrated["schema_version"])
+        self.assertEqual({"review_at": None, "expires_at": None}, migrated["freshness"])
+        self.assertEqual(migrated, migration.migrate(source, **context))
+        self._validate(migrated)
+
+        with self.assertRaisesRegex(ValueError, "schema_version 2"):
+            migration.migrate(migrated, **context)
+
+        invalid_source = self._valid_v2_application_update()
+        invalid_source["evidence"] = []
+        with self.assertRaisesRegex(ValueError, "migrated packet failed v3 validation"):
+            migration.migrate(invalid_source, **context)
 
     def test_v1_to_v2_migration_is_deterministic_and_valid(self) -> None:
         spec = importlib.util.spec_from_file_location("migrate_v1_to_v2", MIGRATION_PATH)
@@ -443,6 +587,32 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         ids = [entry["id"] for entry in entries]
         self.assertEqual(len(ids), len(set(ids)))
         self.assertIn("operational-knowledge-update-v2", ids)
+        self.assertIn("operational-knowledge-update-v3", ids)
+
+        # The catalog is what readers consult for "which version do writers emit". Binding it to
+        # the validator's own constant means a version bump cannot ship as an unpublished schema,
+        # and exactly one knowledge-update version can ever be `current`.
+        knowledge_entries = [
+            entry for entry in entries if entry["id"].startswith("operational-knowledge-update-v")
+        ]
+        current_entries = [
+            entry for entry in knowledge_entries if entry["status"] == "current"
+        ]
+        self.assertEqual(1, len(current_entries))
+        self.assertEqual(
+            knowledge_update.CURRENT_SCHEMA_VERSION, current_entries[0]["version"]
+        )
+        self.assertEqual(
+            {version: "supported" for version in (1, knowledge_update.COMPONENT_SCHEMA_VERSION)}
+            | {knowledge_update.CURRENT_SCHEMA_VERSION: "current"},
+            {entry["version"]: entry["status"] for entry in knowledge_entries},
+        )
+        for entry in knowledge_entries:
+            with self.subTest(schema=entry["id"]):
+                self.assertEqual(
+                    "skills/operational-learning/scripts/knowledge_update.py",
+                    entry["validator"],
+                )
         self.assertEqual(len(entries), len({entry["uri"] for entry in entries}))
         self.assertEqual(len(entries), len({entry["canonical_path"] for entry in entries}))
 
@@ -488,6 +658,7 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         for relative in (
             "skills/operational-learning/assets/examples/knowledge-update-v1-service.json",
             "skills/operational-learning/assets/examples/knowledge-update-v2-application.json",
+            "skills/operational-learning/assets/examples/knowledge-update-v3-application.json",
         ):
             with self.subTest(fixture=relative):
                 packet = json.loads((ROOT / relative).read_text(encoding="utf-8"))
@@ -1531,6 +1702,68 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         )
         self.assertFalse(schema["additionalProperties"])
 
+    def test_v3_schema_inherits_every_applicable_earlier_approved_artifact_rule(self) -> None:
+        """v3 is the current write format, so its standalone contract must stay as strict as the
+        versions it reuses. The catalog test only proves each `$ref` resolves — deleting one would
+        weaken the published schema with every other test still green.
+        """
+        assets = ROOT / "skills/operational-learning/assets"
+        documents = {
+            name: json.loads((assets / name).read_text(encoding="utf-8"))
+            for name in (
+                "knowledge-update-v1.schema.json",
+                "knowledge-update-v2.schema.json",
+                "knowledge-update-v3.schema.json",
+            )
+        }
+        v3 = documents["knowledge-update-v3.schema.json"]
+
+        effective: list[dict] = []
+        for rule in v3["allOf"]:
+            reference = rule.get("$ref")
+            if reference is None:
+                effective.append(rule)
+                continue
+            source, _, pointer = reference.partition("#/allOf/")
+            self.assertIn(source, documents, f"unexpected v3 allOf ref: {reference}")
+            effective.append(documents[source]["allOf"][int(pointer)])
+
+        # v3 reuses v2's trigger definition by reference, so v2 is where its kinds are declared.
+        self.assertEqual(
+            "knowledge-update-v2.schema.json#/$defs/trigger",
+            v3["properties"]["trigger"]["$ref"],
+        )
+        v3_kinds = set(
+            documents["knowledge-update-v2.schema.json"]["$defs"]["trigger"]["properties"]["kind"][
+                "enum"
+            ]
+        )
+        v3_rules = _approved_artifact_rules(effective)
+        inherited = _approved_artifact_rules(
+            documents["knowledge-update-v1.schema.json"]["allOf"]
+        ) | _approved_artifact_rules(
+            [
+                rule
+                for rule in documents["knowledge-update-v2.schema.json"]["allOf"]
+                if "$ref" not in rule
+            ]
+        )
+        self.assertTrue(inherited, "no approved-artifact rules found in v1/v2")
+        for (kind, state), artifacts in inherited.items():
+            if kind not in v3_kinds:
+                continue
+            with self.subTest(trigger_kind=kind):
+                self.assertIn(
+                    (kind, state),
+                    v3_rules,
+                    f"v3 dropped the approved-artifact rule for {kind!r}",
+                )
+                self.assertTrue(
+                    artifacts <= v3_rules[(kind, state)],
+                    f"v3 weakened the required artifacts for {kind!r}: "
+                    f"{sorted(artifacts - v3_rules[(kind, state)])} missing",
+                )
+
     def test_v2_schema_inherits_every_applicable_v1_approved_artifact_rule(self) -> None:
         assets = ROOT / "skills/operational-learning/assets"
         v1 = json.loads(
@@ -1540,28 +1773,7 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             (assets / "knowledge-update-v2.schema.json").read_text(encoding="utf-8")
         )
 
-        def approved_artifact_rules(rules: list[dict]) -> dict[tuple[str, str], set[str]]:
-            encoded: dict[tuple[str, str], set[str]] = {}
-            for rule in rules:
-                trigger_properties = (
-                    rule.get("if", {})
-                    .get("properties", {})
-                    .get("trigger", {})
-                    .get("properties", {})
-                )
-                kind_rule = trigger_properties.get("kind", {})
-                state_rule = trigger_properties.get("state", {})
-                disposition_rule = (
-                    rule.get("then", {}).get("properties", {}).get("dispositions", {})
-                )
-                if state_rule.get("const") == "approved" and "enum" in kind_rule:
-                    artifacts = {
-                        constraint["contains"]["properties"]["artifact"]["const"]
-                        for constraint in disposition_rule.get("allOf", [])
-                    }
-                    for trigger_kind in kind_rule["enum"]:
-                        encoded[(trigger_kind, "approved")] = artifacts
-            return encoded
+        approved_artifact_rules = _approved_artifact_rules
 
         ref_prefix = "knowledge-update-v1.schema.json#/allOf/"
         effective_v2_rules: list[dict] = []

@@ -53,20 +53,26 @@ which committed the guard, validator, gate, eval, and content changes and listed
 identity or on the deferred `STATE-001`/`EFFECT-001` machinery.
 
 **Acceptance:** Each of the following lands with a fixture or mutation test proven to fail without
-it, or is dropped in this item with a stated reason. Sub-items (3), (4), and (5) are **done** and
-committed with tests; the two learning-system sub-items remain: (1) a drift watch over
-`operational-learning` packets whose `proposed`/`blocked` destination has since changed in git
-(advisory by default, exit-non-zero only on an unreadable repo, per the sibling's `ledger_drift.py`
-design); (2) forward `review_at`/`expires_at` freshness deadlines on the knowledge-update schema,
-governed by [`schema-compatibility.md`](schema-compatibility.md). Done: (3) AGENTS.md
-path-and-`@import` drift enforcement in `scripts/check_links.py`, in Gate A; (4) a
-`RETIRED_GENERATED_ROOTS` check that fails on a stale generated tree left on disk; (5) CRLF-independent
-adapter generation for the `.py`/`.sh`/`.ps1` assets we ship, with a `.gitattributes` companion check.
+it, or is dropped in this item with a stated reason. All five sub-items are now **done** and
+committed with tests: (1) `skills/operational-learning/scripts/packet_drift.py`, a drift watch over
+packets carrying `proposed`/`blocked` dispositions — advisory by default, exit 1 only under
+`--fail-on-drift`, exit 2 on an unreadable repository, revision, or packet; (2) forward
+`review_at`/`expires_at` freshness deadlines carried by the new
+[knowledge-update v3 schema](../skills/operational-learning/assets/knowledge-update-v3.schema.json),
+with `migrate_v2_to_v3.py` and the catalog rules in
+[`schema-compatibility.md`](schema-compatibility.md); (3) AGENTS.md path-and-`@import` drift
+enforcement in `scripts/check_links.py`, in Gate A; (4) a `RETIRED_GENERATED_ROOTS` check that fails
+on a stale generated tree left on disk; (5) CRLF-independent adapter generation for the
+`.py`/`.sh`/`.ps1` assets we ship, with a `.gitattributes` companion check.
 
-**Next action:** The two remaining sub-items both touch the learning system, which maps onto the
-scribe-bundle-validated `operational-learning` skill and the parked improvement-lifecycle. Scope
-them together against `skills/operational-learning/scripts/knowledge_update.py` and its schema, and
-do not edit the scribe-bundle contract strings the validator pins. `verification_sandbox.py` is
+**Adaptation note:** The sibling's `ledger_drift.py` scans a committed candidate store and derives a
+baseline with `git log --first-parent`. This fleet deliberately never ported that store, and its
+`proposed`/`blocked` dispositions are validated as *pathless* handoffs, so there is no `destination`
+field to watch. The port therefore takes packets as arguments and watches their `repository` evidence
+locators against the exact `target.revision` the packet already pins — a stricter baseline than the
+sibling could derive.
+
+**Next action:** None; close the item once the change is merged. `verification_sandbox.py` is
 resolved and needs no work: `host_install_probe.py` consumes its `_is_indirection` helper, so it is
 a live utility, not an orphan.
 

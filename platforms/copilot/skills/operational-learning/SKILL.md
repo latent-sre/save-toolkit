@@ -39,14 +39,24 @@ approved/merged/verified. Active incidents stay with `sre`; alert/SLO/dashboard 
 - Use the [knowledge index template](./assets/knowledge-index-template.md) only when the repository has
   no existing operations index.
 - Shape new machine-readable closeouts with the current
-  [knowledge update v2 schema](./assets/knowledge-update-v2.schema.json). The validator continues to
-  accept the immutable [v1 schema](./assets/knowledge-update-v1.schema.json); an outer caller may use
-  the one-way [v1-to-v2 migration](./scripts/migrate_v1_to_v2.py). The outer caller or CI runs the
-  bundled [operational-knowledge validator](./scripts/knowledge_update.py); the no-shell documentation
+  [knowledge update v3 schema](./assets/knowledge-update-v3.schema.json), which adds forward
+  `review_at`/`expires_at` freshness deadlines. The validator continues to accept the immutable
+  [v2 schema](./assets/knowledge-update-v2.schema.json) and [v1 schema](./assets/knowledge-update-v1.schema.json);
+  an outer caller may use the one-way [v1-to-v2 migration](./scripts/migrate_v1_to_v2.py) and
+  [v2-to-v3 migration](./scripts/migrate_v2_to_v3.py), neither of which infers a value it was not
+  given. The outer caller or CI runs the bundled
+  [operational-knowledge validator](./scripts/knowledge_update.py); the no-shell documentation
   lane does not run scripts itself.
-- Use the [v2 application example](./assets/examples/knowledge-update-v2-application.json) for new
-  component-aware packets. The [v1 service example](./assets/examples/knowledge-update-v1-service.json)
-  exists for compatibility and migration testing, not as the default write shape.
+- Use the [v3 application example](./assets/examples/knowledge-update-v3-application.json) for new
+  packets. The [v2 application example](./assets/examples/knowledge-update-v2-application.json) and
+  [v1 service example](./assets/examples/knowledge-update-v1-service.json) exist for compatibility
+  and migration testing, not as the default write shape.
+- An outer caller or CI may run the [packet drift watch](./scripts/packet_drift.py) over packets that
+  still carry `proposed` or `blocked` dispositions. It reports evidence paths committed to since
+  `target.revision` and passed freshness deadlines. A hit is a prompt to look, never proof of a
+  defect, so the watch is advisory by default: exit 0 with findings, exit 1 only when the caller
+  opts in with `--fail-on-drift`, and exit 2 when a repository, revision, or packet could not be
+  read. It never reports a clean sweep for evidence it did not inspect.
 
 ## Close the loop
 
@@ -55,7 +65,9 @@ approved/merged/verified. Active incidents stay with `sre`; alert/SLO/dashboard 
    authoritative definition location when known; use `null` rather than guessing. Packet-declared
    roots are claims, not write authority: the outer caller supplies its allowed roots independently.
    An active incident permits
-   only `proposed` or `blocked` dispositions—no terminal KB outcome.
+   only `proposed` or `blocked` dispositions—no terminal KB outcome. Set `review_at`/`expires_at`
+   only from a stated cadence or a known validity horizon; `null` is the honest value otherwise, and
+   a deadline must point forward from `created_at`.
 2. **Inventory before creating.** Read existing service cards, alert cards, indexes, runbooks,
    postmortems, alert definitions, and ownership conventions. Update stable IDs; do not fork duplicates.
 3. **Bind each claim.** Give evidence a local ID, label, trust state, locator, and exact revision where
@@ -97,6 +109,9 @@ approved/merged/verified. Active incidents stay with `sre`; alert/SLO/dashboard 
 - `duplicate` is terminal only when `duplicate_of` matches trusted exact-revision evidence. A
   documentation duplicate must resolve to an existing regular Git blob under a declared knowledge
   root; otherwise it remains `proposed` or `blocked`.
+- A freshness deadline is a review prompt, not a retraction: a packet past `expires_at` is stale and
+  must be re-verified before reuse, but passing the deadline never withdraws the packet, changes a
+  disposition, or grants anyone authority to act on it.
 - Credential signatures are a guardrail, not a proof of absence. Repository/CI secret scanning and
   human diff review remain required defense in depth before any KB change is accepted.
 - Tier 2/3 recommendations name explicit human approval and rollback/recovery; agents do not apply them.
