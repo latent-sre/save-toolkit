@@ -115,6 +115,7 @@ def _run_probe(
             errors="replace",
             check=False,
             timeout=60,
+            stdin=subprocess.DEVNULL,
             env=dict(env) if env is not None else None,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -240,10 +241,18 @@ def _child_env(disposable_home: Path, extra: Mapping[str, str]) -> dict[str, str
     home.mkdir(parents=True, exist_ok=True)
     temporary = home / "tmp"
     temporary.mkdir(exist_ok=True)
+    # Unset APPDATA/LOCALAPPDATA leave Windows tooling resolving `${APPDATA}`-style defaults
+    # relative to the cwd, which lands installs inside the repository.
+    roaming = home / "AppData" / "Roaming"
+    local = home / "AppData" / "Local"
+    roaming.mkdir(parents=True, exist_ok=True)
+    local.mkdir(parents=True, exist_ok=True)
     environment.update(
         {
             "HOME": str(home),
             "USERPROFILE": str(home),
+            "APPDATA": str(roaming),
+            "LOCALAPPDATA": str(local),
             "TEMP": str(temporary),
             "TMP": str(temporary),
             "TMPDIR": str(temporary),
