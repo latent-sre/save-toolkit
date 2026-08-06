@@ -108,7 +108,7 @@ disarmed the read-only guard. It preflights the pinned deps rather than letting 
 of this section shipped a step-list that had already dropped the dependency install.
 
 **B — Content regression. The audit that exists because of our own history.** The Tier-2 bugs in
-[`docs/AUDIT-2026-07-12.md`](../../AUDIT-2026-07-12.md) are **live on `main` right now**, and this migration's
+the removed `docs/AUDIT-2026-07-12.md` (git history only) are **live on `main` right now**, and this migration's
 core operation is *copying content forward* — so verbatim-move discipline will faithfully preserve every one of
 them. They are not stylistic: a prod-password leak in `argv`, a blue-green playbook that pushes onto the live app
 on its second run, an SPL filter that guarantees the alert under-fires, an error-budget script that prints
@@ -278,7 +278,7 @@ clicks** to move the conversation to another agent. Default deny: an edge not li
 
 No other edges. `reviewer` and `scribe` deliberately delegate to nobody: a read-only reviewer that can spawn a
 write-capable agent is not read-only, and that is the "delegation is not isolation" rule the old fleet learned the
-hard way (see `docs/AUDIT-2026-07-12.md`, Tier 4).
+hard way (see the removed `docs/AUDIT-2026-07-12.md` in git history, Tier 4).
 
 ### Model arrays (the ellipses were unbuildable)
 
@@ -540,7 +540,7 @@ prompts.
 **Phase 2 — THE SKILLS (harvest + fix).** Direct imports (root-cause, eng-ladder, runbook, backend/frontend-craft,
 ops-tooling) → SRE domain skills **with the audit's Tier-2 fixes applied — blue-green name rotation, the WQL `by`
 deletion, SPL `timechart` bucketing, `cf auth` argv, error_budget severity, Grafana licence notes. Every fix is
-specified in [`docs/AUDIT-2026-07-12.md`](../../AUDIT-2026-07-12.md); none may be ported as-is.** Confirm the Bamboo
+specified in the removed `docs/AUDIT-2026-07-12.md` (git history); none may be ported as-is.** Confirm the Bamboo
 decision, and the `adr` home (if plugins can't ship prompt files, `adr` becomes a skill — a one-line disposition
 change, not a design change).
 
@@ -642,7 +642,7 @@ while the runbook says `/incident-command`. Rules:
   every pre-2026-07-13 baseline described *the laptop*, not the fleet — and that the contamination cut **both ways**
   (it suppressed `sde-ladder` and *flattered* `sre-ladder`).
 - **Shadowing** — the above: a personal global skill out-competing a fleet skill of similar purpose.
-- **The audit** — [`docs/AUDIT-2026-07-12.md`](../../AUDIT-2026-07-12.md). Five parallel reviewers, every load-bearing
+- **The audit** — removed `docs/AUDIT-2026-07-12.md` (git history only). Five parallel reviewers, every load-bearing
   claim hand-reproduced. Source of every "audit fix" this spec names.
 - **Dark skill** — a skill that never fires on its own on-target prompt (`saw: none` in a probe). The old fleet had four.
 - **Trifecta / lethal trifecta** — an agent holding all three of: sensitive data · untrusted input · egress. Any one leg
@@ -777,7 +777,7 @@ That claim was false: the machinery, the eval corpus, the root docs, and the in-
 | `CLAUDE.md` | **Preserved to `legacy/claude-fleet/` in Phase 1**, then **survives, minimal** — the Claude Code entrypoint for developing the fleet (`@AGENTS.md`), matching the sister repo's convention. |
 | `README.md` | **Rewritten** — install (marketplace + the trust prompt), the maintainer name, `--write-inventory` fleet table. |
 | `docs/RESEARCH.md` | **Survives, updated** — retarget from Claude Code sources to the VS Code/Copilot doc set (the five pages this design is built on). |
-| `docs/AUDIT-2026-07-12.md` | **Survives** — the evidence base for every "audit fix" in Appendix 1. |
+| `docs/AUDIT-2026-07-12.md` | **Later removed** — was the evidence base for every "audit fix" in Appendix 1; retained in git history only. |
 | `docs/superpowers/{specs,plans}/` | **Survive** — decision history (this document included). |
 | `LICENSE` | Survives. |
 

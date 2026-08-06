@@ -13,7 +13,7 @@
 
 **Tech Stack:** Markdown agent/skill definitions (`.agent.md`, `SKILL.md`); Python 3 stdlib scripts (`scripts/gate_a.py` and its steps); PowerShell + POSIX sh (`setup.ps1`/`setup.sh`); GitHub Actions; VS Code Copilot chat (agent-plugin layer).
 
-**Design spec:** `docs/superpowers/specs/2026-07-13-copilot-fleet-redesign-design.md` (Status: approved). Evidence base for every content fix: `docs/AUDIT-2026-07-12.md`. Harvest source: `C:\Users\hawkins\sde-agents` (github.com/latent-sre/sde-agents — one-way copies; this repo then owns them).
+**Design spec:** `docs/superpowers/specs/2026-07-13-copilot-fleet-redesign-design.md` (Status: approved). Evidence base for every content fix: the removed `docs/AUDIT-2026-07-12.md` (git history only). Harvest source: `C:\Users\hawkins\sde-agents` (github.com/latent-sre/sde-agents — one-way copies; this repo then owns them).
 
 ## Global Constraints
 
@@ -251,7 +251,7 @@ The audit's Tier-2 bugs are live on `main`, and this migration's core operation 
 
 Two halves, both required:
   1. FORBIDDEN: each known-bad string must appear NOWHERE under the new fleet trees
-     (skills/, agents/, commands/). Detection strings chosen from docs/AUDIT-2026-07-12.md
+     (skills/, agents/, commands/). Detection strings chosen from the removed docs/AUDIT-2026-07-12.md (git history)
      against the live buggy files -- distinctive enough not to false-positive on fixed content
      (e.g. `cf auth` bare is the FIX; only the argv form is forbidden).
   2. SELF-ARM: each pattern must still match its known-bad legacy copy

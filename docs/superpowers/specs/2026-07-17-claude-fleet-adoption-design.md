@@ -14,7 +14,7 @@ survive *because they were already built*.
 
 The fleet on this branch is the old 9-agent / 37-skill roster with documented failure modes
 (routing fan-out, dark skills, ~8.3k always-on tokens, content rot — quantified in
-`docs/AUDIT-2026-07-12.md` and the 2026-07-13 spec, both on `main`). Meanwhile the redesign that
+the then-present `docs/AUDIT-2026-07-12.md` (now git history only) and the 2026-07-13 spec, both on `main`). Meanwhile the redesign that
 fixes those problems was **implemented on `origin/codex/cleanup`**: 5 agents / 26 skills,
 content-complete, audit fixes applied, generated into parallel Claude and Copilot projections from
 a `canonical/` source.

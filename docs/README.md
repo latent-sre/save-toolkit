@@ -14,7 +14,7 @@ sources or the generated host adapters.
 | Round plans and specs | [`superpowers/plans/`](superpowers/plans), [`superpowers/specs/`](superpowers/specs) | Operational only while their round is active. Each carries a top-of-file `Status:` banner marked `implemented`, `superseded`, or `historical`, and points back to `fleet-roadmap.md` — `check_plan_status.py` fails the build otherwise |
 | Closure evidence | [`reviews/`](reviews) | Historical evidence of what a round landed and how it was verified. Never a task list |
 | Live reference contracts | [`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md), [`verification-sandbox.md`](verification-sandbox.md) | Current, governing contracts — not dated snapshots. The rules catalog indexes must-follow constraints with primary sources; schema-compatibility versions the machine-readable contracts in [`../schemas/catalog-v1.json`](../schemas/catalog-v1.json); the verification-sandbox spec governs the digest-bound boundary in [`../scripts/verification_sandbox.py`](../scripts/verification_sandbox.py). All three are linked from root docs and stay current with the fleet they describe |
-| Dated evidence | [`AUDIT-2026-07-12.md`](AUDIT-2026-07-12.md), [`RESEARCH.md`](RESEARCH.md) | Point-in-time snapshots. The audit's `OPEN` labels describe the 2026-07-12 fleet, not today's; the research file is provenance current as of its dateline. Re-verify before relying on either; neither adds work |
+| Dated evidence | [`RESEARCH.md`](RESEARCH.md) | Point-in-time provenance current as of its dateline. Re-verify before relying on it; it does not add work. The 2026-07-12 fleet audit was removed and remains in git history only |
 
 ## What is live right now
 
