@@ -99,10 +99,32 @@ fullmatch. Standing limitations: VS Code runtime discovery is UI-bound (inventor
 headless Codex agent discovery is unproven, and no model session was started, so model evidence
 remains an EVAL-001 concern.
 
+An owner-workstation run is recorded [verified on Windows at source revision
+`f3c12eb73cc53d301cb298f5c355d4a34a8c92f1`]: `claude`, `codex`, and `vscode` reported `pass` for
+install, inventory, authority, and uninstall — `pass=12, fail=0, skip=0, inconclusive=0` — with
+every watched user-owned location unchanged and the disposable target removed. That run first
+exposed two probe defects, both fixed: the child environment left `APPDATA`/`LOCALAPPDATA` unset,
+so Windows tooling resolved `${APPDATA}`-style defaults relative to the cwd and installed an npm
+package **inside the checkout** — a boundary violation the probe could not have reported, because
+it censuses user-owned locations and never the repository; and children inherited the operator's
+stdin.
+
+Copilot is excluded from that run and is an open defect [verified]: the only `copilot` on this
+topology is the VS Code-bundled bootstrap shim, which locates its own installation through
+`HOME`/`APPDATA`. Under the probe's disposable environment it concludes it is not installed and
+prompts `Would you like to reinstall GitHub Copilot CLI? (y/N)` directly on the console, bypassing
+the captured pipes, and `subprocess` timeouts do not bound the call because orphaned grandchildren
+hold the pipe open. `copilot --version` under the inherited environment succeeds
+(`GitHub Copilot CLI 1.0.78`), so this is an isolation conflict rather than an absent CLI: a
+standalone `npm -g` install would be probeable, the bundled shim never will be. Three in-process
+attempts to bound the call failed and were reverted rather than shipped.
+
 **Next action:** The owner decides whether the verified cloud-VM run and its recorded limitations
 satisfy this item's acceptance — VS Code UI discovery and headless Codex discovery are documented
-gaps, and model evidence stays with EVAL-001 — or whether a run on the owner workstation topology
-is also required. No repository change is blocking either path.
+gaps, and model evidence stays with EVAL-001 — now that the workstation topology is also proven for
+three of four hosts. Closing additionally requires deciding whether the Copilot shim hang is fixed
+(detect a non-isolatable CLI and report `skip` before invoking plugin verbs) or accepted as a
+recorded limitation. No repository change is blocking either path.
 
 ### ADAPT-001 — finish the bounded sibling-repo adaptations
 
