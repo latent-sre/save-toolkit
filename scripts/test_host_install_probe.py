@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import os
+import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -181,6 +182,27 @@ class CommandAllowlistTests(unittest.TestCase):
                     probe._assert_probe_command(argv, root=REPO)
 
 
+class ChildEnvironmentTests(unittest.TestCase):
+    def test_windows_app_data_pointers_land_in_the_disposable_home(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            home = Path(raw) / "home"
+            environment = probe._child_env(home, {})
+            for key in ("APPDATA", "LOCALAPPDATA"):
+                self.assertIn(key, environment)
+                self.assertEqual(home.resolve(), Path(environment[key]).resolve().parents[1])
+
+    def test_child_commands_cannot_consume_the_probe_stdin(self) -> None:
+        seen: dict[str, object] = {}
+
+        def fake_run(argv, **kwargs):
+            seen.update(kwargs)
+            return subprocess.CompletedProcess(list(argv), 0, "", "")
+
+        with mock.patch.object(probe.subprocess, "run", fake_run):
+            probe._run_probe(("claude", "--version"), None, root=REPO)
+        self.assertEqual(subprocess.DEVNULL, seen.get("stdin"))
+
+
 class AbsentHostTests(unittest.TestCase):
     def test_all_hosts_skip_when_no_cli_exists(self) -> None:
         calls: list[tuple[str, ...]] = []
@@ -354,9 +376,14 @@ class ClaudeProbeTests(unittest.TestCase):
                 allowed = {
                     "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR",
                     "HOME", "USERPROFILE", "TEMP", "TMP", "TMPDIR", "CLAUDE_CONFIG_DIR",
+                    "APPDATA", "LOCALAPPDATA",
                 }
                 self.assertLessEqual(set(env), allowed)  # type: ignore[arg-type]
                 self.assertNotIn("ANTHROPIC_API_KEY", env)  # type: ignore[operator]
+                for key in ("APPDATA", "LOCALAPPDATA"):
+                    self.assertTrue(
+                        Path(env[key]).resolve().is_relative_to(target)  # type: ignore[arg-type]
+                    )
                 self.assertTrue(
                     Path(env["CLAUDE_CONFIG_DIR"]).resolve().is_relative_to(target)  # type: ignore[arg-type]
                 )
