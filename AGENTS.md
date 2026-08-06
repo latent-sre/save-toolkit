@@ -19,6 +19,7 @@ matters.
 | [`agents/`](agents) | The 8 canonical agent definitions. `tools:` frontmatter *is* authority; omitting it inherits every tool. Claude loads these directly |
 | [`skills/`](skills) | The 27 canonical skills and their `references/`/`assets/`/`scripts/` bundles. A `references/` file not linked from its `SKILL.md` ships unreachable |
 | [`commands/adr.md`](commands/adr.md) | The canonical `/save-toolkit:adr` scaffold — the one manual command |
+| [`workflows/`](workflows) | **Claude-only, never projected.** Deterministic multi-agent pipelines the Claude runtime auto-discovers at plugin root; no other host has a workflow runtime, so the generator ignores this tree and no adapter mirrors it. Each is real code that is *unverified until it has run against a live session* — a workflow is not proven by structural gates |
 | [`hooks/hooks.json`](hooks/hooks.json) | The Claude-only session guard wiring. Plugin agents cannot carry `hooks:`, so this file is the *only* place the read-only guard fires; it is load-bearing and scoped to exact `agent_type` values |
 | [`hooks/copilot-hooks.json`](hooks/copilot-hooks.json) | The Copilot hook projection. The Claude hook's scoping field is absent from other hosts' payloads, so guarding is not portable through it |
 | [`scripts/readonly-guard.py`](scripts/readonly-guard.py) | The fail-closed allowlist guard for `sre` and `observability-engineer`. Exit codes are a contract: 42 allow, 43 deny, 44 indeterminate — the hook uses them to tell this guard from a stand-in interpreter |

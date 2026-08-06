@@ -70,6 +70,36 @@ do not edit the scribe-bundle contract strings the validator pins. `verification
 resolved and needs no work: `host_install_probe.py` consumes its `_is_indirection` helper, so it is
 a live utility, not an orphan.
 
+### WF-001 — verify the first Claude workflow against a live session
+
+**Status:** `ready`
+
+**Outcome:** `workflows/ship-review.js` is proven to run end-to-end in a live Claude session — the
+scope agent enumerates the diff, both reviewer lanes return schema-valid packets from the diff as
+data, and the merge-readiness synthesis produces the expected verdict for a known change — or the
+workflow is corrected until it does. Until then it ships as reviewable code with its contract
+stated, not as a verified capability.
+
+**Source:** The 2026-08-05/06 alignment work, which established that "no `workflows/` directory" was a
+self-imposed rule with nothing in the repo behind it. The narrower correct rule — workflows are
+Claude-only and never projected to a generated adapter — is now encoded in the AGENTS.md Map and in
+the generator's blindness to the `workflows/` tree.
+
+**Prerequisites:** A live Claude session with the plugin loaded (workflow runtime is Claude-only; no
+structural gate can exercise a workflow). A small, known working-tree change to review, so the
+expected verdict is predictable.
+
+**Acceptance:** One recorded run against a named source revision showing: the `save-toolkit:sde`
+scope agent returned a `SCOPE_SCHEMA` packet; both `save-toolkit:reviewer` lanes returned
+`REVIEW_PACKET`s built from the supplied diff (each re-reading cited files, never asking for a
+shell); and the final verdict matched the merge-gate rule (any P0/P1 → `request-changes`; dirty tree
+→ `provisional-commit-and-re-review`). Record the CLI/version and exact revision. A lane that fails
+to return a validated packet must surface as `inconclusive`, never a false `approve`.
+
+**Next action:** Run `ship-review` against a scratch change in a live session and capture the result.
+Do not project the workflow to any host adapter, and do not add a second workflow before this one is
+verified — one proven pipeline is worth more than several unrun ones.
+
 ### RELEASE-001 — publish and roll back one immutable release
 
 **Status:** `ready`
