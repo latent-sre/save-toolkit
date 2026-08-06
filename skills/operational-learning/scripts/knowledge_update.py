@@ -1241,13 +1241,12 @@ def validate_update(
         if isinstance(original_update, Mapping)
         else None
     )
-    _exact_fields(
-        original_update,
-        TOP_LEVEL_FIELDS_BY_VERSION.get(declared_version, TOP_LEVEL_FIELDS)
-        if type(declared_version) is int
-        else TOP_LEVEL_FIELDS,
-        "knowledge update",
-    )
+    # `type(...) is int` rather than isinstance: True would otherwise both pass the check and
+    # hash-match the version 1 key, letting a boolean schema_version select a real field set.
+    expected_top_level = TOP_LEVEL_FIELDS
+    if type(declared_version) is int:
+        expected_top_level = TOP_LEVEL_FIELDS_BY_VERSION.get(declared_version, TOP_LEVEL_FIELDS)
+    _exact_fields(original_update, expected_top_level, "knowledge update")
     if (
         type(original_update["schema_version"]) is not int
         or original_update["schema_version"] not in SUPPORTED_SCHEMA_VERSIONS

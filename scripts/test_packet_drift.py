@@ -245,6 +245,45 @@ class PacketDriftTests(unittest.TestCase):
         self.assertIn("unwatchable", result.stdout.lower())
         self.assertIn("../../etc/passwd", result.stdout)
 
+    def test_glob_locator_is_never_expanded_into_paths_the_packet_did_not_cite(self) -> None:
+        """A locator is untrusted free text. `_safe_relative_path` accepts `*`, `[a-z]`, and
+        `:(glob)` — they are legal path characters — so nothing but a literal pathspec stops Git
+        from matching files the packet never cited and reporting them as its own evidence."""
+        self._write("deploy/other.yaml", "name: other\nreplicas: 9\n")
+        self._commit("scale other")
+        packet = self._packet()
+        packet["evidence"][0]["locator"] = "deploy/*.yaml"  # type: ignore[index]
+        self.packet_path.write_text(json.dumps(packet), encoding="utf-8")
+
+        findings = json.loads(self._run("--json").stdout)
+        self.assertEqual(1, len(findings))
+        self.assertEqual([], findings[0]["drifted_paths"])
+        self.assertEqual(["deploy/*.yaml"], findings[0]["unwatchable_locators"])
+
+    def test_locator_git_has_never_tracked_is_unwatchable_not_clean(self) -> None:
+        """An empty log for a path Git has never heard of is not evidence of no drift. Treating
+        it as clean is the same false green this watch exits 2 to avoid elsewhere."""
+        packet = self._packet()
+        packet["evidence"][0]["locator"] = "deploy/never-existed.yaml"  # type: ignore[index]
+        self.packet_path.write_text(json.dumps(packet), encoding="utf-8")
+
+        findings = json.loads(self._run("--json").stdout)
+        self.assertEqual(1, len(findings))
+        self.assertEqual([], findings[0]["drifted_paths"])
+        self.assertEqual(["deploy/never-existed.yaml"], findings[0]["unwatchable_locators"])
+
+    def test_deleted_evidence_path_still_counts_as_drift(self) -> None:
+        """Deleting the file the packet reasoned about is the strongest possible drift signal.
+        It must not fall through the never-tracked check into 'unwatchable'."""
+        self._git("rm", "--quiet", "deploy/checkout.yaml")
+        self._commit("drop checkout definition")
+        self._packet()
+
+        findings = json.loads(self._run("--json").stdout)
+        self.assertEqual(1, len(findings))
+        self.assertEqual(["deploy/checkout.yaml"], findings[0]["drifted_paths"])
+        self.assertEqual([], findings[0]["unwatchable_locators"])
+
     def test_expired_and_due_freshness_deadlines_are_reported(self) -> None:
         self._packet(
             freshness={"review_at": "2026-09-01T00:00:00Z", "expires_at": "2026-10-01T00:00:00Z"}

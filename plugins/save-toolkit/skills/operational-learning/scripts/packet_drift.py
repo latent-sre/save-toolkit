@@ -27,8 +27,9 @@ caller who wants a hard gate. An unreadable repository or packet is different in
 because reporting "clean" for something never inspected is the one failure this must not have.
 
 WHAT IT IS NOT. This finds later activity; it does not decide whether that activity satisfied the
-packet. It also never proves an absence: a locator it cannot safely resolve is reported as
-unwatchable rather than dropped.
+packet. It also never proves an absence: a locator it cannot safely resolve, or that Git has never
+tracked, is reported as unwatchable rather than dropped. An empty log for a path Git never knew
+about is not evidence of no drift.
 
 Pure standard library; git is the only external call.
 
@@ -65,18 +66,42 @@ class PacketDriftError(RuntimeError):
 
 
 def git(root: Path, *args: str) -> str:
+    """Run one read-only Git command under the validator's hardened environment.
+
+    `--literal-pathspecs` is load-bearing, not cosmetic: evidence locators are untrusted packet
+    text, and `_safe_relative_path` accepts `*`, `[a-z]`, and `:(glob)` because they are legal
+    path characters. Without this flag Git treats such a locator as a wildcard pathspec and
+    reports commits to files the packet never cited as though they were its own evidence.
+    """
+
     try:
         result = subprocess.run(
-            ["git", "-C", str(root), *args],
+            ["git", "-C", str(root), "--literal-pathspecs", *args],
             capture_output=True,
             text=True,
+            timeout=30,
             check=False,
+            env=knowledge_update._git_environment(),
         )
-    except OSError as exc:
+    except (OSError, subprocess.TimeoutExpired) as exc:
         raise PacketDriftError(f"cannot run git in {root}: {exc}") from exc
     if result.returncode != 0:
         raise PacketDriftError(f"git {' '.join(args)} failed in {root}: {result.stderr.strip()}")
     return result.stdout.strip()
+
+
+def is_known_to_git(root: Path, relative: str) -> bool:
+    """Whether Git can report history for this exact literal path.
+
+    A path Git has never tracked produces the same empty log as a path nothing has touched. Left
+    undistinguished, the second reads as "checked, clean" — the false green this watch exits 2 to
+    avoid everywhere else. A path deleted since the baseline still has history, so removing the
+    file the packet reasoned about stays drift rather than becoming unwatchable.
+    """
+
+    if (root / relative).exists():
+        return True
+    return bool(git(root, "log", "-1", "--format=%h", "--", relative))
 
 
 def verify_repository(root: Path) -> None:
@@ -180,7 +205,10 @@ def inspect_packet(root: Path, path: Path, now: datetime) -> dict[str, object] |
             f"packet {path} target.revision {revision[:12]} is a {object_type}, not a commit"
         )
 
-    watchable, unwatchable = evidence_paths(packet)
+    cited, unwatchable = evidence_paths(packet)
+    # A locator Git has never heard of cannot be watched, however well-formed it looks.
+    watchable = [path for path in cited if is_known_to_git(root, path)]
+    unwatchable.extend(path for path in cited if path not in watchable)
     commits: list[dict[str, str]] = []
     drifted: list[str] = []
     revisions: set[str] = set()
