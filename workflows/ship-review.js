@@ -19,8 +19,12 @@ export const meta = {
 //   * Scope runs under `sde`, the only clean code-context agent that holds Bash; enumerating a diff
 //     is a read-only use of it. sde only LISTS the change here — the independent read-only reviewer
 //     lanes make the actual judgments, so enumeration and review stay separated.
-//   * Every await is fail-closed: a schema-validation failure after retries throws, and the catch
-//     turns it into an explicit inconclusive verdict rather than a bare crash.
+//   * Every await is fail-closed WITHOUT a try/catch: agent() with a schema retries on validation
+//     mismatch and returns null if the subagent dies after retries (workflow-runtime contract), so
+//     each result is guarded explicitly — an empty/absent scope returns an inconclusive verdict, and
+//     the review lanes are `.filter(Boolean)`ed with a hard "need both lanes" gate below. A lane that
+//     fails to produce a validated packet reduces coverage and yields inconclusive, never a false
+//     approve.
 //
 // UNVERIFIED UNTIL RUN. Per the fleet's own rule, a workflow is unverified until it has executed
 // against a live session; this one has not. Roadmap item WF-001 tracks that verification. The

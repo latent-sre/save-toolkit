@@ -62,7 +62,10 @@ def _discover_test_steps():
     """
     steps = []
     for pattern in ("scripts/test_*.py", "evals/test_*.py"):
-        for rel in sorted(glob.glob(pattern, root_dir=ROOT)):
+        # Not glob.glob(pattern, root_dir=ROOT): the root_dir kwarg is 3.10+, and this single gate
+        # must not raise a TypeError before running a check. Glob absolute, then relativize.
+        for abspath in sorted(glob.glob(os.path.join(ROOT, pattern))):
+            rel = os.path.relpath(abspath, ROOT).replace(os.sep, "/")
             steps.append((f"Unit: {rel}", [rel], None))
     return steps
 

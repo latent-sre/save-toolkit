@@ -12,7 +12,7 @@ had `validator: null` and so was enforced by nothing.
 Scope, stated honestly: this implements the subset of JSON Schema draft 2020-12 the schema actually
 uses — `$ref`/`$defs`, `allOf`/`anyOf`/`oneOf`, `if`/`then`/`else`, `type`, `required`,
 `properties`, `additionalProperties`, `enum`, `const`, `pattern`, `minimum`/`maximum`,
-`minItems`/`maxItems`, `items`, `minLength`/`maxLength`. The deeper semantic checks the lifecycle
+`minItems`/`maxItems`/`uniqueItems`, `items`, `minLength`/`maxLength`. The deeper semantic checks the lifecycle
 names — cumulative budget across attempts, exact-subject revision binding, append-only history,
 external-authority — are not expressible in JSON Schema and remain a documented next layer. This gate
 enforces the schema-expressible contract; it does not claim to be the full lifecycle validator.
@@ -100,6 +100,15 @@ def _errors(value: object, schema: dict, root: dict, path: str) -> list[str]:
             errs.append(f"{path}: {len(value)} items < minItems {schema['minItems']}")
         if "maxItems" in schema and len(value) > schema["maxItems"]:
             errs.append(f"{path}: {len(value)} items > maxItems {schema['maxItems']}")
+        if schema.get("uniqueItems") is True:
+            # Items may be dicts/lists (unhashable), so no set — an O(n^2) scan on the small
+            # bounded arrays the schema declares (maxItems <= 64) compares by JSON value.
+            seen: list[object] = []
+            for i, item in enumerate(value):
+                if item in seen:
+                    errs.append(f"{path}[{i}]: duplicate item violates uniqueItems")
+                else:
+                    seen.append(item)
         if "items" in schema:
             for i, item in enumerate(value):
                 errs += _errors(item, schema["items"], root, f"{path}[{i}]")

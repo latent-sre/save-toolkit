@@ -66,6 +66,20 @@ class ValidateImprovementsTest(unittest.TestCase):
         bad["improvement_id"] = "not-an-fi-id"
         self.assertTrue(any("improvement_id" in e and "does not match" in e for e in self._errors(bad)))
 
+    def test_unique_items_duplicate_is_rejected(self) -> None:
+        # success_criteria declares uniqueItems:true; a duplicated entry must fail. The schema uses
+        # uniqueItems on six arrays and the validator now enforces it, so this can't pass silently.
+        bad = copy.deepcopy(self.record)
+        bad["success_criteria"] = [bad["success_criteria"][0], bad["success_criteria"][0]]
+        self.assertTrue(any("uniqueItems" in e for e in self._errors(bad)), self._errors(bad))
+
+    def test_unique_items_check_is_value_based_not_identity(self) -> None:
+        # Direct exercise: unhashable dict items compared by value, not by object identity.
+        schema = {"type": "array", "uniqueItems": True, "items": {"type": "object"}}
+        dup = [{"a": 1}, {"a": 1}]
+        self.assertTrue(any("uniqueItems" in e for e in vi._errors(dup, schema, schema, "arr")))
+        self.assertEqual([], vi._errors([{"a": 1}, {"a": 2}], schema, schema, "arr"))
+
     def test_a_parseable_but_wrong_record_on_disk_fails_check(self) -> None:
         # End-to-end through check(): a temp record tree with a broken record must fail.
         with tempfile.TemporaryDirectory() as tmp:
