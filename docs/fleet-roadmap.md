@@ -13,8 +13,9 @@ adapters for Copilot/VS Code and Codex.
 Closed work is retained in the
 [`SAFE-001 closure`](reviews/2026-08-01-safe-001-closure.md) and
 [`IMPROVE-001 closure`](reviews/2026-08-01-fleet-improvement-closure.md), plus the
-[`VERIFY-001 closure`](reviews/2026-08-02-verify-001-closure.md) and
-[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md). The local Sol evaluator
+[`VERIFY-001 closure`](reviews/2026-08-02-verify-001-closure.md),
+[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md), and
+[`HOST-001 closure`](reviews/2026-08-06-host-001-closure.md). The local Sol evaluator
 decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
 
@@ -36,95 +37,6 @@ An item leaves this file after its acceptance evidence is committed and the chan
 history and archived source documents retain the implementation detail.
 
 ## Active runtime work
-
-### HOST-001 — prove host installation and runtime conformance
-
-**Status:** `active`
-
-**Outcome:** Claude, Codex, Copilot CLI, and VS Code each report disposable installation, inventory,
-discovery, one authority boundary, and uninstall evidence independently; an unavailable host reports
-`skip` or `inconclusive`, never `pass`. Model-behavior baselines remain a separate `EVAL-001` concern.
-
-**Source:** Multi-platform packaging ADR and the import review's unverified-runtime limits.
-
-**Prerequisites:** A disposable installation root and authenticated host access only when a bounded
-behavioral smoke is explicitly authorized. Host installation evidence must not depend on the parked
-Codex/Sol runners or require writes to user-owned plugin and custom-agent directories.
-
-**Acceptance:** Each supported host proves install, inventory/discovery, one authority boundary, and
-uninstall without modifying user-owned components. Results record CLI/version, requested and observed
-model where exposed, exact source revision, and limitations. Copilot/VS Code remain incomplete until
-their runtime is actually available.
-
-**Current evidence:** `fleet_doctor.py` emits typed static/availability evidence without starting a
-model or modifying host installations. This machine has Claude, Codex, and VS Code CLIs; Copilot CLI
-remains unavailable and reports `skip`. The fleet is absent from the Claude and Codex plugin
-inventories. Codex custom agents share one flat, unnamespaced global directory, so the projection
-emits `save-toolkit-<role>.toml` mirroring the Claude `save-toolkit:<name>` namespace; `build_sync_plan`
-against the real `CODEX_HOME` now reports zero conflicts and eight pending writes, where it
-previously reported three collisions with a separate agent fleet installed under the same role names.
-Host proof must still use an explicit disposable target — but because this item's prerequisites
-forbid writing to user-owned plugin and custom-agent directories at all, not because a name
-collision would otherwise occur.
-
-The absent-but-installable status question is settled: `fail` now means exactly one thing across the
-doctor's installation checks — an *installed* fleet is unhealthy. `host.codex.custom-agents` reports
-`skip` when an available Codex host carries no marker-managed fleet file at all, matching the
-plugin-inventory check's standing precedent that absence is not a runtime failure; partial, stale,
-or drifted installs and unmanaged conflicts remain `fail`.
-
-`scripts/host_install_probe.py` is the disposable proof surface. Given an explicit, initially empty
-target outside user-owned configuration and the repository, it installs the fleet per host, checks
-inventory, censuses the user-owned config location before and after to prove the write boundary,
-uninstalls, and reports residue — one validated evidence envelope per criterion, recording CLI
-identity/version and the exact source revision. Codex installs through the conflict-safe installer,
-which now owns `--uninstall` (removing only marker-managed files); VS Code installs as workspace
-file placement matching its folder-scan discovery; Claude installs through the CLI's plugin
-marketplace/install/list/uninstall verbs against a credential-free disposable `CLAUDE_CONFIG_DIR`;
-Copilot mirrors the Claude flow against a disposable HOME (its local-path marketplace,
-install/list/uninstall verbs are exercised the same way). A missing CLI is `skip`, a failing CLI
-verb is `inconclusive`, and only a proven boundary violation or uninstall residue is `fail`. No
-model session is started and no credentials are provisioned, so requested/observed model fields
-are absent by design. On a CLI-less machine every host criterion reports `skip`; the probe's
-contract tests run in Gate A.
-
-A full four-host run is recorded [verified on a Cursor cloud VM, Linux x64, CLIs installed from
-public npm/tarball sources, no credentials provisioned]: Claude Code 2.1.221, codex-cli 0.146.0,
-VS Code 1.131.0, and GitHub Copilot CLI 1.0.78 each reported `pass` for install, inventory,
-authority, and uninstall at source revision `ed75c9eb38a0b3273a2ab9b70bb29ad7fad2268b`, with every
-watched user-owned location unchanged and the disposable target removed. The same run settled two
-format questions only real CLIs could answer — Claude's inventory row marker is `❯` and Copilot's
-is a bullet row with a version annotation — and both inventory parsers now require an exact
-fullmatch. Standing limitations: VS Code runtime discovery is UI-bound (inventory is file-level),
-headless Codex agent discovery is unproven, and no model session was started, so model evidence
-remains an EVAL-001 concern.
-
-An owner-workstation run is recorded [verified on Windows at source revision
-`f3c12eb73cc53d301cb298f5c355d4a34a8c92f1`]: `claude`, `codex`, and `vscode` reported `pass` for
-install, inventory, authority, and uninstall — `pass=12, fail=0, skip=0, inconclusive=0` — with
-every watched user-owned location unchanged and the disposable target removed. That run first
-exposed two probe defects, both fixed: the child environment left `APPDATA`/`LOCALAPPDATA` unset,
-so Windows tooling resolved `${APPDATA}`-style defaults relative to the cwd and installed an npm
-package **inside the checkout** — a boundary violation the probe could not have reported, because
-it censuses user-owned locations and never the repository; and children inherited the operator's
-stdin.
-
-Copilot is excluded from that run and is an open defect [verified]: the only `copilot` on this
-topology is the VS Code-bundled bootstrap shim, which locates its own installation through
-`HOME`/`APPDATA`. Under the probe's disposable environment it concludes it is not installed and
-prompts `Would you like to reinstall GitHub Copilot CLI? (y/N)` directly on the console, bypassing
-the captured pipes, and `subprocess` timeouts do not bound the call because orphaned grandchildren
-hold the pipe open. `copilot --version` under the inherited environment succeeds
-(`GitHub Copilot CLI 1.0.78`), so this is an isolation conflict rather than an absent CLI: a
-standalone `npm -g` install would be probeable, the bundled shim never will be. Three in-process
-attempts to bound the call failed and were reverted rather than shipped.
-
-**Next action:** The owner decides whether the verified cloud-VM run and its recorded limitations
-satisfy this item's acceptance — VS Code UI discovery and headless Codex discovery are documented
-gaps, and model evidence stays with EVAL-001 — now that the workstation topology is also proven for
-three of four hosts. Closing additionally requires deciding whether the Copilot shim hang is fixed
-(detect a non-isolatable CLI and report `skip` before invoking plugin verbs) or accepted as a
-recorded limitation. No repository change is blocking either path.
 
 ### ADAPT-001 — finish the bounded sibling-repo adaptations
 
@@ -158,20 +70,21 @@ do not edit the scribe-bundle contract strings the validator pins. `verification
 resolved and needs no work: `host_install_probe.py` consumes its `_is_indirection` helper, so it is
 a live utility, not an orphan.
 
-## Blocked on prior work
-
 ### RELEASE-001 — publish and roll back one immutable release
 
-**Status:** `blocked`
+**Status:** `ready`
 
 **Outcome:** One reviewed commit is versioned, tagged, published, installed, verified, and recoverable
 without rebuilding or moving an unprotected ref.
 
 **Source:** The historical distribution plan, rewritten for the accepted multi-platform plugin
 architecture. Main-branch protection closed under
-[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md).
+[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md); host installation proof closed
+under [`HOST-001 closure`](reviews/2026-08-06-host-001-closure.md).
 
-**Prerequisites:** HOST-001.
+**Prerequisites:** None. The host closure's accepted limitations (Copilot
+CLI out of scope, UI-bound VS Code discovery, headless Codex discovery, no model evidence) carry
+forward into this item's host distribution work.
 
 **Acceptance:** Version parity and changelog pass; `claude plugin tag --dry-run` validates the Claude
 manifest/marketplace pair; every host's publication mechanism is verified before choosing an
@@ -179,7 +92,7 @@ immutable tag or protected moving ref; promotion consumes the reviewed SHA and r
 install and uninstall smoke tests pass from the published artifact; rollback or yank is rehearsed and
 documented.
 
-**Next action:** After HOST-001 acceptance, write the exact-SHA promotion design owned by the named
+**Next action:** Write the exact-SHA promotion design owned by the named
 promotion operator `agentic-sre-dev` (or a later least-privileged App) and verify each host's remote
 distribution contract. Do not create a long-lived `release` branch merely because the superseded
 plan named one.

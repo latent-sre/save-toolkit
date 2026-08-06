@@ -169,11 +169,12 @@ For repository-controlled executable checks, use the digest-bound, networkless c
   [`docs/rules.md`](docs/rules.md).
 - Codex/Sol conformance is parked at tag `pre-trim-2026-08-02` with no current runtime baseline.
   Disposable host install/inventory/uninstall smoke for Claude, Codex, VS Code, and Copilot CLI is
-  recorded under HOST-001; VS Code UI discovery and headless Codex agent discovery remain documented
+  closed under [`HOST-001`](docs/reviews/2026-08-06-host-001-closure.md); the Copilot CLI is out of
+  scope by owner decision, VS Code UI discovery and headless Codex agent discovery remain documented
   gaps, and model-behavior evidence stays with EVAL-001.
-- `main` repository protection is closed (PROTECT-001). Publication remains blocked on HOST-001
-  acceptance, then RELEASE-001 (distinct promotion authority, published-artifact install smoke, and
-  rollback evidence) — tracked in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+- `main` repository protection is closed (PROTECT-001). Publication now depends only on RELEASE-001
+  (distinct promotion authority, published-artifact install smoke, and rollback evidence) — tracked
+  in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 ## Contribute
 
