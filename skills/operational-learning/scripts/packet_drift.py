@@ -58,6 +58,14 @@ PENDING_STATUSES = {"proposed", "blocked"}
 # sets commits_truncated. The human report shows fewer still and says how many it left out.
 MAX_PAYLOAD_COMMITS = 50
 MAX_PRINTED_COMMITS = 5
+MAX_PRINTED_TEXT = 120
+# Packet text reaches an operator console or CI log. `locator` only has to satisfy
+# `_string(maximum=2048)` to pass the packet validator — no control-character rejection — so a
+# *valid* packet can carry a newline plus this tool's own clean-sweep sentence and forge it into
+# the report, or an ESC sequence that rewrites lines already printed (CWE-117/CWE-150).
+CONTROL_CHARACTER_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+# The first knowledge-update version carrying a freshness object; earlier versions have none.
+FRESHNESS_SCHEMA_VERSION = 3
 # Repository evidence is conventionally cited as `path` or `path:line` / `path:line-line`.
 # Strip only that trailing line reference; anything else is left for the safety check to judge.
 LINE_REFERENCE_RE = re.compile(r":\d+(?:-\d+)?$")
@@ -92,6 +100,30 @@ def git(root: Path, *args: str) -> str:
     if result.returncode != 0:
         raise PacketDriftError(f"git {' '.join(args)} failed in {root}: {result.stderr.strip()}")
     return result.stdout.strip()
+
+
+def git_ok(root: Path, *args: str) -> bool:
+    """Run a Git predicate whose non-zero exit is an answer rather than a failure."""
+
+    try:
+        git(root, *args)
+    except PacketDriftError:
+        return False
+    return True
+
+
+def display(value: object, limit: int = MAX_PRINTED_TEXT) -> str:
+    """Render untrusted packet text safely for a terminal or CI log.
+
+    Control characters become visible escapes rather than terminal behaviour, and the result is
+    capped so one locator cannot flood the report. JSON mode needs none of this — `json.dumps`
+    escapes control characters already.
+    """
+
+    text = CONTROL_CHARACTER_RE.sub(
+        lambda match: f"\\x{ord(match.group()):02x}", str(value)
+    )
+    return text if len(text) <= limit else f"{text[:limit]}..."
 
 
 def is_known_to_git(root: Path, relative: str) -> bool:
@@ -162,13 +194,24 @@ def freshness_findings(packet: Mapping[str, object], now: datetime) -> list[str]
     """Passed deadlines, if this packet version carries any. v1 and v2 have no freshness object."""
 
     freshness = packet.get("freshness")
-    if not isinstance(freshness, Mapping):
+    # v1 and v2 carry no freshness object at all; only a version that promises one may be judged
+    # against it. Keying on the declared version rather than on shape means a null, mistyped, or
+    # absent freshness on a v3 packet is malformed input — reported like an unparseable deadline
+    # string, never silently treated as "no deadlines set".
+    if packet.get("schema_version") != FRESHNESS_SCHEMA_VERSION:
         return []
+    if not isinstance(freshness, Mapping):
+        raise PacketDriftError(
+            f"packet declares schema_version {FRESHNESS_SCHEMA_VERSION} but its freshness is not "
+            "an object"
+        )
     findings = []
     for field, label in (("expires_at", "expired"), ("review_at", "review due")):
         deadline = freshness.get(field)
-        if not isinstance(deadline, str):
+        if deadline is None:
             continue
+        if not isinstance(deadline, str):
+            raise PacketDriftError(f"packet freshness.{field} must be a string or null")
         try:
             parsed = knowledge_update.parse_utc_timestamp(
                 knowledge_update._timestamp(deadline, field)
@@ -209,6 +252,15 @@ def inspect_packet(root: Path, path: Path, now: datetime) -> dict[str, object] |
     if object_type != "commit":
         raise PacketDriftError(
             f"packet {path} target.revision {revision[:12]} is a {object_type}, not a commit"
+        )
+    # A HEAD that predates the baseline cannot show later activity: every `<rev>..HEAD` log is
+    # empty for the same reason a clean tree is. The object exists, so `cat-file -t` above cannot
+    # tell the two apart — without this, a stale or detached checkout gets a clean bill over a
+    # tree that never contained the packet's baseline.
+    if not git_ok(root, "merge-base", "--is-ancestor", revision, "HEAD"):
+        raise PacketDriftError(
+            f"packet {path} target.revision {revision[:12]} is not an ancestor of HEAD in {root}; "
+            "this checkout cannot show what changed after it"
         )
 
     cited, unwatchable = evidence_paths(packet)
@@ -252,6 +304,9 @@ def inspect_packet(root: Path, path: Path, now: datetime) -> dict[str, object] |
         # lengths differ even when nothing was dropped. A consumer therefore cannot infer
         # truncation by comparing them, and has to be told outright.
         "commits": commits[:MAX_PAYLOAD_COMMITS],
+        # Measured before any cap: the withheld count must describe what was actually dropped,
+        # not what survived truncation.
+        "commits_total": len(commits),
         "commits_truncated": len(commits) > MAX_PAYLOAD_COMMITS,
         "commit_count": len(revisions),
         "freshness": stale,
@@ -278,21 +333,22 @@ def _report(findings: Sequence[Mapping[str, object]]) -> None:
     print("Each may need a disposition transition, or a note that the change was unrelated.")
     print("This is a prompt to look, not a defect.\n")
     for finding in findings:
+        artifacts = ", ".join(display(item, 40) for item in finding["pending_artifacts"])
         print(
-            f"  {finding['update_id']}  pending: {', '.join(finding['pending_artifacts'])}"
+            f"  {display(finding['update_id'], 100)}  pending: {artifacts}"
             f"  ({finding['commit_count']} commit(s) since "
             f"{str(finding['baseline_revision'])[:12]})"
         )
         for entry in finding["commits"][:MAX_PRINTED_COMMITS]:
-            print(f"      {entry['path']}: {entry['commit'][:96]}")
-        withheld = len(finding["commits"]) - MAX_PRINTED_COMMITS
+            print(f"      {display(entry['path'])}: {display(entry['commit'], 96)}")
+        withheld = finding["commits_total"] - MAX_PRINTED_COMMITS
         if withheld > 0:
             more = "more (payload also truncated)" if finding["commits_truncated"] else "more"
             print(f"      ... and {withheld} {more}")
         for stale in finding["freshness"]:
-            print(f"      freshness: {stale}")
+            print(f"      freshness: {display(stale)}")
         for locator in finding["unwatchable_locators"]:
-            print(f"      unwatchable locator (not inspected): {locator}")
+            print(f"      unwatchable locator (not inspected): {display(locator)}")
         print()
 
 

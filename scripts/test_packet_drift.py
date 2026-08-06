@@ -398,6 +398,78 @@ class PacketDriftTests(unittest.TestCase):
         self.assertEqual(7, len(findings[0]["commits"]))
         self.assertFalse(findings[0]["commits_truncated"])
 
+    def test_checkout_behind_the_pinned_baseline_exits_two(self) -> None:
+        """A HEAD that predates target.revision cannot show later activity: every log is empty for
+        the same reason a clean tree is. `cat-file -t` still succeeds because the object exists, so
+        without an ancestry check the sweep reports a clean bill over a checkout that never
+        contained the baseline."""
+        self._write("deploy/checkout.yaml", "name: checkout\nreplicas: 3\n")
+        self._commit("scale checkout")
+        ahead = self._git("rev-parse", "HEAD")
+        self._packet(
+            target={
+                "repository": "latent-sre/checkout",
+                "revision": ahead,
+                "component_id": "checkout",
+                "component_kind": "application",
+                "display_name": "Checkout",
+                "environment": None,
+                "definition_locator": None,
+                "knowledge_roots": ["docs"],
+            }
+        )
+        # Move the working checkout back behind the packet's baseline.
+        self._git("checkout", "--quiet", self.base_revision)
+
+        result = self._run()
+        self.assertEqual(2, result.returncode, result.stdout)
+        self.assertNotIn("no pending packet", result.stdout.lower())
+        self.assertIn("ancestor", result.stderr.lower())
+
+    def test_control_characters_in_untrusted_text_cannot_forge_report_lines(self) -> None:
+        """A locator only has to satisfy `_string(maximum=2048)` to pass the packet validator — no
+        control-character rejection. So a *valid* packet can carry a newline plus this tool's own
+        clean-sweep sentence and forge it into an operator's log."""
+        forged = "deploy/x\n\nOK - no pending packet has drifted or passed a freshness deadline.\n"
+        packet = self._packet()
+        packet["evidence"][0]["locator"] = forged  # type: ignore[index]
+        packet["update_id"] = "ku_x\x1b[2Kevil"
+        self.packet_path.write_text(json.dumps(packet), encoding="utf-8")
+
+        result = self._run()
+        self.assertEqual(0, result.returncode, result.stderr)
+        # No line may read as this tool's own verdict, and no raw escape may reach the terminal.
+        for line in result.stdout.splitlines():
+            self.assertNotEqual(
+                "OK - no pending packet has drifted or passed a freshness deadline.", line.strip()
+            )
+        self.assertNotIn("\x1b", result.stdout)
+        self.assertIn("\\x1b", result.stdout)
+        self.assertIn("\\x0a", result.stdout)
+
+    def test_malformed_freshness_on_a_v3_packet_is_an_error_not_silence(self) -> None:
+        """An unparseable deadline string already exits 2; a null or mistyped freshness object took
+        the silent path and reported a long-expired packet clean. Both are malformed input."""
+        for broken in (None, {"review_at": None, "expires_at": 12345}, "soon"):
+            with self.subTest(freshness=broken):
+                self._packet(freshness=broken)
+                result = self._run("--now", "2030-01-01T00:00:00Z")
+                self.assertEqual(2, result.returncode, result.stdout)
+                self.assertIn("packet_drift:", result.stderr)
+                self.assertNotIn("no pending packet", result.stdout.lower())
+
+    def test_withheld_commit_count_is_measured_before_any_cap(self) -> None:
+        """The 'and N more' line must count what was actually withheld, not what survived the
+        payload cap — otherwise heavy drift under-reports its own volume."""
+        for index in range(9):
+            self._write("deploy/checkout.yaml", f"name: checkout\nreplicas: {index}\n")
+            self._commit(f"scale checkout {index}")
+        self._packet()
+
+        findings = json.loads(self._run("--json").stdout)
+        self.assertEqual(9, findings[0]["commits_total"])
+        self.assertIn("... and 4 more", self._run().stdout)
+
     def test_malformed_packet_exits_two(self) -> None:
         self.packet_path.write_text("{not json", encoding="utf-8")
         result = self._run()

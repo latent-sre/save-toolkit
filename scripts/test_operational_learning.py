@@ -24,6 +24,30 @@ knowledge_update = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(knowledge_update)
 
 
+def _approved_artifact_rules(rules: list[dict]) -> dict[tuple[str, str], set[str]]:
+    """Index a schema's top-level allOf by the artifacts each approved trigger kind must carry."""
+
+    encoded: dict[tuple[str, str], set[str]] = {}
+    for rule in rules:
+        trigger_properties = (
+            rule.get("if", {})
+            .get("properties", {})
+            .get("trigger", {})
+            .get("properties", {})
+        )
+        kind_rule = trigger_properties.get("kind", {})
+        state_rule = trigger_properties.get("state", {})
+        disposition_rule = rule.get("then", {}).get("properties", {}).get("dispositions", {})
+        if state_rule.get("const") == "approved" and "enum" in kind_rule:
+            artifacts = {
+                constraint["contains"]["properties"]["artifact"]["const"]
+                for constraint in disposition_rule.get("allOf", [])
+            }
+            for trigger_kind in kind_rule["enum"]:
+                encoded[(trigger_kind, "approved")] = artifacts
+    return encoded
+
+
 class OperationalLearningBaselineTests(unittest.TestCase):
     ARTIFACT_CONTENT = b"# Checkout pool alert\n"
     ARTIFACT_SHA256 = hashlib.sha256(ARTIFACT_CONTENT).hexdigest()
@@ -1678,6 +1702,68 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         )
         self.assertFalse(schema["additionalProperties"])
 
+    def test_v3_schema_inherits_every_applicable_earlier_approved_artifact_rule(self) -> None:
+        """v3 is the current write format, so its standalone contract must stay as strict as the
+        versions it reuses. The catalog test only proves each `$ref` resolves — deleting one would
+        weaken the published schema with every other test still green.
+        """
+        assets = ROOT / "skills/operational-learning/assets"
+        documents = {
+            name: json.loads((assets / name).read_text(encoding="utf-8"))
+            for name in (
+                "knowledge-update-v1.schema.json",
+                "knowledge-update-v2.schema.json",
+                "knowledge-update-v3.schema.json",
+            )
+        }
+        v3 = documents["knowledge-update-v3.schema.json"]
+
+        effective: list[dict] = []
+        for rule in v3["allOf"]:
+            reference = rule.get("$ref")
+            if reference is None:
+                effective.append(rule)
+                continue
+            source, _, pointer = reference.partition("#/allOf/")
+            self.assertIn(source, documents, f"unexpected v3 allOf ref: {reference}")
+            effective.append(documents[source]["allOf"][int(pointer)])
+
+        # v3 reuses v2's trigger definition by reference, so v2 is where its kinds are declared.
+        self.assertEqual(
+            "knowledge-update-v2.schema.json#/$defs/trigger",
+            v3["properties"]["trigger"]["$ref"],
+        )
+        v3_kinds = set(
+            documents["knowledge-update-v2.schema.json"]["$defs"]["trigger"]["properties"]["kind"][
+                "enum"
+            ]
+        )
+        v3_rules = _approved_artifact_rules(effective)
+        inherited = _approved_artifact_rules(
+            documents["knowledge-update-v1.schema.json"]["allOf"]
+        ) | _approved_artifact_rules(
+            [
+                rule
+                for rule in documents["knowledge-update-v2.schema.json"]["allOf"]
+                if "$ref" not in rule
+            ]
+        )
+        self.assertTrue(inherited, "no approved-artifact rules found in v1/v2")
+        for (kind, state), artifacts in inherited.items():
+            if kind not in v3_kinds:
+                continue
+            with self.subTest(trigger_kind=kind):
+                self.assertIn(
+                    (kind, state),
+                    v3_rules,
+                    f"v3 dropped the approved-artifact rule for {kind!r}",
+                )
+                self.assertTrue(
+                    artifacts <= v3_rules[(kind, state)],
+                    f"v3 weakened the required artifacts for {kind!r}: "
+                    f"{sorted(artifacts - v3_rules[(kind, state)])} missing",
+                )
+
     def test_v2_schema_inherits_every_applicable_v1_approved_artifact_rule(self) -> None:
         assets = ROOT / "skills/operational-learning/assets"
         v1 = json.loads(
@@ -1687,28 +1773,7 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             (assets / "knowledge-update-v2.schema.json").read_text(encoding="utf-8")
         )
 
-        def approved_artifact_rules(rules: list[dict]) -> dict[tuple[str, str], set[str]]:
-            encoded: dict[tuple[str, str], set[str]] = {}
-            for rule in rules:
-                trigger_properties = (
-                    rule.get("if", {})
-                    .get("properties", {})
-                    .get("trigger", {})
-                    .get("properties", {})
-                )
-                kind_rule = trigger_properties.get("kind", {})
-                state_rule = trigger_properties.get("state", {})
-                disposition_rule = (
-                    rule.get("then", {}).get("properties", {}).get("dispositions", {})
-                )
-                if state_rule.get("const") == "approved" and "enum" in kind_rule:
-                    artifacts = {
-                        constraint["contains"]["properties"]["artifact"]["const"]
-                        for constraint in disposition_rule.get("allOf", [])
-                    }
-                    for trigger_kind in kind_rule["enum"]:
-                        encoded[(trigger_kind, "approved")] = artifacts
-            return encoded
+        approved_artifact_rules = _approved_artifact_rules
 
         ref_prefix = "knowledge-update-v1.schema.json#/allOf/"
         effective_v2_rules: list[dict] = []

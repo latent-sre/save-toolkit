@@ -49,8 +49,9 @@ environment or definition location.
 The [`packet_drift.py`](../skills/operational-learning/scripts/packet_drift.py) watch reads packets of
 any supported version and reports pending (`proposed`/`blocked`) packets whose repository evidence has
 been committed to since `target.revision`, or whose freshness deadline has passed. It is advisory by
-default and exits non-zero only on an unreadable repository or packet, so an empty report can never be
-confused with an uninspected one.
+default: exit 0 with findings, exit 1 only when the caller opts in with `--fail-on-drift`, and exit 2
+when a repository, revision, or packet could not be read — including a checkout whose `HEAD` predates
+the pinned baseline. An empty report can therefore never be confused with an uninspected one.
 
 Version 2 remains supported. It replaces the v1 service-only target with stable component
 identity (`component_id`, `component_kind`, and `display_name`) and uses `component_added` and
