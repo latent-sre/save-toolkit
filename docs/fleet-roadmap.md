@@ -118,7 +118,7 @@ forward into this item's host distribution work.
 
 **Acceptance:** Version parity and changelog pass; `claude plugin tag --dry-run` validates the Claude
 manifest/marketplace pair; every host's publication mechanism is verified before choosing an
-immutable tag or protected moving ref; promotion consumes the reviewed SHA and required checks;
+immutable tag or protected moving ref; promotion consumes the reviewed SHA and recorded validation;
 install and uninstall smoke tests pass from the published artifact; rollback or yank is rehearsed and
 documented.
 

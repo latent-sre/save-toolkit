@@ -62,9 +62,10 @@ shape here.
 
 `main` is protected by repository ruleset
 [`Protect main`](https://github.com/latent-sre/save-toolkit/rules/17841231): pull requests
-required, the single status check `protection-gate` (from `.github/workflows/validate.yml`) must
-pass, force-push and branch deletion are blocked, and administrators cannot bypass. Classic branch
-protection may remain absent; rulesets are authoritative. Closure evidence:
+required, force-push and branch deletion are blocked, and administrators cannot bypass. No status
+check is required; `Validate fleet` remains advisory CI. Classic branch protection may remain
+absent; rulesets are authoritative. Historical closure evidence and the later owner decision to
+remove the required check are recorded in:
 [`docs/reviews/2026-08-05-protect-001-closure.md`](docs/reviews/2026-08-05-protect-001-closure.md).
 
 Maintainer / merge authority: `latent-sre`. Named promotion operator (exact-SHA publish):
