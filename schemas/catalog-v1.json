@@ -38,9 +38,9 @@
       "id": "fleet-improvement-v1",
       "uri": "https://github.com/latent-sre/save-toolkit/skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
       "version": 1,
-      "status": "supported",
+      "status": "contract-only",
       "canonical_path": "skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
-      "validator": "scripts/validate_improvements.py",
+      "validator": null,
       "generated_projections": [
         "platforms/copilot/skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
         "plugins/save-toolkit/skills/agent-authoring/assets/fleet-improvement-v1.schema.json"

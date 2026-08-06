@@ -217,7 +217,7 @@ class FleetValidatorTests(unittest.TestCase):
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "reviewer.md":
-                    text = text.replace("tools: Read, Grep, Glob, Skill", "hooks: ignored\ntools: Read")
+                    text = text.replace("tools: Read, Grep, Glob", "hooks: ignored\ntools: Read")
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
         rendered = "\n".join(failures)
@@ -328,7 +328,7 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_duplicate_tool_grant_is_rejected(self) -> None:
         failures = self._agents_with_mutation(
-            "reviewer.md", "tools: Read, Grep, Glob, Skill", "tools: Read, Grep, Glob, Skill, Read"
+            "reviewer.md", "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Read"
         )
         self.assertIn("duplicate tool grant", "\n".join(failures))
 
@@ -438,6 +438,20 @@ class FleetValidatorTests(unittest.TestCase):
             )
             failures = validate_fleet.validate_roster_graph(root)
         self.assertTrue(any("'scribe'" in f for f in failures), failures)
+
+    def test_roster_with_duplicate_agent_row_is_rejected(self) -> None:
+        source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        sde_row = next(line for line in source.splitlines() if line.startswith("| `sde` |"))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._roster_root(
+                temporary,
+                lambda text: text.replace(sde_row, f"{sde_row}\n{sde_row}", 1),
+            )
+            failures = validate_fleet.validate_roster_graph(root)
+        self.assertTrue(
+            any("duplicate roster row for agent 'sde'" in failure for failure in failures),
+            failures,
+        )
 
     def test_roster_without_the_table_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

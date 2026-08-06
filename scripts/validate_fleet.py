@@ -93,8 +93,8 @@ EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 EXPECTED_AUTHORITY = {
     "reviewer": {
-        "required": {*LOCAL_READ_TOOLS, "Skill"},
-        "forbidden": {"Bash", "Agent", *WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
+        "required": LOCAL_READ_TOOLS,
+        "forbidden": {"Bash", "Agent", "Skill", *WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
     },
     "repository-investigator": {
         "required": LOCAL_READ_TOOLS,
@@ -490,6 +490,7 @@ def validate_roster_graph(root: Path) -> list[str]:
     except OSError as exc:
         return [str(exc)]
     documented: dict[str, set[str]] = {}
+    failures: list[str] = []
     in_table = False
     for line in lines:
         stripped = line.strip()
@@ -505,12 +506,15 @@ def validate_roster_graph(root: Path) -> list[str]:
         agent_names = re.findall(r"`([a-z0-9-]+)`", cells[0])
         if not agent_names:
             continue  # header/separator row, or a row without a backticked agent name
-        documented[agent_names[0]] = set(re.findall(r"`([a-z0-9-]+)`", cells[-1]))
+        agent = agent_names[0]
+        if agent in documented:
+            failures.append(f"{path}: duplicate roster row for agent {agent!r}")
+            continue
+        documented[agent] = set(re.findall(r"`([a-z0-9-]+)`", cells[-1]))
 
     if not documented:
         return [f"{path}: could not find the roster 'Delegates to' table to validate the graph"]
 
-    failures: list[str] = []
     expected_agents = set(EXPECTED_DELEGATION)
     if set(documented) != expected_agents:
         failures.append(

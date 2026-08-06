@@ -223,6 +223,17 @@ class PlatformAdapterTests(unittest.TestCase):
             failures = adapters._gitattributes_failures(root)
         self.assertTrue(any("eol=lf' rule for *.py" in f for f in failures), failures)
 
+    def test_gitattributes_must_govern_its_own_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+            broken = "\n".join(
+                line for line in text.splitlines() if not line.startswith(".gitattributes ")
+            ) + "\n"
+            (root / ".gitattributes").write_text(broken, encoding="utf-8", newline="\n")
+            failures = adapters._gitattributes_failures(root)
+        self.assertTrue(any("rule for .gitattributes" in f for f in failures), failures)
+
     def test_generated_cr_byte_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()

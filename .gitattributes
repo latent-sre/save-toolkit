@@ -2,6 +2,7 @@
 # validator and the readonly-guard.py hook (invoked via POSIX shell) read identical bytes on every
 # OS. CRLF breaks POSIX-shell hooks and the line-oriented
 # frontmatter parser (a trailing \r stops the `--- ` fence from matching).
+.gitattributes text eol=lf
 *.md   text eol=lf
 *.py   text eol=lf
 *.sh   text eol=lf

@@ -133,9 +133,6 @@ ALLOWED = [
     "cat deploy.sh | grep -c foo",
     "cat notes.py | grep -e todo",
     "git diff | head -100",
-    "rg -l TODO | sort | uniq",
-    "rg -c ERROR logs/ | sort -rn | head",
-    "sort access.log",
     # bundled BENIGN short flags must still pass — the exec-letter is not present
     "git grep -ni TODO",
     "rg -in pattern src/",
@@ -242,8 +239,8 @@ DENIED = [
     "gh repo view --web",
     # --- readers with an execution or write flag: the reader is fine, the flag is not ---------
     # Each of these was ALLOWED before the guard grew per-tool flag gates. `rg --pre`/`--hostname-bin`
-    # run an external program mid-search; `sort -o`/`tree -o` write a file with no shell redirect;
-    # `less -o` logs to a file and `less` can execute a program; `ag --pager` executes a program.
+    # run an external program mid-search; `tree -o` writes a file with no shell redirect; `less -o`
+    # logs to a file and `less` can execute a program; `ag --pager` executes a program.
     "rg --pre /bin/sh x .",
     "rg --hostname-bin=/bin/sh x .",
     "rg -z pattern archive/",
@@ -253,6 +250,19 @@ DENIED = [
     "sort -o/tmp/pwn.txt README.md",    # attached-value output
     "sort -ro /tmp/pwn.txt README.md",  # bundled -r -o
     "sort --output=/tmp/pwn.txt f",
+    # GNU sort is absent from the allowlist entirely: --compress-program executes a helper, and
+    # -T/--temporary-directory plus ordinary large inputs can write spill files. Flag-gating only
+    # known-dangerous forms is therefore not a defensible read-only contract.
+    "sort --compress-program=/bin/sh README.md",
+    "sort --compress-program /bin/sh README.md",
+    "sort -T /tmp README.md",
+    "sort -T/tmp README.md",
+    "sort -rT/tmp README.md",
+    "sort --temporary-directory=/tmp README.md",
+    "sort --temporary-directory /tmp README.md",
+    "sort access.log",
+    "rg -l TODO | sort | uniq",
+    "rg -c ERROR logs/ | sort -rn | head",
     "tree -o /tmp/x .",
     "less -o /tmp/x README.md",
     "less README.md",

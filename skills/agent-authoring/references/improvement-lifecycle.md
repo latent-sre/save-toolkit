@@ -7,23 +7,25 @@ itself. Operational discoveries continue through `operational-learning`; only re
 behavior and one material safety or authority failure enter this ledger.
 
 The portable record shape is the
-[fleet improvement v1 schema](../assets/fleet-improvement-v1.schema.json). **This loop is live, not
-theoretical.** Every record under `evals/improvements/<improvement-id>/record.json` is validated
-against that schema by `validate_improvements.py` in Gate A — the schema-expressible contract
-(structure, enums, id patterns, the three-attempt and cumulative-budget *ceilings*) is enforced on
-every commit. Store records there; keep raw traces and provider output under the ignored
-`.eval-runs/` tree, never in the record.
+[fleet improvement v1 schema](../assets/fleet-improvement-v1.schema.json). Every record under
+`evals/improvements/<improvement-id>/record.json` is checked against the implemented JSON Schema
+subset by `validate_improvements.py` in Gate A. That check enforces structural constraints such as
+required fields, closed objects, enums, patterns, array limits, uniqueness, and numeric ceilings.
+It recognizes `format` as a draft 2020-12 annotation and does not claim calendar-semantic format
+validation. Store records there; keep raw traces and provider output under the ignored `.eval-runs/`
+tree, never in the record.
 
-What is enforced today is the schema layer. The deeper *semantic* checks — attempt-to-attempt
+What is enforced today is only the schema layer. The deeper *semantic* checks — attempt-to-attempt
 transition legality, cumulative budget summed across attempts, exact-subject revision binding,
 append-only history, and external-authority — are not expressible in JSON Schema; they are the
-documented next layer of the validator, and this document remains their contract. Their absence does
-not make the loop optional: the safety invariant below is what actually bounds it.
+documented contract for the parked validators. Until those validators are restored, no record may
+be promoted beyond the states allowed in Validation below; review prose is not equivalent to
+executable enforcement.
 
 **The one invariant that never moves:** no agent promotes, merges, or rolls back its own improvement.
 An agent may observe, record, evidence, prepare, and propose; a **human or a protected workflow**
 makes every promotion and rollback decision. The self-learning loop is the *recording and evidence*
-machinery — there is no background self-modifying process, and making the loop live does not add one.
+machinery — there is no background self-modifying process, and schema checking does not add one.
 
 ## Contents
 
@@ -68,7 +70,8 @@ protected merge decision. A `changes_requested` verdict also enters `in_review`,
 must be a separate transition: an authenticated author or protected workflow returns the record to
 `candidate` and appends the next attempt, or an authenticated reviewer/protected workflow moves it
 to `rejected`. A review verdict and replacement attempt cannot be appended in one transition. The
-exact transition table in the validator is authoritative. Terminal records never reopen; create a
+transition table above remains the written contract until the parked validator is restored. Terminal
+records never reopen; create a
 linked record for a genuinely new encounter or ownership transfer.
 
 Each transition requires caller-supplied authority appropriate to its destination: triage,
@@ -147,7 +150,7 @@ draft. Branch protection, required review, and protected workflows remain the en
   when the old candidate bytes cannot be reconstructed, but it can never promote a candidate. Never
   substitute the report commit for unknown candidate bytes. Any failed/inconclusive evaluation,
   safety regression, or authority regression blocks promotion.
-- Register every evidence ID with a repository-relative locator and SHA-256 digest. The validator
+- Register every evidence ID with a repository-relative locator and SHA-256 digest. The parked validator
   resolves each file below caller-owned evidence roots, rejects links/reparse points/hardlinks,
   validates envelopes with caller-supplied trusted code, and cross-binds the envelope to its
   observation, attempt, case set, reviewer, monitoring criterion, or rollback trigger. An unresolved

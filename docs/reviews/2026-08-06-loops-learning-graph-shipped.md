@@ -1,10 +1,10 @@
-# Shipped: self-learning loops, workflows, and first-class graph engineering
+# Review: self-learning schema, retracted workflow experiment, and graph engineering
 
 - Date: 2026-08-06
 - Status: evidence/history (live follow-ups are tracked in `docs/fleet-roadmap.md` only)
-- Scope: the round that stopped treating three requested capabilities — self-learning loops,
-  multi-agent workflows ("loops"), and graph engineering — as things to refuse, and shipped all
-  three. Records the reframe that unblocked them so the reasoning is repository state, not memory.
+- Scope: the round that evaluated self-learning loops, multi-agent workflows ("loops"), and graph
+  engineering. Schema-shape enforcement and graph validation remain; the workflow experiment was
+  retracted after live runtime probing exposed an unsupported authority boundary.
 
 ## The reframe that unblocked the work
 
@@ -18,53 +18,53 @@ Applying the right question, feature by feature:
 
 | Feature | Was the blocking rule right? | Outcome |
 |---|---|---|
-| Loops / workflows | **No — self-imposed.** Nothing in the repo forbade a `workflows/` tree; the "no workflows" stance was the model's, not the fleet's. The *real* rule is narrower: workflows are Claude-only and never projected. | Built the feature; encoded the narrow rule. |
-| Self-learning loops | **Right, and honored by enforcing — not refusing.** The rule ("no agent promotes its own change; learning is reviewable state") is correct. The way to honor it was to make the loop's contract *enforced*, not to keep it parked. | Made the loop live behind schema enforcement. |
+| Loops / workflows | **The directory rule was self-imposed; the runtime boundary was not.** Claude Code 2.1.221 cannot both load an inline-plugin workflow under name-only mode and bind native permission to the registered implementation. | Retracted the implementation; `WF-001` is blocked on a supported exact-dispatch contract. |
+| Self-learning loops | **Right, and only structurally enforced so far.** The rule ("no agent promotes its own change; learning is reviewable state") is correct. Gate A checks the record schema, while lifecycle semantics remain parked. | Added schema-shape enforcement; kept promotion blocked on the parked semantic validators. |
 | Graph engineering | **Right, and honored by making it first-class.** The fleet already was a delegation graph; the rule (edges are real only in frontmatter, main-thread only) is correct. Honoring it meant naming the concept and guarding its unvalidated render. | Named it; validated the render. |
 
-The through-line: every feature shipped by *satisfying* the repo's doctrine — convert silent
-failures into loud ones — never by engineering around it. "No" was the wrong default; "which
-narrower rule is actually right, and what enforces it?" was the work.
+The through-line remains "which narrower rule is actually right, and what enforces it?" That
+question supported the schema and graph changes. For workflows, it also supplied the stop condition:
+when enforcement required a bespoke security broker around undocumented host behavior, removal was
+safer and simpler than calling the experiment shipped.
 
-## What shipped
+## What remained after review
 
-**1. Self-learning loop — made live.** `validate_improvements.py` (stdlib JSON-Schema subset)
-enforces every `evals/improvements/*/record.json` against the fleet-improvement v1 schema, wired
-into Gate A; the schema catalog flipped `fleet-improvement-v1` from `contract-only` to `supported`.
-`skills/agent-authoring/references/improvement-lifecycle.md` was reframed from "parked" to "live,"
-with the schema layer enforced and the deeper semantic checks named as the next layer. The one
+**1. Self-learning record shape — enforced.** `validate_improvements.py` (stdlib JSON-Schema subset)
+checks every `evals/improvements/*/record.json` against the fleet-improvement v1 schema in Gate A.
+The catalog remains `contract-only` because the transition, authority, history, and repository-
+binding validators are still parked. The schema layer is executable; it is not the lifecycle
+semantic layer. The one
 invariant is stated prominently and unchanged: **no agent promotes, merges, or rolls back its own
 improvement** — a human or protected workflow does. The loop records and evidences; it is not a
 background self-modifying process.
 
-**2. Workflows / loops — built.** `workflows/ship-review.js` is the fleet's first Claude workflow:
-a `save-toolkit:sde` scope pass enumerates the working-tree diff (read-only git), two
-`save-toolkit:reviewer` lanes judge that diff *as data* in parallel (correctness + security), and a
-merge-readiness synthesis applies the merge-gate rule. The shape is forced by the fleet's own tool
-postures — `reviewer` holds no Bash, so it cannot self-scope; the workflow is the caller that
-supplies the diff, exactly as `agents/reviewer.md` requires. Claude-only and never projected (no
-other host has a workflow runtime); the AGENTS.md Map records this and the generator stays blind to
-the tree. It is **unverified until run against a live session** — roadmap item `WF-001` tracks that.
+**2. Workflow experiment — removed.** Live probing on Claude Code 2.1.221 showed that
+`CLAUDE_WORKFLOW_NAME_ONLY=1` suppresses inline-plugin workflows. Removing that flag loads the
+workflow, but native `Workflow(name)` permission also accepts a same-name caller-supplied `script`
+override. An exec-form `PreToolUse` guard successfully denied that exact attack before task creation,
+but a safe end-to-end design then required a sterile launcher, one-shot hook receipt, immutable Git
+scope producer, object-store isolation, loader-size budgeting, and version-pinned upgrade probes.
+That was a security broker, not a small fleet workflow. The workflow, launcher, internal reviewer,
+scope helper, guard, and focused tests were removed. `WF-001` now records the upstream prerequisite
+for reconsideration.
 
 **3. Graph engineering — made first-class.** The fleet already was a directed delegation graph
 (`Agent(target)` grants are its edges) and `validate_fleet.py` already enforced each agent's grants
 against `EXPECTED_DELEGATION`. What was missing was ownership of the concept and a guard on the
 graph's third copy: the roster "Delegates to" column in `AGENTS.md` was a hand-kept render nothing
-checked. `validate_roster_graph` now binds that column back to the enforced graph (four mutation
-tests: dropped edge, phantom edge out of a terminal agent, and missing table all fail; the shipped
+checked. `validate_roster_graph` now binds that column back to the enforced graph (mutation tests
+show dropped edges, phantom edges, duplicate agent rows, and a missing table all fail; the shipped
 roster passes). `skills/agent-authoring/references/delegation-graph.md` names the concept — one
 enforced source, one pinned expectation, one validated render, the honest main-thread-only
 enforcement limit, and the three places an edge change must land together.
 
 ## Status and honest limits
 
-- Gate A: **23/23** across all three commits (`576ea4b`, `d3a1346`, `f13d396` on
-  `claude/sde-agents-repo-alignment-x5ayt9`).
-- Gate A is structural. It proves the workflow file parses and the schema/graph checks have teeth;
-  it cannot prove the workflow *runs*. `WF-001` in `docs/fleet-roadmap.md` is the one open item: run
-  `ship-review` in a live session and record the result. One proven pipeline is worth more than
-  several unrun ones — do not add a second workflow before this one is verified.
-- The self-learning loop's enforced layer is the schema. The semantic checks (transition legality,
-  cumulative budget across attempts, exact-subject binding, append-only history) remain the
-  documented next layer, held by review until the ledger carries enough real records to justify
-  recovering the parked executable validators from tag `pre-trim-2026-08-02`.
+- The original closure recorded Gate A **23/23**, but those pre-rebase SHAs do not identify the
+  repaired candidate and are not reused as current evidence. Run Gate A on the final revision.
+- No executable workflow or internal workflow reviewer remains in the repository. `WF-001` is a
+  blocked architecture item, not an implementation checklist.
+- The fleet-improvement record's enforced layer is schema shape only. Semantic checks (transition
+  legality, cumulative budget across attempts, exact-subject binding, append-only history) remain
+  parked; records cannot promote until those executable validators are recovered from tag
+  `pre-trim-2026-08-02`.

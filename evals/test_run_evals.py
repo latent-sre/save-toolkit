@@ -267,7 +267,7 @@ class StreamTraceTests(unittest.TestCase):
             "target": {"kind": "agent", "name": "repository-investigator"},
         }
         discovery = {"mode": "discovery", "target": {"kind": "agent", "name": "reviewer"}}
-        self.assertEqual(run_evals.expected_runtime_tools(reviewer), ("Skill",))
+        self.assertEqual(run_evals.expected_runtime_tools(reviewer), ())
         self.assertEqual(run_evals.expected_runtime_tools(sre), ("Skill", "Task"))
         self.assertEqual(run_evals.expected_runtime_tools(researcher), ())
         self.assertEqual(run_evals.expected_runtime_tools(repository_investigator), ())

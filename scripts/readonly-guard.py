@@ -123,10 +123,10 @@ _SEPARATORS = {"|", "||", "&&", ";", "\n"}
 # redirect would be needed, and redirects are refused above). `sed` and `awk` are deliberately ABSENT
 # — both can write files without any redirect (`sed -i`, awk's `print > "f"` and `system()`).
 # `tree` and `less` are absent: `tree -o` writes to a named file, and `less -o` logs its input to a
-# file (and `less` can also execute a program interactively). `sort` is NOT here — it is flag-gated
-# below like git's readers rather than removed, because `sort -o` is its only write vector and
-# `rg … | sort | uniq` is a core triage idiom; removing it wholesale was a deeper cut than git's own
-# precedent (caught in review).
+# file (and `less` can also execute a program interactively). `sort` is absent too: GNU sort can run
+# an arbitrary helper through `--compress-program`, accepts caller-selected spill locations through
+# `-T`/`--temporary-directory`, and may write spill files even without either flag. A complete safe
+# flag gate would have to predict runtime spilling, so the command fails closed instead.
 _SIMPLE_READERS = frozenset({
     "cat", "head", "tail", "nl", "wc", "uniq", "cut", "tr", "column",
     "grep", "egrep", "fgrep", "rg",
@@ -246,10 +246,6 @@ _GH_EXECUTION_FLAGS = frozenset({"--web", "-w"})
 # `-w` (--web) bundles too (`gh pr view -cw`), so match the letter in a cluster. See
 # _short_cluster_has.
 _GH_EXECUTION_SHORT = frozenset({"w"})
-# `sort` reads unless it is told to write: `-o FILE` / `-oFILE` / `--output[=FILE]`, and `-o`
-# bundles (`-ro FILE`). The short letter is matched in a cluster; the long form by name.
-_SORT_WRITE_LONG = frozenset({"--output"})
-_SORT_WRITE_SHORT = frozenset({"o"})
 _GH_READ = {
     "pr": frozenset({"view", "diff", "list", "checks", "status"}),
     "issue": frozenset({"view", "list", "status"}),
@@ -343,7 +339,7 @@ def _short_cluster_has(token: str, letters: frozenset[str]) -> bool:
 def _carries_flag(args: list[str], long_flags: frozenset[str], short_letters: frozenset[str]) -> bool:
     """True if any arg is one of `long_flags` (by name, `=`-value tolerant) or bundles a short letter.
 
-    The one detection mechanism behind every per-command flag gate (git/gh/rg/sort): the auditable
+    The one detection mechanism behind every per-command flag gate (git/gh/rg): the auditable
     POLICY stays in each command's named frozensets, only the error-prone matching mechanics live
     here once. Threading the cluster-aware form into every call site by hand is how the bundled-flag
     bypass slipped in; with one predicate that class of fix lands in a single place.
@@ -432,8 +428,6 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
         return _gh_allowed(args)
     if command == "rg":
         return _rg_allowed(args)
-    if command == "sort":
-        return not _carries_flag(args, _SORT_WRITE_LONG, _SORT_WRITE_SHORT)
     if command == "cf":
         return _cf_allowed(args)
     if command == "promtool":

@@ -13,10 +13,11 @@ host projections that must remain byte-identical to the canonical source.
   is a breaking shape change and requires a new version.
 - Catalog lifecycle statuses: `current` (writers emit this version), `supported` (readers and
   validators still accept it), `active` (a single-version contract with no successor), and
-  `contract-only` (the schema remains the published contract but its executable validator is parked
-  or absent — for `fleet-improvement-v1`, at tag `pre-trim-2026-08-02`). Readers and validators
-  accept every version marked `current` or `supported` until a separately reviewed retirement
-  removes that support.
+  `contract-only` (the schema remains published but its contract-grade semantic validator is parked
+  or absent — for `fleet-improvement-v1`, at tag `pre-trim-2026-08-02`). A repository gate may still
+  check schema shape; that partial check is not listed as the catalog validator and does not upgrade
+  lifecycle support. Readers and validators accept every version marked `current` or `supported`
+  until a separately reviewed retirement removes that support.
 - A validator may enforce cross-field, repository-state, authority, and safety invariants that JSON
   Schema cannot prove. Passing JSON Schema alone is never equivalent to authorization, review,
   merge, deployment, or production verification.

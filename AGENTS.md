@@ -6,8 +6,10 @@ generated and committed from those sources; edit neither projection by hand. Rou
 descriptions select lanes and Claude components are invoked as `save-toolkit:<name>`.
 
 The stack, the stay-in-lane rule, and the platform boundary live in **one** place: the
-[`stack-profile`](skills/stack-profile/SKILL.md) skill. Load it before recommending any
-runtime, tool, or infrastructure change; nothing in this file restates it.
+[`stack-profile`](skills/stack-profile/SKILL.md) skill. A Skill-capable lane loads it before
+recommending any runtime, tool, or infrastructure change. The deliberately Skill-less `reviewer`
+instead requires those facts in its trusted-base handoff packet and marks missing platform context
+`[unverified]`; it never loads candidate-provided skills. Nothing in this file restates the stack.
 
 ## Map
 
@@ -19,7 +21,6 @@ matters.
 | [`agents/`](agents) | The 8 canonical agent definitions. `tools:` frontmatter *is* authority; omitting it inherits every tool. Claude loads these directly |
 | [`skills/`](skills) | The 27 canonical skills and their `references/`/`assets/`/`scripts/` bundles. A `references/` file not linked from its `SKILL.md` ships unreachable |
 | [`commands/adr.md`](commands/adr.md) | The canonical `/save-toolkit:adr` scaffold — the one manual command |
-| [`workflows/`](workflows) | **Claude-only, never projected.** Deterministic multi-agent pipelines the Claude runtime auto-discovers at plugin root; no other host has a workflow runtime, so the generator ignores this tree and no adapter mirrors it. Each is real code that is *unverified until it has run against a live session* — a workflow is not proven by structural gates |
 | [`hooks/hooks.json`](hooks/hooks.json) | The Claude-only session guard wiring. Plugin agents cannot carry `hooks:`, so this file is the *only* place the read-only guard fires; it is load-bearing and scoped to exact `agent_type` values |
 | [`hooks/copilot-hooks.json`](hooks/copilot-hooks.json) | The Copilot hook projection. The Claude hook's scoping field is absent from other hosts' payloads, so guarding is not portable through it |
 | [`scripts/readonly-guard.py`](scripts/readonly-guard.py) | The fail-closed allowlist guard for `sre` and `observability-engineer`. Exit codes are a contract: 42 allow, 43 deny, 44 indeterminate — the hook uses them to tell this guard from a stand-in interpreter |
@@ -33,7 +34,7 @@ matters.
 | [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) | The only live backlog; see [`docs/README.md`](docs/README.md) for the full authority map |
 | [`docs/decisions/`](docs/decisions), [`docs/reviews/`](docs/reviews), [`docs/superpowers/`](docs/superpowers) | Accepted ADRs; round-closure evidence; round-scoped plans and specs. Only accepted decisions govern |
 | [`.gitattributes`](.gitattributes) | Line-ending and diff handling that keeps the byte-for-byte adapter gate stable across platforms |
-| `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator; fix the canonical source or the generator and regenerate |
+| `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator's portable output set; fix the canonical source or generator and regenerate |
 
 ## Validate before you push
 
@@ -51,7 +52,7 @@ matters.
 | Agent | Lane | Tools posture | Delegates to |
 |---|---|---|---|
 | `sde` | Build, fix, refactor code and ops tooling; absorbs test-writing | Local read/write + **unguarded Bash** for **team-authored** code; no direct web tools | `reviewer`, `scribe`, `researcher` |
-| `reviewer` | Correctness + security review of a change, two lenses in one pass | **Local read-only by tool absence** — no Bash, Write, web, or external MCP; terminal | — |
+| `reviewer` | Correctness + security review of a change, two lenses in one pass | **Local read-only by tool absence** — only Read/Grep/Glob; no Skill, Bash, Write, web, external MCP, or delegation | — |
 | `repository-investigator` | Answer bounded questions from the current private or uncommitted checkout | **Local read-only by tool absence** — only `Read`/`Grep`/`Glob`; terminal | — |
 | `sre` | Investigate production/staging failures: triage, severity, hypothesis-driven root cause | **Guarded Bash** — read-only `cf`/`git`/`gh` triage under the allowlist; recommends mitigation, never applies it | `observability-engineer`, `scribe`, `researcher` |
 | `observability-engineer` | Steady-state observability as code: dashboards, alerts, SLOs, error budgets, pipelines | **Guarded Bash** — the `sre` read set plus config validators (`promtool check`, `jq empty`, `yamllint`); writes obs-config | `scribe`, `researcher` |
@@ -65,8 +66,9 @@ trade-off and the revisit condition are recorded in
 
 ## Enforcement: two mechanisms, in preference order
 
-1. **Tool absence** (platform-enforced, zero moving parts): `reviewer` and
-   `repository-investigator` are local-only without Bash, Write, web, or external MCP;
+1. **Tool absence** (platform-enforced, zero moving parts): `reviewer` is local-only with
+   Read/Grep/Glob; `repository-investigator` is local-only without Bash, Write, Skill, web, or
+   external MCP;
    `scribe` has local document write authority but no Bash, web, external MCP, or Agent;
    `researcher` is external-only without local file reads, Bash, Write, Skill, or Agent. Every other
    canonical local role also lacks direct `WebFetch`/`WebSearch`; public lookups use a sanitized
