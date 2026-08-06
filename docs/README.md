@@ -13,16 +13,20 @@ sources or the generated host adapters.
 | Decisions (ADRs) | [`decisions/`](decisions) | An **accepted** record governs its decision, names what lost, and states its reopen trigger; a proposed record carries no implementation authority. Never an execution checklist |
 | Round plans and specs | [`superpowers/plans/`](superpowers/plans), [`superpowers/specs/`](superpowers/specs) | Operational only while their round is active. Each carries a top-of-file `Status:` banner marked `implemented`, `superseded`, or `historical`, and points back to `fleet-roadmap.md` — `check_plan_status.py` fails the build otherwise |
 | Closure evidence | [`reviews/`](reviews) | Historical evidence of what a round landed and how it was verified. Never a task list |
-| Live reference contracts | [`schema-compatibility.md`](schema-compatibility.md), [`verification-sandbox.md`](verification-sandbox.md) | Current, governing contracts — not dated snapshots. The schema-compatibility policy versions the machine-readable contracts in [`../schemas/catalog-v1.json`](../schemas/catalog-v1.json); the verification-sandbox spec governs the digest-bound boundary in [`../scripts/verification_sandbox.py`](../scripts/verification_sandbox.py). Both are linked from [`../README.md`](../README.md) and stay current with the code they describe |
+| Live reference contracts | [`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md), [`verification-sandbox.md`](verification-sandbox.md) | Current, governing contracts — not dated snapshots. The rules catalog indexes must-follow constraints with primary sources; schema-compatibility versions the machine-readable contracts in [`../schemas/catalog-v1.json`](../schemas/catalog-v1.json); the verification-sandbox spec governs the digest-bound boundary in [`../scripts/verification_sandbox.py`](../scripts/verification_sandbox.py). All three are linked from root docs and stay current with the fleet they describe |
 | Dated evidence | [`AUDIT-2026-07-12.md`](AUDIT-2026-07-12.md), [`RESEARCH.md`](RESEARCH.md) | Point-in-time snapshots. The audit's `OPEN` labels describe the 2026-07-12 fleet, not today's; the research file is provenance current as of its dateline. Re-verify before relying on either; neither adds work |
 
 ## What is live right now
 
 Only [`fleet-roadmap.md`](fleet-roadmap.md), the **accepted** records under [`decisions/`](decisions),
-and the two live reference contracts govern the current fleet. `superpowers/plans/` and
-`superpowers/specs/` are empty when no round is active; everything they and `reviews/` contain
-otherwise is history. A historical file may retain a dated "open" section as evidence of what was
-believed then — that section does not re-enter the queue unless the roadmap imports it.
+and the live reference contracts ([`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md),
+[`verification-sandbox.md`](verification-sandbox.md)) govern the current fleet.
+`superpowers/plans/` and `superpowers/specs/` hold **bannered historical** plans and specs when no
+round is active (the directories are not literally empty — each file carries a `Status:` banner
+marked `implemented`, `superseded`, or `historical` and points back to the roadmap). Everything
+they and `reviews/` contain is history, not a task list. A historical file may retain a dated
+"open" section as evidence of what was believed then — that section does not re-enter the queue
+unless the roadmap imports it.
 
 ## Rules
 

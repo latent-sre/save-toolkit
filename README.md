@@ -36,9 +36,9 @@ bare component names.
   the bounded improvement ledger; the Codex/Sol conformance runners are parked at tag
   `pre-trim-2026-08-02`; see [`evals/README.md`](evals/README.md).
 - [`docs/`](docs) — the only live backlog is [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md);
-  decisions live in [`docs/decisions/`](docs/decisions), closure evidence in
-  [`docs/reviews/`](docs/reviews), and the documents under `docs/superpowers/plans/` are preserved
-  implementation history, not task lists.
+  must-follow rules are indexed in [`docs/rules.md`](docs/rules.md); decisions live in
+  [`docs/decisions/`](docs/decisions), closure evidence in [`docs/reviews/`](docs/reviews), and the
+  documents under `docs/superpowers/plans/` are preserved implementation history, not task lists.
 
 ## The fleet
 
@@ -165,12 +165,15 @@ For repository-controlled executable checks, use the digest-bound, networkless c
 
 - Canonical source, generated host adapters, hook wiring, manifests, and eval contracts are
   structurally gated (Gate A); Claude marketplace validation and isolated plugin loading are
-  verified on the recorded CLI version.
+  verified on the recorded CLI version. Must-follow constraints are indexed in
+  [`docs/rules.md`](docs/rules.md).
 - Codex/Sol conformance is parked at tag `pre-trim-2026-08-02` with no current runtime baseline.
-  Copilot/VS Code runtime loading remains unverified because that runtime is not available on the
-  current validation host.
-- Publication is blocked on repository protection, distinct promotion authority, host install smoke
-  tests, and rollback evidence — tracked in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+  Disposable host install/inventory/uninstall smoke for Claude, Codex, VS Code, and Copilot CLI is
+  recorded under HOST-001; VS Code UI discovery and headless Codex agent discovery remain documented
+  gaps, and model-behavior evidence stays with EVAL-001.
+- `main` repository protection is closed (PROTECT-001). Publication remains blocked on HOST-001
+  acceptance, then RELEASE-001 (distinct promotion authority, published-artifact install smoke, and
+  rollback evidence) — tracked in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 ## Contribute
 

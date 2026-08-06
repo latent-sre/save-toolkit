@@ -2,7 +2,7 @@
 
 - Date: 2026-07-31
 - Status: Accepted
-- Decision owners: sre-agents maintainers
+- Decision owners: save-toolkit maintainers
 - Sister-lab input: `latent-sre/sde-agents@f4741c778a825a6353cc99e969f4ed05755aa574`
 
 ## Context

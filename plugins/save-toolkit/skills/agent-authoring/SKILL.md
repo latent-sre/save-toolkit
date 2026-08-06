@@ -109,7 +109,10 @@ generated adapters plus mutation tests in the same change.
 
 The phrase `zero-risk` means zero shared-fleet blast radius; local/runtime risk remains. A personal definition can still shadow a name or reach the user's credentials, tools, files, and network, so the phrase is not a security claim.
 
-Prefer wiring a new skill into an existing agent's lane over minting a new agent; a new agent is justified only by a distinct tool scope.
+Wire work as a skill when it is method, checklist, or playbook inside an existing lane. Mint a new
+agent when the roster needs another role — including a distinct tool posture, a durable domain lane,
+or a routing split the current agents cannot own cleanly. Record the justification in the agent file
+(or an ADR if it reshapes the roster).
 
 ## Handoffs
 
