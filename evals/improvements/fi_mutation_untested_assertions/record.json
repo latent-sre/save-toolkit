@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "improvement_id": "fi_mutation_untested_assertions",
+  "created_at": "2026-08-06T20:56:28Z",
+  "updated_at": "2026-08-06T20:56:28Z",
+  "target": {
+    "repository": "latent-sre/save-toolkit",
+    "base_revision": "dc4d3e7d6b6d355e28d4f4a6cae651e8be71f4c9",
+    "artifact_kind": "fleet_governance",
+    "artifact_paths": [
+      "AGENTS.md",
+      "scripts/gate_a.py"
+    ]
+  },
+  "owner": {
+    "name": "latent-sre",
+    "kind": "team",
+    "agent_lane": "prompt-engineer"
+  },
+  "related_improvement_id": null,
+  "severity": "high",
+  "failure_fingerprint": "ff_2b5d5533075eab8fa1b9f5e8c18a15b503ea76f53a131a4e3c51ba50cd89780b",
+  "observations": [
+    {
+      "event_id": "fo_fail_on_drift_assertion_20260806",
+      "kind": "review_finding",
+      "observed_at": "2026-08-06T20:56:28Z",
+      "source": {
+        "kind": "review",
+        "locator": "docs/reviews/2026-08-06-mutation-testing-gap.md",
+        "revision": null,
+        "sha256": "559cd40f229c0fec7ec2d26f254e2b8a945eecbe380b62bfa4a8af8e2be26c55"
+      },
+      "trust": "trusted",
+      "summary": "A repository test passed while asserting the opposite of the contract named in its own comment. Mutating the --fail-on-drift exit expression so the gate fails every clean sweep left all 16 tests green, so a broken opt-in gate would have shipped behind a green Gate A.",
+      "evidence_ids": [
+        "ev_559cd40f229c0fec7ec2d26f254e2b8a"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    {
+      "evidence_id": "ev_559cd40f229c0fec7ec2d26f254e2b8a",
+      "kind": "historical_report",
+      "locator": "docs/reviews/2026-08-06-mutation-testing-gap.md",
+      "sha256": "559cd40f229c0fec7ec2d26f254e2b8a945eecbe380b62bfa4a8af8e2be26c55"
+    }
+  ],
+  "status": "observed",
+  "success_criteria": [
+    "Mutating a contract predicate that a test names causes at least one test in the repository suite to fail, demonstrated by running the mutation.",
+    "The check derives its subjects rather than reading a hand-kept list, so a newly added contract enrolls without editing the checker.",
+    "Every existing suite and Gate A step stays green under the unmutated tree, with no test weakened to accommodate the check.",
+    "The change playbook rule that currently scopes mutation proof to validator rules is restated to cover any newly asserted contract, or the narrower scope is defended in writing."
+  ],
+  "monitoring_plan": {
+    "criterion_id": "fm_mutation_detection_holds",
+    "criterion": "After promotion, a deliberate mutation of a covered contract predicate continues to fail at least one test, and Gate A remains green on the unmutated tree.",
+    "rollback_triggers": [
+      "monitoring_fail",
+      "monitoring_inconclusive",
+      "merge_error",
+      "manual_owner_decision"
+    ]
+  },
+  "budget": {
+    "origin": "predeclared",
+    "max_attempts": 3,
+    "max_model_turns": 30,
+    "max_evaluator_calls": 10,
+    "max_tokens": 200000,
+    "max_wall_seconds": 3600,
+    "max_cost_usd": 5.0
+  },
+  "attempts": [],
+  "reviews": [],
+  "merge": null,
+  "monitoring": null,
+  "rollback": null,
+  "lesson": {
+    "status": "pending",
+    "control_path": null,
+    "reason": "No control has been designed. The candidate shapes are a Gate A mutation step, a targeted mutation corpus, or a wording change to the change playbook; choosing among them is the first attempt's work and belongs to the named owner, not to this observation."
+  },
+  "disposition_reason": "Recorded at observed. A recurring normalized fleet failure with one precisely evidenced instance and one documented prior occurrence qualifies for a typed record under the improvement lifecycle. No attempt has been made, no control designed, and no promotion is claimed or authorized by this record.",
+  "limitations": [
+    "The earlier occurrence is known only from AGENTS.md prose and has no incident record, so the recurrence claim rests on one precisely evidenced instance plus that documented prior.",
+    "The observation source is added in the same commit as this record, so source.revision is null; no prior revision binds it.",
+    "Severity high reflects consequence if unfixed rather than realised impact: the defect was caught by adversarial review before merge, but a false-green test undermines every other claim the fleet's gates make.",
+    "The semantic improvement validators are parked at tag pre-trim-2026-08-02, so only the schema layer of this record is enforced today; its lifecycle legality is a written contract, not a checked one.",
+    "Gate A was green throughout the incident and is not implicated: it is structural by design and never asserted this contract."
+  ]
+}
