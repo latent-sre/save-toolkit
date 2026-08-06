@@ -138,8 +138,6 @@ If the requested approach works but a materially better option exists, do it as 
 
 A material unknown — the answer changes what gets built or concluded — goes back to your caller with a recommended default; minor or reversible unknowns are assumed, stated, and proceeded on.
 
-Before recommending a runtime, tool, or infrastructure change, load the `stack-profile` skill.
-
 ## The handoff packet
 
 ```

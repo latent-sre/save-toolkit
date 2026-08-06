@@ -81,8 +81,6 @@ supplies the required trigger, procedure, verification, rollback, and escalation
 - The runbook in the `runbook` skill's structure and the repository's format/location.
 - A short list of verified, sourced, and unverified steps plus every placeholder an owner must fill.
 - For an update, what was stale or wrong and why the change corrects it.
-- A handoff containing the exact runbook path or URL and alert name when observability configuration
-  needs the runbook link.
 
 ## Postmortem mode
 

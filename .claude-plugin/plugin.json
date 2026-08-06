@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "save-toolkit",
   "displayName": "Save Toolkit",
   "description": "Application-engineering and site-reliability agents and reusable skills.",

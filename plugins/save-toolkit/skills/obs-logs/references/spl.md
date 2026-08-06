@@ -27,6 +27,18 @@ inventory, and field extractions.
 > *[sourced: Splunk comment documentation; unverified exact parser outcome for the target version]*
 > *[sourced: Splunk, “Add comments to searches”; community-macro behavior remains unverified for the target]*
 
+## Contents
+
+- Start narrow
+- Read it over time
+- Top offenders
+- Spot a spike vs the baseline (anomaly detection)
+- Correlate one request across services
+- Compare before vs after a deploy
+- Extract fields ad hoc
+- Tips & gotchas (Splunk-specific — where the default bites)
+- Inert canary example
+
 ## Start narrow
 
 *[sourced: Splunk search syntax; unverified for the target index, sourcetype, host, and extracted fields]*

@@ -18,6 +18,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class PlatformAdapterTests(unittest.TestCase):
     @staticmethod
+    def _copy_canonical_sources(root: Path) -> None:
+        """Copy the authored agents/ and skills/ into a temp root — the generator's inputs."""
+        shutil.copytree(ROOT / "agents", root / "agents")
+        shutil.copytree(ROOT / "skills", root / "skills")
+
+    @staticmethod
     def _copilot_tools(name: str) -> list[str]:
         rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
         frontmatter = rendered.split("---", 2)[1]
@@ -66,15 +72,21 @@ class PlatformAdapterTests(unittest.TestCase):
         """
         agent_names = {path.stem for path in (ROOT / "agents").glob("*.md")}
         offenders = []
+        scanned = 0
         for path, blob in adapters.expected_outputs(ROOT).items():
-            if path.parts[:3] != ("plugins", "save-toolkit", "skills"):
+            # Iterate by the generator's own constant, not a hard-coded path tuple: if CODEX_SKILLS
+            # ever moves, a literal tuple would silently match nothing and this test would verify
+            # nothing while staying green.
+            if adapters.CODEX_SKILLS not in path.parents:
                 continue
             if path.suffix.lower() not in {".md", ".txt"}:
                 continue
+            scanned += 1
             text = blob.decode("utf-8")
             offenders.extend(
                 f"{path.as_posix()}: `{name}`" for name in agent_names if f"`{name}`" in text
             )
+        self.assertTrue(scanned, "no Codex skill files were scanned — the projection path moved")
         self.assertEqual([], sorted(offenders))
 
     def test_codex_agent_filenames_carry_a_fleet_prefix(self) -> None:
@@ -181,8 +193,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_byte_drift_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            shutil.copytree(ROOT / "agents", root / "agents")
-            shutil.copytree(ROOT / "skills", root / "skills")
+            self._copy_canonical_sources(root)
             for relative in adapters.GENERATED_ROOTS:
                 shutil.copytree(ROOT / relative, root / relative)
             target = root / adapters.COPILOT_AGENTS / "sde.agent.md"
@@ -212,6 +223,17 @@ class PlatformAdapterTests(unittest.TestCase):
             failures = adapters._gitattributes_failures(root)
         self.assertTrue(any("eol=lf' rule for *.py" in f for f in failures), failures)
 
+    def test_gitattributes_must_govern_its_own_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+            broken = "\n".join(
+                line for line in text.splitlines() if not line.startswith(".gitattributes ")
+            ) + "\n"
+            (root / ".gitattributes").write_text(broken, encoding="utf-8", newline="\n")
+            failures = adapters._gitattributes_failures(root)
+        self.assertTrue(any("rule for .gitattributes" in f for f in failures), failures)
+
     def test_generated_cr_byte_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
@@ -224,11 +246,21 @@ class PlatformAdapterTests(unittest.TestCase):
             failures = adapters._gitattributes_failures(root)
         self.assertTrue(any("carries a CR byte" in f for f in failures), failures)
 
+    def test_binary_asset_with_cr_byte_is_not_flagged(self) -> None:
+        # A binary passthrough asset (PNG, etc.) routinely contains 0x0D and must not read as a
+        # line-ending regression — the CR check is scoped to LF-governed text suffixes.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            (root / ".gitattributes").write_bytes((ROOT / ".gitattributes").read_bytes())
+            asset = root / adapters.COPILOT_SKILLS / "probe" / "assets" / "logo.png"
+            asset.parent.mkdir(parents=True)
+            asset.write_bytes(b"\x89PNG\r\n\x1a\n\x00\r\x00binary\r\n")
+            self.assertEqual([], adapters._gitattributes_failures(root))
+
     def test_crlf_code_asset_is_normalized_in_projection(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            shutil.copytree(ROOT / "agents", root / "agents")
-            shutil.copytree(ROOT / "skills", root / "skills")
+            self._copy_canonical_sources(root)
             # find a real projected code asset and give the source CRLF line endings
             script = next(
                 p for p in (root / "skills").rglob("*.py")
@@ -250,8 +282,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_directory_swap_failure_restores_every_existing_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            shutil.copytree(ROOT / "agents", root / "agents")
-            shutil.copytree(ROOT / "skills", root / "skills")
+            self._copy_canonical_sources(root)
             for relative in adapters.GENERATED_ROOTS:
                 destination = root / relative
                 destination.mkdir(parents=True)
@@ -277,8 +308,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_generated_root_ancestor_indirection_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            shutil.copytree(ROOT / "agents", root / "agents")
-            shutil.copytree(ROOT / "skills", root / "skills")
+            self._copy_canonical_sources(root)
             (root / ".github").mkdir()
             real_check = adapters._is_link_or_reparse
 

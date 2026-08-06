@@ -63,11 +63,8 @@ selected and both measurements are present.
 Burn rate is the observed bad-event ratio divided by the SLO's allowed bad-event ratio. Bind each
 threshold to its window pair; the threshold is not a free label:
 
-| Action | Long window | Short window | Threshold |
-|---|---|---|---|
-| Page — fast burn | 1h | 5m | 14.4x |
-| Page — slow burn | 6h | 30m | 6.0x |
-| Ticket — slow leak | 3d | 6h | 1.0x |
+The three starting-point window/threshold pairs, their source, and the mixing rules are in
+[burn rate](./references/burn-rate.md).
 
 Require BOTH the long and short windows to meet that pair's threshold. The long window provides
 significance; the short window proves the burn is still active and lets the notification resolve

@@ -133,7 +133,9 @@ ALLOWED = [
     "cat deploy.sh | grep -c foo",
     "cat notes.py | grep -e todo",
     "git diff | head -100",
-    "rg -l TODO | uniq",
+    # bundled BENIGN short flags must still pass — the exec-letter is not present
+    "git grep -ni TODO",
+    "rg -in pattern src/",
     # `git check-ignore` is a read: it prints ignore status and the matching rule, no write flag.
     "git check-ignore -v secrets.env",
     # `rg` and `gh` reads that do NOT carry an execution flag stay allowed.
@@ -211,6 +213,10 @@ DENIED = [
     "git grep --open-files-in-pager=/bin/sh TODO",
     "git help -w git-log",
     "git help -i git",
+    # BUNDLED exec flags: the letter hides behind a benign short flag. Each was ALLOWED before the
+    # cluster-aware gate (git grep -nO reproduced arbitrary command execution in review).
+    "git grep -nO/bin/sh TODO",
+    "git grep -inO/bin/sh TODO",
     # REGRESSION (reviewer-reported, reproduced): every one of these WROTE and the old denylist
     # allowed it. They are gone now not because each was listed, but because none is a reader.
     "git clone https://github.com/x/y.git",
@@ -233,18 +239,36 @@ DENIED = [
     "gh repo view --web",
     # --- readers with an execution or write flag: the reader is fine, the flag is not ---------
     # Each of these was ALLOWED before the guard grew per-tool flag gates. `rg --pre`/`--hostname-bin`
-    # run an external program mid-search; `sort -o`/`tree -o` write a file with no shell redirect;
-    # `less -o` logs to a file and `less` can execute a program; `ag --pager` executes a program.
+    # run an external program mid-search; `tree -o` writes a file with no shell redirect; `less -o`
+    # logs to a file and `less` can execute a program; `ag --pager` executes a program.
     "rg --pre /bin/sh x .",
     "rg --hostname-bin=/bin/sh x .",
     "rg -z pattern archive/",
     "rg --search-zip pattern .",
+    "rg -iz pattern archive/",          # bundled --search-zip; ALLOWED before the cluster gate
     "sort -o /tmp/pwn.txt README.md",
+    "sort -o/tmp/pwn.txt README.md",    # attached-value output
+    "sort -ro /tmp/pwn.txt README.md",  # bundled -r -o
+    "sort --output=/tmp/pwn.txt f",
+    # GNU sort is absent from the allowlist entirely: --compress-program executes a helper, and
+    # -T/--temporary-directory plus ordinary large inputs can write spill files. Flag-gating only
+    # known-dangerous forms is therefore not a defensible read-only contract.
+    "sort --compress-program=/bin/sh README.md",
+    "sort --compress-program /bin/sh README.md",
+    "sort -T /tmp README.md",
+    "sort -T/tmp README.md",
+    "sort -rT/tmp README.md",
+    "sort --temporary-directory=/tmp README.md",
+    "sort --temporary-directory /tmp README.md",
+    "sort access.log",
+    "rg -l TODO | sort | uniq",
+    "rg -c ERROR logs/ | sort -rn | head",
     "tree -o /tmp/x .",
     "less -o /tmp/x README.md",
     "less README.md",
     "ag --pager /bin/sh x",
     "ag pattern .",
+    "gh pr view 12 -cw",                # bundled --web; launches $BROWSER
     # --- filesystem / process / service ------------------------------------------------------
     "rm -rf build/",
     "/bin/rm -rf build/",

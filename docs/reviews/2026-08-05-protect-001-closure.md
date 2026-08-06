@@ -1,5 +1,11 @@
 # PROTECT-001 closure evidence
 
+> **Superseded control (2026-08-06):** The owner removed the required `protection-gate` status
+> check and its aggregating workflow job. The `Protect main` ruleset still requires pull requests,
+> blocks deletion and non-fast-forward updates, has no bypass actors, and has no required status
+> checks. The evidence below records the 2026-08-05 configuration and probe; it is historical, not
+> the current required-check policy.
+
 - **Roadmap item:** `PROTECT-001` — protect `main` without CODEOWNERS
 - **Closure date:** 2026-08-05 (America/Chicago)
 - **Owner decision:** No CODEOWNERS file for this user-owned solo-maintainer repository.

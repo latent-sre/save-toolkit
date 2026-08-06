@@ -70,6 +70,36 @@ do not edit the scribe-bundle contract strings the validator pins. `verification
 resolved and needs no work: `host_install_probe.py` consumes its `_is_indirection` helper, so it is
 a live utility, not an orphan.
 
+### WF-001 — establish a supported exact-dispatch boundary for Claude workflows
+
+**Status:** `blocked`
+
+**Outcome:** The repository carries no executable `ship-review` workflow until Claude provides a
+supported way to dispatch one exact trusted workflow without granting caller-supplied workflow code.
+
+**Source:** A version-pinned probe on Claude Code 2.1.221 found two incompatible behaviors. Setting
+`CLAUDE_WORKFLOW_NAME_ONLY=1` suppresses inline-plugin workflows, so the trusted workflow cannot be
+loaded. Without that flag, a native permission for `Workflow(save-toolkit:ship-review)` also admits
+an input containing the same `name` plus caller-supplied `script`; the resolver executes that script
+override. A plugin `PreToolUse` hook can deny the override, but the resulting launcher, hook receipt,
+Git-object isolation, and upgrade matrix were a bespoke security broker disproportionate to this
+fleet. That experiment was removed rather than shipped as a fragile control plane.
+
+**Prerequisites:** A documented direct-dispatch API, or documented permission semantics that bind
+the registered workflow implementation as well as its name. Any alternative architecture needs an
+accepted decision record before implementation.
+
+**Acceptance:** Pin the supported CLI/API version and prove before merge that (1) only the intended
+trusted workflow implementation can execute; (2) same-name `script`, `scriptPath`, resume, remote,
+and extra-field variants are denied before task creation; (3) candidate bytes never reach an outer
+tool-bearing model; (4) reviewer lanes have structurally bounded authority; and (5) incomplete or
+failed review evidence cannot become approval. Gate A and mocked JavaScript are supporting evidence,
+not substitutes for the live boundary proof.
+
+**Next action:** Monitor the upstream workflow dispatch contract. Do not restore the removed
+`ship-review` implementation or add another workflow until the prerequisite exists and the boundary
+is accepted explicitly.
+
 ### RELEASE-001 — publish and roll back one immutable release
 
 **Status:** `ready`
@@ -88,7 +118,7 @@ forward into this item's host distribution work.
 
 **Acceptance:** Version parity and changelog pass; `claude plugin tag --dry-run` validates the Claude
 manifest/marketplace pair; every host's publication mechanism is verified before choosing an
-immutable tag or protected moving ref; promotion consumes the reviewed SHA and required checks;
+immutable tag or protected moving ref; promotion consumes the reviewed SHA and recorded validation;
 install and uninstall smoke tests pass from the published artifact; rollback or yank is rehearsed and
 documented.
 

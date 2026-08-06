@@ -61,6 +61,9 @@ Route to the relevant method without loading sibling skills:
   descriptions, and graders.
 - [roster guidance](./references/roster.md) for “agent or skill?”, delegation, fan-out, and
   orchestration.
+- [the delegation graph](./references/delegation-graph.md) — the fleet as a directed graph we
+  engineer: its one enforced source, its validated render, the main-thread-only limit, and the
+  three places an edge change must land together.
 - [tool guidance](./references/tools.md) for tool contracts and promotion from shell prototypes.
 - [context guidance](./references/context.md) for cold-start packets and bounded evidence.
 - [bounded fleet-improvement lifecycle](./references/improvement-lifecycle.md) for turning a
@@ -71,6 +74,9 @@ Route to the relevant method without loading sibling skills:
 - [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth
   for frontmatter fields and their traps; read it before authoring or debugging any agent or skill
   frontmatter.
+- [skill portability](./references/skill-portability.md) — which frontmatter survives outside Claude
+  Code, and why the portable set can only grant authority, never restrict it. Read it before relying
+  on a frontmatter field to enforce anything, or before publishing a skill beyond this plugin.
 
 ## Runtime quick reference
 

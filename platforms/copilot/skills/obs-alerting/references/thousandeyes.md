@@ -3,6 +3,20 @@
 Use ThousandEyes to distinguish application, DNS, routing, and network-path symptoms from multiple
 vantage points. It locates evidence; a path difference or correlated time is not automatically a cause.
 
+## Contents
+
+- Primary sources
+- Agents
+- Test types
+- Reading results during an incident
+- Designing checks
+- A path difference is not a cause
+- Enterprise agents
+- Test inventory
+- Critical user journeys and dependencies
+- BGP and routing monitors
+- Automation
+
 ## Primary sources
 
 Sources reviewed 2026-07-14:

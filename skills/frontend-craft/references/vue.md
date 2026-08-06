@@ -4,6 +4,19 @@ Read this for Vue UI code. The universal frontend rules live in `skills/frontend
 and the universal TypeScript language rules live in the `language-idiom` skill loaded alongside it.
 On any conflict, those owners and the target repository win.
 
+## Contents
+
+- Establish the Vue contract
+- Reactivity is explicit ownership
+- Props, events, models, and slots
+- Watchers and lifecycle cleanup
+- Errors and asynchronous UI
+- SSR and hydration
+- Security boundaries
+- Performance and testing
+- Verify
+- Primary evidence anchors
+
 ## Establish the Vue contract
 
 - Read the target package's `package.json`, lockfile, Vue compiler and runtime versions, framework

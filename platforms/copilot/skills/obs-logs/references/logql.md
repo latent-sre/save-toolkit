@@ -6,6 +6,15 @@ and [metric-query reference](https://grafana.com/docs/loki/latest/query/metric_q
 [string-quoting guidance](https://grafana.com/docs/loki/latest/query/log_queries/). Confirm the
 deployed Loki version, tenant, labels, parsers, and alert-engine behavior before use.
 
+## Contents
+
+- Stream selectors and label discipline
+- Line filters versus parsers
+- Metric queries: rates and complete buckets
+- Compare before and after a deploy
+- Follow one request
+- Inert canary example
+
 ## Stream selectors and label discipline
 
 A LogQL query begins with a stream selector. Keep stable, bounded values such as application,

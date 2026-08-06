@@ -217,12 +217,17 @@ class FleetValidatorTests(unittest.TestCase):
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "reviewer.md":
-                    text = text.replace("tools: Read, Grep, Glob, Skill", "hooks: ignored\ntools: Read")
+                    text = text.replace("tools: Read, Grep, Glob", "hooks: ignored\ntools: Read")
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
         rendered = "\n".join(failures)
         self.assertIn("unsupported plugin agent field", rendered)
         self.assertIn("missing required tool", rendered)
+        # The inert-field rule emits a distinct, more educational message than the generic
+        # unknown-field one (a `hooks:` guard in plugin frontmatter looks like armor and does
+        # nothing). Assert it specifically, so this test fails if that rule is ever deleted —
+        # without this line it would pass on the unknown-field message alone.
+        self.assertIn("plugin-inert authority field(s) are forbidden", rendered)
 
     def test_mcp_server_wildcard_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -323,7 +328,7 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_duplicate_tool_grant_is_rejected(self) -> None:
         failures = self._agents_with_mutation(
-            "reviewer.md", "tools: Read, Grep, Glob, Skill", "tools: Read, Grep, Glob, Skill, Read"
+            "reviewer.md", "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Read"
         )
         self.assertIn("duplicate tool grant", "\n".join(failures))
 
@@ -391,6 +396,68 @@ class FleetValidatorTests(unittest.TestCase):
                 root, sorted(validate_fleet.EXPECTED_AUTHORITY)
             )
         self.assertIn("guard PLUGIN_NAME", "\n".join(failures))
+
+    def _roster_root(self, temporary: str, mutate) -> Path:
+        root = Path(temporary)
+        (root / "AGENTS.md").write_text(
+            mutate((ROOT / "AGENTS.md").read_text(encoding="utf-8")), encoding="utf-8"
+        )
+        return root
+
+    def test_current_roster_graph_matches_enforced_graph(self) -> None:
+        # Anchor: the shipped roster render already agrees with the enforced graph, or every
+        # mutation below proves nothing.
+        self.assertEqual([], validate_fleet.validate_roster_graph(ROOT))
+
+    def test_roster_dropping_a_delegation_edge_is_rejected(self) -> None:
+        # sde delegates to reviewer, scribe, researcher in frontmatter; drop researcher from the
+        # rendered row and the render now describes a graph the fleet does not have.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._roster_root(
+                temporary,
+                lambda t: t.replace(
+                    "| `reviewer`, `scribe`, `researcher` |",
+                    "| `reviewer`, `scribe` |",
+                    1,
+                ),
+            )
+            failures = validate_fleet.validate_roster_graph(root)
+        self.assertTrue(any("'sde'" in f and "researcher" in f for f in failures), failures)
+
+    def test_roster_adding_a_phantom_edge_is_rejected(self) -> None:
+        # scribe holds no Agent grant at all; a rendered edge out of it is a phantom the enforced
+        # graph forbids.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._roster_root(
+                temporary,
+                lambda t: t.replace(
+                    "no Bash, web, or delegation**; terminal | — |",
+                    "no Bash, web, or delegation**; terminal | `researcher` |",
+                    1,
+                ),
+            )
+            failures = validate_fleet.validate_roster_graph(root)
+        self.assertTrue(any("'scribe'" in f for f in failures), failures)
+
+    def test_roster_with_duplicate_agent_row_is_rejected(self) -> None:
+        source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        sde_row = next(line for line in source.splitlines() if line.startswith("| `sde` |"))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._roster_root(
+                temporary,
+                lambda text: text.replace(sde_row, f"{sde_row}\n{sde_row}", 1),
+            )
+            failures = validate_fleet.validate_roster_graph(root)
+        self.assertTrue(
+            any("duplicate roster row for agent 'sde'" in failure for failure in failures),
+            failures,
+        )
+
+    def test_roster_without_the_table_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._roster_root(temporary, lambda t: "# no roster here\n")
+            failures = validate_fleet.validate_roster_graph(root)
+        self.assertTrue(any("could not find the roster" in f for f in failures), failures)
 
 
 if __name__ == "__main__":

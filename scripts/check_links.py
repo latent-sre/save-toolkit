@@ -283,8 +283,15 @@ def _check_guide(root: Path) -> list[str]:
     """
     failures: list[str] = []
     claude_md = root / "CLAUDE.md"
-    if claude_md.is_file() and "@AGENTS.md" not in claude_md.read_text(encoding="utf-8"):
-        failures.append("CLAUDE.md: missing '@AGENTS.md' import; the fleet guide would load empty")
+    if claude_md.is_file():
+        # The import must be a real top-level line, not a fenced example or a prose mention — those
+        # satisfy a naive substring test while the guide still loads empty. Strip fences and require
+        # a standalone `@AGENTS.md` line.
+        claude_body = _strip_fences(claude_md.read_text(encoding="utf-8"))
+        if not any(line.strip() == "@AGENTS.md" for line in claude_body.splitlines()):
+            failures.append(
+                "CLAUDE.md: missing top-level '@AGENTS.md' import line; the fleet guide would load empty"
+            )
     guide = root / "AGENTS.md"
     if not guide.is_file():
         return failures  # self-gate: a synthetic root without the guide has nothing to check

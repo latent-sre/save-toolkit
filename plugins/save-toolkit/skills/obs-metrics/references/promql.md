@@ -12,6 +12,16 @@ Primary references:
 - [histogram practices](https://prometheus.io/docs/practices/histograms/)
 - [Grafana Mimir HTTP API](https://grafana.com/docs/mimir/latest/references/http-api/)
 
+## Contents
+
+- Selectors and label matchers
+- Counters — rate before aggregation
+- Aggregate with real `by` and `without`
+- Error ratio and burn-rate shape
+- Histogram p95
+- Missing data and staleness
+- Inert canary example
+
 ## Selectors and label matchers
 
 Use a metric selector with the narrowest stable labels that answer the question. PromQL supports exact,

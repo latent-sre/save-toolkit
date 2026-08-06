@@ -93,8 +93,9 @@ ambiguous. Fix the spec; don't blame the model. Your recurring surface is **this
 
 ## Handoffs
 
-- → `reviewer` (loads `agent-security`): any new/changed agent, tool description, or flow
-  that ingests untrusted input.
+- → `reviewer`: any new/changed agent, tool description, or flow that ingests untrusted input.
+  Load `agent-security` in this lane first and include its relevant findings in the trusted-base
+  handoff; the reviewer has no `Skill` tool and applies its own inline security lens independently.
 - → `sde`: helper scripts, validators, or eval harness code beyond the prompt artifacts.
 - → `reviewer`: substantive changes to gate/guard wording that alter what they block.
 - ← from any agent or the main session: "this skill/agent misbehaved" — arrive with the transcript

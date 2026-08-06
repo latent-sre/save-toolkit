@@ -9,6 +9,14 @@ This fleet is a **Claude plugin**: canonical agents and skills live at repositor
 manifest lives in `.claude-plugin/`. Project- and user-scope behavior below is comparison context,
 not this fleet's enforcement surface.
 
+## Contents
+
+- Agents
+- Skills
+- Platform environment facts
+- Fleet decisions on unused fields
+- Plain-scalar descriptions and the CLI's stricter parser
+
 ## Agents
 
 Locations: `agents/*.md` in a plugin; `agents/*.md` project-level; `~/.claude/agents/*.md`
@@ -22,13 +30,13 @@ Authority lives in frontmatter, not in prose — the fields that carry it:
 
 | Field | Notes |
 |---|---|
-| `tools` | Allowlist for built-ins **and MCP tools**. **Omitting it inherits every tool** — omission is "all tools," not "none." Exact MCP names use `mcp__<server>__<tool>`; `mcp__<server>` and `mcp__<server>__*` are server-wide patterns that **silently acquire tools the server adds later**, so grant exact entries and include `ToolSearch` when approved MCP tools may be deferred (listed by name until their schema is fetched). `Agent(worker)` scoping works only for a main-thread agent (`claude --agent`); a subagent silently ignores the type list, so at subagent depth it documents intent rather than enforcing it. Scoped specifiers like `Bash(git diff:*)` are **inert on agents** (probed: agents granted them ran `git status` exactly like bare `Bash`) — per-command scoping on an agent exists only via a `PreToolUse` hook, which is what the repo's `readonly-guard.py` is for. `AskUserQuestion`, `EnterPlanMode`, `ScheduleWakeup`, `WaitForMcpServers` are never available to a subagent, however listed. |
+| `tools` | Allowlist for built-ins **and MCP tools**. **Omitting it inherits every tool** — omission is "all tools," not "none"; the explicit YAML sequence `tools: []` launches a zero-tool agent (doc-checked through Claude Code 2.1.223). Exact MCP names use `mcp__<server>__<tool>`; `mcp__<server>` and `mcp__<server>__*` are server-wide patterns that **silently acquire tools the server adds later**, so grant exact entries and include `ToolSearch` when approved MCP tools may be deferred (listed by name until their schema is fetched). `Agent(worker)` scoping works only for a main-thread agent (`claude --agent`); a subagent silently ignores the type list, so at subagent depth it documents intent rather than enforcing it. Scoped specifiers like `Bash(git diff:*)` are **inert on agents** (probed: agents granted them ran `git status` exactly like bare `Bash`) — per-command scoping on an agent exists only via a `PreToolUse` hook, which is what the repo's `readonly-guard.py` is for. `AskUserQuestion`, `EnterPlanMode`, `ScheduleWakeup`, `WaitForMcpServers` are never available to a subagent, however listed. |
 | `disallowedTools` | Denylist; applied before `tools` resolves. |
 | `permissionMode` | `default \| acceptEdits \| auto \| dontAsk \| bypassPermissions \| plan \| manual`. Real at project scope but unused in this fleet; ignored for plugin-shipped agents. |
 | `hooks` | Agent-scoped lifecycle hooks are real at project/user scope and **inert in a plugin** (probed). This fleet ships `hooks/hooks.json` session-wide and self-scopes to exact guarded `agent_type` values. Canonical agent frontmatter containing `hooks` fails validation. |
 | `skills` | Preloads full skill content at startup — prefer this over putting `Skill` in `tools` when the agent needs the skill every run. Don't list a `disable-model-invocation: true` skill here. |
 | `model` | Aliases `haiku \| sonnet \| opus \| fable \| inherit`, or a full ID; defaults to `inherit`. This fleet pins nothing — the whole roster inherits the session model (a deliberate, documented decision; see AGENTS.md). |
-| `memory` | `user \| project \| local`. **Setting it auto-enables Read, Write, and Edit** — never add it to a read-only agent (`reviewer`, `repository-investigator`, `researcher`); it would silently widen the mandate and give the external-only researcher local access. |
+| `memory` | `user \| project \| local`. **Setting it auto-enables Read, Write, and Edit** — never add it to a constrained agent (`reviewer`, `repository-investigator`, `researcher`); it would silently widen the mandate and give the external-only researcher local access. |
 
 Also: `maxTurns` (int), `background` (bool), `effort` (`low|medium|high|xhigh|max`), `isolation`
 (`worktree`), `color`, `initialPrompt` (main-session only).
@@ -63,6 +71,108 @@ Also available: `when_to_use`, `arguments`, `model`, `effort`, `context`, `agent
 `shell` — not exhaustive; see code.claude.com/docs/en/skills for the current table.
 
 Keep descriptions lean — they load into context every session.
+
+### Progressive disclosure: the three levels and their budgets
+
+[doc-checked 2026-08-05, platform Agent Skills overview] A skill loads in three stages, and the
+budget differs per stage. Authoring to the wrong stage is how a skill gets expensive:
+
+| Level | When it loads | Budget | Content |
+|---|---|---|---|
+| 1 — metadata | always, at startup | ~100 tokens per skill | `name` + `description` |
+| 2 — instructions | when the skill is triggered | **under 5k tokens** | the SKILL.md body |
+| 3 — resources | only when a file is actually read | **none until accessed** | bundled reference, asset, and script files |
+
+Two consequences worth authoring against:
+
+- **The 5k-token Level-2 figure is the real target for a SKILL.md body**, not a line count. Measure
+  the body, not the bundle.
+- **Bundled content that is not read costs nothing**, so there is no practical limit on it. When a
+  body approaches its budget, move the subset-only material — long procedures, lookup tables, worked
+  examples, tool-specific syntax — into a linked bundle file. That is a genuine saving, not a shuffle:
+  a script run through Bash returns only its output to context, and its source never enters at all.
+
+### Portability
+
+Only six of these fields survive outside Claude Code, and the portable set can only *grant*
+authority, never restrict it. The field-by-field map is in the sibling reference
+[skill portability](./skill-portability.md); this file stays the source of truth for what each field
+does.
+
+### Recent platform changes worth knowing
+
+[doc-checked 2026-08-05, CLI 2.1.193–2.1.222 changelog] Perishable — re-verify after upgrades:
+
+- **`context: fork` skills now run in the background by default** (2.1.218). Add `background: false`
+  to keep the old inline-result behavior. This fleet uses neither field today.
+- **Booleans accept `yes`/`no`/`on`/`off`/`1`/`0`** case-insensitively (2.1.218), not just
+  `true`/`false`. Keep writing `true` — the repo's checker pins the literal.
+- **`${user_config.*}` in a shell-form hook command is rejected** (2.1.218, shell-injection fix); use
+  the exec form or read `CLAUDE_PLUGIN_OPTION_<KEY>` from the hook environment. Our hook uses
+  neither.
+- **Hook matcher semantics tightened**: hyphenated matchers are exact-match (2.1.195),
+  comma-separated matchers now fire (2.1.216), and a single-segment `dir/**` matches only one level
+  (2.1.214). Our `PreToolUse` matcher is the plain tool name `Bash`, so none of these apply.
+- **A colon is reserved in agent names** (2.1.214) for the `plugin-name:agent-name` form; existing
+  names keep working. Our kebab-case rule already forbids it.
+- **Re-invoking the same skill no longer re-appends its full text** (2.1.202) — a token-bloat fix,
+  nothing to change.
+- **Agent frontmatter hooks now require accepted workspace trust** (2.1.218). Irrelevant here: plugin
+  agents ignore `hooks` entirely, which is why this fleet's guard lives in `hooks/hooks.json`.
+- **`claude plugin validate --strict` flags unrecognized manifest fields** with typo suggestions
+  (2.1.142+), and `metadata` is recognized rather than flagged (2.1.222). The Claude manifest carries
+  a `$schema` pointer to the published plugin-manifest schema for editor validation; it has no
+  runtime effect.
+
+A note on hook scoping, since the changelog invites it: matchers can express an agent-scoped hook.
+This fleet deliberately does **not** use that for the read-only guard. A matcher that fails to match
+— after an upstream rename, say — silently skips the hook and fails **open**. The guard instead runs
+on every Bash call and scopes itself in Python, so the same rename trips a canary and fails
+**closed**. Keep it that way; the extra invocations are cheap, a disarmed guard is not.
+
+### Authoring rules that are checkable
+
+[doc-checked 2026-08-05, platform skill-authoring best practices] Rules with an objective pass/fail,
+so they can be audited rather than argued:
+
+- **SKILL.md body under 500 lines** — the line-based companion to the 5k-token budget. Split into
+  bundle files when approaching it.
+- **A reference file over 100 lines opens with a `## Contents` list.** Claude may *partially* read a
+  long file (previewing with `head`-style reads); without a contents list at the top it cannot see
+  what the rest of the file holds, so material below the preview window is effectively invisible.
+- **Keep bundle references one level deep from SKILL.md.** The anti-pattern is a *chain* — SKILL.md
+  points at A, A points at B, and B holds the answer — because partial reads of A can drop the
+  pointer to B. Sibling cross-links between bundle files are fine as long as every file is also
+  linked directly from SKILL.md; this repo's link checker already requires that direct link, so the
+  depth-1 discovery path is enforced rather than assumed.
+- **Descriptions are third person.** The description is injected into the system prompt; "I can help
+  you…" or "You can use this to…" causes discovery problems. Quoted *user* phrasings inside a
+  `Triggers:` list are not first person and are correct as-is.
+- **Names are noun phrases or gerunds** (`processing-pdfs`, `pdf-processing`), never vague
+  (`helper`, `utils`, `tools`, `data`).
+- **Forward slashes in every path**, even for Windows readers; a backslash path errors on Unix.
+- **Fully qualified MCP tool names in prose** — `ServerName:tool_name`. A bare tool name may not
+  resolve when several MCP servers are present. (Agent `tools:` frontmatter uses the different
+  `mcp__<server>__<tool>` form — see the Agents table above.)
+- **No time-sensitive prose.** Don't write "before August 2026, use X." Put superseded guidance under
+  an "old patterns" heading, or date-stamp the fact the way this file does.
+- **Build evaluations before writing extensive instructions** — measure the gap without the skill
+  first, so the content answers a real failure instead of an imagined one.
+
+### Why a skill may not link outside its own folder
+
+[doc-checked 2026-08-05] A skill is distributed as a **self-contained folder** and is installed
+per-surface: uploaded as a zip on claude.ai, uploaded separately through the API, placed on the
+filesystem for Claude Code, or shipped inside a plugin. Custom skills explicitly do **not** sync
+across surfaces. So a relative link that escapes the skill directory resolves on the authoring
+machine and breaks the moment that folder is zipped, uploaded, or installed alone — the failure is
+silent, because nothing checks it at load time. This is the contract the repo's link checker
+enforces, and it is why shared prose is duplicated between skills rather than factored into a
+common file.
+
+Composition is expressed at the **invocation** layer instead: an agent (or a user) combines skills
+for a multi-step task, and each skill stays an independently shippable unit. The dependency graph
+lives in descriptions and routing, never in filesystem links between skill folders.
 
 ## Platform environment facts
 

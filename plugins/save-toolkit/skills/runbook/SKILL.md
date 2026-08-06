@@ -25,18 +25,8 @@ Investigate before writing: read the actual config, compose/unit files, and any 
 
 ## Required structure (every slot filled or marked "n/a — why")
 
-Full fill-in template: [runbook template](./assets/runbook-template.md) — copy it to start.
-
-```
-# <Service> runbook
-- What/why: one sentence; who notices if it's down.
-- Where: host, config path in the repo, data path, URL(s).
-- Health: the exact command or URL that shows it's healthy, and what good output looks like.
-- Restart: exact commands in order, including the wait-and-verify step.
-- Common failures: symptom → likely cause → fix, one line each.
-- Recovery: the restore-from-backup path with exact commands; when to stop repairing and restore.
-- Dependencies: what it needs (DNS, DB, proxy) and what depends on it.
-```
+Full fill-in template: [runbook template](./assets/runbook-template.md) — copy it to start; it
+carries every required slot.
 
 Rules:
 - Every command copy-pasteable as written — real paths and real names. A `<placeholder>` is allowed only for truly variable values, and then say where to find the value.
@@ -65,9 +55,8 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
 - **Trigger-anchored** — starts from a concrete trigger (this alert/symptom/task), ends at "resolved or
   escalate to <whom>."
 - **Current or deleted** — date it, own it, prune what's wrong. A wrong runbook is worse than none.
-- **Machine-linkable frontmatter** — give each runbook YAML frontmatter (`schema_version`,
-  `runbook_id`, `service_id`, `status`, `alert_names`, `owner`, `severity`, `source_revision`,
-  `last_reviewed`, `last_verified`, `verification_evidence`, `version`). Both dates start `null`;
+- **Machine-linkable frontmatter** — give each runbook the template's YAML frontmatter. Both dates
+  (`last_reviewed`, `last_verified`) start `null`;
   only human/authorized document review changes `last_reviewed`, and only bound rehearsal evidence
   changes `last_verified`.
 - **Preserve command evidence before publishing** — use only supplied, authorized execution evidence

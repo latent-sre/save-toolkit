@@ -6,8 +6,10 @@ generated and committed from those sources; edit neither projection by hand. Rou
 descriptions select lanes and Claude components are invoked as `save-toolkit:<name>`.
 
 The stack, the stay-in-lane rule, and the platform boundary live in **one** place: the
-[`stack-profile`](skills/stack-profile/SKILL.md) skill. Load it before recommending any
-runtime, tool, or infrastructure change; nothing in this file restates it.
+[`stack-profile`](skills/stack-profile/SKILL.md) skill. A Skill-capable lane loads it before
+recommending any runtime, tool, or infrastructure change. The deliberately Skill-less `reviewer`
+instead requires those facts in its trusted-base handoff packet and marks missing platform context
+`[unverified]`; it never loads candidate-provided skills. Nothing in this file restates the stack.
 
 ## Map
 
@@ -32,7 +34,7 @@ matters.
 | [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) | The only live backlog; see [`docs/README.md`](docs/README.md) for the full authority map |
 | [`docs/decisions/`](docs/decisions), [`docs/reviews/`](docs/reviews), [`docs/superpowers/`](docs/superpowers) | Accepted ADRs; round-closure evidence; round-scoped plans and specs. Only accepted decisions govern |
 | [`.gitattributes`](.gitattributes) | Line-ending and diff handling that keeps the byte-for-byte adapter gate stable across platforms |
-| `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator; fix the canonical source or the generator and regenerate |
+| `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator's portable output set; fix the canonical source or generator and regenerate |
 
 ## Validate before you push
 
@@ -50,7 +52,7 @@ matters.
 | Agent | Lane | Tools posture | Delegates to |
 |---|---|---|---|
 | `sde` | Build, fix, refactor code and ops tooling; absorbs test-writing | Local read/write + **unguarded Bash** for **team-authored** code; no direct web tools | `reviewer`, `scribe`, `researcher` |
-| `reviewer` | Correctness + security review of a change, two lenses in one pass | **Local read-only by tool absence** — no Bash, Write, web, or external MCP; terminal | — |
+| `reviewer` | Correctness + security review of a change, two lenses in one pass | **Local read-only by tool absence** — only Read/Grep/Glob; no Skill, Bash, Write, web, external MCP, or delegation | — |
 | `repository-investigator` | Answer bounded questions from the current private or uncommitted checkout | **Local read-only by tool absence** — only `Read`/`Grep`/`Glob`; terminal | — |
 | `sre` | Investigate production/staging failures: triage, severity, hypothesis-driven root cause | **Guarded Bash** — read-only `cf`/`git`/`gh` triage under the allowlist; recommends mitigation, never applies it | `observability-engineer`, `scribe`, `researcher` |
 | `observability-engineer` | Steady-state observability as code: dashboards, alerts, SLOs, error budgets, pipelines | **Guarded Bash** — the `sre` read set plus config validators (`promtool check`, `jq empty`, `yamllint`); writes obs-config | `scribe`, `researcher` |
@@ -64,8 +66,9 @@ trade-off and the revisit condition are recorded in
 
 ## Enforcement: two mechanisms, in preference order
 
-1. **Tool absence** (platform-enforced, zero moving parts): `reviewer` and
-   `repository-investigator` are local-only without Bash, Write, web, or external MCP;
+1. **Tool absence** (platform-enforced, zero moving parts): `reviewer` is local-only with
+   Read/Grep/Glob; `repository-investigator` is local-only without Bash, Write, Skill, web, or
+   external MCP;
    `scribe` has local document write authority but no Bash, web, external MCP, or Agent;
    `researcher` is external-only without local file reads, Bash, Write, Skill, or Agent. Every other
    canonical local role also lacks direct `WebFetch`/`WebSearch`; public lookups use a sanitized

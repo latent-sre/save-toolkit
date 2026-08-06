@@ -1,7 +1,7 @@
 # Save Toolkit
 
-Save Toolkit is a multi-host plugin containing **8 agents and 27 skills** for application engineering
-and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
+Save Toolkit is a multi-host plugin containing **8 canonical host-facing agents and 27 skills** for
+application engineering and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
 sources directly. GitHub Copilot/VS Code and Codex receive committed, host-native projections made by
 one deterministic generator; generated files are never edited by hand.
 
@@ -30,8 +30,9 @@ bare component names.
   [current knowledge update](skills/operational-learning/assets/knowledge-update-v2.schema.json)
   ([`knowledge_update.py`](skills/operational-learning/scripts/knowledge_update.py)), and the
   [fleet-improvement ledger](skills/agent-authoring/assets/fleet-improvement-v1.schema.json)
-  (schema and records under [`evals/improvements/`](evals/improvements); the executable
-  validators are parked at tag `pre-trim-2026-08-02`).
+  (record shape checked by [`validate_improvements.py`](scripts/validate_improvements.py); lifecycle
+  transition, authority, history, and revision-binding validators remain parked at tag
+  `pre-trim-2026-08-02`).
 - [`evals/`](evals) — offline behavioral contracts, the manual Claude runner, baseline records, and
   the bounded improvement ledger; the Codex/Sol conformance runners are parked at tag
   `pre-trim-2026-08-02`; see [`evals/README.md`](evals/README.md).
@@ -70,7 +71,7 @@ The 27 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
 Both agents and skills are found by workspace folder scans; neither needs a plugin install.
 
 **Agents — automatic.** VS Code scans `.github/agents/` in the open workspace, so opening this
-repository exposes all eight roles in the Chat agent picker with no setup
+repository exposes the eight portable roles in the Chat agent picker with no setup
 ([custom agents](https://code.visualstudio.com/docs/agent-customization/custom-agents)).
 
 **Skills — one setting.** VS Code scans `.github/skills/`, `.claude/skills/`, and `.agents/skills/`
@@ -145,10 +146,12 @@ py -3 skills/operational-learning/scripts/migrate_v1_to_v2.py `
 Fleet-improvement records under [`evals/improvements/`](evals/improvements) follow the schema and
 the lifecycle contract in
 [`skills/agent-authoring/references/improvement-lifecycle.md`](skills/agent-authoring/references/improvement-lifecycle.md).
-The executable lifecycle and corpus validators are parked at tag `pre-trim-2026-08-02` until the
-ledger carries enough real records to justify them; the contract still holds: records come only from
-measured encounters, and no agent approves, merges, deploys, or rewrites itself — protected
-workflows remain the authority boundary.
+Gate A checks record shape with the repository's bounded JSON Schema subset. The executable
+lifecycle and corpus validators are parked at tag `pre-trim-2026-08-02` until the ledger carries
+enough real records to justify them; shape validity does not prove transition, history, authority,
+or subject binding. The contract still holds: records come only from measured encounters, and no
+agent approves, merges, deploys, or rewrites itself — protected workflows remain the authority
+boundary.
 
 ### Behavioral evals
 
