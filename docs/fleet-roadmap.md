@@ -96,6 +96,31 @@ promotion operator `agentic-sre-dev` (or a later least-privileged App) and verif
 distribution contract. Do not create a long-lived `release` branch merely because the superseded
 plan named one.
 
+### ROUTE-001 — routing evals for the 2026-08 description changes
+
+**Status:** `ready`
+
+**Outcome:** The clean-room runner measures routing before/after for every description edited or
+added in the SRE/GCP/Akamai expansion, and any regression (a component that stops firing, or a
+near-miss that starts) is fixed or explicitly accepted.
+
+**Source:** The 2026-08 expansion changed the descriptions of `obs-logs`, `obs-metrics`,
+`obs-traces`, `obs-alerting`, and `runbook`, and added two new routed components (`gcp-ops`,
+`akamai-edge`). The change playbook requires overlapping scenarios through the clean-room runner
+for every description edit; the run was deferred with a stated reason — the authoring session had
+no live-API eval capability — never eyeballed as a substitute.
+
+**Prerequisites:** A live Claude API session with the clean-room runner from `evals/`; the merged
+description set checked out clean.
+
+**Acceptance:** Before/after runs over the overlapping scenarios in `evals/scenarios/` (log, metric,
+trace, alerting, and runbook routing), plus new-component scenarios proving `gcp-ops` and
+`akamai-edge` fire on their trigger phrasings and do not steal `pcf-ops`, `obs-*`, or `sre`-lane
+traffic. Results recorded beside the scenarios with model/runtime evidence.
+
+**Next action:** Run the overlapping scenarios through the clean-room runner on a live-API session
+and record the deltas; add scenarios for the two new skills where coverage is missing.
+
 ## Deferred
 
 ### EVAL-001 — expand risk-weighted Sol coverage

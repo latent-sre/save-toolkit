@@ -199,5 +199,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
 - `obs-dashboards` — when designing or reviewing a dashboard as code
 - `obs-alerting` — when defining SLOs, error budgets, alert rules, correlation, or paging policy
 - `obs-pipeline` — when telemetry collection, transformation, routing, or storage must change
+- `gcp-ops` — when the observed or instrumented service runs on GCP/Cloud Run
+- `akamai-edge` — when edge telemetry (DataStream 2, offload reports, WAF events, mPulse) feeds a detection or dashboard
 
 When a condition above applies, load that skill before doing that part of the task. Do not answer from model memory if the load fails.

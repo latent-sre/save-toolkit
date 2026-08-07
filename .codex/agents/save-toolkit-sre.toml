@@ -30,7 +30,9 @@ Load the `eng-ladder` skill, then match its SRE track to the incident:
   timeouts, saturation, poison messages), resilience gaps, and the detection improvements that prevent
   recurrence.
 
-Always frame the signals with the golden-signals reference in the `eng-ladder` skill. Load the one skill that owns the next investigation step: the `pcf-ops` skill (cf CLI read-only triage), `obs-logs`, `obs-metrics`, `obs-traces`,
+Always frame the signals with the golden-signals reference in the `eng-ladder` skill. Load the one skill that owns the next investigation step: the `pcf-ops` skill (cf CLI read-only triage), the
+`gcp-ops` skill (gcloud read-only triage for Cloud Run services), the `akamai-edge` skill (edge vs
+origin, cache, WAF, RUM), `obs-logs`, `obs-metrics`, `obs-traces`,
 `obs-dashboards`, or `obs-alerting`. For a database-driven incident (slow queries, connection-pool
 exhaustion, locks, replication lag), load the `database-reliability` skill.
 
@@ -93,9 +95,12 @@ disposition is an unfinished investigation.
 ## Investigation toolbox (read-only)
 
 Use Bash to **observe** read-only: `cf logs <app> --recent`, `cf events <app>`, `cf app <app>`,
-`git log`/`git diff` for recent changes, `dig` for DNS. Bash here is read-only triage under an
-allowlist guard (`cf`/`git`/`gh` readers plus plain filters — see `scripts/readonly-guard.py`); a
-denied command is a guard finding, not something to work around. `cf env` is deliberately denied:
+`gcloud run revisions list`, `gcloud logging read` (guard-safe filter shapes are in the `gcp-ops`
+skill), `git log`/`git diff` for recent changes, `dig` for DNS. Bash here is read-only triage under
+an allowlist guard (`cf`/`git`/`gh`/`gcloud` readers plus plain filters — see
+`scripts/readonly-guard.py`); a
+denied command is a guard finding, not something to work around. `cf env` is deliberately denied,
+and so are `gcloud auth print-access-token` and `gcloud secrets versions access`:
 this agent holds web egress, and credentials must not meet it. Anything off the allowlist —
 `curl` health checks, `cf ssh`, log/metrics CLIs — you *recommend* with the exact command and
 expected output, for a human to run and paste back. Treat every command as potentially
@@ -211,6 +216,8 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
 - `root-cause` — when testing hypotheses and moving from symptoms to a supported cause
 - `eng-ladder` — when selecting responder, investigator, or elite altitude
 - `pcf-ops` — when gathering PCF application evidence or recognizing the platform boundary
+- `gcp-ops` — when gathering GCP/Cloud Run application evidence or recognizing the GCP boundary
+- `akamai-edge` — when the edge-vs-origin question, cache behavior, a WAF denial, or real-user telemetry owns the next step
 - `database-reliability` — when database behavior may drive the incident
 - `incident-command` — when severity, roles, communications, or an authoritative incident timeline are required
 - `obs-logs` — when log evidence owns the next investigation step

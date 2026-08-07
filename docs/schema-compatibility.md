@@ -33,6 +33,18 @@ cross-field rule — including the approved-trigger artifact-disposition require
 repository test asserts the standalone v2 schema never becomes weaker than v1 for the trigger kinds
 it retains.
 
+## Runbook frontmatter
+
+Version 1 is `contract-only`: it publishes the machine-linkable frontmatter shape the runbook
+template has always carried (`skills/runbook/assets/runbook-template.md`) so alert→runbook links,
+KB indexes, and staleness watches can key on a stated contract instead of a template convention.
+No contract-grade semantic validator ships with it; `scripts/test_runbook_schema.py` is a shape-sync
+check only — it pins the template and schema to the same key set and the entry to this policy's
+closed-object rule, and per this policy it neither serves as the catalog validator nor upgrades
+lifecycle support. The semantic rules stay where they were: only human/authorized document review
+changes `last_reviewed`, and only bound rehearsal evidence changes `last_verified` — a schema
+cannot prove either, and passing it asserts neither.
+
 ## Operational knowledge updates
 
 Version 3 is the current write format. It adds one required top-level `freshness` object carrying

@@ -1,6 +1,6 @@
 # Save Toolkit — fleet guide
 
-A multi-host engineering plugin with **8 canonical agents and 27 canonical skills**. Claude Code
+A multi-host engineering plugin with **8 canonical agents and 29 canonical skills**. Claude Code
 loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code and Codex adapters are
 generated and committed from those sources; edit neither projection by hand. Routing is native:
 descriptions select lanes and Claude components are invoked as `save-toolkit:<name>`.
@@ -19,7 +19,7 @@ matters.
 | Path | What it is |
 |---|---|
 | [`agents/`](agents) | The 8 canonical agent definitions. `tools:` frontmatter *is* authority; omitting it inherits every tool. Claude loads these directly |
-| [`skills/`](skills) | The 27 canonical skills and their `references/`/`assets/`/`scripts/` bundles. A `references/` file not linked from its `SKILL.md` ships unreachable |
+| [`skills/`](skills) | The 29 canonical skills and their `references/`/`assets/`/`scripts/` bundles. A `references/` file not linked from its `SKILL.md` ships unreachable |
 | [`commands/adr.md`](commands/adr.md) | The canonical `/save-toolkit:adr` scaffold — the one manual command |
 | [`hooks/hooks.json`](hooks/hooks.json) | The Claude-only session guard wiring. Plugin agents cannot carry `hooks:`, so this file is the *only* place the read-only guard fires; it is load-bearing and scoped to exact `agent_type` values |
 | [`hooks/copilot-hooks.json`](hooks/copilot-hooks.json) | The Copilot hook projection. The Claude hook's scoping field is absent from other hosts' payloads, so guarding is not portable through it |
@@ -98,7 +98,10 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   allowlist. Codex local-only/external-only roles therefore require outer network or mount isolation,
   respectively. These differences are stated in every generated adapter.
 - `cf env`, `cf service-key`, and `CF_TRACE` output are denied to agents outright — those reads
-  leak credentials next to egress. A human runs them and pastes the sanitized excerpt.
+  leak credentials next to egress. A human runs them and pastes the sanitized excerpt. The same
+  rule covers the gcloud credential surface: `gcloud auth print-access-token` (and its identity/ADC
+  twins), `gcloud secrets versions access`, and `gcloud kms decrypt` are off the allowlist for the
+  same reason.
 
 ## Shared conventions (every agent follows)
 

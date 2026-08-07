@@ -64,6 +64,8 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 - Initial / update / resolved message owner: <role>
 
 ## Post-Incident
+- [ ] Append an Incident history row (below): version used, steps that held, steps that failed or
+      were missing, follow-up id.
 - [ ] Create a learning disposition for every missing, contradicted, or newly useful step.
 - [ ] **Update this runbook** from supplied evidence when a disposition requires it.
 - [ ] Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version,
@@ -71,6 +73,15 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
       record the gap.
 - [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets.
 - [ ] If this was an incident, after recovery, hand the timeline and evidence to the `scribe` agent for retrospective documentation.
+
+## Incident history (living-runbook accretion)
+> Append one row per incident or rehearsal that used this runbook — newest first. Rows are evidence:
+> never rewrite or delete them. A "failed / missing" cell that stays empty across many incidents is
+> signal too. Three rows with the same manual fix ⇒ file the Crawl→Walk→Run automation candidate.
+
+| Date (UTC) | Incident / drill ref | Version used | Steps that held | Steps that failed / were missing | Follow-up (disposition / update id) |
+|---|---|---|---|---|---|
+| <YYYY-MM-DD> | <postmortem or drill link> | <n> | <e.g. steps 1–3> | <e.g. step 4 output differed; no rollback for step 5> | <ol_ id / prepared / proposed> |
 
 ## References
 - Related runbooks: <…>

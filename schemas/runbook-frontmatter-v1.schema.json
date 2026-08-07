@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/latent-sre/save-toolkit/schemas/runbook-frontmatter-v1.schema.json",
+  "title": "Save Toolkit runbook frontmatter v1",
+  "description": "The machine-linkable YAML frontmatter every runbook carries (skills/runbook/assets/runbook-template.md), expressed as the equivalent JSON object. Alert-to-runbook links, KB indexes, and staleness watches key on these fields. Dates are ISO 8601; last_reviewed changes only through human/authorized document review, last_verified only through bound rehearsal evidence, and a validator or reader must never upgrade either.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "runbook_id",
+    "service_id",
+    "status",
+    "alert_names",
+    "owner",
+    "severity",
+    "source_revision",
+    "last_reviewed",
+    "last_verified",
+    "verification_evidence",
+    "version"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "runbook_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Stable kebab-case slug; renaming a runbook is a new id plus an explicit redirect note, never a silent reuse."
+    },
+    "service_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Stable slug of the service card this runbook belongs to."
+    },
+    "status": { "enum": ["draft", "active", "retired"] },
+    "alert_names": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Exact alert names that route here. Empty is legal only for task/SOP-shaped runbooks with no paging trigger."
+    },
+    "owner": { "type": "string", "minLength": 1 },
+    "severity": { "type": "string", "minLength": 1 },
+    "source_revision": {
+      "type": "string",
+      "minLength": 1,
+      "description": "repository@full-sha or reviewed release identifier the procedures were written against."
+    },
+    "last_reviewed": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Null until a human/authorized document review sets it."
+    },
+    "last_verified": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Null until rehearsal evidence binds this exact runbook version, target, actor, timestamp, and outcome."
+    },
+    "verification_evidence": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Links or evidence ids for each rehearsal that set last_verified; never prose claims."
+    },
+    "version": { "type": "integer", "minimum": 1 }
+  }
+}

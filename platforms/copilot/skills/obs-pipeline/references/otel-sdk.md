@@ -1,12 +1,42 @@
+Concrete commands below are `[sourced]` to opentelemetry.io docs, reviewed 2026-08-07 via indirect
+retrieval of the doc sources; behavior on the exact target runtime remains `[unverified]` until a
+canary run proves it.
+
 ## Steps
 1. **Map** users, critical journeys, entry points, dependencies, and constrained resources.
 2. **Auto-instrument first** with the OpenTelemetry SDK; then add **manual** spans for business-critical
-   operations.
+   operations. The zero-code entry points *[sourced: opentelemetry.io/docs/zero-code/]*:
+
+   ```sh
+   # Python
+   pip install opentelemetry-distro opentelemetry-exporter-otlp
+   opentelemetry-bootstrap -a install
+   opentelemetry-instrument --traces_exporter otlp --metrics_exporter otlp \
+     --logs_exporter otlp --service_name my-service python app.py
+
+   # Java — agent JAR (Spring Boot starter and Quarkus extension also exist)
+   java -javaagent:./opentelemetry-javaagent.jar -jar my-app.jar
+   ```
+
+   Standard env config either way: `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`
+   (gRPC 4317 / HTTP 4318), `OTEL_EXPORTER_OTLP_PROTOCOL`.
 3. **Resource attributes** — set `service.name`, `service.version`, and **`deployment.environment.name`**
    (OTel semantic conventions) so signals are filterable per app/space.
    > ⚠️ **`deployment.environment` is DEPRECATED** — renamed to **`deployment.environment.name`** in
    > semconv **v1.27.0**, and stabilized in v1.41.0. Emit the `.name` form. Well-known values:
    > `development`, `staging`, `production`, `test`.
+
+   An unset `service.name` falls back to **`unknown_service:<executable>`** *[sourced: semconv
+   resource/service]* — an `unknown_service` series in any backend is an instrumentation defect to
+   file, not a service. Identity is the trio `service.namespace` + `service.name` +
+   `service.instance.id`; `deployment.environment.name` deliberately does NOT participate in
+   identity (prod and staging with the same trio are "the same service" — filter by environment,
+   don't fork the name). Keep `service.name` identical across PCF and Cloud Run while a service
+   straddles the migration, with the runtime as a separate resource attribute.
+   HTTP semconv has been **stable since v1.23.0** (`url.*`, `client.*`/`server.*` replaced the old
+   `net.*` forms) *[sourced: opentelemetry.io HTTP-conventions-stable announcement]* — new
+   dashboards and queries key on the stable names, and an old exporter emitting pre-stable names is
+   a migration flag, not a pattern to copy.
 4. **RED per route** (request-driven services): request count, error count, and a latency **histogram**
    — split **success vs error** latency. Bounded labels only (method, route template, status class).
 5. **USE per resource** (pools/queues/CPU/memory): utilization, saturation, errors — this is what catches

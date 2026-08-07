@@ -36,6 +36,7 @@ inventory, and field extractions.
 - Correlate one request across services
 - Compare before vs after a deploy
 - Extract fields ad hoc
+- Fast paths at scale — tstats, data models, TERM/PREFIX
 - Tips & gotchas (Splunk-specific — where the default bites)
 - Inert canary example
 
@@ -209,6 +210,42 @@ index=<app_index> sourcetype=<...> earliest=-1h     ```scope the base search —
 | rex field=_raw "latency=(?<latency_ms>[\d.]+)"    ```[\d.]+ keeps fractional ms; \d+ truncates them```
 | stats p95(latency_ms), max(latency_ms) by uri
 ````
+
+## Fast paths at scale — tstats, data models, TERM/PREFIX
+
+*[sourced: help.splunk.com SPL search reference — `tstats`, `datamodel`, data-model acceleration,
+and the CASE/TERM search-primer pages; reviewed 2026-08-07 via indirect retrieval; unverified for
+the target's accelerated models and index population]*
+
+When a raw search over the incident window is too slow to iterate, `tstats` reads **indexed
+metadata (tsidx files), not raw events** — orders faster, with two strings attached:
+
+````spl
+| tstats count FROM datamodel=<model>.<root_dataset> WHERE earliest=-4h BY <dataset>.<field> _time span=5m
+````
+
+- **`summariesonly=t` trades completeness for speed, silently.** It returns results only from
+  already-summarized data "even when the time range of the search exceeds the summarization range"
+  — if acceleration lags the live incident (it usually lags by minutes), the newest events are
+  simply absent, a mid-incident false all-clear. Default (`summariesonly=f`) falls back to raw
+  data for the unsummarized remainder: complete but slower. Say which mode produced any
+  tstats-based claim in the packet.
+- Search filters cannot be applied to accelerated data models — constraints go in `WHERE`/`BY`
+  against dataset fields.
+- **`TERM()`** matches a term containing minor breakers as one indexed term
+  (`TERM(www.example.com)`, `TERM(10.0.0.5)`) instead of letting the segmenter split it — the
+  cheap way to hunt one IP/host across a big index. **`PREFIX()`** (with tstats) aggregates on a
+  raw indexed segment as if it were a field — include the delimiter: `PREFIX(kbps=)` yields the
+  values, `PREFIX(kbps)` yields `=10`-shaped junk.
+- **Index-time vs search-time**: Splunk's own guidance — "it is better to perform most
+  knowledge-building activities, such as field extraction, at search time." Recommending
+  index-time extraction to speed one investigation is a config change with indexing-cost blast
+  radius; that recommendation goes to the `observability-engineer` agent, not into an incident.
+
+**When a search is slow, prove why before rewriting it:** the Job Inspector shows per-component
+execution costs; `scanCount` vs `resultCount` (events read off disk vs events that matched) is the
+first diagnostic — a huge scan for a tiny result means the base search is under-scoped or the
+filter isn't index-time-selective (that's what `TERM()`/`tstats` fix).
 
 ## Tips & gotchas (Splunk-specific — where the default bites)
 
