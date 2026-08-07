@@ -75,12 +75,42 @@ class MutantGenerationTests(unittest.TestCase):
     def test_every_mutant_is_valid_python_and_distinct_from_the_original(self) -> None:
         mutants = mutation_guard.mutants(HONEST_MODULE)
         self.assertTrue(mutants)
+        # Compare against the unparse-normalized original, not the raw source: every mutant is an
+        # unparse round-trip that renormalizes docstring quoting, so `!= HONEST_MODULE` would hold
+        # even for a mutant that changed nothing. That assertion could never fail.
+        normalized = mutation_guard.normalized_source(HONEST_MODULE)
         seen = set()
         for mutant in mutants:
             compile(mutant.mutated_source, "<mutant>", "exec")
-            self.assertNotEqual(HONEST_MODULE, mutant.mutated_source)
+            self.assertNotEqual(normalized, mutant.mutated_source)
             seen.add(mutant.mutated_source)
         self.assertEqual(len(seen), len(mutants), "mutants must be deduplicated")
+
+    def test_a_bounded_sample_spans_the_file_instead_of_its_shallowest_prefix(self) -> None:
+        """A prefix-truncated budget only ever mutates the first sites in walk order. On the real
+        packet_drift.py the motivating mutant sits at index 35 of 48, so a prefix of 12 would never
+        generate the very mutation this guard cites as its demonstration."""
+        source = "def f(a, b, c, d, e, f, g, h):\n" + "".join(
+            f"    x{i} = {chr(97 + i)} and {chr(98 + i)}\n" for i in range(8)
+        )
+        every = mutants_of = mutation_guard.mutants(source)
+        self.assertGreater(len(every), 6)
+        sampled = mutation_guard.mutants(source, limit=3)
+        self.assertEqual(3, len(sampled))
+        last_line = max(m.lineno for m in mutants_of)
+        self.assertGreater(
+            max(m.lineno for m in sampled),
+            min(m.lineno for m in every),
+            "a bounded sample must reach past the first site",
+        )
+        self.assertEqual(
+            last_line,
+            max(m.lineno for m in sampled),
+            "a bounded sample must include the deepest site, not stop at a prefix",
+        )
+
+    def test_the_default_budget_is_unbounded_because_this_is_not_a_gate_step(self) -> None:
+        self.assertEqual(0, mutation_guard.DEFAULT_LIMIT)
 
     def test_generation_is_deterministic(self) -> None:
         first = [m.mutated_source for m in mutation_guard.mutants(HONEST_MODULE)]
@@ -101,8 +131,23 @@ class SurvivorDetectionTests(unittest.TestCase):
 
     def test_a_test_that_pins_the_contract_leaves_no_survivor(self) -> None:
         module, test = self._fixture(HONEST_TEST)
+        # Assert the fixture actually runs and passes first. Without this, a fixture that never
+        # executed would also yield [] survivors and this test would pass proving nothing — the
+        # exact vacuous-assertion shape this whole suite exists to detect.
+        self.assertTrue(mutation_guard.run_test(test), "fixture test must pass unmutated")
         survivors = mutation_guard.surviving_mutants(module, test)
         self.assertEqual([], [s.description for s in survivors])
+
+    def test_a_suite_failing_for_non_mutation_reasons_is_unverifiable_not_clean(self) -> None:
+        """The guard's own false-green path. If the test fails for any reason other than the
+        mutation — a missing dependency, a wrong cwd, an import error — then every mutant looks
+        killed and the tool would report PASS while proving nothing about the suite."""
+        module, test = self._fixture(HONEST_TEST)
+        test.write_text("import does_not_exist_anywhere\n", encoding="utf-8")
+
+        self.assertFalse(mutation_guard.run_test(test))
+        with self.assertRaises(mutation_guard.UnverifiablePair):
+            mutation_guard.surviving_mutants(module, test)
 
     def test_a_test_that_asserts_less_than_it_claims_leaves_a_survivor(self) -> None:
         """This is the whole point: the blind test passes, and passes just as happily against a

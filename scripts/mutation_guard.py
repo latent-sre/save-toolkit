@@ -32,14 +32,14 @@ HONEST LIMITS
 -------------
 This mutates the module **in place** and restores it from memory in a `finally`. It refuses to start
 on a dirty working tree, so an interrupted run can always be recovered with `git restore`. It is a
-sampling tool, not a proof: `--limit` bounds the mutants per module and the default budget is small
-enough to run in a gate, so a clean report means "no survivor among the mutants tried", never "the
-suite is complete".
+sampling tool, not a proof: `--limit` bounds the mutants per module, so a clean report means "no
+survivor among the mutants tried", never "the suite is complete". A full sweep runs the suite once
+per mutant, which is far too slow for CI -- it is a deliberate run, like the routing evals.
 
 Pure standard library.
 
-    python3 scripts/mutation_guard.py                 # gate budget over every discovered pair
-    python3 scripts/mutation_guard.py --limit 0       # every mutant (slow)
+    python3 scripts/mutation_guard.py                 # every mutant of every pair (slow)
+    python3 scripts/mutation_guard.py --limit 12      # an evenly spaced sample per module
     python3 scripts/mutation_guard.py --module skills/operational-learning/scripts/packet_drift.py
 """
 
@@ -67,7 +67,9 @@ COMPARISON_SWAPS = {
     ast.In: ast.NotIn,
     ast.NotIn: ast.In,
 }
-DEFAULT_LIMIT = 12
+# Unbounded by default: this is a deliberate command, not a gate step, so completeness beats
+# speed. --limit takes an evenly spaced sample when a bounded run is wanted.
+DEFAULT_LIMIT = 0
 RUN_TIMEOUT = 900
 
 
@@ -104,7 +106,13 @@ def _mutation_sites(tree: ast.Module) -> Iterator[tuple[ast.AST, str, object]]:
 
 
 def mutants(source: str, limit: int = 0) -> list[Mutant]:
-    """Every single-point mutant of *source*, in deterministic order, deduplicated."""
+    """Every single-point mutant of *source*, deterministic and deduplicated.
+
+    A non-zero *limit* takes an evenly spaced sample across the whole walk, never a prefix.
+    Prefix truncation only ever mutates the shallowest sites: on this repository's own
+    `packet_drift.py` the motivating mutant sits at index 35 of 48, so a prefix budget would
+    silently exclude the exact mutation this guard was built to catch.
+    """
 
     original = ast.parse(source)
     seen: set[str] = set()
@@ -123,9 +131,12 @@ def mutants(source: str, limit: int = 0) -> list[Mutant]:
             continue
         seen.add(rendered)
         produced.append(Mutant(lineno=lineno, description=description, mutated_source=rendered))
-        if limit and len(produced) >= limit:
-            break
-    return produced
+    if not limit or limit >= len(produced):
+        return produced
+    # Evenly spaced indices, always including the last site.
+    step = (len(produced) - 1) / (limit - 1) if limit > 1 else 0
+    chosen = sorted({round(position * step) for position in range(limit)})
+    return [produced[index] for index in chosen]
 
 
 def _replace_node(tree: ast.Module, target: ast.AST, replacement: object) -> ast.Module:
@@ -179,12 +190,27 @@ def unresolved(root: Path) -> list[Path]:
     return [test for test, modules in discover(root) if not modules]
 
 
-def _run_test(test: Path) -> bool:
-    """True when the test file passes."""
+class UnverifiablePair(RuntimeError):
+    """The test does not pass against unmutated code, so no mutant result means anything.
+
+    Without this the tool has the very defect it exists to find: a suite failing for a reason
+    unrelated to any mutation — a missing dependency, the wrong working directory, an import
+    error — scores every mutant as killed and reports PASS while proving nothing.
+    """
+
+
+def normalized_source(source: str) -> str:
+    """The unparse round-trip of *source*, which is what every mutant is compared against."""
+
+    return _render(ast.parse(source))
+
+
+def run_test(test: Path) -> bool:
+    """True when the test file passes. Run from the repository root, as Gate A runs it."""
 
     completed = subprocess.run(
         [sys.executable, str(test)],
-        cwd=str(test.parent),
+        cwd=str(ROOT),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         timeout=RUN_TIMEOUT,
@@ -194,14 +220,30 @@ def _run_test(test: Path) -> bool:
 
 
 def surviving_mutants(module: Path, test: Path, limit: int = 0) -> list[Mutant]:
-    """Mutants of *module* that *test* fails to notice."""
+    """Mutants of *module* that *test* fails to notice.
+
+    Raises `UnverifiablePair` when the test does not pass against the normalized-but-unmutated
+    source, because every mutant verdict downstream of that would be meaningless.
+    """
 
     original = module.read_bytes()
     survivors: list[Mutant] = []
     try:
+        # Baseline: unparse normalization strips comments and rewrites formatting, so the honest
+        # baseline is the normalized source rather than the file as committed.
+        module.write_text(
+            normalized_source(original.decode("utf-8")), encoding="utf-8", newline="\n"
+        )
+        if not run_test(test):
+            raise UnverifiablePair(
+                f"{test.name} does not pass against unmutated {module.name}; "
+                "no mutant result from this pair can be trusted"
+            )
         for mutant in mutants(original.decode("utf-8"), limit=limit):
-            module.write_text(mutant.mutated_source, encoding="utf-8")
-            if _run_test(test):
+            # newline="\n" matters: without it Windows translates to CRLF, so the subject differs
+            # from the committed bytes in a way unrelated to the mutation.
+            module.write_text(mutant.mutated_source, encoding="utf-8", newline="\n")
+            if run_test(test):
                 survivors.append(mutant)
     finally:
         module.write_bytes(original)
@@ -252,26 +294,63 @@ def main(argv: Sequence[str] | None = None) -> int:
         print()
 
     findings: list[tuple[Path, Path, Mutant]] = []
+    unverifiable: list[str] = []
+    unexercised: list[str] = []
     checked = 0
+    attempted = 0
     for test, modules in discover(args.root):
         for module in modules:
             if args.module is not None and module != (args.root / args.module).resolve():
                 continue
             checked += 1
             print(f"  {module.relative_to(args.root).as_posix()} <- {test.name}", flush=True)
+            tried = len(mutants(module.read_text(encoding="utf-8"), limit=args.limit))
+            attempted += tried
             try:
                 survivors = surviving_mutants(module, test, limit=args.limit)
-            except (subprocess.TimeoutExpired, OSError, SyntaxError) as exc:
-                print(f"mutation_guard: cannot mutate {module}: {exc}", file=sys.stderr)
-                return 2
+            except UnverifiablePair as exc:
+                # Not a pass and not a failure: this pair proved nothing, and saying so is the
+                # whole point of the tool.
+                unverifiable.append(str(exc))
+                continue
+            except (
+                subprocess.TimeoutExpired,
+                OSError,
+                SyntaxError,
+                UnicodeDecodeError,
+                RecursionError,
+            ) as exc:
+                unverifiable.append(f"cannot mutate {module.name}: {exc}")
+                continue
+            if survivors and len(survivors) == tried:
+                # Every single mutant survived. Either the test does not exercise this module at
+                # all — discovery accepts any resolving `.py` literal, including fixture paths —
+                # or it exercises it while proving nothing. Both deserve one line, not `tried`
+                # separate findings that bury the real survivors elsewhere in the report. It is
+                # reported, never dropped: silence here would be the tool's own false clean.
+                unexercised.append(
+                    f"{module.relative_to(args.root).as_posix()} <- {test.name}: "
+                    f"all {tried} mutants survived; this test likely does not exercise it"
+                )
+                continue
             findings.extend((test, module, mutant) for mutant in survivors)
+
+    for message in unexercised:
+        print(f"mutation_guard: unexercised -- {message}", file=sys.stderr)
+    for message in unverifiable:
+        print(f"mutation_guard: unverifiable -- {message}", file=sys.stderr)
 
     if not checked:
         print("mutation_guard: no test/module pair matched", file=sys.stderr)
         return 2
     if not findings:
-        print(f"mutation_guard: PASS -- no surviving mutants across {checked} pair(s)")
-        return 0
+        # Report the sample size: "no survivors" is uninterpretable without the number tried.
+        print(
+            f"mutation_guard: PASS -- no surviving mutants among {attempted} tried across "
+            f"{checked} pair(s), limit={args.limit or 'none'}, "
+            f"{len(unverifiable)} unverifiable, {len(unexercised)} unexercised"
+        )
+        return 2 if (unverifiable or unexercised) else 0
 
     print(f"\nmutation_guard: {len(findings)} surviving mutant(s) -- the suite did not notice:")
     for test, module, mutant in findings:
