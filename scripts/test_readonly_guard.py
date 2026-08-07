@@ -155,6 +155,20 @@ ALLOWED = [
     "cf services",
     "cf target",
     "cf app my-app | grep -e instances",
+    # gcloud reads — the GCP-migration triage set, gated by positional prefix
+    "gcloud run services list",
+    "gcloud run services describe checkout --region us-east1 --format=json",
+    "gcloud run revisions list --service checkout",
+    "gcloud run revisions describe checkout-00042-abc",
+    "gcloud run services logs read checkout --limit=100",
+    # Shell-safe filter shape: `--freshness` for the time bound, `severity=(ERROR OR CRITICAL)`
+    # for the floor. A `severity>=ERROR` filter trips the structure deny (see DENIED below).
+    "gcloud logging read 'resource.type=cloud_run_revision AND severity=(ERROR OR CRITICAL)' --limit=50 --freshness=1h",
+    "gcloud logging logs list",
+    "gcloud projects describe my-project",
+    "gcloud config list",
+    "gcloud config get-value project",
+    "gcloud run services list | grep -e checkout",
     # DNS triage (egress-shaped; structure rules still kill tunneling forms like `dig $(...)`)
     "dig example.com",
     # REGRESSION: the old denylist denied these harmless searches because their SEARCH TEXT
@@ -325,6 +339,33 @@ DENIED = [
     "cf set-env my-app KEY value",
     "cf env my-app",
     "cf ssh my-app",
+    # --- gcloud: credential-printing reads, writes, and smuggling levers ----------------------
+    # The credential trio and secret access print live tokens/secrets to an egress-holding agent —
+    # the `cf env` shape; the rest are writes, identity pivots, or flag smuggling. A release-track
+    # prefix (`gcloud beta …`) shifts the positional path off the allowlist and denies loudly.
+    "gcloud auth print-access-token",
+    "gcloud auth print-identity-token",
+    "gcloud auth application-default print-access-token",
+    "gcloud secrets versions access latest --secret=db-password",
+    "gcloud beta secrets versions access latest --secret=db-password",
+    "gcloud kms decrypt --key=k --keyring=r --location=global --ciphertext-file=c --plaintext-file=-",
+    "gcloud config config-helper",
+    "gcloud run services delete checkout",
+    "gcloud run deploy checkout --image gcr.io/x/y",
+    "gcloud run services update-traffic checkout --to-latest",
+    "gcloud config set project other-project",
+    "gcloud compute ssh instance-1",
+    "gcloud beta logging read 'severity>=ERROR'",
+    "gcloud run services describe checkout --impersonate-service-account=sa@p.iam.gserviceaccount.com",
+    "gcloud logging read --flags-file=flags.yaml",
+    "gcloud interactive",
+    "gcloud",
+    # DOCUMENTED false positive, pinned on purpose: `>=` in a quoted Logging filter trips the
+    # structure deny like any other `>`. The guard refuses to parse shell quoting (that is how the
+    # old denylist lost), so the shell-safe spellings above — `--freshness` and
+    # `severity=(ERROR OR CRITICAL)` — are the agent path; a genuine `>=` filter is a
+    # recommend-for-human command. Do not "fix" this by weakening _STRUCTURE_DENY.
+    "gcloud logging read 'severity>=ERROR'",
     # --- observability-only validators are DENIED for sre ------------------------------------------
     "promtool check rules rules.yml",
     "yamllint alerts.yml",
