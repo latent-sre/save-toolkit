@@ -3,8 +3,8 @@ name: obs-traces
 description: >-
   Follow one request across services — when logs say 'slow' and metrics say 'sometimes',
   the trace says where. Read waterfalls, find the span that ate latency, and correlate
-  trace ids with logs. Backend: Tempo (TraceQL). Triggers: 'trace this request',
-  'where did the latency go', 'follow this correlation id'. Ownership map only—not a
+  trace ids with logs. Backends: Tempo (TraceQL) and Cloud Trace on GCP. Triggers: 'trace this
+  request', 'where did the latency go', 'follow this correlation id'. Ownership map only—not a
   load: obs-pipeline owns trace instrumentation.
 ---
 
@@ -87,6 +87,7 @@ packet.
 | If the question involves… | Read first |
 |---|---|
 | Tempo or TraceQL | [TraceQL](./references/traceql.md) |
+| Cloud Trace, the Telemetry API, or a GCP-hosted service's traces | [Cloud Trace](./references/gcp-trace.md) |
 | Span kinds, status, attributes, propagation, or sampling | [OpenTelemetry semantics](./references/otel-semantics.md) |
 
 Read it **before** writing that query or interpreting those fields, and name what you read in your packet.

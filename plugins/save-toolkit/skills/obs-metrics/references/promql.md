@@ -19,6 +19,7 @@ Primary references:
 - Aggregate with real `by` and `without`
 - Error ratio and burn-rate shape
 - Histogram p95
+- Recording rules, native histograms, remote_write — the parts around the query
 - Missing data and staleness
 - Inert canary example
 
@@ -116,6 +117,36 @@ histogram_quantile(
 
 Do not average summary quantiles across instances; summaries have already discarded the distribution
 needed to reconstruct an aggregate percentile. *[sourced: Prometheus histogram and summary practices]*
+
+## Recording rules, native histograms, remote_write — the parts around the query
+
+*[sourced: prometheus.io practices/rules, specs/native_histograms, practices/remote_write, and the
+configuration reference; reviewed 2026-08-07 via indirect retrieval; unverified for the deployed
+Prometheus/Mimir versions]*
+
+- **Recording-rule naming is `level:metric:operations`** — aggregation level and labels of the
+  output, the metric name (strip `_total` when rating a counter), then operations newest-first;
+  always aggregate with an explicit `without (…)` so labels like `job` survive:
+
+  ```yaml
+  - record: job_instance_mode:node_cpu_seconds:avg_rate5m
+    expr: avg by (job, instance, mode) (rate(node_cpu_seconds_total[5m]))
+  ```
+
+  A recording rule that pre-aggregates away the label an alert later needs is a quiet way to make
+  the alert unwritable — check consumers before choosing `level`.
+- **Native histograms are a stable feature** (v3.8+; the old feature flag is a no-op from v3.9 —
+  scraping is enabled via `scrape_native_histograms`). Whether the deployed
+  Prometheus/Alloy/Mimir chain has them on is `[unverified]` per target; a `histogram_quantile`
+  over a native histogram doesn't use `_bucket`/`le`, so the classic p95 shape above silently
+  matches nothing against a native-only metric — check which representation the target scrapes
+  before declaring "no data".
+- **remote_write tuning knobs that matter** (`queue_config`): `capacity` (default 10000),
+  `max_shards` (50), `max_samples_per_send` (2000), `batch_send_deadline` (5s); guidance:
+  capacity ≈ 3–10× max_samples_per_send, and remote write adds roughly 25% memory overhead.
+  Sustained `prometheus_remote_storage_*` failures/shard saturation mean the query you're running
+  may be missing recent samples at the receiving end — a pipeline finding for the
+  `obs-pipeline` skill, not a query rewrite.
 
 ## Missing data and staleness
 

@@ -1,0 +1,72 @@
+# Cloud Monitoring for metric investigation — PromQL first
+
+Use this reference only after applying the product-agnostic investigation shape in the parent
+skill. Sources reviewed 2026-08-07 against official Google Cloud pages (now on
+`docs.cloud.google.com`) via indirect retrieval — search extraction, not byte-level fetches.
+
+## The one decision that's already made: query in PromQL
+
+- **MQL is deprecated.** Google Cloud customer support for MQL ended **2025-07-22**, and MQL can
+  no longer be used for new charts, dashboards, or alerting policies in the console; existing MQL
+  assets keep working *[sourced: docs.cloud.google.com/stackdriver/docs/deprecations/mql]*. Do not
+  author new MQL; translate on touch.
+- **PromQL covers everything.** All Cloud Monitoring metrics — "Google Cloud system metrics,
+  Kubernetes metrics, log-based metrics, and custom metrics" — are queryable with PromQL
+  *[sourced: docs.cloud.google.com/monitoring/promql]*. The PromQL dialect itself is the parent
+  skill's [PromQL reference](./promql.md); this file covers only what Cloud Monitoring adds.
+
+## What Cloud Monitoring adds around PromQL
+
+- **Metric-name mapping.** Cloud Monitoring names (`run.googleapis.com/request_count`) convert to
+  PromQL-compatible equivalents; the exact conversion rules live on the PromQL page and are
+  `[unverified]` here — resolve the mapped name in the console's PromQL editor rather than
+  guessing the transliteration.
+- **Managed Service for Prometheus shares the backend.** Metrics ingested by Managed Prometheus
+  and native Cloud Monitoring metrics are queryable together "in Cloud Monitoring, Grafana, or any
+  other tool that can read the Prometheus API" *[sourced: docs.cloud.google.com/monitoring/promql]*.
+- **Compatibility deltas exist** — Cloud Monitoring's PromQL is not byte-for-byte upstream; the
+  differences page (`…/stackdriver/docs/managed-prometheus/promql-differences`) is the checklist
+  when a working Mimir query misbehaves against Cloud Monitoring.
+- **Non-PromQL API queries** of Prometheus-ingested metrics use monitored-resource type
+  `prometheus_target` *[sourced: …/stackdriver/docs/managed-prometheus/query-cm]*.
+
+## Grafana against Cloud Monitoring — how our dashboards keep working
+
+Grafana queries Managed Prometheus/Cloud Monitoring through the **data source syncer**: Google
+Cloud APIs require OAuth2, Grafana's Prometheus data source doesn't do OAuth2 for service
+accounts, so the syncer refreshes a service-account token into the data source every ~10 minutes
+(tokens live 1 hour). The service account needs **Monitoring Viewer** on the scoping project
+*[sourced: docs.cloud.google.com/stackdriver/docs/managed-prometheus/query]*. Triage implication:
+Grafana panels going all-no-data against GCP while the console works = suspect the syncer/token
+path before the metrics.
+
+## Terminal reads
+
+`gcloud config list`, `gcloud run services describe` (limits/concurrency context) are on the
+guard's allowlist. **No gcloud command reads metric time series** in any release track that the
+research pass could find — `[unverified as an absence]`; time-series reads go through the console
+PromQL editor, Grafana, or the Monitoring API, all recommend-for-human from this fleet. Do not
+burn incident time hunting for a `gcloud monitoring timeseries` command.
+
+## Gotchas
+
+- **Alignment is built in.** Console charts auto-align/aggregate; a spike visible at 1m alignment
+  can vanish at 5m. Record the alignment/step with every screenshot, same as the parent skill's
+  step-cadence rule.
+- **Log-based metrics start at creation** — not retroactive; never treat their flat history before
+  creation as "was healthy".
+- **Quotas and sampling**: system metrics arrive at fixed granularity (commonly 60s); sub-minute
+  behavior is invisible — say so in the packet instead of calling the service smooth.
+- Wavefront and Mimir remain first-class while workloads coexist; a service migrating runtimes
+  should keep emitting to the incumbent path until cutover is recorded in `stack-profile` —
+  double-emit beats a telemetry gap.
+
+## Inert canary example
+
+Never run outside a canary drill; it references a deliberately nonexistent service.
+
+```promql
+sum by (service_name) (rate(run_googleapis_com:request_count{service_name="canary-q-omgcp-9e4b"}[5m]))
+```
+
+Reference-read token: q_omgcp_9e4b

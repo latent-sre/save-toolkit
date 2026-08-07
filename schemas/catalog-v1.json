@@ -47,6 +47,15 @@
       ]
     },
     {
+      "id": "runbook-frontmatter-v1",
+      "uri": "https://github.com/latent-sre/save-toolkit/schemas/runbook-frontmatter-v1.schema.json",
+      "version": 1,
+      "status": "contract-only",
+      "canonical_path": "schemas/runbook-frontmatter-v1.schema.json",
+      "validator": null,
+      "generated_projections": []
+    },
+    {
       "id": "fleet-improvement-v1",
       "uri": "https://github.com/latent-sre/save-toolkit/skills/agent-authoring/assets/fleet-improvement-v1.schema.json",
       "version": 1,

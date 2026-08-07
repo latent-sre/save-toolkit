@@ -32,7 +32,10 @@ app → SDK/agent → collector/Alloy → backend
 | Metrics | OTel instruments with bounded attributes | OTLP receiver → resource/attribute processing → route | Mimir and the current Wavefront path |
 | Traces | spans with propagated W3C trace context | OTLP receiver → sampling/batch → route | Tempo |
 
-GCP exporters are the future backend slot; this skill ships no GCP exporter configuration.
+GCP backends are landing with the migration: the documented ingest is OTLP to the Telemetry API
+(`telemetry.googleapis.com`) through the same otelcol exporter slot — the Alloy reference shows the
+shape, the `obs-traces` Cloud Trace reference carries the backend facts, and exact auth/config for
+the target project remains `[unverified]` until a canary run proves the route.
 
 ## Where a missing signal gets lost
 

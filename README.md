@@ -1,6 +1,6 @@
 # Save Toolkit
 
-Save Toolkit is a multi-host plugin containing **8 canonical host-facing agents and 27 skills** for
+Save Toolkit is a multi-host plugin containing **8 canonical host-facing agents and 29 skills** for
 application engineering and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
 sources directly. GitHub Copilot/VS Code and Codex receive committed, host-native projections made by
 one deterministic generator; generated files are never edited by hand.
@@ -12,7 +12,7 @@ bare component names.
 ## Layout
 
 - [`agents/`](agents) — the eight canonical Claude plugin agent definitions; `tools` carries authority.
-- [`skills/`](skills) — the 27 canonical skills and their progressive-disclosure `references/`,
+- [`skills/`](skills) — the 29 canonical skills and their progressive-disclosure `references/`,
   `assets/`, and `scripts/` bundles.
 - [`commands/adr.md`](commands/adr.md) — the canonical Claude `/save-toolkit:adr` scaffold.
 - [`.claude-plugin/`](.claude-plugin) and [`hooks/`](hooks) — Claude manifest/marketplace plus the
@@ -54,11 +54,11 @@ bare component names.
 | `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
 | `prompt-engineer` | The fleet's own files: agents, skills, descriptions, evals | Hands helper code to `sde`, injection review to `reviewer` |
 
-The 27 skills, by area (each `skills/<name>/SKILL.md` carries its own description):
+The 29 skills, by area (each `skills/<name>/SKILL.md` carries its own description):
 
 - **Engineering craft** — `language-idiom`, `backend-craft`, `frontend-craft`, `ops-tooling`, `ci-actions`,
   `database-reliability`, `eng-ladder`
-- **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`
+- **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `merge-gate`, `release-gate`, `production-change-gate`
 - **Incident and operations** — `root-cause`, `incident-command`, `postmortem`, `runbook`,
   `operational-learning`, `service-onboarding`

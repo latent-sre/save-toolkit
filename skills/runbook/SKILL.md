@@ -2,10 +2,12 @@
 name: runbook
 description: >-
   Apply the standard operational-runbook structure after the scribe agent selects runbook mode, or
-  when a user explicitly invokes this skill. Covers how to check, restart, recover, verify, roll
-  back, and escalate for one task or failure mode. Direct operational-document writing belongs to
-  scribe; post-incident retrospectives use postmortem. Triggers:
-  'runbook mode selected', 'apply the runbook structure', 'use the runbook template'.
+  when a user explicitly invokes this skill. Covers check/recover/verify/roll-back/escalate
+  structure for one failure mode, the living-runbook accretion protocol that grows a runbook after
+  every incident, and importing Confluence runbooks into the repo. Direct operational-document
+  writing belongs to scribe; retrospectives use postmortem. Triggers: 'runbook mode selected',
+  'apply the runbook structure', 'update the runbook from this incident', 'import this Confluence
+  runbook'.
 argument-hint: "[service or tool]"
 ---
 
@@ -57,6 +59,28 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
 - **Preserve command evidence before publishing** — use only supplied, authorized execution evidence
   for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
   this documentation lane, including a read-only command, merely to confirm syntax or output.
+
+## Living runbooks — every incident leaves the runbook better
+
+Every incident or drill that touches a runbook yields one outcome per step — **held**,
+**contradicted**, or **missing** — and each becomes an `operational-learning` disposition at
+closeout. Append an Incident history row (template slot) pinned to the `version` used; rows are
+evidence, never rewritten. A contradicted step is fixed now or the runbook drops to
+`status: draft`; `last_verified` moves only on binding rehearsal evidence. The full accretion
+protocol and its sourced rationale (playbooks ≈ 3x MTTR improvement) are in
+[living runbooks](./references/living-runbooks.md).
+
+## Importing runbooks from Confluence
+
+Existing Confluence runbooks are imported into the repo — one direction, repo becomes the living
+copy. The conversion procedure, slot mapping, and provenance rules are in
+[Confluence import](./references/confluence-import.md), and
+[confluence_to_runbook.py](./scripts/confluence_to_runbook.py) does the mechanical part: a human
+(or the `sde` agent) runs it on an exported page to produce a draft with frontmatter pre-filled,
+headings mapped to template slots, unmapped content kept visible, and macro losses counted. Two
+rules travel ahead of the detail: imported command claims arrive `[unverified]` no matter how
+authoritative the page looked, and the source page URL plus export date land in the runbook's
+References section so the paper trail survives the move.
 
 ## Alert → runbook links and the Crawl → Walk → Run path
 

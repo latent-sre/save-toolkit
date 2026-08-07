@@ -2,10 +2,10 @@
 name: obs-alerting
 description: >-
   Design alerting that pages on symptoms — SLIs/SLOs and multi-window burn rates, Grafana unified
-  alerting as code, Moogsoft correlation, and ThousandEyes synthetics. Triggers: 'define an SLO',
-  'this alert is too noisy', 'what should page', 'design a synthetic check'. Every alert links a
-  runbook. Ownership map only—not a load: obs-metrics/obs-logs own queries and obs-dashboards owns
-  dashboards.
+  alerting as code, Splunk saved-search alerts, Moogsoft correlation, and ThousandEyes synthetics.
+  Triggers: 'define an SLO', 'this alert is too noisy', 'what should page', 'design a synthetic
+  check'. Every alert links a runbook. Ownership map only—not a load:
+  obs-metrics/obs-logs own queries and obs-dashboards owns dashboards.
 argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 ---
 
@@ -72,6 +72,7 @@ Read only the row needed for the task:
 |---|---|
 | SLI, SLO, budget status, or multi-window burn rate | [burn-rate method](./references/burn-rate.md) |
 | Grafana rule groups, contact points, or notification policies | [Grafana 13 alerting](./references/grafana-alerting.md) |
+| Splunk saved-search alerts, cron/window pairing, throttling, or webhook/email actions | [Splunk alerting](./references/splunk-alerting.md) |
 | Alert storm, event correlation, deduplication, or Moogsoft | [Moogsoft correlation](./references/moogsoft.md) |
 | Synthetic test, DNS, BGP, path, or external reachability | [ThousandEyes synthetics](./references/thousandeyes.md) |
 | Calculate budget status or a permitted burn-rate pair | [error_budget.py](./scripts/error_budget.py) |

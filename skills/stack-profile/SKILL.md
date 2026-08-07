@@ -18,9 +18,13 @@ description: >-
 Phrased as what is true today. When the ground shifts, this file changes and nothing else does.
 
 ## Runtime
-On-prem servers + PCF (VMware Tanzu Application Service); `cf` CLI v8 (CAPI V3). **No Kubernetes.**
-GCP is under evaluation for late 2026 — not a target today; if it lands it arrives as reference
-files inside the obs skills, not as a restructure.
+On-prem servers + PCF (VMware Tanzu Application Service); `cf` CLI v8 (CAPI V3) — this is what runs
+today. **GCP migration is in progress**: GCP is an approved target, arriving (as planned) as
+reference files inside the obs skills plus the `gcp-ops` triage skill, not as a restructure. The
+landing runtime is **decision-pending** (Cloud Run is the primary candidate for TAS-shaped apps;
+GKE only if a workload demands it) — do not present either as decided. [unverified — record the
+runtime decision here when a human owner accepts it]. **No self-managed Kubernetes**; on-prem stays
+Kubernetes-free.
 
 ## Observability — two stacks, coexisting (churn is an axiom, not an event)
 | Signal | Incumbent | Additive, first-class |
@@ -31,20 +35,34 @@ files inside the obs skills, not as a restructure.
 | Dashboards | Grafana 13.x | Grafana 13.x |
 | Alerting / correlation | Moogsoft (Dell APEX AIOps, on-prem v9.x); ThousandEyes synthetics | Grafana unified alerting |
 | Pipeline | — | Alloy + OTel collectors |
+| Edge / CDN / WAF / RUM | Akamai (Property Manager delivery, App & API Protector, DataStream 2 logs, mPulse RUM) | — |
+
+Both incumbent columns stay first-class — Splunk, Wavefront, Grafana, Alloy, and Prometheus all
+deepen in place; none is being retired. As GCP workloads land, Cloud Logging / Cloud Monitoring /
+Cloud Trace join as additional backends via reference files in the obs skills — additive, same as
+everything else in the right column.
 
 ## Languages & CI
 Python, Bash, PowerShell first (Go/TS where a repo already uses them). GitHub + GitHub Actions.
 
 ## Stay in lane
-Do not suggest Kubernetes, cloud-managed services, or infra-layer fixes. Stay in the app/ops lane;
-hand platform-internal problems to the platform team.
+Stay in the app/ops lane; hand platform-internal problems to the platform team. GCP managed
+services are now in-lane **for the migration** (Cloud Run, Cloud Logging/Monitoring/Trace,
+Secret Manager); do not propose self-managed Kubernetes anywhere, and do not propose GKE while the
+landing-runtime decision is pending — flag the need instead. On-prem/PCF infra-layer fixes remain
+out of lane.
 
 ## The platform boundary
-We own our apps up to the platform edge; we do not operate the platform. BOSH, Ops Manager, Diego
-cells, Gorouter, CredHub/UAA, and foundation upgrades belong to the platform team. When a problem is
-platform-side (many apps failing at once, failing cells, Gorouter-wide 5xx), recognize it and
-escalate with evidence — timestamps, blast radius, `cf` output showing our app healthy — do not
-operate BOSH.
+We own our apps up to the platform edge; we do not operate the platform. On PCF: BOSH, Ops Manager,
+Diego cells, Gorouter, CredHub/UAA, and foundation upgrades belong to the platform team. When a
+problem is platform-side (many apps failing at once, failing cells, Gorouter-wide 5xx), recognize it
+and escalate with evidence — timestamps, blast radius, `cf` output showing our app healthy — do not
+operate BOSH. On GCP the boundary moves and is **not yet ratified**: the team owns more (service
+config, revisions, project-scoped observability), while org policy, folder/project structure,
+shared networking, and IAM beyond project scope sit with the cloud platform owner. Treat that split
+as [unverified] until recorded here; the `gcp-ops` skill carries the working boundary rules. Akamai
+delivery and WAF config is team-owned change-managed work (see the `akamai-edge` skill); Akamai the
+platform — the edge network itself — is Akamai's.
 
 ## Copilot models (recorded here once, never in agent files — no agent pins a model)
 Selection rule: primary = the strongest Claude model in the team's Copilot picker at ship time;

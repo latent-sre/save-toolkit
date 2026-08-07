@@ -5,16 +5,48 @@ groups, notification routing, and runbook metadata under review with the same ri
 
 ## Primary sources
 
-Sources reviewed 2026-07-14:
+Sources reviewed 2026-07-14, extended 2026-08-07 (indirect retrieval of official pages):
 
 - `[sourced]` [Configure alert rules](https://grafana.com/docs/grafana/latest/alerting/alerting-rules/)
 - `[sourced]` [Use configuration files to provision alerting resources](https://grafana.com/docs/grafana/latest/alerting/set-up/provision-alerting-resources/file-provisioning/)
 - `[sourced]` [Labels and annotations](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rules/annotation-label/)
+- `[sourced]` [Alert rule evaluation](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rule-evaluation/) and its state/no-data subpages
 
 Grafana documents Grafana-managed rules as the recommended option; they can query supported backend
 data sources and are evaluated by Grafana, while data source-managed rules are supported for compatible
 Prometheus-family backends and are stored/evaluated there. Verify target support and choose one
 evaluation owner—never duplicate the same rule in both paths.
+
+## The evaluation lifecycle — design every rule around all four knobs
+
+- **Pending period (`for`)**: the condition must hold the whole period before Pending → Alerting
+  and notification routing — the flap filter on entry.
+- **`keep_firing_for`**: when the condition clears while Alerting, the instance enters a
+  **Recovering** state for that duration before Normal + resolved notification; a re-fire during
+  Recovering returns to Alerting **without a new notification** — the flap filter on exit. Zero
+  skips Recovering. `[sourced: state-and-health page]` (The exact provisioning-file key spelling is
+  `[unverified]` — confirm against the current file-provisioning schema before committing YAML.)
+- **No-data state**: map to No Data (default — fires a `DatasourceNoData` alert), Alerting,
+  Normal, or Keep Last State. Choose deliberately per the parent skill's missing-data rule: for a
+  paging burn-rate rule, silent-telemetry-means-Normal is the false all-clear.
+- **Execution-error state**: Error/Alerting/Normal/Keep Last State — same deliberateness; an
+  erroring query that maps to Normal disarms the alert invisibly.
+
+Review all four per rule; the defaults are not a decision.
+
+## Provisioning paths and recording rules
+
+Three documented as-code mechanisms — file provisioning (`provisioning/alerting/`), Terraform
+(built on the HTTP API), and the Alerting Provisioning HTTP API; export endpoints
+(`…/export?format=yaml|json|hcl`) emit provisioning-ready formats, but **the export JSON is not
+accepted by the HTTP API update endpoints** (different schemas). No official page crowns one
+mechanism as recommended, and the current provisioning HTTP API docs sit under an `api-legacy`
+path with a deprecation pointer toward the App Platform APIs — pin the mechanism per environment
+and record it. `[sourced: set-up/provision-alerting-resources pages]`
+
+Grafana-managed **recording rules** exist against any alerting-compatible data source (output name
+must be a valid Prometheus metric name), alongside data-source-managed recording rules in the
+Mimir/Loki ruler — same one-evaluation-owner rule as alerts. `[sourced: create-recording-rules pages]`
 
 ## Rule groups as code
 

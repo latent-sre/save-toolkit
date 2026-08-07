@@ -265,6 +265,35 @@ _CF_READ = frozenset({
     "app", "apps", "events", "logs", "routes", "services", "spaces", "orgs", "target",
 })
 
+# `gcloud` read-only triage for the GCP migration — the `cf` analog, gated by POSITIONAL PREFIX
+# because gcloud nests groups two or three levels deep (`run services list`). Same philosophy as
+# every list here: enumerate the reads triage NEEDS, deny the rest. `gcloud auth
+# print-access-token` / `print-identity-token` / `application-default print-access-token` and
+# `gcloud secrets versions access` print live credentials or secret payloads to an agent that also
+# holds egress — the `cf env` shape again — and are not on the list, like every unlisted path.
+# `config list` / `config get-value` are the `cf target` analog: they print the active project,
+# region, and account NAME, not credentials. Release-track prefixes (`gcloud beta …`) shift the
+# positional path and deny — fail-loud, add the exact tracked path if a read genuinely needs it.
+# A flag value passed as a separate token (`--limit 50`) lands AFTER the matched prefix and is
+# inert. A flag BEFORE the command path is denied outright in _gcloud_allowed: the space-separated
+# form (`--project foo logging read`) would shift the prefix anyway, but the attached form
+# (`--project=foo logging read`) would not — _positionals() skips it — so leading-flag inputs were
+# silently prefix-matched until the explicit first-arg check closed the pair. Write the flags
+# after the command path (`gcloud logging read … --project=foo`), gcloud's own documented style.
+_GCLOUD_READ_PREFIXES = (
+    ("run", "services", "list"), ("run", "services", "describe"),
+    ("run", "services", "logs", "read"),
+    ("run", "revisions", "list"), ("run", "revisions", "describe"),
+    ("logging", "read"), ("logging", "logs", "list"),
+    ("projects", "describe"),
+    ("config", "list"), ("config", "get-value"),
+)
+# Flags that make even an allowed gcloud read something we refuse to vouch for:
+# `--impersonate-service-account` performs the read AS another identity (an access-path lever, not
+# a read), and `--flags-file` loads more flags from a file the guard never sees — the same
+# smuggling shape as command substitution, so its mere presence is disqualifying.
+_GCLOUD_DENY_FLAGS = frozenset({"--impersonate-service-account", "--flags-file"})
+
 # Commands only observability-engineer may run — it validates observability config; sre does not
 # need these, and the smaller each profile is, the better it fails.
 _OBS_ONLY = frozenset({"yamllint"})
@@ -274,7 +303,8 @@ _PROMTOOL_READ_VERB = "check"
 _REASON = (
     "Blocked: this is a read-only agent, and its Bash access is limited to an ALLOWLIST of "
     "read-only commands (cf app/apps/events/logs/routes/services, git diff/log/show/blame/status, "
-    "rg, grep, ls, cat, head, find, gh pr view/diff, and similar filters). The command above is "
+    "rg, grep, ls, cat, head, find, gh pr view/diff, gcloud run services/revisions list/describe, "
+    "gcloud logging read, and similar filters). The command above is "
     "not on that list. Note this agent may NOT execute code — no test runners, no scripts, no "
     "package managers — because running a repository's code is not a read-only act, whatever the "
     "command looks like. Inspect with reads, cite the builder's or CI's test evidence rather than "
@@ -416,6 +446,20 @@ def _cf_allowed(args: list[str]) -> bool:
     return bool(positionals) and positionals[0] in _CF_READ
 
 
+def _gcloud_allowed(args: list[str]) -> bool:
+    # A leading flag is denied before any prefix matching: `--project=foo logging read` would
+    # otherwise prefix-match because _positionals() skips the attached-value flag entirely. See
+    # the comment at _GCLOUD_READ_PREFIXES.
+    if not args or args[0].startswith("-"):
+        return False
+    if _carries_flag(args, _GCLOUD_DENY_FLAGS, frozenset()):
+        return False
+    positionals = tuple(_positionals(args))
+    return any(
+        positionals[: len(prefix)] == prefix for prefix in _GCLOUD_READ_PREFIXES
+    )
+
+
 def _segment_allowed(segment: list[str], agent: str) -> bool:
     command, args = segment[0], segment[1:]
     # A path to a binary (`/bin/cat`, `./deploy.sh`, `scripts/setup.sh`) is never allowed: the
@@ -430,6 +474,8 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
         return _rg_allowed(args)
     if command == "cf":
         return _cf_allowed(args)
+    if command == "gcloud":
+        return _gcloud_allowed(args)
     if command == "promtool":
         positionals = _positionals(args)
         return (

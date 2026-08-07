@@ -71,4 +71,12 @@ policy permit it. Record the configured repository, branch, path, folder behavio
 review protection; never place a token in dashboard JSON or this inventory. File provisioning remains a
 valid path and is the default when Git Sync has not been admitted locally.
 
+Toolchain status, reviewed 2026-08-07 *[sourced: grafana.com/docs "Observability as code" section;
+indirect retrieval]*: the **Foundation SDK** (Go/TypeScript/Python/Java/PHP typed dashboard
+definitions) is the documented programmatic path; **Grizzly is deprecated**; and the dashboard
+model now has three schemas — **V2 Resource (current)**, V1 Resource, and the pre-v12.2 "Classic"
+`schemaVersion` JSON that community sharing still uses. State which schema a dashboard uses in its
+inventory row; a V2-only feature silently degrades when pasted into a Classic-consuming path.
+`[unverified for the deployed Grafana minor — confirm before migrating any dashboard's schema]`
+
 <!-- terminal-canary: q_odprov_91c4 -->
