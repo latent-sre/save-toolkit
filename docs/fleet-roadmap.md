@@ -14,8 +14,9 @@ Closed work is retained in the
 [`SAFE-001 closure`](reviews/2026-08-01-safe-001-closure.md) and
 [`IMPROVE-001 closure`](reviews/2026-08-01-fleet-improvement-closure.md), plus the
 [`VERIFY-001 closure`](reviews/2026-08-02-verify-001-closure.md),
-[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md), and
-[`HOST-001 closure`](reviews/2026-08-06-host-001-closure.md). The local Sol evaluator
+[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md),
+[`HOST-001 closure`](reviews/2026-08-06-host-001-closure.md), and
+[`ADAPT-001 closure`](reviews/2026-08-06-adapt-001-closure.md). The local Sol evaluator
 decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
 
@@ -37,44 +38,6 @@ An item leaves this file after its acceptance evidence is committed and the chan
 history and archived source documents retain the implementation detail.
 
 ## Active runtime work
-
-### ADAPT-001 — finish the bounded sibling-repo adaptations
-
-**Status:** `ready`
-
-**Outcome:** The larger ideas surfaced by the 2026-08-05 `sde-agents` scan that were worth doing but
-out of scope for the first pass are each either implemented behind a test or explicitly dropped with
-a reason — no idea left in an unrecorded "maybe" state.
-
-**Source:** [`2026-08-05-sde-agents-adaptation.md`](reviews/2026-08-05-sde-agents-adaptation.md),
-which committed the guard, validator, gate, eval, and content changes and listed these as follow-on.
-
-**Prerequisites:** None. Each sub-item is independent and stdlib-only; none depends on an owner
-identity or on the deferred `STATE-001`/`EFFECT-001` machinery.
-
-**Acceptance:** Each of the following lands with a fixture or mutation test proven to fail without
-it, or is dropped in this item with a stated reason. All five sub-items are now **done** and
-committed with tests: (1) `skills/operational-learning/scripts/packet_drift.py`, a drift watch over
-packets carrying `proposed`/`blocked` dispositions — advisory by default, exit 1 only under
-`--fail-on-drift`, exit 2 on an unreadable repository, revision, or packet; (2) forward
-`review_at`/`expires_at` freshness deadlines carried by the new
-[knowledge-update v3 schema](../skills/operational-learning/assets/knowledge-update-v3.schema.json),
-with `migrate_v2_to_v3.py` and the catalog rules in
-[`schema-compatibility.md`](schema-compatibility.md); (3) AGENTS.md path-and-`@import` drift
-enforcement in `scripts/check_links.py`, in Gate A; (4) a `RETIRED_GENERATED_ROOTS` check that fails
-on a stale generated tree left on disk; (5) CRLF-independent adapter generation for the
-`.py`/`.sh`/`.ps1` assets we ship, with a `.gitattributes` companion check.
-
-**Adaptation note:** The sibling's `ledger_drift.py` scans a committed candidate store and derives a
-baseline with `git log --first-parent`. This fleet deliberately never ported that store, and its
-`proposed`/`blocked` dispositions are validated as *pathless* handoffs, so there is no `destination`
-field to watch. The port therefore takes packets as arguments and watches their `repository` evidence
-locators against the exact `target.revision` the packet already pins — a stricter baseline than the
-sibling could derive.
-
-**Next action:** None; close the item once the change is merged. `verification_sandbox.py` is
-resolved and needs no work: `host_install_probe.py` consumes its `_is_indirection` helper, so it is
-a live utility, not an orphan.
 
 ### WF-001 — establish a supported exact-dispatch boundary for Claude workflows
 
