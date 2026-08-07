@@ -169,15 +169,100 @@ class SurvivorDetectionTests(unittest.TestCase):
         self.assertEqual(before, module.read_bytes())
 
 
+class MainReportingTests(unittest.TestCase):
+    """Exit-code and headline contracts for the CLI.
+
+    These exist because the incident that created this tool was an untested CLI exit contract in
+    a `main()`, and the tool's first version repeated it: every reporting decision lived in
+    `main()` with no test at all.
+    """
+
+    def _repository(self, test_body: str) -> Path:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        (root / "scripts").mkdir()
+        (root / "scripts" / "subject.py").write_text(HONEST_MODULE, encoding="utf-8")
+        (root / "scripts" / "test_subject.py").write_text(
+            test_body % {"dir": str(root / "scripts")}, encoding="utf-8"
+        )
+        for args in (
+            ["init", "--quiet", "."],
+            ["add", "--all"],
+            ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "base"],
+        ):
+            subprocess.run(
+                ["git", "-C", str(root), *args],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        return root
+
+    def _run_main(self, root: Path, *extra: str) -> tuple[int, str]:
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "scripts/mutation_guard.py"), "--root", str(root), *extra],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        return completed.returncode, completed.stdout + completed.stderr
+
+    def test_a_suite_that_kills_every_mutant_passes_with_exit_zero(self) -> None:
+        code, output = self._run_main(self._repository(HONEST_TEST))
+        self.assertEqual(0, code, output)
+        self.assertIn("PASS", output)
+
+    def test_a_sibling_pair_that_notices_nothing_is_a_finding_not_a_collapse(self) -> None:
+        """The most severe result this tool can produce. The repository's own naming convention
+        asserts the link, so total survival means the test proves nothing — it must never be
+        filed beside inferred path-string artifacts."""
+        code, output = self._run_main(self._repository(BLIND_TEST))
+        self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
+        self.assertIn("surviving mutant", output)
+        self.assertNotIn("unexercised", output)
+        self.assertNotIn("PASS", output)
+
+    def test_an_unverifiable_pair_never_reports_pass(self) -> None:
+        root = self._repository(HONEST_TEST)
+        (root / "scripts" / "test_subject.py").write_text(
+            "import missing_module_xyz\n", encoding="utf-8"
+        )
+        subprocess.run(
+            ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@example.invalid",
+             "commit", "-aqm", "break"],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        code, output = self._run_main(root)
+        self.assertEqual(mutation_guard.EXIT_INCONCLUSIVE, code, output)
+        self.assertIn("INCONCLUSIVE", output)
+        self.assertNotIn("PASS", output)
+
+    def test_a_dirty_tree_is_refused_and_distinguishable_from_inconclusive(self) -> None:
+        root = self._repository(HONEST_TEST)
+        (root / "scripts" / "subject.py").write_text("# edited\n", encoding="utf-8")
+        code, output = self._run_main(root)
+        self.assertEqual(mutation_guard.EXIT_REFUSED, code, output)
+        self.assertNotEqual(mutation_guard.EXIT_INCONCLUSIVE, mutation_guard.EXIT_REFUSED)
+        self.assertIn("dirty", output)
+
+    def test_a_negative_limit_is_rejected_rather_than_passing_over_zero_mutants(self) -> None:
+        """A one-character typo previously selected zero mutants and still printed PASS, exit 0."""
+        code, output = self._run_main(self._repository(HONEST_TEST), "--limit", "-1")
+        self.assertNotEqual(0, code)
+        self.assertNotIn("PASS", output)
+
+
 class DiscoveryTests(unittest.TestCase):
     def test_subjects_are_derived_from_the_repository_not_a_hand_kept_list(self) -> None:
         """A new test file must enrol its subject without anyone editing this guard."""
         pairs = dict(mutation_guard.discover(ROOT))
         rendered = {
             test.relative_to(ROOT).as_posix(): sorted(
-                module.relative_to(ROOT).as_posix() for module in modules
+                subject.path.relative_to(ROOT).as_posix() for subject in subjects
             )
-            for test, modules in pairs.items()
+            for test, subjects in pairs.items()
         }
         self.assertIn(
             "skills/operational-learning/scripts/packet_drift.py",
@@ -198,13 +283,27 @@ class DiscoveryTests(unittest.TestCase):
     def test_test_files_without_a_subject_are_reported_not_dropped(self) -> None:
         """A test whose subject cannot be derived must surface. Silently skipping it is how this
         repository once shipped a test file that was wired into nothing and ran nowhere."""
-        blind = {path.name for path in mutation_guard.unresolved(ROOT)}
         every = {test.name for test, _ in mutation_guard.discover(ROOT)}
         self.assertIn("test_readonly_guard.py", every, "discovery must not drop test files")
-        self.assertIn(
-            "test_readonly_guard.py",
-            blind,
-            "the hyphenated readonly-guard.py subject is not derivable and must be reported",
+        # Assert the property, not a filename: anything reported unresolved must genuinely have
+        # no sibling module on disk under either spelling. Pinning a name would rot the moment a
+        # subject became derivable — which is exactly what just happened to readonly-guard.py.
+        for test in mutation_guard.unresolved(ROOT):
+            with self.subTest(test=test.name):
+                stem = test.name[len("test_") :]
+                self.assertFalse(test.with_name(stem).is_file())
+                self.assertFalse(test.with_name(stem.replace("_", "-")).is_file())
+
+    def test_the_hyphenated_sibling_spelling_resolves(self) -> None:
+        """scripts/readonly-guard.py is a real module whose test is test_readonly_guard.py. The
+        underscore-only convention missed it, leaving the fleet's fail-closed security guard with
+        no derived subject while an unrelated eval test enrolled it as a false one."""
+        subjects = {
+            test.name: {subject.path.name: subject.origin for subject in subjects}
+            for test, subjects in mutation_guard.discover(ROOT)
+        }
+        self.assertEqual(
+            "sibling", subjects["test_readonly_guard.py"].get("readonly-guard.py")
         )
 
     def test_guard_is_documented_as_a_deliberate_run_not_a_gate_step(self) -> None:

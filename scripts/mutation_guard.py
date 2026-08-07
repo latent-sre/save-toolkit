@@ -71,6 +71,11 @@ COMPARISON_SWAPS = {
 # speed. --limit takes an evenly spaced sample when a bounded run is wanted.
 DEFAULT_LIMIT = 0
 RUN_TIMEOUT = 900
+# Distinct codes: a collapsed exit status cannot tell "refused to run" from "ran and proved
+# nothing", which is the same disarmed-gate shape this repo forbids for the readonly guard.
+EXIT_SURVIVORS = 1
+EXIT_REFUSED = 2
+EXIT_INCONCLUSIVE = 3
 
 
 @dataclass(frozen=True)
@@ -78,6 +83,23 @@ class Mutant:
     lineno: int
     description: str
     mutated_source: str
+
+
+@dataclass(frozen=True)
+class Subject:
+    """A module a test exercises, and how that link was established.
+
+    Provenance is load-bearing, not bookkeeping. A `sibling` subject (`test_x.py` -> `x.py`) is a
+    link the repository's own convention asserts, so if every mutant of it survives, the test
+    proves nothing and that is the most severe finding this tool can produce. A `literal` subject
+    was inferred from a `.py` string in the test's source, which is often a fixture path rather
+    than an import — there, total survival usually means the test never exercised it at all.
+    Treating both the same is what let a real finding be reported in the same breath as four
+    known-benign path-string artifacts.
+    """
+
+    path: Path
+    origin: str  # "sibling" | "literal"
 
 
 def _render(tree: ast.AST) -> str:
@@ -134,7 +156,7 @@ def mutants(source: str, limit: int = 0) -> list[Mutant]:
     if not limit or limit >= len(produced):
         return produced
     # Evenly spaced indices, always including the last site.
-    step = (len(produced) - 1) / (limit - 1) if limit > 1 else 0
+    step = (len(produced) - 1) / (limit - 1) if limit > 1 else len(produced) - 1
     chosen = sorted({round(position * step) for position in range(limit)})
     return [produced[index] for index in chosen]
 
@@ -157,13 +179,21 @@ def discover(root: Path) -> list[tuple[Path, list[Path]]]:
     them — silently dropping them is how this repository once shipped a test that ran nowhere.
     """
 
-    pairs: list[tuple[Path, list[Path]]] = []
+    pairs: list[tuple[Path, list[Subject]]] = []
     for pattern in TEST_GLOBS:
         for test in sorted(root.glob(pattern)):
-            modules: list[Path] = []
-            sibling = test.with_name(test.name[len("test_") :])
-            if sibling.is_file():
-                modules.append(sibling)
+            subjects: list[Subject] = []
+            seen: set[Path] = set()
+            stem = test.name[len("test_") :]
+            # Try the hyphenated spelling too: scripts/readonly-guard.py is a real module whose
+            # test is test_readonly_guard.py, and the underscore-only convention missed it.
+            for candidate in (
+                test.with_name(stem),
+                test.with_name(stem.replace("_", "-")),
+            ):
+                if candidate.is_file() and candidate not in seen:
+                    subjects.append(Subject(path=candidate, origin="sibling"))
+                    seen.add(candidate)
             try:
                 tree = ast.parse(test.read_text(encoding="utf-8"))
             except (OSError, SyntaxError):
@@ -176,18 +206,19 @@ def discover(root: Path) -> list[tuple[Path, list[Path]]]:
                 candidate = (root / node.value).resolve()
                 if (
                     candidate.is_file()
-                    and candidate not in modules
+                    and candidate not in seen
                     and not candidate.name.startswith("test_")
                 ):
-                    modules.append(candidate)
-            pairs.append((test, modules))
+                    subjects.append(Subject(path=candidate, origin="literal"))
+                    seen.add(candidate)
+            pairs.append((test, subjects))
     return pairs
 
 
 def unresolved(root: Path) -> list[Path]:
     """Test files this guard cannot mutate anything for — reported, never silently skipped."""
 
-    return [test for test, modules in discover(root) if not modules]
+    return [test for test, subjects in discover(root) if not subjects]
 
 
 class UnverifiablePair(RuntimeError):
@@ -206,10 +237,15 @@ def normalized_source(source: str) -> str:
 
 
 def run_test(test: Path) -> bool:
-    """True when the test file passes. Run from the repository root, as Gate A runs it."""
+    """True when the test file passes. Run from the repository root, as Gate A runs it.
+
+    `-B` is load-bearing: CPython validates a cached `.pyc` on `(int(mtime), size)`, and an `==`
+    to `!=` swap leaves the file the same size, so two mutants written in the same second could
+    otherwise be scored against the first one's bytecode.
+    """
 
     completed = subprocess.run(
-        [sys.executable, str(test)],
+        [sys.executable, "-B", str(test)],
         cwd=str(ROOT),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -275,16 +311,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--limit",
         type=int,
         default=DEFAULT_LIMIT,
-        help="mutants per module; 0 means every mutant (slow)",
+        help="mutants per module as an evenly spaced sample; 0 means every mutant (slow)",
     )
     parser.add_argument("--module", type=Path, help="restrict to one module path")
     args = parser.parse_args(argv)
+    if args.limit < 0:
+        # A negative limit selected zero mutants and still printed PASS with exit 0 — a complete
+        # false green from a one-character typo.
+        parser.error("--limit must be 0 (every mutant) or a positive sample size")
 
     try:
         _require_clean_tree(args.root)
     except RuntimeError as exc:
         print(f"mutation_guard: {exc}", file=sys.stderr)
-        return 2
+        return EXIT_REFUSED
 
     blind = unresolved(args.root)
     if blind:
@@ -298,16 +338,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     unexercised: list[str] = []
     checked = 0
     attempted = 0
-    for test, modules in discover(args.root):
-        for module in modules:
+    for test, subjects in discover(args.root):
+        for subject in subjects:
+            module = subject.path
             if args.module is not None and module != (args.root / args.module).resolve():
                 continue
             checked += 1
             print(f"  {module.relative_to(args.root).as_posix()} <- {test.name}", flush=True)
-            tried = len(mutants(module.read_text(encoding="utf-8"), limit=args.limit))
-            attempted += tried
             try:
+                # Inside the try: read_text and ast.parse raise the same four types the handler
+                # below catches, and leaving them outside reintroduced the sweep-aborting crash
+                # this handler was added to close.
+                tried = len(mutants(module.read_text(encoding="utf-8"), limit=args.limit))
                 survivors = surviving_mutants(module, test, limit=args.limit)
+                # Counted only on the path that actually executed, so the reported sample size
+                # cannot include mutants belonging to a pair that never ran.
+                attempted += tried
             except UnverifiablePair as exc:
                 # Not a pass and not a failure: this pair proved nothing, and saying so is the
                 # whole point of the tool.
@@ -322,15 +368,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             ) as exc:
                 unverifiable.append(f"cannot mutate {module.name}: {exc}")
                 continue
-            if survivors and len(survivors) == tried:
-                # Every single mutant survived. Either the test does not exercise this module at
-                # all — discovery accepts any resolving `.py` literal, including fixture paths —
-                # or it exercises it while proving nothing. Both deserve one line, not `tried`
-                # separate findings that bury the real survivors elsewhere in the report. It is
-                # reported, never dropped: silence here would be the tool's own false clean.
+            if survivors and len(survivors) == tried and subject.origin == "literal":
+                # Collapse ONLY inferred subjects. A `.py` string in a test is often a fixture
+                # path, so total survival there usually means the test never exercised the module
+                # and `tried` separate findings would bury the real ones. A sibling subject is
+                # different: the repository's own naming convention asserts that link, so total
+                # survival is the most severe finding this tool can produce and must stay a
+                # finding. Collapsing both was trading one false clean for another.
                 unexercised.append(
                     f"{module.relative_to(args.root).as_posix()} <- {test.name}: "
-                    f"all {tried} mutants survived; this test likely does not exercise it"
+                    f"all {tried} mutants survived an inferred (non-sibling) pairing; "
+                    "the test probably never exercises it"
                 )
                 continue
             findings.extend((test, module, mutant) for mutant in survivors)
@@ -342,15 +390,21 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if not checked:
         print("mutation_guard: no test/module pair matched", file=sys.stderr)
-        return 2
+        return EXIT_REFUSED
+    summary = (
+        f"no surviving mutants among {attempted} executed across {checked} pair(s), "
+        f"limit={args.limit or 'none'}, {len(unverifiable)} unverifiable, "
+        f"{len(unexercised)} unexercised"
+    )
     if not findings:
-        # Report the sample size: "no survivors" is uninterpretable without the number tried.
-        print(
-            f"mutation_guard: PASS -- no surviving mutants among {attempted} tried across "
-            f"{checked} pair(s), limit={args.limit or 'none'}, "
-            f"{len(unverifiable)} unverifiable, {len(unexercised)} unexercised"
-        )
-        return 2 if (unverifiable or unexercised) else 0
+        if unverifiable or unexercised or not attempted:
+            # Never lead with PASS when something went uninspected. The word is what a reader and
+            # a log scraper take away, and "PASS" over an unexercised bucket is this tool
+            # committing the false-clean it exists to detect.
+            print(f"mutation_guard: INCONCLUSIVE -- {summary}")
+            return EXIT_INCONCLUSIVE
+        print(f"mutation_guard: PASS -- {summary}")
+        return 0
 
     print(f"\nmutation_guard: {len(findings)} surviving mutant(s) -- the suite did not notice:")
     for test, module, mutant in findings:
@@ -360,7 +414,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     print("\nA survivor is not automatically a defect -- it may be semantically equivalent.")
     print("It is a place where the suite proves less than it appears to.")
-    return 1
+    return EXIT_INCONCLUSIVE if (unverifiable or unexercised) else EXIT_SURVIVORS
 
 
 if __name__ == "__main__":
