@@ -43,6 +43,23 @@ pandoc page.html -f html -t gfm -o page.md
 `[unverified — pandoc invocation shape; the official manual was not reachable when this reference
 was written. Diff the output against the rendered page before trusting it.]`
 
+## The converter does the mechanical part
+
+[`confluence_to_runbook.py`](../scripts/confluence_to_runbook.py) (stdlib-only, human- or
+`sde`-run) turns one exported page into a draft:
+
+```bash
+python skills/runbook/scripts/confluence_to_runbook.py page.html -o runbooks/<slug>.md \
+  --source-url "https://<site>.atlassian.net/wiki/pages/<id>" --service-id <service>
+```
+
+It pre-fills schema-valid frontmatter (`status: draft`, `version: 1`, dates `null`), maps
+recognizable headings into the slot table below, keeps everything unrecognized under an explicit
+*Imported content (unmapped)* section, marks every imported command block `[unverified]`, and
+counts dropped Confluence macros into the provenance instead of mangling them. The draft is a
+starting point for `scribe`'s conversion work, not a finished runbook — every slot still gets
+filled or marked `n/a — why`, and the provenance rules below still apply.
+
 ## Slot mapping — where Confluence prose lands in the template
 
 | Typical Confluence section | Template slot | Watch for |

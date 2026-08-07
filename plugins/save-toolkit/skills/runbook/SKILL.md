@@ -100,10 +100,13 @@ disposition at closeout, per the disposition policy. The accretion protocol:
 
 Existing Confluence runbooks are imported into the repo — one direction, repo becomes the living
 copy. The conversion procedure, slot mapping, and provenance rules are in
-[Confluence import](./references/confluence-import.md). Two rules travel ahead of the detail:
-imported command claims arrive `[unverified]` no matter how authoritative the page looked, and the
-source page URL plus export date land in the runbook's References section so the paper trail
-survives the move.
+[Confluence import](./references/confluence-import.md), and
+[confluence_to_runbook.py](./scripts/confluence_to_runbook.py) does the mechanical part: a human
+(or the `save-toolkit-sde` agent) runs it on an exported page to produce a draft with frontmatter pre-filled,
+headings mapped to template slots, unmapped content kept visible, and macro losses counted. Two
+rules travel ahead of the detail: imported command claims arrive `[unverified]` no matter how
+authoritative the page looked, and the source page URL plus export date land in the runbook's
+References section so the paper trail survives the move.
 
 ## Alert → runbook links and the Crawl → Walk → Run path
 
