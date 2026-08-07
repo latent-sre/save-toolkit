@@ -32,7 +32,7 @@ authoritative?*
 | Plans/specs need a historical `Status:` banner and a pointer back to the roadmap | [`README.md`](README.md); [`check_plan_status.py`](../scripts/check_plan_status.py) |
 | Retired names are rejected under live `agents/`/`skills/`/`commands/` trees | [`check_stale_names.py`](../scripts/check_stale_names.py) |
 | Routing/behavioral evals are manual clean-room only — never in CI; outputs under `.eval-runs/` | [`AGENTS.md`](../AGENTS.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| New validator rules need a fixture/mutation that fails without the change | [`AGENTS.md`](../AGENTS.md) Change playbooks |
+| Any newly asserted contract — validator rule, exit code, schema constraint, or any predicate a test names — needs a fixture/mutation that fails without the change, confirmed by running it | [`AGENTS.md`](../AGENTS.md) Change playbooks; [`mutation_guard.py`](../scripts/mutation_guard.py) |
 | Description edits need before/after clean-room scenario runs (or a stated deferral — not an eyeball) | [`AGENTS.md`](../AGENTS.md) Change playbooks |
 | Personal-first: prototype under `~/.claude`, promote by PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Branch from `main` only; rebase on `origin/main` before PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |

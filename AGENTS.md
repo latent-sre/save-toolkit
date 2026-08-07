@@ -153,9 +153,18 @@ errors and the change quietly does not work.
   clean-room runner, before and after. *Prevents:* a routing change (a component that stops firing,
   or a near-miss that starts) that no structural check can see. Routing evals need a live API and may
   be deferred with a stated reason — never with an eyeball standing in for the measurement.
-- **Added or removed a validator rule** → add a fixture or mutation test that **fails without the
-  change**, and confirm it fails. *Prevents:* a rule that asserts nothing — this repo has shipped
-  tests that silently matched nothing after a refactor moved the string they keyed on.
+- **Asserted a new contract** — a validator rule, an exit code, a schema constraint, or any predicate
+  a test names → add a fixture or mutation test that **fails without the change**, and confirm it
+  fails by running it. The rule covers every newly asserted contract, not only validator rules.
+  *Prevents:* a test that asserts nothing — this repo has shipped a test that silently matched
+  nothing after a refactor moved the string it keyed on, and one that asserted the opposite of the
+  contract named in its own comment while passing.
+- **Suspect a suite proves less than it looks like it proves** → run
+  [`python scripts/mutation_guard.py`](scripts/mutation_guard.py), which breaks the code on purpose
+  and reports mutants the tests fail to notice. It rewrites files in place and refuses to start on a
+  dirty tree; a full sweep runs the suite once per mutant, so like the routing evals it is a
+  deliberate run and never a CI step. *Prevents:* trusting a green suite as evidence about the code
+  when it is only evidence about the instrument.
 - **Touched the guard or the hook** (`scripts/readonly-guard.py`, `hooks/hooks.json`) → read their
   docstrings first, then run `python scripts/test_readonly_guard.py` and
   `python scripts/test_hook_wiring.py`, diff the allow/deny corpus, and keep the 42 allow / 43 deny /
