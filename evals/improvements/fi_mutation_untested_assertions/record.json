@@ -2,7 +2,7 @@
   "schema_version": 1,
   "improvement_id": "fi_mutation_untested_assertions",
   "created_at": "2026-08-06T20:56:28Z",
-  "updated_at": "2026-08-06T20:56:28Z",
+  "updated_at": "2026-08-07T00:38:00Z",
   "target": {
     "repository": "latent-sre/save-toolkit",
     "base_revision": "dc4d3e7d6b6d355e28d4f4a6cae651e8be71f4c9",
@@ -79,15 +79,18 @@
   "rollback": null,
   "lesson": {
     "status": "pending",
-    "control_path": null,
-    "reason": "No control has been designed. The candidate shapes are a Gate A mutation step, a targeted mutation corpus, or a wording change to the change playbook; choosing among them is the first attempt's work and belongs to the named owner, not to this observation."
+    "control_path": "scripts/mutation_guard.py",
+    "reason": "A control is prepared and under human review, not accepted. scripts/mutation_guard.py derives each test file's subject module from the test's own source, applies single-point AST mutations, and reports mutants the suite fails to notice; the change playbook rule was broadened from validator rules to any newly asserted contract. Demonstrated against the incident itself: the guard generates the exact operand-drop mutation at packet_drift.py:405 that survived all sixteen tests before the fix, and the current suite kills it. It is a deliberate command rather than a Gate A step because a full sweep runs the suite once per mutant (six mutants of one module took 89 seconds), following the routing-eval precedent. lesson.status stays pending until a human merges it."
   },
-  "disposition_reason": "Recorded at observed. A recurring normalized fleet failure with one precisely evidenced instance and one documented prior occurrence qualifies for a typed record under the improvement lifecycle. No attempt has been made, no control designed, and no promotion is claimed or authorized by this record.",
+  "disposition_reason": "Recorded at observed. A recurring normalized fleet failure with one precisely evidenced instance and one documented prior occurrence qualifies for a typed record under the improvement lifecycle. A control has since been prepared and is described in lesson.reason, but no formal attempt is appended, no independent evaluation has occurred, and no promotion is claimed or authorized by this record.",
   "limitations": [
     "The earlier occurrence is known only from AGENTS.md prose and has no incident record, so the recurrence claim rests on one precisely evidenced instance plus that documented prior.",
     "The observation source is added in the same commit as this record, so source.revision is null; no prior revision binds it.",
     "Severity high reflects consequence if unfixed rather than realised impact: the defect was caught by adversarial review before merge, but a false-green test undermines every other claim the fleet's gates make.",
     "The semantic improvement validators are parked at tag pre-trim-2026-08-02, so only the schema layer of this record is enforced today; its lifecycle legality is a written contract, not a checked one.",
-    "Gate A was green throughout the incident and is not implicated: it is structural by design and never asserted this contract."
+    "Gate A was green throughout the incident and is not implicated: it is structural by design and never asserted this contract.",
+    "No formal attempt is appended and status stays observed. The attempt contract requires calibration and regression case sets and an evaluation record, and this fleet's rule is that a fresh context or deterministic oracle evaluates what the author prepared. Self-asserting those fields would be the same bulk self-approval this fleet rejects, so the prepared control is described in lesson.reason and left for an authorized owner to evaluate and promote.",
+    "The guard is a sampling tool, not a proof. --limit bounds mutants per module, its operator set is small (boolean-operand drop, comparison swap, not-removal, boolean-constant flip), and a survivor may be semantically equivalent rather than a defect. A clean report means no survivor among the mutants tried, never that a suite is complete.",
+    "scripts/test_readonly_guard.py resolves to no mutation subject, because its module is the hyphenated readonly-guard.py that no import convention derives. The guard reports it as unresolved rather than skipping it silently, but it is genuinely uncovered by this control."
   ]
 }
