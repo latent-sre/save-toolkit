@@ -275,7 +275,11 @@ _CF_READ = frozenset({
 # region, and account NAME, not credentials. Release-track prefixes (`gcloud beta …`) shift the
 # positional path and deny — fail-loud, add the exact tracked path if a read genuinely needs it.
 # A flag value passed as a separate token (`--limit 50`) lands AFTER the matched prefix and is
-# inert; a flag placed BEFORE the group shifts the prefix and denies, the accepted loud direction.
+# inert. A flag BEFORE the command path is denied outright in _gcloud_allowed: the space-separated
+# form (`--project foo logging read`) would shift the prefix anyway, but the attached form
+# (`--project=foo logging read`) would not — _positionals() skips it — so leading-flag inputs were
+# silently prefix-matched until the explicit first-arg check closed the pair. Write the flags
+# after the command path (`gcloud logging read … --project=foo`), gcloud's own documented style.
 _GCLOUD_READ_PREFIXES = (
     ("run", "services", "list"), ("run", "services", "describe"),
     ("run", "services", "logs", "read"),
@@ -443,6 +447,11 @@ def _cf_allowed(args: list[str]) -> bool:
 
 
 def _gcloud_allowed(args: list[str]) -> bool:
+    # A leading flag is denied before any prefix matching: `--project=foo logging read` would
+    # otherwise prefix-match because _positionals() skips the attached-value flag entirely. See
+    # the comment at _GCLOUD_READ_PREFIXES.
+    if not args or args[0].startswith("-"):
+        return False
     if _carries_flag(args, _GCLOUD_DENY_FLAGS, frozenset()):
         return False
     positionals = tuple(_positionals(args))

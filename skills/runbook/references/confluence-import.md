@@ -13,17 +13,20 @@ human-run command, shown so the human knows exactly what to run.
 
 Three export paths, best first for Markdown conversion:
 
-1. **Single page via REST API v2** — returns the body in a chosen representation:
+1. **Single page via REST API v2** — request `view` (rendered HTML), the representation that
+   converts cleanly (see "Convert HTML, not storage format" below), and keep the token out of the
+   command line so it never lands in shell history or process listings:
 
    ```bash
-   curl -u user@example.com:API_TOKEN \
-     "https://<site>.atlassian.net/wiki/api/v2/pages/<page-id>?body-format=storage"
+   curl -u "user@example.com:$CONFLUENCE_API_TOKEN" \
+     "https://<site>.atlassian.net/wiki/api/v2/pages/<page-id>?body-format=view"
    ```
 
-   `body-format` accepts `storage` (the XHTML-based source), `atlas_doc_format` (ADF JSON), and
-   `view` (rendered HTML). *[sourced: developer.atlassian.com/cloud/confluence/rest/v2/api-group-page —
-   response schema; whether `export_view` is also accepted on v2 is unverified; the v1 content-body
-   API documents the fuller list]*
+   `body-format` also accepts `storage` (the XHTML-based source — useful only when auditing the
+   original macros) and `atlas_doc_format` (ADF JSON). *[sourced:
+   developer.atlassian.com/cloud/confluence/rest/v2/api-group-page — response schema; whether
+   `export_view` is also accepted on v2 is unverified; the v1 content-body API documents the
+   fuller list]*
 2. **Space export from the UI** — Space settings → Export space; current options are PDF, CSV,
    HTML, or XML. HTML export is the bulk path that converts best. *[sourced:
    support.atlassian.com/confluence-cloud/docs/export-content-to-word-pdf-html-and-xml/]*

@@ -360,6 +360,13 @@ DENIED = [
     "gcloud logging read --flags-file=flags.yaml",
     "gcloud interactive",
     "gcloud",
+    # A LEADING flag is denied before prefix matching. The space-separated form would shift the
+    # prefix anyway, but the attached form (`--project=…`) is invisible to _positionals() and was
+    # silently ALLOWED before the explicit first-arg check (reviewer-reported, reproduced:
+    # exit 42 pre-fix). Flags go after the command path, gcloud's own documented style.
+    "gcloud --project=prod-proj run services list",
+    "gcloud --project prod-proj logging read 'x' --freshness=1h",
+    "gcloud --quiet run services list",
     # DOCUMENTED false positive, pinned on purpose: `>=` in a quoted Logging filter trips the
     # structure deny like any other `>`. The guard refuses to parse shell quoting (that is how the
     # old denylist lost), so the shell-safe spellings above — `--freshness` and

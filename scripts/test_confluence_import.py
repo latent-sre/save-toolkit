@@ -140,13 +140,19 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertIn("page.html", self.draft)
 
     def test_unreadable_input_fails_loudly(self) -> None:
-        proc = subprocess.run(
-            [sys.executable, str(CONVERTER), "/nonexistent/page.html", "-o", "/tmp/x.md"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        self.assertNotEqual(proc.returncode, 0)
+        # Both paths live in a real temp dir so the case stays cross-platform (Gate A runs on
+        # Windows too); the source path simply never gets created.
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "nonexistent" / "page.html"
+            out = Path(tmp) / "draft.md"
+            proc = subprocess.run(
+                [sys.executable, str(CONVERTER), str(missing), "-o", str(out)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertFalse(out.exists(), "no draft may be written on failure")
 
 
 if __name__ == "__main__":

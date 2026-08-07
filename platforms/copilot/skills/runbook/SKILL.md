@@ -67,34 +67,13 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
 
 ## Living runbooks — every incident leaves the runbook better
 
-The stakes, from the source material: Google's SRE book reports "roughly a 3x improvement in MTTR"
-when responders work from a playbook instead of improvising, and Google's stated convention is that
-"whenever an alert is created, a corresponding playbook entry is usually created"
-*[sourced: sre.google/sre-book/introduction/; sre.google/workbook/on-call/]*. The same sources tie
-playbook updates to postmortem action items — which is exactly the disposition loop below.
-
-A runbook is an accreting asset, not a published-once document. Every incident or drill that touches
-it produces exactly one of three outcomes per step — **held** (the step worked as written),
-**contradicted** (the step was wrong, unsafe, or produced different output), or **missing** (the
-responder needed a step that was not there) — and each outcome becomes an `operational-learning`
-disposition at closeout, per the disposition policy. The accretion protocol:
-
-1. **Append, never erase.** Each incident adds one row to the runbook's *Incident history* section
-   (template slot below), pinned to the runbook `version` that was actually used. History rows are
-   evidence; rewriting them is falsifying the record.
-2. **A contradicted step is a defect, now.** Fix the Procedure step from the supplied evidence and
-   bump `version`, or — when the fix cannot be established from evidence — mark the runbook
-   `status: draft` so nobody follows a known-wrong step at 3 a.m. A known-wrong active runbook is
-   worse than none.
-3. **Incident use is only a rehearsal when it binds.** `last_verified` moves only when the incident
-   record captures the exact command, target, actor, timestamp, and outcome for this runbook
-   version — the same binding rule as a game day. "We basically followed it" moves nothing.
-4. **Missing steps route through the learning loop.** The `sre` agent's closeout dispositions
-   ("missing, contradicted, or newly required runbook → `scribe` prepares or proposes the update")
-   are the intake; a chat-only observation that never becomes a disposition is a lost accretion.
-5. **Three incidents, same manual fix → automation candidate.** Recurring identical steps are the
-   Crawl → Walk → Run trigger (below); record the candidate in the history row's follow-up column
-   so the pattern is visible in one place.
+Every incident or drill that touches a runbook yields one outcome per step — **held**,
+**contradicted**, or **missing** — and each becomes an `operational-learning` disposition at
+closeout. Append an Incident history row (template slot) pinned to the `version` used; rows are
+evidence, never rewritten. A contradicted step is fixed now or the runbook drops to
+`status: draft`; `last_verified` moves only on binding rehearsal evidence. The full accretion
+protocol and its sourced rationale (playbooks ≈ 3x MTTR improvement) are in
+[living runbooks](./references/living-runbooks.md).
 
 ## Importing runbooks from Confluence
 
