@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-obs-traces-cloud-trace
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: obs-traces
+prompt: |
+  A single checkout request on Cloud Run is slow and I have its Cloud Trace trace ID. Show how to
+  follow that request across services and identify which span consumed the latency. This is trace
+  interpretation only, not a general incident investigation.
+routing:
+  expect: fire
+success_criteria:
+  - Routes Cloud Trace request-path analysis to the traces lane
+  - Explains how spans and duration identify the slow leg
+graders:
+  - type: contains_all
+    of: ["Trace explorer", "service", "latency", "status", "TraceQL does not apply"]
+  - type: contains_all
+    of: ["critical path", "nested span durations", "known-normal"]
+  - type: contains_all
+    of: ["absolute UTC window", "sampling caveat", "[unverified]"]

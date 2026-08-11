@@ -66,6 +66,17 @@ rate — so its effective threshold is always clamped to 1.0, and `--validate` r
 scenario that declares `threshold < 1`. Without this, `--threshold 0.66` would let a forbidden
 component over-trigger on a third of trials and still report PASS.
 
+Negative routing examines every completed invocation by default, including calls made by a delegated
+agent. A `not_fire` scenario may instead declare `routing.scope: root` when the contract is about
+which lane owns the request: the forbidden target must be absent from completed root invocations and
+the named component alternative must be present there (`inline` is invalid). A nested call to the
+target can then provide bounded support only when its completed agent-call ancestry resolves to that
+expected root agent. An orphan, ambiguous, non-agent, or different-root ancestry fails closed. Root
+scope is invalid for positive `fire` scenarios, and omitting `scope` preserves the stricter
+any-invocation behavior. The grader derives lineage transiently; private trial results record only
+the canonical completed root skill and agent identities needed to audit the grade, never ancestry
+IDs through the scoped evidence field.
+
 Agent descriptions are routing hints, not a dispatch guarantee. In one-shot headless Claude Code,
 the main model can answer a request inline even when the matching plugin agent is available and its
 description says to use it proactively. Treat agent-discovery scores as an observational host/model
@@ -158,7 +169,10 @@ graders:
 
 For `routing.expect: not_fire`, set `expected_alternative: inline` or name the component expected
 instead. A negative scenario does not pass merely because the forbidden target stayed absent; the
-expected alternative and response graders must also pass.
+expected alternative and response graders must also pass. Add `scope: root` only when a nested call
+is legitimate support descended from the expected root agent; `inline` is not a valid root-scoped
+alternative. Otherwise leave scope omitted so any completed invocation of the forbidden target fails
+the trial.
 
 Repository-visible cases are `calibration` or `regression`; neither is hidden from the artifact
 author. Add a new regression prompt before tuning, run calibration while iterating, then run the
@@ -199,6 +213,11 @@ do not squash away their record history.
    the completed target invocation because that is the property under test.
 3. Keep graders deterministic where possible. Calibrate any model judge against hand-graded cases.
 4. Read passing transcripts occasionally to catch keyword matches reached for the wrong reason.
+5. Behavioral grader sets must reject both a prompt-only echo and the same prompt with whitespace
+   normalized. A response that merely repeats the task is not evidence that the invoked lane did the
+   work. Also include keyword-rich incomplete controls for required field/value relationships; matching
+   the right nouns is not evidence that the response completed the behavior. Keep the table-driven
+   adversarial fixtures in `evals/test_graders.py` current.
 
 Available response graders are `contains_all`, `contains_any`, `not_contains`, `regex`,
 `not_regex`, `json_artifact_statuses`, and `exact_fields`. `exact_fields` takes a `fields`

@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-gcp-ops-cloud-run-startup
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: gcp-ops
+prompt: |
+  A new Cloud Run checkout revision in staging says the container failed to listen on PORT. Inspect
+  the service, revisions, and logs to correlate what changed, and outline a rollback recommendation.
+  Keep the investigation read-only and do not move traffic.
+routing:
+  expect: fire
+success_criteria:
+  - Routes application-side Cloud Run startup triage to the GCP operations lane
+  - Uses service, revision, and log evidence without changing traffic
+graders:
+  - type: contains_all
+    of: ["gcloud config list", "gcloud run services describe checkout", "gcloud run revisions list --service checkout"]
+  - type: contains_all
+    of: ["0.0.0.0:$PORT", "127.0.0.1"]
+  - type: contains_all
+    of: ["[unverified]", "--to-revisions", "Tier 2", "human release owner", "inverse traffic command"]

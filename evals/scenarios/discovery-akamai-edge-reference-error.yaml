@@ -1,0 +1,29 @@
+schema_version: 1
+id: discovery-akamai-edge-reference-error
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: akamai-edge
+prompt: |
+  No alert is active, but a browser intermittently gets an Akamai Reference #9 error. Determine
+  whether the failure is at the CDN edge or the origin, name the Edge Diagnostics evidence to
+  collect promptly, and do not change the property or WAF configuration.
+routing:
+  expect: fire
+success_criteria:
+  - Routes Akamai reference-error diagnosis to the edge lane
+  - Separates edge from origin and stays read-only
+graders:
+  - type: contains_all
+    of: ["Translate Error String", "Trace forward logs"]
+  - type: contains_any
+    of: ["6-24 hour", "6–24 hour", "6 to 24 hour"]
+  - type: contains_all
+    of: ["Get Error Statistics", "CP code"]
+  - type: contains_any
+    of: ["client-to-edge", "client→edge"]
+  - type: contains_any
+    of: ["edge-to-origin", "edge→origin"]
+  - type: contains_all
+    of: ["9-second", "last 2 minutes", "low traffic", "[unverified]"]

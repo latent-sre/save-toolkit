@@ -1,9 +1,10 @@
 # Save Toolkit
 
 Save Toolkit is a multi-host plugin containing **8 canonical host-facing agents and 29 skills** for
-application engineering and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
-sources directly. GitHub Copilot/VS Code and Codex receive committed, host-native projections made by
-one deterministic generator; generated files are never edited by hand.
+application engineering and site reliability work. Claude Code reads the canonical
+[`agents/`](agents) and [`skills/`](skills) sources directly. GitHub Copilot/VS Code and Codex
+receive committed, host-native projections made by one deterministic generator; generated files are
+never edited by hand.
 
 The roster, tool postures, and enforcement model are in [AGENTS.md](AGENTS.md). Routing is native:
 Claude plugin components are namespaced as `save-toolkit:<name>`; generated hosts use their native
@@ -83,6 +84,44 @@ This fleet keeps its Copilot skill projection at `platforms/copilot/skills/`, th
 
 For other workspaces, install at user level rather than copying files: VS Code also scans
 `~/.copilot/agents/` and `~/.copilot/skills/`. Copied agent files arrive without their skills.
+
+## Install an immutable release
+
+Save Toolkit releases use one protected source tag named `save-toolkit--v<version>` across hosts.
+There is no moving `release` branch. The examples below become valid only after the matching GitHub
+Release exists and `gh release verify <tag> --repo latent-sre/save-toolkit` succeeds; beta-era
+version `0.1.0` is prepared but not published by this change.
+
+Claude Code installs the canonical agents, skills, command, and session hook from the tagged
+marketplace:
+
+```powershell
+$releaseTag = 'save-toolkit--v0.1.0'
+claude plugin marketplace add "latent-sre/save-toolkit@$releaseTag"
+claude plugin install save-toolkit@latent-sre
+claude plugin list --json
+```
+
+Codex installs the generated skills plugin from the same tag. Its generated custom agents remain a
+standalone, conflict-safe install from that tagged checkout because Codex plugins do not publish
+custom agents:
+
+```powershell
+$releaseTag = 'save-toolkit--v0.1.0'
+codex plugin marketplace add "latent-sre/save-toolkit@$releaseTag"
+codex plugin add save-toolkit@latent-sre
+git clone --branch $releaseTag --depth 1 https://github.com/latent-sre/save-toolkit.git save-toolkit-release
+py -3 save-toolkit-release/scripts/install_codex_agents.py --target '<project>/.codex/agents'
+```
+
+VS Code consumes `.github/agents/`, the registered skill projection, and workspace settings from the
+tagged checkout itself. Open `save-toolkit-release` in VS Code; UI discovery remains an accepted
+file-level verification limitation.
+
+Maintainers use the protected
+[`Publish immutable release`](.github/workflows/release.yml) workflow only after its external GitHub
+controls are approved and present. Release recovery never moves a tag; follow the
+[`release runbook`](docs/release-runbook.md).
 
 ## Validate and evaluate
 
@@ -175,9 +214,12 @@ For repository-controlled executable checks, use the digest-bound, networkless c
   closed under [`HOST-001`](docs/reviews/2026-08-06-host-001-closure.md); the Copilot CLI is out of
   scope by owner decision, VS Code UI discovery and headless Codex agent discovery remain documented
   gaps, and model-behavior evidence stays with EVAL-001.
-- `main` repository protection is closed (PROTECT-001). Publication now depends only on RELEASE-001
-  (distinct promotion authority, published-artifact install smoke, and rollback evidence) — tracked
-  in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+- `main` repository protection is closed (PROTECT-001). RELEASE-001 implementation now includes the
+  exact-SHA workflow, release contract, strict remote-tag host smoke, and rollback runbook. Live
+  publication remains blocked until that change is reviewed/merged, immutable releases plus the tag
+  ruleset/environment/App are configured with explicit owner approval, and the first protected run
+  supplies published-artifact and rollback evidence — tracked in
+  [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 ## Contribute
 

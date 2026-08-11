@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-akamai-edge-defers-pcf
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: akamai-edge
+prompt: |
+  Edge Diagnostics already shows the Akamai edge is healthy and the failures originate at our
+  PCF/TAS checkout app, which returns X-Cf-RouterError. Inspect cf app, events, logs, and routes to
+  diagnose the origin without changing the foundation.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: pcf-ops
+success_criteria:
+  - Hands a proven PCF-origin failure to the PCF operations lane
+  - Does not repeat edge triage after the edge has been ruled out
+graders:
+  - type: contains_all
+    of: ["cf target", "cf app checkout", "cf events checkout", "cf logs checkout --recent", "cf routes"]
+  - type: contains_all
+    of: ["endpoint_failure", "router reached a backend", "[unverified]"]
+  - type: contains_all
+    of: ["read-only", "Cloud Foundry", "origin evidence"]

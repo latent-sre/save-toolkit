@@ -54,6 +54,15 @@ override. A plugin `PreToolUse` hook can deny the override, but the resulting la
 Git-object isolation, and upgrade matrix were a bespoke security broker disproportionate to this
 fleet. That experiment was removed rather than shipped as a fragile control plane.
 
+**Upstream refresh (2026-08-11):** Claude Code 2.1.227 now exposes the documented built-in
+[`claude ultrareview`](https://code.claude.com/docs/en/ultrareview) subcommand. It removes the old
+caller-supplied workflow-body surface, but does not yet satisfy this item: the research-preview
+contract bundles the current working tree or clones a mutable PR target, documents no immutable
+candidate SHA/digest in `bugs.json`, and exits 0 whether findings are present or absent. It also
+uploads code to Anthropic's cloud sandbox and may consume paid usage credits. `--help` was inspected
+without launching, uploading, posting, or spending; an undocumented live observation would not turn
+these missing guarantees into a supported boundary.
+
 **Prerequisites:** A documented direct-dispatch API, or documented permission semantics that bind
 the registered workflow implementation as well as its name. Any alternative architecture needs an
 accepted decision record before implementation.
@@ -65,13 +74,15 @@ tool-bearing model; (4) reviewer lanes have structurally bounded authority; and 
 failed review evidence cannot become approval. Gate A and mocked JavaScript are supporting evidence,
 not substitutes for the live boundary proof.
 
-**Next action:** Monitor the upstream workflow dispatch contract. Do not restore the removed
-`ship-review` implementation or add another workflow until the prerequisite exists and the boundary
-is accepted explicitly.
+**Next action:** Monitor the ultrareview/direct-dispatch result contract for a documented immutable
+candidate identity and machine-enforceable finding verdict. Do not restore `ship-review`, wrap an
+exit-0 result as approval, or launch a paid/uploading probe until an owner explicitly accepts that
+external data/cost boundary and the remaining guarantees can be proven.
 
 ### RELEASE-001 — publish and roll back one immutable release
 
-**Status:** `ready`
+**Status:** `active` (2026-08-11) — repository implementation is in progress; publication remains
+blocked and no release effect is authorized.
 
 **Outcome:** One reviewed commit is versioned, tagged, published, installed, verified, and recoverable
 without rebuilding or moving an unprotected ref.
@@ -81,24 +92,59 @@ architecture. Main-branch protection closed under
 [`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md); host installation proof closed
 under [`HOST-001 closure`](reviews/2026-08-06-host-001-closure.md).
 
-**Prerequisites:** None. The host closure's accepted limitations (Copilot
-CLI out of scope, UI-bound VS Code discovery, headless Codex discovery, no model evidence) carry
-forward into this item's host distribution work.
+**Prerequisites:** Repository preparation has no live prerequisite. Closure requires an independently
+reviewed merged candidate, explicit owner authorization, immutable releases, the exact protected tag
+ruleset, a human requester, exactly one distinct reviewer user or team on each of two release
+environments, a protected reconciliation key, and the separately controlled publisher App. The host
+closure's accepted limitations (Copilot CLI out of scope, UI-bound VS Code discovery, headless Codex
+discovery, no model evidence) carry forward into this item's host distribution work.
 
-**Acceptance:** Version parity and changelog pass; `claude plugin tag --dry-run` validates the Claude
-manifest/marketplace pair; every host's publication mechanism is verified before choosing an
-immutable tag or protected moving ref; promotion consumes the reviewed SHA and recorded validation;
-install and uninstall smoke tests pass from the published artifact; rollback or yank is rehearsed and
-documented.
+**Acceptance:** Version parity and changelog pass; `claude plugin tag --dry-run` yields the exact
+derived tag; promotion consumes the reviewed current-main/workflow SHA and merged-PR evidence under
+the separated request/review/publish identities; strict install, exact inventory, marketplace and
+plugin removal, standalone-agent cleanup, and authority checks pass from the published tag; a prior
+immutable release is strictly rebound and reinstalled, or first-release uninstall is rehearsed;
+immutability and unknown-outcome/replay behavior are evidenced without moving, deleting, or reusing a
+version tag.
 
-**Next action:** Write the exact-SHA promotion design owned by the named
-promotion operator `agentic-sre-dev` (or a later least-privileged App) and verify each host's remote
-distribution contract. Do not create a long-lived `release` branch merely because the superseded
-plan named one.
+**Current implementation:** The accepted
+[`exact-SHA promotion ADR`](decisions/2026-08-11-immutable-release-promotion.md) chooses one protected
+annotated `save-toolkit--v<version>` tag plus an immutable GitHub Release, never a moving branch.
+The prepared workflow, release-contract/mutation tests, changelog, strict remote-tag host-probe mode,
+and [`release runbook`](release-runbook.md) are repository-local evidence only. The workflow separates
+the configured human requester, distinct environment reviewer, Actions-read/no-write publisher App,
+and environment-only HMAC proof. A non-replacing queue, permanent protected per-run version
+reservation, prior-run/job scan, stable workflow-created issuance time, exact artifact IDs, and
+prior-smoke guard make reruns reconciliation-only. The strict host evidence binds the checkout's
+observed commit to an exact `ls-tree` ordinary-file/Git-blob map, then independently requires both
+marketplace and installed Claude/Codex trees to match; identical non-HEAD source/install bytes and a
+moving `HEAD` both fail closed. Claude Code 2.1.227 and Codex CLI 0.147.0 accepted a tag-pinned public
+marketplace source in credential-isolated disposable probes. The release contracts, workflow mutation
+suite, host-probe suite, Gate A, and Claude strict validation pass on the current locally committed
+candidate.
+Hash-bound independent review found no P0/P1 in the release state machine; the follow-up host edge-case
+fixtures received no P0-P2 finding. Exact counts, byte identities, review boundaries, and
+authorization limits are bound in the dated
+[`release/routing preparation evidence`](reviews/2026-08-11-release-routing-backlog-evidence.md). The
+clean exact-commit tag dry-run derives `save-toolkit--v0.1.0`; no force flag was used and no tag or
+Release was created.
+
+**Live blockers:** The local commit has not been pushed or merged; exact-SHA review is required before
+merge. Immutable releases are currently disabled, and no protected release environments,
+release-tag ruleset, or separately controlled release App exists. Creating those controls and
+dispatching the workflow are external effects requiring an explicit owner-approved plan and rollback;
+repository implementation does not grant that authority.
+
+**Next action:** Retain exact-SHA review evidence, then the owner decides whether to authorize branch
+publication and merge. After merge, the owner separately decides whether to authorize the ADR's exact
+live GitHub configuration. If approved, record its API evidence, dispatch the exact merged `main` SHA,
+preserve the strict host/immutability reports, and add RELEASE-001 closure evidence. Do not create or
+move a release ref manually.
 
 ### ROUTE-001 — routing evals for the 2026-08 description changes
 
-**Status:** `ready`
+**Status:** `blocked` (2026-08-11) — the local runner/scenario repair is complete, but no comparable
+before/after pair exists and the live external data/cost boundary lacks explicit owner approval.
 
 **Outcome:** The clean-room runner measures routing before/after for every description edited or
 added in the SRE/GCP/Akamai expansion, and any regression (a component that stops firing, or a
@@ -110,16 +156,40 @@ near-miss that starts) is fixed or explicitly accepted.
 for every description edit; the run was deferred with a stated reason — the authoring session had
 no live-API eval capability — never eyeballed as a substitute.
 
-**Prerequisites:** A live Claude API session with the clean-room runner from `evals/`; the merged
-description set checked out clean.
+**Prerequisites:** Explicit owner approval to transmit the fixed eval prompts and isolated plugin
+context to the live Claude service and incur model usage; a live Claude API session with the
+clean-room runner from `evals/`; the merged description set checked out clean.
 
 **Acceptance:** Before/after runs over the overlapping scenarios in `evals/scenarios/` (log, metric,
 trace, alerting, and runbook routing), plus new-component scenarios proving `gcp-ops` and
 `akamai-edge` fire on their trigger phrasings and do not steal `pcf-ops`, `obs-*`, or `sre`-lane
 traffic. Results recorded beside the scenarios with model/runtime evidence.
 
-**Next action:** Run the overlapping scenarios through the clean-room runner on a live-API session
-and record the deltas; add scenarios for the two new skills where coverage is missing.
+**Current evidence:** Nineteen regression scenarios cover the five edited descriptions plus
+`gcp-ops`/`akamai-edge` positives and cross-lane negatives. The repaired parser accepts only coherent
+same-session continuation epochs, rejects ambiguous/error/unfinished streams, and keeps persisted
+diagnostics identity-only. Root-scoped incident negatives require the expected SRE owner at root and
+prove every nested target descends from that owner; inline, orphan, non-agent, wrong-root, cyclic, and
+duplicate-identity ancestry fails closed. The runner, clean-room, response-grader, and scenario
+validation checks pass in the dated evidence packet. Its prompt-echo regression records the exact
+red/green counts without changing prompts, targets, or routing expectations. Independent review found
+no remaining P0/P1 in the routing/parser slice; exact commands and limits are recorded in the dated
+[`release/routing preparation evidence`](reviews/2026-08-11-release-routing-backlog-evidence.md). The
+campaign is prepared with one five-case harness shared by clean baseline
+`a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and current
+`65fe5c8c28da0052e3204adfac2af152e9a02475`, plus a fourteen-case current-only harness; all 25 copied
+files match the reviewed source, both plugin-input sets are clean, and the two harness manifest
+digests are recorded in that packet. The first paid live canary was rejected before execution because
+the owner has not explicitly approved that external data/cost boundary, so no new model call occurred.
+Earlier current-only results remain partial historical evidence, the retained July run remains an
+invalid before run, private raw traces stay outside the repository, and no sanitized closure report
+has been recorded.
+
+**Next action:** The owner decides whether to authorize the stated live Claude data/cost boundary. If
+approved, run the prepared five paired cases against baseline/current and the fourteen current-only
+cases sequentially at two trials, Sonnet, and 300 seconds; stop on instrument exit 2/3 and record only
+sanitized digest/count/verdict/runtime evidence. Without that approval, retain the prepared campaign
+and blocker. Do not tune descriptions from the earlier confounded or inconclusive evidence.
 
 ## Deferred
 
@@ -206,3 +276,8 @@ boundary and has a separately controlled execution identity.
 
 **Next action:** None. Importing a broker before a legitimate consumer would broaden the apparent
 execution path rather than reduce current authority.
+
+**Current note (2026-08-11):** RELEASE-001 now has a target-specific workflow design, but its live
+effect identity/configuration has not been approved or created, so this trigger is not yet satisfied.
+If the owner authorizes that configuration, reopen EFFECT-001 before the first dispatch and close it
+only with the workflow's effect-binding, expiry, replay, unknown-outcome, and rollback evidence.

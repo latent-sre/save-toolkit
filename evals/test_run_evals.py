@@ -15,6 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import clean_room  # noqa: E402
 import run_evals  # noqa: E402
 
+REPOSITORY_PLUGIN_VERSION = run_evals.plugin_manifest(run_evals.ROOT)["version"]
+
 
 class ScenarioValidationTests(unittest.TestCase):
     def _scenario(self, **updates: object) -> dict:
@@ -80,6 +82,50 @@ class ScenarioValidationTests(unittest.TestCase):
         problems = run_evals.validate([scenario])
         self.assertFalse(any("zero-tolerance" in p for p in problems))
 
+    def test_not_fire_scenario_allows_root_scope(self) -> None:
+        scenario = self._scenario(
+            mode="discovery",
+            split="regression",
+            routing={
+                "expect": "not_fire",
+                "scope": "root",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        )
+        problems = run_evals.validate([scenario])
+        self.assertEqual(problems, [])
+
+    def test_routing_scope_rejects_unknown_value(self) -> None:
+        scenario = self._scenario(
+            mode="discovery",
+            split="regression",
+            routing={
+                "expect": "not_fire",
+                "scope": "nested",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        )
+        problems = run_evals.validate([scenario])
+        self.assertTrue(any("routing.scope must be 'root'" in problem for problem in problems))
+
+    def test_fire_scenario_rejects_routing_scope(self) -> None:
+        scenario = self._scenario(
+            mode="discovery",
+            split="regression",
+            routing={"expect": "fire", "scope": "root"},
+        )
+        problems = run_evals.validate([scenario])
+        self.assertTrue(any("routing.scope is only valid for not_fire" in problem for problem in problems))
+
+    def test_root_scope_rejects_inline_expected_alternative(self) -> None:
+        scenario = self._scenario(
+            mode="discovery",
+            split="regression",
+            routing={"expect": "not_fire", "scope": "root", "expected_alternative": "inline"},
+        )
+        problems = run_evals.validate([scenario])
+        self.assertTrue(any("routing.scope root requires a component expected_alternative" in p for p in problems))
+
     def test_discovery_prompt_cannot_name_the_target(self) -> None:
         scenario = self._scenario(
             mode="discovery",
@@ -117,6 +163,18 @@ class InvocationPlanTests(unittest.TestCase):
         self.assertEqual(command[command.index("-p") + 1], "Review it.")
         self.assertEqual(command[command.index("--agent") + 1], "save-toolkit:reviewer")
 
+    def test_command_forwards_subagent_text_without_reusing_a_session(self) -> None:
+        scenario = {
+            "mode": "discovery",
+            "target": {"kind": "skill", "name": "merge-gate"},
+            "prompt": "Assess it.",
+        }
+        command = run_evals.build_command(scenario, model=None)
+        self.assertEqual(command.count("--forward-subagent-text"), 1)
+        self.assertEqual(command.count("--no-session-persistence"), 1)
+        self.assertNotIn("--resume", command)
+        self.assertNotIn("--continue", command)
+
     def test_command_can_bind_an_isolated_plugin_snapshot(self) -> None:
         scenario = {"mode": "direct", "target": {"kind": "skill", "name": "merge-gate"}, "prompt": "Assess it."}
         with run_evals.frozen_plugin_snapshot() as snapshot:
@@ -145,13 +203,68 @@ class InvocationPlanTests(unittest.TestCase):
 
 
 class StreamTraceTests(unittest.TestCase):
+    @staticmethod
+    def _blob(events: list[dict]) -> str:
+        return "\n".join(json.dumps(event) for event in events)
+
+    @staticmethod
+    def _init_event(session_id: str = "session-1") -> dict:
+        return {
+            "type": "system",
+            "subtype": "init",
+            "session_id": session_id,
+            "model": "claude-test",
+            "tools": ["Skill", "Task"],
+            "plugins": [{
+                "name": "save-toolkit",
+                "version": REPOSITORY_PLUGIN_VERSION,
+                "source": "save-toolkit@inline",
+                "path": str(run_evals.ROOT),
+            }],
+            "mcp_servers": [],
+        }
+
+    @staticmethod
+    def _result_event(
+        response: str,
+        *,
+        session_id: str = "session-1",
+        is_error: bool = False,
+        parent_tool_use_id: str | None = None,
+        continuation: bool = False,
+    ) -> dict:
+        event = {
+            "type": "result",
+            "subtype": "error" if is_error else "success",
+            "is_error": is_error,
+            "session_id": session_id,
+            "result": response,
+        }
+        if parent_tool_use_id is not None:
+            event["parent_tool_use_id"] = parent_tool_use_id
+        if continuation:
+            event["origin"] = {"kind": "task-notification"}
+        return event
+
+    @staticmethod
+    def _completed_notification(session_id: str = "session-1") -> dict:
+        return {
+            "type": "system",
+            "subtype": "task_notification",
+            "session_id": session_id,
+            "status": "completed",
+            "task_id": "task-1",
+            "tool_use_id": "background-agent-call",
+        }
+
     def _trace(self, *, with_skill: bool = True) -> str:
         events = [
             {
                 "type": "system", "subtype": "init", "session_id": "session-1", "model": "claude-test",
                 "tools": ["Skill", "Task"],
                 "plugins": [{
-                    "name": "save-toolkit", "version": "1.0.0", "source": "save-toolkit@inline",
+                    "name": "save-toolkit", "version": REPOSITORY_PLUGIN_VERSION,
+                    "source": "save-toolkit@inline",
                     "path": str(run_evals.ROOT),
                 }],
                 "mcp_servers": [],
@@ -206,6 +319,58 @@ class StreamTraceTests(unittest.TestCase):
         ])
         return "\n".join(json.dumps(e) for e in events)
 
+    def _scoped_routing_trace(
+        self,
+        *,
+        root_skills: tuple[str, ...] = (),
+        root_agents: tuple[str, ...] = (),
+        nested_skills: tuple[str, ...] = (),
+        nested_agents: tuple[str, ...] = (),
+        nested_skill_parent: str = "agent-root-0",
+        nested_agent_parent: str = "agent-root-0",
+    ) -> str:
+        events = [self._init_event()]
+
+        def append_completed(kind: str, name: str, ordinal: int, parent: str | None) -> None:
+            tool_name = "Skill" if kind == "skill" else "Agent"
+            input_key = "skill" if kind == "skill" else "subagent_type"
+            tool_id = f"{kind}-{parent or 'root'}-{ordinal}"
+            call = {
+                "type": "assistant",
+                "session_id": "session-1",
+                "message": {"content": [{
+                    "type": "tool_use",
+                    "id": tool_id,
+                    "name": tool_name,
+                    "input": {input_key: f"save-toolkit:{name}"},
+                }]},
+            }
+            result = {
+                "type": "user",
+                "session_id": "session-1",
+                "message": {"content": [{
+                    "type": "tool_result",
+                    "tool_use_id": tool_id,
+                    "is_error": False,
+                    "content": "completed",
+                }]},
+            }
+            if parent is not None:
+                call["parent_tool_use_id"] = parent
+                result["parent_tool_use_id"] = parent
+            events.extend((call, result))
+
+        for ordinal, name in enumerate(root_skills):
+            append_completed("skill", name, ordinal, None)
+        for ordinal, name in enumerate(root_agents):
+            append_completed("agent", name, ordinal, None)
+        for ordinal, name in enumerate(nested_skills):
+            append_completed("skill", name, ordinal, nested_skill_parent)
+        for ordinal, name in enumerate(nested_agents):
+            append_completed("agent", name, ordinal, nested_agent_parent)
+        events.append(self._result_event("incident triage completed"))
+        return self._blob(events)
+
     def test_parser_extracts_response_invocations_and_runtime_metadata(self) -> None:
         parsed = run_evals.parse_stream_trace(self._trace())
         self.assertEqual(parsed.response, "MERGE-GATE: BLOCKED")
@@ -234,7 +399,8 @@ class StreamTraceTests(unittest.TestCase):
             run_evals.enforce_runtime_boundary(duplicate_plugin)
         substituted_plugin = run_evals.ParsedTrace(
             **{**parsed.__dict__, "runtime_plugins": ({
-                "name": "save-toolkit", "version": "1.0.0", "source": "save-toolkit@inline",
+                "name": "save-toolkit", "version": REPOSITORY_PLUGIN_VERSION,
+                "source": "save-toolkit@inline",
                 "path": str(run_evals.ROOT.parent / "substitute"),
             },)}
         )
@@ -278,6 +444,264 @@ class StreamTraceTests(unittest.TestCase):
         with self.assertRaises(clean_room.RunnerFailed):
             run_evals.parse_stream_trace(incomplete)
 
+    def test_coherent_task_notification_continuation_uses_final_root_response(self) -> None:
+        events = [
+            self._init_event(),
+            self._completed_notification(),
+            self._init_event(),
+            self._result_event("intermediate root response"),
+            self._result_event("final continued response", continuation=True),
+        ]
+        parsed = run_evals.parse_stream_trace(self._blob(events))
+        self.assertEqual(parsed.response, "final continued response")
+        diagnostics = parsed.stream_diagnostics.to_summary()
+        self.assertEqual(diagnostics["init_count"], 2)
+        self.assertEqual(diagnostics["result_count"], 2)
+        self.assertEqual(diagnostics["root_result_count"], 2)
+        self.assertEqual(diagnostics["parented_result_count"], 0)
+        self.assertEqual(diagnostics["continuation_count"], 1)
+        self.assertIs(diagnostics["same_session"], True)
+        self.assertEqual(
+            diagnostics["intermediate_root_results"],
+            [{"ordinal": 1, "subtype": "success", "is_error": False, "origin": None}],
+        )
+        serialized = json.dumps(diagnostics)
+        self.assertNotIn("intermediate root response", serialized)
+        self.assertNotIn("final continued response", serialized)
+
+    def test_diagnostics_whitelist_untrusted_result_labels(self) -> None:
+        events = [
+            self._init_event(),
+            self._completed_notification(),
+            self._init_event(),
+            self._result_event("intermediate root response"),
+            self._result_event("final continued response", continuation=True),
+        ]
+        events[-2]["subtype"] = "private subtype value"
+        events[-2]["origin"] = {"kind": "private origin value"}
+        with self.assertRaises(clean_room.RunnerFailed) as caught:
+            run_evals.parse_stream_trace(self._blob(events))
+        serialized = json.dumps(caught.exception.stream_diagnostics)
+        self.assertNotIn("private subtype value", serialized)
+        self.assertNotIn("private origin value", serialized)
+        self.assertEqual(
+            caught.exception.stream_diagnostics["intermediate_root_results"],
+            [{"ordinal": 1, "subtype": "unknown", "is_error": False, "origin": "unknown"}],
+        )
+
+    def test_mixed_session_concatenation_fails_closed(self) -> None:
+        events = [
+            self._init_event("session-1"),
+            self._result_event("first", session_id="session-1"),
+            self._init_event("session-2"),
+            self._result_event("second", session_id="session-2"),
+        ]
+        with self.assertRaisesRegex(clean_room.RunnerFailed, "mixed session"):
+            run_evals.parse_stream_trace(self._blob(events))
+
+    def test_parented_result_is_diagnostic_not_the_root_response(self) -> None:
+        events = [
+            self._init_event(),
+            self._result_event("nested response", parent_tool_use_id="agent-call"),
+            self._result_event("root response"),
+        ]
+        parsed = run_evals.parse_stream_trace(self._blob(events))
+        self.assertEqual(parsed.response, "root response")
+        diagnostics = parsed.stream_diagnostics.to_summary()
+        self.assertEqual(diagnostics["result_count"], 2)
+        self.assertEqual(diagnostics["root_result_count"], 1)
+        self.assertEqual(diagnostics["parented_result_count"], 1)
+
+    def test_earlier_root_error_followed_by_success_fails_closed(self) -> None:
+        events = [
+            self._init_event(),
+            self._completed_notification(),
+            self._init_event(),
+            self._result_event("failed root", is_error=True),
+            self._result_event("later success", continuation=True),
+        ]
+        with self.assertRaisesRegex(clean_room.RunnerFailed, "root result.*error"):
+            run_evals.parse_stream_trace(self._blob(events))
+
+    def test_unfinished_epoch_after_a_completed_result_fails_closed(self) -> None:
+        events = [
+            self._init_event(),
+            self._result_event("completed response"),
+            self._completed_notification(),
+            self._init_event(),
+        ]
+        with self.assertRaisesRegex(clean_room.RunnerFailed, "unfinished root epoch"):
+            run_evals.parse_stream_trace(self._blob(events))
+
+    def test_root_result_before_first_init_fails_closed(self) -> None:
+        events = [
+            self._result_event("stale response"),
+            self._init_event(),
+            self._completed_notification(),
+            self._init_event(),
+            self._result_event("continued response", continuation=True),
+        ]
+        with self.assertRaisesRegex(clean_room.RunnerFailed, "before the first init"):
+            run_evals.parse_stream_trace(self._blob(events))
+
+    def test_reordered_runtime_lists_remain_one_coherent_epoch_contract(self) -> None:
+        first_init = self._init_event()
+        first_init["skills"] = ["save-toolkit:zeta", "save-toolkit:alpha"]
+        first_init["agents"] = ["save-toolkit:zeta", "save-toolkit:alpha"]
+        second_init = self._init_event()
+        second_init["tools"] = list(reversed(second_init["tools"]))
+        second_init["skills"] = list(reversed(first_init["skills"]))
+        second_init["agents"] = list(reversed(first_init["agents"]))
+        events = [
+            first_init,
+            self._completed_notification(),
+            second_init,
+            self._result_event("initial response"),
+            self._result_event("continued response", continuation=True),
+        ]
+        parsed = run_evals.parse_stream_trace(self._blob(events))
+        self.assertEqual(parsed.response, "continued response")
+        self.assertEqual(parsed.available_tools, ("Skill", "Task"))
+        self.assertEqual(
+            parsed.available_skills,
+            ("save-toolkit:alpha", "save-toolkit:zeta"),
+        )
+
+    def test_timeout_after_an_unfinished_epoch_never_accepts_the_prior_result(self) -> None:
+        events = [
+            self._init_event(),
+            self._result_event("completed but stale response"),
+            self._completed_notification(),
+            self._init_event(),
+        ]
+        timed_out = run_evals.subprocess.TimeoutExpired(
+            ["claude"],
+            30,
+            output=self._blob(events),
+            stderr="",
+        )
+        scenario = {
+            "mode": "discovery",
+            "target": {"kind": "skill", "name": "merge-gate"},
+            "prompt": "private prompt",
+        }
+        with mock.patch.object(run_evals.subprocess, "run", side_effect=timed_out):
+            with self.assertRaisesRegex(run_evals.InconclusiveTrial, "timed out") as caught:
+                run_evals.run_agent(
+                    scenario,
+                    env={},
+                    cwd=run_evals.ROOT,
+                    timeout=30,
+                    model=None,
+                )
+        diagnostics = caught.exception.stream_diagnostics
+        self.assertEqual(diagnostics["init_count"], 2)
+        self.assertEqual(diagnostics["root_result_count"], 1)
+        self.assertEqual(diagnostics["continuation_count"], 0)
+
+    def test_duplicate_tool_ids_under_different_parents_do_not_conflate(self) -> None:
+        events = [
+            self._init_event(),
+            {"type": "assistant", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_use", "id": "duplicate", "name": "Skill",
+                "input": {"skill": "save-toolkit:root-skill"},
+            }]}},
+            {
+                "type": "assistant",
+                "session_id": "session-1",
+                "parent_tool_use_id": "agent-call",
+                "message": {"content": [{
+                    "type": "tool_use", "id": "duplicate", "name": "Skill",
+                    "input": {"skill": "save-toolkit:nested-skill"},
+                }]},
+            },
+            {"type": "user", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_result", "tool_use_id": "duplicate", "is_error": False,
+                "content": "loaded",
+            }]}},
+            self._result_event("done"),
+        ]
+        parsed = run_evals.parse_stream_trace(self._blob(events))
+        self.assertEqual(parsed.skills, ("save-toolkit:root-skill",))
+        self.assertEqual(
+            parsed.attempted_skills,
+            ("save-toolkit:root-skill", "save-toolkit:nested-skill"),
+        )
+
+    def test_conflicting_duplicate_tool_id_within_same_parent_fails_closed(self) -> None:
+        events = [
+            self._init_event(),
+            {"type": "assistant", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_use", "id": "duplicate", "name": "Agent",
+                "input": {"subagent_type": "save-toolkit:sre"},
+            }]}},
+            {"type": "assistant", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_use", "id": "duplicate", "name": "Agent",
+                "input": {"subagent_type": "save-toolkit:prompt-engineer"},
+            }]}},
+            {"type": "user", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_result", "tool_use_id": "duplicate", "is_error": False,
+                "content": "completed",
+            }]}},
+            self._result_event("done"),
+        ]
+        with self.assertRaisesRegex(clean_room.RunnerFailed, "duplicate component tool_use"):
+            run_evals.parse_stream_trace(self._blob(events))
+
+    def test_duplicate_tool_ids_across_epochs_do_not_conflate(self) -> None:
+        events = [
+            self._init_event(),
+            {"type": "assistant", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_use", "id": "duplicate", "name": "Skill",
+                "input": {"skill": "save-toolkit:first-epoch"},
+            }]}},
+            {"type": "user", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_result", "tool_use_id": "duplicate", "is_error": False,
+                "content": "loaded",
+            }]}},
+            self._completed_notification(),
+            self._init_event(),
+            {"type": "assistant", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_use", "id": "duplicate", "name": "Skill",
+                "input": {"skill": "save-toolkit:second-epoch"},
+            }]}},
+            self._result_event("initial response"),
+            self._result_event("continued response", continuation=True),
+        ]
+        parsed = run_evals.parse_stream_trace(self._blob(events))
+        self.assertEqual(parsed.skills, ("save-toolkit:first-epoch",))
+
+    def test_inconclusive_trial_exposes_only_sanitized_stream_diagnostics(self) -> None:
+        events = [
+            self._init_event("session-1"),
+            self._result_event("private first response", session_id="session-1"),
+            self._init_event("session-2"),
+            self._result_event("private second response", session_id="session-2"),
+        ]
+        completed = mock.Mock(returncode=0, stdout=self._blob(events), stderr="")
+        scenario = {
+            "mode": "discovery",
+            "target": {"kind": "skill", "name": "merge-gate"},
+            "prompt": "private prompt",
+        }
+        with mock.patch.object(run_evals.subprocess, "run", return_value=completed):
+            with self.assertRaises(run_evals.InconclusiveTrial) as caught:
+                run_evals.run_agent(
+                    scenario,
+                    env={},
+                    cwd=run_evals.ROOT,
+                    timeout=30,
+                    model=None,
+                )
+        diagnostics = caught.exception.stream_diagnostics
+        self.assertEqual(diagnostics["init_count"], 2)
+        self.assertEqual(diagnostics["result_count"], 2)
+        self.assertIs(diagnostics["same_session"], False)
+        serialized = json.dumps(diagnostics)
+        self.assertNotIn("private prompt", serialized)
+        self.assertNotIn("private first response", serialized)
+        self.assertNotIn("private second response", serialized)
+
     def test_unmatched_or_errored_tool_calls_do_not_count_as_invocations(self) -> None:
         events = [
             {"type": "assistant", "message": {"content": [
@@ -316,6 +740,162 @@ class StreamTraceTests(unittest.TestCase):
         }
         parsed = run_evals.parse_stream_trace(self._trace())
         passed, _ = run_evals.grade_trial(scenario, parsed)
+        self.assertTrue(passed)
+
+    def test_root_scope_allows_nested_target_after_root_alternative_owns(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            root_agents=("sre",),
+            nested_skills=("gcp-ops",),
+        ))
+        scenario = {
+            "target": {"kind": "skill", "name": "gcp-ops"},
+            "routing": {
+                "expect": "not_fire",
+                "scope": "root",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        }
+        passed, _ = run_evals.grade_routing(scenario, parsed)
+        self.assertTrue(passed)
+        self.assertEqual(parsed.root_skills, ())
+        self.assertEqual(parsed.root_agents, ("save-toolkit:sre",))
+        self.assertEqual(parsed.skills, ("save-toolkit:gcp-ops",))
+
+    def test_root_identity_evidence_excludes_noncanonical_tool_input(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            root_skills=("private prompt content",),
+        ))
+        self.assertEqual(parsed.root_skills, ())
+
+    def test_default_scope_rejects_nested_target(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            root_agents=("sre",),
+            nested_skills=("gcp-ops",),
+        ))
+        scenario = {
+            "target": {"kind": "skill", "name": "gcp-ops"},
+            "routing": {
+                "expect": "not_fire",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        }
+        passed, _ = run_evals.grade_routing(scenario, parsed)
+        self.assertFalse(passed)
+
+    def test_root_scope_rejects_root_target(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            root_skills=("gcp-ops",),
+            root_agents=("sre",),
+        ))
+        scenario = {
+            "target": {"kind": "skill", "name": "gcp-ops"},
+            "routing": {
+                "expect": "not_fire",
+                "scope": "root",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        }
+        passed, _ = run_evals.grade_routing(scenario, parsed)
+        self.assertFalse(passed)
+
+    def test_root_scope_requires_root_alternative(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            nested_agents=("sre",),
+        ))
+        scenario = {
+            "target": {"kind": "skill", "name": "gcp-ops"},
+            "routing": {
+                "expect": "not_fire",
+                "scope": "root",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        }
+        passed, _ = run_evals.grade_routing(scenario, parsed)
+        self.assertFalse(passed)
+
+    def test_root_scope_rejects_inline_even_when_target_is_only_nested(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            nested_skills=("gcp-ops",),
+        ))
+        scenario = {
+            "target": {"kind": "skill", "name": "gcp-ops"},
+            "routing": {
+                "expect": "not_fire",
+                "scope": "root",
+                "expected_alternative": "inline",
+            },
+        }
+        passed, _ = run_evals.grade_routing(scenario, parsed)
+        self.assertFalse(passed)
+
+    def test_root_scope_rejects_nested_target_under_wrong_root_agent(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            root_agents=("sre", "prompt-engineer"),
+            nested_skills=("gcp-ops",),
+            nested_skill_parent="agent-root-1",
+        ))
+        scenario = {
+            "target": {"kind": "skill", "name": "gcp-ops"},
+            "routing": {
+                "expect": "not_fire",
+                "scope": "root",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        }
+        passed, _ = run_evals.grade_routing(scenario, parsed)
+        self.assertFalse(passed)
+
+    def test_root_scope_rejects_orphan_nested_target(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            root_agents=("sre",),
+            nested_skills=("gcp-ops",),
+            nested_skill_parent="orphan-agent-call",
+        ))
+        scenario = {
+            "target": {"kind": "skill", "name": "gcp-ops"},
+            "routing": {
+                "expect": "not_fire",
+                "scope": "root",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        }
+        passed, _ = run_evals.grade_routing(scenario, parsed)
+        self.assertFalse(passed)
+
+    def test_root_scope_rejects_nested_target_under_non_agent_parent(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            root_skills=("merge-gate",),
+            root_agents=("sre",),
+            nested_skills=("gcp-ops",),
+            nested_skill_parent="skill-root-0",
+        ))
+        scenario = {
+            "target": {"kind": "skill", "name": "gcp-ops"},
+            "routing": {
+                "expect": "not_fire",
+                "scope": "root",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        }
+        passed, _ = run_evals.grade_routing(scenario, parsed)
+        self.assertFalse(passed)
+
+    def test_root_scope_allows_transitive_descendant_of_root_alternative(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
+            root_agents=("sre",),
+            nested_agents=("observability-engineer",),
+            nested_skills=("gcp-ops",),
+            nested_skill_parent="agent-agent-root-0-0",
+        ))
+        scenario = {
+            "target": {"kind": "skill", "name": "gcp-ops"},
+            "routing": {
+                "expect": "not_fire",
+                "scope": "root",
+                "expected_alternative": {"kind": "agent", "name": "sre"},
+            },
+        }
+        passed, _ = run_evals.grade_routing(scenario, parsed)
         self.assertTrue(passed)
 
     def test_inline_answer_cannot_pass_direct_skill(self) -> None:

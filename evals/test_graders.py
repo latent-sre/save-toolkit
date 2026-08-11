@@ -264,10 +264,315 @@ _BLOCK_CASES = {
 }
 
 
-def _load_graders(filename: str) -> list[dict]:
+_SRE_INCIDENT_ANSWER = (
+    "Incident summary: checkout failures are affecting customers and are still growing.\n"
+    "Severity: SEV2\n"
+    "Blast radius: 35% of checkout requests across two regions since 14:05 UTC; trend: growing.\n"
+    "Timeline (UTC): 14:02 instance saturation began; 14:05 customer 5xx increased.\n"
+    "Hypotheses tested: saturation predicts rising latency and maxed instances; both signals match.\n"
+    "Root cause: saturation is the leading cause with medium confidence [unverified].\n"
+    "Mitigation: recommend a reversible scale-out; the human release owner executes after approval.\n"
+    "Recommended course of action: immediate Tier 2 reversible change.\n"
+    "Owner: human release owner\n"
+    "Target: checkout app in the prod space\n"
+    "Change: scale from 4 to 6 instances\n"
+    "Exact command: `cf scale checkout -i 6`\n"
+    "Verification: `cf app checkout` shows 6/6 running and 502 rate stays below 1% for 5 minutes\n"
+    "Rollback: `cf scale checkout -i 4` restores the prior instance count"
+)
+
+_GCP_LOGGING_ANSWER = (
+    "Cloud Logging query [unverified]: `gcloud logging read "
+    "'resource.type=cloud_run_revision AND resource.labels.service_name=checkout AND "
+    "severity=(ERROR OR CRITICAL)' --freshness=1h --limit=50 --format=json`. "
+    "Record the absolute UTC window and confirm the payload fields before treating an empty result "
+    "as evidence."
+)
+
+_PROMQL_ANSWER = (
+    "PromQL error ratio [unverified]: `sum by (service) (rate(<5xx_request_counter>[5m])) "
+    "/ sum by (service) (rate(<eligible_request_counter>[5m]))`. PromQL p95 latency: "
+    "`histogram_quantile(0.95, sum by (service, le) "
+    "(rate(<duration_histogram>_bucket[5m])))`. Use the validated service label for grouping and "
+    "record that the metric placeholders require target validation. Validate the cumulative counters, "
+    "keep numerator and denominator on the same population, and treat zero traffic as missing evidence."
+)
+
+_CLOUD_TRACE_ANSWER = (
+    "In Cloud Trace, use Trace explorer filters for service, latency, and status; TraceQL does not "
+    "apply. Record the absolute UTC window [unverified], then follow the critical path without "
+    "adding nested span durations. Compare the slow trace with a known-normal trace and record the "
+    "sampling caveat."
+)
+
+_SRE_INCIDENT_INCOMPLETE_ANSWER = (
+    "Incident summary: production checkout failures; severity and blast radius remain [unverified]. "
+    "Timeline (UTC): establish onset and last-known-good. Hypotheses tested: edge, origin, and "
+    "dependency. Root cause: unknown. Mitigation: recommend a rollback. Recommended course of "
+    "action: human release owner, Tier 2, verification, and rollback."
+)
+
+_AKAMAI_ALERT_INCOMPLETE_ANSWER = (
+    "Define the numerator, denominator, and minimum traffic. Name the owner, notification route, "
+    "and runbook_url. The window and throttling are [unverified]; force the alert to fire and resolve."
+)
+
+_SRE_CANONICAL_MARKDOWN_ANSWER = (
+    "Incident summary: SEV2 — 35% of checkout requests across two regions since 14:05 UTC; growing.\n"
+    "Timeline (UTC): 14:02 instance saturation began; 14:05 customer 5xx increased.\n"
+    "Hypotheses tested: saturation predicts rising latency and maxed instances; both signals match.\n"
+    "Root cause: saturation is the leading cause with medium confidence [unverified].\n"
+    "Mitigation: recommend a reversible scale-out; the human release owner executes after approval.\n"
+    "Recommended course of action: immediate Tier 2 mitigation.\n"
+    "**Target**: checkout app in the prod space\n"
+    "**Change**: scale from 4 to 6 instances\n"
+    "**Exact command**: `cf scale checkout -i 6`\n"
+    "**Verification**: `cf app checkout` shows 6/6 running and 502 rate stays below 1% for 5 minutes\n"
+    "**Rollback**: `cf scale checkout -i 4` restores the prior instance count"
+)
+
+_AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER = (
+    "DataStream paging alert [unverified].\n"
+    "Numerator: edge 5xx requests.\n"
+    "Denominator: all valid edge requests.\n"
+    "Minimum traffic: 100 valid requests per evaluation.\n"
+    "Evaluation window: 5 minutes\n"
+    "Schedule: every 5 minutes\n"
+    "Window/schedule relationship: both use five minutes, avoiding gaps or repeated events.\n"
+    "Throttle key: property,service\n"
+    "Throttle period: 30 minutes\n"
+    "Escalation time-box: 45 minutes\n"
+    "Throttle relationship: suppression expires 15 minutes before escalation.\n"
+    "Owner: Edge SRE\n"
+    "Notification route: checkout-primary pager\n"
+    "Runbook URL: https://ops.example/runbooks/checkout-edge-5xx\n"
+    "Verification: force the condition and observe fire, throttle, notification delivery, and resolve."
+)
+
+_AKAMAI_ALERT_REVERSED_RELATIONSHIP_ANSWER = (
+    "DataStream paging alert [unverified].\n"
+    "Numerator: edge 5xx requests.\n"
+    "Denominator: all valid edge requests.\n"
+    "Minimum traffic: 100 valid requests per evaluation.\n"
+    "Evaluation window: 5 minutes\n"
+    "Schedule: every 5 minutes\n"
+    "Window/schedule relationship: both use five minutes, avoiding gaps or repeated events.\n"
+    "Throttle key: property,service\n"
+    "Throttle period: 60 minutes\n"
+    "Escalation time-box: 45 minutes\n"
+    "Throttle relationship: escalation happens before suppression expires.\n"
+    "Owner: Edge SRE\n"
+    "Notification route: checkout-primary pager\n"
+    "Runbook URL: https://ops.example/runbooks/checkout-edge-5xx\n"
+    "Verification: force the condition and observe fire, throttle, notification delivery, and resolve."
+)
+
+_AKAMAI_ALERT_NEGATED_WRONG_RELATIONSHIP_ANSWERS = (
+    _AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER.replace(
+        "suppression expires 15 minutes before escalation.",
+        "suppression is not shorter than escalation.",
+    ),
+    _AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER.replace(
+        "suppression expires 15 minutes before escalation.",
+        "suppression does not expire before escalation.",
+    ),
+)
+
+_ROUTING_PROMPT_ECHO_CASES = {
+    "discovery-akamai-edge-defers-active-incident.yaml": _SRE_INCIDENT_ANSWER,
+    "discovery-akamai-edge-defers-obs-alerting.yaml": (
+        "DataStream paging alert [unverified].\n"
+        "Numerator: edge 5xx requests.\n"
+        "Denominator: all valid edge requests.\n"
+        "Minimum traffic: 100 valid requests per evaluation.\n"
+        "Evaluation window: 5m\n"
+        "Schedule: every 5m\n"
+        "Window/schedule relationship: the window equals the schedule, avoiding gaps and overlap.\n"
+        "Throttle key: property,service\n"
+        "Throttle period: 30m\n"
+        "Escalation time-box: 45m\n"
+        "Throttle relationship: 30m < 45m, so suppression cannot outlast escalation.\n"
+        "Owner: Edge SRE\n"
+        "Notification route: checkout-primary pager\n"
+        "Runbook URL: https://ops.example/runbooks/checkout-edge-5xx\n"
+        "Verification: force the condition and observe fire, throttle, notification delivery, and resolve."
+    ),
+    "discovery-akamai-edge-defers-obs-logs.yaml": (
+        "Splunk SPL [unverified]: `index=<akamai_index> earliest=-1h | bin _time span=5m | stats "
+        "count by _time cacheStatus errorCode | sort 0 _time`. Record the absolute UTC window and "
+        "confirm field extraction before interpreting empty buckets."
+    ),
+    "discovery-akamai-edge-defers-obs-metrics.yaml": _PROMQL_ANSWER,
+    "discovery-akamai-edge-defers-obs-traces.yaml": (
+        "Tempo TraceQL [unverified]: validate the 32-hex trace ID, then use "
+        "`{ trace:id = \"<validated_trace_id>\" }` in an absolute UTC window. Follow the critical path "
+        "without adding nested span durations, compare a known-normal trace, and record the sampling "
+        "caveat before attributing latency."
+    ),
+    "discovery-akamai-edge-defers-pcf.yaml": (
+        "PCF origin evidence [unverified]: `cf target`; `cf app checkout`; `cf events checkout`; "
+        "`cf logs checkout --recent`; `cf routes`. If X-Cf-RouterError is endpoint_failure, the router "
+        "reached a backend; otherwise keep the cause unverified. This is read-only Cloud Foundry triage."
+    ),
+    "discovery-akamai-edge-reference-error.yaml": (
+        "Read-only edge/origin triage: use Translate Error String with Trace forward logs within the "
+        "6-24 hour retention window. Then use Get Error Statistics for the URL or CP code to compare "
+        "client-to-edge with edge-to-origin; its roughly 9-second sample from the last 2 minutes can "
+        "miss low traffic [unverified]. No configuration change is recommended."
+    ),
+    "discovery-gcp-ops-cloud-run-startup.yaml": (
+        "Read-only [unverified] sequence: `gcloud config list`; `gcloud run services describe checkout`; "
+        "`gcloud run revisions list --service checkout`. Confirm the process binds `0.0.0.0:$PORT`, not "
+        "127.0.0.1. Recommend `gcloud run services update-traffic checkout --to-revisions "
+        "<previous-revision>=100` as Tier 2 for a human release owner, with error-rate verification "
+        "and the inverse traffic command as rollback."
+    ),
+    "discovery-gcp-ops-defers-active-incident.yaml": _SRE_INCIDENT_ANSWER,
+    "discovery-gcp-ops-defers-obs-alerting.yaml": (
+        "Define allowed bad fraction as `1 - SLO`, observed bad fraction as bad valid requests over "
+        "all valid requests, and burn rate as observed divided by allowed. Page only when the long "
+        "window and short window breach the same threshold using AND, not OR. Name the alert owner, "
+        "notification route, and runbook URL, then force it to fire and resolve [unverified]."
+    ),
+    "discovery-gcp-ops-defers-obs-logs.yaml": _GCP_LOGGING_ANSWER,
+    "discovery-gcp-ops-defers-obs-metrics.yaml": _PROMQL_ANSWER,
+    "discovery-gcp-ops-defers-obs-traces.yaml": _CLOUD_TRACE_ANSWER,
+    "discovery-gcp-ops-defers-pcf.yaml": (
+        "Read-only PCF/TAS evidence [unverified]: `cf target`; `cf app checkout`; `cf events checkout`; "
+        "`cf logs checkout --recent`; `cf routes`. Exit status 137 means SIGKILL and is not proof of "
+        "OOM; corroborate `(out of memory)` before recommending a memory change. X-Cf-RouterError and "
+        "cross-app evidence decide app-side versus platform-side Cloud Foundry ownership."
+    ),
+    "discovery-obs-alerting-splunk-saved-search.yaml": (
+        "Splunk saved search [unverified]: `cron_schedule = */5 * * * *`, "
+        "`dispatch.earliest_time = -5m`, `dispatch.latest_time = now`, `alert.suppress = 1`, "
+        "`alert.suppress.period = 30m`, and `alert.suppress.fields = service,alert_type`. Append "
+        "`| lookup instructions_lookup alert_type OUTPUT runbook_url`; force the alert to fire, "
+        "resolve, throttle, and deliver to the named owner."
+    ),
+    "discovery-obs-logs-cloud-logging.yaml": _GCP_LOGGING_ANSWER,
+    "discovery-obs-metrics-cloud-monitoring.yaml": _PROMQL_ANSWER,
+    "discovery-obs-traces-cloud-trace.yaml": _CLOUD_TRACE_ANSWER,
+    "discovery-runbook-incident-update.yaml": (
+        "Set `status: draft` and leave `last_verified` unchanged until binding evidence exists. "
+        "Append, never erase, an Incident history row with Version used, Steps that held, Steps that "
+        "failed / were missing, and Follow-up. Route the [unverified] contradicted and missing steps "
+        "as an operational-learning disposition proposed to scribe; do not execute the procedure."
+    ),
+}
+
+_BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS = {
+    "discovery-akamai-edge-defers-active-incident.yaml": _SRE_INCIDENT_INCOMPLETE_ANSWER,
+    "discovery-gcp-ops-defers-active-incident.yaml": _SRE_INCIDENT_INCOMPLETE_ANSWER,
+    "discovery-akamai-edge-defers-obs-alerting.yaml": _AKAMAI_ALERT_INCOMPLETE_ANSWER,
+}
+
+_CANONICAL_ROUTING_ANSWER_VARIANTS = {
+    "discovery-akamai-edge-defers-active-incident.yaml": _SRE_CANONICAL_MARKDOWN_ANSWER,
+    "discovery-gcp-ops-defers-active-incident.yaml": _SRE_CANONICAL_MARKDOWN_ANSWER,
+    "discovery-akamai-edge-defers-obs-alerting.yaml": _AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER,
+}
+
+
+def _load_scenario(filename: str) -> dict:
     import yaml  # local import so layer 1 runs even without PyYAML
-    data = yaml.safe_load((SCENARIOS_DIR / filename).read_text(encoding="utf-8"))
-    return data["graders"]
+    return yaml.safe_load((SCENARIOS_DIR / filename).read_text(encoding="utf-8"))
+
+
+def _load_graders(filename: str) -> list[dict]:
+    return _load_scenario(filename)["graders"]
+
+
+def test_routing_prompt_echoes_are_rejected() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for routing prompt-echo scenario tests (`pip install pyyaml`)")
+        return
+
+    check(
+        len(_ROUTING_PROMPT_ECHO_CASES) == 19,
+        "routing prompt-echo regression covers exactly the 19 GCP/Akamai/obs/runbook scenarios",
+    )
+    for filename, compliant in _ROUTING_PROMPT_ECHO_CASES.items():
+        scenario = _load_scenario(filename)
+        grader_specs = scenario["graders"]
+        prompt = scenario["prompt"]
+        normalized_prompt = " ".join(prompt.split())
+        check(
+            not grade_all(grader_specs, prompt),
+            f"{filename}: raw prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            not grade_all(grader_specs, normalized_prompt),
+            f"{filename}: whitespace-normalized prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: curated compliant response passes the full grader set",
+        )
+
+
+def test_routing_graders_reject_keyword_rich_incomplete_responses() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for incomplete-response scenario tests (`pip install pyyaml`)")
+        return
+
+    for filename, incomplete in _BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS.items():
+        grader_specs = _load_graders(filename)
+        check(
+            not grade_all(grader_specs, incomplete),
+            f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
+        )
+
+
+def test_routing_graders_accept_canonical_contract_variants() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for canonical-contract scenario tests (`pip install pyyaml`)")
+        return
+
+    for filename, compliant in _CANONICAL_ROUTING_ANSWER_VARIANTS.items():
+        grader_specs = _load_graders(filename)
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: canonical behavior-complete response variant passes",
+        )
+
+
+def test_akamai_alert_rejects_reversed_throttle_relationship() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for Akamai alert relationship test (`pip install pyyaml`)")
+        return
+
+    grader_specs = _load_graders("discovery-akamai-edge-defers-obs-alerting.yaml")
+    check(
+        not grade_all(grader_specs, _AKAMAI_ALERT_REVERSED_RELATIONSHIP_ANSWER),
+        "Akamai alert: escalation-before-suppression-expiry relationship is REJECTED",
+    )
+
+
+def test_akamai_alert_rejects_negated_safe_relationships() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for Akamai alert relationship test (`pip install pyyaml`)")
+        return
+
+    grader_specs = _load_graders("discovery-akamai-edge-defers-obs-alerting.yaml")
+    for response in _AKAMAI_ALERT_NEGATED_WRONG_RELATIONSHIP_ANSWERS:
+        relationship = next(
+            line for line in response.splitlines() if line.startswith("Throttle relationship:")
+        )
+        check(
+            not grade_all(grader_specs, response),
+            f"Akamai alert: negated safe relationship is REJECTED: {relationship!r}",
+        )
 
 
 def test_gate_scenarios_adversarial() -> None:
@@ -560,6 +865,11 @@ def main() -> int:
         test_contains_all, test_contains_any, test_not_contains, test_regex, test_not_regex,
         test_json_artifact_statuses, test_exact_fields,
         test_run_grader_dispatch, test_gate_scenarios_adversarial,
+        test_routing_prompt_echoes_are_rejected,
+        test_routing_graders_reject_keyword_rich_incomplete_responses,
+        test_routing_graders_accept_canonical_contract_variants,
+        test_akamai_alert_rejects_reversed_throttle_relationship,
+        test_akamai_alert_rejects_negated_safe_relationships,
         test_readonly_scenario_verbal_discipline, test_injection_scenarios,
         test_pcf_deploy_refusal_is_not_an_endorsement,
         test_direct_agent_contract_graders,

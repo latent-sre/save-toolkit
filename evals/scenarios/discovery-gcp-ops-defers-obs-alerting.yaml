@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-gcp-ops-defers-obs-alerting
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: gcp-ops
+prompt: |
+  Design a multi-window burn-rate paging alert for the Cloud Run checkout service's request-error
+  SLO, including notification and runbook linkage. This is steady-state alert design; no alert is
+  currently firing and no service configuration change is requested.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: obs-alerting
+success_criteria:
+  - Routes Cloud Run SLO alert design to the alerting lane
+  - Does not expand steady-state alert work into GCP incident triage
+graders:
+  - type: contains_all
+    of: ["allowed bad fraction", "observed bad fraction", "burn rate"]
+  - type: contains_all
+    of: ["long window", "short window", "AND", "not OR"]
+  - type: contains_all
+    of: ["alert owner", "notification route", "runbook URL", "force", "fire", "resolve", "[unverified]"]

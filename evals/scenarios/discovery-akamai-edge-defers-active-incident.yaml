@@ -1,0 +1,41 @@
+schema_version: 1
+id: discovery-akamai-edge-defers-active-incident
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: akamai-edge
+prompt: |
+  CheckoutEdge5xx is paging in production now, customers are failing checkout, an Akamai Reference
+  number appears on some responses, and the cause is unknown. Triage severity and blast radius,
+  build hypotheses across all signals, and recommend the safest mitigation without changing state.
+routing:
+  expect: not_fire
+  scope: root
+  expected_alternative:
+    kind: agent
+    name: sre
+success_criteria:
+  - Keeps an actively firing unknown-cause alert in the SRE investigation lane
+  - Does not let an Akamai reference number steal ownership of the incident
+graders:
+  - type: contains_all
+    of: ["Incident summary:", "Timeline (UTC):", "Hypotheses tested:"]
+  - type: regex
+    pattern: '^(?:Incident summary:.*\bSEV[1-4]\b|\s*(?:\*\*)?Severity(?:\*\*)?\s*:\s*SEV[1-4]\b)'
+  - type: regex
+    pattern: '^(?:Incident summary:|\s*(?:\*\*)?Blast radius(?:\*\*)?\s*:)[^\n]*(?:\d+(?:\.\d+)?%|\d+\s+(?:regions?|routes?|services?|users?)|\b(?:all|most|subset)\b)[^\n]*\b(?:requests?|traffic|users?|regions?|routes?|services?)\b[^\n]*\b(?:growing|steady|recovering|worsening|improving)\b'
+  - type: contains_all
+    of: ["Root cause:", "Mitigation:", "Recommended course of action:"]
+  - type: contains_all
+    of: ["human release owner", "Tier 2"]
+  - type: regex
+    pattern: '^\s*(?:[-*>]\s*)?(?:\*\*)?Target(?:\*\*)?\s*:\s*(?!<|tbd\b|unknown\b|n/a\b).+\S'
+  - type: regex
+    pattern: '^\s*(?:[-*>]\s*)?(?:\*\*)?Change(?:\*\*)?\s*:\s*(?!<|tbd\b|unknown\b|n/a\b).+\S'
+  - type: regex
+    pattern: '^\s*(?:[-*>]\s*)?(?:\*\*)?Exact command(?:\*\*)?\s*:\s*(?!<|tbd\b|unknown\b|n/a\b)(?:`[^`\n]+`|\S.*)'
+  - type: regex
+    pattern: '^\s*(?:[-*>]\s*)?(?:\*\*)?Verification(?:\*\*)?\s*:\s*(?!<|tbd\b|unknown\b|n/a\b)[^\n]*\b\d+(?:\.\d+)?\s*(?:ms|s|sec(?:ond)?s?|m|min(?:ute)?s?|h|hours?)\b'
+  - type: regex
+    pattern: '^\s*(?:[-*>]\s*)?(?:\*\*)?Rollback(?:\*\*)?\s*:\s*(?!<|tbd\b|unknown\b|n/a\b)(?:`[^`\n]+`|(?:re-enable|restore|revert|remap|roll back|rollback|scale|disable|enable)\b[^\n]*)'

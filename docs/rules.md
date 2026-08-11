@@ -36,7 +36,9 @@ authoritative?*
 | Description edits need before/after clean-room scenario runs (or a stated deferral — not an eyeball) | [`AGENTS.md`](../AGENTS.md) Change playbooks |
 | Personal-first: prototype under `~/.claude`, promote by PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Branch from `main` only; rebase on `origin/main` before PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| Until RELEASE-001: never publish a release artifact or move a release ref; promotion identity stays read-only | [`CONTRIBUTING.md`](../CONTRIBUTING.md); [`fleet-roadmap.md`](fleet-roadmap.md) |
+| Until RELEASE-001 closes: never publish manually; repository workflow bytes do not activate publication without explicitly approved live controls | [`CONTRIBUTING.md`](../CONTRIBUTING.md); [`fleet-roadmap.md`](fleet-roadmap.md) |
+| The only consumer release selector is an annotated protected `save-toolkit--v<version>` tag; permanent `save-toolkit--attempt-v<version>--run-<run-id>` refs reserve attempts; never create a moving release branch or move/delete/reuse either namespace | [`2026-08-11-immutable-release-promotion.md`](decisions/2026-08-11-immutable-release-promotion.md); [`release-runbook.md`](release-runbook.md) |
+| Release effects run only through `.github/workflows/release.yml`, bound to exact main/workflow SHA, merged PR evidence, separated requester/reviewer/publisher identities, expiry, recovery, and run nonce; an unknown API outcome never authorizes blind replay | [`release_contract.py`](../scripts/release_contract.py); [`release.yml`](../.github/workflows/release.yml) |
 | Probe and schema contracts: published schemas are immutable; runtime probes use evidence envelopes (`skip`/`inconclusive`, never fake `pass`); the verification sandbox is digest-bound, networkless, and not release authorization | [`schema-compatibility.md`](schema-compatibility.md); [`verification-sandbox.md`](verification-sandbox.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 
 ## 2. Agent authority / tooling
