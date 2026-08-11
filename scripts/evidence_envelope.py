@@ -73,10 +73,6 @@ def _reject_duplicate_json_pairs(
     return value
 
 
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 def format_timestamp(value: datetime) -> str:
     if value.tzinfo is None:
         raise EnvelopeValidationError("evidence timestamps must be timezone-aware")

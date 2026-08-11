@@ -223,20 +223,6 @@ def is_error_event(blob: str) -> bool:
     return bool(evt and evt.get("is_error"))
 
 
-def result_looks_like_auth(blob: str) -> bool:
-    """Given a trial already known to be unmeasurable (is_error_event / returncode nonzero), does
-    the CLI's OWN verdict look like an auth problem? This is used ONLY to pick the right human
-    message ("looks like auth -- run /login" vs a generic runner-failure message) -- never as the
-    detector of failure itself. It scans just the structured result event's own fields, never the
-    full transcript, so a `tool_result` containing the literal marker text (a file the agent read)
-    cannot trigger it.
-    """
-    evt = find_result_event(blob)
-    if not evt:
-        return False
-    return any(m in json.dumps(evt) for m in AUTH_MARKERS)
-
-
 @contextlib.contextmanager
 def clean_env():
     """Yield an allowlisted env whose CLAUDE_CONFIG_DIR holds only credentials (or nothing for

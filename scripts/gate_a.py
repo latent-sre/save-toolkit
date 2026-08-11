@@ -28,6 +28,7 @@ import glob
 import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -92,19 +93,44 @@ def preflight():
     return True
 
 
+def run_steps(steps):
+    """Run every step to completion and return the failed labels, in roster order.
+
+    Steps were always independent interpreter processes; they now run concurrently, which cuts
+    the gate's wall-clock from the sum of the step times to roughly the slowest step. Two
+    properties of the serial gate are deliberately preserved: every step runs even after one
+    fails (an agent fixing the fleet wants the whole list of what is broken, not a bisect), and
+    output prints in the roster's order — foundational checks first, logs deterministic —
+    regardless of completion order, by buffering each step's output until its turn.
+    """
+    def run_one(step):
+        _label, argv, env_extra = step
+        env = dict(os.environ, **env_extra) if env_extra else None
+        proc = subprocess.run(
+            [sys.executable] + argv, cwd=ROOT, env=env,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True,
+        )
+        return proc.returncode, proc.stdout
+
+    failed = []
+    with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 2)) as pool:
+        futures = [pool.submit(run_one, step) for step in steps]
+        for (label, _argv, _env), future in zip(steps, futures):
+            rc, output = future.result()
+            print("\n=== %s ===" % label, flush=True)
+            sys.stdout.write(output)
+            sys.stdout.flush()
+            if rc != 0:
+                failed.append(label)
+    return failed
+
+
 def main():
     if not preflight():
         return 1
 
-    failed = []
-    for label, argv, env_extra in STEPS:
-        print("\n=== %s ===" % label, flush=True)
-        # Run every step even after one fails: an agent fixing the fleet wants the whole list of what
-        # is broken, not a bisect through one failure at a time.
-        env = dict(os.environ, **env_extra) if env_extra else None
-        rc = subprocess.call([sys.executable] + argv, cwd=ROOT, env=env)
-        if rc != 0:
-            failed.append(label)
+    failed = run_steps(STEPS)
 
     print("\n" + "-" * 60)
     if failed:

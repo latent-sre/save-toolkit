@@ -28,7 +28,6 @@ from __future__ import annotations
 import json
 import math
 import re
-import sys
 from pathlib import Path
 from urllib.parse import unquote_to_bytes
 
