@@ -9,10 +9,11 @@ no test here runs the real gate inside itself.
 """
 import contextlib
 import io
-import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import gate_a
 
@@ -62,6 +63,38 @@ class RunStepsTests(unittest.TestCase):
         section = out[out.index("=== one ==="):out.index("=== two ===")]
         self.assertIn("step one output", section)
         self.assertNotIn("step two output", section)
+
+    def test_roster_order_stays_deterministic_when_later_step_finishes_first(self) -> None:
+        slow_started = threading.Event()
+        fast_started = threading.Event()
+        fast_finished = threading.Event()
+
+        def fake_run(argv, cwd, env, stdout, stderr, text):
+            label = argv[-1]
+            if label == "slow":
+                slow_started.set()
+                if not fast_started.wait(timeout=1):
+                    raise AssertionError("run_steps stopped overlapping independent steps")
+                if not fast_finished.wait(timeout=1):
+                    raise AssertionError("later step did not finish first")
+                return mock.Mock(returncode=0, stdout="slow output\n")
+            if label == "fast":
+                fast_started.set()
+                fast_finished.set()
+                return mock.Mock(returncode=0, stdout="fast output\n")
+            raise AssertionError(f"unexpected step: {label!r}")
+
+        steps = [
+            ("slow", ["-c", "slow"], None),
+            ("fast", ["-c", "fast"], None),
+        ]
+        with mock.patch.object(gate_a.subprocess, "run", side_effect=fake_run):
+            failed, out = self._run(steps)
+
+        self.assertEqual([], failed)
+        self.assertLess(out.index("=== slow ==="), out.index("=== fast ==="))
+        self.assertLess(out.index("slow output"), out.index("=== fast ==="))
+        self.assertLess(out.index("=== fast ==="), out.index("fast output"))
 
 
 if __name__ == "__main__":

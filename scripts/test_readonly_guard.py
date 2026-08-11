@@ -20,9 +20,11 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor
 import unittest
 from pathlib import Path
+from unittest import mock
 
 GUARD = Path(__file__).resolve().parents[1] / "scripts" / "readonly-guard.py"
 
@@ -443,6 +445,21 @@ DENIED = [
 
 
 class ReadonlyGuardTest(unittest.TestCase):
+    def test_run_guard_batch_requires_overlapping_invocations(self) -> None:
+        barrier = threading.Barrier(2)
+
+        def fake_run_guard(stdin_text: str) -> subprocess.CompletedProcess:
+            try:
+                barrier.wait(timeout=1)
+            except threading.BrokenBarrierError as exc:
+                raise AssertionError("run_guard_batch stopped overlapping guard invocations") from exc
+            return subprocess.CompletedProcess(args=[stdin_text], returncode=EXIT_ALLOW, stdout=b"", stderr=b"")
+
+        with mock.patch(__name__ + ".run_guard", side_effect=fake_run_guard):
+            procs = run_guard_batch([bash_call("git status --short"), bash_call("git diff --stat")])
+
+        self.assertEqual([EXIT_ALLOW, EXIT_ALLOW], [proc.returncode for proc in procs])
+
     def test_allows_read_only_commands(self) -> None:
         procs = run_guard_batch([bash_call(command) for command in ALLOWED])
         for command, proc in zip(ALLOWED, procs):

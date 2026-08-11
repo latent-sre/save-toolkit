@@ -109,6 +109,7 @@ def run_steps(steps):
         proc = subprocess.run(
             [sys.executable] + argv, cwd=ROOT, env=env,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True,
         )
         return proc.returncode, proc.stdout
 
@@ -118,7 +119,7 @@ def run_steps(steps):
         for (label, _argv, _env), future in zip(steps, futures):
             rc, output = future.result()
             print("\n=== %s ===" % label, flush=True)
-            sys.stdout.write(output.decode("utf-8", "replace"))
+            sys.stdout.write(output)
             sys.stdout.flush()
             if rc != 0:
                 failed.append(label)
