@@ -20,6 +20,7 @@ authoritative?*
 | Canonical authored source is `agents/`, `skills/`, and `commands/` only | [`2026-07-31-multi-platform-plugin-packaging.md`](decisions/2026-07-31-multi-platform-plugin-packaging.md) |
 | After canonical edits, run `generate_platform_adapters.py --write` and commit projections with source | [`AGENTS.md`](../AGENTS.md) Change playbooks; [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Never hand-edit generated roots: `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | [`AGENTS.md`](../AGENTS.md) Hard rules |
+| The three `plugin.json` manifests (`.claude-plugin/` Claude, root Copilot/VS Code, `plugins/save-toolkit/.codex-plugin/` Codex) are per-host selectors, not duplication — never dedupe or drop one; all three must exist and share the identity fields, while each host's component paths stay distinct | `validate_platform_contracts` in `generate_platform_adapters.py`, run by `validate_fleet.py` |
 | Byte-for-byte adapter drift fails the gate | Packaging ADR; `validate_fleet.py` |
 | Plugin agents ignore `hooks:`, `mcpServers:`, `permissionMode:`; those keys are forbidden in canonical frontmatter | [`AGENTS.md`](../AGENTS.md) Hard rules; [`claude-code-frontmatter.md`](../skills/agent-authoring/references/claude-code-frontmatter.md) |
 | Bash guard lives only in [`hooks/hooks.json`](../hooks/hooks.json), scoped to exact guarded `agent_type` values | Packaging ADR; [`readonly-guard.py`](../scripts/readonly-guard.py) |

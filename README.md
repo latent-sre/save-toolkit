@@ -241,7 +241,7 @@ offline harness tests.
   verified on the recorded CLI version. Must-follow constraints are indexed in
   [`docs/rules.md`](docs/rules.md).
 - ROUTE-001's nineteen-scenario/48-trial Codex/Terra campaign has a committed offline evaluator and
-  an uncommitted credential-free preflight repair, but no live result or baseline; its authenticated
+  credential-free preflight (merged in PR #103), but no live result or baseline; its authenticated
   canary is blocked on the trusted runtime/tool-plan
   prerequisites above. Broader Codex/Sol conformance remains parked at tag `pre-trim-2026-08-02` with
   no current runtime baseline. Disposable host install/inventory/uninstall smoke for Claude, Codex,
@@ -249,12 +249,12 @@ offline harness tests.
   [`HOST-001`](docs/reviews/2026-08-06-host-001-closure.md); the Copilot CLI is out of scope by owner
   decision, VS Code UI discovery and headless Codex agent discovery remain documented gaps, and the
   broader model-behavior work stays with deferred EVAL-001.
-- `main` repository protection is closed (PROTECT-001). RELEASE-001 implementation now includes the
-  exact-SHA workflow, release contract, strict remote-tag host smoke, and rollback runbook. Live
-  publication remains blocked until that change is reviewed/merged, immutable releases plus the tag
-  ruleset/environment/App are configured with explicit owner approval, and the first protected run
-  supplies published-artifact and rollback evidence — tracked in
-  [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+- `main` repository protection is closed (PROTECT-001). RELEASE-001's implementation — the exact-SHA
+  workflow, release contract, strict remote-tag host smoke, and rollback runbook — merged in PR #103.
+  Live publication remains blocked until the strict-host Claude authority census is repaired and
+  independently reviewed, immutable releases plus the tag ruleset/environment/App are configured with
+  explicit owner approval, and the first protected run supplies published-artifact and rollback
+  evidence — tracked in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 - The prepared release remains the unpublished `0.1.0` beta. No `1.0` release exists or is implied by
   the ROUTE-001 evaluator work.
 
