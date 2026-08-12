@@ -68,13 +68,26 @@ absent; rulesets are authoritative. Historical closure evidence and the later ow
 remove the required check are recorded in:
 [`docs/reviews/2026-08-05-protect-001-closure.md`](docs/reviews/2026-08-05-protect-001-closure.md).
 
-Maintainer / merge authority: `latent-sre`. Named promotion operator (exact-SHA publish):
-`agentic-sre-dev` (read-only until RELEASE-001; may later be replaced by a least-privileged App).
+Maintainer / merge authority: `latent-sre`. `agentic-sre-dev` remains read-only. Exact-SHA
+publication uses a configured human requester, exactly one distinct protected-environment reviewer
+user or team, and a separately approved repository-scoped publisher App with Actions read but no
+Actions write; do not broaden the account to ordinary Write as a shortcut or collapse request and
+publication into one credential.
 
-Publication remains **blocked** until RELEASE-001 lands: an exact-SHA promotion workflow run by the
-named promotion operator, plus the live GitHub environment/App configuration that workflow needs.
-Do not create or move a `release` ref merely because the superseded plan named one: first verify
-whether each host's current distribution contract needs a moving ref or can consume an immutable
-version tag. Until then, never publish a release artifact or move a release ref. The live item is
-`RELEASE-001` in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); the old branch-based design
-remains recoverable at tag `pre-cleanup-2026-07-15` as historical rationale only.
+Publication remains **blocked** until RELEASE-001 closes. The prepared
+[`release.yml`](.github/workflows/release.yml) workflow is the only allowed promotion path after it is
+reviewed and merged, but repository bytes alone do not activate it. A human owner must separately
+approve and configure immutable releases, the protected release-tag ruleset, the two release
+environments, reconciliation key, and least-privileged App described by the
+[`immutable-release ADR`](docs/decisions/2026-08-11-immutable-release-promotion.md). The workflow
+then requires the two distinct protected-environment approvals and a strict remote-tag host smoke
+before finalizing the GitHub Release.
+
+Never create a moving `release` ref, manually create a `save-toolkit--v*` tag, or dispatch a release
+because the workflow merely exists. A published tag is never moved, deleted, or reused; recovery is
+consumer-side selection of the previous immutable tag (or uninstall for the first release). The
+workflow's permanent `save-toolkit--attempt-v*` reservation refs and release workflow-run/job
+history are replay-control records, not cleanup targets; never delete or reuse them. Recovery
+proceeds under the [`release runbook`](docs/release-runbook.md). The live item is `RELEASE-001` in
+[`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); the old branch-based design remains recoverable at
+tag `pre-cleanup-2026-07-15` as historical rationale only.

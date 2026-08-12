@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-obs-metrics-cloud-monitoring
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: obs-metrics
+prompt: |
+  Our Cloud Run checkout service already exports request metrics to Cloud Monitoring. Write PromQL
+  for a five-minute error ratio and p95 request latency grouped by service. This is metric-query
+  construction only, not incident triage or alert design.
+routing:
+  expect: fire
+success_criteria:
+  - Routes Cloud Monitoring query construction to the metrics lane
+  - Produces PromQL shapes for both error ratio and p95 latency
+graders:
+  - type: contains_all
+    of: ["sum by (", "rate(", "/ sum by (", "[5m]", "validated service label"]
+  - type: contains_all
+    of: ["histogram_quantile(0.95", "sum by (", "le", "_bucket"]
+  - type: contains_all
+    of: ["cumulative counters", "same population", "zero traffic", "target validation", "[unverified]"]

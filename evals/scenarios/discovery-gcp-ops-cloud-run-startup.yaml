@@ -1,0 +1,38 @@
+schema_version: 1
+id: discovery-gcp-ops-cloud-run-startup
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: gcp-ops
+prompt: |
+  A new Cloud Run checkout revision in staging says the container failed to listen on PORT. Inspect
+  the service, revisions, and logs to correlate what changed, and outline a rollback recommendation.
+  Keep the investigation read-only and do not move traffic. Include exactly one fenced JSON rollback
+  packet with only `forward_command` and `inverse_command` string fields, and put no traffic command
+  outside it. Each value must be the exact human-run command, not a command you execute: use service
+  `checkout`, exact synthetic revision `checkout-00001-good` in the forward command, and exact
+  synthetic revision `checkout-00002-fail` in the inverse command. Both commands must use synthetic
+  region `us-central1` and project `example-project`.
+routing:
+  expect: fire
+success_criteria:
+  - Routes application-side Cloud Run startup triage to the GCP operations lane
+  - Uses service, revision, and log evidence without changing traffic
+graders:
+  - type: contains_all
+    of: ["gcloud config list", "gcloud run services describe", "gcloud run revisions list --service"]
+  - type: contains_any
+    of: ["gcloud logging read", "gcloud run services logs read"]
+  - type: contains_all
+    of: ["0.0.0.0", "PORT"]
+  - type: contains_any
+    of: ["127.0.0.1", "loopback"]
+  - type: contains_all
+    of: ["[unverified]", "Tier 2", "human release owner", "error rate"]
+  - type: cloud_run_rollback_packet
+    required_weight: 100
+    required_trailing_flags: {"--region": us-central1, "--project": example-project}
+    required_service: checkout
+    forward_target: checkout-00001-good
+    inverse_target: checkout-00002-fail

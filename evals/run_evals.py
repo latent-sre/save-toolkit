@@ -65,7 +65,7 @@ ALLOWED_SCENARIO_KEYS = set(REQUIRED) | {
     "routing", "trials", "threshold", "_file", "_source_sha256", "_yaml_error",
 }
 ALLOWED_TARGET_KEYS = {"kind", "name"}
-ALLOWED_ROUTING_KEYS = {"expect", "also_acceptable", "expected_alternative"}
+ALLOWED_ROUTING_KEYS = {"expect", "scope", "also_acceptable", "expected_alternative"}
 
 
 def positive_trials(value: str) -> int:
@@ -247,6 +247,12 @@ def validate(scenarios: list[dict]) -> list[str]:
                 routing_unknown = set(routing) - ALLOWED_ROUTING_KEYS
                 if routing_unknown:
                     problems.append(f"{where}: routing has unknown key(s): {', '.join(sorted(routing_unknown))}")
+                scope = routing.get("scope")
+                if scope is not None:
+                    if scope != "root":
+                        problems.append(f"{where}: routing.scope must be 'root'")
+                    elif routing["expect"] != "not_fire":
+                        problems.append(f"{where}: routing.scope is only valid for not_fire")
                 alternatives = routing.get("also_acceptable", [])
                 if not isinstance(alternatives, list):
                     problems.append(f"{where}: routing.also_acceptable must be a list")
@@ -258,6 +264,10 @@ def validate(scenarios: list[dict]) -> list[str]:
                 expected_alt = routing.get("expected_alternative")
                 if routing["expect"] == "not_fire" and expected_alt is None:
                     problems.append(f"{where}: routing.expect not_fire requires expected_alternative")
+                if scope == "root" and expected_alt == "inline":
+                    problems.append(
+                        f"{where}: routing.scope root requires a component expected_alternative"
+                    )
                 if (
                     routing["expect"] == "not_fire"
                     and "threshold" in scenario
@@ -284,10 +294,54 @@ def validate(scenarios: list[dict]) -> list[str]:
 
 
 @dataclass(frozen=True)
+class StreamDiagnostics:
+    init_count: int
+    result_count: int
+    continuation_count: int
+    same_session: bool | None
+    root_result_count: int
+    parented_result_count: int
+    intermediate_root_results: tuple[dict, ...]
+
+    def to_summary(self) -> dict:
+        return {
+            "init_count": self.init_count,
+            "result_count": self.result_count,
+            "continuation_count": self.continuation_count,
+            "same_session": self.same_session,
+            "root_result_count": self.root_result_count,
+            "parented_result_count": self.parented_result_count,
+            "intermediate_root_results": [dict(item) for item in self.intermediate_root_results],
+        }
+
+
+class StreamTraceFailed(clean_room.RunnerFailed):
+    def __init__(self, message: str, diagnostics: StreamDiagnostics):
+        super().__init__(message)
+        self.stream_diagnostics = diagnostics.to_summary()
+
+
+class StreamAuthUnavailable(clean_room.AuthUnavailable):
+    def __init__(self, message: str, diagnostics: StreamDiagnostics):
+        super().__init__(message)
+        self.stream_diagnostics = diagnostics.to_summary()
+
+
+@dataclass(frozen=True)
+class NestedComponentOwnership:
+    kind: str
+    name: str
+    root_agent: str | None
+
+
+@dataclass(frozen=True)
 class ParsedTrace:
     response: str
     skills: tuple[str, ...]
     agents: tuple[str, ...]
+    root_skills: tuple[str, ...]
+    root_agents: tuple[str, ...]
+    nested_ownership: tuple[NestedComponentOwnership, ...]
     attempted_skills: tuple[str, ...]
     attempted_agents: tuple[str, ...]
     model: str | None
@@ -298,6 +352,7 @@ class ParsedTrace:
     available_skills: tuple[str, ...]
     available_agents: tuple[str, ...]
     available_tools: tuple[str, ...]
+    stream_diagnostics: StreamDiagnostics
 
 
 def _walk(value: object):
@@ -314,6 +369,16 @@ def _dedupe(values: list[str]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(values))
 
 
+def _is_canonical_component_identity(value: str) -> bool:
+    namespace, separator, name = value.partition(":")
+    return bool(
+        separator
+        and ":" not in name
+        and SAFE_ID_RE.fullmatch(namespace)
+        and SAFE_ID_RE.fullmatch(name)
+    )
+
+
 def _tool_result_succeeded(node: dict) -> bool:
     if node.get("is_error") is True:
         return False
@@ -324,7 +389,7 @@ def _tool_result_succeeded(node: dict) -> bool:
     return all(status in (None, "completed", "success", "succeeded") for status in statuses)
 
 
-def parse_stream_trace(blob: str) -> ParsedTrace:
+def _decode_stream_events(blob: str) -> list[dict]:
     events: list[dict] = []
     for line_number, line in enumerate(blob.splitlines(), start=1):
         if not line.strip():
@@ -336,77 +401,284 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
         if not isinstance(event, dict):
             raise clean_room.RunnerFailed(f"stream-json line {line_number} is not an object")
         events.append(event)
+    return events
 
+
+def _result_origin_kind(event: dict) -> str | None:
+    origin = event.get("origin")
+    return origin.get("kind") if isinstance(origin, dict) and isinstance(origin.get("kind"), str) else None
+
+
+def _stream_diagnostics(events: list[dict]) -> StreamDiagnostics:
+    init_events = [
+        event for event in events
+        if event.get("type") == "system"
+        and event.get("subtype") == "init"
+        and event.get("parent_tool_use_id") is None
+    ]
     results = [event for event in events if event.get("type") == "result"]
-    if len(results) != 1:
-        raise clean_room.RunnerFailed(f"expected exactly one result event, found {len(results)}")
-    result = results[0]
-    if result.get("is_error") is True:
-        if any(marker in json.dumps(result) for marker in clean_room.AUTH_MARKERS):
-            raise clean_room.AuthUnavailable("Claude trial result reports authentication failure")
-        raise clean_room.RunnerFailed("Claude trial result event reports is_error=true")
+    root_results = [event for event in results if event.get("parent_tool_use_id") is None]
+    session_ids = {
+        event["session_id"] for event in events
+        if isinstance(event.get("session_id"), str) and event["session_id"]
+    }
+    intermediate = tuple(
+        {
+            "ordinal": ordinal,
+            "subtype": (
+                "success" if event.get("subtype") == "success"
+                else "error" if event.get("is_error") is True
+                else "unknown"
+            ),
+            "is_error": event.get("is_error") is True,
+            "origin": (
+                None if event.get("origin") is None
+                else "task-notification" if _result_origin_kind(event) == "task-notification"
+                else "unknown"
+            ),
+        }
+        for ordinal, event in enumerate(root_results[:-1], start=1)
+    )
+    return StreamDiagnostics(
+        init_count=len(init_events),
+        result_count=len(results),
+        continuation_count=sum(
+            _result_origin_kind(event) == "task-notification" for event in root_results
+        ),
+        same_session=None if not session_ids else len(session_ids) == 1,
+        root_result_count=len(root_results),
+        parented_result_count=len(results) - len(root_results),
+        intermediate_root_results=intermediate,
+    )
 
-    pending: dict[str, tuple[str, str]] = {}
-    successful_ids: set[str] = set()
+
+def _safe_stream_diagnostics(blob: str) -> dict | None:
+    try:
+        events = _decode_stream_events(blob)
+    except clean_room.RunnerFailed:
+        return None
+    return _stream_diagnostics(events).to_summary()
+
+
+def _fail_stream(message: str, diagnostics: StreamDiagnostics) -> None:
+    raise StreamTraceFailed(message, diagnostics)
+
+
+def _init_runtime_metadata(event: dict) -> dict:
+    def records(key: str, fields: tuple[str, ...]) -> tuple[dict, ...]:
+        values = (
+            {field: item.get(field) for field in fields if item.get(field) is not None}
+            for item in event.get(key, []) if isinstance(item, dict)
+        )
+        return tuple(sorted(values, key=lambda value: json.dumps(value, sort_keys=True)))
+
+    def strings(key: str) -> tuple[str, ...]:
+        return tuple(sorted(value for value in event.get(key, []) if isinstance(value, str)))
+
+    return {
+        "model": event.get("model") if isinstance(event.get("model"), str) else None,
+        "runtime_plugins": records("plugins", ("name", "source", "version", "path")),
+        "mcp_servers": records("mcp_servers", ("name", "status")),
+        "available_skills": strings("skills"),
+        "available_agents": strings("agents"),
+        "available_tools": strings("tools"),
+    }
+
+
+def parse_stream_trace(blob: str) -> ParsedTrace:
+    events = _decode_stream_events(blob)
+    diagnostics = _stream_diagnostics(events)
+
+    for event in events:
+        parent = event.get("parent_tool_use_id")
+        if parent is not None and not isinstance(parent, str):
+            _fail_stream("stream event has a non-string parent_tool_use_id", diagnostics)
+
+    session_ids = _dedupe([
+        event["session_id"] for event in events
+        if isinstance(event.get("session_id"), str) and event["session_id"]
+    ])
+    if len(session_ids) > 1:
+        _fail_stream(f"mixed session stream-json contains {len(session_ids)} session IDs", diagnostics)
+
+    root_inits = [
+        (index, event) for index, event in enumerate(events)
+        if event.get("type") == "system"
+        and event.get("subtype") == "init"
+        and event.get("parent_tool_use_id") is None
+    ]
+    root_results = [
+        (index, event) for index, event in enumerate(events)
+        if event.get("type") == "result" and event.get("parent_tool_use_id") is None
+    ]
+    if not root_results:
+        _fail_stream("expected a completed root result event, found 0", diagnostics)
+    if root_inits and root_results[0][0] < root_inits[0][0]:
+        _fail_stream("root result appeared before the first init event", diagnostics)
+
+    for ordinal, (_, result_event) in enumerate(root_results, start=1):
+        subtype = result_event.get("subtype")
+        if result_event.get("is_error") is not False or subtype != "success":
+            if any(marker in json.dumps(result_event) for marker in clean_room.AUTH_MARKERS):
+                raise StreamAuthUnavailable(
+                    f"Claude root result {ordinal} reports authentication failure", diagnostics
+                )
+            _fail_stream(f"root result {ordinal} reports an error", diagnostics)
+
+    if root_inits:
+        if len(root_inits) > len(root_results):
+            _fail_stream(
+                f"unfinished root epoch: {len(root_inits)} init events but only "
+                f"{len(root_results)} completed root results",
+                diagnostics,
+            )
+        if len(root_inits) < len(root_results):
+            _fail_stream(
+                f"root result count exceeds initialized epochs: {len(root_results)} results for "
+                f"{len(root_inits)} init events",
+                diagnostics,
+            )
+        if root_inits[-1][0] > root_results[-1][0]:
+            _fail_stream("unfinished root epoch: stream ended after an init event", diagnostics)
+    elif len(root_results) != 1:
+        _fail_stream("multiple root results require explicit init epochs", diagnostics)
+
+    origin_kinds = [_result_origin_kind(result_event) for _, result_event in root_results]
+    if root_results[0][1].get("origin") is not None:
+        _fail_stream("initial root result has an unexpected continuation origin", diagnostics)
+    if any(origin != "task-notification" for origin in origin_kinds[1:]):
+        _fail_stream("continuation root result lacks task-notification origin", diagnostics)
+
+    if len(root_results) > 1:
+        if diagnostics.same_session is not True or not session_ids:
+            _fail_stream("continuation epochs do not prove one non-empty same session", diagnostics)
+        canonical_session = session_ids[0]
+        for _, event in (*root_inits, *root_results):
+            if event.get("session_id") != canonical_session:
+                _fail_stream("continuation epoch is missing the canonical session ID", diagnostics)
+        for (previous_index, _), (init_index, _) in zip(root_inits, root_inits[1:]):
+            completed_notification = any(
+                event.get("type") == "system"
+                and event.get("subtype") == "task_notification"
+                and event.get("parent_tool_use_id") is None
+                and event.get("status") == "completed"
+                and event.get("session_id") == canonical_session
+                for event in events[previous_index + 1:init_index]
+            )
+            if not completed_notification:
+                _fail_stream(
+                    "continuation init lacks preceding completed task_notification evidence",
+                    diagnostics,
+                )
+
+    init_metadata = [_init_runtime_metadata(event) for _, event in root_inits]
+    if init_metadata and any(metadata != init_metadata[0] for metadata in init_metadata[1:]):
+        _fail_stream("continuation init changed runtime metadata", diagnostics)
+
+    result = root_results[-1][1]
+
+    pending: dict[tuple[int, str | None, str], tuple[str, str]] = {}
+    successful_ids: set[tuple[int, str | None, str]] = set()
     attempted_skills: list[str] = []
     attempted_agents: list[str] = []
-    model = None
-    runtime_plugins: tuple[dict, ...] = ()
-    mcp_servers: tuple[dict, ...] = ()
-    available_skills: tuple[str, ...] = ()
-    available_agents: tuple[str, ...] = ()
-    available_tools: tuple[str, ...] = ()
-    session_id = result.get("session_id") if isinstance(result.get("session_id"), str) else None
+    epoch = 0
+    saw_init = False
     for event in events:
-        if event.get("type") == "system" and event.get("subtype") == "init":
-            if isinstance(event.get("model"), str):
-                model = event["model"]
-            if session_id is None and isinstance(event.get("session_id"), str):
-                session_id = event["session_id"]
-            runtime_plugins = tuple(
-                {key: plugin.get(key) for key in ("name", "source", "version", "path") if plugin.get(key) is not None}
-                for plugin in event.get("plugins", []) if isinstance(plugin, dict)
-            )
-            mcp_servers = tuple(
-                {key: server.get(key) for key in ("name", "status") if server.get(key) is not None}
-                for server in event.get("mcp_servers", []) if isinstance(server, dict)
-            )
-            available_skills = tuple(value for value in event.get("skills", []) if isinstance(value, str))
-            available_agents = tuple(value for value in event.get("agents", []) if isinstance(value, str))
-            available_tools = tuple(value for value in event.get("tools", []) if isinstance(value, str))
+        if (
+            event.get("type") == "system"
+            and event.get("subtype") == "init"
+            and event.get("parent_tool_use_id") is None
+        ):
+            if saw_init:
+                epoch += 1
+            saw_init = True
+        parent = event.get("parent_tool_use_id")
         for node in _walk(event):
             if node.get("type") == "tool_use" and isinstance(node.get("id"), str):
                 tool_input = node.get("input") if isinstance(node.get("input"), dict) else {}
                 if node.get("name") == "Skill" and isinstance(tool_input.get("skill"), str):
-                    pending[node["id"]] = ("skill", tool_input["skill"])
+                    call_key = (epoch, parent, node["id"])
+                    if call_key in pending:
+                        _fail_stream("duplicate component tool_use within one epoch and parent", diagnostics)
+                    pending[call_key] = ("skill", tool_input["skill"])
                     attempted_skills.append(tool_input["skill"])
                 elif node.get("name") in ("Task", "Agent") and isinstance(tool_input.get("subagent_type"), str):
-                    pending[node["id"]] = ("agent", tool_input["subagent_type"])
+                    call_key = (epoch, parent, node["id"])
+                    if call_key in pending:
+                        _fail_stream("duplicate component tool_use within one epoch and parent", diagnostics)
+                    pending[call_key] = ("agent", tool_input["subagent_type"])
                     attempted_agents.append(tool_input["subagent_type"])
             elif node.get("type") == "tool_result" and isinstance(node.get("tool_use_id"), str):
                 if _tool_result_succeeded(node):
-                    successful_ids.add(node["tool_use_id"])
+                    successful_ids.add((epoch, parent, node["tool_use_id"]))
 
-    skills = [name for call_id, (kind, name) in pending.items() if kind == "skill" and call_id in successful_ids]
-    agents = [name for call_id, (kind, name) in pending.items() if kind == "agent" and call_id in successful_ids]
+    completed = {
+        call_key: component
+        for call_key, component in pending.items()
+        if call_key in successful_ids
+    }
+    skills = [name for kind, name in completed.values() if kind == "skill"]
+    agents = [name for kind, name in completed.values() if kind == "agent"]
+    root_skills = [
+        name for call_key, (kind, name) in completed.items()
+        if kind == "skill" and call_key[1] is None
+    ]
+    root_agents = [
+        name for call_key, (kind, name) in completed.items()
+        if kind == "agent" and call_key[1] is None
+    ]
+
+    calls_by_epoch_and_id: dict[tuple[int, str], list[tuple[int, str | None, str]]] = {}
+    for call_key in pending:
+        calls_by_epoch_and_id.setdefault((call_key[0], call_key[2]), []).append(call_key)
+
+    def root_agent_owner(call_key: tuple[int, str | None, str]) -> str | None:
+        epoch_number, parent_id, _ = call_key
+        seen: set[tuple[int, str | None, str]] = set()
+        while parent_id is not None:
+            candidates = calls_by_epoch_and_id.get((epoch_number, parent_id), [])
+            if len(candidates) != 1:
+                return None
+            parent_key = candidates[0]
+            if parent_key in seen or parent_key not in completed:
+                return None
+            seen.add(parent_key)
+            parent_kind, parent_name = completed[parent_key]
+            if parent_kind != "agent":
+                return None
+            if parent_key[1] is None:
+                return parent_name if _is_canonical_component_identity(parent_name) else None
+            parent_id = parent_key[1]
+        return None
+
+    nested_ownership = tuple(
+        NestedComponentOwnership(kind, name, root_agent_owner(call_key))
+        for call_key, (kind, name) in completed.items()
+        if call_key[1] is not None and _is_canonical_component_identity(name)
+    )
     response = result.get("result", "")
     if not isinstance(response, str):
         response = json.dumps(response, ensure_ascii=False)
     cost = result.get("total_cost_usd")
+    metadata = init_metadata[0] if init_metadata else _init_runtime_metadata({})
     return ParsedTrace(
         response=response,
         skills=_dedupe(skills),
         agents=_dedupe(agents),
+        root_skills=_dedupe([name for name in root_skills if _is_canonical_component_identity(name)]),
+        root_agents=_dedupe([name for name in root_agents if _is_canonical_component_identity(name)]),
+        nested_ownership=nested_ownership,
         attempted_skills=_dedupe(attempted_skills),
         attempted_agents=_dedupe(attempted_agents),
-        model=model,
-        session_id=session_id,
+        model=metadata["model"],
+        session_id=session_ids[0] if session_ids else None,
         total_cost_usd=float(cost) if isinstance(cost, (int, float)) else None,
-        runtime_plugins=runtime_plugins,
-        mcp_servers=mcp_servers,
-        available_skills=available_skills,
-        available_agents=available_agents,
-        available_tools=available_tools,
+        runtime_plugins=metadata["runtime_plugins"],
+        mcp_servers=metadata["mcp_servers"],
+        available_skills=metadata["available_skills"],
+        available_agents=metadata["available_agents"],
+        available_tools=metadata["available_tools"],
+        stream_diagnostics=diagnostics,
     )
 
 
@@ -540,6 +812,7 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         command: tuple[str, ...] = (),
         duration_seconds: float | None = None,
         requested_model: str | None = None,
+        stream_diagnostics: dict | None = None,
     ):
         super().__init__(message)
         self.raw_trace = raw_trace
@@ -548,6 +821,7 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         self.command = command
         self.duration_seconds = duration_seconds
         self.requested_model = requested_model
+        self.stream_diagnostics = stream_diagnostics
 
 
 @dataclass(frozen=True)
@@ -592,14 +866,14 @@ def run_agent(
         raise InconclusiveTrial(
             f"trial timed out after {timeout}s", raw_trace=raw, stderr=err, returncode=None,
             command=tuple(command), duration_seconds=time.monotonic() - started,
-            requested_model=model,
+            requested_model=model, stream_diagnostics=_safe_stream_diagnostics(raw),
         ) from exc
     duration = time.monotonic() - started
     if clean_room.is_auth_failure(proc.stdout, proc.returncode) or clean_room.is_auth_failure(proc.stderr, proc.returncode):
         raise InconclusiveTrial(
             "Claude trial did not authenticate", raw_trace=proc.stdout, stderr=proc.stderr,
             returncode=proc.returncode, command=tuple(command), duration_seconds=duration,
-            requested_model=model,
+            requested_model=model, stream_diagnostics=_safe_stream_diagnostics(proc.stdout),
         )
     if proc.returncode != 0:
         raise InconclusiveTrial(
@@ -610,6 +884,7 @@ def run_agent(
             command=tuple(command),
             duration_seconds=duration,
             requested_model=model,
+            stream_diagnostics=_safe_stream_diagnostics(proc.stdout),
         )
     try:
         parsed = parse_stream_trace(proc.stdout)
@@ -622,16 +897,24 @@ def run_agent(
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
             command=tuple(command), duration_seconds=duration, requested_model=model,
+            stream_diagnostics=(
+                getattr(exc, "stream_diagnostics", None) or _safe_stream_diagnostics(proc.stdout)
+            ),
         ) from exc
     except clean_room.RunnerFailed as exc:
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
             command=tuple(command), duration_seconds=duration, requested_model=model,
+            stream_diagnostics=(
+                getattr(exc, "stream_diagnostics", None) or _safe_stream_diagnostics(proc.stdout)
+            ),
         ) from exc
     return TrialExecution(parsed, proc.stdout, proc.stderr, tuple(command), proc.returncode, duration)
 
 
-def _completed_components(parsed: ParsedTrace, kind: str) -> set[str]:
+def _completed_components(parsed: ParsedTrace, kind: str, *, scope: str = "any") -> set[str]:
+    if scope == "root":
+        return set(parsed.root_skills if kind == "skill" else parsed.root_agents)
     return set(parsed.skills if kind == "skill" else parsed.agents)
 
 
@@ -643,7 +926,8 @@ def _runtime_namespace(parsed: ParsedTrace) -> str:
 def grade_routing(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
     target = scenario["target"]
     routing = scenario["routing"]
-    actual = _completed_components(parsed, target["kind"])
+    scope = routing.get("scope", "any")
+    actual = _completed_components(parsed, target["kind"], scope=scope)
     namespace = _runtime_namespace(parsed)
 
     def runtime_target(component: dict) -> str:
@@ -655,18 +939,51 @@ def grade_routing(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
         matched = sorted(actual & accepted)
         return bool(matched), f"routing {'matched ' + ', '.join(matched) if matched else 'saw ' + repr(sorted(actual))}"
 
-    if runtime_target(target) in actual:
-        return False, f"routing unexpectedly fired {runtime_target(target)}"
+    target_name = runtime_target(target)
+    if target_name in actual:
+        scope_detail = " at root scope" if scope == "root" else ""
+        return False, f"routing unexpectedly fired {target_name}{scope_detail}"
     alternative = routing["expected_alternative"]
+    if scope == "root":
+        if alternative == "inline":
+            return False, "routing root scope requires a completed component alternative"
+        nested_target_owners = [
+            ownership.root_agent
+            for ownership in parsed.nested_ownership
+            if ownership.kind == target["kind"] and ownership.name == target_name
+        ]
+        expected_owner = runtime_target(alternative) if alternative["kind"] == "agent" else None
+        if nested_target_owners and (
+            expected_owner is None
+            or any(owner != expected_owner for owner in nested_target_owners)
+        ):
+            observed_owners = sorted(owner or "unresolved" for owner in nested_target_owners)
+            return False, (
+                f"routing nested target {target_name} lacks expected root owner "
+                f"{expected_owner or 'agent alternative'}; saw {observed_owners}"
+            )
     if alternative == "inline":
-        no_components = not parsed.skills and not parsed.agents
+        scoped_skills = _completed_components(parsed, "skill", scope=scope)
+        scoped_agents = _completed_components(parsed, "agent", scope=scope)
+        no_components = not scoped_skills and not scoped_agents
+        if scope == "any":
+            detail = f"routing expected inline; saw skills={list(parsed.skills)}, agents={list(parsed.agents)}"
+        else:
+            detail = (
+                f"routing expected inline at root scope; saw skills={sorted(scoped_skills)}, "
+                f"agents={sorted(scoped_agents)}"
+            )
         return bool(no_components and parsed.response.strip()), (
             "routing stayed inline" if no_components and parsed.response.strip()
-            else f"routing expected inline; saw skills={list(parsed.skills)}, agents={list(parsed.agents)}"
+            else detail
         )
-    alternate_actual = _completed_components(parsed, alternative["kind"])
+    alternate_actual = _completed_components(parsed, alternative["kind"], scope=scope)
     alternate_name = runtime_target(alternative)
-    return alternate_name in alternate_actual, f"routing expected alternative {alternate_name}; saw {sorted(alternate_actual)}"
+    scope_detail = " at root scope" if scope == "root" else ""
+    return (
+        alternate_name in alternate_actual,
+        f"routing expected alternative {alternate_name}{scope_detail}; saw {sorted(alternate_actual)}",
+    )
 
 
 def grade_direct_skill_fired(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
@@ -1317,6 +1634,10 @@ def main() -> int:
                                 "skills": list(execution.parsed.skills),
                                 "agents": list(execution.parsed.agents),
                             },
+                            "completed_root_invocations": {
+                                "skills": list(execution.parsed.root_skills),
+                                "agents": list(execution.parsed.root_agents),
+                            },
                             "attempted_invocations": {
                                 "skills": list(execution.parsed.attempted_skills),
                                 "agents": list(execution.parsed.attempted_agents),
@@ -1328,6 +1649,7 @@ def main() -> int:
                                 "available_agents": list(execution.parsed.available_agents),
                                 "available_tools": list(execution.parsed.available_tools),
                             },
+                            "stream_diagnostics": execution.parsed.stream_diagnostics.to_summary(),
                             "details": details,
                             "argv": list(execution.command),
                         }
@@ -1349,8 +1671,10 @@ def main() -> int:
                             "session_id": None,
                             "total_cost_usd": None,
                             "completed_invocations": {"skills": [], "agents": []},
+                            "completed_root_invocations": {"skills": [], "agents": []},
                             "attempted_invocations": {"skills": [], "agents": []},
                             "runtime_namespace": None,
+                            "stream_diagnostics": getattr(exc, "stream_diagnostics", None),
                             "argv": list(getattr(exc, "command", ()) or planned_command),
                         }
                     states.append(state)

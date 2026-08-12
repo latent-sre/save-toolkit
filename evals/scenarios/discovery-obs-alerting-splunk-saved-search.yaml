@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-obs-alerting-splunk-saved-search
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: obs-alerting
+prompt: |
+  Design a Splunk saved-search paging alert for sustained checkout 5xx errors. Specify the search
+  window and schedule pairing, throttling, and the runbook link. This is steady-state alert design;
+  no alert is currently firing.
+routing:
+  expect: fire
+success_criteria:
+  - Routes Splunk saved-search alert design to the alerting lane
+  - Covers schedule, window, throttling, and runbook linkage
+graders:
+  - type: contains_all
+    of: ["cron_schedule = */5 * * * *", "dispatch.earliest_time = -5m", "dispatch.latest_time = now"]
+  - type: contains_all
+    of: ["alert.suppress = 1", "alert.suppress.period = 30m", "alert.suppress.fields = service,alert_type"]
+  - type: contains_all
+    of: ["instructions_lookup", "runbook_url", "fire", "resolve", "owner", "[unverified]"]

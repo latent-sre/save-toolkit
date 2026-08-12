@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 from collections.abc import Callable
 
 
@@ -29,6 +30,176 @@ def contains_any(response: str, of: list[str]) -> tuple[bool, str]:
     r = _norm(response)
     hit = [t for t in of if t.lower() in r]
     return (bool(hit), "found: " + ", ".join(hit) if hit else "none of: " + ", ".join(of))
+
+
+def cloud_run_rollback_packet(
+    response: str,
+    required_weight: int,
+    required_trailing_flags: dict[str, str],
+    required_service: str,
+    forward_target: str,
+    inverse_target: str,
+) -> tuple[bool, str]:
+    """Validate one fenced JSON packet containing exact forward and inverse Cloud Run commands."""
+
+    if (
+        isinstance(required_weight, bool)
+        or not isinstance(required_weight, int)
+        or not 0 <= required_weight <= 100
+    ):
+        raise ValueError("cloud_run_rollback_packet required_weight must be 0..100")
+    def identifier(token: str) -> str | None:
+        if not isinstance(token, str) or not token.isascii():
+            return None
+        return token if re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", token) else None
+
+    configured_service = identifier(_norm(required_service)) if isinstance(required_service, str) else None
+    configured_forward = identifier(_norm(forward_target)) if isinstance(forward_target, str) else None
+    configured_inverse = identifier(_norm(inverse_target)) if isinstance(inverse_target, str) else None
+    if (
+        configured_service is None
+        or configured_forward is None
+        or configured_inverse is None
+        or configured_forward == configured_inverse
+    ):
+        raise ValueError(
+            "cloud_run_rollback_packet requires one service and two distinct target identifiers"
+        )
+    if not isinstance(required_trailing_flags, dict) or any(
+        not isinstance(flag, str)
+        or re.fullmatch(r"--[a-z][a-z0-9-]*", flag) is None
+        or not isinstance(value, str)
+        or identifier(value) != value
+        for flag, value in required_trailing_flags.items()
+    ):
+        raise ValueError(
+            "cloud_run_rollback_packet required_trailing_flags must map flags to exact identifiers"
+        )
+
+    def parse_command(command: object) -> tuple[str, str, dict[str, str]] | None:
+        if (
+            not isinstance(command, str)
+            or not command
+            or "\x00" in command
+            or "\n" in command
+            or "\r" in command
+        ):
+            return None
+        try:
+            tokens = shlex.split(command, posix=True)
+        except ValueError:
+            return None
+        prefix = ["gcloud", "run", "services", "update-traffic"]
+        if tokens[: len(prefix)] != prefix or len(tokens) < len(prefix) + 3:
+            return None
+        service = identifier(tokens[len(prefix)])
+        if service is None:
+            return None
+        flag_index = len(prefix) + 1
+        if tokens[flag_index] == "--to-revisions":
+            if flag_index + 1 >= len(tokens):
+                return None
+            assignment = tokens[flag_index + 1]
+            tail = tokens[flag_index + 2 :]
+        elif tokens[flag_index].startswith("--to-revisions="):
+            assignment = tokens[flag_index][len("--to-revisions=") :]
+            tail = tokens[flag_index + 1 :]
+        else:
+            return None
+        if assignment.count("=") != 1:
+            return None
+        target, weight = assignment.split("=", 1)
+        target = identifier(target)
+        if target is None or weight != str(required_weight):
+            return None
+        seen_trailing_flags: set[str] = set()
+        trailing_values: dict[str, str] = {}
+        index = 0
+        while index < len(tail):
+            trailing_token = tail[index]
+            if "=" in trailing_token:
+                trailing_flag, trailing_value = trailing_token.split("=", 1)
+                index += 1
+            else:
+                if index + 1 >= len(tail):
+                    return None
+                trailing_flag = trailing_token
+                trailing_value = tail[index + 1]
+                index += 2
+            if (
+                trailing_flag not in required_trailing_flags
+                or trailing_flag in seen_trailing_flags
+                or identifier(trailing_value) is None
+            ):
+                return None
+            seen_trailing_flags.add(trailing_flag)
+            trailing_values[trailing_flag] = identifier(trailing_value) or ""
+        return service, target, trailing_values
+
+    blocks: list[str] = []
+    outside: list[str] = []
+    in_fence = False
+    saw_fence = False
+    current: list[str] = []
+    for line in response.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            label = stripped[3:].strip().lower()
+            if in_fence:
+                if label:
+                    return False, "malformed JSON rollback fence"
+                blocks.append("\n".join(current))
+                current = []
+                in_fence = False
+            else:
+                if saw_fence or label != "json":
+                    return False, "expected the JSON rollback packet to be the only fenced block"
+                saw_fence = True
+                in_fence = True
+            continue
+        if in_fence:
+            current.append(line)
+        else:
+            outside.append(line)
+    if in_fence or len(blocks) != 1:
+        return False, "expected exactly one closed JSON rollback packet"
+    normalized_outside = " ".join(_norm("\n".join(outside)).split())
+    if "gcloud run services update-traffic" in normalized_outside:
+        return False, "rollback commands must appear only in the JSON packet"
+
+    duplicate_keys: list[str] = []
+
+    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        payload: dict[str, object] = {}
+        for key, value in pairs:
+            if key in payload:
+                duplicate_keys.append(key)
+            payload[key] = value
+        return payload
+
+    try:
+        payload = json.loads(blocks[0], object_pairs_hook=reject_duplicate_keys)
+    except json.JSONDecodeError:
+        return False, "rollback packet is not valid JSON"
+    expected_keys = {"forward_command", "inverse_command"}
+    if duplicate_keys or not isinstance(payload, dict) or set(payload) != expected_keys:
+        return False, "rollback packet fields are not exact"
+    forward = parse_command(payload["forward_command"])
+    inverse = parse_command(payload["inverse_command"])
+    if forward is None or inverse is None:
+        return False, "rollback packet command shape is invalid"
+    forward_service, forward_target, forward_flags = forward
+    inverse_service, inverse_target, inverse_flags = inverse
+    if (
+        forward_service != configured_service
+        or inverse_service != configured_service
+        or forward_target != configured_forward
+        or inverse_target != configured_inverse
+    ):
+        return False, "rollback packet identities do not establish inverse traffic targets"
+    if forward_flags != required_trailing_flags or inverse_flags != required_trailing_flags:
+        return False, "rollback packet context flags do not match the exact scenario context"
+    return True, "rollback packet contains one exact forward/inverse command pair"
 
 
 def not_contains(response: str, of: list[str]) -> tuple[bool, str]:
@@ -165,6 +336,7 @@ def exact_fields(response: str, fields: dict) -> tuple[bool, str]:
 
 
 REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
+    "cloud_run_rollback_packet": cloud_run_rollback_packet,
     "contains_all": contains_all,
     "contains_any": contains_any,
     "not_contains": not_contains,

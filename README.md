@@ -1,9 +1,10 @@
 # Save Toolkit
 
 Save Toolkit is a multi-host plugin containing **8 canonical host-facing agents and 29 skills** for
-application engineering and site reliability work. Claude Code reads the canonical [`agents/`](agents) and [`skills/`](skills)
-sources directly. GitHub Copilot/VS Code and Codex receive committed, host-native projections made by
-one deterministic generator; generated files are never edited by hand.
+application engineering and site reliability work. Claude Code reads the canonical
+[`agents/`](agents) and [`skills/`](skills) sources directly. GitHub Copilot/VS Code and Codex
+receive committed, host-native projections made by one deterministic generator; generated files are
+never edited by hand.
 
 The roster, tool postures, and enforcement model are in [AGENTS.md](AGENTS.md). Routing is native:
 Claude plugin components are namespaced as `save-toolkit:<name>`; generated hosts use their native
@@ -33,9 +34,10 @@ bare component names.
   (record shape checked by [`validate_improvements.py`](scripts/validate_improvements.py); lifecycle
   transition, authority, history, and revision-binding validators remain parked at tag
   `pre-trim-2026-08-02`).
-- [`evals/`](evals) — offline behavioral contracts, the manual Claude runner, baseline records, and
-  the bounded improvement ledger; the Codex/Sol conformance runners are parked at tag
-  `pre-trim-2026-08-02`; see [`evals/README.md`](evals/README.md).
+- [`evals/`](evals) — offline behavioral contracts, the manual Claude runner, the active narrow
+  ROUTE-001 Codex/Terra evaluator, baseline records, and the bounded improvement ledger; broader
+  Codex/Sol conformance remains parked at tag `pre-trim-2026-08-02`; see
+  [`evals/README.md`](evals/README.md).
 - [`docs/`](docs) — the only live backlog is [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md);
   must-follow rules are indexed in [`docs/rules.md`](docs/rules.md); decisions live in
   [`docs/decisions/`](docs/decisions), closure evidence in [`docs/reviews/`](docs/reviews), and the
@@ -83,6 +85,44 @@ This fleet keeps its Copilot skill projection at `platforms/copilot/skills/`, th
 
 For other workspaces, install at user level rather than copying files: VS Code also scans
 `~/.copilot/agents/` and `~/.copilot/skills/`. Copied agent files arrive without their skills.
+
+## Install an immutable release
+
+Save Toolkit releases use one protected source tag named `save-toolkit--v<version>` across hosts.
+There is no moving `release` branch. The examples below become valid only after the matching GitHub
+Release exists and `gh release verify <tag> --repo latent-sre/save-toolkit` succeeds; beta-era
+version `0.1.0` is prepared but not published by this change.
+
+Claude Code installs the canonical agents, skills, command, and session hook from the tagged
+marketplace:
+
+```powershell
+$releaseTag = 'save-toolkit--v0.1.0'
+claude plugin marketplace add "latent-sre/save-toolkit@$releaseTag"
+claude plugin install save-toolkit@latent-sre
+claude plugin list --json
+```
+
+Codex installs the generated skills plugin from the same tag. Its generated custom agents remain a
+standalone, conflict-safe install from that tagged checkout because Codex plugins do not publish
+custom agents:
+
+```powershell
+$releaseTag = 'save-toolkit--v0.1.0'
+codex plugin marketplace add "latent-sre/save-toolkit@$releaseTag"
+codex plugin add save-toolkit@latent-sre
+git clone --branch $releaseTag --depth 1 https://github.com/latent-sre/save-toolkit.git save-toolkit-release
+py -3 save-toolkit-release/scripts/install_codex_agents.py --target '<project>/.codex/agents'
+```
+
+VS Code consumes `.github/agents/`, the registered skill projection, and workspace settings from the
+tagged checkout itself. Open `save-toolkit-release` in VS Code; UI discovery remains an accepted
+file-level verification limitation.
+
+Maintainers use the protected
+[`Publish immutable release`](.github/workflows/release.yml) workflow only after its external GitHub
+controls are approved and present. Release recovery never moves a tag; follow the
+[`release runbook`](docs/release-runbook.md).
 
 ## Validate and evaluate
 
@@ -157,12 +197,42 @@ boundary.
 
 Claude behavioral evaluations under [`evals/`](evals) remain manual; see
 [`evals/README.md`](evals/README.md) for the clean-room boundary, scenario contract, and the status
-of the revoked 2026-07-31 Sol baselines. The Codex/Sol conformance runners and manifests are parked
-at tag `pre-trim-2026-08-02` — Gate A plus the local Claude runner is the active verification
-surface; the parked design and its limits are recorded in
+of the historical Claude evidence and revoked 2026-07-31 Sol baselines.
+
+The owner-approved ROUTE-001 rewrite adds a separate, narrow Codex campaign pinned to Codex CLI
+0.147.0 and `gpt-5.6-terra` at medium reasoning: five scenarios paired across the fixed before/current
+revisions plus fourteen current-only cases, two trials each, for 48 trials. It has not been run and
+has produced no baseline. Codex 0.147 skill evidence is explicitly behavioral-only; only the two
+root-scoped incident negatives are not measurable with stock V2 receipts and therefore always remain
+`INCONCLUSIVE`. The evaluator contract is
+designed to remove local and effect tools through an authoritative model catalog and strict configuration;
+non-root trials allow no tool or collaboration receipts. The fixed authenticated canary is the
+non-root GCP Cloud Run startup case and uses only linear graders. Its disposable login remains a
+same-user application-layer boundary rather than OS-principal isolation. The tool-removal property
+must be independently bound to exact Codex 0.147 source before live use; transformed JSON is not its
+own proof. The full campaign is gated on clean committed evaluator bytes and independent review.
+
+The broader Codex/Sol conformance runners and manifests remain parked at tag
+`pre-trim-2026-08-02`; ROUTE-001 does not reopen EVAL-001. The parked design and its limits are
+recorded in
 [`docs/decisions/2026-08-01-local-sol-conformance.md`](docs/decisions/2026-08-01-local-sol-conformance.md).
 For repository-controlled executable checks, use the digest-bound, networkless container boundary in
 [`docs/verification-sandbox.md`](docs/verification-sandbox.md).
+
+The Terra canary is not launched from the mutable checkout. Its prepared path starts from an
+externally verified, protected copy of `evals/codex_bootstrap.py` under an absolute protected Python
+runtime with `-I -S -B`; that bootstrap accepts only the exact evaluator-bundle manifest and one
+fixed canary argument shape. The same bootstrap has an auth-free preflight that exercises the real
+snapshot, Codex/catalog, hook, config, and drift boundary but stops before auth or a model request;
+its result is diagnostic only and never authorizes live use. The current host's Python runtime
+closure is user-writable, so the
+authenticated canary is currently NO-GO. A protected Python executable/DLL/standard-library closure
+or separate OS identity, a local fixed NTFS private root, and a clean managed-config/registry boundary
+with no MCP, provider-route, proxy, guardian, or Command Processor AutoRun override are required
+before the canary can run. The live launch also requires a protected Git executable/DLL/runtime
+installation closure and sanitized object store with no repository-config includes, object
+alternates, replacement refs, or UNC/network resolution. No live Terra result is implied by the
+offline harness tests.
 
 ## Current status
 
@@ -170,14 +240,23 @@ For repository-controlled executable checks, use the digest-bound, networkless c
   structurally gated (Gate A); Claude marketplace validation and isolated plugin loading are
   verified on the recorded CLI version. Must-follow constraints are indexed in
   [`docs/rules.md`](docs/rules.md).
-- Codex/Sol conformance is parked at tag `pre-trim-2026-08-02` with no current runtime baseline.
-  Disposable host install/inventory/uninstall smoke for Claude, Codex, VS Code, and Copilot CLI is
-  closed under [`HOST-001`](docs/reviews/2026-08-06-host-001-closure.md); the Copilot CLI is out of
-  scope by owner decision, VS Code UI discovery and headless Codex agent discovery remain documented
-  gaps, and model-behavior evidence stays with EVAL-001.
-- `main` repository protection is closed (PROTECT-001). Publication now depends only on RELEASE-001
-  (distinct promotion authority, published-artifact install smoke, and rollback evidence) — tracked
-  in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+- ROUTE-001's nineteen-scenario/48-trial Codex/Terra campaign has a committed offline evaluator and
+  an uncommitted credential-free preflight repair, but no live result or baseline; its authenticated
+  canary is blocked on the trusted runtime/tool-plan
+  prerequisites above. Broader Codex/Sol conformance remains parked at tag `pre-trim-2026-08-02` with
+  no current runtime baseline. Disposable host install/inventory/uninstall smoke for Claude, Codex,
+  VS Code, and Copilot CLI is closed under
+  [`HOST-001`](docs/reviews/2026-08-06-host-001-closure.md); the Copilot CLI is out of scope by owner
+  decision, VS Code UI discovery and headless Codex agent discovery remain documented gaps, and the
+  broader model-behavior work stays with deferred EVAL-001.
+- `main` repository protection is closed (PROTECT-001). RELEASE-001 implementation now includes the
+  exact-SHA workflow, release contract, strict remote-tag host smoke, and rollback runbook. Live
+  publication remains blocked until that change is reviewed/merged, immutable releases plus the tag
+  ruleset/environment/App are configured with explicit owner approval, and the first protected run
+  supplies published-artifact and rollback evidence — tracked in
+  [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+- The prepared release remains the unpublished `0.1.0` beta. No `1.0` release exists or is implied by
+  the ROUTE-001 evaluator work.
 
 ## Contribute
 

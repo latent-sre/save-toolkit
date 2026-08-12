@@ -26,12 +26,15 @@ matters.
 | [`scripts/readonly-guard.py`](scripts/readonly-guard.py) | The fail-closed allowlist guard for `sre` and `observability-engineer`. Exit codes are a contract: 42 allow, 43 deny, 44 indeterminate — the hook uses them to tell this guard from a stand-in interpreter |
 | [`scripts/readonly-guard-hook.sh`](scripts/readonly-guard-hook.sh) | The shell shim `hooks/hooks.json` invokes; it hands the payload to the guard |
 | [`scripts/gate_a.py`](scripts/gate_a.py) | The single structural entrypoint. It discovers and runs every validator and `test_*.py` itself — do not transcribe its step list (read its docstring for why) |
+| [`.github/workflows/release.yml`](.github/workflows/release.yml) | The only prepared release effect path: exact-main-SHA preflight, protected annotated tag, strict remote-tag host smoke, protected immutable Release, then read-only verification. Its presence does not authorize dispatch |
+| [`scripts/release_contract.py`](scripts/release_contract.py), [`scripts/release_workflow_contract.py`](scripts/release_workflow_contract.py) | Fail-closed release request and workflow-shape contracts. The former binds version/review/SHA/actor/expiry/recovery/nonce; the latter mutation-checks the static authority boundary |
 | [`scripts/generate_platform_adapters.py`](scripts/generate_platform_adapters.py) | The one deterministic generator for all host projections. Run `--write` after any canonical edit; a hand-edit to a generated root is drift it will erase |
 | [`scripts/validate_fleet.py`](scripts/validate_fleet.py), [`check_links.py`](scripts/check_links.py), [`check_plan_status.py`](scripts/check_plan_status.py), [`check_stale_names.py`](scripts/check_stale_names.py) | The structural validators Gate A runs: fleet/plugin/adapter contracts, skill link/bundle reachability, single-live-roadmap discipline, and retired-name rejection |
 | [`scripts/install_codex_agents.py`](scripts/install_codex_agents.py) | Installs the generated Codex agents into an explicit scope without clobbering user files |
 | [`schemas/`](schemas) | Portable evidence contracts (the catalog and the evidence envelope); versioned per [`docs/schema-compatibility.md`](docs/schema-compatibility.md) |
 | [`evals/`](evals) | Offline routing/behavioral scenarios and the manual clean-room Claude runner. Routing evals need a live API and never run in CI |
 | [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) | The only live backlog; see [`docs/README.md`](docs/README.md) for the full authority map |
+| [`CHANGELOG.md`](CHANGELOG.md), [`docs/release-runbook.md`](docs/release-runbook.md) | Version-bound release notes and the consumer-side recovery procedure. A released version tag is never moved, deleted, or reused |
 | [`docs/decisions/`](docs/decisions), [`docs/reviews/`](docs/reviews), [`docs/superpowers/`](docs/superpowers) | Accepted ADRs; round-closure evidence; round-scoped plans and specs. Only accepted decisions govern |
 | [`.gitattributes`](.gitattributes) | Line-ending and diff handling that keeps the byte-for-byte adapter gate stable across platforms |
 | `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator's portable output set; fix the canonical source or generator and regenerate |
@@ -162,6 +165,12 @@ errors and the change quietly does not work.
   *Prevents:* a test that asserts nothing — this repo has shipped a test that silently matched
   nothing after a refactor moved the string it keyed on, and one that asserted the opposite of the
   contract named in its own comment while passing.
+- **Touched release packaging or promotion** (`CHANGELOG.md`, version-bearing manifests,
+  `.github/workflows/release.yml`, release/probe scripts) → run the release-contract and workflow
+  mutation tests plus the host-probe tests, then Gate A. Never dispatch from a feature branch or use a
+  local smoke as published-artifact evidence. *Prevents:* a plausible-looking workflow silently
+  widening authority, accepting partial host evidence, replaying an unknown effect, or publishing
+  bytes other than the exact reviewed main SHA.
 - **Suspect a suite proves less than it looks like it proves** → run
   [`python scripts/mutation_guard.py`](scripts/mutation_guard.py), which breaks the code on purpose
   and reports mutants the tests fail to notice. It rewrites files in place and refuses to start on a

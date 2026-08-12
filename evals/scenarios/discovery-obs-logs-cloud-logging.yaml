@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-obs-logs-cloud-logging
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: obs-logs
+prompt: |
+  Our checkout service runs on Cloud Run. Write a Cloud Logging query that finds ERROR and CRITICAL
+  entries for service checkout over the last hour. This is query construction only; do not triage
+  the service configuration or change anything.
+routing:
+  expect: fire
+success_criteria:
+  - Routes Cloud Logging query construction to the log-query lane
+  - Returns a time-bounded severity filter without changing the service
+graders:
+  - type: contains_all
+    of: ["gcloud logging read", "resource.type=cloud_run_revision", "resource.labels.service_name=checkout"]
+  - type: contains_all
+    of: ["severity=(ERROR OR CRITICAL)", "--freshness=1h", "--limit=50", "--format=json"]
+  - type: contains_all
+    of: ["absolute UTC window", "payload fields", "[unverified]"]
