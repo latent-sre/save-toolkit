@@ -1,7 +1,10 @@
 # HOST-002 VS Code probe — procedure and evidence template
 
-**This file is a blank instrument, not evidence.** No result, verdict, or observation below has been
-recorded. Every field is empty for the operator who runs the probe to fill in.
+**This file is a blank instrument, not evidence.** No probe result or verdict has been recorded, and
+every result field is empty for the operator who runs the probe to fill in. It contains exactly one
+recorded observation, and it is not a probe result: the Step 3 instrument-calibration note, which
+reports that the drift detector was exercised against a throwaway copy before this procedure asked
+anyone to rely on it. It is labelled and scoped where it sits.
 
 - **Supports:** `HOST-002` in [`fleet-roadmap.md`](../fleet-roadmap.md) — that entry is the authority
   for scope and acceptance. This procedure does not restate, narrow, or replace it; it only makes the
@@ -9,8 +12,11 @@ recorded. Every field is empty for the operator who runs the probe to fill in.
 - **Why a procedure exists:** HOST-002's acceptance requires observing a running VS Code UI. Nothing
   in this repository can do that. The probe is a human, five-minute, observation-only run.
 - **What it does not do:** it starts no live effect, wires no hook, and edits no canonical or
-  generated source. Its only local mutation risk is the agent-file write-back tested in Step 3, which
-  Step 3 also restores and re-verifies.
+  generated source. It has two local mutation surfaces. The agent-file write-back tested in Step 3 is
+  restored and re-verified there. The second is easy to miss: enabling a tool may instead write a
+  user- or workspace-scope VS Code settings entry, which lives outside the repository, so
+  `git status` and the Step 6 reset both read clean while your profile stays changed. Record and
+  revert it explicitly.
 - **Recorded as fields, not checkboxes.** An unchecked box in this repository reads as unfinished
   work; a blank field reads as unrecorded, which is what it is. An empty field never means "no."
 
@@ -126,8 +132,10 @@ one you saw, not "no execute".
 
 ### Step 3 — If you enable a tool from the picker, does the agent file change on disk?
 
-With `sre` still selected, enable **one** tool from the picker. Then, in a terminal at the repository
-root:
+With `sre` still selected, enable the **terminal/execute** entry if Step 2 found one; otherwise enable
+any single entry `sre` omits (`edit`, `web`, or `todo`). Record which one you enabled — two operators
+enabling different tools can see different write-back behavior, so the answer is not reproducible
+without it. Then, in a terminal at the repository root:
 
 ```text
 git status --porcelain .github/agents/
@@ -283,8 +291,16 @@ Apply these before the matrix, or the matrix will launder an inference into a me
 
 - **A UI absence proves the UI, not the enforcement.** "The picker did not offer it" is `[verified]`
   about the picker and `[unverified]` about whether the model can reach the capability another way.
-- **A skipped step is inconclusive, never a "no".** Its matrix row stays inconclusive and HOST-002
-  stays open on that row.
+- **A skipped step is inconclusive, never a "no".** Its matrix row stays inconclusive. A skip among
+  Steps 2, 3, and 4 leaves HOST-002 open on that row, because those are the questions its acceptance
+  names. Steps 1, 5, 6, and 7 are additional observations and do not gate HOST-002; skipping them
+  records nothing and blocks nothing.
+- **A model not calling a tool is evidence about the model, not the host.** A single turn that
+  produces no command has at least three non-enforcement explanations: the model declined, it
+  answered from context, or the call failed for an unrelated reason. Absent an observed *host-side*
+  denial — a refusal, a permission prompt, an error naming the tool — record `inconclusive` and retry
+  at least twice. Key this on the tool-call presence you captured in Step 2, never on whether output
+  appeared.
 - **Do not upgrade a Base B `[sourced]` claim on the strength of a different observation.** Each
   clause needs its own observation, or it keeps its one-remove label.
 - **One build.** Every conclusion carries the version and commit recorded in §1.2.
@@ -328,7 +344,8 @@ mis-locates the gap). A fourth, **inconclusive**, changes nothing.
 | Result | Meaning for the `AGENTS.md` VS Code limit |
 |---|---|
 | Override reinstates it and `sre` actually runs the command | The core clause — `tools:` is a default, not a boundary — is **confirmed** by observation; managed settings remain the only stated real control |
-| Override offered but the command still does not run | The limit overstates the gap **for the path you tried** → **replace with measured behavior**, and name the paths not tried (prompt file, deep link) so the replacement claims no more than was measured |
+| Override offered, the command does not run, and you observed a **host-side denial** (refusal, permission prompt, or an error naming the tool) | The limit overstates the gap **for the path you tried** → **replace with measured behavior**, scoped to this build, and name the paths not tried (prompt file, deep link) so the replacement claims no more than was measured |
+| Override offered, the command does not run, and there is **no** host-side denial | **Inconclusive — change nothing.** The model may have declined, answered from context, or failed for an unrelated reason. Retry at least twice; if no denial ever appears, record `inconclusive` and leave the limit standing. A security limit is not weakened by a model's silence |
 | The enabling action also rewrote the agent file | The override was not isolated. Record it as a file edit through the UI, not as a session override; this row is **inconclusive** until a non-file-mutating path is tried |
 | No override path found | **Inconclusive.** The clause keeps its `[sourced]` Base B label and is not upgraded |
 
@@ -409,8 +426,14 @@ build other than the one recorded above; whether the same results hold for
 Tools enabled during Steps 3–4 turned back off?  yes / no:
 git status --porcelain (expect empty):
 python scripts/gate_a.py summary line (expect PASS):
+Any user- or workspace-scope settings entry the picker created — reverted?  yes / no / none seen:
+  exact key(s):
 Live systems touched (expect: none):
 ```
 
 Anything left dirty in [`.github/agents/`](../../.github/agents) is drift the byte gate will reject on
 the next change, and the operator who runs it next will not know it came from a UI click.
+
+The settings line is separate from `git status` on purpose. A user-scope write lands outside this
+repository, so `git status` and Gate A both report clean while your VS Code profile stays modified —
+the one residue this checklist would otherwise certify as absent.
