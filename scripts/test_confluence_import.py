@@ -19,6 +19,7 @@ Pure stdlib; runs offline in CI via gate_a.py.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -49,6 +50,17 @@ VIEW_HTML = """<html><head><title>Restart the checkout worker</title></head><bod
 </body></html>"""
 
 
+def child_env() -> dict[str, str]:
+    """Pin the child's stdout encoding so both ends of the pipe agree on every host.
+
+    The report echoes source headings, so it carries whatever Unicode the page had. Without
+    this pin the child encodes with an inherited PYTHONIOENCODING while `subprocess` decodes
+    with the locale encoding, and any byte the locale lacks makes `proc.stdout` None instead
+    of raising -- a decode error surfaces as an unrelated TypeError several assertions later.
+    """
+    return {**os.environ, "PYTHONIOENCODING": "utf-8"}
+
+
 def run_converter(html: str, *args: str) -> tuple[subprocess.CompletedProcess, str]:
     """Run the converter on `html`, returning (proc, draft_text)."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -59,6 +71,8 @@ def run_converter(html: str, *args: str) -> tuple[subprocess.CompletedProcess, s
             [sys.executable, str(CONVERTER), str(src), "-o", str(out), *args],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            env=child_env(),
             timeout=30,
         )
         draft = out.read_text(encoding="utf-8") if out.exists() else ""
@@ -149,6 +163,8 @@ class ConfluenceImportTest(unittest.TestCase):
                 [sys.executable, str(CONVERTER), str(missing), "-o", str(out)],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                env=child_env(),
                 timeout=30,
             )
             self.assertNotEqual(proc.returncode, 0)
