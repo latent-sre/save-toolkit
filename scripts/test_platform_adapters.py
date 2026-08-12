@@ -234,6 +234,25 @@ class PlatformAdapterTests(unittest.TestCase):
             failures = adapters._gitattributes_failures(root)
         self.assertTrue(any("rule for .gitattributes" in f for f in failures), failures)
 
+    def test_recovery_patches_are_governed_by_the_lf_policy(self) -> None:
+        # Recovery patches under docs/reviews/ diff sources that are themselves eol=lf. Without
+        # the rule, core.autocrlf hands a fresh Windows clone CRLF patches that no longer apply,
+        # so a preserved snapshot silently stops being recoverable.
+        #
+        # `*.patch` is named literally rather than iterated from GITATTRIBUTES_REQUIRED_EOL on
+        # purpose: deriving it would let a co-revert of the tuple entry and the .gitattributes
+        # rule shrink the loop and pass. Reverting either half alone, or both, must fail here.
+        self.assertIn("*.patch", adapters.GITATTRIBUTES_REQUIRED_EOL)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+            broken = "\n".join(
+                line for line in text.splitlines() if not line.startswith("*.patch")
+            ) + "\n"
+            (root / ".gitattributes").write_text(broken, encoding="utf-8", newline="\n")
+            failures = adapters._gitattributes_failures(root)
+        self.assertTrue(any("eol=lf' rule for *.patch" in f for f in failures), failures)
+
     def test_generated_cr_byte_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()

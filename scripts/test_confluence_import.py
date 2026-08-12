@@ -19,6 +19,7 @@ Pure stdlib; runs offline in CI via gate_a.py.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -49,6 +50,17 @@ VIEW_HTML = """<html><head><title>Restart the checkout worker</title></head><bod
 </body></html>"""
 
 
+def child_env() -> dict[str, str]:
+    """Pin the child's stdout encoding so both ends of the pipe agree on every host.
+
+    The report echoes source headings, so it carries whatever Unicode the page had. Without
+    this pin the child encodes with an inherited PYTHONIOENCODING while `subprocess` decodes
+    with the locale encoding, and any byte the locale lacks makes `proc.stdout` None instead
+    of raising -- a decode error surfaces as an unrelated TypeError several assertions later.
+    """
+    return {**os.environ, "PYTHONIOENCODING": "utf-8"}
+
+
 def run_converter(html: str, *args: str) -> tuple[subprocess.CompletedProcess, str]:
     """Run the converter on `html`, returning (proc, draft_text)."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -59,6 +71,8 @@ def run_converter(html: str, *args: str) -> tuple[subprocess.CompletedProcess, s
             [sys.executable, str(CONVERTER), str(src), "-o", str(out), *args],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            env=child_env(),
             timeout=30,
         )
         draft = out.read_text(encoding="utf-8") if out.exists() else ""
@@ -139,6 +153,31 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertIn("https://example.atlassian.net/wiki/pages/123", self.draft)
         self.assertIn("page.html", self.draft)
 
+    def test_report_survives_a_hostile_inherited_encoding(self) -> None:
+        # The bug this pins: the child encoded with an inherited PYTHONIOENCODING while the parent
+        # decoded with the locale encoding, so a curly quote the locale lacked killed the reader
+        # thread and left proc.stdout as None -- surfacing as a TypeError, not a decode error.
+        #
+        # Setting a conflicting value here makes the mismatch reachable on every host instead of
+        # only on one with a non-UTF-8 locale. Honest limit: this kills the child-env pin on any
+        # host, but the parent's explicit decoder is unobservable where the locale is already
+        # UTF-8 -- identical behavior -- so the Windows CI leg remains its only coverage.
+        previous = os.environ.get("PYTHONIOENCODING")
+        os.environ["PYTHONIOENCODING"] = "cp1252"
+        try:
+            proc, draft = run_converter(VIEW_HTML)
+        finally:
+            if previous is None:
+                os.environ.pop("PYTHONIOENCODING", None)
+            else:
+                os.environ["PYTHONIOENCODING"] = previous
+        self.assertIsNotNone(proc.stdout, "a decode failure silently nulls stdout")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        # The exact non-ASCII the locale mismatch chokes on must round-trip, not be replaced.
+        self.assertIn("“Restart the checkout worker”", proc.stdout)
+        self.assertRegex(proc.stdout, r"[Mm]acro")
+        self.assertIn("Restart the checkout worker", draft)
+
     def test_unreadable_input_fails_loudly(self) -> None:
         # Both paths live in a real temp dir so the case stays cross-platform (Gate A runs on
         # Windows too); the source path simply never gets created.
@@ -149,6 +188,8 @@ class ConfluenceImportTest(unittest.TestCase):
                 [sys.executable, str(CONVERTER), str(missing), "-o", str(out)],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                env=child_env(),
                 timeout=30,
             )
             self.assertNotEqual(proc.returncode, 0)

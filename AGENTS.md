@@ -100,6 +100,14 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   sandbox mode but parent permissions may override it and custom-agent TOML has no per-agent tool
   allowlist. Codex local-only/external-only roles therefore require outer network or mount isolation,
   respectively. These differences are stated in every generated adapter.
+- **A VS Code `tools:` list is a default, not a boundary.** Omitting a tool does disable it for the
+  model, but a workspace agent's list loses to session tool selection, to a prompt file's own list,
+  and to a chat deep link — and the tools picker writes the user's change back into the `.agent.md`
+  file. Only extension-contributed agents are read-only. So the omitted `execute` on `sre` and
+  `observability-engineer` states intent and narrows the default; it is not the Claude guard's
+  equivalent and must never be described as one. Real enforcement on that host is policy-delivered
+  Copilot managed settings (`permissions.deny` with `Shell()`/`Read()`/`Edit()`/`Domain()` selectors,
+  `ChatAgentMode`, the network-domain policies), which a repository cannot grant itself.
 - `cf env`, `cf service-key`, and `CF_TRACE` output are denied to agents outright — those reads
   leak credentials next to egress. A human runs them and pastes the sanitized excerpt. The same
   rule covers the gcloud credential surface: `gcloud auth print-access-token` (and its identity/ADC
@@ -206,7 +214,10 @@ must respect:
   validate anywhere Python does.
 - **Generated adapters are consequences, never sources.** Fix `agents/`, `skills/`, or the generator
   and regenerate; never hand-edit `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`,
-  or `plugins/save-toolkit/skills/`. The byte-for-byte gate erases a direct fix.
+  or `plugins/save-toolkit/skills/`. The byte-for-byte gate erases a direct fix. A hand-edit is not
+  always deliberate: changing tools in VS Code's picker while a workspace agent is selected rewrites
+  that agent's `.agent.md` on disk, so a UI click can fail the drift gate. Check `git status` before
+  regenerating.
 - **Plugin agents silently ignore `hooks:`, `mcpServers:`, and `permissionMode:`**, and an unknown
   frontmatter key drops without error. A guard belongs in `hooks/hooks.json`; every new key must be a
   real Claude Code field.

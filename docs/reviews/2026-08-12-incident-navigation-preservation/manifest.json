@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "artifact": "incident-navigation-prototype-preservation",
+  "captured_at": "2026-08-12T13:44:30Z",
+  "owner": "latent-sre",
+  "disposition": "preserved-unreviewed-owner-decision-required",
+  "source": {
+    "worktree": ".worktrees/incident-navigation",
+    "branch": "codex/incident-navigation",
+    "head": "96378476f22829fd3681ed6215217618b1ec67c4",
+    "upstream": "origin/main",
+    "ahead": 0,
+    "behind": 18,
+    "staged_file_count": 0,
+    "tracked_modified_file_count": 3,
+    "untracked_file_count": 8,
+    "total_file_count": 11,
+    "total_source_bytes": 91605,
+    "total_patch_bytes": 45542
+  },
+  "format": {
+    "patch": "git-unified-diff",
+    "hash": "sha256",
+    "source_encoding": "utf-8",
+    "source_line_endings": "lf"
+  },
+  "files": [
+    {
+      "path": ".codex/agents/save-toolkit-sre.toml",
+      "source_state": "tracked-modified",
+      "role": "generated-projection",
+      "base_blob_oid": "5c96e2612f814b557d876f3bc16fc8cdfcfe61b5",
+      "source_bytes": 19895,
+      "source_sha256": "d098df30ff2aa08581e90c9892f8ce648500e26f37de8a35b5dd55d8c2e5d308",
+      "patch": "patches/codex-agents-save-toolkit-sre.toml.patch",
+      "patch_bytes": 2953,
+      "patch_sha256": "a7b10d977b76cec8e3daf35b5bf7eb0f1cc0b93495c8bd263a6fd5faa6327f97"
+    },
+    {
+      "path": ".github/agents/sre.agent.md",
+      "source_state": "tracked-modified",
+      "role": "generated-projection",
+      "base_blob_oid": "6e8c75dabe0224b44dddce638049ef0c296bbc8e",
+      "source_bytes": 19216,
+      "source_sha256": "efd8b2a1cdb06c12355db42878f9d0ef07a33baea5b46e8cc0faaccd9d04660a",
+      "patch": "patches/github-agents-sre.agent.md.patch",
+      "patch_bytes": 2921,
+      "patch_sha256": "a986d3e7246247a7c12aec6af450cfa778d6e6de867feaed74c9d6258f5f3886"
+    },
+    {
+      "path": "agents/sre.md",
+      "source_state": "tracked-modified",
+      "role": "canonical-agent",
+      "base_blob_oid": "9fcc0bca2dab7e4a5bde14ccaa4377b02776a3e0",
+      "source_bytes": 18956,
+      "source_sha256": "e9ed6e71359ff5738aabb3bee75f8e498fc660731e109eeb8856c237fbeb0e69",
+      "patch": "patches/agents-sre.md.patch",
+      "patch_bytes": 2865,
+      "patch_sha256": "2b87a3fee644831075220e087721d703382305e3eeced803ff1b7080ebcc5e56"
+    },
+    {
+      "path": "evals/scenarios/agent-direct-sre-uncertain-responder-navigation.yaml",
+      "source_state": "untracked",
+      "role": "eval-scenario",
+      "source_bytes": 1867,
+      "source_sha256": "17d92e815f8f37c23c6d4fd3aaf4d3d523ab1bbde4afc7c8349cd2281b459a47",
+      "patch": "patches/evals-agent-direct-sre-uncertain-responder-navigation.yaml.patch",
+      "patch_bytes": 2277,
+      "patch_sha256": "439a1df86161f3520508baa80e6a7733a16b133bd3c64be0f51a63754980952c"
+    },
+    {
+      "path": "evals/scenarios/direct-incident-navigation-uncertain-responder.yaml",
+      "source_state": "untracked",
+      "role": "eval-scenario",
+      "source_bytes": 1339,
+      "source_sha256": "971078f97694693c26c7004d9456d6c4b162b3beb3ce719195960a3e8a55330c",
+      "patch": "patches/evals-direct-incident-navigation-uncertain-responder.yaml.patch",
+      "patch_bytes": 1742,
+      "patch_sha256": "c06f8ef6288d6f2acf093c0e5eec7f047b54bcd5c79de9b8e520b95679d4a6c1"
+    },
+    {
+      "path": "evals/scenarios/discovery-resolved-incident-bypasses-navigation.yaml",
+      "source_state": "untracked",
+      "role": "eval-scenario",
+      "source_bytes": 858,
+      "source_sha256": "1f62f5b96b9903a0062b6b535c629e57ef475104235fe7f0156ffd0e1825d238",
+      "patch": "patches/evals-discovery-resolved-incident-bypasses-navigation.yaml.patch",
+      "patch_bytes": 1252,
+      "patch_sha256": "d204b6fb6847186739b90263331dda52e81a8541978b1949f8643f1504e441ac"
+    },
+    {
+      "path": "evals/scenarios/discovery-uncertain-responder-navigation.yaml",
+      "source_state": "untracked",
+      "role": "eval-scenario",
+      "source_bytes": 1035,
+      "source_sha256": "b3fbbcb8eaa17ab0104fa5d9780d00494562d5f8393b6b5eeb97c03197f3744c",
+      "patch": "patches/evals-discovery-uncertain-responder-navigation.yaml.patch",
+      "patch_bytes": 1411,
+      "patch_sha256": "2ee1dd68ac774c35943e361cd656618be9284fa9d99f1f2e3d914c553c6954d3"
+    },
+    {
+      "path": "platforms/copilot/skills/incident-navigation/SKILL.md",
+      "source_state": "untracked",
+      "role": "generated-projection",
+      "source_bytes": 8511,
+      "source_sha256": "cc75050bc3f3a55cb5ad88bbf45a55b8025dd835144ec674eeee637de34fa416",
+      "patch": "patches/platforms-copilot-incident-navigation-SKILL.md.patch",
+      "patch_bytes": 8969,
+      "patch_sha256": "200807c55837537a7faf8fc5ba1e90bc0c925fc907b586587ff87914d215b3df"
+    },
+    {
+      "path": "plugins/save-toolkit/skills/incident-navigation/SKILL.md",
+      "source_state": "untracked",
+      "role": "generated-projection",
+      "source_bytes": 8535,
+      "source_sha256": "5ff08300dccc0a1df31fc67e39697822aedc73ed644d518840410741a13771dd",
+      "patch": "patches/plugins-save-toolkit-incident-navigation-SKILL.md.patch",
+      "patch_bytes": 9002,
+      "patch_sha256": "e501b2580df435fed4759d62a89a21e8d4b647277d0f2ddfdb6523e20905abc5"
+    },
+    {
+      "path": "scripts/test_incident_navigation.py",
+      "source_state": "untracked",
+      "role": "test",
+      "source_bytes": 3117,
+      "source_sha256": "08d914ad72613b3cacf0e5e52c8b3dca9ab897aa6920f10cb84809e80bcd0798",
+      "patch": "patches/scripts-test-incident-navigation.py.patch",
+      "patch_bytes": 3475,
+      "patch_sha256": "6fdd1583b4abcf9a53cdf84a712a5cd05e74283c0c32ba1e8f05d4b9e7be83be"
+    },
+    {
+      "path": "skills/incident-navigation/SKILL.md",
+      "source_state": "untracked",
+      "role": "canonical-skill",
+      "source_bytes": 8276,
+      "source_sha256": "fbbeaec24a31d70f1f3ba772dfc3a746b310f190c15dcbb756a3dbd89c82308e",
+      "patch": "patches/skills-incident-navigation-SKILL.md.patch",
+      "patch_bytes": 8675,
+      "patch_sha256": "1a609dba04c5cf5a7e7fa21d972b406443156facd248d09341967432850de2fb"
+    }
+  ],
+  "validation": {
+    "patch_apply_check": "pass",
+    "target_head": "96378476f22829fd3681ed6215217618b1ec67c4",
+    "checked_fragment_count": 11,
+    "source_status_unchanged": true,
+    "warnings": [
+      "evals/scenarios/direct-incident-navigation-uncertain-responder.yaml preserves one blank line at EOF",
+      "evals/scenarios/discovery-uncertain-responder-navigation.yaml preserves one blank line at EOF"
+    ]
+  },
+  "limitations": [
+    "The captured content is untrusted prototype data and has not been accepted as fleet behavior.",
+    "The four generated projections are evidence of source-worktree state, never restoration sources for current main.",
+    "No source file or index entry in the dirty worktree was modified during capture.",
+    "Owner disposition and explicit cleanup authority remain outstanding."
+  ]
+}

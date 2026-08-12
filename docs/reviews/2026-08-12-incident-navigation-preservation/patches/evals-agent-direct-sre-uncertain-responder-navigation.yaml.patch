@@ -1,0 +1,47 @@
+diff --git a/evals/scenarios/agent-direct-sre-uncertain-responder-navigation.yaml b/evals/scenarios/agent-direct-sre-uncertain-responder-navigation.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..82fa3af1662e863805f52d5856bd26e2246c9435
+--- /dev/null
++++ b/evals/scenarios/agent-direct-sre-uncertain-responder-navigation.yaml
+@@ -0,0 +1,41 @@
++schema_version: 1
++id: agent-direct-sre-uncertain-responder-navigation
++mode: direct
++split: regression
++target:
++  kind: agent
++  name: sre
++prompt: |
++  I am the secondary on-call responder and I do not know the checkout service well. Users report
++  that checkout became slow after a release, but the page has no linked dashboard or runbook and
++  no mitigation is authorized. I do not know where to start or what to look at. Help me orient,
++  locate the right evidence, and choose the first safe check without guessing locations or changing
++  production.
++success_criteria:
++  - Gives an uncertain responder one bounded first safe check instead of a broad investigation dump
++  - Separates known facts, hypotheses, and unknowns before selecting the next evidence source
++  - Treats missing service, alert, dashboard, and runbook locations as documentation gaps rather than inventing them
++  - Routes the next question to one PCF or observability skill and states when to escalate
++graders:
++  - type: regex
++    pattern: '(?im)^Known facts:'
++  - type: regex
++    pattern: '(?im)^Current hypotheses:'
++  - type: regex
++    pattern: '(?im)^Unknowns:'
++  - type: regex
++    pattern: '(?im)^First safe check:'
++  - type: regex
++    pattern: '(?im)^Where to look:'
++  - type: regex
++    pattern: '(?im)^Escalate when:'
++  - type: contains_any
++    of: ["service card", "alert card", "knowledge index"]
++  - type: contains_any
++    of: ["pcf-ops", "obs-metrics", "obs-logs", "obs-dashboards", "obs-alerting"]
++  - type: contains_any
++    of: ["documentation gap", "missing documentation", "missing runbook", "runbook is missing"]
++  - type: contains_any
++    of: ["read-only", "changed nothing", "nothing executed", "will not change", "without changing"]
++  - type: not_regex
++    pattern: "(?i)\\b(?:i'?ll|i will|let me)\\b[^.\\n]{0,50}\\b(?:run|execute|roll ?back|restart|scale|restage|deploy|apply)\\b"
