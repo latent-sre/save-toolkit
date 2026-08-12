@@ -27,6 +27,7 @@ def _sha256(content: bytes) -> str:
 
 
 def _runtime(cwd: Path) -> object:
+    cwd = cwd.resolve(strict=True)
     flags = SimpleNamespace(
         isolated=1,
         no_site=1,
@@ -47,6 +48,7 @@ def _write_bundle(
     *,
     manifest_transform: object | None = None,
 ) -> tuple[Path, Path, str]:
+    root = root.resolve(strict=True)
     source = root / "source"
     source.mkdir()
     content = files or {
@@ -78,6 +80,7 @@ def _run(
     digest: str,
     **seams: object,
 ) -> int:
+    root = root.resolve(strict=True)
     return codex_bootstrap.run_bootstrap(
         manifest,
         digest,
@@ -134,7 +137,7 @@ class BootstrapApiTests(unittest.TestCase):
 
     def test_authoritative_canary_binds_stage_and_trial_to_one_private_root(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw).resolve()
+            root = Path(raw).resolve(strict=True)
             source = root / "source"
             repository = root / "repository"
             stage = root / "stage"
@@ -166,7 +169,7 @@ class BootstrapApiTests(unittest.TestCase):
 
     def test_authoritative_preflight_omits_auth_and_synthesizes_fixed_arguments(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw).resolve()
+            root = Path(raw).resolve(strict=True)
             source = root / "source"
             repository = root / "repository"
             stage = root / "stage"
@@ -230,6 +233,19 @@ class WindowsPrivateRootLocalityTests(unittest.TestCase):
 
         probe.assert_not_called()
 
+    @unittest.skipUnless(os.name == "nt", "Windows ACL ownership is host-specific")
+    def test_private_directory_setter_assigns_the_current_owner_and_exact_dacl(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(strict=True)
+            target = root / "private"
+            target.mkdir()
+
+            codex_bootstrap._set_windows_private_directory(target)
+
+            actual = codex_bootstrap._windows_directory_sddl(target)
+            expected = codex_bootstrap._windows_private_directory_sddl()
+            self.assertIn(actual, {expected, expected.replace("D:P(", "D:PAI(", 1)})
+
     def test_windows_remote_removable_subst_mapped_and_non_ntfs_are_rejected(self) -> None:
         cases = {
             "remote": (self._facts(drive_type=4), "local fixed storage"),
@@ -254,7 +270,7 @@ class WindowsPrivateRootLocalityTests(unittest.TestCase):
 
     def test_bootstrap_validates_the_authoritative_parent_before_staging(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
             private_root = (root / "stages").resolve()
             with mock.patch.object(
@@ -277,7 +293,7 @@ class WindowsPrivateRootLocalityTests(unittest.TestCase):
 class ManifestContractTests(unittest.TestCase):
     def test_exact_digest_bound_manifest_executes(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
 
             exit_code = _run(root, source, manifest, digest)
@@ -286,7 +302,7 @@ class ManifestContractTests(unittest.TestCase):
 
     def test_manifest_digest_mismatch_and_read_drift_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
             self.assertEqual(
                 codex_bootstrap.CONTRACT_FAILURE_EXIT,
@@ -315,7 +331,7 @@ class ManifestContractTests(unittest.TestCase):
         )
         for raw_manifest in invalid_documents:
             with self.subTest(raw_manifest=raw_manifest[:1]), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 source, manifest, _digest = _write_bundle(root)
                 manifest.write_bytes(raw_manifest)
 
@@ -347,7 +363,7 @@ class ManifestContractTests(unittest.TestCase):
             "row-extra": row_extra,
         }.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 source, manifest, digest = _write_bundle(
                     root, manifest_transform=transform
                 )
@@ -372,7 +388,7 @@ class ManifestContractTests(unittest.TestCase):
                 return data
 
             with self.subTest(relative=relative), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 source, manifest, digest = _write_bundle(
                     root, manifest_transform=transform
                 )
@@ -389,7 +405,7 @@ class ManifestContractTests(unittest.TestCase):
             "evals/helper.py": b"VALUE = 2\n",
         }
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root, files)
 
             exit_code = _run(root, source, manifest, digest)
@@ -401,7 +417,7 @@ class SourceAndStageBoundaryTests(unittest.TestCase):
     def test_manifest_and_source_root_reject_link_indirection(self) -> None:
         for target_name in ("manifest", "source"):
             with self.subTest(target_name=target_name), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 source, manifest, digest = _write_bundle(root)
                 if target_name == "manifest":
                     real = root / "real-manifest.json"
@@ -425,7 +441,7 @@ class SourceAndStageBoundaryTests(unittest.TestCase):
 
     def test_reparse_signal_on_source_component_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
             indirect = (source / "evals").resolve()
             original = codex_bootstrap._is_link_or_reparse
@@ -442,7 +458,7 @@ class SourceAndStageBoundaryTests(unittest.TestCase):
 
     def test_reparse_signal_on_manifest_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
             original = codex_bootstrap._is_link_or_reparse
 
@@ -459,7 +475,7 @@ class SourceAndStageBoundaryTests(unittest.TestCase):
     def test_source_hardlink_special_missing_and_oversized_files_are_rejected(self) -> None:
         for label in ("hardlink", "special", "missing", "oversized"):
             with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 source, manifest, digest = _write_bundle(root)
                 entrypoint = source / "evals/run_codex_routing.py"
                 limit = codex_bootstrap.MAX_FILE_BYTES
@@ -480,7 +496,7 @@ class SourceAndStageBoundaryTests(unittest.TestCase):
 
     def test_source_change_after_copy_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
 
             def mutate_source(_relative: str, path: Path) -> None:
@@ -499,7 +515,7 @@ class SourceAndStageBoundaryTests(unittest.TestCase):
     def test_staged_change_and_unexpected_extra_are_detected_before_execution(self) -> None:
         for label in ("drift", "extra"):
             with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 source, manifest, digest = _write_bundle(root)
 
                 def mutate_stage(stage: Path) -> None:
@@ -527,7 +543,7 @@ Path(__file__).with_name('runtime-extra.py').write_text('pass\\n', encoding='utf
 raise SystemExit(23)
 """
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(
                 root, {"evals/run_codex_routing.py": entrypoint}
             )
@@ -538,7 +554,7 @@ raise SystemExit(23)
 
     def test_successful_run_removes_the_random_stage(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
 
             self.assertEqual(23, _run(root, source, manifest, digest))
@@ -547,7 +563,7 @@ raise SystemExit(23)
 
     def test_misdirected_fresh_stage_is_removed_before_rejection(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
             misdirected = source / "unexpected-stage"
 
@@ -571,9 +587,47 @@ raise SystemExit(23)
 
 
 class RuntimeAndExecutionTests(unittest.TestCase):
+    def test_exact_stdlib_zip_path_is_trusted_but_unexpected_sibling_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(strict=True)
+            prefix = root / "runtime"
+            stdlib = prefix / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}"
+            source = root / "source"
+            stdlib.mkdir(parents=True)
+            source.mkdir()
+            zip_name = f"python{sys.version_info.major}{sys.version_info.minor}.zip"
+            expected_zip = stdlib.parent / zip_name
+            unexpected_zip = stdlib.parent / "python999.zip"
+
+            def runtime_path(name: str) -> str:
+                if name in {"stdlib", "platstdlib"}:
+                    return str(stdlib)
+                raise AssertionError(f"unexpected sysconfig path: {name}")
+
+            with (
+                mock.patch.object(codex_bootstrap.sys, "base_prefix", str(prefix)),
+                mock.patch.object(codex_bootstrap.sys, "exec_prefix", str(prefix)),
+                mock.patch.object(
+                    codex_bootstrap.sysconfig, "get_path", side_effect=runtime_path
+                ),
+            ):
+                self.assertEqual(
+                    (str(expected_zip),),
+                    codex_bootstrap._trusted_runtime_paths(
+                        (str(expected_zip),), source
+                    ),
+                )
+                with self.assertRaisesRegex(
+                    codex_bootstrap.BootstrapError,
+                    "outside the standard library",
+                ):
+                    codex_bootstrap._trusted_runtime_paths(
+                        (str(unexpected_zip),), source
+                    )
+
     def test_private_parent_must_start_empty_before_any_stage_is_created(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
             private_parent = root / "stages"
             (private_parent / "preexisting.txt").write_text("unexpected", encoding="utf-8")
@@ -598,7 +652,7 @@ class RuntimeAndExecutionTests(unittest.TestCase):
             "safe_path": False,
         }.items():
             with self.subTest(field=field), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 source, manifest, digest = _write_bundle(root)
                 flags = SimpleNamespace(
                     isolated=1,
@@ -634,7 +688,7 @@ class RuntimeAndExecutionTests(unittest.TestCase):
         )
         for label in labels:
             with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 source, manifest, digest = _write_bundle(root)
                 runtime = _runtime(root)
                 temp_parent = root / "stages"
@@ -684,7 +738,7 @@ raise SystemExit(31)
             "evals/json.py": b"STAGED_SENTINEL = True\n",
         }
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root, files)
 
             exit_code = _run(root, source, manifest, digest)
@@ -703,7 +757,7 @@ if any(key.upper().startswith('PYTHON') for key in os.environ):
 raise SystemExit(int(sys.argv[1]))
 """
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(
                 root, {"evals/run_codex_routing.py": entrypoint}
             )
@@ -722,7 +776,7 @@ raise SystemExit(int(sys.argv[1]))
     def test_cleanup_failure_overrides_success_without_printing_a_path(self) -> None:
         for label in ("raises", "silently-leaves-stage"):
             with self.subTest(label=label), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 source, manifest, digest = _write_bundle(root)
                 residual: list[Path] = []
                 warning = io.StringIO()
@@ -749,7 +803,7 @@ raise SystemExit(int(sys.argv[1]))
 
     def test_rejection_diagnostic_never_echoes_manifest_or_source_values(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source, manifest, digest = _write_bundle(root)
             unique_identifier = "private-identifier-7119"
             manifest.write_text(unique_identifier, encoding="utf-8")
@@ -785,7 +839,7 @@ if args[9] != '--private-root' or not pathlib.Path(args[10]).is_dir():
 raise SystemExit(23)
 """
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             files = {path: b"# test bundle member\n" for path in codex_bootstrap.CANARY_BUNDLE_FILES}
             files["evals/run_codex_routing.py"] = entrypoint
             files["evals/conformance/codex-terra-routing-v1.json"] = b"{}\n"

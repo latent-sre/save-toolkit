@@ -96,6 +96,22 @@ class EnvironmentBoundaryTests(unittest.TestCase):
         self.assertEqual(0o600, codex_trial._posix_private_mode(0o644, directory=False))
         self.assertEqual(0o700, codex_trial._posix_private_mode(0o777, directory=True))
 
+    @unittest.skipUnless(os.name == "nt", "Windows ACL ownership is host-specific")
+    def test_private_path_setter_assigns_the_current_owner_and_exact_dacl(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(strict=True)
+            target = root / "private.txt"
+            target.write_bytes(b"private")
+
+            codex_trial._set_windows_private_path(target, directory=False)
+
+            self.assertTrue(
+                codex_trial._windows_sddl_is_private(
+                    codex_trial._windows_security_descriptor_sddl(target),
+                    directory=False,
+                )
+            )
+
     def test_trial_directory_never_falls_back_to_ambient_temp(self) -> None:
         repository = Path(__file__).resolve().parents[1]
         with self.assertRaisesRegex(
@@ -170,7 +186,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
 
     def test_trial_validates_the_same_authoritative_external_parent(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw).resolve()
+            root = Path(raw).resolve(strict=True)
             repository = root / "repository"
             private_root = root / "private"
             repository.mkdir()
@@ -196,7 +212,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
 
     def test_scrubbed_environment_rehomes_state_and_drops_secrets(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             home = root / "home"
             codex_home = root / "codex-home"
             temp = root / "temp"
@@ -239,7 +255,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
 
     def test_auth_copy_is_create_only_and_rejects_hardlinks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source = root / "source-auth.json"
             destination = root / "dest-auth.json"
             secret = b'{"access_token":"sk-proj-ABCDEFGHIJKLMNOPQRST"}'
@@ -259,7 +275,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
 
     def test_auth_copy_invokes_no_external_acl_helper_after_secret_write(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source = root / "source-auth.json"
             destination = root / "private" / "auth.json"
             destination.parent.mkdir()
@@ -275,7 +291,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
 
     def test_disposable_auth_removal_rejects_missing_and_linked_targets(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source = root / "source-auth.json"
             destination = root / "auth.json"
             source.write_bytes(b'{"access_token":"opaque-session-value-1234567890"}')
@@ -295,7 +311,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
 
     def test_auth_guard_detects_exact_opaque_values_not_covered_by_token_regexes(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source = root / "source-auth.json"
             destination = root / "auth.json"
             opaque = "opaque-session-value-1234567890"
@@ -320,7 +336,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
     def test_hook_bundle_is_an_exact_create_only_copy(self) -> None:
         source = Path(__file__).resolve().parent
         with tempfile.TemporaryDirectory() as raw:
-            destination = Path(raw) / "hook-bundle"
+            destination = Path(raw).resolve(strict=True) / "hook-bundle"
             destination.mkdir()
 
             bundle = codex_trial.copy_hook_bundle(source, destination)
@@ -339,7 +355,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
     def test_hook_bundle_verification_rejects_an_extra_import_shadow_file(self) -> None:
         source = Path(__file__).resolve().parent
         with tempfile.TemporaryDirectory() as raw:
-            destination = Path(raw) / "hook-bundle"
+            destination = Path(raw).resolve(strict=True) / "hook-bundle"
             destination.mkdir()
             bundle = codex_trial.copy_hook_bundle(source, destination)
             (destination / "json.py").write_text(
@@ -363,7 +379,7 @@ class ProbeTests(unittest.TestCase):
             output_limited=False,
         )
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             env = {"TEMP": str(root)}
             with (
                 mock.patch("codex_trial.launch_process", return_value=capture) as bounded,
@@ -389,6 +405,7 @@ class ProbeTests(unittest.TestCase):
         python_version = ".".join(str(item) for item in sys.version_info[:3])
         runtime_platform = codex_trial._runtime_platform()
         with (
+            mock.patch.object(codex_trial.sys, "executable", str(python_executable)),
             mock.patch.object(
                 run_codex_routing, "PYTHON_EXECUTABLE_SHA256", python_digest
             ),
@@ -401,8 +418,11 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(python_executable, resolved)
         self.assertEqual(python_digest, observed_digest)
 
-        with mock.patch.object(
-            run_codex_routing, "PYTHON_EXECUTABLE_SHA256", "0" * 64
+        with (
+            mock.patch.object(codex_trial.sys, "executable", str(python_executable)),
+            mock.patch.object(
+                run_codex_routing, "PYTHON_EXECUTABLE_SHA256", "0" * 64
+            ),
         ):
             with self.assertRaisesRegex(
                 codex_trial.InstrumentError, "Python runtime"
@@ -411,7 +431,7 @@ class ProbeTests(unittest.TestCase):
 
     def test_runtime_copy_rejects_executable_bytes_outside_the_manifest_pin(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             source = root / ("codex.exe" if os.name == "nt" else "codex")
             destination = root / ("trial-codex.exe" if os.name == "nt" else "trial-codex")
             source.write_bytes(b"not the authorized Codex executable")
@@ -421,7 +441,7 @@ class ProbeTests(unittest.TestCase):
 
     def test_probe_requires_exact_cli_version(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            executable = Path(raw) / ("codex.exe" if os.name == "nt" else "codex")
+            executable = Path(raw).resolve(strict=True) / ("codex.exe" if os.name == "nt" else "codex")
             executable.write_bytes(b"fake executable")
 
             def wrong_version(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
@@ -431,13 +451,13 @@ class ProbeTests(unittest.TestCase):
                 codex_trial.probe_codex(
                     executable,
                     {},
-                    cwd=Path(raw),
+                    cwd=Path(raw).resolve(strict=True),
                     command_runner=wrong_version,
                 )
 
     def test_probe_runs_every_command_from_the_private_neutral_cwd(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             executable = root / ("codex.exe" if os.name == "nt" else "codex")
             executable.write_bytes(b"fake executable")
             observed: list[Path] = []
@@ -467,7 +487,7 @@ class ProbeTests(unittest.TestCase):
 class ProcessBoundaryTests(unittest.TestCase):
     def test_normal_bounded_binary_parent_cannot_leave_a_descendant(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             marker = root / "git-descendant-survived.txt"
             child_code = (
                 "import pathlib,time;time.sleep(1.5);"
@@ -497,7 +517,7 @@ class ProcessBoundaryTests(unittest.TestCase):
 
     def test_timeout_terminates_the_created_process_tree(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             marker = root / "descendant-survived.txt"
             child_code = (
                 "import pathlib,time;time.sleep(1.5);"
@@ -526,7 +546,7 @@ class ProcessBoundaryTests(unittest.TestCase):
 
     def test_output_limit_returns_no_raw_capture(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             env = os.environ.copy()
             env["TEMP"] = str(root)
 
@@ -545,7 +565,7 @@ class ProcessBoundaryTests(unittest.TestCase):
 
     def test_oversized_capture_is_not_read_into_memory(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             env = os.environ.copy()
             env["TEMP"] = str(root)
             with mock.patch(
@@ -574,6 +594,9 @@ class TrialExecutionTests(unittest.TestCase):
         *,
         credential_free_only: bool = False,
     ) -> tuple[codex_trial.TrialResult, list[Path]]:
+        root = root.resolve(strict=True)
+        python_executable = Path(sys.executable).resolve(strict=True)
+        python_sha256 = hashlib.sha256(python_executable.read_bytes()).hexdigest()
         codex_trial._secure_directory(root)
         codex_bin = root / ("codex.exe" if os.name == "nt" else "codex")
         fake_codex_bytes = b"fake codex executable"
@@ -658,6 +681,11 @@ class TrialExecutionTests(unittest.TestCase):
             mock.patch.object(codex_model_catalog, "write_safe_catalog", side_effect=write_catalog),
             mock.patch("codex_trial._secure_directory", side_effect=fast_secure),
             mock.patch.object(
+                codex_trial,
+                "verify_python_runtime",
+                return_value=(python_executable, python_sha256),
+            ),
+            mock.patch.object(
                 run_codex_routing,
                 "CODEX_EXECUTABLE_SHA256",
                 fake_codex_sha256,
@@ -692,7 +720,7 @@ class TrialExecutionTests(unittest.TestCase):
 
     def test_preflight_completes_setup_without_auth_or_a_model_process(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             with (
                 mock.patch.object(
                     codex_trial,
@@ -736,7 +764,7 @@ class TrialExecutionTests(unittest.TestCase):
             output_limited=False,
         )
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             with mock.patch(
                 "codex_trial.codex_hook_recorder.load_receipts", return_value=_hooks()
             ):
@@ -794,7 +822,7 @@ class TrialExecutionTests(unittest.TestCase):
         original_grade_trial = codex_routing_grade.grade_trial
 
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
 
             def assert_auth_absent_before_grade(*args, **kwargs):
                 disposable_auth = list(
@@ -822,7 +850,7 @@ class TrialExecutionTests(unittest.TestCase):
         original_remove_auth_file = codex_trial.remove_auth_file
 
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
 
             def observe_removal(path: Path) -> None:
                 nonlocal removed
@@ -851,7 +879,7 @@ class TrialExecutionTests(unittest.TestCase):
         original_reject_jsonl = codex_trial.AuthGuard.reject_jsonl
 
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
 
             def assert_auth_absent_before_decode(guard, text):
                 disposable_auth = list(
@@ -885,7 +913,7 @@ class TrialExecutionTests(unittest.TestCase):
             output_limited=False,
         )
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             with mock.patch(
                 "codex_trial.codex_hook_recorder.load_receipts",
                 side_effect=AssertionError("receipts must not be parsed after a timeout"),
@@ -910,7 +938,7 @@ class TrialExecutionTests(unittest.TestCase):
             "hook-bundle-drift", "trusted hook bundle changed during trial"
         )
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             with (
                 mock.patch(
                     "codex_trial.codex_hook_recorder.load_receipts",
@@ -938,7 +966,7 @@ class TrialExecutionTests(unittest.TestCase):
             output_limited=False,
         )
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             with mock.patch(
                 "codex_trial.load_auth_guard",
                 side_effect=codex_trial.InstrumentError(
@@ -970,7 +998,7 @@ class TrialExecutionTests(unittest.TestCase):
             observed_existence.append(path.exists())
 
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             with (
                 mock.patch(
                     "codex_trial.load_auth_guard",
@@ -1005,7 +1033,7 @@ class TrialExecutionTests(unittest.TestCase):
                 observed_existence.append(path.exists())
 
             with self.subTest(exception=type(pending).__name__), tempfile.TemporaryDirectory() as raw:
-                root = Path(raw)
+                root = Path(raw).resolve(strict=True)
                 with (
                     mock.patch("codex_trial.load_auth_guard", side_effect=pending),
                     mock.patch(
@@ -1030,7 +1058,7 @@ class TrialExecutionTests(unittest.TestCase):
             output_limited=False,
         )
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             with mock.patch(
                 "codex_trial.load_auth_guard",
                 side_effect=codex_trial.InstrumentError(
@@ -1052,7 +1080,7 @@ class TrialExecutionTests(unittest.TestCase):
             output_limited=False,
         )
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             warning = io.StringIO()
             with (
                 mock.patch(

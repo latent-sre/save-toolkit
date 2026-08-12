@@ -624,6 +624,7 @@ class ImmutableGitTreeProvenanceTests(unittest.TestCase):
             with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
                 target = Path(temporary) / "target"
                 target.mkdir()
+                target = target.resolve(strict=True)
                 checkout = target / "checkout"
                 _write_release_checkout(checkout, host=host)
                 calls: list[tuple[str, ...]] = []

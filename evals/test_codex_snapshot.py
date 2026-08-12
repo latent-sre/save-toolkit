@@ -102,9 +102,12 @@ def _materialize_mocked(
     *,
     archive: bytes | None = None,
     sha: str = CURRENT,
+    fixture_root: Path | None = None,
 ) -> codex_snapshot.SnapshotReceipt:
     payload = archive if archive is not None else _tar_bytes(_valid_files(), sha=sha)
-    git_executable = destination.parent / ("test-git.exe" if sys.platform == "win32" else "test-git")
+    git_executable = (fixture_root or destination.parent) / (
+        "test-git.exe" if sys.platform == "win32" else "test-git"
+    )
     git_executable.write_bytes(b"fixed test git executable")
     git_digest = hashlib.sha256(git_executable.read_bytes()).hexdigest()
     try:
@@ -130,7 +133,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
         files = _valid_files()
         archive = _tar_bytes(files)
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             destination = root / "snapshot"
             destination.mkdir()
             git_executable = root / ("git.exe" if sys.platform == "win32" else "git")
@@ -161,7 +164,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
 
     def test_materialization_requires_pinned_absolute_git_and_scrubbed_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             destination = root / "snapshot"
             destination.mkdir()
             git_executable = root / ("git.exe" if sys.platform == "win32" else "git")
@@ -206,7 +209,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
     def test_materializes_only_the_fixed_git_archive_paths_create_only(self) -> None:
         files = _valid_files()
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             destination = root / "snapshot"
             destination.mkdir()
             git_executable = root / ("git.exe" if sys.platform == "win32" else "git")
@@ -274,7 +277,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
         git_digest = hashlib.sha256(git_executable.read_bytes()).hexdigest()
         for sha in (BEFORE, CURRENT):
             with self.subTest(sha=sha), tempfile.TemporaryDirectory() as temporary:
-                destination = Path(temporary) / "snapshot"
+                destination = Path(temporary).resolve(strict=True) / "snapshot"
                 destination.mkdir()
                 with (
                     mock.patch.object(codex_snapshot, "GIT_EXECUTABLE_PATH", git_executable),
@@ -294,7 +297,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
 
     def test_rejects_any_revision_outside_the_two_fixed_full_shas(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            destination = Path(temporary) / "snapshot"
+            destination = Path(temporary).resolve(strict=True) / "snapshot"
             destination.mkdir()
             for revision in ("main", CURRENT[:12], "f" * 40, CURRENT.upper()):
                 with self.subTest(revision=revision):
@@ -303,9 +306,9 @@ class MaterializeSnapshotTests(unittest.TestCase):
 
     def test_rejects_a_different_repository_root_before_running_git(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            other = Path(temporary) / "other"
+            other = Path(temporary).resolve(strict=True) / "other"
             other.mkdir()
-            destination = Path(temporary) / "snapshot"
+            destination = Path(temporary).resolve(strict=True) / "snapshot"
             destination.mkdir()
             with mock.patch.object(codex_snapshot.subprocess, "run") as run:
                 with self.assertRaises(codex_snapshot.SnapshotError):
@@ -322,7 +325,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
         }
         for label, result in cases.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
-                destination = Path(temporary) / "snapshot"
+                destination = Path(temporary).resolve(strict=True) / "snapshot"
                 destination.mkdir()
                 with mock.patch.object(codex_snapshot.subprocess, "run", return_value=result):
                     with self.assertRaises(codex_snapshot.SnapshotError) as caught:
@@ -344,7 +347,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
             files = _valid_files()
             files[name] = b"unsafe"
             with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
-                destination = Path(temporary) / "snapshot"
+                destination = Path(temporary).resolve(strict=True) / "snapshot"
                 destination.mkdir()
                 with self.assertRaises(codex_snapshot.SnapshotError):
                     _materialize_mocked(destination, archive=_tar_bytes(files))
@@ -355,7 +358,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
         casefold = tarfile.TarInfo(".codex/agents/SAVE-TOOLKIT-DEMO.TOML")
         for label, member in (("duplicate", duplicate), ("casefold", casefold)):
             with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
-                destination = Path(temporary) / "snapshot"
+                destination = Path(temporary).resolve(strict=True) / "snapshot"
                 destination.mkdir()
                 archive = _tar_bytes(
                     _valid_files(), extra_members=[(member, b"collision")]
@@ -377,7 +380,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
             member.type = member_type
             member.linkname = "plugin.json"
             with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
-                destination = Path(temporary) / "snapshot"
+                destination = Path(temporary).resolve(strict=True) / "snapshot"
                 destination.mkdir()
                 archive = _tar_bytes(_valid_files(), extra_members=[(member, None)])
                 with self.assertRaises(codex_snapshot.SnapshotError):
@@ -396,7 +399,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
         }
         for label, archive in cases.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
-                destination = Path(temporary) / "snapshot"
+                destination = Path(temporary).resolve(strict=True) / "snapshot"
                 destination.mkdir()
                 limit = 10 if label == "oversize-file" else codex_snapshot.MAX_FILE_BYTES
                 with mock.patch.object(codex_snapshot, "MAX_FILE_BYTES", limit):
@@ -405,7 +408,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
                 self.assertEqual([], list(destination.iterdir()))
 
         with tempfile.TemporaryDirectory() as temporary:
-            destination = Path(temporary) / "snapshot"
+            destination = Path(temporary).resolve(strict=True) / "snapshot"
             destination.mkdir()
             archive = _tar_bytes(_valid_files())
             with mock.patch.object(codex_snapshot, "MAX_ARCHIVE_BYTES", len(archive) - 1):
@@ -430,7 +433,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
             "duplicate-json-key": duplicate_key,
         }.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
-                destination = Path(temporary) / "snapshot"
+                destination = Path(temporary).resolve(strict=True) / "snapshot"
                 destination.mkdir()
                 with self.assertRaises(codex_snapshot.SnapshotError):
                     _materialize_mocked(destination, archive=_tar_bytes(files))
@@ -438,7 +441,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
 
     def test_destination_must_be_an_empty_normal_directory_outside_the_repo(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             nonempty = root / "nonempty"
             nonempty.mkdir()
             (nonempty / "owned.txt").write_text("keep", encoding="utf-8")
@@ -453,7 +456,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
             }.items():
                 with self.subTest(label=label):
                     with self.assertRaises(codex_snapshot.SnapshotError):
-                        _materialize_mocked(destination)
+                        _materialize_mocked(destination, fixture_root=root)
             self.assertEqual("keep", (nonempty / "owned.txt").read_text(encoding="utf-8"))
             self.assertEqual("keep", regular_file.read_text(encoding="utf-8"))
 
@@ -468,7 +471,7 @@ class NeutralProjectStageTests(unittest.TestCase):
 
     def test_stages_only_skills_and_agents_with_exact_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             snapshot, files = self._snapshot(root)
             workspace = root / "workspace"
             workspace.mkdir()
@@ -513,7 +516,7 @@ class NeutralProjectStageTests(unittest.TestCase):
         git_digest = hashlib.sha256(git_executable.read_bytes()).hexdigest()
         for sha in (BEFORE, CURRENT):
             with self.subTest(sha=sha), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary)
+                root = Path(temporary).resolve(strict=True)
                 snapshot = root / "snapshot"
                 snapshot.mkdir()
                 with (
@@ -550,7 +553,7 @@ class NeutralProjectStageTests(unittest.TestCase):
     def test_requires_nonempty_skill_and_agent_sets(self) -> None:
         for missing in ("skills", "agents"):
             with self.subTest(missing=missing), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary)
+                root = Path(temporary).resolve(strict=True)
                 snapshot, _files = self._snapshot(root)
                 target = (
                     snapshot / "plugins/save-toolkit/skills/demo/SKILL.md"
@@ -573,7 +576,7 @@ class NeutralProjectStageTests(unittest.TestCase):
         }
         for label, (relative, content) in cases.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary)
+                root = Path(temporary).resolve(strict=True)
                 snapshot, _files = self._snapshot(root)
                 workspace = root / "workspace"
                 target = workspace / relative
@@ -586,7 +589,7 @@ class NeutralProjectStageTests(unittest.TestCase):
 
     def test_rejects_source_or_workspace_link_indirection(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             snapshot, _files = self._snapshot(root)
             real_skills = snapshot / "plugins/save-toolkit/skills-real"
             source_skills = snapshot / "plugins/save-toolkit/skills"
@@ -603,7 +606,7 @@ class NeutralProjectStageTests(unittest.TestCase):
 
     def test_reparse_signal_on_an_intermediate_source_component_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             snapshot, _files = self._snapshot(root)
             workspace = root / "workspace"
             workspace.mkdir()
@@ -621,7 +624,7 @@ class NeutralProjectStageTests(unittest.TestCase):
 
     def test_post_copy_mutation_is_detected_as_exact_copy_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             snapshot, _files = self._snapshot(root)
             workspace = root / "workspace"
             workspace.mkdir()
@@ -640,7 +643,7 @@ class NeutralProjectStageTests(unittest.TestCase):
 
     def test_post_stage_verifier_detects_later_workspace_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             snapshot, _files = self._snapshot(root)
             workspace = root / "workspace"
             workspace.mkdir()
@@ -654,7 +657,7 @@ class NeutralProjectStageTests(unittest.TestCase):
 
     def test_post_stage_verifier_rejects_a_late_git_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             snapshot, _files = self._snapshot(root)
             workspace = root / "workspace"
             workspace.mkdir()
@@ -666,7 +669,7 @@ class NeutralProjectStageTests(unittest.TestCase):
 
     def test_agent_transform_cannot_change_any_other_byte(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve(strict=True)
             snapshot, _files = self._snapshot(root)
             workspace = root / "workspace"
             workspace.mkdir()

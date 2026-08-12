@@ -584,6 +584,12 @@ def _set_windows_private_path(path: Path, *, directory: bool) -> None:
         ctypes.POINTER(wintypes.BOOL),
     )
     advapi32.GetSecurityDescriptorDacl.restype = wintypes.BOOL
+    advapi32.GetSecurityDescriptorOwner.argtypes = (
+        wintypes.LPVOID,
+        ctypes.POINTER(wintypes.LPVOID),
+        ctypes.POINTER(wintypes.BOOL),
+    )
+    advapi32.GetSecurityDescriptorOwner.restype = wintypes.BOOL
     advapi32.SetNamedSecurityInfoW.argtypes = (
         wintypes.LPWSTR,
         ctypes.c_int,
@@ -613,11 +619,19 @@ def _set_windows_private_path(path: Path, *, directory: bool) -> None:
             descriptor, ctypes.byref(present), ctypes.byref(dacl), ctypes.byref(defaulted)
         ) or not present.value or not dacl.value:
             raise _windows_error("private ACL descriptor has no DACL")
+        owner = wintypes.LPVOID()
+        owner_defaulted = wintypes.BOOL()
+        if not advapi32.GetSecurityDescriptorOwner(
+            descriptor, ctypes.byref(owner), ctypes.byref(owner_defaulted)
+        ) or not owner.value:
+            raise _windows_error("private ACL descriptor has no owner")
         status = advapi32.SetNamedSecurityInfoW(
             str(path),
             _SE_FILE_OBJECT,
-            _DACL_SECURITY_INFORMATION | _PROTECTED_DACL_SECURITY_INFORMATION,
-            None,
+            _OWNER_SECURITY_INFORMATION
+            | _DACL_SECURITY_INFORMATION
+            | _PROTECTED_DACL_SECURITY_INFORMATION,
+            owner,
             None,
             dacl,
             None,

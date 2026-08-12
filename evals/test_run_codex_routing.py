@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import sys
+import tempfile
 import tomllib
 import unittest
 from pathlib import Path
@@ -309,17 +310,23 @@ class CampaignPlanTests(unittest.TestCase):
         )
 
     def test_generated_config_contains_only_the_trusted_receipt_hooks(self) -> None:
-        config = run_codex_routing.render_config(
-            Path(r"C:\Python\python.exe"),
-            Path(r"C:\suite\codex_hook_recorder.py"),
-            Path(r"C:\private\receipts"),
-            Path(r"C:\private\route-models.json"),
-            "a" * 32,
-        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(strict=True)
+            python_executable = root / (
+                "python.exe" if sys.platform == "win32" else "python"
+            )
+            recorder = root / "suite" / "codex_hook_recorder.py"
+            receipts = root / "private" / "receipts"
+            model_catalog = root / "private" / "route-models.json"
+            config = run_codex_routing.render_config(
+                python_executable,
+                recorder,
+                receipts,
+                model_catalog,
+                "a" * 32,
+            )
         parsed = tomllib.loads(config)
-        self.assertEqual(
-            r"C:\private\route-models.json", parsed["model_catalog_json"]
-        )
+        self.assertEqual(str(model_catalog), parsed["model_catalog_json"])
         self.assertNotIn("default_permissions", parsed)
         self.assertNotIn("permissions", parsed)
         self.assertFalse(parsed["update_plan_enabled"])

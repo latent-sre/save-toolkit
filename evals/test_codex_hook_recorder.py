@@ -34,7 +34,7 @@ def _payload(**updates: object) -> dict[str, object]:
 class RecorderTests(unittest.TestCase):
     def test_record_is_create_only_private_and_bound_to_nonce(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             nonce = "a" * 32
             receipt = codex_hook_recorder.record_receipt(
                 json.dumps(_payload()).encode("utf-8"),
@@ -63,7 +63,7 @@ class RecorderTests(unittest.TestCase):
     def test_invalid_or_oversized_input_creates_no_receipt(self) -> None:
         invalid = (b"not-json", b"[]", b"{" + b"x" * codex_hook_recorder.MAX_STDIN_BYTES)
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             for index, value in enumerate(invalid):
                 with self.subTest(index=index):
                     with self.assertRaises(ValueError):
@@ -77,7 +77,7 @@ class RecorderTests(unittest.TestCase):
 
     def test_credential_shaped_payload_is_rejected_before_write(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             payload = _payload(source="Authorization: Bearer abcdefghijklmnopqrstuvwxyz")
             with self.assertRaises(codex_harness.CredentialExposureError):
                 codex_hook_recorder.record_receipt(
@@ -90,7 +90,7 @@ class RecorderTests(unittest.TestCase):
 
     def test_receipt_directory_must_be_existing_ordinary_directory(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             missing = root / "missing"
             ordinary_file = root / "file"
             ordinary_file.write_text("not a directory", encoding="utf-8")
@@ -106,7 +106,7 @@ class RecorderTests(unittest.TestCase):
 
     def test_record_rejects_count_and_aggregate_capacity_before_write(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             nonce = "a" * 32
             first = codex_hook_recorder.record_receipt(
                 json.dumps(_payload()).encode("utf-8"),
@@ -139,7 +139,7 @@ class RecorderTests(unittest.TestCase):
 class ReceiptLoaderTests(unittest.TestCase):
     def test_loads_create_only_envelopes_and_orders_session_before_children(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             nonce = "a" * 32
             child = _payload(
                 hook_event_name="SubagentStart",
@@ -163,7 +163,7 @@ class ReceiptLoaderTests(unittest.TestCase):
 
     def test_loader_applies_the_transient_exact_auth_validator_before_reduction(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             nonce = "a" * 32
             codex_hook_recorder.record_receipt(
                 json.dumps(_payload()).encode("utf-8"),
@@ -184,7 +184,7 @@ class ReceiptLoaderTests(unittest.TestCase):
 
     def test_rejects_wrong_nonce_unexpected_files_and_duplicate_json_keys(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             nonce = "a" * 32
             receipt = codex_hook_recorder.record_receipt(
                 json.dumps(_payload()).encode("utf-8"),
@@ -211,7 +211,7 @@ class ReceiptLoaderTests(unittest.TestCase):
 
     def test_loader_rejects_count_and_aggregate_capacity_before_parsing(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
+            root = Path(raw).resolve(strict=True)
             nonce = "a" * 32
             receipts = [
                 codex_hook_recorder.record_receipt(

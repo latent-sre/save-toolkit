@@ -469,6 +469,12 @@ def _set_windows_private_directory(path: Path) -> None:
         ctypes.POINTER(wintypes.BOOL),
     )
     advapi32.GetSecurityDescriptorDacl.restype = wintypes.BOOL
+    advapi32.GetSecurityDescriptorOwner.argtypes = (
+        wintypes.LPVOID,
+        ctypes.POINTER(wintypes.LPVOID),
+        ctypes.POINTER(wintypes.BOOL),
+    )
+    advapi32.GetSecurityDescriptorOwner.restype = wintypes.BOOL
     advapi32.SetNamedSecurityInfoW.argtypes = (
         wintypes.LPWSTR,
         ctypes.c_int,
@@ -498,11 +504,19 @@ def _set_windows_private_directory(path: Path) -> None:
             descriptor, ctypes.byref(present), ctypes.byref(dacl), ctypes.byref(defaulted)
         ) or not present.value or not dacl.value:
             raise _windows_error("private directory ACL has no DACL")
+        owner = wintypes.LPVOID()
+        owner_defaulted = wintypes.BOOL()
+        if not advapi32.GetSecurityDescriptorOwner(
+            descriptor, ctypes.byref(owner), ctypes.byref(owner_defaulted)
+        ) or not owner.value:
+            raise _windows_error("private directory ACL has no owner")
         status = advapi32.SetNamedSecurityInfoW(
             str(path),
             _SE_FILE_OBJECT,
-            _DACL_SECURITY_INFORMATION | _PROTECTED_DACL_SECURITY_INFORMATION,
-            None,
+            _OWNER_SECURITY_INFORMATION
+            | _DACL_SECURITY_INFORMATION
+            | _PROTECTED_DACL_SECURITY_INFORMATION,
+            owner,
             None,
             dacl,
             None,
@@ -764,6 +778,11 @@ def _trusted_runtime_paths(runtime_paths: Sequence[str], source_root: Path) -> t
         Path(sysconfig.get_path("stdlib")).resolve(),
         Path(sysconfig.get_path("platstdlib")).resolve(),
     }
+    zip_name = f"python{sys.version_info.major}{sys.version_info.minor}.zip"
+    expected_zip_paths = {
+        Path(sysconfig.get_path("stdlib")).resolve().parent / zip_name,
+        Path(sysconfig.get_path("platstdlib")).resolve().parent / zip_name,
+    }
     trusted: list[str] = []
     for raw in runtime_paths:
         if not isinstance(raw, str) or not raw:
@@ -778,7 +797,7 @@ def _trusted_runtime_paths(runtime_paths: Sequence[str], source_root: Path) -> t
         if "site-packages" in lowered_parts or "dist-packages" in lowered_parts:
             raise BootstrapError("runtime path includes package installation state")
         if candidate.suffix.casefold() == ".zip":
-            allowed = any(candidate.parent == root for root in install_roots)
+            allowed = candidate in expected_zip_paths
         else:
             try:
                 resolved = candidate.resolve(strict=True)

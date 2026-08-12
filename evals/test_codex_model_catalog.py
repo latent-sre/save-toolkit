@@ -113,7 +113,7 @@ class SafeCatalogTests(unittest.TestCase):
         entry = _entry()
         expected, source_sha, transformed_sha, catalog_sha = _expected(entry)
         with tempfile.TemporaryDirectory() as raw_dir:
-            destination = Path(raw_dir) / "route-models.json"
+            destination = Path(raw_dir).resolve(strict=True) / "route-models.json"
             with mock.patch.multiple(
                 codex_model_catalog,
                 EXPECTED_SOURCE_ENTRY_SHA256=source_sha,
