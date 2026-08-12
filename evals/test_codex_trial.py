@@ -106,11 +106,76 @@ class EnvironmentBoundaryTests(unittest.TestCase):
             codex_trial._set_windows_private_path(target, directory=False)
 
             self.assertTrue(
-                codex_trial._windows_sddl_is_private(
-                    codex_trial._windows_security_descriptor_sddl(target),
-                    directory=False,
-                )
+                codex_trial._windows_path_acl_is_private(target, directory=False)
             )
+
+    def test_private_acl_shape_rejects_each_security_weakening(self) -> None:
+        baseline = {
+            "dacl_present": True,
+            "protected": True,
+            "owner_matches": True,
+            "ace_count": 1,
+            "ace_type": codex_trial._ACCESS_ALLOWED_ACE_TYPE,
+            "ace_flags": 0,
+            "access_mask": codex_trial._FILE_ALL_ACCESS,
+            "trustee_matches": True,
+            "ace_size_matches": True,
+            "directory": False,
+        }
+        self.assertTrue(codex_trial._windows_acl_shape_is_private(**baseline))
+        inherited = dict(
+            baseline, ace_flags=codex_trial._INHERITED_ACE
+        )
+        self.assertTrue(codex_trial._windows_acl_shape_is_private(**inherited))
+        directory = dict(
+            baseline,
+            ace_flags=(
+                codex_trial._OBJECT_INHERIT_ACE
+                | codex_trial._CONTAINER_INHERIT_ACE
+            ),
+            directory=True,
+        )
+        self.assertTrue(codex_trial._windows_acl_shape_is_private(**directory))
+        inherited_directory = dict(
+            directory,
+            ace_flags=directory["ace_flags"] | codex_trial._INHERITED_ACE,
+        )
+        self.assertTrue(
+            codex_trial._windows_acl_shape_is_private(**inherited_directory)
+        )
+        self.assertFalse(
+            codex_trial._windows_acl_shape_is_private(
+                **dict(directory, ace_flags=codex_trial._OBJECT_INHERIT_ACE)
+            )
+        )
+        self.assertFalse(
+            codex_trial._windows_acl_shape_is_private(
+                **dict(directory, ace_flags=codex_trial._CONTAINER_INHERIT_ACE)
+            )
+        )
+        mutations = {
+            "missing-dacl": {"dacl_present": False},
+            "unprotected": {"protected": False},
+            "wrong-owner": {"owner_matches": False},
+            "zero-ace": {"ace_count": 0},
+            "extra-ace": {"ace_count": 2},
+            "deny-ace": {"ace_type": 1},
+            "file-inheritance": {"ace_flags": codex_trial._OBJECT_INHERIT_ACE},
+            "no-propagate": {"ace_flags": 0x04},
+            "inherit-only": {"ace_flags": 0x08},
+            "success-audit": {"ace_flags": 0x40},
+            "failure-audit": {"ace_flags": 0x80},
+            "wrong-rights": {"access_mask": codex_trial._FILE_ALL_ACCESS ^ 1},
+            "wrong-trustee": {"trustee_matches": False},
+            "trailing-ace-bytes": {"ace_size_matches": False},
+        }
+        for label, mutation in mutations.items():
+            with self.subTest(label=label):
+                self.assertFalse(
+                    codex_trial._windows_acl_shape_is_private(
+                        **dict(baseline, **mutation)
+                    )
+                )
 
     def test_trial_directory_never_falls_back_to_ambient_temp(self) -> None:
         repository = Path(__file__).resolve().parents[1]

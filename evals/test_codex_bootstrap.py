@@ -242,9 +242,53 @@ class WindowsPrivateRootLocalityTests(unittest.TestCase):
 
             codex_bootstrap._set_windows_private_directory(target)
 
-            actual = codex_bootstrap._windows_directory_sddl(target)
-            expected = codex_bootstrap._windows_private_directory_sddl()
-            self.assertIn(actual, {expected, expected.replace("D:P(", "D:PAI(", 1)})
+            self.assertTrue(codex_bootstrap._windows_directory_acl_is_private(target))
+
+    def test_private_directory_acl_shape_rejects_each_security_weakening(self) -> None:
+        baseline = {
+            "dacl_present": True,
+            "protected": True,
+            "owner_matches": True,
+            "ace_count": 1,
+            "ace_type": codex_bootstrap._ACCESS_ALLOWED_ACE_TYPE,
+            "ace_flags": (
+                codex_bootstrap._OBJECT_INHERIT_ACE
+                | codex_bootstrap._CONTAINER_INHERIT_ACE
+            ),
+            "access_mask": codex_bootstrap._FILE_ALL_ACCESS,
+            "trustee_matches": True,
+            "ace_size_matches": True,
+        }
+        self.assertTrue(codex_bootstrap._windows_acl_shape_is_private(**baseline))
+        inherited = dict(
+            baseline,
+            ace_flags=baseline["ace_flags"] | codex_bootstrap._INHERITED_ACE,
+        )
+        self.assertTrue(codex_bootstrap._windows_acl_shape_is_private(**inherited))
+        mutations = {
+            "missing-dacl": {"dacl_present": False},
+            "unprotected": {"protected": False},
+            "wrong-owner": {"owner_matches": False},
+            "zero-ace": {"ace_count": 0},
+            "extra-ace": {"ace_count": 2},
+            "deny-ace": {"ace_type": 1},
+            "wrong-inheritance": {"ace_flags": codex_bootstrap._OBJECT_INHERIT_ACE},
+            "other-inheritance": {"ace_flags": codex_bootstrap._CONTAINER_INHERIT_ACE},
+            "no-propagate": {"ace_flags": baseline["ace_flags"] | 0x04},
+            "inherit-only": {"ace_flags": baseline["ace_flags"] | 0x08},
+            "success-audit": {"ace_flags": baseline["ace_flags"] | 0x40},
+            "failure-audit": {"ace_flags": baseline["ace_flags"] | 0x80},
+            "wrong-rights": {"access_mask": codex_bootstrap._FILE_ALL_ACCESS ^ 1},
+            "wrong-trustee": {"trustee_matches": False},
+            "trailing-ace-bytes": {"ace_size_matches": False},
+        }
+        for label, mutation in mutations.items():
+            with self.subTest(label=label):
+                self.assertFalse(
+                    codex_bootstrap._windows_acl_shape_is_private(
+                        **dict(baseline, **mutation)
+                    )
+                )
 
     def test_windows_remote_removable_subst_mapped_and_non_ntfs_are_rejected(self) -> None:
         cases = {

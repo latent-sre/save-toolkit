@@ -71,9 +71,16 @@ _SE_FILE_OBJECT = 1
 _OWNER_SECURITY_INFORMATION = 0x00000001
 _DACL_SECURITY_INFORMATION = 0x00000004
 _PROTECTED_DACL_SECURITY_INFORMATION = 0x80000000
+_SE_DACL_PRESENT = 0x0004
 _SE_DACL_PROTECTED = 0x1000
 _SDDL_REVISION_1 = 1
 _DRIVE_FIXED = 3
+_ACCESS_ALLOWED_ACE_TYPE = 0
+_OBJECT_INHERIT_ACE = 0x01
+_CONTAINER_INHERIT_ACE = 0x02
+_INHERITED_ACE = 0x10
+_FILE_ALL_ACCESS = 0x001F01FF
+_ACL_SIZE_INFORMATION_CLASS = 2
 
 _WINDOWS_RESERVED = frozenset(
     {
@@ -369,10 +376,66 @@ def _windows_private_directory_sddl() -> str:
     return f"O:{sid}D:P(A;OICI;FA;;;{sid})"
 
 
-def _windows_directory_sddl(path: Path) -> str:
-    """Read a directory owner and DACL as canonical SDDL in-process."""
+def _windows_acl_shape_is_private(
+    *,
+    dacl_present: bool,
+    protected: bool,
+    owner_matches: bool,
+    ace_count: int,
+    ace_type: int,
+    ace_flags: int,
+    access_mask: int,
+    trustee_matches: bool,
+    ace_size_matches: bool,
+) -> bool:
+    """Validate exact access semantics independently of DACL serialization metadata."""
+
+    return (
+        dacl_present
+        and protected
+        and owner_matches
+        and ace_count == 1
+        and ace_type == _ACCESS_ALLOWED_ACE_TYPE
+        and (ace_flags & ~_INHERITED_ACE)
+        == (_OBJECT_INHERIT_ACE | _CONTAINER_INHERIT_ACE)
+        and access_mask == _FILE_ALL_ACCESS
+        and trustee_matches
+        and ace_size_matches
+    )
+
+
+def _windows_directory_acl_is_private(path: Path) -> bool:
+    """Verify one current-user-only protected directory DACL in-process."""
 
     from ctypes import wintypes
+
+    class AceHeader(ctypes.Structure):
+        _fields_ = (
+            ("ace_type", ctypes.c_ubyte),
+            ("ace_flags", ctypes.c_ubyte),
+            ("ace_size", wintypes.WORD),
+        )
+
+    class AccessAllowedAce(ctypes.Structure):
+        _fields_ = (
+            ("header", AceHeader),
+            ("mask", wintypes.DWORD),
+            ("sid_start", wintypes.DWORD),
+        )
+
+    class AclSizeInformation(ctypes.Structure):
+        _fields_ = (
+            ("ace_count", wintypes.DWORD),
+            ("acl_bytes_in_use", wintypes.DWORD),
+            ("acl_bytes_free", wintypes.DWORD),
+        )
+
+    if (
+        ctypes.sizeof(AceHeader) != 4
+        or AccessAllowedAce.sid_start.offset != 8
+        or ctypes.sizeof(AclSizeInformation) != 12
+    ):
+        raise BootstrapError("Windows ACL structure layout is unsupported")
 
     advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -390,60 +453,114 @@ def _windows_directory_sddl(path: Path) -> str:
         ctypes.POINTER(wintypes.LPVOID),
     )
     advapi32.GetNamedSecurityInfoW.restype = wintypes.DWORD
-    advapi32.ConvertSecurityDescriptorToStringSecurityDescriptorW.argtypes = (
-        wintypes.LPVOID,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        ctypes.POINTER(wintypes.LPVOID),
-        ctypes.POINTER(wintypes.DWORD),
-    )
-    advapi32.ConvertSecurityDescriptorToStringSecurityDescriptorW.restype = wintypes.BOOL
     advapi32.GetSecurityDescriptorControl.argtypes = (
         wintypes.LPVOID,
         ctypes.POINTER(wintypes.WORD),
         ctypes.POINTER(wintypes.DWORD),
     )
     advapi32.GetSecurityDescriptorControl.restype = wintypes.BOOL
+    advapi32.ConvertStringSidToSidW.argtypes = (
+        wintypes.LPCWSTR,
+        ctypes.POINTER(wintypes.LPVOID),
+    )
+    advapi32.ConvertStringSidToSidW.restype = wintypes.BOOL
+    advapi32.EqualSid.argtypes = (wintypes.LPVOID, wintypes.LPVOID)
+    advapi32.EqualSid.restype = wintypes.BOOL
+    advapi32.GetAclInformation.argtypes = (
+        wintypes.LPVOID,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        ctypes.c_int,
+    )
+    advapi32.GetAclInformation.restype = wintypes.BOOL
+    advapi32.IsValidAcl.argtypes = (wintypes.LPVOID,)
+    advapi32.IsValidAcl.restype = wintypes.BOOL
+    advapi32.GetAce.argtypes = (
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.LPVOID),
+    )
+    advapi32.GetAce.restype = wintypes.BOOL
+    advapi32.IsValidSid.argtypes = (wintypes.LPVOID,)
+    advapi32.IsValidSid.restype = wintypes.BOOL
+    advapi32.GetLengthSid.argtypes = (wintypes.LPVOID,)
+    advapi32.GetLengthSid.restype = wintypes.DWORD
     kernel32.LocalFree.argtypes = (wintypes.HLOCAL,)
     kernel32.LocalFree.restype = wintypes.HLOCAL
 
-    status = advapi32.GetNamedSecurityInfoW(
-        str(path),
-        _SE_FILE_OBJECT,
-        _OWNER_SECURITY_INFORMATION | _DACL_SECURITY_INFORMATION,
-        ctypes.byref(owner),
-        None,
-        ctypes.byref(dacl),
-        None,
-        ctypes.byref(descriptor),
-    )
-    if status != 0 or not descriptor.value or not owner.value or not dacl.value:
-        raise _windows_error("private directory ACL could not be read", int(status))
+    current_sid = wintypes.LPVOID()
+    if not advapi32.ConvertStringSidToSidW(
+        _windows_current_sid(), ctypes.byref(current_sid)
+    ) or not current_sid.value:
+        raise _windows_error("current process SID could not be parsed")
     try:
+        status = advapi32.GetNamedSecurityInfoW(
+            str(path),
+            _SE_FILE_OBJECT,
+            _OWNER_SECURITY_INFORMATION | _DACL_SECURITY_INFORMATION,
+            ctypes.byref(owner),
+            None,
+            ctypes.byref(dacl),
+            None,
+            ctypes.byref(descriptor),
+        )
+        if status != 0 or not descriptor.value or not owner.value or not dacl.value:
+            raise _windows_error("private directory ACL could not be read", int(status))
         control = wintypes.WORD()
         revision = wintypes.DWORD()
         if not advapi32.GetSecurityDescriptorControl(
             descriptor, ctypes.byref(control), ctypes.byref(revision)
         ):
             raise _windows_error("private directory ACL control could not be read")
-        if not control.value & _SE_DACL_PROTECTED:
-            raise BootstrapError("private directory DACL is not protected")
-        rendered = wintypes.LPVOID()
-        length = wintypes.DWORD()
-        if not advapi32.ConvertSecurityDescriptorToStringSecurityDescriptorW(
-            descriptor,
-            _SDDL_REVISION_1,
-            _OWNER_SECURITY_INFORMATION | _DACL_SECURITY_INFORMATION,
-            ctypes.byref(rendered),
-            ctypes.byref(length),
+        if not advapi32.IsValidSid(owner) or not advapi32.IsValidAcl(dacl):
+            return False
+        acl_info = AclSizeInformation()
+        if not advapi32.GetAclInformation(
+            dacl,
+            ctypes.byref(acl_info),
+            ctypes.sizeof(acl_info),
+            _ACL_SIZE_INFORMATION_CLASS,
         ):
-            raise _windows_error("private directory ACL could not be rendered")
-        try:
-            return ctypes.wstring_at(rendered)
-        finally:
-            kernel32.LocalFree(rendered)
+            raise _windows_error("private directory DACL shape could not be read")
+        if acl_info.ace_count != 1:
+            return False
+        ace_pointer = wintypes.LPVOID()
+        if not advapi32.GetAce(dacl, 0, ctypes.byref(ace_pointer)) or not ace_pointer.value:
+            raise _windows_error("private directory ACE could not be read")
+        ace = ctypes.cast(
+            ace_pointer, ctypes.POINTER(AccessAllowedAce)
+        ).contents
+        if (
+            ace.header.ace_type != _ACCESS_ALLOWED_ACE_TYPE
+            or ace.header.ace_size < AccessAllowedAce.sid_start.offset + 8
+        ):
+            return False
+        trustee = ctypes.cast(
+            ctypes.byref(ace, AccessAllowedAce.sid_start.offset), wintypes.LPVOID
+        )
+        if not advapi32.IsValidSid(trustee):
+            return False
+        sid_length = int(advapi32.GetLengthSid(trustee))
+        if sid_length <= 0:
+            raise _windows_error("current process SID length could not be read")
+        return _windows_acl_shape_is_private(
+            dacl_present=bool(control.value & _SE_DACL_PRESENT),
+            protected=bool(control.value & _SE_DACL_PROTECTED),
+            owner_matches=bool(advapi32.EqualSid(owner, current_sid)),
+            ace_count=int(acl_info.ace_count),
+            ace_type=int(ace.header.ace_type),
+            ace_flags=int(ace.header.ace_flags),
+            access_mask=int(ace.mask),
+            trustee_matches=bool(advapi32.EqualSid(trustee, current_sid)),
+            ace_size_matches=(
+                int(ace.header.ace_size)
+                == AccessAllowedAce.sid_start.offset + sid_length
+            ),
+        )
     finally:
-        kernel32.LocalFree(descriptor)
+        if descriptor.value:
+            kernel32.LocalFree(descriptor)
+        kernel32.LocalFree(current_sid)
 
 
 def _set_windows_private_directory(path: Path) -> None:
@@ -525,8 +642,7 @@ def _set_windows_private_directory(path: Path) -> None:
             raise _windows_error("private directory ACL could not be set", int(status))
     finally:
         kernel32.LocalFree(descriptor)
-    actual = _windows_directory_sddl(path)
-    if actual not in {expected, expected.replace("D:P(", "D:PAI(", 1)}:
+    if not _windows_directory_acl_is_private(path):
         raise BootstrapError("private directory ACL differs from the fixed descriptor")
 
 
