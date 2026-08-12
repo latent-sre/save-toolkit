@@ -378,15 +378,43 @@ untouched.
 inference, and the fleet knows whether the read-only guard is portable to that host or whether
 policy-delivered Copilot managed settings are the only real control there.
 
-**Source:** A 2026-08-12 scan against installed VS Code 1.133.0 and upstream `microsoft/vscode`.
-`[verified]` the tool-set vocabulary the generator emits (`read`, `search`, `edit`, `execute`, `web`,
-`agent`) matches VS Code's own tool-set enum, so the projection's names resolve. `[sourced]` an
-omitted tool is set to an explicit `false` for the model, but session tool selection, a prompt file's
-own list, and chat deep links all outrank a workspace agent's list, and the tools picker writes the
-user's change back into the `.agent.md` file — only extension-contributed agents are read-only.
-`[sourced]` VS Code 1.133 exposes `chat.hookFilesLocations`, `chat.useHooks`, `chat.useClaudeHooks`,
-and a per-agent `hooks:` key, none of which existed when `hooks/copilot-hooks.json` was fixed empty
-and when `AGENTS.md` recorded that guarding is not portable through it.
+**Source:** A 2026-08-12 scan with two distinct evidence bases, cited separately because they were
+not established the same way.
+
+*Base A — the installed build, read directly.* VS Code 1.133.0, build commit
+`a5b500951314efd502d07465bd138dfbd714a960`, file
+`<install>/<build>/resources/app/out/vs/workbench/workbench.desktop.main.js`. Reproduce by searching
+that bundle for the quoted identifier.
+
+- `[verified]` The tool-set vocabulary the generator emits matches the host enum. Search `_m` :
+  `a.execute="execute",a.edit="edit",a.search="search",a.agent="agent",a.read="read",a.web="web",a.todo="todo"`.
+  `COPILOT_TOOL_ORDER` is a subset, so the projection's names resolve.
+- `[verified]` The Claude→VS Code equivalence table matches `COPILOT_TOOL_MAP`. Search
+  `toolEquivalent` — `Bash`→`execute`, `Grep`→`search/textSearch`, `Glob`→`search/fileSearch`,
+  `Read`→`read/readFile`, `Write`/`Edit`→`edit/*`, `WebFetch`/`WebSearch`→`web`, `Task`→`agent`.
+  The same table maps `Skill`, `LSP`, and `MCPSearch` to `[]`.
+- `[verified]` `disable-model-invocation` is a recognized key, not inert: search
+  `R.disableModelInvocation="disable-model-invocation"`, and the skill-conversion path emits it.
+- `[verified]` Delegation is unscoped. Search `runSubagent` for the tool schema: `agentName` is
+  `"Optional name of a specific agent to invoke. If not provided, uses the current agent."`
+- `[verified]` The hook surface exists. Search `HOOKS_LOCATION_KEY` for
+  `chat.hookFilesLocations`, `chat.useHooks`, `chat.useClaudeHooks`, alongside `mo.hooks`.
+
+*Base B — upstream `microsoft/vscode` @ `0157e11`, read by an external research lane and* **not**
+*independently confirmed here.* Treat as `[sourced]` at one remove; re-derive before relying on a
+line number.
+
+- Omission sets an explicit `false` for the model:
+  `src/vs/workbench/contrib/chat/browser/tools/languageModelToolsService.ts:1611-1621`.
+- Session outranks the agent file, extension agents alone are read-only, and the picker writes the
+  user's change back: `.../browser/widget/input/chatSelectedTools.ts:136-143`, `:188`, `:202-220`.
+- A prompt file outranks a referenced agent's list: `vscode-docs`
+  `docs/agent-customization/prompt-files.md:174-183`.
+- A chat deep link may set agent and tools together: `.../browser/widget/chatWidget.ts:3572-3584`.
+
+Base A establishes what the host recognizes; Base B establishes the override precedence that makes
+`tools:` a default rather than a boundary. Only the second is load-bearing for the `AGENTS.md` limit,
+and it is the half this item must confirm by observation.
 
 **Prerequisites:** None beyond an installed VS Code and this checkout. The probe is observational: it
 changes no live system, and it neither authorizes nor implies a Copilot hook implementation.
