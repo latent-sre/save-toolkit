@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "improvement_id": "fi_cloud_run_outside_command_continuation",
+  "created_at": "2026-08-12T13:16:57Z",
+  "updated_at": "2026-08-12T13:16:57Z",
+  "target": {
+    "repository": "latent-sre/save-toolkit",
+    "base_revision": "3f8f98d15691c67342ac99383841015a672df0dc",
+    "artifact_kind": "grader",
+    "artifact_paths": [
+      "evals/graders.py",
+      "evals/test_graders.py",
+      "evals/scenarios/discovery-gcp-ops-cloud-run-startup.yaml",
+      "evals/conformance/codex-terra-routing-v1.json",
+      "evals/conformance/codex-terra-evaluator-v1.json",
+      "evals/run_codex_routing.py"
+    ]
+  },
+  "owner": {
+    "name": "latent-sre",
+    "kind": "team",
+    "agent_lane": "prompt-engineer"
+  },
+  "related_improvement_id": null,
+  "severity": "high",
+  "failure_fingerprint": "ff_5d84a8054b4f974303877bfe86b0220571e945ae1ee4ef22b99c4921b46a95c3",
+  "observations": [
+    {
+      "event_id": "fo_cloud_run_continuation_20260812",
+      "kind": "eval_failure",
+      "observed_at": "2026-08-12T13:16:57Z",
+      "source": {
+        "kind": "review",
+        "locator": "https://github.com/latent-sre/save-toolkit/pull/103#discussion_r3764065279",
+        "revision": "de61a1ae5afafa0268abe1ed9d4ade4eac3884b6",
+        "sha256": null
+      },
+      "trust": "mixed",
+      "summary": "A valid Cloud Run response with an additional POSIX-backslash-continued update-traffic command outside the sole JSON packet passed every deterministic scenario grader.",
+      "evidence_ids": [
+        "ev_5d84a8054b4f974303877bfe86b02205"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    {
+      "evidence_id": "ev_5d84a8054b4f974303877bfe86b02205",
+      "kind": "historical_report",
+      "locator": "docs/reviews/2026-08-12-post-pr104-improvement-intake.md",
+      "sha256": "46e9f0d1da23bc86cd7a54cca47d7fb056bb452cdeb0f46175f8078f0a42d2d5"
+    }
+  ],
+  "status": "observed",
+  "success_criteria": [
+    "Any complete gcloud run services update-traffic command outside the sole rollback JSON packet is rejected across ordinary whitespace and supported POSIX line continuations.",
+    "Ordinary prose that merely names update-traffic without a full command remains accepted.",
+    "The outside-packet detector remains linear in response size and executes before JSON command acceptance.",
+    "Scenario, embedded routing manifest, evaluator bundle, focused graders, and Gate A remain byte-consistent and green."
+  ],
+  "monitoring_plan": {
+    "criterion_id": "fm_cloud_run_outside_command_rejected",
+    "criterion": "After promotion, every registered outside-command continuation regression fails grading while canonical and explanatory-prose positives pass.",
+    "rollback_triggers": [
+      "monitoring_fail",
+      "monitoring_inconclusive",
+      "security_finding",
+      "authority_revoked",
+      "merge_error",
+      "manual_owner_decision"
+    ]
+  },
+  "budget": {
+    "origin": "predeclared",
+    "max_attempts": 3,
+    "max_model_turns": 12,
+    "max_evaluator_calls": 6,
+    "max_tokens": 120000,
+    "max_wall_seconds": 3600,
+    "max_cost_usd": 5.0
+  },
+  "attempts": [],
+  "reviews": [],
+  "merge": null,
+  "monitoring": null,
+  "rollback": null,
+  "lesson": {
+    "status": "pending",
+    "control_path": "evals/test_graders.py",
+    "reason": "A red-first command-shape continuation corpus and one bounded linear scanner are the intended durable control; no candidate or promotion is claimed by this intake record."
+  },
+  "disposition_reason": "Recorded at observed because the deterministic grader grants false behavioral evidence for an operator-affecting traffic command. Repair is authorized, but lifecycle promotion remains external.",
+  "limitations": [
+    "The review comment is untrusted input; the local grader reproduction independently establishes the failure.",
+    "The evidence is deterministic response grading, not a live Terra routing or skill-activation result.",
+    "Only the schema layer is enforced while the semantic improvement validators remain parked.",
+    "No candidate revision, evaluation envelope, independent review, merge, or monitoring evidence exists yet."
+  ]
+}
