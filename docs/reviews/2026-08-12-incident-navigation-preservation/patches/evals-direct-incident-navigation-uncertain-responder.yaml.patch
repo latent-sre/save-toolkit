@@ -1,0 +1,43 @@
+diff --git a/evals/scenarios/direct-incident-navigation-uncertain-responder.yaml b/evals/scenarios/direct-incident-navigation-uncertain-responder.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..b893324bfea7029da038529ba76006eba63142b1
+--- /dev/null
++++ b/evals/scenarios/direct-incident-navigation-uncertain-responder.yaml
+@@ -0,0 +1,37 @@
++schema_version: 1
++id: direct-incident-navigation-uncertain-responder
++mode: direct
++split: regression
++target:
++  kind: skill
++  name: incident-navigation
++prompt: |
++  I am new to this service. Customers say checkout is slow, but I cannot find a service card,
++  dashboard, or runbook and I do not know what to check first. No production change is authorized.
++  Help me orient and choose the first safe evidence check.
++success_criteria:
++  - Returns the compact incident-orientation contract and exactly one first safe check
++  - Separates facts, hypotheses, and unknowns without inventing evidence locations
++  - Routes the selected question to one specialist skill and preserves the no-change boundary
++graders:
++  - type: regex
++    pattern: '(?im)^Known facts:'
++  - type: regex
++    pattern: '(?im)^Current hypotheses:'
++  - type: regex
++    pattern: '(?im)^Unknowns:'
++  - type: regex
++    pattern: '(?im)^Where to look:'
++  - type: regex
++    pattern: '(?im)^First safe check:'
++  - type: regex
++    pattern: '(?im)^Escalate when:'
++  - type: regex
++    pattern: '(?im)^Documentation gaps:'
++  - type: regex
++    pattern: '(?im)^State changed: no\s*$'
++  - type: contains_any
++    of: ["pcf-ops", "obs-metrics", "obs-logs", "obs-dashboards", "obs-alerting"]
++  - type: not_contains
++    of: ["I restarted", "I rolled back", "I deployed", "I changed production"]
++

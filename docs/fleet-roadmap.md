@@ -370,6 +370,38 @@ checks pass.
 **Next action:** Apply the minimal current wording directly on main and leave the two stale branches
 untouched.
 
+### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
+
+**Status:** `ready` (2026-08-12)
+
+**Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
+inference, and the fleet knows whether the read-only guard is portable to that host or whether
+policy-delivered Copilot managed settings are the only real control there.
+
+**Source:** A 2026-08-12 scan against installed VS Code 1.133.0 and upstream `microsoft/vscode`.
+`[verified]` the tool-set vocabulary the generator emits (`read`, `search`, `edit`, `execute`, `web`,
+`agent`) matches VS Code's own tool-set enum, so the projection's names resolve. `[sourced]` an
+omitted tool is set to an explicit `false` for the model, but session tool selection, a prompt file's
+own list, and chat deep links all outrank a workspace agent's list, and the tools picker writes the
+user's change back into the `.agent.md` file — only extension-contributed agents are read-only.
+`[sourced]` VS Code 1.133 exposes `chat.hookFilesLocations`, `chat.useHooks`, `chat.useClaudeHooks`,
+and a per-agent `hooks:` key, none of which existed when `hooks/copilot-hooks.json` was fixed empty
+and when `AGENTS.md` recorded that guarding is not portable through it.
+
+**Prerequisites:** None beyond an installed VS Code and this checkout. The probe is observational: it
+changes no live system, and it neither authorizes nor implies a Copilot hook implementation.
+
+**Acceptance:** A dated review packet records, from an observed session, whether the tools picker
+offers `execute` to `sre`; whether a session-level override reinstates it; and whether using the
+picker mutates `.github/agents/sre.agent.md` on disk. It states the VS Code build tested, keeps
+`[verified]`/`[sourced]` labels honest, and either confirms the `AGENTS.md` VS Code limit or replaces
+it with the measured behavior. Any hook-portability finding is recorded as evidence only; wiring a
+Copilot hook is separate work needing its own review.
+
+**Next action:** Run the observational probe in VS Code and record the packet. Do not weaken the
+`AGENTS.md` limit on inference alone, and do not populate `hooks/copilot-hooks.json` before a probe
+shows the payload can scope to an exact agent identity.
+
 ## Decisions needed
 
 ### REVIEW-001 — enforce final-SHA review reconciliation
@@ -406,20 +438,24 @@ thread reconciliation as a manual merge blocker rather than assuming green CI is
 current-main feature or explicitly archived/rejected; it is not silently lost, deleted, or treated as
 accepted fleet behavior.
 
-**Source:** The dirty local worktree `.worktrees/incident-navigation` contains an uncommitted canonical
-skill, SRE-agent routing edits, direct/discovery scenarios, tests, and generated projections. Its
-branch has no unique commit, is 16 commits behind main, and has no pull request. Current main contains
-no `incident-navigation` component.
+**Source:** `[verified]` The dirty local worktree `.worktrees/incident-navigation` contains an
+uncommitted canonical skill, SRE-agent routing edits, direct/discovery scenarios, tests, and generated
+projections. At the 2026-08-12 capture its branch had no unique commit, was 18 commits behind
+`origin/main`, and had no pull request. Current main contains no accepted `incident-navigation`
+component. The exact 11-file inventory and recoverable patch set are preserved in
+[`2026-08-12-incident-navigation-preservation`](reviews/2026-08-12-incident-navigation-preservation/README.md).
 
-**Prerequisites:** Before any cleanup or rebase, record a file/digest inventory and a recoverable patch
-outside the worktree. The owner then decides whether responder-orientation is in current product scope.
+**Prerequisites:** `[verified]` The file/digest inventory and recoverable patch prerequisite is
+satisfied by the preservation packet outside the dirty worktree. The owner still must decide whether
+responder-orientation is in current product scope before any cleanup, rebase, or implementation work.
 
 **Acceptance:** If resumed, canonical sources are rebased onto current main, projections are regenerated,
 route/behavior eval obligations are met, and independent review passes. If rejected, the owner records
 the reason and explicitly authorizes removal only after the recoverable snapshot is verified.
 
-**Next action:** Inventory and preserve the dirty bytes, then request the owner disposition. Do not
-delete, reset, or regenerate inside that worktree beforehand.
+**Next action:** Request the owner disposition: resume from canonical sources on current main, or
+archive/reject with a recorded reason. The preservation packet grants neither acceptance nor cleanup
+authority; do not delete, reset, or regenerate inside the source worktree without that decision.
 
 ## Deferred
 

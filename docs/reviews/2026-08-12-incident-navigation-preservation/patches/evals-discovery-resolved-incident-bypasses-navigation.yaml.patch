@@ -1,0 +1,31 @@
+diff --git a/evals/scenarios/discovery-resolved-incident-bypasses-navigation.yaml b/evals/scenarios/discovery-resolved-incident-bypasses-navigation.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..9e3ad338ec82488732d9bbb06961b273129af468
+--- /dev/null
++++ b/evals/scenarios/discovery-resolved-incident-bypasses-navigation.yaml
+@@ -0,0 +1,25 @@
++schema_version: 1
++id: discovery-resolved-incident-bypasses-navigation
++mode: discovery
++split: regression
++target:
++  kind: skill
++  name: incident-navigation
++prompt: |
++  INC-944 is resolved and the authoritative timeline and RCA packet are complete. Write the
++  blameless repository postmortem with impact, systemic causes, and owned dated follow-ups.
++routing:
++  expect: not_fire
++  expected_alternative:
++    kind: agent
++    name: scribe
++success_criteria:
++  - Keeps resolved-incident documentation out of the live orientation workflow
++  - Routes the completed evidence packet to the documentation owner
++graders:
++  - type: contains_any
++    of: ["postmortem", "retrospective", "resolved incident"]
++  - type: contains_any
++    of: ["timeline", "impact", "root cause", "systemic cause"]
++  - type: contains_any
++    of: ["owner", "due date", "follow-up", "action item"]

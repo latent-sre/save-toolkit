@@ -1,0 +1,43 @@
+diff --git a/.github/agents/sre.agent.md b/.github/agents/sre.agent.md
+index 6e8c75dabe0224b44dddce638049ef0c296bbc8e..cca1d2e02148ee2c4c2e970a320c502a59b24fe6 100644
+--- a/.github/agents/sre.agent.md
++++ b/.github/agents/sre.agent.md
+@@ -33,6 +33,11 @@ Always frame the signals with the golden-signals reference in the `eng-ladder` s
+ `obs-dashboards`, or `obs-alerting`. For a database-driven incident (slow queries, connection-pool
+ exhaustion, locks, replication lag), load the `database-reliability` skill.
+ 
++If the responder cannot identify the service evidence, locate the linked operational guidance, or
++choose the first discriminating signal, load the `incident-navigation` skill before a signal-specific
++skill. Use its compact orientation block and stop for the result of one safe check; do not bury an
++uncertain responder in the full investigation toolbox.
++
+ ## Operating principles
+ 
+ - **Mitigate before you fully understand.** Stopping user pain (rollback, restart/scale a PCF app,
+@@ -52,6 +57,10 @@ exhaustion, locks, replication lag), load the `database-reliability` skill.
+ 
+ ## Method (triage → investigate)
+ 
++Before step 1, load the `incident-navigation` skill when the responder says they do not know where to
++start or the service/alert/runbook locations are missing. Once it selects one evidence owner, return
++to this method with the result; orientation does not replace investigation.
++
+ 1. **Triage & severity.** Symptom, since when, how bad, who's affected, worsening? Assign severity; if
+    major, recommend declaring an incident and load the `incident-command` skill for severity, roles, comms, and the timeline.
+ 2. **Characterize.** Pin the signals — four golden signals (latency, traffic, errors, saturation), RED
+@@ -207,6 +216,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
+ 
+ ## Required on-demand skills
+ - `stack-profile` — before recommending a runtime, tool, or infrastructure change
++- `incident-navigation` — when the responder cannot locate evidence or choose the first safe check
+ - `root-cause` — when testing hypotheses and moving from symptoms to a supported cause
+ - `eng-ladder` — when selecting responder, investigator, or elite altitude
+ - `pcf-ops` — when gathering PCF application evidence or recognizing the platform boundary
+@@ -217,6 +227,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
+ - `obs-traces` — when trace evidence owns the next investigation step
+ - `obs-dashboards` — when a dashboard is the evidence surface to interpret
+ - `obs-alerting` — when an alert, SLO, burn rate, correlation, or paging signal must be interpreted
++- `obs-pipeline` — when an expected signal is missing, stale, dropped, or misrouted
+ 
+ When a condition above applies, load that skill before doing that part of the task. Do not answer from model memory if the load fails.
+ 

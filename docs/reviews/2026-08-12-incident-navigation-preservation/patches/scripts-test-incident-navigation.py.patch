@@ -1,0 +1,94 @@
+diff --git a/scripts/test_incident_navigation.py b/scripts/test_incident_navigation.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..42e624e4bebfb0d2144922b17ca2ba3eb9589086
+--- /dev/null
++++ b/scripts/test_incident_navigation.py
+@@ -0,0 +1,88 @@
++"""Mutation-oriented contract tests for uncertain-responder navigation."""
++
++from __future__ import annotations
++
++import unittest
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++SKILL_PATH = Path("skills/incident-navigation/SKILL.md")
++SRE_PATH = Path("agents/sre.md")
++
++OUTPUT_SLOTS = (
++    "Known facts:",
++    "Current hypotheses:",
++    "Unknowns:",
++    "Where to look:",
++    "First safe check:",
++    "Escalate when:",
++    "Documentation gaps:",
++    "State changed: no",
++)
++
++SIGNAL_ROUTES = (
++    "`pcf-ops`",
++    "`obs-alerting`",
++    "`obs-metrics`",
++    "`obs-logs`",
++    "`obs-traces`",
++    "`obs-dashboards`",
++    "`obs-pipeline`",
++    "`database-reliability`",
++)
++
++
++def contract_failures(skill_text: str, sre_text: str) -> list[str]:
++    """Return missing Round-1 navigation contracts without interpreting Markdown."""
++
++    failures: list[str] = []
++    for slot in OUTPUT_SLOTS:
++        if slot not in skill_text:
++            failures.append(f"missing output slot: {slot}")
++    for route in SIGNAL_ROUTES:
++        if route not in skill_text:
++            failures.append(f"missing signal route: {route}")
++    if "load the `incident-navigation` skill" not in sre_text.lower():
++        failures.append("SRE agent does not load incident-navigation")
++    if "missing documentation is a finding" not in skill_text.lower():
++        failures.append("missing-documentation behavior is absent")
++    if "one next check" not in skill_text.lower():
++        failures.append("single-next-check boundary is absent")
++    return failures
++
++
++class IncidentNavigationContractTests(unittest.TestCase):
++    def test_current_round_one_contract(self) -> None:
++        skill = ROOT / SKILL_PATH
++        self.assertTrue(skill.is_file(), f"missing canonical skill: {SKILL_PATH}")
++        failures = contract_failures(
++            skill.read_text(encoding="utf-8"),
++            (ROOT / SRE_PATH).read_text(encoding="utf-8"),
++        )
++        self.assertEqual([], failures)
++
++    def test_output_slot_mutation_is_detected(self) -> None:
++        skill = ROOT / SKILL_PATH
++        if not skill.is_file():
++            self.skipTest("canonical skill is intentionally absent in the pre-change baseline")
++        skill_text = skill.read_text(encoding="utf-8")
++        mutated = skill_text.replace("First safe check:", "Initial check:", 1)
++        failures = contract_failures(
++            mutated,
++            (ROOT / SRE_PATH).read_text(encoding="utf-8"),
++        )
++        self.assertIn("missing output slot: First safe check:", failures)
++
++    def test_sre_route_mutation_is_detected(self) -> None:
++        skill = ROOT / SKILL_PATH
++        if not skill.is_file():
++            self.skipTest("canonical skill is intentionally absent in the pre-change baseline")
++        sre_text = (ROOT / SRE_PATH).read_text(encoding="utf-8")
++        mutated = sre_text.replace("load the `incident-navigation` skill", "orient inline")
++        failures = contract_failures(skill.read_text(encoding="utf-8"), mutated)
++        self.assertIn("SRE agent does not load incident-navigation", failures)
++
++
++if __name__ == "__main__":
++    unittest.main()
