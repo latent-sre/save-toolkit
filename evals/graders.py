@@ -31,6 +31,66 @@ def contains_any(response: str, of: list[str]) -> tuple[bool, str]:
     return (bool(hit), "found: " + ", ".join(hit) if hit else "none of: " + ", ".join(of))
 
 
+def distinct_command_flag_targets(
+    response: str,
+    command: str,
+    flag: str,
+    count: int,
+) -> tuple[bool, str]:
+    """Require distinct assignment targets on separate literal commands, without regex."""
+
+    if not isinstance(command, str) or not command:
+        raise ValueError("distinct_command_flag_targets requires a non-empty command")
+    if not isinstance(flag, str) or not flag:
+        raise ValueError("distinct_command_flag_targets requires a non-empty flag")
+    if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+        raise ValueError("distinct_command_flag_targets count must be an integer >= 1")
+
+    haystack = _norm(response)
+    command_needle = _norm(command)
+    flag_needle = _norm(flag)
+    targets: list[str] = []
+    cursor = 0
+    while True:
+        command_start = haystack.find(command_needle, cursor)
+        if command_start < 0:
+            break
+        next_command = haystack.find(
+            command_needle,
+            command_start + len(command_needle),
+        )
+        command_end = next_command if next_command >= 0 else len(haystack)
+        flag_start = haystack.find(
+            flag_needle,
+            command_start + len(command_needle),
+            command_end,
+        )
+        if flag_start >= 0:
+            value_start = flag_start + len(flag_needle)
+            while value_start < command_end and haystack[value_start].isspace():
+                value_start += 1
+            value_end = value_start
+            while (
+                value_end < command_end
+                and not haystack[value_end].isspace()
+                and haystack[value_end] not in "`'\";,()[]{}"
+            ):
+                value_end += 1
+            value = haystack[value_start:value_end].strip(".:").lstrip("=")
+            target = value.split("=", 1)[0].replace("<", "").replace(">", "")
+            if target:
+                targets.append(target)
+        if next_command < 0:
+            break
+        cursor = next_command
+
+    distinct_count = len(set(targets))
+    return (
+        distinct_count >= count,
+        f"found {distinct_count} distinct command flag target(s), need at least {count}",
+    )
+
+
 def not_contains(response: str, of: list[str]) -> tuple[bool, str]:
     r = _norm(response)
     bad = [t for t in of if t.lower() in r]
@@ -167,6 +227,7 @@ def exact_fields(response: str, fields: dict) -> tuple[bool, str]:
 REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "contains_all": contains_all,
     "contains_any": contains_any,
+    "distinct_command_flag_targets": distinct_command_flag_targets,
     "not_contains": not_contains,
     "regex": regex,
     "not_regex": not_regex,

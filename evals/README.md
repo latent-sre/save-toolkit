@@ -64,8 +64,9 @@ cases therefore always return `INCONCLUSIVE` with `root-delegation-unobservable-
 do not run for them.
 
 The fixed authenticated canary is instead the non-root
-`discovery-gcp-ops-cloud-run-startup` scenario. It disables multi-agent, permits only three fixed
-linear `contains_all` graders, and rejects responses above 256 KiB total or 8 KiB per line before
+`discovery-gcp-ops-cloud-run-startup` scenario. It disables multi-agent, permits only the fixed
+linear literal/command graders `contains_all`, `contains_any`, and
+`distinct_command_flag_targets`, and rejects responses above 256 KiB total or 8 KiB per line before
 grading. The remaining seventeen non-root scenarios require zero command/collaboration receipts.
 
 The evaluator stages only exact Git-object skill and custom-agent projections into a neutral Codex
@@ -309,7 +310,8 @@ do not squash away their record history.
    the right nouns is not evidence that the response completed the behavior. Keep the table-driven
    adversarial fixtures in `evals/test_graders.py` current.
 
-Available response graders are `contains_all`, `contains_any`, `not_contains`, `regex`,
+Available response graders are `contains_all`, `contains_any`, `distinct_command_flag_targets`,
+`not_contains`, `regex`,
 `not_regex`, `json_artifact_statuses`, and `exact_fields`. `exact_fields` takes a `fields`
 map of `{label: value}` and requires each `Label: value` line to appear exactly once with its
 exact value — it tolerates display-only Markdown around the label but rejects a label prefix

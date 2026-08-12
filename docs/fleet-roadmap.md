@@ -196,7 +196,16 @@ activation or target-skill absence. Non-root trials require zero tool receipts a
 facts. Stock 0.147 cannot join its encrypted V2 spawn input, terminal child result, and root
 consumption, so the two active-incident cases short-circuit to `INCONCLUSIVE` before response
 grading. The fixed authenticated canary instead uses the non-root GCP Cloud Run startup case, only
-linear `contains_all` graders, and 256 KiB total/8 KiB per-line response limits.
+the fixed linear `contains_all`, `contains_any`, and `distinct_command_flag_targets` graders, and
+256 KiB total/8 KiB per-line response limits.
+
+An owner-authorized managed response-only Terra smoke at commit `6d90943664ee0305726cc0ed8feb6b5d9a8e7f68`
+exposed a grader-calibration defect without supplying a resolved-model, installed-skill, or harness
+trace receipt. The red-first repair accepts equivalent placeholder and bind-address wording while
+still rejecting the response's missing orientation and operator-ready rollback packet; it also adds
+the previously absent log-read obligation. This is calibration evidence only, not a canary,
+campaign result, or baseline; see
+[`2026-08-11-codex-terra-managed-smoke.md`](reviews/2026-08-11-codex-terra-managed-smoke.md).
 
 Terra's stock Codex 0.147 metadata would expose code-mode tooling, including an `apply_patch` read
 surface. The catalog transformer verifies the exact bundled model entry and emits an authoritative

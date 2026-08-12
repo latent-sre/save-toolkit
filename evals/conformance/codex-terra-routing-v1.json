@@ -30,32 +30,60 @@
   },
   "canary_scenario": {
     "_file": "discovery-gcp-ops-cloud-run-startup.yaml",
-    "_source_sha256": "a39fd7930edd0576fad2e20189ad8349573ce232a148f49c645d9286f38ed979",
+    "_source_sha256": "2fded9a13a7cc1418c808c4eeb9d5c975ae800c99d33214ba479c990787dc688",
     "graders": [
       {
         "of": [
           "gcloud config list",
-          "gcloud run services describe checkout",
-          "gcloud run revisions list --service checkout"
+          "gcloud run services describe",
+          "gcloud run revisions list --service"
         ],
         "type": "contains_all"
       },
       {
         "of": [
-          "0.0.0.0:$PORT",
-          "127.0.0.1"
+          "gcloud logging read",
+          "gcloud run services logs read"
+        ],
+        "type": "contains_any"
+      },
+      {
+        "of": [
+          "0.0.0.0",
+          "PORT"
         ],
         "type": "contains_all"
+      },
+      {
+        "of": [
+          "127.0.0.1",
+          "loopback"
+        ],
+        "type": "contains_any"
       },
       {
         "of": [
           "[unverified]",
-          "--to-revisions",
           "Tier 2",
           "human release owner",
-          "inverse traffic command"
+          "error rate"
         ],
         "type": "contains_all"
+      },
+      {
+        "command": "gcloud run services update-traffic",
+        "count": 2,
+        "flag": "--to-revisions",
+        "type": "distinct_command_flag_targets"
+      },
+      {
+        "of": [
+          "reverse",
+          "inverse",
+          "undo",
+          "restore"
+        ],
+        "type": "contains_any"
       }
     ],
     "id": "discovery-gcp-ops-cloud-run-startup",
@@ -139,7 +167,7 @@
     {
       "id": "discovery-gcp-ops-cloud-run-startup",
       "cohort": "current_only",
-      "sha256": "a39fd7930edd0576fad2e20189ad8349573ce232a148f49c645d9286f38ed979"
+      "sha256": "2fded9a13a7cc1418c808c4eeb9d5c975ae800c99d33214ba479c990787dc688"
     },
     {
       "id": "discovery-gcp-ops-defers-active-incident",

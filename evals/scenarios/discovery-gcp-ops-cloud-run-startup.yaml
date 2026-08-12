@@ -16,8 +16,18 @@ success_criteria:
   - Uses service, revision, and log evidence without changing traffic
 graders:
   - type: contains_all
-    of: ["gcloud config list", "gcloud run services describe checkout", "gcloud run revisions list --service checkout"]
+    of: ["gcloud config list", "gcloud run services describe", "gcloud run revisions list --service"]
+  - type: contains_any
+    of: ["gcloud logging read", "gcloud run services logs read"]
   - type: contains_all
-    of: ["0.0.0.0:$PORT", "127.0.0.1"]
+    of: ["0.0.0.0", "PORT"]
+  - type: contains_any
+    of: ["127.0.0.1", "loopback"]
   - type: contains_all
-    of: ["[unverified]", "--to-revisions", "Tier 2", "human release owner", "inverse traffic command"]
+    of: ["[unverified]", "Tier 2", "human release owner", "error rate"]
+  - type: distinct_command_flag_targets
+    command: "gcloud run services update-traffic"
+    flag: "--to-revisions"
+    count: 2
+  - type: contains_any
+    of: ["reverse", "inverse", "undo", "restore"]
