@@ -241,8 +241,9 @@ offline harness tests.
   verified on the recorded CLI version. Must-follow constraints are indexed in
   [`docs/rules.md`](docs/rules.md).
 - ROUTE-001's nineteen-scenario/48-trial Codex/Terra campaign has a committed offline evaluator and
-  credential-free preflight (merged in PR #103), but no live result or baseline; its authenticated
-  canary is blocked on the trusted runtime/tool-plan
+  credential-free preflight (merged in PR #103), but the 48-trial executor is still unimplemented and
+  the evaluator carries an open grader repair, so there is no live result or baseline; its
+  authenticated canary is additionally blocked on the trusted runtime/tool-plan
   prerequisites above. Broader Codex/Sol conformance remains parked at tag `pre-trim-2026-08-02` with
   no current runtime baseline. Disposable host install/inventory/uninstall smoke for Claude, Codex,
   VS Code, and Copilot CLI is closed under
