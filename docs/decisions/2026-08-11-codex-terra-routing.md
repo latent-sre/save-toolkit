@@ -43,8 +43,11 @@ from answer text, agent type, or partial lifecycle receipts.
 
 The authenticated development canary is instead the non-root
 `discovery-gcp-ops-cloud-run-startup` case. It disables multi-agent, accepts only the fixed linear
-`contains_all`, `contains_any`, and `distinct_command_flag_targets` graders, and caps a response at
-256 KiB total and 8 KiB per line before any grader runs. Every non-root trial permits zero command
+`contains_all`, `contains_any`, and `cloud_run_rollback_packet` graders, and caps a response at
+256 KiB total and 8 KiB per line before any grader runs. The structured grader accepts one fenced
+JSON packet and binds its forward/inverse commands to exact scenario-provided service and revision
+identities, 100% traffic, and matching region/project context; other traffic commands are rejected.
+Every non-root trial permits zero command
 or collaboration receipts. The evaluator installs
 synchronous receipt hooks in a disposable Codex config only after copying and hashing the recorder
 and parser into the private boundary. Receipts reduce to names, counts, verdict facts, and hashes;

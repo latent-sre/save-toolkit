@@ -196,8 +196,10 @@ activation or target-skill absence. Non-root trials require zero tool receipts a
 facts. Stock 0.147 cannot join its encrypted V2 spawn input, terminal child result, and root
 consumption, so the two active-incident cases short-circuit to `INCONCLUSIVE` before response
 grading. The fixed authenticated canary instead uses the non-root GCP Cloud Run startup case, only
-the fixed linear `contains_all`, `contains_any`, and `distinct_command_flag_targets` graders, and
-256 KiB total/8 KiB per-line response limits.
+the fixed linear `contains_all`, `contains_any`, and `cloud_run_rollback_packet` graders, and
+256 KiB total/8 KiB per-line response limits. The structured rollback grader binds one exact fenced
+JSON packet to service `checkout`, synthetic previous/failed revision IDs, 100% traffic, and matching
+region/project context; it rejects extra traffic commands outside that packet.
 
 An owner-authorized managed response-only Terra smoke at commit `6d90943664ee0305726cc0ed8feb6b5d9a8e7f68`
 exposed a grader-calibration defect without supplying a resolved-model, installed-skill, or harness

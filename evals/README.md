@@ -65,9 +65,11 @@ do not run for them.
 
 The fixed authenticated canary is instead the non-root
 `discovery-gcp-ops-cloud-run-startup` scenario. It disables multi-agent, permits only the fixed
-linear literal/command graders `contains_all`, `contains_any`, and
-`distinct_command_flag_targets`, and rejects responses above 256 KiB total or 8 KiB per line before
-grading. The remaining seventeen non-root scenarios require zero command/collaboration receipts.
+linear graders `contains_all`, `contains_any`, and `cloud_run_rollback_packet`, and rejects responses
+above 256 KiB total or 8 KiB per line before grading. The rollback grader accepts exactly one fenced
+JSON packet, binds its two command fields to the scenario's exact service and synthetic revision IDs,
+and rejects extra traffic commands, shell syntax, wrong weights, or mismatched context flags. The
+remaining seventeen non-root scenarios require zero command/collaboration receipts.
 
 The evaluator stages only exact Git-object skill and custom-agent projections into a neutral Codex
 project. Terra's stock 0.147 metadata would force code mode and expose `apply_patch`, which can read
@@ -310,7 +312,7 @@ do not squash away their record history.
    the right nouns is not evidence that the response completed the behavior. Keep the table-driven
    adversarial fixtures in `evals/test_graders.py` current.
 
-Available response graders are `contains_all`, `contains_any`, `distinct_command_flag_targets`,
+Available response graders are `contains_all`, `contains_any`, `cloud_run_rollback_packet`,
 `not_contains`, `regex`,
 `not_regex`, `json_artifact_statuses`, and `exact_fields`. `exact_fields` takes a `fields`
 map of `{label: value}` and requires each `Label: value` line to appear exactly once with its

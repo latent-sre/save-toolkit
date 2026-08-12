@@ -152,14 +152,24 @@ class ManifestContractTests(unittest.TestCase):
         expected = self.scenarios[run_codex_routing.CANARY_SCENARIO_ID]
         self.assertEqual(expected, self.manifest["canary_scenario"])
         self.assertEqual(
-            {"contains_all", "contains_any", "distinct_command_flag_targets"},
+            {
+                "cloud_run_rollback_packet",
+                "contains_all",
+                "contains_any",
+            },
             {
                 spec["type"]
                 for spec in self.manifest["canary_scenario"]["graders"]
             },
         )
         self.assertEqual(
-            frozenset({"contains_all", "contains_any", "distinct_command_flag_targets"}),
+            frozenset(
+                {
+                    "cloud_run_rollback_packet",
+                    "contains_all",
+                    "contains_any",
+                }
+            ),
             run_codex_routing.CANARY_LINEAR_GRADER_TYPES,
         )
         self.assertEqual([], run_codex_routing.validate_canary_scenario(self.manifest))

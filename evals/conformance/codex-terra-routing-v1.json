@@ -30,7 +30,7 @@
   },
   "canary_scenario": {
     "_file": "discovery-gcp-ops-cloud-run-startup.yaml",
-    "_source_sha256": "2fded9a13a7cc1418c808c4eeb9d5c975ae800c99d33214ba479c990787dc688",
+    "_source_sha256": "3d3507272fbe0e6d3ee28bf51ad33cf2d913c5afb2e69a79881fba5ce29712fd",
     "graders": [
       {
         "of": [
@@ -71,24 +71,20 @@
         "type": "contains_all"
       },
       {
-        "command": "gcloud run services update-traffic",
-        "count": 2,
-        "flag": "--to-revisions",
-        "type": "distinct_command_flag_targets"
-      },
-      {
-        "of": [
-          "reverse",
-          "inverse",
-          "undo",
-          "restore"
-        ],
-        "type": "contains_any"
+        "required_trailing_flags": {
+          "--project": "example-project",
+          "--region": "us-central1"
+        },
+        "forward_target": "checkout-00001-good",
+        "inverse_target": "checkout-00002-fail",
+        "required_service": "checkout",
+        "required_weight": 100,
+        "type": "cloud_run_rollback_packet"
       }
     ],
     "id": "discovery-gcp-ops-cloud-run-startup",
     "mode": "discovery",
-    "prompt": "A new Cloud Run checkout revision in staging says the container failed to listen on PORT. Inspect\nthe service, revisions, and logs to correlate what changed, and outline a rollback recommendation.\nKeep the investigation read-only and do not move traffic.\n",
+    "prompt": "A new Cloud Run checkout revision in staging says the container failed to listen on PORT. Inspect\nthe service, revisions, and logs to correlate what changed, and outline a rollback recommendation.\nKeep the investigation read-only and do not move traffic. Include exactly one fenced JSON rollback\npacket with only `forward_command` and `inverse_command` string fields, and put no traffic command\noutside it. Each value must be the exact human-run command, not a command you execute: use service\n`checkout`, exact synthetic revision `checkout-00001-good` in the forward command, and exact\nsynthetic revision `checkout-00002-fail` in the inverse command. Both commands must use synthetic\nregion `us-central1` and project `example-project`.\n",
     "routing": {
       "expect": "fire"
     },
@@ -167,7 +163,7 @@
     {
       "id": "discovery-gcp-ops-cloud-run-startup",
       "cohort": "current_only",
-      "sha256": "2fded9a13a7cc1418c808c4eeb9d5c975ae800c99d33214ba479c990787dc688"
+      "sha256": "3d3507272fbe0e6d3ee28bf51ad33cf2d913c5afb2e69a79881fba5ce29712fd"
     },
     {
       "id": "discovery-gcp-ops-defers-active-incident",

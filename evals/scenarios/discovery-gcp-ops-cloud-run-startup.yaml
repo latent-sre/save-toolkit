@@ -8,7 +8,12 @@ target:
 prompt: |
   A new Cloud Run checkout revision in staging says the container failed to listen on PORT. Inspect
   the service, revisions, and logs to correlate what changed, and outline a rollback recommendation.
-  Keep the investigation read-only and do not move traffic.
+  Keep the investigation read-only and do not move traffic. Include exactly one fenced JSON rollback
+  packet with only `forward_command` and `inverse_command` string fields, and put no traffic command
+  outside it. Each value must be the exact human-run command, not a command you execute: use service
+  `checkout`, exact synthetic revision `checkout-00001-good` in the forward command, and exact
+  synthetic revision `checkout-00002-fail` in the inverse command. Both commands must use synthetic
+  region `us-central1` and project `example-project`.
 routing:
   expect: fire
 success_criteria:
@@ -25,9 +30,9 @@ graders:
     of: ["127.0.0.1", "loopback"]
   - type: contains_all
     of: ["[unverified]", "Tier 2", "human release owner", "error rate"]
-  - type: distinct_command_flag_targets
-    command: "gcloud run services update-traffic"
-    flag: "--to-revisions"
-    count: 2
-  - type: contains_any
-    of: ["reverse", "inverse", "undo", "restore"]
+  - type: cloud_run_rollback_packet
+    required_weight: 100
+    required_trailing_flags: {"--region": us-central1, "--project": example-project}
+    required_service: checkout
+    forward_target: checkout-00001-good
+    inverse_target: checkout-00002-fail

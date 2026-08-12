@@ -43,10 +43,14 @@ BEFORE_REVISION = "a39a81f33f7ad7325c52d883822bbbdd80c7ed28"
 CURRENT_REVISION = "b459a5d3a209d384acb2b2b7ca325aa63697113b"
 CANARY_SCENARIO_ID = "discovery-gcp-ops-cloud-run-startup"
 CANARY_CANONICAL_SHA256 = (
-    "805f17e6c40b192559e8dfbfe05587a3c6baad09f3fd6d00f87a838192beb4b4"
+    "5c516ab15a31cd26923193b97ab69e7c16337ef8ab916bf43706c3047f79fd6b"
 )
 CANARY_LINEAR_GRADER_TYPES = frozenset(
-    {"contains_all", "contains_any", "distinct_command_flag_targets"}
+    {
+        "cloud_run_rollback_packet",
+        "contains_all",
+        "contains_any",
+    }
 )
 
 PAIRED_IDS = frozenset(

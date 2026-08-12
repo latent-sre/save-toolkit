@@ -2,7 +2,10 @@
 
 - **Date:** 2026-08-11
 - **Target:** `gpt-5.6-terra`, medium reasoning, requested through one managed subagent
-- **Repository HEAD:** `6d90943664ee0305726cc0ed8feb6b5d9a8e7f68`
+- **Managed-smoke source HEAD:** `6d90943664ee0305726cc0ed8feb6b5d9a8e7f68`
+- **Calibration base:** immutable commit `1a95b72ae5f3d9ecca2ec396f63f5156a8bbfa08`
+- **Calibration evidence state:** provisional mutable-worktree evidence; the tested surface is bound by
+  the file hashes below and must be rerun after the corrective commit
 - **Authority:** response-only calibration evidence; not a ROUTE-001 canary, campaign, routing result,
   baseline, release, or model-resolution receipt
 
@@ -25,32 +28,52 @@ substantive omissions under the canonical `gcp-ops` skill, not grader wording di
 
 ## Calibration
 
-The old grader conflated the harmless representation differences with the substantive omissions and
-also failed to require a log-read command. A red-first regression added one behavior-complete variant
-using `SERVICE`, `0.0.0.0` plus `PORT`, and `loopback`; the old grader rejected it, producing
-`167/168` checks. A paired advisory-only fixture representing the managed response remains rejected.
-A second red-first check required a bounded literal-occurrence grader and failed with a missing API
-before implementation. Independent review then found that separate occurrence counts still allowed
-the same forward command twice; its duplicate-forward regression failed at `177/178` before the
-grader was replaced with a command-bound distinct-target check. A follow-up target-normalization
-regression failed at `181/182` when the same target used different percentages, then passed after
-angle-bracket and assignment-weight normalization.
+The first calibration repair separated harmless wording variants from substantive omissions and
+added the missing log-read obligation. Immutable review of commit `1a95b72` then reproduced two
+material false passes: two different revisions at 50% were accepted, and command words could borrow
+`--to-revisions` operands from later prose. Further adversarial fixtures exposed duplicated targets,
+missing service positionals, malformed assignments, duplicate flags, swapped direction, a shared
+wrong service, extra traffic commands, invalid literal placeholders, and mismatched region/project
+context.
 
-The repair keeps grading linear and does not change the prompt, routing target, skill description, or
-canonical skill. It now accepts both canonical log-read forms, both loopback representations, and
-arbitrary revision names while requiring two `update-traffic --to-revisions` commands with distinct
-traffic targets plus an inverse-action marker. The existing governance and verification obligations
-remain. The prompt-only and whitespace-normalized echo regressions remain active.
+The final repair replaces natural-language direction inference with one closed
+`cloud_run_rollback_packet` contract. The scenario now asks for exactly one fenced JSON object with
+only `forward_command` and `inverse_command`. Both values must be single-line, directly runnable
+commands using exact synthetic values: service `checkout`, previous revision
+`checkout-00001-good`, failed revision `checkout-00002-fail`, region `us-central1`, project
+`example-project`, and 100% traffic. The parser rejects duplicate/extra JSON fields, any additional
+fence or traffic command outside the packet, shell controls or extra argv, wrong case, missing or
+duplicate flags, direction swaps, and mismatched identities. Persisted grader details never echo
+the command operands. The routing target and canonical skill are unchanged; the prompt changed only
+to define this deterministic output contract. Prompt-echo and advisory-only regressions remain
+active.
 
 Focused post-change evidence:
 
-- `[verified]` `python evals/test_graders.py` — `182/182` checks passed.
+- `[verified]` `python evals/test_graders.py` — `215/215` checks passed.
 - `[verified]` `python evals/test_run_codex_routing.py` — `18/18` tests passed.
-- `[verified]` `python evals/test_codex_bootstrap.py` — `32/32` tests passed, with two expected
-  Windows symlink-privilege skips.
+- `[verified]` `python evals/test_codex_bootstrap.py` — thirty tests passed, with two expected
+  Windows symlink-privilege skips (thirty-two tests run).
 - `[verified]` `python evals/run_codex_routing.py` — manifest valid, nineteen scenarios and
   forty-eight planned trials.
 - `[verified]` `python scripts/gate_a.py` — `38/38` structural steps passed.
+
+Exact tested mutable surface (`path`, byte size, SHA-256):
+
+- `evals/graders.py`, `15149`,
+  `9389c4181816d0872b7c2dcb9021f038677a1ac0d62fd87c03d945413fd174a9`
+- `evals/run_codex_routing.py`, `24889`,
+  `80e7b7391b6d977a54450a256fb8b34acc705d757aa30d9b84072570cf0272d6`
+- `evals/scenarios/discovery-gcp-ops-cloud-run-startup.yaml`, `1767`,
+  `3d3507272fbe0e6d3ee28bf51ad33cf2d913c5afb2e69a79881fba5ce29712fd`
+- `evals/conformance/codex-terra-routing-v1.json`, `7495`,
+  `d5c7c06902fe131448f6c7fb5d0e03180ccaff8eab4e4201f41315115e127887`
+- `evals/conformance/codex-terra-evaluator-v1.json`, `1173`,
+  `0f27b464607d2bd12c68f148abbeb26736954b37177522cf6bff276125266acc`
+- `evals/test_graders.py`, `56669`,
+  `f492e9f42156f43a9679bb9d2e3af76deaa1dea5a6d076fdda913a45e0a99034`
+- `evals/test_run_codex_routing.py`, `18540`,
+  `6e3a5c4b624fc0a5f1e98767ff9b6a65709b3f6d484f91c32bfb0c4f152d7976`
 
 No second live model call was made. A future live retest remains a separately authorized effect and
 cannot close the current host's authenticated-canary prerequisites.
