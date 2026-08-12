@@ -24,13 +24,24 @@ python evals/run_codex_routing.py --plan `
   --current-revision b459a5d3a209d384acb2b2b7ca325aa63697113b
 ```
 
-Do **not** invoke `run_codex_routing.py --canary` directly. The only prepared canary path is an
-externally verified copy of [`codex_bootstrap.py`](codex_bootstrap.py), launched by an absolute,
-protected Python installation with `-I -S -B`. The external review packet must pin the complete
+The same protected bootstrap also supports a credential-free `--preflight` mode. It stages the
+exact evaluator closure, materializes the fixed Git object, probes the pinned Codex version and
+bundled Terra catalog, renders and rechecks the safe catalog/config/hooks, then stops before reading
+an auth file or starting a model process. Preflight output always records
+`host_trust = not-verified-by-runner`, `authenticated_call_started = false`, and
+`live_authorized = false`; passing it diagnoses runner compatibility but cannot authorize a canary.
+Use the concrete versioned `codex.exe` path, not either updater junction or the `codex` PowerShell
+wrapper. The externally reviewed launch packet supplies the exact bootstrap, evaluator-manifest
+digest, repository, Codex executable, and empty private root; no auth argument is accepted.
+
+Do **not** invoke `run_codex_routing.py --canary` or `--preflight` directly. The only prepared paths
+start from an externally verified copy of [`codex_bootstrap.py`](codex_bootstrap.py), launched by an
+absolute, protected Python installation with `-I -S -B`. The external review packet must pin the complete
 Python DLL/standard-library closure, the protected bootstrap bytes, and the exact SHA-256 of
 [`codex-terra-evaluator-v1.json`](conformance/codex-terra-evaluator-v1.json). The bootstrap then
-copies the exact nine-file evaluator closure into a private stage, synthesizes the only accepted
-`--canary` argument set, and verifies that stage before and after execution. The external launcher
+copies the exact nine-file evaluator closure into a private stage, synthesizes either the auth-free
+preflight or the only accepted `--canary` argument set, and verifies that stage before and after
+execution. The external launcher
 must also supply an empty private root on a local fixed NTFS volume; UNC, mapped, substituted,
 remote, removable, and non-NTFS storage are rejected. Caller-supplied mode, manifest, scenario, or
 temporary-path overrides are rejected. A consumer must accept output only

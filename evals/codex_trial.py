@@ -1867,6 +1867,43 @@ def _validated_private_parent(path: Path, repository: Path) -> Path:
     return candidate
 
 
+def _preflight_process_forbidden(*_args: object, **_kwargs: object) -> ProcessCapture:
+    """Make an accidental authenticated/model-process step fail closed during preflight."""
+
+    raise InstrumentError(
+        "preflight-model-process-attempted",
+        "credential-free preflight attempted to start the model process",
+    )
+
+
+def run_preflight(
+    *,
+    repo_root: Path,
+    codex_bin: Path,
+    scenario: Mapping[str, object],
+    spec: codex_harness.TrialSpec,
+    manifest_sha256: str,
+    exact_revision: bool,
+    temp_parent: Path | None = None,
+    command_runner: CommandRunner = _default_command_runner,
+) -> TrialResult:
+    """Exercise the real credential-free setup and stop before auth or a model request."""
+
+    return _execute_trial(
+        repo_root=repo_root,
+        codex_bin=codex_bin,
+        auth_file=None,
+        scenario=scenario,
+        spec=spec,
+        manifest_sha256=manifest_sha256,
+        exact_revision=exact_revision,
+        credential_free_only=True,
+        temp_parent=temp_parent,
+        command_runner=command_runner,
+        process_runner=_preflight_process_forbidden,
+    )
+
+
 def run_trial(
     *,
     repo_root: Path,
@@ -1881,6 +1918,37 @@ def run_trial(
     process_runner: ProcessRunner = launch_process,
 ) -> TrialResult:
     """Execute one fixed trial and return only sanitized, authority-bounded evidence."""
+
+    return _execute_trial(
+        repo_root=repo_root,
+        codex_bin=codex_bin,
+        auth_file=auth_file,
+        scenario=scenario,
+        spec=spec,
+        manifest_sha256=manifest_sha256,
+        exact_revision=exact_revision,
+        credential_free_only=False,
+        temp_parent=temp_parent,
+        command_runner=command_runner,
+        process_runner=process_runner,
+    )
+
+
+def _execute_trial(
+    *,
+    repo_root: Path,
+    codex_bin: Path,
+    auth_file: Path | None,
+    scenario: Mapping[str, object],
+    spec: codex_harness.TrialSpec,
+    manifest_sha256: str,
+    exact_revision: bool,
+    credential_free_only: bool,
+    temp_parent: Path | None,
+    command_runner: CommandRunner,
+    process_runner: ProcessRunner,
+) -> TrialResult:
+    """Run the shared setup, optionally continuing into the authenticated model step."""
 
     contract = validate_trial_contract(
         scenario, spec, manifest_sha256=manifest_sha256
@@ -2058,6 +2126,14 @@ def run_trial(
                     "credential-free-boundary-drift",
                     "credential-free trial inputs changed before auth copy",
                 )
+
+            if credential_free_only:
+                return finish_result(
+                    state=codex_routing_grade.VerdictState.INCONCLUSIVE,
+                    reason_codes=("credential-free-preflight-pass",),
+                )
+            if auth_file is None:
+                raise TrialContractError("authenticated trial requires an auth file")
 
             # This is deliberately the final preparation step. Its helper applies and verifies the
             # private destination ACL before returning; the next operation launches Codex once.

@@ -1183,6 +1183,60 @@ def _fixed_canary_args(
     )
 
 
+def _fixed_preflight_args(
+    stage: Path,
+    *,
+    repo_root: Path,
+    codex_bin: Path,
+    private_root: Path,
+) -> tuple[str, ...]:
+    """Construct the auth-free evaluator argv accepted by the diagnostic preflight."""
+
+    staged_manifest, _manifest_metadata = _absolute_normal(
+        stage.joinpath(*PurePosixPath(CANARY_MANIFEST).parts), kind="file"
+    )
+    repository, _repository_metadata = _absolute_normal(Path(repo_root), kind="directory")
+    executable, _executable_metadata = _absolute_normal(Path(codex_bin), kind="file")
+    private, _private_metadata = _absolute_normal(Path(private_root), kind="directory")
+    return (
+        "--preflight",
+        "--manifest",
+        str(staged_manifest),
+        "--repo-root",
+        str(repository),
+        "--codex-bin",
+        str(executable),
+        "--private-root",
+        str(private),
+    )
+
+
+def run_preflight_bootstrap(
+    manifest_path: Path,
+    expected_manifest_sha256: str,
+    source_root: Path,
+    *,
+    repo_root: Path,
+    codex_bin: Path,
+    private_root: Path,
+) -> int:
+    """Stage the reviewed evaluator and run setup without auth or a model request."""
+
+    return run_bootstrap(
+        manifest_path,
+        expected_manifest_sha256,
+        source_root,
+        argument_builder=lambda stage: _fixed_preflight_args(
+            stage,
+            repo_root=repo_root,
+            codex_bin=codex_bin,
+            private_root=private_root,
+        ),
+        entry_validator=_validate_canary_bundle_entries,
+        temp_parent=private_root,
+    )
+
+
 def run_canary_bootstrap(
     manifest_path: Path,
     expected_manifest_sha256: str,
@@ -1225,11 +1279,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--source-root", required=True)
     parser.add_argument("--repo-root", required=True)
     parser.add_argument("--codex-bin", required=True)
-    parser.add_argument("--auth-file", required=True)
+    parser.add_argument("--auth-file")
     parser.add_argument("--private-root", required=True)
+    parser.add_argument("--preflight", action="store_true")
     try:
         args = parser.parse_args(argv)
     except BootstrapError:
+        print("codex-bootstrap: invalid arguments", file=sys.stderr)
+        return CONTRACT_FAILURE_EXIT
+    if args.preflight:
+        if args.auth_file is not None:
+            print("codex-bootstrap: invalid arguments", file=sys.stderr)
+            return CONTRACT_FAILURE_EXIT
+        return run_preflight_bootstrap(
+            Path(args.bundle_manifest),
+            args.expected_manifest_sha256,
+            Path(args.source_root),
+            repo_root=Path(args.repo_root),
+            codex_bin=Path(args.codex_bin),
+            private_root=Path(args.private_root),
+        )
+    if args.auth_file is None:
         print("codex-bootstrap: invalid arguments", file=sys.stderr)
         return CONTRACT_FAILURE_EXIT
     return run_canary_bootstrap(

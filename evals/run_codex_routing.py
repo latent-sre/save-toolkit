@@ -575,6 +575,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="run one paid, sanitized development trial; never campaign/baseline evidence",
     )
+    mode.add_argument(
+        "--preflight",
+        action="store_true",
+        help="exercise fixed credential-free setup without auth or a model request",
+    )
     parser.add_argument("--current-revision", help="full SHA used only with --plan")
     parser.add_argument("--codex-bin", type=Path, help="exact Codex 0.147 executable for --canary")
     parser.add_argument("--auth-file", type=Path, help="existing Codex auth.json for --canary")
@@ -601,7 +606,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"codex-terra-routing: invalid manifest: {exc}", file=sys.stderr)
         return 3
     scenario_map: dict[str, dict] | None = None
-    if args.canary:
+    live_mode = args.canary or args.preflight
+    if live_mode:
         problems = [
             *validate_manifest(manifest, None),
             *validate_canary_scenario(manifest),
@@ -623,15 +629,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         for problem in problems:
             print(f"codex-terra-routing: {problem}", file=sys.stderr)
         return 3
-    if args.canary:
+    if live_mode:
         if (
             args.codex_bin is None
-            or args.auth_file is None
             or args.repo_root is None
             or args.private_root is None
         ):
             print(
-                "codex-terra-routing: --canary requires its fixed executable, auth, repository, and private-root inputs",
+                "codex-terra-routing: live setup requires its fixed executable, repository, and private-root inputs",
+                file=sys.stderr,
+            )
+            return 3
+        if args.preflight and args.auth_file is not None:
+            print(
+                "codex-terra-routing: --preflight rejects auth input",
+                file=sys.stderr,
+            )
+            return 3
+        if args.canary and args.auth_file is None:
+            print(
+                "codex-terra-routing: --canary requires its fixed auth input",
                 file=sys.stderr,
             )
             return 3
@@ -641,19 +658,37 @@ def main(argv: Sequence[str] | None = None) -> int:
             scenario = manifest["canary_scenario"]
             import codex_trial
 
-            result = codex_trial.run_trial(
-                repo_root=args.repo_root,
-                codex_bin=args.codex_bin,
-                auth_file=args.auth_file,
-                scenario=scenario,
-                spec=spec,
-                manifest_sha256=hashlib.sha256(manifest_before).hexdigest(),
-                exact_revision=False,
-                temp_parent=args.private_root,
-            )
+            common = {
+                "repo_root": args.repo_root,
+                "codex_bin": args.codex_bin,
+                "scenario": scenario,
+                "spec": spec,
+                "manifest_sha256": hashlib.sha256(manifest_before).hexdigest(),
+                "exact_revision": False,
+                "temp_parent": args.private_root,
+            }
+            if args.preflight:
+                result = codex_trial.run_preflight(**common)
+            else:
+                result = codex_trial.run_trial(auth_file=args.auth_file, **common)
         except (KeyError, OSError, ValueError) as exc:
             print(f"codex-terra-routing: canary contract failed: {type(exc).__name__}", file=sys.stderr)
             return 3
+        if args.preflight:
+            print(
+                json.dumps(
+                    {
+                        "mode": "credential-free-preflight",
+                        "authenticated_call_started": False,
+                        "live_authorized": False,
+                        "host_trust": "not-verified-by-runner",
+                        "result": result.as_dict(),
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+            )
+            return 0 if result.reason_codes == ("credential-free-preflight-pass",) else 4
         print(json.dumps(result.as_dict(), sort_keys=True, separators=(",", ":")))
         return {
             "PASS": 0,

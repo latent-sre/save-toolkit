@@ -15,6 +15,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_codex_routing  # noqa: E402
 import run_evals  # noqa: E402
+import codex_trial  # noqa: E402
 
 
 PAIRED_IDS = {
@@ -376,6 +377,61 @@ class CanaryContractTests(unittest.TestCase):
 
     def test_canary_requires_explicit_codex_and_auth_paths(self) -> None:
         self.assertEqual(3, run_codex_routing.main(["--canary"]))
+
+    def test_preflight_is_isolated_credential_free_and_never_authorizes_live_use(self) -> None:
+        result = SimpleNamespace(
+            reason_codes=("credential-free-preflight-pass",),
+            as_dict=lambda: {
+                "state": "INCONCLUSIVE",
+                "reason_codes": ["credential-free-preflight-pass"],
+                "authority": {"release_granted": False},
+            },
+        )
+        with (
+            mock.patch.object(
+                run_codex_routing, "require_isolated_canary_launch"
+            ) as isolated,
+            mock.patch.object(codex_trial, "run_preflight", return_value=result) as preflight,
+            mock.patch("builtins.print") as printed,
+        ):
+            exit_code = run_codex_routing.main(
+                [
+                    "--preflight",
+                    "--repo-root",
+                    "C:/repo",
+                    "--codex-bin",
+                    "C:/codex.exe",
+                    "--private-root",
+                    "C:/private",
+                ]
+            )
+
+        self.assertEqual(0, exit_code)
+        isolated.assert_called_once()
+        preflight.assert_called_once()
+        self.assertNotIn("auth_file", preflight.call_args.kwargs)
+        serialized = printed.call_args.args[0]
+        self.assertIn('"authenticated_call_started":false', serialized)
+        self.assertIn('"live_authorized":false', serialized)
+
+    def test_preflight_rejects_auth_input_before_dispatch(self) -> None:
+        with mock.patch.object(codex_trial, "run_preflight") as preflight:
+            exit_code = run_codex_routing.main(
+                [
+                    "--preflight",
+                    "--repo-root",
+                    "C:/repo",
+                    "--codex-bin",
+                    "C:/codex.exe",
+                    "--private-root",
+                    "C:/private",
+                    "--auth-file",
+                    "C:/auth.json",
+                ]
+            )
+
+        self.assertEqual(3, exit_code)
+        preflight.assert_not_called()
 
     def test_canary_requires_the_isolated_staged_entrypoint(self) -> None:
         evaluator_root = Path(run_codex_routing.__file__).resolve().parent

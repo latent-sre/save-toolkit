@@ -571,6 +571,8 @@ class TrialExecutionTests(unittest.TestCase):
         self,
         root: Path,
         capture: codex_trial.ProcessCapture | BaseException,
+        *,
+        credential_free_only: bool = False,
     ) -> tuple[codex_trial.TrialResult, list[Path]]:
         codex_trial._secure_directory(root)
         codex_bin = root / ("codex.exe" if os.name == "nt" else "codex")
@@ -578,7 +580,8 @@ class TrialExecutionTests(unittest.TestCase):
         codex_bin.write_bytes(fake_codex_bytes)
         fake_codex_sha256 = hashlib.sha256(fake_codex_bytes).hexdigest()
         auth = root / "auth.json"
-        auth.write_bytes(b'{"access_token":"sk-proj-ABCDEFGHIJKLMNOPQRST"}')
+        if not credential_free_only:
+            auth.write_bytes(b'{"access_token":"sk-proj-ABCDEFGHIJKLMNOPQRST"}')
         observed_homes: list[Path] = []
 
         def command_runner(
@@ -665,23 +668,63 @@ class TrialExecutionTests(unittest.TestCase):
                 fake_catalog_sha256,
             ),
         ):
-            result = codex_trial.run_trial(
-                repo_root=Path(__file__).resolve().parents[1],
-                codex_bin=codex_bin,
-                auth_file=auth,
-                scenario=_scenario(),
-                spec=_spec(),
-                manifest_sha256=_manifest_sha256(),
-                exact_revision=False,
-                temp_parent=root,
-                command_runner=command_runner,
-                process_runner=process_runner,
-            )
+            arguments = {
+                "repo_root": Path(__file__).resolve().parents[1],
+                "codex_bin": codex_bin,
+                "scenario": _scenario(),
+                "spec": _spec(),
+                "manifest_sha256": _manifest_sha256(),
+                "exact_revision": False,
+                "temp_parent": root,
+                "command_runner": command_runner,
+            }
+            if credential_free_only:
+                result = codex_trial.run_preflight(**arguments)
+            else:
+                result = codex_trial.run_trial(
+                    auth_file=auth, process_runner=process_runner, **arguments
+                )
             self.assertIs(
                 codex_trial._bounded_git_runner,
                 materialize.call_args.kwargs["command_runner"],
             )
         return result, observed_homes
+
+    def test_preflight_completes_setup_without_auth_or_a_model_process(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            with (
+                mock.patch.object(
+                    codex_trial,
+                    "_preflight_process_forbidden",
+                    side_effect=AssertionError(
+                        "credential-free preflight launched the model process"
+                    ),
+                ) as model_process,
+                mock.patch.object(
+                    codex_trial,
+                    "copy_auth_file",
+                    side_effect=AssertionError(
+                        "credential-free preflight accessed auth"
+                    ),
+                ) as auth_copy,
+            ):
+                result, observed_homes = self._run(
+                    root,
+                    AssertionError("unexpected injected process runner use"),
+                    credential_free_only=True,
+                )
+
+        self.assertEqual(
+            ("credential-free-preflight-pass",), result.reason_codes
+        )
+        model_process.assert_not_called()
+        auth_copy.assert_not_called()
+        self.assertEqual([], observed_homes)
+        self.assertIsNotNone(result.runtime_facts)
+        serialized = json.dumps(result.as_dict(), sort_keys=True)
+        self.assertNotIn(str(root), serialized)
+        self.assertNotIn("sk-proj-", serialized)
 
     def test_success_is_graded_and_serialized_without_raw_content(self) -> None:
         capture = codex_trial.ProcessCapture(

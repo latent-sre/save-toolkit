@@ -134,6 +134,13 @@ requires a precreated empty private root on a local fixed NTFS volume; UNC, mapp
 remote, removable, and non-NTFS storage are rejected before any credential copy. Caller
 mode, scenario, manifest, and temporary-path overrides are not part of the CLI contract.
 
+The same boundary may synthesize one credential-free preflight. It exercises the fixed snapshot,
+Codex version and bundled catalog probe, transformed catalog, neutral project, hook bundle, config,
+and pre-auth drift checks, then exits before auth access or a model process. Its sanitized result is
+always non-authoritative and explicitly labels host trust as not verified by the runner. A passing
+preflight proves runner compatibility only; it cannot replace external runtime/config/registry
+attestation or authorize the authenticated canary.
+
 The current host's Python installation is writable by the operator identity, so an in-process
 `python.exe` hash cannot establish that prerequisite: its DLL and standard-library closure may have
 executed before the evaluator can check them. The current canary is therefore NO-GO until a protected

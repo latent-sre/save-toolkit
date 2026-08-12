@@ -164,6 +164,37 @@ class BootstrapApiTests(unittest.TestCase):
             built = tuple(run.call_args.kwargs["argument_builder"](stage))
             self.assertEqual(("--private-root", str(private_root)), built[-2:])
 
+    def test_authoritative_preflight_omits_auth_and_synthesizes_fixed_arguments(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            source = root / "source"
+            repository = root / "repository"
+            stage = root / "stage"
+            private_root = root / "private"
+            for directory in (source, repository, stage, private_root):
+                directory.mkdir()
+            codex_bin = root / "codex.exe"
+            codex_bin.write_bytes(b"codex")
+            staged_manifest = stage / "evals/conformance/codex-terra-routing-v1.json"
+            staged_manifest.parent.mkdir(parents=True)
+            staged_manifest.write_bytes(b"{}")
+
+            with mock.patch("codex_bootstrap.run_bootstrap", return_value=23) as run:
+                exit_code = codex_bootstrap.run_preflight_bootstrap(
+                    root / "bundle.json",
+                    "a" * 64,
+                    source,
+                    repo_root=repository,
+                    codex_bin=codex_bin,
+                    private_root=private_root,
+                )
+
+            self.assertEqual(23, exit_code)
+            built = tuple(run.call_args.kwargs["argument_builder"](stage))
+            self.assertEqual("--preflight", built[0])
+            self.assertNotIn("--auth-file", built)
+            self.assertEqual(("--private-root", str(private_root)), built[-2:])
+
 
 class WindowsPrivateRootLocalityTests(unittest.TestCase):
     @staticmethod
@@ -827,6 +858,35 @@ raise SystemExit(23)
 
         self.assertEqual(codex_bootstrap.CONTRACT_FAILURE_EXIT, exit_code)
         run_canary.assert_not_called()
+
+    def test_cli_dispatches_preflight_without_accepting_auth(self) -> None:
+        arguments = [
+            "--bundle-manifest",
+            "C:/manifest.json",
+            "--expected-manifest-sha256",
+            "a" * 64,
+            "--source-root",
+            "C:/source",
+            "--repo-root",
+            "C:/repo",
+            "--codex-bin",
+            "C:/codex.exe",
+            "--private-root",
+            "C:/private",
+            "--preflight",
+        ]
+        with mock.patch(
+            "codex_bootstrap.run_preflight_bootstrap", return_value=23
+        ) as preflight:
+            self.assertEqual(23, codex_bootstrap.main(arguments))
+        preflight.assert_called_once()
+
+        with mock.patch("codex_bootstrap.run_preflight_bootstrap") as preflight:
+            exit_code = codex_bootstrap.main(
+                [*arguments, "--auth-file", "C:/auth.json"]
+            )
+        self.assertEqual(codex_bootstrap.CONTRACT_FAILURE_EXIT, exit_code)
+        preflight.assert_not_called()
 
 
 if __name__ == "__main__":

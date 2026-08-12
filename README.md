@@ -222,7 +222,10 @@ For repository-controlled executable checks, use the digest-bound, networkless c
 The Terra canary is not launched from the mutable checkout. Its prepared path starts from an
 externally verified, protected copy of `evals/codex_bootstrap.py` under an absolute protected Python
 runtime with `-I -S -B`; that bootstrap accepts only the exact evaluator-bundle manifest and one
-fixed canary argument shape. The current host's Python runtime closure is user-writable, so the
+fixed canary argument shape. The same bootstrap has an auth-free preflight that exercises the real
+snapshot, Codex/catalog, hook, config, and drift boundary but stops before auth or a model request;
+its result is diagnostic only and never authorizes live use. The current host's Python runtime
+closure is user-writable, so the
 authenticated canary is currently NO-GO. A protected Python executable/DLL/standard-library closure
 or separate OS identity, a local fixed NTFS private root, and a clean managed-config/registry boundary
 with no MCP, provider-route, proxy, guardian, or Command Processor AutoRun override are required
@@ -237,8 +240,9 @@ offline harness tests.
   structurally gated (Gate A); Claude marketplace validation and isolated plugin loading are
   verified on the recorded CLI version. Must-follow constraints are indexed in
   [`docs/rules.md`](docs/rules.md).
-- ROUTE-001's nineteen-scenario/48-trial Codex/Terra campaign has an uncommitted offline evaluator but
-  no live result or baseline; its authenticated canary is blocked on the trusted runtime/tool-plan
+- ROUTE-001's nineteen-scenario/48-trial Codex/Terra campaign has a committed offline evaluator and
+  an uncommitted credential-free preflight repair, but no live result or baseline; its authenticated
+  canary is blocked on the trusted runtime/tool-plan
   prerequisites above. Broader Codex/Sol conformance remains parked at tag `pre-trim-2026-08-02` with
   no current runtime baseline. Disposable host install/inventory/uninstall smoke for Claude, Codex,
   VS Code, and Copilot CLI is closed under

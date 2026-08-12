@@ -201,6 +201,13 @@ the fixed linear `contains_all`, `contains_any`, and `cloud_run_rollback_packet`
 JSON packet to service `checkout`, synthetic previous/failed revision IDs, 100% traffic, and matching
 region/project context; it rejects extra traffic commands outside that packet.
 
+The evaluator now also has a bootstrap-only, credential-free preflight that reuses the actual
+snapshot, executable/catalog probe, safe-catalog/config/hook construction, and drift gates and stops
+before auth or a model process. On 2026-08-12 that preflight passed against the pinned concrete
+versioned Codex 0.147.0 executable path; the normal launcher path was correctly rejected because it
+crosses updater junctions. The result records host trust as unverified and grants no live authority.
+The current Python/runtime and Git object-store trust prerequisites therefore remain open.
+
 An owner-authorized managed response-only Terra smoke at commit `6d90943664ee0305726cc0ed8feb6b5d9a8e7f68`
 exposed a grader-calibration defect without supplying a resolved-model, installed-skill, or harness
 trace receipt. The red-first repair accepts equivalent placeholder and bind-address wording while
@@ -234,12 +241,13 @@ recorded in the
 is preparation evidence only; it does not authorize credentials, model calls, campaign execution,
 baseline eligibility, or release use.
 
-**Next action:** Regenerate/freeze the bundle manifest, run the evaluator contract suites and Gate A,
-and obtain independent review of the exact clean committed evaluator revision. Provision and
+**Next action:** Freeze the refreshed bundle manifest, run the evaluator contract suites and Gate A,
+and obtain independent review of the exact preflight revision. Provision and
 independently bind a protected Python runtime closure or separate OS identity plus the clean
 managed-config/registry, protected Git installation, and sanitized object-store prerequisites before
 attempting the one-trial canary. Only after the canary and its boundary pass may
-the fixed 48 trials run sequentially and produce a sanitized closure packet for explicit owner
+the still-unimplemented fixed 48-trial executor be completed, reviewed, and run sequentially to
+produce a sanitized closure packet for explicit owner
 disposition. Do not tune descriptions or claim a current baseline from historical Claude/Sol output,
 a development canary, or unreviewed working-tree bytes.
 
