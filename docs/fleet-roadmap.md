@@ -143,61 +143,103 @@ move a release ref manually.
 
 ### ROUTE-001 — routing evals for the 2026-08 description changes
 
-**Status:** `blocked` (2026-08-11) — the local runner/scenario repair is complete, but no comparable
-before/after pair exists and the live external data/cost boundary lacks explicit owner approval.
+**Status:** `active` (2026-08-11) — the owner approved the Codex/Terra rewrite and its fixed external
+data/cost boundary. The offline evaluator and trusted-bootstrap contracts are being completed; the
+authenticated canary is NO-GO on the current host, and no Terra campaign, result, or baseline exists.
 
-**Outcome:** The clean-room runner measures routing before/after for every description edited or
-added in the SRE/GCP/Akamai expansion, and any regression (a component that stops firing, or a
-near-miss that starts) is fixed or explicitly accepted.
+**Outcome:** A provider-native Codex evaluator measures routing before/after for every description
+edited or added in the SRE/GCP/Akamai expansion. Any measured regression (a component that stops
+firing, or a near-miss that starts) is fixed or explicitly accepted without overstating what Codex
+0.147 can trace.
 
 **Source:** The 2026-08 expansion changed the descriptions of `obs-logs`, `obs-metrics`,
 `obs-traces`, `obs-alerting`, and `runbook`, and added two new routed components (`gcp-ops`,
-`akamai-edge`). The change playbook requires overlapping scenarios through the clean-room runner
-for every description edit; the run was deferred with a stated reason — the authoring session had
-no live-API eval capability — never eyeballed as a substitute.
+`akamai-edge`). The owner-approved provider rewrite and evidence boundary are recorded in
+[`2026-08-11-codex-terra-routing.md`](decisions/2026-08-11-codex-terra-routing.md). This narrow
+ROUTE-001 campaign does not reopen the broader deferred EVAL-001 Sol work.
 
-**Prerequisites:** Explicit owner approval to transmit the fixed eval prompts and isolated plugin
-context to the live Claude service and incur model usage; a live Claude API session with the
-clean-room runner from `evals/`; the merged description set checked out clean.
+**Prerequisites:** The fixed evaluator manifest, recorder, parser, snapshotter, catalog transformer,
+and graders must be complete and pass their contract tests and Gate A. The exact evaluator bytes must
+then be committed cleanly and independently reviewed. Live execution requires an externally pinned,
+protected copy of the bootstrap; the exact nine-file evaluator-bundle manifest; a protected absolute
+Python executable/DLL/standard-library closure (or a separate OS identity); independently reviewable
+Codex 0.147 source evidence for the effective Terra tool plan; a precreated local fixed NTFS private
+root; a clean launch account/registry with no managed/system/project MCP, dynamic-tool, guardian,
+provider, API-route, proxy, or Command Processor AutoRun override; the
+protected Git executable/DLL/runtime installation closure and sanitized Git object store with no
+repository-config includes, object alternates, replacement refs, or UNC/network resolution; the
+manifest-pinned Codex CLI executable bytes; the operator-owned Codex login; and only the fixed
+non-secret prompts and isolated staged component bytes the owner approved for transmission. A
+development canary from dirty or unreviewed evaluator bytes is instrument evidence only and cannot
+become campaign or baseline evidence. An active same-SID compromise is outside this application-layer
+boundary and must instead be excluded or isolated by the host.
 
-**Acceptance:** Before/after runs over the overlapping scenarios in `evals/scenarios/` (log, metric,
-trace, alerting, and runbook routing), plus new-component scenarios proving `gcp-ops` and
-`akamai-edge` fire on their trigger phrasings and do not steal `pcf-ops`, `obs-*`, or `sre`-lane
-traffic. Results recorded beside the scenarios with model/runtime evidence.
+**Acceptance:** Pin `gpt-5.6-terra` at medium reasoning, 300 seconds, two sequential trials, approval
+policy `never`, and the no-local/effect-tools policy. Run five overlapping
+scenarios against both
+`a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and
+`b459a5d3a209d384acb2b2b7ca325aa63697113b`, then fourteen GCP/Akamai scenarios against the current
+revision only: 48 trials total (20 paired and 28 current-only). Persist only sanitized
+digest/count/verdict/runtime evidence. A non-root skill result remains explicitly
+`behavioral-only-codex-0.147`; both root-scoped active-incident negatives must remain
+`INCONCLUSIVE` with `root-delegation-unobservable-v2` under stock Codex 0.147. A report cannot grant
+baseline, release, or owner acceptance to itself.
 
-**Current evidence:** Nineteen regression scenarios cover the five edited descriptions plus
-`gcp-ops`/`akamai-edge` positives and cross-lane negatives. The repaired parser accepts only coherent
-same-session continuation epochs, rejects ambiguous/error/unfinished streams, and keeps persisted
-diagnostics identity-only. Root-scoped incident negatives require the expected SRE owner at root and
-prove every nested target descends from that owner; inline, orphan, non-agent, wrong-root, cyclic, and
-duplicate-identity ancestry fails closed. The runner, clean-room, response-grader, and scenario
-validation checks pass in the dated evidence packet. Its prompt-echo regression records the exact
-red/green counts without changing prompts, targets, or routing expectations. Independent review found
-no remaining P0/P1 in the routing/parser slice; exact commands and limits are recorded in the dated
-[`release/routing preparation evidence`](reviews/2026-08-11-release-routing-backlog-evidence.md). The
-campaign is prepared with one five-case harness shared by clean baseline
-`a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and current
-`65fe5c8c28da0052e3204adfac2af152e9a02475`, plus a fourteen-case current-only harness; all 25 copied
-files match the reviewed source, both plugin-input sets are clean, and the two harness manifest
-digests are recorded in that packet. The first paid live canary was rejected before execution because
-the owner has not explicitly approved that external data/cost boundary, so no new model call occurred.
-Earlier current-only results remain partial historical evidence, the retained July run remains an
-invalid before run, private raw traces stay outside the repository, and no sanitized closure report
-has been recorded.
+**Current evidence:** The uncommitted implementation freezes the nineteen scenario IDs and hashes,
+binds each `TrialSpec` to its manifest scenario digest, and embeds the exact development-canary
+scenario rather than reopening mutable suite bytes. It also freezes both target revisions, Codex CLI
+0.147.0 and its exact executable SHA-256,
+`gpt-5.6-terra`, medium reasoning, two trials, and the
+48-trial shape. Codex 0.147 exposes no supported filesystem-skill activation event, so ordinary skill
+positives and near-miss negatives use deterministic response graders only and never claim exact skill
+activation or target-skill absence. Non-root trials require zero tool receipts and zero collaboration
+facts. Stock 0.147 cannot join its encrypted V2 spawn input, terminal child result, and root
+consumption, so the two active-incident cases short-circuit to `INCONCLUSIVE` before response
+grading. The fixed authenticated canary instead uses the non-root GCP Cloud Run startup case, only
+linear `contains_all` graders, and 256 KiB total/8 KiB per-line response limits.
 
-**Next action:** The owner decides whether to authorize the stated live Claude data/cost boundary. If
-approved, run the prepared five paired cases against baseline/current and the fourteen current-only
-cases sequentially at two trials, Sonnet, and 300 seconds; stop on instrument exit 2/3 and record only
-sanitized digest/count/verdict/runtime evidence. Without that approval, retain the prepared campaign
-and blocker. Do not tune descriptions from the earlier confounded or inconclusive evidence.
+Terra's stock Codex 0.147 metadata would expose code-mode tooling, including an `apply_patch` read
+surface. The catalog transformer verifies the exact bundled model entry and emits an authoritative
+one-model catalog with code/local/effect model tools removed; the rendered configuration disables the
+remaining shell, image, browser, computer, app, web, MCP, memory, plugin, guardian, proxy, and
+workspace-dependency features, disables bundled/orchestrator skills and MCP, and pins the built-in
+OpenAI provider/default ChatGPT route. The new
+bootstrap rejects caller-selected evaluator mode/scenario/manifest overrides, accepts only the exact
+nine-file closure, stages those bytes under `-I -S -B`, requires a local fixed NTFS private root, and
+rechecks the stage after execution. Credential copying uses in-process ACLs, the exact hook import
+directory is enforced, the disposable auth copy is removed before model-controlled parsing/grading,
+decoded exact auth values are scanned, receipts and output are bounded, and every launched outcome
+receives a post-trial drift check. Under the accepted live boundary, the operator login will still exist in a
+disposable `CODEX_HOME` under the same OS user: this is application-layer isolation, not a
+separate-principal sandbox, and that limitation must be retained in every result. The current host's
+user-writable Python runtime closure does not satisfy the trusted-launch prerequisite, so no
+authenticated canary was run. Historical Claude runs and the prepared Claude campaign remain
+preserved under their original labels; none is relabeled as Terra evidence. The 2026-07-31 Sol results
+remain retained but revoked as release evidence.
+
+The exact offline checks, red-first defects, frozen byte manifest, and remaining live-host gates are
+recorded in the
+[`Codex/Terra pre-canary evidence packet`](reviews/2026-08-11-codex-terra-precanary.md). That packet
+is preparation evidence only; it does not authorize credentials, model calls, campaign execution,
+baseline eligibility, or release use.
+
+**Next action:** Regenerate/freeze the bundle manifest, run the evaluator contract suites and Gate A,
+and obtain independent review of the exact clean committed evaluator revision. Provision and
+independently bind a protected Python runtime closure or separate OS identity plus the clean
+managed-config/registry, protected Git installation, and sanitized object-store prerequisites before
+attempting the one-trial canary. Only after the canary and its boundary pass may
+the fixed 48 trials run sequentially and produce a sanitized closure packet for explicit owner
+disposition. Do not tune descriptions or claim a current baseline from historical Claude/Sol output,
+a development canary, or unreviewed working-tree bytes.
 
 ## Deferred
 
 ### EVAL-001 — expand risk-weighted Sol coverage
 
 **Status:** `deferred` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
-manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A plus the local Claude eval runner is
-the active verification surface for the beta. Reopen when a Codex/Sol behavioral baseline is
+manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A, the local Claude runner, and the
+narrow active ROUTE-001 Terra evaluator are the beta's current verification surfaces; ROUTE-001 does
+not supply this item's broader direct Sol coverage. Reopen when a Codex/Sol behavioral baseline is
 actually needed for a release decision; the prerequisites and acceptance below are unchanged and
 still apply at that point.
 

@@ -1,5 +1,95 @@
 # Fleet evals
 
+## ROUTE-001 Codex/Terra campaign (implementation active; not run)
+
+The ROUTE-001 owner approved a narrow Codex rewrite of the 2026-08 routing campaign. Its fixed
+manifest pins Codex CLI 0.147.0, its exact executable SHA-256, `gpt-5.6-terra` at medium reasoning,
+a 300-second timeout, approval
+policy `never`, two sequential trials, and a threshold of 1.0. Five overlapping scenarios run
+against both `a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and
+`b459a5d3a209d384acb2b2b7ca325aa63697113b`; fourteen GCP/Akamai scenarios run against the current
+revision only. The fixed campaign is therefore nineteen scenarios and 48 trials: 20 paired and 28
+current-only. This is ROUTE-001 only; the broader EVAL-001 Sol work below remains deferred.
+The executable is copied into the private trial boundary and rehashed before auth copy and after the
+trial. Every `TrialSpec` also carries its manifest scenario digest, and the canary reuses the same
+stable scenario load it validated rather than reopening mutable prompt bytes.
+
+The checked-in interface supports offline validation/planning. It deliberately rejects a live
+canary unless it is running from the isolated staged entrypoint. These direct commands never receive
+an auth path and do not authorize the campaign:
+
+```powershell
+python evals/run_codex_routing.py
+python evals/run_codex_routing.py --plan `
+  --current-revision b459a5d3a209d384acb2b2b7ca325aa63697113b
+```
+
+Do **not** invoke `run_codex_routing.py --canary` directly. The only prepared canary path is an
+externally verified copy of [`codex_bootstrap.py`](codex_bootstrap.py), launched by an absolute,
+protected Python installation with `-I -S -B`. The external review packet must pin the complete
+Python DLL/standard-library closure, the protected bootstrap bytes, and the exact SHA-256 of
+[`codex-terra-evaluator-v1.json`](conformance/codex-terra-evaluator-v1.json). The bootstrap then
+copies the exact nine-file evaluator closure into a private stage, synthesizes the only accepted
+`--canary` argument set, and verifies that stage before and after execution. The external launcher
+must also supply an empty private root on a local fixed NTFS volume; UNC, mapped, substituted,
+remote, removable, and non-NTFS storage are rejected. Caller-supplied mode, manifest, scenario, or
+temporary-path overrides are rejected. A consumer must accept output only
+when the bootstrap's final exit status accepts both the post-run scan and cleanup.
+
+The current Windows host does not satisfy that launch contract: its Python installation and runtime
+closure are writable by the operator identity. The canary is therefore **NO-GO** until a protected
+runtime/closure or separate OS identity is provisioned and independently bound. A clean launch
+account/registry must additionally prove that managed, system, and project layers supply no MCP,
+dynamic tool, guardian, provider, API-route, proxy, or Command Processor AutoRun override. The boundary also
+requires a protected Git executable/DLL/runtime installation closure and a protected, sanitized Git
+object store with no repository-config includes, object alternates, replacement refs, or UNC/network
+resolution; the executable/archive digests prevent evidence acceptance but cannot protect load-time
+dependencies or prevent pre-validation reads. It
+excludes an already-compromised same-SID process; a current-user ACL cannot isolate credentials from
+another process running as that same user. No live Terra canary, campaign, result, or baseline has
+been recorded. The full campaign may run only from exact, clean, committed evaluator bytes after
+independent review. A development canary can never be promoted into campaign, baseline, or release
+evidence. The report-authority contract fixes `source_review = not-verified-by-runner`,
+`independent_evaluator = false`, `baseline_eligible = false`, and `release_granted = false`; those
+authority decisions remain outside the model and runner.
+
+Codex 0.147 does not emit a supported activation event when it discovers and injects a filesystem
+skill. Skill positives and near-miss negatives are therefore labeled
+`behavioral-only-codex-0.147` and use the existing deterministic response graders. A passing answer
+does not prove exact skill activation, and a negative answer does not prove the forbidden skill was
+never internally injected. Stock 0.147 also cannot join a plaintext delegated task, terminal child
+result, and root consumption for V2 custom agents: hooks see an encrypted spawn message, `wait_agent`
+is mailbox-only, and `codex exec --json` omits the V2 spawn item. The two root-scoped active-incident
+cases therefore always return `INCONCLUSIVE` with `root-delegation-unobservable-v2`; response graders
+do not run for them.
+
+The fixed authenticated canary is instead the non-root
+`discovery-gcp-ops-cloud-run-startup` scenario. It disables multi-agent, permits only three fixed
+linear `contains_all` graders, and rejects responses above 256 KiB total or 8 KiB per line before
+grading. The remaining seventeen non-root scenarios require zero command/collaboration receipts.
+
+The evaluator stages only exact Git-object skill and custom-agent projections into a neutral Codex
+project. Terra's stock 0.147 metadata would force code mode and expose `apply_patch`, which can read
+a target before a read-only write is rejected. The evaluator therefore verifies the exact bundled
+Terra entry and supplies an authoritative one-model catalog designed to remove code/local/effect
+model tools, while disabling the remaining shell, image, browser, computer, app, web, MCP, memory,
+plugin, guardian, proxy, and workspace-dependency features. Bundled and orchestrator skills/MCP are
+disabled; the built-in OpenAI provider and default ChatGPT route are pinned. Any command, local,
+effect, unknown, or collaboration receipt in a non-root trial makes it `INCONCLUSIVE`. The effective
+tool plan is bound to exact Codex 0.147 source in the routing ADR; transformed catalog hashes alone
+are not proof of tool absence.
+
+The prepared live boundary copies the operator-owned Codex login only after credential-free staging
+into a disposable `CODEX_HOME`; native ACL work is complete before that write and no helper process
+runs between the copy and staged Codex launch. This is same-user application-layer isolation, not a
+separate OS principal or a claim that the model process lacks the credential bytes. The executor
+keeps raw JSONL, hook payloads, and response text inside the private temporary boundary, applies both
+credential-shape and decoded exact-value guards, removes and verifies absence of the disposable auth
+copy before parsing or grading model-controlled data, and deletes the boundary after sanitized reduction.
+The exact boundary, remaining no-go prerequisites, comparability rules, and accepted owner decision
+are recorded in
+[`2026-08-11-codex-terra-routing.md`](../docs/decisions/2026-08-11-codex-terra-routing.md).
+
 ## Codex/Sol conformance (parked)
 
 The Codex/Sol conformance runners, their contract tests, and the fixed `gpt-5.6-sol` manifests are

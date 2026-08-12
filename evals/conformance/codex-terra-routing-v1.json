@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "campaign": "route-001-codex-terra-v1",
+  "provider": "openai-codex",
+  "runtime_platform": "win32-amd64",
+  "python_version": "3.12.10",
+  "python_executable_sha256": "4d6f5f81a4bca11191c4c7c6b43632694d0a4ce74e068619d8fdc161d469859a",
+  "git_cli_version": "2.53.0.windows.2",
+  "git_executable_path": "C:\\Program Files\\Git\\mingw64\\bin\\git.exe",
+  "git_executable_sha256": "c39b1b4f7a57935bbeadf246dc2466316619453a6a9da77c4a9c6bd6d8fb21d3",
+  "codex_cli_version": "0.147.0",
+  "codex_executable_sha256": "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+  "model": "gpt-5.6-terra",
+  "reasoning_effort": "medium",
+  "sandbox": "read-only",
+  "approval_policy": "never",
+  "skill_activation_evidence": "behavioral-only-codex-0.147",
+  "agent_activation_evidence": "root-delegation-unobservable-v2",
+  "tool_policy": "no-model-tools-non-root-root-collaboration-unscored",
+  "source_model_entry_sha256": "dd06f2ae3786e852ca884d6c189a364da38f7b7492fd960b05cdd2e3e232e443",
+  "safe_model_catalog_sha256": "2d23cea7bd13463424eca49df927a38f8480501820eec853e3789015c6a321b6",
+  "timeout_s": 300,
+  "trials": 2,
+  "threshold": 1.0,
+  "before_revision": "a39a81f33f7ad7325c52d883822bbbdd80c7ed28",
+  "current_revision": "b459a5d3a209d384acb2b2b7ca325aa63697113b",
+  "snapshot_tree_sha256": {
+    "a39a81f33f7ad7325c52d883822bbbdd80c7ed28": "195e5afad5ccd95f0aa3611b96cd31c8c1e9bc06818009603e2c4181240f62b5",
+    "b459a5d3a209d384acb2b2b7ca325aa63697113b": "867f92cccb6eff6e994f27eff7301722ebb82da24b6f2adcd26be92fe2babf4a"
+  },
+  "canary_scenario": {
+    "_file": "discovery-gcp-ops-cloud-run-startup.yaml",
+    "_source_sha256": "a39fd7930edd0576fad2e20189ad8349573ce232a148f49c645d9286f38ed979",
+    "graders": [
+      {
+        "of": [
+          "gcloud config list",
+          "gcloud run services describe checkout",
+          "gcloud run revisions list --service checkout"
+        ],
+        "type": "contains_all"
+      },
+      {
+        "of": [
+          "0.0.0.0:$PORT",
+          "127.0.0.1"
+        ],
+        "type": "contains_all"
+      },
+      {
+        "of": [
+          "[unverified]",
+          "--to-revisions",
+          "Tier 2",
+          "human release owner",
+          "inverse traffic command"
+        ],
+        "type": "contains_all"
+      }
+    ],
+    "id": "discovery-gcp-ops-cloud-run-startup",
+    "mode": "discovery",
+    "prompt": "A new Cloud Run checkout revision in staging says the container failed to listen on PORT. Inspect\nthe service, revisions, and logs to correlate what changed, and outline a rollback recommendation.\nKeep the investigation read-only and do not move traffic.\n",
+    "routing": {
+      "expect": "fire"
+    },
+    "schema_version": 1,
+    "split": "regression",
+    "success_criteria": [
+      "Routes application-side Cloud Run startup triage to the GCP operations lane",
+      "Uses service, revision, and log evidence without changing traffic"
+    ],
+    "target": {
+      "kind": "skill",
+      "name": "gcp-ops"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "discovery-obs-alerting-splunk-saved-search",
+      "cohort": "paired",
+      "sha256": "41ca04c4d042a68ba6913d325e98362875847a027fc998b017fdb16c01a75457"
+    },
+    {
+      "id": "discovery-obs-logs-cloud-logging",
+      "cohort": "paired",
+      "sha256": "94cdb926b9bf22811921a2d0f7a41e4f4c3dadb55e5a5e060fa50e9ab8f9572d"
+    },
+    {
+      "id": "discovery-obs-metrics-cloud-monitoring",
+      "cohort": "paired",
+      "sha256": "827f4e6199194e0e0280a11c8da19a2660118dfe6eb582171815bdab698827ca"
+    },
+    {
+      "id": "discovery-obs-traces-cloud-trace",
+      "cohort": "paired",
+      "sha256": "748b48ed3c5eaf82e08ea2d53accf8e681ad4f3fda08c2b78805379e77e8ca34"
+    },
+    {
+      "id": "discovery-runbook-incident-update",
+      "cohort": "paired",
+      "sha256": "255c603a87f94bb1c107af651ab7de17a00c7119f09e1522060c85d157f6c4fb"
+    },
+    {
+      "id": "discovery-akamai-edge-defers-active-incident",
+      "cohort": "current_only",
+      "sha256": "043ea8fcea8ff03403593ba80267fe061dd1e34ce5af86946c7dcc269bda464b"
+    },
+    {
+      "id": "discovery-akamai-edge-defers-obs-alerting",
+      "cohort": "current_only",
+      "sha256": "60e1eb43ec398fdb7fde5807dbc9010cff902311ee0278134bed546e3d4d2881"
+    },
+    {
+      "id": "discovery-akamai-edge-defers-obs-logs",
+      "cohort": "current_only",
+      "sha256": "5a69fc3fb4142af120119aa46f24b69234c55ecbf1696cd339a412ad9996a9ee"
+    },
+    {
+      "id": "discovery-akamai-edge-defers-obs-metrics",
+      "cohort": "current_only",
+      "sha256": "8b9c537605d18b94e9ea4507665f041ab6063ffdc514eceadfc3431572ea4e76"
+    },
+    {
+      "id": "discovery-akamai-edge-defers-obs-traces",
+      "cohort": "current_only",
+      "sha256": "1e002a157c8f692fe464a37c6ebac4accc4c7db2eab989bdcab9c71fcc723e0c"
+    },
+    {
+      "id": "discovery-akamai-edge-defers-pcf",
+      "cohort": "current_only",
+      "sha256": "245c9a6f778bb86dd96e3f12f4b38237161431c5ec804a9a911b21e4084dcf64"
+    },
+    {
+      "id": "discovery-akamai-edge-reference-error",
+      "cohort": "current_only",
+      "sha256": "a51bff4e3f427b4310d37b27ae58dedcb30fa5d1d0b182eaad8f2af6dd58fab5"
+    },
+    {
+      "id": "discovery-gcp-ops-cloud-run-startup",
+      "cohort": "current_only",
+      "sha256": "a39fd7930edd0576fad2e20189ad8349573ce232a148f49c645d9286f38ed979"
+    },
+    {
+      "id": "discovery-gcp-ops-defers-active-incident",
+      "cohort": "current_only",
+      "sha256": "1fc02ed90aff987235af13b7f5d511ecc49a7edc68ca648977c062d0ccb4fe4d"
+    },
+    {
+      "id": "discovery-gcp-ops-defers-obs-alerting",
+      "cohort": "current_only",
+      "sha256": "c3c29ade368cacf44fc2aa5a37cc9d4730c95bbe90afcf72eee8b9044533829b"
+    },
+    {
+      "id": "discovery-gcp-ops-defers-obs-logs",
+      "cohort": "current_only",
+      "sha256": "a0b73abdfed2165e95166650d1082ea84458d52bbdbc57b404ffdbd65d509cd0"
+    },
+    {
+      "id": "discovery-gcp-ops-defers-obs-metrics",
+      "cohort": "current_only",
+      "sha256": "3910e5600bb85a09a8a3b90149977ee1723bf5ef544cc736b359102d68759069"
+    },
+    {
+      "id": "discovery-gcp-ops-defers-obs-traces",
+      "cohort": "current_only",
+      "sha256": "d90003d483c39d9eabf52e1035d7fd50d918ed25080c6ac6070af01fb136fb11"
+    },
+    {
+      "id": "discovery-gcp-ops-defers-pcf",
+      "cohort": "current_only",
+      "sha256": "4db4d8d526413860ecc50de51417a7ad67a99da29c51315627e4312d7f929c57"
+    }
+  ]
+}

@@ -34,9 +34,10 @@ bare component names.
   (record shape checked by [`validate_improvements.py`](scripts/validate_improvements.py); lifecycle
   transition, authority, history, and revision-binding validators remain parked at tag
   `pre-trim-2026-08-02`).
-- [`evals/`](evals) — offline behavioral contracts, the manual Claude runner, baseline records, and
-  the bounded improvement ledger; the Codex/Sol conformance runners are parked at tag
-  `pre-trim-2026-08-02`; see [`evals/README.md`](evals/README.md).
+- [`evals/`](evals) — offline behavioral contracts, the manual Claude runner, the active narrow
+  ROUTE-001 Codex/Terra evaluator, baseline records, and the bounded improvement ledger; broader
+  Codex/Sol conformance remains parked at tag `pre-trim-2026-08-02`; see
+  [`evals/README.md`](evals/README.md).
 - [`docs/`](docs) — the only live backlog is [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md);
   must-follow rules are indexed in [`docs/rules.md`](docs/rules.md); decisions live in
   [`docs/decisions/`](docs/decisions), closure evidence in [`docs/reviews/`](docs/reviews), and the
@@ -196,12 +197,39 @@ boundary.
 
 Claude behavioral evaluations under [`evals/`](evals) remain manual; see
 [`evals/README.md`](evals/README.md) for the clean-room boundary, scenario contract, and the status
-of the revoked 2026-07-31 Sol baselines. The Codex/Sol conformance runners and manifests are parked
-at tag `pre-trim-2026-08-02` — Gate A plus the local Claude runner is the active verification
-surface; the parked design and its limits are recorded in
+of the historical Claude evidence and revoked 2026-07-31 Sol baselines.
+
+The owner-approved ROUTE-001 rewrite adds a separate, narrow Codex campaign pinned to Codex CLI
+0.147.0 and `gpt-5.6-terra` at medium reasoning: five scenarios paired across the fixed before/current
+revisions plus fourteen current-only cases, two trials each, for 48 trials. It has not been run and
+has produced no baseline. Codex 0.147 skill evidence is explicitly behavioral-only; only the two
+root-scoped incident negatives are not measurable with stock V2 receipts and therefore always remain
+`INCONCLUSIVE`. The evaluator contract is
+designed to remove local and effect tools through an authoritative model catalog and strict configuration;
+non-root trials allow no tool or collaboration receipts. The fixed authenticated canary is the
+non-root GCP Cloud Run startup case and uses only linear graders. Its disposable login remains a
+same-user application-layer boundary rather than OS-principal isolation. The tool-removal property
+must be independently bound to exact Codex 0.147 source before live use; transformed JSON is not its
+own proof. The full campaign is gated on clean committed evaluator bytes and independent review.
+
+The broader Codex/Sol conformance runners and manifests remain parked at tag
+`pre-trim-2026-08-02`; ROUTE-001 does not reopen EVAL-001. The parked design and its limits are
+recorded in
 [`docs/decisions/2026-08-01-local-sol-conformance.md`](docs/decisions/2026-08-01-local-sol-conformance.md).
 For repository-controlled executable checks, use the digest-bound, networkless container boundary in
 [`docs/verification-sandbox.md`](docs/verification-sandbox.md).
+
+The Terra canary is not launched from the mutable checkout. Its prepared path starts from an
+externally verified, protected copy of `evals/codex_bootstrap.py` under an absolute protected Python
+runtime with `-I -S -B`; that bootstrap accepts only the exact evaluator-bundle manifest and one
+fixed canary argument shape. The current host's Python runtime closure is user-writable, so the
+authenticated canary is currently NO-GO. A protected Python executable/DLL/standard-library closure
+or separate OS identity, a local fixed NTFS private root, and a clean managed-config/registry boundary
+with no MCP, provider-route, proxy, guardian, or Command Processor AutoRun override are required
+before the canary can run. The live launch also requires a protected Git executable/DLL/runtime
+installation closure and sanitized object store with no repository-config includes, object
+alternates, replacement refs, or UNC/network resolution. No live Terra result is implied by the
+offline harness tests.
 
 ## Current status
 
@@ -209,17 +237,22 @@ For repository-controlled executable checks, use the digest-bound, networkless c
   structurally gated (Gate A); Claude marketplace validation and isolated plugin loading are
   verified on the recorded CLI version. Must-follow constraints are indexed in
   [`docs/rules.md`](docs/rules.md).
-- Codex/Sol conformance is parked at tag `pre-trim-2026-08-02` with no current runtime baseline.
-  Disposable host install/inventory/uninstall smoke for Claude, Codex, VS Code, and Copilot CLI is
-  closed under [`HOST-001`](docs/reviews/2026-08-06-host-001-closure.md); the Copilot CLI is out of
-  scope by owner decision, VS Code UI discovery and headless Codex agent discovery remain documented
-  gaps, and model-behavior evidence stays with EVAL-001.
+- ROUTE-001's nineteen-scenario/48-trial Codex/Terra campaign has an uncommitted offline evaluator but
+  no live result or baseline; its authenticated canary is blocked on the trusted runtime/tool-plan
+  prerequisites above. Broader Codex/Sol conformance remains parked at tag `pre-trim-2026-08-02` with
+  no current runtime baseline. Disposable host install/inventory/uninstall smoke for Claude, Codex,
+  VS Code, and Copilot CLI is closed under
+  [`HOST-001`](docs/reviews/2026-08-06-host-001-closure.md); the Copilot CLI is out of scope by owner
+  decision, VS Code UI discovery and headless Codex agent discovery remain documented gaps, and the
+  broader model-behavior work stays with deferred EVAL-001.
 - `main` repository protection is closed (PROTECT-001). RELEASE-001 implementation now includes the
   exact-SHA workflow, release contract, strict remote-tag host smoke, and rollback runbook. Live
   publication remains blocked until that change is reviewed/merged, immutable releases plus the tag
   ruleset/environment/App are configured with explicit owner approval, and the first protected run
   supplies published-artifact and rollback evidence — tracked in
   [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+- The prepared release remains the unpublished `0.1.0` beta. No `1.0` release exists or is implied by
+  the ROUTE-001 evaluator work.
 
 ## Contribute
 
