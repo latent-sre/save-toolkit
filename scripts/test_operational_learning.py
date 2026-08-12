@@ -327,8 +327,18 @@ class OperationalLearningBaselineTests(unittest.TestCase):
         The exit status proves nothing on its own: with main()'s isinstance check deleted,
         each of these inputs still exits 1 -- v2-to-v3 through "migration requires
         schema_version 2", v1-to-v2 through a field-set error for the iterable values and an
-        uncaught TypeError for the rest. Only the documented stderr line, and the absence of
-        any migrated bytes, tell the check apart from whatever error happens to come next.
+        uncaught TypeError for the rest. The stderr line is the ONLY assertion here that tells
+        the documented rejection apart from whatever error comes next. Empty stdout and the
+        absent output file are secondary: every mutant already fails before writing either, so
+        they guard a different regression -- one that emits output despite erroring.
+
+        Equality rather than assertIn is deliberate, but not because assertIn would miss the
+        mutants; no mutant message contains this line as a substring, so it would be equally
+        red. Equality additionally rejects stray stderr, which is itself a CLI contract
+        violation. Review raised that this strictness could break on an inherited
+        PYTHONWARNINGS/PYTHONDEVMODE adding warning lines to the child's stderr; pinning the
+        child env was tried and reverted because neither variable produces stderr output for
+        these two scripts, so the guard could not be shown to defend anything.
         """
 
         packet_path = self.target_root / "non-object.json"
