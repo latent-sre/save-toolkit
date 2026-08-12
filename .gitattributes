@@ -11,6 +11,10 @@
 *.yaml text eol=lf
 *.json text eol=lf
 *.toml text eol=lf
+# Recovery patches in docs/reviews/ diff files that are themselves eol=lf. Without this rule
+# core.autocrlf hands a fresh Windows clone CRLF patches that no longer apply to LF sources,
+# so a preserved snapshot silently stops being recoverable.
+*.patch text eol=lf
 
 # Host projections are generated from agents/ and skills/. These attributes help review tools
 # collapse the copies without changing their runtime behavior.
