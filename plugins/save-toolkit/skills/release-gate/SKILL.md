@@ -29,9 +29,9 @@ For production, this PASS establishes readiness only; authorization belongs to t
 - [ ] **Merge readiness exists** — attach a recorded PASS from the `merge-gate` skill for the exact
       reviewed SHA. This skill does not load or execute that sibling gate; missing evidence is a blocking
       item.
-- [ ] **Versioned & noted** — the version and changelog or release notes identify the candidate.
-- [ ] **One artifact, promoted** — the exact artifact tested in lower environments is the one shipping;
-      build once and promote rather than rebuilding.
+- [ ] **One identified artifact, promoted** — the version and changelog or release notes identify the
+      candidate, and the exact artifact tested in lower environments is the one shipping; build once and
+      promote rather than rebuilding.
 - [ ] **Migrations safe** — DB, schema, and configuration migrations are backward-compatible, ordered
       before the code that needs them, and independently reversible.
 - [ ] **Feature flags ready** — risky behavior is flag-gated, defaults safe, and the flag transition is
@@ -39,12 +39,10 @@ For production, this PASS establishes readiness only; authorization belongs to t
 - [ ] **Rollback written & reversible** — the human release owner records the exact rollback steps and
       evidence that they work. For PCF, the selected rollback method and target-foundation behavior remain
       `[unverified]` until foundation evidence is attached.
-- [ ] **Health gates & abort criteria** — define success and failure signals before the release and state
-      exactly what trips an abort.
-- [ ] **Monitoring in place** — attach existing evidence from the typed `save-toolkit-observability-engineer` agent that alerts and
-      SLOs cover the new behavior and that new paging alerts have operator guidance.
+- [ ] **Monitoring & abort criteria** — define success and failure signals and exactly what trips an
+      abort before the release; attach existing evidence from the typed `save-toolkit-observability-engineer` agent
+      that alerts and SLOs cover the new behavior and that new paging alerts have operator guidance.
 - [ ] **Comms ready** — stakeholders and on-call know the window and update cadence.
-- [ ] **Production boundary understood** — a prod candidate proceeds only to the separate, later `production-change-gate` skill; this checklist neither loads that gate nor authorizes the action.
 
 ## Verdict
 

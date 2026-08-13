@@ -143,6 +143,10 @@ until the human release owner validates the exact target, capability, command, a
 4. **Record everything** (UTC) in the IC-owned timeline; after resolution give it to typed `scribe`.
 5. **Confirm before executing.** Every command here changes production. Show the exact target, command,
    blast radius, verification, and rollback; attach existing human approval, then the human executes.
+   The approval shape is the `production-change-gate` skill's **incident fast path**: human confirmation
+   of the exact command or an IC-approved bounded envelope, blast radius, backout, and the named
+   decider — every other gate record (readiness evidence, branch-protection evidence, timing docs,
+   pre-change comms) reconciles after resolution and never delays a mitigation.
 
 ### After mitigation
 

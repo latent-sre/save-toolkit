@@ -53,9 +53,8 @@ everything).
 - [ ] **Web GUI, if touched** — keyboard and WCAG behavior is checked or explicitly waived; bundles hold
       no secrets and browser storage does not hold bearer tokens.
 - [ ] **Scoped & clean** — smallest correct change; no dead code, debug leftovers, or unrelated churn.
-      Size matters: ~200–400 LOC is the effective review chunk; defect detection drops past ~400 LOC and
-      above ~500 LOC/hr, so cap continuous review at 60–90 min. A reviewer may request a split **solely**
-      for size — an oversized change is a blocking finding, not a nit.
+      A reviewer may request a split **solely** for size (defect detection drops past ~400 LOC) — an
+      oversized change is a blocking finding, not a nit.
 - [ ] **Docs/ops updated** — if behavior or operations changed, update the docs and make a typed `observability-engineer`
       agent handoff for affected operational guidance, or explicitly record why none is needed.
 
@@ -66,8 +65,6 @@ everything).
 - **P0/P1 findings** (correctness, security, data loss): block merge — no exceptions.
 - **P2**: block only if the change touches the same lines; otherwise a follow-up issue, linked.
 - **P3 / style**: never blocks; note it.
-- An **independently-found P0/P1 count of zero** from the reviewer is itself a checklist item to
-  read: an echoing gate has not been exercised — say whether that is acceptable for this change.
 
 ```text
 merge-gate: PASS | BLOCKED
