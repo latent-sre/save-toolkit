@@ -132,6 +132,31 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   twins), `gcloud secrets versions access`, and `gcloud kms decrypt` are off the allowlist for the
   same reason.
 
+## Design disciplines (why the fleet is shaped this way)
+
+The conventions and rules below are consequences of four disciplines, not free-standing
+bureaucracy. They map directly onto Anthropic's current agent-engineering guidance.
+
+- **Loop engineering.** Every lane runs gather context → take action → verify → repeat, and the
+  verify step is designed, not hoped for: Gate A, the fixture-that-fails-first rule, and
+  `mutation_guard.py` exist to be that step for fleet changes; golden-signal recovery evidence is
+  that step for incident work. A result with no verification path can only be `[unverified]`.
+  *[sourced: Anthropic "Building agents with the Claude Agent SDK"]*
+- **Graph engineering.** The roster's delegation edges are decomposed by context boundary — what
+  each lane may see — not by job title: `reviewer` sees only the diff, `researcher` only the public
+  web. Fan-out costs ~15× chat tokens, so the single-lane default stands until breadth, isolation,
+  or adversarial verification pays for the split.
+  *[sourced: Anthropic multi-agent research system]*
+- **Handoff engineering.** The packet convention below is this fleet's structured note-taking
+  between contexts; underspecified handoffs are the #1 multi-agent bug.
+  *[sourced: Anthropic "Effective context engineering for AI agents"]*
+- **Learning engineering.** Skills-as-files with progressive disclosure are the fleet's durable
+  memory, and learning lands as reviewable repository state with human-gated promotion — the same
+  approve/reject gate Anthropic's managed-agent memory consolidation ("dreaming") ships with.
+  *[sourced: Anthropic Agent Skills; 2026-05 dreaming research preview, third-party coverage]*
+
+Depth for all four: [`agent-authoring/references/roster.md`](skills/agent-authoring/references/roster.md).
+
 ## Shared conventions (every agent follows)
 
 - **Evidence over assertion.** Label load-bearing claims `[verified]` (ran/observed it),
@@ -143,8 +168,9 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   explicit human confirmation with the plan and rollback shown first. The three gates
   (`merge-gate`, `release-gate`, `production-change-gate`) are the checklists; GitHub branch
   protection and protected environments are the real enforcement.
-- **Handoffs use the packet convention** carried in each agent's body: one owner, pinned SHAs,
-  evidence labels preserved, taint marked, "what I did NOT do" stated.
+- **Handoffs use the packet convention** carried in each agent's body: one owner, SHAs pinned where
+  a decision depends on byte identity, evidence labels preserved, taint marked, "what I did NOT do"
+  stated.
 - **Learning is reviewable repository state, not model memory.** Every durable operational discovery
   receives a `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable` disposition with
   evidence and an owner. An agent never treats its own assertion as accepted knowledge.

@@ -194,7 +194,7 @@ A material unknown — the answer changes what gets built or concluded — goes 
 → Handing to: <agent>            (the one agent who owns the next step)
 Goal:         <the outcome they should achieve, in one line>
 Why you:      <one line on why this is their lane>
-Change:       <repo@<full-sha> · or PR #N (head <full-sha>) · or <base>..<head>> — the exact code state this packet describes
+Change:       <repo@<full-sha> · or PR #N (head <full-sha>) · or <base>..<head> · or none (no repository bytes referenced)> — the exact code state this packet describes
 Done so far:  <what you did / decided — the relevant trail, not everything>
 Findings:     <what you learned, each with EVIDENCE (file:line, command output, query, URL);
               preserve every [verified], [sourced], or [unverified] label exactly as received;
@@ -206,8 +206,8 @@ Learning:     <improvement_id + failure_fingerprint, operational update_id, or n
 Current state:<what's true right now — branch, deploy state, incident status, what's running>
 Not done / open: <explicitly what you did NOT do, and known unknowns>
 Success when: <how they (and you) know the handoff's goal is met>
-Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced code or artifact
-              to the full SHA whose bytes the sender read>
+Refs:         <links: PR, dashboard, logs, runbook, ticket; pin a referenced code or artifact that a
+              downstream decision depends on to the full SHA whose bytes the sender read>
 ```
 
 ## Rules
@@ -215,16 +215,20 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
 - **One owner per handoff.** Recommend exactly one next owner. This role cannot invoke that owner —
   the recommendation goes back to your caller, who dispatches it. If two owners are needed, say which
   is primary and in what order.
-- **Name the change, or it's stale on arrival.** The packet pins the exact commit / diff range it describes.
+- **Name the change, or it's stale on arrival.** The packet pins the exact commit / diff range it
+  describes, or states `none` when it references no repository bytes.
   The receiver's first act is to compare `HEAD` — **the tip of the branch being handed over (for a PR, the
   PR head), not the receiver's local checkout** — against the `<head>` component of whichever `Change:`
   form was used (a bare SHA, the PR head, or the `<head>` of a range). If they differ, **re-derive the
   diff — don't trust the packet.** This keeps the reviewer, test-writer, and fixer on the same diff; when
   the packet was a review approval, re-derive, then review the new commits.
-- **Pin referenced code and artifacts.** Every code or artifact reference carries the repository and full
-  SHA whose bytes the sender read. A branch, tag, URL, or path alone does not establish byte identity;
-  re-resolve it before relying on it. SHA pinning preserves byte identity and taint only — it does not
-  make content trusted, safe, or authoritative.
+- **Pin byte identity where a decision depends on it.** A reference that feeds merge, release, or
+  production-change evidence — a review verdict, a promoted artifact, a command to apply — carries the
+  repository and full SHA whose bytes the sender read; a branch, tag, URL, or path alone does not
+  establish byte identity, so re-resolve before relying on it. A packet with no repository bytes (a
+  timeline of logs and metrics, a public research answer) omits the pin rather than manufacturing one.
+  SHA pinning preserves byte identity and taint only — it does not make content trusted, safe, or
+  authoritative.
 - **Evidence travels with claims.** Anything load-bearing carries its source. Preserve every
   `[verified]`, `[sourced]`, and `[unverified]` label exactly as received; evidence labels travel with
   the packet and are never upgraded in transit.

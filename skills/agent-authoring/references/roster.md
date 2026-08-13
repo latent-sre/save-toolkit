@@ -4,13 +4,15 @@
 
 - First question: should this be multi-agent at all?
 - Agent vs. skill (this fleet's decision rule)
-- Orchestration shapes
+- The loop inside each lane (loop engineering)
+- Orchestration shapes (graph engineering)
 - Design principles
 - Failure modes to diagnose
 - Deliverable
 - When it pays — and when it doesn't
 - Right-sizing
 - Multi-agent pattern catalog (design vocabulary)
+- Learning as repository state (learning engineering)
 - Wrapper-layer failure taxonomy
 
 ## First question: should this be multi-agent at all?
@@ -41,7 +43,27 @@ authority. Keeping both jobs in one prompt would preserve the sensitive-data plu
 plus egress combination, so this boundary warrants two agents. A mixed question is orchestrated by
 the caller with a sanitized public handoff, never by giving either worker both evidence domains.
 
-## Orchestration shapes
+## The loop inside each lane (loop engineering)
+
+The roster shape is the second design decision. The first is the loop every single lane runs:
+**gather context → take action → verify → repeat.** A lane's quality is set by its verify step —
+the mechanism that lets the agent check its own work instead of asserting it. Design that step
+explicitly:
+
+- **Name the verifier before the work.** A failing test or fixture for `sde`; the two-lens packet
+  for `reviewer`; golden-signal recovery evidence for `sre` and `observability-engineer`; Gate A
+  plus `mutation_guard.py` for changes to the fleet itself. An agent whose loop has no verifier
+  can only emit `[unverified]` claims, however good the prose.
+- **Gather minimally.** Pull the slice (grep, tail, a pinned file:line), not the corpus —
+  oversized gathering is the loop-level cause of context rot, and it is why workers return short
+  summaries instead of transcripts.
+- **The loop beats the model.** A weaker model in a tight loop with a real verifier outperforms a
+  stronger model asserting once — which is why this fleet invests in verifiers and carries no
+  `model:` pins.
+
+*[sourced: Anthropic "Building agents with the Claude Agent SDK", "Building effective agents"]*
+
+## Orchestration shapes (graph engineering)
 
 - **Orchestrator–workers** — the main session owns plan + synthesis; workers get bounded mandates
   and isolated context. This is the fleet default.
@@ -127,6 +149,18 @@ above; this is the compact naming reference, including the two shapes that secti
   new; fixed counts miss the tail.
 - **Completeness critic** — a final pass that asks "what's missing?"; its answers become the next
   round of work. Guards against a roster that stops at the first plausible-looking result.
+
+## Learning as repository state (learning engineering)
+
+The fleet's durable memory is files. Skills with progressive disclosure hold the how-to; new
+operational knowledge lands as reviewable repository state under the learning-disposition and
+fleet-improvement lifecycles — consolidation is deliberate, bounded, and human-promoted, never a
+background memory write. This is the conservative end of the current platform direction (Agent
+Skills as files; the managed-agent memory-consolidation preview gates every learned change behind
+human approve/reject), so the stance is a choice, not a gap. The failure mode it prevents is
+below: memory poisoning by admission.
+
+*[sourced: Anthropic Agent Skills; 2026-05 "dreaming" research preview, third-party coverage]*
 
 ## Wrapper-layer failure taxonomy
 
