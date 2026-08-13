@@ -271,33 +271,6 @@ Claude/Sol output, a development canary, or unreviewed working-tree bytes.
 
 ## Ready repository work
 
-### PCF-001 — close the PCF deployment-execution grader gap
-
-**Status:** `ready` (2026-08-12)
-
-**Outcome:** The direct `pcf-deploy` gate scenario rejects every agent-authored claim that the agent
-will execute a deployment, including smart-apostrophe, contrastive-negation, and post-approval forms,
-while still accepting a plan that assigns execution to the human release owner after approval.
-
-**Source:** Current main's free-form `not_regex` accepts an otherwise compliant response that says
-`I’ll not push build 99, but deploy it now.` The clean branch
-`fix/pcf-deploy-unicode-contractions` retains candidate commit
-`a10b106c23387c78a7a31f1950a21163884e4bca` with a dedicated deterministic grader and broader tests,
-but it is 54 commits behind current main and has no pull request. That branch is recovery evidence,
-not an approved patch to merge unchanged.
-
-**Prerequisites:** Freeze current main, extract the smallest current defect corpus from the old branch,
-and demonstrate each red case against current graders before porting code. Do not edit generated
-adapters or weaken the positive human-executor cases.
-
-**Acceptance:** Separate load-bearing fixtures cover smart apostrophes, negation resets, mixed actors,
-approval-before/after phrasing, and human-release-owner positives; each new predicate is mutation-
-sensitive; `evals/test_graders.py`, scenario validation, Gate A, and independent correctness/security
-review pass on the exact commit.
-
-**Next action:** Reprove the minimal red cases on current main, then port and simplify the dedicated
-grader from `a10b106` rather than rebasing or merging the stale branch wholesale.
-
 ### MUTATION-001 — close the mutation-guard evidence gaps
 
 **Status:** `ready` (2026-08-12)
@@ -321,54 +294,6 @@ appended to the typed record without self-promoting it.
 
 **Next action:** Prepare attempt 1 from current main, with one regression per recorded defect and no
 expansion of the mutation operator set.
-
-### MIGRATE-001 — exercise operational-learning migration entry validation
-
-**Status:** `ready` (2026-08-12)
-
-**Outcome:** Both operational-learning migration CLI entrypoints deterministically reject non-object
-JSON, and their tests invoke the public `main()` boundary rather than proving only the underlying
-`migrate()` helpers.
-
-**Source:** The mutation sweep recorded this coverage gap as discovered but explicitly outside the
-ownership of
-[`fi_mutation_untested_assertions`](../evals/improvements/fi_mutation_untested_assertions/record.json).
-Both migration scripts reject non-object input in `main()`, while the current operational-learning
-tests import the modules and call `migrate()` directly.
-
-**Prerequisites:** Keep this work outside the mutation record's attempt budget and preserve the
-existing migration behavior, schema transitions, and standard-library-only test boundary.
-
-**Acceptance:** Separate red-first entrypoint tests pass a non-object JSON value to
-`migrate_v1_to_v2.py` and `migrate_v2_to_v3.py`, prove each returns the documented validation failure
-without producing migrated output, and remain load-bearing under a deliberate predicate mutation;
-the full operational-learning suite and Gate A pass.
-
-**Next action:** Add the two focused entrypoint regressions without changing either migration format
-or broadening the mutation-guard record.
-
-### DOCS-001 — reconcile merged status and host-manifest guidance
-
-**Status:** `ready` (2026-08-12)
-
-**Outcome:** Current contributor-facing documentation says that PR #103 is merged while retaining the
-remaining release/Terra blockers, and records that the three `plugin.json` manifests are distinct
-host selectors rather than removable duplication.
-
-**Source:** `README.md` still calls the Terra preflight repair uncommitted and the release workflow
-unmerged. `CONTRIBUTING.md` still describes the prepared workflow as awaiting merge. The stranded
-one-row commit `74934f964a7824719c4dd558f19ded4487a6a3a9` documents the per-host manifest rule already
-enforced by the generator, but is 28 commits behind main and must not be merged wholesale.
-
-**Prerequisites:** Use this roadmap as the status authority, preserve the beta `v0.1.0` and no-live-
-effect boundary, and re-derive the manifest wording from current generator/validator behavior.
-
-**Acceptance:** README, CONTRIBUTING, and the rules catalog agree with merged main and the live
-roadmap; no historical evidence packet is rewritten as closure evidence; link, plan-status, and Gate A
-checks pass.
-
-**Next action:** Apply the minimal current wording directly on main and leave the two stale branches
-untouched.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
@@ -436,6 +361,32 @@ Copilot hook is separate work needing its own review.
 per-criterion evidence envelopes, and record the dated packet. Do not weaken the `AGENTS.md` limit on
 inference alone, and do not populate `hooks/copilot-hooks.json` before a probe shows the payload can
 scope to an exact agent identity.
+
+### EVAL-002 — make POSIX process-boundary cleanup idempotent
+
+**Status:** `ready` (2026-08-13)
+
+**Outcome:** A timed-out Codex trial terminates its complete process tree and closes the POSIX
+boundary deterministically; final cleanup does not turn an already-completed termination into an
+`EPERM` test error, and no exception handling masks a surviving descendant.
+
+**Source:** The observed-only record
+[`fi_macos_process_group_cleanup_race`](../evals/improvements/fi_macos_process_group_cleanup_race/record.json)
+and its [intake packet](reviews/2026-08-13-macos-process-group-cleanup-race-intake.md) bind two
+identical macOS failures on PR #106 to exact head `a2a046e1`, while the byte-identical merge tree
+passed on main.
+
+**Prerequisites:** Start one bounded lifecycle attempt from current main. First define the narrow
+idempotent-cleanup invariant and a deterministic seam for the post-timeout `EPERM` state; do not
+generalize from runner timing or broadly swallow `PermissionError`.
+
+**Acceptance:** A red-first, mutation-sensitive regression proves the failure and the descendant-
+termination guarantee; focused process-boundary tests pass repeatedly on macOS; Ubuntu, macOS, and
+Windows Gate A jobs pass on the exact candidate; the typed record receives independent exact-revision
+correctness/security review without self-promotion.
+
+**Next action:** Prepare attempt 1 with a deterministic POSIX cleanup seam and the smallest repair that
+separates an idempotent final close from a failed initial termination.
 
 ## Decisions needed
 
