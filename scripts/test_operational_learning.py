@@ -321,6 +321,56 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             packet["evidence"][0]["locator"] = duplicate_of  # type: ignore[index]
         return packet
 
+    def _assert_entrypoint_rejects_non_object_json(self, migration: Path) -> None:
+        """Drive one migration CLI's main() with every non-object JSON type.
+
+        The exit status proves nothing on its own: with main()'s isinstance check deleted,
+        each of these inputs still exits 1 -- v2-to-v3 through "migration requires
+        schema_version 2", v1-to-v2 through a field-set error for the iterable values and an
+        uncaught TypeError for the rest. The stderr line is the ONLY assertion here that tells
+        the documented rejection apart from whatever error comes next. Empty stdout and the
+        absent output file are secondary: every mutant already fails before writing either, so
+        they guard a different regression -- one that emits output despite erroring.
+
+        Equality rather than assertIn is deliberate, but not because assertIn would miss the
+        mutants; no mutant message contains this line as a substring, so it would be equally
+        red. Equality additionally rejects stray stderr, which is itself a CLI contract
+        violation. Review raised that this strictness could break on an inherited
+        PYTHONWARNINGS/PYTHONDEVMODE adding warning lines to the child's stderr; pinning the
+        child env was tried and reverted because neither variable produces stderr output for
+        these two scripts, so the guard could not be shown to defend anything.
+        """
+
+        packet_path = self.target_root / "non-object.json"
+        output_path = self.target_root / "migrated.json"
+        for value in ([], "packet", 3, None, True):
+            with self.subTest(value=value):
+                packet_path.write_text(json.dumps(value), encoding="utf-8")
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(migration),
+                        str(packet_path),
+                        "--output",
+                        str(output_path),
+                        "--target-root",
+                        str(self.target_root),
+                        "--allowed-knowledge-root",
+                        "docs",
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(1, result.returncode, result.stderr)
+                self.assertEqual(
+                    "migration failed: knowledge update must be a JSON object",
+                    result.stderr.strip(),
+                )
+                self.assertEqual("", result.stdout)
+                self.assertFalse(output_path.exists())
+
     def test_learning_skill_schema_and_assets_exist(self) -> None:
         required = (
             Path("skills/operational-learning/SKILL.md"),
@@ -555,6 +605,14 @@ class OperationalLearningBaselineTests(unittest.TestCase):
             ValueError, "documentation duplicate dispositions require target_root"
         ):
             migration.migrate(duplicate_without_worktree)
+
+    # The two migration tests above call migrate() directly, so neither reaches the guard that
+    # main() puts in front of it. These two cover that entrypoint boundary instead.
+    def test_v1_to_v2_entrypoint_rejects_non_object_json(self) -> None:
+        self._assert_entrypoint_rejects_non_object_json(MIGRATION_PATH)
+
+    def test_v2_to_v3_entrypoint_rejects_non_object_json(self) -> None:
+        self._assert_entrypoint_rejects_non_object_json(MIGRATION_V3_PATH)
 
     def test_schema_catalog_and_examples_are_current(self) -> None:
         def iter_refs(value: object):

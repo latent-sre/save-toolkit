@@ -24,6 +24,19 @@ class PlatformAdapterTests(unittest.TestCase):
         shutil.copytree(ROOT / "skills", root / "skills")
 
     @staticmethod
+    def _copy_platform_contract_files(root: Path) -> None:
+        """Create a complete valid manifest/hook fixture before applying one mutation."""
+        for relative in (
+            Path(".claude-plugin/plugin.json"),
+            Path("plugin.json"),
+            Path("plugins/save-toolkit/.codex-plugin/plugin.json"),
+            Path("hooks/hooks.json"),
+        ):
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / relative, target)
+
+    @staticmethod
     def _copilot_tools(name: str) -> list[str]:
         rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
         frontmatter = rendered.split("---", 2)[1]
@@ -189,6 +202,79 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_platform_manifests_agree(self) -> None:
         self.assertEqual([], adapters.validate_platform_contracts(ROOT))
+
+    def test_each_platform_manifest_is_required(self) -> None:
+        manifests = (
+            Path(".claude-plugin/plugin.json"),
+            Path("plugin.json"),
+            Path("plugins/save-toolkit/.codex-plugin/plugin.json"),
+        )
+        for relative in manifests:
+            with self.subTest(path=relative.as_posix()), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve()
+                self._copy_platform_contract_files(root)
+                self.assertEqual([], adapters.validate_platform_contracts(root))
+                target = root / relative
+                target.unlink()
+                failures = adapters.validate_platform_contracts(root)
+                self.assertTrue(failures, "deleting a required manifest must fail validation")
+
+    def test_shared_manifest_identity_is_mutation_guarded(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_platform_contract_files(root)
+            self.assertEqual([], adapters.validate_platform_contracts(root))
+            target = root / "plugin.json"
+            manifest = json.loads(target.read_text(encoding="utf-8"))
+            manifest["name"] = "different-plugin"
+            target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
+            failures = adapters.validate_platform_contracts(root)
+        self.assertTrue(
+            any("identity field 'name' differs from Claude manifest" in failure for failure in failures),
+            failures,
+        )
+
+    def test_copilot_component_paths_cannot_be_deduplicated_to_claude(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_platform_contract_files(root)
+            self.assertEqual([], adapters.validate_platform_contracts(root))
+            shutil.copy2(root / ".claude-plugin/plugin.json", root / "plugin.json")
+            failures = adapters.validate_platform_contracts(root)
+        for field in ("agents", "skills", "hooks"):
+            with self.subTest(field=field):
+                self.assertTrue(
+                    any(f"plugin.json: {field} must be" in failure for failure in failures),
+                    failures,
+                )
+
+    def test_codex_manifest_rejects_unsupported_component_paths(self) -> None:
+        for field in ("agents", "hooks"):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve()
+                self._copy_platform_contract_files(root)
+                self.assertEqual([], adapters.validate_platform_contracts(root))
+                target = root / "plugins/save-toolkit/.codex-plugin/plugin.json"
+                manifest = json.loads(target.read_text(encoding="utf-8"))
+                manifest[field] = f"./{field}/"
+                target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
+                failures = adapters.validate_platform_contracts(root)
+                self.assertIn(
+                    f"Codex manifest must not claim unsupported {field!r} component",
+                    failures,
+                )
+
+    def test_codex_skills_path_cannot_be_deduplicated_to_copilot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_platform_contract_files(root)
+            self.assertEqual([], adapters.validate_platform_contracts(root))
+            target = root / "plugins/save-toolkit/.codex-plugin/plugin.json"
+            manifest = json.loads(target.read_text(encoding="utf-8"))
+            manifest["skills"] = "./platforms/copilot/skills/"
+            target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
+            failures = adapters.validate_platform_contracts(root)
+        self.assertIn("Codex manifest skills must be './skills/'", failures)
 
     def test_byte_drift_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
