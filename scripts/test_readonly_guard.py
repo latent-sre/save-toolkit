@@ -183,8 +183,31 @@ ALLOWED = [
     "gcloud run revisions describe checkout-00042-abc",
     "gcloud run services logs read checkout --limit=100",
     # Shell-safe filter shape: `--freshness` for the time bound, `severity=(ERROR OR CRITICAL)`
-    # for the floor. A `severity>=ERROR` filter trips the structure deny (see DENIED below).
+    # for the floor.
     "gcloud logging read 'resource.type=cloud_run_revision AND severity=(ERROR OR CRITICAL)' --limit=50 --freshness=1h",
+    # A quoted `>=` is DATA, not a redirect: redirect detection moved to the token layer, where the
+    # posix lexer the guard already trusts keeps quoted operators inside their argument. This was
+    # the guard's canonical false positive (the natural GCP Logging filter), pinned in DENIED for
+    # two releases; the unquoted-redirect denials below prove the move gave nothing else away.
+    "gcloud logging read 'severity>=ERROR' --limit=50 --freshness=1h",
+    "gcloud logging read 'severity>=ERROR'",
+    # Harmless redirects: `>/dev/null` (any fd) cannot write anywhere real, `2>&1` only duplicates
+    # a stream. Muscle-memory shapes for every SRE alive; each was denied before the token-layer
+    # redirect pass.
+    "grep -rn 'def main' scripts/ 2>/dev/null",
+    "cf logs my-app --recent 2>&1 | tail -100",
+    "git status >/dev/null",
+    "find . -name '*.py' 2>/dev/null | head -20",
+    # `timeout <duration> <allowed command>`: the allowlist permits streaming reads (`cf logs`,
+    # `tail -f`) that never return on their own; flagless `timeout` is the sanctioned bound.
+    "timeout 30 cf logs my-app --recent",
+    "timeout 5s git log --oneline -5",
+    # `date` reads; the packet convention demands UTC timestamps in every timeline.
+    "date -u",
+    "date -u '+%Y-%m-%dT%H:%M:%SZ'",
+    # `${NAME}` is byte-equivalent to `$NAME` and is normalized before inspection; only the
+    # non-trivial `${...}` forms stay denied (see DENIED).
+    "grep ERROR \"${LOGFILE}\"",
     "gcloud logging logs list",
     "gcloud projects describe my-project",
     "gcloud config list",
@@ -445,12 +468,26 @@ DENIED = [
     "gcloud --project=prod-proj run services list",
     "gcloud --project prod-proj logging read 'x' --freshness=1h",
     "gcloud --quiet run services list",
-    # DOCUMENTED false positive, pinned on purpose: `>=` in a quoted Logging filter trips the
-    # structure deny like any other `>`. The guard refuses to parse shell quoting (that is how the
-    # old denylist lost), so the shell-safe spellings above — `--freshness` and
-    # `severity=(ERROR OR CRITICAL)` — are the agent path; a genuine `>=` filter is a
-    # recommend-for-human command. Do not "fix" this by weakening _STRUCTURE_DENY.
-    "gcloud logging read 'severity>=ERROR'",
+    # The quoted `severity>=ERROR` filter moved to ALLOWED when redirect detection moved to the
+    # token layer. These prove the move surrendered nothing: an UNQUOTED redirect is still an
+    # operator token and still denies, on every fd spelling and every non-/dev/null target.
+    "gcloud logging read severity>=ERROR",
+    "cat f > /dev/nullx",
+    "grep x f 2> /tmp/errs",
+    "grep x f 2>>/var/log/notes",
+    # `timeout` is vouched for only in its flagless duration+command shape, and the wrapped
+    # command faces the same allowlist — a denied command gets no pardon from being bounded.
+    "timeout 30 python3 mutate.py",
+    "timeout -k 5 30 cat x",
+    "timeout 30",
+    "timeout abc cat x",
+    # `date` writes through exactly one door.
+    "date -s '2026-01-01 00:00:00'",
+    "date --set='2026-01-01 00:00:00'",
+    # Non-trivial `${...}` stays structure-denied; only the plain `${NAME}` identifier form is
+    # normalized to `$NAME` and permitted.
+    "echo ${VAR:-fallback}",
+    "echo ${PATH/x/y}",
     # --- observability-only validators are DENIED for sre ------------------------------------------
     "promtool check rules rules.yml",
     "yamllint alerts.yml",
@@ -544,6 +581,28 @@ class ReadonlyGuardTest(unittest.TestCase):
         output = payload["hookSpecificOutput"]
         self.assertEqual(output["hookEventName"], "PreToolUse")
         self.assertIn("read-only agent", output["permissionDecisionReason"])
+
+    def test_deny_reason_names_the_rule_that_fired(self) -> None:
+        # The denial must say WHY — a static lecture identical for a stray redirect and `rm -rf /`
+        # trains the agent to treat the guard as weather instead of policy. Each case pins a
+        # distinct rule's phrasing; every one of these produced the same generic paragraph before
+        # explain() replaced the static _REASON.
+        cases = {
+            "echo secret > out.txt": "redirection",
+            "python3 -m unittest": "executes code",
+            "cf env my-app": "credentials",
+            "gh api repos/o/r/pulls": "POST",
+            "git push origin main": "git",
+            "echo $(rm -rf /)": "shell construct",
+            "timeout -k 5 30 cat x": "flagless form",
+            "rm -rf build/": "not on the read-only allowlist",
+        }
+        procs = run_guard_batch([bash_call(command) for command in cases])
+        for (command, expected), proc in zip(cases.items(), procs):
+            with self.subTest(command=command):
+                payload = json.loads(proc.stdout.decode("utf-8"))
+                reason = payload["hookSpecificOutput"]["permissionDecisionReason"]
+                self.assertIn(expected, reason, f"reason for {command!r} does not name its rule")
 
     def test_non_bash_tools_pass_through(self) -> None:
         proc = run_guard(

@@ -79,10 +79,9 @@ gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.servic
 - `--freshness` (default `1d`) supplies the time bound and "works only with DESC ordering and
   filters without a timestamp" *[sourced: gcloud logging read reference]* — so use it INSTEAD of
   `timestamp >=` comparisons, not alongside them.
-- **Fleet-specific**: the read-only guard denies `>=`/`<=` inside any command (structure rule), so
-  the agent-runnable shape is exactly the above — `--freshness` for time,
-  `severity=(ERROR OR CRITICAL OR ALERT OR EMERGENCY)` for the floor. A filter that genuinely
-  needs comparisons is recommend-for-human, run in Logs Explorer.
+- **Fleet-specific**: the read-only guard permits comparison operators (`severity>=ERROR`,
+  numeric bounds) **inside a quoted filter argument** — it denies only unquoted shell redirects.
+  Keep the whole filter in single quotes; an unquoted `>=` is a shell redirect and is denied.
 - `--limit` defaults to **unlimited** — always set it.
 
 ## Observability Analytics (SQL over logs)
