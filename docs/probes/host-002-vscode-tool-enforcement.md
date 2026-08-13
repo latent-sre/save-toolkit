@@ -100,12 +100,16 @@ Get-FileHash -Algorithm SHA256 -LiteralPath '<exact settings path>'
 Get-Item -LiteralPath '<exact settings path>' | Select-Object FullName,Length,LastWriteTimeUtc
 ```
 
-Copy each present file into the run directory as a recovery-only backup. Settings can contain
-credentials: never attach or paste the backup, and never include its contents in an evidence
-envelope. The attachable artifact is a small metadata record containing only scope, exact path,
-present/absent state, digest, size, and timestamp. A later mismatch must be reconciled deliberately;
-do not overwrite the entire live settings file from the backup because that could erase unrelated
-changes made during the probe.
+Settings can contain credentials. Never copy a settings file into `$ProbeRun` or any other
+attachable artifact directory, and never paste its contents into the transcript or an evidence
+envelope. This procedure intentionally creates no settings backup: restoring the UI selection to
+its initial state and matching the before digest is the recovery check. The attachable artifact is a
+small metadata record containing only scope, exact path, present/absent state, digest, size, and
+timestamp. If local policy requires a recovery copy, stop before toggling and place it in an approved
+access-controlled secret-storage location outside `$ProbeRun`; delete it immediately after the
+before/after comparison is accepted and before sharing any evidence. A later mismatch must be
+reconciled deliberately; do not overwrite the entire live settings file because that could erase
+unrelated changes made during the probe.
 
 ## 2. Run the observations in order
 
@@ -372,6 +376,6 @@ The run is not clean if any of these are true:
   concurrent edit; or
 - a tool remains enabled that was not enabled at the start.
 
-Record live systems touched as `none`. Retain the recovery-only settings backups locally until the
-before/after comparison is accepted, then remove them through the operator's normal secure cleanup
-process. They are never review artifacts.
+Record live systems touched as `none`. If local policy required a recovery copy outside `$ProbeRun`,
+delete it through the operator's approved secret-data cleanup process immediately after the
+before/after comparison is accepted and before sharing any evidence. It is never a review artifact.
