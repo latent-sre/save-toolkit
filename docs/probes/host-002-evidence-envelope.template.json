@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "evidence_id": "REPLACE_WITH_ev_32_lowercase_hex",
+  "producer": {
+    "name": "REPLACE_WITH_OPERATOR_NAME",
+    "role": "human VS Code probe operator"
+  },
+  "context": {
+    "run_id": "REPLACE_WITH_SHARED_RUN_ID",
+    "task_id": "HOST-002",
+    "attempt_id": "REPLACE_WITH_ATTEMPT_ID"
+  },
+  "target": {
+    "root": "REPLACE_WITH_ABSOLUTE_CHECKOUT_PATH",
+    "revision": "REPLACE_WITH_FULL_CHECKOUT_SHA",
+    "tree_digest": "REPLACE_WITH_64_LOWERCASE_HEX_TREE_DIGEST"
+  },
+  "criterion": "REPLACE_WITH_ONE_PRECISE_OBSERVATION_CRITERION",
+  "status": "REPLACE_WITH_pass_fail_skip_or_inconclusive",
+  "started_at": "REPLACE_WITH_RFC3339_UTC_TIMESTAMP_ENDING_IN_Z",
+  "ended_at": "REPLACE_WITH_RFC3339_UTC_TIMESTAMP_ENDING_IN_Z",
+  "command": null,
+  "source": {
+    "kind": "human_ui_observation",
+    "step": "REPLACE_WITH_PROCEDURE_STEP",
+    "vscode_version": "REPLACE_WITH_VERSION",
+    "vscode_commit": "REPLACE_WITH_BUILD_COMMIT",
+    "observed_outcome": "REPLACE_WITH_RAW_MEASURED_OUTCOME"
+  },
+  "environment": {
+    "os": "REPLACE_WITH_OS_AND_BUILD",
+    "architecture": "REPLACE_WITH_ARCHITECTURE"
+  },
+  "isolation": {
+    "workspace": "local clean checkout",
+    "network": "unchanged by probe",
+    "live_systems_touched": "none"
+  },
+  "artifacts": [
+    {
+      "path": "REPLACE_WITH_ARTIFACT_PATH",
+      "sha256": "REPLACE_WITH_64_LOWERCASE_HEX_ARTIFACT_DIGEST",
+      "size": "REPLACE_WITH_NON_NEGATIVE_ARTIFACT_BYTE_SIZE"
+    }
+  ],
+  "limitations": [
+    "REPLACE_WITH_AT_LEAST_ONE_BUILD_ROLE_PATH_OR_POLICY_LIMITATION"
+  ]
+}

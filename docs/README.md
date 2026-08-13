@@ -12,6 +12,7 @@ sources or the generated host adapters.
 | Live tracker | [`fleet-roadmap.md`](fleet-roadmap.md) | The **only** owner of unfinished, blocked, and deferred work. Nothing else adds work to the queue |
 | Decisions (ADRs) | [`decisions/`](decisions) | An **accepted** record governs its decision, names what lost, and states its reopen trigger; a proposed record carries no implementation authority. Never an execution checklist |
 | Round plans and specs | [`superpowers/plans/`](superpowers/plans), [`superpowers/specs/`](superpowers/specs) | Operational only while their round is active. Each carries a top-of-file `Status:` banner marked `implemented`, `superseded`, or `historical`, and points back to `fleet-roadmap.md` — `check_plan_status.py` fails the build otherwise |
+| Roadmap-linked probe instruments | [`probes/`](probes) | Blank, repeatable procedures that are operational only while an active roadmap item links them. They are neither evidence nor a second task list; completed results live in validated evidence envelopes and dated review packets |
 | Closure evidence | [`reviews/`](reviews) | Historical evidence of what a round landed and how it was verified. Never a task list |
 | Live reference contracts | [`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md), [`verification-sandbox.md`](verification-sandbox.md) | Current, governing contracts — not dated snapshots. The rules catalog indexes must-follow constraints with primary sources; schema-compatibility versions the machine-readable contracts in [`../schemas/catalog-v1.json`](../schemas/catalog-v1.json); the verification-sandbox spec governs the digest-bound boundary in [`../scripts/verification_sandbox.py`](../scripts/verification_sandbox.py). All three are linked from root docs and stay current with the fleet they describe |
 | Dated evidence | [`RESEARCH.md`](RESEARCH.md) | Point-in-time provenance current as of its dateline. Re-verify before relying on it; it does not add work. The 2026-07-12 fleet audit was removed and remains in git history only |
@@ -21,7 +22,9 @@ sources or the generated host adapters.
 Only [`fleet-roadmap.md`](fleet-roadmap.md), the **accepted** records under [`decisions/`](decisions),
 and the live reference contracts ([`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md),
 [`verification-sandbox.md`](verification-sandbox.md)) govern the current fleet.
-`superpowers/plans/` and `superpowers/specs/` hold **bannered historical** plans and specs when no
+`probes/` contains no independent authority: an instrument is live only through the active roadmap
+item that links it. `superpowers/plans/` and `superpowers/specs/` hold **bannered historical** plans
+and specs when no
 round is active (the directories are not literally empty — each file carries a `Status:` banner
 marked `implemented`, `superseded`, or `historical` and points back to the roadmap). Everything
 they and `reviews/` contain is history, not a task list. A historical file may retain a dated
