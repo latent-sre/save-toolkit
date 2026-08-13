@@ -408,9 +408,14 @@ line number.
   `src/vs/workbench/contrib/chat/browser/tools/languageModelToolsService.ts:1611-1621`.
 - Session outranks the agent file, extension agents alone are read-only, and the picker writes the
   user's change back: `.../browser/widget/input/chatSelectedTools.ts:136-143`, `:188`, `:202-220`.
-- A prompt file outranks a referenced agent's list: `vscode-docs`
+- Official VS Code documentation at `microsoft/vscode-docs`
+  `95cc3b3b226823b70306b8b6ef118def6f3c1842` describes tool checkboxes as per-session selection and
+  says a prompt file's `tools:` list outranks a referenced custom agent's list:
+  `learn/foundations/introduction-to-agent-first-development.md:115-125` and
   `docs/agent-customization/prompt-files.md:174-183`.
-- A chat deep link may set agent and tools together: `.../browser/widget/chatWidget.ts:3572-3584`.
+- Upstream `chatWidget.ts:2782-2816,3567-3584` confirms prompt-file metadata can switch the selected
+  agent and tool map. Those lines do not establish the previously claimed chat-deep-link override;
+  that unsupported attribution is removed rather than carried into the probe.
 
 Base A establishes what the host recognizes; Base B establishes the override precedence that makes
 `tools:` a default rather than a boundary. Only the second is load-bearing for the `AGENTS.md` limit,
@@ -426,9 +431,11 @@ picker mutates `.github/agents/sre.agent.md` on disk. It states the VS Code buil
 it with the measured behavior. Any hook-portability finding is recorded as evidence only; wiring a
 Copilot hook is separate work needing its own review.
 
-**Next action:** Run the observational probe in VS Code and record the packet. Do not weaken the
-`AGENTS.md` limit on inference alone, and do not populate `hooks/copilot-hooks.json` before a probe
-shows the payload can scope to an exact agent identity.
+**Next action:** Run the linked
+[`HOST-002 VS Code tool-enforcement probe`](probes/host-002-vscode-tool-enforcement.md), validate its
+per-criterion evidence envelopes, and record the dated packet. Do not weaken the `AGENTS.md` limit on
+inference alone, and do not populate `hooks/copilot-hooks.json` before a probe shows the payload can
+scope to an exact agent identity.
 
 ## Decisions needed
 
