@@ -74,9 +74,9 @@ user or team, and a separately approved repository-scoped publisher App with Act
 Actions write; do not broaden the account to ordinary Write as a shortcut or collapse request and
 publication into one credential.
 
-Publication remains **blocked** until RELEASE-001 closes. The prepared
-[`release.yml`](.github/workflows/release.yml) workflow is the only allowed promotion path after it is
-reviewed and merged, but repository bytes alone do not activate it. A human owner must separately
+Publication remains **blocked** until RELEASE-001 closes. The merged
+[`release.yml`](.github/workflows/release.yml) workflow is the only allowed promotion path, but
+repository bytes alone do not activate it. A human owner must separately
 approve and configure immutable releases, the protected release-tag ruleset, the two release
 environments, reconciliation key, and least-privileged App described by the
 [`immutable-release ADR`](docs/decisions/2026-08-11-immutable-release-promotion.md). The workflow
