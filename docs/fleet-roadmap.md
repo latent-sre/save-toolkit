@@ -652,6 +652,48 @@ container.
 **Next action:** Bind the final whole-diff correctness/security verdict and resolve the PR #118 thread only after that check covers the exact head. Do not close SCRIPTS-001 on the merged grammar alone while the candidate-code execution finding remains
 undisposed.
 
+### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
+
+**Status:** `ready` (2026-08-13)
+
+**Outcome:** A user who opens any of the 29 skills reaches actionable content within a few lines: the
+evidence-default statement is one line per `SKILL.md` (kept per-file because host projections load
+without the fleet guide), worked examples carry their provenance as a single footnote instead of a
+paragraph retracting the example, no compiled artifacts are tracked, superseded schema versions live
+at a tag rather than in every install, and the packaging question for maintenance skills has a
+recorded decision.
+
+**Source:** Owner-requested usability review, 2026-08-13 (evidence recorded inline here; measured
+against this repository at the review session's checkout). Findings, each `[sourced]` to that
+review: the identical 4-line evidence-default banner opens 29/29 `SKILL.md` files; first actionable
+content starts at line 16–19 (mean 16.7), and `skills/service-onboarding/SKILL.md` stacks two
+banners so content starts at line 25 of 72; provenance boilerplate totals ~249 lines (8.2% of the
+SKILL.md corpus) with 155 `[unverified]` markers across bundles; two worked examples retract
+themselves (`skills/pcf-deploy/SKILL.md` manifest-name interaction; `skills/runbook/SKILL.md`
+example footer); `skills/operational-learning/` is 3,714 lines — 27% of toolkit bytes — including
+three schema versions, two migration scripts, and a drift watcher, and `skills/agent-authoring/` is
+1,678 lines, both shipped to every end user; six compiled `__pycache__/*.pyc` files are tracked
+under `skills/operational-learning/scripts/`.
+
+**Prerequisites:** None blocking. Verified during the review: no validator enforces the banner's
+current 4-line text, so the collapse is prose-plus-regeneration. Constraints to respect: the
+one-line form must survive in every generated projection (Copilot/Codex load skills without
+AGENTS.md, so a plugin-level-only statement disappears there); schema parking follows the
+`pre-trim-2026-08-02` precedent; `knowledge_update.py` currently accepts v1 and v2 packets, so
+parking v1/v2 is a validator-contract change needing its own red-first fixtures; the
+maintenance-skill packaging split stays deferred until after the first release (the accepted
+packaging ADR governs the surface).
+
+**Acceptance:** All 29 `SKILL.md` files open with a ≤1-line evidence default and adapters
+regenerate byte-clean; the two self-retracting examples keep their labels as one-line footnotes;
+`git ls-files '*.pyc'` is empty and an ignore rule prevents recurrence; superseded schemas and
+migration scripts are parked at a tag with `operational-learning` updated to the current version
+only — or an explicit decision records why they stay; Gate A passes; the scribe-bundle required
+phrases in `validate_fleet.py` are untouched.
+
+**Next action:** Collapse the banner in the 29 canonical `SKILL.md` files and regenerate adapters —
+the smallest step, independent of the schema and packaging decisions.
+
 ## Decisions needed
 
 ### REVIEW-001 — enforce final-SHA review reconciliation
