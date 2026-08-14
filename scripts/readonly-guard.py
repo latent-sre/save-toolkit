@@ -148,10 +148,26 @@ _PUNCTUATION = frozenset("();<>|&")
 # `tail -f`, which otherwise never return). Only the flagless form is vouched for: `-k`/`-s` take
 # separate values that would misalign the wrapped-command check, so they fail closed.
 _TIMEOUT_DURATION = re.compile(r"^\d+(\.\d+)?[smhd]?$")
-# `date` writes only through `--set`/`-s`; everything else is a read. It earns its slot because the
-# packet convention demands UTC timestamps and the timeline is incident work's core artifact.
-_DATE_WRITE_FLAGS = frozenset({"--set"})
-_DATE_WRITE_SHORT = frozenset({"s"})
+# `date` earns its slot because the packet convention demands UTC timestamps and the timeline is
+# incident work's core artifact — but it is gated by ALLOWLIST, not by denying `--set`/`-s`.
+# `date(1)` has a SECOND synopsis form, `date [-u] [MMDDhhmm[[CC]YY][.ss]]`, in which a bare numeric
+# OPERAND (no flag at all) sets the system clock: `date 081319002026` is a write. Gating only the
+# set FLAGS let that through — the exact silent-writer failure this file's allowlist doctrine
+# exists to prevent, reintroduced by treating one command as "obviously a reader". So: a format
+# string (`+...`) and known display flags are permitted, and anything else — a bare operand, an
+# unrecognized flag — denies.
+_DATE_DISPLAY_BARE = frozenset({
+    "-u", "--utc", "--universal", "-R", "--rfc-email", "--debug", "--resolution",
+})
+# Flags whose value may arrive attached (`--date=yesterday`) or as the next token (`-d yesterday`);
+# the value is consumed so it is never mistaken for a clock-setting operand.
+_DATE_DISPLAY_WITH_VALUE = frozenset({
+    "-d", "--date", "-r", "--reference", "-f", "--file", "--rfc-3339",
+})
+# `-I`/`--iso-8601` take an OPTIONAL timespec, which getopt only accepts ATTACHED (`-Iseconds`,
+# `--iso-8601=seconds`) — never as a separate token, so no value is consumed for these.
+_DATE_ISO_PREFIX = "-I"
+_DATE_ISO_LONG = "--iso-8601"
 _DEV_NULL = "/dev/null"
 
 
@@ -500,6 +516,40 @@ def _git_flag_names(args: list[str]) -> set[str]:
     return names
 
 
+def _date_reason(args: list[str]) -> "str | None":
+    """None if this `date` invocation only displays; otherwise why it is refused.
+
+    Short-flag CLUSTERS (`date -uR`) are denied rather than decomposed: a cluster would have to be
+    split to prove no set-flag hides in it, and the spelled-out `date -u -R` is one keystroke away.
+    Fail-loud over-denial is this guard's accepted direction.
+    """
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg.startswith("+"):  # a strftime format string: display only
+            index += 1
+            continue
+        if not arg.startswith("-") or arg == "-":
+            return (
+                f"`date {arg}` is the clock-SETTING operand form (`MMDDhhmm[[CC]YY][.ss]`) — it "
+                "writes the system time; display with `date -u`, `date -u +FORMAT`, or "
+                "`date -d <when> +FORMAT`"
+            )
+        base = arg.split("=", 1)[0]
+        if base in _DATE_DISPLAY_BARE:
+            index += 1
+        elif base in _DATE_DISPLAY_WITH_VALUE:
+            index += 1 if "=" in arg else 2
+        elif arg.startswith(_DATE_ISO_PREFIX) or base == _DATE_ISO_LONG:
+            index += 1
+        else:
+            return (
+                f"`date {arg}` is not a known display flag — `--set`/`-s` write the system clock, "
+                "and unrecognized flags are denied rather than guessed at"
+            )
+    return None
+
+
 def _git_allowed(args: list[str]) -> bool:
     # Step over git's global options to find the subcommand.
     index = 0
@@ -615,9 +665,7 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
             return "`timeout` needs a command to bound: `timeout <duration> <allowed command>`"
         return _segment_reason(args[1:], agent)
     if command == "date":
-        if _carries_flag(args, _DATE_WRITE_FLAGS, _DATE_WRITE_SHORT):
-            return "`date --set`/`-s` sets the system clock — a write; plain `date -u` reads"
-        return None
+        return _date_reason(args)
     if command == "git":
         if _git_allowed(args):
             return None

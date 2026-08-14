@@ -202,9 +202,18 @@ ALLOWED = [
     # `tail -f`) that never return on their own; flagless `timeout` is the sanctioned bound.
     "timeout 30 cf logs my-app --recent",
     "timeout 5s git log --oneline -5",
-    # `date` reads; the packet convention demands UTC timestamps in every timeline.
+    # `date` DISPLAY forms; the packet convention demands UTC timestamps in every timeline. Value
+    # flags consume their argument so it is never mistaken for a clock-setting operand, and the
+    # `-I`/`--iso-8601` optional timespec is attached-only.
     "date -u",
     "date -u '+%Y-%m-%dT%H:%M:%SZ'",
+    "date -d yesterday +%s",
+    "date --date=yesterday '+%Y-%m-%d'",
+    "date -r deploy.log",
+    "date --reference=deploy.log +%s",
+    "date -Iseconds",
+    "date --iso-8601=seconds",
+    "date -R",
     # `${NAME}` is byte-equivalent to `$NAME` and is normalized before inspection; only the
     # non-trivial `${...}` forms stay denied (see DENIED).
     "grep ERROR \"${LOGFILE}\"",
@@ -481,9 +490,21 @@ DENIED = [
     "timeout -k 5 30 cat x",
     "timeout 30",
     "timeout abc cat x",
-    # `date` writes through exactly one door.
+    # `date` writes through TWO doors, and the operand form has no flag to gate on: `date(1)`'s
+    # second synopsis is `date [-u] [MMDDhhmm[[CC]YY][.ss]]`, where a bare numeric operand SETS the
+    # system clock. Gating only `--set`/`-s` allowed every line below (reviewer-reported on PR #112,
+    # reproduced: exit 42 pre-fix) — the silent-writer shape the allowlist doctrine exists to stop.
     "date -s '2026-01-01 00:00:00'",
     "date --set='2026-01-01 00:00:00'",
+    "date 081319002026",
+    "date 010100002026.30",
+    "date -u 081319002026",
+    "date 08131900",
+    # Unrecognized flags deny rather than being guessed at, and short-flag CLUSTERS are denied
+    # rather than decomposed — `date -u -R` is the spelled-out form. Accepted over-denial, pinned
+    # so the trade-off stays visible.
+    "date --frobnicate",
+    "date -uR",
     # Non-trivial `${...}` stays structure-denied; only the plain `${NAME}` identifier form is
     # normalized to `$NAME` and permitted.
     "echo ${VAR:-fallback}",

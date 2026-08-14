@@ -141,21 +141,32 @@ bureaucracy. They map directly onto Anthropic's current agent-engineering guidan
   verify step is designed, not hoped for: Gate A, the fixture-that-fails-first rule, and
   `mutation_guard.py` exist to be that step for fleet changes; golden-signal recovery evidence is
   that step for incident work. A result with no verification path can only be `[unverified]`.
-  *[sourced: Anthropic "Building agents with the Claude Agent SDK"]*
+  *[sourced: Anthropic, "Building agents with the Claude Agent SDK",
+  claude.com/blog/building-agents-with-the-claude-agent-sdk; "Building effective agents",
+  anthropic.com/engineering/building-effective-agents]*
 - **Graph engineering.** The roster's delegation edges are decomposed by context boundary — what
-  each lane may see — not by job title: `reviewer` sees only the diff, `researcher` only the public
-  web. Fan-out costs ~15× chat tokens, so the single-lane default stands until breadth, isolation,
-  or adversarial verification pays for the split.
-  *[sourced: Anthropic multi-agent research system]*
+  each lane may see — not by job title: `reviewer` reads the local checkout but holds no web, shell,
+  or delegation; `researcher` holds only the public web and no local read. Fan-out costs ~15× chat
+  tokens, so the single-lane default stands until breadth, isolation, or adversarial verification
+  pays for the split.
+  *[sourced: Anthropic, "How we built our multi-agent research system"; "When to use multi-agent
+  systems (and when not to)", claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them]*
 - **Handoff engineering.** The packet convention below is this fleet's structured note-taking
   between contexts; underspecified handoffs are the #1 multi-agent bug.
-  *[sourced: Anthropic "Effective context engineering for AI agents"]*
+  *[sourced: Anthropic, "Effective context engineering for AI agents",
+  anthropic.com/engineering/effective-context-engineering-for-ai-agents]*
 - **Learning engineering.** Skills-as-files with progressive disclosure are the fleet's durable
   memory, and learning lands as reviewable repository state with human-gated promotion — the same
   approve/reject gate Anthropic's managed-agent memory consolidation ("dreaming") ships with.
-  *[sourced: Anthropic Agent Skills; 2026-05 dreaming research preview, third-party coverage]*
+  *[sourced: Anthropic, "Equipping agents for the real world with Agent Skills",
+  anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills. The 2026-05
+  "dreaming" research preview is `[unverified]` here: the primary announcement was not reached, and
+  the approve/reject detail comes from third-party coverage
+  (venturebeat.com/technology/anthropic-introduces-dreaming-a-system-that-lets-ai-agents-learn-from-their-own-mistakes)]*
 
-Depth for all four: [`agent-authoring/references/roster.md`](skills/agent-authoring/references/roster.md).
+Each citation locates a published post by title and URL; none was fetched during this repository's
+checks, so they are `[sourced]`, never `[verified]`. Depth for all four:
+[`agent-authoring/references/roster.md`](skills/agent-authoring/references/roster.md).
 
 ## Shared conventions (every agent follows)
 

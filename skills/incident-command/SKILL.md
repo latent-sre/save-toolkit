@@ -141,7 +141,10 @@ until the human release owner validates the exact target, capability, command, a
    The approval shape is the `production-change-gate` skill's **incident fast path**: human confirmation
    of the exact command or an IC-approved bounded envelope, blast radius, backout, and the named
    decider — every other gate record (readiness evidence, branch-protection evidence, timing docs,
-   pre-change comms) reconciles after resolution and never delays a mitigation.
+   pre-change comms) reconciles after resolution and never delays a mitigation. That path covers the
+   reversible mitigations in this table and rollback to an already-live artifact; **shipping a new
+   artifact (an incident hotfix) and any Tier 3 destructive or access-path action stay on the full
+   gate** — including Tier 3's proven backup/recovery evidence.
 
 ### After mitigation
 

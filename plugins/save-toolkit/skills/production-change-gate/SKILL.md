@@ -120,9 +120,21 @@ During a declared incident, gate latency is itself harm: every minute of ceremon
 path is user pain. The gate shrinks to its load-bearing core — the items below and nothing else block
 execution.
 
+**What this path covers:** Tier 0–2 operational mitigation and rollback to an already-live artifact —
+the reversible actions in the `incident-command` mitigation table (route remap, revision rollback,
+restart, restage, scale, flag flip). Two things stay on the full gate even at SEV1:
+
+- **A new artifact.** An incident hotfix is still a release: reviewed SHA, lower-environment
+  evidence, migration safety, and rollback evidence are exactly what stop one incident from becoming
+  two. Rolling *back* to the previously live artifact is covered here; shipping new bytes is not.
+- **Any Tier 3 destructive or access-path action** (data deletion, storage/backup, credential or
+  identity, DNS, firewall, VPN, proxy, remote access). Tier 3 keeps its proven backup/recovery
+  requirement — a backout plan cannot reverse an irreversible mutation, so speed cannot buy it out.
+
 **Never skipped, even at SEV1:**
 
-- **Classification**, one line — the tier decides who executes, nothing more.
+- **Classification**, one line — and it still gates: a Tier 3 action leaves this path for the full
+  checklist above, and the tier decides who executes.
 - **Explicit human confirmation** of the exact command, **or of a bounded envelope** the incident
   commander approves once (e.g. "scale `checkout` up to 10 instances", "remap the prod route between
   `checkout-blue` and `checkout-green` as needed"). Only action outside the envelope re-enters
@@ -133,7 +145,8 @@ execution.
 
 **Deferred to post-incident reconciliation — these never delay a mitigation:**
 
-- Readiness evidence and artifact records.
+- Readiness evidence and artifact records **for the covered actions only** — a rollback re-uses the
+  previously live artifact's existing records. A new artifact is out of scope above and keeps them.
 - Branch-protection evidence (the `gh api` check above). A live `cf` action is not a merge, and a
   GitHub API call must never sit on the rollback path — a GitHub outage cannot be allowed to block
   recovery.

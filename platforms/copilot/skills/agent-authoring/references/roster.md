@@ -63,7 +63,9 @@ explicitly:
   stronger model asserting once — which is why this fleet invests in verifiers and carries no
   `model:` pins.
 
-*[sourced: Anthropic "Building agents with the Claude Agent SDK", "Building effective agents"]*
+*[sourced: Anthropic, "Building agents with the Claude Agent SDK",
+claude.com/blog/building-agents-with-the-claude-agent-sdk; "Building effective agents",
+anthropic.com/engineering/building-effective-agents — located by title and URL, not fetched here]*
 
 ## Orchestration shapes (graph engineering)
 
@@ -162,7 +164,10 @@ Skills as files; the managed-agent memory-consolidation preview gates every lear
 human approve/reject), so the stance is a choice, not a gap. The failure mode it prevents is
 below: memory poisoning by admission.
 
-*[sourced: Anthropic Agent Skills; 2026-05 "dreaming" research preview, third-party coverage]*
+*[sourced: Anthropic, "Equipping agents for the real world with Agent Skills",
+anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills. The 2026-05
+"dreaming" memory-consolidation preview is `[unverified]`: primary announcement not reached, detail
+from third-party coverage only]*
 
 ## Wrapper-layer failure taxonomy
 
