@@ -652,6 +652,40 @@ container.
 **Next action:** Bind the final whole-diff correctness/security verdict and resolve the PR #118 thread only after that check covers the exact head. Do not close SCRIPTS-001 on the merged grammar alone while the candidate-code execution finding remains
 undisposed.
 
+### DOCTOR-001 — make `fleet_doctor` diagnose the guard, not just the checkout
+
+**Status:** `ready` (2026-08-14)
+
+**Outcome:** A user whose Bash suddenly denies session-wide can run one command and learn why.
+`scripts/fleet_doctor.py` reports whether the `PreToolUse` hook is registered in the installed
+plugin, whether a Python on the hook's candidate list answers with the guard's `42`/`43` exit
+codes, and whether the guard file resolves under `CLAUDE_PLUGIN_ROOT` — and it runs from an
+installed plugin, not only from a repository checkout.
+
+**Source:** Owner-requested usability review, 2026-08-13. `fleet_doctor` covers git revision,
+worktree state, fleet contracts, plan status, host CLIs, plugin inventory, and Codex agent parity —
+none of which is a failure mode users actually hit. The three that are load-bearing are unchecked:
+the hook is the only mechanism that arms the guard (`scripts/readonly-guard.py` docstring), and
+`scripts/readonly-guard-hook.sh` denies **all** Bash session-wide, main loop included, when no
+interpreter answers 42/43. That is the blast radius of a missing Python or an unset
+`CLAUDE_PLUGIN_ROOT`, and today it presents as "Bash mysteriously stopped working" with no
+diagnostic. `REPO_ROOT = Path(__file__).resolve().parents[1]` plus imports of `validate_fleet` and
+`check_plan_status` also make the tool checkout-only, so the marketplace user who most needs it
+cannot run it.
+
+**Prerequisites:** Preserve the existing evidence-envelope contract and the rule that a missing CLI
+is `skip`, never `pass`. The interpreter probe must assert the exact 42/43 answer rather than exit
+0 — accepting exit 0 is the stand-in-interpreter hole the exit codes exist to close, and a
+diagnostic that repeats it would certify a disarmed guard as healthy. Repository-dependent checks
+must degrade to `skip` outside a checkout instead of failing the run.
+
+**Acceptance:** Red-first tests cover hook registered/absent, interpreter answering 42/43 versus
+exit 0 versus absent, and guard file present/missing; the tool returns useful output with no
+checkout present; the guard's own suite and Gate A pass; no new dependency (standard library only).
+
+**Next action:** Add the interpreter-answer probe first — it is the single highest-value check and
+needs no host inventory work.
+
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
 **Status:** `ready` (2026-08-13)
