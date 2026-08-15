@@ -451,6 +451,41 @@ class SampledCollapseTests(unittest.TestCase):
         self.assertNotIn("probably never exercises it", output)
 
 
+class NonCanonicalRootTests(unittest.TestCase):
+    """A `--root` that is not already canonical must not kill the sweep.
+
+    `discover` resolves a literal `.py` subject, but sibling subjects and every reported path come
+    from the root as given. When those disagree, `module.relative_to(args.root)` raises ValueError
+    and the run dies partway with a traceback instead of a verdict. The default root is
+    `Path(__file__).resolve().parents[1]` — already canonical — so this never showed up locally;
+    macOS hands out `/var/...` that resolves to `/private/var/...` and Windows hands out 8.3 short
+    paths, and CI failed on both the first time a fixture passed a temp directory as `--root`.
+    """
+
+    def test_a_symlinked_root_still_produces_a_verdict(self) -> None:
+        root = _git_repository(
+            self,
+            {
+                "scripts/subject.py": HONEST_MODULE,
+                "scripts/other.py": OTHER_MODULE,
+                "scripts/test_subject.py": EXERCISES_OTHER_TEST,
+            },
+        )
+        link = root.parent / (root.name + "-link")
+        try:
+            link.symlink_to(root, target_is_directory=True)
+        except (OSError, NotImplementedError) as exc:  # unprivileged Windows
+            self.skipTest(f"symlinks unavailable on this host: {exc}")
+        self.addCleanup(link.unlink)
+
+        code, output = _run_guard(link)
+        self.assertNotIn("Traceback", output, "a non-canonical root must not crash the sweep")
+        self.assertNotIn("ValueError", output)
+        # The literal subject must still be found and reported, not silently lost with the crash.
+        self.assertIn("scripts/other.py", output)
+        self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
+
+
 class SamplingHonestyTests(unittest.TestCase):
     """`--limit` must not be documented in a way that implies a bounded run covers a named mutant.
 

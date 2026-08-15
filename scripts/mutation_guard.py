@@ -352,6 +352,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         if exc.code == 2:
             return EXIT_USAGE
         raise
+    # Canonicalize the root once, before anything derives a path from it. `discover` resolves a
+    # literal `.py` subject but takes sibling subjects and every reported path from the root AS
+    # GIVEN, so a non-canonical root makes the two disagree and `module.relative_to(args.root)`
+    # raises ValueError, killing the whole sweep. The default ROOT is already resolved, which is
+    # why this never surfaced locally -- but macOS hands out `/var/...` that resolves to
+    # `/private/var/...`, and Windows hands out 8.3 short paths, so both hit it immediately.
+    args.root = args.root.resolve()
 
     try:
         _require_clean_tree(args.root)
