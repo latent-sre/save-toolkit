@@ -55,6 +55,112 @@ if __name__ == "__main__":
     unittest.main()
 '''
 
+# A second module, enrolled as an *inferred* subject by the `.py` string a test names. Its two
+# functions are deliberately ordered: walk order puts `unpinned`'s mutants at indices 0 and 1, so a
+# `--limit 1` sample selects only a surviving mutant even though the test genuinely exercises the
+# module through `pinned`.
+OTHER_MODULE = '''\
+"""A second module reached through a path string rather than a sibling name."""
+
+
+def unpinned(a, b):
+    return bool(a and b)
+
+
+def pinned(a, b):
+    return bool(a and b)
+'''
+
+# Imports and exercises OTHER_MODULE. `pinned` is fully contract-pinned, so an unbounded sweep kills
+# mutants 2 and 3 and the module is provably exercised.
+EXERCISES_OTHER_TEST = '''\
+import sys, unittest
+sys.path.insert(0, %(dir)r)
+import subject
+import other
+
+INFERRED_SUBJECT = "scripts/other.py"
+
+
+class T(unittest.TestCase):
+    def test_gate_requires_both(self):
+        self.assertEqual(1, subject.gate(["x"], True))
+        self.assertEqual(0, subject.gate([], True))
+        self.assertEqual(0, subject.gate(["x"], False))
+
+    def test_pinned_requires_both_operands(self):
+        self.assertTrue(other.pinned(True, True))
+        self.assertFalse(other.pinned(False, True))
+        self.assertFalse(other.pinned(True, False))
+
+    def test_unpinned_is_only_half_exercised(self):
+        self.assertTrue(other.unpinned(True, True))
+
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+
+# Names OTHER_MODULE's path but never imports it — the genuine "the test never exercises it" shape
+# the collapse exists for.
+NAMES_OTHER_WITHOUT_IMPORTING_TEST = '''\
+import sys, unittest
+sys.path.insert(0, %(dir)r)
+import subject
+
+INFERRED_SUBJECT = "scripts/other.py"
+
+
+class T(unittest.TestCase):
+    def test_gate_requires_both(self):
+        self.assertEqual(1, subject.gate(["x"], True))
+        self.assertEqual(0, subject.gate([], True))
+        self.assertEqual(0, subject.gate(["x"], False))
+
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+
+
+def _git_repository(case: unittest.TestCase, files: dict[str, str]) -> Path:
+    """A committed, clean throwaway repository holding exactly *files*.
+
+    Each body is `%`-formatted with `dir` bound to the repository's `scripts/` directory, so a test
+    body can put that directory on `sys.path`. The commit matters: the guard refuses a dirty tree.
+    """
+
+    temporary = tempfile.TemporaryDirectory()
+    case.addCleanup(temporary.cleanup)
+    root = Path(temporary.name)
+    for relative, body in files.items():
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body % {"dir": str(root / "scripts")}, encoding="utf-8")
+    for args in (
+        ["init", "--quiet", "."],
+        ["add", "--all"],
+        ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "base"],
+    ):
+        subprocess.run(
+            ["git", "-C", str(root), *args],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    return root
+
+
+def _run_guard(root: Path, *extra: str) -> tuple[int, str]:
+    completed = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/mutation_guard.py"), "--root", str(root), *extra],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    return completed.returncode, completed.stdout + completed.stderr
+
 
 class MutantGenerationTests(unittest.TestCase):
     def test_boolean_operand_drop_reproduces_the_real_world_mutation(self) -> None:
@@ -177,36 +283,13 @@ class MainReportingTests(unittest.TestCase):
     """
 
     def _repository(self, test_body: str) -> Path:
-        temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(temporary.cleanup)
-        root = Path(temporary.name)
-        (root / "scripts").mkdir()
-        (root / "scripts" / "subject.py").write_text(HONEST_MODULE, encoding="utf-8")
-        (root / "scripts" / "test_subject.py").write_text(
-            test_body % {"dir": str(root / "scripts")}, encoding="utf-8"
+        return _git_repository(
+            self,
+            {"scripts/subject.py": HONEST_MODULE, "scripts/test_subject.py": test_body},
         )
-        for args in (
-            ["init", "--quiet", "."],
-            ["add", "--all"],
-            ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "base"],
-        ):
-            subprocess.run(
-                ["git", "-C", str(root), *args],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        return root
 
     def _run_main(self, root: Path, *extra: str) -> tuple[int, str]:
-        completed = subprocess.run(
-            [sys.executable, str(ROOT / "scripts/mutation_guard.py"), "--root", str(root), *extra],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=False,
-        )
-        return completed.returncode, completed.stdout + completed.stderr
+        return _run_guard(root, *extra)
 
     def test_a_suite_that_kills_every_mutant_passes_with_exit_zero(self) -> None:
         code, output = self._run_main(self._repository(HONEST_TEST))
@@ -251,6 +334,160 @@ class MainReportingTests(unittest.TestCase):
         code, output = self._run_main(self._repository(HONEST_TEST), "--limit", "-1")
         self.assertNotEqual(0, code)
         self.assertNotIn("PASS", output)
+
+
+class ExitStatusTests(unittest.TestCase):
+    """Every outcome this tool can reach must be told apart by its exit status alone.
+
+    That is the tool's own stated design — a collapsed exit status cannot distinguish "refused to
+    run" from "ran and proved nothing", which is the disarmed-gate shape this repository forbids for
+    the readonly guard. An invalid `--limit` broke it: argparse exits 2 for every usage error, and 2
+    is `EXIT_REFUSED`, so a rejected flag was indistinguishable from a dirty working tree.
+    """
+
+    def _repository(self) -> Path:
+        return _git_repository(
+            self,
+            {"scripts/subject.py": HONEST_MODULE, "scripts/test_subject.py": HONEST_TEST},
+        )
+
+    def test_the_documented_exit_codes_are_pairwise_distinct(self) -> None:
+        codes = {
+            "clean": 0,
+            "survivors": mutation_guard.EXIT_SURVIVORS,
+            "refused": mutation_guard.EXIT_REFUSED,
+            "inconclusive": mutation_guard.EXIT_INCONCLUSIVE,
+            "usage": mutation_guard.EXIT_USAGE,
+        }
+        self.assertEqual(
+            len(codes),
+            len(set(codes.values())),
+            f"exit statuses collide and cannot be told apart: {codes}",
+        )
+
+    def test_a_negative_limit_exits_usage_not_refused(self) -> None:
+        code, output = self._run_guard_here("--limit", "-1")
+        self.assertEqual(mutation_guard.EXIT_USAGE, code, output)
+        self.assertNotEqual(mutation_guard.EXIT_REFUSED, code, output)
+
+    def test_a_non_integer_limit_exits_usage_not_refused(self) -> None:
+        code, output = self._run_guard_here("--limit", "half")
+        self.assertEqual(mutation_guard.EXIT_USAGE, code, output)
+
+    def test_an_unknown_flag_exits_usage_not_refused(self) -> None:
+        """Any argparse usage error takes the same path, so none of them may impersonate a refusal
+        to run over a dirty tree."""
+        code, output = self._run_guard_here("--not-a-flag")
+        self.assertEqual(mutation_guard.EXIT_USAGE, code, output)
+
+    def test_help_still_exits_zero(self) -> None:
+        """Remapping argparse's exit must not capture `--help`, which is a successful run."""
+        code, output = self._run_guard_here("--help")
+        self.assertEqual(0, code, output)
+        self.assertIn("--limit", output)
+
+    def _run_guard_here(self, *extra: str) -> tuple[int, str]:
+        return _run_guard(self._repository(), *extra)
+
+
+class SampledCollapseTests(unittest.TestCase):
+    """A sampled all-survivor result may never be reported as "the test never exercises it".
+
+    The collapse rule was `len(survivors) == tried`, where under `--limit` *tried* is the sample
+    size rather than the mutant population. A module the test genuinely exercises could therefore be
+    labelled unexercised because the one or two mutants that happened to be sampled survived — the
+    tool asserting a strong negative from a bounded observation, which is the same overclaim it
+    exists to detect.
+    """
+
+    def _repository(self, test_body: str) -> Path:
+        return _git_repository(
+            self,
+            {
+                "scripts/subject.py": HONEST_MODULE,
+                "scripts/other.py": OTHER_MODULE,
+                "scripts/test_subject.py": test_body,
+            },
+        )
+
+    def test_a_sampled_run_never_claims_a_module_is_unexercised(self) -> None:
+        # --limit 1 selects mutant index 0, which is a survivor in `unpinned`. The test still
+        # exercises other.py — an unbounded sweep kills the two `pinned` mutants — so the sampled
+        # all-survivor result must be reported as the survivor it is, never as a negative claim.
+        root = self._repository(EXERCISES_OTHER_TEST)
+        code, output = _run_guard(root, "--limit", "1")
+        self.assertNotIn("unexercised -- scripts/other.py", output)
+        self.assertNotIn("probably never exercises it", output)
+        self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
+        self.assertIn("scripts/other.py:5", output)
+
+    def test_the_same_pair_is_provably_exercised_on_an_unbounded_run(self) -> None:
+        """Pins the premise of the test above. If `pinned` ever stopped being contract-pinned, the
+        module really would be unexercised and the assertion above would prove nothing."""
+        root = self._repository(EXERCISES_OTHER_TEST)
+        code, output = _run_guard(root)
+        self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
+        self.assertNotIn("probably never exercises it", output)
+        # Exactly the two `unpinned` operand drops survive; the two `pinned` drops are killed.
+        self.assertEqual(2, output.count("scripts/other.py:5"), output)
+        self.assertEqual(0, output.count("scripts/other.py:9"), output)
+
+    def test_an_unbounded_run_still_collapses_a_genuinely_unexercised_pair(self) -> None:
+        """The narrowing must not delete the rule. An inferred subject the test never imports still
+        collapses to one message on an unbounded run, and never reports PASS."""
+        root = self._repository(NAMES_OTHER_WITHOUT_IMPORTING_TEST)
+        code, output = _run_guard(root)
+        self.assertEqual(mutation_guard.EXIT_INCONCLUSIVE, code, output)
+        self.assertIn("probably never exercises it", output)
+        self.assertNotIn("PASS", output)
+        self.assertEqual(1, output.count("probably never exercises it"), output)
+
+    def test_a_bounded_run_of_the_unexercised_pair_reports_survivors_instead(self) -> None:
+        """Bounded, the same genuinely-unexercised pair may not borrow the unbounded conclusion: it
+        reports what it observed — surviving mutants — rather than a claim it cannot support."""
+        root = self._repository(NAMES_OTHER_WITHOUT_IMPORTING_TEST)
+        code, output = _run_guard(root, "--limit", "1")
+        self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
+        self.assertNotIn("probably never exercises it", output)
+
+
+class SamplingHonestyTests(unittest.TestCase):
+    """`--limit` must not be documented in a way that implies a bounded run covers a named mutant.
+
+    Even spacing fixed the *prefix* failure — a budget that only ever mutates the shallowest sites.
+    It did not make a bounded run complete, and the guard's own demonstration case proves it: the
+    motivating mutant is index 35 of 48, and an evenly spaced sample of 12 lands on 34 and 38.
+    """
+
+    def test_an_evenly_spaced_sample_can_still_miss_the_motivating_index(self) -> None:
+        source = "def f():\n" + "".join(f"    x{i} = a{i} and b{i}\n" for i in range(24))
+        every = mutation_guard.mutants(source)
+        self.assertEqual(48, len(every), "fixture must reproduce the demonstration population")
+        chosen = [every.index(mutant) for mutant in mutation_guard.mutants(source, limit=12)]
+        self.assertEqual([0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47], chosen)
+        self.assertNotIn(
+            35,
+            chosen,
+            "even spacing brackets index 35 without selecting it; a bounded run is a sample",
+        )
+
+    @staticmethod
+    def _prose(documentation: str | None) -> str:
+        """Docstring text with wrapping collapsed, so an assertion pins wording not line breaks."""
+
+        return " ".join((documentation or "").split())
+
+    def test_the_sampling_docstring_does_not_imply_bounded_coverage(self) -> None:
+        """The docstring said only a *prefix* budget would exclude the motivating mutant, which
+        invites the reader to infer that the evenly spaced sample includes it. It does not."""
+        documentation = self._prose(mutation_guard.mutants.__doc__)
+        self.assertIn("evenly spaced sample can still miss", documentation)
+        self.assertIn("unbounded run", documentation)
+
+    def test_the_module_docstring_scopes_the_unexercised_claim_to_unbounded_runs(self) -> None:
+        documentation = self._prose(mutation_guard.__doc__)
+        self.assertIn("unbounded run", documentation)
+        self.assertIn("probably never exercises it", documentation)
 
 
 class DiscoveryTests(unittest.TestCase):

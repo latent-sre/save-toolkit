@@ -31,10 +31,15 @@ forgot it.
 HONEST LIMITS
 -------------
 This mutates the module **in place** and restores it from memory in a `finally`. It refuses to start
-on a dirty working tree, so an interrupted run can always be recovered with `git restore`. It is a
-sampling tool, not a proof: `--limit` bounds the mutants per module, so a clean report means "no
-survivor among the mutants tried", never "the suite is complete". A full sweep runs the suite once
-per mutant, which is far too slow for CI -- it is a deliberate run, like the routing evals.
+on a dirty working tree, so an interrupted run can always be recovered with `git restore`. A full
+sweep runs the suite once per mutant, which is far too slow for CI -- it is a deliberate run, like
+the routing evals.
+
+`--limit` makes it a sampling tool rather than a proof. A clean bounded report means "no survivor
+among the mutants tried"; it never means "the suite is complete", and it never establishes that any
+particular mutant was among those tried. Only an unbounded run -- the default -- covers every
+mutant, which is why the "the test probably never exercises it" verdict is withheld under `--limit`:
+that is a claim about mutants nobody ran, and a bounded observation cannot support it.
 
 Pure standard library.
 
@@ -76,6 +81,9 @@ RUN_TIMEOUT = 900
 EXIT_SURVIVORS = 1
 EXIT_REFUSED = 2
 EXIT_INCONCLUSIVE = 3
+# argparse exits 2 for every usage error, which is EXIT_REFUSED's value. Left alone, a rejected
+# flag is indistinguishable from a refusal to run over a dirty tree -- the same collapse.
+EXIT_USAGE = 4
 
 
 @dataclass(frozen=True)
@@ -134,6 +142,12 @@ def mutants(source: str, limit: int = 0) -> list[Mutant]:
     Prefix truncation only ever mutates the shallowest sites: on this repository's own
     `packet_drift.py` the motivating mutant sits at index 35 of 48, so a prefix budget would
     silently exclude the exact mutation this guard was built to catch.
+
+    Even spacing closes that failure without making a bounded run complete. An evenly spaced
+    sample can still miss any given mutant, the motivating one included -- over those same 48
+    sites `--limit 12` selects 34 and 38, bracketing 35 without ever selecting it. Read the
+    difference precisely: even spacing guarantees the sample *spans* the file, not that it
+    *contains* anything in particular. Only an unbounded run tries every mutant.
     """
 
     original = ast.parse(source)
@@ -304,21 +318,40 @@ def _require_clean_tree(root: Path) -> None:
         )
 
 
+def _sample_limit(raw: str) -> int:
+    """Parse `--limit`, refusing anything that would silently select the wrong mutant set.
+
+    A negative limit previously selected zero mutants and still printed PASS with exit 0 — a
+    complete false green from a one-character typo.
+    """
+
+    try:
+        value = int(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{raw!r} is not an integer") from None
+    if value < 0:
+        raise argparse.ArgumentTypeError("must be 0 (every mutant) or a positive sample size")
+    return value
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument(
         "--limit",
-        type=int,
+        type=_sample_limit,
         default=DEFAULT_LIMIT,
         help="mutants per module as an evenly spaced sample; 0 means every mutant (slow)",
     )
     parser.add_argument("--module", type=Path, help="restrict to one module path")
-    args = parser.parse_args(argv)
-    if args.limit < 0:
-        # A negative limit selected zero mutants and still printed PASS with exit 0 — a complete
-        # false green from a one-character typo.
-        parser.error("--limit must be 0 (every mutant) or a positive sample size")
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        # Remap argparse's usage exit off EXIT_REFUSED so "you typed the flag wrong" and "this tree
+        # is dirty, I will not run" stay distinguishable. `--help` exits 0 and is left alone.
+        if exc.code == 2:
+            return EXIT_USAGE
+        raise
 
     try:
         _require_clean_tree(args.root)
@@ -368,17 +401,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             ) as exc:
                 unverifiable.append(f"cannot mutate {module.name}: {exc}")
                 continue
-            if survivors and len(survivors) == tried and subject.origin == "literal":
-                # Collapse ONLY inferred subjects. A `.py` string in a test is often a fixture
-                # path, so total survival there usually means the test never exercised the module
-                # and `tried` separate findings would bury the real ones. A sibling subject is
-                # different: the repository's own naming convention asserts that link, so total
-                # survival is the most severe finding this tool can produce and must stay a
-                # finding. Collapsing both was trading one false clean for another.
+            # Collapse ONLY inferred subjects, and ONLY on an unbounded run.
+            #
+            # Inferred: a `.py` string in a test is often a fixture path, so total survival there
+            # usually means the test never exercised the module and `tried` separate findings would
+            # bury the real ones. A sibling subject is different — the repository's own naming
+            # convention asserts that link, so total survival is the most severe finding this tool
+            # can produce and must stay a finding. Collapsing both traded one false clean for
+            # another.
+            #
+            # Unbounded: under `--limit`, `tried` is the sample size, not the mutant population, so
+            # `len(survivors) == tried` says only that every *sampled* mutant survived. A module the
+            # test genuinely exercises can sample that way, and calling it unexercised would be this
+            # tool asserting a strong negative from a bounded observation — the same overclaim it
+            # exists to detect. Bounded runs report the survivors they actually saw instead.
+            every_mutant_survived = bool(survivors) and len(survivors) == tried
+            inferred = subject.origin == "literal"
+            if every_mutant_survived and inferred and not args.limit:
                 unexercised.append(
                     f"{module.relative_to(args.root).as_posix()} <- {test.name}: "
-                    f"all {tried} mutants survived an inferred (non-sibling) pairing; "
-                    "the test probably never exercises it"
+                    f"all {tried} mutants survived an inferred (non-sibling) pairing "
+                    "on an unbounded run; the test probably never exercises it"
                 )
                 continue
             findings.extend((test, module, mutant) for mutant in survivors)
