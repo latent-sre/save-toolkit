@@ -477,6 +477,43 @@ explicitly rejected with evidence.
 **Next action:** Owner decision on the enforcement mechanism. Until then, treat final-SHA review and
 thread reconciliation as a manual merge blocker rather than assuming green CI is review evidence.
 
+### SWEEP-001 — dispose the 2026-08-15 mutation-sweep findings
+
+**Status:** `decision-needed` (2026-08-15)
+
+**Outcome:** Each finding from the fleet mutation sweep is either owned and repaired, or explicitly
+accepted as not worth fixing with a recorded reason. None is left as an unowned number in a review
+packet that a later reader mistakes for either a defect list or a clean bill of health.
+
+**Source:** The findings-only
+[`fleet mutation sweep`](reviews/2026-08-15-fleet-mutation-sweep.md), which swept seven modules
+unbounded on the repo-pinned Python 3.12. Everything in it is discovered and **not** fixed, except
+the one fail-open already closed under its own commit. The three highest-consequence groups:
+
+- `[verified]` `scripts/release_contract.py` (35 of 68) and `scripts/release_workflow_contract.py`
+  (33 of 77) — symlink rejection, every approval-expiry boundary, UTC binding, manifest identity,
+  `required=True` on the release arguments, and the whole reservation-precedes-tag invariant are
+  unpinned. These gate RELEASE-001's acceptance.
+- `[verified]` `scripts/host_install_probe.py` (253 of 553) — the census machinery under
+  `host.claude.probe-authority` is barely pinned, including the criterion that an unreadable tree
+  must yield inconclusive rather than pass.
+- `[verified]` `evals/graders.py` (54 of 167), pre-existing and unchanged before and after this
+  session's grader repair.
+
+**Prerequisites:** None to decide. Any repair is ordinary bounded work under the relevant record;
+opening typed `fi_` records for the release-contract and host-probe groups is part of the decision,
+not a precondition for it.
+
+**Acceptance:** Every group above carries a disposition — `prepared`, `proposed`, `blocked`,
+`duplicate`, or `not_applicable` — with an owner and a reason. Any group accepted as not worth
+fixing says why in writing. Repairs land red-first, proving the mutant survives before the fix and
+dies after.
+
+**Next action:** Owner disposition per group. Treat the release-contract group as the highest
+consequence, since RELEASE-001's acceptance rests on contracts whose own suite does not notice their
+predicates changing. Do not read a survivor count as a defect count, and do not read a clean sweep
+over `_authority_check` as evidence the census is sound — that code generates no mutants at all.
+
 ### NAV-001 — dispose the incident-navigation prototype
 
 **Status:** `decision-needed` (2026-08-12)
