@@ -196,6 +196,26 @@ ALLOWED = [
 ]
 
 DENIED = [
+    # --- input that parses to no command at all ------------------------------------------------
+    # `_split_segments` drops empty segments, so a line of nothing but separators yields NO
+    # segments. The deny for that case rests entirely on the `not segments` operand in
+    # `_is_allowed`: without it `all([])` is True, the guard stops denying, and the function
+    # returns True. A 2026-08-15 mutation sweep found that operand unpinned — dropping it flipped
+    # `;` from DENY to ALLOW and the whole suite stayed green. Nothing executes for these strings,
+    # so the exposure is small, but the direction is fail-OPEN in a control whose entire contract
+    # is to fail closed, and an unpinned fail-open is how the next one ships unnoticed.
+    ";",
+    "&&",
+    "||",
+    "|",
+    ";;",
+    "; ;",
+    "&& ||",
+    "; \n |",
+    # Parenthesised forms reach the same "no runnable command" state by a different route.
+    "(",
+    ")",
+    "()",
     # --- git writes -------------------------------------------------------------------------
     "git push origin main",
     "git commit -m 'x'",
