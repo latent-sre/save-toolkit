@@ -62,15 +62,20 @@ Windows branch uses, instead of letting a bare `OSError` escape to be reinterpre
 `[verified]` Each fix reverted in isolation against the candidate tree, the focused class re-run,
 the file restored from an unmodified copy:
 
-| Reverted to | `PosixBoundaryClosureTests` |
+| Reverted to | Failing checks |
 |---|---|
-| No `PermissionError` handling in the final close — **the shipped defect** | 2 errors |
-| Swallow `EPERM` unconditionally — **the naive fix the intake packet warns against** | 1 failure |
-| Initial termination tolerates `EPERM` | 1 failure |
+| No `PermissionError` handling in the final close — **the shipped defect** | 3 |
+| Swallow `EPERM` unconditionally — **the naive fix the intake packet warns against** | 2 |
+| `poll()` alone, no termination fact — **the defect review found** (see round 1 below) | 1 |
+| Initial termination tolerates `EPERM` | 1 |
 | None (restored) | green |
 
-The middle row is the load-bearing one. A regression set that only proved "the reported error
-stops happening" would be satisfied by the unsafe repair; this one is not.
+Re-measured against candidate `13e6fd4`. An earlier revision of this table reported 2/1/1 from the
+pre-review tree; the counts rose because round 1 added the regression that rejects a
+first-and-only close, and a stale table in review evidence is the same defect as a stale claim.
+
+The middle rows are the load-bearing ones. A regression set that only proved "the reported error
+stops happening" would be satisfied by either unsafe repair; this one is not.
 
 `[verified]` `test_a_successful_kill_is_still_issued_to_the_process_group` pins that the close
 actually signals `SIGKILL` to the group, so the tolerance cannot be satisfied by a boundary that
