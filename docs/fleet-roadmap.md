@@ -269,11 +269,13 @@ executor be completed, reviewed, and run sequentially to produce a sanitized clo
 explicit owner disposition. Do not tune descriptions or claim a current baseline from historical
 Claude/Sol output, a development canary, or unreviewed working-tree bytes.
 
-## Ready repository work
+## Repository work
 
 ### MUTATION-001 — close the mutation-guard evidence gaps
 
-**Status:** `ready` (2026-08-12)
+**Status:** `active` (2026-08-15) — attempt 1 is prepared and evidenced at candidate revision
+`82333f42c9c1f55286632f0ad4fdad3fba45a5ff`; independent evaluation and the owner's rescope decision
+are outstanding.
 
 **Outcome:** `scripts/mutation_guard.py` never labels a sampled all-survivor result as proof that a
 suite probably never exercises its subject, refuses invalid limits with a distinct exit status, and
@@ -292,8 +294,29 @@ and clean-result exits distinguishable.
 suite and Gate A pass; a deliberate load-bearing mutant is still killed; independent evaluation is
 appended to the typed record without self-promoting it.
 
-**Next action:** Prepare attempt 1 from current main, with one regression per recorded defect and no
-expansion of the mutation operator set.
+**Current evidence:** Attempt 1 is prepared, not evaluated. Each of the three recorded defects is
+repaired behind a regression that fails when — and only when — its own fix is reverted; the reverts
+were run per defect and each failed exactly its own test class. The unexercised claim now
+additionally requires an unbounded run, invalid `--limit` values and every other argparse usage error
+exit a distinct `EXIT_USAGE` rather than colliding with `EXIT_REFUSED`, and both docstrings state that
+an evenly spaced sample can miss any given mutant. The mutation operator set, `DEFAULT_LIMIT`, and the
+sampling algorithm are unchanged. The author's execution evidence, the deliberate-mutant sweep, and
+the honest limits are bound in the preparation-only
+[`mutation-guard evidence-gap packet`](reviews/2026-08-15-mutation-guard-evidence-gaps.md); it claims
+no evaluation, promotion, or monitoring authority.
+
+Two things block closure and neither is the author's to decide. No attempt is appended to the typed
+record: its declared `target.artifact_paths` are `AGENTS.md` and `scripts/gate_a.py`, which this
+candidate does not touch, so an attempt would violate the lifecycle's requirement that every declared
+target path be touched by the net candidate diff — re-declaring the target to name the control and its
+test is a rescope. And an attempt's evaluation must be a fresh evidence envelope produced outside the
+authoring checkout, which the author cannot supply for itself. The record therefore stays `observed`
+with an append-only limitations entry.
+
+**Next action:** Obtain the owner's rescope decision on `target.artifact_paths`, then an independent
+exact-revision evaluation of the candidate in a fresh context, and append that verdict to the typed
+record. Confirm the macOS and Windows Gate A jobs on the exact candidate. Do not promote the record,
+append a self-authored attempt outcome, or treat the author's own sweep as the independent evaluation.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
