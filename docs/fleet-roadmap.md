@@ -134,6 +134,18 @@ authorization limits are bound in the dated preparation-only
 clean exact-commit tag dry-run derives `save-toolkit--v0.1.0`; no force flag was used and no tag or
 Release was created.
 
+**Sweep finding (2026-08-15), discovered and not fixed:** A mutation sweep of the two fail-closed
+release contracts found their suites largely unpinned — `release_contract.py` at 35 surviving mutants
+of 68, `release_workflow_contract.py` at 33 of 77 — with the survivors clustered on the authority
+checks themselves: symlink rejection, every approval-expiry boundary, the UTC binding on
+`issued_at`/`expires_at`, and the reservation-precedes-tag-creation ordering, whose five mutants all
+survive. No claim is made that the workflow is wrong or that anything is exploitable; the narrower
+claim is that the suite mutation-checking the release authority boundary is not itself
+mutation-proof, so a future edit to those predicates could pass CI unnoticed. Evidence and triage are
+in the [`fleet mutation sweep`](reviews/2026-08-15-fleet-mutation-sweep.md) packet. This does not
+change the item's status and is not a merge, review, or publication blocker on its own; it is
+context an owner should weigh before authorizing a live dispatch.
+
 **Live blockers:** The merge step is complete. A post-merge audit reproduced a strict-host-evidence
 false pass: the Claude authority check watches five selected locations under the real user
 configuration, so an install-time write to an unlisted path such as `history.jsonl` is reported as
@@ -259,9 +271,35 @@ recorded in the
 is preparation evidence only; it does not authorize credentials, model calls, campaign execution,
 baseline eligibility, or release use.
 
-**Next action:** Add a red-first continued-command fixture, make the outside-packet check linear and
-command-shape aware, refresh the scenario and evaluator-bundle manifests, run the evaluator contract
-suites and Gate A, and obtain independent exact-byte review. Then provision and independently bind a
+**Grader repair (2026-08-15):** The outside-packet detector is repaired and evidenced in the
+preparation-only
+[`Cloud Run outside-command repair packet`](reviews/2026-08-15-cloud-run-outside-command-repair.md).
+Probing the boundary first showed the recorded POSIX-continuation case was one of seven accepted
+evasions, not the only one — continuations at other word boundaries, CRLF continuations, a
+continuation with trailing horizontal space, and quoted or backslash-escaped separators all reached a
+pass. The detector now normalizes those word-hiding devices before the literal search, so it matches
+command shape rather than one rendering; it stays linear on adversarial input and still runs before
+the packet's own commands are accepted. Prose that merely names `update-traffic` still passes.
+
+Mutation-sweeping that repair then found two more defects **in the repair itself**, and both are the
+reason the packet is worth reading. A POSIX continuation joins its halves with no separator, so
+`serv\`+newline+`ices` is the word `services`; the first version substituted a space and split the
+word, leaving a live bypass that every fixture passed over. The pattern also carried an unreachable
+`\r?` that no fixture could kill, because the caller splits the response before the pattern sees it.
+Both are fixed. The sweep also established that `mutation_guard` **cannot evaluate this code at
+all** — its operator set generates zero mutants for a pure string transformation — so a clean guard
+report there is near-vacuous and a hand-built mutant set is what actually holds the line: 3 of 9
+killed on the first version, 9 of 9 now. Separately, `evals/graders.py` carries 54 surviving mutants
+of 167, identical before and after this change and none in the new code, so they are pre-existing
+gaps in the other graders rather than a regression. The
+`evals/graders.py` row of the evaluator bundle was refreshed; the scenario, the routing manifest, the
+frozen scenario digests, and the trial shape are unchanged, and no live trial was run. A known
+limitation is recorded rather than implied covered: the detector is a normalizer plus a literal
+search, not a shell parser. The typed record stays `observed` — its target paths already fit an
+attempt, so the missing piece is an independent evaluation of the exact candidate.
+
+**Next action:** Obtain independent exact-byte review of the grader repair and append that verdict to
+the typed record. Then provision and independently bind a
 protected Python runtime closure or separate OS identity plus the clean managed-config/registry,
 protected Git installation, and sanitized object-store prerequisites before attempting the one-trial
 canary. Only after the canary and its boundary pass may the still-unimplemented fixed 48-trial
@@ -269,11 +307,13 @@ executor be completed, reviewed, and run sequentially to produce a sanitized clo
 explicit owner disposition. Do not tune descriptions or claim a current baseline from historical
 Claude/Sol output, a development canary, or unreviewed working-tree bytes.
 
-## Ready repository work
+## Repository work
 
 ### MUTATION-001 — close the mutation-guard evidence gaps
 
-**Status:** `ready` (2026-08-12)
+**Status:** `active` (2026-08-15) — attempt 1 is prepared and evidenced at candidate revision
+`82333f42c9c1f55286632f0ad4fdad3fba45a5ff`; independent evaluation and the owner's rescope decision
+are outstanding.
 
 **Outcome:** `scripts/mutation_guard.py` never labels a sampled all-survivor result as proof that a
 suite probably never exercises its subject, refuses invalid limits with a distinct exit status, and
@@ -292,8 +332,29 @@ and clean-result exits distinguishable.
 suite and Gate A pass; a deliberate load-bearing mutant is still killed; independent evaluation is
 appended to the typed record without self-promoting it.
 
-**Next action:** Prepare attempt 1 from current main, with one regression per recorded defect and no
-expansion of the mutation operator set.
+**Current evidence:** Attempt 1 is prepared, not evaluated. Each of the three recorded defects is
+repaired behind a regression that fails when — and only when — its own fix is reverted; the reverts
+were run per defect and each failed exactly its own test class. The unexercised claim now
+additionally requires an unbounded run, invalid `--limit` values and every other argparse usage error
+exit a distinct `EXIT_USAGE` rather than colliding with `EXIT_REFUSED`, and both docstrings state that
+an evenly spaced sample can miss any given mutant. The mutation operator set, `DEFAULT_LIMIT`, and the
+sampling algorithm are unchanged. The author's execution evidence, the deliberate-mutant sweep, and
+the honest limits are bound in the preparation-only
+[`mutation-guard evidence-gap packet`](reviews/2026-08-15-mutation-guard-evidence-gaps.md); it claims
+no evaluation, promotion, or monitoring authority.
+
+Two things block closure and neither is the author's to decide. No attempt is appended to the typed
+record: its declared `target.artifact_paths` are `AGENTS.md` and `scripts/gate_a.py`, which this
+candidate does not touch, so an attempt would violate the lifecycle's requirement that every declared
+target path be touched by the net candidate diff — re-declaring the target to name the control and its
+test is a rescope. And an attempt's evaluation must be a fresh evidence envelope produced outside the
+authoring checkout, which the author cannot supply for itself. The record therefore stays `observed`
+with an append-only limitations entry.
+
+**Next action:** Obtain the owner's rescope decision on `target.artifact_paths`, then an independent
+exact-revision evaluation of the candidate in a fresh context, and append that verdict to the typed
+record. Confirm the macOS and Windows Gate A jobs on the exact candidate. Do not promote the record,
+append a self-authored attempt outcome, or treat the author's own sweep as the independent evaluation.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
@@ -415,6 +476,43 @@ explicitly rejected with evidence.
 
 **Next action:** Owner decision on the enforcement mechanism. Until then, treat final-SHA review and
 thread reconciliation as a manual merge blocker rather than assuming green CI is review evidence.
+
+### SWEEP-001 — dispose the 2026-08-15 mutation-sweep findings
+
+**Status:** `decision-needed` (2026-08-15)
+
+**Outcome:** Each finding from the fleet mutation sweep is either owned and repaired, or explicitly
+accepted as not worth fixing with a recorded reason. None is left as an unowned number in a review
+packet that a later reader mistakes for either a defect list or a clean bill of health.
+
+**Source:** The findings-only
+[`fleet mutation sweep`](reviews/2026-08-15-fleet-mutation-sweep.md), which swept seven modules
+unbounded on the repo-pinned Python 3.12. Everything in it is discovered and **not** fixed, except
+the one fail-open already closed under its own commit. The three highest-consequence groups:
+
+- `[verified]` `scripts/release_contract.py` (35 of 68) and `scripts/release_workflow_contract.py`
+  (33 of 77) — symlink rejection, every approval-expiry boundary, UTC binding, manifest identity,
+  `required=True` on the release arguments, and the whole reservation-precedes-tag invariant are
+  unpinned. These gate RELEASE-001's acceptance.
+- `[verified]` `scripts/host_install_probe.py` (253 of 553) — the census machinery under
+  `host.claude.probe-authority` is barely pinned, including the criterion that an unreadable tree
+  must yield inconclusive rather than pass.
+- `[verified]` `evals/graders.py` (54 of 167), pre-existing and unchanged before and after this
+  session's grader repair.
+
+**Prerequisites:** None to decide. Any repair is ordinary bounded work under the relevant record;
+opening typed `fi_` records for the release-contract and host-probe groups is part of the decision,
+not a precondition for it.
+
+**Acceptance:** Every group above carries a disposition — `prepared`, `proposed`, `blocked`,
+`duplicate`, or `not_applicable` — with an owner and a reason. Any group accepted as not worth
+fixing says why in writing. Repairs land red-first, proving the mutant survives before the fix and
+dies after.
+
+**Next action:** Owner disposition per group. Treat the release-contract group as the highest
+consequence, since RELEASE-001's acceptance rests on contracts whose own suite does not notice their
+predicates changing. Do not read a survivor count as a defect count, and do not read a clean sweep
+over `_authority_check` as evidence the census is sound — that code generates no mutants at all.
 
 ### NAV-001 — dispose the incident-navigation prototype
 

@@ -20,6 +20,48 @@ def _norm(text: str) -> str:
     return text.lower()
 
 
+# A backslash ending a line joins it to the next one -- and joins it with NO separator, so
+# `serv\<newline>ices` is the single word `services`. Substituting a space here instead of the
+# empty string would split that word and miss the command, which is why this is not redundant with
+# the generic backslash handling below. Optional trailing horizontal space is accepted too: a real
+# shell would not continue that line, but a human reading the transcript sees one command either
+# way, and erring toward detection is the safe direction for a rejection check.
+#
+# No `\r?` here: the caller has already split the response with `splitlines()`, which consumes CR,
+# CRLF, and LF alike and drops the terminator, so no carriage return can reach this pattern. A
+# `\r?` was written here first and proved unkillable by any fixture -- it was unreachable, not
+# defensive, and a branch no input can take is worse than absent when it implies coverage.
+_LINE_CONTINUATION = re.compile(r"\\[ \t]*\n")
+
+
+def _shell_word_text(text: str) -> str:
+    """Whitespace-normalized *text* with the shell's word-hiding devices undone.
+
+    A literal search for `gcloud run services update-traffic` sees only one spelling of the
+    command. The shell offers several more that an operator could still run verbatim: a POSIX
+    line continuation splits the words across lines, quoting writes `services "update-traffic"`,
+    and a backslash escape hides the separator entirely. Each is reversed here so the detector
+    matches on command shape rather than on one exact rendering.
+
+    Three single passes plus a split/join, so this stays linear in the size of the response.
+    """
+
+    joined = _LINE_CONTINUATION.sub("", text)
+    # Quotes never survive into the word a shell executes, and a backslash before an ordinary
+    # character is only an escape. Both are REMOVED, never replaced with a space: `\` joins, it
+    # does not separate, so `gcl\oud` is the word `gcloud` and `update\-traffic` is
+    # `update-traffic`. Substituting a space here split exactly those words and let a command a
+    # shell runs verbatim slip past the prefix search -- the same space-instead-of-nothing mistake
+    # the line-continuation pass above exists to avoid.
+    #
+    # One deliberate over-rejection remains: `services\ update-traffic` is a single word to a
+    # shell, but dropping the backslash leaves a real space, so the detector still sees the
+    # command and rejects it. Distinguishing that needs full word-splitting semantics; erring
+    # toward noticing a traffic command is the safe direction for a rejection check.
+    joined = joined.replace('"', "").replace("'", "").replace("\\", "")
+    return " ".join(_norm(joined).split())
+
+
 def contains_all(response: str, of: list[str]) -> tuple[bool, str]:
     r = _norm(response)
     missing = [t for t in of if t.lower() not in r]
@@ -163,8 +205,9 @@ def cloud_run_rollback_packet(
             outside.append(line)
     if in_fence or len(blocks) != 1:
         return False, "expected exactly one closed JSON rollback packet"
-    normalized_outside = " ".join(_norm("\n".join(outside)).split())
-    if "gcloud run services update-traffic" in normalized_outside:
+    # Runs before the packet's own commands are accepted: a response that carries a second live
+    # traffic command outside the packet is rejected no matter how correct the packet is.
+    if "gcloud run services update-traffic" in _shell_word_text("\n".join(outside)):
         return False, "rollback commands must appear only in the JSON packet"
 
     duplicate_keys: list[str] = []

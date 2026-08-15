@@ -5,6 +5,12 @@
 # Temporary git worktrees used for cross-branch review/comparison (scratch; never committed).
 /.worktrees/
 
+# Agent-isolation worktrees created by the Claude Code harness. Same rule as the line above: each is
+# a full second checkout of this repository, created and removed around a single delegated task.
+# Committing one would nest a copy of the tree inside itself, and a sweep running in there rewrites
+# files in place, so the contents are deliberately broken for part of their life.
+/.claude/worktrees/
+
 # Python bytecode
 __pycache__/
 *.pyc

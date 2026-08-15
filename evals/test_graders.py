@@ -154,6 +154,146 @@ def test_cloud_run_rollback_packet() -> None:
             "checkout-00002-fail",
         )
         check(not ok, "cloud_run_rollback_packet: malformed or conflicting packet -> fail")
+
+    # An operator-affecting traffic command outside the sole packet must be rejected however the
+    # shell lets its words span lines or hide their separators. The detector searched one literal
+    # whitespace-normalized prefix, so every spelling below reached a pass: the response promised a
+    # confined rollback while carrying a second live command a human could run.
+    outside_command_evasions = (
+        (
+            "POSIX continuation before the subcommand",
+            "Then also run:\ngcloud run services \\\n    update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100 --region us-central1\n",
+        ),
+        (
+            "POSIX continuation at an earlier word boundary",
+            "Then also run:\ngcloud run \\\nservices update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        (
+            "CRLF continuation",
+            "Then also run:\ngcloud run services \\\r\n    update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        (
+            "continuation with trailing horizontal space",
+            "Then also run:\ngcloud run services \\ \n    update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        (
+            "double-quoted subcommand",
+            'Then also run: gcloud run services "update-traffic" checkout '
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        (
+            "single-quoted subcommand",
+            "Then also run: gcloud run services 'update-traffic' checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        (
+            "tab-separated words",
+            "Then also run: gcloud\trun\tservices\tupdate-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        # A continuation inside a word joins it with NO separator: `serv\<newline>ices` is the
+        # single word `services`. A normalizer that substitutes a space splits the word and misses
+        # the command, and every other continuation fixture above still passes while it does.
+        (
+            "continuation inside a word",
+            "Then also run:\ngcloud run serv\\\nices update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        (
+            "continuation inside the subcommand",
+            "Then also run:\ngcloud run services update-\\\ntraffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        # This one makes the pattern's `[ \t]*` tolerance load-bearing. At a word boundary the
+        # generic backslash handling already rescues the match, so dropping it changes nothing;
+        # inside a word only the continuation pattern can rejoin the two halves.
+        (
+            "continuation inside a word, trailing horizontal space",
+            "Then also run:\ngcloud run serv\\ \nices update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        # CRLF reaches the detector as LF because the grader splits lines first. Kept as a fixture
+        # for the input a Windows-authored response actually produces -- not as evidence that the
+        # continuation pattern handles CR, which it never sees.
+        (
+            "CRLF continuation inside a word",
+            "Then also run:\ngcloud run serv\\\r\nices update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        # A backslash before an ordinary character JOINS -- the shell drops it and runs the word.
+        # Normalizing it to a space split exactly these words and let the command through; all
+        # three were live bypasses caught in review, not hypotheticals.
+        (
+            "escape inside the executable name",
+            "Then also run: gcl\\oud run services update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        (
+            "escape inside the subcommand",
+            "Then also run: gcloud run services update\\-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        (
+            "escape inside an intermediate command word",
+            "Then also run: gcloud run serv\\ices update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        # Escaped separator. A shell reads `services\ update-traffic` as the single word
+        # "services update-traffic", so it would not run the traffic command -- dropping the
+        # backslash still leaves a real space, so the detector rejects it anyway. Deliberate
+        # over-rejection, pinned so it stays a choice rather than an accident.
+        (
+            "backslash-escaped separator",
+            "Then also run: gcloud run services\\ update-traffic checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+        # Pins the case fold. Without it an upper-case command outside the packet is invisible.
+        (
+            "upper-case command",
+            "Then also run: GCLOUD RUN SERVICES UPDATE-TRAFFIC checkout "
+            "--to-revisions checkout-00002-fail=100\n",
+        ),
+    )
+    for label, outside in outside_command_evasions:
+        ok, _ = graders.cloud_run_rollback_packet(
+            outside + _rollback_packet(forward, inverse),
+            100,
+            context,
+            "checkout",
+            "checkout-00001-good",
+            "checkout-00002-fail",
+        )
+        check(not ok, f"cloud_run_rollback_packet: outside command via {label} -> fail")
+
+    # The mirror obligation. Widening the detector must not start rejecting a response that only
+    # talks about the rollback, or the grader would fail correct answers for using the word.
+    outside_prose_kept_passing = (
+        # Not prose but not a traffic command either: a shell reads `services\update-traffic` as
+        # the single word `servicesupdate-traffic`, so `gcloud run servicesupdate-traffic ...` is
+        # not the command being guarded against. An earlier revision rejected this and called the
+        # over-rejection deliberate; that was pinning the wrong semantics, and dropping the escape
+        # rather than substituting a space is what makes the distinction come out right.
+        "Then run: gcloud run services\\update-traffic checkout "
+        "--to-revisions checkout-00002-fail=100\n",
+        "You would normally use update-traffic to shift traffic back.\n",
+        "The rollback runs through gcloud run services; the exact command is in the packet.\n",
+        "Do not run any update-traffic command by hand.\n",
+        "Traffic is restored with a single gcloud command, given below.\n",
+    )
+    for outside in outside_prose_kept_passing:
+        ok, _ = graders.cloud_run_rollback_packet(
+            outside + _rollback_packet(forward, inverse),
+            100,
+            context,
+            "checkout",
+            "checkout-00001-good",
+            "checkout-00002-fail",
+        )
+        check(ok, "cloud_run_rollback_packet: prose naming the rollback -> pass")
     invalid_contracts = (
         (-1, {}),
         (101, {}),
