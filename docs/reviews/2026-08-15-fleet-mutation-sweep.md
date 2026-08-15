@@ -6,10 +6,10 @@ evidence that any item may close. A survivor is not automatically a defect.
 
 | Field | Value |
 |---|---|
-| Revision swept | `e163d2d` |
+| Revision swept | `e163d2d` (batch); `0536fcb` for `host_install_probe.py` |
 | Command | `python3.12 scripts/mutation_guard.py --module <path>`, unbounded |
 | Interpreter | Python 3.12, the repo-pinned version |
-| Coverage | 6 modules completed of 24 planned; the run was stopped early |
+| Coverage | 7 modules completed of 24 planned; the batch was stopped early, `host_install_probe.py` swept separately |
 
 ## Why 3.12 matters
 
@@ -30,6 +30,7 @@ live bypass. Every figure below therefore carries its population.
 
 | Module | Mutants | Survivors | Rate | Exit |
 |---|---|---|---|---|
+| `scripts/host_install_probe.py` | 553 | 253 | 46% | 1 |
 | `scripts/release_contract.py` | 68 | 35 | 51% | 1 |
 | `scripts/release_workflow_contract.py` | 77 | 33 | 43% | 1 |
 | `scripts/readonly-guard.py` | 107 | 22 | 21% | 3 |
@@ -103,7 +104,59 @@ cluster on the authority checks themselves, not on incidental code.
 claim is narrower and still serious: **the suite that mutation-checks the release authority boundary
 is not itself mutation-proof**, so a future edit to those predicates could pass CI unnoticed.
 
-## Finding 3 — `evals/graders.py` and `scripts/mutation_guard.py`
+## Finding 3 — the host install probe, and what the sweep could NOT tell us
+
+`[verified]` 253 survivors of 553 mutants (246 distinct line/operator pairs; some lines carry two),
+the largest population in the fleet. Swept in an isolated worktree at `0536fcb`; the module was
+restored byte-identical afterwards.
+
+### The authority census is invisible to this tool
+
+This module was chosen because RELEASE-001 records a false pass in it: `host.claude.probe-authority`
+reports `pass` because only five selected paths are censused, so an install-time write to an unlisted
+path such as `history.jsonl` reads as unchanged. The sweep **cannot speak to that defect at all**:
+
+| Region | Mutants generated | Survivors |
+|---|---|---|
+| `_authority_check` body | **0** | 0 |
+| the five-entry `watched_locations` tuple | **0** | 0 |
+
+`[verified]` The defect is that a *list is too short*. Adding or removing a tuple entry is not a
+mutation this tool can express — its operators are boolean-operand drop, comparison swap,
+not-removal, and boolean-constant flip. A clean sweep over that code is **vacuous**, and must never
+be cited as evidence that the census is sound. This is the same blind spot that hid a live bypass in
+a pure string transformation earlier the same day.
+
+### What it did find: the census machinery underneath
+
+`[verified]` The helpers the census is built on are barely pinned — 5 of 8 mutants survive.
+
+| Line | Survivor | Why it matters |
+|---|---|---|
+| 733 | `location.is_file() or location.is_symlink()`, symlink operand dropped | no test covers a **symlink at a watched location** — a plausible route for a write to escape the census |
+| 738 | `os.walk(location, followlinks=False)` flipped to `True` | the census would **follow symlinks out of the watched tree** and no test notices |
+| 747 | `if entry[0] == "dir"` swapped to `!=` | the dir/file discrimination in census entries is unpinned |
+| 762 | `if before is None or after is None`, **either** operand dropped | nothing tests that a census which could not be enumerated yields *inconclusive* |
+
+`[verified]` That last row lands directly on the recorded repair's own success criterion — "an
+unreadable, linked, indeterminate, or drifting user-configuration tree makes authority inconclusive
+rather than pass". **That criterion has no test holding it today.** Whoever performs the repair
+should treat it as red-first work, not as existing behaviour to preserve.
+
+`[unverified]` Direction for line 762: dropping an operand leads to an `AttributeError` on `None`
+rather than a silent pass, so it fails loud rather than open. Not confirmed by execution.
+
+### Where the rest of the survivors are
+
+`[verified]` Concentrated in the large per-host orchestration functions rather than the contract
+helpers: `_probe_codex` 44/108, `_probe_claude` 25/51, `_probe_vscode` 20/29,
+`_assert_host_git_command` 16/38, `_marketplace_checkout_provenance` 16/26, `_validate_target`
+14/27.
+
+Four functions have **zero** survivors and are genuinely well pinned: `_availability`,
+`_marketplace_source_identity`, `_normalize_marketplace_source`, and `_tree_matches_expected`.
+
+## Finding 4 — `evals/graders.py` and `scripts/mutation_guard.py`
 
 `[verified]` 54 of 167 and 31 of 72 respectively. Both are recorded in detail in the two packets
 dated today; the `graders.py` figure is identical at `d9d3c19` and after this session's change, so
@@ -128,10 +181,9 @@ those are pre-existing gaps in the other graders rather than a regression.
 `run_codex_routing.py`, `run_evals.py`, `fleet_doctor.py`, `check_links.py`, `check_stale_names.py`,
 `install_codex_agents.py`, `gate_a.py`, and the three `migrate_*` / `packet_drift` pairs.
 
-Also never swept, and the most expensive three by far (~166 minutes combined):
-`host_install_probe.py` (553 mutants), `evals/codex_trial.py` (416), and
-`knowledge_update.py` (306). `host_install_probe.py` is where RELEASE-001's recorded
-authority-census false pass lives, so it is the one worth running next.
+Still never swept: `evals/codex_trial.py` (416 mutants, ~45 min) and
+`knowledge_update.py` (306 mutants, ~38 min). `host_install_probe.py` has now been swept and is
+reported as Finding 3.
 
 ## What I did NOT do
 
