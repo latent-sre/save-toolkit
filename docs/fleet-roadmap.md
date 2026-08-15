@@ -425,8 +425,9 @@ scope to an exact agent identity.
 
 ### EVAL-002 — make POSIX process-boundary cleanup idempotent
 
-**Status:** `active` (2026-08-15) — attempt 1 is prepared and evidenced at candidate
-revision `0104b55`; the macOS CI evidence and an independent evaluation are outstanding.
+**Status:** `active` (2026-08-15) — attempt 1 is prepared and evidenced at candidate revision
+`13e6fd4d3f355b0c3c366d999fc8537c4356c3ac` (base `0104b55`); the macOS CI evidence and an
+independent evaluation are outstanding.
 
 **Outcome:** A timed-out Codex trial terminates its complete process tree and closes the POSIX
 boundary deterministically; final cleanup does not turn an already-completed termination into an
@@ -460,7 +461,7 @@ retained unchanged. Bound in the preparation-only
 The record's fourth criterion is **not** met and cannot be met from a Linux container: it requires the
 focused process-boundary tests to pass repeatedly on macOS. Linux evidence only so far.
 
-**Next action:** Run the CI matrix on the exact candidate and confirm the macOS job green across
+**Next action:** Run the CI matrix on candidate `13e6fd4` and confirm the macOS job green across
 repeated runs, then obtain independent exact-revision review and append that verdict to the typed
 record. Do not close on Linux evidence alone, and do not widen the `PermissionError` tolerance beyond
 the reaped-leader state to make a flaky job quiet.

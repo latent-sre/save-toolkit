@@ -9,7 +9,8 @@ evaluation is claimed, and no promotion or monitoring is authorized. The typed r
 | Roadmap item | [EVAL-002](../fleet-roadmap.md) |
 | Typed record | [`fi_macos_process_group_cleanup_race`](../../evals/improvements/fi_macos_process_group_cleanup_race/record.json) |
 | Intake packet | [2026-08-13 macOS cleanup-race intake](2026-08-13-macos-process-group-cleanup-race-intake.md) |
-| Parent revision | `0104b55` |
+| Candidate revision | `13e6fd4d3f355b0c3c366d999fc8537c4356c3ac` |
+| Base revision | `0104b55` (contains none of the repair — do not evaluate this) |
 | Subject files | [`evals/codex_trial.py`](../../evals/codex_trial.py), [`evals/test_codex_trial.py`](../../evals/test_codex_trial.py), [`evals/conformance/codex-terra-evaluator-v1.json`](../../evals/conformance/codex-terra-evaluator-v1.json) |
 
 ## Conclusion
@@ -43,10 +44,14 @@ the call is genuinely a re-run of completed work:
 
 | Site | State | Behaviour |
 |---|---|---|
-| `_close_process_boundary` | leader already reaped (`poll()` is not `None`) | `EPERM` is a no-op |
+| `_close_process_boundary` | a prior kill succeeded **and** the leader is reaped | `EPERM` is a no-op |
+| `_close_process_boundary` | nothing was terminated first (every normal-completion path) | `EPERM` → `InstrumentError`, fail closed |
 | `_close_process_boundary` | process still running | `EPERM` → `InstrumentError`, fail closed |
 | `_terminate_process_tree` | any | `EPERM` → `InstrumentError`, fail closed |
 | both | group already gone (`ESRCH`) | no-op, unchanged |
+
+The first row's *two* conditions are the correction from review round 1 below. An earlier revision
+required only the reaped leader, which is not evidence that anything was killed.
 
 `[verified]` The initial termination now raises the same `process-tree-boundary-failed` code the
 Windows branch uses, instead of letting a bare `OSError` escape to be reinterpreted upstream as
@@ -96,6 +101,30 @@ digests, and trial shape are untouched, and no live Terra trial was run.
 unrelated pre-existing test asserting `SystemExit.code == 19`, breaking it. Caught by running the
 full file rather than only the new class, and reverted precisely. The final diff is **insertions
 only** — no pre-existing line was altered — which is the check that would have caught it sooner.
+
+## Review round 1 — a defect in the repair itself
+
+`[verified]` Independent review on PR #114 found that a reaped leader is **not** evidence the group
+was terminated. On every normal-completion path `_terminate_process_tree` is never called: the
+leader exits by itself, `poll()` is already non-`None`, and the final close is the FIRST AND ONLY
+kill of the group — the one that removes a descendant the leader spawned before exiting, which
+`test_normal_bounded_binary_parent_cannot_leave_a_descendant` depends on. The first condition
+silently accepted an `EPERM` there and let the descendant escape.
+
+That is the failure this boundary exists to prevent, reintroduced by the repair for a different
+one. It is also the exact case this packet listed as least certain — review supplied the concrete
+path the author could not.
+
+`[verified]` Tolerance now requires a prior successful kill **and** a reaped leader. `terminated` is
+threaded from each `_terminate_process_tree` call site — it raises on `EPERM` and returns on
+`ESRCH`, so a normal return is positive evidence — and defaults to `False`, the safe reading for
+every path that terminated nothing.
+
+| Reverted to | `PosixBoundaryClosureTests` |
+|---|---|
+| `poll()` alone, no termination fact — **the reviewed defect** | 1 failure |
+| Swallow `EPERM` unconditionally | 2 failures |
+| None (restored) | green |
 
 ## What I did NOT do
 
