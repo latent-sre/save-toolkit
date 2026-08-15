@@ -134,6 +134,18 @@ authorization limits are bound in the dated preparation-only
 clean exact-commit tag dry-run derives `save-toolkit--v0.1.0`; no force flag was used and no tag or
 Release was created.
 
+**Sweep finding (2026-08-15), discovered and not fixed:** A mutation sweep of the two fail-closed
+release contracts found their suites largely unpinned — `release_contract.py` at 35 surviving mutants
+of 68, `release_workflow_contract.py` at 33 of 77 — with the survivors clustered on the authority
+checks themselves: symlink rejection, every approval-expiry boundary, the UTC binding on
+`issued_at`/`expires_at`, and the reservation-precedes-tag-creation ordering, whose five mutants all
+survive. No claim is made that the workflow is wrong or that anything is exploitable; the narrower
+claim is that the suite mutation-checking the release authority boundary is not itself
+mutation-proof, so a future edit to those predicates could pass CI unnoticed. Evidence and triage are
+in the [`fleet mutation sweep`](reviews/2026-08-15-fleet-mutation-sweep.md) packet. This does not
+change the item's status and is not a merge, review, or publication blocker on its own; it is
+context an owner should weigh before authorizing a live dispatch.
+
 **Live blockers:** The merge step is complete. A post-merge audit reproduced a strict-host-evidence
 false pass: the Claude authority check watches five selected locations under the real user
 configuration, so an install-time write to an unlisted path such as `history.jsonl` is reported as
