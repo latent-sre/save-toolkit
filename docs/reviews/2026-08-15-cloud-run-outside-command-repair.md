@@ -17,11 +17,15 @@ record stays `observed`.
 record described. The detector now matches on command shape rather than one literal rendering, stays
 linear on adversarial input, and still runs before the packet's own commands are accepted.
 
-`[verified]` Ten distinct evasions reached a **pass** before this work and are rejected after it.
-Seven were found by probing the boundary; **two more were live bypasses in the first version of this
-repair, found only by mutation-sweeping the fix itself**, and are the reason this packet has a
-sweep section. A hand-built mutant set for the normalization — code the guard's operator set cannot
-reach at all — killed 3 of 9 on the first version and kills 9 of 9 now.
+`[verified]` **Twelve** distinct evasions reached a **pass** before this work and are rejected
+after it: seven found by probing the boundary, two by mutation-sweeping the repair itself, and three
+by code review on the pull request. Five of the twelve — the last two groups — were live bypasses in
+*versions of this repair*, not in the original detector alone. A hand-built mutant set for the
+normalization, code the guard's operator set cannot reach at all, killed 3 of 9 on the first version
+and kills 9 of 9 now.
+
+An earlier revision of this packet said "ten", which matched neither its own attribution sentence
+nor its table. The count is corrected here rather than left as an unsupported `[verified]` claim.
 
 `[unverified]` No live Terra trial, canary, or campaign was run. This changes the instrument only.
 Nothing here supplies routing evidence or moves ROUTE-001's live-execution prerequisites.
@@ -53,14 +57,19 @@ carrying a second, separately runnable traffic command in its prose.
 | Double-quoted subcommand — `services "update-traffic"` | accepted | rejected | boundary probe |
 | Single-quoted subcommand | accepted | rejected | boundary probe |
 | Backslash-escaped separator — `services\ update-traffic` | accepted | rejected | boundary probe |
+| **Escape inside the executable name** — `gcl\oud` | **accepted** | rejected | **code review** |
+| **Escape inside the subcommand** — `update\-traffic` | **accepted** | rejected | **code review** |
+| **Escape inside a command word** — `serv\ices` | **accepted** | rejected | **code review** |
 | Tab-separated words | rejected | rejected | boundary probe |
 | **Continuation inside a word** — `serv\`+NL+`ices` | **accepted** | rejected | **mutation sweep** |
 | **Continuation inside the subcommand** — `update-\`+NL+`traffic` | **accepted** | rejected | **mutation sweep** |
 | Upper-case command outside the packet | rejected | rejected | mutation sweep |
 
 The record named only the first. Six more came from probing the boundary before writing the fix.
-The two in bold came later and are the serious ones: **they were live bypasses in the first version
-of this repair**, found only by mutation-sweeping the fix itself. See below.
+The bold rows came later and are the serious ones — every one was a live bypass in a *version of
+this repair*, not merely in the original detector. Two were found by mutation-sweeping the fix
+itself (see below); three more were found by review on the pull request, after the sweep, and are
+the subject of the next section.
 
 Tab separation and the upper-case case were already handled; both are kept as fixtures so a future
 narrowing of the normalization cannot silently lose them.
@@ -73,11 +82,16 @@ search runs against that. Three single passes plus a split/join. The continuatio
 the **empty string**, matching the shell's own joining semantics; substituting a space splits words
 that a continuation joins, which was the first version's bypass.
 
-One judgement call, stated rather than buried: a backslash followed by *trailing horizontal space*
-before the newline is accepted as a continuation, though a real shell would not continue that line.
-A human reading the transcript sees one command either way, and for a rejection check the safe
-direction is to notice more, not fewer. This makes the detector slightly stricter than bash, never
-looser.
+Backslash escapes are **removed, never replaced with a space**. A backslash joins — `gcl\oud` is
+the word `gcloud` — so substituting a space splits precisely the words a shell would run together.
+That was the defect review found; see the next-but-one section.
+
+Two judgement calls, stated rather than buried. A backslash followed by *trailing horizontal space*
+before a newline is accepted as a continuation, though a real shell would not continue that line.
+And `services\ update-traffic` is a single word to a shell, so it would not invoke the traffic
+command, but dropping the escape leaves a real space and the detector rejects it anyway.
+Distinguishing that needs full word-splitting semantics. Both make the detector stricter than bash,
+never looser.
 
 ## Mutation sweep of the repair itself
 
@@ -110,8 +124,8 @@ fixed and the missing fixtures added, **9 of 9 are killed**.
 | Continuation pattern loses `[ \t]*` tolerance | survived | killed |
 | Continuation pattern no longer anchors on the newline | n/a | killed |
 | Drop quote stripping (both kinds) | killed | killed |
-| Drop backslash-to-space | killed | killed |
-| Backslash → empty string instead of space | survived | killed |
+| Drop backslash removal entirely | killed | killed |
+| Backslash → space instead of removal (the reviewed defect) | n/a — was the bug | killed |
 | Drop the lowercase fold | survived | killed |
 | Detector reverts to the raw literal search | killed | killed |
 
@@ -135,6 +149,32 @@ the pattern. No fixture could kill that mutant because no input can take the bra
 with the reason recorded at the definition. The CRLF fixture stays, relabelled as the input a
 Windows-authored response actually produces rather than as evidence of CR handling — the earlier
 comment claiming it made CR tolerance load-bearing was simply false.
+
+### Defect 3 — escapes split words the shell joins (found by review, not by me)
+
+`[verified]` Reported on the pull request as P1 and confirmed by execution before acting on it. A
+backslash before an ordinary character is an escape the shell *removes*, joining the word:
+`gcl\oud` runs as `gcloud`, and `update\-traffic` as `update-traffic`. The repair replaced every
+remaining backslash with a **space**, so those normalized to `gcl oud` and `update -traffic`, the
+prefix search missed them, and the conflicting traffic command was accepted:
+
+| Outside command | Before | After |
+|---|---|---|
+| `gcl\oud run services update-traffic …` | accepted | rejected |
+| `gcloud run services update\-traffic …` | accepted | rejected |
+| `gcloud run serv\ices update-traffic …` | accepted | rejected |
+
+`[verified]` Escapes are now removed rather than space-substituted. This is the **same
+space-instead-of-nothing mistake** as Defect 1, which I fixed for line continuations and left
+standing in the general escape path — I fixed half the bug and the sweep could not see the other
+half, because none of it is a shape the operator set can mutate.
+
+`[verified]` One consequence, and it corrects an earlier claim in this packet. With escapes removed,
+`gcloud run services\update-traffic` normalizes to `servicesupdate-traffic`, which is *not* the
+guarded command — a shell would not run a traffic change — so it is now **accepted**. An earlier
+revision rejected it and called that a deliberate over-rejection; that was pinning the wrong
+semantics, and the fixture has moved to the accepted set. The genuine over-rejection that remains is
+`services\ update-traffic`, one word to a shell but two after the escape is dropped.
 
 ### Pre-existing survivors elsewhere in the file
 

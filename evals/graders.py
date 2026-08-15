@@ -47,10 +47,18 @@ def _shell_word_text(text: str) -> str:
     """
 
     joined = _LINE_CONTINUATION.sub("", text)
-    # Quotes never survive into the word a shell actually executes, and a backslash before an
-    # ordinary character is only an escape, so both are dropped. The backslash becomes a space so
-    # that `services\ update-traffic` separates into the two words the command really has.
-    joined = joined.replace('"', "").replace("'", "").replace("\\", " ")
+    # Quotes never survive into the word a shell executes, and a backslash before an ordinary
+    # character is only an escape. Both are REMOVED, never replaced with a space: `\` joins, it
+    # does not separate, so `gcl\oud` is the word `gcloud` and `update\-traffic` is
+    # `update-traffic`. Substituting a space here split exactly those words and let a command a
+    # shell runs verbatim slip past the prefix search -- the same space-instead-of-nothing mistake
+    # the line-continuation pass above exists to avoid.
+    #
+    # One deliberate over-rejection remains: `services\ update-traffic` is a single word to a
+    # shell, but dropping the backslash leaves a real space, so the detector still sees the
+    # command and rejects it. Distinguishing that needs full word-splitting semantics; erring
+    # toward noticing a traffic command is the safe direction for a rejection check.
+    joined = joined.replace('"', "").replace("'", "").replace("\\", "")
     return " ".join(_norm(joined).split())
 
 
