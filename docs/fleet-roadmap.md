@@ -259,9 +259,23 @@ recorded in the
 is preparation evidence only; it does not authorize credentials, model calls, campaign execution,
 baseline eligibility, or release use.
 
-**Next action:** Add a red-first continued-command fixture, make the outside-packet check linear and
-command-shape aware, refresh the scenario and evaluator-bundle manifests, run the evaluator contract
-suites and Gate A, and obtain independent exact-byte review. Then provision and independently bind a
+**Grader repair (2026-08-15):** The outside-packet detector is repaired and evidenced in the
+preparation-only
+[`Cloud Run outside-command repair packet`](reviews/2026-08-15-cloud-run-outside-command-repair.md).
+Probing the boundary first showed the recorded POSIX-continuation case was one of seven accepted
+evasions, not the only one — continuations at other word boundaries, CRLF continuations, a
+continuation with trailing horizontal space, and quoted or backslash-escaped separators all reached a
+pass. The detector now normalizes those word-hiding devices before the literal search, so it matches
+command shape rather than one rendering; it stays linear on adversarial input and still runs before
+the packet's own commands are accepted. Prose that merely names `update-traffic` still passes. The
+`evals/graders.py` row of the evaluator bundle was refreshed; the scenario, the routing manifest, the
+frozen scenario digests, and the trial shape are unchanged, and no live trial was run. A known
+limitation is recorded rather than implied covered: the detector is a normalizer plus a literal
+search, not a shell parser. The typed record stays `observed` — its target paths already fit an
+attempt, so the missing piece is an independent evaluation of the exact candidate.
+
+**Next action:** Obtain independent exact-byte review of the grader repair and append that verdict to
+the typed record. Then provision and independently bind a
 protected Python runtime closure or separate OS identity plus the clean managed-config/registry,
 protected Git installation, and sanitized object-store prerequisites before attempting the one-trial
 canary. Only after the canary and its boundary pass may the still-unimplemented fixed 48-trial

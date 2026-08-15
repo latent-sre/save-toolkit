@@ -102,7 +102,51 @@ genuinely_unexercised_pair` pins that the narrowing did not delete the rule.
 
 ## Structural and mutation evidence
 
-<!-- SWEEP -->
+`[verified]` Gate A is green end to end on the candidate, run on the repo-pinned Python 3.12
+interpreter. `[verified]` The focused mutation-guard suite is green on the restored tree.
+
+### The load-bearing mutant is still killed
+
+`[verified]` The motivating mutation the record cites is generated at the same coordinate and is
+still detected at the candidate revision:
+
+| Property | Observed |
+|---|---|
+| Population | 48 mutants of `skills/operational-learning/scripts/packet_drift.py` |
+| Index | 35 |
+| Site | `packet_drift.py:405`, `return 1 if (findings and args.fail_on_drift) else 0` |
+| Operator | drop operand 0 of `And` |
+| Baseline (unmutated, normalized) | `test_packet_drift.py` passes |
+| Mutant | `test_packet_drift.py` fails — **killed** |
+| Module afterwards | restored byte-identical |
+
+The baseline line matters: without it a suite failing for an unrelated reason would score the mutant
+killed and prove nothing. This was run as a targeted single-mutant check rather than a full sweep of
+that module — the claim under test is about one named mutant, and a 48-mutant sweep across three
+discovered pairs would have been a slower route to the same answer. That is a deliberate narrowing,
+stated here so the evidence is not read as a full-module result.
+
+### The guard turned on itself — discovered, not fixed
+
+`[verified]` An unbounded sweep of `scripts/mutation_guard.py` against its own suite reported
+**31 surviving mutants of 72**, exit `EXIT_SURVIVORS`. This is a measurement of the guard's own test
+coverage, not a regression introduced by this candidate, and it is **not** in MUTATION-001's scope —
+the item is scoped to the three recorded defects with no expansion of the operator set. Recorded
+here for an owner to route, following the precedent this record already set for the earlier sweep's
+findings.
+
+Reading the survivors:
+
+- **Equivalent or near-equivalent, no action implied:** the two `@dataclass(frozen=True)` flips, the
+  `text=True` / `check=False` keywords on the subprocess call, an f-string fallback in the summary
+  line, and `bool(survivors) and len(survivors) == tried`, whose guard operand is redundant whenever
+  `tried > 0`.
+- **Real gaps in the guard's own suite:** the mutation-generation internals and the discovery
+  predicates are barely pinned, and the `unverifiable or unexercised` expression on the findings
+  path has no case covering findings *and* unexercised together.
+- **Not a gap:** on the no-findings reporting branch, only the `unverifiable` and `not attempted`
+  operands survive. Dropping the `unexercised` operand is killed — by the test added here for the
+  narrowed collapse rule. That is the operand that matters on that line.
 
 ## Ledger disposition — why no attempt is appended
 

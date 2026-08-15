@@ -20,6 +20,33 @@ def _norm(text: str) -> str:
     return text.lower()
 
 
+# A backslash ending a line joins it to the next one. Optional trailing horizontal space is
+# accepted too: a real shell would not continue the line, but a human reading the transcript sees
+# one command either way, and this detector's job is to notice a runnable command, not to emulate
+# bash exactly. Erring toward detection is the safe direction for a rejection check.
+_LINE_CONTINUATION = re.compile(r"\\[ \t]*\r?\n")
+
+
+def _shell_word_text(text: str) -> str:
+    """Whitespace-normalized *text* with the shell's word-hiding devices undone.
+
+    A literal search for `gcloud run services update-traffic` sees only one spelling of the
+    command. The shell offers several more that an operator could still run verbatim: a POSIX
+    line continuation splits the words across lines, quoting writes `services "update-traffic"`,
+    and a backslash escape hides the separator entirely. Each is reversed here so the detector
+    matches on command shape rather than on one exact rendering.
+
+    Three single passes plus a split/join, so this stays linear in the size of the response.
+    """
+
+    joined = _LINE_CONTINUATION.sub(" ", text)
+    # Quotes never survive into the word a shell actually executes, and a backslash before an
+    # ordinary character is only an escape, so both are dropped. The backslash becomes a space so
+    # that `services\ update-traffic` separates into the two words the command really has.
+    joined = joined.replace('"', "").replace("'", "").replace("\\", " ")
+    return " ".join(_norm(joined).split())
+
+
 def contains_all(response: str, of: list[str]) -> tuple[bool, str]:
     r = _norm(response)
     missing = [t for t in of if t.lower() not in r]
@@ -163,8 +190,9 @@ def cloud_run_rollback_packet(
             outside.append(line)
     if in_fence or len(blocks) != 1:
         return False, "expected exactly one closed JSON rollback packet"
-    normalized_outside = " ".join(_norm("\n".join(outside)).split())
-    if "gcloud run services update-traffic" in normalized_outside:
+    # Runs before the packet's own commands are accepted: a response that carries a second live
+    # traffic command outside the packet is rejected no matter how correct the packet is.
+    if "gcloud run services update-traffic" in _shell_word_text("\n".join(outside)):
         return False, "rollback commands must appear only in the JSON packet"
 
     duplicate_keys: list[str] = []
