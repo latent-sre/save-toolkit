@@ -425,7 +425,8 @@ scope to an exact agent identity.
 
 ### EVAL-002 — make POSIX process-boundary cleanup idempotent
 
-**Status:** `ready` (2026-08-13)
+**Status:** `active` (2026-08-15) — attempt 1 is prepared and evidenced at candidate
+revision `0104b55`; the macOS CI evidence and an independent evaluation are outstanding.
 
 **Outcome:** A timed-out Codex trial terminates its complete process tree and closes the POSIX
 boundary deterministically; final cleanup does not turn an already-completed termination into an
@@ -446,8 +447,23 @@ termination guarantee; focused process-boundary tests pass repeatedly on macOS; 
 Windows Gate A jobs pass on the exact candidate; the typed record receives independent exact-revision
 correctness/security review without self-promotion.
 
-**Next action:** Prepare attempt 1 with a deterministic POSIX cleanup seam and the smallest repair that
-separates an idempotent final close from a failed initial termination.
+**Current evidence:** Attempt 1 is prepared, not evaluated. The POSIX final close now tolerates
+`EPERM` only when the group leader is already reaped — the one state where the call re-runs completed
+work — and fails closed while the process is still running, since an unsignalled tree may still have a
+live descendant. The initial termination never tolerates `EPERM`. The regression set is deterministic
+(mocked `os.killpg`, stubbed `poll()`, no real processes or sleeps) and, importantly, **distinguishes
+the correct fix from the unsafe one**: reverting to an unconditional swallow — the broad catch the
+intake packet warns against — still fails. The pre-existing real-process descendant assertions are
+retained unchanged. Bound in the preparation-only
+[`POSIX boundary cleanup packet`](reviews/2026-08-15-posix-boundary-cleanup-repair.md).
+
+The record's fourth criterion is **not** met and cannot be met from a Linux container: it requires the
+focused process-boundary tests to pass repeatedly on macOS. Linux evidence only so far.
+
+**Next action:** Run the CI matrix on the exact candidate and confirm the macOS job green across
+repeated runs, then obtain independent exact-revision review and append that verdict to the typed
+record. Do not close on Linux evidence alone, and do not widen the `PermissionError` tolerance beyond
+the reaped-leader state to make a flaky job quiet.
 
 ## Decisions needed
 

@@ -1707,6 +1707,14 @@ def _terminate_process_tree(process: subprocess.Popen[bytes], job: int | None) -
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
+    except PermissionError as exc:
+        # The INITIAL termination is the load-bearing one. If the group cannot be signalled here
+        # then it has not been terminated and a descendant may still be running, so this stays
+        # fail-closed. Raising the boundary code rather than letting a bare OSError escape also
+        # stops the caller reinterpreting a termination failure as a launch failure.
+        raise InstrumentError(
+            "process-tree-boundary-failed", "POSIX process tree could not be terminated"
+        ) from exc
 
 
 def _close_process_boundary(process: subprocess.Popen[bytes], job: int | None) -> None:
@@ -1728,6 +1736,23 @@ def _close_process_boundary(process: subprocess.Popen[bytes], job: int | None) -
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
+    except PermissionError as exc:
+        # This runs from a `finally` on every path, including straight after a completed
+        # termination-and-wait. Once the group leader has been reaped, macOS may answer EPERM
+        # rather than ESRCH for its process group id, so a second kill raised out of the `finally`
+        # and turned an already-successful cleanup into a test error — masking whatever exception
+        # was actually in flight.
+        #
+        # Tolerated ONLY when the leader is already reaped, which is the narrow state where this
+        # call is genuinely a no-op re-run of work that already happened. If the process is still
+        # running, EPERM means the tree was NOT signalled and a descendant may be alive; that is a
+        # first-order failure and must stay fail-closed. Swallowing it unconditionally would hide
+        # exactly the surviving descendant this boundary exists to prevent.
+        if process.poll() is None:
+            raise InstrumentError(
+                "process-tree-boundary-failed",
+                "POSIX process tree could not be signalled and may still be running",
+            ) from exc
 
 
 def launch_process(
