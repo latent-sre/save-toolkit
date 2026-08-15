@@ -267,7 +267,19 @@ evasions, not the only one — continuations at other word boundaries, CRLF cont
 continuation with trailing horizontal space, and quoted or backslash-escaped separators all reached a
 pass. The detector now normalizes those word-hiding devices before the literal search, so it matches
 command shape rather than one rendering; it stays linear on adversarial input and still runs before
-the packet's own commands are accepted. Prose that merely names `update-traffic` still passes. The
+the packet's own commands are accepted. Prose that merely names `update-traffic` still passes.
+
+Mutation-sweeping that repair then found two more defects **in the repair itself**, and both are the
+reason the packet is worth reading. A POSIX continuation joins its halves with no separator, so
+`serv\`+newline+`ices` is the word `services`; the first version substituted a space and split the
+word, leaving a live bypass that every fixture passed over. The pattern also carried an unreachable
+`\r?` that no fixture could kill, because the caller splits the response before the pattern sees it.
+Both are fixed. The sweep also established that `mutation_guard` **cannot evaluate this code at
+all** — its operator set generates zero mutants for a pure string transformation — so a clean guard
+report there is near-vacuous and a hand-built mutant set is what actually holds the line: 3 of 9
+killed on the first version, 9 of 9 now. Separately, `evals/graders.py` carries 54 surviving mutants
+of 167, identical before and after this change and none in the new code, so they are pre-existing
+gaps in the other graders rather than a regression. The
 `evals/graders.py` row of the evaluator bundle was refreshed; the scenario, the routing manifest, the
 frozen scenario digests, and the trial shape are unchanged, and no live trial was run. A known
 limitation is recorded rather than implied covered: the detector is a normalizer plus a literal

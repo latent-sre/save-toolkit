@@ -17,8 +17,11 @@ record stays `observed`.
 record described. The detector now matches on command shape rather than one literal rendering, stays
 linear on adversarial input, and still runs before the packet's own commands are accepted.
 
-`[verified]` Seven distinct evasions reached a **pass** before the change and are rejected after it.
-Reverting only the detector call restores exactly those seven failures and nothing else.
+`[verified]` Ten distinct evasions reached a **pass** before this work and are rejected after it.
+Seven were found by probing the boundary; **two more were live bypasses in the first version of this
+repair, found only by mutation-sweeping the fix itself**, and are the reason this packet has a
+sweep section. A hand-built mutant set for the normalization — code the guard's operator set cannot
+reach at all — killed 3 of 9 on the first version and kills 9 of 9 now.
 
 `[unverified]` No live Terra trial, canary, or campaign was run. This changes the instrument only.
 Nothing here supplies routing evidence or moves ROUTE-001's live-execution prerequisites.
@@ -41,33 +44,113 @@ carrying a second, separately runnable traffic command in its prose.
 
 `[verified]` Each row is an outside-the-packet command placed beside an otherwise valid packet.
 
-| Evasion | Before | After |
-|---|---|---|
-| POSIX continuation before the subcommand (the recorded case) | accepted | rejected |
-| POSIX continuation at an earlier word boundary | accepted | rejected |
-| CRLF continuation | accepted | rejected |
-| Continuation with trailing horizontal space | accepted | rejected |
-| Double-quoted subcommand — `services "update-traffic"` | accepted | rejected |
-| Single-quoted subcommand | accepted | rejected |
-| Backslash-escaped separator — `services\ update-traffic` | accepted | rejected |
-| Tab-separated words | rejected | rejected |
+| Evasion | Before | After | Found by |
+|---|---|---|---|
+| POSIX continuation before the subcommand | accepted | rejected | the record |
+| POSIX continuation at an earlier word boundary | accepted | rejected | boundary probe |
+| CRLF continuation | accepted | rejected | boundary probe |
+| Continuation with trailing horizontal space | accepted | rejected | boundary probe |
+| Double-quoted subcommand — `services "update-traffic"` | accepted | rejected | boundary probe |
+| Single-quoted subcommand | accepted | rejected | boundary probe |
+| Backslash-escaped separator — `services\ update-traffic` | accepted | rejected | boundary probe |
+| Tab-separated words | rejected | rejected | boundary probe |
+| **Continuation inside a word** — `serv\`+NL+`ices` | **accepted** | rejected | **mutation sweep** |
+| **Continuation inside the subcommand** — `update-\`+NL+`traffic` | **accepted** | rejected | **mutation sweep** |
+| Upper-case command outside the packet | rejected | rejected | mutation sweep |
 
-The record named only the first. The other six were found by probing the boundary before writing the
-fix, and they are the same defect: a literal search cannot see a command the shell would still run.
-Tab separation was already handled, and is kept in the fixture so a future narrowing of the
-normalization cannot silently lose it.
+The record named only the first. Six more came from probing the boundary before writing the fix.
+The two in bold came later and are the serious ones: **they were live bypasses in the first version
+of this repair**, found only by mutation-sweeping the fix itself. See below.
+
+Tab separation and the upper-case case were already handled; both are kept as fixtures so a future
+narrowing of the normalization cannot silently lose them.
 
 ## The repair
 
 `[verified]` `_shell_word_text` undoes the three word-hiding devices a shell provides — line
 continuation, quoting, and backslash escape — then whitespace-normalizes, and the existing literal
-search runs against that. Three single passes plus a split/join.
+search runs against that. Three single passes plus a split/join. The continuation pass substitutes
+the **empty string**, matching the shell's own joining semantics; substituting a space splits words
+that a continuation joins, which was the first version's bypass.
 
 One judgement call, stated rather than buried: a backslash followed by *trailing horizontal space*
 before the newline is accepted as a continuation, though a real shell would not continue that line.
 A human reading the transcript sees one command either way, and for a rejection check the safe
 direction is to notice more, not fewer. This makes the detector slightly stricter than bash, never
 looser.
+
+## Mutation sweep of the repair itself
+
+This section exists because the first version of this repair passed every fixture above and was
+still wrong. Sweeping it is what found that.
+
+### The guard cannot see this code at all
+
+`[verified]` `mutation_guard` generates **zero** mutants for `_shell_word_text`. Its operator set is
+boolean-operand drop, comparison swap, not-removal, and boolean-constant flip; the function is pure
+string transformation and contains none of them. Across all of `evals/graders.py` the population is
+167 mutants at both `d9d3c19` (before this work) and at the candidate — adding the function changed
+the count by nothing. Exactly one mutant exists anywhere in the new code, the `In -> NotIn` swap at
+the call site, and it is killed.
+
+So "the sweep found no survivors in the new code" is a **nearly vacuous** claim, and is recorded
+that way rather than as coverage. A tool reporting clean over code it cannot mutate is precisely the
+false-green this repository built the guard to detect.
+
+### Hand-built mutants for what the guard cannot reach
+
+`[verified]` Nine mutants of the normalization written by hand, run against the focused suite. On
+the first committed version of the repair **only 3 of 9 were killed**. After the defects below were
+fixed and the missing fixtures added, **9 of 9 are killed**.
+
+| Hand-built mutant | First version | Now |
+|---|---|---|
+| Drop line-continuation normalization | survived | killed |
+| Continuation joins with a space instead of nothing | n/a — was the bug | killed |
+| Continuation pattern loses `[ \t]*` tolerance | survived | killed |
+| Continuation pattern no longer anchors on the newline | n/a | killed |
+| Drop quote stripping (both kinds) | killed | killed |
+| Drop backslash-to-space | killed | killed |
+| Backslash → empty string instead of space | survived | killed |
+| Drop the lowercase fold | survived | killed |
+| Detector reverts to the raw literal search | killed | killed |
+
+### Defect 1 — a live bypass in the first version
+
+`[verified]` A POSIX continuation joins its two halves with **no separator**: `serv\`+newline+`ices`
+is the single word `services`. The first version substituted a *space*, splitting the word instead
+of joining it, so `gcloud run serv\`+newline+`ices update-traffic ...` — a command a shell runs
+verbatim — was accepted outside the packet. The normalization now substitutes the empty string.
+
+This is why the "drop line-continuation normalization" mutant survived: with a space substitution,
+the generic backslash-to-space replacement already covered every fixture, so the whole continuation
+pass was doing nothing observable. The mutant that looked like a coverage gap was reporting dead
+code, and the dead code was hiding a bypass.
+
+### Defect 2 — unreachable code presented as coverage
+
+`[verified]` The pattern carried `\r?`. The caller splits the response with `splitlines()` first,
+which consumes CR, CRLF, and LF alike and drops the terminator, so no carriage return can ever reach
+the pattern. No fixture could kill that mutant because no input can take the branch. It is removed,
+with the reason recorded at the definition. The CRLF fixture stays, relabelled as the input a
+Windows-authored response actually produces rather than as evidence of CR handling — the earlier
+comment claiming it made CR tolerance load-bearing was simply false.
+
+### Pre-existing survivors elsewhere in the file
+
+`[verified]` The full sweep reports **54 surviving mutants of 167** in `evals/graders.py`. The count
+and the population are identical at `d9d3c19` and at the candidate, and none fall inside the new
+code, so every one of them is a pre-existing coverage gap in the other graders. They are **not
+fixed** here and are not owned by this record — recorded so the number is not later mistaken for a
+regression from this change.
+
+### A harness defect worth recording
+
+`[verified]` The first hand-built mutant harness reported `SURVIVED` for mutants whose edit had
+silently failed to apply — the target strings were mangled, the file was never mutated, and the
+suite passed for that reason. That is the same false-green shape in the instrument rather than the
+suite. The harness now validates every target string before any mutant runs and fails loudly, and
+it refuses to start unless the suite passes unmutated.
 
 ## Criteria
 
