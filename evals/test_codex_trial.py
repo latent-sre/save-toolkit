@@ -8,6 +8,7 @@ import contextlib
 import io
 import os
 import runpy
+import signal
 import subprocess
 import sys
 import tempfile
@@ -547,6 +548,87 @@ class ProbeTests(unittest.TestCase):
             )
 
             self.assertEqual([root, root], observed)
+
+
+@unittest.skipIf(os.name == "nt", "POSIX process-group semantics; Windows uses a Job Object")
+class PosixBoundaryClosureTests(unittest.TestCase):
+    """The narrow idempotence of the POSIX final close, pinned without any timing dependence.
+
+    Two macOS jobs on PR #106 failed at exact head `a2a046e1` when the post-timeout
+    `_close_process_boundary` raised `EPERM` from `os.killpg` — after the tree had already been
+    terminated and waited on. The end-to-end timeout test can only reproduce that when the runner
+    happens to lose the race, so these drive the exact state directly instead.
+
+    The invariant being pinned is deliberately narrow: EPERM is a no-op ONLY once the group leader
+    has been reaped. While the process is still running it means the tree was not signalled, and
+    tolerating it there would hide a live descendant — the failure this boundary exists to prevent.
+    """
+
+    _EPERM = PermissionError(1, "Operation not permitted")
+
+    @staticmethod
+    def _process(poll_result: int | None) -> mock.Mock:
+        process = mock.Mock(spec=subprocess.Popen)
+        process.pid = 4242
+        process.poll.return_value = poll_result
+        return process
+
+    def test_eperm_after_the_leader_is_reaped_is_a_no_op(self) -> None:
+        """The reported failure. A completed termination must not become a test error."""
+        with mock.patch.object(codex_trial.os, "killpg", side_effect=self._EPERM):
+            codex_trial._close_process_boundary(
+                self._process(poll_result=0), None, terminated=True
+            )
+
+    def test_eperm_on_a_first_and_only_close_fails_closed(self) -> None:
+        """The normal-completion path, where nothing was terminated first.
+
+        `_terminate_process_tree` is never called when the process exits on its own, so this close
+        is the FIRST and ONLY kill of the group — and it is what removes a descendant the leader
+        spawned before exiting. The leader being reaped says nothing about whether that kill
+        worked, so `poll()` alone is not evidence of a completed termination: accepting EPERM here
+        would let the descendant escape the boundary silently.
+        """
+        with mock.patch.object(codex_trial.os, "killpg", side_effect=self._EPERM):
+            with self.assertRaises(codex_trial.InstrumentError) as raised:
+                codex_trial._close_process_boundary(
+                    self._process(poll_result=0), None, terminated=False
+                )
+        self.assertEqual("process-tree-boundary-failed", raised.exception.reason_code)
+
+    def test_eperm_while_the_tree_still_runs_fails_closed(self) -> None:
+        """The half that must NOT be swallowed: unsignalled tree, possible live descendant."""
+        with mock.patch.object(codex_trial.os, "killpg", side_effect=self._EPERM):
+            with self.assertRaises(codex_trial.InstrumentError) as raised:
+                codex_trial._close_process_boundary(
+                    self._process(poll_result=None), None, terminated=True
+                )
+        self.assertEqual("process-tree-boundary-failed", raised.exception.reason_code)
+
+    def test_initial_termination_never_tolerates_eperm(self) -> None:
+        """Idempotence belongs to the final close alone. A first-order failure to terminate stays
+        fail-closed even though the leader looks reaped, because that reading is what would let a
+        surviving descendant through."""
+        with mock.patch.object(codex_trial.os, "killpg", side_effect=self._EPERM):
+            with self.assertRaises(codex_trial.InstrumentError) as raised:
+                codex_trial._terminate_process_tree(self._process(poll_result=0), None)
+        self.assertEqual("process-tree-boundary-failed", raised.exception.reason_code)
+
+    def test_an_already_gone_group_stays_tolerated_in_both_paths(self) -> None:
+        """ESRCH was always a no-op; narrowing the EPERM case must not disturb it."""
+        with mock.patch.object(codex_trial.os, "killpg", side_effect=ProcessLookupError()):
+            codex_trial._close_process_boundary(self._process(poll_result=0), None)
+            codex_trial._close_process_boundary(
+                self._process(poll_result=None), None, terminated=True
+            )
+            codex_trial._terminate_process_tree(self._process(poll_result=None), None)
+
+    def test_a_successful_kill_is_still_issued_to_the_process_group(self) -> None:
+        """Pins that the close actually signals, so the tolerance above cannot be satisfied by a
+        boundary that quietly stopped killing anything."""
+        with mock.patch.object(codex_trial.os, "killpg") as killpg:
+            codex_trial._close_process_boundary(self._process(poll_result=0), None)
+        killpg.assert_called_once_with(4242, signal.SIGKILL)
 
 
 class ProcessBoundaryTests(unittest.TestCase):
