@@ -93,7 +93,21 @@ descendant marker is absent, which is what keeps the tolerance from hiding a sur
 consecutive `ProcessBoundaryTests` runs and six consecutive full-file runs were green on Linux.
 
 `[verified]` The class is skipped on Windows, where the Job Object branch is taken and the POSIX
-path is never reached — a passing result there would be vacuous.
+path is never reached — a passing result there would be vacuous. Confirmed on the host rather than
+inferred from the decorator: the Windows job of run
+[`31892314611`](https://github.com/latent-sre/save-toolkit/actions/runs/31892314611) reports
+`OK (skipped=6)` with six consecutive `s` marks, matching the six tests in this class exactly.
+
+`[verified]` **macOS CI is green on the repair** — run
+[`31891154990`](https://github.com/latent-sre/save-toolkit/actions/runs/31891154990) on `edd403b`
+and run `31892314611` on `d48fb80`, both trees containing candidate `13e6fd4`.
+
+`[unverified]` Two green runs are **not** the record's "repeatedly on macOS". The original fault was
+intermittent — it failed both attempts on PR #106's head and passed on main against a byte-identical
+tree — so a small number of green runs is equally consistent with the repair working and with the
+runner not losing the race. What has genuinely changed is that the fault is now pinned
+deterministically at unit level, so macOS CI is no longer the only thing between a regression and a
+merge. How many runs suffice is an owner call, not one this packet can make for itself.
 
 `[verified]` `evals/codex_trial.py` is a pinned member of the nine-file evaluator bundle, so its
 digest and size are refreshed in `codex-terra-evaluator-v1.json`. Gate A caught the stale row
