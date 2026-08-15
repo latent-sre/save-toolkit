@@ -20,11 +20,18 @@ def _norm(text: str) -> str:
     return text.lower()
 
 
-# A backslash ending a line joins it to the next one. Optional trailing horizontal space is
-# accepted too: a real shell would not continue the line, but a human reading the transcript sees
-# one command either way, and this detector's job is to notice a runnable command, not to emulate
-# bash exactly. Erring toward detection is the safe direction for a rejection check.
-_LINE_CONTINUATION = re.compile(r"\\[ \t]*\r?\n")
+# A backslash ending a line joins it to the next one -- and joins it with NO separator, so
+# `serv\<newline>ices` is the single word `services`. Substituting a space here instead of the
+# empty string would split that word and miss the command, which is why this is not redundant with
+# the generic backslash handling below. Optional trailing horizontal space is accepted too: a real
+# shell would not continue that line, but a human reading the transcript sees one command either
+# way, and erring toward detection is the safe direction for a rejection check.
+#
+# No `\r?` here: the caller has already split the response with `splitlines()`, which consumes CR,
+# CRLF, and LF alike and drops the terminator, so no carriage return can reach this pattern. A
+# `\r?` was written here first and proved unkillable by any fixture -- it was unreachable, not
+# defensive, and a branch no input can take is worse than absent when it implies coverage.
+_LINE_CONTINUATION = re.compile(r"\\[ \t]*\n")
 
 
 def _shell_word_text(text: str) -> str:
@@ -39,7 +46,7 @@ def _shell_word_text(text: str) -> str:
     Three single passes plus a split/join, so this stays linear in the size of the response.
     """
 
-    joined = _LINE_CONTINUATION.sub(" ", text)
+    joined = _LINE_CONTINUATION.sub("", text)
     # Quotes never survive into the word a shell actually executes, and a backslash before an
     # ordinary character is only an escape, so both are dropped. The backslash becomes a space so
     # that `services\ update-traffic` separates into the two words the command really has.
