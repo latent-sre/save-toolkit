@@ -1619,6 +1619,7 @@ def _bounded_git_runner(
     process: subprocess.Popen[bytes] | None = None
     job: int | None = None
     timed_out = False
+    terminated = False
     output_limit = codex_snapshot.MAX_ARCHIVE_BYTES + (1024 * 1024)
     try:
         with _open_private_capture(stdout_path) as stdout_stream, _open_private_capture(
@@ -1637,16 +1638,19 @@ def _bounded_git_runner(
                 if time.monotonic() >= deadline:
                     timed_out = True
                     _terminate_process_tree(process, job)
+                    terminated = True
                     break
                 try:
                     if stdout_path.stat().st_size + stderr_path.stat().st_size > output_limit:
                         _terminate_process_tree(process, job)
+                        terminated = True
                         raise InstrumentError(
                             "process-output-limit",
                             "Git archive output exceeded its fixed bound",
                         )
                 except OSError as exc:
                     _terminate_process_tree(process, job)
+                    terminated = True
                     raise InstrumentError(
                         "process-capture-failed", "Git output capture could not be inspected"
                     ) from exc
@@ -1655,6 +1659,7 @@ def _bounded_git_runner(
                 returncode = process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 _terminate_process_tree(process, job)
+                terminated = True
                 returncode = process.wait(timeout=10)
                 timed_out = True
         if timed_out:
@@ -1680,7 +1685,7 @@ def _bounded_git_runner(
         ) from exc
     finally:
         if process is not None:
-            _close_process_boundary(process, job)
+            _close_process_boundary(process, job, terminated=terminated)
         for capture_path in (stdout_path, stderr_path):
             try:
                 capture_path.unlink(missing_ok=True)
@@ -1717,7 +1722,16 @@ def _terminate_process_tree(process: subprocess.Popen[bytes], job: int | None) -
         ) from exc
 
 
-def _close_process_boundary(process: subprocess.Popen[bytes], job: int | None) -> None:
+def _close_process_boundary(
+    process: subprocess.Popen[bytes], job: int | None, *, terminated: bool = False
+) -> None:
+    """Final boundary close. `terminated` states that a prior kill of this group already succeeded.
+
+    It defaults to False because that is the safe reading: on every normal-completion path
+    `_terminate_process_tree` is never called, so this close is the FIRST and ONLY kill of the
+    group -- and it is what removes a descendant the leader spawned before exiting.
+    """
+
     if os.name == "nt":
         import ctypes
         from ctypes import wintypes
@@ -1743,12 +1757,16 @@ def _close_process_boundary(process: subprocess.Popen[bytes], job: int | None) -
         # and turned an already-successful cleanup into a test error — masking whatever exception
         # was actually in flight.
         #
-        # Tolerated ONLY when the leader is already reaped, which is the narrow state where this
-        # call is genuinely a no-op re-run of work that already happened. If the process is still
-        # running, EPERM means the tree was NOT signalled and a descendant may be alive; that is a
-        # first-order failure and must stay fail-closed. Swallowing it unconditionally would hide
-        # exactly the surviving descendant this boundary exists to prevent.
-        if process.poll() is None:
+        # Tolerated ONLY when a prior kill of this group already succeeded AND the leader has been
+        # reaped -- the narrow state where this call genuinely re-runs completed work.
+        #
+        # A reaped leader is NOT on its own evidence that the group was terminated. On every
+        # normal-completion path nothing was killed first: the leader exits by itself, `poll()` is
+        # already non-None, and this close is the only attempt to kill a descendant it may have
+        # spawned before exiting. Inferring "already terminated" from `poll()` alone would
+        # silently accept a failed first-and-only kill and let that descendant escape -- the exact
+        # failure this boundary exists to prevent, reintroduced by the repair for a different one.
+        if not terminated or process.poll() is None:
             raise InstrumentError(
                 "process-tree-boundary-failed",
                 "POSIX process tree could not be signalled and may still be running",
@@ -1770,6 +1788,7 @@ def launch_process(
     stderr_path = Path(env["TEMP"]) / f"stderr-{uuid.uuid4().hex}.txt"
     started = time.monotonic()
     timed_out = False
+    terminated = False
     output_limited = False
     returncode = -1
     process: subprocess.Popen[bytes] | None = None
@@ -1800,14 +1819,17 @@ def launch_process(
                 if time.monotonic() >= deadline:
                     timed_out = True
                     _terminate_process_tree(process, job)
+                    terminated = True
                     break
                 try:
                     if stdout_path.stat().st_size + stderr_path.stat().st_size > output_limit:
                         output_limited = True
                         _terminate_process_tree(process, job)
+                        terminated = True
                         break
                 except OSError:
                     _terminate_process_tree(process, job)
+                    terminated = True
                     raise InstrumentError(
                         "process-capture-failed", "Codex output capture could not be inspected"
                     )
@@ -1816,6 +1838,7 @@ def launch_process(
                 returncode = process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 _terminate_process_tree(process, job)
+                terminated = True
                 returncode = process.wait(timeout=10)
                 timed_out = True
     except InstrumentError:
@@ -1824,7 +1847,7 @@ def launch_process(
         raise InstrumentError("process-launch-failed", "Codex trial process could not run") from exc
     finally:
         if process is not None:
-            _close_process_boundary(process, job)
+            _close_process_boundary(process, job, terminated=terminated)
     duration_ms = max(0, int((time.monotonic() - started) * 1000))
     try:
         captured_bytes = stdout_path.stat().st_size + stderr_path.stat().st_size
