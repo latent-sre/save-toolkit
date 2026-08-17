@@ -39,6 +39,18 @@ accessibility, and resilience UX remain owned by `frontend-craft`.
 - Mint the idempotency key once per logical action, reuse it through retries, and rotate it only
   after the action settles.
 
+## Tests
+- **Vitest or Jest + React Testing Library.** Query by role or text, never by class or test id where
+  a role exists — the query is the accessibility assertion. Drive interactions with `userEvent`
+  rather than firing synthetic events.
+- **Do not test internal state.** Assert what the user observes; a component's state shape is an
+  implementation detail and pinning it makes every refactor a test rewrite.
+- **Mock the network at the boundary with MSW**, not by stubbing `fetch` per call — the handlers
+  stay reusable across tests and keep the component ignorant of the transport.
+- **For a SPA GUI**, add Playwright for the few critical user journeys and an accessibility check
+  (`jest-axe` or the Playwright equivalent). `frontend-craft` owns the SPA architecture guidance.
+- See the [tests-first process](./tdd.md) for the loop these fit into.
+
 ## Verify
 
 Run the repository's typechecker, linter (including floating promises), and tests. UI code also
