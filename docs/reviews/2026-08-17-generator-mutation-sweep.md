@@ -29,6 +29,27 @@ Two tests now plant a real directory symlink — one in canonical sources, one i
 and assert the refusal. Both were confirmed to fail with the two `raise ValueError` branches
 removed.
 
+## Second pass (same day): the two deferred classes closed
+
+The `ensure_ascii` and YAML-scalar rows below were initially recorded as "left alone" and were then
+closed. Six mutants are now caught, each by a real assertion rather than an incidental crash:
+description/short-description escaping on both hosts, both halves of the quoted-scalar guard, the
+`or ""` in `_split_tool_specs`, and both arms of the skill-reference tail test.
+
+Re-sweep, same command: survivors under the generator's own suite fell **16 → 13**.
+
+Total survivor *lines* rose 23 → 53, which is a reporting artifact and not a regression. 40 of the 53
+are the single `test_fleet_doctor.py` pairing: that file names `scripts/generate_platform_adapters.py`
+as a string inside a mocked command tuple (`:31`), so literal-resolution enrols it as a subject the
+test never executes, and every sampled mutant survives. The tool already knows this shape — see
+`Subject.origin` — and collapses it to one "probably never exercises it" line, but that verdict is
+deliberately withheld under `--limit`, because a bounded run cannot support a claim about total
+survival. So a sampled run prints one line per mutant instead. Judge the generator by
+`test_platform_adapters.py`; the other pairing says nothing about it.
+
+*Worth noting:* this re-sweep ran while the working tree was being edited, which the previous
+in-place design forbade. Worktree isolation landed in the same session.
+
 ## Survivors triaged and left alone
 
 Survivors are not automatically defects. These were judged equivalent or adequately covered
@@ -37,14 +58,18 @@ elsewhere, and are recorded so the next sweep does not re-litigate them:
 | Site | Mutation | Why it is left |
 |---|---|---|
 | `:799` | `__name__ == "__main__"` → `!=` | Tool artifact. The mutant runs `main()` at import time and exits 0, and `run_test` only checks the return code, so a process that died before running a test scores as "survived". Over-reporting, not a false clean. |
-| `:318`, `:447` | `ensure_ascii=False` → `True` | Would escape the curly quotes in agent bodies as `\uXXXX`. The unit suite misses it, but the byte gate does not: `validate_fleet` compares freshly generated output against the committed bytes, which still hold real quotes. Defence in depth already covers it. |
+| `:318` | `ensure_ascii=False` → `True` on the **name** field | **Now provably equivalent, and this is the sharper answer than the original triage.** The escaping mutants on *description* fields are caught by the new tests, but this one is on `name`, and `NAME_RE` enforces kebab-case `^[a-z0-9]+(?:-[a-z0-9]+)*$` — an agent name can never contain a non-ASCII character, so the flag cannot change the output. Closed by proof rather than by test. |
+| `:490`, `:585`, `:730`, `:758` | `followlinks=False` → `True`, and the link guards around it | Backed by the real-symlink tests above. With rejection itself tested, the `followlinks` flag is a backstop whose flip cannot change behaviour on any tree that reaches the walk. |
 | `:411` | drop `disable-model-invocation == "true"` | `check_links` pins `MANUAL_ONLY` to exactly `{pcf-deploy, service-onboarding}` and requires the frontmatter flag on both, so the two operands cannot disagree. Equivalent in this repository. |
-| `:490`, `:585` | `followlinks=False` → `True` | Now backed by the explicit link-rejection tests above. The flag itself stays as a backstop; with rejection tested, a mutant here is genuinely equivalent. |
-| `:148`, `:212`, `:221`, `:237`, `:256`, `:282`, `:350`, `:357`, `:463`, `:730` | operand drops and constant flips in the YAML scalar reader and token adapter | Narrow parse paths (a value both opening and closing with `'`, empty-tail handling). Real but low-consequence: a malformed value fails the frontmatter contract in `check_links` before it can reach a projection. Recorded, not fixed. |
+| ~~`:148`, `:212`, `:237`~~ | quoted-scalar guard, `or ""`, skill-reference tail | **Closed in the second pass.** Pinned not for their blast radius — a malformed value fails the `check_links` contract before reaching a projection — but because this is one of three readers in the repository that disagree about the same grammar, and consolidating them later is only safe with today's behaviour written down. |
+| `:221`, `:256`, `:282`, `:350`, `:357`, `:463` | remaining operand drops and constant flips in the token adapter | Narrow paths in tool-spec splitting and description handling, each guarded downstream by the frontmatter contract. Recorded, not fixed. |
 
-Everything reported under `test_fleet_doctor.py` rather than `test_platform_adapters.py` is a
-pairing artifact of import-following: `fleet_doctor` imports the generator, so the two are paired,
-but that suite makes no claim about generation. Judge the generator by its own suite.
+**Correcting this document's own first draft:** the `test_fleet_doctor.py` pairing was originally
+written up here as an artifact of import-following. It is not. That file does not import the
+generator — it names `scripts/generate_platform_adapters.py` as a **string inside a mocked command
+tuple** (`:31`), and `literal` resolution has enrolled it that way since long before import-following
+existed. The conclusion is unchanged (judge the generator by its own suite), but the stated cause was
+wrong, and a review that misattributes a cause is how the next person draws the wrong lesson from it.
 
 ## Honest limits
 
