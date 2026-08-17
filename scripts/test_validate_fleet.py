@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -458,6 +459,126 @@ class FleetValidatorTests(unittest.TestCase):
             root = self._roster_root(temporary, lambda t: "# no roster here\n")
             failures = validate_fleet.validate_roster_graph(root)
         self.assertTrue(any("could not find the roster" in f for f in failures), failures)
+
+
+class NonDelegatingHandoffTests(unittest.TestCase):
+    """An agent with no `Agent` tool must not carry the delegating handoff imperative.
+
+    The real defect this pins: `reviewer` — read-only by tool absence, and the lane that gates every
+    merge — carried the `sde` handoff block verbatim, instructing it to "Hand to exactly one agent"
+    and to load `production-change-gate`, a skill it holds no `Skill` tool to load. `scribe`, under
+    the identical constraint, had already been adapted correctly, which is what showed the reviewer
+    copy was drift and not a decision.
+    """
+
+    def _mutate(self, filename: str, before: str, after: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            replaced = False
+            for source in (ROOT / "agents").glob("*.md"):
+                text = source.read_text(encoding="utf-8")
+                if source.name == filename:
+                    mutated = text.replace(before, after)
+                    # Without this the whole test silently passes on a needle that moved — the exact
+                    # failure AGENTS.md records this repo having already shipped once.
+                    self.assertNotEqual(text, mutated, f"{filename}: mutation matched nothing")
+                    text, replaced = mutated, True
+                (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            self.assertTrue(replaced, f"{filename} not found in agents/")
+            _, failures = validate_fleet.validate_agents(root)
+        return failures
+
+    def test_live_tree_has_no_delegation_contradiction(self) -> None:
+        _, failures = validate_fleet.validate_agents(ROOT)
+        offenders = [f for f in failures if "Agent tool" in f]
+        self.assertEqual([], offenders, offenders)
+
+    def test_delegating_imperative_in_a_toolless_lane_is_flagged(self) -> None:
+        failures = self._mutate(
+            "reviewer.md",
+            "Recommend exactly one next owner. This role cannot invoke that owner",
+            "Hand to exactly one agent. If two are needed, sequence them",
+        )
+        self.assertTrue(
+            any("holds no Agent tool" in f and "reviewer" in f for f in failures), failures
+        )
+
+    def test_a_lane_that_drops_every_disclaimer_is_flagged(self) -> None:
+        """Strip ALL disclaimer phrasings, not one, or the test proves nothing.
+
+        `scribe` states the constraint twice — once in its handoff rules and again as "this agent
+        cannot delegate or browse". Removing only the first leaves the second matching and the
+        validator correctly silent, so an earlier single-substitution version of this test failed
+        for the right reason. Strip every phrase and assert none survive before expecting the flag.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            for source in (ROOT / "agents").glob("*.md"):
+                text = source.read_text(encoding="utf-8")
+                if source.name == "scribe.md":
+                    for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS:
+                        text = text.replace(phrase, "proceeds")
+                    self.assertFalse(
+                        any(
+                            phrase in validate_fleet._flatten(text)
+                            for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS
+                        ),
+                        "fixture still carries a disclaimer; the assertion below would be vacuous",
+                    )
+                (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            _, failures = validate_fleet.validate_agents(root)
+        self.assertTrue(
+            any("must state that it cannot invoke" in f and "scribe" in f for f in failures),
+            failures,
+        )
+
+    def test_disclaimer_is_found_across_a_line_wrap(self) -> None:
+        """A hard-wrapped disclaimer must still count.
+
+        `repository-investigator` genuinely wraps "You cannot\\ndelegate or contact the external
+        lane yourself". A raw substring test misses that and reports a violation in a file that is
+        already correct, so the checker flattens whitespace first. Pin the behavior directly.
+        """
+        self.assertIn("cannot delegate", validate_fleet._flatten("You cannot\ndelegate or contact"))
+        _, failures = validate_fleet.validate_agents(ROOT)
+        self.assertFalse(
+            any("repository-investigator" in f and "cannot invoke" in f for f in failures), failures
+        )
+
+
+class SharedHandoffBlockTests(unittest.TestCase):
+    """The `## Rules` block is duplicated across the delegating agents; pin it byte-identical.
+
+    It was NOT identical: `observability-engineer` carried two straight quotes where `sde` and `sre`
+    have curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
+    duplicated block and the other copies did not move, which is the same mechanism that produced
+    the reviewer contradiction above. The next divergence may not be punctuation.
+    """
+
+    DELEGATING = ("sde", "sre", "observability-engineer")
+
+    @staticmethod
+    def _rules_block(name: str) -> str:
+        text = (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
+        match = re.search(r"^## Rules\n(.*?)(?=\n## |\Z)", text, re.S | re.M)
+        assert match is not None, f"{name}: no '## Rules' section"
+        return match.group(1)
+
+    def test_rules_block_is_byte_identical_across_delegating_agents(self) -> None:
+        blocks = {name: self._rules_block(name) for name in self.DELEGATING}
+        # Guard against the section regex silently matching nothing in every file, which would make
+        # the equality assertion below trivially true.
+        for name, block in blocks.items():
+            self.assertGreater(len(block), 500, f"{name}: '## Rules' block implausibly short")
+        distinct = set(blocks.values())
+        self.assertEqual(
+            1,
+            len(distinct),
+            "delegating agents' '## Rules' blocks have drifted: "
+            + ", ".join(f"{n}={len(b)}B" for n, b in blocks.items()),
+        )
 
 
 if __name__ == "__main__":

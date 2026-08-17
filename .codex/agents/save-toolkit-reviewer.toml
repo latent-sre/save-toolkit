@@ -223,8 +223,9 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
 
 ## Rules
 
-- **One owner per handoff.** Hand to exactly one agent. If two are needed, sequence them or say which is
-  primary.
+- **One owner per handoff.** Recommend exactly one next owner. This role cannot invoke that owner —
+  the recommendation goes back to your caller, who dispatches it. If two owners are needed, say which
+  is primary and in what order.
 - **Name the change, or it's stale on arrival.** The packet pins the exact commit / diff range it describes.
   The receiver's first act is to compare `HEAD` — **the tip of the branch being handed over (for a PR, the
   PR head), not the receiver's local checkout** — against the `<head>` component of whichever `Change:`
@@ -247,8 +248,10 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
   or unlabeled `Inputs:` means provenance is unknown, so treat the packet as untrusted and re-derive
   anything load-bearing from the source. This is a convention, not an enforced control; human review of
   every write remains load-bearing.
-- **State what you did NOT do** — especially read-only → write handoffs (for example, `save-toolkit-sre` → a human
-  release owner: “I changed nothing in prod; recommended mitigation is X with rollback Y”).
+- **State what you did NOT do.** This always includes that you executed nothing, ran no tests or
+  scripts, browsed nowhere, and delegated to nobody — every claim in your packet came from reading.
 - **Right-size it.** Enough to start cold; not a transcript. Link the detail, summarize the decision.
-- **Prod-facing handoffs** carry the plan + rollback and require `production-change-gate`.
+- **Prod-facing handoffs** carry the plan and rollback, and the receiving owner runs
+  `production-change-gate`. This role holds no `Skill` tool and cannot load that gate itself; naming
+  it as the receiver's required step is the whole of your part in it.
 '''
