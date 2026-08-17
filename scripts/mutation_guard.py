@@ -30,12 +30,22 @@ forgot it.
 
 HONEST LIMITS
 -------------
-This mutates the module **in place** and restores it from memory in a `finally`. It refuses to start
-on a dirty working tree, so an interrupted run can always be recovered with `git restore`, and it
-converts SIGTERM/SIGHUP into an exception so a harness timeout unwinds through that same restore
-instead of leaving a mutant on disk (see `_restore_on_termination` for the incident that motivated
-it). SIGKILL is unrecoverable by construction. A full sweep runs the suite once per mutant, which is
-far too slow for CI -- it is a deliberate run, like the routing evals.
+**Your working tree is never modified.** Every sweep runs inside a throwaway `git worktree` at HEAD
+(`isolated_checkout`), so the mutated bytes only ever exist in a temporary directory that is deleted
+afterwards and reclaimed by `git worktree prune` if a run is killed outright.
+
+That is stronger than the earlier in-place-plus-`finally` design, which protected the person running
+the sweep and nobody else: for the duration of a run the real tree flipped between correct and
+deliberately broken many times a second, and any observer sampling that window saw corruption. A
+stop hook advising "you have uncommitted changes, please commit" is the obvious case, and it has
+already happened here -- see `_restore_on_termination` -- but a watch-mode runner, an editor
+autosave, or a second agent on the same checkout are the same hazard. Isolation removes the class;
+the in-mutant `finally` and the SIGTERM handler remain as cheap belt-and-braces inside the sandbox.
+
+It still refuses to start on a dirty working tree, now for honesty rather than recovery: a worktree
+is pinned at HEAD, so with uncommitted changes present the sweep would report on code that is not
+the code in front of you. A full sweep runs the suite once per mutant, which is far too slow for CI
+-- it is a deliberate run, like the routing evals.
 
 `--limit` makes it a sampling tool rather than a proof. A clean bounded report means "no survivor
 among the mutants tried"; it never means "the suite is complete", and it never establishes that any
@@ -54,10 +64,13 @@ from __future__ import annotations
 
 import argparse
 import ast
+import contextlib
 import copy
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, Sequence
@@ -79,6 +92,9 @@ COMPARISON_SWAPS = {
 # speed. --limit takes an evenly spaced sample when a bounded run is wanted.
 DEFAULT_LIMIT = 0
 RUN_TIMEOUT = 900
+# Characters that turn a basename into a pattern. `Path.glob` treats these as wildcards, so a
+# `.py` literal containing one must never reach the bundle search in `discover`.
+_GLOB_METACHARACTERS = frozenset("*?[]")
 # Distinct codes: a collapsed exit status cannot tell "refused to run" from "ran and proved
 # nothing", which is the same disarmed-gate shape this repo forbids for the readonly guard.
 EXIT_SURVIVORS = 1
@@ -215,19 +231,75 @@ def discover(root: Path) -> list[tuple[Path, list[Path]]]:
                 tree = ast.parse(test.read_text(encoding="utf-8"))
             except (OSError, SyntaxError):
                 tree = ast.parse("")
+            # What the test IMPORTS is the strongest available statement of what it exercises, and
+            # it was the one signal this function ignored. The cost was concrete:
+            # generate_platform_adapters.py -- 735 lines, the single generator behind every host
+            # projection -- had NO mutation coverage at all behind a 429-line test file, because
+            # `import generate_platform_adapters as adapters` contains no `.py` literal and the
+            # sibling name does not match. `test_plan_status.py` -> `check_plan_status.py` missed
+            # for the same reason. Import-following fixes both without renaming any file, which
+            # matters because a rename would break the references those names already have.
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom):
+                    names = [node.module] if node.module and node.level == 0 else []
+                else:
+                    continue
+                for name in names:
+                    # Top-level package component only: `scripts.foo` and `foo` both resolve
+                    # against the same tree, and a dotted stdlib name simply matches no file.
+                    base = name.split(".")[0]
+                    # A skill can ship its own scripts, and its test reaches them by inserting the
+                    # bundle directory on sys.path rather than by any path literal this function
+                    # could see (test_confluence_import.py -> confluence_to_runbook.py). Those are
+                    # first-class subjects; sorted() keeps the search deterministic.
+                    for candidate in [root / "scripts" / f"{base}.py"] + sorted(
+                        root.glob(f"skills/*/scripts/{base}.py")
+                    ):
+                        candidate = candidate.resolve()
+                        if (
+                            candidate.is_file()
+                            and candidate not in seen
+                            and not candidate.name.startswith("test_")
+                        ):
+                            subjects.append(Subject(path=candidate, origin="import"))
+                            seen.add(candidate)
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
                     continue
                 if not node.value.endswith(".py"):
                     continue
-                candidate = (root / node.value).resolve()
+                options = [root / node.value]
+                # A bare basename only, and never one carrying glob metacharacters. `"*.py"` is a
+                # perfectly ordinary literal in a test — `test_platform_adapters.py` has two — and
+                # interpolating it into the glob below enrolled every skill-bundled script as a
+                # subject of that test: six modules it makes no claim about, including
+                # `packet_drift.py`. Those bogus pairs then fail their own normalized baseline and
+                # the sweep reports unverifiable pairs instead of testing the real module.
                 if (
-                    candidate.is_file()
-                    and candidate not in seen
-                    and not candidate.name.startswith("test_")
+                    "/" not in node.value
+                    and "\\" not in node.value
+                    and not _GLOB_METACHARACTERS.intersection(node.value)
                 ):
-                    subjects.append(Subject(path=candidate, origin="literal"))
-                    seen.add(candidate)
+                    # A BARE basename, which is what a path-joined subject looks like to the AST:
+                    # `ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"` offers
+                    # no single literal holding the whole path, only its last component. Resolving
+                    # that against root alone finds nothing, which is why a 500-line converter with
+                    # a dedicated test file scored as having no subject. Searching the two places
+                    # this repository keeps runnable modules is bounded and deterministic.
+                    options += [root / "scripts" / node.value] + sorted(
+                        root.glob(f"skills/*/scripts/{node.value}")
+                    )
+                for option in options:
+                    candidate = option.resolve()
+                    if (
+                        candidate.is_file()
+                        and candidate not in seen
+                        and not candidate.name.startswith("test_")
+                    ):
+                        subjects.append(Subject(path=candidate, origin="literal"))
+                        seen.add(candidate)
             pairs.append((test, subjects))
     return pairs
 
@@ -254,7 +326,17 @@ def normalized_source(source: str) -> str:
 
 
 def run_test(test: Path) -> bool:
-    """True when the test file passes. Run from the repository root, as Gate A runs it.
+    """True when the test file passes. Run from the root of the tree the test BELONGS to.
+
+    The working directory is derived from the test's own path (`<root>/scripts/test_x.py` and
+    `<root>/evals/test_x.py` both put the root two levels up) rather than from the module-level
+    ROOT constant. That distinction became load-bearing with worktree isolation: ROOT is the
+    caller's real checkout, so a mutated test inside the throwaway worktree was being launched with
+    the LIVE repository as its working directory. Any test resolving a repository file relative to
+    cwd would then read unmutated bytes, and the pair gets scored against the wrong tree.
+
+    Deriving it from `test` also cannot go stale the way a threaded-through parameter can: there is
+    no second value to keep in sync, and no default that is silently wrong.
 
     `-B` is load-bearing: CPython validates a cached `.pyc` on `(int(mtime), size)`, and an `==`
     to `!=` swap leaves the file the same size, so two mutants written in the same second could
@@ -263,7 +345,7 @@ def run_test(test: Path) -> bool:
 
     completed = subprocess.run(
         [sys.executable, "-B", str(test)],
-        cwd=str(ROOT),
+        cwd=str(test.resolve().parents[1]),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         timeout=RUN_TIMEOUT,
@@ -301,8 +383,82 @@ def surviving_mutants(module: Path, test: Path, limit: int = 0) -> list[Mutant]:
     finally:
         module.write_bytes(original)
         if module.read_bytes() != original:  # pragma: no cover - filesystem failure
-            raise RuntimeError(f"FAILED TO RESTORE {module}; recover with git restore")
+            raise RuntimeError(
+                f"FAILED TO RESTORE {module}. This path is inside the throwaway worktree, not your "
+                "checkout, so nothing of yours is damaged; discard it with `git worktree prune`"
+            )
     return survivors
+
+
+@contextlib.contextmanager
+def isolated_checkout(root: Path) -> Iterator[Path]:
+    """Yield a throwaway `git worktree` at HEAD; mutate THAT, never the caller's tree.
+
+    Why this exists, and why in-place mutation was not good enough.
+
+    Restoring in a `finally` protects the person running the sweep. It does nothing for anything
+    ELSE looking at the repository while it runs: for the whole sweep the working tree flips
+    between correct and deliberately broken many times a second, and any observer sampling that
+    window sees corruption. A stop hook that says "you have uncommitted changes, please commit"
+    is the obvious one -- that pairing already produced a committed-adjacent
+    `if __name__ != '__main__':` in `gate_a.py`, which made the gate exit 0 having run nothing --
+    but a watch-mode test runner, an editor autosave, a second agent, or a CI job on the same
+    checkout are all the same hazard.
+
+    Isolation removes the whole class instead of narrowing the window. It also subsumes two
+    mitigations that were only ever partial: SIGKILL is no longer unrecoverable (the worktree is
+    disposable, and `git worktree prune` reclaims a leaked one), and a concurrent reader of the
+    real tree can no longer observe a mutant at all.
+
+    The clean-tree requirement STAYS, and is now about honesty rather than recovery: a worktree is
+    pinned at HEAD, so with uncommitted changes present the sweep would silently report on code
+    that is not the code in front of you. Refusing keeps "what you see is what was tested" true.
+
+    Layout inside the worktree matches the original exactly, so every `relative_to(root)` in the
+    caller still renders ordinary repo-relative paths and the report is unchanged.
+    """
+    parent = tempfile.mkdtemp(prefix="mutation-guard-")
+    target = Path(parent) / "tree"
+    created = subprocess.run(
+        ["git", "-C", str(root), "worktree", "add", "--detach", str(target), "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if created.returncode != 0:
+        shutil.rmtree(parent, ignore_errors=True)
+        # Fail closed. Falling back to in-place mutation here would reintroduce the exact hazard
+        # this function exists to remove, at the moment we have just learned the environment is
+        # not behaving as expected -- the worst possible time to start writing to the real tree.
+        raise RuntimeError(
+            "cannot create an isolated git worktree "
+            f"({(created.stderr or created.stdout).strip() or 'no output'}); refusing to mutate "
+            "the working tree directly"
+        )
+    try:
+        # RESOLVED, not as constructed. `discover` resolves every candidate it returns, so a caller
+        # that later computes `module.relative_to(root)` needs the two sides canonicalized the same
+        # way. `tempfile.mkdtemp` hands back `/var/...` on macOS (a symlink to `/private/var/...`)
+        # and 8.3 short paths on Windows, so an unresolved yield raised
+        # "is not in the subpath of" on both while passing on Linux. Same failure mode as the
+        # containment check in check_links; canonicalize at the boundary, once.
+        yield target.resolve()
+    finally:
+        subprocess.run(
+            ["git", "-C", str(root), "worktree", "remove", "--force", str(target)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        shutil.rmtree(parent, ignore_errors=True)
+        # Drops the administrative entry if the directory vanished some other way (a killed run,
+        # a cleaned /tmp). Without it `git worktree list` accumulates dead records.
+        subprocess.run(
+            ["git", "-C", str(root), "worktree", "prune"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
 
 def _require_clean_tree(root: Path) -> None:
@@ -316,8 +472,9 @@ def _require_clean_tree(root: Path) -> None:
         raise RuntimeError(f"cannot read git status in {root}")
     if completed.stdout.strip():
         raise RuntimeError(
-            "working tree is dirty; mutation_guard rewrites files in place and requires a clean "
-            "tree so an interrupted run is always recoverable with git restore"
+            "working tree is dirty; the sweep runs against an isolated worktree pinned at HEAD, so "
+            "uncommitted changes would not be tested and the report would describe code other than "
+            "the code in front of you. Commit or stash first"
         )
 
 
@@ -369,8 +526,12 @@ def _restore_on_termination() -> None:
     green, permanently inert gate.
 
     Raising from the handler unwinds through the same `finally` the other paths use, so one restore
-    mechanism covers every exit that Python can still observe. SIGKILL remains unrecoverable by
-    construction -- hence the clean-tree requirement, which keeps `git restore` a reliable undo.
+    mechanism covers every exit that Python can still observe.
+
+    Since worktree isolation this is belt-and-braces rather than the load-bearing control: the
+    mutated bytes live in a throwaway checkout, so even SIGKILL costs nothing but a directory that
+    `git worktree prune` reclaims. The handler is kept because restoring cleanly is still better
+    than relying on the sandbox, and because the incident above is what the sandbox was built for.
     """
     def _handler(signum: int, _frame: object) -> None:
         raise KeyboardInterrupt(f"terminated by signal {signum}")
@@ -384,42 +545,12 @@ def _restore_on_termination() -> None:
                 pass
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--root", type=Path, default=ROOT)
-    parser.add_argument(
-        "--limit",
-        type=_sample_limit,
-        default=DEFAULT_LIMIT,
-        help="mutants per module as an evenly spaced sample; 0 means every mutant (slow)",
-    )
-    parser.add_argument("--module", type=Path, help="restrict to one module path")
-    try:
-        args = parser.parse_args(argv)
-    except SystemExit as exc:
-        # Remap argparse's usage exit off EXIT_REFUSED so "you typed the flag wrong" and "this tree
-        # is dirty, I will not run" stay distinguishable. `--help` exits 0 and is left alone.
-        if exc.code == 2:
-            return EXIT_USAGE
-        raise
-    # Canonicalize the root once, before anything derives a path from it. `discover` resolves a
-    # literal `.py` subject but takes sibling subjects and every reported path from the root AS
-    # GIVEN, so a non-canonical root makes the two disagree and `module.relative_to(args.root)`
-    # raises ValueError, killing the whole sweep. The default ROOT is already resolved, which is
-    # why this never surfaced locally -- but macOS hands out `/var/...` that resolves to
-    # `/private/var/...`, and Windows hands out 8.3 short paths, so both hit it immediately.
-    args.root = args.root.resolve()
+def _run_sweep(args: argparse.Namespace) -> int:
+    """The sweep itself. `args.root` is the ISOLATED checkout, never the caller's tree.
 
-    try:
-        _require_clean_tree(args.root)
-    except RuntimeError as exc:
-        print(f"mutation_guard: {exc}", file=sys.stderr)
-        return EXIT_REFUSED
-
-    # Installed AFTER the clean-tree refusal and before the first in-place rewrite, so the window
-    # where a mutated file can exist on disk is exactly the window the handler covers.
-    _restore_on_termination()
-
+    Split out of `main` so the isolation boundary is a single visible `with`, rather than a
+    convention someone has to preserve while editing a long function.
+    """
     # A `--module` run asks about ONE module, so repository-wide blind test files are not evidence
     # about it. Counting them would make every targeted run INCONCLUSIVE regardless of its own
     # result -- six such files exist here today -- which would train a reader to ignore the verdict,
@@ -524,6 +655,76 @@ def main(argv: Sequence[str] | None = None) -> int:
     print("\nA survivor is not automatically a defect -- it may be semantically equivalent.")
     print("It is a place where the suite proves less than it appears to.")
     return EXIT_INCONCLUSIVE if (unverifiable or unexercised) else EXIT_SURVIVORS
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument(
+        "--limit",
+        type=_sample_limit,
+        default=DEFAULT_LIMIT,
+        help="mutants per module as an evenly spaced sample; 0 means every mutant (slow)",
+    )
+    parser.add_argument("--module", type=Path, help="restrict to one module path")
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        # Remap argparse's usage exit off EXIT_REFUSED so "you typed the flag wrong" and "this tree
+        # is dirty, I will not run" stay distinguishable. `--help` exits 0 and is left alone.
+        if exc.code == 2:
+            return EXIT_USAGE
+        raise
+    # Canonicalize the root once, before anything derives a path from it. `discover` resolves a
+    # literal `.py` subject but takes sibling subjects and every reported path from the root AS
+    # GIVEN, so a non-canonical root makes the two disagree and `module.relative_to(args.root)`
+    # raises ValueError, killing the whole sweep. The default ROOT is already resolved, which is
+    # why this never surfaced locally -- but macOS hands out `/var/...` that resolves to
+    # `/private/var/...`, and Windows hands out 8.3 short paths, so both hit it immediately.
+    args.root = args.root.resolve()
+
+    # Rebase --module onto the root NOW, while `args.root` is still the caller's real checkout.
+    #
+    # `_run_sweep` compares each discovered module against `(args.root / args.module).resolve()`,
+    # and by then `args.root` is the isolated worktree. Joining an ABSOLUTE `--module` discards the
+    # left operand entirely -- `Path("/worktree") / "/repo/scripts/x.py"` is `/repo/scripts/x.py` --
+    # so the comparison targeted a file outside the worktree, matched nothing, and the run died with
+    # "no test/module pair matched". A relative --module happened to keep working, which is what
+    # made this easy to miss. Normalizing to a repo-relative path here means the join inside the
+    # worktree is correct for both spellings.
+    if args.module is not None:
+        target = (args.root / args.module).resolve()
+        try:
+            args.module = target.relative_to(args.root)
+        except ValueError:
+            # Previously this fell through to the generic "no pair matched" refusal, which reads
+            # like "your module has no tests" rather than "that path is not in this repository".
+            print(
+                f"mutation_guard: --module {args.module} resolves to {target}, which is outside "
+                f"{args.root}; pass a path inside the repository being swept",
+                file=sys.stderr,
+            )
+            return EXIT_REFUSED
+
+    try:
+        _require_clean_tree(args.root)
+    except RuntimeError as exc:
+        print(f"mutation_guard: {exc}", file=sys.stderr)
+        return EXIT_REFUSED
+
+    # Installed AFTER the clean-tree refusal and before the first in-place rewrite, so the window
+    # where a mutated file can exist on disk is exactly the window the handler covers.
+    _restore_on_termination()
+
+    try:
+        with isolated_checkout(args.root) as isolated:
+            # Same layout, so every relative_to(args.root) below still renders ordinary
+            # repo-relative paths; the report is identical to the in-place version's.
+            args.root = isolated
+            return _run_sweep(args)
+    except RuntimeError as exc:
+        print(f"mutation_guard: {exc}", file=sys.stderr)
+        return EXIT_REFUSED
 
 
 if __name__ == "__main__":

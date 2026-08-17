@@ -100,6 +100,19 @@ class HookWiringTests(unittest.TestCase):
 
     @unittest.skipUnless(available_shell(), "POSIX shell not available")
     def test_exact_hook_command_allows_safe_denies_write_and_ignores_main(self) -> None:
+        """The ONLY test that runs the real inlined hooks.json command string.
+
+        Every other guard test invokes `[sys.executable, GUARD]` directly, which is a different
+        invocation: it never exercises `"$C" -I -S "$G"` (isolated mode, no site) or the
+        `python3 python py` interpreter walk that the live hook depends on.
+
+        The skip below is a local-developer convenience, and on CI it is a hole. Gate A reads exit
+        codes only, so a runner without `sh` reports this file green with its one load-bearing test
+        silently skipped -- and `.github/workflows/validate.yml` says the matrix exists precisely
+        because "the guard's earlier inline form SILENTLY DISABLED ITSELF on Windows". A skip here
+        is therefore indistinguishable from the failure the matrix was added to catch.
+        `test_ci_must_not_skip_the_real_hook_invocation` below closes that.
+        """
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
         environment = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT))
@@ -135,6 +148,24 @@ class HookWiringTests(unittest.TestCase):
         self.assertEqual("deny", json.loads(whitespace.stdout)["hookSpecificOutput"]["permissionDecision"])
         self.assertEqual("deny", json.loads(renamed.stdout)["hookSpecificOutput"]["permissionDecision"])
         self.assertEqual("deny", json.loads(unavailable.stdout)["hookSpecificOutput"]["permissionDecision"])
+
+    def test_ci_must_not_skip_the_real_hook_invocation(self) -> None:
+        """On CI, an absent shell is a broken runner, not a reason to pass quietly.
+
+        Locally, skipping is right: a contributor without `sh` should not be blocked. On CI the
+        same skip means the guard's real invocation went unexercised while the job reported green
+        -- the precise silent-disarm shape this fleet hardens against everywhere else, sitting in
+        the test suite for the guard itself. So the skip is allowed to remain, and this asserts
+        that it never takes effect where it would matter.
+        """
+        if not os.environ.get("CI"):
+            self.skipTest("local run; the shell requirement is enforced on CI")
+        self.assertIsNotNone(
+            available_shell(),
+            "CI has no POSIX shell, so the only test of the real hooks.json command string would "
+            "be skipped and this job would report green over an unexercised guard. Install a "
+            "shell on this runner (Git for Windows provides one) rather than accepting the skip.",
+        )
 
 
 if __name__ == "__main__":

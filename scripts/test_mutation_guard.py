@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 import signal
 import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 import mutation_guard
@@ -23,8 +26,11 @@ def gate(findings, opted_in):
 '''
 
 HONEST_TEST = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subject
 
 
@@ -42,8 +48,11 @@ if __name__ == "__main__":
 # Exercises the same function but never pins the `findings and` half of the contract — exactly the
 # shape of the test this guard exists to catch.
 BLIND_TEST = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subject
 
 
@@ -75,8 +84,11 @@ def pinned(a, b):
 # Imports and exercises OTHER_MODULE. `pinned` is fully contract-pinned, so an unbounded sweep kills
 # mutants 2 and 3 and the module is provably exercised.
 EXERCISES_OTHER_TEST = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subject
 import other
 
@@ -105,8 +117,11 @@ if __name__ == "__main__":
 # Names OTHER_MODULE's path but never imports it — the genuine "the test never exercises it" shape
 # the collapse exists for.
 NAMES_OTHER_WITHOUT_IMPORTING_TEST = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subject
 
 INFERRED_SUBJECT = "scripts/other.py"
@@ -117,6 +132,79 @@ class T(unittest.TestCase):
         self.assertEqual(1, subject.gate(["x"], True))
         self.assertEqual(0, subject.gate([], True))
         self.assertEqual(0, subject.gate(["x"], False))
+
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+
+
+# Fixtures for ImportDiscoveryTests. Each reaches its subject the way a real test in this repo
+# does, and in a way the pre-import-following discovery could not see.
+WIDGET_IMPORTER = '''\
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import widget
+
+
+class T(unittest.TestCase):
+    def test_f(self):
+        self.assertEqual(1, widget.f())
+'''
+
+# Names the module by BARE basename only, as a path-joined subject looks to the AST.
+BASENAME_NAMER = '''\
+import unittest
+
+NAME = "converter.py"
+
+
+class T(unittest.TestCase):
+    def test_noop(self):
+        pass
+'''
+
+# Imports another TEST module, which import-following must not enroll as a subject.
+HELPER_IMPORTER = '''\
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import test_helper
+
+
+class T(unittest.TestCase):
+    def test_v(self):
+        self.assertEqual(1, test_helper.VALUE)
+'''
+
+
+# Contains a glob literal, as real tests do. Must NOT enrol bundled scripts as subjects.
+GLOB_LITERAL_NAMER = '''\
+import unittest
+
+PATTERN = "*.py"
+
+
+class T(unittest.TestCase):
+    def test_noop(self):
+        pass
+'''
+
+# Exits 0 only if the process cwd is the root of the tree containing this file.
+CWD_PROBE = '''\
+import os, pathlib, sys, unittest
+
+EXPECTED = pathlib.Path(__file__).resolve().parents[1]
+
+
+class T(unittest.TestCase):
+    def test_cwd_is_my_own_tree_root(self):
+        assert pathlib.Path(os.getcwd()).resolve() == EXPECTED, (os.getcwd(), str(EXPECTED))
 
 
 if __name__ == "__main__":
@@ -587,6 +675,24 @@ class DiscoveryTests(unittest.TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("mutation_guard.py", agents)
 
+    def test_the_fleet_guide_does_not_contradict_the_isolation_contract(self) -> None:
+        """AGENTS.md is what a contributor actually reads before running this.
+
+        It described the tool as rewriting files in place and requiring a clean tree so an
+        interrupted run could be recovered with `git restore`. Worktree isolation made the first
+        half false and the second half true for a different reason, and a safety instruction that
+        is wrong about where the damage lands is worse than no instruction. The docstring was
+        updated in the same change and the guide was not, which is the drift this pins.
+        """
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        playbook = agents[agents.index("mutation_guard.py"):][:900]
+        self.assertNotIn("rewrites files in place", playbook)
+        self.assertIn("worktree", playbook.lower())
+        # The clean-tree rule survives; only its stated reason changed. Losing the rule from the
+        # guide would be the opposite failure -- a contributor sweeping over uncommitted work and
+        # reading a report about HEAD instead.
+        self.assertIn("dirty tree", playbook)
+
 
 class InconclusiveVerdictTests(unittest.TestCase):
     """`blind` must reach the verdict, not just the printout."""
@@ -637,6 +743,245 @@ class TerminationRestoreTests(unittest.TestCase):
         finally:
             signal.signal(signal.SIGTERM, previous)
 
+
+class ImportDiscoveryTests(unittest.TestCase):
+    """A test's imports are the strongest statement of what it exercises.
+
+    Discovery used only the sibling filename and `.py` literals resolved against the root, so real
+    subjects scored as no-subject-at-all: `generate_platform_adapters.py` (735 lines, the single
+    generator behind every host projection, reached as `import generate_platform_adapters as
+    adapters`), `check_plan_status.py` (sibling-name mismatch), and a skill-bundled converter
+    reached by path-joining, where the AST sees only the bare basename. Each had a dedicated test
+    file and zero mutation coverage.
+    """
+
+    def test_an_imported_module_becomes_a_subject(self) -> None:
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/widget.py": "def f():\n    return 1\n",
+            "scripts/test_gizmo.py": WIDGET_IMPORTER,
+        })
+        found = {
+            test.name: [(subject.path.name, subject.origin) for subject in subjects]
+            for test, subjects in mutation_guard.discover(root)
+        }
+        self.assertIn(("widget.py", "import"), found["test_gizmo.py"])
+
+    def test_a_bare_basename_literal_resolves_under_a_skill_bundle(self) -> None:
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "skills/thing/scripts/converter.py": "def f():\n    return 1\n",
+            "scripts/test_converting.py": BASENAME_NAMER,
+        })
+        found = {
+            test.name: [(subject.path.name, subject.origin) for subject in subjects]
+            for test, subjects in mutation_guard.discover(root)
+        }
+        self.assertIn(("converter.py", "literal"), found["test_converting.py"])
+
+    def test_a_test_file_is_never_its_own_subject(self) -> None:
+        """Import-following made this reachable in a way it was not before: test modules in this
+        repository import one another's helpers, and mutating a test proves nothing."""
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_helper.py": "VALUE = 1\n",
+            "scripts/test_uses_helper.py": HELPER_IMPORTER,
+        })
+        for test, subjects in mutation_guard.discover(root):
+            for subject in subjects:
+                self.assertFalse(
+                    subject.path.name.startswith("test_"),
+                    f"{test.name} took {subject.path.name} as a subject",
+                )
+
+    def test_the_live_tree_has_no_tractable_blind_files(self) -> None:
+        """The three remaining have .sh/.json/.yml subjects; there is no Python to mutate."""
+        self.assertEqual(
+            {"test_hook_wiring.py", "test_runbook_schema.py", "test_validate_workflow.py"},
+            {path.name for path in mutation_guard.unresolved(ROOT)},
+        )
+
+class IsolationTests(unittest.TestCase):
+    """The sweep must never write to the caller's tree, and must never quietly fall back to it."""
+
+    def test_the_worktree_is_separate_and_is_cleaned_up(self) -> None:
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        with mutation_guard.isolated_checkout(root) as isolated:
+            self.assertNotEqual(root.resolve(), isolated.resolve())
+            self.assertTrue((isolated / "scripts/subject.py").is_file(), "HEAD not checked out")
+            # Writing here must not touch the original -- that is the entire guarantee.
+            (isolated / "scripts/subject.py").write_text("mutated\n", encoding="utf-8")
+            self.assertEqual(
+                HONEST_MODULE,
+                (root / "scripts/subject.py").read_text(encoding="utf-8"),
+                "a write inside the worktree reached the caller's tree",
+            )
+        self.assertFalse(isolated.exists(), "worktree survived the context manager")
+        listed = subprocess.run(
+            ["git", "-C", str(root), "worktree", "list"],
+            capture_output=True, text=True, check=False,
+        ).stdout
+        self.assertNotIn("tree", listed.replace(str(root), ""), "stale worktree record left behind")
+
+    def test_a_failure_to_isolate_refuses_instead_of_falling_back(self) -> None:
+        """Fail closed. Falling back to in-place mutation on the one path where we have just
+        learned the environment is misbehaving is the worst possible moment to start writing to
+        the real tree."""
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        real_run = subprocess.run
+
+        def fail_worktree_add(argv, *args, **kwargs):
+            if "worktree" in argv and "add" in argv:
+                return subprocess.CompletedProcess(argv, 1, "", "fatal: injected failure")
+            return real_run(argv, *args, **kwargs)
+
+        with unittest.mock.patch.object(mutation_guard.subprocess, "run", fail_worktree_add):
+            with self.assertRaisesRegex(RuntimeError, "refusing to mutate"):
+                with mutation_guard.isolated_checkout(root):
+                    self.fail("isolation reported success after worktree add failed")
+        self.assertEqual(
+            HONEST_MODULE,
+            (root / "scripts/subject.py").read_text(encoding="utf-8"),
+            "the caller's tree was touched on the failure path",
+        )
+
+    def test_a_symlinked_temp_dir_does_not_break_relative_path_reporting(self) -> None:
+        """The yielded worktree path must be canonical, not as `mkdtemp` handed it over.
+
+        `discover` resolves every candidate it returns, so a caller computing
+        `module.relative_to(root)` needs both sides canonicalized the same way. macOS `mkdtemp`
+        returns `/var/...` which resolves to `/private/var/...`, and Windows returns 8.3 short
+        paths — so an unresolved yield raised "is not in the subpath of" on both CI legs while
+        passing on Linux, where /tmp is not a symlink.
+
+        Reproduced here by pointing TMPDIR at a symlink, which is precisely the macOS shape, so the
+        Linux leg covers this class from now on rather than discovering it in CI a third time.
+        """
+        if not hasattr(os, "symlink"):  # pragma: no cover - platform without symlinks
+            self.skipTest("symlinks unavailable")
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        staging = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, staging, True)
+        (staging / "realtmp").mkdir()
+        aliased = staging / "tmp"
+        try:
+            os.symlink(staging / "realtmp", aliased, target_is_directory=True)
+        except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
+            self.skipTest("cannot create a directory symlink here")
+        self.assertNotEqual(aliased.resolve(), aliased, "fixture TMPDIR is not actually aliased")
+
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "scripts/mutation_guard.py"),
+             "--root", str(root), "--limit", "3"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False,
+            env={**os.environ, "TMPDIR": str(aliased)},
+        )
+        output = completed.stdout + completed.stderr
+        self.assertNotIn("is not in the subpath", output, output[-600:])
+        self.assertNotIn("Traceback", output, output[-600:])
+
+    def test_a_glob_literal_does_not_enrol_every_bundled_script(self) -> None:
+        """`"*.py"` is an ordinary literal in a test, not a subject pattern.
+
+        Interpolating it into the bundle glob enrolled every skill-bundled script as a subject of
+        whichever test happened to mention it — six modules that test makes no claim about. The
+        bogus pairs then fail their own normalized baseline, so the sweep reports unverifiable
+        pairs instead of testing the real module.
+        """
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "skills/thing/scripts/bundled.py": "def f():\n    return 1\n",
+            "scripts/test_globby.py": GLOB_LITERAL_NAMER,
+        })
+        found = {
+            test.name: [subject.path.name for subject in subjects]
+            for test, subjects in mutation_guard.discover(root)
+        }
+        self.assertNotIn("bundled.py", found["test_globby.py"], found["test_globby.py"])
+
+    def test_the_live_generator_test_is_not_paired_with_skill_scripts(self) -> None:
+        """The live instance of the bug above: `test_platform_adapters.py` contains two `"*.py"`
+        literals and was paired with six unrelated skill modules."""
+        paired = {
+            subject.path.name
+            for test, subjects in mutation_guard.discover(ROOT)
+            if test.name == "test_platform_adapters.py"
+            for subject in subjects
+        }
+        self.assertEqual({"generate_platform_adapters.py"}, paired)
+
+    def test_a_test_runs_from_the_root_of_its_own_tree(self) -> None:
+        """With isolation, cwd must follow the test into the worktree.
+
+        `run_test` used the module-level ROOT — the caller's real checkout — so a mutated test
+        inside the throwaway worktree was launched with the LIVE repository as its working
+        directory, and anything resolving a repo file relative to cwd read unmutated bytes.
+        """
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_cwd_probe.py": CWD_PROBE,
+        })
+        # The probe exits 0 only when its cwd is the root of the tree holding it.
+        self.assertTrue(mutation_guard.run_test(root / "scripts/test_cwd_probe.py"))
+        self.assertNotEqual(root.resolve(), ROOT, "fixture must not be the live repo")
+
+    def test_an_absolute_module_path_still_matches_under_isolation(self) -> None:
+        """`--module` must work with an absolute path, not only a relative one.
+
+        `_run_sweep` compares discovered modules against `(args.root / args.module).resolve()`,
+        and by then the root is the isolated worktree. Joining an ABSOLUTE right operand discards
+        the left -- `Path("/worktree") / "/repo/scripts/x.py"` is `/repo/scripts/x.py` -- so the
+        comparison pointed outside the worktree, matched nothing, and the run exited
+        "no test/module pair matched". Relative paths kept working, which is what hid it.
+        """
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        absolute = (root / "scripts/subject.py").resolve()
+        self.assertTrue(absolute.is_absolute(), "fixture must exercise the absolute spelling")
+        code, output = _run_guard(root, "--module", str(absolute), "--limit", "2")
+        self.assertNotIn("no test/module pair matched", output)
+        self.assertNotEqual(mutation_guard.EXIT_REFUSED, code, output)
+        # And it must select the SAME pair the relative spelling does, not merely avoid refusing.
+        relative_code, relative_output = _run_guard(root, "--module", "scripts/subject.py", "--limit", "2")
+        self.assertEqual(relative_code, code, f"absolute={output!r} relative={relative_output!r}")
+
+    def test_a_module_outside_the_repository_is_named_as_such(self) -> None:
+        """It used to fall through to the generic no-pair refusal, which reads as "your module has
+        no tests" rather than "that path is not in this repository"."""
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, outside, True)
+        stray = outside / "stray.py"
+        stray.write_text("x = 1\n", encoding="utf-8")
+        code, output = _run_guard(root, "--module", str(stray))
+        self.assertEqual(mutation_guard.EXIT_REFUSED, code, output)
+        self.assertIn("outside", output)
+
+    def test_a_dirty_tree_is_still_refused(self) -> None:
+        """Now for honesty rather than recovery: a worktree is pinned at HEAD, so uncommitted
+        changes would go untested while the report implied otherwise."""
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        (root / "scripts/subject.py").write_text(HONEST_MODULE + "\n# edit\n", encoding="utf-8")
+        code, output = _run_guard(root)
+        self.assertEqual(mutation_guard.EXIT_REFUSED, code, output)
+        self.assertIn("working tree is dirty", output)
 
 if __name__ == "__main__":
     unittest.main()
