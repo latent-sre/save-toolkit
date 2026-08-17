@@ -39,6 +39,24 @@ matters.
 | [`.gitattributes`](.gitattributes) | Line-ending and diff handling that keeps the byte-for-byte adapter gate stable across platforms |
 | `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator's portable output set; fix the canonical source or generator and regenerate |
 
+## Searching this repo
+
+`skills/` is committed three times and `agents/` twice — once canonical, then once per host
+projection. Search hits therefore arrive in triplicate, and the canonical copy is **not** the one
+that sorts first.
+
+- [`.ignore`](.ignore) excludes the four generated roots from `rg`, so a plain search returns each
+  hit once, from the file you can actually edit. Add `--no-ignore` to search projections on purpose.
+- [`.claude/settings.json`](.claude/settings.json) denies `Edit`/`Write`/`Grep`/`Glob` on those same
+  roots. This is not bureaucracy: editing a projection and then running the mandated regenerate step
+  **silently erases your edit** — `os.replace()` swaps whole directories, and the byte gate only
+  catches the opposite mistake (forgetting to regenerate).
+- Every projected file except `.json` (which has no comment syntax) carries a do-not-edit banner as
+  its first line or immediately after a shebang.
+
+To change anything a search turns up in a generated root: edit the canonical source, then run
+`python scripts/generate_platform_adapters.py --write`.
+
 ## Validate before you push
 
 - `python scripts/gate_a.py` is the one structural gate (on Windows use `python`, never `python3` —

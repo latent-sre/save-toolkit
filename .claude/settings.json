@@ -1,11 +1,22 @@
 {
   "permissions": {
     "deny": [
-      "Read(/docs/adr/**)",
-      "Edit(/docs/adr/**)",
-      "Write(/docs/adr/**)",
-      "Grep(/docs/adr/**)",
-      "Glob(/docs/adr/**)"
+      "Edit(.github/agents/**)",
+      "Write(.github/agents/**)",
+      "Grep(.github/agents/**)",
+      "Glob(.github/agents/**)",
+      "Edit(.codex/agents/**)",
+      "Write(.codex/agents/**)",
+      "Grep(.codex/agents/**)",
+      "Glob(.codex/agents/**)",
+      "Edit(platforms/copilot/skills/**)",
+      "Write(platforms/copilot/skills/**)",
+      "Grep(platforms/copilot/skills/**)",
+      "Glob(platforms/copilot/skills/**)",
+      "Edit(plugins/save-toolkit/skills/**)",
+      "Write(plugins/save-toolkit/skills/**)",
+      "Grep(plugins/save-toolkit/skills/**)",
+      "Glob(plugins/save-toolkit/skills/**)"
     ]
   }
 }

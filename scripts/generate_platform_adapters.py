@@ -82,6 +82,44 @@ PLUGIN_PATH_RE = re.compile(
 )
 RUNTIME_SUFFIXES = {".pyc", ".pyo"}
 
+# Comment syntax used to stamp GENERATED_MARKER into a projected BUNDLE file (a references/,
+# assets/, or scripts/ payload). Before this, only SKILL.md and the agent profiles carried the
+# marker, leaving the bundle — the large majority of projected files — a naked byte-copy that no
+# amount of reading the file itself could distinguish from its canonical source. The only signal
+# was the path prefix, which a truncated search result or a bare Read easily loses.
+#
+# `.json` is deliberately absent: JSON has no comment form, and smuggling one in as a "$comment"
+# key would change the document a consumer validates against. Those few files stay unmarked and
+# keep relying on the path, which is stated in each skill's projected SKILL.md.
+_BANNER_COMMENT = {
+    ".md": "<!-- {} -->",
+    ".txt": "# {}",
+    ".yaml": "# {}",
+    ".yml": "# {}",
+    ".py": "# {}",
+    ".sh": "# {}",
+    ".ps1": "# {}",
+    ".toml": "# {}",
+}
+
+
+def _mark_generated(text: str, suffix: str) -> str:
+    """Prepend the do-not-edit banner, keeping any shebang on line 1 where it must stay.
+
+    A `#!` line only works as the first bytes of the file, so for an executable asset the banner
+    goes on line 2 rather than displacing it. Suffixes with no comment syntax are returned intact.
+    """
+    template = _BANNER_COMMENT.get(suffix)
+    if template is None:
+        return text
+    banner = template.format(GENERATED_MARKER)
+    if text.startswith("#!"):
+        shebang, newline, rest = text.partition("\n")
+        if newline:
+            return f"{shebang}\n{banner}\n{rest}"
+    separator = "\n\n" if suffix in {".md", ".txt"} else "\n"
+    return f"{banner}{separator}{text}"
+
 
 def _yaml_scalar(raw: str) -> str:
     raw = raw.strip()
@@ -383,6 +421,7 @@ def _skill_policy(name: str, description: str) -> bytes:
     display = " ".join(part.capitalize() for part in name.split("-"))
     short = description if len(description) <= 100 else description[:97].rstrip() + "..."
     return (
+        f"# {GENERATED_MARKER}\n"
         "interface:\n"
         f"  display_name: {json.dumps(display, ensure_ascii=False)}\n"
         f"  short_description: {json.dumps(short, ensure_ascii=False)}\n"
@@ -486,9 +525,11 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
         suffix = source.suffix.lower()
         if suffix in ADAPT_TEXT_SUFFIXES:
             text = source.read_text(encoding="utf-8")
-            outputs[COPILOT_SKILLS / relative] = adapt_text(text, "copilot").encode("utf-8")
-            outputs[CODEX_SKILLS / relative] = adapt_text(
-                text, "codex", agent_names=agent_names
+            outputs[COPILOT_SKILLS / relative] = _mark_generated(
+                adapt_text(text, "copilot"), suffix
+            ).encode("utf-8")
+            outputs[CODEX_SKILLS / relative] = _mark_generated(
+                adapt_text(text, "codex", agent_names=agent_names), suffix
             ).encode("utf-8")
         elif suffix in NORMALIZED_CODE_SUFFIXES:
             # Verbatim except line endings — read_text() normalizes CRLF/CR to LF via universal
@@ -496,8 +537,12 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
             # non-UTF-8 asset (a UTF-16 .ps1, say) cannot be decoded to normalize, so it falls back
             # to a verbatim byte-copy — the pre-normalization behavior — rather than crashing.
             try:
-                normalized = source.read_text(encoding="utf-8").encode("utf-8")
+                normalized = _mark_generated(
+                    source.read_text(encoding="utf-8"), suffix
+                ).encode("utf-8")
             except UnicodeDecodeError:
+                # Undecodable, so unmarkable: fall back to the verbatim byte-copy rather than
+                # guessing an encoding well enough to splice a comment into it.
                 normalized = source.read_bytes()
             outputs[COPILOT_SKILLS / relative] = normalized
             outputs[CODEX_SKILLS / relative] = normalized
