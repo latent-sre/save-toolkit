@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import json
 import shutil
 import tempfile
@@ -424,6 +425,55 @@ class PlatformAdapterTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "must not traverse"):
                     adapters.write_generated_outputs(root)
 
+
+    def test_a_real_symlinked_directory_in_canonical_sources_is_refused(self) -> None:
+        """The link-rejection control, exercised with a real symlink rather than a mock.
+
+        The generator refuses to walk links so a projection cannot silently absorb content from
+        outside the repository, and `os.walk(..., followlinks=False)` backs that up. The only
+        existing coverage patched `_is_link_or_reparse` and tested the ancestor path, so the
+        in-walk rejection -- the branch that actually fires on a link INSIDE skills/ -- ran in no
+        test. A mutation sweep flagged both `followlinks=False` constants as unnoticed, which is
+        what surfaced it: with no link anywhere in any fixture, the flag genuinely cannot matter.
+        """
+        if not hasattr(os, "symlink"):  # pragma: no cover - platform without symlinks
+            self.skipTest("symlinks unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_canonical_sources(root)
+            outside = root / "outside"
+            (outside / "references").mkdir(parents=True)
+            (outside / "references" / "smuggled.md").write_text("# smuggled\n", encoding="utf-8")
+            planted = root / "skills" / "stack-profile" / "borrowed"
+            try:
+                os.symlink(outside, planted, target_is_directory=True)
+            except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
+                self.skipTest("cannot create a directory symlink here")
+            self.assertTrue(planted.is_symlink(), "fixture did not plant a real link")
+            with self.assertRaisesRegex(ValueError, "must not be a link/reparse point"):
+                adapters._canonical_skill_files(root)
+
+    def test_a_real_symlinked_directory_in_a_generated_root_is_refused(self) -> None:
+        """Same control on the output side, where a link would make the byte gate read the wrong
+        bytes -- it would compare against a file the repository does not actually contain."""
+        if not hasattr(os, "symlink"):  # pragma: no cover - platform without symlinks
+            self.skipTest("symlinks unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_canonical_sources(root)
+            adapters.write_generated_outputs(root)
+            generated = root / adapters.GENERATED_ROOTS[2]
+            outside = root / "elsewhere"
+            outside.mkdir()
+            (outside / "extra.md").write_text("# extra\n", encoding="utf-8")
+            planted = generated / "borrowed"
+            try:
+                os.symlink(outside, planted, target_is_directory=True)
+            except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
+                self.skipTest("cannot create a directory symlink here")
+            self.assertTrue(planted.is_symlink(), "fixture did not plant a real link")
+            with self.assertRaisesRegex(ValueError, "must not be a link/reparse point"):
+                adapters._actual_generated_files(root)
 
 if __name__ == "__main__":
     unittest.main()
