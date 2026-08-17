@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 import mutation_guard
@@ -750,6 +751,68 @@ class ImportDiscoveryTests(unittest.TestCase):
             {"test_hook_wiring.py", "test_runbook_schema.py", "test_validate_workflow.py"},
             {path.name for path in mutation_guard.unresolved(ROOT)},
         )
+
+class IsolationTests(unittest.TestCase):
+    """The sweep must never write to the caller's tree, and must never quietly fall back to it."""
+
+    def test_the_worktree_is_separate_and_is_cleaned_up(self) -> None:
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        with mutation_guard.isolated_checkout(root) as isolated:
+            self.assertNotEqual(root.resolve(), isolated.resolve())
+            self.assertTrue((isolated / "scripts/subject.py").is_file(), "HEAD not checked out")
+            # Writing here must not touch the original -- that is the entire guarantee.
+            (isolated / "scripts/subject.py").write_text("mutated\n", encoding="utf-8")
+            self.assertEqual(
+                HONEST_MODULE,
+                (root / "scripts/subject.py").read_text(encoding="utf-8"),
+                "a write inside the worktree reached the caller's tree",
+            )
+        self.assertFalse(isolated.exists(), "worktree survived the context manager")
+        listed = subprocess.run(
+            ["git", "-C", str(root), "worktree", "list"],
+            capture_output=True, text=True, check=False,
+        ).stdout
+        self.assertNotIn("tree", listed.replace(str(root), ""), "stale worktree record left behind")
+
+    def test_a_failure_to_isolate_refuses_instead_of_falling_back(self) -> None:
+        """Fail closed. Falling back to in-place mutation on the one path where we have just
+        learned the environment is misbehaving is the worst possible moment to start writing to
+        the real tree."""
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        real_run = subprocess.run
+
+        def fail_worktree_add(argv, *args, **kwargs):
+            if "worktree" in argv and "add" in argv:
+                return subprocess.CompletedProcess(argv, 1, "", "fatal: injected failure")
+            return real_run(argv, *args, **kwargs)
+
+        with unittest.mock.patch.object(mutation_guard.subprocess, "run", fail_worktree_add):
+            with self.assertRaisesRegex(RuntimeError, "refusing to mutate"):
+                with mutation_guard.isolated_checkout(root):
+                    self.fail("isolation reported success after worktree add failed")
+        self.assertEqual(
+            HONEST_MODULE,
+            (root / "scripts/subject.py").read_text(encoding="utf-8"),
+            "the caller's tree was touched on the failure path",
+        )
+
+    def test_a_dirty_tree_is_still_refused(self) -> None:
+        """Now for honesty rather than recovery: a worktree is pinned at HEAD, so uncommitted
+        changes would go untested while the report implied otherwise."""
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        (root / "scripts/subject.py").write_text(HONEST_MODULE + "\n# edit\n", encoding="utf-8")
+        code, output = _run_guard(root)
+        self.assertEqual(mutation_guard.EXIT_REFUSED, code, output)
+        self.assertIn("working tree is dirty", output)
 
 if __name__ == "__main__":
     unittest.main()
