@@ -117,6 +117,12 @@ _STRUCTURE_DENY = re.compile(
 # Operator tokens that separate one command from the next. Every resulting segment must stand on its
 # own as an allowed read — `git log; rm -rf /` gets no free pass from its harmless first half.
 _SEPARATORS = {"|", "||", "&&", ";", "\n"}
+# Any run of separator punctuation counts, not just the four spellings above. `shlex` with
+# punctuation_chars emits `;;` and `&&&` as SINGLE tokens, and neither was in _SEPARATORS — so
+# `git log ;; git push` collapsed into one segment whose command was the allowed reader and whose
+# `git push` became an inert trailing argument. Both spellings are shell syntax errors, so nothing
+# ever executed, but a fail-open inside a fail-closed control is not something to leave sitting.
+_SEPARATOR_CHARS = frozenset(";|&")
 
 # --- the allowlist --------------------------------------------------------------------------
 # Plain readers and filters: they consume input and print. None can write a file on its own (a
@@ -217,15 +223,32 @@ _GIT_READ_VERBS = {
     "reflog": frozenset({"show", "list", "exists"}),
 }
 # Subcommands that list when read-flagged and CREATE when handed a bare name (`git branch feature`,
-# `git tag v1.0`). Allowed only when no positional is present, or a read flag makes the intent
-# explicit — and never when a write flag appears. The flag sets differ per subcommand on purpose:
-# `-a` means --all for branch (read) but --annotate for tag (WRITE).
+# `git tag v1.0`). The flag sets differ per subcommand on purpose: `-a` means --all for branch
+# (read) but --annotate for tag (WRITE); `-v` means --verbose for branch (a modifier that does NOT
+# stop a create) but --verify for tag (which does).
+#
+# LIST_MODE, not "read" — the load-bearing distinction, and the one this gate got wrong.
+#
+#   The old shape allowed a positional whenever ANY read flag was present, on the theory that "a
+#   read flag makes the intent explicit". That premise is false, and git does not care what we
+#   think the intent was. Probed on git 2.43.0, each of these CREATED a real ref while the guard
+#   returned allow: `git tag --sort=refname vX1`, `git tag --format=%(refname) vX2`,
+#   `git tag -i vX3`, `git branch --sort=refname bX1`, `git branch -i bX2`, `git branch -v bX3`.
+#
+#   The flags that are actually safe are the ones that force git into LIST (or VERIFY) mode, which
+#   makes every positional a pattern or a commit-ish rather than a new ref name. Pure modifiers —
+#   `--sort`, `--format`, `-i`/`--ignore-case`, and branch's `-v`/`--verbose` — change only the
+#   output and leave the positional free to name a ref. `--sort=x`/`--format=x` are especially
+#   deceptive: the attached `=value` means the flag never consumes the following word.
+#
+#   So only LIST_MODE members authorize a positional. Anything else — a pure modifier, or a git
+#   flag released after this was written — falls through to the no-positional rule and denies.
+#   That is what keeps the next new modifier from silently reopening the hole.
 _GIT_LIST_LIKE = {
     "branch": {
-        "read": frozenset({
-            "-a", "-r", "-v", "-vv", "--all", "--remotes", "--verbose", "--list", "--contains",
-            "--no-contains", "--merged", "--no-merged", "--show-current", "--format", "--sort",
-            "--points-at", "-i", "--ignore-case",
+        "list_mode": frozenset({
+            "-a", "-r", "--all", "--remotes", "--list", "--contains", "--no-contains",
+            "--merged", "--no-merged", "--show-current", "--points-at",
         }),
         "write": frozenset({
             "-d", "-D", "-m", "-M", "-c", "-C", "-f", "--delete", "--move", "--copy", "--force",
@@ -234,9 +257,9 @@ _GIT_LIST_LIKE = {
         }),
     },
     "tag": {
-        "read": frozenset({
-            "-l", "--list", "-n", "--contains", "--no-contains", "--points-at", "--sort",
-            "--format", "--merged", "--no-merged", "-v", "--verify", "-i", "--ignore-case",
+        "list_mode": frozenset({
+            "-l", "--list", "-n", "--contains", "--no-contains", "--points-at",
+            "--merged", "--no-merged", "-v", "--verify",
         }),
         "write": frozenset({
             "-a", "--annotate", "-s", "--sign", "-d", "--delete", "-f", "--force", "-m", "-F",
@@ -352,7 +375,7 @@ def _split_segments(tokens: list[str]) -> list[list[str]]:
     segments: list[list[str]] = []
     current: list[str] = []
     for token in tokens:
-        if token in _SEPARATORS:
+        if token in _SEPARATORS or (token and all(ch in _SEPARATOR_CHARS for ch in token)):
             segments.append(current)
             current = []
         else:
@@ -396,6 +419,27 @@ def _carries_flag(args: list[str], long_flags: frozenset[str], short_letters: fr
     )
 
 
+def _git_flag_names(args: list[str]) -> set[str]:
+    """Normalize flag tokens for membership testing, expanding single-dash clusters.
+
+    Two spellings defeat a plain `token in FLAGSET` test, and both appear in real git usage:
+    `--sort=refname` carries its value inline (compare the name only), and `git branch -av` bundles
+    `-a` with `-v` in one token. Expanding the cluster letter by letter is what lets `-av` count as
+    list-mode via `-a` while a lone `-v` does not. A cluster letter that is really another flag's
+    attached value (`git tag -n5` yields a spurious `-5`) is harmless: it simply matches nothing.
+    """
+    names: set[str] = set()
+    for arg in args:
+        if not arg.startswith("-"):
+            continue
+        base = arg.split("=", 1)[0]
+        if arg.startswith("--"):
+            names.add(base)
+        else:
+            names.update(f"-{char}" for char in base[1:])
+    return names
+
+
 def _git_allowed(args: list[str]) -> bool:
     # Step over git's global options to find the subcommand.
     index = 0
@@ -429,13 +473,15 @@ def _git_allowed(args: list[str]) -> bool:
 
     if subcommand in _GIT_LIST_LIKE:
         flags = _GIT_LIST_LIKE[subcommand]
-        bare = [arg.split("=", 1)[0] for arg in rest if arg.startswith("-")]
-        if any(flag in flags["write"] for flag in bare):
+        present = _git_flag_names(rest)
+        if present & flags["write"]:
             return False
-        if any(flag in flags["read"] for flag in bare):
-            return True
-        # No flags either way: listing is the default, but a positional means "create this".
-        return not _positionals(rest)
+        # A positional is a CREATE unless a list-mode flag reframes it as a pattern. Note the
+        # direction: we require a known-safe flag to permit the positional, rather than trying to
+        # enumerate the modifiers that are unsafe — an unknown flag therefore denies.
+        if _positionals(rest) and not (present & flags["list_mode"]):
+            return False
+        return True
 
     return False
 
