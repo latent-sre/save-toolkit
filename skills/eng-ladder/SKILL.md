@@ -1,13 +1,11 @@
 ---
 name: eng-ladder
 description: >-
-  Set your altitude before the task — engineering (builder: a scoped change in one component;
-  principal: cross-cutting design, contract/schema change, migration, real blast radius;
-  distinguished: high-ambiguity architecture, build-vs-buy, a standard others follow) or SRE
-  (responder → investigator → elite for alerts and incidents). Triggers: 'how rigorous should this
-  be', 'review this at the principal level', 'what tier is this incident work'. A scoped change with
-  an obvious owner and an existing pattern routes straight to its builder or lane skill without
-  this. Read exactly one tier file.
+  Set your altitude before the task — how much rigor, review depth, and design ceremony this work
+  earns, on the engineering ladder or the SRE one. Triggers: 'how rigorous should this be', 'review
+  this at the principal level', 'what tier is this incident work', 'is this a design doc or just a
+  PR'. A scoped change with an obvious owner and an existing pattern routes straight to its builder
+  or lane skill without this.
 argument-hint: "[task, diff, file, or design doc]"
 ---
 
@@ -17,6 +15,9 @@ argument-hint: "[task, diff, file, or design doc]"
 > A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
 
 ## The ladder
+
+Pick the rung the work actually sits at, then **read exactly one tier file** — the tiers are
+alternatives, not a sequence, and reading two spends context on ceremony the task did not earn.
 
 | | Builder | Principal | Distinguished |
 |---|---|---|---|

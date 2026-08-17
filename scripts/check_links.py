@@ -22,6 +22,127 @@ LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 CODE_PATH_RE = re.compile(
     r"`((?:references|assets|scripts)/[A-Za-z0-9._/-]+)`"
 )
+# Documents whose links must RESOLVE, checked for nothing else.
+#
+# Scope is the live authority set per docs/README.md -- the root guides, the rules index, the
+# roadmap, the live reference contracts, and the accepted decisions. These were checked by nothing,
+# and the rules index in particular exists to point a reader at a primary source, so a dead pointer
+# there sends someone looking for authority to a file that is not there.
+#
+# Deliberately EXCLUDED: docs/superpowers/ and docs/reviews/. A historical plan or a dated review
+# legitimately references files a later round deleted -- that is what makes it a record rather than
+# a document. Failing the gate on ~31 such links would be noise, and noise in a gate is how a real
+# failure gets scrolled past.
+#
+# Only resolvability is asserted. The skill rules applied elsewhere in this file (owned-root
+# containment, code-span pointers must be Markdown links) are conventions for skill bundles; docs
+# legitimately link across the whole repository and cite scripts inline.
+LIVE_DOC_ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "CHANGELOG.md")
+LIVE_DOC_DIR_GLOBS = (("docs", "*.md"), ("docs/decisions", "*.md"))
+
+
+EVIDENCE_BANNER_ANCHOR = "**Evidence default"
+
+
+def _evidence_banner(text: str) -> str | None:
+    """The contiguous blockquote containing the shared evidence-default banner, or None."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if EVIDENCE_BANNER_ANCHOR in line and line.lstrip().startswith(">"):
+            block = []
+            for candidate in lines[index:]:
+                if not candidate.lstrip().startswith(">"):
+                    break
+                block.append(candidate.rstrip())
+            return "\n".join(block)
+    return None
+
+
+def _check_evidence_banner(root: Path) -> list[str]:
+    """Every skill's evidence-default banner must be byte-identical.
+
+    All 29 currently hash the same, so this changes nothing today -- which is the point. The banner
+    is duplicated 29 times by necessity (check_links forbids a relative link escaping a skill root,
+    so a shared reference is architecturally impossible here), and nothing asserted the copies stay
+    in step. One reworded copy would silently give one lane a different evidence contract from the
+    rest of the fleet, and no other check in this repo would see it.
+    """
+    skill_root = root / "skills"
+    if not skill_root.is_dir():
+        return []
+    banners: dict[str, str] = {}
+    missing: list[str] = []
+    failures: list[str] = []
+    for skill_path in sorted(skill_root.glob("*/SKILL.md")):
+        try:
+            banner = _evidence_banner(skill_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError):
+            continue  # already reported by the reader in check()
+        if banner is None:
+            missing.append(skill_path.relative_to(root).as_posix())
+            continue
+        banners[skill_path.parent.name] = banner
+    # Presence binds only once the banner is established as a convention. A tree where NO skill
+    # carries one is a minimal fixture, not a fleet that lost its evidence contract, and failing
+    # those would make this check a tax on every synthetic test rather than a guard on the real
+    # tree. Where some skills carry it, the rest must.
+    if banners:
+        failures.extend(f"{path}: missing the evidence-default banner" for path in missing)
+    distinct = sorted(set(banners.values()))
+    if len(distinct) > 1:
+        # Name the minority spelling(s): with 29 copies, reporting "they differ" is not actionable.
+        majority = max(distinct, key=lambda text: sum(1 for v in banners.values() if v == text))
+        for name, banner in sorted(banners.items()):
+            if banner != majority:
+                failures.append(
+                    f"skills/{name}/SKILL.md: evidence-default banner differs from the other "
+                    f"{len(banners) - 1} skills; reword all of them or none"
+                )
+    return failures
+
+
+def _check_live_doc_links(root: Path) -> list[str]:
+    # Canonicalize the root before comparing anything against it. The containment test below builds
+    # its left side with .resolve(), so an UNRESOLVED root makes the two sides disagree about the
+    # same directory and every legitimate link reports as escaping. That is not theoretical: macOS
+    # hands out `/var/folders/...` that resolves to `/private/var/...` and Windows hands out 8.3
+    # short paths, so this passed on Linux and failed both other CI legs. mutation_guard.main()
+    # carries the identical fix for the identical reason.
+    root = Path(root).resolve()
+    failures: list[str] = []
+    targets: list[Path] = [root / name for name in LIVE_DOC_ROOTS]
+    for relative, pattern in LIVE_DOC_DIR_GLOBS:
+        directory = root / relative
+        if directory.is_dir():
+            targets.extend(sorted(directory.glob(pattern)))
+    for path in targets:
+        if not path.is_file():
+            continue
+        try:
+            text = _strip_fences(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError) as exc:
+            failures.append(f"{path.as_posix()}: cannot read UTF-8: {exc}")
+            continue
+        for _, raw in _links(text):
+            target = _relative_target(raw)
+            if target is None:
+                continue
+            resolved = (path.parent / target.split("#", 1)[0]).resolve()
+            # Containment before existence. With enough `..` components a link resolves outside the
+            # repository, where `.exists()` answers a question about the HOST rather than the repo:
+            # a root README link to `../../etc/passwd` passes on Unix and fails on Windows, and
+            # would not resolve for any consumer either way. An escaping link is always a defect,
+            # so it is reported as one instead of being silently accepted when the host happens to
+            # have that path.
+            if not resolved.is_relative_to(root):
+                failures.append(
+                    f"{path.relative_to(root).as_posix()}: link {target!r} escapes the repository"
+                )
+            elif not resolved.exists():
+                failures.append(
+                    f"{path.relative_to(root).as_posix()}: dead link {target!r}"
+                )
+    return failures
 ALLOWED_KEYS = {
     "name",
     "description",
@@ -344,6 +465,15 @@ def check(root: Path = ROOT) -> list[str]:
                         )
                     except (OSError, UnicodeError) as exc:
                         failures.append(f"{reference.as_posix()}: cannot read UTF-8: {exc}")
+    # Root guides and docs/. These were unchecked -- ~44 markdown files, including every citation in
+    # the rules index, which exists precisely to point a reader at a primary source. A dead pointer
+    # there sends someone looking for authority to a file that is not there.
+    #
+    # Historical documents are in scope on purpose: a superseded plan is still read, and this repo
+    # has already shipped a review pointing at a file the same round deleted. What is NOT in scope
+    # is anchor-only and cross-repo links, which `_check_markdown` already ignores.
+    failures.extend(_check_live_doc_links(root))
+    failures.extend(_check_evidence_banner(root))
     command_root = root / "commands"
     if command_root.is_dir():
         for command in sorted(command_root.glob("*.md")):

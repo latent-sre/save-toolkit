@@ -78,7 +78,13 @@ def _scan_file(path: Path) -> list[str]:
 
 def _scan_tree(root: Path) -> list[str]:
     failures = []
-    for relative in (Path("skills"), Path("agents"), Path("commands")):
+    # `evals/scenarios` and NOT `evals`. Scenario prompts are sent to the model byte-for-byte, so a
+    # retired name in one actively teaches the fleet's old vocabulary -- two did, naming
+    # `sde-engineer` and `code-reviewer`. The rest of evals/ must stay out of scope: `baselines/`
+    # holds frozen result JSON that records what was true on the day it ran, and the repo has
+    # committed to leaving those bytes unchanged. Widening this to `evals` lights up on 24 such
+    # hits that are supposed to be there.
+    for relative in (Path("skills"), Path("agents"), Path("commands"), Path("evals/scenarios")):
         base = root / relative
         if not base.is_dir():
             continue

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import signal
 import subprocess
 import sys
 import tempfile
@@ -585,6 +586,56 @@ class DiscoveryTests(unittest.TestCase):
         self.assertNotIn("mutation_guard.py", gate)
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("mutation_guard.py", agents)
+
+
+class InconclusiveVerdictTests(unittest.TestCase):
+    """`blind` must reach the verdict, not just the printout."""
+
+    def test_blind_test_files_alone_make_a_run_inconclusive(self) -> None:
+        # The regression: this returned False, so a run in which NO subject could be derived for
+        # any test file still printed PASS.
+        self.assertTrue(mutation_guard.is_inconclusive([], [], ["scripts/test_x.py"], 12))
+
+    def test_a_fully_inspected_run_is_conclusive(self) -> None:
+        # The complement matters as much: if this returned True the tool could never say PASS, and
+        # the assertion above would pass for the wrong reason.
+        self.assertFalse(mutation_guard.is_inconclusive([], [], [], 12))
+
+    def test_each_uninspected_bucket_is_sufficient_on_its_own(self) -> None:
+        for label, args in (
+            ("unverifiable", (["pair"], [], [], 12)),
+            ("unexercised", ([], ["pair"], [], 12)),
+            ("blind", ([], [], ["test"], 12)),
+            ("nothing attempted", ([], [], [], 0)),
+        ):
+            with self.subTest(bucket=label):
+                self.assertTrue(mutation_guard.is_inconclusive(*args))
+
+
+class TerminationRestoreTests(unittest.TestCase):
+    """SIGTERM must unwind through the in-place restore rather than skipping it.
+
+    A harness timeout killed a real sweep of scripts/gate_a.py and left
+    `if __name__ != '__main__':` on disk. Run as a script that condition is false, so main() never
+    executed: the gate printed nothing and exited 0, reading as a perfect pass.
+    """
+
+    def test_sigterm_is_converted_into_an_exception(self) -> None:
+        if not hasattr(signal, "SIGTERM"):  # pragma: no cover - platform without SIGTERM
+            self.skipTest("SIGTERM unavailable on this platform")
+        previous = signal.getsignal(signal.SIGTERM)
+        try:
+            mutation_guard._restore_on_termination()
+            installed = signal.getsignal(signal.SIGTERM)
+            self.assertNotEqual(
+                previous, installed, "SIGTERM disposition unchanged; the restore would be skipped"
+            )
+            # Default disposition terminates without running `finally`; the handler must raise so
+            # the existing restore path executes on the way out.
+            with self.assertRaises(KeyboardInterrupt):
+                installed(signal.SIGTERM, None)
+        finally:
+            signal.signal(signal.SIGTERM, previous)
 
 
 if __name__ == "__main__":

@@ -56,8 +56,9 @@ Full rule index: [`../rules.md`](../rules.md).
 
 ## Archive candidates (do not delete in this pass)
 
-1. **[`../AUDIT-2026-07-12.md`](../AUDIT-2026-07-12.md)** — fully superseded roster/skill counts; retain
-   until a maintainer wants a smaller tree.
+1. **`docs/AUDIT-2026-07-12.md`** — fully superseded roster/skill counts. *Deleted after this review
+   (commit `84e2a86`); recorded here as history, so the link is intentionally gone rather than
+   pointing at a missing file.*
 2. **[`../RESEARCH.md`](../RESEARCH.md)** — provenance snapshot; retain; re-verify before use.
 3. **`docs/superpowers/plans|specs/*`** — bannered history already enforced by
    `check_plan_status.py`; no move needed.

@@ -12,7 +12,7 @@ target:
 prompt: |
   A bug-fix PR is up for merge. CI is green — lint, format, and the full test suite passed,
   with the run link attached. It adds a regression test that fails without the fix plus unit
-  tests for the changed lines, and the coverage delta is shown. `code-reviewer` ran and its
+  tests for the changed lines, and the coverage delta is shown. `reviewer` ran and its
   two findings are resolved. The change touches no auth, input handling, secrets, crypto,
   file/network access, or dependencies, so no security review is required, and it carries no
   secrets. It is ~120 lines, backward compatible with no contract change, scoped with no

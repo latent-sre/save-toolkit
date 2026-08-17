@@ -24,7 +24,7 @@ matters.
 | [`hooks/hooks.json`](hooks/hooks.json) | The Claude-only session guard wiring. Plugin agents cannot carry `hooks:`, so this file is the *only* place the read-only guard fires; it is load-bearing and scoped to exact `agent_type` values |
 | [`hooks/copilot-hooks.json`](hooks/copilot-hooks.json) | The Copilot hook projection. The Claude hook's scoping field is absent from other hosts' payloads, so guarding is not portable through it |
 | [`scripts/readonly-guard.py`](scripts/readonly-guard.py) | The fail-closed allowlist guard for `sre` and `observability-engineer`. Exit codes are a contract: 42 allow, 43 deny, 44 indeterminate — the hook uses them to tell this guard from a stand-in interpreter |
-| [`scripts/readonly-guard-hook.sh`](scripts/readonly-guard-hook.sh) | The shell shim `hooks/hooks.json` invokes; it hands the payload to the guard |
+| [`scripts/readonly-guard-hook.sh`](scripts/readonly-guard-hook.sh) | The standalone copy of the launcher whose one-line form `hooks/hooks.json` carries **inlined** — the JSON does not invoke this file. `test_hook_wiring.py` byte-syncs the two, so editing either alone fails the gate |
 | [`scripts/gate_a.py`](scripts/gate_a.py) | The single structural entrypoint. It discovers and runs every validator and `test_*.py` itself — do not transcribe its step list (read its docstring for why) |
 | [`.github/workflows/release.yml`](.github/workflows/release.yml) | The only prepared release effect path: exact-main-SHA preflight, protected annotated tag, strict remote-tag host smoke, protected immutable Release, then read-only verification. Its presence does not authorize dispatch |
 | [`scripts/release_contract.py`](scripts/release_contract.py), [`scripts/release_workflow_contract.py`](scripts/release_workflow_contract.py) | Fail-closed release request and workflow-shape contracts. The former binds version/review/SHA/actor/expiry/recovery/nonce; the latter mutation-checks the static authority boundary |
@@ -38,6 +38,24 @@ matters.
 | [`docs/decisions/`](docs/decisions), [`docs/reviews/`](docs/reviews), [`docs/superpowers/`](docs/superpowers) | Accepted ADRs; round-closure evidence; round-scoped plans and specs. Only accepted decisions govern |
 | [`.gitattributes`](.gitattributes) | Line-ending and diff handling that keeps the byte-for-byte adapter gate stable across platforms |
 | `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator's portable output set; fix the canonical source or generator and regenerate |
+
+## Searching this repo
+
+`skills/` is committed three times and `agents/` twice — once canonical, then once per host
+projection. Search hits therefore arrive in triplicate, and the canonical copy is **not** the one
+that sorts first.
+
+- [`.ignore`](.ignore) excludes the four generated roots from `rg`, so a plain search returns each
+  hit once, from the file you can actually edit. Add `--no-ignore` to search projections on purpose.
+- [`.claude/settings.json`](.claude/settings.json) denies `Edit`/`Write`/`Grep`/`Glob` on those same
+  roots. This is not bureaucracy: editing a projection and then running the mandated regenerate step
+  **silently erases your edit** — `os.replace()` swaps whole directories, and the byte gate only
+  catches the opposite mistake (forgetting to regenerate).
+- Every projected file except `.json` (which has no comment syntax) carries a do-not-edit banner as
+  its first line or immediately after a shebang.
+
+To change anything a search turns up in a generated root: edit the canonical source, then run
+`python scripts/generate_platform_adapters.py --write`.
 
 ## Validate before you push
 

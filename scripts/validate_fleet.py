@@ -26,6 +26,36 @@ WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
 LOCAL_READ_TOOLS = {"Read", "Grep", "Glob"}
 # The evidence-label triad, pinned once: an agent that uses any label must carry all three.
 EVIDENCE_TRIAD = ("[verified]", "[sourced]", "[unverified]")
+# The delegating form of the handoff rule, and the disclaimers that replace it in a lane holding no
+# `Agent` tool. Matched as literal substrings so a reworded rule fails loudly here rather than
+# quietly reintroducing an instruction the lane cannot carry out.
+DELEGATION_IMPERATIVE = "Hand to exactly one agent"
+# Several equally correct phrasings are already in use, so the set is a union rather than one house
+# style — the point is that the lane says somewhere in its own handoff section that it cannot
+# dispatch, not that every file says it identically.
+#
+# Every member must assert INCAPABILITY. "Recommend exactly one next owner" was briefly here and is
+# deliberately gone: it describes what the lane does, not what it cannot do, so an agent could keep
+# that sentence, drop every "cannot" statement, and still pass — reopening the precise
+# misleading-authority drift this contract exists to stop. Recommending and being unable to dispatch
+# are different claims, and only the second one is the control.
+NON_DELEGATION_DISCLAIMERS = (
+    "cannot invoke",
+    "cannot delegate",
+    "caller must invoke",
+)
+
+
+def _flatten(text: str) -> str:
+    """Collapse all whitespace runs to single spaces for substring matching.
+
+    Every phrase above is longer than a few words, so in a hard-wrapped markdown body it is a coin
+    flip whether a newline lands in the middle of one. `repository-investigator` really does wrap
+    "You cannot\\ndelegate or contact the external lane yourself", and a naive `in` test against the
+    raw body misses it — reporting a violation in a file that is already correct. Matching against
+    the flattened text makes the check independent of where the author's reflow put the breaks.
+    """
+    return " ".join(text.split())
 WEB_TOOLS = {"WebFetch", "WebSearch"}
 EVIDENCE_MCP_TOOLS = {
     "mcp__claude_ai_Context7__query-docs",
@@ -215,6 +245,27 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
                 )
         if "## The handoff packet" not in body and "## Handoffs" not in body:
             failures.append(f"{path}: missing handoff contract")
+        # An agent with no `Agent` tool cannot dispatch anyone, so the shared handoff block's
+        # imperative form is a false instruction in that lane. This is not hypothetical tidying:
+        # `reviewer` — local read-only by tool absence, and the lane that gates every merge —
+        # carried the `sde` block verbatim, telling it to "Hand to exactly one agent" and to load
+        # `production-change-gate`, a skill it holds no `Skill` tool to load. `scribe`, under the
+        # identical constraint, had been adapted correctly ("Recommend exactly one next owner. This
+        # role cannot invoke that owner."), which is what proves the reviewer copy was drift rather
+        # than a deliberate choice. A filled-in template beats a prose constraint 70 lines earlier,
+        # so the contradiction is pinned here rather than left to review.
+        if "Agent" not in _tool_bases(fields["tools"]):
+            flat = _flatten(body)
+            if DELEGATION_IMPERATIVE in flat:
+                failures.append(
+                    f"{path}: says {DELEGATION_IMPERATIVE!r} but holds no Agent tool; this lane can "
+                    f"only recommend a next owner (see scribe.md for the adapted wording)"
+                )
+            if not any(phrase in flat for phrase in NON_DELEGATION_DISCLAIMERS):
+                failures.append(
+                    f"{path}: holds no Agent tool, so its handoff block must state that it cannot "
+                    f"invoke the next owner; expected one of {list(NON_DELEGATION_DISCLAIMERS)}"
+                )
         # The evidence triad is all-or-nothing: an agent that keeps [verified]/[unverified] but drops
         # [sourced] silently loses the ability to distinguish "I ran it" from "the file says so".
         present = [label for label in EVIDENCE_TRIAD if label in body]

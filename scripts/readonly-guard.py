@@ -117,10 +117,18 @@ _STRUCTURE_DENY = re.compile(
 # Operator tokens that separate one command from the next. Every resulting segment must stand on its
 # own as an allowed read — `git log; rm -rf /` gets no free pass from its harmless first half.
 _SEPARATORS = {"|", "||", "&&", ";", "\n"}
+# Any run of separator punctuation counts, not just the four spellings above. `shlex` with
+# punctuation_chars emits `;;` and `&&&` as SINGLE tokens, and neither was in _SEPARATORS — so
+# `git log ;; git push` collapsed into one segment whose command was the allowed reader and whose
+# `git push` became an inert trailing argument. Both spellings are shell syntax errors, so nothing
+# ever executed, but a fail-open inside a fail-closed control is not something to leave sitting.
+_SEPARATOR_CHARS = frozenset(";|&")
 
 # --- the allowlist --------------------------------------------------------------------------
-# Plain readers and filters: they consume input and print. None can write a file on their own (a
-# redirect would be needed, and redirects are refused above). `sed` and `awk` are deliberately ABSENT
+# Plain readers and filters: they consume input and print. None can write a file on its own (a
+# redirect would be needed, and redirects are refused above) — with one flag-gated exception:
+# `file -C`/`--compile` writes a compiled `.mgc` magic file, so _segment_allowed rejects that flag
+# (see _FILE_WRITE_FLAGS). `sed` and `awk` are deliberately ABSENT
 # — both can write files without any redirect (`sed -i`, awk's `print > "f"` and `system()`).
 # `tree` and `less` are absent: `tree -o` writes to a named file, and `less -o` logs its input to a
 # file (and `less` can also execute a program interactively). `sort` is absent too: GNU sort can run
@@ -152,6 +160,13 @@ _RG_EXECUTION_FLAGS = frozenset({"--pre", "--hostname-bin", "--search-zip", "-z"
 # `-z` (--search-zip) is a bundling short flag: `rg -iz` = `-i` + `-z`, so match the letter in a
 # cluster, not just the standalone token. See _short_cluster_has.
 _RG_EXECUTION_SHORT = frozenset({"z"})
+
+# `file` is a reader with ONE write lever: `-C`/`--compile` compiles a magic source file into a
+# `.mgc` file on disk — no shell redirect involved, so _STRUCTURE_DENY never sees it (the
+# `tree -o` shape again). The short form bundles (`-bC` = `-b` + `-C`), so the letter is matched
+# in a cluster too. See _short_cluster_has.
+_FILE_WRITE_FLAGS = frozenset({"--compile"})
+_FILE_WRITE_SHORT = frozenset({"C"})
 
 # `git` subcommands that have no write SUBCOMMAND (per `git-<name>(1)` synopsis). Several still
 # accept `--output=<file>`/`-o <file>` to write a report to disk (diff, log, show, diff-tree,
@@ -186,6 +201,12 @@ _GIT_READ_EXEC_FLAGS = frozenset({"--open-files-in-pager"})
 # The SHORT form of the pager-exec flag: `git grep -O<cmd>` runs CMD, and it bundles
 # (`-nO<cmd>` = `-n` + `-O<cmd>`), so a start-of-token test alone misses it. See _short_cluster_has.
 _GIT_READ_EXEC_SHORT = frozenset({"O"})
+# Honest residual on the git readers, in the docstring's "not a sandbox" class: `git diff`, `log`,
+# and `show` run diff DRIVERS and textconv filters named by an existing `.git/config` +
+# `.gitattributes` BY DEFAULT — no flag involved, so no flag gate here can see it. The guard denies
+# the injection paths it does see (`-c key=val` config and `VAR=x` env prefixes are both rejected
+# below), but a config already on disk is outside a command filter's sight. OS-level least
+# privilege remains the load-bearing control, per the boundary note at the top of this file.
 # Subcommands whose FIRST POSITIONAL decides read vs write (`git stash list` reads, a bare
 # `git stash` pushes; `git submodule status` reads, `git submodule update` writes;
 # `git reflog show` reads, `git reflog expire` prunes reflog entries).
@@ -202,15 +223,32 @@ _GIT_READ_VERBS = {
     "reflog": frozenset({"show", "list", "exists"}),
 }
 # Subcommands that list when read-flagged and CREATE when handed a bare name (`git branch feature`,
-# `git tag v1.0`). Allowed only when no positional is present, or a read flag makes the intent
-# explicit — and never when a write flag appears. The flag sets differ per subcommand on purpose:
-# `-a` means --all for branch (read) but --annotate for tag (WRITE).
+# `git tag v1.0`). The flag sets differ per subcommand on purpose: `-a` means --all for branch
+# (read) but --annotate for tag (WRITE); `-v` means --verbose for branch (a modifier that does NOT
+# stop a create) but --verify for tag (which does).
+#
+# LIST_MODE, not "read" — the load-bearing distinction, and the one this gate got wrong.
+#
+#   The old shape allowed a positional whenever ANY read flag was present, on the theory that "a
+#   read flag makes the intent explicit". That premise is false, and git does not care what we
+#   think the intent was. Probed on git 2.43.0, each of these CREATED a real ref while the guard
+#   returned allow: `git tag --sort=refname vX1`, `git tag --format=%(refname) vX2`,
+#   `git tag -i vX3`, `git branch --sort=refname bX1`, `git branch -i bX2`, `git branch -v bX3`.
+#
+#   The flags that are actually safe are the ones that force git into LIST (or VERIFY) mode, which
+#   makes every positional a pattern or a commit-ish rather than a new ref name. Pure modifiers —
+#   `--sort`, `--format`, `-i`/`--ignore-case`, and branch's `-v`/`--verbose` — change only the
+#   output and leave the positional free to name a ref. `--sort=x`/`--format=x` are especially
+#   deceptive: the attached `=value` means the flag never consumes the following word.
+#
+#   So only LIST_MODE members authorize a positional. Anything else — a pure modifier, or a git
+#   flag released after this was written — falls through to the no-positional rule and denies.
+#   That is what keeps the next new modifier from silently reopening the hole.
 _GIT_LIST_LIKE = {
     "branch": {
-        "read": frozenset({
-            "-a", "-r", "-v", "-vv", "--all", "--remotes", "--verbose", "--list", "--contains",
-            "--no-contains", "--merged", "--no-merged", "--show-current", "--format", "--sort",
-            "--points-at", "-i", "--ignore-case",
+        "list_mode": frozenset({
+            "-a", "-r", "--all", "--remotes", "--list", "--contains", "--no-contains",
+            "--merged", "--no-merged", "--show-current", "--points-at",
         }),
         "write": frozenset({
             "-d", "-D", "-m", "-M", "-c", "-C", "-f", "--delete", "--move", "--copy", "--force",
@@ -219,9 +257,9 @@ _GIT_LIST_LIKE = {
         }),
     },
     "tag": {
-        "read": frozenset({
-            "-l", "--list", "-n", "--contains", "--no-contains", "--points-at", "--sort",
-            "--format", "--merged", "--no-merged", "-v", "--verify", "-i", "--ignore-case",
+        "list_mode": frozenset({
+            "-l", "--list", "-n", "--contains", "--no-contains", "--points-at",
+            "--merged", "--no-merged", "-v", "--verify",
         }),
         "write": frozenset({
             "-a", "--annotate", "-s", "--sign", "-d", "--delete", "-f", "--force", "-m", "-F",
@@ -258,7 +296,8 @@ _GH_READ = {
 # `find`'s action flags run commands or delete files — the reason `find` cannot simply be a reader.
 _FIND_ACTIONS = ("-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprintf", "-fls")
 
-# `cf` (Cloud Foundry CLI v8) read verbs for incident triage. `cf env` is ABSENT by design: it
+# `cf` (Cloud Foundry CLI v8) read verbs for incident triage. `target` is bare-form-only — its
+# flag form WRITES the target; see _cf_allowed. `cf env` is ABSENT by design: it
 # prints the app's full environment — credentials included — to an agent that also holds web
 # egress, and that pairing is exactly the exfiltration shape the fleet's doctrine forbids.
 _CF_READ = frozenset({
@@ -336,7 +375,7 @@ def _split_segments(tokens: list[str]) -> list[list[str]]:
     segments: list[list[str]] = []
     current: list[str] = []
     for token in tokens:
-        if token in _SEPARATORS:
+        if token in _SEPARATORS or (token and all(ch in _SEPARATOR_CHARS for ch in token)):
             segments.append(current)
             current = []
         else:
@@ -380,6 +419,27 @@ def _carries_flag(args: list[str], long_flags: frozenset[str], short_letters: fr
     )
 
 
+def _git_flag_names(args: list[str]) -> set[str]:
+    """Normalize flag tokens for membership testing, expanding single-dash clusters.
+
+    Two spellings defeat a plain `token in FLAGSET` test, and both appear in real git usage:
+    `--sort=refname` carries its value inline (compare the name only), and `git branch -av` bundles
+    `-a` with `-v` in one token. Expanding the cluster letter by letter is what lets `-av` count as
+    list-mode via `-a` while a lone `-v` does not. A cluster letter that is really another flag's
+    attached value (`git tag -n5` yields a spurious `-5`) is harmless: it simply matches nothing.
+    """
+    names: set[str] = set()
+    for arg in args:
+        if not arg.startswith("-"):
+            continue
+        base = arg.split("=", 1)[0]
+        if arg.startswith("--"):
+            names.add(base)
+        else:
+            names.update(f"-{char}" for char in base[1:])
+    return names
+
+
 def _git_allowed(args: list[str]) -> bool:
     # Step over git's global options to find the subcommand.
     index = 0
@@ -413,13 +473,15 @@ def _git_allowed(args: list[str]) -> bool:
 
     if subcommand in _GIT_LIST_LIKE:
         flags = _GIT_LIST_LIKE[subcommand]
-        bare = [arg.split("=", 1)[0] for arg in rest if arg.startswith("-")]
-        if any(flag in flags["write"] for flag in bare):
+        present = _git_flag_names(rest)
+        if present & flags["write"]:
             return False
-        if any(flag in flags["read"] for flag in bare):
-            return True
-        # No flags either way: listing is the default, but a positional means "create this".
-        return not _positionals(rest)
+        # A positional is a CREATE unless a list-mode flag reframes it as a pattern. Note the
+        # direction: we require a known-safe flag to permit the positional, rather than trying to
+        # enumerate the modifiers that are unsafe — an unknown flag therefore denies.
+        if _positionals(rest) and not (present & flags["list_mode"]):
+            return False
+        return True
 
     return False
 
@@ -443,7 +505,15 @@ def _rg_allowed(args: list[str]) -> bool:
 
 def _cf_allowed(args: list[str]) -> bool:
     positionals = _positionals(args)
-    return bool(positionals) and positionals[0] in _CF_READ
+    if not positionals or positionals[0] not in _CF_READ:
+        return False
+    # `target` is the one _CF_READ verb with a WRITE form: bare `cf target` prints the current
+    # org/space, but `-o`/`-s` SET it — local CLI state that silently points every later guarded
+    # `cf` read at a different target. Allow only the bare, print-only form; any extra argument
+    # (flag or positional) denies, this guard's usual fail-loud direction.
+    if positionals[0] == "target":
+        return args == ["target"]
+    return True
 
 
 def _gcloud_allowed(args: list[str]) -> bool:
@@ -472,6 +542,8 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
         return _gh_allowed(args)
     if command == "rg":
         return _rg_allowed(args)
+    if command == "file":
+        return not _carries_flag(args, _FILE_WRITE_FLAGS, _FILE_WRITE_SHORT)
     if command == "cf":
         return _cf_allowed(args)
     if command == "gcloud":

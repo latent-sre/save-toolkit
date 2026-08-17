@@ -31,9 +31,11 @@ forgot it.
 HONEST LIMITS
 -------------
 This mutates the module **in place** and restores it from memory in a `finally`. It refuses to start
-on a dirty working tree, so an interrupted run can always be recovered with `git restore`. A full
-sweep runs the suite once per mutant, which is far too slow for CI -- it is a deliberate run, like
-the routing evals.
+on a dirty working tree, so an interrupted run can always be recovered with `git restore`, and it
+converts SIGTERM/SIGHUP into an exception so a harness timeout unwinds through that same restore
+instead of leaving a mutant on disk (see `_restore_on_termination` for the incident that motivated
+it). SIGKILL is unrecoverable by construction. A full sweep runs the suite once per mutant, which is
+far too slow for CI -- it is a deliberate run, like the routing evals.
 
 `--limit` makes it a sampling tool rather than a proof. A clean bounded report means "no survivor
 among the mutants tried"; it never means "the suite is complete", and it never establishes that any
@@ -53,6 +55,7 @@ from __future__ import annotations
 import argparse
 import ast
 import copy
+import signal
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -334,6 +337,53 @@ def _sample_limit(raw: str) -> int:
     return value
 
 
+def is_inconclusive(
+    unverifiable: Sequence[object],
+    unexercised: Sequence[object],
+    blind: Sequence[object],
+    attempted: int,
+) -> bool:
+    """True when no survivor was found but something went uninspected.
+
+    Extracted from `main` so the rule can be asserted directly instead of only through a full
+    sweep. `blind` — test files for which no subject could be derived at all — was printed and then
+    dropped from this decision, so a run whose every pair was blind still reported PASS. That is
+    strictly more uninspected than a surviving mutant, and reporting it as a pass is the exact
+    false-clean this tool exists to detect, committed by the tool itself.
+    """
+    return bool(unverifiable or unexercised or blind or not attempted)
+
+
+def _restore_on_termination() -> None:
+    """Turn SIGTERM/SIGHUP into an exception so the in-place restore actually runs.
+
+    `surviving_mutants` restores the module in a `finally`, which covers a normal error and a
+    Ctrl-C (SIGINT arrives as KeyboardInterrupt, and `finally` runs on the way out). It does NOT
+    cover SIGTERM: the default disposition terminates the process immediately, `finally` never
+    runs, and the mutated file is left on disk.
+
+    That is not a hypothetical. A tool-harness timeout killed a sweep of `scripts/gate_a.py` mid-run
+    and left `if __name__ != '__main__':` committed-adjacent in the working tree. Run as a script
+    that condition is false, so `main()` never executes: the gate printed nothing, exited 0, and
+    read as a perfect pass. Any automation that then says "commit your changes" ships a permanently
+    green, permanently inert gate.
+
+    Raising from the handler unwinds through the same `finally` the other paths use, so one restore
+    mechanism covers every exit that Python can still observe. SIGKILL remains unrecoverable by
+    construction -- hence the clean-tree requirement, which keeps `git restore` a reliable undo.
+    """
+    def _handler(signum: int, _frame: object) -> None:
+        raise KeyboardInterrupt(f"terminated by signal {signum}")
+
+    for name in ("SIGTERM", "SIGHUP"):
+        signum = getattr(signal, name, None)
+        if signum is not None:
+            try:
+                signal.signal(signum, _handler)
+            except (OSError, ValueError):  # pragma: no cover - non-main thread or unsupported
+                pass
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=ROOT)
@@ -366,7 +416,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"mutation_guard: {exc}", file=sys.stderr)
         return EXIT_REFUSED
 
-    blind = unresolved(args.root)
+    # Installed AFTER the clean-tree refusal and before the first in-place rewrite, so the window
+    # where a mutated file can exist on disk is exactly the window the handler covers.
+    _restore_on_termination()
+
+    # A `--module` run asks about ONE module, so repository-wide blind test files are not evidence
+    # about it. Counting them would make every targeted run INCONCLUSIVE regardless of its own
+    # result -- six such files exist here today -- which would train a reader to ignore the verdict,
+    # the opposite of what feeding `blind` into it is for. An unfiltered sweep does claim whole-repo
+    # coverage, so there the blind set is exactly on point.
+    blind = [] if args.module is not None else unresolved(args.root)
     if blind:
         print("mutation_guard: no subject derived for these test files (not mutated):")
         for test in blind:
@@ -444,10 +503,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     summary = (
         f"no surviving mutants among {attempted} executed across {checked} pair(s), "
         f"limit={args.limit or 'none'}, {len(unverifiable)} unverifiable, "
-        f"{len(unexercised)} unexercised"
+        f"{len(unexercised)} unexercised, {len(blind)} with no subject derived"
     )
     if not findings:
-        if unverifiable or unexercised or not attempted:
+        if is_inconclusive(unverifiable, unexercised, blind, attempted):
             # Never lead with PASS when something went uninspected. The word is what a reader and
             # a log scraper take away, and "PASS" over an unexercised bucket is this tool
             # committing the false-clean it exists to detect.

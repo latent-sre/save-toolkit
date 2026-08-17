@@ -1,5 +1,28 @@
 # Fleet evals
 
+## What is here, and which of it you can run
+
+Read this table first. Two of the four components below cannot be run from this checkout, and they
+occupy most of the directory — 16 of the 20 top-level `.py` files are `codex_*`, so `ls` overstates
+their prominence. The runnable Claude suite is the third row.
+
+| Component | Status | In Gate A? | How to run |
+|---|---|---|---|
+| **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs a live API and the clean-room runner |
+| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active, **never run**; host is NO-GO | contract tests only (187, all passing) | offline `python evals/run_codex_routing.py --plan` |
+| **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
+| [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
+| [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
+
+Nothing here is unmaintained: every `evals/test_*.py` runs in Gate A, enrolled by file existence
+rather than a hand-kept roster. The Terra stack is green and owned, not dead weight — its pinned
+revision trails HEAD but stays routing-equivalent, because no `description:` line changed in
+between, and measuring description changes is the whole purpose of that harness.
+
+> **Shallow clones:** every "recover from tag `pre-trim-2026-08-02`" instruction in this repository
+> fails with `fatal: unknown revision` unless you fetch tags first
+> (`git fetch --tags --depth=1000`). The tag exists on the remote.
+
 ## ROUTE-001 Codex/Terra campaign (implementation active; not run)
 
 The ROUTE-001 owner approved a narrow Codex rewrite of the 2026-08 routing campaign. Its fixed

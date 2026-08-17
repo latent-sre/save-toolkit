@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import check_links
 import check_stale_names
+
+# The real repository root, for the handful of tests that assert against the live tree rather than
+# a synthetic fixture. Taken from check_links so the two can never disagree about where root is.
+ROOT = check_links.ROOT
 
 
 CLEAN_FRONTMATTER = """---
@@ -282,6 +287,124 @@ class StaleNameCheckerTests(Fixture):
     def test_clean_replacement_metadata_is_silent(self):
         self._fleet(agent_description="The sre agent owns this", command_description="Ask reviewer")
         self.assertEqual([], check_stale_names.check(self.root))
+
+
+class LiveDocLinkTests(unittest.TestCase):
+    """Live authority docs must not carry dead relative links."""
+
+    def test_live_tree_is_clean(self) -> None:
+        self.assertEqual([], check_links._check_live_doc_links(ROOT))
+
+    def test_a_dead_link_in_a_live_doc_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "docs").mkdir()
+            (root / "README.md").write_text(
+                "See [gone](docs/no-such-file.md).\n", encoding="utf-8"
+            )
+            failures = check_links._check_live_doc_links(root)
+        self.assertTrue(any("dead link" in f for f in failures), failures)
+
+    def test_a_live_link_is_not_flagged(self) -> None:
+        """The complement: without this, a checker that flags everything would pass the test above."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "docs").mkdir()
+            (root / "docs/real.md").write_text("# real\n", encoding="utf-8")
+            (root / "README.md").write_text("See [real](docs/real.md).\n", encoding="utf-8")
+            self.assertEqual([], check_links._check_live_doc_links(root))
+
+    def test_a_symlinked_root_does_not_make_every_link_escape(self) -> None:
+        """The containment test must canonicalize the root before comparing against it.
+
+        `.resolve()` on the left side and a raw root on the right describe the same directory
+        differently, so every legitimate link reads as escaping. macOS temp dirs are
+        `/var/folders/...` resolving to `/private/var/...` and Windows hands out 8.3 short paths --
+        this passed on Linux and failed both other CI legs. Simulated here with an explicit
+        symlink so the Linux leg covers it too.
+        """
+        if not hasattr(os, "symlink"):  # pragma: no cover - platform without symlinks
+            self.skipTest("symlinks unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            real = Path(temporary) / "real"
+            (real / "docs").mkdir(parents=True)
+            (real / "docs/target.md").write_text("# t\n", encoding="utf-8")
+            (real / "README.md").write_text("See [t](docs/target.md).\n", encoding="utf-8")
+            link = Path(temporary) / "link"
+            try:
+                os.symlink(real, link, target_is_directory=True)
+            except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
+                self.skipTest("cannot create a directory symlink here")
+            self.assertNotEqual(link.resolve(), link, "fixture did not produce an aliased root")
+            self.assertEqual([], check_links._check_live_doc_links(link))
+
+
+class EvidenceBannerTests(unittest.TestCase):
+    """The evidence-default banner is duplicated 29 times; pin the copies in step.
+
+    A shared reference is architecturally impossible here — check_links forbids a relative link
+    escaping its skill root — so duplication is the design and drift is the risk it carries.
+    """
+
+    def test_live_skills_share_one_banner(self) -> None:
+        self.assertEqual([], check_links._check_evidence_banner(ROOT))
+
+    def test_one_reworded_copy_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name, tail in (("alpha", "never upgrade it."), ("beta", "never upgrade it."),
+                               ("gamma", "must never upgrade it.")):
+                skill = root / "skills" / name
+                skill.mkdir(parents=True)
+                (skill / "SKILL.md").write_text(
+                    f"---\nname: {name}\n---\n\n"
+                    "> **Evidence default — `[unverified]`.** Handoffs "
+                    f"{tail}\n\nbody\n",
+                    encoding="utf-8",
+                )
+            failures = check_links._check_evidence_banner(root)
+        self.assertTrue(any("gamma" in f and "banner differs" in f for f in failures), failures)
+
+    def test_a_skill_that_drops_the_banner_is_flagged_once_others_carry_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name, banner in (("alpha", True), ("beta", True), ("naked", False)):
+                skill = root / "skills" / name
+                skill.mkdir(parents=True)
+                text = f"---\nname: {name}\n---\n\n"
+                if banner:
+                    text += "> **Evidence default \u2014 `[unverified]`.** Handoffs never upgrade it.\n\n"
+                (skill / "SKILL.md").write_text(text + "body\n", encoding="utf-8")
+            failures = check_links._check_evidence_banner(root)
+        self.assertTrue(any("naked" in f and "missing" in f for f in failures), failures)
+
+    def test_a_tree_with_no_banners_at_all_is_left_alone(self) -> None:
+        """A minimal fixture is not a fleet that lost its evidence contract."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skill = root / "skills" / "alpha"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: alpha\n---\n\nbody\n", encoding="utf-8")
+            self.assertEqual([], check_links._check_evidence_banner(root))
+
+
+class EscapingLinkTests(unittest.TestCase):
+    """A link that resolves outside the repository is a defect, not a pass.
+
+    `.exists()` on an escaped path answers a question about the HOST: a root README link to
+    `../../etc/passwd` resolves to a real file on Unix and to nothing on Windows, so the check
+    would be host-dependent and falsely green for a target no consumer can resolve.
+    """
+
+    def test_a_link_escaping_the_root_is_flagged_even_when_the_host_has_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            (root / "docs").mkdir()
+            depth = len(root.parts) + 2
+            escape = "/".join([".."] * depth) + "/etc/passwd"
+            (root / "README.md").write_text(f"See [x]({escape}).\n", encoding="utf-8")
+            failures = check_links._check_live_doc_links(root)
+        self.assertTrue(any("escapes the repository" in f for f in failures), failures)
 
 
 if __name__ == "__main__":

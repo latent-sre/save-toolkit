@@ -15,13 +15,15 @@ sources or the generated host adapters.
 | Roadmap-linked probe instruments | [`probes/`](probes) | Blank, repeatable procedures that are operational only while an active roadmap item links them. They are neither evidence nor a second task list; completed results live in validated evidence envelopes and dated review packets |
 | Closure evidence | [`reviews/`](reviews) | Historical evidence of what a round landed and how it was verified. Never a task list |
 | Live reference contracts | [`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md), [`verification-sandbox.md`](verification-sandbox.md) | Current, governing contracts — not dated snapshots. The rules catalog indexes must-follow constraints with primary sources; schema-compatibility versions the machine-readable contracts in [`../schemas/catalog-v1.json`](../schemas/catalog-v1.json); the verification-sandbox spec governs the digest-bound boundary in [`../scripts/verification_sandbox.py`](../scripts/verification_sandbox.py). All three are linked from root docs and stay current with the fleet they describe |
+| Live operational procedures | [`release-runbook.md`](release-runbook.md) | The consumer-side recovery procedure for a release. Current and governing, not a dated snapshot — [`AGENTS.md`](../AGENTS.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md), and [`rules.md`](rules.md) all cite it as authoritative, so it is listed here rather than left for a reader to classify |
 | Dated evidence | [`RESEARCH.md`](RESEARCH.md) | Point-in-time provenance current as of its dateline. Re-verify before relying on it; it does not add work. The 2026-07-12 fleet audit was removed and remains in git history only |
 
 ## What is live right now
 
 Only [`fleet-roadmap.md`](fleet-roadmap.md), the **accepted** records under [`decisions/`](decisions),
-and the live reference contracts ([`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md),
-[`verification-sandbox.md`](verification-sandbox.md)) govern the current fleet.
+the live reference contracts ([`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md),
+[`verification-sandbox.md`](verification-sandbox.md)), and the live operational procedure
+[`release-runbook.md`](release-runbook.md) govern the current fleet.
 `probes/` contains no independent authority: an instrument is live only through the active roadmap
 item that links it. `superpowers/plans/` and `superpowers/specs/` hold **bannered historical** plans
 and specs when no

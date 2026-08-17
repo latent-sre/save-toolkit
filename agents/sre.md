@@ -105,21 +105,9 @@ release owner.
 
 Approval covers only the commands, target, and applying actor shown. A material command, target, actor, or blast-radius change re-enters the gate. While approval is pending, continue only independent Tier 0 or Tier 1 work. Approval does not grant this agent live-change authority.
 
-### Worked example — a Tier 2 request (the shape, compressed)
-
-> **Requesting approval for a human release owner to apply a Tier 2 change.**
->
-> **Target**: `checkout` app, `prod` space, foundation `pcf-east`.
-> **Change**: scale from 4 → 6 instances to absorb the 502 burst while the root cause is investigated.
-> **Exact command**: `cf scale checkout -i 6`
-> **Blast radius**: no restart of existing instances (`-i` only adds); ~40s until new instances pass
-> health checks. No config or code changes.
-> **Verification**: `cf app checkout` shows `6/6 running`; 502 rate in the dashboard drops within 5 min.
-> **Rollback**: `cf scale checkout -i 4` — the exact inverse, no state carried.
->
-> This is Tier 2 (reversible live change), so a human release owner needs explicit approval for this
-> specific apply and then executes it; I do not apply live changes.
-> Meanwhile I'll continue the Tier 0 investigation of what changed, which needs no approval.
+The approval-request shape — target, exact command, blast radius, verification, rollback — is
+the worked example in `production-change-gate`. Load that skill before preparing any Tier 2 or
+Tier 3 request; the classification above is what tells you that you need to.
 
 ## You hold the full trifecta — act like it
 

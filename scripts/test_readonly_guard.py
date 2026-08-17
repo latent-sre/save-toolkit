@@ -129,6 +129,12 @@ ALLOWED = [
     "git branch --list 'feat/*'",
     "git branch -r --contains HEAD",
     "git branch --show-current",
+    # A LIST-MODE flag makes any positional a pattern, never a new ref — probed on git 2.43.0.
+    # These pin the safe side of the create-intent gate so the fix cannot over-deny real reads.
+    "git branch -av",                    # bundled: -a is list-mode, -v alone would not be
+    "git tag --contains=HEAD",
+    "git tag --sort=refname",            # pure modifier, but no positional to create
+    "git branch --sort=refname",
     # searching and reading the tree
     "grep -rn 'def main' scripts/",
     "rg 'git push' docs/",
@@ -138,6 +144,7 @@ ALLOWED = [
     "wc -l agents/*.md",
     "find . -name '*.py'",
     "find . -type f -name '*.md'",
+    "file scripts/gate_a.py",
     "echo hello",
     "diff a.txt b.txt",
     "jq '.name' package.json",
@@ -167,7 +174,7 @@ ALLOWED = [
     "cf logs my-app --recent",
     "cf routes",
     "cf services",
-    "cf target",
+    "cf target",  # bare form only: it PRINTS the current target; the flag forms SET it (see DENIED)
     "cf app my-app | grep -e instances",
     # gcloud reads — the GCP-migration triage set, gated by positional prefix
     "gcloud run services list",
@@ -211,6 +218,13 @@ DENIED = [
     ";;",
     "; ;",
     "&& ||",
+    # `;;` and `&&&` as INFIX operators: shlex emits each as a single token, and neither was in
+    # _SEPARATORS, so the whole line collapsed into one segment whose command is the allowed
+    # reader and whose trailing `git push` rode in as an inert argument. Both are shell syntax
+    # errors (verified: `sh` refuses the line), so nothing ever executed — but a fail-OPEN in a
+    # fail-closed control is pinned here regardless, exactly like the bare-`;` cases above.
+    "git log ;; git push",
+    "git log &&& git push",
     "; \n |",
     # Parenthesised forms reach the same "no runnable command" state by a different route.
     "(",
@@ -231,6 +245,24 @@ DENIED = [
     "git config --unset user.email",
     "git tag v1.0",
     "git branch feature",
+    # A read flag that does NOT force list mode leaves the positional free, and git CREATES the
+    # ref. Every one of these was ALLOWED before the list-mode gate; each was verified to create a
+    # real tag/branch on git 2.43.0. `--sort`/`--format` are the attached-value forms: the flag
+    # takes its value from the `=`, so the positional is never consumed. `branch -v` (verbose)
+    # creates while `tag -v` (verify) does not — which is why the flag sets are per-subcommand.
+    "git tag --sort=refname vX1",
+    "git tag --format=%(refname) vX2",
+    "git tag -i vX3",
+    "git tag --ignore-case vX4",
+    "git branch --sort=refname bX1",
+    "git branch --format=%(refname) bX2",
+    "git branch -i bX3",
+    "git branch -v bX4",
+    "git branch --verbose bX5",
+    "git branch -vv bX6",
+    # An unrecognized flag can never authorize a positional either: the gate requires a KNOWN
+    # list-mode flag, so a future git modifier cannot silently reopen this hole.
+    "git tag --some-future-modifier vX7",
     "git fetch origin",
     "git format-patch -o /tmp HEAD~1",
     "git stash",
@@ -316,6 +348,12 @@ DENIED = [
     "less README.md",
     "ag --pager /bin/sh x",
     "ag pattern .",
+    # `file -C` (--compile) writes a compiled `.mgc` magic file to disk with no shell redirect —
+    # the `tree -o` shape again. Each of these was ALLOWED before the flag gate; the bundled form
+    # hides the letter behind a benign short flag, same trick as `git grep -nO` and `rg -iz`.
+    "file -C -m magic",
+    "file --compile -m magic",
+    "file -bC -m magic",
     "gh pr view 12 -cw",                # bundled --web; launches $BROWSER
     # --- filesystem / process / service ------------------------------------------------------
     "rm -rf build/",
@@ -373,6 +411,12 @@ DENIED = [
     "cf set-env my-app KEY value",
     "cf env my-app",
     "cf ssh my-app",
+    # `cf target` with `-o`/`-s` SETS the targeted org/space — local CLI state that silently
+    # redirects every later guarded `cf` read. Each was ALLOWED before the bare-only gate;
+    # only the argumentless form (see ALLOWED) merely prints the current target.
+    "cf target -o other-org",
+    "cf target -s other-space",
+    "cf target -o other-org -s other-space",
     # --- gcloud: credential-printing reads, writes, and smuggling levers ----------------------
     # The credential trio and secret access print live tokens/secrets to an egress-holding agent —
     # the `cf env` shape; the rest are writes, identity pivots, or flag smuggling. A release-track
