@@ -351,10 +351,26 @@ test is a rescope. And an attempt's evaluation must be a fresh evidence envelope
 authoring checkout, which the author cannot supply for itself. The record therefore stays `observed`
 with an append-only limitations entry.
 
-**Next action:** Obtain the owner's rescope decision on `target.artifact_paths`, then an independent
-exact-revision evaluation of the candidate in a fresh context, and append that verdict to the typed
-record. Confirm the macOS and Windows Gate A jobs on the exact candidate. Do not promote the record,
-append a self-authored attempt outcome, or treat the author's own sweep as the independent evaluation.
+> **2026-08-17 — this item's subject moved; re-evaluate before acting.** PR #116 rewrote
+> `mutation_guard`'s HONEST LIMITS docstring (the third criterion's subject) and changed the verdict
+> path this item's first criterion describes, extracting it as `is_inconclusive()` and feeding the
+> previously ignored `blind` bucket into it. It also moved sweeps into an isolated `git worktree`.
+> None of that is a claim that any recorded defect is closed — no independent evaluation has been
+> appended and an agent does not promote its own work. Read the current file before assuming this
+> item's description of it still holds.
+
+**Next action:** **Re-pin a candidate from current `main` first.** Candidate
+`82333f42c9c1f55286632f0ad4fdad3fba45a5ff` predates PR #116, which rewrote the docstring one
+criterion is about and restructured the verdict path another describes. Requesting an
+exact-revision evaluation of that candidate would produce a verdict about bytes the tool no longer
+has, and that verdict could then be appended toward closing this item — obsolete evidence is worse
+than none, because it carries the authority of having been independently produced.
+
+So: re-pin against current `main`, restate the three criteria against the code as it now stands, and
+obtain the owner's rescope decision on `target.artifact_paths`. Only then request the independent
+exact-revision evaluation in a fresh context and confirm the macOS and Windows Gate A jobs on the new
+candidate. Do not promote the record, append a self-authored attempt outcome, or treat the author's
+own sweep as the independent evaluation.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
@@ -465,6 +481,116 @@ focused process-boundary tests to pass repeatedly on macOS. Linux evidence only 
 repeated runs, then obtain independent exact-revision review and append that verdict to the typed
 record. Do not close on Linux evidence alone, and do not widen the `PermissionError` tolerance beyond
 the reaped-leader state to make a flaky job quiet.
+
+### SKILL-001 — make the oversized skills routers, and their descriptions triggers
+
+**Status:** `blocked` (2026-08-17) — the description half cannot be verified without the live
+routing runner; the structural half is unblocked and can proceed first.
+
+**Outcome:** No skill spends a caller's context on content that call did not need. **These eight
+skills** become routers with a conditional "if the question involves X, read Y" table —
+`ops-tooling`, `pcf-ops`, `incident-command`, `operational-learning`, `ci-actions`,
+`agent-security`, `pcf-deploy`, `database-reliability` — and every description is a trigger only, no
+workflow summary restating a table the body already carries.
+
+**Source:** [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md), which
+records every figure below with the command that produces it. `[verified]` The eight named skills are
+exactly those whose `SKILL.md` is at least 8,000 bytes while their `references/` total is smaller
+than `SKILL.md` itself — the bulk inline and unconditional rather than routed. `ops-tooling` is the
+worst at 14,607 B against 7,202 B of references, and `incident-command`, `agent-security` and
+`pcf-deploy` carry no references at all. `[verified]` Description mass resident in every session is
+12,682 bytes across 29 skills.
+
+`[unverified — judgment, not measurement]` That roughly a dozen descriptions carry a workflow
+summary, which [`rules.md`](rules.md) forbids. Whether a clause helps a model decide *whether to
+load* a skill, versus restating what the body already contains, is not mechanically decidable — so
+that judgment motivates this item but deliberately does not appear in its acceptance below.
+
+**An earlier revision of this item said eleven skills.** That number came from a judgment table with
+no stated criterion and does not survive one; `frontend-craft` and `backend-craft` have large cores
+but route more reference bytes than they keep. The sweep records the correction.
+
+**Prerequisites:** The `obs-logs` conditional table is the pattern to copy. Description edits need
+the clean-room runner and a live API, per the change playbook — which is what blocks that half.
+
+**Acceptance:** **All eight named skills** — not a subset — satisfy the criterion in reverse: each
+either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
+conditional table whose targets are reachable through `check_links`. Re-running the sweep's command
+must return an empty set. Each reworded description passes the 600-byte cap and the `Triggers:`
+contract, and every description edit shows before/after scenario runs with the rate diff. Gate A
+green.
+
+**Next action:** Convert one monolith as a pattern — `incident-command` is the highest-traffic and
+has zero references — and land it alone so the conversion shape can be reviewed before it is applied
+to ten more. The description half waits on the runner.
+
+**Stated deferral, recorded here because the playbook requires it be stated rather than silent:**
+the `eng-ladder` description was rewritten on 2026-08-17 (merged in #115) from 599 bytes to 418
+**without** before/after routing runs, because this environment has no live API. What that omission
+cannot prove is whether the trimmed rung definitions changed which lane fires for an altitude
+question. The edit removed a workflow summary and added a trigger, so the intended direction is
+better routing, but intent is not measurement. Re-run the overlapping scenarios when the runner is
+next available.
+
+### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
+
+**Status:** `blocked` (2026-08-17) — same live-runner dependency as SKILL-001.
+
+**Outcome:** One skill owns log-based alert design **in the canonical text**, and the routing suite
+contains a scenario that would fail if the other started firing for it. Both halves are required:
+the descriptions must state the boundary, and a scenario must be able to detect a regression.
+
+**Source:** [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md).
+`[sourced]` `obs-logs` advertises the trigger `'build a log alert'`
+while `obs-alerting` claims Splunk saved-search alerts, and `obs-logs`'s ownership map disclaims
+only `obs-metrics` and `obs-dashboards` — not `obs-alerting`. The 66-scenario suite contains
+`discovery-obs-alerting-splunk-saved-search.yaml` expecting `obs-alerting` to fire, and **no**
+scenario asserting `obs-logs` defers to it. The collision is therefore unmeasured rather than known
+to be harmless.
+
+**Prerequisites:** None structural. Verification needs the live runner.
+
+**Acceptance:** Both, and neither alone. (1) The canonical text disambiguates: `obs-logs` no longer
+advertises a trigger that `obs-alerting` owns, **or** its ownership map names `obs-alerting`
+explicitly. (2) A `discovery-obs-logs-defers-obs-alerting` scenario exists and passes, and the
+before/after runs show no other overlapping scenario moved.
+
+A passing scenario on its own does **not** close this item. If the scenario already passes against
+today's descriptions, that is evidence the collision is currently latent — not that it is resolved —
+and closing on it would leave `obs-logs` still advertising `'build a log alert'` with the ownership
+map still silent about `obs-alerting`.
+
+**Next action:** Write the missing defer scenario now — authoring it needs no API and makes the
+collision measurable the moment a runner is available. Do not edit either description first; an
+unmeasured description change is what created the ambiguity.
+
+### SCRIPTS-001 — one frontmatter reader instead of three that disagree
+
+**Status:** `ready` (2026-08-17)
+
+**Outcome:** `scripts/` has a single stdlib frontmatter parser, so a document that one tool accepts
+cannot be malformed to another.
+
+**Source:** [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md), which
+reproduces each divergence directly. `[verified]` The grammars genuinely disagree, rather than the
+code merely duplicating: `check_links._frontmatter` rejects `_` in keys where
+`generate_platform_adapters.parse_frontmatter` accepts it; the first collects a failure and
+continues where the second raises `ValueError`; and on a `key:` + `- item` list the first reports two
+malformed lines plus an unknown key while the second accepts it and types the value as a list.
+`[sourced]` That last one has a live subject — `agents/researcher.md` uses the list form for
+`tools:` — but `check_links` does not scan `agents/`, so the disagreement is latent, which is exactly
+the state in which a consolidation silently picks a winner. `evals/run_evals.py` holds a third
+reader, not compared.
+
+**Prerequisites:** Met by #116, which pinned the quoted-scalar guard, the `or ""` default and the
+skill-reference tail arms in the adapter reader — the behaviour a consolidation must preserve. Do
+not start without those tests; they are the only record of what today's grammar actually is.
+
+**Acceptance:** One module, both a strict (raise) and a lenient (collect) mode, all three callers
+migrated, and the pinning tests above still green unchanged. Gate A green, adapters byte-identical.
+
+**Next action:** Write down the three grammars as a difference table first and get agreement on
+which behaviour wins per divergence. Consolidating before that decision silently picks a winner.
 
 ## Decisions needed
 
