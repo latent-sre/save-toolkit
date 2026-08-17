@@ -479,26 +479,38 @@ the reaped-leader state to make a flaky job quiet.
 **Status:** `blocked` (2026-08-17) — the description half cannot be verified without the live
 routing runner; the structural half is unblocked and can proceed first.
 
-**Outcome:** No skill spends a caller's context on content that call did not need. Eleven skills
-that are currently payloads become routers with a conditional "if the question involves X, read Y"
-table, and every description is a trigger only — no workflow summary restating a table the body
-already carries.
+**Outcome:** No skill spends a caller's context on content that call did not need. **These eight
+skills** become routers with a conditional "if the question involves X, read Y" table —
+`ops-tooling`, `pcf-ops`, `incident-command`, `operational-learning`, `ci-actions`,
+`agent-security`, `pcf-deploy`, `database-reliability` — and every description is a trigger only, no
+workflow summary restating a table the body already carries.
 
-**Source:** The 2026-08-17 skills sweep. `incident-command` (10.5 KB), `agent-security` (9.2 KB) and
-`pcf-deploy` (9.0 KB) carry zero reference files; `ops-tooling` is 14.6 KB of which ~12 KB is
-unconditional pipeline prose paid in full even by the invocation its own line 19 tells you to exit.
-Against that, `language-idiom` routes 22 KB of references from a 2.6 KB core and the `obs-*` trio
-already use the conditional table this item would copy. Separately, 13 of 29 descriptions carry a
-workflow summary, which [`rules.md`](rules.md) forbids; those descriptions are resident in every
-session at roughly 13 KB total.
+**Source:** [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md), which
+records every figure below with the command that produces it. `[verified]` The eight named skills are
+exactly those whose `SKILL.md` is at least 8,000 bytes while their `references/` total is smaller
+than `SKILL.md` itself — the bulk inline and unconditional rather than routed. `ops-tooling` is the
+worst at 14,607 B against 7,202 B of references, and `incident-command`, `agent-security` and
+`pcf-deploy` carry no references at all. `[verified]` Description mass resident in every session is
+12,682 bytes across 29 skills.
+
+`[unverified — judgment, not measurement]` That roughly a dozen descriptions carry a workflow
+summary, which [`rules.md`](rules.md) forbids. Whether a clause helps a model decide *whether to
+load* a skill, versus restating what the body already contains, is not mechanically decidable — so
+that judgment motivates this item but deliberately does not appear in its acceptance below.
+
+**An earlier revision of this item said eleven skills.** That number came from a judgment table with
+no stated criterion and does not survive one; `frontend-craft` and `backend-craft` have large cores
+but route more reference bytes than they keep. The sweep records the correction.
 
 **Prerequisites:** The `obs-logs` conditional table is the pattern to copy. Description edits need
 the clean-room runner and a live API, per the change playbook — which is what blocks that half.
 
-**Acceptance:** Each converted skill's router carries a conditional table and its moved content is
-reachable through `check_links`; each reworded description passes the 600-byte cap and the
-`Triggers:` contract; and every description edit shows before/after scenario runs with the rate
-diff. Gate A green.
+**Acceptance:** **All eight named skills** — not a subset — satisfy the criterion in reverse: each
+either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
+conditional table whose targets are reachable through `check_links`. Re-running the sweep's command
+must return an empty set. Each reworded description passes the 600-byte cap and the `Triggers:`
+contract, and every description edit shows before/after scenario runs with the rate diff. Gate A
+green.
 
 **Next action:** Convert one monolith as a pattern — `incident-command` is the highest-traffic and
 has zero references — and land it alone so the conversion shape can be reviewed before it is applied
@@ -516,10 +528,12 @@ next available.
 
 **Status:** `blocked` (2026-08-17) — same live-runner dependency as SKILL-001.
 
-**Outcome:** One skill owns log-based alert design, and the routing suite contains a scenario that
-would fail if the other one started firing for it.
+**Outcome:** One skill owns log-based alert design **in the canonical text**, and the routing suite
+contains a scenario that would fail if the other started firing for it. Both halves are required:
+the descriptions must state the boundary, and a scenario must be able to detect a regression.
 
-**Source:** The 2026-08-17 skills sweep. `obs-logs` advertises the trigger `'build a log alert'`
+**Source:** [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md).
+`[sourced]` `obs-logs` advertises the trigger `'build a log alert'`
 while `obs-alerting` claims Splunk saved-search alerts, and `obs-logs`'s ownership map disclaims
 only `obs-metrics` and `obs-dashboards` — not `obs-alerting`. The 66-scenario suite contains
 `discovery-obs-alerting-splunk-saved-search.yaml` expecting `obs-alerting` to fire, and **no**
@@ -528,8 +542,15 @@ to be harmless.
 
 **Prerequisites:** None structural. Verification needs the live runner.
 
-**Acceptance:** A `discovery-obs-logs-defers-obs-alerting` scenario exists and passes, and the
-before/after runs show the change did not move any other overlapping scenario.
+**Acceptance:** Both, and neither alone. (1) The canonical text disambiguates: `obs-logs` no longer
+advertises a trigger that `obs-alerting` owns, **or** its ownership map names `obs-alerting`
+explicitly. (2) A `discovery-obs-logs-defers-obs-alerting` scenario exists and passes, and the
+before/after runs show no other overlapping scenario moved.
+
+A passing scenario on its own does **not** close this item. If the scenario already passes against
+today's descriptions, that is evidence the collision is currently latent — not that it is resolved —
+and closing on it would leave `obs-logs` still advertising `'build a log alert'` with the ownership
+map still silent about `obs-alerting`.
 
 **Next action:** Write the missing defer scenario now — authoring it needs no API and makes the
 collision measurable the moment a runner is available. Do not edit either description first; an
@@ -542,12 +563,16 @@ unmeasured description change is what created the ambiguity.
 **Outcome:** `scripts/` has a single stdlib frontmatter parser, so a document that one tool accepts
 cannot be malformed to another.
 
-**Source:** The 2026-08-17 scripts sweep found three independent parsers with a genuinely divergent
-grammar, not merely duplicated code: `check_links._frontmatter` rejects `_` in keys while
-`generate_platform_adapters.parse_frontmatter` allows it; one records a failure and continues where
-the other raises; one supports `key:` + `- item` lists and the other reports them malformed — which
-matters because agent frontmatter uses the list form for `tools:`. Roughly 140 lines overlap across
-three modules, plus five ad-hoc `split("---", 2)` sites in tests.
+**Source:** [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md), which
+reproduces each divergence directly. `[verified]` The grammars genuinely disagree, rather than the
+code merely duplicating: `check_links._frontmatter` rejects `_` in keys where
+`generate_platform_adapters.parse_frontmatter` accepts it; the first collects a failure and
+continues where the second raises `ValueError`; and on a `key:` + `- item` list the first reports two
+malformed lines plus an unknown key while the second accepts it and types the value as a list.
+`[sourced]` That last one has a live subject — `agents/researcher.md` uses the list form for
+`tools:` — but `check_links` does not scan `agents/`, so the disagreement is latent, which is exactly
+the state in which a consolidation silently picks a winner. `evals/run_evals.py` holds a third
+reader, not compared.
 
 **Prerequisites:** Met by #116, which pinned the quoted-scalar guard, the `or ""` default and the
 skill-reference tail arms in the adapter reader — the behaviour a consolidation must preserve. Do
