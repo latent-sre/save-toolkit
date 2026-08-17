@@ -138,6 +138,7 @@ ALLOWED = [
     "wc -l agents/*.md",
     "find . -name '*.py'",
     "find . -type f -name '*.md'",
+    "file scripts/gate_a.py",
     "echo hello",
     "diff a.txt b.txt",
     "jq '.name' package.json",
@@ -167,7 +168,7 @@ ALLOWED = [
     "cf logs my-app --recent",
     "cf routes",
     "cf services",
-    "cf target",
+    "cf target",  # bare form only: it PRINTS the current target; the flag forms SET it (see DENIED)
     "cf app my-app | grep -e instances",
     # gcloud reads — the GCP-migration triage set, gated by positional prefix
     "gcloud run services list",
@@ -316,6 +317,12 @@ DENIED = [
     "less README.md",
     "ag --pager /bin/sh x",
     "ag pattern .",
+    # `file -C` (--compile) writes a compiled `.mgc` magic file to disk with no shell redirect —
+    # the `tree -o` shape again. Each of these was ALLOWED before the flag gate; the bundled form
+    # hides the letter behind a benign short flag, same trick as `git grep -nO` and `rg -iz`.
+    "file -C -m magic",
+    "file --compile -m magic",
+    "file -bC -m magic",
     "gh pr view 12 -cw",                # bundled --web; launches $BROWSER
     # --- filesystem / process / service ------------------------------------------------------
     "rm -rf build/",
@@ -373,6 +380,12 @@ DENIED = [
     "cf set-env my-app KEY value",
     "cf env my-app",
     "cf ssh my-app",
+    # `cf target` with `-o`/`-s` SETS the targeted org/space — local CLI state that silently
+    # redirects every later guarded `cf` read. Each was ALLOWED before the bare-only gate;
+    # only the argumentless form (see ALLOWED) merely prints the current target.
+    "cf target -o other-org",
+    "cf target -s other-space",
+    "cf target -o other-org -s other-space",
     # --- gcloud: credential-printing reads, writes, and smuggling levers ----------------------
     # The credential trio and secret access print live tokens/secrets to an egress-holding agent —
     # the `cf env` shape; the rest are writes, identity pivots, or flag smuggling. A release-track

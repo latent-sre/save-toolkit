@@ -119,8 +119,10 @@ _STRUCTURE_DENY = re.compile(
 _SEPARATORS = {"|", "||", "&&", ";", "\n"}
 
 # --- the allowlist --------------------------------------------------------------------------
-# Plain readers and filters: they consume input and print. None can write a file on their own (a
-# redirect would be needed, and redirects are refused above). `sed` and `awk` are deliberately ABSENT
+# Plain readers and filters: they consume input and print. None can write a file on its own (a
+# redirect would be needed, and redirects are refused above) — with one flag-gated exception:
+# `file -C`/`--compile` writes a compiled `.mgc` magic file, so _segment_allowed rejects that flag
+# (see _FILE_WRITE_FLAGS). `sed` and `awk` are deliberately ABSENT
 # — both can write files without any redirect (`sed -i`, awk's `print > "f"` and `system()`).
 # `tree` and `less` are absent: `tree -o` writes to a named file, and `less -o` logs its input to a
 # file (and `less` can also execute a program interactively). `sort` is absent too: GNU sort can run
@@ -152,6 +154,13 @@ _RG_EXECUTION_FLAGS = frozenset({"--pre", "--hostname-bin", "--search-zip", "-z"
 # `-z` (--search-zip) is a bundling short flag: `rg -iz` = `-i` + `-z`, so match the letter in a
 # cluster, not just the standalone token. See _short_cluster_has.
 _RG_EXECUTION_SHORT = frozenset({"z"})
+
+# `file` is a reader with ONE write lever: `-C`/`--compile` compiles a magic source file into a
+# `.mgc` file on disk — no shell redirect involved, so _STRUCTURE_DENY never sees it (the
+# `tree -o` shape again). The short form bundles (`-bC` = `-b` + `-C`), so the letter is matched
+# in a cluster too. See _short_cluster_has.
+_FILE_WRITE_FLAGS = frozenset({"--compile"})
+_FILE_WRITE_SHORT = frozenset({"C"})
 
 # `git` subcommands that have no write SUBCOMMAND (per `git-<name>(1)` synopsis). Several still
 # accept `--output=<file>`/`-o <file>` to write a report to disk (diff, log, show, diff-tree,
@@ -186,6 +195,12 @@ _GIT_READ_EXEC_FLAGS = frozenset({"--open-files-in-pager"})
 # The SHORT form of the pager-exec flag: `git grep -O<cmd>` runs CMD, and it bundles
 # (`-nO<cmd>` = `-n` + `-O<cmd>`), so a start-of-token test alone misses it. See _short_cluster_has.
 _GIT_READ_EXEC_SHORT = frozenset({"O"})
+# Honest residual on the git readers, in the docstring's "not a sandbox" class: `git diff`, `log`,
+# and `show` run diff DRIVERS and textconv filters named by an existing `.git/config` +
+# `.gitattributes` BY DEFAULT — no flag involved, so no flag gate here can see it. The guard denies
+# the injection paths it does see (`-c key=val` config and `VAR=x` env prefixes are both rejected
+# below), but a config already on disk is outside a command filter's sight. OS-level least
+# privilege remains the load-bearing control, per the boundary note at the top of this file.
 # Subcommands whose FIRST POSITIONAL decides read vs write (`git stash list` reads, a bare
 # `git stash` pushes; `git submodule status` reads, `git submodule update` writes;
 # `git reflog show` reads, `git reflog expire` prunes reflog entries).
@@ -258,7 +273,8 @@ _GH_READ = {
 # `find`'s action flags run commands or delete files — the reason `find` cannot simply be a reader.
 _FIND_ACTIONS = ("-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprintf", "-fls")
 
-# `cf` (Cloud Foundry CLI v8) read verbs for incident triage. `cf env` is ABSENT by design: it
+# `cf` (Cloud Foundry CLI v8) read verbs for incident triage. `target` is bare-form-only — its
+# flag form WRITES the target; see _cf_allowed. `cf env` is ABSENT by design: it
 # prints the app's full environment — credentials included — to an agent that also holds web
 # egress, and that pairing is exactly the exfiltration shape the fleet's doctrine forbids.
 _CF_READ = frozenset({
@@ -443,7 +459,15 @@ def _rg_allowed(args: list[str]) -> bool:
 
 def _cf_allowed(args: list[str]) -> bool:
     positionals = _positionals(args)
-    return bool(positionals) and positionals[0] in _CF_READ
+    if not positionals or positionals[0] not in _CF_READ:
+        return False
+    # `target` is the one _CF_READ verb with a WRITE form: bare `cf target` prints the current
+    # org/space, but `-o`/`-s` SET it — local CLI state that silently points every later guarded
+    # `cf` read at a different target. Allow only the bare, print-only form; any extra argument
+    # (flag or positional) denies, this guard's usual fail-loud direction.
+    if positionals[0] == "target":
+        return args == ["target"]
+    return True
 
 
 def _gcloud_allowed(args: list[str]) -> bool:
@@ -472,6 +496,8 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
         return _gh_allowed(args)
     if command == "rg":
         return _rg_allowed(args)
+    if command == "file":
+        return not _carries_flag(args, _FILE_WRITE_FLAGS, _FILE_WRITE_SHORT)
     if command == "cf":
         return _cf_allowed(args)
     if command == "gcloud":
