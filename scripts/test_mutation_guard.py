@@ -183,6 +183,35 @@ class T(unittest.TestCase):
 '''
 
 
+# Contains a glob literal, as real tests do. Must NOT enrol bundled scripts as subjects.
+GLOB_LITERAL_NAMER = '''\
+import unittest
+
+PATTERN = "*.py"
+
+
+class T(unittest.TestCase):
+    def test_noop(self):
+        pass
+'''
+
+# Exits 0 only if the process cwd is the root of the tree containing this file.
+CWD_PROBE = '''\
+import os, pathlib, sys, unittest
+
+EXPECTED = pathlib.Path(__file__).resolve().parents[1]
+
+
+class T(unittest.TestCase):
+    def test_cwd_is_my_own_tree_root(self):
+        assert pathlib.Path(os.getcwd()).resolve() == EXPECTED, (os.getcwd(), str(EXPECTED))
+
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+
+
 def _git_repository(case: unittest.TestCase, files: dict[str, str]) -> Path:
     """A committed, clean throwaway repository holding exactly *files*.
 
@@ -841,6 +870,51 @@ class IsolationTests(unittest.TestCase):
         output = completed.stdout + completed.stderr
         self.assertNotIn("is not in the subpath", output, output[-600:])
         self.assertNotIn("Traceback", output, output[-600:])
+
+    def test_a_glob_literal_does_not_enrol_every_bundled_script(self) -> None:
+        """`"*.py"` is an ordinary literal in a test, not a subject pattern.
+
+        Interpolating it into the bundle glob enrolled every skill-bundled script as a subject of
+        whichever test happened to mention it — six modules that test makes no claim about. The
+        bogus pairs then fail their own normalized baseline, so the sweep reports unverifiable
+        pairs instead of testing the real module.
+        """
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "skills/thing/scripts/bundled.py": "def f():\n    return 1\n",
+            "scripts/test_globby.py": GLOB_LITERAL_NAMER,
+        })
+        found = {
+            test.name: [subject.path.name for subject in subjects]
+            for test, subjects in mutation_guard.discover(root)
+        }
+        self.assertNotIn("bundled.py", found["test_globby.py"], found["test_globby.py"])
+
+    def test_the_live_generator_test_is_not_paired_with_skill_scripts(self) -> None:
+        """The live instance of the bug above: `test_platform_adapters.py` contains two `"*.py"`
+        literals and was paired with six unrelated skill modules."""
+        paired = {
+            subject.path.name
+            for test, subjects in mutation_guard.discover(ROOT)
+            if test.name == "test_platform_adapters.py"
+            for subject in subjects
+        }
+        self.assertEqual({"generate_platform_adapters.py"}, paired)
+
+    def test_a_test_runs_from_the_root_of_its_own_tree(self) -> None:
+        """With isolation, cwd must follow the test into the worktree.
+
+        `run_test` used the module-level ROOT — the caller's real checkout — so a mutated test
+        inside the throwaway worktree was launched with the LIVE repository as its working
+        directory, and anything resolving a repo file relative to cwd read unmutated bytes.
+        """
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_cwd_probe.py": CWD_PROBE,
+        })
+        # The probe exits 0 only when its cwd is the root of the tree holding it.
+        self.assertTrue(mutation_guard.run_test(root / "scripts/test_cwd_probe.py"))
+        self.assertNotEqual(root.resolve(), ROOT, "fixture must not be the live repo")
 
     def test_a_dirty_tree_is_still_refused(self) -> None:
         """Now for honesty rather than recovery: a worktree is pinned at HEAD, so uncommitted

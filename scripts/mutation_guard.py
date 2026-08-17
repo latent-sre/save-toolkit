@@ -92,6 +92,9 @@ COMPARISON_SWAPS = {
 # speed. --limit takes an evenly spaced sample when a bounded run is wanted.
 DEFAULT_LIMIT = 0
 RUN_TIMEOUT = 900
+# Characters that turn a basename into a pattern. `Path.glob` treats these as wildcards, so a
+# `.py` literal containing one must never reach the bundle search in `discover`.
+_GLOB_METACHARACTERS = frozenset("*?[]")
 # Distinct codes: a collapsed exit status cannot tell "refused to run" from "ran and proved
 # nothing", which is the same disarmed-gate shape this repo forbids for the readonly guard.
 EXIT_SURVIVORS = 1
@@ -268,7 +271,17 @@ def discover(root: Path) -> list[tuple[Path, list[Path]]]:
                 if not node.value.endswith(".py"):
                     continue
                 options = [root / node.value]
-                if "/" not in node.value and "\\" not in node.value:
+                # A bare basename only, and never one carrying glob metacharacters. `"*.py"` is a
+                # perfectly ordinary literal in a test — `test_platform_adapters.py` has two — and
+                # interpolating it into the glob below enrolled every skill-bundled script as a
+                # subject of that test: six modules it makes no claim about, including
+                # `packet_drift.py`. Those bogus pairs then fail their own normalized baseline and
+                # the sweep reports unverifiable pairs instead of testing the real module.
+                if (
+                    "/" not in node.value
+                    and "\\" not in node.value
+                    and not _GLOB_METACHARACTERS.intersection(node.value)
+                ):
                     # A BARE basename, which is what a path-joined subject looks like to the AST:
                     # `ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"` offers
                     # no single literal holding the whole path, only its last component. Resolving
@@ -313,7 +326,17 @@ def normalized_source(source: str) -> str:
 
 
 def run_test(test: Path) -> bool:
-    """True when the test file passes. Run from the repository root, as Gate A runs it.
+    """True when the test file passes. Run from the root of the tree the test BELONGS to.
+
+    The working directory is derived from the test's own path (`<root>/scripts/test_x.py` and
+    `<root>/evals/test_x.py` both put the root two levels up) rather than from the module-level
+    ROOT constant. That distinction became load-bearing with worktree isolation: ROOT is the
+    caller's real checkout, so a mutated test inside the throwaway worktree was being launched with
+    the LIVE repository as its working directory. Any test resolving a repository file relative to
+    cwd would then read unmutated bytes, and the pair gets scored against the wrong tree.
+
+    Deriving it from `test` also cannot go stale the way a threaded-through parameter can: there is
+    no second value to keep in sync, and no default that is silently wrong.
 
     `-B` is load-bearing: CPython validates a cached `.pyc` on `(int(mtime), size)`, and an `==`
     to `!=` swap leaves the file the same size, so two mutants written in the same second could
@@ -322,7 +345,7 @@ def run_test(test: Path) -> bool:
 
     completed = subprocess.run(
         [sys.executable, "-B", str(test)],
-        cwd=str(ROOT),
+        cwd=str(test.resolve().parents[1]),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         timeout=RUN_TIMEOUT,
