@@ -359,10 +359,18 @@ with an append-only limitations entry.
 > appended and an agent does not promote its own work. Read the current file before assuming this
 > item's description of it still holds.
 
-**Next action:** Obtain the owner's rescope decision on `target.artifact_paths`, then an independent
-exact-revision evaluation of the candidate in a fresh context, and append that verdict to the typed
-record. Confirm the macOS and Windows Gate A jobs on the exact candidate. Do not promote the record,
-append a self-authored attempt outcome, or treat the author's own sweep as the independent evaluation.
+**Next action:** **Re-pin a candidate from current `main` first.** Candidate
+`82333f42c9c1f55286632f0ad4fdad3fba45a5ff` predates PR #116, which rewrote the docstring one
+criterion is about and restructured the verdict path another describes. Requesting an
+exact-revision evaluation of that candidate would produce a verdict about bytes the tool no longer
+has, and that verdict could then be appended toward closing this item — obsolete evidence is worse
+than none, because it carries the authority of having been independently produced.
+
+So: re-pin against current `main`, restate the three criteria against the code as it now stands, and
+obtain the owner's rescope decision on `target.artifact_paths`. Only then request the independent
+exact-revision evaluation in a fresh context and confirm the macOS and Windows Gate A jobs on the new
+candidate. Do not promote the record, append a self-authored attempt outcome, or treat the author's
+own sweep as the independent evaluation.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
