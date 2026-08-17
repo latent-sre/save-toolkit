@@ -7,6 +7,7 @@ even after one fails (the gate's documented no-bisect contract), and the report 
 roster order regardless of completion order. All pinned against synthetic interpreter steps —
 no test here runs the real gate inside itself.
 """
+import ast
 import contextlib
 import sys
 import io
@@ -97,6 +98,58 @@ class RunStepsTests(unittest.TestCase):
         self.assertLess(out.index("=== slow ==="), out.index("=== fast ==="))
         self.assertLess(out.index("slow output"), out.index("=== fast ==="))
         self.assertLess(out.index("=== fast ==="), out.index("fast output"))
+
+
+class UnreachableTestClassTests(unittest.TestCase):
+    """No test file may define a TestCase after its `unittest.main()` entrypoint.
+
+    Gate A executes each `test_*.py` as a script, so `unittest.main()` runs at the point it appears
+    and the interpreter never reaches anything below it. A class defined after that block is dead:
+    it is collected by `python -m unittest` but NOT by the gate, so the gate reports OK over a
+    smaller suite than the file appears to contain, and says nothing about the difference.
+
+    This shipped. Fourteen contract tests were appended below the entrypoint in three files and
+    silently did not run -- `test_check_links.py` reported 21 tests directly and 28 under
+    discovery, and two of the missing ones were erroring on an undefined name. That is exactly the
+    proves-nothing failure mode this repository's own tooling exists to catch, so it gets a
+    structural check rather than a resolution to be careful.
+
+    Detection is AST-based, not textual: every `if __name__ == "__main__":` in this repo's test
+    corpus is matched textually by fixtures that embed that same line inside a string literal, and
+    a grep-based version of this check reported the wrong line for four files.
+    """
+
+    @staticmethod
+    def _entrypoint_line(tree: ast.Module) -> int | None:
+        for node in tree.body:
+            if not isinstance(node, ast.If):
+                continue
+            test = node.test
+            if (
+                isinstance(test, ast.Compare)
+                and isinstance(test.left, ast.Name)
+                and test.left.id == "__name__"
+            ):
+                return node.lineno
+        return None
+
+    def test_no_test_class_is_defined_below_the_entrypoint(self) -> None:
+        offenders: list[str] = []
+        checked = 0
+        for pattern in ("scripts/test_*.py", "evals/test_*.py"):
+            for path in sorted(Path(gate_a.ROOT).glob(pattern)):
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+                entrypoint = self._entrypoint_line(tree)
+                if entrypoint is None:
+                    continue
+                checked += 1
+                for node in tree.body:
+                    if isinstance(node, ast.ClassDef) and node.lineno > entrypoint:
+                        offenders.append(f"{path.name}:{node.lineno} class {node.name}")
+        # Without this the loop could silently match no files and the assertion below would be
+        # vacuous -- the precise bug class this test exists for.
+        self.assertGreater(checked, 20, "test corpus not found; this check would prove nothing")
+        self.assertEqual([], offenders, "unreachable when run as a script (Gate A runs it that way)")
 
 
 class PreflightInterpreterFloorTests(unittest.TestCase):

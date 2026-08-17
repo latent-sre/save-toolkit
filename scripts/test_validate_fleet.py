@@ -534,6 +534,24 @@ class NonDelegatingHandoffTests(unittest.TestCase):
             failures,
         )
 
+
+    def test_a_recommendation_alone_is_not_a_disclaimer(self) -> None:
+        """Describing what the lane does is not stating what it cannot do.
+
+        "Recommend exactly one next owner" was briefly accepted as a disclaimer. It is not one: an
+        agent could keep that sentence, drop every incapability statement, and pass -- reopening
+        the misleading-authority drift the contract exists to stop.
+        """
+        self.assertNotIn(
+            "Recommend exactly one next owner", validate_fleet.NON_DELEGATION_DISCLAIMERS
+        )
+        for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS:
+            with self.subTest(phrase=phrase):
+                self.assertTrue(
+                    phrase.startswith("cannot ") or "must invoke" in phrase,
+                    f"{phrase!r} does not assert incapability",
+                )
+
     def test_disclaimer_is_found_across_a_line_wrap(self) -> None:
         """A hard-wrapped disclaimer must still count.
 

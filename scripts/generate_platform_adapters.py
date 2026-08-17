@@ -104,10 +104,20 @@ _BANNER_COMMENT = {
 
 
 def _mark_generated(text: str, suffix: str) -> str:
-    """Prepend the do-not-edit banner, keeping any shebang on line 1 where it must stay.
+    """Insert the do-not-edit banner without displacing anything that must own line 1.
 
-    A `#!` line only works as the first bytes of the file, so for an executable asset the banner
-    goes on line 2 rather than displacing it. Suffixes with no comment syntax are returned intact.
+    Two constructs are positional and break if pushed down:
+
+    * A `#!` shebang only works as the first bytes of the file, so the banner goes on line 2.
+    * YAML frontmatter must open with `---` on line 1. Five bundled assets are frontmatter-bearing
+      TEMPLATES (runbook, postmortem, service-card, alert-card, knowledge-index) whose whole purpose
+      is to be copied; prefixing them turned the fence into ordinary Markdown, so a consumer
+      copying the projected template got a document whose metadata no parser would read -- this
+      repository's own frontmatter readers all require the fence at the start. For those the banner
+      goes immediately AFTER the closing fence, where it is still the first thing a human sees in
+      the body and costs the document nothing.
+
+    Suffixes with no comment syntax are returned intact.
     """
     template = _BANNER_COMMENT.get(suffix)
     if template is None:
@@ -118,6 +128,16 @@ def _mark_generated(text: str, suffix: str) -> str:
         if newline:
             return f"{shebang}\n{banner}\n{rest}"
     separator = "\n\n" if suffix in {".md", ".txt"} else "\n"
+    if suffix in {".md", ".txt"} and text.startswith("---\n"):
+        lines = text.split("\n")
+        for index in range(1, len(lines)):
+            if lines[index].strip() == "---":
+                head = "\n".join(lines[: index + 1])
+                tail = "\n".join(lines[index + 1 :])
+                return f"{head}\n\n{banner}\n{tail.lstrip(chr(10))}"
+        # Unterminated frontmatter: the file is malformed either way, and prefixing it would only
+        # add a second problem on top. Leave the bytes alone rather than guess where the fence ends.
+        return text
     return f"{banner}{separator}{text}"
 
 

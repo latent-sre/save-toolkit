@@ -200,10 +200,6 @@ class PlanStatusTests(unittest.TestCase):
         self.assertTrue(any("deferred item lacks 'Reopen trigger'" in item for item in failures), failures)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SpecPointerAndDecisionStatusTests(unittest.TestCase):
     """Two promises docs/README.md and rules.md made that the script did not keep."""
 
@@ -256,3 +252,7 @@ class SpecPointerAndDecisionStatusTests(unittest.TestCase):
         self.assertEqual(
             "accepted", check_plan_status._status_value("# T\n\n- **Status:** accepted\n")
         )
+
+
+if __name__ == "__main__":
+    unittest.main()

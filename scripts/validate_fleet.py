@@ -33,11 +33,16 @@ DELEGATION_IMPERATIVE = "Hand to exactly one agent"
 # Several equally correct phrasings are already in use, so the set is a union rather than one house
 # style — the point is that the lane says somewhere in its own handoff section that it cannot
 # dispatch, not that every file says it identically.
+#
+# Every member must assert INCAPABILITY. "Recommend exactly one next owner" was briefly here and is
+# deliberately gone: it describes what the lane does, not what it cannot do, so an agent could keep
+# that sentence, drop every "cannot" statement, and still pass — reopening the precise
+# misleading-authority drift this contract exists to stop. Recommending and being unable to dispatch
+# are different claims, and only the second one is the control.
 NON_DELEGATION_DISCLAIMERS = (
     "cannot invoke",
     "cannot delegate",
     "caller must invoke",
-    "Recommend exactly one next owner",
 )
 
 

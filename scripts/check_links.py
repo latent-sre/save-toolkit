@@ -121,7 +121,17 @@ def _check_live_doc_links(root: Path) -> list[str]:
             if target is None:
                 continue
             resolved = (path.parent / target.split("#", 1)[0]).resolve()
-            if not resolved.exists():
+            # Containment before existence. With enough `..` components a link resolves outside the
+            # repository, where `.exists()` answers a question about the HOST rather than the repo:
+            # a root README link to `../../etc/passwd` passes on Unix and fails on Windows, and
+            # would not resolve for any consumer either way. An escaping link is always a defect,
+            # so it is reported as one instead of being silently accepted when the host happens to
+            # have that path.
+            if not resolved.is_relative_to(root):
+                failures.append(
+                    f"{path.relative_to(root).as_posix()}: link {target!r} escapes the repository"
+                )
+            elif not resolved.exists():
                 failures.append(
                     f"{path.relative_to(root).as_posix()}: dead link {target!r}"
                 )

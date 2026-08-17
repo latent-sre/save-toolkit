@@ -14,6 +14,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_links
 import check_stale_names
 
+# The real repository root, for the handful of tests that assert against the live tree rather than
+# a synthetic fixture. Taken from check_links so the two can never disagree about where root is.
+ROOT = check_links.ROOT
+
 
 CLEAN_FRONTMATTER = """---
 name: probe-skill
@@ -284,10 +288,6 @@ class StaleNameCheckerTests(Fixture):
         self.assertEqual([], check_stale_names.check(self.root))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class LiveDocLinkTests(unittest.TestCase):
     """Live authority docs must not carry dead relative links."""
 
@@ -361,3 +361,26 @@ class EvidenceBannerTests(unittest.TestCase):
             skill.mkdir(parents=True)
             (skill / "SKILL.md").write_text("---\nname: alpha\n---\n\nbody\n", encoding="utf-8")
             self.assertEqual([], check_links._check_evidence_banner(root))
+
+
+class EscapingLinkTests(unittest.TestCase):
+    """A link that resolves outside the repository is a defect, not a pass.
+
+    `.exists()` on an escaped path answers a question about the HOST: a root README link to
+    `../../etc/passwd` resolves to a real file on Unix and to nothing on Windows, so the check
+    would be host-dependent and falsely green for a target no consumer can resolve.
+    """
+
+    def test_a_link_escaping_the_root_is_flagged_even_when_the_host_has_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            (root / "docs").mkdir()
+            depth = len(root.parts) + 2
+            escape = "/".join([".."] * depth) + "/etc/passwd"
+            (root / "README.md").write_text(f"See [x]({escape}).\n", encoding="utf-8")
+            failures = check_links._check_live_doc_links(root)
+        self.assertTrue(any("escapes the repository" in f for f in failures), failures)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -420,7 +420,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     # where a mutated file can exist on disk is exactly the window the handler covers.
     _restore_on_termination()
 
-    blind = unresolved(args.root)
+    # A `--module` run asks about ONE module, so repository-wide blind test files are not evidence
+    # about it. Counting them would make every targeted run INCONCLUSIVE regardless of its own
+    # result -- six such files exist here today -- which would train a reader to ignore the verdict,
+    # the opposite of what feeding `blind` into it is for. An unfiltered sweep does claim whole-repo
+    # coverage, so there the blind set is exactly on point.
+    blind = [] if args.module is not None else unresolved(args.root)
     if blind:
         print("mutation_guard: no subject derived for these test files (not mutated):")
         for test in blind:

@@ -87,10 +87,6 @@ class StaleNamesTest(unittest.TestCase):
         self.assertEqual([], check_stale_names.check(self.root))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class EvalScenarioScopeTests(unittest.TestCase):
     """Scenario prompts are sent to the model verbatim, so a retired name there teaches it.
 
@@ -124,3 +120,7 @@ class EvalScenarioScopeTests(unittest.TestCase):
                 '{"agent": "sde-engineer", "verdict": "pass"}\n', encoding="utf-8"
             )
             self.assertEqual([], check_stale_names._scan_tree(root))
+
+
+if __name__ == "__main__":
+    unittest.main()
