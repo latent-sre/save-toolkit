@@ -93,6 +93,8 @@ evals/routing/*.json                  # Task 35 (cluster files, sde-agents forma
 
 # PHASE 1 — THE AGENTS (branch `phase-1-agents`)
 
+> **Superseded — historical record.** Do not execute this phase. Live work is in [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
+
 ### Task 1: Run-protocol open, scaffold, legacy freeze, and keeping Gate A alive
 
 **Files:**
@@ -726,6 +728,8 @@ gh pr create --title "Phase 1: the five agents, legacy freeze, Gate B mechanized
 
 # PHASE 2 — THE SKILLS: harvest + fix (branch `phase-2-skills`)
 
+> **Superseded — historical record.** Do not execute this phase. Live work is in [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
+
 **Phase-order rule:** Task 9 (the 5d checker) lands before the first port. Every port task then follows the same discipline: copy verbatim → apply the enumerated fixes → rewrite bundled-file pointers to Markdown links (worklist given per task, from the measured inventory) → write the description with verbatim triggers → `py -3 scripts/gate_a.py` green → commit. Descriptions follow the format contract below.
 
 **Description format contract (applies to every skill task in Phases 2–3):** one or two sentences of capability; then `Triggers:` with 2–4 verbatim user phrasings in quotes; then boundary clauses naming the neighbor that owns the adjacent lane (the two pinned boundaries: craft vs backend/frontend-craft; persistence.md vs database-reliability — plus data-viz vs obs-dashboards). ≤ 150 tokens. The measured-good model to imitate (3/3 discovery baseline, twice) is legacy `agent-authoring`'s description — see `legacy/claude-fleet/skills/agent-authoring/SKILL.md`.
@@ -765,61 +769,20 @@ Validator v2 (Task 37) owns these rules eventually; shipping the 5d slice now me
 
 - [ ] **Step 1: Write `skills/stack-profile/SKILL.md` in full:**
 
-```markdown
----
-name: stack-profile
-description: >-
-  The single stack-definition point — what this team runs today, the stay-in-lane rule, and the
-  platform boundary. Load before recommending any runtime, tool, or infrastructure change, and when
-  choosing between observability backends. Triggers: "what's our stack", "should we use X for this",
-  "can we move this to Kubernetes / the cloud", "which backend do I query". One file changes when the
-  ground shifts.
----
-
-# Stack profile — current facts, not aspirations
-
-Phrased as what is true today. When the ground shifts, this file changes and nothing else does.
-
-## Runtime
-On-prem servers + PCF (VMware Tanzu Application Service); `cf` CLI v8 (CAPI V3). **No Kubernetes.**
-GCP is under evaluation for late 2026 — not a target today; if it lands it arrives as reference
-files inside the obs skills, not as a restructure.
-
-## Observability — two stacks, coexisting (churn is an axiom, not an event)
-| Signal | Incumbent | Additive, first-class |
-|---|---|---|
-| Logs | Splunk (SPL) | Loki (LogQL) |
-| Metrics | Wavefront / VMware Aria Operations for Applications (WQL) | Mimir / Prometheus (PromQL) |
-| Traces | — (new capability) | Tempo (TraceQL) |
-| Dashboards | Grafana 13.x | Grafana 13.x |
-| Alerting / correlation | Moogsoft (Dell APEX AIOps, on-prem v9.x); ThousandEyes synthetics | Grafana unified alerting |
-| Pipeline | — | Alloy + OTel collectors |
-
-## Languages & CI
-Python, Bash, PowerShell first (Go/TS where a repo already uses them). GitHub + GitHub Actions.
-
-## Stay in lane
-Do not suggest Kubernetes, cloud-managed services, or infra-layer fixes. Stay in the app/ops lane;
-hand platform-internal problems to the platform team.
-
-## The platform boundary
-We own our apps up to the platform edge; we do not operate the platform. BOSH, Ops Manager, Diego
-cells, Gorouter, CredHub/UAA, and foundation upgrades belong to the platform team. When a problem is
-platform-side (many apps failing at once, failing cells, Gorouter-wide 5xx), recognize it and
-escalate with evidence — timestamps, blast radius, `cf` output showing our app healthy — do not
-operate BOSH.
-
-## Copilot models (recorded here per spec Section 3, not in five agent files)
-Selection rule: primary = the strongest Claude model in the team's Copilot picker at ship time;
-final fallback = the org's default non-Claude model. Recorded pair:
-Claude Sonnet 5 (copilot) → GPT-5.4 (copilot). [unverified — confirmed for the team license tier in
-Phase 5; re-record here when it changes]
-
-<!-- profile canary: sp_7c2e — quoted output proves this file loaded; guarded by the tripwire test -->
-```
-
-The trailing comment is this skill's **discovery canary** (`sp_7c2e`) — Task 39's REQUIRED
-stack-profile probe asserts it, and the tripwire manifest lists it. Do not "clean it up."
+> **Removed from this historical record (2026-08-17).** This step originally inlined the whole
+> of `skills/stack-profile/SKILL.md` verbatim. That copy went stale and began contradicting the
+> canonical skill. Its stay-in-lane rule forbade cloud-managed services outright, while the live
+> skill now puts GCP managed services in-lane **for the migration** (Cloud Run, Cloud
+> Logging/Monitoring/Trace, Secret Manager).
+>
+> A search for the old wording returned this superseded plan and nothing else, so an agent that
+> found it here had no canonical hit to correct it — a duplicated paragraph producing a wrong
+> answer rather than merely wasted tokens. The wording is deliberately not restated here, so it can
+> no longer be found by searching. It is recoverable from git history; the file that governs is
+> **[`skills/stack-profile/SKILL.md`](../../../skills/stack-profile/SKILL.md)**.
+>
+> The skill's discovery canary (`sp_7c2e`) lives in that file, where Task 39's probe and the
+> tripwire manifest read it.
 
 - [ ] **Step 2: Gate A green; commit** — `git commit -m "stack-profile: the one file that changes when the ground shifts"`
 
@@ -1115,6 +1078,8 @@ Output: `[P0]`–`[P3]` findings, each with the evidence (command + output) and 
 
 # PHASE 3 — THE OBSERVABILITY SKILLS (branch `phase-3-obs`)
 
+> **Superseded — historical record.** Do not execute this phase. Live work is in [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
+
 **Shape (all six tasks):** observability **by signal, not by product** — each SKILL.md teaches the investigation *shape* (product-agnostic); per-backend `references/` teach the dialect, reached through a frontend-craft-style predicate table whose right-hand cells are **Markdown links** (5d). Legacy references carry over **post-fact-check** (Gate C rule: every query/command `[verified]` against the real system or `[unverified]`). New LGTM references are specified by required sections + the same labeling rule — the plan does not pre-write "verified" stack facts (see "On paste-the-section-verbatim steps" above). Each reference file ends with a distinctive inert canary value inside a worked example (Task 39 asserts it; pattern: a request-id-like token such as `q_ol_3f7a` in a query's output sample).
 
 **Body skeleton every obs SKILL.md follows (given once, reused six times):**
@@ -1299,6 +1264,8 @@ to catch.
 
 # PHASE 4 — MACHINERY (branch `phase-4-machinery`)
 
+> **Superseded — historical record.** Do not execute this phase. Live work is in [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
+
 *Written against artifacts that exist and usage observed in Phases 1–3 — no churn. Gate D #1 runs here (Task 36), immediately after its instruments exist, over the content-complete fleet.*
 
 ### Task 34: The eval corpus — discovery canaries + behavioral scenarios, rewritten per surviving unit
@@ -1424,6 +1391,8 @@ to catch.
 
 # PHASE 5 — DISTRIBUTION (branch `phase-5-distribution`)
 
+> **Superseded — historical record.** Do not execute this phase. Live work is in [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
+
 *Only here do the org gates matter — they decide the channel, never the content; the layout is identical either way.*
 
 ### Task 42: The three gate checks — on one engineer's machine
@@ -1500,6 +1469,8 @@ to catch.
 
 # PHASE 6 — PILOT (no new artifacts; one engineer, one week — no branch; the pilot log lands with Phase 7's PR)
 
+> **Superseded — historical record.** Do not execute this phase. Live work is in [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
+
 ### Task 48: Pilot + GATE D #2 — exit only on the acceptance bar
 
 - [ ] **Step 1:** Onboard one engineer via the decided channel (`setup.ps1` + the trust prompt). `-Verify` clean on day 1 — **plus one deliberate guard-fire probe on the installed channel** (run a denied command as `sre`; expect the deny message) **and one primary-control probe** (ask `reviewer` to run a shell command; expect denial-by-absence — Task 3 verified `tools:` omission on the fallback channel only, agent plugins are Preview, and a fail-open regression after an auto-update would otherwise be invisible). This is the only test that the *plugin-shipped* hook actually fires on a real install (the Phase-4 probes ran through the fallback channel; "hooks silently ignored on plugin agents" is a previously-probed platform failure class).
@@ -1508,6 +1479,8 @@ to catch.
 - [ ] **Step 4:** Exit decision: every bar met → Phase 7. Any bar missed → fix, and the week restarts for the affected dimension — "fix what reality finds" is not an exit criterion; the bar is.
 
 # PHASE 7 — TEAM ROLLOUT
+
+> **Superseded — historical record.** Do not execute this phase. Live work is in [`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
 
 *Phase 7 follows the same run protocol as Phases 1–5 (branch `phase-7-rollout`; audits A + C close it — C's security reviewer signs off on the two retirements, which remove safety machinery).*
 
