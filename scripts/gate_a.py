@@ -74,13 +74,36 @@ def _discover_test_steps():
 STEPS = STRUCTURAL_STEPS + _discover_test_steps()
 
 
-def preflight():
-    """Fail loudly on missing deps, with the PINNED command -- never auto-install.
+MINIMUM_PYTHON = (3, 12)
 
-    The eval graders import yaml and FAIL (not skip) without it. An agent that hits a bare
-    ModuleNotFoundError reaches for `pip install pyyaml`, unpinned, which requirements-dev.txt
-    explicitly forbids. Hand it the right command instead of letting it invent a wrong one.
+
+def preflight():
+    """Fail loudly on a bad environment, with the exact remedy -- never auto-install or guess.
+
+    Two hard floors, and the same reasoning behind both. The eval graders import yaml and FAIL (not
+    skip) without it. An agent that hits a bare ModuleNotFoundError reaches for `pip install
+    pyyaml`, unpinned, which requirements-dev.txt explicitly forbids. Hand it the right command
+    instead of letting it invent a wrong one.
+
+    The interpreter floor is the same class of problem and used to be checked nowhere. CI pins
+    3.12 (.github/workflows/validate.yml, release.yml), and evals/clean_room.py calls
+    shutil.rmtree(onexc=...), which is 3.12+. Run this gate on 3.11 and the yaml branch passes, the
+    steps start, and one of them dies with a bare `TypeError: rmtree() got an unexpected keyword
+    argument 'onexc'` -- precisely the confusing failure this function exists to prevent, for the
+    one dependency it never mentioned. Checking the version here turns it into a sentence.
     """
+    if sys.version_info < MINIMUM_PYTHON:
+        required = ".".join(str(part) for part in MINIMUM_PYTHON)
+        running = ".".join(str(part) for part in sys.version_info[:3])
+        print("Gate A: FAIL -- this repository requires Python %s or newer; you are on %s.\n"
+              "  CI pins %s, and at least one step (evals/clean_room.py) calls a %s-only API,\n"
+              "  so an older interpreter fails mid-run with an unrelated-looking TypeError.\n"
+              "  Re-run with a %s+ interpreter, for example:\n\n"
+              "    python%s scripts/gate_a.py\n\n"
+              "  On Windows use `python` or `py -3`, never bare `python3` (the Store stub).\n"
+              % (required, running, required, required, required, required),
+              file=sys.stderr)
+        return False
     try:
         import yaml  # noqa: F401
     except ImportError:

@@ -8,10 +8,12 @@ roster order regardless of completion order. All pinned against synthetic interp
 no test here runs the real gate inside itself.
 """
 import contextlib
+import sys
 import io
 import tempfile
 import threading
 import unittest
+import unittest.mock
 from pathlib import Path
 from unittest import mock
 
@@ -95,6 +97,36 @@ class RunStepsTests(unittest.TestCase):
         self.assertLess(out.index("=== slow ==="), out.index("=== fast ==="))
         self.assertLess(out.index("slow output"), out.index("=== fast ==="))
         self.assertLess(out.index("=== fast ==="), out.index("fast output"))
+
+
+class PreflightInterpreterFloorTests(unittest.TestCase):
+    """The interpreter floor must be named by preflight, not discovered mid-run.
+
+    Before this, preflight checked for a missing `yaml` and handed back the exact pinned install
+    command, but never checked the Python version -- so running the gate on 3.11 got past preflight
+    and died several steps later with a bare `TypeError: rmtree() got an unexpected keyword
+    argument 'onexc'` from evals/clean_room.py. That is precisely the confusing failure preflight
+    exists to prevent, for the one hard dependency it did not mention.
+    """
+
+    def test_an_old_interpreter_is_refused_by_name(self) -> None:
+        stderr = io.StringIO()
+        with unittest.mock.patch.object(gate_a.sys, "version_info", (3, 11, 15)):
+            with contextlib.redirect_stderr(stderr):
+                allowed = gate_a.preflight()
+        message = stderr.getvalue()
+        self.assertFalse(allowed)
+        # The remedy has to be actionable, not just a refusal: name the floor, what is running, and
+        # the Windows caveat that bare `python3` is a Store stub.
+        self.assertIn("3.12", message)
+        self.assertIn("3.11.15", message)
+        self.assertIn("py -3", message)
+
+    def test_the_running_interpreter_is_accepted(self) -> None:
+        """Guards the obvious way to break the check: a floor nobody can satisfy."""
+        self.assertGreaterEqual(sys.version_info[:2], gate_a.MINIMUM_PYTHON)
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertTrue(gate_a.preflight())
 
 
 if __name__ == "__main__":
