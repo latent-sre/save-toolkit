@@ -286,3 +286,78 @@ class StaleNameCheckerTests(Fixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LiveDocLinkTests(unittest.TestCase):
+    """Live authority docs must not carry dead relative links."""
+
+    def test_live_tree_is_clean(self) -> None:
+        self.assertEqual([], check_links._check_live_doc_links(ROOT))
+
+    def test_a_dead_link_in_a_live_doc_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "docs").mkdir()
+            (root / "README.md").write_text(
+                "See [gone](docs/no-such-file.md).\n", encoding="utf-8"
+            )
+            failures = check_links._check_live_doc_links(root)
+        self.assertTrue(any("dead link" in f for f in failures), failures)
+
+    def test_a_live_link_is_not_flagged(self) -> None:
+        """The complement: without this, a checker that flags everything would pass the test above."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "docs").mkdir()
+            (root / "docs/real.md").write_text("# real\n", encoding="utf-8")
+            (root / "README.md").write_text("See [real](docs/real.md).\n", encoding="utf-8")
+            self.assertEqual([], check_links._check_live_doc_links(root))
+
+
+class EvidenceBannerTests(unittest.TestCase):
+    """The evidence-default banner is duplicated 29 times; pin the copies in step.
+
+    A shared reference is architecturally impossible here — check_links forbids a relative link
+    escaping its skill root — so duplication is the design and drift is the risk it carries.
+    """
+
+    def test_live_skills_share_one_banner(self) -> None:
+        self.assertEqual([], check_links._check_evidence_banner(ROOT))
+
+    def test_one_reworded_copy_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name, tail in (("alpha", "never upgrade it."), ("beta", "never upgrade it."),
+                               ("gamma", "must never upgrade it.")):
+                skill = root / "skills" / name
+                skill.mkdir(parents=True)
+                (skill / "SKILL.md").write_text(
+                    f"---\nname: {name}\n---\n\n"
+                    "> **Evidence default — `[unverified]`.** Handoffs "
+                    f"{tail}\n\nbody\n",
+                    encoding="utf-8",
+                )
+            failures = check_links._check_evidence_banner(root)
+        self.assertTrue(any("gamma" in f and "banner differs" in f for f in failures), failures)
+
+    def test_a_skill_that_drops_the_banner_is_flagged_once_others_carry_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name, banner in (("alpha", True), ("beta", True), ("naked", False)):
+                skill = root / "skills" / name
+                skill.mkdir(parents=True)
+                text = f"---\nname: {name}\n---\n\n"
+                if banner:
+                    text += "> **Evidence default \u2014 `[unverified]`.** Handoffs never upgrade it.\n\n"
+                (skill / "SKILL.md").write_text(text + "body\n", encoding="utf-8")
+            failures = check_links._check_evidence_banner(root)
+        self.assertTrue(any("naked" in f and "missing" in f for f in failures), failures)
+
+    def test_a_tree_with_no_banners_at_all_is_left_alone(self) -> None:
+        """A minimal fixture is not a fleet that lost its evidence contract."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skill = root / "skills" / "alpha"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: alpha\n---\n\nbody\n", encoding="utf-8")
+            self.assertEqual([], check_links._check_evidence_banner(root))

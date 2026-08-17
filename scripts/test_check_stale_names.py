@@ -89,3 +89,38 @@ class StaleNamesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EvalScenarioScopeTests(unittest.TestCase):
+    """Scenario prompts are sent to the model verbatim, so a retired name there teaches it.
+
+    Two live scenarios did: "You are sde-engineer" (canonical: `sde`) and a reference to
+    `code-reviewer` (canonical: `reviewer`). Both passed their graders, because the graders do not
+    key on the agent name — the suite was quietly training the fleet's old vocabulary.
+    """
+
+    def test_a_stale_name_in_a_scenario_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            scenarios = root / "evals/scenarios"
+            scenarios.mkdir(parents=True)
+            (scenarios / "probe.yaml").write_text(
+                "prompt: |\n  You are sde-engineer. Do the thing.\n", encoding="utf-8"
+            )
+            failures = check_stale_names._scan_tree(root)
+        self.assertTrue(any("sde-engineer" in f for f in failures), failures)
+
+    def test_baselines_stay_out_of_scope(self) -> None:
+        """Frozen result JSON records what was true on the day it ran.
+
+        The repo has committed to leaving those bytes unchanged, and widening the scan to `evals`
+        rather than `evals/scenarios` lights up on 24 such hits that are supposed to be there.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baselines = root / "evals/baselines/2026-07-31-run"
+            baselines.mkdir(parents=True)
+            (baselines / "result.json").write_text(
+                '{"agent": "sde-engineer", "verdict": "pass"}\n', encoding="utf-8"
+            )
+            self.assertEqual([], check_stale_names._scan_tree(root))

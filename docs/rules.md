@@ -15,7 +15,7 @@ authoritative?*
 | Rule | Primary source |
 |---|---|
 | `python scripts/gate_a.py` is the single structural gate; do not transcribe its step list | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring; [`AGENTS.md`](../AGENTS.md) |
-| On Windows use `python` / `py -3`, never bare `python3` (Store stub) | [`AGENTS.md`](../AGENTS.md); [`CLAUDE.md`](../CLAUDE.md) |
+| On Windows use `python` / `py -3`, never bare `python3` (Store stub) | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring and `preflight()`; restated in [`AGENTS.md`](../AGENTS.md) |
 | stdlib only under `scripts/` — no new deps, no pytest, no third-party YAML for validators/tests/guard/generator | [`AGENTS.md`](../AGENTS.md) Hard rules |
 | Canonical authored source is `agents/`, `skills/`, and `commands/` only | [`2026-07-31-multi-platform-plugin-packaging.md`](decisions/2026-07-31-multi-platform-plugin-packaging.md) |
 | After canonical edits, run `generate_platform_adapters.py --write` and commit projections with source | [`AGENTS.md`](../AGENTS.md) Change playbooks; [`CONTRIBUTING.md`](../CONTRIBUTING.md) |

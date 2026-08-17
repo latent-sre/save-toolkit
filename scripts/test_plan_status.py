@@ -10,12 +10,27 @@ from pathlib import Path
 import check_plan_status
 
 
+def _skeleton(root: Path) -> Path:
+    """A minimal tree that check() accepts, so a new test asserts only its own subject."""
+    (root / "docs/superpowers/plans").mkdir(parents=True)
+    (root / "docs/superpowers/specs").mkdir(parents=True)
+    (root / check_plan_status.DECISION_ROOT).mkdir(parents=True)
+    (root / "docs/fleet-roadmap.md").write_text(
+        "# Fleet roadmap\n\n> **Status: live.**\n> The only document for unfinished work.\n",
+        encoding="utf-8",
+    )
+    for name in ("AGENTS.md", "README.md", "CONTRIBUTING.md"):
+        (root / name).write_text("See docs/fleet-roadmap.md for live work.\n", encoding="utf-8")
+    return root
+
+
 class PlanStatusTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         (self.root / "docs/superpowers/plans").mkdir(parents=True)
         (self.root / "docs/superpowers/specs").mkdir(parents=True)
+        (self.root / check_plan_status.DECISION_ROOT).mkdir(parents=True)
         (self.root / "docs/fleet-roadmap.md").write_text(
             "# Fleet roadmap\n\n> **Status: live.**\n> This is the only document for "
             "unfinished work.\n",
@@ -27,7 +42,8 @@ class PlanStatusTests(unittest.TestCase):
             encoding="utf-8",
         )
         (self.root / "docs/superpowers/specs/old.md").write_text(
-            "# Old spec\n\n**Status:** implemented\n",
+            "# Old spec\n\n**Status:** implemented — historical; live work is in "
+            "[`docs/fleet-roadmap.md`](../../fleet-roadmap.md).\n",
             encoding="utf-8",
         )
         for name in ("AGENTS.md", "README.md", "CONTRIBUTING.md"):
@@ -186,3 +202,57 @@ class PlanStatusTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SpecPointerAndDecisionStatusTests(unittest.TestCase):
+    """Two promises docs/README.md and rules.md made that the script did not keep."""
+
+    def test_live_tree_passes(self) -> None:
+        self.assertEqual([], check_plan_status.check())
+
+    def test_a_spec_without_a_roadmap_pointer_is_flagged(self) -> None:
+        """The pointer was enforced in the plans loop only; a spec could omit it and pass green.
+
+        docs/superpowers/specs/2026-07-13-eval-clean-room-design.md really did, until this landed.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _skeleton(Path(temporary))
+            (root / check_plan_status.SPEC_ROOT / "x-design.md").write_text(
+                "# X\n\n**Status:** implemented (PR #1)\n\nbody\n", encoding="utf-8"
+            )
+            failures = check_plan_status.check(root)
+        self.assertTrue(
+            any("must point to docs/fleet-roadmap.md" in f and "x-design" in f for f in failures),
+            failures,
+        )
+
+    def test_a_decision_without_a_status_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _skeleton(Path(temporary))
+            (root / check_plan_status.DECISION_ROOT / "2026-01-01-thing.md").write_text(
+                "# Thing\n\nWe will do the thing.\n", encoding="utf-8"
+            )
+            failures = check_plan_status.check(root)
+        self.assertTrue(any("decision lacks a top-of-file Status" in f for f in failures), failures)
+
+    def test_a_qualified_acceptance_is_accepted(self) -> None:
+        """Real ADRs qualify the state in the same breath; matching must be by prefix.
+
+        "accepted by the ROUTE-001 owner" and "Accepted for repository implementation" both declare
+        acceptance, and an equality test would reject them for saying more rather than less.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _skeleton(Path(temporary))
+            (root / check_plan_status.DECISION_ROOT / "2026-01-01-thing.md").write_text(
+                "# Thing\n\n- **Status:** accepted by the ROUTE-001 owner; canary is NO-GO\n",
+                encoding="utf-8",
+            )
+            failures = check_plan_status.check(root)
+        self.assertEqual([], [f for f in failures if "2026-01-01-thing" in f], failures)
+
+    def test_a_list_marker_does_not_hide_the_status_field(self) -> None:
+        # The ADRs write `- **Status:** accepted`; an anchored match without list-marker tolerance
+        # reports a file that has a perfectly good status as having none.
+        self.assertEqual(
+            "accepted", check_plan_status._status_value("# T\n\n- **Status:** accepted\n")
+        )

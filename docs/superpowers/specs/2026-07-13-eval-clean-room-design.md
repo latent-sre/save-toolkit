@@ -1,7 +1,9 @@
 # Eval clean room — make the harness measure the fleet, not the laptop
 
 **Date:** 2026-07-13
-**Status:** implemented (PR #52, merged 2026-07-13) — first clean baselines recorded in `evals/`
+**Status:** implemented (PR #52, merged 2026-07-13) — first clean baselines recorded in `evals/`.
+Historical record; do not execute. Live work is tracked only in
+[`docs/fleet-roadmap.md`](../../fleet-roadmap.md).
 
 ## Problem
 

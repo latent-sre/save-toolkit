@@ -15,6 +15,10 @@ PLAN_ROOT = Path("docs/superpowers/plans")
 SPEC_ROOT = Path("docs/superpowers/specs")
 ROOT_POINTERS = (Path("AGENTS.md"), Path("README.md"), Path("CONTRIBUTING.md"))
 HISTORICAL_MARKERS = ("implemented", "superseded", "historical")
+DECISION_ROOT = Path("docs/decisions")
+# An ADR must DECLARE its state, not necessarily be accepted -- docs/README.md's rule is that only
+# accepted decisions govern, which is only checkable if every decision says which it is.
+DECISION_MARKERS = ("accepted", "proposed", "superseded", "rejected", "deprecated")
 ROADMAP_ITEM_STATUSES = {"ready", "active", "blocked", "deferred", "decision-needed"}
 ROADMAP_REQUIRED_FIELDS = (
     "Status",
@@ -65,6 +69,11 @@ def _status_value(text: str, lines: int = 14) -> str | None:
         line = raw_line.strip()
         if line.startswith(">"):
             line = line[1:].strip()
+        # Tolerate a markdown list marker. The ADRs write the field as `- **Status:** accepted`,
+        # and without this the anchored fullmatch below misses it and reports a file that carries a
+        # perfectly good status as having none.
+        if line[:2] in ("- ", "* ", "+ "):
+            line = line[2:].strip()
         line = line.replace("**", "").strip()
         match = re.fullmatch(r"(?i)status\s*:\s*(.+)", line)
         if match:
@@ -274,6 +283,48 @@ def check(root: Path = ROOT) -> list[str]:
                     f"{relative.as_posix()}: specification status must mark it implemented, "
                     "superseded, or historical; live work belongs in docs/fleet-roadmap.md"
                 )
+            # The roadmap pointer was checked in the plans loop only, even though docs/README.md
+            # and docs/rules.md both promise it for "plans and specs" and say this script fails the
+            # build otherwise. It did not: a spec with no pointer at all passed green.
+            if "docs/fleet-roadmap.md" not in front:
+                failures.append(
+                    f"{relative.as_posix()}: specification status must point to "
+                    "docs/fleet-roadmap.md"
+                )
+
+    # Accepted-versus-proposed is the load-bearing authority distinction in this repo -- docs/README
+    # says only accepted ADRs govern -- and nothing validated it. All eight current ADRs comply by
+    # discipline alone, so this pins the practice rather than changing it.
+    decision_dir = root / DECISION_ROOT
+    if not decision_dir.is_dir():
+        failures.append(f"{DECISION_ROOT.as_posix()}: missing decision archive")
+    else:
+        for path in sorted(decision_dir.rglob("*.md")):
+            if path.name.lower() == "readme.md":
+                continue
+            relative = path.relative_to(root)
+            text, read_error = _read(root, relative)
+            if read_error:
+                failures.append(read_error)
+                continue
+            assert text is not None
+            status = _status_value(text)
+            if status is None:
+                failures.append(f"{relative.as_posix()}: decision lacks a top-of-file Status")
+            else:
+                # Prefix, not equality: real ADRs qualify the state in the same breath
+                # ("accepted by the ROUTE-001 owner", "Accepted for repository implementation").
+                # Both declare acceptance, and demanding a bare word would reject them for saying
+                # more rather than less.
+                state = _status_state(status)
+                if not any(
+                    state == marker or state.startswith(f"{marker} ")
+                    for marker in DECISION_MARKERS
+                ):
+                    failures.append(
+                        f"{relative.as_posix()}: decision status must begin with one of "
+                        f"{', '.join(DECISION_MARKERS)}; got {state!r}"
+                    )
 
     for relative in ROOT_POINTERS:
         text, read_error = _read(root, relative)
