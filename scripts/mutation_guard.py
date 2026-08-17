@@ -410,7 +410,13 @@ def isolated_checkout(root: Path) -> Iterator[Path]:
             "the working tree directly"
         )
     try:
-        yield target
+        # RESOLVED, not as constructed. `discover` resolves every candidate it returns, so a caller
+        # that later computes `module.relative_to(root)` needs the two sides canonicalized the same
+        # way. `tempfile.mkdtemp` hands back `/var/...` on macOS (a symlink to `/private/var/...`)
+        # and 8.3 short paths on Windows, so an unresolved yield raised
+        # "is not in the subpath of" on both while passing on Linux. Same failure mode as the
+        # containment check in check_links; canonicalize at the boundary, once.
+        yield target.resolve()
     finally:
         subprocess.run(
             ["git", "-C", str(root), "worktree", "remove", "--force", str(target)],

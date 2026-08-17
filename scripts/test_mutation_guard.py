@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -801,6 +803,44 @@ class IsolationTests(unittest.TestCase):
             (root / "scripts/subject.py").read_text(encoding="utf-8"),
             "the caller's tree was touched on the failure path",
         )
+
+    def test_a_symlinked_temp_dir_does_not_break_relative_path_reporting(self) -> None:
+        """The yielded worktree path must be canonical, not as `mkdtemp` handed it over.
+
+        `discover` resolves every candidate it returns, so a caller computing
+        `module.relative_to(root)` needs both sides canonicalized the same way. macOS `mkdtemp`
+        returns `/var/...` which resolves to `/private/var/...`, and Windows returns 8.3 short
+        paths — so an unresolved yield raised "is not in the subpath of" on both CI legs while
+        passing on Linux, where /tmp is not a symlink.
+
+        Reproduced here by pointing TMPDIR at a symlink, which is precisely the macOS shape, so the
+        Linux leg covers this class from now on rather than discovering it in CI a third time.
+        """
+        if not hasattr(os, "symlink"):  # pragma: no cover - platform without symlinks
+            self.skipTest("symlinks unavailable")
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        staging = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, staging, True)
+        (staging / "realtmp").mkdir()
+        aliased = staging / "tmp"
+        try:
+            os.symlink(staging / "realtmp", aliased, target_is_directory=True)
+        except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
+            self.skipTest("cannot create a directory symlink here")
+        self.assertNotEqual(aliased.resolve(), aliased, "fixture TMPDIR is not actually aliased")
+
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "scripts/mutation_guard.py"),
+             "--root", str(root), "--limit", "3"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False,
+            env={**os.environ, "TMPDIR": str(aliased)},
+        )
+        output = completed.stdout + completed.stderr
+        self.assertNotIn("is not in the subpath", output, output[-600:])
+        self.assertNotIn("Traceback", output, output[-600:])
 
     def test_a_dirty_tree_is_still_refused(self) -> None:
         """Now for honesty rather than recovery: a worktree is pinned at HEAD, so uncommitted
