@@ -23,8 +23,11 @@ def gate(findings, opted_in):
 '''
 
 HONEST_TEST = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subject
 
 
@@ -42,8 +45,11 @@ if __name__ == "__main__":
 # Exercises the same function but never pins the `findings and` half of the contract — exactly the
 # shape of the test this guard exists to catch.
 BLIND_TEST = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subject
 
 
@@ -75,8 +81,11 @@ def pinned(a, b):
 # Imports and exercises OTHER_MODULE. `pinned` is fully contract-pinned, so an unbounded sweep kills
 # mutants 2 and 3 and the module is provably exercised.
 EXERCISES_OTHER_TEST = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subject
 import other
 
@@ -105,8 +114,11 @@ if __name__ == "__main__":
 # Names OTHER_MODULE's path but never imports it — the genuine "the test never exercises it" shape
 # the collapse exists for.
 NAMES_OTHER_WITHOUT_IMPORTING_TEST = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subject
 
 INFERRED_SUBJECT = "scripts/other.py"
@@ -127,8 +139,11 @@ if __name__ == "__main__":
 # Fixtures for ImportDiscoveryTests. Each reaches its subject the way a real test in this repo
 # does, and in a way the pre-import-following discovery could not see.
 WIDGET_IMPORTER = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import widget
 
 
@@ -151,8 +166,11 @@ class T(unittest.TestCase):
 
 # Imports another TEST module, which import-following must not enroll as a subject.
 HELPER_IMPORTER = '''\
-import sys, unittest
-sys.path.insert(0, %(dir)r)
+import os, sys, unittest
+# Resolve from __file__, exactly as every real test in this repo does. A baked absolute path
+# would reach OUTSIDE the isolated worktree and import unmutated code, making every mutant
+# falsely survive.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import test_helper
 
 
