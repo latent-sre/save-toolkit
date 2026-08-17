@@ -676,6 +676,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     # `/private/var/...`, and Windows hands out 8.3 short paths, so both hit it immediately.
     args.root = args.root.resolve()
 
+    # Rebase --module onto the root NOW, while `args.root` is still the caller's real checkout.
+    #
+    # `_run_sweep` compares each discovered module against `(args.root / args.module).resolve()`,
+    # and by then `args.root` is the isolated worktree. Joining an ABSOLUTE `--module` discards the
+    # left operand entirely -- `Path("/worktree") / "/repo/scripts/x.py"` is `/repo/scripts/x.py` --
+    # so the comparison targeted a file outside the worktree, matched nothing, and the run died with
+    # "no test/module pair matched". A relative --module happened to keep working, which is what
+    # made this easy to miss. Normalizing to a repo-relative path here means the join inside the
+    # worktree is correct for both spellings.
+    if args.module is not None:
+        target = (args.root / args.module).resolve()
+        try:
+            args.module = target.relative_to(args.root)
+        except ValueError:
+            # Previously this fell through to the generic "no pair matched" refusal, which reads
+            # like "your module has no tests" rather than "that path is not in this repository".
+            print(
+                f"mutation_guard: --module {args.module} resolves to {target}, which is outside "
+                f"{args.root}; pass a path inside the repository being swept",
+                file=sys.stderr,
+            )
+            return EXIT_REFUSED
+
     try:
         _require_clean_tree(args.root)
     except RuntimeError as exc:

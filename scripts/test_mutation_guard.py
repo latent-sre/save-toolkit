@@ -916,6 +916,43 @@ class IsolationTests(unittest.TestCase):
         self.assertTrue(mutation_guard.run_test(root / "scripts/test_cwd_probe.py"))
         self.assertNotEqual(root.resolve(), ROOT, "fixture must not be the live repo")
 
+    def test_an_absolute_module_path_still_matches_under_isolation(self) -> None:
+        """`--module` must work with an absolute path, not only a relative one.
+
+        `_run_sweep` compares discovered modules against `(args.root / args.module).resolve()`,
+        and by then the root is the isolated worktree. Joining an ABSOLUTE right operand discards
+        the left -- `Path("/worktree") / "/repo/scripts/x.py"` is `/repo/scripts/x.py` -- so the
+        comparison pointed outside the worktree, matched nothing, and the run exited
+        "no test/module pair matched". Relative paths kept working, which is what hid it.
+        """
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        absolute = (root / "scripts/subject.py").resolve()
+        self.assertTrue(absolute.is_absolute(), "fixture must exercise the absolute spelling")
+        code, output = _run_guard(root, "--module", str(absolute), "--limit", "2")
+        self.assertNotIn("no test/module pair matched", output)
+        self.assertNotEqual(mutation_guard.EXIT_REFUSED, code, output)
+        # And it must select the SAME pair the relative spelling does, not merely avoid refusing.
+        relative_code, relative_output = _run_guard(root, "--module", "scripts/subject.py", "--limit", "2")
+        self.assertEqual(relative_code, code, f"absolute={output!r} relative={relative_output!r}")
+
+    def test_a_module_outside_the_repository_is_named_as_such(self) -> None:
+        """It used to fall through to the generic no-pair refusal, which reads as "your module has
+        no tests" rather than "that path is not in this repository"."""
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_subject.py": HONEST_TEST,
+        })
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, outside, True)
+        stray = outside / "stray.py"
+        stray.write_text("x = 1\n", encoding="utf-8")
+        code, output = _run_guard(root, "--module", str(stray))
+        self.assertEqual(mutation_guard.EXIT_REFUSED, code, output)
+        self.assertIn("outside", output)
+
     def test_a_dirty_tree_is_still_refused(self) -> None:
         """Now for honesty rather than recovery: a worktree is pinned at HEAD, so uncommitted
         changes would go untested while the report implied otherwise."""
