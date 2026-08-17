@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import json
 import shutil
 import tempfile
@@ -474,6 +475,112 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertTrue(planted.is_symlink(), "fixture did not plant a real link")
             with self.assertRaisesRegex(ValueError, "must not be a link/reparse point"):
                 adapters._actual_generated_files(root)
+
+    # --- non-ASCII must survive projection unescaped -------------------------------------------
+    # `json.dumps(..., ensure_ascii=False)` appears at four points that render a description or
+    # name into a projection. A mutation sweep flagged every one as unnoticed, correctly: no test
+    # asserted anything about non-ASCII. Flipping the flag turns the fleet's em-dashes and arrows
+    # into literal `\u2014` / `\u2192` in Copilot frontmatter and the Codex policy file, where a
+    # host renders the escape rather than the character. The byte gate does catch it, but only
+    # after a full regenerate; these pin it at the source.
+
+    NON_ASCII_SAMPLE = "em—dash and arrow→here"
+
+    def test_copilot_agent_keeps_non_ascii_unescaped(self) -> None:
+        agent = (
+            "---\n"
+            "name: probe-agent\n"
+            f'description: "{self.NON_ASCII_SAMPLE}"\n'
+            "tools: Read, Grep, Glob\n"
+            "---\n\n# Probe\n\nBody.\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "probe-agent.md"
+            source.write_text(agent, encoding="utf-8")
+            rendered = adapters.render_copilot_agent(source)
+        # Prove the sample actually reached the output before asserting the escape is absent;
+        # otherwise a renderer that dropped the description entirely would pass.
+        self.assertIn("em—dash", rendered)
+        self.assertIn("arrow→here", rendered)
+        self.assertNotIn("\\u2014", rendered)
+        self.assertNotIn("\\u2192", rendered)
+
+    def test_codex_skill_policy_keeps_non_ascii_unescaped(self) -> None:
+        rendered = adapters._skill_policy("probe-skill", self.NON_ASCII_SAMPLE).decode("utf-8")
+        self.assertIn("em—dash", rendered)
+        self.assertNotIn("\\u2014", rendered)
+
+    def test_the_live_projections_contain_no_unicode_escapes(self) -> None:
+        """The end-to-end statement: real em-dashes and arrows are in the committed projections.
+
+        Guards against the assertion being vacuous by first proving the canonical sources actually
+        carry non-ASCII -- if they ever stopped, the escape check below would pass for free.
+        """
+        canonical_non_ascii = sum(
+            1
+            for path in sorted((ROOT / "agents").glob("*.md"))
+            if any(ord(char) > 127 for char in str(adapters.parse_frontmatter(path)[0].get("description", "")))
+        )
+        self.assertGreater(canonical_non_ascii, 0, "no canonical description carries non-ASCII")
+        for relative in (Path(".github/agents"), Path(".codex/agents")):
+            for path in sorted((ROOT / relative).glob("*")):
+                text = path.read_text(encoding="utf-8")
+                self.assertNotIn("\\u2014", text, path.name)
+                self.assertNotIn("\\u2192", text, path.name)
+
+    # --- narrow parse paths in the frontmatter reader -------------------------------------------
+    # Operand drops here survived a mutation sweep. Low blast radius on their own -- a malformed
+    # value fails the frontmatter contract in check_links before it could reach a projection --
+    # but this reader is one of three in the repository that disagree about the same grammar, and
+    # consolidating them later is only safe if the behaviour each one has today is written down.
+
+    def test_a_quoted_scalar_needs_BOTH_quotes_to_be_unwrapped(self) -> None:
+        """Either half of the `startswith and endswith` guard alone mis-parses real values.
+
+        With only `endswith`, `abc'` loses its first and last character and becomes `bc`; with only
+        `startswith`, `'abc` becomes `ab`. Both spellings occur in ordinary prose (a trailing
+        apostrophe, a quoted fragment), and silently truncating a description is exactly the kind
+        of corruption that reaches a host without erroring.
+        """
+        self.assertEqual("abc'", adapters._yaml_scalar("abc'"))
+        self.assertEqual("'abc", adapters._yaml_scalar("'abc"))
+        self.assertEqual("abc", adapters._yaml_scalar("'abc'"))
+        self.assertEqual("it's", adapters._yaml_scalar("'it''s'"))
+        self.assertEqual("plain", adapters._yaml_scalar("plain"))
+
+    def test_tool_specs_from_a_missing_field_are_empty_not_the_string_None(self) -> None:
+        """`str(raw or "")` collapses None to empty. Dropping the `or ""` yields the literal
+        string "None", which would parse as a tool named None and silently grant nothing while
+        looking like a grant."""
+        self.assertEqual([], adapters._split_tool_specs(None))
+        self.assertEqual([], adapters._split_tool_specs(""))
+        self.assertEqual(["Read", "Grep"], adapters._split_tool_specs("Read, Grep"))
+        self.assertEqual(["Read", "Grep"], adapters._split_tool_specs(["Read", "Grep"]))
+
+    def test_an_installed_skill_reference_covers_both_bare_and_SKILL_md_tails(self) -> None:
+        """`not tail or tail == "/SKILL.md"` treats both spellings as the skill itself. Dropping
+        either operand sends one of them down the resource branch, producing a pointer to a
+        `SKILL.md` "resource" inside the skill -- a plausible-looking path that does not exist."""
+        pattern = re.compile(
+            r"(?P<kind>agents|skills)/(?P<name>[a-z0-9-]+)(?P<tail>/[A-Za-z0-9._/-]*)?"
+        )
+        def describe(reference: str) -> str:
+            # A crash is not a passing grade for the guard: dropping `not tail` makes the bare
+            # spelling reach `tail.lstrip()` on None, and an AttributeError would "catch" the
+            # mutant only by accident. Convert it into a comparable value so the assertions below
+            # judge the BEHAVIOUR either way.
+            try:
+                return adapters._installed_resource(pattern.match(reference))
+            except AttributeError as exc:
+                return f"<crashed: {exc}>"
+
+        bare = describe("skills/runbook")
+        explicit = describe("skills/runbook/SKILL.md")
+        nested = describe("skills/runbook/references/x.md")
+        self.assertEqual(bare, explicit, "the two spellings of the skill itself must agree")
+        self.assertIn("`runbook` skill", bare)
+        self.assertIn("references/x.md", nested)
+        self.assertNotEqual(bare, nested)
 
 if __name__ == "__main__":
     unittest.main()
