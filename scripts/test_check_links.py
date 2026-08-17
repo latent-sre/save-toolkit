@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -312,6 +313,30 @@ class LiveDocLinkTests(unittest.TestCase):
             (root / "docs/real.md").write_text("# real\n", encoding="utf-8")
             (root / "README.md").write_text("See [real](docs/real.md).\n", encoding="utf-8")
             self.assertEqual([], check_links._check_live_doc_links(root))
+
+    def test_a_symlinked_root_does_not_make_every_link_escape(self) -> None:
+        """The containment test must canonicalize the root before comparing against it.
+
+        `.resolve()` on the left side and a raw root on the right describe the same directory
+        differently, so every legitimate link reads as escaping. macOS temp dirs are
+        `/var/folders/...` resolving to `/private/var/...` and Windows hands out 8.3 short paths --
+        this passed on Linux and failed both other CI legs. Simulated here with an explicit
+        symlink so the Linux leg covers it too.
+        """
+        if not hasattr(os, "symlink"):  # pragma: no cover - platform without symlinks
+            self.skipTest("symlinks unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            real = Path(temporary) / "real"
+            (real / "docs").mkdir(parents=True)
+            (real / "docs/target.md").write_text("# t\n", encoding="utf-8")
+            (real / "README.md").write_text("See [t](docs/target.md).\n", encoding="utf-8")
+            link = Path(temporary) / "link"
+            try:
+                os.symlink(real, link, target_is_directory=True)
+            except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
+                self.skipTest("cannot create a directory symlink here")
+            self.assertNotEqual(link.resolve(), link, "fixture did not produce an aliased root")
+            self.assertEqual([], check_links._check_live_doc_links(link))
 
 
 class EvidenceBannerTests(unittest.TestCase):

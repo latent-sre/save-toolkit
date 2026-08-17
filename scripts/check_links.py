@@ -102,6 +102,13 @@ def _check_evidence_banner(root: Path) -> list[str]:
 
 
 def _check_live_doc_links(root: Path) -> list[str]:
+    # Canonicalize the root before comparing anything against it. The containment test below builds
+    # its left side with .resolve(), so an UNRESOLVED root makes the two sides disagree about the
+    # same directory and every legitimate link reports as escaping. That is not theoretical: macOS
+    # hands out `/var/folders/...` that resolves to `/private/var/...` and Windows hands out 8.3
+    # short paths, so this passed on Linux and failed both other CI legs. mutation_guard.main()
+    # carries the identical fix for the identical reason.
+    root = Path(root).resolve()
     failures: list[str] = []
     targets: list[Path] = [root / name for name in LIVE_DOC_ROOTS]
     for relative, pattern in LIVE_DOC_DIR_GLOBS:
