@@ -199,10 +199,12 @@ errors and the change quietly does not work.
   bytes other than the exact reviewed main SHA.
 - **Suspect a suite proves less than it looks like it proves** → run
   [`python scripts/mutation_guard.py`](scripts/mutation_guard.py), which breaks the code on purpose
-  and reports mutants the tests fail to notice. It rewrites files in place and refuses to start on a
-  dirty tree; a full sweep runs the suite once per mutant, so like the routing evals it is a
-  deliberate run and never a CI step. *Prevents:* trusting a green suite as evidence about the code
-  when it is only evidence about the instrument.
+  and reports mutants the tests fail to notice. **Your working tree is never modified** — each sweep
+  runs inside a throwaway `git worktree` at HEAD. It still refuses to start on a dirty tree, but for
+  a different reason than recovery: the worktree is pinned at HEAD, so uncommitted changes would go
+  untested while the report implied otherwise. A full sweep runs the suite once per mutant, so like
+  the routing evals it is a deliberate run and never a CI step. *Prevents:* trusting a green suite as
+  evidence about the code when it is only evidence about the instrument.
 - **Touched the guard or the hook** (`scripts/readonly-guard.py`, `hooks/hooks.json`) → read their
   docstrings first, then run `python scripts/test_readonly_guard.py` and
   `python scripts/test_hook_wiring.py`, diff the allow/deny corpus, and keep the 42 allow / 43 deny /

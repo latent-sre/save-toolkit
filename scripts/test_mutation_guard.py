@@ -675,6 +675,24 @@ class DiscoveryTests(unittest.TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("mutation_guard.py", agents)
 
+    def test_the_fleet_guide_does_not_contradict_the_isolation_contract(self) -> None:
+        """AGENTS.md is what a contributor actually reads before running this.
+
+        It described the tool as rewriting files in place and requiring a clean tree so an
+        interrupted run could be recovered with `git restore`. Worktree isolation made the first
+        half false and the second half true for a different reason, and a safety instruction that
+        is wrong about where the damage lands is worse than no instruction. The docstring was
+        updated in the same change and the guide was not, which is the drift this pins.
+        """
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        playbook = agents[agents.index("mutation_guard.py"):][:900]
+        self.assertNotIn("rewrites files in place", playbook)
+        self.assertIn("worktree", playbook.lower())
+        # The clean-tree rule survives; only its stated reason changed. Losing the rule from the
+        # guide would be the opposite failure -- a contributor sweeping over uncommitted work and
+        # reading a report about HEAD instead.
+        self.assertIn("dirty tree", playbook)
+
 
 class InconclusiveVerdictTests(unittest.TestCase):
     """`blind` must reach the verdict, not just the printout."""

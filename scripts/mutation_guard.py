@@ -383,7 +383,10 @@ def surviving_mutants(module: Path, test: Path, limit: int = 0) -> list[Mutant]:
     finally:
         module.write_bytes(original)
         if module.read_bytes() != original:  # pragma: no cover - filesystem failure
-            raise RuntimeError(f"FAILED TO RESTORE {module}; recover with git restore")
+            raise RuntimeError(
+                f"FAILED TO RESTORE {module}. This path is inside the throwaway worktree, not your "
+                "checkout, so nothing of yours is damaged; discard it with `git worktree prune`"
+            )
     return survivors
 
 
@@ -523,8 +526,12 @@ def _restore_on_termination() -> None:
     green, permanently inert gate.
 
     Raising from the handler unwinds through the same `finally` the other paths use, so one restore
-    mechanism covers every exit that Python can still observe. SIGKILL remains unrecoverable by
-    construction -- hence the clean-tree requirement, which keeps `git restore` a reliable undo.
+    mechanism covers every exit that Python can still observe.
+
+    Since worktree isolation this is belt-and-braces rather than the load-bearing control: the
+    mutated bytes live in a throwaway checkout, so even SIGKILL costs nothing but a directory that
+    `git worktree prune` reclaims. The handler is kept because restoring cleanly is still better
+    than relying on the sandbox, and because the incident above is what the sandbox was built for.
     """
     def _handler(signum: int, _frame: object) -> None:
         raise KeyboardInterrupt(f"terminated by signal {signum}")
