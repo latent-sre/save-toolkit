@@ -124,6 +124,44 @@ if __name__ == "__main__":
 '''
 
 
+# Fixtures for ImportDiscoveryTests. Each reaches its subject the way a real test in this repo
+# does, and in a way the pre-import-following discovery could not see.
+WIDGET_IMPORTER = '''\
+import sys, unittest
+sys.path.insert(0, %(dir)r)
+import widget
+
+
+class T(unittest.TestCase):
+    def test_f(self):
+        self.assertEqual(1, widget.f())
+'''
+
+# Names the module by BARE basename only, as a path-joined subject looks to the AST.
+BASENAME_NAMER = '''\
+import unittest
+
+NAME = "converter.py"
+
+
+class T(unittest.TestCase):
+    def test_noop(self):
+        pass
+'''
+
+# Imports another TEST module, which import-following must not enroll as a subject.
+HELPER_IMPORTER = '''\
+import sys, unittest
+sys.path.insert(0, %(dir)r)
+import test_helper
+
+
+class T(unittest.TestCase):
+    def test_v(self):
+        self.assertEqual(1, test_helper.VALUE)
+'''
+
+
 def _git_repository(case: unittest.TestCase, files: dict[str, str]) -> Path:
     """A committed, clean throwaway repository holding exactly *files*.
 
@@ -637,6 +675,63 @@ class TerminationRestoreTests(unittest.TestCase):
         finally:
             signal.signal(signal.SIGTERM, previous)
 
+
+class ImportDiscoveryTests(unittest.TestCase):
+    """A test's imports are the strongest statement of what it exercises.
+
+    Discovery used only the sibling filename and `.py` literals resolved against the root, so real
+    subjects scored as no-subject-at-all: `generate_platform_adapters.py` (735 lines, the single
+    generator behind every host projection, reached as `import generate_platform_adapters as
+    adapters`), `check_plan_status.py` (sibling-name mismatch), and a skill-bundled converter
+    reached by path-joining, where the AST sees only the bare basename. Each had a dedicated test
+    file and zero mutation coverage.
+    """
+
+    def test_an_imported_module_becomes_a_subject(self) -> None:
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/widget.py": "def f():\n    return 1\n",
+            "scripts/test_gizmo.py": WIDGET_IMPORTER,
+        })
+        found = {
+            test.name: [(subject.path.name, subject.origin) for subject in subjects]
+            for test, subjects in mutation_guard.discover(root)
+        }
+        self.assertIn(("widget.py", "import"), found["test_gizmo.py"])
+
+    def test_a_bare_basename_literal_resolves_under_a_skill_bundle(self) -> None:
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "skills/thing/scripts/converter.py": "def f():\n    return 1\n",
+            "scripts/test_converting.py": BASENAME_NAMER,
+        })
+        found = {
+            test.name: [(subject.path.name, subject.origin) for subject in subjects]
+            for test, subjects in mutation_guard.discover(root)
+        }
+        self.assertIn(("converter.py", "literal"), found["test_converting.py"])
+
+    def test_a_test_file_is_never_its_own_subject(self) -> None:
+        """Import-following made this reachable in a way it was not before: test modules in this
+        repository import one another's helpers, and mutating a test proves nothing."""
+        root = _git_repository(self, {
+            "scripts/subject.py": HONEST_MODULE,
+            "scripts/test_helper.py": "VALUE = 1\n",
+            "scripts/test_uses_helper.py": HELPER_IMPORTER,
+        })
+        for test, subjects in mutation_guard.discover(root):
+            for subject in subjects:
+                self.assertFalse(
+                    subject.path.name.startswith("test_"),
+                    f"{test.name} took {subject.path.name} as a subject",
+                )
+
+    def test_the_live_tree_has_no_tractable_blind_files(self) -> None:
+        """The three remaining have .sh/.json/.yml subjects; there is no Python to mutate."""
+        self.assertEqual(
+            {"test_hook_wiring.py", "test_runbook_schema.py", "test_validate_workflow.py"},
+            {path.name for path in mutation_guard.unresolved(ROOT)},
+        )
 
 if __name__ == "__main__":
     unittest.main()

@@ -215,19 +215,65 @@ def discover(root: Path) -> list[tuple[Path, list[Path]]]:
                 tree = ast.parse(test.read_text(encoding="utf-8"))
             except (OSError, SyntaxError):
                 tree = ast.parse("")
+            # What the test IMPORTS is the strongest available statement of what it exercises, and
+            # it was the one signal this function ignored. The cost was concrete:
+            # generate_platform_adapters.py -- 735 lines, the single generator behind every host
+            # projection -- had NO mutation coverage at all behind a 429-line test file, because
+            # `import generate_platform_adapters as adapters` contains no `.py` literal and the
+            # sibling name does not match. `test_plan_status.py` -> `check_plan_status.py` missed
+            # for the same reason. Import-following fixes both without renaming any file, which
+            # matters because a rename would break the references those names already have.
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom):
+                    names = [node.module] if node.module and node.level == 0 else []
+                else:
+                    continue
+                for name in names:
+                    # Top-level package component only: `scripts.foo` and `foo` both resolve
+                    # against the same tree, and a dotted stdlib name simply matches no file.
+                    base = name.split(".")[0]
+                    # A skill can ship its own scripts, and its test reaches them by inserting the
+                    # bundle directory on sys.path rather than by any path literal this function
+                    # could see (test_confluence_import.py -> confluence_to_runbook.py). Those are
+                    # first-class subjects; sorted() keeps the search deterministic.
+                    for candidate in [root / "scripts" / f"{base}.py"] + sorted(
+                        root.glob(f"skills/*/scripts/{base}.py")
+                    ):
+                        candidate = candidate.resolve()
+                        if (
+                            candidate.is_file()
+                            and candidate not in seen
+                            and not candidate.name.startswith("test_")
+                        ):
+                            subjects.append(Subject(path=candidate, origin="import"))
+                            seen.add(candidate)
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
                     continue
                 if not node.value.endswith(".py"):
                     continue
-                candidate = (root / node.value).resolve()
-                if (
-                    candidate.is_file()
-                    and candidate not in seen
-                    and not candidate.name.startswith("test_")
-                ):
-                    subjects.append(Subject(path=candidate, origin="literal"))
-                    seen.add(candidate)
+                options = [root / node.value]
+                if "/" not in node.value and "\\" not in node.value:
+                    # A BARE basename, which is what a path-joined subject looks like to the AST:
+                    # `ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"` offers
+                    # no single literal holding the whole path, only its last component. Resolving
+                    # that against root alone finds nothing, which is why a 500-line converter with
+                    # a dedicated test file scored as having no subject. Searching the two places
+                    # this repository keeps runnable modules is bounded and deterministic.
+                    options += [root / "scripts" / node.value] + sorted(
+                        root.glob(f"skills/*/scripts/{node.value}")
+                    )
+                for option in options:
+                    candidate = option.resolve()
+                    if (
+                        candidate.is_file()
+                        and candidate not in seen
+                        and not candidate.name.startswith("test_")
+                    ):
+                        subjects.append(Subject(path=candidate, origin="literal"))
+                        seen.add(candidate)
             pairs.append((test, subjects))
     return pairs
 
