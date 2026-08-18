@@ -555,7 +555,7 @@ class StreamTraceTests(unittest.TestCase):
 
             enforce.assert_called_once_with(parsed, root, expected_tools=("Skill",))
 
-    def test_direct_agent_parser_mismatch_refuses_before_child_runs(self) -> None:
+    def test_parser_mismatch_refuses_discovery_child_before_run(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             (root / "agents").mkdir()
@@ -567,8 +567,8 @@ class StreamTraceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             scenario = {
-                "mode": "direct",
-                "target": {"kind": "agent", "name": "probe"},
+                "mode": "discovery",
+                "target": {"kind": "skill", "name": "merge-gate"},
                 "prompt": "probe",
             }
             completed = mock.Mock(returncode=0, stdout="trace", stderr="")
@@ -577,6 +577,7 @@ class StreamTraceTests(unittest.TestCase):
                 mock.patch.object(run_evals, "build_command", return_value=["claude"]),
                 mock.patch.object(run_evals.subprocess, "run", return_value=completed) as child,
                 mock.patch.object(run_evals, "parse_stream_trace", return_value=mock.Mock()),
+                mock.patch.object(run_evals, "enforce_runtime_boundary"),
             ):
                 with self.assertRaisesRegex(
                     clean_room.RunnerFailed,
@@ -592,6 +593,61 @@ class StreamTraceTests(unittest.TestCase):
                     )
 
             child.assert_not_called()
+
+    def test_discovery_preloads_trusted_parser_before_cross_trial_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "plugin"
+            trusted_path = Path(temporary) / "eval-bundle/scripts/fleet_frontmatter.py"
+            (root / "agents").mkdir(parents=True)
+            (root / "scripts").mkdir()
+            trusted_path.parent.mkdir(parents=True)
+            safe_parser = run_evals.TRUSTED_FRONTMATTER_PATH.read_bytes()
+            measured_path = root / "scripts/fleet_frontmatter.py"
+            measured_path.write_bytes(safe_parser)
+            trusted_path.write_bytes(safe_parser)
+            (root / "agents/probe.md").write_text(
+                "---\nname: probe\ntools:\n  - Skill\n---\nbody\n",
+                encoding="utf-8",
+            )
+            marker = Path(temporary) / "mutated-parser-executed"
+            mutated_parser = safe_parser + (
+                f"\nPath({str(marker)!r}).write_text('executed', encoding='utf-8')\n"
+            ).encode("utf-8")
+            discovery = {
+                "mode": "discovery",
+                "target": {"kind": "skill", "name": "merge-gate"},
+                "prompt": "probe",
+            }
+            direct = {"mode": "direct", "target": {"kind": "agent", "name": "probe"}}
+            completed = mock.Mock(returncode=0, stdout="trace", stderr="")
+
+            def mutate_both_copies(*args: object, **kwargs: object) -> mock.Mock:
+                measured_path.write_bytes(mutated_parser)
+                trusted_path.write_bytes(mutated_parser)
+                return completed
+
+            run_evals._load_trusted_frontmatter_parser.cache_clear()
+            try:
+                with mock.patch.object(run_evals, "TRUSTED_FRONTMATTER_PATH", trusted_path):
+                    with (
+                        mock.patch.object(run_evals, "build_command", return_value=["claude"]),
+                        mock.patch.object(run_evals.subprocess, "run", side_effect=mutate_both_copies),
+                        mock.patch.object(run_evals, "parse_stream_trace", return_value=mock.Mock()),
+                        mock.patch.object(run_evals, "enforce_runtime_boundary"),
+                    ):
+                        run_evals.run_agent(
+                            discovery,
+                            env={},
+                            cwd=root,
+                            timeout=30,
+                            model=None,
+                            plugin_root=root,
+                        )
+                    self.assertEqual(run_evals.expected_runtime_tools(direct, root), ("Skill",))
+            finally:
+                run_evals._load_trusted_frontmatter_parser.cache_clear()
+
+            self.assertFalse(marker.exists())
 
     def test_missing_result_event_is_inconclusive_not_a_response(self) -> None:
         incomplete = json.dumps({"type": "system", "subtype": "init"})

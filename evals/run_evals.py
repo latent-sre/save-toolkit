@@ -754,13 +754,14 @@ def _load_trusted_frontmatter_parser() -> ModuleType:
 
 def expected_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[str, ...]:
     """Return the exact effective built-in ceiling for this invocation plan."""
+    _require_matching_frontmatter_parser(plugin_root)
+    frontmatter_parser = _load_trusted_frontmatter_parser()
     target = scenario["target"]
     if scenario["mode"] != "direct" or target["kind"] != "agent":
         return ALLOWED_BUILTIN_TOOLS
     path = plugin_root / "agents" / f"{target['name']}.md"
     try:
-        _require_matching_frontmatter_parser(plugin_root)
-        fields = _load_trusted_frontmatter_parser().parse_file(path, mode="strict").fields
+        fields = frontmatter_parser.parse_file(path, mode="strict").fields
         if "tools" not in fields:
             raise ValueError("frontmatter must contain an explicit tools field")
     except (OSError, UnicodeError, ValueError) as exc:
