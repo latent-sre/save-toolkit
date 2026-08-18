@@ -885,6 +885,7 @@ def run_agent(
     claude_bin: str | None = None,
     plugin_root: Path = ROOT,
 ) -> TrialExecution:
+    expected_tools = expected_runtime_tools(scenario, plugin_root)
     command = build_command(
         scenario, model=model, claude_bin=claude_bin, plugin_root=plugin_root,
     )
@@ -932,7 +933,7 @@ def run_agent(
         enforce_runtime_boundary(
             parsed,
             plugin_root,
-            expected_tools=expected_runtime_tools(scenario, plugin_root),
+            expected_tools=expected_tools,
         )
     except clean_room.AuthUnavailable as exc:
         raise InconclusiveTrial(
