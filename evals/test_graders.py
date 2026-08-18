@@ -857,6 +857,13 @@ _ROUTING_PROMPT_ECHO_CASES = {
         "`| lookup instructions_lookup alert_type OUTPUT runbook_url`; force the alert to fire, "
         "resolve, throttle, and deliver to the named owner."
     ),
+    "discovery-obs-logs-defers-obs-alerting.yaml": (
+        "Splunk saved search [unverified]: `cron_schedule = */5 * * * *`, "
+        "`dispatch.earliest_time = -5m`, `dispatch.latest_time = now`, `alert.suppress = 1`, "
+        "`alert.suppress.period = 30m`, and `alert.suppress.fields = service,alert_type`. Append "
+        "`| lookup instructions_lookup alert_type OUTPUT runbook_url`; force the alert to fire, "
+        "resolve, throttle, and deliver to the named owner."
+    ),
     "discovery-obs-logs-cloud-logging.yaml": _GCP_LOGGING_ANSWER,
     "discovery-obs-metrics-cloud-monitoring.yaml": _PROMQL_ANSWER,
     "discovery-obs-traces-cloud-trace.yaml": _CLOUD_TRACE_ANSWER,
@@ -900,8 +907,8 @@ def test_routing_prompt_echoes_are_rejected() -> None:
         return
 
     check(
-        len(_ROUTING_PROMPT_ECHO_CASES) == 19,
-        "routing prompt-echo regression covers exactly the 19 GCP/Akamai/obs/runbook scenarios",
+        len(_ROUTING_PROMPT_ECHO_CASES) == 20,
+        "routing prompt-echo regression covers exactly the 20 GCP/Akamai/obs/runbook scenarios",
     )
     for filename, compliant in _ROUTING_PROMPT_ECHO_CASES.items():
         scenario = _load_scenario(filename)

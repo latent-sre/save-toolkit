@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-obs-logs-defers-obs-alerting
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: obs-logs
+prompt: |
+  Build a log-based Splunk saved-search paging alert for sustained checkout 5xx errors. Include the
+  search window and schedule pairing, throttling, notification ownership, and the runbook link.
+  This is steady-state alert design; no alert is currently firing.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: obs-alerting
+success_criteria:
+  - Routes log-derived Splunk saved-search paging-alert design to the alerting lane
+  - Does not treat evaluation, suppression, notification, or runbook ownership as log-query work
+graders:
+  - type: contains_all
+    of: ["cron_schedule = */5 * * * *", "dispatch.earliest_time = -5m", "dispatch.latest_time = now"]
+  - type: contains_all
+    of: ["alert.suppress = 1", "alert.suppress.period = 30m", "alert.suppress.fields = service,alert_type"]
+  - type: contains_all
+    of: ["instructions_lookup", "runbook_url", "fire", "resolve", "owner", "[unverified]"]

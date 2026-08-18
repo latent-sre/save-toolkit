@@ -534,7 +534,8 @@ next available.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 
-**Status:** `blocked` (2026-08-17) — same live-runner dependency as SKILL-001.
+**Status:** `blocked` (2026-08-18) — the missing defer scenario is structurally prepared; the same
+live-runner dependency as SKILL-001 remains.
 
 **Outcome:** One skill owns log-based alert design **in the canonical text**, and the routing suite
 contains a scenario that would fail if the other started firing for it. Both halves are required:
@@ -543,10 +544,15 @@ the descriptions must state the boundary, and a scenario must be able to detect 
 **Source:** [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md).
 `[sourced]` `obs-logs` advertises the trigger `'build a log alert'`
 while `obs-alerting` claims Splunk saved-search alerts, and `obs-logs`'s ownership map disclaims
-only `obs-metrics` and `obs-dashboards` — not `obs-alerting`. The 66-scenario suite contains
-`discovery-obs-alerting-splunk-saved-search.yaml` expecting `obs-alerting` to fire, and **no**
-scenario asserting `obs-logs` defers to it. The collision is therefore unmeasured rather than known
-to be harmless.
+only `obs-metrics` and `obs-dashboards` — not `obs-alerting`. The pre-change 66-scenario suite
+contained `discovery-obs-alerting-splunk-saved-search.yaml` expecting `obs-alerting` to fire, and
+**no** scenario asserting `obs-logs` defers to it. The collision was therefore unmeasured rather
+than known to be harmless.
+
+**Current preparation (2026-08-18):** `discovery-obs-logs-defers-obs-alerting.yaml` now presents the
+overlapping user phrase to `obs-logs` as a zero-tolerance near-miss and requires `obs-alerting` as the
+alternative. The 67-scenario structural suite and all 345 grader checks pass. This makes the
+collision measurable; no live routing result exists, and neither canonical description has changed.
 
 **Prerequisites:** None structural. Verification needs the live runner.
 
@@ -560,9 +566,9 @@ today's descriptions, that is evidence the collision is currently latent — not
 and closing on it would leave `obs-logs` still advertising `'build a log alert'` with the ownership
 map still silent about `obs-alerting`.
 
-**Next action:** Write the missing defer scenario now — authoring it needs no API and makes the
-collision measurable the moment a runner is available. Do not edit either description first; an
-unmeasured description change is what created the ambiguity.
+**Next action:** Run the new defer scenario and its overlapping `obs-alerting`/`obs-logs` cases
+against the current descriptions to establish the before baseline. Do not edit either description
+until that result exists; an unmeasured description change is what created the ambiguity.
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 
