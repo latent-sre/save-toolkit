@@ -66,6 +66,25 @@ class LinkCheckerTests(Fixture):
         self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
         self.assertEqual([], check_links.check(self.root))
 
+    def test_list_value_uses_shared_syntax_then_fails_skill_field_policy(self):
+        frontmatter = CLEAN_FRONTMATTER.replace(
+            'argument-hint: "[the probe]"',
+            "argument-hint:\n  - one\n  - two",
+        )
+        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(any("value must be one nonblank YAML string" in item for item in failures))
+        self.assertFalse(any("malformed top-level frontmatter" in item for item in failures))
+
+    def test_quoted_implicit_scalars_and_collection_text_remain_strings(self):
+        for value in ('"false"', '"123"', '"null"', '"[the probe]"'):
+            with self.subTest(value=value):
+                root = Path(self._tmp.name) / value.strip('"').replace(" ", "-")
+                self.root = root
+                frontmatter = CLEAN_FRONTMATTER.replace('"[the probe]"', value)
+                self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
+                self.assertEqual([], check_links.check(self.root))
+
     def test_frontmatter_contract_rejects_each_silent_load_failure(self):
         cases = {
             "unknown": CLEAN_FRONTMATTER.replace(
@@ -86,6 +105,9 @@ class LinkCheckerTests(Fixture):
             ),
             "null-hint": CLEAN_FRONTMATTER.replace(
                 'argument-hint: "[the probe]"', "argument-hint: null"
+            ),
+            "unmatched-single-hint": CLEAN_FRONTMATTER.replace(
+                'argument-hint: "[the probe]"', "argument-hint: 'the probe"
             ),
             "missing-triggers": CLEAN_FRONTMATTER.replace("Triggers:", "Use when"),
             "one-trigger": CLEAN_FRONTMATTER.replace(

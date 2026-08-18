@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -438,6 +439,46 @@ class StreamTraceTests(unittest.TestCase):
         self.assertEqual(run_evals.expected_runtime_tools(researcher), ())
         self.assertEqual(run_evals.expected_runtime_tools(repository_investigator), ())
         self.assertEqual(run_evals.expected_runtime_tools(discovery), ("Skill", "Task"))
+
+    def test_direct_agent_frontmatter_uses_the_snapshotted_shared_strict_parser(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            (root / "scripts").mkdir()
+            shutil.copy2(
+                run_evals.ROOT / "scripts/fleet_frontmatter.py",
+                root / "scripts/fleet_frontmatter.py",
+            )
+            (root / "agents/probe.md").write_text(
+                "---\nname: probe\ntools:\n  - Skill\n  - Agent(reviewer)\n---\nbody\n",
+                encoding="utf-8",
+            )
+            scenario = {"mode": "direct", "target": {"kind": "agent", "name": "probe"}}
+            with mock.patch.object(
+                run_evals.yaml,
+                "safe_load",
+                side_effect=AssertionError("frontmatter must not use PyYAML"),
+            ):
+                self.assertEqual(
+                    run_evals.expected_runtime_tools(scenario, root), ("Skill", "Task")
+                )
+
+    def test_direct_agent_frontmatter_rejects_duplicate_tools(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            (root / "scripts").mkdir()
+            shutil.copy2(
+                run_evals.ROOT / "scripts/fleet_frontmatter.py",
+                root / "scripts/fleet_frontmatter.py",
+            )
+            (root / "agents/probe.md").write_text(
+                "---\nname: probe\ntools: Skill\ntools: Agent(reviewer)\n---\nbody\n",
+                encoding="utf-8",
+            )
+            scenario = {"mode": "direct", "target": {"kind": "agent", "name": "probe"}}
+            with self.assertRaisesRegex(clean_room.RunnerFailed, "duplicate frontmatter key"):
+                run_evals.expected_runtime_tools(scenario, root)
 
     def test_missing_result_event_is_inconclusive_not_a_response(self) -> None:
         incomplete = json.dumps({"type": "system", "subtype": "init"})
@@ -1001,6 +1042,7 @@ class ArtifactTests(unittest.TestCase):
 
     def test_plugin_provenance_surface_includes_commands_and_guard_scripts(self) -> None:
         self.assertIn("commands", run_evals.PLUGIN_INPUT_PATHS)
+        self.assertIn("scripts/fleet_frontmatter.py", run_evals.PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/readonly-guard.py", run_evals.PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/readonly-guard-hook.sh", run_evals.PLUGIN_INPUT_PATHS)
 

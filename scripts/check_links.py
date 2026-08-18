@@ -7,17 +7,17 @@ host adapters are consequences and are checked separately by the adapter generat
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import sys
 from pathlib import Path
 from urllib.parse import unquote
 
+import fleet_frontmatter
+
 
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-KEY_RE = re.compile(r"^([A-Za-z][A-Za-z0-9-]*):(?:[ \t]*(.*))?$")
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 CODE_PATH_RE = re.compile(
     r"`((?:references|assets|scripts)/[A-Za-z0-9._/-]+)`"
@@ -181,98 +181,48 @@ def _strip_fences(text: str) -> str:
     return "".join(kept)
 
 
-def _yaml_string(raw: str, where: str, failures: list[str]) -> str | None:
-    raw = raw.strip()
-    if not raw:
+def _yaml_string(
+    value: object, style: str | None, where: str, failures: list[str]
+) -> str | None:
+    if not isinstance(value, str) or not value.strip():
         failures.append(f"{where}: value must be one nonblank YAML string")
         return None
-    if raw.startswith("[") or raw.startswith("{"):
-        failures.append(f"{where}: value must be a string, not a collection")
+    if style == "single-quoted-unmatched":
+        failures.append(f"{where}: invalid quoted string")
         return None
-    if raw.startswith('"'):
-        try:
-            value = json.loads(raw)
-        except json.JSONDecodeError:
-            failures.append(f"{where}: invalid quoted string")
+    if style == "plain":
+        if value.startswith("[") or value.startswith("{"):
+            failures.append(f"{where}: value must be a string, not a collection")
             return None
-        if not isinstance(value, str) or not value.strip():
-            failures.append(f"{where}: value must be one nonblank YAML string")
+        if YAML_NON_STRING.fullmatch(value):
+            failures.append(f"{where}: value must be a YAML string, not an implicit scalar")
             return None
-        return value
-    if raw.startswith("'"):
-        if len(raw) < 2 or not raw.endswith("'"):
-            failures.append(f"{where}: invalid quoted string")
-            return None
-        value = raw[1:-1].replace("''", "'")
-        if not value.strip():
-            failures.append(f"{where}: value must be one nonblank YAML string")
-            return None
-        return value
-    if YAML_NON_STRING.fullmatch(raw):
-        failures.append(f"{where}: value must be a YAML string, not an implicit scalar")
-        return None
-    return raw
-
-
-def _frontmatter(text: str, path: Path) -> tuple[dict[str, str], str, list[str]]:
-    failures: list[str] = []
-    lines = text.splitlines()
-    where = path.as_posix()
-    if not lines or lines[0].strip() != "---":
-        return {}, text, [f"{where}: missing frontmatter"]
-    try:
-        end = next(index for index in range(1, len(lines)) if lines[index].strip() == "---")
-    except StopIteration:
-        return {}, text, [f"{where}: unterminated frontmatter"]
-
-    values: dict[str, str] = {}
-    index = 1
-    while index < end:
-        line = lines[index]
-        if not line.strip():
-            index += 1
-            continue
-        if line.startswith("#"):
-            index += 1
-            continue
-        match = KEY_RE.fullmatch(line)
-        if not match:
-            failures.append(f"{where}:{index + 1}: malformed top-level frontmatter")
-            index += 1
-            continue
-        key, raw = match.group(1), (match.group(2) or "")
-        if key in values:
-            failures.append(f"{where}:{index + 1}: duplicate frontmatter key '{key}'")
-        if raw in {">", ">-", "|", "|-"}:
-            chunks = []
-            index += 1
-            while index < end and (lines[index].startswith((" ", "\t")) or not lines[index]):
-                chunks.append(lines[index].strip())
-                index += 1
-            value = " ".join(chunk for chunk in chunks if chunk)
-            values[key] = value
-            continue
-        values[key] = raw.strip()
-        index += 1
-
-    unknown = sorted(set(values) - ALLOWED_KEYS)
-    if unknown:
-        failures.append(f"{where}: unknown frontmatter key(s): {', '.join(unknown)}")
-    body = "\n".join(lines[end + 1 :])
-    return values, body, failures
+    return value
 
 
 def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
-    values, body, failures = _frontmatter(text, path)
+    parsed = fleet_frontmatter.parse(text, path, mode="lenient")
+    values = parsed.fields
+    styles = parsed.styles
+    body = parsed.body
+    failures = list(parsed.problems)
     where = path.as_posix()
     expected_name = path.parent.name
-    name = _yaml_string(values.get("name", ""), f"{where}: name", failures)
+    unknown = sorted(set(values) - ALLOWED_KEYS)
+    if unknown:
+        failures.append(f"{where}: unknown frontmatter key(s): {', '.join(unknown)}")
+    name = _yaml_string(
+        values.get("name", ""), styles.get("name"), f"{where}: name", failures
+    )
     if name and (not NAME_RE.fullmatch(name) or name != expected_name):
         failures.append(
             f"{where}: name must be kebab-case and equal directory '{expected_name}'"
         )
     description = _yaml_string(
-        values.get("description", ""), f"{where}: description", failures
+        values.get("description", ""),
+        styles.get("description"),
+        f"{where}: description",
+        failures,
     )
     if description:
         if len(description.encode("utf-8")) > 600:
@@ -285,9 +235,19 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
             if not 2 <= len(triggers) <= 4:
                 failures.append(f"{where}: Triggers must contain 2-4 quoted user phrasings")
     if "argument-hint" in values:
-        _yaml_string(values["argument-hint"], f"{where}: argument-hint", failures)
+        _yaml_string(
+            values["argument-hint"],
+            styles.get("argument-hint"),
+            f"{where}: argument-hint",
+            failures,
+        )
     if "compatibility" in values:
-        _yaml_string(values["compatibility"], f"{where}: compatibility", failures)
+        _yaml_string(
+            values["compatibility"],
+            styles.get("compatibility"),
+            f"{where}: compatibility",
+            failures,
+        )
     raw_manual_only = values.get("disable-model-invocation")
     if expected_name in MANUAL_ONLY:
         if raw_manual_only != "true":

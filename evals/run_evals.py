@@ -11,6 +11,7 @@ import argparse
 import contextlib
 import functools
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -25,6 +26,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from types import ModuleType
 
 import clean_room
 import graders
@@ -56,6 +58,7 @@ DENIED_TOOLS = (
 SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 PLUGIN_INPUT_PATHS = (
     "agents", "skills", "commands", "hooks", ".claude-plugin/plugin.json",
+    "scripts/fleet_frontmatter.py",
     "scripts/readonly-guard.py", "scripts/readonly-guard-hook.sh",
 )
 REQUIRED = (
@@ -708,6 +711,26 @@ def _split_tool_specs(raw: object) -> list[str]:
     return specs
 
 
+@functools.lru_cache(maxsize=16)
+def _load_frontmatter_module(module_path: str) -> ModuleType:
+    """Load the parser from the measured plugin root, never from ambient site packages."""
+    path = Path(module_path)
+    try:
+        if not path.is_file() or _is_reparse_point(path):
+            raise ValueError("shared frontmatter parser must be an ordinary file")
+        module_name = "_fleet_frontmatter_" + hashlib.sha256(
+            str(path.resolve()).encode("utf-8")
+        ).hexdigest()[:16]
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
+            raise ValueError("could not create shared frontmatter parser import spec")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    except (OSError, UnicodeError, ImportError, ValueError) as exc:
+        raise clean_room.RunnerFailed(f"cannot load shared frontmatter parser: {exc}") from exc
+
+
 def expected_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[str, ...]:
     """Return the exact effective built-in ceiling for this invocation plan."""
     target = scenario["target"]
@@ -715,14 +738,11 @@ def expected_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[st
         return ALLOWED_BUILTIN_TOOLS
     path = plugin_root / "agents" / f"{target['name']}.md"
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-        if not lines or lines[0].strip() != "---":
-            raise ValueError("missing opening frontmatter")
-        end = next(index for index in range(1, len(lines)) if lines[index].strip() == "---")
-        fields = yaml.safe_load("\n".join(lines[1:end])) or {}
-        if not isinstance(fields, dict) or "tools" not in fields:
-            raise ValueError("frontmatter must be a mapping with an explicit tools field")
-    except (OSError, UnicodeError, ValueError, StopIteration, yaml.YAMLError) as exc:
+        parser = _load_frontmatter_module(str(plugin_root / "scripts/fleet_frontmatter.py"))
+        fields = parser.parse_file(path, mode="strict").fields
+        if "tools" not in fields:
+            raise ValueError("frontmatter must contain an explicit tools field")
+    except (OSError, UnicodeError, ValueError) as exc:
         raise clean_room.RunnerFailed(f"cannot derive direct-agent tool boundary from {path}: {exc}") from exc
     bases = {spec.split("(", 1)[0].strip() for spec in _split_tool_specs(fields.get("tools"))}
     effective = []
