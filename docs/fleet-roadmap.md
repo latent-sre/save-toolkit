@@ -311,66 +311,53 @@ Claude/Sol output, a development canary, or unreviewed working-tree bytes.
 
 ### MUTATION-001 — close the mutation-guard evidence gaps
 
-**Status:** `active` (2026-08-15) — attempt 1 is prepared and evidenced at candidate revision
-`82333f42c9c1f55286632f0ad4fdad3fba45a5ff`; independent evaluation and the owner's rescope decision
-are outstanding.
+**Status:** `active` (2026-08-18) — the owner authorized a linked rescope to the mutation guard and
+its test. PR #116's final head is the current retrospective subject and has cross-platform CI, but
+no fresh evaluation envelope or independent review covers its final bytes.
 
 **Outcome:** `scripts/mutation_guard.py` never labels a sampled all-survivor result as proof that a
 suite probably never exercises its subject, refuses invalid limits with a distinct exit status, and
 documents sampling without implying that a bounded run covers the motivating mutant.
 
-**Source:** The typed record
+**Source:** The original typed record
 [`fi_mutation_untested_assertions`](../evals/improvements/fi_mutation_untested_assertions/record.json)
-retains three independently verified control defects as open. The record remains `observed`; no
-formal repair attempt or owner promotion has been appended.
+retains the motivating false-green incident. The owner-approved linked record
+[`fi_mutation_guard_evidence_gaps`](../evals/improvements/fi_mutation_guard_evidence_gaps/record.json)
+now owns the three guard defects against `scripts/mutation_guard.py` and its test. Both remain
+`observed`; neither inherits or claims a formal attempt, review, merge, or promotion.
 
-**Prerequisites:** Use one bounded lifecycle attempt under the record's existing three-attempt budget.
+**Prerequisites:** Use one bounded lifecycle attempt under the linked record's two-attempt budget.
 Calibrate sampled versus unbounded semantics first, and keep refusal, instrument failure, survivor,
 and clean-result exits distinguishable.
 
 **Acceptance:** Red-first tests prove all three recorded guard defects; the focused mutation-guard
 suite and Gate A pass; a deliberate load-bearing mutant is still killed; independent evaluation is
-appended to the typed record without self-promoting it.
+appended to the linked typed record without self-promoting it.
 
-**Current evidence:** Attempt 1 is prepared, not evaluated. Each of the three recorded defects is
-repaired behind a regression that fails when — and only when — its own fix is reverted; the reverts
-were run per defect and each failed exactly its own test class. The unexercised claim now
-additionally requires an unbounded run, invalid `--limit` values and every other argparse usage error
-exit a distinct `EXIT_USAGE` rather than colliding with `EXIT_REFUSED`, and both docstrings state that
-an evenly spaced sample can miss any given mutant. The mutation operator set, `DEFAULT_LIMIT`, and the
-sampling algorithm are unchanged. The author's execution evidence, the deliberate-mutant sweep, and
-the honest limits are bound in the preparation-only
+**Current evidence:** The three recorded defects remain repaired in current main: the unexercised
+claim requires an unbounded run, invalid `--limit` values and every other argparse usage error exit a
+distinct `EXIT_USAGE`, and the operator-facing text says an evenly spaced sample can miss any given
+mutant. `[verified]` The 24 focused exit-status, sampled-collapse, sampling-honesty,
+inconclusive-verdict, and isolation tests passed in the network-disabled pinned Python 3.12 container
+on 2026-08-18. The author's original red-first evidence and deliberate-mutant sweep remain bound in
+the preparation-only
 [`mutation-guard evidence-gap packet`](reviews/2026-08-15-mutation-guard-evidence-gaps.md); it claims
 no evaluation, promotion, or monitoring authority.
 
-Two things block closure and neither is the author's to decide. No attempt is appended to the typed
-record: its declared `target.artifact_paths` are `AGENTS.md` and `scripts/gate_a.py`, which this
-candidate does not touch, so an attempt would violate the lifecycle's requirement that every declared
-target path be touched by the net candidate diff — re-declaring the target to name the control and its
-test is a rescope. And an attempt's evaluation must be a fresh evidence envelope produced outside the
-authoring checkout, which the author cannot supply for itself. The record therefore stays `observed`
-with an append-only limitations entry.
+PR #116 final head `ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b` changed both linked target
+paths from base `f75dca0ccd9063360318fb8f11bf5806f03cd357`; current main retains those exact
+target bytes. GitHub Actions runs
+[#32030853567](https://github.com/latent-sre/save-toolkit/actions/runs/32030853567) and
+[#32034404514](https://github.com/latent-sre/save-toolkit/actions/runs/32034404514) passed Gate A on
+Ubuntu, macOS, and Windows. The last independent review was bound to `b90e56f9`; final head then
+added 88 lines and removed 3 across the target paths, so neither that review nor green CI supplies
+the missing exact-subject verdict.
 
-> **2026-08-17 — this item's subject moved; re-evaluate before acting.** PR #116 rewrote
-> `mutation_guard`'s HONEST LIMITS docstring (the third criterion's subject) and changed the verdict
-> path this item's first criterion describes, extracting it as `is_inconclusive()` and feeding the
-> previously ignored `blind` bucket into it. It also moved sweeps into an isolated `git worktree`.
-> None of that is a claim that any recorded defect is closed — no independent evaluation has been
-> appended and an agent does not promote its own work. Read the current file before assuming this
-> item's description of it still holds.
-
-**Next action:** **Re-pin a candidate from current `main` first.** Candidate
-`82333f42c9c1f55286632f0ad4fdad3fba45a5ff` predates PR #116, which rewrote the docstring one
-criterion is about and restructured the verdict path another describes. Requesting an
-exact-revision evaluation of that candidate would produce a verdict about bytes the tool no longer
-has, and that verdict could then be appended toward closing this item — obsolete evidence is worse
-than none, because it carries the authority of having been independently produced.
-
-So: re-pin against current `main`, restate the three criteria against the code as it now stands, and
-obtain the owner's rescope decision on `target.artifact_paths`. Only then request the independent
-exact-revision evaluation in a fresh context and confirm the macOS and Windows Gate A jobs on the new
-candidate. Do not promote the record, append a self-authored attempt outcome, or treat the author's
-own sweep as the independent evaluation.
+**Next action:** Produce a fresh evaluation envelope for the exact selected artifacts at
+`ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b`, then obtain independent correctness/security review
+of that same subject. Preserve the chronology limitation: PR #116 merged before the linked record
+and its evaluation existed, so do not backfill a normal pre-merge promotion or treat the author's
+own sweep as independent evidence.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
@@ -441,9 +428,9 @@ scope to an exact agent identity.
 
 ### EVAL-002 — make POSIX process-boundary cleanup idempotent
 
-**Status:** `active` (2026-08-15) — attempt 1 is prepared and evidenced at candidate revision
-`13e6fd4d3f355b0c3c366d999fc8537c4356c3ac` (base `0104b55`); the macOS CI evidence and an
-independent evaluation are outstanding.
+**Status:** `active` (2026-08-18) — the repaired target bytes reached PR #114 final head
+`106ee282903076dc54020df295ac37a0e66bc9d8` and passed the PR and merged-main matrices. A fresh
+evidence envelope and independent review of the final repaired bytes remain outstanding.
 
 **Outcome:** A timed-out Codex trial terminates its complete process tree and closes the POSIX
 boundary deterministically; final cleanup does not turn an already-completed termination into an
@@ -464,23 +451,26 @@ termination guarantee; focused process-boundary tests pass repeatedly on macOS; 
 Windows Gate A jobs pass on the exact candidate; the typed record receives independent exact-revision
 correctness/security review without self-promotion.
 
-**Current evidence:** Attempt 1 is prepared, not evaluated. The POSIX final close now tolerates
-`EPERM` only when the group leader is already reaped — the one state where the call re-runs completed
-work — and fails closed while the process is still running, since an unsignalled tree may still have a
-live descendant. The initial termination never tolerates `EPERM`. The regression set is deterministic
-(mocked `os.killpg`, stubbed `poll()`, no real processes or sleeps) and, importantly, **distinguishes
-the correct fix from the unsafe one**: reverting to an unconditional swallow — the broad catch the
-intake packet warns against — still fails. The pre-existing real-process descendant assertions are
-retained unchanged. Bound in the preparation-only
+**Current evidence:** The POSIX final close tolerates `EPERM` only after a prior successful group kill
+and a reaped leader; either fact missing remains a fail-closed boundary error because a descendant may
+still be alive. The initial termination never tolerates `EPERM`. The regression set is deterministic
+(mocked `os.killpg`, stubbed `poll()`, no real processes or sleeps) and distinguishes the correct fix
+from the unsafe broad catch. The pre-existing real-process descendant assertions remain. Bound in the
+preparation-only
 [`POSIX boundary cleanup packet`](reviews/2026-08-15-posix-boundary-cleanup-repair.md).
 
-The record's fourth criterion is **not** met and cannot be met from a Linux container: it requires the
-focused process-boundary tests to pass repeatedly on macOS. Linux evidence only so far.
+`[verified]` The target files at final head `106ee282` and merge `796435bf` are byte-identical to the
+repaired `13e6fd4` files and to current main. GitHub Actions runs
+[#31893669482](https://github.com/latent-sre/save-toolkit/actions/runs/31893669482) and
+[#31894502043](https://github.com/latent-sre/save-toolkit/actions/runs/31894502043) both passed Gate A
+on Ubuntu, macOS, and Windows. This supplies repeated macOS execution for the repaired bytes, but no
+fresh evidence envelope or independent final-byte review was produced; the record therefore remains
+`observed` with empty attempt and review arrays.
 
-**Next action:** Run the CI matrix on candidate `13e6fd4` and confirm the macOS job green across
-repeated runs, then obtain independent exact-revision review and append that verdict to the typed
-record. Do not close on Linux evidence alone, and do not widen the `PermissionError` tolerance beyond
-the reaped-leader state to make a flaky job quiet.
+**Next action:** Bind a fresh deterministic evaluation to final PR subject `106ee282903076dc54020df295ac37a0e66bc9d8`,
+then obtain independent exact-subject correctness/security review. Do not substitute the earlier
+`b521f38c` review, author replies, or green CI for that verdict, and do not widen the two-fact
+`PermissionError` invariant.
 
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
@@ -566,9 +556,10 @@ unmeasured description change is what created the ambiguity.
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 
-**Status:** `active` (2026-08-18) - the owner approved the grammar and the implementation candidate
-is carried by its own branch commit based on subject revision
-`a932e516f9a3af3fa0bec988336f7096cc58b567`. It has not been pushed or independently reviewed.
+**Status:** `active` (2026-08-18) - the consolidated parser merged in PR #118 at
+`4479833fcb2d64059c6aa8047dbc8370b95584f3`, but its exact-head review left one current P1
+undisposed. A red-first repair is prepared at `51fdf26063c548f4b186c6d7214bd7b80ec49eba` and awaits
+independent review and CI.
 
 **Outcome:** `scripts/` has a single stdlib frontmatter parser, so a document that one tool accepts
 cannot be malformed to another.
@@ -589,7 +580,10 @@ skill-reference tail arms in the adapter reader — the behaviour a consolidatio
 not start without those tests; they are the only record of what today's grammar actually is.
 
 **Acceptance:** One module, both a strict (raise) and a lenient (collect) mode, all three callers
-migrated, and the pinning tests above still green unchanged. Gate A green, adapters byte-identical.
+migrated, and the pinning tests above still green unchanged. The live evaluator treats the measured
+plugin parser as inert bytes and executes only the parser bound into its trusted frozen harness.
+Gate A green, adapters byte-identical, and independent correctness/security review has no unresolved
+current finding.
 
 **Approved decision and candidate (2026-08-18):** The
 [`frontmatter grammar decision packet`](reviews/2026-08-18-frontmatter-grammar-decision.md) compares
@@ -602,9 +596,20 @@ tests, 38 adapter tests, 68 eval-runner tests, direct byte-parity checks, and al
 in the pinned container described by the decision packet. No canonical component or generated
 projection changed.
 
-**Next action:** Request independent correctness and security review of the pinned candidate. Run
-the mutation guard against the clean revision if its full-suite-per-mutant cost is accepted; do not
-imply that Gate A supplies that evidence.
+**Post-merge security correction:** [PR #118's current P1](https://github.com/latent-sre/save-toolkit/pull/118#discussion_r3807389746)
+was valid: `evals/run_evals.py` imported and executed the measured plugin's
+`scripts/fleet_frontmatter.py` in the evaluator parent, exposing the operator environment and
+filesystem to candidate top-level code. `[verified]` A synthetic environment sentinel reproduced
+the parent read. The repair binds the canonical parser into the frozen evaluator digest, compares
+the measured parser only as bytes, refuses grammar drift, and loads the trusted copy by exact path.
+Its regression failed on the vulnerable implementation and now passes; the full 69-test evaluator
+suite plus the 11 parser, 32 link, and 38 adapter tests pass in the network-disabled pinned Python
+3.12 container.
+
+**Next action:** Obtain independent correctness/security review of exact repair revision
+`51fdf26063c548f4b186c6d7214bd7b80ec49eba`, run Gate A in a normal clone, and resolve the PR #118
+thread only after the reviewed repair is published. Do not close SCRIPTS-001 on the merged grammar
+alone while the candidate-code execution finding remains undisposed.
 
 ## Decisions needed
 
