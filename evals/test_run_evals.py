@@ -192,6 +192,7 @@ class InvocationPlanTests(unittest.TestCase):
                 run_evals.eval_suite_digest(run_evals.EVAL_ROOT),
             )
             self.assertTrue((snapshot / "scenarios" / "discovery-merge-readiness.yaml").is_file())
+            self.assertTrue((snapshot.parent / "scripts/fleet_frontmatter.py").is_file())
         self.assertFalse(snapshot.exists())
 
     def test_forged_snapshot_marker_cannot_bypass_bootstrap(self) -> None:
@@ -479,6 +480,34 @@ class StreamTraceTests(unittest.TestCase):
             scenario = {"mode": "direct", "target": {"kind": "agent", "name": "probe"}}
             with self.assertRaisesRegex(clean_room.RunnerFailed, "duplicate frontmatter key"):
                 run_evals.expected_runtime_tools(scenario, root)
+
+    def test_direct_agent_frontmatter_never_executes_the_measured_parser(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            marker = root / "measured-parser-executed"
+            (root / "agents").mkdir()
+            (root / "scripts").mkdir()
+            trusted_parser = run_evals.TRUSTED_FRONTMATTER_PATH
+            candidate_source = trusted_parser.read_text(encoding="utf-8")
+            candidate_source += (
+                f"\nPath({str(marker)!r}).write_text('executed', encoding='utf-8')\n"
+            )
+            (root / "scripts/fleet_frontmatter.py").write_text(
+                candidate_source,
+                encoding="utf-8",
+            )
+            (root / "agents/probe.md").write_text(
+                "---\nname: probe\ntools:\n  - Skill\n---\nbody\n",
+                encoding="utf-8",
+            )
+            scenario = {"mode": "direct", "target": {"kind": "agent", "name": "probe"}}
+
+            with self.assertRaisesRegex(
+                clean_room.RunnerFailed,
+                "differs from the trusted eval harness",
+            ):
+                run_evals.expected_runtime_tools(scenario, root)
+            self.assertFalse(marker.exists())
 
     def test_missing_result_event_is_inconclusive_not_a_response(self) -> None:
         incomplete = json.dumps({"type": "system", "subtype": "init"})
@@ -1045,6 +1074,7 @@ class ArtifactTests(unittest.TestCase):
         self.assertIn("scripts/fleet_frontmatter.py", run_evals.PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/readonly-guard.py", run_evals.PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/readonly-guard-hook.sh", run_evals.PLUGIN_INPUT_PATHS)
+        self.assertIn("scripts/fleet_frontmatter.py", run_evals.EVAL_SUPPORT_INPUT_PATHS)
 
     def test_required_command_failure_does_not_look_clean(self) -> None:
         failed = mock.Mock(returncode=128, stdout="", stderr="not a git repository")
