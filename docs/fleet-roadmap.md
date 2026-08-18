@@ -361,7 +361,9 @@ own sweep as independent evidence.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `ready` (2026-08-12)
+**Status:** `blocked` (2026-08-18) — the current Windows host has VS Code but no installed
+extensions, so it has no Copilot tools surface to observe. No profile installation or mutation was
+performed to manufacture the prerequisite.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
 inference, and the fleet knows whether the read-only guard is portable to that host or whether
@@ -410,8 +412,15 @@ Base A establishes what the host recognizes; Base B establishes the override pre
 `tools:` a default rather than a boundary. Only the second is load-bearing for the `AGENTS.md` limit,
 and it is the half this item must confirm by observation.
 
-**Prerequisites:** None beyond an installed VS Code and this checkout. The probe is observational: it
-changes no live system, and it neither authorizes nor implies a Copilot hook implementation.
+**Current environment:** `[verified]` On 2026-08-18, `code --version` reported VS Code 1.127.0,
+commit `4fe60c8b1cdac1c4c174f2fb180d0d758272d713`, x64;
+`code --list-extensions --show-versions` returned no extensions. This establishes only that the
+probe cannot start here, not any tool-enforcement behavior.
+
+**Prerequisites:** Use an installed VS Code build with the GitHub Copilot tools surface and an
+authenticated disposable test profile or other approved non-production session. The probe is
+observational: it changes no live system, and it neither authorizes nor implies a Copilot hook
+implementation.
 
 **Acceptance:** A dated review packet records, from an observed session, whether the tools picker
 offers `execute` to `sre`; whether a session-level override reinstates it; and whether using the
@@ -420,11 +429,11 @@ picker mutates `.github/agents/sre.agent.md` on disk. It states the VS Code buil
 it with the measured behavior. Any hook-portability finding is recorded as evidence only; wiring a
 Copilot hook is separate work needing its own review.
 
-**Next action:** Run the linked
-[`HOST-002 VS Code tool-enforcement probe`](probes/host-002-vscode-tool-enforcement.md), validate its
-per-criterion evidence envelopes, and record the dated packet. Do not weaken the `AGENTS.md` limit on
-inference alone, and do not populate `hooks/copilot-hooks.json` before a probe shows the payload can
-scope to an exact agent identity.
+**Next action:** Provision the missing Copilot surface in an approved disposable profile, then run
+the linked [`HOST-002 VS Code tool-enforcement probe`](probes/host-002-vscode-tool-enforcement.md),
+validate its per-criterion evidence envelopes, and record the dated packet. Do not weaken the
+`AGENTS.md` limit on inference alone, and do not populate `hooks/copilot-hooks.json` before a probe
+shows the payload can scope to an exact agent identity.
 
 ### EVAL-002 — make POSIX process-boundary cleanup idempotent
 
@@ -556,10 +565,10 @@ unmeasured description change is what created the ambiguity.
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 
-**Status:** `active` (2026-08-18) - the consolidated parser merged in PR #118 at
+**Status:** `active` (2026-08-18) — the consolidated parser merged in PR #118 at
 `4479833fcb2d64059c6aa8047dbc8370b95584f3`, but its exact-head review left one current P1
-undisposed. A red-first repair is prepared at `51fdf26063c548f4b186c6d7214bd7b80ec49eba` and awaits
-independent review and CI.
+undisposed. The repair now ends at `adbd88eb8836ce69df4f9fae4ebaa06fcf216498`; independent
+code/test review found no remaining P0/P1, while the final whole-diff verdict and CI remain pending.
 
 **Outcome:** `scripts/` has a single stdlib frontmatter parser, so a document that one tool accepts
 cannot be malformed to another.
@@ -601,15 +610,16 @@ was valid: `evals/run_evals.py` imported and executed the measured plugin's
 `scripts/fleet_frontmatter.py` in the evaluator parent, exposing the operator environment and
 filesystem to candidate top-level code. `[verified]` A synthetic environment sentinel reproduced
 the parent read. The repair binds the canonical parser into the frozen evaluator digest, compares
-the measured parser only as bytes, refuses grammar drift, and loads the trusted copy by exact path.
-Its regression failed on the vulnerable implementation and now passes; the full 69-test evaluator
-suite plus the 11 parser, 32 link, and 38 adapter tests pass in the network-disabled pinned Python
-3.12 container.
+the measured parser only as bytes, refuses grammar drift, and loads the trusted copy by exact path
+before any measured child. It also freezes the direct-agent tool tuple before launch. The original,
+call-order, discovery-mismatch, and cross-trial mutation regressions all failed on their vulnerable
+subjects; the full 72-test evaluator suite now passes in the network-disabled pinned Python 3.12
+container.
 
-**Next action:** Obtain independent correctness/security review of exact repair revision
-`51fdf26063c548f4b186c6d7214bd7b80ec49eba`, run Gate A in a normal clone, and resolve the PR #118
-thread only after the reviewed repair is published. Do not close SCRIPTS-001 on the merged grammar
-alone while the candidate-code execution finding remains undisposed.
+**Next action:** Bind the final whole-diff correctness/security verdict, publish the repair for
+cross-platform CI, and resolve the PR #118 thread only after those checks cover the exact head. Do
+not close SCRIPTS-001 on the merged grammar alone while the candidate-code execution finding remains
+undisposed.
 
 ## Decisions needed
 
