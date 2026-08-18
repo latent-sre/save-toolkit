@@ -17,6 +17,8 @@ import stat
 import tempfile
 from pathlib import Path
 
+import fleet_frontmatter
+
 
 COPILOT_AGENTS = Path(".github/agents")
 CODEX_AGENTS = Path(".codex/agents")
@@ -69,7 +71,6 @@ IDENTITY_FIELDS = (
     "name", "version", "description", "author", "homepage", "repository", "license", "keywords"
 )
 
-KEY_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]*(.*))?$")
 PLUGIN_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_-])save-toolkit:(?=[a-z0-9])")
 # Codex resolves a custom agent by its `name` field, not its filename, so the fleet boundary has
 # to live in the identity as well as the file. Skills are NOT renamed, so only agent tokens are
@@ -141,69 +142,13 @@ def _mark_generated(text: str, suffix: str) -> str:
     return f"{banner}{separator}{text}"
 
 
-def _yaml_scalar(raw: str) -> str:
-    raw = raw.strip()
-    if raw.startswith('"'):
-        return json.loads(raw)
-    if raw.startswith("'") and raw.endswith("'"):
-        return raw[1:-1].replace("''", "'")
-    return raw
+_yaml_scalar = fleet_frontmatter.decode_scalar
 
 
 def parse_frontmatter(path: Path) -> tuple[dict[str, object], str, list[str]]:
-    """Parse the deliberately small YAML subset used by this repository."""
-
-    text = path.read_text(encoding="utf-8")
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        raise ValueError(f"{path}: missing opening frontmatter marker")
-    try:
-        end = next(i for i in range(1, len(lines)) if lines[i].strip() == "---")
-    except StopIteration as exc:
-        raise ValueError(f"{path}: missing closing frontmatter marker") from exc
-
-    values: dict[str, object] = {}
-    raw_lines = lines[1:end]
-    index = 0
-    while index < len(raw_lines):
-        line = raw_lines[index]
-        if not line.strip() or line.lstrip().startswith("#"):
-            index += 1
-            continue
-        match = KEY_RE.fullmatch(line)
-        if not match:
-            raise ValueError(f"{path}:{index + 2}: unsupported frontmatter syntax")
-        key, raw = match.group(1), (match.group(2) or "")
-        if key in values:
-            raise ValueError(f"{path}:{index + 2}: duplicate frontmatter key {key!r}")
-        if raw in {">", ">-", "|", "|-"}:
-            folded: list[str] = []
-            index += 1
-            while index < len(raw_lines) and (
-                not raw_lines[index] or raw_lines[index].startswith((" ", "\t"))
-            ):
-                folded.append(raw_lines[index].strip())
-                index += 1
-            values[key] = " ".join(part for part in folded if part)
-            continue
-        if not raw:
-            items: list[str] = []
-            index += 1
-            while index < len(raw_lines):
-                item = re.fullmatch(r"\s+-\s+(.+?)\s*", raw_lines[index])
-                if not item:
-                    break
-                items.append(_yaml_scalar(item.group(1)))
-                index += 1
-            values[key] = items
-            continue
-        values[key] = _yaml_scalar(raw)
-        index += 1
-
-    body = "\n".join(lines[end + 1 :]).lstrip("\n")
-    if text.endswith("\n"):
-        body += "\n"
-    return values, body, raw_lines
+    """Compatibility wrapper over the one shared strict parser."""
+    parsed = fleet_frontmatter.parse_file(path, mode="strict")
+    return parsed.fields, parsed.body, list(parsed.raw_lines)
 
 
 def _split_tool_specs(raw: object) -> list[str]:

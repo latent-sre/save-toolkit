@@ -566,7 +566,9 @@ unmeasured description change is what created the ambiguity.
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 
-**Status:** `ready` (2026-08-17)
+**Status:** `active` (2026-08-18) - the owner approved the grammar and the implementation candidate
+is carried by its own branch commit based on subject revision
+`a932e516f9a3af3fa0bec988336f7096cc58b567`. It has not been pushed or independently reviewed.
 
 **Outcome:** `scripts/` has a single stdlib frontmatter parser, so a document that one tool accepts
 cannot be malformed to another.
@@ -578,9 +580,9 @@ code merely duplicating: `check_links._frontmatter` rejects `_` in keys where
 continues where the second raises `ValueError`; and on a `key:` + `- item` list the first reports two
 malformed lines plus an unknown key while the second accepts it and types the value as a list.
 `[sourced]` That last one has a live subject — `agents/researcher.md` uses the list form for
-`tools:` — but `check_links` does not scan `agents/`, so the disagreement is latent, which is exactly
-the state in which a consolidation silently picks a winner. `evals/run_evals.py` holds a third
-reader, not compared.
+`tools:` — but `check_links` does not scan `agents/`, so the disagreement was latent, which is
+exactly the state in which a consolidation could silently pick a winner. The decision packet also
+compares the third reader formerly held by `evals/run_evals.py`.
 
 **Prerequisites:** Met by #116, which pinned the quoted-scalar guard, the `or ""` default and the
 skill-reference tail arms in the adapter reader — the behaviour a consolidation must preserve. Do
@@ -589,8 +591,20 @@ not start without those tests; they are the only record of what today's grammar 
 **Acceptance:** One module, both a strict (raise) and a lenient (collect) mode, all three callers
 migrated, and the pinning tests above still green unchanged. Gate A green, adapters byte-identical.
 
-**Next action:** Write down the three grammars as a difference table first and get agreement on
-which behaviour wins per divergence. Consolidating before that decision silently picks a winner.
+**Approved decision and candidate (2026-08-18):** The
+[`frontmatter grammar decision packet`](reviews/2026-08-18-frontmatter-grammar-decision.md) compares
+all three former readers and records the approved small standard-library grammar. The candidate adds
+`scripts/fleet_frontmatter.py`, migrates all three callers, preserves current adapter bytes, accepts
+the live list-form agent tools, keeps plain values as strings, separates strict from lenient error
+handling, and leaves field policy with each caller. Red-first fixtures failed on the missing shared
+module and former list rejection before implementation. `[verified]` Eleven parser tests, 32 link
+tests, 38 adapter tests, 68 eval-runner tests, direct byte-parity checks, and all 40 Gate A steps pass
+in the pinned container described by the decision packet. No canonical component or generated
+projection changed.
+
+**Next action:** Request independent correctness and security review of the pinned candidate. Run
+the mutation guard against the clean revision if its full-suite-per-mutant cost is accepted; do not
+imply that Gate A supplies that evidence.
 
 ## Decisions needed
 
