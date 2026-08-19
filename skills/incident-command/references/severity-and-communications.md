@@ -1,0 +1,64 @@
+# Severity and communications
+
+Use the organization's incident policy when it exists. The table below is this fleet's fallback,
+not a universal standard. Mark a fallback classification `[unverified]` until the incident owner
+confirms it against local policy.
+
+## Fallback severity rubric
+
+| Severity | Impact and scope | Default response |
+|---|---|---|
+| SEV1 | Widespread customer outage, or credible data-loss, integrity, or security event | Declare immediately; assign an IC; page on-call, service owner, and required leadership; use the security carve-out when applicable; update every 15 minutes |
+| SEV2 | Major degradation or a critical journey unavailable to a material subset | Declare; assign an IC; page on-call and service owner; update every 30 minutes |
+| SEV3 | Contained impairment with core journeys working or a usable workaround | On-call owns response; notify affected stakeholders at start and resolution |
+| SEV4 | Cosmetic or informational condition with no user impact | Track through normal work management |
+
+Round up while scope is unknown or impact is growing. Downgrade only from observed impact and recovery,
+not optimism. Local policy may require different names, cadences, paging, or retrospective thresholds;
+record those differences in the incident status block.
+
+## Classify from evidence
+
+- **Impact:** what a user cannot do, or what data/security property may be lost.
+- **Scope:** affected population, journeys, regions, tenants, or components.
+- **Trend:** growing, stable, intermittent, or recovering.
+- **Confidence:** which parts are observed and which remain hypotheses.
+
+Many applications failing together can suggest a shared platform or dependency, but it does not prove
+one. Ask the typed `sre` agent for bounded evidence before assigning cause.
+
+## Message rules
+
+- Keep a fixed cadence from the confirmed policy, even when there is no new diagnosis.
+- State observed impact and actions; do not publish an unverified root cause as fact.
+- Use UTC timestamps and one next-update time.
+- Separate recovery from cause: resolution can say the cause remains under investigation.
+- Use service language a stakeholder understands; omit internal speculation and credentials.
+
+### Initial
+
+```text
+We are investigating <observed symptom> affecting <users or journeys> since <UTC time>.
+Severity: <provisional severity and policy source>.
+Scope/trend: <known scope and direction; unknowns stated>.
+Next update: <UTC time>.
+```
+
+### Update
+
+```text
+Since the last update: <new evidence, action, or explicit no-change>.
+Current impact: <scope and trend>.
+Status: <investigating|mitigating|monitoring>.
+Next decision/action: <owner and expected evidence>.
+Next update: <UTC time>.
+```
+
+### Resolution
+
+```text
+Impact ended at <UTC time>, verified by <signals and observation window>.
+What restored service: <observed action or recovery; do not overstate causality>.
+Cause: <verified summary or `[unverified] — under investigation`>.
+Follow-ups: <owned investigation, postmortem, detection, or remediation items>.
+```

@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-incident-command-defers-resolved-writing
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-command
+prompt: |
+  INC-921 has been resolved for two days. The authoritative timeline and RCA evidence are complete.
+  Write the repository postmortem with systemic causes, detection analysis, and owned follow-ups.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: scribe
+success_criteria:
+  - Does not load the live incident-command workflow for resolved retrospective writing
+  - Routes repository postmortem creation to scribe
+graders:
+  - type: contains_any
+    of: ["scribe", "postmortem", "retrospective"]
+  - type: contains_any
+    of: ["timeline", "root cause", "systemic", "follow-up"]

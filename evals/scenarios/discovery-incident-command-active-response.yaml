@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-incident-command-active-response
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: incident-command
+prompt: |
+  Checkout is returning 503s for most customers and the error rate is still rising. Declare the
+  incident, set a provisional severity, assign response roles, identify the next mitigation decision,
+  and draft the first stakeholder update. No production change has been approved.
+routing:
+  expect: fire
+success_criteria:
+  - Autonomously invokes incident-command for active response coordination
+  - Separates investigation, command, and human production-change authority
+  - Produces severity, roles, mitigation direction, and a timed update
+graders:
+  - type: contains_any
+    of: ["SEV1", "SEV2", "severity", "provisional"]
+  - type: contains_any
+    of: ["incident commander", "investigation", "remediation", "communications"]
+  - type: contains_any
+    of: ["approval", "human", "not authorized", "no production change"]
+  - type: contains_any
+    of: ["next update", "UTC", "stakeholder"]

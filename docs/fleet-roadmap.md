@@ -509,8 +509,9 @@ then obtain independent exact-subject correctness/security review. Do not substi
 
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
-**Status:** `blocked` (2026-08-17) — the description half cannot be verified without the live
-routing runner; the structural half is unblocked and can proceed first.
+**Status:** `active` (2026-08-19) — the owner requested a four-pass optimization of all 29 skills in
+3–5-skill batches. Structural and accuracy work is active; live old/new description rates remain
+explicitly deferred because the Context7-login approval did not authorize paid routing calls.
 
 **Outcome:** No skill spends a caller's context on content that call did not need. **These eight
 skills** become routers with a conditional "if the question involves X, read Y" table —
@@ -545,9 +546,12 @@ must return an empty set. Each reworded description passes the 600-byte cap and 
 contract, and every description edit shows before/after scenario runs with the rate diff. Gate A
 green.
 
-**Next action:** Convert one monolith as a pattern — `incident-command` is the highest-traffic and
-has zero references — and land it alone so the conversion shape can be reviewed before it is applied
-to ten more. The description half waits on the runner.
+**Next action:** Execute the seven-batch map and four-pass protocol in
+[`2026-08-19-skill-optimization-campaign.md`](reviews/2026-08-19-skill-optimization-campaign.md).
+The owner's 3–5-skill batch requirement supersedes the earlier one-skill pilot. Batch 1 groups
+`incident-command`, `root-cause`, `postmortem`, and `operational-learning`; each candidate commit gets
+an independent exact-SHA review. Description scenarios are added and validated now, while live rate
+comparisons retain an explicit deferral until model, trials, timeout, and cost are authorized.
 
 **Stated deferral, recorded here because the playbook requires it be stated rather than silent:**
 the `eng-ladder` description was rewritten on 2026-08-17 (merged in #115) from 599 bytes to 418
