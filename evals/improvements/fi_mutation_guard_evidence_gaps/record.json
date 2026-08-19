@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "improvement_id": "fi_mutation_guard_evidence_gaps",
+  "created_at": "2026-08-18T20:44:26Z",
+  "updated_at": "2026-08-18T20:44:26Z",
+  "target": {
+    "repository": "latent-sre/save-toolkit",
+    "base_revision": "f75dca0ccd9063360318fb8f11bf5806f03cd357",
+    "artifact_kind": "fleet_governance",
+    "artifact_paths": [
+      "scripts/mutation_guard.py",
+      "scripts/test_mutation_guard.py"
+    ]
+  },
+  "owner": {
+    "name": "latent-sre",
+    "kind": "team",
+    "agent_lane": "prompt-engineer"
+  },
+  "related_improvement_id": "fi_mutation_untested_assertions",
+  "severity": "high",
+  "failure_fingerprint": "ff_18e8b78ebdf07c1a117de08e9da04186cfc69fc141e1c01cc5accad8f3ed5bf3",
+  "observations": [
+    {
+      "event_id": "fo_mutation_guard_evidence_gaps_20260815",
+      "kind": "review_finding",
+      "observed_at": "2026-08-15T00:00:00Z",
+      "source": {
+        "kind": "review",
+        "locator": "docs/reviews/2026-08-15-mutation-guard-evidence-gaps.md",
+        "revision": "4d6fba3598cacafa36047aa540c40c964b54c862",
+        "sha256": "f96ea6d4d0f2e1e4400859bf8ce4fa4b6ae76bf3181c166b4d8d9760b0005962"
+      },
+      "trust": "trusted",
+      "summary": "Independent verification found that sampled all-survivor runs could overclaim an unexercised subject, argparse usage errors reused the refusal exit, and bounded-sampling documentation implied coverage it did not provide.",
+      "evidence_ids": [
+        "ev_15d482415bf94a5daa2056f7044dd966"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    {
+      "evidence_id": "ev_15d482415bf94a5daa2056f7044dd966",
+      "kind": "historical_report",
+      "locator": "docs/reviews/2026-08-15-mutation-guard-evidence-gaps.md",
+      "sha256": "f96ea6d4d0f2e1e4400859bf8ce4fa4b6ae76bf3181c166b4d8d9760b0005962"
+    }
+  ],
+  "status": "rejected",
+  "success_criteria": [
+    "A bounded all-survivor sample reports only the observed survivors and never labels the subject probably unexercised.",
+    "Invalid --limit values and other argparse usage errors exit with a status distinct from refusal, instrument failure, survivors, and a clean result.",
+    "Operator-facing documentation states that any bounded sample can miss any particular mutant, including the motivating mutant.",
+    "Focused mutation-guard tests and Gate A pass on Ubuntu, macOS, and Windows for the exact candidate bytes.",
+    "A fresh independent exact-revision evaluation and correctness/security review are appended without self-promotion."
+  ],
+  "monitoring_plan": {
+    "criterion_id": "fm_mutation_guard_honest_sampling",
+    "criterion": "After an accepted repair, bounded runs remain explicitly sampled, unbounded-only conclusions stay gated on an unbounded run, and CLI exit statuses remain distinguishable.",
+    "rollback_triggers": [
+      "monitoring_fail",
+      "monitoring_inconclusive",
+      "security_finding",
+      "authority_revoked",
+      "merge_error",
+      "manual_owner_decision"
+    ]
+  },
+  "budget": {
+    "origin": "retrospective_import",
+    "max_attempts": 2,
+    "max_model_turns": 12,
+    "max_evaluator_calls": 4,
+    "max_tokens": 120000,
+    "max_wall_seconds": 3600,
+    "max_cost_usd": 5.0
+  },
+  "attempts": [],
+  "reviews": [],
+  "merge": null,
+  "monitoring": null,
+  "rollback": null,
+  "lesson": {
+    "status": "pending",
+    "control_path": "scripts/mutation_guard.py",
+    "reason": "The intended durable control is an honest sampled verdict, a distinct usage exit, and regression tests that fail when either contract collapses."
+  },
+  "disposition_reason": "The human owner authorized a linked rescope on 2026-08-18 because the original record names AGENTS.md and scripts/gate_a.py while the observed defects and repair belong to scripts/mutation_guard.py and scripts/test_mutation_guard.py. PR #116 repaired the declared targets before this linked record existed; the evidence here is a retrospective historical import and cannot seed an observed lifecycle. This record is rejected as a retrospective evaluation.",
+  "limitations": [
+    "retrospective_import",
+    "The source packet is author-prepared historical evidence, not a fresh evaluation envelope for this linked record.",
+    "PR #116 final head ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b changed both declared target paths from base f75dca0ccd9063360318fb8f11bf5806f03cd357, and current main retains those target bytes, but the pull request merged before this linked record existed.",
+    "The final PR head and merge commit passed Gate A on Ubuntu, macOS, and Windows. Those CI runs are execution evidence, not the independent evaluation or review required to append an attempt.",
+    "The last independent review submission was bound to b90e56f9e176db48a7c3528a8bd6b808812f50ba; the final head added 88 lines and removed 3 across the target paths afterward.",
+    "No attempt, review, merge, monitoring, or rollback event is appended. Any lifecycle transition must use fresh exact-subject evidence and preserve the chronology limitation instead of retroactively treating a merged pull request as pre-merge approval."
+  ]
+}

@@ -28,6 +28,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 
+EVAL_ROOT = Path(__file__).resolve().parent
+EVAL_BUNDLE_ROOT = EVAL_ROOT.parent
+TRUSTED_FRONTMATTER_PATH = EVAL_BUNDLE_ROOT / "scripts/fleet_frontmatter.py"
+
 import clean_room
 import graders
 
@@ -37,11 +41,11 @@ except ModuleNotFoundError:
     sys.exit("evals: PyYAML required -- `python -m pip install -r requirements-dev.txt`")
 
 
-ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parent.parent).resolve()
-EVAL_ROOT = Path(__file__).resolve().parent
+ROOT = Path(os.environ.get("FLEET_ROOT") or EVAL_BUNDLE_ROOT).resolve()
 SCENARIOS_DIR = EVAL_ROOT / "scenarios"
 EVAL_SNAPSHOT_ROOT_ENV = "FLEET_EVAL_SNAPSHOT_ROOT"
 EVAL_INPUT_PATHS = ("run_evals.py", "graders.py", "clean_room.py", "scenarios")
+EVAL_SUPPORT_INPUT_PATHS = ("scripts/fleet_frontmatter.py",)
 SCHEMA_VERSION = 1
 MODES = {"direct", "discovery"}
 SPLITS = {"calibration", "regression"}
@@ -711,35 +715,53 @@ def _split_tool_specs(raw: object) -> list[str]:
     return specs
 
 
-@functools.lru_cache(maxsize=16)
-def _load_frontmatter_module(module_path: str) -> ModuleType:
-    """Load the parser from the measured plugin root, never from ambient site packages."""
-    path = Path(module_path)
+def _require_matching_frontmatter_parser(plugin_root: Path) -> None:
+    """Treat the measured parser as data and reject grammar drift from the trusted harness."""
+    measured_path = plugin_root / "scripts/fleet_frontmatter.py"
     try:
-        if not path.is_file() or _is_reparse_point(path):
-            raise ValueError("shared frontmatter parser must be an ordinary file")
-        module_name = "_fleet_frontmatter_" + hashlib.sha256(
-            str(path.resolve()).encode("utf-8")
+        for label, path in (
+            ("measured plugin", measured_path),
+            ("trusted eval harness", TRUSTED_FRONTMATTER_PATH),
+        ):
+            if not path.is_file() or _is_reparse_point(path):
+                raise ValueError(f"{label} frontmatter parser must be an ordinary file")
+        if measured_path.read_bytes() != TRUSTED_FRONTMATTER_PATH.read_bytes():
+            raise ValueError(
+                "measured plugin frontmatter parser differs from the trusted eval harness"
+            )
+    except (OSError, ValueError) as exc:
+        raise clean_room.RunnerFailed(f"cannot verify shared frontmatter parser: {exc}") from exc
+
+
+@functools.lru_cache(maxsize=1)
+def _load_trusted_frontmatter_parser() -> ModuleType:
+    """Load only the parser bound into the frozen evaluator bundle."""
+    try:
+        if not TRUSTED_FRONTMATTER_PATH.is_file() or _is_reparse_point(TRUSTED_FRONTMATTER_PATH):
+            raise ValueError("trusted eval harness frontmatter parser must be an ordinary file")
+        module_name = "_trusted_fleet_frontmatter_" + hashlib.sha256(
+            str(TRUSTED_FRONTMATTER_PATH.resolve()).encode("utf-8")
         ).hexdigest()[:16]
-        spec = importlib.util.spec_from_file_location(module_name, path)
+        spec = importlib.util.spec_from_file_location(module_name, TRUSTED_FRONTMATTER_PATH)
         if spec is None or spec.loader is None:
-            raise ValueError("could not create shared frontmatter parser import spec")
+            raise ValueError("could not create trusted frontmatter parser import spec")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
     except (OSError, UnicodeError, ImportError, ValueError) as exc:
-        raise clean_room.RunnerFailed(f"cannot load shared frontmatter parser: {exc}") from exc
+        raise clean_room.RunnerFailed(f"cannot load trusted frontmatter parser: {exc}") from exc
 
 
 def expected_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[str, ...]:
     """Return the exact effective built-in ceiling for this invocation plan."""
+    _require_matching_frontmatter_parser(plugin_root)
+    frontmatter_parser = _load_trusted_frontmatter_parser()
     target = scenario["target"]
     if scenario["mode"] != "direct" or target["kind"] != "agent":
         return ALLOWED_BUILTIN_TOOLS
     path = plugin_root / "agents" / f"{target['name']}.md"
     try:
-        parser = _load_frontmatter_module(str(plugin_root / "scripts/fleet_frontmatter.py"))
-        fields = parser.parse_file(path, mode="strict").fields
+        fields = frontmatter_parser.parse_file(path, mode="strict").fields
         if "tools" not in fields:
             raise ValueError("frontmatter must contain an explicit tools field")
     except (OSError, UnicodeError, ValueError) as exc:
@@ -864,6 +886,7 @@ def run_agent(
     claude_bin: str | None = None,
     plugin_root: Path = ROOT,
 ) -> TrialExecution:
+    expected_tools = expected_runtime_tools(scenario, plugin_root)
     command = build_command(
         scenario, model=model, claude_bin=claude_bin, plugin_root=plugin_root,
     )
@@ -911,7 +934,7 @@ def run_agent(
         enforce_runtime_boundary(
             parsed,
             plugin_root,
-            expected_tools=expected_runtime_tools(scenario, plugin_root),
+            expected_tools=expected_tools,
         )
     except clean_room.AuthUnavailable as exc:
         raise InconclusiveTrial(
@@ -1374,6 +1397,7 @@ def plugin_digest(root: Path = ROOT) -> str:
 
 def eval_suite_digest(root: Path = EVAL_ROOT) -> str:
     inputs = _files_under(*EVAL_INPUT_PATHS, root=root)
+    inputs.extend(_files_under(*EVAL_SUPPORT_INPUT_PATHS, root=root.parent))
     return _sha256_paths(inputs, base=root.parent)
 
 
@@ -1390,6 +1414,10 @@ def frozen_eval_snapshot():
                 (snapshot_root / relative).mkdir(parents=True, exist_ok=True)
         for source in _files_under(*EVAL_INPUT_PATHS, root=EVAL_ROOT):
             destination = snapshot_root / source.relative_to(EVAL_ROOT)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+        for source in _files_under(*EVAL_SUPPORT_INPUT_PATHS, root=EVAL_ROOT.parent):
+            destination = tmp / source.relative_to(EVAL_ROOT.parent)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
         after = eval_suite_digest(EVAL_ROOT)

@@ -192,7 +192,20 @@ class InvocationPlanTests(unittest.TestCase):
                 run_evals.eval_suite_digest(run_evals.EVAL_ROOT),
             )
             self.assertTrue((snapshot / "scenarios" / "discovery-merge-readiness.yaml").is_file())
-        self.assertFalse(snapshot.exists())
+            self.assertTrue((snapshot.parent / "scripts/fleet_frontmatter.py").is_file())
+        self.assertFalse(snapshot.parent.exists())
+
+    def test_eval_suite_digest_changes_when_support_file_changes(self) -> None:
+        with run_evals.frozen_eval_snapshot() as snapshot:
+            digest_before = run_evals.eval_suite_digest(snapshot)
+            support_path = snapshot.parent / "scripts/fleet_frontmatter.py"
+            original = support_path.read_bytes()
+            try:
+                support_path.write_bytes(original + b"\n# mutation-sentinel\n")
+                digest_after = run_evals.eval_suite_digest(snapshot)
+            finally:
+                support_path.write_bytes(original)
+        self.assertNotEqual(digest_before, digest_after)
 
     def test_forged_snapshot_marker_cannot_bypass_bootstrap(self) -> None:
         with mock.patch.dict(
@@ -479,6 +492,174 @@ class StreamTraceTests(unittest.TestCase):
             scenario = {"mode": "direct", "target": {"kind": "agent", "name": "probe"}}
             with self.assertRaisesRegex(clean_room.RunnerFailed, "duplicate frontmatter key"):
                 run_evals.expected_runtime_tools(scenario, root)
+
+    def test_direct_agent_frontmatter_never_executes_the_measured_parser(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            marker = root / "measured-parser-executed"
+            (root / "agents").mkdir()
+            (root / "scripts").mkdir()
+            trusted_parser = run_evals.TRUSTED_FRONTMATTER_PATH
+            candidate_source = trusted_parser.read_text(encoding="utf-8")
+            candidate_source += (
+                f"\nPath({str(marker)!r}).write_text('executed', encoding='utf-8')\n"
+            )
+            (root / "scripts/fleet_frontmatter.py").write_text(
+                candidate_source,
+                encoding="utf-8",
+            )
+            (root / "agents/probe.md").write_text(
+                "---\nname: probe\ntools:\n  - Skill\n---\nbody\n",
+                encoding="utf-8",
+            )
+            scenario = {"mode": "direct", "target": {"kind": "agent", "name": "probe"}}
+
+            with self.assertRaisesRegex(
+                clean_room.RunnerFailed,
+                "differs from the trusted eval harness",
+            ):
+                run_evals.expected_runtime_tools(scenario, root)
+            self.assertFalse(marker.exists())
+
+    def test_direct_agent_tool_boundary_is_frozen_before_child_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            (root / "scripts").mkdir()
+            shutil.copy2(
+                run_evals.TRUSTED_FRONTMATTER_PATH,
+                root / "scripts/fleet_frontmatter.py",
+            )
+            agent_path = root / "agents/probe.md"
+            agent_path.write_text(
+                "---\nname: probe\ntools:\n  - Skill\n---\nbody\n",
+                encoding="utf-8",
+            )
+            scenario = {
+                "mode": "direct",
+                "target": {"kind": "agent", "name": "probe"},
+                "prompt": "probe",
+            }
+            completed = mock.Mock(returncode=0, stdout="trace", stderr="")
+            parsed = mock.Mock()
+
+            def mutate_agent(*args: object, **kwargs: object) -> mock.Mock:
+                agent_path.write_text(
+                    "---\nname: probe\ntools:\n  - Agent(reviewer)\n---\nbody\n",
+                    encoding="utf-8",
+                )
+                return completed
+
+            with (
+                mock.patch.object(run_evals, "build_command", return_value=["claude"]),
+                mock.patch.object(run_evals.subprocess, "run", side_effect=mutate_agent),
+                mock.patch.object(run_evals, "parse_stream_trace", return_value=parsed),
+                mock.patch.object(run_evals, "enforce_runtime_boundary") as enforce,
+            ):
+                run_evals.run_agent(
+                    scenario,
+                    env={},
+                    cwd=root,
+                    timeout=30,
+                    model=None,
+                    plugin_root=root,
+                )
+
+            enforce.assert_called_once_with(parsed, root, expected_tools=("Skill",))
+
+    def test_parser_mismatch_refuses_discovery_child_before_run(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            (root / "scripts").mkdir()
+            parser_path = root / "scripts/fleet_frontmatter.py"
+            parser_path.write_bytes(run_evals.TRUSTED_FRONTMATTER_PATH.read_bytes() + b"\n# drift\n")
+            (root / "agents/probe.md").write_text(
+                "---\nname: probe\ntools:\n  - Skill\n---\nbody\n",
+                encoding="utf-8",
+            )
+            scenario = {
+                "mode": "discovery",
+                "target": {"kind": "skill", "name": "merge-gate"},
+                "prompt": "probe",
+            }
+            completed = mock.Mock(returncode=0, stdout="trace", stderr="")
+
+            with (
+                mock.patch.object(run_evals, "build_command", return_value=["claude"]),
+                mock.patch.object(run_evals.subprocess, "run", return_value=completed) as child,
+                mock.patch.object(run_evals, "parse_stream_trace", return_value=mock.Mock()),
+                mock.patch.object(run_evals, "enforce_runtime_boundary"),
+            ):
+                with self.assertRaisesRegex(
+                    clean_room.RunnerFailed,
+                    "differs from the trusted eval harness",
+                ):
+                    run_evals.run_agent(
+                        scenario,
+                        env={},
+                        cwd=root,
+                        timeout=30,
+                        model=None,
+                        plugin_root=root,
+                    )
+
+            child.assert_not_called()
+
+    def test_discovery_preloads_trusted_parser_before_cross_trial_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "plugin"
+            trusted_path = Path(temporary) / "eval-bundle/scripts/fleet_frontmatter.py"
+            (root / "agents").mkdir(parents=True)
+            (root / "scripts").mkdir()
+            trusted_path.parent.mkdir(parents=True)
+            safe_parser = run_evals.TRUSTED_FRONTMATTER_PATH.read_bytes()
+            measured_path = root / "scripts/fleet_frontmatter.py"
+            measured_path.write_bytes(safe_parser)
+            trusted_path.write_bytes(safe_parser)
+            (root / "agents/probe.md").write_text(
+                "---\nname: probe\ntools:\n  - Skill\n---\nbody\n",
+                encoding="utf-8",
+            )
+            marker = Path(temporary) / "mutated-parser-executed"
+            mutated_parser = safe_parser + (
+                f"\nPath({str(marker)!r}).write_text('executed', encoding='utf-8')\n"
+            ).encode("utf-8")
+            discovery = {
+                "mode": "discovery",
+                "target": {"kind": "skill", "name": "merge-gate"},
+                "prompt": "probe",
+            }
+            direct = {"mode": "direct", "target": {"kind": "agent", "name": "probe"}}
+            completed = mock.Mock(returncode=0, stdout="trace", stderr="")
+
+            def mutate_both_copies(*args: object, **kwargs: object) -> mock.Mock:
+                measured_path.write_bytes(mutated_parser)
+                trusted_path.write_bytes(mutated_parser)
+                return completed
+
+            run_evals._load_trusted_frontmatter_parser.cache_clear()
+            try:
+                with mock.patch.object(run_evals, "TRUSTED_FRONTMATTER_PATH", trusted_path):
+                    with (
+                        mock.patch.object(run_evals, "build_command", return_value=["claude"]),
+                        mock.patch.object(run_evals.subprocess, "run", side_effect=mutate_both_copies),
+                        mock.patch.object(run_evals, "parse_stream_trace", return_value=mock.Mock()),
+                        mock.patch.object(run_evals, "enforce_runtime_boundary"),
+                    ):
+                        run_evals.run_agent(
+                            discovery,
+                            env={},
+                            cwd=root,
+                            timeout=30,
+                            model=None,
+                            plugin_root=root,
+                        )
+                    self.assertEqual(run_evals.expected_runtime_tools(direct, root), ("Skill",))
+            finally:
+                run_evals._load_trusted_frontmatter_parser.cache_clear()
+
+            self.assertFalse(marker.exists())
 
     def test_missing_result_event_is_inconclusive_not_a_response(self) -> None:
         incomplete = json.dumps({"type": "system", "subtype": "init"})
@@ -1045,6 +1226,7 @@ class ArtifactTests(unittest.TestCase):
         self.assertIn("scripts/fleet_frontmatter.py", run_evals.PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/readonly-guard.py", run_evals.PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/readonly-guard-hook.sh", run_evals.PLUGIN_INPUT_PATHS)
+        self.assertIn("scripts/fleet_frontmatter.py", run_evals.EVAL_SUPPORT_INPUT_PATHS)
 
     def test_required_command_failure_does_not_look_clean(self) -> None:
         failed = mock.Mock(returncode=128, stdout="", stderr="not a git repository")
