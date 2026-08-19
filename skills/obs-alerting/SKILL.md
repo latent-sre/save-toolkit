@@ -97,10 +97,10 @@ An alert that has never fired is written, not verified. Before handing it off:
   evaluator.
 - **Force the alert's condition and observe it both fire and resolve** — a deliberately failing
   target, a test rule with an always-true expression, or `promtool test rules` to prove the
-  burn-rate arithmetic and the long/short window pair — `promtool test` is run by a human (or an
-  unguarded lane) with the exact output preserved: the fleet guard admits only `promtool check`,
-  and only in the `observability-engineer` lane, so an `sre` loading this skill routes even
-  `check` to a human. A rule that has only ever evaluated false is
+  burn-rate arithmetic and the long/short window pair. `promtool check` and `promtool test` are
+  both agent-runnable **in the `observability-engineer` lane only**, and never with `--junit`
+  (it truncates a file, so the guard denies it); an `sre` loading this skill routes even `check`
+  to a human and preserves the exact output. A rule that has only ever evaluated false is
   unverified; so is one never observed resolving after recovery.
 - The notification route delivered to the intended contact point.
 - The runbook link in the alert resolves to a runbook that exists — a dead link at 3 a.m. is a

@@ -453,6 +453,8 @@ DENIED = [
     "gcloud logging read 'severity>=ERROR'",
     # --- observability-only validators are DENIED for sre ------------------------------------------
     "promtool check rules rules.yml",
+    "promtool test rules tests/burn_test.yml",
+    "alloy validate config.alloy",
     "yamllint alerts.yml",
     # --- CODE EXECUTION: forbidden outright, including this repo's own scripts ----------------
     # Running a repository's code -- its tests, its build, its validator -- executes that
@@ -592,6 +594,15 @@ class ObservabilityProfileTest(unittest.TestCase):
     OBS_ALLOWED = [
         "promtool check rules rules.yml",
         "promtool check config prometheus.yml",
+        # `promtool test rules` evaluates rule fixtures in-memory: no network, no writes unless
+        # --junit is passed (denied below). It is the only way to prove burn-rate arithmetic and a
+        # long/short window pair offline, which obs-alerting's verify step requires.
+        "promtool test rules tests/burn_test.yml",
+        "promtool test rules --run fast-burn tests/burn_test.yml",
+        # `alloy validate` parses and type-checks a config; diagnostics go to stderr, and none of
+        # its documented flags write a file.
+        "alloy validate config.alloy",
+        "alloy validate --config.format=otelcol collector.yaml",
         "yamllint alerts.yml",
         "jq empty grafana/alerts.json",
         # the shared read set works for the observability engineer too
@@ -599,8 +610,18 @@ class ObservabilityProfileTest(unittest.TestCase):
         "git diff --stat",
     ]
     OBS_DENIED = [
-        "promtool tsdb create-blocks-from rules rules.yml",  # only the check verb reads
+        "promtool tsdb create-blocks-from rules rules.yml",  # only check/test verbs read
         "promtool query instant http://prom:9090 up",         # network query, not a config check
+        # `promtool test --junit=FILE` opens that path O_CREATE|O_WRONLY|O_TRUNC (upstream
+        # cmd/promtool/main.go) -- a real write behind a read-shaped verb. Both spellings die.
+        "promtool test rules --junit=results.xml tests/burn_test.yml",
+        "promtool test rules --junit results.xml tests/burn_test.yml",
+        "alloy fmt -w config.alloy",                          # --write/-w rewrites the file
+        "alloy run config.alloy",                             # starts the collector
+        "alloy tools wal-stats /var/lib/alloy",               # only the validate verb reads
+        # `--config.extra-args` forwards unseen arguments to a converter: the --flags-file
+        # smuggling shape, disqualifying on presence.
+        "alloy validate --config.extra-args=--x=1 config.alloy",
         "cf push my-app",
         "cf env my-app",
         "python -m yamllint alerts.yml",                      # no interpreters, even for a validator
