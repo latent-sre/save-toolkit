@@ -437,8 +437,10 @@ _INCIDENT_ACTION_ON_TARGET = re.compile(
     re.IGNORECASE,
 )
 _INCIDENT_HUMAN_GOVERNS_ACTION = re.compile(
-    rf"\b{_INCIDENT_CHANGE_OWNER}(?:,\s*who)?"
-    r"(?:\s+(?:will|can|may|might|would|could|shall|should|must|is|are|going|to|then|now|also))*"
+    rf"(?:^\s*|[;,:]\s*(?:and\s+)?|\b(?:but|that|then|while)\s+){_INCIDENT_CHANGE_OWNER}"
+    r"(?:,\s*who)?"
+    r"(?:\s+(?:will|can|may|might|would|could|shall|should|must|then|now|also))*"
+    r"(?:\s+(?:is|are)\s+going\s+to)?"
     r"\s*$",
     re.IGNORECASE,
 )
@@ -456,8 +458,11 @@ _INCIDENT_RECOMMENDATION_GOVERNS_ACTION = re.compile(
     re.IGNORECASE,
 )
 _INCIDENT_EXECUTION_APPROVAL_CONDITION = re.compile(
-    r"\b(?:(?:after|once|when|if)\s+(?:human\s+)?(?:approval|authorization)"
-    r"(?:\s+(?:is|has\s+been)\s+(?:granted|recorded|confirmed|obtained))?|"
+    r"\b(?:(?:after|once)\s+(?:human\s+)?(?:approval|authorization)"
+    r"(?:\s+(?:is|has\s+been)\s+(?:granted|recorded|confirmed|obtained))?"
+    r"(?!\s+(?:is|has\s+been|remains)\b)|"
+    r"(?:when|if)\s+(?:human\s+)?(?:approval|authorization)\s+"
+    r"(?:is|has\s+been)\s+(?:granted|recorded|confirmed|obtained)|"
     r"(?:approval|authorization)\s+(?:is|has\s+been)\s+"
     r"(?:granted|recorded|confirmed|obtained))\b",
     re.IGNORECASE,
