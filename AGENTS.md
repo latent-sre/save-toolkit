@@ -47,10 +47,11 @@ that sorts first.
 
 - [`.ignore`](.ignore) excludes the four generated roots from `rg`, so a plain search returns each
   hit once, from the file you can actually edit. Add `--no-ignore` to search projections on purpose.
-- [`.claude/settings.json`](.claude/settings.json) denies `Edit`/`Write`/`Grep`/`Glob` on those same
-  roots. This is not bureaucracy: editing a projection and then running the mandated regenerate step
-  **silently erases your edit** — `os.replace()` swaps whole directories, and the byte gate only
-  catches the opposite mistake (forgetting to regenerate).
+- **Nothing mechanically blocks a write to a generated root.** `.ignore` is a search filter, not a
+  guard, and no permission rule stands behind it. This is not bureaucracy: editing a projection and
+  then running the mandated regenerate step **silently erases your edit** — `os.replace()` swaps
+  whole directories, and the byte gate only catches the opposite mistake (forgetting to regenerate).
+  The banner below and this paragraph are the whole warning; nothing will stop you.
 - Every projected file except `.json` (which has no comment syntax) carries a do-not-edit banner as
   its first line or immediately after a shebang.
 
