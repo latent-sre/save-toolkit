@@ -1,8 +1,8 @@
 # Cloud Logging dialect for log investigation
 
 Use this reference only after applying the product-agnostic investigation shape in the parent
-skill. Sources reviewed 2026-08-07 against official Google Cloud pages (now on
-`docs.cloud.google.com`) via indirect retrieval — search extraction, not byte-level fetches;
+skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.google.com` (every
+`cloud.google.com/...` docs URL now 301-redirects there);
 re-verify exact operator behavior against the live query-language page for the target project.
 
 Official syntax basis: the
@@ -68,7 +68,9 @@ The filter alone cannot bucket. Options, in order of preference for an investiga
 Cloud Run request logs carry `trace` (`projects/<project>/traces/<trace-id>`); filter on it to
 follow one request across services, then pivot to the trace backend (`obs-traces`). Validate any
 identifier copied from a ticket against its documented format before it enters a filter, and
-prefer `=` on an exact field over a global `SEARCH()`.
+prefer `=` on an exact field over a global `SEARCH()`. Escape quotes and backslashes per the
+query language's quoted-string rules before a value enters a filter literal; a value that cannot
+be encoded unambiguously is a stop-and-ask, not a broader match.
 
 ## gcloud read from the terminal
 
@@ -79,7 +81,8 @@ gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.servic
 - `--freshness` (default `1d`) supplies the time bound and "works only with DESC ordering and
   filters without a timestamp" *[sourced: gcloud logging read reference]* — so use it INSTEAD of
   `timestamp >=` comparisons, not alongside them.
-- **Fleet-specific**: the read-only guard denies `>=`/`<=` inside any command (structure rule), so
+- **Fleet-specific**: the read-only guard denies `>=`/`<=` inside any command (structure rule —
+  `[sourced: scripts/readonly-guard.py, disposition verified 2026-08-19]`), so
   the agent-runnable shape is exactly the above — `--freshness` for time,
   `severity=(ERROR OR CRITICAL OR ALERT OR EMERGENCY)` for the floor. A filter that genuinely
   needs comparisons is recommend-for-human, run in Logs Explorer.
@@ -90,8 +93,8 @@ gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.servic
 Log Analytics was renamed **Observability Analytics** (June 2026): BigQuery-backed SQL over logs
 and traces inside Cloud Observability; queries from its UI are included in standard Logging
 pricing, while querying through a **linked BigQuery dataset** (needed only to join with other BQ
-data) bills as BigQuery *[sourced: Google Cloud blog 2026-06-23 "Observability Analytics";
-docs.cloud.google.com/logging/docs/analyze/query-and-view]*. This is where "top offenders" and
+data) bills as BigQuery *[sourced: Google Cloud blog 2026-06-23 "Observability Analytics"; the pricing split is on
+docs.cloud.google.com/logging/docs/log-analytics]*. This is where "top offenders" and
 "before vs after, as rates" get answered with complete buckets. Log buckets must be upgraded for
 it — upgrade state per bucket is `[unverified]`, check before promising a SQL answer.
 
@@ -105,8 +108,13 @@ it — upgrade state per bucket is `[unverified]`, check before promising a SQL 
   `>=` form freely in Logs Explorer.
 - The `_Default` sink does not capture everything (Data Access audit logs are opt-in); absence of
   an entry proves nothing until the sink/exclusion config is checked — exclusions are silent.
-- Quota: `entries.list` is rate-limited per project; a greedy unlimited read mid-incident can
-  starve the humans' consoles. Set `--limit`, narrow first.
+- Quota: `entries.list` is rate-limited to **60 calls/min per project** and the limit cannot be
+  raised *[sourced: docs.cloud.google.com/logging/quotas]*; a greedy unlimited read mid-incident
+  can starve the humans' consoles. Set `--limit`, narrow first.
+- Retention: the `_Required` bucket keeps its logs **400 days, not configurable**; `_Default` and
+  user-created buckets default to **30 days**, configurable per bucket *[sourced:
+  docs.cloud.google.com/logging/quotas]*. "No entries" past the bucket's retention is ageing, not
+  absence at write time.
 
 ## Inert canary example
 

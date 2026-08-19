@@ -4,7 +4,7 @@ description: >-
   Design alerting that pages on symptoms — SLIs/SLOs and multi-window burn rates, Grafana unified
   alerting as code, Splunk saved-search alerts, Moogsoft correlation, and ThousandEyes synthetics.
   Triggers: 'define an SLO', 'this alert is too noisy', 'what should page', 'design a synthetic
-  check'. Every alert links a runbook. Ownership map only—not a load:
+  check'. Ownership map only—not a load:
   obs-metrics/obs-logs own queries and obs-dashboards owns dashboards.
 argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 ---
@@ -54,16 +54,17 @@ not a verified SLI.
   verdict; a recovered short window does not restore budget already consumed. The human service owner
   uses the remaining budget and error-budget policy to balance feature risk and reliability work.
 
-Use [error_budget.py](./scripts/error_budget.py) for local, pure-stdlib calculations. It refuses mixed
+Have a human (or an unguarded lane) run [error_budget.py](./scripts/error_budget.py) for local,
+pure-stdlib calculations and paste the output — the fleet's read-only guard deliberately denies
+script execution. It refuses mixed
 time/request units, validates numeric inputs, and emits a severity only when a legal long/short pair is
 selected and both measurements are present.
 
 ## Burn-rate alerts
 
 Burn rate is the observed bad-event ratio divided by the SLO's allowed bad-event ratio. Bind each
-threshold to its window pair; the threshold is not a free label:
-
-The three starting-point window/threshold pairs, their source, and the mixing rules are in
+threshold to its window pair — the threshold is not a free label. The three starting-point
+window/threshold pairs, their source, and the mixing rules are in
 [burn rate](./references/burn-rate.md).
 
 Require BOTH the long and short windows to meet that pair's threshold. The long window provides
@@ -101,7 +102,10 @@ An alert that has never fired is written, not verified. Before handing it off:
   evaluator.
 - **Force the alert's condition and observe it both fire and resolve** — a deliberately failing
   target, a test rule with an always-true expression, or `promtool test rules` to prove the
-  burn-rate arithmetic and the long/short window pair. A rule that has only ever evaluated false is
+  burn-rate arithmetic and the long/short window pair — `promtool test` is run by a human (or an
+  unguarded lane) with the exact output preserved: the fleet guard admits only `promtool check`,
+  and only in the `observability-engineer` lane, so an `sre` loading this skill routes even
+  `check` to a human. A rule that has only ever evaluated false is
   unverified; so is one never observed resolving after recovery.
 - The notification route delivered to the intended contact point.
 - The runbook link in the alert resolves to a runbook that exists — a dead link at 3 a.m. is a
@@ -127,3 +131,5 @@ formula and exact query evidence, target/window, selected long/short pair, both 
 source and UID, labels, notification route, runbook URL, no-data/error behavior, test evidence, and
 every remaining `[unverified]` item. If a signal represents current user impact or unknown cause, hand
 the time-bounded evidence to the `sre` agent; alert design does not investigate the live incident.
+Redact sensitive label and tag values from query evidence before it enters the packet; prefer an
+access-controlled link plus the smallest necessary excerpt.

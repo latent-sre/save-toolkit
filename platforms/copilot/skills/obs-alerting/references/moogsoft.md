@@ -2,8 +2,10 @@
 
 # Moogsoft / Dell APEX AIOps correlation and noise reduction
 
-The fleet target is on-prem Moogsoft v9.x. Its operator object is a **Situation**; cloud product terms
-can differ. `[sourced]` The official
+The fleet target is on-prem Moogsoft v9.x; of that line only **v9.2** (GA 2025-05-15) is a
+currently supported release — v9.1 and v9.0 are past end-of-support, and a patch release does not
+reset the two-year support cycle *[sourced: docs.moogsoft.com/v9/en/moogsoft-releases.html,
+reviewed 2026-08-19]*. Its operator object is a **Situation**; cloud product terms can differ. `[sourced]` The official
 [v9 clustering guide](https://docs.moogsoft.com/v9/en/clustering-algorithm-guide.html) identifies
 Sigalisers as clustering algorithms and documents Cookbook and Tempus. The v9
 [data-ingestion guide](https://docs.moogsoft.com/v9/en/data-ingestion.html) names the event `signature`

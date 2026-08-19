@@ -6,6 +6,7 @@ description: >-
   trace ids with logs. Backends: Tempo (TraceQL) and Cloud Trace on GCP. Triggers: 'trace this
   request', 'where did the latency go', 'follow this correlation id'. Ownership map only—not a
   load: obs-pipeline owns trace instrumentation.
+argument-hint: "[trace id, service, or latency question]"
 ---
 
 > **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
@@ -63,14 +64,15 @@ instrumentation error.
 
 Use the same trace id to retrieve nearby structured logs, then align them by UTC timestamp and service.
 Keep the original log and trace evidence links. A missing trace, span, or log event can result from
-sampling, retention, propagation, export, or instrumentation gaps, so absence is telemetry evidence—not
-proof that the request or call never happened.
+sampling, retention, backend size limits, propagation, export, or instrumentation gaps, so
+absence is telemetry evidence—not proof that the request or call never happened.
 
 ## Build the evidence packet
 
 Return the entry point, exact UTC window, trace/artifact link, selection method, affected and comparison
 trace ids, critical-path span table, status/protocol interpretation, missing hops, sampling caveat, and
-confidence label. Separate observations from hypotheses. Ownership map only—not a load: the `obs-pipeline` skill owns changes to instrumentation, propagation, collection, and export.
+confidence label. Separate observations from hypotheses. The `obs-pipeline` skill owns changes to
+instrumentation, propagation, collection, and export; do not load another skill from this one.
 
 Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session
 values, user identifiers, sensitive headers, request bodies, and database query literals. Prefer an

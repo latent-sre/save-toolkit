@@ -5,7 +5,9 @@ description: >-
   request across services, compare before/after a deploy. Backends: Splunk (SPL), Loki
   (LogQL), and Cloud Logging on GCP — the reference teaches the dialect. Triggers: 'search
   the logs', 'why are there 500s', 'grep production for', 'build a log alert'. Ownership
-  map only—not a load: obs-metrics owns metrics and obs-dashboards owns dashboards.
+  map only—not a load: obs-metrics owns metrics, obs-dashboards owns dashboards, and
+  obs-alerting owns alert design.
+argument-hint: "[service, symptom, or log question]"
 ---
 
 > **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each

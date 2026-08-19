@@ -251,7 +251,7 @@ filter isn't index-time-selective (that's what `TERM()`/`tstats` fix).
 
 ## Tips & gotchas (Splunk-specific — where the default bites)
 
-- **Never leave the search broadly unscoped without reason.** `index=*` scans every index — slow, costly,
+- **Never leave the search broadly unscoped without reason.** `index=*` scans every public index (internal `_*` indexes are excluded) — slow, costly,
   and may silently miss role-restricted data. Scope to the app index from [local log inventory](./indexes.md);
   the one justified exception is tracing a single correlation id across services you can't enumerate —
   even then, keep the window tight. *[unverified for target permissions and scale]*

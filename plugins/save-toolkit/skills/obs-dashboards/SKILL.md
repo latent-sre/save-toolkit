@@ -25,7 +25,7 @@ health, preserve a single time context, and make every lower row a deliberate dr
 owns Grafana operations dashboards; product-UI charts inside the application remain frontend work.
 Alert-rule definitions and notification routing remain alerting work.
 
-**Version evidence — `[sourced]` (reviewed 2026-07-14).** Grafana's
+**Version evidence — `[sourced]` (reviewed 2026-07-14; re-checked 2026-08-19, current upstream release 13.2.0).** Grafana's
 [v13 documentation](https://grafana.com/docs/grafana/latest/whatsnew/whats-new-in-v13-0/) records
 Dynamic Dashboards and Git Sync as generally available in Grafana 13; the upstream
 [v13.1.0 release](https://github.com/grafana/grafana/releases/tag/v13.1.0) was published 2026-07-01.
@@ -68,7 +68,12 @@ active licence and plugin allowlist with the Grafana administrator before provis
   [official plugin documentation](https://grafana.com/docs/plugins/grafana-wavefront-datasource/latest/)
   identifies `grafana-wavefront-datasource` as an **Enterprise** plugin. Its current requirements list
   Grafana Cloud Pro or Advanced; self-managed use requires an activated on-prem Grafana Enterprise
-  licence. Keep WQL queries in Wavefront-backed panels.
+  licence. Keep WQL queries in Wavefront-backed panels. **Lifecycle — `[sourced]` (reviewed
+  2026-08-19):** the backend continues as **Broadcom DX OpenExplore** — the Wavefront engine under
+  Broadcom's DX platform; the 2025-10-31 end-of-availability retired the VMware Tanzu Observability
+  offering, not the engine (see `stack-profile`). Whether this Enterprise plugin is supported
+  against a DX OpenExplore tenant is `[unverified]` — confirm with the Grafana administrator before
+  provisioning a new Wavefront-backed panel.
 - **Splunk — `[sourced]` (reviewed 2026-07-14).** The
   [official installation page](https://grafana.com/docs/plugins/grafana-splunk-datasource/latest/install/)
   identifies `grafana-splunk-datasource`. It is available with Grafana Cloud Pro or Advanced, or a
@@ -106,3 +111,5 @@ dashboard UID/folder, source path, target Grafana version, data-source UIDs, que
 licence checks, screenshots or rendered evidence, and every remaining `[unverified]` item. If the work
 uncovers active user impact or an unknown-cause incident, hand the time-bounded signal evidence to the
 `save-toolkit-sre` agent; do not diagnose it in this skill.
+Redact sensitive data visible in screenshots or rendered evidence before attaching; prefer cropped
+panels over full-screen captures and an access-controlled link over an embedded image.

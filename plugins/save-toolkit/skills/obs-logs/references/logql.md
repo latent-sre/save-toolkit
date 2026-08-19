@@ -15,6 +15,7 @@ deployed Loki version, tenant, labels, parsers, and alert-engine behavior before
 - Metric queries: rates and complete buckets
 - Compare before and after a deploy
 - Follow one request
+- Errors that are limits, not bugs
 - Inert canary example
 
 ## Stream selectors and label discipline
@@ -35,7 +36,11 @@ the stream is absent; it is not by itself evidence that the application emitted 
 ## Line filters versus parsers
 
 Use a line filter for literal or regular-expression text. Use `json` or `logfmt` when the decision
-depends on a structured field, then apply a label filter to the parsed value.
+depends on a structured field, then apply a label filter to the parsed value; `pattern` also exists
+for fixed-shape lines. Newer Loki adds pattern-match line filters `|>` / `!>` and the probabilistic
+`approx_topk(k, ...)` (instant queries only, no grouping) — version-gated; confirm the deployed
+Loki (upstream current: 3.7.x) before using either in a shared rule *[sourced: LogQL query
+reference, re-checked 2026-08-19]*.
 
 *[sourced: Grafana Loki LogQL line-filter and parser documentation; unverified for target log shape]*
 
@@ -123,6 +128,22 @@ LogQL literal and inspect the rendered query. Stop if it cannot be represented u
 ```logql
 {env="prod", app=~"checkout|payments"} | json | request_id="<validated_and_logql_escaped_id>"
 ```
+
+## Errors that are limits, not bugs
+
+A rejected query or a gap in recent logs can be a configured guardrail, not absent data. Record
+the error text verbatim with the query — it is evidence. *[sourced: grafana/loki@4b3f975
+troubleshoot and configuration docs]*
+
+- Query-side — narrow instead of raising limits mid-incident: `maximum number of series (<limit>)
+  reached for a single query…` (`max_query_series`, upstream default 500 — tighter selectors,
+  shorter range, or aggregate) and `max entries limit per query exceeded` (log queries only).
+- Ingest-side — missing recent logs is a pipeline finding for the `obs-pipeline` skill: `Per
+  stream rate limit exceeded (limit: <X>/sec)… consider splitting a stream via additional labels`;
+  stream-count pressure is governed by `max_global_streams_per_user`, and upstream warns against
+  raising it to absorb high-cardinality labels.
+- Which limits bind this tenant is `[unverified]` until read from the deployed config; upstream
+  defaults are not the tenant's limits.
 
 ## Inert canary example
 

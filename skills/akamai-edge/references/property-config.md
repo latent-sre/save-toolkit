@@ -13,8 +13,10 @@ techdocs.akamai.com/property-mgr/docs/how-activation-works]*:
 - **Staging** activations "usually finish within 3 minutes" — smaller network, no end-user
   traffic. Verify against staging with the staging hostname; the `X-Akamai-Staging` response
   header proves which network answered.
-- **Production** activation is **two-phased**: phase 1 rolls out to live-traffic servers (users
-  are on the new config once phase 1 completes); phase 2 ("Pending - Full Rollout") continues to
+- **Production** activation is **two-phased**: phase 1 rolls out to live-traffic servers — but
+  users mapped to fresh edge locations "may still reach Akamai servers with the previous property
+  configuration" for a few minutes after phase 1 completes *[sourced: how-activation-works,
+  re-checked 2026-08-19]*; phase 2 ("Pending - Full Rollout") continues to
   the rest of the network and can auto-cancel if the system detects a problem. "The total
   activation process takes up to 15 minutes on the production network." (A "under 4 minutes"
   figure circulates and likely describes phase 1 only — `[unverified]`, don't quote it.)

@@ -103,7 +103,21 @@ does.
 
 ### Recent platform changes worth knowing
 
-[doc-checked 2026-08-05, CLI 2.1.193–2.1.222 changelog] Perishable — re-verify after upgrades:
+[doc-checked 2026-08-19, CLI 2.1.193–2.1.236 changelog] Perishable — re-verify after upgrades:
+
+- **Skills synced from claude.ai are sandboxed harder** (2.1.228): they no longer shadow local
+  commands or MCP prompts, their descriptions are sanitized and labeled, and their bodies don't
+  run `!` commands or expand `@` files. The personal-skill shadowing trap above still applies to
+  skills *installed* locally — only the claude.ai-sync path was narrowed.
+- **`claude plugin validate` now checks a bare `.claude/skills` directory** (2.1.233), reporting
+  SKILL.md files whose frontmatter fails to parse. Our canonical `skills/` sits in a plugin, so
+  the existing `--strict` run already covered it; this widens the net for project-scope skills.
+- **Upstream precedent for the bundle pattern** (2.1.236): the built-in `claude-api` skill's
+  context cost dropped from ~200k+ tokens to ~25k by moving reference docs to on-demand loads —
+  the same Level-3 `references/` discipline this fleet already mandates.
+- **Skill/command argument substitution hardened** (2.1.233): argument values are no longer
+  re-expanded as template markers. Nothing to change here; noted because our skills take
+  `argument-hint` arguments.
 
 - **`context: fork` skills now run in the background by default** (2.1.218). Add `background: false`
   to keep the old inline-result behavior. This fleet uses neither field today.
@@ -220,4 +234,8 @@ after a colon. **Double-quote the whole scalar** when a description embeds such 
 reference; the rendered string is identical, so routing and evals are unaffected. Quoting works only
 while the text needs no internal escapes — the adapter generator copies the raw value, so `\"`
 sequences would land literally in the generated projections; a description that would need escaped
-quotes gets a punctuation reword instead.
+quotes gets a punctuation reword instead. [observed 2026-08-19] Four fleet agent descriptions
+(`sre`, `sde`, `scribe`, `observability-engineer`) already carry `\"` escapes and their generated
+projections parse as valid YAML, contradicting the reword guidance. Re-probe `claude plugin tag`
+on the current CLI before the next release; whichever side the probe supports, update this section
+and, if needed, the four descriptions together in one change.

@@ -67,7 +67,7 @@ something to work around.
 
 Approval covers only the commands, target, and applying actor shown. A material command, target, actor, or blast-radius change re-enters the gate. While approval is pending, continue only independent Tier 0 or Tier 1 work. Approval does not grant this agent live-change authority.
 
-#The approval-request shape — target, exact command, blast radius, verification, rollback — is
+The approval-request shape — target, exact command, blast radius, verification, rollback — is
 the worked example in `production-change-gate`. Load that skill before preparing any Tier 2 or
 Tier 3 request; the classification above is what tells you that you need to.
 
@@ -184,8 +184,8 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
 - `obs-metrics` — when metric evidence or a metric-derived SLI or alert is required
 - `obs-traces` — when trace evidence or trace-derived coverage is required
 - `obs-dashboards` — when designing or reviewing a dashboard as code
-- `obs-alerting` — when defining SLOs, error budgets, alert rules, correlation, or paging policy
-- `obs-pipeline` — when telemetry collection, transformation, routing, or storage must change
+- `obs-alerting` — when defining SLOs, error budgets, alert rules, correlation, paging policy, or synthetic checks
+- `obs-pipeline` — when telemetry collection, transformation, routing, or storage must change, or a signal is missing at a pipeline boundary
 - `gcp-ops` — when the observed or instrumented service runs on GCP/Cloud Run
 - `akamai-edge` — when edge telemetry (DataStream 2, offload reports, WAF events, mPulse) feeds a detection or dashboard
 

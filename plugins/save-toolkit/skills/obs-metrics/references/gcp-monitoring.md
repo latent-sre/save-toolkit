@@ -3,8 +3,8 @@
 # Cloud Monitoring for metric investigation — PromQL first
 
 Use this reference only after applying the product-agnostic investigation shape in the parent
-skill. Sources reviewed 2026-08-07 against official Google Cloud pages (now on
-`docs.cloud.google.com`) via indirect retrieval — search extraction, not byte-level fetches.
+skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.google.com` (every
+`cloud.google.com/...` docs URL now 301-redirects there).
 
 ## The one decision that's already made: query in PromQL
 
@@ -20,9 +20,10 @@ skill. Sources reviewed 2026-08-07 against official Google Cloud pages (now on
 ## What Cloud Monitoring adds around PromQL
 
 - **Metric-name mapping.** Cloud Monitoring names (`run.googleapis.com/request_count`) convert to
-  PromQL-compatible equivalents; the exact conversion rules live on the PromQL page and are
-  `[unverified]` here — resolve the mapped name in the console's PromQL editor rather than
-  guessing the transliteration.
+  PromQL-compatible equivalents — the first `/` becomes `:`, other special characters become `_`
+  *[sourced: docs.cloud.google.com/monitoring/promql]*. With UTF-8 metric-name support that
+  transliteration is now the **legacy-compatibility** path (pre-UTF-8 charts query by converted
+  names); still resolve the mapped name in the console's PromQL editor rather than guessing.
 - **Managed Service for Prometheus shares the backend.** Metrics ingested by Managed Prometheus
   and native Cloud Monitoring metrics are queryable together "in Cloud Monitoring, Grafana, or any
   other tool that can read the Prometheus API" *[sourced: docs.cloud.google.com/monitoring/promql]*.
@@ -45,10 +46,12 @@ path before the metrics.
 ## Terminal reads
 
 `gcloud config list`, `gcloud run services describe` (limits/concurrency context) are on the
-guard's allowlist. **No gcloud command reads metric time series** in any release track that the
-research pass could find — `[unverified as an absence]`; time-series reads go through the console
-PromQL editor, Grafana, or the Monitoring API, all recommend-for-human from this fleet. Do not
-burn incident time hunting for a `gcloud monitoring timeseries` command.
+guard's allowlist `[sourced: scripts/readonly-guard.py, disposition verified 2026-08-19]`. **No GA gcloud command reads metric time series** — the GA `gcloud monitoring`
+group holds only `dashboards`, `policies`, `snoozes`, and `uptime` *[sourced:
+docs.cloud.google.com/sdk/gcloud/reference/monitoring]*; the alpha/beta tracks remain
+`[unverified as an absence]`. Time-series reads go through the console PromQL editor, Grafana, or
+the Monitoring API, all recommend-for-human from this fleet. Do not burn incident time hunting
+for a `gcloud monitoring timeseries` command.
 
 ## Gotchas
 
