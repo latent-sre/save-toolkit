@@ -1,9 +1,10 @@
 # Obs-skill hardening round — findings and recommendations — 2026-08-19
 
 **Status:** prepared on branch `fix/obs-skill-hardening`; no merge, promotion, or independent
-review has occurred. Two description edits carry **routing-eval debt** (below) that should close
-before merge. Recommendations here are **proposed** dispositions — adopting any into the live
-backlog is the roadmap owner's call; this packet is evidence, not a checklist to resume.
+review has occurred. **Recommendations 1, 2, 3, 4, and 6 were addressed on this branch and their
+outcomes are recorded below**; recommendation 5 remains proposed. The routing-eval debt is
+**closed with measured before/after evidence**, and closing it surfaced a pre-existing red
+scenario pair (see *Follow-up round*). This packet is evidence, not a checklist to resume.
 
 | Field | Value |
 |---|---|
@@ -96,9 +97,68 @@ in the 27 files reviewed.
    [claude-code-frontmatter.md](../../skills/agent-authoring/references/claude-code-frontmatter.md)
    before the next release.
 
+## Follow-up round — how each recommendation was addressed
+
+Commits `87cf49f` (guard, canary, conventions) and the one carrying this update.
+
+**1. Routing-eval debt — CLOSED `[verified]`.** Both edited descriptions were measured through
+`evals/run_evals.py --run` on CLI 2.1.236, 2 trials each at a 280s timeout, and the obs-logs case
+was measured at the base commit `e31d04e` in a throwaway worktree for a true before/after:
+
+| Scenario | Base `e31d04e` | Branch | Verdict |
+|---|---|---|---|
+| `discovery-obs-logs-defers-obs-alerting` | routing 1/2 (trial 1 wrongly fired `obs-logs`) | routing **2/2** | improvement — the ownership-map edit fixed the defect it targeted |
+| `discovery-obs-alerting-splunk-saved-search` | not run | routing **2/2** (`obs-alerting` fires) | the Level-1 trim did not break triggering |
+
+Two trials per arm is a small sample; the routing direction is clear and the content-grader
+behavior is identical across arms. Offline complement, run first: all **734** `contains_all`
+grader strings across every scenario were diffed between the base tree and this branch — **zero**
+were present at base and absent now, so no edit moved a string a grader keys on (detector proven
+with a known-present probe).
+
+**Pre-existing red scenarios — new finding, not caused by this branch.** Both scenarios FAIL
+overall at base and on the branch, for the same reason: their `contains_all` graders demand the
+model emit exact `savedsearches.conf` strings (`cron_schedule = */5 * * * *`,
+`dispatch.earliest_time = -5m`, `alert.suppress.fields = service,alert_type`,
+`instructions_lookup`, `runbook_url`) that do exist in `obs-alerting/references/splunk-alerting.md`
+but that the model does not transcribe verbatim. Two regression-split scenarios are therefore red
+independent of this work. Disposition for the roadmap owner: either the graders over-specify
+(verbatim config transcription as a proxy for correct alert design) or the skill under-surfaces
+that reference — decide which, then fix one side.
+
+**2. Guard widenings — DONE `[verified]`.** `promtool` is verb-gated to `{check, test}` and `alloy`
+to `validate`, both observability-lane only. Tests were written first and confirmed failing (8 new
+allow-cases denied) before the change. Two write vectors are gated out: `promtool test --junit FILE`
+(opens `O_CREATE|O_WRONLY|O_TRUNC` per upstream `cmd/promtool/main.go`) and
+`alloy validate --config.extra-args` (the `--flags-file` smuggling shape). Detector proven by
+mutation: deleting the `--junit` gate makes four deny-corpus cases fail *falsely allowed*.
+`error_budget.py` stays human-run — the no-code-execution stance is deliberate doctrine, not an
+oversight to fix.
+
+**3. Canary tokens — DONE `[verified]`.** `scripts/check_canary_tokens.py` enforces uniqueness
+wherever tokens appear plus presence in the two fully-adopted bundles, registered in Gate A and
+paired with a fixture-first suite. Mutation sweep: **1 surviving mutant**, the untestable
+`if __name__ == "__main__"` guard — against **9** survivors on the mature `check_plan_status.py`,
+so the new suite is stronger than the repo's existing baseline for this file class.
+
+**4. Stamp policy — DONE.** Recorded in CONTRIBUTING.md with the canary convention: dated
+verification stamps **replace** rather than accumulate.
+
+**6. `claude plugin tag` re-probe — DONE, and it falsified the recorded guidance `[verified]`.**
+On CLI 2.1.236 `claude plugin tag --dry-run` completes on a clean tree, printing the tag it would
+create. The four descriptions carrying `\"` escapes hold 8 escaped-quote pairs each, byte-identical
+across canonical, Copilot, and Codex form, every one decoding cleanly as a double-quoted string.
+The claim that escapes "land literally in the generated projections" and require a punctuation
+reword was **wrong**; `claude-code-frontmatter.md` is corrected (replacing the note, per the new
+stamp policy).
+
+**5. Agent-tail compression — still proposed.** Unchanged: an eval-gated experiment for
+`agent-authoring`, never an eyeballed trim, and never touching security or evidence invariants.
+
 ## Not done / unverified
 
-- Routing evals not run (live API required) — see recommendation 1.
+- Routing evals: run for the two edited descriptions only (2 trials per arm); the other 12
+  obs-related scenarios were not exercised, and no scenario was run at more than 2 trials.
 - Behavioral evals not run for body edits; edits are reference-content corrections, but the suite
   has not been exercised against them.
 - Akamai verdicts rest on delegated researcher fetches of techdocs.akamai.com; Splunk .conf-key

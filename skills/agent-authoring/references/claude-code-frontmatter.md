@@ -229,11 +229,11 @@ parses fine in the runtime and in the repo's `validate_fleet.py` but can fail `c
 `claude plugin validate --strict` and sibling descriptions with a simple `: ` passed. [probed on
 CLI 2.1.220] This bites us directly: several descriptions name a component as `save-toolkit:<name>`
 after a colon. **Double-quote the whole scalar** when a description embeds such a namespaced
-reference; the rendered string is identical, so routing and evals are unaffected. Quoting works only
-while the text needs no internal escapes — the adapter generator copies the raw value, so `\"`
-sequences would land literally in the generated projections; a description that would need escaped
-quotes gets a punctuation reword instead. [observed 2026-08-19] Four fleet agent descriptions
-(`sre`, `sde`, `scribe`, `observability-engineer`) already carry `\"` escapes and their generated
-projections parse as valid YAML, contradicting the reword guidance. Re-probe `claude plugin tag`
-on the current CLI before the next release; whichever side the probe supports, update this section
-and, if needed, the four descriptions together in one change.
+reference; the rendered string is identical, so routing and evals are unaffected. Internal `\"` escapes are fine — an
+earlier version of this section claimed they would land literally in the projections and told
+authors to reword instead; that was **wrong** and is corrected here. [probed 2026-08-19, CLI
+2.1.236] The four descriptions that carry escapes (`sre`, `sde`, `scribe`,
+`observability-engineer`) hold 8 escaped-quote pairs each in canonical, Copilot, and Codex form —
+byte-identical across all three, every one decoding cleanly as a double-quoted string — and
+`claude plugin tag --dry-run` completes on this tree, printing the tag it would create rather than
+failing to parse. So quote the scalar and escape what you must; no punctuation reword is owed.
