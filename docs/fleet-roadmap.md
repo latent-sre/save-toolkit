@@ -568,7 +568,8 @@ unmeasured description change is what created the ambiguity.
 **Status:** `active` (2026-08-18) — the consolidated parser merged in PR #118 at
 `4479833fcb2d64059c6aa8047dbc8370b95584f3`, but its exact-head review left one current P1
 undisposed. The repair now ends at `adbd88eb8836ce69df4f9fae4ebaa06fcf216498`; independent
-code/test review found no remaining P0/P1, while the final whole-diff verdict and CI remain pending.
+code/test review found no remaining P0/P1, and cross-platform CI passed (workflow run 32188436302,
+Ubuntu, macOS, and Windows). The final whole-diff verdict remains pending.
 
 **Outcome:** `scripts/` has a single stdlib frontmatter parser, so a document that one tool accepts
 cannot be malformed to another.
@@ -616,9 +617,7 @@ call-order, discovery-mismatch, and cross-trial mutation regressions all failed 
 subjects; the full 72-test evaluator suite now passes in the network-disabled pinned Python 3.12
 container.
 
-**Next action:** Bind the final whole-diff correctness/security verdict, publish the repair for
-cross-platform CI, and resolve the PR #118 thread only after those checks cover the exact head. Do
-not close SCRIPTS-001 on the merged grammar alone while the candidate-code execution finding remains
+**Next action:** Bind the final whole-diff correctness/security verdict and resolve the PR #118 thread only after that check covers the exact head. Do not close SCRIPTS-001 on the merged grammar alone while the candidate-code execution finding remains
 undisposed.
 
 ## Decisions needed

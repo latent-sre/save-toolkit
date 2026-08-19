@@ -193,7 +193,19 @@ class InvocationPlanTests(unittest.TestCase):
             )
             self.assertTrue((snapshot / "scenarios" / "discovery-merge-readiness.yaml").is_file())
             self.assertTrue((snapshot.parent / "scripts/fleet_frontmatter.py").is_file())
-        self.assertFalse(snapshot.exists())
+        self.assertFalse(snapshot.parent.exists())
+
+    def test_eval_suite_digest_changes_when_support_file_changes(self) -> None:
+        with run_evals.frozen_eval_snapshot() as snapshot:
+            digest_before = run_evals.eval_suite_digest(snapshot)
+            support_path = snapshot.parent / "scripts/fleet_frontmatter.py"
+            original = support_path.read_bytes()
+            try:
+                support_path.write_bytes(original + b"\n# mutation-sentinel\n")
+                digest_after = run_evals.eval_suite_digest(snapshot)
+            finally:
+                support_path.write_bytes(original)
+        self.assertNotEqual(digest_before, digest_after)
 
     def test_forged_snapshot_marker_cannot_bypass_bootstrap(self) -> None:
         with mock.patch.dict(
