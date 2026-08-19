@@ -139,8 +139,9 @@ bureaucracy. They map directly onto Anthropic's current agent-engineering guidan
 
 - **Loop engineering.** Every lane runs gather context → take action → verify → repeat, and the
   verify step is designed, not hoped for: Gate A, the fixture-that-fails-first rule, and
-  `mutation_guard.py` exist to be that step for fleet changes; golden-signal recovery evidence is
-  that step for incident work. A result with no verification path can only be `[unverified]`.
+  `mutation_guard.py` — a deliberate sweep that refuses a dirty tree and runs mutants in throwaway
+  Git worktrees — exist to be that step for fleet changes; golden-signal recovery evidence is that
+  step for incident work. A result with no verification path can only be `[unverified]`.
   *[sourced: Anthropic, "Building agents with the Claude Agent SDK",
   claude.com/blog/building-agents-with-the-claude-agent-sdk; "Building effective agents",
   anthropic.com/engineering/building-effective-agents]*
