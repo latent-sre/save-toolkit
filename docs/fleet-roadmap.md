@@ -63,6 +63,13 @@ uploads code to Anthropic's cloud sandbox and may consume paid usage credits. `-
 without launching, uploading, posting, or spending; an undocumented live observation would not turn
 these missing guarantees into a supported boundary.
 
+**Contract refresh (2026-08-18):** Context7's current official documentation and GitHits' exact
+Claude Code `v2.1.227` repository agree on the public surface: the non-interactive command prints
+findings, offers raw JSON, and distinguishes completion from command failure. Neither source exposes
+an immutable reviewed-subject field or findings-sensitive approval verdict. WF-001 therefore remains
+blocked; the separate provenance and queries are recorded in the
+[`first-three backlog evidence packet`](reviews/2026-08-18-first-three-backlog-evidence.md).
+
 **Prerequisites:** A documented direct-dispatch API, or documented permission semantics that bind
 the registered workflow implementation as well as its name. Any alternative architecture needs an
 accepted decision record before implementation.
@@ -146,11 +153,19 @@ in the [`fleet mutation sweep`](reviews/2026-08-15-fleet-mutation-sweep.md) pack
 change the item's status and is not a merge, review, or publication blocker on its own; it is
 context an owner should weigh before authorizing a live dispatch.
 
-**Live blockers:** The merge step is complete. A post-merge audit reproduced a strict-host-evidence
-false pass: the Claude authority check watches five selected locations under the real user
-configuration, so an install-time write to an unlisted path such as `history.jsonl` is reported as
-unchanged. RELEASE-001 cannot accept that authority criterion until the full user configuration tree,
-or a closed and justified allowlist of expected writes, is censused with a red-first regression.
+**Live blockers:** The merge step is complete. The Claude authority-census false pass now has a
+red-first defense-in-depth repair: an unlisted persistent `history.jsonl` write failed before the
+change and is caught after the probe switches from five selected paths to the complete lexical
+user-configuration root. Linked, special, unreadable, or racing trees now become inconclusive, and
+the focused host-probe file is green at 74 tests with 2 platform skips.
+
+Independent static review nevertheless requested changes on the load-bearing authority claim. A
+before/after size-and-mtime census cannot observe a file created and deleted between snapshots or a
+same-size modification whose mtime is restored. It proves no residual metadata-visible change, not
+that every write stayed inside the disposable target. The traversal-race finding from that review
+has a red-first local repair, but the P1 contract mismatch remains. This uncommitted preparation over
+`41a20bab` therefore does not satisfy the strict no-user-write criterion. Evidence and limits are in
+the [`first-three backlog evidence packet`](reviews/2026-08-18-first-three-backlog-evidence.md).
 
 Live GitHub configuration remains absent: the 2026-08-12 API state has immutable releases disabled,
 only an unprotected `copilot` environment, no release-tag ruleset, and no `release-tag` or
@@ -159,12 +174,14 @@ available read-only repository surfaces. Creating those controls and dispatching
 external effects requiring an explicit owner-approved plan and rollback; the merge grants no
 publication authority.
 
-**Next action:** Repair and independently review the Claude user-configuration census, preserving the
-strict no-user-write claim rather than weakening it. The owner then decides whether to authorize the
-ADR's exact live GitHub configuration. If approved, record fresh API evidence, reopen EFFECT-001
-before the first dispatch, dispatch the exact reviewed merged `main` SHA, preserve the strict
-host/immutability reports, and add RELEASE-001 closure evidence. Do not create or move a release ref
-manually.
+**Next action:** Keep the full-root census as residual-state defense in depth, obtain exact-byte
+re-review before landing it, and do not cite it as release authority. The owner must accept a design
+that structurally denies the host CLI write access to the real user configuration — for example a
+separately controlled OS identity or an equivalent sandbox boundary — before publication can use the
+strict no-user-write criterion. That design needs an accepted decision record and cross-host proof;
+weakening the criterion to metadata-visible residue is not an implementation shortcut. Only after
+that boundary and the missing live GitHub controls exist should the owner consider dispatch. Do not
+create or move a release ref manually.
 
 ### ROUTE-001 — routing evals for the 2026-08 description changes
 
@@ -270,6 +287,15 @@ recorded in the
 [`Codex/Terra pre-canary evidence packet`](reviews/2026-08-11-codex-terra-precanary.md). That packet
 is preparation evidence only; it does not authorize credentials, model calls, campaign execution,
 baseline eligibility, or release use.
+
+**Source refresh (2026-08-18):** GitHits resolved the exact Codex `rust-v0.147.0` tag and independently
+confirmed the tool-plan behavior assumed by the ADR: model `tool_mode` precedence and separate
+environment/model/feature gates for shell, MCP resources, `apply_patch`, collaboration, and utility
+tools. Context7's current official configuration reference establishes the supported configuration
+surfaces but is not version-pinned evidence for 0.147. The source-review prerequisite is therefore
+supported; the protected runtime, Git/object-store, clean-host, canary, and campaign blockers remain.
+See the
+[`first-three backlog evidence packet`](reviews/2026-08-18-first-three-backlog-evidence.md).
 
 **Grader repair (2026-08-15):** The outside-packet detector is repaired and evidenced in the
 preparation-only

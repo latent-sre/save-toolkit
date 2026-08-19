@@ -872,6 +872,83 @@ class AbsentHostTests(unittest.TestCase):
         self.assertNotIn("config.json", repr(authority))
 
 
+class CensusTests(unittest.TestCase):
+    def test_missing_then_created_empty_root_is_a_change(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            watched = Path(temporary) / "user-config"
+            before = probe._stat_census(watched)
+            watched.mkdir()
+            after = probe._stat_census(watched)
+
+        self.assertEqual(1, probe._census_change(before, after))
+
+    def test_linked_root_or_child_is_indeterminate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            watched = Path(temporary) / "user-config"
+            child = watched / "child"
+            child.mkdir(parents=True)
+            original = probe.verification_sandbox._is_indirection
+
+            for indirect in (watched, child):
+                with self.subTest(indirect=indirect.name), mock.patch.object(
+                    probe.verification_sandbox,
+                    "_is_indirection",
+                    side_effect=lambda path, indirect=indirect: path == indirect or original(path),
+                ):
+                    self.assertIsNone(probe._stat_census(watched))
+
+    def test_special_entry_is_indeterminate(self) -> None:
+        special = mock.Mock(
+            st_mode=probe.stat.S_IFIFO | 0o600,
+            st_size=0,
+            st_mtime_ns=0,
+        )
+        with mock.patch.object(Path, "lstat", return_value=special), mock.patch.object(
+            probe.verification_sandbox,
+            "_is_indirection",
+            return_value=False,
+        ):
+            self.assertIsNone(probe._census_entry(Path("special")))
+
+    def test_indirection_inspection_failure_is_indeterminate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            watched = Path(temporary) / "user-config"
+            watched.mkdir()
+            with mock.patch.object(
+                probe.verification_sandbox,
+                "_is_indirection",
+                side_effect=probe.verification_sandbox.SandboxError("metadata race"),
+            ):
+                self.assertIsNone(probe._stat_census(watched))
+
+    def test_unreadable_walk_is_indeterminate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            watched = Path(temporary) / "user-config"
+            watched.mkdir()
+
+            def inaccessible_walk(path, *, followlinks, onerror=None):
+                del path
+                self.assertFalse(followlinks)
+                if onerror is not None:
+                    onerror(PermissionError("denied"))
+                return iter(())
+
+            with mock.patch.object(probe.os, "walk", side_effect=inaccessible_walk):
+                self.assertIsNone(probe._stat_census(watched))
+
+    def test_either_indeterminate_snapshot_keeps_change_indeterminate(self) -> None:
+        self.assertIsNone(probe._census_change(None, {}))
+        self.assertIsNone(probe._census_change({}, None))
+
+    def test_unchanged_census_is_labeled_residual_evidence_not_no_write_proof(self) -> None:
+        authority = probe._authority_check("claude", [("Claude-config-root", {}, {})])
+
+        self.assertEqual("pass", authority.status)
+        self.assertIn("residual metadata-visible change", authority.summary)
+        self.assertNotIn("all probe writes", repr(authority).lower())
+        self.assertTrue(any("transient" in item for item in authority.limitations))
+
+
 class ClaudeProbeTests(unittest.TestCase):
     def _claude_run(self, state: dict[str, object], calls: list[tuple[str, ...]], envs: list[object]):
         def run(argv: tuple[str, ...], env: object) -> probe.CommandResult:
@@ -1413,8 +1490,44 @@ class ClaudeProbeTests(unittest.TestCase):
             report = self._collect(run, Path(temporary))
         authority = checks_by_id(report)["host.claude.probe-authority"]
         self.assertEqual("fail", authority["status"])
-        self.assertEqual(1, authority["source"]["details"]["changed_user_path_count"])
+        self.assertEqual(2, authority["source"]["details"]["changed_user_path_count"])
         self.assertNotIn("settings.json", repr(authority))
+
+    def test_sibling_user_config_write_during_probe_is_authority_fail(self) -> None:
+        state = {"add_rc": 0, "install_rc": 0, "uninstall_rc": 0, "installed": False, "residue": False}
+        base_run = self._claude_run(state, [], [])
+
+        def run(argv: tuple[str, ...], env: object) -> probe.CommandResult:
+            if tuple(argv[1:]) == ("plugin", "install", probe.CLAUDE_PLUGIN_ID):
+                leak = watched / "history.jsonl"
+                leak.parent.mkdir(parents=True, exist_ok=True)
+                leak.write_text("{}\n", encoding="utf-8")
+            return base_run(argv, env)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            watched = Path(temporary) / "home" / ".claude"
+            report = self._collect(run, Path(temporary))
+        authority = checks_by_id(report)["host.claude.probe-authority"]
+        self.assertEqual("fail", authority["status"])
+        self.assertEqual(2, authority["source"]["details"]["changed_user_path_count"])
+        self.assertNotIn("history.jsonl", repr(authority))
+
+    def test_indirection_inspection_failure_is_sanitized_inconclusive(self) -> None:
+        state = {"add_rc": 0, "install_rc": 0, "uninstall_rc": 0, "installed": False, "residue": False}
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            watched = base / "home" / ".claude"
+            watched.mkdir(parents=True)
+            with mock.patch.object(
+                probe.verification_sandbox,
+                "_is_indirection",
+                side_effect=probe.verification_sandbox.SandboxError(f"cannot inspect {watched}"),
+            ):
+                report = self._collect(self._claude_run(state, [], []), base)
+
+        authority = checks_by_id(report)["host.claude.probe-authority"]
+        self.assertEqual("inconclusive", authority["status"])
+        self.assertNotIn(str(watched), repr(authority))
 
 
 class CodexProbeTests(unittest.TestCase):
