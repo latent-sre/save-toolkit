@@ -2,13 +2,14 @@
 """Prove disposable fleet install, inventory, authority boundary, and uninstall per host.
 
 For each requested host the probe installs the fleet into an explicit, initially empty disposable
-target, checks host-visible inventory, proves every write stayed inside the target and out of
-user-owned configuration, then uninstalls and confirms no residue. It never writes to user-owned
-plugin, agent, or settings locations, never provisions credentials, and never starts a model
-session. An unavailable host is ``skip``; a CLI that cannot complete a verb is ``inconclusive``;
-only a proven boundary violation or uninstall residue is ``fail``. Diagnostic mode preserves those
-four states; ``--require-pass`` is the release-gate mode and returns nonzero unless every selected
-criterion is ``pass`` and the source worktree is clean.
+target, checks host-visible inventory, checks watched user configuration for residual metadata
+changes, then uninstalls and confirms no residue. It redirects writable configuration pointers away
+from user-owned plugin, agent, and settings locations, never provisions credentials, and never starts
+a model session. The before/after census is defense in depth, not structural proof that no transient
+or metadata-restored write occurred. An unavailable host is ``skip``; a CLI that cannot complete a
+verb is ``inconclusive``; only an observed boundary violation or uninstall residue is ``fail``.
+Diagnostic mode preserves those four states; ``--require-pass`` is the release-gate mode and returns
+nonzero unless every selected criterion is ``pass`` and the source worktree is clean.
 
 Claude and Codex can register either the exact checkout root or this repository's version-tag source
 (``latent-sre/save-toolkit@save-toolkit--v<SemVer>``). No arbitrary repository, URL, branch, or moving
@@ -714,43 +715,62 @@ def _census_entry(path: Path) -> tuple[str, int, int] | None:
         info = path.lstat()
     except OSError:
         return None
-    if verification_sandbox._is_indirection(path):
-        return ("link", 0, 0)
-    if info.st_mode & 0o170000 == 0o040000:
+    try:
+        if verification_sandbox._is_indirection(path):
+            return None
+    except verification_sandbox.SandboxError:
+        return None
+    if stat.S_ISDIR(info.st_mode):
         return ("dir", 0, 0)
-    return ("file", info.st_size, info.st_mtime_ns)
+    if stat.S_ISREG(info.st_mode):
+        return ("file", info.st_size, info.st_mtime_ns)
+    return None
 
 
 def _stat_census(location: Path) -> dict[str, tuple[str, int, int]] | None:
     """Map a watched user location to path metadata; ``None`` means it could not be enumerated.
 
     Metadata only: sizes and mtimes detect writes without reading user-owned bytes. A missing
-    location is an empty census, not an error.
+    location is an empty census, not an error. Indirection, special files, and traversal errors
+    make the census indeterminate rather than silently narrowing it.
     """
 
-    if not location.exists():
-        return {}
-    if location.is_file() or location.is_symlink():
-        entry = _census_entry(location)
-        return {".": entry} if entry is not None else None
-    census: dict[str, tuple[str, int, int]] = {}
     try:
-        for current, dirnames, filenames in os.walk(location, followlinks=False):
+        location.lstat()
+    except FileNotFoundError:
+        return {}
+    except OSError:
+        return None
+    root_entry = _census_entry(location)
+    if root_entry is None:
+        return None
+    if root_entry[0] == "file":
+        return {".": root_entry}
+    if root_entry[0] != "dir":
+        return None
+
+    census: dict[str, tuple[str, int, int]] = {".": root_entry}
+
+    def raise_walk_error(error: OSError) -> None:
+        raise error
+
+    try:
+        for current, dirnames, filenames in os.walk(
+            location,
+            followlinks=False,
+            onerror=raise_walk_error,
+        ):
             current_path = Path(current)
-            kept = []
             for name in dirnames:
                 child = current_path / name
                 entry = _census_entry(child)
-                if entry is None:
+                if entry is None or entry[0] != "dir":
                     return None
                 census[child.relative_to(location).as_posix()] = entry
-                if entry[0] == "dir":
-                    kept.append(name)
-            dirnames[:] = kept
             for name in filenames:
                 child = current_path / name
                 entry = _census_entry(child)
-                if entry is None:
+                if entry is None or entry[0] != "file":
                     return None
                 census[child.relative_to(location).as_posix()] = entry
     except OSError:
@@ -825,7 +845,7 @@ def _unavailable_checks(host: str) -> list[Check]:
 
 
 def _authority_check(host: str, watched: Sequence[tuple[str, dict | None, dict | None]]) -> Check:
-    """Compare censuses of user-owned locations; only counts and category labels are reported."""
+    """Compare residual censuses of user locations; only counts and labels are reported."""
 
     changes = 0
     labels = []
@@ -850,7 +870,10 @@ def _authority_check(host: str, watched: Sequence[tuple[str, dict | None, dict |
     return Check(
         f"host.{host}.probe-authority",
         "pass",
-        "All probe writes stayed inside the disposable target; watched user locations are unchanged.",
+        "No residual metadata-visible change was observed in watched user locations.",
+        limitations=(
+            "Before/after metadata cannot prove that no transient or metadata-restored write occurred.",
+        ),
     )
 
 
@@ -921,14 +944,8 @@ def _probe_claude(
     env = _child_env(target / "claude" / "home", {"CLAUDE_CONFIG_DIR": str(config)})
     user_config = Path(
         os.environ.get("CLAUDE_CONFIG_DIR", home / ".claude")
-    ).expanduser().resolve()
-    watched_locations = (
-        ("Claude-plugins", user_config / "plugins"),
-        ("Claude-settings", user_config / "settings.json"),
-        ("Claude-state", user_config / ".claude.json"),
-        ("Claude-state-backups", user_config / "backups"),
-        ("Claude-state-lock", user_config / ".claude.json.lock"),
-    )
+    ).expanduser().absolute()
+    watched_locations = (("Claude-config-root", user_config),)
     census_before = [_stat_census(location) for _, location in watched_locations]
 
     def authority() -> Check:
