@@ -70,7 +70,7 @@ impact without explaining why it happened.
 Incident: <title>   Severity: <provisional SEV>   Status: <investigating|mitigating|monitoring|resolved>
 Impact: <who or what, since when, scope, trend>
 Roles: IC=<>   Investigation=<>   Remediation=<>   Comms/timeline=<>
-Evidence: <strongest verified observation; unresolved hypotheses stay labeled>
+Evidence: <strongest available evidence with its retained label; use "no verified observation yet" when applicable>
 Current decision: <chosen or pending; rationale and authority>
 Actions: <owner — action — status — observed result>
 Next update: <UTC time>
