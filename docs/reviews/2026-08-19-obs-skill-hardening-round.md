@@ -152,6 +152,56 @@ The claim that escapes "land literally in the generated projections" and require
 reword was **wrong**; `claude-code-frontmatter.md` is corrected (replacing the note, per the new
 stamp policy).
 
+### Sonnet portability sweep — partial, and a harness finding
+
+`[verified]` A 14-scenario sweep (`--match obs --trials 3 --timeout 280 --model sonnet`, run
+`20260820T013533Z-d38230be`, `models_observed: ["claude-sonnet-5"]`) returned **0/14 scenarios
+passed — but 22 of its 42 trials (52%) timed out**, so the headline number is not a fleet result.
+Four scenarios were wholly inconclusive, including both scenarios whose descriptions this branch
+edited; the other ten failed on content graders, not routing.
+
+**Re-run with tripled timeouts — the measurement the first sweep failed to make.** The four
+inconclusive scenarios were re-run at `--timeout 840 --trials 2 --model sonnet`: **zero timeouts**,
+8 of 8 trials graded. Routing results:
+
+| Scenario | Routing on Sonnet | Attribution |
+|---|---|---|
+| `discovery-obs-alerting-splunk-saved-search` | **PASS** 2/2 | the Level-1 trim does not break triggering on Sonnet either |
+| `discovery-obs-logs-defers-obs-alerting` | **PASS** 2/2 | confirms on Sonnet what the Opus arm showed |
+| `discovery-obs-metrics-cloud-monitoring` | **PASS** 2/2 | untouched by this branch |
+| `discovery-akamai-edge-defers-obs-alerting` | **FAIL** 2/2 (`akamai-edge` fires when it should stand down) | **pre-existing** — identical failure at base `e31d04e` on Sonnet, 2/2, same message |
+
+That last row was baselined specifically because this branch trimmed `obs-alerting`'s description
+and a weakened winner can lose a contest it used to win. It does not: the failure reproduces
+unchanged at base, so `akamai-edge` over-triggering on steady-state alert design is a standing
+routing defect for the roadmap, not a regression from this work.
+
+**The content-grader failure is suite-level, not per-scenario.** Every obs scenario exercised —
+including ones this branch never touched, on both models, and at base — fails its `contains_all`
+and regex graders. They demand verbatim query/config strings (`histogram_quantile(0.95`,
+`/ sum by (`, `dispatch.earliest_time = -5m`) and exact output headings (`Minimum traffic:`,
+`Throttle key:`, `Runbook URL:`) that nothing in the skills instructs the model to emit. Stated
+plainly for the roadmap owner: **these obs scenarios cannot currently pass on any model.** Either
+the graders encode an output contract the skills should teach and do not, or they over-specify and
+should assert behavior instead of transcription. Deciding that is its own backlog item.
+
+**Harness finding worth acting on:** the discovery scenarios need a materially longer per-trial
+timeout on Sonnet than on Opus 5. The same two scenarios completed inside 280s on
+`claude-opus-5[1m]` and timed out on all three trials on `claude-sonnet-5`. The suite carries no
+per-model timeout guidance, so the next person repeating this hits the same wall and reads the
+result as a regression. Disposition for the roadmap owner: record a per-model timeout floor in the
+eval README, or raise the runner's default.
+
+What the 20 completed trials do support: **routing behaves correctly on Sonnet** — every
+`defers-obs-*` scenario that completed fired its expected alternative (`obs-logs`, `obs-metrics`,
+`obs-traces`, `obs-alerting`, often with `stack-profile`) — and the content-grader failures
+reproduce on Sonnet exactly as on Opus, consistent with the pre-existing defect above rather than
+with anything this branch changed.
+
+One routing failure not attributable to this branch: `discovery-scribe-defers-observability`
+expected the `observability-engineer` agent and instead saw generic `Explore` / `general-purpose`
+agents. Whether it reproduces on Opus 5 is `[unverified]`.
+
 **5. Agent-tail compression — still proposed.** Unchanged: an eval-gated experiment for
 `agent-authoring`, never an eyeballed trim, and never touching security or evidence invariants.
 
