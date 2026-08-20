@@ -336,34 +336,16 @@ _GCLOUD_DENY_FLAGS = frozenset({"--impersonate-service-account", "--flags-file"}
 # Commands only observability-engineer may run — it validates observability config; sre does not
 # need these, and the smaller each profile is, the better it fails.
 _OBS_ONLY = frozenset({"yamllint"})
-# `promtool` is verb-gated like git (observability-only as well). `check` validates config and rule
-# files; `test` evaluates rule fixtures in memory — no network, no target, and the only offline way
-# to prove burn-rate arithmetic and a long/short window pair, which the obs-alerting verify step
-# requires. Every other verb stays off: `tsdb` writes blocks, `query`/`push` talk to a server.
-_PROMTOOL_READ_VERBS = frozenset({"check", "test"})
-# ...with one exception carved out of `test`, because a read-shaped verb hides a real write:
-# `promtool test --junit FILE` opens that path with O_CREATE|O_WRONLY|O_TRUNC (upstream
-# cmd/promtool/main.go declares the flag on the parent `test` command, so it reaches
-# `test rules`). Truncating a caller-named file is not a read at any verb, so its presence is
-# disqualifying — matched name-only, which covers `--junit=out.xml` and `--junit out.xml` alike.
-_PROMTOOL_DENY_FLAGS = frozenset({"--junit"})
-
-# `alloy` is verb-gated the same way, and for the same reason the obs lane needs promtool: a
-# telemetry pipeline change is validated before it is reloaded. `validate` parses and type-checks a
-# config, printing diagnostics to stderr; none of its documented flags name an output file. The
-# sibling verbs are exactly what a read-only lane must not do: `fmt --write/-w` rewrites the file in
-# place, `run`/`otel` start the collector, and `tools` reads the WAL of a live agent.
-_ALLOY_READ_VERB = "validate"
-# `--config.extra-args` forwards arguments this guard never sees to a format converter — the
-# `--flags-file` smuggling shape, disqualifying on presence rather than on what it happens to carry.
-_ALLOY_DENY_FLAGS = frozenset({"--config.extra-args"})
+# `promtool check` parses configuration without starting the disk-backed rule-test harness.
+# `promtool test` is deliberately absent: even without --junit it creates a temporary TSDB.
+_PROMTOOL_READ_VERBS = frozenset({"check"})
 
 _REASON = (
     "Blocked: this is a read-only agent, and its Bash access is limited to an ALLOWLIST of "
     "read-only commands (cf app/apps/events/logs/routes/services, git diff/log/show/blame/status, "
     "rg, grep, ls, cat, head, find, gh pr view/diff, gcloud run services/revisions list/describe, "
-    "gcloud logging read, and similar filters; the observability lane adds promtool check/test, "
-    "alloy validate, yamllint, and jq). The command above is "
+    "gcloud logging read, and similar filters; the observability lane adds promtool check, "
+    "yamllint, and jq). The command above is "
     "not on that list. Note this agent may NOT execute code — no test runners, no scripts, no "
     "package managers — because running a repository's code is not a read-only act, whatever the "
     "command looks like. Inspect with reads, cite the builder's or CI's test evidence rather than "
@@ -574,15 +556,6 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
             agent == "observability-engineer"
             and bool(positionals)
             and positionals[0] in _PROMTOOL_READ_VERBS
-            and not _carries_flag(args, _PROMTOOL_DENY_FLAGS, frozenset())
-        )
-    if command == "alloy":
-        positionals = _positionals(args)
-        return (
-            agent == "observability-engineer"
-            and bool(positionals)
-            and positionals[0] == _ALLOY_READ_VERB
-            and not _carries_flag(args, _ALLOY_DENY_FLAGS, frozenset())
         )
     if command in _OBS_ONLY:
         return agent == "observability-engineer"

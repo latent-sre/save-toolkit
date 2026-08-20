@@ -115,9 +115,10 @@ see the `obs-traces` skill's Cloud Trace reference; the exporter auth block for 
   (`--server.http.listen-addr`); endpoints `/metrics`, `/-/ready`, `/-/healthy`, `/-/reload`,
   `/-/support` (support bundle). *[sourced: troubleshoot/debug; reference/http]*
 - **`alloy validate <config>`** is a documented CLI command (alongside `run`, `fmt`, `convert`) —
-  validate before any `/-/reload`. It is agent-runnable in the `save-toolkit-observability-engineer` lane
-  (`--config.extra-args` is denied — it forwards arguments the guard never sees); `alloy fmt -w`,
-  `alloy run`, and `alloy tools` are not reads and stay denied.
+  validate before any `/-/reload`. It is not allowed by the read-only guard: validation resolves
+  `import.http` and `import.git`, so an untrusted config can initiate outbound requests (including
+  a URL assembled from environment-backed expressions). Ask a human or use an isolated,
+  networkless runner; `alloy fmt -w`, `alloy run`, and `alloy tools` also stay denied.
   *[sourced: reference/cli, re-checked 2026-08-19; current stable v1.18.1]*
 - **Live debugging** (per-component data stream in the UI) is disabled by default "to avoid
   accidentally displaying sensitive telemetry data"; enable deliberately, in non-prod first:

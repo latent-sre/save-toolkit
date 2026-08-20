@@ -594,15 +594,6 @@ class ObservabilityProfileTest(unittest.TestCase):
     OBS_ALLOWED = [
         "promtool check rules rules.yml",
         "promtool check config prometheus.yml",
-        # `promtool test rules` evaluates rule fixtures in-memory: no network, no writes unless
-        # --junit is passed (denied below). It is the only way to prove burn-rate arithmetic and a
-        # long/short window pair offline, which obs-alerting's verify step requires.
-        "promtool test rules tests/burn_test.yml",
-        "promtool test rules --run fast-burn tests/burn_test.yml",
-        # `alloy validate` parses and type-checks a config; diagnostics go to stderr, and none of
-        # its documented flags write a file.
-        "alloy validate config.alloy",
-        "alloy validate --config.format=otelcol collector.yaml",
         "yamllint alerts.yml",
         "jq empty grafana/alerts.json",
         # the shared read set works for the observability engineer too
@@ -610,17 +601,21 @@ class ObservabilityProfileTest(unittest.TestCase):
         "git diff --stat",
     ]
     OBS_DENIED = [
-        "promtool tsdb create-blocks-from rules rules.yml",  # only check/test verbs read
+        # The upstream rules harness creates a temporary disk-backed TSDB even without --junit.
+        "promtool test rules tests/burn_test.yml",
+        "promtool test rules --run fast-burn tests/burn_test.yml",
+        "promtool tsdb create-blocks-from rules rules.yml",  # only the check verb reads
         "promtool query instant http://prom:9090 up",         # network query, not a config check
-        # `promtool test --junit=FILE` opens that path O_CREATE|O_WRONLY|O_TRUNC (upstream
-        # cmd/promtool/main.go) -- a real write behind a read-shaped verb. Both spellings die.
+        # These also write the caller-named JUnit path, independently of the temporary TSDB.
         "promtool test rules --junit=results.xml tests/burn_test.yml",
         "promtool test rules --junit results.xml tests/burn_test.yml",
+        # Validation resolves import.http/import.git modules, so an untrusted config can cause
+        # outbound requests (including URLs assembled from environment-backed expressions).
+        "alloy validate config.alloy",
+        "alloy validate --config.format=otelcol collector.yaml",
         "alloy fmt -w config.alloy",                          # --write/-w rewrites the file
         "alloy run config.alloy",                             # starts the collector
-        "alloy tools wal-stats /var/lib/alloy",               # only the validate verb reads
-        # `--config.extra-args` forwards unseen arguments to a converter: the --flags-file
-        # smuggling shape, disqualifying on presence.
+        "alloy tools wal-stats /var/lib/alloy",
         "alloy validate --config.extra-args=--x=1 config.alloy",
         "cf push my-app",
         "cf env my-app",

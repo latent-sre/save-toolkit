@@ -126,14 +126,14 @@ independent of this work. Disposition for the roadmap owner: either the graders 
 (verbatim config transcription as a proxy for correct alert design) or the skill under-surfaces
 that reference — decide which, then fix one side.
 
-**2. Guard widenings — DONE `[verified]`.** `promtool` is verb-gated to `{check, test}` and `alloy`
-to `validate`, both observability-lane only. Tests were written first and confirmed failing (8 new
-allow-cases denied) before the change. Two write vectors are gated out: `promtool test --junit FILE`
-(opens `O_CREATE|O_WRONLY|O_TRUNC` per upstream `cmd/promtool/main.go`) and
-`alloy validate --config.extra-args` (the `--flags-file` smuggling shape). Detector proven by
-mutation: deleting the `--junit` gate makes four deny-corpus cases fail *falsely allowed*.
-`error_budget.py` stays human-run — the no-code-execution stance is deliberate doctrine, not an
-oversight to fix.
+**2. Guard widenings — PARTIAL `[verified]`.** `promtool check` is observability-lane only.
+`promtool test` remains denied because its upstream harness creates a temporary disk-backed TSDB
+even without `--junit`; `alloy validate` remains denied because resolving `import.http` or
+`import.git` can initiate outbound requests, including URLs assembled from environment-backed
+expressions. Both require a human lane or an isolated, networkless scratch runner. The deny corpus
+was updated first and produced eight expected failures against the widened guard before the guard
+was narrowed. `error_budget.py` stays human-run — the no-code-execution stance is deliberate
+doctrine, not an oversight to fix.
 
 **3. Canary tokens — DONE `[verified]`.** `scripts/check_canary_tokens.py` enforces uniqueness
 wherever tokens appear plus presence in the two fully-adopted bundles, registered in Gate A and

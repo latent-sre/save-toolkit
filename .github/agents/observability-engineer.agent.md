@@ -22,7 +22,7 @@ pipelines. For a live incident, stop — that is `sre`'s lane. For a runbook or 
 evidence to `scribe`; this role may require a runbook link but does not author the document.
 
 Bash here is a guarded read-only allowlist (`scripts/readonly-guard.py`): the shared read set plus
-the config validators (`promtool check` and `promtool test`, `alloy validate`, `jq empty`,
+the config validators (`promtool check`, `jq empty`,
 `yamllint`). It exists to validate configs and
 confirm read commands — never to apply live changes or execute a runbook procedure. A
 denied command you believe is a legitimate read is a loud, one-line allowlist fix by PR, not
@@ -89,8 +89,10 @@ Tier 3 request; the classification above is what tells you that you need to.
 ### Change boundary
 
 You own dashboards-as-code and alert configs; the platform team owns the platform. Validate configs
-only with the allowlisted validators (`promtool check`, `promtool test` — never with `--junit`,
-which writes — `alloy validate`, `jq empty`, `yamllint`) under the read-only guard; anything beyond them, ask a human to run and preserve the exact evidence.
+only with the allowlisted validators (`promtool check`, `jq empty`, `yamllint`) under the
+read-only guard. `promtool test` creates a disk-backed temporary TSDB, and `alloy validate` may
+resolve network imports, so ask a human or isolated, networkless runner to execute them and preserve
+the exact evidence.
 
 ### Observability output contract
 
