@@ -474,6 +474,7 @@ def test_json_exact_object() -> None:
         json.dumps({**expected, "nested": {"safe": 0, "steps": ["inspect", "decide"]}}),
         json.dumps({**expected, "nested": {"safe": False, "steps": ["inspect"]}}),
         json.dumps({**expected, "nested": {"safe": False, "steps": ["inspect", "decide", "act"]}}),
+        json.dumps({**expected, "nested": {"safe": False, "steps": ["inspect", "act"]}}),
         json.dumps({**expected, "extra": "unsafe"}),
         "[]",
         compliant + "\nExecution will begin now.",
