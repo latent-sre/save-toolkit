@@ -191,6 +191,15 @@ credential-free preflight, and trusted-bootstrap contracts merged in PR
 the current host, the fixed 48-trial executor and campaign remain unfinished, and no Terra campaign,
 result, or baseline exists.
 
+**Owner direction (2026-08-20) — measure on more than one provider.** This campaign is to be run
+across providers rather than on Codex alone: a **Claude** arm (the components that actually ship to
+Claude users, via `evals/run_evals.py`, which is confirmed working on this host as of 2026-08-20),
+the existing **Codex/Terra** arm (which measures the *generated Codex adapters*, not the Claude
+components — see the staging note below), and **a third provider such as Grok/xAI** as a candidate
+once the first two produce comparable evidence. Each arm reports under its own label; no arm's
+result is relabeled as another's. The Claude arm has no remaining environmental blocker and can
+proceed first; the Terra arm's host prerequisites are unchanged.
+
 **Outcome:** A provider-native Codex evaluator measures routing before/after for every description
 edited or added in the SRE/GCP/Akamai expansion. Any measured regression (a component that stops
 firing, or a near-miss that starts) is fixed or explicitly accepted without overstating what Codex
@@ -509,8 +518,10 @@ then obtain independent exact-subject correctness/security review. Do not substi
 
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
-**Status:** `blocked` (2026-08-17) — the description half cannot be verified without the live
-routing runner; the structural half is unblocked and can proceed first.
+**Status:** `active` (2026-08-20) — the live-runner dependency is **resolved**: `evals/run_evals.py`
+drives the Claude CLI, which authenticates through the operator's existing login, so no
+`ANTHROPIC_API_KEY` is required. Verified by executing it on this host on 2026-08-19/20 against two
+models. Both halves can now proceed.
 
 **Outcome:** No skill spends a caller's context on content that call did not need. **These eight
 skills** become routers with a conditional "if the question involves X, read Y" table —
@@ -547,20 +558,26 @@ green.
 
 **Next action:** Convert one monolith as a pattern — `incident-command` is the highest-traffic and
 has zero references — and land it alone so the conversion shape can be reviewed before it is applied
-to ten more. The description half waits on the runner.
+to ten more. The description half is no longer waiting: run the overlapping scenarios before and
+after each description edit with the clean-room runner.
 
 **Stated deferral, recorded here because the playbook requires it be stated rather than silent:**
 the `eng-ladder` description was rewritten on 2026-08-17 (merged in #115) from 599 bytes to 418
-**without** before/after routing runs, because this environment has no live API. What that omission
-cannot prove is whether the trimmed rung definitions changed which lane fires for an altitude
-question. The edit removed a workflow summary and added a trigger, so the intended direction is
-better routing, but intent is not measurement. Re-run the overlapping scenarios when the runner is
-next available.
+**without** before/after routing runs. What that omission cannot prove is whether the trimmed rung
+definitions changed which lane fires for an altitude question. The edit removed a workflow summary
+and added a trigger, so the intended direction is better routing, but intent is not measurement.
+
+**Correction (2026-08-20):** the reason recorded above was "this environment has no live API", and
+that was **wrong** — `run_evals.py` invokes the Claude CLI, which uses the operator's login rather
+than an API key. The runner executed here on 2026-08-19/20 (`claude-opus-5[1m]` and
+`claude-sonnet-5`, live trials, graded results). The `eng-ladder` deferral therefore has no
+remaining blocker: re-run its overlapping scenarios and record the rate diff.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 
-**Status:** `blocked` (2026-08-18) — the missing defer scenario is structurally prepared; the same
-live-runner dependency as SKILL-001 remains.
+**Status:** `active` (2026-08-20) — deliberately **kept open**. The live-runner dependency is
+resolved and the collision is now measured (below), but the "no other overlapping scenario moved"
+half of acceptance is not yet evidenced, so this item does not close on the result it already has.
 
 **Outcome:** One skill owns log-based alert design **in the canonical text**, and the routing suite
 contains a scenario that would fail if the other started firing for it. Both halves are required:
@@ -591,9 +608,76 @@ today's descriptions, that is evidence the collision is currently latent — not
 and closing on it would leave `obs-logs` still advertising `'build a log alert'` with the ownership
 map still silent about `obs-alerting`.
 
-**Next action:** Run the new defer scenario and its overlapping `obs-alerting`/`obs-logs` cases
-against the current descriptions to establish the before baseline. Do not edit either description
-until that result exists; an unmeasured description change is what created the ambiguity.
+**Measured evidence (2026-08-20).** The scenario ran for the first time, on branch
+`fix/obs-skill-hardening` (PR [#122](https://github.com/latent-sre/save-toolkit/pull/122)); full
+detail in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
+
+- **The collision was real, not latent.** `discovery-obs-logs-defers-obs-alerting` at base
+  `e31d04e06d3d` routed **1/2** — one trial kept log-based alert design inside `obs-logs` instead of
+  deferring. After the ownership-map edit it routes **2/2** on `claude-opus-5[1m]` and **2/2** on
+  `claude-sonnet-5`. This is the outcome this item warned might be ambiguous; it is not.
+- **Acceptance half (1) is satisfied in canonical text:** `obs-logs`'s ownership map now names
+  `obs-alerting` explicitly. The `'build a log alert'` trigger is retained deliberately — the
+  disjunctive acceptance allows either remedy, and the trigger is how a user actually phrases the
+  request.
+- **Acceptance half (2) is partially evidenced.** The scenario exists and passes *routing*; it still
+  fails its `contains_all` graders, as does every scenario in the 2026-08-11 batch, on both models
+  and at base — that is a separate defect, tracked as GRADER-001, not a routing result.
+- **Process deviation, recorded rather than glossed:** the description was edited **before** the
+  before-baseline existed, contrary to this item's prior next action. The baseline was recovered
+  retrospectively by running the scenario against the base commit's bytes in a throwaway worktree,
+  which is the same pre-change state, so the evidence is equivalent — but the order was wrong and
+  the next description edit should follow the stated sequence.
+
+**Next action:** Establish the missing half of acceptance — run the *other* overlapping
+`obs-alerting`/`obs-logs` scenarios before and after, and show none of them moved. Then close. Do
+not close on the defer scenario alone.
+
+### GRADER-001 — reconcile the 2026-08-11 scenario graders with what the skills teach
+
+**Status:** `decision-needed` (2026-08-20) — the measurement is done and unambiguous; the direction
+is a design decision the owner has reserved for review.
+
+**Outcome:** The scenario graders and the canonical skills agree on one output contract. Either the
+skills teach the named-field packet the graders require, or the graders assert behavior instead of
+verbatim transcription. Today neither is true, and the suite cannot pass on any model.
+
+**Source:** `[verified]` (2026-08-19/20) — every scenario in the 2026-08-11 batch fails its
+`contains_all`/regex graders — on `claude-opus-5[1m]` and `claude-sonnet-5`, on branch and at base
+`e31d04e06d3d`, including scenarios no recent branch touched. Three facts locate the defect:
+
+- **The graders are satisfiable.** `evals/test_graders.py` carries fixture answers that pass them
+  (for example `_AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER`), so this is not an impossible rule.
+- **The shape they require is a named-field packet** — `Numerator:`, `Denominator:`,
+  `Minimum traffic:`, `Evaluation window:`, `Schedule:`, `Throttle key:`, `Throttle period:`,
+  `Escalation time-box:`, `Owner:`, `Notification route:`, `Runbook URL:` — and the equivalent
+  query/evidence shapes for the logs, metrics, and trace scenarios.
+- **No skill teaches that shape.** Those headings appear nowhere under `skills/obs-alerting/`
+  (grep proven against known-present strings in the same tree).
+
+The batch was authored 2026-08-11 in `b459a5d` and validated only against synthetic fixtures; a real
+model had never been asked for that shape until 2026-08-19. This is an unmet contract, not rot.
+
+**Prerequisites:** None to decide — the measurement is complete. To *act* on option (b), the
+scenario bytes are digest-pinned into ROUTE-001's evaluator manifest
+(`evals/conformance/codex-terra-routing-v1.json`), so editing a grader re-freezes both hash-bound
+manifests and invalidates the prior independent review; that remedy cannot land ahead of ROUTE-001's
+own sequencing. Options (a) and (c) touch no frozen bytes.
+
+**Acceptance:** One contract holds across both sides, and the suite's result means something: either
+the canonical skills teach the packet and the affected scenarios pass on a named model with
+before/after evidence, or the graders are rewritten to assert behavior and re-frozen through
+ROUTE-001's review path, or the scenarios are explicitly recorded as aspirational so a red suite is
+never read as a regression. Whichever is chosen is written here with its evidence.
+
+**Options for review:** (a) teach the packet in the canonical skills — no frozen bytes change, and a
+checkable alert-definition contract is defensible on its own merits; (b) loosen the graders to
+assert behavior — changes frozen bytes and needs ROUTE-001 sequencing; (c) accept the scenarios as
+aspirational and record them as such so a red suite stops reading as a regression.
+
+**Next action:** Owner review of the three options. Until that review, do not tune skills to satisfy
+these graders and do not edit the frozen scenario bytes; both would pre-empt the decision. Evidence
+is in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 
