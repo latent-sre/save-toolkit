@@ -46,6 +46,8 @@ STRUCTURAL_STEPS = [
      ["scripts/check_plan_status.py"], None),
     ("No stale unit names",
      ["scripts/check_stale_names.py"], None),
+    ("Reference-read canary tokens",
+     ["scripts/check_canary_tokens.py"], None),
     ("Fleet, plugin, and generated adapter contracts",
      ["scripts/validate_fleet.py"], None),
     ("Fleet-improvement records satisfy their schema",

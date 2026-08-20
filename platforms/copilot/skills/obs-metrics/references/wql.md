@@ -7,6 +7,22 @@ syntax and behavior statements are sourced from current VMware Aria Operations f
 documentation; all metric names, tags, counter types, alert policies, and tenant capabilities remain
 unverified until checked against the team's target.
 
+**Lifecycle — `[sourced]` (reviewed 2026-08-19).** The platform continues as **Broadcom DX
+OpenExplore**: Broadcom TechDocs introduces it as built "using Aria Operations for Applications
+(Wavefront) and the DX platform" and maintains Wavefront release notes under
+`techdocs.broadcom.com/us/en/ca-enterprise-software/it-operations-management/dx-openexplore/saas/`
+(updated February 2026). The 2025-10-31 end-of-availability (support.broadcom.com announcement
+25153) retired the VMware *Tanzu Observability* offering, not the engine or WQL. docs.wavefront.com
+remains online but its source is **frozen**: at `wavefrontHQ/docs@0492d79` the newest release-notes
+entry is 2024-09.x (a 2024-10.x entry sits committed but commented out) and the string "OpenExplore"
+appears nowhere in the repository `[sourced: GitHits grep/read of wavefrontHQ/docs@0492d79]`. WQL
+syntax below therefore remains valid as of that freeze; any language change after 2024 appears only
+in the DX OpenExplore TechDocs. The public proxy repository is likewise closed off:
+`wavefrontHQ/wavefront-proxy`'s README declares the repo read-only and reference-only, with Proxy
+14.0+ no longer built from the public sources — proxy updates and security fixes come from
+Broadcom, not GitHub `[sourced: wavefrontHQ/wavefront-proxy@7b217ea README]`. `stack-profile` stays
+the authority on what the team runs today.
+
 Primary references:
 
 - [WQL reference](https://docs.wavefront.com/query_language_reference.html)
@@ -44,12 +60,17 @@ ts(app.http.requests.count, app="checkout" and env="prod")
 
 ## Aggregate and group — reject the fabricated aggregation clause
 
-WQL has no PromQL-style aggregation `by` clause. Group an aggregation with trailing parameters:
-`sum(ts(app.http.requests.count), app)`. WQL's separate `by (...)` construct controls series matching
-across operators; `join()` is an alternative. Do not translate PromQL postfix aggregation syntax into
-a WQL aggregation.
+WQL has no PromQL-style **postfix** aggregation clause — `sum(...) by (...)` written after the
+closing parenthesis is the fabrication to reject. Group an aggregation with trailing parameters,
+`sum(ts(app.http.requests.count), app)`, or with the documented inner form
+`sum(ts(app.http.requests.count) by (app))` — the two are equivalent, and `without (...)` also
+exists. WQL's separate `by (...)` construct additionally controls series matching across operators;
+`join()` is an alternative. Do not translate PromQL postfix aggregation syntax into a WQL
+aggregation.
 
-*[sourced: WQL `sum()` and series-matching documentation; unverified for target metric and tag]*
+*[sourced: WQL `sum()` and series-matching documentation; the trailing-parameter / inner-`by`
+equivalence is byte-verified at wavefrontHQ/docs@0492d79
+`pages/doc/query_language_aggregate_functions.md:147-151`; unverified for target metric and tag]*
 
 ```text
 sum(ts(app.http.requests.count), app)
@@ -156,7 +177,9 @@ Test the expected reporting interval separately from an ordinary threshold. For 
 per minute, a five-minute count should be interpreted against that cadence; a known series that stops
 and a selector that has never matched are different conditions.
 
-*[sourced: WQL `mcount()` and missing-data alert guidance; unverified for target interval/metric]*
+*[sourced: WQL `mcount()` and missing-data alert guidance, byte-verified at
+wavefrontHQ/docs@0492d79 `pages/doc/alerts_missing_data.md:54-77`; unverified for target
+interval/metric]*
 
 ```text
 mcount(5m, ts(app.http.requests.count, app="checkout")) < 5
@@ -165,7 +188,8 @@ mcount(5m, ts(app.http.requests.count, app="checkout")) < 5
 For a sustained gap, `mcount()` can decay to zero and later stop returning a series. Holding the last
 known count across a bounded window is one documented candidate for keeping the condition evaluable.
 
-*[sourced: WQL missing-data alert guidance; unverified for target interval, lifecycle, and metric]*
+*[sourced: WQL missing-data alert guidance, byte-verified at wavefrontHQ/docs@0492d79
+`pages/doc/alerts_missing_data.md:164`; unverified for target interval, lifecycle, and metric]*
 
 ```text
 last(1h, mcount(3m, ts(app.http.requests.count, app="checkout"))) = 0

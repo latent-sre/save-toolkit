@@ -9,6 +9,16 @@ config for the exact environment. Syntax below is `[sourced]` to the official Al
 sources; Alloy releases minors every ~3 weeks, so re-check component arguments against the
 deployed version's reference page.
 
+## Contents
+
+- The configuration model
+- Pipeline shapes (adapt labels/endpoints to the environment)
+- Discipline that stays regardless of syntax
+- Debugging a running Alloy
+- Backpressure and loss — where data quietly dies
+- Health-check the pipeline itself
+- End-to-end canary
+
 ## The configuration model
 
 Config is **attributes** (`key = value`) plus **blocks**; a component is a top-level block
@@ -104,6 +114,12 @@ see the `obs-traces` skill's Cloud Trace reference; the exporter auth block for 
 - HTTP server with a **debugging UI at `/`**, default `127.0.0.1:12345`
   (`--server.http.listen-addr`); endpoints `/metrics`, `/-/ready`, `/-/healthy`, `/-/reload`,
   `/-/support` (support bundle). *[sourced: troubleshoot/debug; reference/http]*
+- **`alloy validate <config>`** is a documented CLI command (alongside `run`, `fmt`, `convert`) —
+  validate before any `/-/reload`. It is not allowed by the read-only guard: validation resolves
+  `import.http` and `import.git`, so an untrusted config can initiate outbound requests (including
+  a URL assembled from environment-backed expressions). Ask a human or use an isolated,
+  networkless runner; `alloy fmt -w`, `alloy run`, and `alloy tools` also stay denied.
+  *[sourced: reference/cli, re-checked 2026-08-19; current stable v1.18.1]*
 - **Live debugging** (per-component data stream in the UI) is disabled by default "to avoid
   accidentally displaying sensitive telemetry data"; enable deliberately, in non-prod first:
 

@@ -14,7 +14,7 @@ Concrete values for the `obs-logs` skill. The agent loads this on demand.
 
 ## Correlation fields (so we can trace one request across services)
 
-- Request/correlation id field: `<field_name>` (e.g. `request_id`, `traceId`, `x_request_id`)
+- Request/correlation id field: `<field_name>` (e.g. `request_id`, `trace_id`, `x_request_id`)
 - User/session id field: `<field_name>`
 - If a service doesn't emit one, that's a finding → ask `sde` to add it.
 
@@ -24,6 +24,8 @@ Concrete values for the `obs-logs` skill. The agent loads this on demand.
 |---|---|---|
 | `status` | `<auto / props.conf / rex>` | HTTP status |
 | `latency_ms` | `<rex pattern>` | per-request latency |
+| `error_type` | `<auto / props.conf / rex>` | failure class — the SPL top-offender searches depend on it |
+| `service` | `<auto / props.conf / rex>` | emitting service, for breakdowns and correlation |
 
 ## Saved searches & dashboards
 

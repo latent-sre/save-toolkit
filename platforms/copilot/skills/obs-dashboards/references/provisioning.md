@@ -68,14 +68,18 @@ Do not treat an in-browser edit as durable until it passes the pull request work
 
 ## Grafana 13 Git Sync alternative
 
-Grafana 13 documents Git Sync as generally available. Use it only when the target edition and repository
+Grafana 13 documents Git Sync as generally available. 13.0.0 shipped a Git Sync upgrade bug that
+could lose or revert dashboards — enter via 13.0.1 or later *[sourced: Grafana release notes,
+re-checked 2026-08-19]*. Use it only when the target edition and repository
 policy permit it. Record the configured repository, branch, path, folder behavior, service identity, and
 review protection; never place a token in dashboard JSON or this inventory. File provisioning remains a
 valid path and is the default when Git Sync has not been admitted locally.
 
-Toolchain status, reviewed 2026-08-07 *[sourced: grafana.com/docs "Observability as code" section;
-indirect retrieval]*: the **Foundation SDK** (Go/TypeScript/Python/Java/PHP typed dashboard
-definitions) is the documented programmatic path; **Grizzly is deprecated**; and the dashboard
+Toolchain status, reviewed 2026-08-07, re-checked 2026-08-19 against live pages *[sourced:
+grafana.com/docs "Observability as code" section]*: the **Foundation SDK** (Go/TypeScript/Python/
+Java/PHP typed dashboard definitions) is the documented programmatic path; **Grizzly is
+deprecated**, its successor **`grafanactl` was archived 2026-06-01**, and the as-code docs now name
+**`gcx`** as the Grafana CLI; and the dashboard
 model now has three schemas — **V2 Resource (current)**, V1 Resource, and the pre-v12.2 "Classic"
 `schemaVersion` JSON that community sharing still uses. State which schema a dashboard uses in its
 inventory row; a V2-only feature silently degrades when pasted into a Classic-consuming path.

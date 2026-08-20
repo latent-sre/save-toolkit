@@ -59,7 +59,8 @@ differently by client and server spans.
 ## Read stable attributes in context
 
 Use attributes only when the target emits them. Older HTTP and database instrumentation may remain on
-earlier conventions in its existing major version, so a valid stable-name query can be empty while a
+earlier conventions in its existing major version (the stable sets landed in semconv v1.23.x for
+HTTP and v1.33.0 for databases), so a valid stable-name query can be empty while a
 legacy field exists. Inventory observed fields rather than silently rewriting queries or treating an
 empty result as proof of no traffic.
 

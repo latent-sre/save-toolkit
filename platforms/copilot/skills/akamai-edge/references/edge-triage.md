@@ -6,6 +6,14 @@ Sources reviewed 2026-08-07 against official `techdocs.akamai.com` pages via ind
 (search extraction and indexed snapshots — not byte-level fetches). Re-verify byte-exact values
 against the live page before treating any of them as `[verified]` for the target account.
 
+## Contents
+
+- Edge Diagnostics (Control Center → Test & troubleshoot)
+- Cache status via debug headers — know which mechanism the property supports
+- DataStream 2 — the sustained/fleet-wide evidence
+- Offload and error reports (Control Center → Reporting)
+- App & API Protector (WAF) — "is the WAF blocking real users?"
+
 ## Edge Diagnostics (Control Center → Test & troubleshoot)
 
 The read-only triage suite; it also has an API (Edge Diagnostics API). The four tools that matter
@@ -80,17 +88,21 @@ Two completeness caveats that change conclusions:
 - **Latency profile trade-off**: "low latency" streams deliver *less complete* data within ~5
   minutes; "log completeness" delivery is fuller within ~60 minutes. **Absence of log lines in the
   first minutes is not absence of traffic.**
-- **Delivery drops are real**: on 429/5xx the stream retries up to 10 times within 5 minutes;
-  timeouts and other failures are *not* retried — lines can be silently dropped *[sourced:
-  …/docs/faq]*.
+- **Delivery drops are real**: on 429/5xx the stream retries up to 10 times within 5 minutes; on
+  destination connection problems it retries 3 times, then the data is lost — there is no backup
+  copy, so lines can silently disappear *[sourced: …/docs/faq, re-checked 2026-08-19]*.
 
 ## Offload and error reports (Control Center → Reporting)
 
-The **Traffic report** shows hits/volume/offload over time split into edge, midgress, and origin
-traffic; total offload = (edge − origin) / edge × 100. It filters by response type (Error vs
-Success), class (2XX…), and individual code — the fast way to see "did origin errors rise while
-edge stayed flat" *[sourced: techdocs.akamai.com/reporting/docs/traffic-rpts]*. The Reporting API
-v2 exposes the same as `delivery/traffic/current` (CP code is a required filter).
+The **Traffic report** (discontinued **2025-11-06**; its replacement is **Traffic by Hostname**)
+showed hits/volume/offload split into edge, midgress, and origin traffic, filtered by response
+type (Error vs Success), class (2XX…), and individual code — the fast way to see "did origin
+errors rise while edge stayed flat" *[sourced: techdocs.akamai.com/reporting/docs/traffic-rpts,
+re-checked 2026-08-19]*. The offload arithmetic `(edge − origin) / edge × 100` is a working
+definition, not a quoted formula — the API defines `offloadedHitsPercentage` in prose. The
+Reporting API v2 exposes the data as `delivery/traffic/current`; the CP-code filter is
+**optional** — omitted, the report covers all available CP codes *[sourced:
+…/reporting/reference/delivery-traffic-current, re-checked 2026-08-19]*.
 
 An offload drop with rising origin traffic and no config change is a cache-key or TTL question —
 check recent property activations *before* blaming origin capacity.

@@ -21,6 +21,8 @@ Primary reference:
 - Find a service span with an HTTP 5xx outcome
 - Find a service trace that also contains a database span
 - Find traces with repeated error-status spans for one service
+- Beyond these shapes — version-gated TraceQL
+- Limits and discard reasons — absence causes
 - Record the result boundary
 - Inert canary example
 
@@ -108,6 +110,28 @@ the following retains traces containing more than one matching error-status span
 
 Span error status and protocol response status are different evidence. Read
 [OpenTelemetry semantics](./otel-semantics.md) before interpreting either.
+
+## Beyond these shapes — version-gated TraceQL
+
+Current Tempo documents more than the `&&` spanset join used above: structural operators (`>`
+direct child, `>>` descendant, `<<` ancestor, `~` sibling), TraceQL metrics functions
+(`rate`, `count_over_time`, `quantile_over_time`, `compare`, `topk`), `select()`, and `event:` /
+`link:` / `instrumentation:` scopes. All are version- and block-format-gated (some need vParquet5+)
+— confirm the deployed Tempo version before using any of them in a shared query, and label the
+result with that version *[sourced: Tempo TraceQL construct-queries and metrics pages, re-checked
+2026-08-19]*.
+
+## Limits and discard reasons — absence causes
+
+A missing trace can be a limit casualty, not a telemetry gap. `max_bytes_per_trace` (upstream
+default 5000000 = 5 MB) is enforced in three places: ingestion refuses (`TRACE_TOO_LARGE: max size
+of trace (5000000) exceeded while adding 387 bytes`), compaction partially drops, and **search
+silently skips** oversized traces. Ingest discard reasons are observable as a `reason` label:
+`rate_limited` (`rate_limit_bytes`), `live_traces_exceeded` (`max_traces_per_user`),
+`trace_too_large`, and `invalid_trace_id`/`invalid_span_id`. Record the exact error or discard
+reason verbatim; write-side pressure is a pipeline finding for the `obs-pipeline` skill. Which
+limits bind this tenant is `[unverified]` until read from the deployed overrides. *[sourced:
+grafana/tempo@494bf22 manage-trace-ingestion and configuration docs]*
 
 ## Record the result boundary
 

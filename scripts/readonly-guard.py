@@ -336,14 +336,16 @@ _GCLOUD_DENY_FLAGS = frozenset({"--impersonate-service-account", "--flags-file"}
 # Commands only observability-engineer may run — it validates observability config; sre does not
 # need these, and the smaller each profile is, the better it fails.
 _OBS_ONLY = frozenset({"yamllint"})
-# `promtool` is verb-gated like git: only its `check` family reads (observability-only as well).
-_PROMTOOL_READ_VERB = "check"
+# `promtool check` parses configuration without starting the disk-backed rule-test harness.
+# `promtool test` is deliberately absent: even without --junit it creates a temporary TSDB.
+_PROMTOOL_READ_VERBS = frozenset({"check"})
 
 _REASON = (
     "Blocked: this is a read-only agent, and its Bash access is limited to an ALLOWLIST of "
     "read-only commands (cf app/apps/events/logs/routes/services, git diff/log/show/blame/status, "
     "rg, grep, ls, cat, head, find, gh pr view/diff, gcloud run services/revisions list/describe, "
-    "gcloud logging read, and similar filters). The command above is "
+    "gcloud logging read, and similar filters; the observability lane adds promtool check, "
+    "yamllint, and jq). The command above is "
     "not on that list. Note this agent may NOT execute code — no test runners, no scripts, no "
     "package managers — because running a repository's code is not a read-only act, whatever the "
     "command looks like. Inspect with reads, cite the builder's or CI's test evidence rather than "
@@ -553,7 +555,7 @@ def _segment_allowed(segment: list[str], agent: str) -> bool:
         return (
             agent == "observability-engineer"
             and bool(positionals)
-            and positionals[0] == _PROMTOOL_READ_VERB
+            and positionals[0] in _PROMTOOL_READ_VERBS
         )
     if command in _OBS_ONLY:
         return agent == "observability-engineer"

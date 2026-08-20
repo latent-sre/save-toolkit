@@ -22,6 +22,7 @@ Primary references:
 - Error ratio and burn-rate shape
 - Histogram p95
 - Recording rules, native histograms, remote_write — the parts around the query
+- Mimir per-tenant limits — typed `err-mimir-*` errors
 - Missing data and staleness
 - Inert canary example
 
@@ -48,7 +49,7 @@ increase derived from the counter's rate behavior.
 *[sourced: Prometheus `rate()`/`increase()` documentation; unverified for target metric/window]*
 
 ```promql
-sum(rate(http_requests_total{job="checkout"}[5m]))
+sum(rate(http_requests_total{app="checkout"}[5m]))
 ```
 
 *[sourced: Prometheus `rate()` and aggregation operators; unverified for target labels/window]*
@@ -123,8 +124,8 @@ needed to reconstruct an aggregate percentile. *[sourced: Prometheus histogram a
 ## Recording rules, native histograms, remote_write — the parts around the query
 
 *[sourced: prometheus.io practices/rules, specs/native_histograms, practices/remote_write, and the
-configuration reference; reviewed 2026-08-07 via indirect retrieval; unverified for the deployed
-Prometheus/Mimir versions]*
+configuration reference; reviewed 2026-08-07, re-verified 2026-08-19 against prometheus.io and the
+prometheus/prometheus CHANGELOG; unverified for the deployed Prometheus/Mimir versions]*
 
 - **Recording-rule naming is `level:metric:operations`** — aggregation level and labels of the
   output, the metric name (strip `_total` when rating a counter), then operations newest-first;
@@ -132,7 +133,7 @@ Prometheus/Mimir versions]*
 
   ```yaml
   - record: job_instance_mode:node_cpu_seconds:avg_rate5m
-    expr: avg by (job, instance, mode) (rate(node_cpu_seconds_total[5m]))
+    expr: avg without (cpu) (rate(node_cpu_seconds_total[5m]))
   ```
 
   A recording rule that pre-aggregates away the label an alert later needs is a quiet way to make
@@ -143,12 +144,34 @@ Prometheus/Mimir versions]*
   over a native histogram doesn't use `_bucket`/`le`, so the classic p95 shape above silently
   matches nothing against a native-only metric — check which representation the target scrapes
   before declaring "no data".
+- **Newer PromQL surface is version-gated**: duration expressions inside range selectors
+  (v3.13+) and the experimental extended range selectors (`promql-extended-range-selectors`,
+  anchored/smoothed variants that change `rate()` extrapolation when enabled) exist upstream —
+  keep them out of shared rules until the deployed Prometheus/Mimir version and flags are
+  confirmed. *[sourced: prometheus/prometheus CHANGELOG 3.7.0-3.14.0]*
 - **remote_write tuning knobs that matter** (`queue_config`): `capacity` (default 10000),
   `max_shards` (50), `max_samples_per_send` (2000), `batch_send_deadline` (5s); guidance:
   capacity ≈ 3–10× max_samples_per_send, and remote write adds roughly 25% memory overhead.
   Sustained `prometheus_remote_storage_*` failures/shard saturation mean the query you're running
   may be missing recent samples at the receiving end — a pipeline finding for the
   `obs-pipeline` skill, not a query rewrite.
+
+## Mimir per-tenant limits — typed `err-mimir-*` errors
+
+Mimir enforces per-tenant limits and rejects with typed error IDs; record the ID verbatim — it
+distinguishes "data absent" from "a guardrail fired", and the Mimir runbooks page
+(`docs/sources/mimir/manage/mimir-runbooks/` upstream) is the canonical lookup. *[sourced:
+grafana/mimir@a9cc6fc runbooks and configuration reference]*
+
+- Write-side — a pipeline finding for the `obs-pipeline` skill, not a query rewrite:
+  `err-mimir-max-series-per-user` (`-ingester.max-global-series-per-user`),
+  `err-mimir-max-series-per-metric` (built to catch instrumentation mistakes such as a timestamp
+  label), `err-mimir-max-active-series`, and `err-mimir-tenant-max-ingestion-rate` (token bucket;
+  upstream defaults `ingestion_rate` 10000 samples/s, `ingestion_burst_size` 200000).
+- Query-side — narrow the query (tighter selectors, shorter range, aggregate) rather than asking
+  for a mid-incident limit raise: `err-mimir-max-chunks-per-query` and its siblings.
+- Which limits bind this tenant is `[unverified]` until read from the deployed runtime
+  configuration; never quote upstream defaults as the tenant's limits.
 
 ## Missing data and staleness
 
