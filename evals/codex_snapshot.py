@@ -535,7 +535,7 @@ def materialize_snapshot(
     destination: Path | str,
     *,
     git_executable: Path | str = GIT_EXECUTABLE_PATH,
-    git_executable_sha256: str = GIT_EXECUTABLE_SHA256,
+    git_executable_sha256: str | None = None,
     command_runner: Callable[..., subprocess.CompletedProcess[bytes]] | None = None,
 ) -> SnapshotReceipt:
     """Materialize one fixed ROUTE-001 commit into an existing empty temp directory."""
@@ -554,8 +554,13 @@ def materialize_snapshot(
     except OSError as exc:
         raise SnapshotError("snapshot destination could not be inspected") from exc
 
+    expected_git_sha256 = (
+        GIT_EXECUTABLE_SHA256
+        if git_executable_sha256 is None
+        else git_executable_sha256
+    )
     git_binary, git_before = _pinned_git_executable(
-        Path(git_executable), expected_sha256=git_executable_sha256
+        Path(git_executable), expected_sha256=expected_git_sha256
     )
     command = [
         str(git_binary),
@@ -598,7 +603,7 @@ def materialize_snapshot(
         or _sha256_regular_file(
             git_binary, label="Git executable", max_bytes=MAX_GIT_EXECUTABLE_BYTES
         )
-        != git_executable_sha256
+        != expected_git_sha256
     ):
         raise SnapshotError("Git executable changed during snapshot materialization")
 
