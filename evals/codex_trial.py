@@ -155,6 +155,7 @@ class TrialContract:
     manifest_sha256: str
     prompt: str = dataclasses.field(repr=False)
     enable_multi_agent: bool = False
+    invocation_mode: str = "implicit-discovery"
 
 
 @dataclass(frozen=True)
@@ -214,6 +215,7 @@ class TrialResult:
     prompt_sha256: str
     exact_revision: bool
     tool_policy: str
+    invocation_mode: str
     runtime_facts: dict[str, object] | None = None
     trace_facts: dict[str, object] | None = None
     hook_facts: dict[str, object] | None = None
@@ -250,6 +252,7 @@ class TrialResult:
                 "approval_policy": codex_harness.APPROVAL_POLICY,
                 "timeout_s": codex_harness.TIMEOUT_SECONDS,
                 "tool_policy": self.tool_policy,
+                "invocation_mode": self.invocation_mode,
             },
             "state": self.state.value,
             "reason_codes": list(self.reason_codes),
@@ -1013,6 +1016,7 @@ def validate_trial_contract(
     *,
     manifest_sha256: str,
     manifest_path: Path = run_codex_routing.MANIFEST_PATH,
+    canary_body_probe: bool = False,
 ) -> TrialContract:
     """Bind a scenario object and trial coordinate to the fixed manifest shape."""
 
@@ -1063,6 +1067,21 @@ def validate_trial_contract(
     prompt = scenario.get("prompt")
     if not isinstance(prompt, str) or not prompt:
         raise TrialContractError("scenario prompt must be non-empty text")
+    if not isinstance(canary_body_probe, bool):
+        raise TrialContractError("canary body-probe selector must be boolean")
+    invocation_mode = "implicit-discovery"
+    if canary_body_probe:
+        if (
+            scenario_id != run_codex_routing.CANARY_SCENARIO_ID
+            or spec.trial != run_codex_routing.CANARY_TRIAL
+            or scenario.get("target")
+            != {"kind": "skill", "name": run_codex_routing.CANARY_EXPLICIT_SKILL}
+        ):
+            raise TrialContractError(
+                "explicit body probe is limited to the fixed development canary"
+            )
+        prompt = f"${run_codex_routing.CANARY_EXPLICIT_SKILL}\n\n{prompt}"
+        invocation_mode = "explicit-skill-body-probe"
     try:
         codex_harness.reject_credentials(prompt, location="scenario_prompt")
     except codex_harness.CredentialExposureError as exc:
@@ -1081,6 +1100,7 @@ def validate_trial_contract(
         manifest_sha256=manifest_sha256,
         prompt=prompt,
         enable_multi_agent=enable_multi_agent,
+        invocation_mode=invocation_mode,
     )
 
 
@@ -1969,6 +1989,7 @@ def _base_result(
             if contract.enable_multi_agent
             else "no-model-tools-non-root"
         ),
+        invocation_mode=contract.invocation_mode,
         runtime_facts=runtime_facts,
         trace_facts=trace_facts,
         hook_facts=hook_facts,
@@ -2090,6 +2111,7 @@ def run_preflight(
     manifest_sha256: str,
     exact_revision: bool,
     runtime_profile: codex_runtime.RuntimeProfile | None = None,
+    canary_body_probe: bool = False,
     temp_parent: Path | None = None,
     command_runner: CommandRunner = _default_command_runner,
 ) -> TrialResult:
@@ -2104,6 +2126,7 @@ def run_preflight(
         manifest_sha256=manifest_sha256,
         exact_revision=exact_revision,
         runtime_profile=runtime_profile,
+        canary_body_probe=canary_body_probe,
         credential_free_only=True,
         temp_parent=temp_parent,
         command_runner=command_runner,
@@ -2121,6 +2144,7 @@ def run_trial(
     manifest_sha256: str,
     exact_revision: bool,
     runtime_profile: codex_runtime.RuntimeProfile | None = None,
+    canary_body_probe: bool = False,
     temp_parent: Path | None = None,
     command_runner: CommandRunner = _default_command_runner,
     process_runner: ProcessRunner = launch_process,
@@ -2136,6 +2160,7 @@ def run_trial(
         manifest_sha256=manifest_sha256,
         exact_revision=exact_revision,
         runtime_profile=runtime_profile,
+        canary_body_probe=canary_body_probe,
         credential_free_only=False,
         temp_parent=temp_parent,
         command_runner=command_runner,
@@ -2153,6 +2178,7 @@ def _execute_trial(
     manifest_sha256: str,
     exact_revision: bool,
     runtime_profile: codex_runtime.RuntimeProfile | None,
+    canary_body_probe: bool,
     credential_free_only: bool,
     temp_parent: Path | None,
     command_runner: CommandRunner,
@@ -2169,6 +2195,7 @@ def _execute_trial(
             if runtime_profile is not None
             else run_codex_routing.MANIFEST_PATH
         ),
+        canary_body_probe=canary_body_probe,
     )
     if not isinstance(exact_revision, bool):
         raise TrialContractError("exact_revision must be a caller-supplied boolean")

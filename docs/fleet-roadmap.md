@@ -405,9 +405,17 @@ adapters refreshed. A separately authorized post-fix canary against exact image
 `sha256:086b63ee981e0997ce8f4201d4e6a85b1e05703cc2c939c0746540a925f59064`
 passed preflight but failed the same grader indices 0, 1, 3, and 4 while passing 2 and 5. The wording
 change therefore did not improve this measured sample, and the 48-trial campaign remains **NO-GO**.
-Before another prompt edit or paid call, determine offline whether the missing behavior is a routing,
-reference-loading, or response-shaping problem; the sanitized artifact cannot distinguish them.
-Any later canary still requires separate authorization and an independently reviewed exact candidate.
+Offline exact-source diagnosis now explains the no-delta result: Codex 0.148 discovers the staged
+`.agents/skills` catalog, but `skill_search = true` is shadow-only and the no-model-tools policy leaves
+no path for an implicit turn to open a filesystem `SKILL.md`. The failed requirements are all in the
+entrypoint, so conditional references are not involved; response shaping was never tested because the
+revised body never reached the model. The evaluator candidate therefore changes only the development
+canary into a fixed explicit `$gcp-ops` body-load probe and binds the derived prompt hash and evidence
+mode. The nineteen discovery inputs and 48-trial plan remain unchanged. That probe has not run live,
+does not repair or prove implicit routing, and cannot authorize the campaign. Any later canary still
+requires separate authorization and an independently reviewed exact candidate; the campaign remains
+**NO-GO** until review accepts its narrower description-mediated measurement or the routing
+instrument is changed.
 
 ## Repository work
 

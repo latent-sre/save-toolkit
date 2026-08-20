@@ -314,10 +314,56 @@ behavioral response evidence for this non-root trial. It does prove that this wo
 alter the measured grader outcome in the single authorized run. Another prompt edit or paid retry
 is not justified by the retained evidence.
 
+## Offline body-loading diagnosis and candidate correction
+
+`[verified]` Exact materialization and neutral staging of snapshot `7aef80a…` reproduced tree
+SHA-256 `b9167b5200994d8265a2c592c7730028e81aa6f3a7fb19646bce0ceffc052a10`; the generated
+`gcp-ops/SKILL.md` and both of its references were present. Every requirement behind failed grader
+indices 0, 1, 3, and 4 is in that entrypoint, so a missing conditional reference is not the cause.
+
+`[sourced]` Context7's current `/openai/codex` documentation confirms `.agents/skills` ancestor
+discovery and the requirement to read a selected filesystem `SKILL.md`. GitHits then resolved exact
+tag `rust-v0.148.0` to `3ba0f711642a888aec92a611a3f3b2211157ff89`: project roots are
+loaded in `codex-rs/ext/skills/src/host_roots.rs:136-179`; `skill_search` runs only shadow selection in
+`extension.rs:389-408`; explicit `$name` selection occurs in `selection.rs:49-75`; and only selected
+entries have their full body injected in `extension.rs:440-487`. The exact tagged source governs the
+version-specific conclusion; Context7 is current documentation, not a 0.148 pin.
+
+`[verified]` The evaluator's transformed model catalog exposes no model tools, and its configuration
+disables shell and unified execution. An implicit canary could therefore see skill metadata but had
+no route to load the changed body. The unchanged pre/post failure indices are expected under that
+boundary and do not measure the four-slot edit's response shaping.
+
+The one red-first candidate correction is canary-only: derive the authenticated development prompt
+as exact `$gcp-ops\n\n` plus the unchanged manifest prompt. The effective prompt SHA-256 is
+`65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3`; the trial records
+`explicit-skill-body-probe`, retains that exact digest in the compact canary result, and rejects that
+mode outside the fixed trial-1 canary coordinate. The nineteen discovery inputs, their hashes, and
+the 48-trial plan remain unchanged. This is a body-load and response-shaping diagnostic, not an
+implicit-routing result, and it has not been run live.
+
+`[verified]` The refreshed nine-file evaluator manifest is 1,173 bytes with SHA-256
+`92e2bdc5535fa8cf630cf3063f787bc9c1cff572c8f3a68b69219a4ead4c59c0`; all nine rows match
+their current file sizes and SHA-256 values. The focused evaluator suites pass 93 tests with six
+expected platform skips, and strict plugin validation passes. Gate A passes 42 of 43 steps in the
+linked development worktree; only `evals/test_codex_snapshot.py` rejects the worktree's `.git` file
+because its protected snapshot contract requires an ordinary `.git` directory. The unchanged
+26-test suite passes separately against the canonical ordinary Git directory with one Windows
+symlink-privilege skip. No product or test boundary was weakened to make that environmental result
+green.
+
+One known interpretation risk remains: the skill's four-slot block shows read commands in a Bash
+fence, while the scenario permits exactly one JSON fence. An offline literal response that follows
+both bodies passes graders 0-4 and fails grader 5; rendering the read commands as inline-code bullets
+passes all six. The candidate deliberately does not make a second skill/grader edit. A live probe
+must therefore be interpreted by its per-index movement, not by PASS/FAIL alone.
+
 ## What did not happen
 
 - No further live call followed the post-fix canary.
-- No 48-trial campaign, baseline, promotion, release, push, or pull request occurred.
+- No 48-trial campaign, baseline, promotion, or release occurred. Draft PR #124 carries the Linux
+  evaluator work; this historical section does not attest whether the later body-probe commit was
+  pushed.
 - No passing behavior or promotion verdict was recorded.
 - No verified monetary-cost claim is available; the token counts above are the recorded canary
   usage, not a price calculation.

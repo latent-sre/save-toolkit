@@ -177,6 +177,17 @@ class CampaignJournalTests(unittest.TestCase):
 
 
 class ContainerCommandTests(unittest.TestCase):
+    def test_canary_prompt_digest_matches_the_fixed_manifest_prompt(self) -> None:
+        manifest = run_codex_routing.load_manifest(
+            run_codex_routing.LINUX_MANIFEST_PATH
+        )
+        prompt = manifest["canary_scenario"]["prompt"]
+        expected = hashlib.sha256(
+            f"$gcp-ops\n\n{prompt}".encode("utf-8")
+        ).hexdigest()
+
+        self.assertEqual(expected, codex_container.CANARY_PROMPT_SHA256)
+
     def _inputs(self, root: Path, *, auth: bool) -> codex_container.ContainerInputs:
         repository = root / "repository"
         output = root / "output"
@@ -294,6 +305,8 @@ class ContainerCommandTests(unittest.TestCase):
         canary = {
             "state": "PASS",
             "reason_codes": ["observational-behavior-pass"],
+            "scenario": {"prompt_sha256": codex_container.CANARY_PROMPT_SHA256},
+            "configuration": {"invocation_mode": "explicit-skill-body-probe"},
             "trace": {"usage": usage},
             "verdict": {
                 "behavior": {
@@ -354,6 +367,8 @@ class ContainerCommandTests(unittest.TestCase):
                     "state": "PASS",
                     "reason_codes": ["observational-behavior-pass"],
                     "failed_grader_indices": [],
+                    "invocation_mode": "explicit-skill-body-probe",
+                    "prompt_sha256": codex_container.CANARY_PROMPT_SHA256,
                     "usage": usage,
                 },
             },
@@ -373,6 +388,8 @@ class ContainerCommandTests(unittest.TestCase):
         canary = {
             "state": "FAIL",
             "reason_codes": ["behavior-grader-failed"],
+            "scenario": {"prompt_sha256": codex_container.CANARY_PROMPT_SHA256},
+            "configuration": {"invocation_mode": "explicit-skill-body-probe"},
             "trace": {"usage": {}},
             "verdict": {
                 "behavior": {
@@ -405,7 +422,64 @@ class ContainerCommandTests(unittest.TestCase):
 
         self.assertEqual(2, exit_code)
         self.assertEqual([1], result["canary"]["failed_grader_indices"])
+        self.assertEqual(
+            "explicit-skill-body-probe", result["canary"]["invocation_mode"]
+        )
+        self.assertEqual(
+            codex_container.CANARY_PROMPT_SHA256,
+            result["canary"]["prompt_sha256"],
+        )
         self.assertNotIn("private grader detail", json.dumps(result))
+
+    def test_canary_rejects_a_missing_explicit_probe_mode(self) -> None:
+        payload = {
+            "state": "PASS",
+            "reason_codes": ["observational-behavior-pass"],
+            "trace": {"usage": {}},
+            "verdict": {
+                "behavior": {
+                    "grader_count": 1,
+                    "passed_count": 1,
+                    "graders": [{"index": 0, "passed": True}],
+                }
+            },
+        }
+        process = subprocess.CompletedProcess(
+            ("codex",), 0, json.dumps(payload), ""
+        )
+
+        result, exit_code = codex_container._canary_result(process)
+
+        self.assertEqual(3, exit_code)
+        self.assertEqual("INCONCLUSIVE", result["state"])
+        self.assertEqual(["canary-output-invalid"], result["reason_codes"])
+        self.assertIsNone(result["invocation_mode"])
+
+    def test_canary_rejects_a_wrong_explicit_probe_prompt_digest(self) -> None:
+        payload = {
+            "state": "PASS",
+            "reason_codes": ["observational-behavior-pass"],
+            "scenario": {"prompt_sha256": "0" * 64},
+            "configuration": {"invocation_mode": "explicit-skill-body-probe"},
+            "trace": {"usage": {}},
+            "verdict": {
+                "behavior": {
+                    "grader_count": 1,
+                    "passed_count": 1,
+                    "graders": [{"index": 0, "passed": True}],
+                }
+            },
+        }
+        process = subprocess.CompletedProcess(
+            ("codex",), 0, json.dumps(payload), ""
+        )
+
+        result, exit_code = codex_container._canary_result(process)
+
+        self.assertEqual(3, exit_code)
+        self.assertEqual("INCONCLUSIVE", result["state"])
+        self.assertEqual(["canary-output-invalid"], result["reason_codes"])
+        self.assertIsNone(result["prompt_sha256"])
 
     def test_canary_rejects_inconsistent_grader_facts(self) -> None:
         preflight = {
@@ -420,6 +494,8 @@ class ContainerCommandTests(unittest.TestCase):
         canary = {
             "state": "FAIL",
             "reason_codes": ["behavior-grader-failed"],
+            "scenario": {"prompt_sha256": codex_container.CANARY_PROMPT_SHA256},
+            "configuration": {"invocation_mode": "explicit-skill-body-probe"},
             "trace": {"usage": {}},
             "verdict": {
                 "behavior": {
@@ -490,6 +566,8 @@ class ContainerCommandTests(unittest.TestCase):
                 "state": None,
                 "reason_codes": ["preflight-failed"],
                 "failed_grader_indices": None,
+                "invocation_mode": None,
+                "prompt_sha256": None,
                 "usage": None,
             },
             result["canary"],

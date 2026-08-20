@@ -79,7 +79,8 @@ one paid trial. That single command validates all live inputs, runs the same ima
 networkless first, stops if preflight fails, and otherwise runs one authenticated canary with no retry.
 It prints and writes only this compact summary to `<output-root>/canary-result.json`: image ID,
 preflight result, canary state/reason codes, failed numeric grader indices for a valid behavioral
-verdict, and token usage when the accepted trace contains it.
+verdict, the exact canary invocation mode and prompt SHA-256, and token usage when the accepted trace
+contains it.
 Repeated development attempts update that one file; they do not require a new narrative review packet.
 Update durable campaign documentation only when a canary produces a valid verdict, the instrument
 contract changes, or the work is deliberately closed. Standalone `preflight` remains available for a
@@ -118,21 +119,32 @@ evidence. The report-authority contract fixes `source_review = not-verified-by-r
 authority decisions remain outside the model and runner.
 
 The 0.148 campaign accepts no provider-native activation event for a discovered filesystem skill.
-Skill positives and near-miss negatives are therefore labeled
-`behavioral-only-codex-0.148` and use the existing deterministic response graders. A passing answer
-does not prove exact skill activation, and a negative answer does not prove the forbidden skill was
-never internally injected. Root-scoped trials retain a stricter conservative boundary: the accepted
+Exact tagged source now establishes a stronger limit: with this evaluator's no-model-tools policy,
+an implicit discovery turn can see the project skill catalog but cannot load a filesystem skill body.
+`skill_search = true` runs selection only in shadow mode; Codex injects `SKILL.md` itself only after
+an explicit `$name`, structured, or path selection, while every other path requires a model-visible
+file read that this boundary deliberately removes. Skill positives and near-miss negatives are
+therefore description-mediated response observations, not skill-body behavior. The frozen campaign
+remains **NO-GO** until independent review accepts that narrower measurement or the routing
+instrument is changed; a green development canary cannot make that decision. Root-scoped trials
+retain a stricter conservative boundary: the accepted
 trace does not join a plaintext delegated task, terminal child result, and root consumption;
 `wait_agent` is mailbox-only. The two root-scoped active-incident cases therefore always return
 `INCONCLUSIVE` with `root-delegation-unobservable-v2`; response graders do not run for them.
 
-The fixed authenticated canary is instead the non-root
-`discovery-gcp-ops-cloud-run-startup` scenario. It disables multi-agent, permits only the fixed
-linear graders `contains_all`, `contains_any`, and `cloud_run_rollback_packet`, and rejects responses
-above 256 KiB total or 8 KiB per line before grading. The rollback grader accepts exactly one fenced
-JSON packet, binds its two command fields to the scenario's exact service and synthetic revision IDs,
-and rejects extra traffic commands, shell syntax, wrong weights, or mismatched context flags. The
-remaining seventeen non-root scenarios require zero command/collaboration receipts.
+The fixed authenticated development canary still uses the non-root
+`discovery-gcp-ops-cloud-run-startup` scenario, but its execution prompt is now derived as exact
+`$gcp-ops\n\n` plus the unchanged manifest-bound discovery prompt. Codex 0.148 then injects the
+selected host `SKILL.md` without exposing a file tool. The derived prompt SHA-256 is
+`65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3`, and the trial records
+`explicit-skill-body-probe`. This canary-only diagnostic tests body injection and response shaping;
+it is not an implicit-routing result and is rejected for every other scenario coordinate. It has not
+yet been run live. The canary disables multi-agent, permits only the fixed linear graders
+`contains_all`, `contains_any`, and `cloud_run_rollback_packet`, and rejects responses above 256 KiB
+total or 8 KiB per line before grading. The rollback grader accepts exactly one fenced JSON packet,
+binds its two command fields to the scenario's exact service and synthetic revision IDs, and rejects
+extra traffic commands, shell syntax, wrong weights, or mismatched context flags. The remaining
+seventeen non-root scenarios require zero command/collaboration receipts.
 
 The evaluator stages only exact Git-object skill and custom-agent projections into a neutral Codex
 project. Terra's stock 0.147 metadata would force code mode and expose `apply_patch`, which can read

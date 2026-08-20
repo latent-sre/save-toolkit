@@ -19,6 +19,7 @@ IMAGE_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 MODES = frozenset({"preflight", "canary", "campaign"})
 CONTAINER_USER = "65532:65532"
 CANARY_RESULT_NAME = "canary-result.json"
+CANARY_PROMPT_SHA256 = "65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3"
 MAX_CHILD_JSON_BYTES = 1024 * 1024
 ENTRYPOINT = [
     "/usr/local/bin/python3.12",
@@ -337,6 +338,16 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
     payload = _json_object(process.stdout)
     state = payload.get("state") if payload is not None else None
     reasons = _reason_codes(payload.get("reason_codes")) if payload is not None else None
+    configuration = payload.get("configuration") if payload is not None else None
+    invocation_mode = (
+        configuration.get("invocation_mode")
+        if isinstance(configuration, dict)
+        else None
+    )
+    scenario = payload.get("scenario") if payload is not None else None
+    prompt_sha256 = (
+        scenario.get("prompt_sha256") if isinstance(scenario, dict) else None
+    )
     failed_grader_indices = (
         _failed_grader_indices(payload)
         if payload is not None and state in {"PASS", "FAIL"}
@@ -350,6 +361,8 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
     if (
         state not in {"PASS", "FAIL", "INCONCLUSIVE"}
         or reasons is None
+        or invocation_mode != "explicit-skill-body-probe"
+        or prompt_sha256 != CANARY_PROMPT_SHA256
         or not behavior_result_valid
     ):
         return (
@@ -359,6 +372,8 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
                 "state": "INCONCLUSIVE",
                 "reason_codes": ["canary-output-invalid"],
                 "failed_grader_indices": None,
+                "invocation_mode": None,
+                "prompt_sha256": None,
                 "usage": None,
             },
             3,
@@ -370,6 +385,8 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
             "state": state,
             "reason_codes": reasons,
             "failed_grader_indices": failed_grader_indices,
+            "invocation_mode": invocation_mode,
+            "prompt_sha256": prompt_sha256,
             "usage": _usage(payload),
         },
         process.returncode,
@@ -399,6 +416,8 @@ def run_development_canary(inputs: ContainerInputs) -> tuple[int, dict[str, obje
             "state": None,
             "reason_codes": ["preflight-failed"],
             "failed_grader_indices": None,
+            "invocation_mode": None,
+            "prompt_sha256": None,
             "usage": None,
         },
     }

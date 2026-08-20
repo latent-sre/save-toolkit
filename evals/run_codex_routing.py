@@ -56,6 +56,8 @@ THRESHOLD = 1.0
 BEFORE_REVISION = "a39a81f33f7ad7325c52d883822bbbdd80c7ed28"
 CURRENT_REVISION = "7aef80aede95394f6c4237ed2aedb911e141c3c0"
 CANARY_SCENARIO_ID = "discovery-gcp-ops-cloud-run-startup"
+CANARY_EXPLICIT_SKILL = "gcp-ops"
+CANARY_TRIAL = 1
 CANARY_CANONICAL_SHA256 = (
     "5c516ab15a31cd26923193b97ab69e7c16337ef8ab916bf43706c3047f79fd6b"
 )
@@ -544,7 +546,7 @@ def canary_spec(
         scenario_id=CANARY_SCENARIO_ID,
         cohort="current_only",
         revision=CURRENT_REVISION,
-        trial=1,
+        trial=CANARY_TRIAL,
         scenario_sha256=str(matches[0]["sha256"]),
     )
 
@@ -842,7 +844,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.preflight:
                 spec = canary_spec(manifest, args.scenario_id)
                 result = codex_trial.run_preflight(
-                    scenario=manifest["canary_scenario"], spec=spec, **common
+                    scenario=manifest["canary_scenario"],
+                    spec=spec,
+                    canary_body_probe=True,
+                    **common,
                 )
             elif args.campaign:
                 if live_scenarios is None or args.campaign_root is None:
@@ -882,6 +887,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     auth_file=args.auth_file,
                     scenario=manifest["canary_scenario"],
                     spec=spec,
+                    canary_body_probe=True,
                     **common,
                 )
         except (KeyError, OSError, ValueError) as exc:

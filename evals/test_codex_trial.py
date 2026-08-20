@@ -2,6 +2,7 @@
 """Contract tests for the isolated one-trial Codex/Terra executor."""
 from __future__ import annotations
 
+import dataclasses
 import json
 import hashlib
 import contextlib
@@ -1327,6 +1328,81 @@ class TrialExecutionTests(unittest.TestCase):
                 _scenario(),
                 _spec(),
                 manifest_sha256="0" * 64,
+            )
+
+    def test_canary_body_probe_binds_the_explicit_skill_and_effective_prompt_hash(self) -> None:
+        scenario = _scenario()
+
+        contract = codex_trial.validate_trial_contract(
+            scenario,
+            _spec(),
+            manifest_sha256=_manifest_sha256(),
+            canary_body_probe=True,
+        )
+
+        expected_prompt = f"$gcp-ops\n\n{scenario['prompt']}"
+        self.assertEqual(expected_prompt, contract.prompt)
+        self.assertEqual(
+            hashlib.sha256(expected_prompt.encode("utf-8")).hexdigest(),
+            contract.prompt_sha256,
+        )
+        self.assertEqual("explicit-skill-body-probe", contract.invocation_mode)
+        result = codex_trial._base_result(
+            contract,
+            state=codex_routing_grade.VerdictState.INCONCLUSIVE,
+            reason_codes=("credential-free-preflight-pass",),
+            exact_revision=False,
+        )
+        self.assertEqual(
+            "explicit-skill-body-probe",
+            result.as_dict()["configuration"]["invocation_mode"],
+        )
+
+    def test_ordinary_campaign_contract_remains_implicit_discovery(self) -> None:
+        scenario = _scenario()
+
+        contract = codex_trial.validate_trial_contract(
+            scenario,
+            _spec(),
+            manifest_sha256=_manifest_sha256(),
+        )
+
+        self.assertEqual(scenario["prompt"], contract.prompt)
+        self.assertEqual("implicit-discovery", contract.invocation_mode)
+
+    def test_explicit_body_probe_rejects_any_non_canary_coordinate(self) -> None:
+        scenario = _scenario()
+        scenario["id"] = "discovery-obs-logs-cloud-logging"
+        spec = run_codex_routing.TrialSpec(
+            scenario_id="discovery-obs-logs-cloud-logging",
+            cohort="paired",
+            revision=run_codex_routing.CURRENT_REVISION,
+            trial=1,
+            scenario_sha256="a" * 64,
+        )
+
+        with self.assertRaisesRegex(
+            codex_trial.TrialContractError, "fixed development canary"
+        ):
+            codex_trial.validate_trial_contract(
+                scenario,
+                spec,
+                manifest_sha256=_manifest_sha256(),
+                canary_body_probe=True,
+            )
+
+    def test_explicit_body_probe_rejects_a_second_campaign_trial_coordinate(self) -> None:
+        scenario = _scenario()
+        spec = dataclasses.replace(_spec(), trial=2)
+
+        with self.assertRaisesRegex(
+            codex_trial.TrialContractError, "fixed development canary"
+        ):
+            codex_trial.validate_trial_contract(
+                scenario,
+                spec,
+                manifest_sha256=_manifest_sha256(),
+                canary_body_probe=True,
             )
 
     def test_staged_entrypoint_trial_spec_has_one_shared_runtime_identity(self) -> None:
