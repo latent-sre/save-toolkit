@@ -321,7 +321,11 @@ typed-behavior contract test failed nine cases, then passed after the scenarios 
 converted. The first exact candidate, `3e284d8913828419b1428a5452f0172318411eee`, passed Gate A 40/40
 in a normal full-history checkout and strict plugin validation. A full `evals/graders.py` mutation
 sweep then exposed four under-tested branches in the new strict-JSON path and one missing invalid
-configuration case. The repair adds unequal nested-array, top-level-array, non-finite, and non-object
-expected-value fixtures and removes a redundant strict-zip branch. The repaired local candidate has
-529/529 grader checks green; it still requires a fresh exact-commit Gate A, mutation sweep, and
-independent Sol review before acceptance. No live routing-rate claim is made.
+configuration case. Repairs `ea9510d65c5b266d4bfcc126d0ec9173236b6ca9` and
+`e439e2ad71ca560239e7f59cee7e3e42d8bf7ea7` add missing/extra/equal-length-wrong nested arrays,
+top-level arrays, non-finite values, and non-object expected-value fixtures, and remove a redundant
+strict-zip branch. `[verified]` At exact `e439e2ad…`, 530/530 grader checks pass and the full mutation
+sweep leaves no surviving mutant in `json_exact_object`; 62 survivors remain elsewhere in the
+pre-existing grader module and are recorded as residual test debt, not a clean mutation score.
+Exact-commit Gate A and independent Sol review remain required before acceptance. No live
+routing-rate claim is made.
