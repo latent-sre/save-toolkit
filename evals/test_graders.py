@@ -988,6 +988,29 @@ def test_incident_navigation_incident_command_contract() -> None:
     check(not ok, "incident command contract: reordered canonical fields are rejected")
 
 
+def test_incident_navigation_security_command_config_validation() -> None:
+    valid = {
+        "required_incident_title": "Suspected checkout compromise",
+        "required_impact": "checkout integrity scope unknown",
+        "required_timeline": "18:04 credential alert",
+    }
+    for field, invalid in (
+        ("required_incident_title", 7),
+        ("required_impact", ""),
+        ("required_timeline", " 18:04 credential alert"),
+        ("required_timeline", "18:04 credential alert\n18:06 paged"),
+    ):
+        raised = False
+        try:
+            graders.incident_navigation_security_command_contract(
+                "",
+                **{**valid, field: invalid},
+            )
+        except ValueError:
+            raised = True
+        check(raised, f"security command contract: malformed {field} rejects: {invalid!r}")
+
+
 _KNOWN_ALERT_CONTRACT_ARGS = {
     "required_observed_fraction": "0.0004",
     "required_allowed_fraction": "0.001",
@@ -1102,6 +1125,34 @@ def test_incident_navigation_known_alert_contract() -> None:
             **_KNOWN_ALERT_CONTRACT_ARGS,
         )
         check(not ok, f"known alert contract: contradictory appendix rejected: {unsafe_appendix!r}")
+
+    zero_observed = _KNOWN_ALERT_CONTRACT_ANSWER.replace(
+        "Observed bad fraction: 0.0004 over",
+        "Observed bad fraction: 0 over",
+    ).replace("Burn rate: 0.4x", "Burn rate: 0x")
+    ok, _ = graders.incident_navigation_known_alert_contract(
+        zero_observed,
+        **{**_KNOWN_ALERT_CONTRACT_ARGS, "required_observed_fraction": "0"},
+    )
+    check(ok, "known alert contract: zero observed bad fraction remains valid")
+
+    for field, invalid in (
+        ("required_observed_fraction", "-0.1"),
+        ("required_allowed_fraction", "0"),
+        ("required_fast_threshold", "0"),
+        ("required_slow_threshold", "0"),
+        ("required_observed_fraction", "NaN"),
+        ("required_allowed_fraction", "Infinity"),
+    ):
+        raised = False
+        try:
+            graders.incident_navigation_known_alert_contract(
+                "",
+                **{**_KNOWN_ALERT_CONTRACT_ARGS, field: invalid},
+            )
+        except ValueError:
+            raised = True
+        check(raised, f"known alert contract: invalid numeric {field} rejects: {invalid!r}")
 
 
 def test_incident_navigation_exit_contract() -> None:
@@ -2602,6 +2653,7 @@ def main() -> int:
         test_incident_navigation_no_execution,
         test_incident_navigation_no_claimed_execution,
         test_incident_navigation_incident_command_contract,
+        test_incident_navigation_security_command_config_validation,
         test_incident_navigation_known_alert_contract,
         test_incident_navigation_exit_contract,
         test_run_grader_dispatch, test_gate_scenarios_adversarial,

@@ -1711,7 +1711,13 @@ def incident_navigation_known_alert_contract(
         slow_threshold = Decimal(required_slow_threshold)
     except InvalidOperation as exc:
         raise ValueError("known alert fractions and thresholds must be decimal values") from exc
-    if observed_number < 0 or allowed_number <= 0 or fast_threshold <= 0 or slow_threshold <= 0:
+    numeric_inputs = (observed_number, allowed_number, fast_threshold, slow_threshold)
+    if not all(value.is_finite() for value in numeric_inputs) or (
+        observed_number < 0
+        or allowed_number <= 0
+        or fast_threshold <= 0
+        or slow_threshold <= 0
+    ):
         raise ValueError("known alert numeric inputs must be within their positive domains")
     expected_burn = observed_number / allowed_number
 
