@@ -19,6 +19,9 @@ MODEL = "gpt-5.6-terra"
 REASONING_EFFORT = "medium"
 SANDBOX_MODE = "read-only"
 APPROVAL_POLICY = "never"
+# Codex hook payloads expose the approval posture, not the filesystem sandbox label.
+# In Codex 0.148, AskForApproval::Never serializes as this exact hook value.
+HOOK_PERMISSION_MODE = "bypassPermissions"
 TIMEOUT_SECONDS = 300
 TRIALS = 2
 
@@ -411,7 +414,7 @@ def _collab_fact(item: Mapping[str, object]) -> CollabToolFact:
 
 def _validate_usage(value: object) -> dict[str, int]:
     if not isinstance(value, Mapping) or set(value) != _USAGE_FIELDS:
-        raise TraceError("turn.completed usage does not match the Codex 0.147 schema")
+        raise TraceError("turn.completed usage does not match the Codex 0.148 schema")
     usage: dict[str, int] = {}
     for field in sorted(_USAGE_FIELDS):
         count = value[field]
@@ -436,7 +439,7 @@ def _decode_events(text: str) -> list[dict[str, object]]:
             raise TraceError(f"JSONL line {line_number} must contain an object")
         event_type = value.get("type")
         if not isinstance(event_type, str) or event_type not in _TOP_LEVEL_EVENTS:
-            raise TraceError(f"unknown Codex 0.147 event at line {line_number}")
+            raise TraceError(f"unknown Codex 0.148 event at line {line_number}")
         _reject_credentials(value, location=f"event[{line_number}]")
         events.append(value)
     if not events:
@@ -468,7 +471,7 @@ def _validate_completed_matches_started(
 
 
 def parse_jsonl(text: str, *, process_exit_code: int) -> ParsedTrace:
-    """Parse exactly one Codex CLI 0.147 turn and fail closed on ambiguity."""
+    """Parse exactly one Codex CLI 0.148 turn and fail closed on ambiguity."""
 
     if isinstance(process_exit_code, bool) or not isinstance(process_exit_code, int):
         raise TraceError("process exit code must be an integer")
@@ -674,9 +677,9 @@ def _validate_hook_common(
         raise HookReceiptError(
             f"{event_name}.model must be the exact authorized model {MODEL}"
         )
-    if permission_mode != SANDBOX_MODE:
+    if permission_mode != HOOK_PERMISSION_MODE:
         raise HookReceiptError(
-            f"{event_name}.permission_mode must be {SANDBOX_MODE}"
+            f"{event_name}.permission_mode must be {HOOK_PERMISSION_MODE}"
         )
     return session_id, model
 
@@ -696,7 +699,7 @@ def _canonical_json_sha256(value: object, *, field: str) -> str:
 
 
 def parse_hook_receipts(text: str) -> ParsedHookReceipts:
-    """Validate and reduce trusted Codex 0.147 hook receipts without retaining identities."""
+    """Validate and reduce trusted Codex 0.148 hook receipts without retaining identities."""
 
     receipts = _decode_hook_receipts(text)
     if receipts[0].get("hook_event_name") != "SessionStart":

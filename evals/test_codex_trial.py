@@ -84,7 +84,7 @@ def _hooks() -> codex_harness.ParsedHookReceipts:
         "cwd": "private-workspace",
         "hook_event_name": "SessionStart",
         "model": codex_harness.MODEL,
-        "permission_mode": codex_harness.SANDBOX_MODE,
+        "permission_mode": codex_harness.HOOK_PERMISSION_MODE,
         "source": "startup",
     }
     return codex_harness.parse_hook_receipts(json.dumps(payload, separators=(",", ":")))

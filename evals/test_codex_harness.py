@@ -105,7 +105,7 @@ def _session_start(
     *,
     session_id: str = "session-private-root",
     model: str = "gpt-5.6-terra",
-    permission_mode: str = "read-only",
+    permission_mode: str = "bypassPermissions",
 ) -> dict[str, object]:
     return {
         "session_id": session_id,
@@ -125,7 +125,7 @@ def _subagent_start(
     agent_id: str = "agent-private-1",
     agent_type: str = "save-toolkit-sre",
     model: str = "gpt-5.6-terra",
-    permission_mode: str = "read-only",
+    permission_mode: str = "bypassPermissions",
 ) -> dict[str, object]:
     return {
         "session_id": session_id,
@@ -151,7 +151,7 @@ def _post_tool_use(
     tool_response: object = None,
     tool_use_id: str = "tool-private-1",
     model: str = "gpt-5.6-terra",
-    permission_mode: str = "read-only",
+    permission_mode: str = "bypassPermissions",
 ) -> dict[str, object]:
     receipt: dict[str, object] = {
         "session_id": session_id,
@@ -180,6 +180,7 @@ class FixedConfigurationTests(unittest.TestCase):
         self.assertEqual(codex_harness.REASONING_EFFORT, "medium")
         self.assertEqual(codex_harness.SANDBOX_MODE, "read-only")
         self.assertEqual(codex_harness.APPROVAL_POLICY, "never")
+        self.assertEqual(codex_harness.HOOK_PERMISSION_MODE, "bypassPermissions")
         self.assertEqual(codex_harness.TIMEOUT_SECONDS, 300)
         self.assertEqual(codex_harness.TRIALS, 2)
 
@@ -559,6 +560,7 @@ class HookReceiptTests(unittest.TestCase):
                 _subagent_start(model="gpt-5.6-sol"),
             ],
             "wrong-root-permission": [_session_start(permission_mode="workspace-write")],
+            "sandbox-label-is-not-hook-mode": [_session_start(permission_mode="read-only")],
             "mixed-child-permission": [
                 _session_start(),
                 _subagent_start(permission_mode="workspace-write"),
