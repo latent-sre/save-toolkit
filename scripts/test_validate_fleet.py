@@ -638,6 +638,31 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("### PostgreSQL constraints and indexes", text)
         self.assertNotIn("CONTROL_MANAGEMENT_PACK_ACCESS", text)
 
+    def test_database_plan_reference_has_reconstructible_official_sources(self) -> None:
+        text = (
+            ROOT / "skills" / "database-reliability" / "references" / "query-plan-safety.md"
+        ).read_text(encoding="utf-8")
+
+        for source in (
+            "https://www.postgresql.org/docs/current/using-explain.html",
+            "set-showplan-xml-transact-sql",
+            "set-statistics-xml-transact-sql",
+            "/19/dblic/Licensing-Information.html",
+            "/19/refrn/CONTROL_MANAGEMENT_PACK_ACCESS.html",
+            "/19/arpls/DBMS_XPLAN.html",
+        ):
+            self.assertIn(source, text)
+
+    def test_terra_readme_does_not_claim_stale_descriptions_are_current_equivalent(self) -> None:
+        text = (ROOT / "evals" / "README.md").read_text(encoding="utf-8")
+        flattened = validate_fleet._flatten(text)
+
+        self.assertNotIn(
+            "stays routing-equivalent, because no `description:` line changed", flattened
+        )
+        self.assertIn("not routing-equivalent to HEAD", flattened)
+        self.assertIn("must not be reported as current routing evidence", flattened)
+
     def test_typescript_unknown_outcome_requires_an_ambiguous_response(self) -> None:
         text = (
             ROOT / "skills" / "language-idiom" / "references" / "typescript.md"

@@ -1268,6 +1268,35 @@ def test_pcf_stale_green_requires_reconciliation_and_unique_identity() -> None:
         )
 
 
+_CRAFT_CHOICE_CONTRACTS = {
+    "discovery-backend-craft-api-endpoint.yaml": {
+        "contract": ("explicit_request_response_schema", "implicit_contract"),
+        "upstream_timeout": ("finite", "unbounded"),
+        "idempotency_scope": ("principal_operation_request_fingerprint", "unscoped"),
+        "concurrent_duplicate_test": ("required", "omitted"),
+        "implementation": ("not_started", "started"),
+    },
+    "discovery-backend-craft-upload-validation.yaml": {
+        "metadata_validation": ("actual_bytes_and_metadata", "declared_metadata_only"),
+        "parser": ("maintained_decoder", "none"),
+        "metadata_mismatch_test": ("required", "omitted"),
+        "parsing_bound": ("required", "omitted"),
+        "implementation": ("not_started", "started"),
+    },
+    "discovery-frontend-craft-product-form.yaml": {
+        "ui_kind": ("product_form", "internal_dashboard"),
+        "framework_source": ("existing_repository", "imposed_default"),
+        "state_contract": ("loading_error_empty_success_minimum", "happy_path_only"),
+        "interaction_contract": (
+            "labels_keyboard_visible_focus_minimum",
+            "pointer_only",
+        ),
+        "browser_verification": ("narrow_wide_real_browser", "unit_only"),
+        "implementation": ("not_started", "started"),
+    },
+}
+
+
 def test_batch3_typed_behavior_contracts() -> None:
     try:
         import yaml  # noqa: F401
@@ -1302,23 +1331,42 @@ def test_batch3_typed_behavior_contracts() -> None:
         if len(grader_specs) != 1 or grader_specs[0].get("type") != "json_exact_object":
             continue
         expected = grader_specs[0]["expected"]
-        if filename in (
-            "discovery-backend-craft-api-endpoint.yaml",
-            "discovery-frontend-craft-product-form.yaml",
-        ):
+        if filename in _CRAFT_CHOICE_CONTRACTS:
             check(
                 all(not isinstance(value, list) for value in expected.values()),
-                f"{filename}: open-ended craft evidence is summarized by closed scalars, not exact arrays",
+                f"{filename}: craft choices use closed scalar enums, not exact open-ended arrays",
+            )
+            prompt = re.sub(r"\s+", " ", scenario["prompt"].casefold())
+            expected_first: list[bool] = []
+            for field, (right, wrong) in _CRAFT_CHOICE_CONTRACTS[filename].items():
+                check(expected.get(field) == right, f"{filename}: {field} uses its reviewed enum")
+                right_first = f"{field}: {right} | {wrong}"
+                wrong_first = f"{field}: {wrong} | {right}"
+                check(
+                    right_first in prompt or wrong_first in prompt,
+                    f"{filename}: prompt closes both choices for {field}",
+                )
+                expected_first.append(right_first in prompt)
+                wrong_choice = dict(expected)
+                wrong_choice[field] = wrong
+                check(
+                    not grade_all(grader_specs, json.dumps(wrong_choice)),
+                    f"{filename}: incorrect closed choice for {field} is REJECTED",
+                )
+            check(
+                any(expected_first) and not all(expected_first),
+                f"{filename}: correct choices are not exposed by a fixed option position",
             )
         compliant = json.dumps(expected, separators=(",", ":"))
         check(grade_all(grader_specs, compliant), f"{filename}: exact typed response passes")
         prompt = scenario["prompt"]
-        for value in _closed_string_values(expected):
-            if "_" in value or value.isupper():
-                check(
-                    value not in prompt,
-                    f"{filename}: prompt does not disclose expected value {value!r}",
-                )
+        if filename not in _CRAFT_CHOICE_CONTRACTS:
+            for value in _closed_string_values(expected):
+                if "_" in value or value.isupper():
+                    check(
+                        value not in prompt,
+                        f"{filename}: prompt does not disclose expected value {value!r}",
+                    )
         check(not grade_all(grader_specs, scenario["prompt"]), f"{filename}: prompt echo is REJECTED")
         check(
             not grade_all(grader_specs, compliant + "\nContradictory implementation prose."),

@@ -8,8 +8,13 @@ target:
 prompt: |
   Add an avatar-upload endpoint. The draft trusts the filename extension and declared Content-Type,
   does not parse the uploaded bytes, and has no decompression or parser limit. Before implementation,
-  return exactly one JSON decision record and no prose with fields metadata_only, byte_parser,
-  metadata_mismatch_test, parsing_bound, and implementation. Use concise snake_case state values.
+  return exactly one JSON decision record and no prose. Choose exactly one listed value for every
+  field:
+  - metadata_validation: declared_metadata_only | actual_bytes_and_metadata
+  - parser: maintained_decoder | none
+  - metadata_mismatch_test: omitted | required
+  - parsing_bound: required | omitted
+  - implementation: started | not_started
 routing:
   expect: fire
 success_criteria:
@@ -19,8 +24,8 @@ success_criteria:
 graders:
   - type: json_exact_object
     expected:
-      metadata_only: rejected
-      byte_parser: required
+      metadata_validation: actual_bytes_and_metadata
+      parser: maintained_decoder
       metadata_mismatch_test: required
       parsing_bound: required
       implementation: not_started

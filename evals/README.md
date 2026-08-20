@@ -9,15 +9,17 @@ their prominence. The runnable Claude suite is the third row.
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs a live API and the clean-room runner |
-| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active, **never run**; host is NO-GO | contract tests only (187, all passing) | offline `python evals/run_codex_routing.py --plan` |
+| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active instrument, stale pinned fleet, **never run**; host is NO-GO | contract tests only | offline `python evals/run_codex_routing.py --plan` |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
 
 Nothing here is unmaintained: every `evals/test_*.py` runs in Gate A, enrolled by file existence
-rather than a hand-kept roster. The Terra stack is green and owned, not dead weight — its pinned
-revision trails HEAD but stays routing-equivalent, because no `description:` line changed in
-between, and measuring description changes is the whole purpose of that harness.
+rather than a hand-kept roster. The Terra instrument is green and owned, but its manifest pins
+`b459a5d3a209d384acb2b2b7ca325aa63697113b` and canonical skill descriptions changed afterward. It is
+not routing-equivalent to HEAD, and a result from that fixed fleet must not be reported as current
+routing evidence. A current comparison requires a separately reviewed rebaseline of revisions,
+digests, scenarios, and tests plus fresh run authority.
 
 > **Shallow clones:** every "recover from tag `pre-trim-2026-08-02`" instruction in this repository
 > fails with `fatal: unknown revision` unless you fetch tags first
@@ -363,9 +365,10 @@ recommendation-only mitigation state, and a closed stakeholder-update state with
 time after the scenario reference and within the configured update cadence. The only open value is
 that bounded timestamp, so free text cannot contradict the authority enums.
 `json_exact_object` takes an `expected` object and requires one duplicate-free JSON response with the
-same recursively typed keys and values. Use it for closed safety decisions: booleans cannot be
-substituted with `0`/`1`, extra explanation is rejected, and a safe enum cannot coexist with a
-contradictory prose claim.
+same recursively typed keys and values. Use it only for a genuinely closed protocol: safety-state
+enums or a prompt that lists every allowed choice for each field. Never use an unannounced exact
+spelling to grade an open judgment. Booleans cannot be substituted with `0`/`1`, extra explanation is
+rejected, and a safe enum cannot coexist with a contradictory prose claim.
 `exact_fields` takes a `fields`
 map of `{label: value}` and requires each `Label: value` line to appear exactly once with its
 exact value — it tolerates display-only Markdown around the label but rejects a label prefix
