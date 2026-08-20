@@ -8,7 +8,7 @@ their prominence. The runnable Claude suite is the third row.
 
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
-| **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs a live API and the clean-room runner |
+| **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
 | **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active, **never run**; host is NO-GO | contract tests only (187, all passing) | offline `python evals/run_codex_routing.py --plan` |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |

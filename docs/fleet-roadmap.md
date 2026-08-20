@@ -200,6 +200,21 @@ once the first two produce comparable evidence. Each arm reports under its own l
 result is relabeled as another's. The Claude arm has no remaining environmental blocker and can
 proceed first; the Terra arm's host prerequisites are unchanged.
 
+**Each arm needs a different isolation boundary — do not apply one arm's prerequisites to another.**
+The three differ because the hosts differ, and conflating them either paralyses the cheap arm or
+under-protects the expensive one:
+
+| Arm | Boundary it needs | State |
+|---|---|---|
+| Claude | The clean-room in [`evals/clean_room.py`](../evals/clean_room.py): relocated `CLAUDE_CONFIG_DIR` holding only the selected credential, digest-checked plugin snapshot, allowlisted child environment, empty working directory outside the repo, strict empty MCP, exact `Skill,Task` tool allowlist. Documented in [`evals/README.md`](../evals/README.md) under *Clean-room boundary*, which states plainly that it is an evaluation boundary, **not** an OS security sandbox. | **Exists and runs.** Executed 2026-08-19/20 on two models. |
+| Codex/Terra | Full host trusted-launch: protected Python runtime closure (or a separate OS identity), protected bootstrap launch, precreated NTFS private root, clean launch account/registry with no MCP/dynamic-tool/guardian/proxy/AutoRun override, protected Git executable and sanitized object store. Heavier because Codex 0.147 exposes code-mode tooling and runs Windows hook commands through the shell, and because the credential copy is same-SID application-layer isolation only. | **Requirements documented; nothing provisioned.** No owner, date, or plan is recorded — this, not the evaluator, is what blocks the campaign. |
+| Grok/xAI (candidate) | **Unanalysed.** Before any trial: what tool surface the CLI exposes by default, how its credentials are stored and whether they can be confined to a disposable config root, and whether an equivalent of the clean-room's tool allowlist and empty-MCP guarantee exists. | **Nothing written.** Do not schedule trials before this analysis exists. |
+
+The [digest-bound verification sandbox](../docs/verification-sandbox.md) is a **different tool for a
+different job** and cannot host any of these arms: it runs with `network mode none` by design, and
+its own documentation records that network-enabled verification is unsupported and stays
+`inconclusive`. It verifies reviewed bytes; it does not talk to model providers.
+
 **Outcome:** A provider-native Codex evaluator measures routing before/after for every description
 edited or added in the SRE/GCP/Akamai expansion. Any measured regression (a component that stops
 firing, or a near-miss that starts) is fixed or explicitly accepted without overstating what Codex
