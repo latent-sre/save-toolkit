@@ -524,56 +524,42 @@ def exact_fields(response: str, fields: dict) -> tuple[bool, str]:
 _NAV_APOSTROPHES = str.maketrans({"‘": "'", "’": "'", "ʼ": "'"})
 
 
-def incident_navigation_positive_relation(
+def incident_navigation_exact_fact(
     response: str,
+    required_line: str,
     anchor: str,
-    required_terms: list[str],
 ) -> tuple[bool, str]:
-    """Require one supplied fact relation and reject a directly negated anchor clause."""
+    """Require one supplied fact as one exact line and one bounded anchor occurrence.
 
-    if not isinstance(anchor, str) or not anchor.strip() or anchor != anchor.strip():
-        raise ValueError("positive relation anchor must be one exact non-empty value")
-    if (
-        not isinstance(required_terms, list)
-        or not required_terms
-        or any(
-            not isinstance(term, str) or not term.strip() or term != term.strip()
-            for term in required_terms
-        )
-    ):
-        raise ValueError("positive relation required_terms must be non-empty exact strings")
-    normalized_terms = [term.casefold() for term in required_terms]
-    if anchor.casefold() not in normalized_terms:
-        raise ValueError("positive relation anchor must also appear in required_terms")
+    This deliberately grades a prompt-mandated copy operation rather than attempting to infer a
+    semantic relationship from arbitrary prose.  The bounded anchor count rejects both numeric
+    superstrings (``140%`` is not ``40%``) and a later contradictory restatement.
+    """
 
-    clauses = [
-        clause.strip()
-        for clause in re.split(r"[\r\n]+|(?<=[.!?])\s+", response)
-        if clause.strip()
-    ]
-    anchor_clauses = [
-        clause for clause in clauses if anchor.casefold() in clause.casefold()
-    ]
-    normalized_anchor_clauses = [
-        re.sub(
-            r"n['’]t\b",
-            " not",
-            clause.translate(_NAV_APOSTROPHES),
-            flags=re.IGNORECASE,
-        )
-        for clause in anchor_clauses
-    ]
-    if any(
-        re.search(r"\b(?:not|never|neither|no\s+longer|unaffected)\b", clause, re.IGNORECASE)
-        for clause in normalized_anchor_clauses
-    ):
-        return False, "a clause directly negates the supplied anchored relation"
-    if not any(
-        all(term in clause.casefold() for term in normalized_terms)
-        for clause in anchor_clauses
-    ):
-        return False, "no clause binds all required terms of the supplied relation"
-    return True, "supplied positive relation matched without a direct contradiction"
+    for name, value in (("required_line", required_line), ("anchor", anchor)):
+        if (
+            not isinstance(value, str)
+            or not value.strip()
+            or value != value.strip()
+            or "\n" in value
+            or "\r" in value
+        ):
+            raise ValueError(f"exact fact {name} must be one exact non-empty line value")
+    if anchor not in required_line:
+        raise ValueError("exact fact anchor must appear in required_line")
+
+    exact_lines = [line.strip() for line in response.splitlines()]
+    line_count = exact_lines.count(required_line)
+    bounded_anchor = re.compile(
+        rf"(?<![A-Za-z0-9]){re.escape(anchor)}(?![A-Za-z0-9])",
+        re.IGNORECASE,
+    )
+    anchor_count = len(bounded_anchor.findall(response))
+    if line_count != 1:
+        return False, f"required fact line appears {line_count} time(s), need exactly 1"
+    if anchor_count != 1:
+        return False, f"fact anchor appears {anchor_count} bounded time(s), need exactly 1"
+    return True, "one exact supplied fact line matched"
 
 
 _NAV_EFFECT_ACTION = (
@@ -741,11 +727,11 @@ _NAV_ESCALATION_NEGATED_TRIGGER = re.compile(
     r"persist(?:s|ed|ing)?|fail(?:s|ed|ing)?)\b",
     re.IGNORECASE,
 )
-_NAV_BRANCH_ACTION = re.compile(
-    r"\b(?:open|query|review|inspect|retrieve|check|graph|run|restart|deploy|scale|"
-    r"change|patch|reset|promote|execute|invoke|trigger|recycle|rotate|quarantine|isolate)\b",
-    re.IGNORECASE,
-)
+_NAV_RESULT_MEANINGS = {
+    "supports the question",
+    "does not support the question",
+    "result is inconclusive",
+}
 _NAV_DOCUMENTATION_GAP = re.compile(
     r"(?:none|(?:missing|stale) (?:service card|alert card|operations knowledge index|"
     r"runbook|dashboard|ownership record|evidence location) · proposed owner: "
@@ -1234,10 +1220,14 @@ def incident_navigation_contract(
                 f"{label}: must end with one exact allowed '· next owner: <owner>' binding"
             )
         elif branch_match:
-            interpretation = branch_match.group("interpretation")
-            result_interpretations[label] = " ".join(interpretation.casefold().split())
-            if _NAV_BRANCH_ACTION.search(interpretation):
-                problems.append(f"{label}: must interpret the result, not prescribe another action")
+            interpretation = " ".join(
+                branch_match.group("interpretation").casefold().split()
+            )
+            result_interpretations[label] = interpretation
+            if interpretation not in _NAV_RESULT_MEANINGS:
+                problems.append(
+                    f"{label}: interpretation must be one exact allowed result meaning"
+                )
     if (
         len(result_interpretations) == 2
         and result_interpretations["If result A"] == result_interpretations["If result B"]
@@ -1868,8 +1858,15 @@ def incident_navigation_known_alert_contract(
     required_owner: str,
     required_notification_route: str,
     required_runbook: str,
+    required_current_verdict: str,
+    required_paging_basis: str,
+    required_notification_actionability: str,
+    required_silence_boundary: str,
+    required_threshold_boundary: str,
+    required_verification_gaps: str,
 ) -> tuple[bool, str]:
-    """Bind a known-alert review to supplied fractions, pairings, custody, and gaps."""
+    """Bind a known-alert review to one closed, evidence-supplied field packet."""
+
     configured = {
         "required_observed_fraction": required_observed_fraction,
         "required_allowed_fraction": required_allowed_fraction,
@@ -1882,6 +1879,12 @@ def incident_navigation_known_alert_contract(
         "required_owner": required_owner,
         "required_notification_route": required_notification_route,
         "required_runbook": required_runbook,
+        "required_current_verdict": required_current_verdict,
+        "required_paging_basis": required_paging_basis,
+        "required_notification_actionability": required_notification_actionability,
+        "required_silence_boundary": required_silence_boundary,
+        "required_threshold_boundary": required_threshold_boundary,
+        "required_verification_gaps": required_verification_gaps,
     }
     _one_line_contract_values("known alert", configured)
     try:
@@ -1909,20 +1912,18 @@ def incident_navigation_known_alert_contract(
         "Owner",
         "Notification route",
         "Runbook",
+        "Current verdict",
+        "Paging basis",
+        "Notification actionability",
+        "Silence boundary",
+        "Threshold boundary",
+        "Verification gaps",
     )
-    lines = [line for line in response.splitlines() if line.strip()]
-    problems: list[str] = []
-    if len(lines) < len(labels):
-        problems.append(f"review has {len(lines)} non-empty line(s), need at least {len(labels)}")
-    values: dict[str, str] = {}
-    for index, label in enumerate(labels):
-        occurrences = _literal_field_occurrences(label, lines)
-        if len(occurrences) != 1:
-            problems.append(f"{label}: found {len(occurrences)} occurrence(s), need exactly 1")
-            continue
-        values[label] = occurrences[0]
-        if index >= len(lines) or not _literal_field_occurrences(label, [lines[index]]):
-            problems.append(f"{label}: must be initial field line {index + 1}")
+    values, problems = _closed_literal_packet(
+        response,
+        labels,
+        strict_plaintext=True,
+    )
 
     observed = values.get("Observed bad fraction", "")
     observed_match = re.fullmatch(
@@ -1951,138 +1952,23 @@ def incident_navigation_known_alert_contract(
         f"{required_fast_threshold}x; {required_slow_long_window} AND "
         f"{required_slow_short_window} at {required_slow_threshold}x"
     )
-    window_rule = values.get("Window rule", "")
-    if window_rule and window_rule.casefold() != expected_window_rule.casefold():
-        problems.append("Window rule: pairings or thresholds do not match the supplied definition")
-
-    for label, expected in (
+    exact_values = (
+        ("Window rule", expected_window_rule),
         ("Owner", required_owner),
         ("Notification route", required_notification_route),
         ("Runbook", required_runbook),
-    ):
+        ("Current verdict", required_current_verdict),
+        ("Paging basis", required_paging_basis),
+        ("Notification actionability", required_notification_actionability),
+        ("Silence boundary", required_silence_boundary),
+        ("Threshold boundary", required_threshold_boundary),
+        ("Verification gaps", required_verification_gaps),
+    )
+    for label, expected in exact_values:
         actual = values.get(label, "")
         if actual and actual.casefold() != expected.casefold():
-            problems.append(f"{label}: does not match the supplied value")
+            problems.append(f"{label}: does not match the supplied exact value")
 
-    narrative = " ".join(lines[len(labels) :])
-    if not re.search(
-        r"\b(?:should|does|is)\s+not\s+(?:currently\s+)?(?:fire|firing|page|paging)\b",
-        narrative,
-        re.IGNORECASE,
-    ):
-        problems.append("review must preserve the supplied non-firing verdict")
-    if re.search(
-        r"\b(?:alert\s+)?(?:(?:pages|fires)\s+(?:now|currently)|"
-        r"is\s+(?:(?:now|currently)\s+)?(?:firing|paging)|"
-        r"(?<!not )(?<!never )(?:now|currently)\s+"
-        r"(?:pages|fires|firing|paging|is\s+(?:firing|paging)))\b",
-        narrative,
-        re.IGNORECASE,
-    ):
-        problems.append("review claims the alert is currently firing")
-    symptom_sentence = any(
-        all(term in sentence.casefold() for term in ("pages", "user-facing", "checkout", "symptom"))
-        and re.search(r"\bnot\b[^.]{0,50}\bcause\b", sentence, re.IGNORECASE)
-        for sentence in re.split(r"(?<=[.!?])\s+", narrative)
-    )
-    if not symptom_sentence:
-        problems.append("review must bind paging to the checkout symptom, not a cause")
-    actionability_sentences = [
-        sentence
-        for sentence in re.split(r"(?<=[.!?])\s+", narrative)
-        if "notification" in sentence.casefold() and "actionable" in sentence.casefold()
-    ]
-    if not actionability_sentences or any(
-        not re.search(r"\b(?:not|unverified|conditional|pending)\b", sentence, re.IGNORECASE)
-        for sentence in actionability_sentences
-    ):
-        problems.append("review must give a bounded notification-actionability verdict")
-    if not re.search(
-        r"\bsilent alert\s+(?:"
-        r"is\s+not\s+(?:an?\s+)?all-clear\s+(?:or|nor)\s+(?:a\s+)?proof|"
-        r"is\s+neither\s+(?:an?\s+)?all-clear\s+nor\s+(?:a\s+)?proof)"
-        r"\s+of\s+(?:remaining\s+)?budget\b",
-        narrative,
-        re.IGNORECASE,
-    ):
-        problems.append("review must state that silence is not an all-clear or budget proof")
-    if re.search(
-        r"\bsilent alert\b[^.!?]{0,80}\b(?:proves?|is\s+(?:a\s+)?proof|"
-        r"shows?|confirms?|demonstrates?)\b[^.!?]{0,40}\b(?:remaining\s+)?budget\b",
-        narrative,
-        re.IGNORECASE,
-    ):
-        problems.append("review contradicts the silence and remaining-budget boundary")
-    if not (
-        "threshold" in narrative.casefold()
-        and "supported" in narrative.casefold()
-        and "evidence" in narrative.casefold()
-        and re.search(r"\b(?:no|not)\b[^.]{0,80}\bthreshold", narrative, re.IGNORECASE)
-    ):
-        problems.append("review must leave threshold changes unsupported by supplied evidence")
-    threshold_sentences = [
-        clause
-        for clause in re.split(
-            r"(?<=[.!?])\s+|[;,\n]+|\b(?:but|yet)\b",
-            narrative,
-            flags=re.IGNORECASE,
-        )
-        if "threshold" in clause.casefold()
-    ]
-    if any(
-        not (
-            (
-                "supported" in sentence.casefold()
-                and "evidence" in sentence.casefold()
-                and re.search(r"\b(?:no|not)\b", sentence, re.IGNORECASE)
-            )
-        )
-        for sentence in threshold_sentences
-    ):
-        problems.append("review contains a threshold statement outside the unsupported boundary")
-    for match in re.finditer(
-        r"\b(?:set(?:s|ting)?|tun(?:e|es|ed|ing)|chang(?:e|es|ed|ing)|"
-        r"adjust(?:s|ed|ing)?|rais(?:e|es|ed|ing)|increas(?:e|es|ed|ing)|"
-        r"decreas(?:e|es|ed|ing)|lower(?:s|ed|ing)?|reduc(?:e|es|ed|ing)|"
-        r"weaken(?:s|ed|ing)?)\b[^.]{0,50}\bthresholds?\b|"
-        r"\bthresholds?\b[^.]{0,40}\b(?:should|must|will)\b[^.]{0,20}"
-        r"\b(?:lowered|reduced|weakened)\b",
-        narrative,
-        re.IGNORECASE,
-    ):
-        prefix = narrative[max(0, match.start() - 30) : match.start()]
-        if not re.search(r"\b(?:do|does|is|are|was|were)\s+not\b|\bnever\b", prefix, re.IGNORECASE):
-            problems.append("review recommends an unsupported threshold change")
-            break
-    for required_gap in (
-        "window-specific measurements",
-        "fire/resolve",
-        "notification delivery",
-        "runbook resolution",
-    ):
-        if required_gap not in narrative.casefold():
-            problems.append(f"verification gap missing: {required_gap}")
-    if not re.search(r"\b(?:unverified|verification gaps?)\b", narrative, re.IGNORECASE):
-        problems.append("review must label the remaining verification gaps")
-    if re.search(r"\bverification gaps?\s*:\s*none\b", narrative, re.IGNORECASE):
-        problems.append("review contradicts the required verification gaps")
-    if re.search(
-        r"\b(?:service|checkout)\s+is\s+(?:healthy|in\s+budget)\b|\bwithin\s+budget\b",
-        narrative,
-        re.IGNORECASE,
-    ):
-        problems.append("review treats alert silence as service or budget proof")
-    symptom_claims = [
-        sentence
-        for sentence in re.split(r"(?<=[.!?])\s+", narrative)
-        if re.search(r"\bpages?\s+on\b", sentence, re.IGNORECASE)
-    ]
-    if any(
-        re.search(r"\b(?:cpu|infrastructure|internal)\b[^.]{0,30}\bcause\b", sentence, re.IGNORECASE)
-        and not re.search(r"\bnot\b[^.]{0,30}\bcause\b", sentence, re.IGNORECASE)
-        for sentence in symptom_claims
-    ):
-        problems.append("review separately claims cause-based paging")
     if _NAV_MODEL_ACTOR.search(response):
         problems.append("known-alert review assigns custody to a model/agent")
     no_execution, execution_detail = incident_navigation_no_claimed_execution(response)
@@ -2092,7 +1978,6 @@ def incident_navigation_known_alert_contract(
         not problems,
         "known-alert evidence matched" if not problems else "; ".join(problems),
     )
-
 
 REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "cloud_run_rollback_packet": cloud_run_rollback_packet,
@@ -2104,7 +1989,7 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "pcf_deploy_no_inline_execution": pcf_deploy_no_inline_execution,
     "json_artifact_statuses": json_artifact_statuses,
     "exact_fields": exact_fields,
-    "incident_navigation_positive_relation": incident_navigation_positive_relation,
+    "incident_navigation_exact_fact": incident_navigation_exact_fact,
     "incident_navigation_no_execution": incident_navigation_no_execution,
     "incident_navigation_no_claimed_execution": incident_navigation_no_claimed_execution,
     "incident_navigation_contract": incident_navigation_contract,

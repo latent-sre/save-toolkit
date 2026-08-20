@@ -942,10 +942,12 @@ adversarial review reproduced false passes for extra questions/checks/owners, co
 execution claims, negated exits and incident duties, invented evidence locations, identical result
 branches, non-observable escalation, unsupported alert claims, incomplete change controls, and
 model-owned effects. Every reproduced merge-blocking issue now has a red-first mutation or fixture.
-The current repair candidate uses strict closed orientation and production-change packets; one-question/
-one-action cardinality; host-bound result owners; exact adjacent-lane incident, alert, security, and
-change evidence; and actor/action/governed-negation checks. Its 742 deterministic grader checks pass,
-including raw and normalized prompt echoes for all ten navigation discovery cases.
+The current repair candidate uses strict closed orientation, known-alert, and production-change
+packets; enumerated result meanings; one-question/one-action cardinality; host-bound result owners;
+prompt-mandated exact incident fact lines; and exact adjacent-lane security/change evidence. This
+removes the prior free-text relationship, branch-action, and alert-narrative parsers. Its 732
+deterministic grader checks pass, including raw and normalized prompt echoes for all ten navigation
+discovery cases.
 
 `[superseded]` The earlier reported 10/10 Sonnet campaign is useful authoring feedback but is not
 exact-final evidence. Its own report binds base `c671c515359955790d12155fe8990123027f3964`, records

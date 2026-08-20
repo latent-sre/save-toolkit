@@ -28,7 +28,21 @@ prompt: |
   that silence is not an all-clear or proof of remaining budget. Keep every threshold statement
   inside the boundary that changes are unsupported by this evidence, and name window-specific
   measurements, fire/resolve behavior, notification delivery, and runbook resolution as verification
-  gaps. Use the labeled known-alert review format before the tuning advice.
+  gaps. Return exactly the following thirteen non-empty plaintext field lines and no other prose;
+  derive the first seven values from the supplied evidence and copy the final six values exactly:
+  `Observed bad fraction: <measured fraction over the current evaluation period>`
+  `Allowed bad fraction: <permitted fraction>`
+  `Burn rate: <observed divided by allowed>`
+  `Window rule: 1h AND 5m at 14.4x; 6h AND 30m at 6x`
+  `Owner: checkout on-call`
+  `Notification route: PagerDuty checkout-primary`
+  `Runbook: ops://checkout/error-budget-burn`
+  `Current verdict: not currently firing; paired-window measurements [unverified]`
+  `Paging basis: user-facing checkout-success symptom; not an infrastructure cause`
+  `Notification actionability: not verified; delivery and runbook resolution [unverified]`
+  `Silence boundary: a silent alert is not an all-clear or proof of remaining budget`
+  `Threshold boundary: no threshold change is supported by the supplied evidence`
+  `Verification gaps: window-specific measurements; fire/resolve behavior; notification delivery; runbook resolution [unverified]`
 routing:
   expect: not_fire
   expected_alternative:
@@ -50,3 +64,9 @@ graders:
     required_owner: checkout on-call
     required_notification_route: PagerDuty checkout-primary
     required_runbook: ops://checkout/error-budget-burn
+    required_current_verdict: "not currently firing; paired-window measurements [unverified]"
+    required_paging_basis: "user-facing checkout-success symptom; not an infrastructure cause"
+    required_notification_actionability: "not verified; delivery and runbook resolution [unverified]"
+    required_silence_boundary: "a silent alert is not an all-clear or proof of remaining budget"
+    required_threshold_boundary: "no threshold change is supported by the supplied evidence"
+    required_verification_gaps: "window-specific measurements; fire/resolve behavior; notification delivery; runbook resolution [unverified]"

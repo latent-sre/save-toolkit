@@ -70,8 +70,9 @@ an all-clear about budget status.
 
 ### Interpret a known alert definition
 
-When the requester supplies a complete SLI/SLO alert definition, begin the review with these literal
-labels. Derive the values from the supplied evidence; do not replace the labels with synonyms.
+When the requester supplies a complete SLI/SLO alert definition, return exactly these thirteen
+non-empty plaintext field lines and no other prose. Derive the values from the supplied evidence;
+do not replace the labels with synonyms, add a code fence, or append a narrative.
 
 Observed bad fraction: <measured bad-event fraction and window>
 Allowed bad fraction: <bad-event fraction permitted by the SLO>
@@ -80,10 +81,15 @@ Window rule: <long window> AND <short window> at <threshold>
 Owner: <named owner or [unverified]>
 Notification route: <named route or [unverified]>
 Runbook: <exact URL/path or [unverified]>
+Current verdict: <firing state and measurement boundary>
+Paging basis: <user-facing symptom and excluded cause>
+Notification actionability: <verdict and missing evidence>
+Silence boundary: <what silence does not prove>
+Threshold boundary: <supported tuning or unsupported by supplied evidence>
+Verification gaps: <remaining named gaps>
 
-After those labels, explain whether the notification should fire, whether it pages on a user-facing
-symptom, and which evidence-backed gap should be tuned. A silent alert is not proof that the service
-is healthy or that budget remains.
+Copy requester-supplied exact values into the six continuation fields when they are provided. A
+silent alert is not proof that the service is healthy or that budget remains.
 
 Read only the row needed for the task:
 

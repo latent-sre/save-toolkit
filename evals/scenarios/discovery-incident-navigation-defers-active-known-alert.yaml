@@ -18,7 +18,8 @@ prompt: |
   - Runbook: ops://checkout/error-budget-burn; owner: checkout on-call.
 
   Explain the fast and slow burn windows, assess current impact and severity, and start the active
-  investigation without changing production.
+  investigation without changing production. Copy this exact line once, with no second use of `72%`:
+  `Impact: 72% of checkout requests fail across three regions; trend: growing`
 routing:
   expect: not_fire
   expected_alternative:
@@ -36,9 +37,9 @@ graders:
     of: ["fast", "slow", "burn", "runbook"]
   - type: contains_all
     of: ["18:04 UTC", "checkout-214", "72%", "three regions", "0.001", "one-hour", "five-minute", "14.4", "six-hour", "thirty-minute", "above 6", "ops://checkout/error-budget-burn", "checkout on-call"]
-  - type: incident_navigation_positive_relation
+  - type: incident_navigation_exact_fact
     anchor: "72%"
-    required_terms: ["72%", "checkout", "requests", "three regions", "fail", "growing"]
+    required_line: "Impact: 72% of checkout requests fail across three regions; trend: growing"
   - type: regex
     pattern: '^Root cause:\s*(?:unknown|not established|unverified)\b'
   - type: incident_navigation_no_claimed_execution

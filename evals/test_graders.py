@@ -457,29 +457,25 @@ def test_exact_fields() -> None:
     check(raised, "exact_fields: empty fields mapping raises ValueError")
 
 
-def test_incident_navigation_positive_relation() -> None:
-    required = ["40%", "checkout requests", "two regions", "growing"]
+def test_incident_navigation_exact_fact() -> None:
+    required = "Blast radius: 40% of checkout requests across two regions; trend: growing"
+    ok, _ = graders.incident_navigation_exact_fact(required, required, "40%")
+    check(ok, "exact fact: one exact supplied line passes")
     for response in (
-        "Blast radius is 40% of checkout requests across two regions and is still growing.",
-        "40% of checkout requests across two regions remain affected, and impact is still growing.",
+        "Blast radius: 140% of checkout requests across two regions; trend: growing",
+        "40% of checkout requests across two regions remain affected; trend: growing",
+        required + "\nThe blast radius is not 40%.",
+        required + "\n" + required,
     ):
-        ok, _ = graders.incident_navigation_positive_relation(response, "40%", required)
-        check(ok, "positive relation: supplied fact paraphrase passes")
-    for response in (
-        "Blast radius is not 40% of checkout requests across two regions and is still growing.",
-        "Blast radius is 40% of checkout requests across two regions and is still growing. "
-        "The blast radius is not 40%.",
-        "Blast radius is 35% of checkout requests across two regions and is still growing.",
-    ):
-        ok, _ = graders.incident_navigation_positive_relation(response, "40%", required)
-        check(not ok, "positive relation: missing or directly contradicted fact is rejected")
-    for anchor, terms in (("", required), ("40%", []), ("40%", ["checkout"])):
+        ok, _ = graders.incident_navigation_exact_fact(response, required, "40%")
+        check(not ok, "exact fact: paraphrase, superstring, contradiction, or duplicate rejects")
+    for required_line, anchor in (("", "40%"), (required, ""), (required, "72%")):
         raised = False
         try:
-            graders.incident_navigation_positive_relation("", anchor, terms)
+            graders.incident_navigation_exact_fact("", required_line, anchor)
         except ValueError:
             raised = True
-        check(raised, "positive relation: malformed configuration raises")
+        check(raised, "exact fact: malformed configuration raises")
 
 
 def test_incident_navigation_contract() -> None:
@@ -491,8 +487,8 @@ Where to look: grafana://checkout-latency
 Question: Did request latency rise for checkout in the reported window?
 Signal owner: obs-metrics
 First safe check: Open grafana://checkout-latency.
-If result A: A rise bounds the investigation to checkout · next owner: sre
-If result B: No rise leaves the next question with the service owner · next owner: service owner
+If result A: supports the question · next owner: sre
+If result B: does not support the question · next owner: service owner
 Escalate when: Impact is major, growing, widespread, or unbounded · incident-command
 Documentation gaps: missing service card · proposed owner: service owner
 State changed: no"""
@@ -728,39 +724,39 @@ State changed: no"""
             "First safe check: Open grafana://checkout-latency.evil.",
         ),
         valid.replace(
-            "If result A: A rise bounds the investigation to checkout · next owner: sre",
-            "If result A: A rise bounds the investigation to checkout and hands it to sre",
+            "If result A: supports the question · next owner: sre",
+            "If result A: supports the question and hands it to sre",
         ),
         valid.replace(
-            "If result B: No rise leaves the next question with the service owner · next owner: service owner",
-            "If result B: No rise leaves the next question · next owner: observability-engineer",
+            "If result B: does not support the question · next owner: service owner",
+            "If result B: does not support the question · next owner: observability-engineer",
         ),
         valid.replace(
-            "If result A: A rise bounds the investigation to checkout · next owner: sre",
-            "If result A: No rise leaves the next question with the service owner · next owner: service owner",
+            "If result A: supports the question · next owner: sre",
+            "If result A: does not support the question · next owner: service owner",
         ),
         valid.replace(
-            "If result B: No rise leaves the next question with the service owner · next owner: service owner",
-            "If result B: A rise bounds the investigation to checkout · next owner: service owner",
+            "If result B: does not support the question · next owner: service owner",
+            "If result B: supports the question · next owner: service owner",
         ),
         valid.replace(
-            "If result A: A rise bounds the investigation to checkout · next owner: sre",
+            "If result A: supports the question · next owner: sre",
             "If result A: Query logs next · next owner: sre",
         ),
         valid.replace(
-            "If result A: A rise bounds the investigation to checkout · next owner: sre",
+            "If result A: supports the question · next owner: sre",
             "If result A: Next, query logs · next owner: sre",
         ),
         valid.replace(
-            "If result A: A rise bounds the investigation to checkout · next owner: sre",
+            "If result A: supports the question · next owner: sre",
             "If result A: First, query logs · next owner: sre",
         ),
         valid.replace(
-            "If result A: A rise bounds the investigation to checkout · next owner: sre",
+            "If result A: supports the question · next owner: sre",
             "If result A: Immediately query logs · next owner: sre",
         ),
         valid.replace(
-            "If result A: A rise bounds the investigation to checkout · next owner: sre",
+            "If result A: supports the question · next owner: sre",
             "If result A: Next step: query logs · next owner: sre",
         ),
         valid.replace(
@@ -1111,6 +1107,25 @@ _KNOWN_ALERT_CONTRACT_ARGS = {
     "required_owner": "checkout on-call",
     "required_notification_route": "PagerDuty checkout-primary",
     "required_runbook": "ops://checkout/error-budget-burn",
+    "required_current_verdict": (
+        "not currently firing; paired-window measurements [unverified]"
+    ),
+    "required_paging_basis": (
+        "user-facing checkout-success symptom; not an infrastructure cause"
+    ),
+    "required_notification_actionability": (
+        "not verified; delivery and runbook resolution [unverified]"
+    ),
+    "required_silence_boundary": (
+        "a silent alert is not an all-clear or proof of remaining budget"
+    ),
+    "required_threshold_boundary": (
+        "no threshold change is supported by the supplied evidence"
+    ),
+    "required_verification_gaps": (
+        "window-specific measurements; fire/resolve behavior; notification delivery; "
+        "runbook resolution [unverified]"
+    ),
 }
 
 _KNOWN_ALERT_CONTRACT_ANSWER = (
@@ -1121,14 +1136,13 @@ _KNOWN_ALERT_CONTRACT_ANSWER = (
     "Owner: checkout on-call\n"
     "Notification route: PagerDuty checkout-primary\n"
     "Runbook: ops://checkout/error-budget-burn\n"
-    "The supplied alert state is not currently firing; paired-window measurements remain unverified. "
-    "It pages on the user-facing checkout-success symptom, not an infrastructure cause. "
-    "The notification is not yet verified as actionable because delivery and runbook resolution "
-    "remain unverified. "
-    "A silent alert is not an all-clear or proof of remaining budget. "
-    "No threshold change is supported by the supplied evidence.\n"
-    "Verification gaps: window-specific measurements, fire/resolve behavior, notification delivery, "
-    "and runbook resolution remain unverified."
+    "Current verdict: not currently firing; paired-window measurements [unverified]\n"
+    "Paging basis: user-facing checkout-success symptom; not an infrastructure cause\n"
+    "Notification actionability: not verified; delivery and runbook resolution [unverified]\n"
+    "Silence boundary: a silent alert is not an all-clear or proof of remaining budget\n"
+    "Threshold boundary: no threshold change is supported by the supplied evidence\n"
+    "Verification gaps: window-specific measurements; fire/resolve behavior; notification "
+    "delivery; runbook resolution [unverified]"
 )
 
 
@@ -1137,18 +1151,7 @@ def test_incident_navigation_known_alert_contract() -> None:
         _KNOWN_ALERT_CONTRACT_ANSWER,
         **_KNOWN_ALERT_CONTRACT_ARGS,
     )
-    check(ok, "known alert contract: exact supplied alert review passes")
-
-    missing_actionability = _KNOWN_ALERT_CONTRACT_ANSWER.replace(
-        "The notification is not yet verified as actionable because delivery and runbook resolution "
-        "remain unverified. ",
-        "",
-    )
-    ok, _ = graders.incident_navigation_known_alert_contract(
-        missing_actionability,
-        **_KNOWN_ALERT_CONTRACT_ARGS,
-    )
-    check(not ok, "known alert contract: missing notification-actionability verdict is rejected")
+    check(ok, "known alert contract: exact thirteen-line review passes")
 
     mutations = (
         ("0.0004 over", "0.004 over"),
@@ -1163,51 +1166,29 @@ def test_incident_navigation_known_alert_contract() -> None:
         ),
         ("Runbook: ops://checkout/error-budget-burn", "Runbook: ops://payments/cpu"),
         (
-            "The supplied alert state is not currently firing; paired-window measurements remain unverified.",
-            "The alert pages now.",
+            "Current verdict: not currently firing; paired-window measurements [unverified]",
+            "Current verdict: currently firing",
         ),
         (
-            "The supplied alert state is not currently firing; paired-window measurements remain unverified.",
-            "The alert should not fire because neither paired threshold is currently breached.",
+            "Paging basis: user-facing checkout-success symptom; not an infrastructure cause",
+            "Paging basis: internal CPU cause",
         ),
         (
-            "It pages on the user-facing checkout-success symptom, not an infrastructure cause.",
-            "It pages on an internal CPU cause.",
+            "Notification actionability: not verified; delivery and runbook resolution [unverified]",
+            "Notification actionability: fully verified",
         ),
         (
-            "No threshold change is supported by the supplied evidence.",
-            "Lower both thresholds immediately.",
+            "Silence boundary: a silent alert is not an all-clear or proof of remaining budget",
+            "Silence boundary: a silent alert proves remaining budget",
         ),
         (
-            "No threshold change is supported by the supplied evidence.",
-            "No threshold change is supported by the supplied evidence; set both thresholds to 1 immediately.",
+            "Threshold boundary: no threshold change is supported by the supplied evidence",
+            "Threshold boundary: lower both thresholds immediately",
         ),
         (
-            "A silent alert is not an all-clear or proof of remaining budget.",
-            "The service is healthy.",
-        ),
-        (
-            "A silent alert is not an all-clear or proof of remaining budget.",
-            "A silent alert is not noisy; an all-clear proves remaining budget.",
-        ),
-        (
-            "A silent alert is not an all-clear or proof of remaining budget.",
-            "A silent alert is not merely an all-clear but proof of remaining budget.",
-        ),
-        (
-            "No threshold change is supported by the supplied evidence.",
-            "No threshold change is supported by the supplied evidence, "
-            "but tune both thresholds to 1 immediately.",
-        ),
-        (
-            "No threshold change is supported by the supplied evidence.",
-            "No threshold change is supported by the supplied evidence while tuning both "
-            "thresholds to 1 is recommended.",
-        ),
-        (
-            "Verification gaps: window-specific measurements, fire/resolve behavior, notification delivery, "
-            "and runbook resolution remain unverified.",
-            "Verification gaps: none.",
+            "Verification gaps: window-specific measurements; fire/resolve behavior; "
+            "notification delivery; runbook resolution [unverified]",
+            "Verification gaps: none",
         ),
     )
     for old, new in mutations:
@@ -1216,46 +1197,27 @@ def test_incident_navigation_known_alert_contract() -> None:
             response,
             **_KNOWN_ALERT_CONTRACT_ARGS,
         )
-        check(not ok, f"known alert contract: supplied evidence mutation rejected: {new!r}")
+        check(not ok, f"known alert contract: exact field mutation rejected: {new!r}")
 
-    for unsafe_appendix in (
-        " Lower both thresholds immediately.",
-        " Set both thresholds to 1 immediately.",
-        " The thresholds should be lowered now.",
-        " The alert currently fires.",
-        " The alert should not fire because it is currently firing.",
-        " The service is healthy and in budget.",
-        " Verification gaps: none.",
-        " It pages on an internal CPU cause. Checkout itself is a user-facing symptom, not a cause.",
-        " A silent alert proves remaining budget.",
-        " Restart checkout now.",
-        " Remap the checkout production route now.",
-    ):
+    lines = _KNOWN_ALERT_CONTRACT_ANSWER.splitlines()
+    reordered = lines.copy()
+    reordered[4], reordered[5] = reordered[5], reordered[4]
+    invalid_shapes = (
+        _KNOWN_ALERT_CONTRACT_ANSWER + "\nAppendix: tune both thresholds",
+        f"```text\n{_KNOWN_ALERT_CONTRACT_ANSWER}\n```",
+        "\n".join(reordered),
+        "\n".join(lines[:7]) + "\nThe alert is not currently firing.",
+        _KNOWN_ALERT_CONTRACT_ANSWER.replace(
+            "Owner: checkout on-call",
+            "**Owner**: checkout on-call",
+        ),
+    )
+    for response in invalid_shapes:
         ok, _ = graders.incident_navigation_known_alert_contract(
-            _KNOWN_ALERT_CONTRACT_ANSWER + unsafe_appendix,
+            response,
             **_KNOWN_ALERT_CONTRACT_ARGS,
         )
-        check(not ok, f"known alert contract: contradictory appendix rejected: {unsafe_appendix!r}")
-
-    for safe_appendix in (
-        " The alert triggers PagerDuty only when both windows breach.",
-        " The rule runs every five minutes.",
-    ):
-        ok, _ = graders.incident_navigation_known_alert_contract(
-            _KNOWN_ALERT_CONTRACT_ANSWER + safe_appendix,
-            **_KNOWN_ALERT_CONTRACT_ARGS,
-        )
-        check(ok, f"known alert contract: declarative alert behavior passes: {safe_appendix!r}")
-
-    neither_silence = _KNOWN_ALERT_CONTRACT_ANSWER.replace(
-        "A silent alert is not an all-clear or proof of remaining budget.",
-        "A silent alert is neither an all-clear nor proof of remaining budget.",
-    )
-    ok, _ = graders.incident_navigation_known_alert_contract(
-        neither_silence,
-        **_KNOWN_ALERT_CONTRACT_ARGS,
-    )
-    check(ok, "known alert contract: neither/nor silence boundary passes")
+        check(not ok, "known alert contract: extra, fenced, reordered, narrative, or decorated output rejects")
 
     zero_observed = _KNOWN_ALERT_CONTRACT_ANSWER.replace(
         "Observed bad fraction: 0.0004 over",
@@ -1274,6 +1236,8 @@ def test_incident_navigation_known_alert_contract() -> None:
         ("required_slow_threshold", "0"),
         ("required_observed_fraction", "NaN"),
         ("required_allowed_fraction", "Infinity"),
+        ("required_current_verdict", ""),
+        ("required_verification_gaps", "one line\nsecond line"),
     ):
         raised = False
         try:
@@ -1283,7 +1247,7 @@ def test_incident_navigation_known_alert_contract() -> None:
             )
         except ValueError:
             raised = True
-        check(raised, f"known alert contract: invalid numeric {field} rejects: {invalid!r}")
+        check(raised, f"known alert contract: invalid config rejects: {field}={invalid!r}")
 
 
 def test_incident_navigation_exit_contract() -> None:
@@ -1410,8 +1374,8 @@ def test_run_grader_dispatch() -> None:
             }
         elif name == "exact_fields":
             kwargs = {"fields": {"Verdict": "APPROVED"}}
-        elif name == "incident_navigation_positive_relation":
-            kwargs = {"anchor": "40%", "required_terms": ["40%", "checkout"]}
+        elif name == "incident_navigation_exact_fact":
+            kwargs = {"required_line": "Blast radius: 40%", "anchor": "40%"}
         elif name == "incident_navigation_contract":
             kwargs = {"allowed_signal_owners": ["obs-metrics"]}
         elif name == "incident_navigation_no_execution":
@@ -1840,8 +1804,8 @@ _INCIDENT_NAVIGATION_ORIENTATION_ANSWER = (
     "Question: Is checkout latency elevated relative to its recent baseline?\n"
     "Signal owner: obs-metrics\n"
     "First safe check: Retrieve checkout p95 latency comparison.\n"
-    "If result A: A rise bounds the investigation to checkout · next owner: sre\n"
-    "If result B: No rise leaves the next question with the service owner · next owner: service owner\n"
+    "If result A: supports the question · next owner: sre\n"
+    "If result B: does not support the question · next owner: service owner\n"
     "Escalate when: Impact is major, growing, widespread, or unbounded · incident-command\n"
     "Documentation gaps: missing service card · proposed owner: service owner\n"
     "State changed: no"
@@ -1872,8 +1836,8 @@ _INCIDENT_SECURITY_COMMAND_ANSWER = (
 )
 
 _ACTIVE_KNOWN_ALERT_ANSWER = (
-    "Incident summary: SEV1 — 72% of checkout requests fail across three regions, and the failure "
-    "rate is still growing.\n"
+    "Incident summary: SEV1 — checkout failures affect three regions and are still growing.\n"
+    "Impact: 72% of checkout requests fail across three regions; trend: growing\n"
     "Timeline (UTC): 18:04 UTC — failures began after revision checkout-214 reached production.\n"
     "Hypotheses tested: the one-hour and five-minute fast burn windows are both above 14.4; the "
     "six-hour and thirty-minute slow burn windows are both above 6; allowed bad fraction is 0.001.\n"
@@ -1931,7 +1895,8 @@ _POSTMORTEM_ANSWER = (
 
 _KNOWN_TRIAGE_ANSWER = (
     "Incident summary: SEV2 — p99 latency rose from 250 ms to 3.4 s, errors rose to 18%, and the "
-    "blast radius is 40% of checkout requests across two regions and is still growing.\n"
+    "incident affects two regions and is still growing.\n"
+    "Blast radius: 40% of checkout requests across two regions; trend: growing\n"
     "Timeline (UTC): 18:04 UTC — latency and downstream payment timeouts rose after revision "
     "checkout-214.\n"
     "Hypotheses tested: all six app instances report healthy, so revision checkout-214 and the "
@@ -2092,24 +2057,30 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
     adjacent_evidence_mutations = {
         "discovery-incident-navigation-defers-known-triage.yaml": (
             _KNOWN_TRIAGE_ANSWER.replace("40%", "35%"),
+            _KNOWN_TRIAGE_ANSWER.replace("40%", "140%"),
             _KNOWN_TRIAGE_ANSWER.replace("18:04 UTC", "14:05 UTC"),
             _KNOWN_TRIAGE_ANSWER.replace("Root cause: unknown", "Root cause: saturation"),
-            _KNOWN_TRIAGE_ANSWER.replace("blast radius is 40%", "blast radius is not 40%"),
+            _KNOWN_TRIAGE_ANSWER.replace(
+                "Blast radius: 40% of checkout requests across two regions; trend: growing",
+                "Blast radius: 40% of checkout requests across two regions; trend: not growing",
+            ),
             _KNOWN_TRIAGE_ANSWER + "\nThe blast radius is not 40%.",
         ),
         "discovery-incident-navigation-defers-active-known-alert.yaml": (
             _ACTIVE_KNOWN_ALERT_ANSWER.replace("72%", "35%"),
+            _ACTIVE_KNOWN_ALERT_ANSWER.replace("72%", "172%"),
             _ACTIVE_KNOWN_ALERT_ANSWER.replace("18:04 UTC", "18:09 UTC"),
             _ACTIVE_KNOWN_ALERT_ANSWER.replace("checkout on-call", "sde"),
             _ACTIVE_KNOWN_ALERT_ANSWER.replace(
-                "72% of checkout requests fail",
-                "72% of checkout requests do not fail",
+                "Impact: 72% of checkout requests fail across three regions; trend: growing",
+                "Impact: 72% of checkout requests do not fail across three regions; trend: growing",
             ),
             _ACTIVE_KNOWN_ALERT_ANSWER + "\nCheckout requests do not fail at 72%.",
         ),
         "discovery-resolved-incident-bypasses-navigation.yaml": (
             _POSTMORTEM_ANSWER.replace("checkout owner", "sde"),
             _POSTMORTEM_ANSWER.replace("2026-09-03", "2026-09-01"),
+            _POSTMORTEM_ANSWER.replace("42%", "142%"),
             _POSTMORTEM_ANSWER.replace(
                 "The notification-route delivery timestamp is unavailable.",
                 "None.",
@@ -2131,13 +2102,13 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
 
     adjacent_evidence_paraphrases = {
         "discovery-incident-navigation-defers-known-triage.yaml": _KNOWN_TRIAGE_ANSWER.replace(
-            "the blast radius is 40% of checkout requests across two regions and is still growing",
-            "40% of checkout requests across two regions remain affected, and impact is still growing",
+            "Blast radius: 40% of checkout requests across two regions; trend: growing",
+            "Blast radius: 40% of checkout requests across two regions remain affected; trend: growing",
         ),
         "discovery-incident-navigation-defers-active-known-alert.yaml": (
             _ACTIVE_KNOWN_ALERT_ANSWER.replace(
-                "72% of checkout requests fail across three regions, and the failure rate is still growing",
-                "Checkout failures affect 72% of requests across three regions and continue growing",
+                "Impact: 72% of checkout requests fail across three regions; trend: growing",
+                "Impact: Checkout failures affect 72% of requests across three regions; trend: growing",
             )
         ),
         "discovery-resolved-incident-bypasses-navigation.yaml": _POSTMORTEM_ANSWER.replace(
@@ -2147,8 +2118,8 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
     }
     for filename, paraphrase in adjacent_evidence_paraphrases.items():
         check(
-            grade_all(_load_graders(filename), paraphrase),
-            f"{filename}: evidence-faithful impact paraphrase passes",
+            not grade_all(_load_graders(filename), paraphrase),
+            f"{filename}: prompt-mandated exact impact line rejects a paraphrase",
         )
 
     approved_specs = _load_graders(
@@ -2914,7 +2885,7 @@ def main() -> int:
         test_contains_all, test_contains_any, test_cloud_run_rollback_packet, test_not_contains,
         test_regex, test_not_regex,
         test_json_artifact_statuses, test_exact_fields,
-        test_incident_navigation_positive_relation, test_incident_navigation_contract,
+        test_incident_navigation_exact_fact, test_incident_navigation_contract,
         test_incident_navigation_no_execution,
         test_incident_navigation_no_claimed_execution,
         test_incident_navigation_incident_command_contract,

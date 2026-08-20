@@ -17,7 +17,8 @@ prompt: |
   - Runbook: ops://checkout/latency; release record: ops://releases/checkout-214.
 
   Investigate the active incident, assess severity and blast radius, and form testable hypotheses
-  without changing production.
+  without changing production. Copy this exact line once, with no second use of `40%`:
+  `Blast radius: 40% of checkout requests across two regions; trend: growing`
 routing:
   expect: not_fire
   expected_alternative:
@@ -35,9 +36,9 @@ graders:
     pattern: '^(?:Incident summary:|\s*(?:\*\*)?Blast radius(?:\*\*)?\s*:)[^\n]*(?:\d+(?:\.\d+)?%|\d+\s+(?:regions?|routes?|services?|users?)|\b(?:all|most|subset)\b)[^\n]*\b(?:requests?|traffic|users?|regions?|routes?|services?)\b[^\n]*\b(?:growing|steady|recovering|worsening|improving)\b'
   - type: contains_all
     of: ["18:04 UTC", "250 ms", "3.4 s", "18%", "40%", "two regions", "six app instances", "downstream payment timeouts", "checkout-214", "ops://checkout/latency", "ops://releases/checkout-214"]
-  - type: incident_navigation_positive_relation
+  - type: incident_navigation_exact_fact
     anchor: "40%"
-    required_terms: ["40%", "checkout requests", "two regions", "growing"]
+    required_line: "Blast radius: 40% of checkout requests across two regions; trend: growing"
   - type: regex
     pattern: '^Root cause:\s*(?:unknown|not established|unverified)\b'
   - type: incident_navigation_no_claimed_execution

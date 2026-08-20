@@ -78,8 +78,8 @@ LIVE_OUTPUT_GUARDS = {
     "URI punctuation is confused with a second source": (
         "uri or path punctuation inside that one source is allowed"
     ),
-    "result branches may prescribe another action": (
-        "end each result branch immediately after that owner"
+    "result branches are not closed result classifications": (
+        "classify each result as exactly `supports the question`, `does not support the question`, or `result is inconclusive`"
     ),
     "result owner choices are not explicit host-rewritable identities": (
         "choosing `sre`, `service owner`, `incident commander`, or `human owner`"
@@ -116,7 +116,8 @@ DISCOVERY_FIXTURE_BOUNDARY = (
 
 SCENARIO_EVIDENCE_CONTRACTS = {
     "discovery-incident-navigation-defers-active-known-alert.yaml": (
-        "72% of checkout requests",
+        "Impact: 72% of checkout requests fail across three regions; trend: growing",
+        "with no second use of `72%`",
         "three regions",
         "Fast burn windows:",
         "Slow burn windows:",
@@ -132,7 +133,9 @@ SCENARIO_EVIDENCE_CONTRACTS = {
         "Render the window rule as `1h AND 5m at 14.4x; 6h AND 30m at 6x`",
         "do not call the notification fully verified actionable",
         "window-specific measurements, fire/resolve behavior, notification delivery, and runbook resolution",
-        "Use the labeled known-alert review format",
+        "Return exactly the following thirteen non-empty plaintext field lines",
+        "Current verdict: not currently firing; paired-window measurements [unverified]",
+        "Threshold boundary: no threshold change is supported by the supplied evidence",
     ),
     "discovery-incident-navigation-defers-approved-change.yaml": (
         "Approved by: release owner",
@@ -153,7 +156,8 @@ SCENARIO_EVIDENCE_CONTRACTS = {
         "Use the canonical status-block labels",
     ),
     "discovery-incident-navigation-defers-known-triage.yaml": (
-        "40% of checkout requests",
+        "Blast radius: 40% of checkout requests across two regions; trend: growing",
+        "with no second use of `40%`",
         "two regions",
         "still growing",
         "checkout-214",
@@ -182,6 +186,7 @@ SCENARIO_EVIDENCE_CONTRACTS = {
         "Root cause:",
         "Action item:",
         "Verification gap:",
+        "with no second use of `42%`",
     ),
 }
 
@@ -199,11 +204,17 @@ DESTINATION_SKILL_CONTRACTS = {
     ),
     Path("skills/obs-alerting/SKILL.md"): (
         "interpret a known alert definition",
+        "return exactly these thirteen non-empty plaintext field lines",
         "Observed bad fraction:",
         "Allowed bad fraction:",
         "Burn rate:",
         "Window rule:",
         "Notification route:",
+        "Current verdict:",
+        "Notification actionability:",
+        "Silence boundary:",
+        "Threshold boundary:",
+        "Verification gaps:",
     ),
     Path("skills/incident-command/SKILL.md"): (
         "keep `incident`, `severity`, and `status` on the same first line",
@@ -259,6 +270,7 @@ SCENARIO_CONTRACTS = {
         "kind: agent",
         "name: sre",
         "type: incident_navigation_no_claimed_execution",
+        "type: incident_navigation_exact_fact",
     ),
     "discovery-incident-navigation-defers-incident-command.yaml": (
         "expect: not_fire",
@@ -275,12 +287,15 @@ SCENARIO_CONTRACTS = {
         "type: incident_navigation_known_alert_contract",
         'required_observed_fraction: "0.0004"',
         "required_notification_route: PagerDuty checkout-primary",
+        "required_current_verdict:",
+        "required_verification_gaps:",
     ),
     "discovery-incident-navigation-defers-active-known-alert.yaml": (
         "expect: not_fire",
         "kind: agent",
         "name: sre",
         "type: incident_navigation_no_claimed_execution",
+        "type: incident_navigation_exact_fact",
     ),
     "discovery-incident-navigation-defers-production-change.yaml": (
         "expect: not_fire",
@@ -301,6 +316,7 @@ SCENARIO_CONTRACTS = {
         "expect: not_fire",
         "kind: agent",
         "name: scribe",
+        "type: incident_navigation_exact_fact",
     ),
 }
 

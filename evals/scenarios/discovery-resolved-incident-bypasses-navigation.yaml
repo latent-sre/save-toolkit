@@ -21,6 +21,8 @@ prompt: |
   - Verification gap: the notification-route delivery timestamp is unavailable.
 
   Write the blameless repository postmortem with systemic causes and the supplied owned follow-up.
+  Under `## Impact`, copy this exact line once, with no second use of `42%`:
+  `Checkout failed for 42% of requests in two regions from 18:04 to 18:31 UTC.`
 routing:
   expect: not_fire
   expected_alternative:
@@ -36,8 +38,8 @@ graders:
     of: ["preventative", "Owner", "Due", "Durable artifact / proof of done"]
   - type: contains_all
     of: ["42%", "two regions", "18:04", "18:31 UTC", "checkout-214", "18:22 human release owner", "unbounded downstream retry policy", "payment-provider timeouts", "canary did not exercise the payment timeout path", "unaffected region", "checkout owner", "bound downstream retries", "2026-09-03", "passing timeout-path integration test", "deployed configuration evidence", "notification-route delivery timestamp is unavailable"]
-  - type: incident_navigation_positive_relation
+  - type: incident_navigation_exact_fact
     anchor: "42%"
-    required_terms: ["42%", "checkout", "requests", "two regions", "18:04", "18:31", "fail"]
+    required_line: "Checkout failed for 42% of requests in two regions from 18:04 to 18:31 UTC."
   - type: not_regex
     pattern: '^## Verification gaps\s*\n\s*(?:none|no gaps)\b'
