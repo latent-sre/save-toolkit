@@ -472,7 +472,10 @@ def test_json_exact_object() -> None:
         json.dumps({**expected, "execution": "started"}),
         json.dumps({**expected, "direct_expression_in_run": 0}),
         json.dumps({**expected, "nested": {"safe": 0, "steps": ["inspect", "decide"]}}),
+        json.dumps({**expected, "nested": {"safe": False, "steps": ["inspect"]}}),
+        json.dumps({**expected, "nested": {"safe": False, "steps": ["inspect", "decide", "act"]}}),
         json.dumps({**expected, "extra": "unsafe"}),
+        "[]",
         compliant + "\nExecution will begin now.",
         compliant.replace(
             '"execution":"not_started"',
@@ -487,8 +490,11 @@ def test_json_exact_object() -> None:
         check(not ok, f"json_exact_object: contradictory or non-exact object rejected: {response!r}")
     for label, invalid_expected in (
         ("empty object", {}),
+        ("JSON array instead of expected object", ["bad"]),
         ("non-JSON value", {"bad": {1, 2}}),
         ("non-finite value", {"bad": float("nan")}),
+        ("positive infinite value", {"bad": float("inf")}),
+        ("negative infinite value", {"bad": float("-inf")}),
         ("non-string object key", {1: "bad"}),
         ("tuple instead of JSON array", {"bad": (1, 2)}),
     ):

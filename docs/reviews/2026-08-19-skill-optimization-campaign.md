@@ -318,7 +318,10 @@ implementation, version, or adoption evidence:
 
 `[verified]` Red-first evidence was observed before the Batch 3 scenario files existed: the new
 typed-behavior contract test failed nine cases, then passed after the scenarios were added or
-converted. The current local candidate passes `check_links.py`, 523/523 grader checks, adapter
-generation/parity for 300 files, and `git diff --check`. Exact-commit Gate A, strict plugin
-validation, and independent Sol review remain required before acceptance. No live routing-rate claim
-is made.
+converted. The first exact candidate, `3e284d8913828419b1428a5452f0172318411eee`, passed Gate A 40/40
+in a normal full-history checkout and strict plugin validation. A full `evals/graders.py` mutation
+sweep then exposed four under-tested branches in the new strict-JSON path and one missing invalid
+configuration case. The repair adds unequal nested-array, top-level-array, non-finite, and non-object
+expected-value fixtures and removes a redundant strict-zip branch. The repaired local candidate has
+529/529 grader checks green; it still requires a fresh exact-commit Gate A, mutation sweep, and
+independent Sol review before acceptance. No live routing-rate claim is made.

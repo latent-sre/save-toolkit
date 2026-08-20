@@ -635,7 +635,7 @@ def json_exact_object(response: str, expected: dict[str, object]) -> tuple[bool,
         if isinstance(wanted, list):
             return len(actual) == len(wanted) and all(
                 exact_types(actual_item, wanted_item)
-                for actual_item, wanted_item in zip(actual, wanted, strict=True)
+                for actual_item, wanted_item in zip(actual, wanted)
             )
         return actual == wanted
 
