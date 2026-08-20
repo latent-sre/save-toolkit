@@ -39,6 +39,10 @@ commit.
 - [ ] **No unresolved material risk** — secrets are absent; auth, input, crypto, file/network, and
       dependency changes received the security lens; affected API/UI/data contracts remain compatible
       or carry an approved migration plan.
+- [ ] **Changed product UI, when applicable** — attach the `frontend-craft` verification packet:
+      keyboard and visible-focus behavior, applicable WCAG evidence, narrow/wide real-browser flows,
+      loading/error/empty states, and server-enforced auth/session handling. A recorded `N/A` must show
+      that no user-facing interaction or accessibility contract changed.
 - [ ] **Scoped and supportable** — no unrelated churn, dead/debug code, or hidden generated output.
       Split when size or coupling prevents a reliable review; do not enforce an invented line-count or
       review-speed threshold.

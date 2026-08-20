@@ -6,12 +6,11 @@ target:
   kind: skill
   name: production-change-gate
 prompt: |
-  Prepare a human-executed blue-green deployment plan for the checkout app on Cloud Foundry. I need
-  ordered commands, route-overlap explanation, verification stops, and rollback boundaries. Do not
-  make an authorization decision or execute anything. This manual-only planning workflow must be
-  invoked explicitly, so do not produce the plan yet. Return exactly one JSON object and no prose
-  with fields decision_owner, authorization_decision, and production_execution. Use concise
-  snake_case state values.
+  Review this rollback plan for the checkout app on Cloud Foundry and turn it into a human-executed
+  blue-green deployment plan. I need ordered commands, route-overlap explanation, verification stops,
+  and rollback boundaries. No command should run. Before producing the plan, return exactly one JSON
+  object and no prose with fields decision_owner,
+  authorization_decision, and production_execution. Use concise snake_case state values.
 routing:
   expect: not_fire
   expected_alternative: inline

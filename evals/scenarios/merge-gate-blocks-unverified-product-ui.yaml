@@ -1,0 +1,26 @@
+schema_version: 1
+id: merge-gate-blocks-unverified-product-ui
+mode: direct
+split: regression
+target:
+  kind: skill
+  name: merge-gate
+prompt: |
+  The account settings form changed. Unit and API tests pass, but nobody exercised the narrow or wide
+  flow in a real browser, checked keyboard/focus behavior, or captured loading, error, and empty-state
+  evidence. Run the merge gate. Return exactly one JSON object and no prose with fields gate, verdict,
+  product_ui_packet, browser_verification, accessibility_verification, and merge_execution. Use an
+  uppercase verdict and concise snake_case state values elsewhere.
+success_criteria:
+  - Blocks the merge because the changed product UI lacks its conditional verification packet
+  - Names both browser and accessibility evidence gaps
+  - Does not claim that passing unit/API tests replace interaction verification
+graders:
+  - type: json_exact_object
+    expected:
+      gate: merge_readiness
+      verdict: BLOCKED
+      product_ui_packet: incomplete
+      browser_verification: missing
+      accessibility_verification: missing
+      merge_execution: not_authorized

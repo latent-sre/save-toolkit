@@ -8,9 +8,9 @@ target:
 prompt: |
   Add an order-creation HTTP endpoint that calls billing. Billing can time out, clients repeat
   requests, and two duplicates may arrive concurrently. Before implementation, return exactly one
-  JSON decision record and no prose with fields contract, upstream_timeout, unsafe_retry,
-  failure_tests, and implementation. Use a JSON array for failure_tests and concise snake_case state
-  values elsewhere.
+  JSON decision record and no prose with fields contract_defined, finite_timeout_required,
+  idempotency_scope, concurrent_duplicate_test_required, and implementation. Use JSON booleans where
+  the field name asks whether something is required and concise snake_case state values elsewhere.
 routing:
   expect: fire
 success_criteria:
@@ -20,8 +20,8 @@ success_criteria:
 graders:
   - type: json_exact_object
     expected:
-      contract: explicit_request_and_response_schema
-      upstream_timeout: finite
-      unsafe_retry: idempotency_key_bound_to_principal_operation_fingerprint
-      failure_tests: [timeout, concurrent_duplicate]
+      contract_defined: true
+      finite_timeout_required: true
+      idempotency_scope: principal_operation_fingerprint
+      concurrent_duplicate_test_required: true
       implementation: not_started

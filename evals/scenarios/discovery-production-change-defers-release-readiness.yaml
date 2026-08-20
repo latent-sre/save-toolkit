@@ -6,10 +6,9 @@ target:
   kind: skill
   name: production-change-gate
 prompt: |
-  Build 43 passed CI and staging. Assess whether the immutable artifact is ready to ship: the
-  rollback rehearsal and operator coverage have not been supplied. This is a release-readiness decision,
-  not a request to authorize or execute a live command. Return exactly one JSON object and no prose
-  with fields decision_owner, verdict, rollback_evidence, operator_coverage, and
+  Build 43 passed CI and staging. Is the immutable artifact ready to ship? The rollback rehearsal and
+  operator coverage have not been supplied. Do not execute a live command. Return exactly one JSON
+  object and no prose with fields decision_owner, verdict, rollback_evidence, operator_coverage, and
   production_execution. Use concise snake_case state values except for the uppercase verdict.
 routing:
   expect: not_fire

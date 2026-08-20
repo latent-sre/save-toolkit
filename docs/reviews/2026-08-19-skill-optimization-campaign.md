@@ -202,13 +202,13 @@ Candidate body/reference bytes after the author passes:
 
 | Skill | Body bytes | Reference bytes | Body change |
 |---|---:|---:|---:|
-| `merge-gate` | 4,038 | 0 | -23.3% |
+| `merge-gate` | 4,415 | 0 | -16.1% |
 | `release-gate` | 3,971 | 0 | +7.8% |
-| `production-change-gate` | 5,353 | 4,145 | -20.0% |
-| `ci-actions` | 6,326 | 9,671 | -31.6% |
-| `pcf-deploy` | 5,375 | 8,463 | -40.6% |
+| `production-change-gate` | 5,949 | 4,346 | -11.1% |
+| `ci-actions` | 6,326 | 10,966 | -31.6% |
+| `pcf-deploy` | 5,375 | 9,076 | -40.6% |
 
-`[verified]` Activated-body mass fell from 33,930 to 25,063 bytes (26.1%). The installed bundle grew
+`[verified]` Activated-body mass fell from 33,930 to 26,036 bytes (23.3%). The installed bundle grew
 because current sourced contracts, examples, and version-sensitive boundaries moved to conditional
 references; raw bundle minimization was not allowed to erase accuracy.
 
@@ -277,12 +277,12 @@ Candidate body/reference bytes after the four author passes:
 
 | Skill | Body bytes | Reference bytes | Body change |
 |---|---:|---:|---:|
-| `backend-craft` | 7,917 | 12,673 | -28.5% |
+| `backend-craft` | 8,200 | 12,673 | -26.0% |
 | `frontend-craft` | 7,026 | 32,185 | -50.5% |
-| `language-idiom` | 2,433 | 14,589 | -6.6% |
-| `database-reliability` | 6,923 | 2,081 | -18.8% |
+| `language-idiom` | 2,433 | 14,721 | -6.6% |
+| `database-reliability` | 5,833 | 5,477 | -31.6% |
 
-`[verified]` Activated-body mass fell from 36,414 to 24,299 bytes (33.3%). The
+`[verified]` Activated-body mass fell from 36,414 to 23,492 bytes (35.5%). The
 `language-idiom` entrypoint still makes its five-language routing and boundary explicit while its
 conditional references lost 8,587 bytes of generic ceremony and volatile tool mandates.
 
@@ -316,9 +316,10 @@ implementation, version, or adoption evidence:
   `/websites/oracle_en_database_oracle_oracle-database_19`; PostgreSQL source was checked at
   `cb217c4f…`.
 
-`[verified]` Red-first evidence was observed before the Batch 3 scenario files existed: the new
-typed-behavior contract test failed nine cases, then passed after the scenarios were added or
-converted. The first exact candidate, `3e284d8913828419b1428a5452f0172318411eee`, passed Gate A 40/40
+The author observed a local red run before the Batch 3 scenario files existed, but no committed or
+runnable failing snapshot was retained, so it is `[unverified]` as independent red-first evidence.
+The exact pre-change inventory implies ten failing cases, not the nine initially recorded. The first
+exact candidate, `3e284d8913828419b1428a5452f0172318411eee`, passed Gate A 40/40
 in a normal full-history checkout and strict plugin validation. A full `evals/graders.py` mutation
 sweep then exposed four under-tested branches in the new strict-JSON path and one missing invalid
 configuration case. Repairs `ea9510d65c5b266d4bfcc126d0ec9173236b6ca9` and

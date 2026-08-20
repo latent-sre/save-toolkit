@@ -596,6 +596,57 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("labels: pcf", text)
         self.assertIn("A label selects matching runners; it is not a runner-group boundary", flattened)
 
+    def test_pcf_deploy_job_binds_the_verified_artifact_on_a_reviewed_shell(self) -> None:
+        text = (ROOT / "skills" / "ci-actions" / "references" / "pcf-deploy-job.md").read_text(
+            encoding="utf-8"
+        )
+
+        def has_binding(candidate: str) -> bool:
+            return all(
+                fragment in candidate
+                for fragment in (
+                    "labels: pcf-linux",
+                    "shell: bash",
+                    '[[ "$REVIEWED_ARTIFACT_SHA256" =~ ^[0-9A-Fa-f]{64}$ ]]',
+                    'sha256sum --check --strict -',
+                    'cf push -f manifest.yml -p "$REVIEWED_ARTIFACT_PATH" --strategy rolling',
+                )
+            )
+
+        self.assertTrue(has_binding(text))
+        without_push_binding = text.replace(' -p "$REVIEWED_ARTIFACT_PATH"', "", 1)
+        self.assertFalse(
+            has_binding(without_push_binding),
+            "downloading and hashing an artifact must not pass unless cf push consumes that path",
+        )
+
+    def test_pcf_canary_continuation_preserves_each_configured_pause(self) -> None:
+        text = (
+            ROOT / "skills" / "pcf-deploy" / "references" / "deployment-strategies.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("continues the latest\npaused canary as rolling", text)
+        self.assertIn("each earlier continuation advances only to the next step and pauses", text)
+        self.assertIn("app/actions/deployment_continue.rb", text)
+
+    def test_database_entrypoint_routes_engine_detail_to_conditional_references(self) -> None:
+        text = (ROOT / "skills" / "database-reliability" / "SKILL.md").read_text(encoding="utf-8")
+
+        self.assertIn("## Load only the reference the task needs", text)
+        self.assertIn("./references/migrations.md", text)
+        self.assertIn("./references/query-plan-safety.md", text)
+        self.assertNotIn("### PostgreSQL constraints and indexes", text)
+        self.assertNotIn("CONTROL_MANAGEMENT_PACK_ACCESS", text)
+
+    def test_typescript_unknown_outcome_requires_an_ambiguous_response(self) -> None:
+        text = (
+            ROOT / "skills" / "language-idiom" / "references" / "typescript.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("A failed response after a write is an unknown outcome", text)
+        self.assertIn("transport failure or incomplete/ambiguous response", text)
+        self.assertIn("complete response according to the published server contract", text)
+
 
 class SharedHandoffBlockTests(unittest.TestCase):
     """The `## Rules` block is duplicated across the delegating agents; pin it byte-identical.

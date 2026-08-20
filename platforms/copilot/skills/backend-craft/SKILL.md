@@ -73,8 +73,10 @@ upstream bodies.
 
 - Authenticate and authorize on the server. Check both the caller and the resource/action; frontend
   hiding is not authorization. Deny by default and use least-privilege machine identities.
-- Validate and bound untrusted input: body size, collection lengths, page size, query cost, upload
-  type/content, and request duration. Parameterize queries and command arguments.
+- Validate and bound untrusted input: body size, collection lengths, page size, query cost, and
+  request duration. For uploads, allowlist the intended format, inspect actual bytes through a
+  maintained parser/decoder, reject metadata/content mismatches, and bound decompression and parsing;
+  extension and declared `Content-Type` are not proof. Parameterize queries and command arguments.
 - Use CORS only for an actual cross-origin browser contract, with an explicit allowlist. Never pair a
   wildcard origin with credentials.
 - Rate-limit where exposure, cost, or abuse risk requires it. On `429`, include `Retry-After` and
@@ -104,7 +106,8 @@ upstream bodies.
   serialization, persistence semantics, and upstream boundaries where mocks would hide the risk.
 - Build a route-specific failure matrix rather than a ritual checklist: relevant auth failures,
   malformed/invalid input, conflicts, absence, timeout, retry, rate limit, concurrent duplicate, and
-  dependency failure. Drop cases the route cannot have.
+  dependency failure. For uploads, include spoofed metadata and malformed/polyglot content. Drop
+  cases the route cannot have.
 - Exercise application startup/lifespan and shutdown. Contract-test the served schema and make at
   least one real request through the application boundary.
 - Report exact commands, results, and remaining gaps. Evidence excerpts contain method/path, status,

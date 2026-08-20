@@ -4,7 +4,9 @@
 
 Last checked: 2026-08-19. Official documentation establishes the general contract. Implementation
 details below were checked against `cloudfoundry/cli@v8.18.4`
-(`3fcd823a19e8254f99337765d98fd6e13149a77c`). The target foundation remains authoritative.
+(`3fcd823a19e8254f99337765d98fd6e13149a77c`) and
+`cloudfoundry/cloud_controller_ng@9dc07af5a33d328b77a85c9e7bd4d1b88caa83bd`. The target
+foundation remains authoritative.
 
 ## Manifest application names
 
@@ -49,8 +51,11 @@ Source: [Cloud Foundry blue-green deployment](https://docs.cloudfoundry.org/devg
 ## Rolling and canary
 
 `[sourced]` Rolling deployment is supported by current CLI v8. Canary requires compatible CLI/CAPI
-versions and target support; current CAPI source still marks canary/steps experimental even though the
-developer guide presents the workflow normally, so keep it version-sensitive.
+versions and target support. CAPI source at the pinned commit marks canary and instance steps
+experimental in `docs/v3/source/includes/resources/deployments/_header.md` and `_object.md.erb`, while
+the developer guide presents the workflow normally; keep both features version-sensitive. The
+versioned [CAPI 3.224.0 reference](https://v3-apidocs.cloudfoundry.org/version/3.224.0/index.html)
+also carries that experimental status.
 
 ```bash
 cf push checkout -f manifest.yml --strategy rolling
@@ -59,9 +64,12 @@ cf continue-deployment checkout
 cf cancel-deployment checkout
 ```
 
-Canary starts a bounded set of new instances and pauses. `continue-deployment` continues the latest
-paused canary as rolling. During rolling/canary transition, old and new web instances can share the
-route. Instance steps must increase and pause between stages.
+Canary starts a bounded set of new instances and pauses. Without additional instance steps—or after
+the final configured step—`continue-deployment` moves the remaining instances through rolling
+deployment. With instance steps, each earlier continuation advances only to the next step and pauses
+again; the operator must verify every stage and continue deliberately. During rolling/canary
+transition, old and new web instances can share the route. This behavior is implemented at the
+pinned CAPI commit in `app/actions/deployment_continue.rb`.
 
 `[sourced]` Canceling the latest active deployment scales the original web process back and resets
 the current droplet, but it does not guarantee zero downtime or restore environment variables and

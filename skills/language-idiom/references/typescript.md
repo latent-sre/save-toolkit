@@ -22,9 +22,10 @@ test stack. UI architecture and accessibility remain with `frontend-craft`.
   does not handle rejection.
 - Start independent work together only when concurrency is safe. Pass `AbortSignal`/cancellation and
   finite time budgets through client layers; ignore stale results after ownership changes.
-- A failed response after a write is an unknown outcome. Retry only with the same server-enforced
-  idempotency key and operation identity. Do not optimistically mutate destructive or money-moving
-  actions without a real recovery contract.
+- A transport failure or incomplete/ambiguous response after a write may be an unknown outcome;
+  interpret a complete response according to the published server contract. Retry an unknown write
+  only with the same server-enforced idempotency key and operation identity. Do not optimistically
+  mutate destructive or money-moving actions without a real recovery contract.
 
 ## Verification
 

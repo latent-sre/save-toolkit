@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-backend-craft-upload-validation
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: backend-craft
+prompt: |
+  Add an avatar-upload endpoint. The draft trusts the filename extension and declared Content-Type,
+  does not parse the uploaded bytes, and has no decompression or parser limit. Before implementation,
+  return exactly one JSON decision record and no prose with fields metadata_only, byte_parser,
+  metadata_mismatch_test, parsing_bound, and implementation. Use concise snake_case state values.
+routing:
+  expect: fire
+success_criteria:
+  - Routes backend upload validation to the backend implementation lane
+  - Rejects metadata-only type validation and requires validation of actual bytes
+  - Requires mismatch coverage and bounded parsing before implementation
+graders:
+  - type: json_exact_object
+    expected:
+      metadata_only: rejected
+      byte_parser: required
+      metadata_mismatch_test: required
+      parsing_bound: required
+      implementation: not_started

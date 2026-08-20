@@ -8,17 +8,18 @@ target:
 # Task: the readiness gate must PASS a complete PROD candidate while preserving the separate,
 # later production-authorization boundary. Release readiness is not deployment clearance.
 prompt: |
-  A release is ready to ship to prod. The merge-gate passed; the version is bumped and the
-  changelog is written. The exact artifact tested in staging is the one being promoted (no
-  rebuild). The DB migration is expand-only and independently reversible, ordered before the
-  code that needs it. Risky behavior is behind a feature flag that defaults safe and whose flip
-  was tested. The rollback is documented and verified (blue-green route remap). Health and abort
-  criteria are defined on the golden signals, alerts/SLOs cover the new behavior and the new
+  Assess this candidate for prod. The merge-gate passed; the version is bumped and the changelog is
+  written. The exact artifact tested in staging is the one being promoted (no
+  rebuild). The DB migration is expand-only and ordered before the code that needs it. A destructive
+  down migration would lose post-deploy writes, so recovery uses a rehearsed forward compensation or
+  the tested restore procedure. The change introduces no independently toggleable risky behavior, so
+  the feature-flag item is recorded not applicable with that reason. Recovery is documented, health
+  and abort criteria are defined on the golden signals, alerts/SLOs cover the new behavior, the new
   paging alert links a runbook, and comms to on-call are set with a deploy window. The
-  production-change-gate has not run yet; production authorization is explicitly still pending.
-  Run the release-gate for readiness only. Return exactly one JSON object and no prose with fields
-  gate, verdict, rollback, monitoring, health_abort, production_authorization, and
-  production_execution. Use an uppercase verdict and concise snake_case state values elsewhere.
+  production-change-gate has not run yet. Run the release-gate for readiness only. Return exactly one
+  JSON object and no prose with fields gate, verdict, migration_recovery, feature_flag, recovery,
+  monitoring, health_abort, production_authorization, and production_execution. Use an uppercase
+  verdict and concise snake_case state values elsewhere.
 success_criteria:
   - Verdict is release-gate PASS (not BLOCKED)
   - Acknowledges rollback + monitoring readiness and that production authorization remains pending
@@ -27,7 +28,9 @@ graders:
     expected:
       gate: release_readiness
       verdict: PASS
-      rollback: ready
+      migration_recovery: forward_or_restore_ready
+      feature_flag: not_applicable_with_reason
+      recovery: ready
       monitoring: ready
       health_abort: ready
       production_authorization: pending

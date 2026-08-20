@@ -7,9 +7,10 @@ target:
   name: frontend-craft
 prompt: |
   Build the customer-facing account settings form in the existing web application. Before coding,
-  return exactly one JSON decision record and no prose with fields ui_kind, framework, states,
-  accessibility, and browser_verification. Use JSON arrays for states and accessibility and concise
-  snake_case state values elsewhere.
+  return exactly one JSON decision record and no prose with fields ui_kind, framework_source,
+  resilient_states_defined, accessible_interaction_defined, real_browser_verification, and
+  implementation. Use JSON booleans for the two defined fields and concise snake_case state values
+  elsewhere.
 routing:
   expect: fire
 success_criteria:
@@ -20,7 +21,8 @@ graders:
   - type: json_exact_object
     expected:
       ui_kind: product_form
-      framework: repository_existing
-      states: [loading, error, empty, success]
-      accessibility: [programmatic_labels, keyboard_focus, visible_focus]
-      browser_verification: required
+      framework_source: repository_existing
+      resilient_states_defined: true
+      accessible_interaction_defined: true
+      real_browser_verification: required
+      implementation: not_started

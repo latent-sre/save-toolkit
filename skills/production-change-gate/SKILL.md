@@ -3,8 +3,8 @@ name: production-change-gate
 description: >-
   Authorize or block one exact production-facing action. Use when asked to approve a live command,
   workflow dispatch, configuration change, rollback, or destructive operation. Triggers: "authorize
-  this production change", "can I run this command in prod", "review this rollback plan". Do not use
-  for merge or release readiness, and never treat the request itself as approval.
+  this production change", "can I run this command in prod", "authorize this production rollback".
+  Do not use for merge or release readiness, and never treat the request itself as approval.
 ---
 
 > **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
@@ -60,6 +60,10 @@ A material change to any approved field re-enters the gate.
 - [ ] **Rollback or recovery** — exact inverse or recovery steps, prerequisites, known-good state, owner,
       and evidence are attached. If the effect is irreversible, say so and require the Tier 3 recovery
       evidence instead of calling it reversible.
+- [ ] **Unknown outcome and replay** — assign a durable operation identity and target-native
+      idempotency where available. If dispatch/finalization can fail after the remote effect begins,
+      record an `unknown_outcome` state. Block retry, rollback, and a replacement operation until a
+      human reconciles current remote state and issues a new effect-bound decision.
 - [ ] **Timing and coordination** — freeze/window, load, dependencies, on-call, stakeholder notice, and
       conflicting changes are checked or marked `N/A` with a reason.
 
@@ -76,6 +80,7 @@ Blast radius: <scope — worst credible outcome>
 Effect boundary: <environment/change-control evidence — bypass/self-review facts>
 Verification/abort: <signals — window — thresholds — decision owner>
 Rollback/recovery: <exact steps — known-good state — evidence — owner>
+Outcome/replay: <operation identity — known|unknown outcome — reconciliation — replay rule>
 Blocking items: <each missing or failed predicate and what clears it>
 ```
 
@@ -83,8 +88,9 @@ Blocking items: <each missing or failed predicate and what clears it>
 
 A declared incident may shorten coordination, never authority. Retain exact scope, named human
 approval, effect-bound execution, verification, and rollback/recovery. Record the emergency decision
-and reconcile the normal change record afterward. Tier 2/3 execution remains human- or protected-
-automation-owned.
+and reconcile the normal change record afterward. A lost or ambiguous result still enters
+`unknown_outcome`; urgency never authorizes blind replay or rollback. Tier 2/3 execution remains
+human- or protected-automation-owned.
 
 ## Conditional references
 

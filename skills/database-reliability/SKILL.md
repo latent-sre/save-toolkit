@@ -40,38 +40,15 @@ DDL or interpreting a plan. Before recommending runtime, tooling, or infrastruct
 - Never assume DDL transactionality from the migration framework. Verify the exact engine/version and
   whether the operation is permitted in a transaction.
 
-### PostgreSQL constraints and indexes
-
-- Direct `SET NOT NULL` may scan unless a valid constraint already proves no nulls, and it still
-  requires a strong table lock. For a hot large table, consider `CHECK (col IS NOT NULL) NOT VALID`,
-  backfill, `VALIDATE CONSTRAINT` under its documented lock, then schedule `SET NOT NULL` in a
-  controlled lock window. Verify target-version and partition behavior before adopting the sequence.
-- `CREATE INDEX CONCURRENTLY` reduces blocking of ordinary writes but cannot run inside a transaction
-  block, performs multiple scans/waits, allows only one concurrent build per table, may leave an
-  `INVALID` index after failure, and cannot directly build the partitioned parent. Plan monitoring,
-  cleanup, retry, and migration-tool behavior.
+Load [migration mechanics](./references/migrations.md) only when the task needs engine-specific DDL,
+including PostgreSQL constraint or concurrent-index behavior.
 
 ## Query-plan safety
 
-`EXPLAIN ANALYZE` executes the statement, including `SELECT` functions or foreign access with side
-effects. Default to a compile/plan-only form:
-
-| Engine | Plan only | Executes the statement |
-|---|---|---|
-| PostgreSQL | `EXPLAIN <statement>` | `EXPLAIN ANALYZE <statement>` |
-| SQL Server | estimated plan / `SET SHOWPLAN_XML ON` | actual plan / `SET STATISTICS XML ON` |
-| Oracle | `EXPLAIN PLAN` + `DBMS_XPLAN.DISPLAY` | executing the statement |
-
-An explicit transaction followed by rollback may undo ordinary PostgreSQL DML; it does not undo
-sequence consumption or external/nontransactional effects. Confirm there are no volatile functions,
-triggers, FDW/dblink writes, programs, or other escaping effects before considering execution.
-Treat SQL Server `STATISTICS XML` exactly like running the statement, including its permissions,
-load, mutation, and session-option cleanup.
-
-For Oracle, AWR, ADDM, ASH, and AWR-backed `DBMS_XPLAN` functions require Diagnostics Pack entitlement
-regardless of access path. `CONTROL_MANAGEMENT_PACK_ACCESS` can disable pack use; it does not prove
-entitlement. Confirm the human owner's contract before use. Prefer permitted `EXPLAIN PLAN`/
-`DBMS_XPLAN.DISPLAY` or Statspack where appropriate.
+An actual/analyzed plan executes the statement. Default to a plan-only form and treat any execution
+as the live effect it is; a rollback wrapper does not contain every sequence, trigger, foreign, or
+external side effect. Load [query-plan safety](./references/query-plan-safety.md) for exact
+PostgreSQL, SQL Server, or Oracle commands and licensing boundaries.
 
 ## Diagnosis
 
@@ -111,3 +88,11 @@ or `pcf-ops` as appropriate.
 
 Never present a destructive or production-facing command as executed or authorized without the
 effect-bound human packet.
+
+## Load only the reference the task needs
+
+| Task | Reference |
+|---|---|
+| engine-specific DDL, constraints, or online-index planning | [migration mechanics](./references/migrations.md) |
+| plan-only versus executing plans, or Oracle pack boundaries | [query-plan safety](./references/query-plan-safety.md) |
+| restore rehearsal or RPO/RTO evidence | [restore drill](./references/restore-drill.md) |

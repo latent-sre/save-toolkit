@@ -1,0 +1,30 @@
+# Migration mechanics
+
+Read only when a production schema task needs engine-specific DDL behavior. The general recovery,
+compatibility, authority, and output contracts remain in `../SKILL.md`.
+
+## Before writing DDL
+
+- Freeze the exact engine/version, topology, table and index size, write/read pattern, migration-tool
+  transaction mode, application compatibility window, and available recovery evidence.
+- Record lock mode and acquisition risk, scan/rewrite behavior, expected runtime on production-scale
+  data, replication/log impact, cancellation behavior, partial-failure cleanup, and retry identity.
+- Verify whether the operation may run inside a transaction. A framework transaction wrapper does not
+  change the database's DDL contract.
+
+## PostgreSQL constraints and indexes
+
+`[sourced]` Direct `SET NOT NULL` may scan unless a valid constraint already proves no nulls, and it
+still requires a strong table lock. For a hot large table, consider `CHECK (col IS NOT NULL) NOT
+VALID`, backfill, `VALIDATE CONSTRAINT` under its documented lock, then schedule `SET NOT NULL` in a
+controlled lock window. Verify the exact target version and partition behavior before adopting the
+sequence.
+
+`[sourced]` `CREATE INDEX CONCURRENTLY` reduces blocking of ordinary writes but cannot run inside a
+transaction block, performs multiple scans and waits, allows only one concurrent build per table,
+may leave an `INVALID` index after failure, and cannot directly build the partitioned parent. Plan
+monitoring, cleanup, retry, and migration-tool behavior.
+
+Sources: [PostgreSQL constraint documentation](https://www.postgresql.org/docs/current/ddl-constraints.html)
+and [CREATE INDEX](https://www.postgresql.org/docs/current/sql-createindex.html). The target server is
+authoritative; these current docs are not proof of its version or configuration.
