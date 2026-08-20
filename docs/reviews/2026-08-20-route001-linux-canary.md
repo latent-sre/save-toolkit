@@ -2,39 +2,37 @@
 
 - **Date:** 2026-08-20
 - **Branch:** `feat/route001-linux-container`
-- **Base commit:** `e31d04e06d3d50e7351f0251768b11c8016c3f10`
-- **Candidate state:** diagnostic repair through `6819773e5fab4c7bc1747f1be6907c8a8b269110`; not independently reviewed
+- **Base commit:** `c671c515359955790d12155fe8990123027f3964`
+- **Candidate state:** `gcp-ops` answer-contract fix at `7aef80aede95394f6c4237ed2aedb911e141c3c0`; repinned evaluator candidate not independently reviewed
 - **Authority:** development instrument evidence only; not campaign, baseline, release, or promotion
 
 ## Outcome
 
-The Linux Docker arm is viable, but all four owner-approved authenticated development canaries are
-**INCONCLUSIVE**. The first, under Codex 0.147.0, exited before producing a response or valid trace.
-The three Codex 0.148.0 subprocesses returned `0`, but the evaluator rejected their JSONL trace or hook
-receipts. Exact 0.148 source review found two evaluator mismatches: hook `permission_mode` reflects
-approval policy, and `transcript_path` is nullable. Both are now repaired and covered by red-first
-tests. The fourth canary exercised the nullable-path repair and still reached the evaluator's combined
-`trace-or-hook-invalid` branch, proving that repair was insufficient. Commit `6819773e…` now separates
-trace parsing from hook-receipt loading with sanitized reason codes; it has offline coverage but no
-live retry. No attempt is a routing result, and no 48-trial campaign followed.
+The Linux Docker arm is viable. The first four owner-approved development canaries were
+**INCONCLUSIVE** while the evaluator boundary was repaired. Three later Codex 0.148 canaries reached
+behavior grading and returned valid `FAIL` verdicts. The latest ran after the `gcp-ops` four-slot
+answer-contract change and failed the same grader indices as the preceding diagnostic canary, so the
+wording change did not improve the measured behavior. No 48-trial campaign followed.
 
 | Check | Evidence |
 |---|---|
-| Candidate image | `[verified]` `sha256:c339d945cc6d77661a836b3f81eddf0102f950fb9a43beae4529c57cb2f9047c` |
+| Original 0.147 candidate image | `[verified]` `sha256:c339d945cc6d77661a836b3f81eddf0102f950fb9a43beae4529c57cb2f9047c` |
 | Corrected 0.147 image | `[verified]` `sha256:0c6ae299da5088f9a93d0a968c2a95a61e6640d6b585e4740919f435afcd7287` |
 | Repinned 0.148 canary image | `[verified]` `sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf` |
 | Third 0.148 canary image | `[verified]` `sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c` |
 | Fourth 0.148 canary image | `[verified]` `sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b` |
+| Pre-fix behavior image | `[verified]` `sha256:10c7f4f77092ae30ebc5b52f17a5d43b80176195d63deb87614be7fb48a4fcf6` |
+| Post-fix behavior image | `[verified]` `sha256:086b63ee981e0997ce8f4201d4e6a85b1e05703cc2c939c0746540a925f59064` |
 | Runtime shape | `[verified]` Linux `amd64`; non-root `65532:65532`; launcher image inspection passed |
 | Focused current-repair contracts | `[verified]` 117 passed; 8 expected platform skips |
 | Credential-free preflight | `[verified]` exit `0`; `credential-free-preflight-pass`; no auth or model process started |
 | 0.147 development canary | `[verified]` outer exit `4`; verdict `INCONCLUSIVE`; `trace-or-hook-invalid` |
-| Three 0.148 development canaries | `[verified]` each verdict `INCONCLUSIVE`; `trace-or-hook-invalid` |
+| Later 0.148 development canaries | `[verified]` three `INCONCLUSIVE`, then three valid `FAIL`; no passing result |
 | 0.148 Codex subprocess | `[verified]` exit `0` after 15,865 ms; stdout 1,684 bytes; stderr 144 bytes |
 | Third Codex subprocess | `[verified]` exit `0` after 15,213 ms; stdout 1,760 bytes; stderr 144 bytes |
 | Fourth Codex subprocess | `[verified]` exit `0` after 28,716 ms; stdout 2,266 bytes; stderr 144 bytes |
-| Usage and cost | `[unverified]` no token, usage, billing, request, or resolved-model receipt was produced |
-| Persistent run artifacts | `[verified]` `F:\route001-runs\canary-20260820` contained zero files after the run |
+| Latest token usage | `[verified]` 18,615 input; 12,800 cached input; 869 output; 540 reasoning output; monetary cost remains unverified |
+| Persistent run artifacts | `[verified]` latest and preserved pre-fix compact result files under `F:\route001-runs\canary-20260820` |
 
 ## Original 0.147 preflight evidence
 
@@ -276,16 +274,49 @@ detail, prompt, path from inside the container, or credential was retained.
 Prompt-craft's required-slot form was applied narrowly: the loose `gcp-ops` orientation block is now
 a four-slot answer contract for combined Cloud Run startup/rollback tasks. It consolidates the exact
 failed groups without changing the skill description, the scenario, or any grader. Generated host
-adapters were refreshed. No post-fix live call was authorized or run, so improvement remains
-unverified live and the 48-trial campaign remains **NO-GO**.
+adapters were refreshed. The separately authorized post-fix canary did run and failed the same four
+grader groups, so the improvement is not verified and the 48-trial campaign remains **NO-GO**.
 
 The focused current-repair suite passed 117 tests with 8 expected platform skips. Gate A passed all
 41 structural steps from a clean ordinary clone at exact commit `6819773e…`; the snapshot contract
 was not weakened to accommodate the linked development worktree.
 
+## Post-fix repin and canary
+
+`[verified]` The feature branch was rebased onto `origin/main` at
+`c671c515359955790d12155fe8990123027f3964`; the committed `gcp-ops` answer-contract fix is
+`7aef80aede95394f6c4237ed2aedb911e141c3c0`. The evaluator candidate repins that exact object as
+the current snapshot: 143 files, 882,207 bytes, tree SHA-256
+`b9167b5200994d8265a2c592c7730028e81aa6f3a7fb19646bce0ceffc052a10`.
+The nine-file evaluator manifest is 1,173 bytes with SHA-256
+`24a64d524fb4177a81600ceb32c63e6a64890a62f9fbbac167a92098c5a59bc9`.
+
+`[verified]` The repinned candidate passed 46 focused snapshot/routing tests, all 43 Gate A steps in
+an ordinary disposable clone, and strict plugin validation. Exact image
+`sha256:086b63ee981e0997ce8f4201d4e6a85b1e05703cc2c939c0746540a925f59064`
+inspected as Linux `amd64`, user `65532:65532`, with the fixed isolated Python entrypoint. Its
+credential-free preflight exited `0` and bound evaluator tree SHA-256
+`a8d7e27d719bb1da5e56b7a88183b98cdaf783afacda5c105cb2b4c254587185`, Linux manifest SHA-256
+`353e5475d1e9064f0a234400ef97e7784172805458c356be8d07852c44334929`, and rendered-config SHA-256
+`81b227b8084f98c1db2a1163581c0cb32264de6268255c5e0bf57a2857ecaa0e`.
+
+`[verified]` Exactly one post-fix paid canary followed. The automatic preflight passed, the canary
+started, and the outer evaluator exited `2` with `FAIL`, `behavior-grader-failed`, and failed grader
+indices 0, 1, 3, and 4; graders 2 and 5 passed. Usage was 18,615 input tokens, 12,800 cached input
+tokens, zero cache-write input tokens, 869 output tokens, and 540 reasoning-output tokens. The
+compact result is `F:\route001-runs\canary-20260820\canary-result.json` (467 bytes, SHA-256
+`fd42cf06abca5ea789570013f7f15c38a851682741499e728445f38abb426102`). The previous result was
+preserved as `canary-result-pre-fix-473e3628.json` with its original SHA-256
+`473e3628f7c1673812f13331323a68122cf3ac1ab43ebef05008882b4472da6d`.
+
+The post-fix result does not prove whether the skill was loaded; Codex 0.148 exposes only
+behavioral response evidence for this non-root trial. It does prove that this wording change did not
+alter the measured grader outcome in the single authorized run. Another prompt edit or paid retry
+is not justified by the retained evidence.
+
 ## What did not happen
 
-- No further live call followed the valid bounded canary.
+- No further live call followed the post-fix canary.
 - No 48-trial campaign, baseline, promotion, release, push, or pull request occurred.
 - No passing behavior or promotion verdict was recorded.
 - No verified monetary-cost claim is available; the token counts above are the recorded canary

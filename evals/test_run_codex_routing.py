@@ -96,7 +96,7 @@ class ManifestContractTests(unittest.TestCase):
         self.assertEqual(
             {
                 "a39a81f33f7ad7325c52d883822bbbdd80c7ed28": "195e5afad5ccd95f0aa3611b96cd31c8c1e9bc06818009603e2c4181240f62b5",
-                "b459a5d3a209d384acb2b2b7ca325aa63697113b": "867f92cccb6eff6e994f27eff7301722ebb82da24b6f2adcd26be92fe2babf4a",
+                "7aef80aede95394f6c4237ed2aedb911e141c3c0": "b9167b5200994d8265a2c592c7730028e81aa6f3a7fb19646bce0ceffc052a10",
             },
             manifest["snapshot_tree_sha256"],
         )
@@ -119,7 +119,7 @@ class ManifestContractTests(unittest.TestCase):
             self.manifest["before_revision"],
         )
         self.assertEqual(
-            "b459a5d3a209d384acb2b2b7ca325aa63697113b",
+            "7aef80aede95394f6c4237ed2aedb911e141c3c0",
             self.manifest["current_revision"],
         )
 

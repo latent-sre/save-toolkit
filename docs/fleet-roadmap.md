@@ -252,7 +252,7 @@ boundary and must instead be excluded or isolated by the host.
 policy `never`, and the no-local/effect-tools policy. Run five overlapping
 scenarios against both
 `a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and
-`b459a5d3a209d384acb2b2b7ca325aa63697113b`, then fourteen GCP/Akamai scenarios against the current
+`7aef80aede95394f6c4237ed2aedb911e141c3c0`, then fourteen GCP/Akamai scenarios against the current
 revision only: 48 trials total (20 paired and 28 current-only). Persist only sanitized
 digest/count/verdict/runtime evidence. A non-root skill result remains explicitly
 `behavioral-only-codex-0.148`; both root-scoped active-incident negatives must remain
@@ -311,10 +311,11 @@ directory is enforced, the disposable auth copy is removed before model-controll
 decoded exact auth values are scanned, receipts and output are bounded, and every launched outcome
 receives a post-trial drift check. Under the accepted live boundary, the operator login will still exist in a
 disposable `CODEX_HOME` under the same OS user: this is application-layer isolation, not a
-separate-principal sandbox, and that limitation must be retained in every result. Exactly four
-owner-approved authenticated development attempts ran: 0.147.0 exited before model output, and all
-three 0.148.0 processes returned `0` but failed trace or hook validation. No successful authenticated
-canary or campaign was run. Historical Claude runs and the prepared Claude campaign remain
+separate-principal sandbox, and that limitation must be retained in every result. Exactly seven
+owner-approved authenticated development attempts ran. The first four were inconclusive while the
+runtime/evaluator boundary was repaired; three later 0.148.0 attempts reached behavior grading and
+returned valid `FAIL` verdicts. No passing authenticated canary or campaign was run. Historical
+Claude runs and the prepared Claude campaign remain
 preserved under their original labels; none is relabeled as Terra evidence. The 2026-07-31 Sol results
 remain retained but revoked as release evidence.
 
@@ -400,9 +401,13 @@ indices; the one authorized follow-up canary failed graders 0, 1, 3, and 4 while
 That localizes the gap to omitted read-only service/revision/log commands, the loopback contrast, and
 evidence/authority qualifiers; the bind-address diagnosis and exact rollback packet already passed.
 The canonical `gcp-ops` skill now uses a four-slot startup/rollback answer contract, with generated
-adapters refreshed. The 48-trial campaign remains **NO-GO**. Obtain independent exact-candidate
-review, then use one separately authorized post-fix canary before changing any other skill text or
-claiming a current baseline.
+adapters refreshed. A separately authorized post-fix canary against exact image
+`sha256:086b63ee981e0997ce8f4201d4e6a85b1e05703cc2c939c0746540a925f59064`
+passed preflight but failed the same grader indices 0, 1, 3, and 4 while passing 2 and 5. The wording
+change therefore did not improve this measured sample, and the 48-trial campaign remains **NO-GO**.
+Before another prompt edit or paid call, determine offline whether the missing behavior is a routing,
+reference-loading, or response-shaping problem; the sanitized artifact cannot distinguish them.
+Any later canary still requires separate authorization and an independently reviewed exact candidate.
 
 ## Repository work
 

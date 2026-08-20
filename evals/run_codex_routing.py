@@ -35,7 +35,7 @@ WINDOWS_MANIFEST_PATH = EVAL_ROOT / "conformance" / "codex-terra-routing-v1.json
 LINUX_MANIFEST_PATH = EVAL_ROOT / "conformance" / "codex-terra-routing-linux-v1.json"
 SCENARIO_BUNDLE_PATH = EVAL_ROOT / "conformance" / "codex-terra-scenarios-v1.json"
 # The Linux container is the canonical execution arm.  The Windows path remains accepted only as
-# historical/optional conformance evidence and retains its original manifest bytes.
+# historical/optional conformance evidence and retains its historical runtime identity.
 MANIFEST_PATH = LINUX_MANIFEST_PATH
 MODEL = "gpt-5.6-terra"
 REASONING_EFFORT = "medium"
@@ -54,7 +54,7 @@ TIMEOUT_S = 300
 TRIALS = 2
 THRESHOLD = 1.0
 BEFORE_REVISION = "a39a81f33f7ad7325c52d883822bbbdd80c7ed28"
-CURRENT_REVISION = "b459a5d3a209d384acb2b2b7ca325aa63697113b"
+CURRENT_REVISION = "7aef80aede95394f6c4237ed2aedb911e141c3c0"
 CANARY_SCENARIO_ID = "discovery-gcp-ops-cloud-run-startup"
 CANARY_CANONICAL_SHA256 = (
     "5c516ab15a31cd26923193b97ab69e7c16337ef8ab916bf43706c3047f79fd6b"

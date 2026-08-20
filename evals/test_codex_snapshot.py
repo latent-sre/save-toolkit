@@ -21,7 +21,7 @@ import codex_snapshot  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BEFORE = "a39a81f33f7ad7325c52d883822bbbdd80c7ed28"
-CURRENT = "b459a5d3a209d384acb2b2b7ca325aa63697113b"
+CURRENT = "7aef80aede95394f6c4237ed2aedb911e141c3c0"
 
 
 def _json_bytes(value: object) -> bytes:

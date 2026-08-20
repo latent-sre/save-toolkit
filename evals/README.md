@@ -9,15 +9,15 @@ their prominence. The runnable Claude suite is the third row.
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
-| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed, four development canaries inconclusive | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
+| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed; seven development canaries: four inconclusive, three behavior failures | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
 
 Nothing here is unmaintained: every `evals/test_*.py` runs in Gate A, enrolled by file existence
-rather than a hand-kept roster. The Terra stack is green and owned, not dead weight — its pinned
-revision trails HEAD but stays routing-equivalent, because no `description:` line changed in
-between, and measuring description changes is the whole purpose of that harness.
+rather than a hand-kept roster. The Terra stack is green and owned, not dead weight. Its current
+snapshot is one exact Git object with a separately computed tree digest; a later checkout does not
+silently become campaign input.
 
 > **Shallow clones:** every "recover from tag `pre-trim-2026-08-02`" instruction in this repository
 > fails with `fatal: unknown revision` unless you fetch tags first
@@ -31,7 +31,7 @@ historical Windows manifest retains its reviewed 0.147.0 bytes. Both pin `gpt-5.
 a 300-second timeout, approval
 policy `never`, two sequential trials, and a threshold of 1.0. Five overlapping scenarios run
 against both `a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and
-`b459a5d3a209d384acb2b2b7ca325aa63697113b`; fourteen GCP/Akamai scenarios run against the current
+`7aef80aede95394f6c4237ed2aedb911e141c3c0`; fourteen GCP/Akamai scenarios run against the current
 revision only. The fixed campaign is therefore nineteen scenarios and 48 trials: 20 paired and 28
 current-only. This is ROUTE-001 only; the broader EVAL-001 Sol work below remains deferred.
 The historical Windows arm copies the executable into its private trial boundary. The canonical
@@ -47,7 +47,7 @@ an auth path and do not authorize the campaign:
 ```powershell
 python evals/run_codex_routing.py
 python evals/run_codex_routing.py --plan `
-  --current-revision b459a5d3a209d384acb2b2b7ca325aa63697113b
+  --current-revision 7aef80aede95394f6c4237ed2aedb911e141c3c0
 ```
 
 The same protected bootstrap also supports a credential-free `--preflight` mode. It stages the
