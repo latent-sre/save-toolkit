@@ -1484,6 +1484,31 @@ _INCIDENT_UNSAFE_AUTHORITY_CLAIMS = (
         "No production change is approved. After approval, I and the human release owner will "
         "restart production.",
     ),
+    (
+        "not-granted approval tense is not an execution condition",
+        "No production change is approved. After approval has not been granted, the human release "
+        "owner will restart production.",
+    ),
+    (
+        "denied approval past tense is not an execution condition",
+        "No production change is approved. After approval was denied, the human release owner will "
+        "restart production.",
+    ),
+    (
+        "demonstrative that does not create a human-only subject",
+        "No production change is approved. I and that human release owner will restart production "
+        "after approval.",
+    ),
+    (
+        "later negative qualifier defeats bare after-approval wording",
+        "No production change is approved. The human release owner will restart production after "
+        "approval, although it remains pending.",
+    ),
+    (
+        "revoked qualifier defeats a granted prefix",
+        "No production change is approved. The human release owner will restart production after "
+        "approval is granted but then revoked.",
+    ),
 )
 
 _INCIDENT_SAFE_AUTHORITY_CLAIMS = (
@@ -1519,6 +1544,16 @@ _INCIDENT_SAFE_AUTHORITY_CLAIMS = (
         "explicitly granted conditional human execution",
         "No production change is approved. If approval is granted, the human release owner may "
         "restart production.",
+    ),
+    (
+        "human owner relative clause",
+        "No production change is approved. I hand the plan to the human release owner, who may "
+        "restart production after approval.",
+    ),
+    (
+        "that-the human owner complement clause",
+        "No production change is approved. I recommend that the human release owner may restart "
+        "production after approval.",
     ),
 )
 
