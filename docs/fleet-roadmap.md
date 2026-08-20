@@ -187,9 +187,10 @@ create or move a release ref manually.
 
 **Status:** `active` (2026-08-20) — PR
 [#103](https://github.com/latent-sre/save-toolkit/pull/103) supplied the original evaluator. An
-uncommitted Linux Docker arm now implements the fixed 48-trial executor and passed its credential-free
-preflight. Exactly one owner-approved development canary ended `INCONCLUSIVE` before producing model
-output (`trace-or-hook-invalid`); no retry, campaign, routing result, or baseline followed. See the
+Linux Docker arm committed at `262dfc93daf8663b50f6175b7beb7fdfae9b15cc` implements the fixed
+48-trial executor and passed its credential-free preflight. Two owner-approved development canaries
+ended `INCONCLUSIVE`: Codex 0.147 failed during startup, while Codex 0.148 returned `0` but its trace
+or hook receipts failed validation. No retry, campaign, routing result, or baseline followed. See the
 [`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
 
 **Owner direction (2026-08-20) — measure on more than one provider.** This campaign is to be run
@@ -256,8 +257,9 @@ baseline, release, or owner acceptance to itself.
 
 **Current evidence:** The implementation merged by PR #103 freezes the nineteen scenario IDs and
 hashes, binds each `TrialSpec` to its manifest scenario digest, and embeds the exact development-canary
-scenario rather than reopening mutable suite bytes. The current uncommitted Linux arm preserves those
-inputs while repinning Codex CLI 0.148.0 and its exact Linux executable SHA-256; the validation-only
+scenario rather than reopening mutable suite bytes. Commit
+`262dfc93daf8663b50f6175b7beb7fdfae9b15cc` preserves those inputs while repinning Codex CLI 0.148.0
+and its exact Linux executable SHA-256; the validation-only
 Windows manifest retains its historical 0.147.0 bytes. The campaign also freezes both target revisions,
 `gpt-5.6-terra`, medium reasoning, two trials, and the
 48-trial shape. The 0.148 campaign accepts no provider-native filesystem-skill activation event, so
@@ -269,10 +271,10 @@ grading. The fixed authenticated canary instead uses the non-root GCP Cloud Run 
 the fixed linear `contains_all`, `contains_any`, and `cloud_run_rollback_packet` graders, and
 256 KiB total/8 KiB per-line response limits. The structured rollback grader binds one exact fenced
 JSON packet to service `checkout`, synthetic previous/failed revision IDs, 100% traffic, and matching
-region/project context. A post-merge audit reproduced one remaining false pass: an additional
-`gcloud run services` command continued with a POSIX backslash before `update-traffic` is accepted
-outside the packet because the guard searches only one whitespace-normalized literal prefix. This
-must be repaired and rebound into both manifests before any canary.
+region/project context. The current grader normalizes POSIX continuations, quotes, and backslash
+escapes before rejecting an additional `gcloud run services update-traffic` command outside the
+packet. That repair and its manifest binding still require independent exact-candidate review before
+the campaign; the development canary cannot close that prerequisite.
 
 The evaluator now also has a bootstrap-only, credential-free preflight that reuses the actual
 snapshot, executable/catalog probe, safe-catalog/config/hook construction, and drift gates and stops
@@ -281,7 +283,8 @@ versioned Codex 0.147.0 executable path; the normal launcher path was correctly 
 crosses updater junctions. The result records host trust as unverified and grants no live authority.
 The historical Windows Python/runtime and Git object-store trust prerequisites therefore remain open.
 On 2026-08-20 the replacement Linux image was rebuilt against Codex 0.148.0 and passed the same
-credential-free preflight with no auth mount or model process; it remains uncommitted and unreviewed.
+credential-free preflight with no auth mount or model process. The evaluator is committed but remains
+independently unreviewed.
 
 An owner-authorized managed response-only Terra smoke at commit `6d90943664ee0305726cc0ed8feb6b5d9a8e7f68`
 exposed a grader-calibration defect without supplying a resolved-model, installed-skill, or harness
@@ -304,9 +307,10 @@ directory is enforced, the disposable auth copy is removed before model-controll
 decoded exact auth values are scanned, receipts and output are bounded, and every launched outcome
 receives a post-trial drift check. Under the accepted live boundary, the operator login will still exist in a
 disposable `CODEX_HOME` under the same OS user: this is application-layer isolation, not a
-separate-principal sandbox, and that limitation must be retained in every result. Exactly one
-owner-approved authenticated development attempt ran under 0.147.0 and exited before model output;
-no successful authenticated canary or campaign was run. Historical Claude runs and the prepared Claude campaign remain
+separate-principal sandbox, and that limitation must be retained in every result. Exactly two
+owner-approved authenticated development attempts ran: 0.147.0 exited before model output, and
+0.148.0 returned `0` but failed trace or hook validation. No successful authenticated canary or
+campaign was run. Historical Claude runs and the prepared Claude campaign remain
 preserved under their original labels; none is relabeled as Terra evidence. The 2026-07-31 Sol results
 remain retained but revoked as release evidence.
 
@@ -329,9 +333,10 @@ See the
 resolved exact tag `rust-v0.148.0` to commit
 `3ba0f711642a888aec92a611a3f3b2211157ff89`; Context7 and the tagged source both retain the nested
 `[tools.*]` configuration shape used by the repair. Image
-`sha256:054e5dc1deb0ed111443ffacb1616bb86261f4eefc8f8376f079e8884c906905`
-passed the credential-free networkless preflight. This is uncommitted development evidence and did
-not authorize or start an authenticated call; see the
+`sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf`
+passed the credential-free networkless preflight. One subsequent owner-authorized development
+canary ran from clean commit `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`; Codex returned `0`, but
+the result remained `INCONCLUSIVE` because trace or hook validation failed. See the
 [`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
 
 **Grader repair (2026-08-15):** The outside-packet detector is repaired and evidenced in the
@@ -372,12 +377,12 @@ That Markdown packet is not a typed-record attempt or evidence envelope and ran 
 
 **Next action:** The Linux canary's 50 ms Codex 0.147 startup failure is reproduced and repaired
 offline; the supported schema requires nested `[tools.*]` controls rather than the rejected root
-keys. The bounded 0.148.0 repin now has an exact local image and passing networkless preflight.
-Bind the corrected evaluator to an exact commit, then obtain independent review before
-requesting authorization for one new development canary. Only
-after that canary produces a valid boundary and verdict may the implemented 48-trial executor run
-sequentially. Do not tune descriptions or claim a current baseline from historical Claude/Sol
-output, this inconclusive development canary, or unreviewed working-tree bytes.
+keys. The bounded 0.148.0 repin is committed and has an exact local image and passing networkless
+preflight, but its single development canary failed closed at trace or hook validation. Diagnose that
+instrument boundary without rerunning the model, then obtain independent exact-candidate review.
+Only a separately authorized canary that produces a valid boundary and verdict can unblock the
+implemented 48-trial executor. Do not tune descriptions or claim a current baseline from historical
+Claude/Sol output or either inconclusive development canary.
 
 ## Repository work
 

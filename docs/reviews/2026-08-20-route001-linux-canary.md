@@ -3,30 +3,29 @@
 - **Date:** 2026-08-20
 - **Branch:** `feat/route001-linux-container`
 - **Base commit:** `e31d04e06d3d50e7351f0251768b11c8016c3f10`
-- **Candidate state:** uncommitted and not independently reviewed
+- **Candidate state:** committed at `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`; not independently reviewed
 - **Authority:** development instrument evidence only; not campaign, baseline, release, or promotion
 
 ## Outcome
 
-The Linux Docker arm is viable, but the first authenticated development canary under Codex 0.147.0
-is **INCONCLUSIVE**. Exactly one owner-approved authenticated canary process was started; Codex
-exited before producing a response or valid trace. No retry and no 48-trial campaign followed.
-
-After that startup defect was repaired, the owner requested a bounded repin to Codex 0.148.0. The
-new immutable image passed the credential-free preflight and a separate networkless strict-config
-startup check. No authenticated or paid call followed the repin.
+The Linux Docker arm is viable, but both owner-approved authenticated development canaries are
+**INCONCLUSIVE**. The first, under Codex 0.147.0, exited before producing a response or valid trace.
+After that startup defect was repaired, the owner requested a bounded repin to Codex 0.148.0 and
+committed the evaluator at `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`. The second canary's Codex
+subprocess returned `0` after 15,865 ms, but the evaluator rejected its JSONL trace or hook receipts.
+Neither attempt is a routing result, and no retry or 48-trial campaign followed.
 
 | Check | Evidence |
 |---|---|
 | Candidate image | `[verified]` `sha256:c339d945cc6d77661a836b3f81eddf0102f950fb9a43beae4529c57cb2f9047c` |
 | Corrected 0.147 image | `[verified]` `sha256:0c6ae299da5088f9a93d0a968c2a95a61e6640d6b585e4740919f435afcd7287` |
-| Repinned 0.148 image | `[verified]` `sha256:054e5dc1deb0ed111443ffacb1616bb86261f4eefc8f8376f079e8884c906905` |
+| Repinned 0.148 canary image | `[verified]` `sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf` |
 | Runtime shape | `[verified]` Linux `amd64`; non-root `65532:65532`; launcher image inspection passed |
-| Targeted contracts | `[verified]` 78 passed; 6 expected platform skips |
+| Targeted contracts | `[verified]` 125 passed; 6 expected platform skips |
 | Credential-free preflight | `[verified]` exit `0`; `credential-free-preflight-pass`; no auth or model process started |
-| Development canary | `[verified]` outer exit `4`; verdict `INCONCLUSIVE`; `trace-or-hook-invalid` |
-| Codex subprocess | `[verified]` exit `1` after 50 ms; stdout 0 bytes; stderr 213 bytes |
-| Sanitized stderr identity | `[verified]` SHA-256 `804fd1da8910f8e564c6f9379b2d1470ba182207e19a3ade9990f209403a080c` |
+| 0.147 development canary | `[verified]` outer exit `4`; verdict `INCONCLUSIVE`; `trace-or-hook-invalid` |
+| 0.148 development canary | `[verified]` verdict `INCONCLUSIVE`; `trace-or-hook-invalid`; no retry |
+| 0.148 Codex subprocess | `[verified]` exit `0` after 15,865 ms; stdout 1,684 bytes; stderr 144 bytes |
 | Usage and cost | `[unverified]` no token, usage, billing, request, or resolved-model receipt was produced |
 | Persistent run artifacts | `[verified]` `F:\route001-runs\canary-20260820` contained zero files after the run |
 
@@ -64,6 +63,21 @@ evaluator could not establish a model response, activation trace, hook receipt, 
 token usage, or cost. The raw stderr was deliberately removed with the private trial boundary; only
 its byte count and digest remain. This is instrument/startup evidence, not evidence that Terra ran or
 that the target skill routed correctly.
+
+## Codex 0.148 canary evidence
+
+`[verified]` The second canary ran from clean commit
+`262dfc93daf8663b50f6175b7beb7fdfae9b15cc` using exact image
+`sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf`,
+the fixed `discovery-gcp-ops-cloud-run-startup` scenario, `gpt-5.6-terra`, medium reasoning,
+approval policy `never`, read-only sandboxing, and the operator-approved existing Codex account.
+The Codex subprocess returned `0` after 15,865 ms without timing out or reaching an output limit.
+
+The evaluator then failed closed with `trace-or-hook-invalid`. That reason deliberately aggregates
+failure in either JSONL trace parsing or hook-receipt loading; the sanitized result retained neither
+object and the disposable raw boundary was removed. The available evidence therefore cannot identify
+which parser rejected the run, establish a successful model response, grade the scenario, or recover
+token/cost data. No inference that Codex 0.148 changed hook behavior is made from this single result.
 
 ## Offline root cause and repair
 
@@ -178,9 +192,9 @@ not claim that the surrounding worktree is clean or independently reviewed.
 
 ROUTE-001 remains active and the 48-trial campaign remains **NO-GO**. The startup failure is repaired,
 the Linux runtime is repinned to exact Codex 0.148.0 bytes, and the new networkless preflight passes.
-The evaluator is still uncommitted and not independently reviewed, so another paid call remains
-unauthorized. Any retry requires new owner authorization and remains development evidence until the
-campaign prerequisites are met.
+The evaluator is committed at `262dfc93daf8663b50f6175b7beb7fdfae9b15cc` but is not independently
+reviewed, and the 0.148 canary did not produce a valid trace/hook boundary. Any retry requires new
+owner authorization and remains development evidence until the campaign prerequisites are met.
 
 The focused evaluator suite passed 125 tests with 6 expected platform skips. Link validation,
 single-live-roadmap validation, offline 48-trial plan validation, and `git diff --check` passed.
@@ -192,8 +206,7 @@ not weakened to accommodate the development worktree.
 
 ## What did not happen
 
-- No second canary call was made.
-- No authenticated or paid model call was made after the 0.148.0 repin.
-- No 48-trial campaign, baseline, promotion, release, commit, push, or pull request occurred.
+- No retry followed the single 0.148 canary.
+- No 48-trial campaign, baseline, promotion, release, push, or pull request occurred.
 - No successful model response or routing verdict was recorded.
-- No token or monetary-cost claim is available from this attempt.
+- No verified token or monetary-cost claim is available from either attempt.
