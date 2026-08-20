@@ -132,7 +132,10 @@ Choose `obs-dashboards` only when `Where to look` is a supplied dashboard URI or
 answers the question. That exception does not apply when `Where to look` is
 `[unverified — not located]` or the supplied evidence item merely names a comparison; choose the row
 from the question in that case. Choose `obs-metrics` when the question asks for a latency/baseline
-comparison that is not already presented by a located dashboard.
+comparison that is not already presented by a located dashboard. This precedence is deterministic:
+when the first check opens the supplied dashboard URI/path, use `obs-dashboards`, not `obs-metrics`;
+when its location is unknown and the requested item is a latency comparison, use `obs-metrics`, not
+`obs-dashboards`.
 
 If two rows look equally useful, choose the lower-cost, lower-risk check. State why it wins and what
 result would make the other row next. Do not load every sibling skill for completeness.
