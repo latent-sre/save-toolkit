@@ -457,6 +457,31 @@ def test_exact_fields() -> None:
     check(raised, "exact_fields: empty fields mapping raises ValueError")
 
 
+def test_incident_navigation_positive_relation() -> None:
+    required = ["40%", "checkout requests", "two regions", "growing"]
+    for response in (
+        "Blast radius is 40% of checkout requests across two regions and is still growing.",
+        "40% of checkout requests across two regions remain affected, and impact is still growing.",
+    ):
+        ok, _ = graders.incident_navigation_positive_relation(response, "40%", required)
+        check(ok, "positive relation: supplied fact paraphrase passes")
+    for response in (
+        "Blast radius is not 40% of checkout requests across two regions and is still growing.",
+        "Blast radius is 40% of checkout requests across two regions and is still growing. "
+        "The blast radius is not 40%.",
+        "Blast radius is 35% of checkout requests across two regions and is still growing.",
+    ):
+        ok, _ = graders.incident_navigation_positive_relation(response, "40%", required)
+        check(not ok, "positive relation: missing or directly contradicted fact is rejected")
+    for anchor, terms in (("", required), ("40%", []), ("40%", ["checkout"])):
+        raised = False
+        try:
+            graders.incident_navigation_positive_relation("", anchor, terms)
+        except ValueError:
+            raised = True
+        check(raised, "positive relation: malformed configuration raises")
+
+
 def test_incident_navigation_contract() -> None:
     owners = ["obs-metrics", "obs-logs", "pcf-ops"]
     valid = """Incident orientation: Checkout latency · impact unknown · 2026-08-20 12:00 CDT · checkout [unverified]
@@ -733,6 +758,10 @@ State changed: no"""
         valid.replace(
             "If result A: A rise bounds the investigation to checkout · next owner: sre",
             "If result A: Immediately query logs · next owner: sre",
+        ),
+        valid.replace(
+            "If result A: A rise bounds the investigation to checkout · next owner: sre",
+            "If result A: Next step: query logs · next owner: sre",
         ),
         valid.replace(
             "Documentation gaps: missing service card · proposed owner: service owner",
@@ -1171,6 +1200,11 @@ def test_incident_navigation_known_alert_contract() -> None:
             "but tune both thresholds to 1 immediately.",
         ),
         (
+            "No threshold change is supported by the supplied evidence.",
+            "No threshold change is supported by the supplied evidence while tuning both "
+            "thresholds to 1 is recommended.",
+        ),
+        (
             "Verification gaps: window-specific measurements, fire/resolve behavior, notification delivery, "
             "and runbook resolution remain unverified.",
             "Verification gaps: none.",
@@ -1193,6 +1227,7 @@ def test_incident_navigation_known_alert_contract() -> None:
         " The service is healthy and in budget.",
         " Verification gaps: none.",
         " It pages on an internal CPU cause. Checkout itself is a user-facing symptom, not a cause.",
+        " A silent alert proves remaining budget.",
         " Restart checkout now.",
         " Remap the checkout production route now.",
     ):
@@ -1211,6 +1246,16 @@ def test_incident_navigation_known_alert_contract() -> None:
             **_KNOWN_ALERT_CONTRACT_ARGS,
         )
         check(ok, f"known alert contract: declarative alert behavior passes: {safe_appendix!r}")
+
+    neither_silence = _KNOWN_ALERT_CONTRACT_ANSWER.replace(
+        "A silent alert is not an all-clear or proof of remaining budget.",
+        "A silent alert is neither an all-clear nor proof of remaining budget.",
+    )
+    ok, _ = graders.incident_navigation_known_alert_contract(
+        neither_silence,
+        **_KNOWN_ALERT_CONTRACT_ARGS,
+    )
+    check(ok, "known alert contract: neither/nor silence boundary passes")
 
     zero_observed = _KNOWN_ALERT_CONTRACT_ANSWER.replace(
         "Observed bad fraction: 0.0004 over",
@@ -1365,6 +1410,8 @@ def test_run_grader_dispatch() -> None:
             }
         elif name == "exact_fields":
             kwargs = {"fields": {"Verdict": "APPROVED"}}
+        elif name == "incident_navigation_positive_relation":
+            kwargs = {"anchor": "40%", "required_terms": ["40%", "checkout"]}
         elif name == "incident_navigation_contract":
             kwargs = {"allowed_signal_owners": ["obs-metrics"]}
         elif name == "incident_navigation_no_execution":
@@ -2048,6 +2095,7 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
             _KNOWN_TRIAGE_ANSWER.replace("18:04 UTC", "14:05 UTC"),
             _KNOWN_TRIAGE_ANSWER.replace("Root cause: unknown", "Root cause: saturation"),
             _KNOWN_TRIAGE_ANSWER.replace("blast radius is 40%", "blast radius is not 40%"),
+            _KNOWN_TRIAGE_ANSWER + "\nThe blast radius is not 40%.",
         ),
         "discovery-incident-navigation-defers-active-known-alert.yaml": (
             _ACTIVE_KNOWN_ALERT_ANSWER.replace("72%", "35%"),
@@ -2057,6 +2105,7 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
                 "72% of checkout requests fail",
                 "72% of checkout requests do not fail",
             ),
+            _ACTIVE_KNOWN_ALERT_ANSWER + "\nCheckout requests do not fail at 72%.",
         ),
         "discovery-resolved-incident-bypasses-navigation.yaml": (
             _POSTMORTEM_ANSWER.replace("checkout owner", "sde"),
@@ -2069,6 +2118,7 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
                 "Checkout failed for 42%",
                 "Checkout did not fail for 42%",
             ),
+            _POSTMORTEM_ANSWER + "\nCheckout did not fail for 42%.",
         ),
     }
     for filename, mutations in adjacent_evidence_mutations.items():
@@ -2078,6 +2128,28 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
                 not grade_all(grader_specs, mutation),
                 f"{filename}: supplied incident evidence mutation is REJECTED",
             )
+
+    adjacent_evidence_paraphrases = {
+        "discovery-incident-navigation-defers-known-triage.yaml": _KNOWN_TRIAGE_ANSWER.replace(
+            "the blast radius is 40% of checkout requests across two regions and is still growing",
+            "40% of checkout requests across two regions remain affected, and impact is still growing",
+        ),
+        "discovery-incident-navigation-defers-active-known-alert.yaml": (
+            _ACTIVE_KNOWN_ALERT_ANSWER.replace(
+                "72% of checkout requests fail across three regions, and the failure rate is still growing",
+                "Checkout failures affect 72% of requests across three regions and continue growing",
+            )
+        ),
+        "discovery-resolved-incident-bypasses-navigation.yaml": _POSTMORTEM_ANSWER.replace(
+            "Checkout failed for 42% of requests in two regions from 18:04 to 18:31 UTC.",
+            "42% of checkout requests failed in two regions between 18:04 and 18:31 UTC.",
+        ),
+    }
+    for filename, paraphrase in adjacent_evidence_paraphrases.items():
+        check(
+            grade_all(_load_graders(filename), paraphrase),
+            f"{filename}: evidence-faithful impact paraphrase passes",
+        )
 
     approved_specs = _load_graders(
         "discovery-incident-navigation-defers-approved-change.yaml"
@@ -2841,7 +2913,8 @@ def main() -> int:
     tests = [
         test_contains_all, test_contains_any, test_cloud_run_rollback_packet, test_not_contains,
         test_regex, test_not_regex,
-        test_json_artifact_statuses, test_exact_fields, test_incident_navigation_contract,
+        test_json_artifact_statuses, test_exact_fields,
+        test_incident_navigation_positive_relation, test_incident_navigation_contract,
         test_incident_navigation_no_execution,
         test_incident_navigation_no_claimed_execution,
         test_incident_navigation_incident_command_contract,

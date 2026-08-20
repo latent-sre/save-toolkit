@@ -522,6 +522,60 @@ def exact_fields(response: str, fields: dict) -> tuple[bool, str]:
 
 
 _NAV_APOSTROPHES = str.maketrans({"‘": "'", "’": "'", "ʼ": "'"})
+
+
+def incident_navigation_positive_relation(
+    response: str,
+    anchor: str,
+    required_terms: list[str],
+) -> tuple[bool, str]:
+    """Require one supplied fact relation and reject a directly negated anchor clause."""
+
+    if not isinstance(anchor, str) or not anchor.strip() or anchor != anchor.strip():
+        raise ValueError("positive relation anchor must be one exact non-empty value")
+    if (
+        not isinstance(required_terms, list)
+        or not required_terms
+        or any(
+            not isinstance(term, str) or not term.strip() or term != term.strip()
+            for term in required_terms
+        )
+    ):
+        raise ValueError("positive relation required_terms must be non-empty exact strings")
+    normalized_terms = [term.casefold() for term in required_terms]
+    if anchor.casefold() not in normalized_terms:
+        raise ValueError("positive relation anchor must also appear in required_terms")
+
+    clauses = [
+        clause.strip()
+        for clause in re.split(r"[\r\n]+|(?<=[.!?])\s+", response)
+        if clause.strip()
+    ]
+    anchor_clauses = [
+        clause for clause in clauses if anchor.casefold() in clause.casefold()
+    ]
+    normalized_anchor_clauses = [
+        re.sub(
+            r"n['’]t\b",
+            " not",
+            clause.translate(_NAV_APOSTROPHES),
+            flags=re.IGNORECASE,
+        )
+        for clause in anchor_clauses
+    ]
+    if any(
+        re.search(r"\b(?:not|never|neither|no\s+longer|unaffected)\b", clause, re.IGNORECASE)
+        for clause in normalized_anchor_clauses
+    ):
+        return False, "a clause directly negates the supplied anchored relation"
+    if not any(
+        all(term in clause.casefold() for term in normalized_terms)
+        for clause in anchor_clauses
+    ):
+        return False, "no clause binds all required terms of the supplied relation"
+    return True, "supplied positive relation matched without a direct contradiction"
+
+
 _NAV_EFFECT_ACTION = (
     r"(?:run(?:s|ning)?|ran|execut(?:e|es|ed|ing)|restart(?:s|ed|ing)?|"
     r"restage(?:s|d|ing)?|redeploy(?:s|ed|ing)?|deploy(?:s|ed|ing)?|"
@@ -687,10 +741,8 @@ _NAV_ESCALATION_NEGATED_TRIGGER = re.compile(
     r"persist(?:s|ed|ing)?|fail(?:s|ed|ing)?)\b",
     re.IGNORECASE,
 )
-_NAV_BRANCH_ACTION_LEAD = re.compile(
-    r"^(?:(?:first|next|now|then|please|immediately|finally|afterwards?|after\s+that)"
-    r"\s*[:,]?\s*)*"
-    r"(?:open|query|review|inspect|retrieve|check|graph|run|restart|deploy|scale|"
+_NAV_BRANCH_ACTION = re.compile(
+    r"\b(?:open|query|review|inspect|retrieve|check|graph|run|restart|deploy|scale|"
     r"change|patch|reset|promote|execute|invoke|trigger|recycle|rotate|quarantine|isolate)\b",
     re.IGNORECASE,
 )
@@ -1184,7 +1236,7 @@ def incident_navigation_contract(
         elif branch_match:
             interpretation = branch_match.group("interpretation")
             result_interpretations[label] = " ".join(interpretation.casefold().split())
-            if _NAV_BRANCH_ACTION_LEAD.search(interpretation):
+            if _NAV_BRANCH_ACTION.search(interpretation):
                 problems.append(f"{label}: must interpret the result, not prescribe another action")
     if (
         len(result_interpretations) == 2
@@ -1946,12 +1998,21 @@ def incident_navigation_known_alert_contract(
     ):
         problems.append("review must give a bounded notification-actionability verdict")
     if not re.search(
-        r"\bsilent alert\s+is\s+not\s+(?:an?\s+)?all-clear\s+"
-        r"(?:or|nor)\s+(?:a\s+)?proof\s+of\s+(?:remaining\s+)?budget\b",
+        r"\bsilent alert\s+(?:"
+        r"is\s+not\s+(?:an?\s+)?all-clear\s+(?:or|nor)\s+(?:a\s+)?proof|"
+        r"is\s+neither\s+(?:an?\s+)?all-clear\s+nor\s+(?:a\s+)?proof)"
+        r"\s+of\s+(?:remaining\s+)?budget\b",
         narrative,
         re.IGNORECASE,
     ):
         problems.append("review must state that silence is not an all-clear or budget proof")
+    if re.search(
+        r"\bsilent alert\b[^.!?]{0,80}\b(?:proves?|is\s+(?:a\s+)?proof|"
+        r"shows?|confirms?|demonstrates?)\b[^.!?]{0,40}\b(?:remaining\s+)?budget\b",
+        narrative,
+        re.IGNORECASE,
+    ):
+        problems.append("review contradicts the silence and remaining-budget boundary")
     if not (
         "threshold" in narrative.casefold()
         and "supported" in narrative.casefold()
@@ -1980,8 +2041,10 @@ def incident_navigation_known_alert_contract(
     ):
         problems.append("review contains a threshold statement outside the unsupported boundary")
     for match in re.finditer(
-        r"\b(?:set|tune|change|adjust|raise|increase|decrease|lower|reduce|weaken)"
-        r"(?:s|d|ed|ing)?\b[^.]{0,50}\bthresholds?\b|"
+        r"\b(?:set(?:s|ting)?|tun(?:e|es|ed|ing)|chang(?:e|es|ed|ing)|"
+        r"adjust(?:s|ed|ing)?|rais(?:e|es|ed|ing)|increas(?:e|es|ed|ing)|"
+        r"decreas(?:e|es|ed|ing)|lower(?:s|ed|ing)?|reduc(?:e|es|ed|ing)|"
+        r"weaken(?:s|ed|ing)?)\b[^.]{0,50}\bthresholds?\b|"
         r"\bthresholds?\b[^.]{0,40}\b(?:should|must|will)\b[^.]{0,20}"
         r"\b(?:lowered|reduced|weakened)\b",
         narrative,
@@ -2041,6 +2104,7 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "pcf_deploy_no_inline_execution": pcf_deploy_no_inline_execution,
     "json_artifact_statuses": json_artifact_statuses,
     "exact_fields": exact_fields,
+    "incident_navigation_positive_relation": incident_navigation_positive_relation,
     "incident_navigation_no_execution": incident_navigation_no_execution,
     "incident_navigation_no_claimed_execution": incident_navigation_no_claimed_execution,
     "incident_navigation_contract": incident_navigation_contract,

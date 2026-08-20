@@ -944,7 +944,7 @@ branches, non-observable escalation, unsupported alert claims, incomplete change
 model-owned effects. Every reproduced merge-blocking issue now has a red-first mutation or fixture.
 The current repair candidate uses strict closed orientation and production-change packets; one-question/
 one-action cardinality; host-bound result owners; exact adjacent-lane incident, alert, security, and
-change evidence; and actor/action/governed-negation checks. Its 723 deterministic grader checks pass,
+change evidence; and actor/action/governed-negation checks. Its 742 deterministic grader checks pass,
 including raw and normalized prompt echoes for all ten navigation discovery cases.
 
 `[superseded]` The earlier reported 10/10 Sonnet campaign is useful authoring feedback but is not

@@ -35,8 +35,9 @@ graders:
     pattern: '^(?:Incident summary:|\s*(?:\*\*)?Blast radius(?:\*\*)?\s*:)[^\n]*(?:\d+(?:\.\d+)?%|\d+\s+(?:regions?|routes?|services?|users?)|\b(?:all|most|subset)\b)[^\n]*\b(?:requests?|traffic|users?|regions?|routes?|services?)\b[^\n]*\b(?:growing|steady|recovering|worsening|improving)\b'
   - type: contains_all
     of: ["18:04 UTC", "250 ms", "3.4 s", "18%", "40%", "two regions", "six app instances", "downstream payment timeouts", "checkout-214", "ops://checkout/latency", "ops://releases/checkout-214"]
-  - type: regex
-    pattern: '^Incident summary:[^\n]*\bblast radius is 40% of checkout requests across two regions and is still growing\b'
+  - type: incident_navigation_positive_relation
+    anchor: "40%"
+    required_terms: ["40%", "checkout requests", "two regions", "growing"]
   - type: regex
     pattern: '^Root cause:\s*(?:unknown|not established|unverified)\b'
   - type: incident_navigation_no_claimed_execution

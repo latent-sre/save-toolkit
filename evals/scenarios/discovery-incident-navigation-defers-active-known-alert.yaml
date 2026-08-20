@@ -36,8 +36,9 @@ graders:
     of: ["fast", "slow", "burn", "runbook"]
   - type: contains_all
     of: ["18:04 UTC", "checkout-214", "72%", "three regions", "0.001", "one-hour", "five-minute", "14.4", "six-hour", "thirty-minute", "above 6", "ops://checkout/error-budget-burn", "checkout on-call"]
-  - type: regex
-    pattern: '^Incident summary:\s*SEV[1-4]\s+[—-]\s+72% of checkout requests fail across three regions, and the failure rate is still growing\.'
+  - type: incident_navigation_positive_relation
+    anchor: "72%"
+    required_terms: ["72%", "checkout", "requests", "three regions", "fail", "growing"]
   - type: regex
     pattern: '^Root cause:\s*(?:unknown|not established|unverified)\b'
   - type: incident_navigation_no_claimed_execution

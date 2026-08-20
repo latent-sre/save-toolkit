@@ -36,7 +36,8 @@ graders:
     of: ["preventative", "Owner", "Due", "Durable artifact / proof of done"]
   - type: contains_all
     of: ["42%", "two regions", "18:04", "18:31 UTC", "checkout-214", "18:22 human release owner", "unbounded downstream retry policy", "payment-provider timeouts", "canary did not exercise the payment timeout path", "unaffected region", "checkout owner", "bound downstream retries", "2026-09-03", "passing timeout-path integration test", "deployed configuration evidence", "notification-route delivery timestamp is unavailable"]
-  - type: regex
-    pattern: '^Checkout failed for 42% of requests in two regions from 18:04 to 18:31 UTC\.$'
+  - type: incident_navigation_positive_relation
+    anchor: "42%"
+    required_terms: ["42%", "checkout", "requests", "two regions", "18:04", "18:31", "fail"]
   - type: not_regex
     pattern: '^## Verification gaps\s*\n\s*(?:none|no gaps)\b'
