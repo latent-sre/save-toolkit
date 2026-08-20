@@ -9,7 +9,7 @@ their prominence. The runnable Claude suite is the third row.
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
-| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed; eight development canaries: four inconclusive, four behavior failures | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
+| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed; fourteen development probes: four inconclusive, six valid `FAIL`, four `PASS`; campaign never run | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
@@ -106,6 +106,13 @@ Codex `rust-v0.148.0` source at `3ba0f711642a888aec92a611a3f3b2211157ff89` separ
 that explicit selections are read and injected while `skill_search` remains shadow-only. The body
 arm tests the entrypoint, not conditional reference loading. Neither arm is campaign, baseline,
 promotion, or release evidence. The current manifest digest is recorded in the dated review packet.
+
+The approved three rounds completed against exact evaluator commit
+`cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` and image
+`sha256:2ddd1652e8ceb8afa0c68146ad0d4399a4068d1e09f4c64c730c55985c39a06b`.
+Description selection passed 3/3. Explicit body behavior passed 1/3; rounds one and three failed only
+grader 5. The dated review records the compact artifact hashes and the conflicting fence contracts
+that explain why this is not campaign-ready.
 
 The historical Windows host arm does not satisfy that launch contract: its Python installation and runtime
 closure are writable by the operator identity. The canary is therefore **NO-GO** until a protected

@@ -420,10 +420,45 @@ contract. GitHits exact-source evidence remains pinned separately to `rust-v0.14
 `3ba0f711642a888aec92a611a3f3b2211157ff89`: explicit entries are selected in
 `codex-rs/ext/skills/src/selection.rs:21-79`, read at
 `codex-rs/ext/skills/src/extension.rs:440-487`, while shadow selection at `:389-408` does not enter
-that injected set. No paired live call has run yet. The candidate must be committed, rebuilt into a
-new exact image, pass offline checks and credential-free preflight, and then consume only the six
-calls the owner approved. The focused affected set passes 133 tests with six expected platform
+that injected set. At candidate freeze no paired live call had run. The focused affected set passes
+133 tests with six expected platform
 skips, strict plugin validation passes, and Gate A passes 42 of 43 steps in the linked worktree; its
 sole failure is the known ordinary-`.git` snapshot requirement. The final ten-file evaluator
 manifest is 1,296 bytes with SHA-256
 `e824fbafc3f6c7374fba135413eb5121f63a665bfde46d8ebdd8117d053bacb1`.
+
+## Three-pair live result
+
+`[verified]` Exact commit `cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` (tree
+`b8a092b6e304ec7c4c8f4e02e0b691e3a40fe289`) passed all 43 Gate A steps in an ordinary clone.
+A no-cache Linux `amd64` build produced image
+`sha256:2ddd1652e8ceb8afa0c68146ad0d4399a4068d1e09f4c64c730c55985c39a06b`; standalone and per-call
+credential-free preflights passed. The six authorized calls then ran sequentially without retry:
+
+| Coordinate | State | Failed graders | Input | Cached input | Output | Reasoning | Result SHA-256 |
+|---|---|---|---:|---:|---:|---:|---|
+| round 1 description | `PASS` | — | 9,252 | 0 | 24 | 14 | `3d5e5961224937f8f011eb5fe51c480457f906c668e2b572d0b5660bda461af3` |
+| round 1 body | `FAIL` | 5 | 11,120 | 0 | 734 | 386 | `2522775f925a13d12eda49b9522b3d3b1228b0ef6ac6b0d04461eda26769650f` |
+| round 2 description | `PASS` | — | 9,223 | 0 | 24 | 14 | `1dffc760b5f1e7cbb6a007b99055a8fa2f4947575bb046a8628aaa737cc35148` |
+| round 2 body | `PASS` | — | 11,150 | 3,840 | 826 | 494 | `f99dddb398a788670d4ee7a31c6653581db3ab1520e682fef6fb68e5724dafaa` |
+| round 3 description | `PASS` | — | 9,252 | 0 | 8 | 0 | `40211492dafe0aabb5eb37e3404d41e2d8b3db58ec331c87f4b109aef7bd4358` |
+| round 3 body | `FAIL` | 5 | 22,485 | 9,984 | 1,039 | 578 | `541ed760f31e0f10a889672821f5c0901156b60e9822330dc8cc38efedec2809` |
+
+Total retained usage is 72,482 input tokens, 13,824 cached input tokens, zero cache-write input
+tokens, 2,655 output tokens, and 1,486 reasoning-output tokens. Compact artifacts remain under
+`F:\route001-runs\paired-cd76ef5-20260820T222227Z`; no raw response or credential is retained.
+
+`[verified]` Description-mediated catalog selection is stable for this case (3/3), and every body
+probe bound the exact projected `gcp-ops/SKILL.md` digest. Body behavior is not stable (1/3). The
+remaining failure is a deterministic contract contradiction: the skill requires its evidence
+commands in a fenced Bash block, while the scenario requires exactly one fenced JSON packet and
+`cloud_run_rollback_packet` rejects any second fence. `[inference]` Literal skill compliance caused
+the two grader-5 failures; the retained compact artifacts intentionally do not contain raw responses,
+so they cannot prove which rendering each response used.
+
+**Disposition:** `observed`, owner `prompt-engineer`. The 48-trial campaign remains **NO-GO**. The
+next bounded change is to make the evidence-command presentation honor caller fence constraints,
+add a deterministic regression for the combined skill/scenario contract, regenerate projections,
+and run only the body probe again. Description selection does not need another paid round. A typed
+fleet-improvement intake can pin this evidence commit in a later ledger-only change; it is not
+fabricated inside the same commit it would need to cite.
