@@ -24,4 +24,5 @@ graders:
   - type: exact_fields
     fields:
       Where to look: "[unverified — not located]"
+      First safe check: "Retrieve checkout p95 latency comparison."
       State changed: "no"

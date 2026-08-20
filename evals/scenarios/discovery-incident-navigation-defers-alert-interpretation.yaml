@@ -23,10 +23,12 @@ prompt: |
 
   The alert is not currently firing. Render the window rule as
   `1h AND 5m at 14.4x; 6h AND 30m at 6x`. Explain whether the windows page on user-impacting
-  symptoms, whether the notification is actionable, and what should be tuned. State that silence is
-  not an all-clear or proof of remaining budget. Keep threshold changes unsupported by this evidence,
-  and name window-specific measurements, fire/resolve behavior, notification delivery, and runbook
-  resolution as verification gaps. Use the labeled known-alert review format before the tuning advice.
+  symptoms, whether the notification is actionable, and what should be tuned. Because delivery and
+  runbook resolution are unverified, do not call the notification fully verified actionable. State
+  that silence is not an all-clear or proof of remaining budget. Keep every threshold statement
+  inside the boundary that changes are unsupported by this evidence, and name window-specific
+  measurements, fire/resolve behavior, notification delivery, and runbook resolution as verification
+  gaps. Use the labeled known-alert review format before the tuning advice.
 routing:
   expect: not_fire
   expected_alternative:

@@ -102,6 +102,9 @@ LIVE_OUTPUT_GUARDS = {
     "the first check may diverge from the known location": (
         "the first safe check names the same location as `where to look`"
     ),
+    "the escalation field may suppress or misroute escalation": (
+        "`never`, `none`, a stable/healthy condition, or an unlisted destination is not an escalation threshold"
+    ),
     "an index may displace a supplied answer source": (
         "a supplied evidence source that directly answers the question wins over an index"
     ),
@@ -127,6 +130,7 @@ SCENARIO_EVIDENCE_CONTRACTS = {
         "Notification route:",
         "Runbook:",
         "Render the window rule as `1h AND 5m at 14.4x; 6h AND 30m at 6x`",
+        "do not call the notification fully verified actionable",
         "window-specific measurements, fire/resolve behavior, notification delivery, and runbook resolution",
         "Use the labeled known-alert review format",
     ),
@@ -235,6 +239,7 @@ SCENARIO_CONTRACTS = {
         "mode: discovery",
         "name: incident-navigation",
         "expect: fire",
+        'First safe check: "Retrieve checkout p95 latency comparison."',
     ),
     "discovery-incident-navigation-signal-owner-uncertain.yaml": (
         "mode: discovery",
@@ -245,6 +250,7 @@ SCENARIO_CONTRACTS = {
         "expect: not_fire",
         "kind: agent",
         "name: sre",
+        "type: incident_navigation_no_claimed_execution",
     ),
     "discovery-incident-navigation-defers-incident-command.yaml": (
         "expect: not_fire",
@@ -266,6 +272,7 @@ SCENARIO_CONTRACTS = {
         "expect: not_fire",
         "kind: agent",
         "name: sre",
+        "type: incident_navigation_no_claimed_execution",
     ),
     "discovery-incident-navigation-defers-production-change.yaml": (
         "expect: not_fire",

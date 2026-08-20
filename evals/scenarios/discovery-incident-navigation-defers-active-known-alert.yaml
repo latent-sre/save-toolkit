@@ -34,3 +34,4 @@ graders:
     pattern: '^(?:Incident summary:.*\bSEV[1-4]\b|\s*(?:\*\*)?Severity(?:\*\*)?\s*:\s*SEV[1-4]\b)'
   - type: contains_all
     of: ["fast", "slow", "burn", "runbook"]
+  - type: incident_navigation_no_claimed_execution

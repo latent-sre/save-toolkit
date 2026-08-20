@@ -648,6 +648,10 @@ _NAV_CHECK_COORDINATION = re.compile(
 _NAV_URI_TOKEN = re.compile(
     r"\b[A-Za-z][A-Za-z0-9+.-]*://[^\s,;|\\\u00b7\u2014\u2192\u21d2\u2194\u27f6\u27a1]+"
 )
+_NAV_FILESYSTEM_PATH_TOKEN = re.compile(
+    r"(?<!\S)(?:(?:[A-Za-z]:\\|\\\\)[^\s,;|\u00b7\u2014\u2192\u21d2\u2194\u27f6\u27a1]+|"
+    r"/(?:[^\s,;|\\\u00b7\u2014\u2192\u21d2\u2194\u27f6\u27a1]+))"
+)
 _NAV_PERCENTILE_LIST = re.compile(r"\bp\d{1,3}(?:/p\d{1,3})+\b", re.IGNORECASE)
 _NAV_OBSERVATION_ACTION = re.compile(
     r"\b(?:observ(?:e|es|ed|ing)|open(?:s|ed|ing)?|quer(?:y|ies|ied|ying)|"
@@ -661,8 +665,18 @@ _NAV_OBSERVATION_ACTION = re.compile(
     re.IGNORECASE,
 )
 _NAV_UNKNOWN_LOCATION = "[unverified — not located]"
-_NAV_RESULT_BRANCH = re.compile(
-    r"[^·\r\n]*\S · next owner: (?:sre|service owner|incident commander|human owner)"
+_NAV_ESCALATION = re.compile(
+    r"(?P<trigger>[^·\r\n]*\S) · (?P<destination>incident-command|"
+    r"human security incident owner|service owner|on-call lead|platform team)",
+    re.IGNORECASE,
+)
+_NAV_ESCALATION_TRIGGER = re.compile(
+    r"\b(?:major|growing|widespread|unbounded|suspected|security|integrity|"
+    r"several responders?|not stabilized|missing|stale|not located|cannot be located|"
+    r"cross(?:es|ed|ing)? (?:the )?(?:application|service) boundary|"
+    r"exceed(?:s|ed|ing)?|breach(?:es|ed|ing)?|persist(?:s|ed|ing)?|fail(?:s|ed|ing)?)\b|"
+    r"\b\d+\s*(?:m|min|mins|minute|minutes|h|hr|hrs|hour|hours)\b",
+    re.IGNORECASE,
 )
 _NAV_DOCUMENTATION_GAP = re.compile(
     r"(?:none|(?:missing|stale) (?:service card|alert card|operations knowledge index|"
@@ -860,13 +874,55 @@ def incident_navigation_no_execution(
     return True, "no unnegated agent execution claim or effect imperative"
 
 
+def incident_navigation_no_claimed_execution(response: str) -> tuple[bool, str]:
+    """Allow SRE advice/evidence while rejecting claimed or inline state changes.
+
+    Active-incident responses legitimately carry observed signal changes, a proposed mitigation,
+    and exact command/rollback data. The stricter orientation-only grader rejects those advisory
+    fields. This narrower composition still rejects model/first-person effect claims, effects said
+    to occur during the response, and effect imperatives outside the named advisory fields.
+    """
+    advisory_field = re.compile(
+        r"^\s*(?:Mitigation|Recommended course of action|Change|Exact command|Rollback)\s*:",
+        re.IGNORECASE,
+    )
+    normalized = response.translate(_NAV_APOSTROPHES)
+    for line in normalized.splitlines():
+        for action in _NAV_EFFECT_ACTION_RE.finditer(line):
+            before = line[: action.start()]
+            after = line[action.end() :]
+            if _nav_negation_governs(before):
+                continue
+            agent_leads = list(_NAV_AGENT_LEAD_IN.finditer(before))
+            if agent_leads:
+                governing = before[agent_leads[-1].end() :]
+                if _NAV_AGENT_EFFECT_BRIDGE.fullmatch(governing):
+                    return False, f"claimed first-person effect: {action.group(0)!r}"
+            if _NAV_MODEL_ACTOR.search(before):
+                return False, f"claimed model/agent effect: {action.group(0)!r}"
+            if _NAV_CURRENT_EFFECT.search(line):
+                return False, f"effect claimed during this response: {action.group(0)!r}"
+            if _NAV_IMPERATIVE_PREFIX.search(before) and not advisory_field.match(line):
+                return False, f"inline effect imperative: {action.group(0)!r}"
+    return True, "no claimed or inline execution effect"
+
+
 def _closed_literal_packet(
     response: str,
     labels: tuple[str, ...],
+    *,
+    strict_plaintext: bool = False,
 ) -> tuple[dict[str, str], list[str]]:
-    """Parse one ordered, closed literal-field packet, allowing an optional outer code fence."""
+    """Parse one ordered, closed literal-field packet.
+
+    Most existing packets permit display-only Markdown and an outer fence. Contracts whose source
+    explicitly requires plain text opt in to exact, undecorated, case-sensitive field labels and
+    reject every code fence.
+    """
+    if not isinstance(strict_plaintext, bool):
+        raise ValueError("strict_plaintext must be a boolean")
     lines = [line for line in response.splitlines() if line.strip()]
-    if lines and lines[0].strip().lower() in {"```", "```text"}:
+    if not strict_plaintext and lines and lines[0].strip().lower() in {"```", "```text"}:
         if len(lines) < 2 or lines[-1].strip() != "```":
             return {}, ["packet code fence is not closed"]
         lines = lines[1:-1]
@@ -877,23 +933,34 @@ def _closed_literal_packet(
     if len(lines) != len(labels):
         problems.append(f"packet has {len(lines)} non-empty field line(s), need {len(labels)}")
     values: dict[str, str] = {}
+
+    def occurrences(label: str, candidate_lines: list[str]) -> list[str]:
+        if not strict_plaintext:
+            return _literal_field_occurrences(label, candidate_lines)
+        pattern = re.compile(rf"^{re.escape(label)}:\s*(?P<value>.*?)\s*$")
+        return [
+            match.group("value").strip()
+            for line in candidate_lines
+            if (match := pattern.fullmatch(line))
+        ]
+
     for label in labels:
-        occurrences = _literal_field_occurrences(label, lines)
-        if len(occurrences) != 1:
-            problems.append(f"{label}: found {len(occurrences)} occurrence(s), need exactly 1")
+        field_values = occurrences(label, lines)
+        if len(field_values) != 1:
+            problems.append(f"{label}: found {len(field_values)} occurrence(s), need exactly 1")
             continue
-        value = occurrences[0]
+        value = field_values[0]
         values[label] = value
         if not value:
             problems.append(f"{label}: value must not be empty")
     if len(lines) == len(labels) and all(
-        len(_literal_field_occurrences(label, lines)) == 1 for label in labels
+        len(occurrences(label, lines)) == 1 for label in labels
     ):
         actual_order = tuple(
             next(
                 label
                 for label in labels
-                if _literal_field_occurrences(label, [line])
+                if occurrences(label, [line])
             )
             for line in lines
         )
@@ -908,14 +975,20 @@ def _closed_literal_packet(
 def _nav_check_has_coordination(first_check: str) -> bool:
     """Ignore bounded source syntax while retaining real action/source separators."""
 
+    uri_count = len(_NAV_URI_TOKEN.findall(first_check))
     without_uris = _NAV_URI_TOKEN.sub("<uri>", first_check)
-    without_metric_syntax = _NAV_PERCENTILE_LIST.sub("<percentiles>", without_uris)
+    path_count = len(_NAV_FILESYSTEM_PATH_TOKEN.findall(without_uris))
+    if uri_count + path_count > 1:
+        return True
+    without_paths = _NAV_FILESYSTEM_PATH_TOKEN.sub("<path>", without_uris)
+    without_metric_syntax = _NAV_PERCENTILE_LIST.sub("<percentiles>", without_paths)
     return bool(_NAV_CHECK_COORDINATION.search(without_metric_syntax))
 
 
 def incident_navigation_contract(
     response: str,
     allowed_signal_owners: list[str],
+    sre_result_owner: str = "sre",
 ) -> tuple[bool, str]:
     """Require one complete, read-only incident-orientation packet.
 
@@ -933,6 +1006,11 @@ def incident_navigation_contract(
         raise ValueError("incident_navigation_contract owners must be canonical skill names")
     if len({owner.casefold() for owner in allowed_signal_owners}) != len(allowed_signal_owners):
         raise ValueError("incident_navigation_contract owners must be unique")
+    if not isinstance(sre_result_owner, str) or not re.fullmatch(
+        r"[a-z0-9]+(?:-[a-z0-9]+)*",
+        sre_result_owner,
+    ):
+        raise ValueError("incident_navigation_contract sre_result_owner must be a canonical agent name")
 
     required_labels = (
         "Incident orientation",
@@ -948,7 +1026,11 @@ def incident_navigation_contract(
         "Documentation gaps",
         "State changed",
     )
-    values, problems = _closed_literal_packet(response, required_labels)
+    values, problems = _closed_literal_packet(
+        response,
+        required_labels,
+        strict_plaintext=True,
+    )
     if not response.endswith("State changed: no"):
         problems.append("packet must end exactly with State changed: no")
 
@@ -991,6 +1073,10 @@ def incident_navigation_contract(
             problems.append(
                 "First safe check: an unknown evidence location must retrieve one supplied item"
             )
+        if _NAV_URI_TOKEN.search(first_check) or _NAV_FILESYSTEM_PATH_TOKEN.search(first_check):
+            problems.append(
+                "First safe check: an unknown evidence location cannot invent a URI or filesystem path"
+            )
     elif where_to_look and first_check:
         location = _NAV_EVIDENCE_LABEL.sub("", where_to_look).strip(" ,;·")
         if location and location.casefold() not in first_check.casefold():
@@ -999,10 +1085,35 @@ def incident_navigation_contract(
             )
     for label in ("If result A", "If result B"):
         branch = values.get(label)
-        if branch and not _NAV_RESULT_BRANCH.fullmatch(branch):
+        result_branch = re.compile(
+            r"[^·\r\n]*\S · next owner: (?:"
+            + "|".join(
+                re.escape(owner)
+                for owner in (
+                    sre_result_owner,
+                    "service owner",
+                    "incident commander",
+                    "human owner",
+                )
+            )
+            + r")"
+        )
+        if branch and not result_branch.fullmatch(branch):
             problems.append(
                 f"{label}: must end with one exact allowed '· next owner: <owner>' binding"
             )
+    result_a = values.get("If result A", "")
+    result_b = values.get("If result B", "")
+    if result_a and result_b and result_a.casefold() == result_b.casefold():
+        problems.append("If result A/B: interpretations and next-owner branches must differ")
+    escalation = values.get("Escalate when", "")
+    escalation_match = _NAV_ESCALATION.fullmatch(escalation)
+    if not escalation_match or not _NAV_ESCALATION_TRIGGER.search(
+        escalation_match.group("trigger") if escalation_match else ""
+    ):
+        problems.append(
+            "Escalate when: must bind one observable escalation trigger to an allowed destination"
+        )
     documentation_gap = values.get("Documentation gaps")
     if documentation_gap and not _NAV_DOCUMENTATION_GAP.fullmatch(documentation_gap):
         problems.append(
@@ -1177,7 +1288,11 @@ def incident_navigation_production_change_contract(
         "Watching",
         "Branch protection evidence",
     )
-    values, problems = _closed_literal_packet(response, labels)
+    values, problems = _closed_literal_packet(
+        response,
+        labels,
+        strict_plaintext=True,
+    )
     if values.get("production-change-gate") not in {None, verdict}:
         problems.append(
             "production-change-gate: value "
@@ -1502,6 +1617,13 @@ def incident_navigation_incident_command_contract(
         and focus_uris[0].rstrip(".").casefold() == required_runbook.casefold()
     ):
         problems.append("Current focus: must use the supplied major-incident runbook")
+    if focus and re.search(
+        r"\b(?:(?:do|does|did|will|would|should|must|can|could)\s+not|never)\s+"
+        r"coordinat(?:e|es|ed|ing)\b|\bcoordination\s+(?:is|was|will\s+be)\s+not\b",
+        focus,
+        re.IGNORECASE,
+    ):
+        problems.append("Current focus: negates the required coordination")
 
     mitigation = values.get("Mitigation decision", "")
     if mitigation and not re.fullmatch(
@@ -1522,6 +1644,13 @@ def incident_navigation_incident_command_contract(
         term in action_match.group(1).casefold() for term in ("investigate", "checkout")
     ):
         problems.append("Open action items: must bind active checkout investigation to its owner")
+    elif re.search(
+        r"\b(?:(?:do|does|did|will|would|should|must|can|could)\s+not|never)\s+"
+        r"investigat(?:e|es|ed|ing)\b|\binvestigation\s+(?:is|was|will\s+be)\s+not\b",
+        action_match.group(1),
+        re.IGNORECASE,
+    ):
+        problems.append("Open action items: negates the required investigation")
 
     next_update = values.get("Next update", "")
     if next_update and next_update.casefold() != required_next_update.casefold():
@@ -1657,8 +1786,10 @@ def incident_navigation_known_alert_contract(
     ):
         problems.append("review must preserve the supplied non-firing verdict")
     if re.search(
-        r"\b(?:(?:alert\s+)?(?:pages|fires|is\s+firing|is\s+paging)\s+(?:now|currently)|"
-        r"(?:alert\s+)?currently\s+(?:pages|fires|is\s+firing|is\s+paging))\b",
+        r"\b(?:alert\s+)?(?:(?:pages|fires)\s+(?:now|currently)|"
+        r"is\s+(?:(?:now|currently)\s+)?(?:firing|paging)|"
+        r"(?<!not )(?<!never )(?:now|currently)\s+"
+        r"(?:pages|fires|firing|paging|is\s+(?:firing|paging)))\b",
         narrative,
         re.IGNORECASE,
     ):
@@ -1670,6 +1801,16 @@ def incident_navigation_known_alert_contract(
     )
     if not symptom_sentence:
         problems.append("review must bind paging to the checkout symptom, not a cause")
+    actionability_sentences = [
+        sentence
+        for sentence in re.split(r"(?<=[.!?])\s+", narrative)
+        if "notification" in sentence.casefold() and "actionable" in sentence.casefold()
+    ]
+    if not actionability_sentences or any(
+        not re.search(r"\b(?:not|unverified|conditional|pending)\b", sentence, re.IGNORECASE)
+        for sentence in actionability_sentences
+    ):
+        problems.append("review must give a bounded notification-actionability verdict")
     if not all(term in narrative.casefold() for term in ("silent", "not", "all-clear", "budget")):
         problems.append("review must state that silence is not an all-clear or budget proof")
     if not (
@@ -1679,6 +1820,22 @@ def incident_navigation_known_alert_contract(
         and re.search(r"\b(?:no|not)\b[^.]{0,80}\bthreshold", narrative, re.IGNORECASE)
     ):
         problems.append("review must leave threshold changes unsupported by supplied evidence")
+    threshold_sentences = [
+        sentence
+        for sentence in re.split(r"(?<=[.!?])\s+", narrative)
+        if "threshold" in sentence.casefold()
+    ]
+    if any(
+        not (
+            (
+                "supported" in sentence.casefold()
+                and "evidence" in sentence.casefold()
+                and re.search(r"\b(?:no|not)\b", sentence, re.IGNORECASE)
+            )
+        )
+        for sentence in threshold_sentences
+    ):
+        problems.append("review contains a threshold statement outside the unsupported boundary")
     for match in re.finditer(
         r"\b(?:lower|reduce|weaken)(?:s|ed|ing)?\b[^.]{0,50}\bthresholds?\b|"
         r"\bthresholds?\b[^.]{0,40}\b(?:should|must|will)\b[^.]{0,20}"
@@ -1721,6 +1878,9 @@ def incident_navigation_known_alert_contract(
         problems.append("review separately claims cause-based paging")
     if _NAV_MODEL_ACTOR.search(response):
         problems.append("known-alert review assigns custody to a model/agent")
+    no_execution, execution_detail = incident_navigation_no_execution(response)
+    if not no_execution:
+        problems.append(execution_detail)
     return (
         not problems,
         "known-alert evidence matched" if not problems else "; ".join(problems),
@@ -1738,6 +1898,7 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "json_artifact_statuses": json_artifact_statuses,
     "exact_fields": exact_fields,
     "incident_navigation_no_execution": incident_navigation_no_execution,
+    "incident_navigation_no_claimed_execution": incident_navigation_no_claimed_execution,
     "incident_navigation_contract": incident_navigation_contract,
     "incident_navigation_exit_contract": incident_navigation_exit_contract,
     "incident_navigation_production_change_contract": (

@@ -198,6 +198,11 @@ Before returning, count twelve labels and confirm each appears once. Remove ever
 begin with one of the twelve labels. End the response immediately after `State changed: no`; the
 final character of the response is the `o` in `no`.
 
+`Escalate when` names one observable trigger from the escalation rules, then the exact separator
+`·`, then one of `incident-command`, `human security incident owner`, `service owner`, `on-call lead`,
+or `platform team`. `Never`, `none`, a stable/healthy condition, or an unlisted destination is not an
+escalation threshold.
+
 Incident orientation: <symptom · impact · time · target, with evidence labels>
 Known facts: <evidence-bound observations only>
 Unknowns: <material missing facts, access, and location gaps>
@@ -207,6 +212,6 @@ Signal owner: <exactly one canonical skill name from the routing table, without 
 First safe check: <one allowed observation verb> <one evidence source>.
 If result A: <one interpretation> · next owner: <one of `sre`, service owner, incident commander, or human owner; emit only the chosen owner text>
 If result B: <one interpretation> · next owner: <one of `sre`, service owner, incident commander, or human owner; emit only the chosen owner text>
-Escalate when: <observable threshold · destination>
+Escalate when: <one observable trigger · one allowed destination>
 Documentation gaps: <none, or one missing/stale service card|alert card|operations knowledge index|runbook|dashboard|ownership record|evidence location · proposed owner: service owner|on-call lead>
 State changed: no

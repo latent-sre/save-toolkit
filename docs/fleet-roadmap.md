@@ -918,7 +918,8 @@ that would remove current `gcp-ops` and `akamai-edge` routing if copied wholesal
 inventory remains in
 [`2026-08-12-incident-navigation-preservation`](reviews/2026-08-12-incident-navigation-preservation/README.md).
 Implementation therefore restarted from canonical sources in an isolated worktree at current
-`origin/main` `c671c515359955790d12155fe8990123027f3964`.
+`origin/main` `a29864f3457ad292c5f01ad7beefe3cb85d162e6`; the feature commit was rebased onto that exact
+base before the current repair campaign.
 
 **Prerequisites:** Satisfied. The preservation packet protects the recoverable prototype, and the
 owner's 2026-08-20 direction resolves the former product-scope decision in favor of a fresh
@@ -936,33 +937,31 @@ review finds no unresolved correctness or security issue.
 new deterministic packet grader then failed while absent and passes its complete, duplicate,
 missing, empty, unknown-owner, multi-owner, malformed-question, and changed-state cases after
 implementation. Clean-context prompt review narrowed the old prototype from a mini-RCA flow to one
-question, one signal owner, and one first safe check while retaining GCP and Akamai routes. Its first
-adversarial review then reproduced false passes for extra questions/checks/owners, contradictory
-execution claims, and negated hard exits, plus false failures for safe refusals. Repeated clean-room
-review expanded that corpus with model-intent, imperative, historical-tense, noun-laundering,
-multi-source, placeholder-approval, and security-denial counterexamples. The repaired oracle uses
-closed orientation, exit, production-change, and security-command packets; one-question/one-action
-cardinality; exact adjacent-lane control binding; and an actor/action/governed-negation detector.
-All 585 deterministic grader checks now pass, including every reproduced counterexample and
-raw/normalized prompt echoes for all ten navigation discovery cases. `[verified]` Final independent
-re-review replayed 57 unsafe packets, 12 required safe cases, four canonical packets, and both
-human-effect isolation outcomes; it found no reproducible P0/P1. The final overlaid candidate bytes
-pass all 44 Gate A steps in an ordinary disposable clone, including the Git-directory-sensitive
-snapshot tests. `[verified]` The exact-final candidate then completed ten Claude Sonnet discovery
-trials on Claude Code 2.1.237 with `claude-sonnet-5`: two each for missing-location orientation,
-signal-owner selection, major-incident deferral, approved-change deferral, and known-alert
-interpretation. All ten passed routing and their full deterministic contract at threshold 1.0; all
-five batches reported integrity `PASS`, the same plugin digest
-`854910c4bd946af0a16ff05f691361f6ef9c1cfab1724b33c79d3dcfa7363626`, and the same eval-suite
-digest `773573579f3ef7f749ad808b93a89d7ca725f4e778c546be78e64385bcaaf4a0`. Subscription OAuth used a
-persistent eval-only profile selected by `SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR`; no API key was
-required, the post-run login remained valid, and no stale batch lock remained.
+question, one signal owner, and one first safe check while retaining GCP and Akamai routes. Repeated
+adversarial review reproduced false passes for extra questions/checks/owners, contradictory
+execution claims, negated exits and incident duties, invented evidence locations, identical result
+branches, non-observable escalation, unsupported alert claims, incomplete change controls, and
+model-owned effects. Every reproduced issue now has a red-first mutation or fixture. The current
+repair candidate uses strict closed orientation and production-change packets; one-question/
+one-action cardinality; host-bound result owners; exact adjacent-lane incident, alert, security, and
+change evidence; and actor/action/governed-negation checks. Its 672 deterministic grader checks pass,
+including raw and normalized prompt echoes for all ten navigation discovery cases.
 
-**Next action:** Keep NAV-001 active for two acceptance items that the 10/10 exact-final campaign does
-not supply: a comparable pre-change rate (the earlier current-main attempt was inconclusive under the
-old SRE discovery tool boundary) and independent review of the complete current diff. Do not relabel
-the exact-final after-result as a before/after delta. Prototype cleanup remains a separate named
-destructive decision.
+`[superseded]` The earlier reported 10/10 Sonnet campaign is useful authoring feedback but is not
+exact-final evidence. Its own report binds base `c671c515359955790d12155fe8990123027f3964`, records
+`plugin_inputs_dirty=true`, predates the rebase and subsequent canonical `gcp-ops` change, and covers
+only five of the ten acceptance scenarios. Its old plugin/eval digests therefore do not describe the
+current candidate and must not support a readiness claim. Subscription OAuth remains the supported
+local path through the persistent eval-only profile selected by
+`SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR`; no API key is required.
+
+**Next action:** Regenerate every host projection, bind the final grader digest, run the focused
+tests and all Gate A steps from a normal clean clone, commit the candidate, and obtain a fresh
+whole-diff review. If that immutable candidate has no unresolved correctness/security issue, run
+all ten discovery scenarios twice on `claude-sonnet-5` (20 trials total) with
+`--require-clean-plugin` and threshold 1.0. A comparable pre-change rate remains an explicit
+acceptance gap; do not relabel after-only evidence as a before/after delta. Prototype cleanup remains
+a separate named destructive decision.
 
 ## Decisions needed
 
