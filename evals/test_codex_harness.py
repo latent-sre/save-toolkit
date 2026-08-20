@@ -515,6 +515,23 @@ class HookReceiptTests(unittest.TestCase):
         ).hexdigest()
         self.assertEqual(facts["post_tool_use_facts"][0]["tool_input_sha256"], expected_input_hash)
 
+    def test_nullable_transcript_path_matches_codex_0148_schema(self) -> None:
+        receipts = self._valid_receipts()
+        for receipt in receipts:
+            receipt["transcript_path"] = None
+
+        parsed = codex_harness.parse_hook_receipts(_blob(receipts))
+
+        self.assertEqual(parsed.hook_event_counts["SessionStart"], 1)
+        for invalid in ({}, {"transcript_path": ""}, {"transcript_path": []}):
+            malformed = _session_start()
+            malformed.update(invalid)
+            if not invalid:
+                del malformed["transcript_path"]
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(codex_harness.HookReceiptError):
+                    codex_harness.parse_hook_receipts(_blob([malformed]))
+
     def test_persistable_hook_facts_omit_all_raw_ids_paths_inputs_and_responses(self) -> None:
         parsed = codex_harness.parse_hook_receipts(_blob(self._valid_receipts()))
 

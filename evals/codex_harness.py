@@ -650,6 +650,17 @@ def _hook_string(receipt: Mapping[str, object], field: str, event_name: str) -> 
     return value
 
 
+def _hook_nullable_string(
+    receipt: Mapping[str, object], field: str, event_name: str
+) -> str | None:
+    if field not in receipt:
+        raise HookReceiptError(f"{event_name}.{field} is required")
+    value = receipt[field]
+    if value is not None and (not isinstance(value, str) or not value):
+        raise HookReceiptError(f"{event_name}.{field} must be null or a non-empty string")
+    return value
+
+
 def _hook_component_name(
     receipt: Mapping[str, object],
     field: str,
@@ -669,7 +680,7 @@ def _validate_hook_common(
     event_name: str,
 ) -> tuple[str, str]:
     session_id = _hook_string(receipt, "session_id", event_name)
-    _hook_string(receipt, "transcript_path", event_name)
+    _hook_nullable_string(receipt, "transcript_path", event_name)
     _hook_string(receipt, "cwd", event_name)
     model = _hook_string(receipt, "model", event_name)
     permission_mode = _hook_string(receipt, "permission_mode", event_name)
