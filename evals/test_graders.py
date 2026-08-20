@@ -723,6 +723,18 @@ State changed: no"""
             "If result A: Query logs next · next owner: sre",
         ),
         valid.replace(
+            "If result A: A rise bounds the investigation to checkout · next owner: sre",
+            "If result A: Next, query logs · next owner: sre",
+        ),
+        valid.replace(
+            "If result A: A rise bounds the investigation to checkout · next owner: sre",
+            "If result A: First, query logs · next owner: sre",
+        ),
+        valid.replace(
+            "If result A: A rise bounds the investigation to checkout · next owner: sre",
+            "If result A: Immediately query logs · next owner: sre",
+        ),
+        valid.replace(
             "Documentation gaps: missing service card · proposed owner: service owner",
             "Documentation gaps: Remap the checkout production route now",
         ),
@@ -741,6 +753,10 @@ State changed: no"""
         valid.replace(
             "Escalate when: Impact is major, growing, widespread, or unbounded · incident-command",
             "Escalate when: Impact is not growing · incident-command",
+        ),
+        valid.replace(
+            "Escalate when: Impact is major, growing, widespread, or unbounded · incident-command",
+            "Escalate when: Impact isn't growing · incident-command",
         ),
         valid.replace(
             "Escalate when: Impact is major, growing, widespread, or unbounded · incident-command",
@@ -1144,6 +1160,15 @@ def test_incident_navigation_known_alert_contract() -> None:
         (
             "A silent alert is not an all-clear or proof of remaining budget.",
             "A silent alert is not noisy; an all-clear proves remaining budget.",
+        ),
+        (
+            "A silent alert is not an all-clear or proof of remaining budget.",
+            "A silent alert is not merely an all-clear but proof of remaining budget.",
+        ),
+        (
+            "No threshold change is supported by the supplied evidence.",
+            "No threshold change is supported by the supplied evidence, "
+            "but tune both thresholds to 1 immediately.",
         ),
         (
             "Verification gaps: window-specific measurements, fire/resolve behavior, notification delivery, "
@@ -2022,11 +2047,16 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
             _KNOWN_TRIAGE_ANSWER.replace("40%", "35%"),
             _KNOWN_TRIAGE_ANSWER.replace("18:04 UTC", "14:05 UTC"),
             _KNOWN_TRIAGE_ANSWER.replace("Root cause: unknown", "Root cause: saturation"),
+            _KNOWN_TRIAGE_ANSWER.replace("blast radius is 40%", "blast radius is not 40%"),
         ),
         "discovery-incident-navigation-defers-active-known-alert.yaml": (
             _ACTIVE_KNOWN_ALERT_ANSWER.replace("72%", "35%"),
             _ACTIVE_KNOWN_ALERT_ANSWER.replace("18:04 UTC", "18:09 UTC"),
             _ACTIVE_KNOWN_ALERT_ANSWER.replace("checkout on-call", "sde"),
+            _ACTIVE_KNOWN_ALERT_ANSWER.replace(
+                "72% of checkout requests fail",
+                "72% of checkout requests do not fail",
+            ),
         ),
         "discovery-resolved-incident-bypasses-navigation.yaml": (
             _POSTMORTEM_ANSWER.replace("checkout owner", "sde"),
@@ -2034,6 +2064,10 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
             _POSTMORTEM_ANSWER.replace(
                 "The notification-route delivery timestamp is unavailable.",
                 "None.",
+            ),
+            _POSTMORTEM_ANSWER.replace(
+                "Checkout failed for 42%",
+                "Checkout did not fail for 42%",
             ),
         ),
     }

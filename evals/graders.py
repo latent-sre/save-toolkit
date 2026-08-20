@@ -688,7 +688,9 @@ _NAV_ESCALATION_NEGATED_TRIGGER = re.compile(
     re.IGNORECASE,
 )
 _NAV_BRANCH_ACTION_LEAD = re.compile(
-    r"^(?:open|query|review|inspect|retrieve|check|graph|run|restart|deploy|scale|"
+    r"^(?:(?:first|next|now|then|please|immediately|finally|afterwards?|after\s+that)"
+    r"\s*[:,]?\s*)*"
+    r"(?:open|query|review|inspect|retrieve|check|graph|run|restart|deploy|scale|"
     r"change|patch|reset|promote|execute|invoke|trigger|recycle|rotate|quarantine|isolate)\b",
     re.IGNORECASE,
 )
@@ -1192,10 +1194,16 @@ def incident_navigation_contract(
     escalation = values.get("Escalate when", "")
     escalation_match = _NAV_ESCALATION.fullmatch(escalation)
     escalation_trigger = escalation_match.group("trigger") if escalation_match else ""
+    normalized_escalation_trigger = re.sub(
+        r"n['’]t\b",
+        " not",
+        escalation_trigger,
+        flags=re.IGNORECASE,
+    )
     if (
         not escalation_match
         or not _NAV_ESCALATION_TRIGGER.search(escalation_trigger)
-        or _NAV_ESCALATION_NEGATED_TRIGGER.search(escalation_trigger)
+        or _NAV_ESCALATION_NEGATED_TRIGGER.search(normalized_escalation_trigger)
     ):
         problems.append(
             "Escalate when: must bind one observable escalation trigger to an allowed destination"
@@ -1938,9 +1946,8 @@ def incident_navigation_known_alert_contract(
     ):
         problems.append("review must give a bounded notification-actionability verdict")
     if not re.search(
-        r"\bsilent alert\b[^.;!?]{0,80}\b(?:is\s+not|does\s+not|provides?\s+no|"
-        r"is\s+neither)\b[^.;!?]{0,50}\ball-clear\b[^.;!?]{0,50}"
-        r"\b(?:proof?|prove[sd]?)\b[^.;!?]{0,30}\bbudget\b",
+        r"\bsilent alert\s+is\s+not\s+(?:an?\s+)?all-clear\s+"
+        r"(?:or|nor)\s+(?:a\s+)?proof\s+of\s+(?:remaining\s+)?budget\b",
         narrative,
         re.IGNORECASE,
     ):
@@ -1954,7 +1961,11 @@ def incident_navigation_known_alert_contract(
         problems.append("review must leave threshold changes unsupported by supplied evidence")
     threshold_sentences = [
         clause
-        for clause in re.split(r"(?<=[.!?])\s+|[;\n]+", narrative)
+        for clause in re.split(
+            r"(?<=[.!?])\s+|[;,\n]+|\b(?:but|yet)\b",
+            narrative,
+            flags=re.IGNORECASE,
+        )
         if "threshold" in clause.casefold()
     ]
     if any(
@@ -1969,7 +1980,7 @@ def incident_navigation_known_alert_contract(
     ):
         problems.append("review contains a threshold statement outside the unsupported boundary")
     for match in re.finditer(
-        r"\b(?:set|change|adjust|raise|increase|decrease|lower|reduce|weaken)"
+        r"\b(?:set|tune|change|adjust|raise|increase|decrease|lower|reduce|weaken)"
         r"(?:s|d|ed|ing)?\b[^.]{0,50}\bthresholds?\b|"
         r"\bthresholds?\b[^.]{0,40}\b(?:should|must|will)\b[^.]{0,20}"
         r"\b(?:lowered|reduced|weakened)\b",
