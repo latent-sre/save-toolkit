@@ -511,7 +511,7 @@ class ProbeTests(unittest.TestCase):
             executable.write_bytes(b"fake executable")
 
             def wrong_version(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
-                return subprocess.CompletedProcess([], 0, b"codex-cli 0.148.0\n", b"")
+                return subprocess.CompletedProcess([], 0, b"codex-cli 0.147.0\n", b"")
 
             with self.assertRaisesRegex(codex_trial.InstrumentError, "CLI version"):
                 codex_trial.probe_codex(
@@ -544,7 +544,11 @@ class ProbeTests(unittest.TestCase):
                 return subprocess.CompletedProcess(command, 0, b"{}", b"")
 
             codex_trial.probe_codex(
-                executable, {}, cwd=root, command_runner=runner
+                executable,
+                {},
+                cwd=root,
+                expected_cli_version=run_codex_routing.WINDOWS_CODEX_CLI_VERSION,
+                command_runner=runner,
             )
 
             self.assertEqual([root, root], observed)
@@ -764,7 +768,7 @@ class TrialExecutionTests(unittest.TestCase):
             del env, timeout_s
             self.assertTrue(cwd.is_dir())
             if command[-1] == "--version":
-                return subprocess.CompletedProcess(command, 0, b"codex-cli 0.147.0\n", b"")
+                return subprocess.CompletedProcess(command, 0, b"codex-cli 0.148.0\n", b"")
             self.assertEqual(command[-3:], ("debug", "models", "--bundled"))
             return subprocess.CompletedProcess(command, 0, b"{}", b"")
 
@@ -806,7 +810,7 @@ class TrialExecutionTests(unittest.TestCase):
             source_entry_sha256=codex_model_catalog.EXPECTED_SOURCE_ENTRY_SHA256,
             transformed_entry_sha256=codex_model_catalog.EXPECTED_TRANSFORMED_ENTRY_SHA256,
             safe_catalog_sha256=fake_catalog_sha256,
-            source_field_count=36,
+            source_field_count=37,
             changed_fields=codex_model_catalog.CHANGED_FIELDS,
         )
 

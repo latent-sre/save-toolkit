@@ -175,7 +175,7 @@ def _post_tool_use(
 
 class FixedConfigurationTests(unittest.TestCase):
     def test_terra_campaign_configuration_is_exact(self) -> None:
-        self.assertEqual(codex_harness.CODEX_CLI_VERSION, "0.147.0")
+        self.assertEqual(codex_harness.CODEX_CLI_VERSION, "0.148.0")
         self.assertEqual(codex_harness.MODEL, "gpt-5.6-terra")
         self.assertEqual(codex_harness.REASONING_EFFORT, "medium")
         self.assertEqual(codex_harness.SANDBOX_MODE, "read-only")

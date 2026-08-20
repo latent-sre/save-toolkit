@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed Codex CLI 0.147 JSONL parsing and sanitized evidence facts.
+"""Fail-closed Codex CLI 0.148 JSONL parsing and sanitized evidence facts.
 
 The parser retains the final agent message only as transient in-memory grading input.  Callers must
 persist :meth:`ParsedTrace.persistable_facts`, which contains hashes and bounded structural facts,
@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Mapping
 
-CODEX_CLI_VERSION = "0.147.0"
+CODEX_CLI_VERSION = "0.148.0"
 MODEL = "gpt-5.6-terra"
 REASONING_EFFORT = "medium"
 SANDBOX_MODE = "read-only"

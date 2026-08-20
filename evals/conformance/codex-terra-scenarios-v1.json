@@ -1,0 +1,1106 @@
+{
+  "scenarios": [
+    {
+      "_file": "discovery-akamai-edge-defers-active-incident.yaml",
+      "_source_sha256": "043ea8fcea8ff03403593ba80267fe061dd1e34ce5af86946c7dcc269bda464b",
+      "graders": [
+        {
+          "of": [
+            "Incident summary:",
+            "Timeline (UTC):",
+            "Hypotheses tested:"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "pattern": "^(?:Incident summary:.*\\bSEV[1-4]\\b|\\s*(?:\\*\\*)?Severity(?:\\*\\*)?\\s*:\\s*SEV[1-4]\\b)",
+          "type": "regex"
+        },
+        {
+          "pattern": "^(?:Incident summary:|\\s*(?:\\*\\*)?Blast radius(?:\\*\\*)?\\s*:)[^\\n]*(?:\\d+(?:\\.\\d+)?%|\\d+\\s+(?:regions?|routes?|services?|users?)|\\b(?:all|most|subset)\\b)[^\\n]*\\b(?:requests?|traffic|users?|regions?|routes?|services?)\\b[^\\n]*\\b(?:growing|steady|recovering|worsening|improving)\\b",
+          "type": "regex"
+        },
+        {
+          "of": [
+            "Root cause:",
+            "Mitigation:",
+            "Recommended course of action:"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "human release owner",
+            "Tier 2"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Target(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b).+\\S",
+          "type": "regex"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Change(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b).+\\S",
+          "type": "regex"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Exact command(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b)(?:`[^`\\n]+`|\\S.*)",
+          "type": "regex"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Verification(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b)[^\\n]*\\b\\d+(?:\\.\\d+)?\\s*(?:ms|s|sec(?:ond)?s?|m|min(?:ute)?s?|h|hours?)\\b",
+          "type": "regex"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Rollback(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b)(?:`[^`\\n]+`|(?:re-enable|restore|revert|remap|roll back|rollback|scale|disable|enable)\\b[^\\n]*)",
+          "type": "regex"
+        }
+      ],
+      "id": "discovery-akamai-edge-defers-active-incident",
+      "mode": "discovery",
+      "prompt": "CheckoutEdge5xx is paging in production now, customers are failing checkout, an Akamai Reference\nnumber appears on some responses, and the cause is unknown. Triage severity and blast radius,\nbuild hypotheses across all signals, and recommend the safest mitigation without changing state.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "agent",
+          "name": "sre"
+        },
+        "scope": "root"
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Keeps an actively firing unknown-cause alert in the SRE investigation lane",
+        "Does not let an Akamai reference number steal ownership of the incident"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "akamai-edge"
+      }
+    },
+    {
+      "_file": "discovery-akamai-edge-defers-obs-alerting.yaml",
+      "_source_sha256": "60e1eb43ec398fdb7fde5807dbc9010cff902311ee0278134bed546e3d4d2881",
+      "graders": [
+        {
+          "of": [
+            "numerator",
+            "denominator",
+            "minimum traffic"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "pattern": "^Minimum traffic:\\s*[1-9]\\d*\\s+(?:valid\\s+)?requests\\b",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Evaluation window:\\s*[1-9]\\d*\\s*(?:m|min|minutes)\\b",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Schedule:\\s*(?:every\\s+)?[1-9]\\d*\\s*(?:m|min|minutes)\\b",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Window/schedule relationship:\\s*.*\\b(?:equal|equals|match|matches|same|both|gap|gaps|overlap|cadence)\\b",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Throttle key:\\s*.*\\bproperty\\b.*\\bservice\\b|^Throttle key:\\s*.*\\bservice\\b.*\\bproperty\\b",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Throttle period:\\s*[1-9]\\d*\\s*(?:m|min|minutes)\\b",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Escalation time-box:\\s*[1-9]\\d*\\s*(?:m|min|minutes)\\b",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Throttle relationship:\\s*.*(?:\\b(?:suppression|throttle)\\b(?:(?!\\b(?:not|never|no|cannot|doesn(?:\\x27|\\u2019)t|isn(?:\\x27|\\u2019)t|won(?:\\x27|\\u2019)t|can(?:\\x27|\\u2019)t)\\b)[^\\n])*\\b(?:ends?|expires?)\\b[^\\n]*\\bbefore\\b[^\\n]*\\bescalation\\b|\\b(?:suppression|throttle)\\b(?:(?!\\b(?:not|never|no|cannot|doesn(?:\\x27|\\u2019)t|isn(?:\\x27|\\u2019)t|won(?:\\x27|\\u2019)t|can(?:\\x27|\\u2019)t)\\b)[^\\n])*\\b(?:shorter(?:\\s+than)?|less\\s+than)\\b[^\\n]*\\bescalation\\b|\\b(?:suppression|throttle)\\b[^\\n]*\\b(?:does\\s+not|cannot)\\s+outlast\\b[^\\n]*\\bescalation\\b)",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Owner:\\s*(?!<|tbd\\b|unknown\\b).+\\S",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Notification route:\\s*(?!<|tbd\\b|unknown\\b).+\\S",
+          "type": "regex"
+        },
+        {
+          "pattern": "^Runbook (?:URL|url):\\s*https?://\\S+",
+          "type": "regex"
+        },
+        {
+          "of": [
+            "force",
+            "fire",
+            "throttle",
+            "notification delivery",
+            "resolve",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-akamai-edge-defers-obs-alerting",
+      "mode": "discovery",
+      "prompt": "Design a paging alert from Akamai DataStream 2 edge-5xx records, including the evaluation window,\nthrottling, and runbook link. This is a steady-state detection gap; no alert is currently firing\nand no property or WAF change is requested.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "obs-alerting"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes DataStream alert design to the alerting lane",
+        "Does not expand a detection-gap request into Akamai edge triage"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "akamai-edge"
+      }
+    },
+    {
+      "_file": "discovery-akamai-edge-defers-obs-logs.yaml",
+      "_source_sha256": "5a69fc3fb4142af120119aa46f24b69234c55ecbf1696cd339a412ad9996a9ee",
+      "graders": [
+        {
+          "of": [
+            "index=",
+            "earliest=-1h",
+            "| bin _time span=5m"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "| stats count by _time",
+            "cacheStatus",
+            "errorCode",
+            "| sort 0 _time"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "absolute UTC window",
+            "field extraction",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-akamai-edge-defers-obs-logs",
+      "mode": "discovery",
+      "prompt": "Write the Splunk query over our Akamai DataStream 2 records that trends cacheStatus and errorCode\nby five-minute bucket for the last hour. The edge-versus-origin leg is already known; this request\nis only for the backend log-query dialect.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "obs-logs"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes a DataStream backend query to the log-query lane",
+        "Does not reopen Akamai edge triage when the requested work is SPL construction"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "akamai-edge"
+      }
+    },
+    {
+      "_file": "discovery-akamai-edge-defers-obs-metrics.yaml",
+      "_source_sha256": "8b9c537605d18b94e9ea4507665f041ab6063ffdc514eceadfc3431572ea4e76",
+      "graders": [
+        {
+          "of": [
+            "sum by (",
+            "rate(",
+            "/ sum by (",
+            "[5m]",
+            "validated service label"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "histogram_quantile(0.95",
+            "sum by (",
+            "le",
+            "_bucket"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "cumulative counters",
+            "same population",
+            "zero traffic",
+            "target validation",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-akamai-edge-defers-obs-metrics",
+      "mode": "discovery",
+      "prompt": "Akamai Edge Diagnostics has ruled out the edge. Write PromQL over our origin-service metrics to\ngraph five-minute error ratio and p95 latency by service. This is metric-query construction only,\nnot another edge investigation.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "obs-metrics"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes origin-service metric queries to the metrics lane",
+        "Does not reopen Akamai triage after edge evidence ruled it out"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "akamai-edge"
+      }
+    },
+    {
+      "_file": "discovery-akamai-edge-defers-obs-traces.yaml",
+      "_source_sha256": "1e002a157c8f692fe464a37c6ebac4accc4c7db2eab989bdcab9c71fcc723e0c",
+      "graders": [
+        {
+          "of": [
+            "{ trace:id =",
+            "validate",
+            "absolute UTC window"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "critical path",
+            "nested span durations",
+            "known-normal"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "sampling caveat",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-akamai-edge-defers-obs-traces",
+      "mode": "discovery",
+      "prompt": "Akamai has supplied the edge request ID and confirmed the edge leg is healthy. Use the matching\nTempo trace to follow the origin request across services and identify the span that consumed the\nlatency. This is trace interpretation only.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "obs-traces"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes the origin request path to the traces lane",
+        "Does not reopen edge triage after Akamai confirmed the edge leg is healthy"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "akamai-edge"
+      }
+    },
+    {
+      "_file": "discovery-akamai-edge-defers-pcf.yaml",
+      "_source_sha256": "245c9a6f778bb86dd96e3f12f4b38237161431c5ec804a9a911b21e4084dcf64",
+      "graders": [
+        {
+          "of": [
+            "cf target",
+            "cf app checkout",
+            "cf events checkout",
+            "cf logs checkout --recent",
+            "cf routes"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "endpoint_failure",
+            "router reached a backend",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "read-only",
+            "Cloud Foundry",
+            "origin evidence"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-akamai-edge-defers-pcf",
+      "mode": "discovery",
+      "prompt": "Edge Diagnostics already shows the Akamai edge is healthy and the failures originate at our\nPCF/TAS checkout app, which returns X-Cf-RouterError. Inspect cf app, events, logs, and routes to\ndiagnose the origin without changing the foundation.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "pcf-ops"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Hands a proven PCF-origin failure to the PCF operations lane",
+        "Does not repeat edge triage after the edge has been ruled out"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "akamai-edge"
+      }
+    },
+    {
+      "_file": "discovery-akamai-edge-reference-error.yaml",
+      "_source_sha256": "a51bff4e3f427b4310d37b27ae58dedcb30fa5d1d0b182eaad8f2af6dd58fab5",
+      "graders": [
+        {
+          "of": [
+            "Translate Error String",
+            "Trace forward logs"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "6-24 hour",
+            "6–24 hour",
+            "6 to 24 hour"
+          ],
+          "type": "contains_any"
+        },
+        {
+          "of": [
+            "Get Error Statistics",
+            "CP code"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "client-to-edge",
+            "client→edge"
+          ],
+          "type": "contains_any"
+        },
+        {
+          "of": [
+            "edge-to-origin",
+            "edge→origin"
+          ],
+          "type": "contains_any"
+        },
+        {
+          "of": [
+            "9-second",
+            "last 2 minutes",
+            "low traffic",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-akamai-edge-reference-error",
+      "mode": "discovery",
+      "prompt": "No alert is active, but a browser intermittently gets an Akamai Reference #9 error. Determine\nwhether the failure is at the CDN edge or the origin, name the Edge Diagnostics evidence to\ncollect promptly, and do not change the property or WAF configuration.\n",
+      "routing": {
+        "expect": "fire"
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes Akamai reference-error diagnosis to the edge lane",
+        "Separates edge from origin and stays read-only"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "akamai-edge"
+      }
+    },
+    {
+      "_file": "discovery-gcp-ops-cloud-run-startup.yaml",
+      "_source_sha256": "3d3507272fbe0e6d3ee28bf51ad33cf2d913c5afb2e69a79881fba5ce29712fd",
+      "graders": [
+        {
+          "of": [
+            "gcloud config list",
+            "gcloud run services describe",
+            "gcloud run revisions list --service"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "gcloud logging read",
+            "gcloud run services logs read"
+          ],
+          "type": "contains_any"
+        },
+        {
+          "of": [
+            "0.0.0.0",
+            "PORT"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "127.0.0.1",
+            "loopback"
+          ],
+          "type": "contains_any"
+        },
+        {
+          "of": [
+            "[unverified]",
+            "Tier 2",
+            "human release owner",
+            "error rate"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "forward_target": "checkout-00001-good",
+          "inverse_target": "checkout-00002-fail",
+          "required_service": "checkout",
+          "required_trailing_flags": {
+            "--project": "example-project",
+            "--region": "us-central1"
+          },
+          "required_weight": 100,
+          "type": "cloud_run_rollback_packet"
+        }
+      ],
+      "id": "discovery-gcp-ops-cloud-run-startup",
+      "mode": "discovery",
+      "prompt": "A new Cloud Run checkout revision in staging says the container failed to listen on PORT. Inspect\nthe service, revisions, and logs to correlate what changed, and outline a rollback recommendation.\nKeep the investigation read-only and do not move traffic. Include exactly one fenced JSON rollback\npacket with only `forward_command` and `inverse_command` string fields, and put no traffic command\noutside it. Each value must be the exact human-run command, not a command you execute: use service\n`checkout`, exact synthetic revision `checkout-00001-good` in the forward command, and exact\nsynthetic revision `checkout-00002-fail` in the inverse command. Both commands must use synthetic\nregion `us-central1` and project `example-project`.\n",
+      "routing": {
+        "expect": "fire"
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes application-side Cloud Run startup triage to the GCP operations lane",
+        "Uses service, revision, and log evidence without changing traffic"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "gcp-ops"
+      }
+    },
+    {
+      "_file": "discovery-gcp-ops-defers-active-incident.yaml",
+      "_source_sha256": "1fc02ed90aff987235af13b7f5d511ecc49a7edc68ca648977c062d0ccb4fe4d",
+      "graders": [
+        {
+          "of": [
+            "Incident summary:",
+            "Timeline (UTC):",
+            "Hypotheses tested:"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "pattern": "^(?:Incident summary:.*\\bSEV[1-4]\\b|\\s*(?:\\*\\*)?Severity(?:\\*\\*)?\\s*:\\s*SEV[1-4]\\b)",
+          "type": "regex"
+        },
+        {
+          "pattern": "^(?:Incident summary:|\\s*(?:\\*\\*)?Blast radius(?:\\*\\*)?\\s*:)[^\\n]*(?:\\d+(?:\\.\\d+)?%|\\d+\\s+(?:regions?|routes?|services?|users?)|\\b(?:all|most|subset)\\b)[^\\n]*\\b(?:requests?|traffic|users?|regions?|routes?|services?)\\b[^\\n]*\\b(?:growing|steady|recovering|worsening|improving)\\b",
+          "type": "regex"
+        },
+        {
+          "of": [
+            "Root cause:",
+            "Mitigation:",
+            "Recommended course of action:"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "human release owner",
+            "Tier 2"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Target(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b).+\\S",
+          "type": "regex"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Change(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b).+\\S",
+          "type": "regex"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Exact command(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b)(?:`[^`\\n]+`|\\S.*)",
+          "type": "regex"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Verification(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b)[^\\n]*\\b\\d+(?:\\.\\d+)?\\s*(?:ms|s|sec(?:ond)?s?|m|min(?:ute)?s?|h|hours?)\\b",
+          "type": "regex"
+        },
+        {
+          "pattern": "^\\s*(?:[-*>]\\s*)?(?:\\*\\*)?Rollback(?:\\*\\*)?\\s*:\\s*(?!<|tbd\\b|unknown\\b|n/a\\b)(?:`[^`\\n]+`|(?:re-enable|restore|revert|remap|roll back|rollback|scale|disable|enable)\\b[^\\n]*)",
+          "type": "regex"
+        }
+      ],
+      "id": "discovery-gcp-ops-defers-active-incident",
+      "mode": "discovery",
+      "prompt": "CheckoutErrorBudgetBurn is paging in production now across both PCF and Cloud Run, customers are\nfailing checkout, and the cause is unknown. Triage severity and blast radius, build hypotheses\nfrom all available signals, and recommend the safest mitigation without changing production.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "agent",
+          "name": "sre"
+        },
+        "scope": "root"
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Keeps a live cross-runtime incident in the SRE investigation lane",
+        "Does not narrow unknown-cause triage prematurely to GCP operations"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "gcp-ops"
+      }
+    },
+    {
+      "_file": "discovery-gcp-ops-defers-obs-alerting.yaml",
+      "_source_sha256": "c3c29ade368cacf44fc2aa5a37cc9d4730c95bbe90afcf72eee8b9044533829b",
+      "graders": [
+        {
+          "of": [
+            "allowed bad fraction",
+            "observed bad fraction",
+            "burn rate"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "long window",
+            "short window",
+            "AND",
+            "not OR"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "alert owner",
+            "notification route",
+            "runbook URL",
+            "force",
+            "fire",
+            "resolve",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-gcp-ops-defers-obs-alerting",
+      "mode": "discovery",
+      "prompt": "Design a multi-window burn-rate paging alert for the Cloud Run checkout service's request-error\nSLO, including notification and runbook linkage. This is steady-state alert design; no alert is\ncurrently firing and no service configuration change is requested.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "obs-alerting"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes Cloud Run SLO alert design to the alerting lane",
+        "Does not expand steady-state alert work into GCP incident triage"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "gcp-ops"
+      }
+    },
+    {
+      "_file": "discovery-gcp-ops-defers-obs-logs.yaml",
+      "_source_sha256": "a0b73abdfed2165e95166650d1082ea84458d52bbdbc57b404ffdbd65d509cd0",
+      "graders": [
+        {
+          "of": [
+            "gcloud logging read",
+            "resource.type=cloud_run_revision",
+            "resource.labels.service_name=checkout"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "severity=(ERROR OR CRITICAL)",
+            "--freshness=1h",
+            "--limit=50",
+            "--format=json"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "absolute UTC window",
+            "payload fields",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-gcp-ops-defers-obs-logs",
+      "mode": "discovery",
+      "prompt": "Our checkout service runs on Cloud Run. Write a Cloud Logging query that finds ERROR and CRITICAL\nentries for service checkout over the last hour. This is query construction only; do not triage\nthe service configuration or change anything.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "obs-logs"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Keeps Cloud Logging query construction in the log-query lane",
+        "Does not expand a backend-dialect request into GCP service triage"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "gcp-ops"
+      }
+    },
+    {
+      "_file": "discovery-gcp-ops-defers-obs-metrics.yaml",
+      "_source_sha256": "3910e5600bb85a09a8a3b90149977ee1723bf5ef544cc736b359102d68759069",
+      "graders": [
+        {
+          "of": [
+            "sum by (",
+            "rate(",
+            "/ sum by (",
+            "[5m]",
+            "validated service label"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "histogram_quantile(0.95",
+            "sum by (",
+            "le",
+            "_bucket"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "cumulative counters",
+            "same population",
+            "zero traffic",
+            "target validation",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-gcp-ops-defers-obs-metrics",
+      "mode": "discovery",
+      "prompt": "Our Cloud Run checkout service already exports request metrics to Cloud Monitoring. Write PromQL\nfor a five-minute error ratio and p95 request latency grouped by service. This is metric-query\nconstruction only, not incident triage or alert design.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "obs-metrics"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Keeps Cloud Monitoring query construction in the metrics lane",
+        "Does not expand a metric-dialect request into GCP service triage"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "gcp-ops"
+      }
+    },
+    {
+      "_file": "discovery-gcp-ops-defers-obs-traces.yaml",
+      "_source_sha256": "d90003d483c39d9eabf52e1035d7fd50d918ed25080c6ac6070af01fb136fb11",
+      "graders": [
+        {
+          "of": [
+            "Trace explorer",
+            "service",
+            "latency",
+            "status",
+            "TraceQL does not apply"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "critical path",
+            "nested span durations",
+            "known-normal"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "absolute UTC window",
+            "sampling caveat",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-gcp-ops-defers-obs-traces",
+      "mode": "discovery",
+      "prompt": "A single checkout request on Cloud Run is slow and I have its Cloud Trace trace ID. Show how to\nfollow that request across services and identify which span consumed the latency. This is trace\ninterpretation only, not a general incident investigation.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "obs-traces"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Keeps Cloud Trace request-path analysis in the traces lane",
+        "Does not expand a trace-interpretation request into GCP service triage"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "gcp-ops"
+      }
+    },
+    {
+      "_file": "discovery-gcp-ops-defers-pcf.yaml",
+      "_source_sha256": "4db4d8d526413860ecc50de51417a7ad67a99da29c51315627e4312d7f929c57",
+      "graders": [
+        {
+          "of": [
+            "cf target",
+            "cf app checkout",
+            "cf events checkout",
+            "cf logs checkout --recent",
+            "cf routes"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "status 137",
+            "SIGKILL",
+            "not proof of OOM",
+            "(out of memory)"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "X-Cf-RouterError",
+            "app-side",
+            "platform-side",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-gcp-ops-defers-pcf",
+      "mode": "discovery",
+      "prompt": "Checkout has not migrated to GCP; it still runs on PCF/TAS. The app is 502-ing with\nX-Cf-RouterError and recent exit code 137 events. Inspect cf app, events, logs, and routes without\nchanging the foundation.\n",
+      "routing": {
+        "expect": "not_fire",
+        "expected_alternative": {
+          "kind": "skill",
+          "name": "pcf-ops"
+        }
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Keeps a PCF application failure in the PCF operations lane",
+        "Does not route the coexistence-era request to GCP operations"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "gcp-ops"
+      }
+    },
+    {
+      "_file": "discovery-obs-alerting-splunk-saved-search.yaml",
+      "_source_sha256": "41ca04c4d042a68ba6913d325e98362875847a027fc998b017fdb16c01a75457",
+      "graders": [
+        {
+          "of": [
+            "cron_schedule = */5 * * * *",
+            "dispatch.earliest_time = -5m",
+            "dispatch.latest_time = now"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "alert.suppress = 1",
+            "alert.suppress.period = 30m",
+            "alert.suppress.fields = service,alert_type"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "instructions_lookup",
+            "runbook_url",
+            "fire",
+            "resolve",
+            "owner",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-obs-alerting-splunk-saved-search",
+      "mode": "discovery",
+      "prompt": "Design a Splunk saved-search paging alert for sustained checkout 5xx errors. Specify the search\nwindow and schedule pairing, throttling, and the runbook link. This is steady-state alert design;\nno alert is currently firing.\n",
+      "routing": {
+        "expect": "fire"
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes Splunk saved-search alert design to the alerting lane",
+        "Covers schedule, window, throttling, and runbook linkage"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "obs-alerting"
+      }
+    },
+    {
+      "_file": "discovery-obs-logs-cloud-logging.yaml",
+      "_source_sha256": "94cdb926b9bf22811921a2d0f7a41e4f4c3dadb55e5a5e060fa50e9ab8f9572d",
+      "graders": [
+        {
+          "of": [
+            "gcloud logging read",
+            "resource.type=cloud_run_revision",
+            "resource.labels.service_name=checkout"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "severity=(ERROR OR CRITICAL)",
+            "--freshness=1h",
+            "--limit=50",
+            "--format=json"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "absolute UTC window",
+            "payload fields",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-obs-logs-cloud-logging",
+      "mode": "discovery",
+      "prompt": "Our checkout service runs on Cloud Run. Write a Cloud Logging query that finds ERROR and CRITICAL\nentries for service checkout over the last hour. This is query construction only; do not triage\nthe service configuration or change anything.\n",
+      "routing": {
+        "expect": "fire"
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes Cloud Logging query construction to the log-query lane",
+        "Returns a time-bounded severity filter without changing the service"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "obs-logs"
+      }
+    },
+    {
+      "_file": "discovery-obs-metrics-cloud-monitoring.yaml",
+      "_source_sha256": "827f4e6199194e0e0280a11c8da19a2660118dfe6eb582171815bdab698827ca",
+      "graders": [
+        {
+          "of": [
+            "sum by (",
+            "rate(",
+            "/ sum by (",
+            "[5m]",
+            "validated service label"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "histogram_quantile(0.95",
+            "sum by (",
+            "le",
+            "_bucket"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "cumulative counters",
+            "same population",
+            "zero traffic",
+            "target validation",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-obs-metrics-cloud-monitoring",
+      "mode": "discovery",
+      "prompt": "Our Cloud Run checkout service already exports request metrics to Cloud Monitoring. Write PromQL\nfor a five-minute error ratio and p95 request latency grouped by service. This is metric-query\nconstruction only, not incident triage or alert design.\n",
+      "routing": {
+        "expect": "fire"
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes Cloud Monitoring query construction to the metrics lane",
+        "Produces PromQL shapes for both error ratio and p95 latency"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "obs-metrics"
+      }
+    },
+    {
+      "_file": "discovery-obs-traces-cloud-trace.yaml",
+      "_source_sha256": "748b48ed3c5eaf82e08ea2d53accf8e681ad4f3fda08c2b78805379e77e8ca34",
+      "graders": [
+        {
+          "of": [
+            "Trace explorer",
+            "service",
+            "latency",
+            "status",
+            "TraceQL does not apply"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "critical path",
+            "nested span durations",
+            "known-normal"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "absolute UTC window",
+            "sampling caveat",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-obs-traces-cloud-trace",
+      "mode": "discovery",
+      "prompt": "A single checkout request on Cloud Run is slow and I have its Cloud Trace trace ID. Show how to\nfollow that request across services and identify which span consumed the latency. This is trace\ninterpretation only, not a general incident investigation.\n",
+      "routing": {
+        "expect": "fire"
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Routes Cloud Trace request-path analysis to the traces lane",
+        "Explains how spans and duration identify the slow leg"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "obs-traces"
+      }
+    },
+    {
+      "_file": "discovery-runbook-incident-update.yaml",
+      "_source_sha256": "255c603a87f94bb1c107af651ab7de17a00c7119f09e1522060c85d157f6c4fb",
+      "graders": [
+        {
+          "of": [
+            "status: draft",
+            "last_verified",
+            "unchanged"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "Append, never erase",
+            "Version used",
+            "Steps that held",
+            "Steps that failed / were missing",
+            "Follow-up"
+          ],
+          "type": "contains_all"
+        },
+        {
+          "of": [
+            "operational-learning",
+            "proposed",
+            "scribe",
+            "[unverified]"
+          ],
+          "type": "contains_all"
+        }
+      ],
+      "id": "discovery-runbook-incident-update",
+      "mode": "discovery",
+      "prompt": "The standard operating-guide structure is already selected. A resolved incident showed that one\nprocedure step held, one was contradicted, and one required step was missing. Apply the\ncheck/recover/verify/roll-back/escalate structure, update incident history and evidence labels,\nand do not execute any procedure.\n",
+      "routing": {
+        "expect": "fire"
+      },
+      "schema_version": 1,
+      "split": "regression",
+      "success_criteria": [
+        "Loads the runbook structure for a resolved-incident update",
+        "Preserves held, contradicted, and missing outcomes with evidence boundaries"
+      ],
+      "target": {
+        "kind": "skill",
+        "name": "runbook"
+      }
+    }
+  ],
+  "schema_version": 1
+}

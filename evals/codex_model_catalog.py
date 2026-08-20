@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the reviewed Codex 0.147 Terra catalog with no local-file tools."""
+"""Build the reviewed Codex 0.148 Terra catalog with no local-file tools."""
 from __future__ import annotations
 
 import copy
@@ -15,13 +15,13 @@ MODEL = "gpt-5.6-terra"
 MAX_CATALOG_BYTES = 8 * 1024 * 1024
 FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 EXPECTED_SOURCE_ENTRY_SHA256 = (
-    "dd06f2ae3786e852ca884d6c189a364da38f7b7492fd960b05cdd2e3e232e443"
+    "3a934e842c9b6a813dfe04ec826da0b79dcfc9b3187696d4b2c1b7110cdb811c"
 )
 EXPECTED_TRANSFORMED_ENTRY_SHA256 = (
-    "ac89f9a13959269da2f67c095f10d4da76890c04eda12c01c58d3c40e64faf71"
+    "1c03b5e12771bc6e961c0fac20830a0a2c5fcca011793ec985d24aa4d41140e9"
 )
 EXPECTED_SAFE_CATALOG_SHA256 = (
-    "2d23cea7bd13463424eca49df927a38f8480501820eec853e3789015c6a321b6"
+    "b5122f71336f146cb6c656167e7f3258a9e4735583b95435f808261562bb646f"
 )
 CHANGED_FIELDS = (
     "apply_patch_tool_type",
@@ -111,7 +111,7 @@ def build_safe_catalog(raw: bytes) -> tuple[bytes, CatalogReceipt]:
         raise CatalogError("authorized model experimental tools must be a list")
     source_sha256 = _sha256(_canonical(source))
     if source_sha256 != EXPECTED_SOURCE_ENTRY_SHA256:
-        raise CatalogError("authorized model entry differs from the reviewed Codex 0.147 bytes")
+        raise CatalogError("authorized model entry differs from the reviewed Codex 0.148 bytes")
 
     transformed = copy.deepcopy(source)
     transformed.update(

@@ -196,13 +196,15 @@ def _sha256_regular_file(path: Path, *, label: str, max_bytes: int) -> str:
     return digest.hexdigest()
 
 
-def _pinned_git_executable(path: Path) -> tuple[Path, os.stat_result]:
+def _pinned_git_executable(
+    path: Path, *, expected_sha256: str = GIT_EXECUTABLE_SHA256
+) -> tuple[Path, os.stat_result]:
     candidate = Path(path)
     digest = _sha256_regular_file(
         candidate, label="Git executable", max_bytes=MAX_GIT_EXECUTABLE_BYTES
     )
     resolved = candidate.resolve(strict=True)
-    if resolved != GIT_EXECUTABLE_PATH or digest != GIT_EXECUTABLE_SHA256:
+    if resolved != path or digest != expected_sha256:
         raise SnapshotError("Git executable does not match the fixed protected-install pin")
     try:
         metadata = resolved.stat()
@@ -533,6 +535,7 @@ def materialize_snapshot(
     destination: Path | str,
     *,
     git_executable: Path | str = GIT_EXECUTABLE_PATH,
+    git_executable_sha256: str = GIT_EXECUTABLE_SHA256,
     command_runner: Callable[..., subprocess.CompletedProcess[bytes]] | None = None,
 ) -> SnapshotReceipt:
     """Materialize one fixed ROUTE-001 commit into an existing empty temp directory."""
@@ -551,7 +554,9 @@ def materialize_snapshot(
     except OSError as exc:
         raise SnapshotError("snapshot destination could not be inspected") from exc
 
-    git_binary, git_before = _pinned_git_executable(Path(git_executable))
+    git_binary, git_before = _pinned_git_executable(
+        Path(git_executable), expected_sha256=git_executable_sha256
+    )
     command = [
         str(git_binary),
         "--no-pager",
@@ -593,7 +598,7 @@ def materialize_snapshot(
         or _sha256_regular_file(
             git_binary, label="Git executable", max_bytes=MAX_GIT_EXECUTABLE_BYTES
         )
-        != GIT_EXECUTABLE_SHA256
+        != git_executable_sha256
     ):
         raise SnapshotError("Git executable changed during snapshot materialization")
 
