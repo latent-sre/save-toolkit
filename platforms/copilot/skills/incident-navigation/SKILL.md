@@ -133,9 +133,11 @@ guidance:
 | Is the expected signal absent, stale, dropped, or misrouted? | `obs-pipeline` | Source-to-backend path, last-known data, gap boundary |
 | Do slow queries, pool exhaustion, locks, replication, or datastore saturation fit the symptom? | `database-reliability` | Database signal, target, time range, safe diagnostic evidence |
 
-When the selected first source is an already-supplied dashboard that directly answers the question,
-choose `obs-dashboards`. Choose `obs-metrics` when the first step instead needs a metric query or
-metric-series interpretation that is not already presented by that dashboard.
+Choose `obs-dashboards` only when `Where to look` is a supplied dashboard URI or path that directly
+answers the question. That exception does not apply when `Where to look` is
+`[unverified — not located]` or the supplied evidence item merely names a comparison; choose the row
+from the question in that case. Choose `obs-metrics` when the question asks for a latency/baseline
+comparison that is not already presented by a located dashboard.
 
 If two rows look equally useful, choose the lower-cost, lower-risk check. State why it wins and what
 result would make the other row next. Do not load every sibling skill for completeness.
