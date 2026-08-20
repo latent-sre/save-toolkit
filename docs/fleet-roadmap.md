@@ -187,10 +187,12 @@ create or move a release ref manually.
 
 **Status:** `active` (2026-08-20) — PR
 [#103](https://github.com/latent-sre/save-toolkit/pull/103) supplied the original evaluator. An
-Linux Docker arm committed at `262dfc93daf8663b50f6175b7beb7fdfae9b15cc` implements the fixed
-48-trial executor and passed its credential-free preflight. Two owner-approved development canaries
-ended `INCONCLUSIVE`: Codex 0.147 failed during startup, while Codex 0.148 returned `0` but its trace
-or hook receipts failed validation. No retry, campaign, routing result, or baseline followed. See the
+Linux Docker arm implements the fixed 48-trial executor and passes credential-free preflight. Three
+owner-approved development canaries ended `INCONCLUSIVE`: Codex 0.147 failed during startup, while
+both Codex 0.148 processes returned `0` but their trace or hook receipts failed validation. Exact
+tagged source exposed hook-permission and nullable-transcript mismatches, now repaired through
+`cfb185173c0434a2792c5bf30270bef1e24606b1`; the latest repair has not been live-retried. No campaign,
+routing result, or baseline followed. See the
 [`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
 
 **Owner direction (2026-08-20) — measure on more than one provider.** This campaign is to be run
@@ -333,10 +335,12 @@ See the
 resolved exact tag `rust-v0.148.0` to commit
 `3ba0f711642a888aec92a611a3f3b2211157ff89`; Context7 and the tagged source both retain the nested
 `[tools.*]` configuration shape used by the repair. Image
-`sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf`
-passed the credential-free networkless preflight. One subsequent owner-authorized development
-canary ran from clean commit `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`; Codex returned `0`, but
-the result remained `INCONCLUSIVE` because trace or hook validation failed. See the
+`sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c`
+passed the credential-free networkless preflight. A subsequent owner-authorized development canary
+ran from clean commit `0e9e7daa4cf8dab6692b80b4e3f17fa60b809068`; Codex returned `0`, but the
+result remained `INCONCLUSIVE` because trace or hook validation failed. Exact tagged source then
+confirmed that the evaluator wrongly rejected Codex's nullable `transcript_path`; commit
+`cfb185173c0434a2792c5bf30270bef1e24606b1` repairs that boundary with red-first coverage. See the
 [`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
 
 **Grader repair (2026-08-15):** The outside-packet detector is repaired and evidenced in the

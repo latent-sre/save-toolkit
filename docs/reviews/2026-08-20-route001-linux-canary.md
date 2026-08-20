@@ -3,29 +3,32 @@
 - **Date:** 2026-08-20
 - **Branch:** `feat/route001-linux-container`
 - **Base commit:** `e31d04e06d3d50e7351f0251768b11c8016c3f10`
-- **Candidate state:** committed at `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`; not independently reviewed
+- **Candidate state:** repaired through `cfb185173c0434a2792c5bf30270bef1e24606b1`; not independently reviewed
 - **Authority:** development instrument evidence only; not campaign, baseline, release, or promotion
 
 ## Outcome
 
-The Linux Docker arm is viable, but both owner-approved authenticated development canaries are
+The Linux Docker arm is viable, but all three owner-approved authenticated development canaries are
 **INCONCLUSIVE**. The first, under Codex 0.147.0, exited before producing a response or valid trace.
-After that startup defect was repaired, the owner requested a bounded repin to Codex 0.148.0 and
-committed the evaluator at `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`. The second canary's Codex
-subprocess returned `0` after 15,865 ms, but the evaluator rejected its JSONL trace or hook receipts.
-Neither attempt is a routing result, and no retry or 48-trial campaign followed.
+The two Codex 0.148.0 subprocesses returned `0`, but the evaluator rejected their JSONL trace or hook
+receipts. Exact 0.148 source review found two evaluator mismatches: hook `permission_mode` reflects
+approval policy, and `transcript_path` is nullable. Both are now repaired and covered by red-first
+tests, but the nullable-path repair has not had a live retry. No attempt is a routing result, and no
+48-trial campaign followed.
 
 | Check | Evidence |
 |---|---|
 | Candidate image | `[verified]` `sha256:c339d945cc6d77661a836b3f81eddf0102f950fb9a43beae4529c57cb2f9047c` |
 | Corrected 0.147 image | `[verified]` `sha256:0c6ae299da5088f9a93d0a968c2a95a61e6640d6b585e4740919f435afcd7287` |
 | Repinned 0.148 canary image | `[verified]` `sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf` |
+| Third 0.148 canary image | `[verified]` `sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c` |
 | Runtime shape | `[verified]` Linux `amd64`; non-root `65532:65532`; launcher image inspection passed |
-| Targeted contracts | `[verified]` 125 passed; 6 expected platform skips |
+| Focused current-repair contracts | `[verified]` 115 passed; 8 expected platform skips |
 | Credential-free preflight | `[verified]` exit `0`; `credential-free-preflight-pass`; no auth or model process started |
 | 0.147 development canary | `[verified]` outer exit `4`; verdict `INCONCLUSIVE`; `trace-or-hook-invalid` |
 | 0.148 development canary | `[verified]` verdict `INCONCLUSIVE`; `trace-or-hook-invalid`; no retry |
 | 0.148 Codex subprocess | `[verified]` exit `0` after 15,865 ms; stdout 1,684 bytes; stderr 144 bytes |
+| Third Codex subprocess | `[verified]` exit `0` after 15,213 ms; stdout 1,760 bytes; stderr 144 bytes |
 | Usage and cost | `[unverified]` no token, usage, billing, request, or resolved-model receipt was produced |
 | Persistent run artifacts | `[verified]` `F:\route001-runs\canary-20260820` contained zero files after the run |
 
@@ -78,6 +81,29 @@ failure in either JSONL trace parsing or hook-receipt loading; the sanitized res
 object and the disposable raw boundary was removed. The available evidence therefore cannot identify
 which parser rejected the run, establish a successful model response, grade the scenario, or recover
 token/cost data. No inference that Codex 0.148 changed hook behavior is made from this single result.
+
+## Third Codex 0.148 canary and nullable-path repair
+
+`[verified]` A third bounded canary ran from clean commit
+`0e9e7daa4cf8dab6692b80b4e3f17fa60b809068` using exact image
+`sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c`.
+Its credential-free preflight passed first with evaluator tree SHA-256
+`c1ead9f601d02ca3438cc7adb9a279f8f08c3236b65552d42a2ba5f5f5d887e7`.
+The authenticated Codex process then returned `0` after 15,213 ms without timeout or output limiting,
+but the evaluator again returned `INCONCLUSIVE` with `trace-or-hook-invalid`; no trace, hook packet,
+verdict, usage, or billing receipt was persisted. The output root remained empty and no automatic
+retry followed.
+
+`[sourced]` Exact Codex 0.148 source defines `SessionStartRequest.transcript_path` as
+`Option<PathBuf>` and serializes it through a transparent nullable-string wrapper:
+[`session_start.rs`](https://github.com/openai/codex/blob/3ba0f711642a888aec92a611a3f3b2211157ff89/codex-rs/hooks/src/events/session_start.rs#L42-L50),
+[`schema.rs`](https://github.com/openai/codex/blob/3ba0f711642a888aec92a611a3f3b2211157ff89/codex-rs/hooks/src/schema.rs#L40-L51), and
+[`schema.rs`](https://github.com/openai/codex/blob/3ba0f711642a888aec92a611a3f3b2211157ff89/codex-rs/hooks/src/schema.rs#L483-L529).
+The evaluator instead required a non-empty string for every hook receipt. A red-first regression
+reproduced that rejection, and commit `cfb185173c0434a2792c5bf30270bef1e24606b1` now accepts only JSON
+`null` or a non-empty string while still rejecting a missing, empty, or non-string field. The focused
+bootstrap/harness/recorder/trial suite passed 115 tests with 8 expected platform skips. This repair is
+not yet a live routing result.
 
 ## Offline root cause and repair
 
@@ -140,11 +166,11 @@ credential-free, `--network none` preflight exited `0` with
 - exact current snapshot tree SHA-256
   `867f92cccb6eff6e994f27eff7301722ebb82da24b6f2adcd26be92fe2babf4a`.
 
-The shared nine-file Windows bootstrap manifest was also refreshed because the Linux repin changes
-shared evaluator modules. Its current file is 1,173 bytes with SHA-256
-`03d1e7f65bc1eee4aa047043c73651305775d1254bfb83219a11384373df8706`.
-This preserves exact-byte rejection but invalidates the older review digest; it remains uncommitted
-and requires a fresh exact-byte review before any historical Windows launch could be considered.
+The shared nine-file Windows bootstrap manifest was refreshed with the repaired shared evaluator
+modules. Its current file is 1,173 bytes with SHA-256
+`fae728dfcc8da1a9b522ff61b63c4e655b9f134e36c030613a14e19b18f22fe5`.
+This preserves exact-byte rejection but invalidates the older review digest; it requires a fresh
+exact-byte review before any historical Windows launch could be considered.
 
 A separate exact-command startup diagnostic used the same image with `--network none`, no auth
 mount, and the rendered 0.148 strict config. Codex returned `1` without starting an authenticated
@@ -152,7 +178,7 @@ turn; stdout was empty, stderr was 30 bytes with SHA-256
 `9d207bb1613f71b10fdfdc9e0bcc9c191d8f6d7084780e5d21c86e2e7af396d4`, and the bounded diagnostic
 reported `config_error=false`. This is startup/configuration evidence, not a model result.
 
-`[verified]` A later no-cache rebuild from the final normalized input closure produced current local
+`[verified]` An earlier no-cache rebuild from the then-final normalized input closure produced
 image
 `sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf`.
 The tag now resolves to that image; the earlier image is no longer present in the current Docker
@@ -166,20 +192,22 @@ The Dockerfile pins the base-image digests and Codex executable but does not pin
 repository contents or BuildKit provenance bytes, so the whole-image ID remains build-specific.
 This observation is recorded rather than expanded into a separate dependency-pinning change.
 
-## Exact 0.148 image input closure
+## Exact third-canary 0.148 image input closure
 
-The image copies the following exact files. This table binds the container input closure; it does
-not claim that the surrounding worktree is clean or independently reviewed.
+Image `sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c`
+copies the following exact files from clean commit
+`0e9e7daa4cf8dab6692b80b4e3f17fa60b809068`. This table does not include the later nullable-path
+repair and makes no independent-review claim.
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
 | `evals/codex_campaign.py` | 16879 | `9bfc06bf4a9f77a46382456f7f683b6e9b9e8d2db4b234815979142870921920` |
-| `evals/codex_harness.py` | 33439 | `a9c244dc0983cd2df2b26c3c906643c1a6c1e42ed627c47690ca6539ace93975` |
+| `evals/codex_harness.py` | 33660 | `3ae3dd05990e0f54e0048d8fdd66113ca6389906da48e0abf7f82616e208eb2a` |
 | `evals/codex_hook_recorder.py` | 9942 | `c2fd5b9b3583b6dd12874850a1528eafa20b42a7d60f0c5435a1606f1105ddc8` |
 | `evals/codex_model_catalog.py` | 7198 | `6d7ea260d70bf3cf54add7ea9c2771995e6710eb638036a3074538ff1c32b11a` |
 | `evals/codex_routing_grade.py` | 13878 | `3bfc79b547a050c7817096f531572f3d0de07e412b7a1630ccac70e522102a52` |
 | `evals/codex_runtime.py` | 4683 | `6a02af5f02f53b4516a72ceb7696cb282fd7d0791974c69b38fb20a3ea31a63a` |
-| `evals/codex_snapshot.py` | 33785 | `5f024ba6e1aac5fa9a4a0b0fdada3b03fe16e5292e8db454ffce31d687422499` |
+| `evals/codex_snapshot.py` | 33911 | `b23102b211c78acbf142091aa4ffec728875cb30e5b1f2bb8ab8f235502b5d43` |
 | `evals/codex_trial.py` | 97803 | `18ead6da11978b3f57d117c9f750b05a92a22f3894829e02725bf4e0fd64f5dc` |
 | `evals/graders.py` | 27013 | `cde406078548619d95f11f4c70af6010bca411043d4ee3e7a02647aab39e1ae1` |
 | `evals/run_codex_routing.py` | 35409 | `6db8b0d046879fae45e90cb8bb6a62d94ca979857806f3fef1571f02894ec58a` |
@@ -190,23 +218,19 @@ not claim that the surrounding worktree is clean or independently reviewed.
 
 ## Disposition
 
-ROUTE-001 remains active and the 48-trial campaign remains **NO-GO**. The startup failure is repaired,
-the Linux runtime is repinned to exact Codex 0.148.0 bytes, and the new networkless preflight passes.
-The evaluator is committed at `262dfc93daf8663b50f6175b7beb7fdfae9b15cc` but is not independently
-reviewed, and the 0.148 canary did not produce a valid trace/hook boundary. Any retry requires new
-owner authorization and remains development evidence until the campaign prerequisites are met.
+ROUTE-001 remains active and the 48-trial campaign remains **NO-GO**. The startup, hook-permission,
+and nullable-transcript defects are repaired through
+`cfb185173c0434a2792c5bf30270bef1e24606b1`, but the latest repair has not been rebuilt or exercised
+by a live canary. Any retry requires a new exact image, credential-free preflight, and fresh owner
+authorization; it remains development evidence until the campaign prerequisites are met.
 
-The focused evaluator suite passed 125 tests with 6 expected platform skips. Link validation,
-single-live-roadmap validation, offline 48-trial plan validation, and `git diff --check` passed.
-Gate A passed 40 of 41 steps; `evals/test_codex_snapshot.py` rejected this linked worktree because
-its `.git` entry is a pointer file rather than the ordinary directory required by the snapshot
-boundary. The credential-free container preflight successfully exercised the snapshot from the
-ordinary root checkout. This is not reported as a full Gate A pass, and the snapshot contract was
-not weakened to accommodate the development worktree.
+The focused nullable-path repair suite passed 115 tests with 8 expected platform skips. Gate A
+passed all 41 structural steps from a clean ordinary clone at the preceding committed candidate;
+the snapshot contract was not weakened to accommodate the linked development worktree.
 
 ## What did not happen
 
-- No retry followed the single 0.148 canary.
+- No retry followed the third development canary.
 - No 48-trial campaign, baseline, promotion, release, push, or pull request occurred.
 - No successful model response or routing verdict was recorded.
-- No verified token or monetary-cost claim is available from either attempt.
+- No verified token or monetary-cost claim is available from any attempt.

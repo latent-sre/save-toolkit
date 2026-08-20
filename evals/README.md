@@ -9,7 +9,7 @@ their prominence. The runnable Claude suite is the third row.
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
-| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed, two development canaries inconclusive | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
+| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed, three development canaries inconclusive | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
@@ -88,7 +88,10 @@ another process running as that same user. On 2026-08-20 the replacement Linux-c
 passed first on Codex 0.147.0 and again after the bounded 0.148.0 repin. The owner-approved 0.147.0
 development canary ended `INCONCLUSIVE` before producing model output. A second owner-approved
 0.148.0 canary ran from clean commit `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`; its Codex subprocess
-returned `0`, but trace or hook validation failed closed and the result remained `INCONCLUSIVE`.
+returned `0`, but trace or hook validation failed closed. A third bounded 0.148.0 canary from
+`0e9e7daa4cf8dab6692b80b4e3f17fa60b809068` did the same. Exact tagged source then exposed a nullable
+`transcript_path` contract mismatch, repaired at `cfb185173c0434a2792c5bf30270bef1e24606b1` but not yet
+live-retried; all three results remain `INCONCLUSIVE`.
 See the [Linux canary evidence packet](../docs/reviews/2026-08-20-route001-linux-canary.md). No Terra
 campaign, routing result, or baseline has been recorded.
 The full campaign may run only from exact,
