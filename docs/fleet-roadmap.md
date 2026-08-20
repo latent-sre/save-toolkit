@@ -395,11 +395,14 @@ now handles the exact 0.148 item lifecycle, structured collaboration state, and 
 subsequent bounded Linux canary against image
 `sha256:10c7f4f77092ae30ebc5b52f17a5d43b80176195d63deb87614be7fb48a4fcf6` passed the automatic
 credential-free preflight and produced a valid `FAIL` verdict with reason
-`behavior-grader-failed`. That clears the environment/trace blocker, but the 48-trial campaign
-remains **NO-GO**. Add compact per-grader failure identifiers without retaining raw output, verify
-that diagnostic, obtain independent exact-candidate review, and then use one targeted canary to
-localize the skill behavior. Do not tune descriptions or claim a current baseline until that failure
-is identified.
+`behavior-grader-failed`. A red-first compact diagnostic then exposed only validated numeric grader
+indices; the one authorized follow-up canary failed graders 0, 1, 3, and 4 while passing 2 and 5.
+That localizes the gap to omitted read-only service/revision/log commands, the loopback contrast, and
+evidence/authority qualifiers; the bind-address diagnosis and exact rollback packet already passed.
+The canonical `gcp-ops` skill now uses a four-slot startup/rollback answer contract, with generated
+adapters refreshed. The 48-trial campaign remains **NO-GO**. Obtain independent exact-candidate
+review, then use one separately authorized post-fix canary before changing any other skill text or
+claiming a current baseline.
 
 ## Repository work
 

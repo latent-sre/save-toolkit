@@ -288,17 +288,77 @@ def _usage(payload: Mapping[str, object]) -> dict[str, int] | None:
     return dict(sorted(value.items()))
 
 
+def _failed_grader_indices(payload: Mapping[str, object]) -> list[int] | None:
+    """Reduce the trusted verdict to bounded numeric failure identifiers."""
+
+    verdict = payload.get("verdict")
+    behavior = verdict.get("behavior") if isinstance(verdict, Mapping) else None
+    if not isinstance(behavior, Mapping):
+        return None
+    grader_count = behavior.get("grader_count")
+    passed_count = behavior.get("passed_count")
+    rows = behavior.get("graders")
+    if (
+        isinstance(grader_count, bool)
+        or not isinstance(grader_count, int)
+        or grader_count < 1
+        or grader_count > 64
+        or isinstance(passed_count, bool)
+        or not isinstance(passed_count, int)
+        or passed_count < 0
+        or passed_count > grader_count
+        or not isinstance(rows, list)
+        or len(rows) != grader_count
+    ):
+        return None
+    failed: list[int] = []
+    observed_passed = 0
+    for expected_index, row in enumerate(rows):
+        if not isinstance(row, Mapping) or set(row) != {"index", "passed"}:
+            return None
+        index = row.get("index")
+        passed = row.get("passed")
+        if (
+            isinstance(index, bool)
+            or index != expected_index
+            or not isinstance(passed, bool)
+        ):
+            return None
+        if passed:
+            observed_passed += 1
+        else:
+            failed.append(expected_index)
+    if observed_passed != passed_count:
+        return None
+    return failed
+
+
 def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str, object], int]:
     payload = _json_object(process.stdout)
     state = payload.get("state") if payload is not None else None
     reasons = _reason_codes(payload.get("reason_codes")) if payload is not None else None
-    if state not in {"PASS", "FAIL", "INCONCLUSIVE"} or reasons is None:
+    failed_grader_indices = (
+        _failed_grader_indices(payload)
+        if payload is not None and state in {"PASS", "FAIL"}
+        else None
+    )
+    behavior_result_valid = (
+        state == "INCONCLUSIVE"
+        or (state == "PASS" and failed_grader_indices == [])
+        or (state == "FAIL" and bool(failed_grader_indices))
+    )
+    if (
+        state not in {"PASS", "FAIL", "INCONCLUSIVE"}
+        or reasons is None
+        or not behavior_result_valid
+    ):
         return (
             {
                 "started": True,
                 "exit_code": process.returncode,
                 "state": "INCONCLUSIVE",
                 "reason_codes": ["canary-output-invalid"],
+                "failed_grader_indices": None,
                 "usage": None,
             },
             3,
@@ -309,6 +369,7 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
             "exit_code": process.returncode,
             "state": state,
             "reason_codes": reasons,
+            "failed_grader_indices": failed_grader_indices,
             "usage": _usage(payload),
         },
         process.returncode,
@@ -337,6 +398,7 @@ def run_development_canary(inputs: ContainerInputs) -> tuple[int, dict[str, obje
             "exit_code": None,
             "state": None,
             "reason_codes": ["preflight-failed"],
+            "failed_grader_indices": None,
             "usage": None,
         },
     }

@@ -78,7 +78,8 @@ For a Linux development canary, invoking `codex_container.py canary` is the auth
 one paid trial. That single command validates all live inputs, runs the same image credential-free and
 networkless first, stops if preflight fails, and otherwise runs one authenticated canary with no retry.
 It prints and writes only this compact summary to `<output-root>/canary-result.json`: image ID,
-preflight result, canary state/reason codes, and token usage when the accepted trace contains it.
+preflight result, canary state/reason codes, failed numeric grader indices for a valid behavioral
+verdict, and token usage when the accepted trace contains it.
 Repeated development attempts update that one file; they do not require a new narrative review packet.
 Update durable campaign documentation only when a canary produces a valid verdict, the instrument
 contract changes, or the work is deliberately closed. Standalone `preflight` remains available for a

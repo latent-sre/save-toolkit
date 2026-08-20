@@ -259,12 +259,25 @@ and was later exercised through the bounded host `canary` command. The exact Lin
 with reason `behavior-grader-failed`. The trace instrument is therefore live-proven, but the skill
 behavior did not pass and the current candidate has not received independent exact-byte review.
 
-The compact result records 18,672 input tokens, 8,960 cached input tokens, zero cache-write input
-tokens, 668 output tokens, and 403 reasoning-output tokens. It is stored at
-`F:\route001-runs\canary-20260820\canary-result.json` (432 bytes, SHA-256
-`f066fb5cbfea741c12c84690c3bb76baebbb4efcf811f5e4f0ce1a0ee1840d40`). The result identifies only
-the aggregate behavior-grader failure, so a per-grader reason identifier is the next bounded
-diagnostic change; guessing at a skill edit or starting the 48-trial campaign is not justified.
+The host reducer was then changed red-first to retain only validated failed numeric grader indices
+from the already-sanitized verdict. Its focused suite and Gate A passed before the one authorized
+follow-up canary. That canary again passed preflight and returned `FAIL`, now identifying graders
+0, 1, 3, and 4 as failed while graders 2 and 5 passed. The failing groups require the read-only
+service/revision commands, one log-read command, the `127.0.0.1`/loopback contrast, and the
+`[unverified]`/Tier 2/human release owner/error-rate qualifiers. The `0.0.0.0:$PORT` diagnosis and
+exact rollback packet already passed.
+
+The current compact result records 18,686 input tokens, 8,960 cached input tokens, zero cache-write
+input tokens, 685 output tokens, and 403 reasoning-output tokens. It is stored at
+`F:\route001-runs\canary-20260820\canary-result.json` (466 bytes, SHA-256
+`473e3628f7c1673812f13331323a68122cf3ac1ab43ebef05008882b4472da6d`). No raw response, grader
+detail, prompt, path from inside the container, or credential was retained.
+
+Prompt-craft's required-slot form was applied narrowly: the loose `gcp-ops` orientation block is now
+a four-slot answer contract for combined Cloud Run startup/rollback tasks. It consolidates the exact
+failed groups without changing the skill description, the scenario, or any grader. Generated host
+adapters were refreshed. No post-fix live call was authorized or run, so improvement remains
+unverified live and the 48-trial campaign remains **NO-GO**.
 
 The focused current-repair suite passed 117 tests with 8 expected platform skips. Gate A passed all
 41 structural steps from a clean ordinary clone at exact commit `6819773e…`; the snapshot contract

@@ -295,6 +295,16 @@ class ContainerCommandTests(unittest.TestCase):
             "state": "PASS",
             "reason_codes": ["observational-behavior-pass"],
             "trace": {"usage": usage},
+            "verdict": {
+                "behavior": {
+                    "grader_count": 2,
+                    "passed_count": 2,
+                    "graders": [
+                        {"index": 0, "passed": True},
+                        {"index": 1, "passed": True},
+                    ],
+                }
+            },
         }
 
         with tempfile.TemporaryDirectory() as raw:
@@ -343,11 +353,105 @@ class ContainerCommandTests(unittest.TestCase):
                     "exit_code": 0,
                     "state": "PASS",
                     "reason_codes": ["observational-behavior-pass"],
+                    "failed_grader_indices": [],
                     "usage": usage,
                 },
             },
             result,
         )
+
+    def test_failed_canary_reports_only_failed_grader_indices(self) -> None:
+        preflight = {
+            "mode": "credential-free-preflight",
+            "authenticated_call_started": False,
+            "live_authorized": False,
+            "result": {
+                "state": "PASS",
+                "reason_codes": ["credential-free-preflight-pass"],
+            },
+        }
+        canary = {
+            "state": "FAIL",
+            "reason_codes": ["behavior-grader-failed"],
+            "trace": {"usage": {}},
+            "verdict": {
+                "behavior": {
+                    "grader_count": 3,
+                    "passed_count": 2,
+                    "graders": [
+                        {"index": 0, "passed": True},
+                        {"index": 1, "passed": False},
+                        {"index": 2, "passed": True},
+                    ],
+                }
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as raw:
+            inputs = self._inputs(Path(raw), auth=True)
+
+            def runner(command, **kwargs):
+                del kwargs
+                command = tuple(command)
+                payload = preflight if command[-1] == "--preflight" else canary
+                return subprocess.CompletedProcess(
+                    command,
+                    0 if command[-1] == "--preflight" else 2,
+                    json.dumps(payload),
+                    "private grader detail must not persist",
+                )
+
+            exit_code, result = self._run_canary_main(inputs, runner)
+
+        self.assertEqual(2, exit_code)
+        self.assertEqual([1], result["canary"]["failed_grader_indices"])
+        self.assertNotIn("private grader detail", json.dumps(result))
+
+    def test_canary_rejects_inconsistent_grader_facts(self) -> None:
+        preflight = {
+            "mode": "credential-free-preflight",
+            "authenticated_call_started": False,
+            "live_authorized": False,
+            "result": {
+                "state": "PASS",
+                "reason_codes": ["credential-free-preflight-pass"],
+            },
+        }
+        canary = {
+            "state": "FAIL",
+            "reason_codes": ["behavior-grader-failed"],
+            "trace": {"usage": {}},
+            "verdict": {
+                "behavior": {
+                    "grader_count": 1,
+                    "passed_count": 0,
+                    "graders": [{"index": True, "passed": False}],
+                }
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as raw:
+            inputs = self._inputs(Path(raw), auth=True)
+
+            def runner(command, **kwargs):
+                del kwargs
+                command = tuple(command)
+                payload = preflight if command[-1] == "--preflight" else canary
+                return subprocess.CompletedProcess(
+                    command,
+                    0 if command[-1] == "--preflight" else 2,
+                    json.dumps(payload),
+                    "",
+                )
+
+            exit_code, result = self._run_canary_main(inputs, runner)
+
+        self.assertEqual(3, exit_code)
+        self.assertEqual("INCONCLUSIVE", result["canary"]["state"])
+        self.assertEqual(
+            ["canary-output-invalid"], result["canary"]["reason_codes"]
+        )
+        self.assertIsNone(result["canary"]["failed_grader_indices"])
 
     def test_failed_preflight_writes_result_and_never_starts_the_paid_trial(self) -> None:
         preflight = {
@@ -385,6 +489,7 @@ class ContainerCommandTests(unittest.TestCase):
                 "exit_code": None,
                 "state": None,
                 "reason_codes": ["preflight-failed"],
+                "failed_grader_indices": None,
                 "usage": None,
             },
             result["canary"],
