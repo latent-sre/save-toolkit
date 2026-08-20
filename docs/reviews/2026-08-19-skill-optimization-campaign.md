@@ -252,7 +252,9 @@ Gate A 40/40. The follow-up exact-SHA review verified the strict parser but foun
 prompts disclosed their expected enum values, turning those cases into answer-copying tests. The
 current candidate removes that leakage from discovery and direct scenarios and adds adversarial
 fixtures for nested types, extra fields, duplicate keys, `NaN`, `Infinity`, and invalid evaluator
-configuration. Batch 2 remains open until this candidate is committed and independently re-reviewed.
+configuration. Three later exact-SHA Sol reviews verified these named Batch 2 repairs as closed and
+reported no remaining Batch 2 P0, P1, or P2 finding; final cross-batch acceptance still depends on
+the closing reviews recorded below.
 
 ### Batch 3 — implementation and data-layer correctness
 
@@ -280,7 +282,7 @@ Candidate body/reference bytes after the four author passes:
 | `backend-craft` | 8,200 | 12,673 | -26.0% |
 | `frontend-craft` | 7,026 | 32,185 | -50.5% |
 | `language-idiom` | 2,433 | 14,721 | -6.6% |
-| `database-reliability` | 5,833 | 5,477 | -31.6% |
+| `database-reliability` | 5,833 | 6,177 | -31.6% |
 
 `[verified]` Activated-body mass fell from 36,414 to 23,492 bytes (35.5%). The
 `language-idiom` entrypoint still makes its five-language routing and boundary explicit while its
@@ -328,5 +330,32 @@ top-level arrays, non-finite values, and non-object expected-value fixtures, and
 strict-zip branch. `[verified]` At exact `e439e2ad…`, 530/530 grader checks pass and the full mutation
 sweep leaves no surviving mutant in `json_exact_object`; 62 survivors remain elsewhere in the
 pre-existing grader module and are recorded as residual test debt, not a clean mutation score.
-Exact-commit Gate A and independent Sol review remain required before acceptance. No live
-routing-rate claim is made.
+At exact candidate `af0b15f3cc414d2f165befa6ad843cc0a1e489d9`, three fresh independent
+`gpt-5.6-sol` reviews found no P0 issue and three remaining defects: a P2 database-licensing claim
+without reconstructible official source links, a P1 exact-object evaluator that treated
+unannounced open-ended scalar vocabulary as closed, and a P1 README claim that the historical
+Terra routing revision remained equivalent to HEAD despite changed skill descriptions. The same
+reviews independently verified the named Batch 2 deployment, authority, and grader repairs and the
+other named Batch 3 accuracy repairs as closed.
+
+Repair commit `f75ab2e9f79f1ef6d0ca226c516072da8217b11c`:
+
+- links the exact PostgreSQL, SQL Server, and Oracle official sources needed to reconstruct the
+  query-plan and Oracle diagnostics-licensing boundary;
+- makes each craft scenario's complete two-choice scalar vocabulary explicit, alternates the
+  expected choice's position, accepts the contract-accurate
+  `principal_operation_request_fingerprint` value, and adds checks that reject every wrong choice;
+- marks the pinned Terra campaign historical and not routing-equivalent to the changed fleet.
+
+`[verified]` The new checks were run against the unrepaired candidate before the content repairs:
+the craft-closure checks reported 29 failures, and the fleet contract reported two failures for the
+missing exact source links and stale routing-equivalence claim. At exact repaired commit
+`f75ab2e9…`, strict plugin validation passes, Gate A passes 40/40 in a clean normal checkout,
+651/651 grader checks pass, and all 87 scenarios validate (23 direct, 64 discovery, 42 regression).
+The unbounded `evals/graders.py` mutation sweep generated 224 mutants and left 55 legacy survivors;
+it therefore exits nonzero and is not represented as a clean mutation score. No mutant survives in
+`json_incident_command_packet` or `json_exact_object`.
+
+Two independent exact-SHA closing reviews of this repaired, evidence-bound candidate remain the
+acceptance condition. No live routing/model campaign, production effect, release, push, or external
+system mutation is part of this evidence.
