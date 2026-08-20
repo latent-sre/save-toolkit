@@ -870,7 +870,7 @@ def _nav_effect_is_safe_noun(action: str, before: str, after: str) -> bool:
         ):
             return True
         if re.search(r"(?:\b(?:configuration|config|deploys?)\s+|/)\s*$", before, re.IGNORECASE) and re.match(
-            r"\s*(?:$|[.,;:)]|\bhistory\b)",
+            r"\s*(?:$|[.,;:)]|\b(?:history|correlation)\b)",
             after,
             re.IGNORECASE,
         ):

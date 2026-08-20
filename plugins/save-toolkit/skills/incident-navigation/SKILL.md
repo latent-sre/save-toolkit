@@ -133,6 +133,10 @@ guidance:
 | Is the expected signal absent, stale, dropped, or misrouted? | `obs-pipeline` | Source-to-backend path, last-known data, gap boundary |
 | Do slow queries, pool exhaustion, locks, replication, or datastore saturation fit the symptom? | `database-reliability` | Database signal, target, time range, safe diagnostic evidence |
 
+When the selected first source is an already-supplied dashboard that directly answers the question,
+choose `obs-dashboards`. Choose `obs-metrics` when the first step instead needs a metric query or
+metric-series interpretation that is not already presented by that dashboard.
+
 If two rows look equally useful, choose the lower-cost, lower-risk check. State why it wins and what
 result would make the other row next. Do not load every sibling skill for completeness.
 

@@ -944,6 +944,7 @@ def test_incident_navigation_no_execution() -> None:
         "Unknowns: Whether latency correlates with a recent deploy/config change.",
         "Unknowns: Any recent deploys/changes.",
         "Unknowns: Recent deploy/change history.",
+        "Unknowns: Earliest bad time and recent release/change correlation.",
         "Unknowns: Which source is the authoritative first stop.",
     )
     for response in safe:
