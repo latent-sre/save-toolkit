@@ -936,6 +936,53 @@ class TrialExecutionTests(unittest.TestCase):
                 result.as_dict()["configuration"]["tool_policy"],
             )
 
+    def test_invalid_trace_is_distinguished_before_hook_receipts_are_loaded(self) -> None:
+        capture = codex_trial.ProcessCapture(
+            stdout='{"type":"unsupported-private-event"}\n',
+            stderr="",
+            returncode=0,
+            duration_ms=1,
+            timed_out=False,
+            output_limited=False,
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(strict=True)
+            with mock.patch(
+                "codex_trial.codex_hook_recorder.load_receipts",
+                side_effect=AssertionError("receipts must not be loaded after an invalid trace"),
+            ) as load_receipts:
+                result, _ = self._run(root, capture)
+
+        self.assertEqual(codex_routing_grade.VerdictState.INCONCLUSIVE, result.state)
+        self.assertEqual(("trace-invalid",), result.reason_codes)
+        self.assertIsNone(result.trace_facts)
+        self.assertIsNone(result.hook_facts)
+        load_receipts.assert_not_called()
+
+    def test_invalid_hook_receipts_are_distinguished_without_private_diagnostics(self) -> None:
+        capture = codex_trial.ProcessCapture(
+            stdout=_trace(),
+            stderr="",
+            returncode=0,
+            duration_ms=1,
+            timed_out=False,
+            output_limited=False,
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(strict=True)
+            with mock.patch(
+                "codex_trial.codex_hook_recorder.load_receipts",
+                side_effect=ValueError("private hook parser detail"),
+            ):
+                result, _ = self._run(root, capture)
+
+        serialized = json.dumps(result.as_dict(), sort_keys=True)
+        self.assertEqual(codex_routing_grade.VerdictState.INCONCLUSIVE, result.state)
+        self.assertEqual(("hook-invalid",), result.reason_codes)
+        self.assertIsNone(result.trace_facts)
+        self.assertIsNone(result.hook_facts)
+        self.assertNotIn("private hook parser detail", serialized)
+
     def test_serialized_root_tool_policy_is_explicitly_unscored(self) -> None:
         contract = codex_trial.TrialContract(
             scenario_id="root-case",

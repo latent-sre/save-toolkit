@@ -2532,6 +2532,17 @@ def _execute_trial(
                 trace = codex_harness.parse_jsonl(
                     capture.stdout, process_exit_code=capture.returncode
                 )
+            except CredentialEchoError:
+                return finish_result(
+                    state=codex_routing_grade.VerdictState.INCONCLUSIVE,
+                    reason_codes=("credential-shaped-output",),
+                )
+            except codex_harness.TraceError:
+                return finish_result(
+                    state=codex_routing_grade.VerdictState.INCONCLUSIVE,
+                    reason_codes=("trace-invalid",),
+                )
+            try:
                 hooks = codex_hook_recorder.load_receipts(
                     paths["receipts"], nonce, payload_validator=refreshed_guard.reject_value
                 )
@@ -2543,7 +2554,7 @@ def _execute_trial(
             except (OSError, ValueError, codex_harness.TraceError):
                 return finish_result(
                     state=codex_routing_grade.VerdictState.INCONCLUSIVE,
-                    reason_codes=("trace-or-hook-invalid",),
+                    reason_codes=("hook-invalid",),
                 )
             verdict = codex_routing_grade.grade_trial(scenario, trace, hooks)
             return finish_result(
