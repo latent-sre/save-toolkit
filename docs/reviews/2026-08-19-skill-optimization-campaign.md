@@ -138,12 +138,12 @@ Candidate body/reference bytes after the four author passes:
 
 | Skill | Body bytes | Reference bytes | Body change |
 |---|---:|---:|---:|
-| `incident-command` | 5,935 | 5,970 | -43.7% |
+| `incident-command` | 5,972 | 5,970 | -43.3% |
 | `root-cause` | 4,099 | 1,549 | -24.4% |
 | `postmortem` | 4,083 | 0 | -15.8% |
 | `operational-learning` | 5,562 | 11,365 | -41.0% |
 
-`[verified]` Activated-body mass fell from 30,247 to 19,679 bytes (34.9%). Installed bundle mass did
+`[verified]` Activated-body mass fell from 30,247 to 19,716 bytes (34.8%). Installed bundle mass did
 not drive the decision: conditional references grew so exact examples and invariants remain available
 without loading them on every activation.
 
@@ -167,14 +167,18 @@ Independent exact-SHA Sol reviews then found authority-grader bypasses that keyw
 missed. Repairs were committed separately as `c60b4cf01adb5e0d2cfc34c93f7e18d032f564dc`,
 `c03852555ac2a9b2b97868eb2d342237b2ea1cee`,
 `f1e0d45bdc959f0db7d6da57efd12281ac4afefb`, and
-`c278a2d61d8d4394b38a81e273d9ea89b33d6143`, followed by the closed-grammar repair
-`22b0cca2260a29f1b8febf6c5068377a50d0109c`. Red-first fixtures now cover every canonical
-mitigation row, non-human automation, plan/intention laundering, pre-approval and negative-state
-human execution, object/joint-actor laundering, and ordinary labeled recommendations.
+`c278a2d61d8d4394b38a81e273d9ea89b33d6143`, `22b0cca2260a29f1b8febf6c5068377a50d0109c`,
+`bd7899b4984092d618d9a6d5ed6364e0ac6bc3e6`, and
+`2cb7b16b5dd27f64c028dd69cb54075f3252e543`. Those repairs proved that free-form actor/action grammar
+kept exchanging one bypass for another false positive. Commit
+`81338871e12a1778a8b6be464d66f5ded99178cb` removes that grammar from the active-incident scenario:
+the response is one closed JSON decision record with fixed recommendation-only, human-executor,
+not-approved, and not-started enums. Extra fields, prose, duplicate keys, or different authority
+states fail closed.
 
-`[verified]` At exact commit `22b0cca2260a29f1b8febf6c5068377a50d0109c`, a clean normal
-checkout passed Gate A 40/40 and `evals/test_graders.py` passed 408/408. A fresh exact-SHA review of
-that last repair is still pending; Batch 1 is not called accepted until it returns no P0/P1.
+`[verified]` At exact commit `81338871e12a1778a8b6be464d66f5ded99178cb`, a clean normal checkout
+passed Gate A 40/40 and `evals/test_graders.py` passed 375/375. A fresh exact-SHA Sol review of the
+structured replacement is pending; Batch 1 is not called accepted until it returns no P0/P1.
 
 ### Batch 2 — readiness, authorization, and deployment
 
@@ -200,8 +204,8 @@ Candidate body/reference bytes after the author passes:
 | `merge-gate` | 4,038 | 0 | -23.3% |
 | `release-gate` | 3,971 | 0 | +7.8% |
 | `production-change-gate` | 5,353 | 4,145 | -20.0% |
-| `ci-actions` | 6,326 | 9,366 | -31.6% |
-| `pcf-deploy` | 5,375 | 7,407 | -40.6% |
+| `ci-actions` | 6,326 | 9,671 | -31.6% |
+| `pcf-deploy` | 5,375 | 8,463 | -40.6% |
 
 `[verified]` Activated-body mass fell from 33,930 to 25,063 bytes (26.1%). The installed bundle grew
 because current sourced contracts, examples, and version-sensitive boundaries moved to conditional
@@ -222,12 +226,25 @@ Context7 and GitHits provenance remained separate:
   traffic during blue-green route overlap, conditional manifest-name override, version-sensitive
   canary behavior, limited revision rollback, independent revision/droplet retention, and distinct
   restart/restage/scale behavior.
-- `[sourced]` A Context7-generated Cloud Foundry summary called route mapping an atomic cutover, while
-  the canonical source says Blue and Green both receive traffic until Blue is explicitly unmapped.
-  The skill follows the canonical source and records the disagreement rather than averaging it away.
+- `[sourced]` Context7 library `/cloudfoundry/docs-dev-guide`, queried on 2026-08-19 for blue-green
+  route mapping, traffic overlap, and unmap behavior, returned
+  `_autodocs/deployment-operations-reference.md` with an atomic-cutover claim. GitHits canonical source
+  `cloudfoundry/docs-dev-guide@04fbae722396625104af6c856d6825130def554e`,
+  `deploy-apps/blue-green.html.md.erb`, says Blue and Green both receive traffic until Blue is
+  explicitly unmapped. The skill follows the canonical source and records the disagreement.
 
-`[verified]` Candidate checks pass: `check_links.py`, `test_validate_fleet.py` (35 tests), the
-72-scenario schema suite (20 direct, 52 discovery, 32 regression), all 410 grader checks, evaluator
-bootstrap integrity, and `git diff --check`. The generator wrote 300 adapter files and parity passed;
-strict Claude plugin validation also passed. Exact-candidate Gate A and independent Sol review remain
-required before Batch 2 is accepted.
+The first exact review of `e4401df5d8bed71ebc9ec618937434a99ad325ba` found two live-activation
+defects: a fixed `checkout-green` name could retain the production route across deployments, and a
+runner label was described as a scoped runner group. It also found keyword-rich grader bypasses,
+missing production-change discovery near-misses, and incomplete retention provenance. Commit
+`81338871e12a1778a8b6be464d66f5ded99178cb` uses a unique release-bound candidate after app/route
+reconciliation, uses the real `runs-on.group` form, adds a stale-Green regression, adds one positive
+and two adjacent-negative production-change discovery cases, replaces keyword bags with exact or
+relationship-aware graders, and pins both revision-row and droplet-pruning implementation paths.
+
+`[verified]` At exact commit `81338871e12a1778a8b6be464d66f5ded99178cb`, a clean normal checkout
+passed Gate A 40/40. The suite parsed 76 scenarios (21 direct, 55 discovery, 35 regression), all
+375 grader checks and 37 fleet-contract tests passed, evaluator bootstrap integrity passed, the
+generator wrote 300 adapter files with parity, `git diff --check` passed, and strict Claude plugin
+validation passed. Fresh exact-SHA Sol review of the repair remains required before Batch 2 is
+accepted.
