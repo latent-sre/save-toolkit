@@ -510,8 +510,10 @@ then obtain independent exact-subject correctness/security review. Do not substi
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
 **Status:** `active` (2026-08-19) — the owner requested a four-pass optimization of all 29 skills in
-3–5-skill batches. Structural and accuracy work is active; live old/new description rates remain
-explicitly deferred because the Context7-login approval did not authorize paid routing calls.
+3–5-skill batches and later authorized five `gpt-5.6-sol` verification/review runs. Structural,
+accuracy, and qualitative Sol verification are active. Live old/new description rates remain deferred:
+the maintained clean-room instrument is fixed to Terra/2, not Sol/5, and changing it is an instrument
+change that needs its own review.
 
 **Outcome:** No skill spends a caller's context on content that call did not need. **These eight
 skills** become routers with a conditional "if the question involves X, read Y" table —
@@ -536,8 +538,10 @@ that judgment motivates this item but deliberately does not appear in its accept
 no stated criterion and does not survive one; `frontend-craft` and `backend-craft` have large cores
 but route more reference bytes than they keep. The sweep records the correction.
 
-**Prerequisites:** The `obs-logs` conditional table is the pattern to copy. Description edits need
-the clean-room runner and a live API, per the change playbook — which is what blocks that half.
+**Prerequisites:** The `obs-logs` conditional table is the pattern to copy. Description-rate evidence
+needs either the maintained Terra/2 clean-room run or a separately reviewed Sol/5 instrument. Five
+independent Sol behavior/review passes do not become routing-rate evidence merely because the model is
+the same one requested by the owner.
 
 **Acceptance:** **All eight named skills** — not a subset — satisfy the criterion in reverse: each
 either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
@@ -550,8 +554,9 @@ green.
 [`2026-08-19-skill-optimization-campaign.md`](reviews/2026-08-19-skill-optimization-campaign.md).
 The owner's 3–5-skill batch requirement supersedes the earlier one-skill pilot. Batch 1 groups
 `incident-command`, `root-cause`, `postmortem`, and `operational-learning`; each candidate commit gets
-an independent exact-SHA review. Description scenarios are added and validated now, while live rate
-comparisons retain an explicit deferral until model, trials, timeout, and cost are authorized.
+an independent exact-SHA review. Complete Batches 2 and 3, then run five fresh Sol passes against the
+immutable candidate. Description scenarios are added and validated now; live rate comparisons retain
+an explicit instrument-mismatch deferral rather than being inferred from those qualitative passes.
 
 **Stated deferral, recorded here because the playbook requires it be stated rather than silent:**
 the `eng-ladder` description was rewritten on 2026-08-17 (merged in #115) from 599 bytes to 418

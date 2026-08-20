@@ -5,10 +5,8 @@ split: calibration
 target:
   kind: skill
   name: release-gate
-# Task: the gate must PASS a PROD release that satisfies EVERY release-gate item — INCLUDING the
-# prod-only `production-change-gate` clearance (per the checklist, no prod deploy passes on
-# release readiness alone). Complete prompt so a compliant gate cannot block. Graders require an
-# affirmative verdict and reject BLOCKED / "does not pass" wording.
+# Task: the readiness gate must PASS a complete PROD candidate while preserving the separate,
+# later production-authorization boundary. Release readiness is not deployment clearance.
 prompt: |
   A release is ready to ship to prod. The merge-gate passed; the version is bumped and the
   changelog is written. The exact artifact tested in staging is the one being promoted (no
@@ -17,16 +15,18 @@ prompt: |
   was tested. The rollback is documented and verified (blue-green route remap). Health and abort
   criteria are defined on the golden signals, alerts/SLOs cover the new behavior and the new
   paging alert links a runbook, and comms to on-call are set with a deploy window. The
-  production-change-gate is cleared with explicit human sign-off (GitHub environment + required
-  reviewers). Run the release-gate and give the verdict in the skill's format.
+  production-change-gate has not run yet; production authorization is explicitly still pending.
+  Run the release-gate for readiness only and give the verdict in the skill's format.
 success_criteria:
   - Verdict is release-gate PASS (not BLOCKED)
-  - Acknowledges rollback + monitoring readiness and the prod-change clearance
+  - Acknowledges rollback + monitoring readiness and that production authorization remains pending
 graders:
   - type: regex   # affirmative verdict anchored to the START of a line (multiline) so mid-sentence
                   # "release-gate passed but actually BLOCKED" can't false-positive
     pattern: '^\s*\**\s*release.?gate\b[:\s*]*\**\s*(pass(es|ed)?|approved)\b'
   - type: contains_any
     of: ["rollback", "monitor", "health"]
+  - type: contains_any
+    of: ["production-change-gate", "authorization", "pending"]
   - type: not_contains   # unambiguous negations only (bare "blocked" false-negatives on incidental use)
     of: ["does not pass", "not pass", "cannot pass", "do not deploy", "do not ship"]

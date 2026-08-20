@@ -1,37 +1,44 @@
-# Paste-ready PCF deploy job
+# PCF deploy-job planning skeleton
 
-A planning skeleton for the `deploy-prod:` job described in `SKILL.md`. The rules it embodies —
-never cancel a prod deploy, promote the same artifact built earlier, pin cf CLI v8, and feed
-`cf auth` from the environment rather than argv — are stated in the skill body; this file is only
-the worked YAML.
-
-Pin every `uses:` to a full commit SHA before committing this.
+Use this only after the main skill's trust and authority checks. Pin every `uses:` entry to a full
+commit SHA, verify the runner image/toolchain, and replace placeholders with reviewed values.
 
 ```yaml
 deploy-prod:
-  runs-on: [self-hosted, pcf]          # runner group with foundation network access
-  environment: production               # required reviewers approve before this runs
-  concurrency: { group: deploy-prod, cancel-in-progress: false }   # never cancel a deploy
+  runs-on: [self-hosted, pcf]  # scoped runner group with required foundation network access
+  environment: production     # configured protection rule passes before this job starts
+  concurrency:
+    group: deploy-prod
+    cancel-in-progress: false
+  permissions:
+    contents: read
   steps:
-    - uses: actions/checkout@<pin-to-sha>
-    - uses: actions/download-artifact@<pin-to-sha>   # promote the SAME artifact built earlier
-      with: { name: app-build }
-    - name: Verify cf CLI v8
-      run: |
-        cf version
-    - name: Deploy
-      env:                              # from environment secrets — not echoed, not in ps
+    - uses: actions/checkout@<full-commit-sha>
+    - uses: actions/download-artifact@<full-commit-sha>
+      with:
+        name: app-build
+    - name: Verify expected cf CLI
+      run: cf version
+    - name: Deploy the reviewed artifact and manifest
+      env:
         CF_API: ${{ secrets.CF_API }}
         CF_USERNAME: ${{ secrets.CF_USERNAME }}
-        CF_PASSWORD: ${{ secrets.CF_PASSWORD }}   # fed to cf auth via env, never argv
+        CF_PASSWORD: ${{ secrets.CF_PASSWORD }}
         CF_ORG: ${{ vars.CF_ORG }}
         CF_SPACE: ${{ vars.CF_SPACE }}
       run: |
+        set +x
         cf api "$CF_API"
         cf auth
         cf target -o "$CF_ORG" -s "$CF_SPACE"
         cf push -f manifest.yml --strategy rolling
 ```
 
-Deployment execution belongs to the human release owner. This file is a planning artifact; running
-it against a foundation requires the approved-change packet named in `SKILL.md`.
+`[sourced]` CLI v8.18.4 reads `CF_USERNAME` and `CF_PASSWORD` for `cf auth`; this does not prove
+support for SSO origin/assertion environment variables. Target CLI/CAPI behavior and rolling support
+remain `[unverified]` until the platform owner attaches version and non-production evidence.
+
+The environment gate controls this job and its environment secrets. It does not sanitize the
+self-hosted runner or protect unrelated repository/organization secrets. The runner must be scoped,
+least privileged, and disposable or independently cleaned. A human release owner dispatches only the
+exact reviewed ref/inputs after release and production-change approval; the agent never runs it.

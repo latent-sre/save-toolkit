@@ -94,12 +94,22 @@ and authority, prompt efficiency, and plan conformance. A repaired commit requir
 This partition covers all 29 skills once. It follows explicit cross-references and shared agent
 bindings. The self-referential authoring batch is not used to rewrite the rubric mid-campaign.
 
-## Verification authority and stated deferral
+## Verification authority and instrument boundary
 
-The user clarified that the approval in this session authenticated Context7; it did not authorize
-paid Claude routing calls. Therefore description changes add/validate the required scenarios, but live
-old/new routing rates remain explicitly deferred until a human authorizes the fixed model, trial count,
-timeout, and budget. No static judgment is presented as routing evidence.
+The user's first approval in this session authenticated Context7; it did not authorize model calls.
+The user later explicitly authorized five `gpt-5.6-sol` test/review runs for the next two batches and
+the full review.
+
+`[verified]` The maintained clean-room routing instrument is pinned to `gpt-5.6-terra` and two trials
+per scenario in `evals/codex_harness.py`. The repository does not currently contain a maintained,
+approved five-trial Sol routing configuration; historical Sol artifacts are not current routing
+evidence. Silently changing model and trial count would change the instrument rather than run it.
+
+The authorized five Sol runs will therefore be fresh independent behavioral/adversarial and
+correctness/security passes against an immutable final candidate. They are model-based verification,
+not before/after routing-rate measurements. Live description rate comparisons remain deferred until a
+reviewed Sol/5 routing instrument exists, or the maintained Terra/2 instrument is explicitly selected.
+No static or qualitative judgment is presented as a routing rate.
 
 Deterministic validation, generation, tests, Git commits, and independent local review remain in
 scope. No push, PR, release, or production effect is authorized.
@@ -152,5 +162,72 @@ Deterministic evidence before candidate commit:
   the exact candidate commit.
 - Live old/new routing — deferred under the authority statement above; no model process was started.
 
-Independent exact-commit correctness/security review and normal-clone Gate A remain required before
-this batch is accepted.
+The initial candidate was committed as `6975ced4138d8e717ebfd2fff18c9d34dcfd4ce1`.
+Independent exact-SHA Sol reviews then found authority-grader bypasses that keyword-only checks had
+missed. Repairs were committed separately as `c60b4cf01adb5e0d2cfc34c93f7e18d032f564dc`,
+`c03852555ac2a9b2b97868eb2d342237b2ea1cee`,
+`f1e0d45bdc959f0db7d6da57efd12281ac4afefb`, and
+`c278a2d61d8d4394b38a81e273d9ea89b33d6143`, followed by the closed-grammar repair
+`22b0cca2260a29f1b8febf6c5068377a50d0109c`. Red-first fixtures now cover every canonical
+mitigation row, non-human automation, plan/intention laundering, pre-approval and negative-state
+human execution, object/joint-actor laundering, and ordinary labeled recommendations.
+
+`[verified]` At exact commit `22b0cca2260a29f1b8febf6c5068377a50d0109c`, a clean normal
+checkout passed Gate A 40/40 and `evals/test_graders.py` passed 408/408. A fresh exact-SHA review of
+that last repair is still pending; Batch 1 is not called accepted until it returns no P0/P1.
+
+### Batch 2 — readiness, authorization, and deployment
+
+`[verified]` Baseline body/reference bytes from `origin/main`:
+
+| Skill | Body bytes | Reference bytes |
+|---|---:|---:|
+| `merge-gate` | 5,262 | 0 |
+| `release-gate` | 3,684 | 0 |
+| `production-change-gate` | 6,694 | 0 |
+| `ci-actions` | 9,248 | 1,620 |
+| `pcf-deploy` | 9,042 | 0 |
+
+The four passes removed invented review-size/speed thresholds, separated merge/readiness/production
+authority, made approvals effect-bound, and corrected volatile GitHub Actions and Cloud Foundry
+claims. Conditional mechanics moved behind direct links; the entrypoints retain the decision core,
+failure states, authority boundary, and output contract.
+
+Candidate body/reference bytes after the author passes:
+
+| Skill | Body bytes | Reference bytes | Body change |
+|---|---:|---:|---:|
+| `merge-gate` | 4,038 | 0 | -23.3% |
+| `release-gate` | 3,971 | 0 | +7.8% |
+| `production-change-gate` | 5,353 | 4,145 | -20.0% |
+| `ci-actions` | 6,326 | 9,366 | -31.6% |
+| `pcf-deploy` | 5,375 | 7,407 | -40.6% |
+
+`[verified]` Activated-body mass fell from 33,930 to 25,063 bytes (26.1%). The installed bundle grew
+because current sourced contracts, examples, and version-sensitive boundaries moved to conditional
+references; raw bundle minimization was not allowed to erase accuracy.
+
+Context7 and GitHits provenance remained separate:
+
+- `[sourced]` Current GitHub documentation establishes that classic protection and rulesets can both
+  apply; a classic-endpoint 404 is inconclusive; one listed environment reviewer is sufficient;
+  self-review and administrator bypass are separate settings; full action SHAs are immutable;
+  `pull_request_target` becomes dangerous when privileged workflow code executes PR-head content;
+  `id-token: write` is only token-request authority; and attestations prove provenance, not safety.
+- `[sourced]` GitHits implementation evidence at
+  `actions/runner@258d6c857db3519913f7deb6004b60172f8043ae` confirms that ephemeral registration
+  accepts one job and unregisters; it does not wipe the host.
+- `[sourced]` Cloud Foundry CLI claims were pinned to `cloudfoundry/cli@v8.18.4` commit
+  `3fcd823a19e8254f99337765d98fd6e13149a77c`. Canonical developer docs and source establish mixed
+  traffic during blue-green route overlap, conditional manifest-name override, version-sensitive
+  canary behavior, limited revision rollback, independent revision/droplet retention, and distinct
+  restart/restage/scale behavior.
+- `[sourced]` A Context7-generated Cloud Foundry summary called route mapping an atomic cutover, while
+  the canonical source says Blue and Green both receive traffic until Blue is explicitly unmapped.
+  The skill follows the canonical source and records the disagreement rather than averaging it away.
+
+`[verified]` Candidate checks pass: `check_links.py`, `test_validate_fleet.py` (35 tests), the
+72-scenario schema suite (20 direct, 52 discovery, 32 regression), all 410 grader checks, evaluator
+bootstrap integrity, and `git diff --check`. The generator wrote 300 adapter files and parity passed;
+strict Claude plugin validation also passed. Exact-candidate Gate A and independent Sol review remain
+required before Batch 2 is accepted.

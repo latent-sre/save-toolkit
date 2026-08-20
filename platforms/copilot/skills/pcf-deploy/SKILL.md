@@ -1,10 +1,10 @@
 ---
 name: pcf-deploy
 description: >-
-  Plan human-approved VMware TAS/PCF application deploys, blue-green cutovers, scaling, and
-  rollback verification. Triggers: 'deploy this app to PCF', 'design a blue-green deploy',
-  'scale this PCF app'. Ownership map only—not a load: the `release-gate` skill decides
-  readiness and the `incident-command` skill owns rollback decisions.
+  Prepare a human-executed VMware TAS/Cloud Foundry application deployment, blue-green cutover,
+  rolling/canary rollout, scale change, or rollback plan. Triggers: "deploy this app to PCF", "design
+  a blue-green deploy", "scale this PCF app". Use only when explicitly requested; do not decide
+  release readiness or execute foundation changes.
 compatibility: Requires the cf CLI v8 and authorized access to the target PCF foundation/space
 # Deploys are human-initiated: invoke explicitly as `/pcf-deploy`; never auto-load.
 disable-model-invocation: true
@@ -21,146 +21,79 @@ disable-model-invocation: true
 > runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
 > A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
 
-# PCF / TAS deploy planning (cf CLI v8)
+# PCF / TAS deployment planning
 
 <!-- deploy-plan canary: pd_4c91 — quoted output proves this manual-only skill loaded -->
 
-This skill produces a deployment plan and evidence checklist. **Agents never execute deployment.**
-A human release owner executes only after approving the exact target, commands, blast radius,
-verification, and rollback.
+Produce an exact plan and evidence checklist. Agents never execute deployment. A named human release
+owner acts only after the release- and production-change packets approve the exact artifact, target,
+commands, verification, and rollback/recovery. If either packet is absent or stale, stop with the
+missing evidence; do not load or run those sibling gates.
 
-Before executing a prod deploy, require an evidence packet showing the release and production-change
-gates were completed by their owner; if it is absent, stop and report the missing approval. This skill
-does not load or run either gate. Show the manifest diff and rollback path before a human acts.
+## Establish the target
 
-> ### ⚠️ What a rollback does NOT reverse
->
-> A route swap or `cf rollback` reverses **code + start command + (revision-scoped) env vars**. It does
-> **not** reverse:
-> - **data and schema**—the migration the new version ran, and the rows it wrote. *A rollback after
->   an expand→contract migration's **contract** phase is not a rollback at all*—the column the old
->   code needs is gone. Sequence values are not returned either. This is the one that causes outages.
-> - **service bindings**, **routes**, **scale** (instances / memory / disk quotas), **app features**—
->   none of these are captured in a revision.
-> - anything a **consumer** already did with the new version's output (messages published, webhooks
->   fired, files written).
->
-> Design the change so it is reversible: expand → backfill → dual-write, and do **not** contract until
-> the old code is gone for good. Ownership map only—not a load: the `database-reliability` skill owns
-> operational migration safety. "We can roll back" remains `[unverified]` until rehearsed evidence
-> proves it for the exact artifact and target.
+Record before writing commands:
 
-**Starter:** copy [manifest.yml](./assets/manifest.yml)—a health-checked, multi-instance,
-service-bound manifest with stable-live-name notes.
+- foundation/API identity, org, space, app/route, and human actor;
+- `cf` CLI and CAPI versions plus target feature/configuration evidence;
+- reviewed SHA, immutable artifact, manifest and variable-file diff, buildpacks/stacks, services, routes,
+  processes, health checks, scale, and current deployment state;
+- release and production-change approval references;
+- success signals, observation window, abort thresholds, and rollback/recovery owner.
 
-## Manifest (declarative, in version control)
+Keep secrets out of manifests, plans, prompts, and command arguments. `cf env`, service-key output, and
+credential reads are human-only because they can expose secrets.
 
-```yaml
-applications:
-  - name: checkout
-    instances: 3
-    memory: 1G
-    buildpacks: [java_buildpack_offline]
-    routes:
-      - route: checkout.apps.example.com
-    env:
-      SPRING_PROFILES_ACTIVE: prod
+**Starter:** adapt [manifest.yml](./assets/manifest.yml) after reconciling its names, routes, buildpack,
+services, health checks, scale, and environment with the reviewed target.
+
+## Build the plan
+
+1. Choose the strategy from [deployment strategies](./references/deployment-strategies.md). Treat target
+   support as `[unverified]` until version and non-production evidence establish it.
+2. Show the exact manifest/variable diff and commands in execution order. Identify which command changes
+   traffic or app lifecycle; a route map is not an atomic cutover.
+3. State the human actor and approval record beside the effect, not only in a preamble.
+4. Define a verification after each meaningful step and a stop condition before the next.
+5. Use [rollback boundaries](./references/rollback-boundaries.md) to list what rollback does and does not
+   restore. Data/schema, service bindings, routes, scale, and external side effects require separate
+   recovery decisions.
+6. For environment or scale changes, use [configuration and scaling](./references/configuration-and-scaling.md)
+   to choose restart, restage, or scale behavior without inventing a universal rule.
+
+## Rollback truth
+
+A revision or route rollback is not whole-system time travel. It may restore a droplet/process
+configuration or traffic target while leaving migrations, data writes, messages/webhooks, bindings,
+routes, scale, health-check configuration, or downstream consumer effects unchanged. Rollbackability
+also depends on retained artifacts/droplets, not merely a revision number. Keep the claim
+`[unverified]` until rehearsed for the exact target.
+
+## Verification
+
+After the human acts, capture the command result and independently observe app/process state, route
+mappings, artifact/revision identity, health checks, traffic, errors, latency, saturation, and the
+business journey. Missing telemetry is an abort condition, not a green result. Preserve evidence and
+taint labels through the handoff.
+
+## Output contract
+
+```text
+Deployment: <artifact/reviewed SHA> -> <foundation/org/space/app>
+Authority: <release packet — production-change packet — human executor>
+Versions/evidence: <cf CLI — CAPI — target feature proof and labels>
+Manifest/config diff: <reviewed paths and material values; no secrets>
+Strategy and steps: <ordered command — actor — expected effect — verification — stop condition>
+Traffic transition: <when both versions receive traffic; exact cutover point>
+Rollback/recovery: <exact inverse/recovery — retained prerequisite — exclusions — owner>
+Post-change verification: <signals — observation window — recorded result>
+Unverified claims/blockers: <each missing target fact or approval>
 ```
 
-Keep secrets out of manifests; use approved service bindings or the foundation credential service.
-Manifest and binding behavior on the target foundation remains `[unverified]` until captured there.
+## Conditional references
 
-## Blue-green (classic) — preferred for prod
-
-The live app keeps the stable name (`checkout`); green is always the disposable one. Names rotate
-after the soak, so the playbook is identical on every run—there is no "blue" app, ever.
-
-```bash
-cf push checkout-green -f manifest.yml --no-route     # candidate beside live; never touches it
-cf map-route checkout-green apps.example.com --hostname checkout-test
-# smoke-test green on the test route
-cf map-route checkout-green apps.example.com --hostname checkout    # green joins prod
-cf unmap-route checkout apps.example.com --hostname checkout        # all prod traffic on green
-# soak. Rollback here = re-map checkout, unmap green—the old app is still running, untouched.
-cf unmap-route checkout-green apps.example.com --hostname checkout-test
-cf delete checkout -f
-cf rename checkout-green checkout                     # rotation: live is `checkout` again
-```
-
-Why the rotation is load-bearing: without it, the second run pushes onto the app serving production.
-`--no-route` does **not** unbind routes an app already holds. *[sourced:
-docs.cloudfoundry.org/devguide/deploy-apps/manifest-attributes.html]* Rollback before the rotation is
-route re-mapping; after `cf delete`, rollback is a fresh push of the previous artifact.
-
-> **[unverified] Manifest-name interaction.** The example manifest pins `name: checkout`; cf CLI v7+
-> may reject or reinterpret `cf push checkout-green -f manifest.yml` when the manifest names a
-> different app. This exact interaction has not been exercised on a real foundation. Before approving
-> the playbook, the human release owner must either create a reviewed `manifest-green.yml` stanza/file
-> naming `checkout-green`, or run the exact command on a bounded non-production foundation and attach
-> its output. Until that real-foundation evidence exists, do not label the command `[verified]` and do
-> not use it for production.
-
-## Built-in strategies (lower-risk changes)
-
-```bash
-cf push checkout -f manifest.yml --strategy rolling
-cf push checkout -f manifest.yml --strategy canary
-cf continue-deployment checkout
-cf cancel-deployment checkout
-```
-
-Support for canary and revisions varies by cf CLI/CAPI version and foundation configuration. It is
-`[unverified]` for the target until the human release owner records version and non-production output.
-
-With app revisions enabled, `cf rollback checkout --version <n>` reverts to a prior droplet + config
-(revisions/rollback are GA in cf CLI v8.10.0+; older v8.x marks them experimental).
-
-> **Revisions capture less than people assume.** A revision holds a droplet, a start command, and
-> environment variables** — *not* routes, service bindings, or scale.
-> - **Your real rollback window is ~5 droplets, not 100 revisions.** CF retains only the **five most
->   recent staged droplets**; you can roll back only to a revision still backed by one of them. A long
->   revision history is largely decorative. (CAPI keeps up to 100 revisions by default — the droplet
->   limit is the binding one.)
-> - `cf rollback` **deploys a new revision** (the counter goes up); it does not rewind history.
-> - **Cancelling ≠ rolling back.** `cf cancel-deployment` "does **not** guarantee zero downtime", and
->   **changes to environment variables and service bindings are not reverted**.
-
-These target-specific retention and command behaviors remain `[unverified]` until the human release
-owner attaches foundation/version evidence. *[sourced: Cloud Foundry application revisions and cf CLI
-deployment documentation]*
-
-## Config changes & scaling
-
-```bash
-cf set-env checkout KEY value && cf restart checkout   # runtime-only var: RESTART is enough
-cf set-env checkout JBP_CONFIG_X value && cf restage checkout   # buildpack-consumed: RESTAGE required
-cf scale checkout -i 5            # horizontal: more instances
-cf scale checkout -m 2G -k 2G     # vertical: memory/disk (causes restart)
-```
-
-> **"Env changes require a restage" is folklore.** It depends on **who consumes the variable**:
-> - **`cf restart`** is enough when only the **app** reads it at runtime (feature flags, endpoints,
->   credentials). Restart reuses the already-compiled droplet—much faster, no rebuild.
-> - **`cf restage`** is genuinely required when the **buildpack** consumes it at **staging** time, because
->   staging bakes it into the droplet (`JBP_CONFIG_*`, `BP_*`, `PIP_INDEX_URL`, `NODE_ENV` for pruning…).
->
-> The blanket "TIP: use `cf restage`" that `cf set-env` prints is a **conservative default**—the CLI
-> can't know whether your buildpack reads the var. Restaging when a restart would do costs you a full
-> rebuild on every config flip. *(Note `cf env` shows the new value immediately while the running
-> container still has the old one—the value is injected at container start.)*
-
-These are planning examples, never agent execution authority. `cf env` remains a credential-bearing,
-human-only read. The human release owner selects only the approved command; the exact consumer and
-target behavior remains `[unverified]` until evidenced.
-
-## Verify every deploy
-
-After cutover, record traffic, errors, latency, and saturation; abort on error-rate or latency
-regression, missing telemetry, or failed health checks. Also record `cf app checkout`, route mappings,
-the deployed artifact identity, and the human actor's result. Preserve `[verified]`, `[sourced]`, and
-`[unverified]` labels through the handoff; never upgrade a claim because it crossed a gate.
-
-## Tip
-
-`cf push` changes the running app lifecycle. A plan without current human release-owner approval
-evidence, an exact manifest diff, health criteria, and a proven rollback path is blocked.
+| Need | Read |
+|---|---|
+| Blue-green, rolling, canary, manifest-name selection, cancellation, or revisions | [Deployment strategies](./references/deployment-strategies.md) |
+| Revision contents, retention, data/schema effects, or rollback exclusions | [Rollback boundaries](./references/rollback-boundaries.md) |
+| Environment changes, restart/restage, horizontal/vertical scale, or credential handling | [Configuration and scaling](./references/configuration-and-scaling.md) |

@@ -534,7 +534,8 @@ _GATE_CASES = {
         "The merge-gate passed last week but this PR is actually BLOCKED — it does not pass review.",
     ),
     "release-gate-passes-ready.yaml": (
-        "release-gate: PASS\nRollback is documented and verified; health and monitoring are ready.",
+        "release-gate: PASS\nRollback is documented and verified; health and monitoring are ready. "
+        "Production authorization remains pending production-change-gate.",
         "An earlier release-gate passed, but this one is BLOCKED and does not pass — no rollback.",
     ),
     "production-change-gate-passes-approved.yaml": (
@@ -553,6 +554,11 @@ _BLOCK_CASES = {
         "production-change-gate: BLOCKED — the exact command and config diff were not shown, and the "
         "freeze-window / off-peak timing has not been checked.",
         "production-change-gate: APPROVED — approval exists, go ahead and proceed with the flip.",
+    ),
+    "production-change-gate-blocks-inconclusive-protection.yaml": (
+        "production-change-gate: BLOCKED — the classic 404 is inconclusive under this credential; "
+        "verify access and inspect the separate active branch rules and organization rulesets.",
+        "production-change-gate: APPROVED — 404 means no protection, so the change is authorized to proceed.",
     ),
 }
 

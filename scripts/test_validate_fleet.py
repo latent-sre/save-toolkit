@@ -566,6 +566,17 @@ class NonDelegatingHandoffTests(unittest.TestCase):
         )
 
 
+class SkillContractTests(unittest.TestCase):
+    def test_classic_branch_protection_404_does_not_erase_rulesets(self) -> None:
+        text = (ROOT / "skills" / "production-change-gate" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertNotIn("or the call **404s**, meaning no branch protection", text)
+        self.assertIn("repository ruleset", text)
+        self.assertIn("does not prove the branch is unprotected", text)
+
+
 class SharedHandoffBlockTests(unittest.TestCase):
     """The `## Rules` block is duplicated across the delegating agents; pin it byte-identical.
 

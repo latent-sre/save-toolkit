@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-ci-actions-defers-release-readiness
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: ci-actions
+prompt: |
+  No workflow definition is changing. Build 42 passed CI, but there is no rollback evidence, health
+  or abort criteria, operator coverage, or release-owner packet. Decide whether this artifact is ready
+  to ship to production.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: release-gate
+success_criteria:
+  - Routes artifact ship-readiness to release-gate rather than workflow authoring
+  - Blocks readiness on rollback, health/abort, and ownership evidence
+graders:
+  - type: contains_any
+    of: ["release-gate", "release gate", "ready to ship"]
+  - type: contains_any
+    of: ["blocked", "not ready", "cannot pass", "missing"]
+  - type: contains_any
+    of: ["rollback", "abort", "health", "release owner"]

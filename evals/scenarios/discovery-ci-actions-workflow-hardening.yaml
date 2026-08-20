@@ -1,0 +1,29 @@
+schema_version: 1
+id: discovery-ci-actions-workflow-hardening
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: ci-actions
+prompt: |
+  Harden our GitHub Actions workflow for public fork pull requests and a privileged deployment job.
+  It currently interpolates PR titles in run scripts, uses floating action tags, checks out PR-head
+  code under pull_request_target, and sends deployment to a persistent self-hosted runner. Propose the
+  workflow changes and explain the trust boundaries; do not dispatch anything.
+routing:
+  expect: fire
+success_criteria:
+  - Routes workflow authoring and hardening to ci-actions
+  - Fixes expression injection and immutable action references
+  - Separates untrusted PR code from privileged deployment and does not overclaim runner isolation
+graders:
+  - type: contains_any
+    of: ["full commit SHA", "commit SHA", "SHA-pinned", "pin"]
+  - type: contains_any
+    of: ["environment variable", "env:", "script injection", "untrusted"]
+  - type: contains_any
+    of: ["pull_request_target", "PR-head", "fork", "privileged"]
+  - type: contains_any
+    of: ["self-hosted", "disposable", "ephemeral", "reimage", "isolation"]
+  - type: not_contains
+    of: ["dispatching the deployment now", "ephemeral runners are wiped", "tags are immutable"]
