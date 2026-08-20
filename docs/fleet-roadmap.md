@@ -188,13 +188,10 @@ create or move a release ref manually.
 **Status:** `active` (2026-08-20) — PR
 [#103](https://github.com/latent-sre/save-toolkit/pull/103) supplied the original evaluator. A
 Linux Docker arm implements the fixed 48-trial executor and passes credential-free preflight. Four
-owner-approved development canaries ended `INCONCLUSIVE`: Codex 0.147 failed during startup, while
-all three Codex 0.148 processes returned `0` but their trace or hook receipts failed validation.
-Exact tagged source exposed
-hook-permission and nullable-transcript mismatches. The fourth attempt proved those repairs were
-insufficient, and `6819773e5fab4c7bc1747f1be6907c8a8b269110` now distinguishes trace failure from
-hook failure without retaining private diagnostics; that split has not been live-retried. No campaign,
-routing result, or baseline followed. See the
+owner-approved development canaries ended `INCONCLUSIVE`, and four later attempts reached behavior
+grading and returned valid `FAIL` verdicts. The latest explicit body-load probe failed graders 0 and
+4 while passing 1, 2, 3, and 5; it changed measured response shaping but did not test or repair
+implicit routing. No campaign, routing result, or baseline followed. See the
 [`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
 
 **Owner direction (2026-08-20) — measure on more than one provider.** This campaign is to be run
@@ -235,7 +232,7 @@ ROUTE-001 campaign does not reopen the broader deferred EVAL-001 Sol work.
 **Prerequisites:** The fixed evaluator manifest, recorder, parser, snapshotter, catalog transformer,
 and graders must be complete and pass their contract tests and Gate A. The exact evaluator bytes must
 then be committed cleanly and independently reviewed. Live execution requires an externally pinned,
-protected copy of the bootstrap; the exact nine-file evaluator-bundle manifest; a protected absolute
+protected copy of the bootstrap; the exact ten-file evaluator-bundle manifest; a protected absolute
 Python executable/DLL/standard-library closure (or a separate OS identity); independently reviewable
 source evidence for the exact Codex version's effective Terra tool plan; a precreated local fixed NTFS private
 root; a clean launch account/registry with no managed/system/project MCP, dynamic-tool, guardian,
@@ -305,15 +302,15 @@ remaining shell, image, browser, computer, app, web, MCP, memory, plugin, guardi
 workspace-dependency features, disables bundled/orchestrator skills and MCP, and pins the built-in
 OpenAI provider/default ChatGPT route. The new
 bootstrap rejects caller-selected evaluator mode/scenario/manifest overrides, accepts only the exact
-nine-file closure, stages those bytes under `-I -S -B`, requires a local fixed NTFS private root, and
+ten-file closure, stages those bytes under `-I -S -B`, requires a local fixed NTFS private root, and
 rechecks the stage after execution. Credential copying uses in-process ACLs, the exact hook import
 directory is enforced, the disposable auth copy is removed before model-controlled parsing/grading,
 decoded exact auth values are scanned, receipts and output are bounded, and every launched outcome
 receives a post-trial drift check. Under the accepted live boundary, the operator login will still exist in a
 disposable `CODEX_HOME` under the same OS user: this is application-layer isolation, not a
-separate-principal sandbox, and that limitation must be retained in every result. Exactly seven
+separate-principal sandbox, and that limitation must be retained in every result. Exactly eight
 owner-approved authenticated development attempts ran. The first four were inconclusive while the
-runtime/evaluator boundary was repaired; three later 0.148.0 attempts reached behavior grading and
+runtime/evaluator boundary was repaired; four later 0.148.0 attempts reached behavior grading and
 returned valid `FAIL` verdicts. No passing authenticated canary or campaign was run. Historical
 Claude runs and the prepared Claude campaign remain
 preserved under their original labels; none is relabeled as Terra evidence. The 2026-07-31 Sol results
@@ -411,11 +408,25 @@ no path for an implicit turn to open a filesystem `SKILL.md`. The failed require
 entrypoint, so conditional references are not involved; response shaping was never tested because the
 revised body never reached the model. The evaluator candidate therefore changes only the development
 canary into a fixed explicit `$gcp-ops` body-load probe and binds the derived prompt hash and evidence
-mode. The nineteen discovery inputs and 48-trial plan remain unchanged. That probe has not run live,
-does not repair or prove implicit routing, and cannot authorize the campaign. Any later canary still
-requires separate authorization and an independently reviewed exact candidate; the campaign remains
+mode. The nineteen discovery inputs and 48-trial plan remain unchanged. One authorized probe ran
+from commit `09cca0ef93c739caccfb0051f6ce900d8108ad8f` and exact image
+`sha256:e2a285bc329cca97dceb6d1561fbfc0b877022edccea7d7d95a15cb28372102f`;
+it failed graders 0 and 4 while passing 1, 2, 3, and 5. That is response-shaping evidence, not implicit
+routing, and it cannot authorize the campaign. Any later canary still requires separate authorization;
+the campaign remains
 **NO-GO** until review accepts its narrower description-mediated measurement or the routing
 instrument is changed.
+
+**Post-merge hardening (2026-08-20):** Review of PR #124 after merge found seven live executor gaps;
+the follow-up candidate closes them without changing a scenario or running a model. Campaign
+invocations now hold one crash-visible lock, persist `INCONCLUSIVE` as a durable stop, and bind every
+journal contract and event to the exact outer image ID. The Linux manifest binds the complete frozen
+scenario-bundle digest. Native Linux launches reject auth files or campaign roots that UID 65532
+cannot access; canary output stays host-side and is not mounted. Canary state and exit code must
+agree, and the historical Windows bootstrap now stages its imported `codex_runtime.py` dependency.
+The obsolete snapshot-reachability finding needs no code change because `7aef80a` is an ancestor of
+current main. The evaluator bundle is now ten files; its manifest is 1,295 bytes with SHA-256
+`16b9c68b24226b850ae7d9da4f7f14634406d9aa8c063799df4b1f85da5afe02`.
 
 ## Repository work
 

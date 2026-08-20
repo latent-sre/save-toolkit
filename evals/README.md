@@ -9,7 +9,7 @@ their prominence. The runnable Claude suite is the third row.
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
-| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed; seven development canaries: four inconclusive, three behavior failures | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
+| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed; eight development canaries: four inconclusive, four behavior failures | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
@@ -66,7 +66,7 @@ starts from an externally verified copy of [`codex_bootstrap.py`](codex_bootstra
 absolute, protected Python installation with `-I -S -B`. A Windows review packet must pin the complete
 Python DLL/standard-library closure, the protected bootstrap bytes, and the exact SHA-256 of
 [`codex-terra-evaluator-v1.json`](conformance/codex-terra-evaluator-v1.json). The bootstrap then
-copies the exact nine-file evaluator closure into a private stage, synthesizes either the auth-free
+copies the exact ten-file evaluator closure into a private stage, synthesizes either the auth-free
 preflight or the only accepted `--canary` argument set, and verifies that stage before and after
 execution. The external launcher
 must also supply an empty private root on a local fixed NTFS volume; UNC, mapped, substituted,
@@ -106,9 +106,13 @@ returned `0`, but trace or hook validation failed closed. A third bounded 0.148.
 A fourth authorized canary from clean commit `79a27cf2e52af15db66cef7ad435f0374ecaca1c` and image
 `sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b`
 exercised that repair but again returned `trace-or-hook-invalid`. Commit
-`6819773e5fab4c7bc1747f1be6907c8a8b269110` now distinguishes sanitized `trace-invalid` from
-`hook-invalid` with red-first coverage; it has not had a live retry. All four results remain
-`INCONCLUSIVE`.
+`6819773e5fab4c7bc1747f1be6907c8a8b269110` distinguishes sanitized `trace-invalid` from
+`hook-invalid` with red-first coverage. Four later 0.148.0 development canaries reached behavior
+grading and returned valid `FAIL` verdicts. The latest ran the explicit body-load probe from commit
+`09cca0ef93c739caccfb0051f6ce900d8108ad8f` and image
+`sha256:e2a285bc329cca97dceb6d1561fbfc0b877022edccea7d7d95a15cb28372102f`:
+graders 0 and 4 failed while 1, 2, 3, and 5 passed. Its compact result has SHA-256
+`9209f4d7108325ae326fd9692611d4e7351aba03cdb1a8f108ba74ac7b7eccef`; no retry followed.
 See the [Linux canary evidence packet](../docs/reviews/2026-08-20-route001-linux-canary.md). No Terra
 campaign, routing result, or baseline has been recorded.
 The full campaign may run only from exact,
@@ -138,8 +142,9 @@ The fixed authenticated development canary still uses the non-root
 selected host `SKILL.md` without exposing a file tool. The derived prompt SHA-256 is
 `65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3`, and the trial records
 `explicit-skill-body-probe`. This canary-only diagnostic tests body injection and response shaping;
-it is not an implicit-routing result and is rejected for every other scenario coordinate. It has not
-yet been run live. The canary disables multi-agent, permits only the fixed linear graders
+it is not an implicit-routing result and is rejected for every other scenario coordinate. Its one
+authorized live run produced the valid `FAIL` above; it did not authorize a retry or campaign. The
+canary disables multi-agent, permits only the fixed linear graders
 `contains_all`, `contains_any`, and `cloud_run_rollback_packet`, and rejects responses above 256 KiB
 total or 8 KiB per line before grading. The rollback grader accepts exactly one fenced JSON packet,
 binds its two command fields to the scenario's exact service and synthetic revision IDs, and rejects

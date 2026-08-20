@@ -200,5 +200,6 @@
   "container_user": "65532:65532",
   "base_image_digest": "sha256:97983fa8cc88343512862c62307159a82261c3528dc025f79e5a3f7af43e50b4",
   "python_executable_path": "/usr/local/bin/python3.12",
-  "codex_executable_path": "/opt/route001/codex-runtime/bin/codex"
+  "codex_executable_path": "/opt/route001/codex-runtime/bin/codex",
+  "scenario_bundle_sha256": "640ed0da086f976b390e1f1e2c664a4181aef302c7f2dd9d7031cfe881c549cb"
 }

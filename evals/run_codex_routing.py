@@ -138,6 +138,7 @@ LINUX_MANIFEST_KEYS = BASE_MANIFEST_KEYS | {
     "base_image_digest",
     "python_executable_path",
     "codex_executable_path",
+    "scenario_bundle_sha256",
 }
 WINDOWS_MANIFEST_KEYS = BASE_MANIFEST_KEYS
 MANIFEST_KEYS = LINUX_MANIFEST_KEYS
@@ -205,6 +206,9 @@ LINUX_EXPECTED_VALUES = {
     ),
     "codex_executable_path": "/opt/route001/codex-runtime/bin/codex",
     "codex_executable_sha256": CODEX_EXECUTABLE_SHA256,
+    "scenario_bundle_sha256": (
+        "640ed0da086f976b390e1f1e2c664a4181aef302c7f2dd9d7031cfe881c549cb"
+    ),
 }
 EXPECTED_VALUES = LINUX_EXPECTED_VALUES
 RESERVED_AUTHORITY = {
@@ -290,6 +294,8 @@ def load_manifest(path: Path = MANIFEST_PATH) -> dict:
 
 def load_stable_scenario_bundle(
     path: Path = SCENARIO_BUNDLE_PATH,
+    *,
+    expected_sha256: str,
 ) -> tuple[bytes, dict[str, dict]]:
     """Load the JSON-only live scenario closure without PyYAML or mutable suite discovery."""
 
@@ -297,6 +303,12 @@ def load_stable_scenario_bundle(
     after = path.read_bytes()
     if before != after:
         raise ValueError("scenario bundle changed while it was loaded")
+    if (
+        not isinstance(expected_sha256, str)
+        or not SHA256_RE.fullmatch(expected_sha256)
+        or hashlib.sha256(before).hexdigest() != expected_sha256
+    ):
+        raise ValueError("scenario bundle digest does not match the manifest")
     payload = parse_manifest(before)
     if set(payload) != {"schema_version", "scenarios"} or payload.get("schema_version") != 1:
         raise ValueError("scenario bundle has an invalid schema")
@@ -754,6 +766,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="precreated private result root used only with --campaign",
     )
     parser.add_argument(
+        "--container-image-id",
+        help="immutable outer image ID used only with --campaign",
+    )
+    parser.add_argument(
         "--scenario-id",
         default=CANARY_SCENARIO_ID,
         help=argparse.SUPPRESS,
@@ -775,7 +791,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         ]
         if args.campaign:
             try:
-                _scenario_bytes, live_scenarios = load_stable_scenario_bundle()
+                _scenario_bytes, live_scenarios = load_stable_scenario_bundle(
+                    expected_sha256=manifest.get("scenario_bundle_sha256")
+                )
             except (OSError, ValueError) as exc:
                 print(
                     f"codex-terra-routing: scenario bundle could not be frozen: {type(exc).__name__}",
@@ -806,9 +824,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             or args.repo_root is None
             or args.private_root is None
             or (args.campaign and args.campaign_root is None)
+            or (args.campaign and args.container_image_id is None)
         ):
             print(
                 "codex-terra-routing: live setup requires its fixed executable, repository, and private-root inputs",
+                file=sys.stderr,
+            )
+            return 3
+        if not args.campaign and args.container_image_id is not None:
+            print(
+                "codex-terra-routing: --container-image-id is campaign-only",
                 file=sys.stderr,
             )
             return 3
@@ -856,29 +881,34 @@ def main(argv: Sequence[str] | None = None) -> int:
 
                 plan = campaign_plan(manifest, CURRENT_REVISION)
                 campaign_root = Path(args.campaign_root).resolve(strict=True)
-                if any(campaign_root.iterdir()):
-                    journal = codex_campaign.CampaignJournal.open(
-                        campaign_root,
-                        plan=plan,
-                        manifest_sha256=common["manifest_sha256"],
-                    )
-                else:
-                    journal = codex_campaign.CampaignJournal.create(
-                        campaign_root,
-                        plan=plan,
-                        manifest_sha256=common["manifest_sha256"],
-                    )
+                with codex_campaign.CampaignLock(campaign_root) as lock:
+                    if (campaign_root / "campaign.json").is_file():
+                        journal = codex_campaign.CampaignJournal.open(
+                            campaign_root,
+                            plan=plan,
+                            manifest_sha256=common["manifest_sha256"],
+                            container_image_id=args.container_image_id,
+                            lock=lock,
+                        )
+                    else:
+                        journal = codex_campaign.CampaignJournal.create(
+                            campaign_root,
+                            plan=plan,
+                            manifest_sha256=common["manifest_sha256"],
+                            container_image_id=args.container_image_id,
+                            lock=lock,
+                        )
 
-                def run_campaign_trial(item: TrialSpec) -> Mapping[str, object]:
-                    trial_result = codex_trial.run_trial(
-                        auth_file=args.auth_file,
-                        scenario=live_scenarios[item.scenario_id],
-                        spec=item,
-                        **{**common, "exact_revision": True},
-                    )
-                    return trial_result.as_dict()
+                    def run_campaign_trial(item: TrialSpec) -> Mapping[str, object]:
+                        trial_result = codex_trial.run_trial(
+                            auth_file=args.auth_file,
+                            scenario=live_scenarios[item.scenario_id],
+                            spec=item,
+                            **{**common, "exact_revision": True},
+                        )
+                        return trial_result.as_dict()
 
-                summary = codex_campaign.run_campaign(journal, run_campaign_trial)
+                    summary = codex_campaign.run_campaign(journal, run_campaign_trial)
                 print(json.dumps(summary, sort_keys=True, separators=(",", ":")))
                 return 0 if summary["status"] == "complete" else 4
             else:

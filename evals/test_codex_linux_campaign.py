@@ -30,6 +30,7 @@ MUTATION_SUBJECTS = (
 
 
 IMAGE_ID = "sha256:" + "a" * 64
+OTHER_IMAGE_ID = "sha256:" + "d" * 64
 MANIFEST_SHA256 = "b" * 64
 
 
@@ -97,19 +98,24 @@ class CampaignJournalTests(unittest.TestCase):
         plan = _plan()
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            journal = codex_campaign.CampaignJournal.create(
-                root, plan=plan, manifest_sha256=MANIFEST_SHA256
-            )
-            events: list[str] = []
-
-            def fsync(fd: int) -> None:
-                self.assertGreaterEqual(fd, 0)
-                events.append("fsync")
-
-            with mock.patch.object(codex_campaign.os, "fsync", side_effect=fsync):
-                journal.run_next(
-                    lambda spec: events.append("dispatch") or _result(spec)
+            with codex_campaign.CampaignLock(root) as lock:
+                journal = codex_campaign.CampaignJournal.create(
+                    root,
+                    plan=plan,
+                    manifest_sha256=MANIFEST_SHA256,
+                    container_image_id=IMAGE_ID,
+                    lock=lock,
                 )
+                events: list[str] = []
+
+                def fsync(fd: int) -> None:
+                    self.assertGreaterEqual(fd, 0)
+                    events.append("fsync")
+
+                with mock.patch.object(codex_campaign.os, "fsync", side_effect=fsync):
+                    journal.run_next(
+                        lambda spec: events.append("dispatch") or _result(spec)
+                    )
 
         self.assertIn("dispatch", events)
         self.assertIn("fsync", events)
@@ -119,61 +125,173 @@ class CampaignJournalTests(unittest.TestCase):
         plan = _plan()
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            journal = codex_campaign.CampaignJournal.create(
-                root, plan=plan, manifest_sha256=MANIFEST_SHA256
-            )
-            journal.begin(plan[0])
-            resumed = codex_campaign.CampaignJournal.open(
-                root, plan=plan, manifest_sha256=MANIFEST_SHA256
-            )
-            dispatched = mock.Mock()
-            with self.assertRaises(codex_campaign.UnknownOutcomeError):
-                resumed.run_next(dispatched)
-            dispatched.assert_not_called()
+            with codex_campaign.CampaignLock(root) as lock:
+                journal = codex_campaign.CampaignJournal.create(
+                    root,
+                    plan=plan,
+                    manifest_sha256=MANIFEST_SHA256,
+                    container_image_id=IMAGE_ID,
+                    lock=lock,
+                )
+                journal.begin(plan[0])
+            with codex_campaign.CampaignLock(root) as lock:
+                resumed = codex_campaign.CampaignJournal.open(
+                    root,
+                    plan=plan,
+                    manifest_sha256=MANIFEST_SHA256,
+                    container_image_id=IMAGE_ID,
+                    lock=lock,
+                )
+                dispatched = mock.Mock()
+                with self.assertRaises(codex_campaign.UnknownOutcomeError):
+                    resumed.run_next(dispatched)
+                dispatched.assert_not_called()
 
     def test_resume_verifies_finished_result_bytes_and_digest(self) -> None:
         plan = _plan()
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            journal = codex_campaign.CampaignJournal.create(
-                root, plan=plan, manifest_sha256=MANIFEST_SHA256
-            )
-            journal.run_next(lambda spec: _result(spec))
+            with codex_campaign.CampaignLock(root) as lock:
+                journal = codex_campaign.CampaignJournal.create(
+                    root,
+                    plan=plan,
+                    manifest_sha256=MANIFEST_SHA256,
+                    container_image_id=IMAGE_ID,
+                    lock=lock,
+                )
+                journal.run_next(lambda spec: _result(spec))
             result_path = next((root / "results").glob("*.json"))
             result_path.write_text("{}\n", encoding="utf-8")
 
-            with self.assertRaisesRegex(
-                codex_campaign.CampaignContractError, "result digest"
-            ):
-                codex_campaign.CampaignJournal.open(
-                    root, plan=plan, manifest_sha256=MANIFEST_SHA256
-                )
+            with codex_campaign.CampaignLock(root) as lock:
+                with self.assertRaisesRegex(
+                    codex_campaign.CampaignContractError, "result digest"
+                ):
+                    codex_campaign.CampaignJournal.open(
+                        root,
+                        plan=plan,
+                        manifest_sha256=MANIFEST_SHA256,
+                        container_image_id=IMAGE_ID,
+                        lock=lock,
+                    )
 
     def test_campaign_runs_strictly_sequential_and_stops_on_inconclusive(self) -> None:
         plan = _plan()
         with tempfile.TemporaryDirectory() as raw:
-            journal = codex_campaign.CampaignJournal.create(
-                Path(raw), plan=plan, manifest_sha256=MANIFEST_SHA256
-            )
-            active = 0
-            maximum = 0
-            dispatched: list[object] = []
+            root = Path(raw)
+            with codex_campaign.CampaignLock(root) as lock:
+                journal = codex_campaign.CampaignJournal.create(
+                    root,
+                    plan=plan,
+                    manifest_sha256=MANIFEST_SHA256,
+                    container_image_id=IMAGE_ID,
+                    lock=lock,
+                )
+                active = 0
+                maximum = 0
+                dispatched: list[object] = []
 
-            def runner(spec):
-                nonlocal active, maximum
-                active += 1
-                maximum = max(maximum, active)
-                dispatched.append(spec)
-                result = _result(spec, state="INCONCLUSIVE")
-                active -= 1
-                return result
+                def runner(spec):
+                    nonlocal active, maximum
+                    active += 1
+                    maximum = max(maximum, active)
+                    dispatched.append(spec)
+                    result = _result(spec, state="INCONCLUSIVE")
+                    active -= 1
+                    return result
 
-            summary = codex_campaign.run_campaign(journal, runner)
+                summary = codex_campaign.run_campaign(journal, runner)
 
         self.assertEqual(1, maximum)
         self.assertEqual([plan[0]], dispatched)
         self.assertEqual("blocked", summary["status"])
         self.assertEqual(1, summary["completed_trials"])
+
+    def test_inconclusive_result_remains_blocked_after_reopen(self) -> None:
+        plan = _plan()
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            with codex_campaign.CampaignLock(root) as lock:
+                journal = codex_campaign.CampaignJournal.create(
+                    root,
+                    plan=plan,
+                    manifest_sha256=MANIFEST_SHA256,
+                    container_image_id=IMAGE_ID,
+                    lock=lock,
+                )
+                journal.run_next(lambda spec: _result(spec, state="INCONCLUSIVE"))
+            with codex_campaign.CampaignLock(root) as lock:
+                resumed = codex_campaign.CampaignJournal.open(
+                    root,
+                    plan=plan,
+                    manifest_sha256=MANIFEST_SHA256,
+                    container_image_id=IMAGE_ID,
+                    lock=lock,
+                )
+                dispatched = mock.Mock()
+                summary = codex_campaign.run_campaign(resumed, dispatched)
+
+        dispatched.assert_not_called()
+        self.assertEqual("blocked", summary["status"])
+        self.assertTrue(summary["inconclusive_result"])
+
+    def test_final_inconclusive_result_is_not_reported_complete(self) -> None:
+        plan = _plan()
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            with codex_campaign.CampaignLock(root) as lock:
+                journal = codex_campaign.CampaignJournal.create(
+                    root,
+                    plan=plan,
+                    manifest_sha256=MANIFEST_SHA256,
+                    container_image_id=IMAGE_ID,
+                    lock=lock,
+                )
+                calls = 0
+
+                def runner(spec):
+                    nonlocal calls
+                    calls += 1
+                    state = "INCONCLUSIVE" if calls == len(plan) else "PASS"
+                    return _result(spec, state=state)
+
+                summary = codex_campaign.run_campaign(journal, runner)
+
+        self.assertEqual(len(plan), summary["completed_trials"])
+        self.assertEqual("blocked", summary["status"])
+        self.assertTrue(summary["inconclusive_result"])
+
+    def test_campaign_lock_rejects_a_concurrent_invocation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            with codex_campaign.CampaignLock(root):
+                with self.assertRaises(codex_campaign.CampaignBusyError):
+                    with codex_campaign.CampaignLock(root):
+                        self.fail("concurrent campaign lock was acquired")
+
+    def test_resume_rejects_a_different_container_image(self) -> None:
+        plan = _plan()
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            with codex_campaign.CampaignLock(root) as lock:
+                codex_campaign.CampaignJournal.create(
+                    root,
+                    plan=plan,
+                    manifest_sha256=MANIFEST_SHA256,
+                    container_image_id=IMAGE_ID,
+                    lock=lock,
+                )
+            with codex_campaign.CampaignLock(root) as lock:
+                with self.assertRaisesRegex(
+                    codex_campaign.CampaignContractError, "contract bytes"
+                ):
+                    codex_campaign.CampaignJournal.open(
+                        root,
+                        plan=plan,
+                        manifest_sha256=MANIFEST_SHA256,
+                        container_image_id=OTHER_IMAGE_ID,
+                        lock=lock,
+                    )
 
 
 class ContainerCommandTests(unittest.TestCase):
@@ -232,19 +350,74 @@ class ContainerCommandTests(unittest.TestCase):
 
     def test_live_launch_mounts_auth_read_only_and_uses_no_proxy_override(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            command = codex_container.build_docker_command(
-                "canary", self._inputs(Path(raw), auth=True)
-            )
+            with mock.patch.object(
+                codex_container, "_path_owner_uid", return_value=65532
+            ):
+                command = codex_container.build_docker_command(
+                    "canary", self._inputs(Path(raw), auth=True)
+                )
         rendered = " ".join(command)
         self.assertIn("target=/run/secrets/auth.json,readonly", rendered)
         self.assertIn("target=/source,readonly", rendered)
-        self.assertIn("target=/output", rendered)
+        self.assertNotIn("target=/output", rendered)
         self.assertEqual(
             ("--canary", "--auth-file", "/run/secrets/auth.json"), command[-3:]
         )
         self.assertNotIn("HTTP_PROXY", rendered.upper())
         self.assertNotIn("OPENAI_API", rendered.upper())
         self.assertNotIn("CHATGPT_BASE", rendered.upper())
+
+    def test_campaign_passes_the_exact_image_id_to_the_inner_journal(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            with mock.patch.object(
+                codex_container, "_path_owner_uid", return_value=65532
+            ):
+                command = codex_container.build_docker_command(
+                    "campaign", self._inputs(Path(raw), auth=True)
+                )
+
+        self.assertIn("--container-image-id", command)
+        self.assertIn("target=/output", " ".join(command))
+        self.assertEqual(
+            IMAGE_ID, command[command.index("--container-image-id") + 1]
+        )
+
+    def test_native_linux_rejects_auth_not_owned_by_the_container_uid(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            inputs = self._inputs(Path(raw), auth=True)
+            with (
+                mock.patch.object(
+                    codex_container,
+                    "_host_requires_container_uid_ownership",
+                    return_value=True,
+                ),
+                mock.patch.object(codex_container, "_path_owner_uid", return_value=1000),
+                self.assertRaisesRegex(
+                    codex_container.ContainerContractError, "owned by UID 65532"
+                ),
+            ):
+                codex_container.build_docker_command("canary", inputs)
+
+    def test_native_linux_rejects_campaign_output_not_owned_by_container_uid(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            inputs = self._inputs(Path(raw), auth=True)
+
+            def owner(path: Path) -> int:
+                return 1000 if path == inputs.output_root else 65532
+
+            with (
+                mock.patch.object(
+                    codex_container,
+                    "_host_requires_container_uid_ownership",
+                    return_value=True,
+                ),
+                mock.patch.object(codex_container, "_path_owner_uid", side_effect=owner),
+                self.assertRaisesRegex(
+                    codex_container.ContainerContractError,
+                    "output root must be owned by UID 65532",
+                ),
+            ):
+                codex_container.build_docker_command("campaign", inputs)
 
     def test_mutable_image_tags_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -278,6 +451,7 @@ class ContainerCommandTests(unittest.TestCase):
         with (
             mock.patch("codex_container.inspect_image", return_value={}),
             mock.patch("codex_container.subprocess.run", side_effect=runner),
+            mock.patch("codex_container._path_owner_uid", return_value=65532),
             contextlib.redirect_stdout(io.StringIO()),
             contextlib.redirect_stderr(io.StringIO()),
         ):
@@ -440,6 +614,7 @@ class ContainerCommandTests(unittest.TestCase):
         payload = {
             "state": "PASS",
             "reason_codes": ["observational-behavior-pass"],
+            "scenario": {"prompt_sha256": codex_container.CANARY_PROMPT_SHA256},
             "trace": {"usage": {}},
             "verdict": {
                 "behavior": {
@@ -459,6 +634,31 @@ class ContainerCommandTests(unittest.TestCase):
         self.assertEqual("INCONCLUSIVE", result["state"])
         self.assertEqual(["canary-output-invalid"], result["reason_codes"])
         self.assertIsNone(result["invocation_mode"])
+
+    def test_canary_rejects_a_state_exit_code_mismatch(self) -> None:
+        payload = {
+            "state": "PASS",
+            "reason_codes": ["observational-behavior-pass"],
+            "scenario": {"prompt_sha256": codex_container.CANARY_PROMPT_SHA256},
+            "configuration": {"invocation_mode": "explicit-skill-body-probe"},
+            "trace": {"usage": {}},
+            "verdict": {
+                "behavior": {
+                    "grader_count": 1,
+                    "passed_count": 1,
+                    "graders": [{"index": 0, "passed": True}],
+                }
+            },
+        }
+        process = subprocess.CompletedProcess(
+            ("codex",), 2, json.dumps(payload), ""
+        )
+
+        result, exit_code = codex_container._canary_result(process)
+
+        self.assertEqual(3, exit_code)
+        self.assertEqual("INCONCLUSIVE", result["state"])
+        self.assertEqual(["canary-output-invalid"], result["reason_codes"])
 
     def test_canary_rejects_a_wrong_explicit_probe_prompt_digest(self) -> None:
         payload = {

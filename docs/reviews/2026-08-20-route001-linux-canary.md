@@ -340,7 +340,7 @@ as exact `$gcp-ops\n\n` plus the unchanged manifest prompt. The effective prompt
 `explicit-skill-body-probe`, retains that exact digest in the compact canary result, and rejects that
 mode outside the fixed trial-1 canary coordinate. The nineteen discovery inputs, their hashes, and
 the 48-trial plan remain unchanged. This is a body-load and response-shaping diagnostic, not an
-implicit-routing result, and it has not been run live.
+implicit-routing result, and it had not yet been run live at that point.
 
 `[verified]` The refreshed nine-file evaluator manifest is 1,173 bytes with SHA-256
 `92e2bdc5535fa8cf630cf3063f787bc9c1cff572c8f3a68b69219a4ead4c59c0`; all nine rows match
@@ -367,3 +367,30 @@ must therefore be interpreted by its per-index movement, not by PASS/FAIL alone.
 - No passing behavior or promotion verdict was recorded.
 - No verified monetary-cost claim is available; the token counts above are the recorded canary
   usage, not a price calculation.
+
+## Post-merge result and hardening
+
+`[verified]` PR #124 merged as `a29864f3457ad292c5f01ad7beefe3cb85d162e6`. Before merge, one
+authorized explicit body-load canary ran from commit
+`09cca0ef93c739caccfb0051f6ce900d8108ad8f` and image
+`sha256:e2a285bc329cca97dceb6d1561fbfc0b877022edccea7d7d95a15cb28372102f`.
+The compact result is 591 bytes with SHA-256
+`9209f4d7108325ae326fd9692611d4e7351aba03cdb1a8f108ba74ac7b7eccef`: preflight passed; the
+probe returned valid `FAIL`; graders 0 and 4 failed while 1, 2, 3, and 5 passed. It recorded 22,435
+input tokens, 9,984 cached input tokens, 909 output tokens, and 468 reasoning-output tokens. No retry
+or campaign followed.
+
+`[verified]` Automated review posted after the merge found seven actionable executor defects. The
+follow-up hardening candidate adds a crash-visible singleton campaign lock; makes an
+`INCONCLUSIVE` result a durable stop across reopen and at the final coordinate; binds the journal to
+the exact outer image; binds the frozen scenario bundle to a manifest SHA-256; rejects native Linux
+auth/campaign mounts inaccessible to UID 65532; enforces PASS=0, FAIL=2, and INCONCLUSIVE=4; and
+adds `codex_runtime.py` to the historical Windows staged closure. The fixed snapshot is already an
+ancestor of current main, so that reported reachability issue is obsolete rather than patched.
+
+No model call was used to test these repairs. The current ten-file evaluator manifest is 1,295 bytes
+with SHA-256 `16b9c68b24226b850ae7d9da4f7f14634406d9aa8c063799df4b1f85da5afe02`.
+The focused evaluator set passes 85 tests with two expected platform skips, and strict plugin
+validation passes. Gate A passes 42 of 43 steps in the linked worktree; its sole failure is the known
+snapshot test that deliberately requires an ordinary `.git` directory. The campaign remains
+`NO-GO`; these executor fixes do not resolve the measurement-design decision.

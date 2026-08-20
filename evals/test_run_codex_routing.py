@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import sys
 import tempfile
@@ -100,6 +101,20 @@ class ManifestContractTests(unittest.TestCase):
             },
             manifest["snapshot_tree_sha256"],
         )
+
+    def test_scenario_bundle_bytes_must_match_the_manifest_digest(self) -> None:
+        approved = run_codex_routing.SCENARIO_BUNDLE_PATH.read_bytes()
+        expected = hashlib.sha256(approved).hexdigest()
+        payload = json.loads(approved)
+        payload["scenarios"][0]["prompt"] += " attacker-selected suffix"
+
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "scenarios.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "digest"):
+                run_codex_routing.load_stable_scenario_bundle(
+                    path, expected_sha256=expected
+                )
 
     @classmethod
     def setUpClass(cls) -> None:

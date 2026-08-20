@@ -128,7 +128,7 @@ protected location, then invoke that copy with an absolute protected Python inst
 `-I -S -B`. The external approval packet—not the bootstrap itself—pins the bootstrap digest, the
 complete Python executable/DLL/standard-library closure, and the digest of
 [`codex-terra-evaluator-v1.json`](../../evals/conformance/codex-terra-evaluator-v1.json). The bootstrap
-accepts exactly the nine-file evaluator closure, stages it create-only, synthesizes one fixed canary
+accepts exactly the ten-file evaluator closure, stages it create-only, synthesizes one fixed canary
 request, and rechecks the exact staged tree after execution before any result is eligible. It also
 requires a precreated empty private root on a local fixed NTFS volume; UNC, mapped, substituted,
 remote, removable, and non-NTFS storage are rejected before any credential copy. Caller

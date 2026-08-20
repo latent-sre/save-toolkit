@@ -18,6 +18,7 @@ from typing import Mapping, Sequence
 IMAGE_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 MODES = frozenset({"preflight", "canary", "campaign"})
 CONTAINER_USER = "65532:65532"
+CONTAINER_UID = 65532
 CANARY_RESULT_NAME = "canary-result.json"
 CANARY_PROMPT_SHA256 = "65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3"
 MAX_CHILD_JSON_BYTES = 1024 * 1024
@@ -84,6 +85,26 @@ def _mount(*, source: Path, target: str, readonly: bool) -> str:
     return value + (",readonly" if readonly else "")
 
 
+def _host_requires_container_uid_ownership() -> bool:
+    """Native Linux bind mounts preserve host ownership; Docker Desktop translates it."""
+
+    return sys.platform.startswith("linux")
+
+
+def _path_owner_uid(path: Path) -> int:
+    return path.lstat().st_uid
+
+
+def _require_container_uid_owner(path: Path, *, label: str) -> None:
+    if (
+        _host_requires_container_uid_ownership()
+        and _path_owner_uid(path) != CONTAINER_UID
+    ):
+        raise ContainerContractError(
+            f"{label} must be owned by UID {CONTAINER_UID} for the fixed native Linux container user"
+        )
+
+
 def _validate_inputs(mode: str, inputs: ContainerInputs) -> tuple[Path, Path, Path | None]:
     if mode not in MODES:
         raise ContainerContractError("mode must be preflight, canary, or campaign")
@@ -106,6 +127,9 @@ def _validate_inputs(mode: str, inputs: ContainerInputs) -> tuple[Path, Path, Pa
         auth = _normal_path(inputs.auth_file, label="auth file", directory=False)
         if os.name != "nt" and auth.lstat().st_mode & 0o077:
             raise ContainerContractError("auth file must be private to its owner")
+        if mode == "campaign":
+            _require_container_uid_owner(output, label="output root")
+        _require_container_uid_owner(auth, label="auth file")
     return repository, output, auth
 
 
@@ -140,9 +164,11 @@ def build_docker_command(mode: str, inputs: ContainerInputs) -> tuple[str, ...]:
         "/run/route001:rw,noexec,nosuid,nodev,size=2147483648,mode=0700,uid=65532,gid=65532",
         "--mount",
         _mount(source=repository, target="/source", readonly=True),
-        "--mount",
-        _mount(source=output, target="/output", readonly=False),
     ]
+    if mode == "campaign":
+        command.extend(
+            ("--mount", _mount(source=output, target="/output", readonly=False))
+        )
     if auth is not None:
         command.extend(
             (
@@ -163,6 +189,8 @@ def build_docker_command(mode: str, inputs: ContainerInputs) -> tuple[str, ...]:
                 "/run/secrets/auth.json",
                 "--campaign-root",
                 "/output",
+                "--container-image-id",
+                inputs.image_id,
             )
         )
     return tuple(command)
@@ -358,12 +386,14 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
         or (state == "PASS" and failed_grader_indices == [])
         or (state == "FAIL" and bool(failed_grader_indices))
     )
+    expected_exit_code = {"PASS": 0, "FAIL": 2, "INCONCLUSIVE": 4}.get(state)
     if (
         state not in {"PASS", "FAIL", "INCONCLUSIVE"}
         or reasons is None
         or invocation_mode != "explicit-skill-body-probe"
         or prompt_sha256 != CANARY_PROMPT_SHA256
         or not behavior_result_valid
+        or process.returncode != expected_exit_code
     ):
         return (
             {
