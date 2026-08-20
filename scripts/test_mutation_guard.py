@@ -463,6 +463,12 @@ class ExitStatusTests(unittest.TestCase):
         code, output = self._run_guard_here("--limit", "half")
         self.assertEqual(mutation_guard.EXIT_USAGE, code, output)
 
+    def test_zero_limit_runs_the_documented_unbounded_sweep(self) -> None:
+        """Zero means every mutant; it must not be rejected as a usage error."""
+        code, output = self._run_guard_here("--limit", "0")
+        self.assertEqual(0, code, output)
+        self.assertNotIn("usage:", output.lower())
+
     def test_an_unknown_flag_exits_usage_not_refused(self) -> None:
         """Any argparse usage error takes the same path, so none of them may impersonate a refusal
         to run over a dirty tree."""

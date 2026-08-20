@@ -348,8 +348,17 @@ limitation is recorded rather than implied covered: the detector is a normalizer
 search, not a shell parser. The typed record stays `observed` — its target paths already fit an
 attempt, so the missing piece is an independent evaluation of the exact candidate.
 
-**Next action:** Obtain independent exact-byte review of the grader repair and append that verdict to
-the typed record. Then provision and independently bind a
+**Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at PR #113 final head
+`9a5dbe648995013134fcb63ede3d917275982ad5` passed all 342 grader checks. Fresh static
+correctness/security review found no remaining P0/P1 in the grader repair, and the grader
+implementation in current main retains the reviewed bytes. The pass verdict and its
+shell-normalizer limits are
+recorded in the
+[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
+That Markdown packet is not a typed-record attempt or evidence envelope and ran no live trial.
+
+**Next action:** Bind the exact-subject grader verdict into a fresh validated evidence envelope and
+append it to the typed record. Then provision and independently bind a
 protected Python runtime closure or separate OS identity plus the clean managed-config/registry,
 protected Git installation, and sanitized object-store prerequisites before attempting the one-trial
 canary. Only after the canary and its boundary pass may the still-unimplemented fixed 48-trial
@@ -395,19 +404,34 @@ the preparation-only
 no evaluation, promotion, or monitoring authority.
 
 PR #116 final head `ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b` changed both linked target
-paths from base `f75dca0ccd9063360318fb8f11bf5806f03cd357`; current main retains those exact
-target bytes. GitHub Actions runs
+paths from base `f75dca0ccd9063360318fb8f11bf5806f03cd357`. `[verified]` The
+`scripts/mutation_guard.py` implementation remains byte-identical to that final head. The
+`scripts/test_mutation_guard.py` bytes at blob `751c9ae56b207143d2b3678d5e5f6435198991b4`
+belong to the test-only follow-up commit `ec35aad33d97970a0a1b3c76598344f3bf10f857`,
+not PR #116 (whose test blob was `d8f624bea6562c98ba5561a79b3b37ca26ce9d26`). `[verified]`
+GitHub Actions runs
 [#32030853567](https://github.com/latent-sre/save-toolkit/actions/runs/32030853567) and
 [#32034404514](https://github.com/latent-sre/save-toolkit/actions/runs/32034404514) passed Gate A on
 Ubuntu, macOS, and Windows. The last independent review was bound to `b90e56f9`; final head then
 added 88 lines and removed 3 across the target paths, so neither that review nor green CI supplies
 the missing exact-subject verdict.
 
-**Next action:** Produce a fresh evaluation envelope for the exact selected artifacts at
-`ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b`, then obtain independent correctness/security review
-of that same subject. Preserve the chronology limitation: PR #116 merged before the linked record
-and its evaluation existed, so do not backfill a normal pre-merge promotion or treat the author's
-own sweep as independent evidence.
+**Exact-subject review (2026-08-19):** `[verified]` The full focused suite at `ccceb33` passed (49
+tests, 2 skipped), but an unbounded self-sweep reported 48 survivors and exposed one actionable missing
+assertion: changing `_sample_limit` from `< 0` to `<= 0` survived even though that mutant rejects the
+documented unbounded `--limit 0` input. The implementation is correct; its contract was
+not pinned, so the review requested changes. Test-only commit
+`ec35aad33d97970a0a1b3c76598344f3bf10f857` adds the missing public-behavior regression. The exact
+mutant fails the new test with `EXIT_USAGE`; the restored implementation passes, and the focused
+suite is green at 50 tests with 2 skips. The complete final branch worktree also passes
+all 40 Gate A steps in the pinned network-disabled, read-only container. See the
+[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
+
+**Next action:** Produce a fresh evaluation envelope for the selected artifacts at `ec35aad`, then
+obtain independent correctness/security review of that same subject and append the result to the
+linked typed record without self-promotion. Preserve the chronology limitation: PR #116 merged
+before the linked record and its evaluation existed, so do not backfill a normal pre-merge promotion
+or treat the author's own sweep as independent evidence.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
@@ -526,10 +550,17 @@ on Ubuntu, macOS, and Windows. This supplies repeated macOS execution for the re
 fresh evidence envelope or independent final-byte review was produced; the record therefore remains
 `observed` with empty attempt and review arrays.
 
-**Next action:** Bind a fresh deterministic evaluation to final PR subject `106ee282903076dc54020df295ac37a0e66bc9d8`,
-then obtain independent exact-subject correctness/security review. Do not substitute the earlier
-`b521f38c` review, author replies, or green CI for that verdict, and do not widen the two-fact
-`PermissionError` invariant.
+**Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at final PR subject
+`106ee282` passed
+all 48 `test_codex_trial.py` tests on Windows (6 platform skips) and in the pinned network-disabled,
+read-only Linux container (2 platform skips). The Linux run covered the real descendant checks.
+Fresh static correctness/security review confirmed the two-fact invariant and found no remaining
+P0/P1. No new live macOS observation was made. See the
+[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
+
+**Next action:** Bind the deterministic exact-subject execution and pass verdict into a fresh
+validated evidence envelope and the typed record, then reconcile the outdated PR #114 threads. Do
+not widen the two-fact `PermissionError` invariant or treat the review packet alone as promotion.
 
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
@@ -696,11 +727,12 @@ is in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hard
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 
-**Status:** `active` (2026-08-18) — the consolidated parser merged in PR #118 at
+**Status:** `active` (2026-08-19) — the consolidated parser merged in PR #118 at
 `4479833fcb2d64059c6aa8047dbc8370b95584f3`, but its exact-head review left one current P1
 undisposed. The repair now ends at `adbd88eb8836ce69df4f9fae4ebaa06fcf216498`; independent
 code/test review found no remaining P0/P1, and cross-platform CI passed (workflow run 32188436302,
-Ubuntu, macOS, and Windows). The final whole-diff verdict remains pending.
+Ubuntu, macOS, and Windows). Fresh whole-diff review at PR #119 final head `9fef1486` passed; GitHub
+thread reconciliation remains pending.
 
 **Outcome:** `scripts/` has a single stdlib frontmatter parser, so a document that one tool accepts
 cannot be malformed to another.
@@ -748,8 +780,17 @@ call-order, discovery-mismatch, and cross-trial mutation regressions all failed 
 subjects; the full 72-test evaluator suite now passes in the network-disabled pinned Python 3.12
 container.
 
-**Next action:** Bind the final whole-diff correctness/security verdict and resolve the PR #118 thread only after that check covers the exact head. Do not close SCRIPTS-001 on the merged grammar alone while the candidate-code execution finding remains
-undisposed.
+**Final whole-diff review (2026-08-19):** `[verified]` Review of `4479833..9fef148` confirmed that the
+evaluator executes only the frozen trusted parser, treats the measured parser as byte-compared data, binds the
+support digest, preloads before candidate mutation, freezes direct-agent tools, and verifies parent
+teardown. The exact final head passed all 40 Gate A steps in the pinned network-disabled,
+read-only container, including 73 evaluator-runner tests and 342 grader checks. No P0/P1
+remains in the code diff. See the
+[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
+
+**Next action:** Reconcile and resolve the PR #118 candidate-code execution thread and PR #119
+follow-up threads against exact head `9fef1486`, linking the final whole-diff verdict. Close
+SCRIPTS-001 only after that review-state disposition is durable on GitHub.
 
 ## Decisions needed
 
