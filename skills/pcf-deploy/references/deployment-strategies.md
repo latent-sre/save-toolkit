@@ -19,11 +19,20 @@ Implementation: `actor/v7pushaction/handle_app_name_override.go` and its tests a
 apps. It is a mixed-traffic interval, not an atomic switch. Move all traffic only by explicitly
 unmapping Blue after Green passes health and business verification.
 
+Use a unique, release-bound candidate app name for each rollout. Before any push, inspect current app
+and route mappings. A fixed Green name left by an earlier rollout may still carry the production
+route; `--no-route` prevents route creation during that push but does not unmap routes already held by
+an existing app. If the proposed candidate name exists or its state is uncertain, stop and reconcile
+it or choose a new name before pushing.
+
 ```bash
-cf push checkout-green -f manifest-green.yml --no-route
-cf map-route checkout-green apps.example.com --hostname checkout-test
+cf app <release-bound-candidate-app>
+cf routes
+# Human confirms the candidate name is new and has no production mapping.
+cf push <release-bound-candidate-app> -f manifest-green.yml --no-route
+cf map-route <release-bound-candidate-app> apps.example.com --hostname checkout-test
 # Human verifies the test route and target evidence.
-cf map-route checkout-green apps.example.com --hostname checkout
+cf map-route <release-bound-candidate-app> apps.example.com --hostname checkout
 # Blue and Green now share the production route.
 cf unmap-route checkout apps.example.com --hostname checkout
 # Production traffic now targets Green; keep Blue for the approved soak/rollback window.

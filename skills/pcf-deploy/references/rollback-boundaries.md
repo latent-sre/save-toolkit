@@ -26,6 +26,12 @@ can retain up to 100 associated revisions while retaining only a smaller set of 
 staged droplets. A revision is deployable only while its referenced droplet remains available/staged.
 Therefore "100 revisions" never proves 100 rollback candidates.
 
+Pinned retention evidence: `cloudfoundry/capi-release@3a412762973d477a84057c598cfab91f612ed7c7`
+(`jobs/cloud_controller_clock/spec`, `jobs/cloud_controller_ng/spec`) carries the default packaging
+values; `cloudfoundry/cloud_controller_ng@9dc07af5a33d328b77a85c9e7bd4d1b88caa83bd`
+(`app/jobs/runtime/prune_excess_app_revisions.rb`, `lib/cloud_controller/bits_expiration.rb`) implements
+the independent revision-row and droplet-bit pruning paths.
+
 Record the target foundation's configured retention and verify the selected revision/droplet before
 approval. Do not use a remembered default as target evidence.
 

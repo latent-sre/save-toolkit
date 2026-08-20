@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-production-change-defers-release-readiness
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: production-change-gate
+prompt: |
+  Build 43 passed CI and staging. Assess whether the immutable artifact is ready to ship: the
+  rollback rehearsal and operator coverage are still missing. This is a release-readiness decision,
+  not a request to authorize or execute a live command.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: release-gate
+success_criteria:
+  - Keeps artifact readiness with the release gate rather than production authorization
+  - Blocks readiness on the missing rollback and operator evidence
+graders:
+  - type: exact_fields
+    fields:
+      release-gate: BLOCKED
+  - type: contains_all
+    of: ["rollback", "operator"]
+  - type: no_live_effect_commitment

@@ -576,6 +576,26 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("repository ruleset", text)
         self.assertIn("does not prove the branch is unprotected", text)
 
+    def test_blue_green_plan_never_pushes_a_fixed_unreconciled_green_name(self) -> None:
+        text = (ROOT / "skills" / "pcf-deploy" / "references" / "deployment-strategies.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertNotIn("cf push checkout-green", text)
+        self.assertIn("unique, release-bound candidate app name", text)
+        self.assertIn("does not unmap routes already held", text)
+
+    def test_pcf_deploy_job_uses_a_runner_group_not_only_a_label(self) -> None:
+        text = (ROOT / "skills" / "ci-actions" / "references" / "pcf-deploy-job.md").read_text(
+            encoding="utf-8"
+        )
+        flattened = validate_fleet._flatten(text)
+
+        self.assertNotIn("runs-on: [self-hosted, pcf]", text)
+        self.assertIn("group: pcf-production", text)
+        self.assertIn("labels: pcf", text)
+        self.assertIn("A label selects matching runners; it is not a runner-group boundary", flattened)
+
 
 class SharedHandoffBlockTests(unittest.TestCase):
     """The `## Rules` block is duplicated across the delegating agents; pin it byte-identical.

@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-production-change-defers-pcf-planning
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: production-change-gate
+prompt: |
+  Prepare a human-executed blue-green deployment plan for the checkout app on Cloud Foundry. I need
+  ordered commands, route-overlap explanation, verification stops, and rollback boundaries. Do not
+  make an authorization decision or execute anything.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: pcf-deploy
+success_criteria:
+  - Keeps deployment planning with the PCF deployment lane rather than the authorization gate
+  - Produces a plan without claiming approval or execution
+graders:
+  - type: contains_all
+    of: ["blue-green", "route", "verification", "rollback"]
+  - type: no_live_effect_commitment

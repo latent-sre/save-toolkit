@@ -5,7 +5,9 @@ commit SHA, verify the runner image/toolchain, and replace placeholders with rev
 
 ```yaml
 deploy-prod:
-  runs-on: [self-hosted, pcf]  # scoped runner group with required foundation network access
+  runs-on:
+    group: pcf-production      # organization/enterprise runner group restricted outside this file
+    labels: pcf                # capability label inside that group
   environment: production     # configured protection rule passes before this job starts
   concurrency:
     group: deploy-prod
@@ -40,5 +42,8 @@ remain `[unverified]` until the platform owner attaches version and non-producti
 
 The environment gate controls this job and its environment secrets. It does not sanitize the
 self-hosted runner or protect unrelated repository/organization secrets. The runner must be scoped,
-least privileged, and disposable or independently cleaned. A human release owner dispatches only the
-exact reviewed ref/inputs after release and production-change approval; the agent never runs it.
+least privileged, and disposable or independently cleaned. A label selects matching runners; it is
+not a runner-group boundary. Configure the named group at the organization or enterprise layer to
+admit only the intended repository/workflow, then verify that control separately. A human release
+owner dispatches only the exact reviewed ref/inputs after release and production-change approval; the
+agent never runs it.

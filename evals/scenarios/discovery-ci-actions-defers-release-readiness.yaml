@@ -18,9 +18,9 @@ success_criteria:
   - Routes artifact ship-readiness to release-gate rather than workflow authoring
   - Blocks readiness on rollback, health/abort, and ownership evidence
 graders:
-  - type: contains_any
-    of: ["release-gate", "release gate", "ready to ship"]
-  - type: contains_any
-    of: ["blocked", "not ready", "cannot pass", "missing"]
-  - type: contains_any
+  - type: exact_fields
+    fields:
+      release-gate: BLOCKED
+  - type: contains_all
     of: ["rollback", "abort", "health", "release owner"]
+  - type: no_live_effect_commitment
