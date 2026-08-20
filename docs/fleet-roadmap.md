@@ -793,8 +793,38 @@ checkable alert-definition contract is defensible on its own merits; (b) loosen 
 assert behavior — changes frozen bytes and needs ROUTE-001 sequencing; (c) accept the scenarios as
 aspirational and record them as such so a red suite stops reading as a regression.
 
-**Next action:** Owner review of the three options. Until that review, do not tune skills to satisfy
-these graders and do not edit the frozen scenario bytes; both would pre-empt the decision. Evidence
+**Cross-provider evidence (2026-08-20), which refined the diagnosis rather than confirming it.**
+The working hypothesis was that these graders demand output no model produces, and that the Terra
+canary's `behavior-grader-failed` on `discovery-gcp-ops-cloud-run-startup` was the same defect seen
+from a second provider. Running that exact scenario on `claude-sonnet-5` against the same revision
+**refuted it**: the two providers fail nearly inverse grader sets.
+
+| Grader outcome on `discovery-gcp-ops-cloud-run-startup` | `gpt-5.6-terra` | `claude-sonnet-5` |
+|---|---|---|
+| Failed | 0, 1, 3, 4 | 5 (both trials), 4 (one trial) |
+| Passed | 2, 5 | 0, 1, 2, 3 |
+
+Claude produced the required content — the `gcloud run services logs read` form, the
+`127.0.0.1`/loopback distinction, every `contains_all` string — and failed only
+`cloud_run_rollback_packet` ("expected the JSON rollback packet to be the only fenced block"),
+because it also fenced its commands. Terra did the reverse: a clean single packet, missing content.
+
+**The distinction this exposes is calibration, not satisfiability.** `gcp-ops-cloud-run-startup` is
+the canary whose graders were calibrated against real model output and repaired twice after the
+2026-08-11 managed smoke exposed false passes — and a real model now nearly passes it. The
+2026-08-11 obs batch graders were only ever exercised against synthetic fixtures in
+`evals/test_graders.py`, and they fail on every model tried, at every revision. So the defect is not
+"the graders ask for the impossible"; it is that one set was checked against a real answer and the
+other never was.
+
+Two consequences for the options above: option (b) should mean **calibrate against real model
+output**, the way the canary's graders were, rather than a blanket loosening; and
+`cloud_run_rollback_packet`'s only-fenced-block rule deserves review on its own merits, since it
+penalises an answer that fences its commands — which is arguably the better answer.
+
+**Next action:** Owner review of the three options, now with the calibration distinction above. Until
+that review, do not tune skills to satisfy these graders and do not edit the frozen scenario bytes;
+both would pre-empt the decision. Evidence
 is in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
