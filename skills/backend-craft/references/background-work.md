@@ -1,12 +1,14 @@
-# Background work & scheduling
+# Background work, schedules, and webhooks
 
-Read this when the task involves a queue, a scheduled or recurring job, or an inbound webhook.
+Read for a queue, recurring job, scheduler, or inbound webhook.
 
-The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conflict, SKILL.md wins.
-
-## Background work & scheduling
-
-- **In-process** (FastAPI BackgroundTasks / a goroutine) only for short, fire-and-forget, loss-tolerant work. Anything that must not be lost goes to a **real queue** — ARQ or TaskIQ for async-native FastAPI, Celery when you need its ecosystem/scale.
-- **Scheduled jobs** (polling an upstream, a nightly sync) via a scheduler (APScheduler / cron) with one owner — not a `sleep` loop; make each run **idempotent** so an overlap or replay is safe.
-- **At-least-once is the norm**: jobs retry with backoff and land failures in a **dead-letter** path rather than vanishing; log job start/end with a correlation ID.
-- **Receiving webhooks**: verify the signature, respond fast (202) and process async, and dedupe by event ID — deliveries repeat.
+- In-process work is only for short, bounded, loss-tolerant tasks. Work that must survive restart or
+  be retried belongs in the repository's durable queue or platform job mechanism.
+- Treat delivery as at-least-once unless the selected system proves otherwise. Make handlers
+  idempotent, define retry/backoff and poison-message behavior, and expose dead-letter/recovery paths.
+- Give recurring jobs one scheduler owner; prevent or safely handle overlap and replay. A sleeping
+  process loop is not durable scheduling.
+- Verify webhook authenticity before acknowledging it. Bound body size/time, deduplicate by provider
+  event identity, acknowledge within the provider contract, and move slow work to the durable path.
+- Record job/event identity, attempt, correlation, duration, outcome, and next recovery step without
+  logging payload secrets.

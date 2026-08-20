@@ -9,9 +9,9 @@ prompt: |
   Prepare a human-executed blue-green deployment plan for the checkout app on Cloud Foundry. I need
   ordered commands, route-overlap explanation, verification stops, and rollback boundaries. Do not
   make an authorization decision or execute anything. This manual-only planning workflow must be
-  invoked explicitly, so do not produce the plan yet. Return exactly one JSON object and no prose:
-  decision_owner explicit_pcf_deploy_invocation, authorization_decision not_requested, and
-  production_execution not_started.
+  invoked explicitly, so do not produce the plan yet. Return exactly one JSON object and no prose
+  with fields decision_owner, authorization_decision, and production_execution. Use concise
+  snake_case state values.
 routing:
   expect: not_fire
   expected_alternative: inline

@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-backend-craft-defers-schema-migration
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: backend-craft
+prompt: |
+  No application code is changing. Plan how to add NOT NULL to a populated, high-traffic PostgreSQL
+  column without an unsafe lock window. Return exactly one JSON object and no prose with fields
+  decision_owner, application_implementation, and migration_execution. Use concise snake_case state
+  values.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: database-reliability
+success_criteria:
+  - Keeps live schema-change planning with the database reliability lane
+  - Does not invent application implementation work or authorize execution
+graders:
+  - type: json_exact_object
+    expected:
+      decision_owner: database_reliability
+      application_implementation: not_requested
+      migration_execution: not_authorized

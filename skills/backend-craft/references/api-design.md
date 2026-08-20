@@ -1,48 +1,39 @@
 # API surface design
 
-Read this before shaping endpoints, resource names, status codes, list-query conventions, or a
-published API evolution. The universal backend rules live in `../SKILL.md`; they win on conflict.
+Read before changing resources, methods, status codes, collection queries, or a published contract.
+The core contract in `../SKILL.md` wins on conflict.
 
-## Resources and methods
+## Surface
 
-- URLs are plural kebab-case nouns. Nest one ownership level when it clarifies the relationship
-  (`/v1/users/{id}/orders`). Use verbs only for genuine non-CRUD actions
-  (`POST /v1/orders/{id}:cancel`).
-- Preserve method semantics: GET is safe and idempotent; PUT replaces and is idempotent; PATCH is a
-  partial update; DELETE is idempotent; POST is non-idempotent unless the operation implements an
-  idempotency key.
-- Long-running work returns `202 Accepted` with a status resource. Do not hold a request open for a
-  deployment, backfill, or report job.
+- Match the existing naming and versioning scheme. Prefer resources and collections; use action
+  endpoints only when CRUD semantics do not fit.
+- Preserve method semantics: `GET` is safe; `PUT` and `DELETE` are idempotent; `PATCH` is partial;
+  `POST` needs an explicit idempotency design when callers may retry.
+- Use `201` with `Location` for creation where applicable, `202` plus a status resource for
+  asynchronous work, and `204` only when no response body is part of the contract.
+- Choose validation codes according to the published API/framework contract. `400` versus `422` is
+  not a universal malformed-versus-semantic rule; keep clients and OpenAPI aligned.
+- Keep `401` for missing/invalid authentication and `403` for an authenticated caller denied the
+  action. Use `409` for state conflicts, `429` with `Retry-After`, and `503` only for a temporary
+  service/dependency condition clients may reasonably retry.
 
-## Status codes are contract
+## Collections
 
-- `200` read/update with a body; `201` create with `Location`; `204` successful no-body operation.
-- `400` malformed input; `422` well-formed but semantically invalid; `401` unauthenticated; `403`
-  authenticated but forbidden; `404` absent; `409` state conflict; `429` rate-limited with
-  `Retry-After`; `503` temporarily unavailable.
-- Never return `200 {"success": false}` or use `500` for caller validation failures.
+- Bound every collection that can grow. Use a stable ordering ending in a unique key; cap the page
+  size and parameterize allowlisted filters/sorts.
+- Cursor pagination fits changing or large sets. Offset pagination is acceptable for small bounded
+  sets when its drift/cost is understood. Do not promise total counts unless they are cheap enough.
+- Keep envelope and continuation semantics consistent across the API.
 
-## Lists
+## Errors and evolution
 
-- Filter with allowlisted query fields; parameterize values. Choose one multi-value and range
-  convention and keep it across the API.
-- Use a stable sort ending in a unique key. An opaque cursor contains the ordered key values, not
-  an offset. Fetch `limit + 1`, cap `limit` server-side, and omit total counts unless they are cheap.
-- Offset pagination is acceptable only for small, bounded administrative lists.
-
-## Typed errors
-
-- Domain code raises typed errors carrying a stable code and HTTP status. One global exception
-  mapper emits the top-level RFC 9457 problem shape from `../SKILL.md`.
-- Unexpected exceptions log full internal detail with the request ID and return a generic problem.
-  SQL, stack traces, credentials, and upstream bodies never cross the API boundary.
-- Enumerate stable problem types/codes in OpenAPI; renaming one is a breaking change.
-
-## Evolving the surface
-
-- Extend rather than mutate: add optional fields/parameters and new endpoints. Removing, renaming,
-  changing a type, or tightening auth is breaking and requires an explicit compatibility plan.
-- Deprecation is a protocol: announce it, publish a sunset date, observe callers, and retire only
-  after the supported migration window.
-- Diff the OpenAPI document in CI with a breaking-change detector. A removal, type change, or new
-  required field cannot merge as an unlabeled accident.
+- Map typed domain failures through one boundary into the repository's stable problem contract.
+  Unexpected exceptions log redacted internal detail with a correlation ID and return a generic error.
+- Enumerate stable error types/codes in the contract. Clients must tolerate unknown extension members.
+- Extend before removing. A removal, rename, type change, new required field, or tighter authorization
+  needs an explicit compatibility window and rollout/recovery plan.
+- `Deprecation` can announce a deprecation event; `Sunset` can name service end. Publish migration
+  guidance, observe callers, and define the post-sunset response. Neither header chooses a version
+  count or mandates `410 Gone`.
+- Diff the served contract in CI with the repository's compatibility tooling; review the actual diff
+  rather than assuming a generated schema stayed synchronized.

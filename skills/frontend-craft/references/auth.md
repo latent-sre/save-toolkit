@@ -1,21 +1,18 @@
-# Auth (client side)
+# Client authentication and session UX
 
-Read this for any UI a teammate can reach — at work that is all of them.
+Read when the UI has login, protected navigation, tokens, or cookie sessions. The server remains the
+authorization boundary.
 
-The server still enforces; the UI is convenience, not the security boundary. The universal frontend
-rules live in `skills/frontend-craft/SKILL.md`. On any conflict, SKILL.md wins.
-
-## Auth
-
-- Access token in memory; refresh via an **httpOnly, Secure cookie** — never localStorage for anything an XSS could steal.
-- One fetch/Query wrapper does **401 → refresh once → retry, else redirect to login**; every call inherits it instead of reinventing it.
-- Route guards gate whole areas and hide actions the user lacks — but the server still enforces; the UI is convenience, not the security boundary.
-
-## Auth & web security
-
-- **Auth:** OIDC **Authorization Code + PKCE** against corp SSO; **never** ship a client secret. Prefer a
-  **BFF / httpOnly-cookie** session, or hold tokens **in memory** — **not `localStorage`** (XSS can
-  exfiltrate it). Silent refresh; guard protected routes; treat the API's `401/403` as the real boundary.
-- **XSS:** rely on framework escaping; avoid `dangerouslySetInnerHTML` on anything untrusted; set a
-  **Content-Security-Policy**. **CSRF:** for cookie auth use `SameSite` + a CSRF token. Same-origin or a
-  locked **server-side CORS allowlist**. Hand sensitive flows to the `reviewer` agent.
+- Match the application's established identity/session design. Public clients do not ship a client
+  secret. For OIDC browser flows, use the current provider-supported authorization flow and PKCE where
+  required.
+- Prefer an approved BFF/HttpOnly cookie session when the architecture supports it. If bearer tokens
+  must exist in the browser, keep them out of URLs and persistent script-readable storage unless a
+  documented threat model accepts that exposure.
+- Centralize request/session handling. On `401`, perform at most the protocol's one safe refresh or
+  reauthentication transition; prevent concurrent refresh storms and avoid replaying unsafe requests
+  without an idempotency contract. Treat `403` as authorization failure, not refresh failure.
+- Route guards and hidden controls improve UX but grant no authority. Render server denial safely and
+  clear sensitive client state on logout/revocation.
+- Cookie auth needs the selected SameSite/origin/CSRF design. Apply CSP and avoid rendering untrusted
+  HTML. Auth/session changes require independent security review and real-browser failure tests.

@@ -2,20 +2,19 @@
 
 # Backend stack selection
 
-Read this when starting a **greenfield** service. An existing repository's stack always wins —
-if you are working in one, you do not need this file.
+Read only for a greenfield service after loading `stack-profile`. Existing repository and platform
+constraints win.
 
-The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conflict, SKILL.md wins.
+1. Record required interfaces, latency/concurrency, state, background work, deployment target,
+   observability, security/compliance, and operator ownership.
+2. Prefer the smallest stack already supportable by the team/platform. A framework is selected from
+   those requirements and current support evidence—not from this skill's examples.
+3. Keep framework, database, queue, and cache choices independent; add each only for a named need.
+4. Define build, startup, health/readiness, shutdown, configuration/secrets, migrations, telemetry,
+   and rollback before calling the choice viable.
+5. Pin versions through the repository's package/lock mechanism and verify current official docs for
+   every selected dependency.
 
-## Framework & observability
-- Python is primary → **FastAPI** (pydantic validation + async + OpenAPI for free); Flask is fine for
-  small; Go → `net/http`/chi. Follow the repository's established language conventions for the implementation.
-- Emit **RED metrics + structured logs + trace propagation**, including approved request/correlation
-  fields, and expose distinct **health/readiness endpoints** for PCF. Deployment execution belongs to
-  the human release owner after the target, action, health check, and rollback are approved.
-
-## Auth & secrets (on PCF)
-- Read credentials from the **bound service / `VCAP_SERVICES`** or env — **never hardcode**, never put a
-  token in a flag, log line, error, or the SPA bundle. Load least-privilege scopes.
-- **Refresh expiring tokens** (UAA/OAuth) ahead of expiry; handle a mid-run `401` by re-authing once.
-- Request a `save-toolkit-reviewer` security pass for anything touching auth or secrets.
+FastAPI, Go HTTP routers, PostgreSQL, Redis, and a queue are options, not defaults. On PCF or another
+managed platform, consume credentials and runtime metadata through the approved binding mechanism;
+deployment remains a human-owned, gated effect.

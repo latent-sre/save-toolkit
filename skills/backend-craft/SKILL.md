@@ -1,12 +1,12 @@
 ---
 name: backend-craft
 description: >-
-  Build or change an API or backend service — HTTP endpoints, workers, schedulers, the service behind
-  a UI — and consume third-party APIs safely (clients, SDK wrappers, sync jobs, webhooks), including
-  our platform/obs APIs. Triggers: 'add an endpoint', 'wrap X behind an API', 'write a client for Y'.
-  Ownership map only—not a load: frontend-craft owns UI work, database-reliability owns live-data
-  operations, and language-idiom owns the per-language rules.
-argument-hint: "[the API or service to build or change]"
+  Build or change backend application code: HTTP APIs, workers, schedulers, webhooks, service
+  integrations, and the server behind a UI. Use for endpoint implementation, upstream clients,
+  background jobs, auth boundaries, and service resiliency. Not for product UI work, operating a
+  live database, or language-only review; those belong to frontend-craft, database-reliability, and
+  language-idiom. Triggers: 'add an endpoint', 'build a worker', 'write an API client'.
+argument-hint: "[the backend or API to build or change]"
 ---
 
 > **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
@@ -16,124 +16,107 @@ argument-hint: "[the API or service to build or change]"
 
 # Backend craft
 
-**You write the actual code.** Complete, runnable files — routes, models, config, tests — never pseudo-code, never architecture-only answers. Make the decision, state it in one line, build it. Exception — a material fork (the answer changes what gets built: data model, auth, API surface) that can't be inferred is worth one batched question round with recommended defaults *before* building; a wrong build costs a full rebuild-and-review cycle, a question costs seconds. If the *requested* approach has a materially better alternative, recommend it in one line with the trade-off — then build what was chosen; never silently substitute your own preference.
+Build the working change: implementation, configuration, migrations owned by the application,
+and tests. Inspect the repository first and match its framework, dependency manager, conventions,
+and deployment boundary. Before recommending a runtime, tool, or infrastructure change, load
+`stack-profile`. Ask only when a material product or authority decision cannot be inferred; otherwise
+state the decision briefly and implement it.
 
-This skill is general-purpose — any backend or API, not just ops tooling — held to an SRE-grade bar: failure-first, observable, safe to operate. The examples lean ops/home-lab; the rules are domain-neutral.
+## Contract and compatibility
 
-## Contract first
+- Define or update the public request, response, auth, error, and side-effect contract with the code.
+  Keep OpenAPI or the repository's equivalent synchronized; an explicit output schema is the
+  disclosure boundary. Do not return internal dictionaries or persistence objects without filtering.
+- Preserve HTTP semantics: safe methods have no effects; `PUT` and `DELETE` are idempotent; `PATCH`
+  is partial; `202` points to a status resource for long-running work. Use status codes according to
+  the loaded framework and published contract, never `200` with a hidden error.
+- Model resources consistently with the existing API. Paginate any collection that can grow without
+  a proven bound, using a stable order and capped page size. Allowlist filter/sort fields and
+  parameterize values.
+- Treat shipped-contract removal, renaming, type changes, new required input, or tighter auth as a
+  compatibility change. Use expand → migrate → contract and state the rollback path.
+- Deprecation is a published plan, not a magic header. `Deprecation` can announce the event and
+  `Sunset` can name end-of-service; neither mandates `410 Gone`, and supported-version count is a
+  product policy. Observe remaining callers and define post-sunset behavior explicitly.
 
-- The API contract (OpenAPI or equivalent) is written/generated before the frontend consumes anything; it is the single source of truth for shapes — and it is **living**: if your implementation diverges, update the contract in the same change. A stale contract is worse than none; parallel builders trust it.
-- Starter contract: [openapi.starter.yaml](./assets/openapi.starter.yaml) — problem+json, cursor pagination, bearer auth.
-- **One RFC 9457 error shape everywhere** — a client should never parse two error formats.
-  Use top-level problem details, never a nested error envelope. The worked shape is in the
-  **Errors — RFC 9457 problem+json** section below.
-- **Serialize through explicit response models** — never return ORM objects or internal dicts directly. A response model is an allowlist: anything not declared in it (password hash, internal flag) *cannot* leak.
-- `/v1` in the path from day one; breaking changes mean a new version, not a mutation. Breaking = removing or renaming a field, changing a type, or changing auth; adding fields or optional params is not. Run at most **two live versions**: announce the sunset (`Sunset` header with a date), then `410 Gone` after it — an undated deprecation never completes.
-- Every list endpoint paginates from the start — cursor-based by default (offset is fine for small, bounded admin lists); retrofitting pagination is a breaking change.
-- Compatibility review starts from this rule: a breaking change to a shipped contract is a principal-altitude change:
-  expand → migrate → contract, with the compatibility and rollback path explicit.
-  Ownership map only—not a load: the `eng-ladder` skill owns the altitude vocabulary.
+### Errors
 
-### Resource modeling & HTTP semantics
+Use the repository's one stable error shape. If none exists, define an RFC 9457-compatible
+`application/problem+json` contract and document which members/extensions the project requires.
+RFC 9457 makes its standard members optional and treats an omitted `type` as `about:blank`; do not
+attribute a stricter local shape to the RFC. Keep body `status` consistent with the HTTP response,
+allow clients to ignore unknown extensions, and never expose stack traces, SQL, credentials, or raw
+upstream bodies.
 
-- Model **nouns as resources**, with plural collections (`/incidents`,
-  `/incidents/{id}/events`). Reserve verb-y paths for genuine actions that are not CRUD
-  (`POST /deploys/{id}:cancel`).
-- Use methods for their **semantics**: `GET` (safe, cacheable), `POST` (create/non-idempotent),
-  `PUT`/`DELETE` (idempotent), and `PATCH` (partial). Never use `GET` for side effects.
-- **Status codes that mean something:** `200/201/202/204`; `400` (malformed) vs `422` (valid shape, bad value) vs `409` (conflict); `401` (who are you) vs `403` (not allowed);
-  `404`; `429` (rate limited, with `Retry-After`); and `503` (dependency down).
-  Never `200` with an error in the body.
-- **Long-running operations** return `202` + a status resource the client polls; do not block the
-  request thread while a deploy, backfill, or other operation runs.
+## Failure control
 
-## Errors — RFC 9457 problem+json
+- Give every outbound dependency a finite, tested time budget: connect/read/request timeout,
+  database statement or transaction budget, and queue acknowledgement/visibility behavior as
+  applicable. Record any deliberate exception.
+- Retry only transient failures that are safe to repeat, with bounded attempts, backoff, jitter, and
+  concurrency. Honor `Retry-After`; do not turn dependency failure into a retry storm.
+- For retryable unsafe writes, atomically bind the idempotency key to principal, operation, and
+  request fingerprint. Persist in-progress and completed state, define concurrent-duplicate
+  behavior, replay the recorded outcome, publish expiry, and reject key reuse with different input.
+  After an unknown outcome, retry with the same key.
+- Decide degradation per dependency. Fail fast when a required dependency remains unavailable;
+  preserve partial service only when the resulting contract is explicit and safe.
+- Keep transactions short, enforce invariants in the database where possible, and never hold a
+  database transaction across an outbound network call.
 
-Return one consistent `application/problem+json` shape with top-level `type` (a stable URI),
-`title`, `status`, `detail`, and `instance`, plus defined extension fields such as `errors[]`
-for field validation and `request_id` for log correlation. Stable types and codes are contract
-surface. *[sourced: RFC 9457]*
+## Security boundaries
 
-```json
-{
-  "type": "https://errors.example.internal/upstream-timeout",
-  "title": "Upstream timeout",
-  "status": 504,
-  "detail": "Grafana did not respond within 5s.",
-  "instance": "/v1/incidents",
-  "request_id": "req_8f3a2c"
-}
-```
-
-Use that same top-level shape for validation errors, 404s, and 500s; represent each validation issue
-as an `errors[]` entry.
-
-## Collections
-
-- **Cursor pagination** is the default: accept opaque `cursor` + capped `limit`, and return
-  `next_cursor`. Offset paging drifts and scans on large or changing sets.
-- **Filter and sort through allowlisted fields only.** Parameterize values; align the cursor with a
-  stable indexed order; keep transaction and lock budgets bounded; never interpolate client input.
-- Keep list responses envelope-consistent: `{ "data": [...], "next_cursor": ... }`.
-
-## Resiliency (the core focus)
-
-- **Timeouts on every outbound call** — HTTP, DB, queue — no exceptions. An unset timeout is an unbounded outage.
-- **Retries with backoff + jitter, only on idempotent operations**; a retry storm is self-inflicted DDoS.
-- **Fail fast on persistent dependency failure** and define degradation per dependency: what still works when the DB / upstream API / cache is down, decided deliberately.
-- **Idempotency**: mutating endpoints are safe to retry — naturally idempotent or via idempotency keys.
-- **Validate at the boundary** (Pydantic / zod / validator): reject bad input early with a clear error. Your own frontend is still an untrusted caller.
-- Guard shared mutable state and concurrent access; make every write safe under retry (transaction boundaries live in [persistence](./references/persistence.md)).
-
-These are the system-wide principles. The client-side mechanics for *calling other services* — retry policy, breakers, token refresh — live in [consuming APIs](./references/consuming-apis.md); don't restate them ad hoc.
+- Authenticate and authorize on the server. Check both the caller and the resource/action; frontend
+  hiding is not authorization. Deny by default and use least-privilege machine identities.
+- Validate and bound untrusted input: body size, collection lengths, page size, query cost, upload
+  type/content, and request duration. Parameterize queries and command arguments.
+- Use CORS only for an actual cross-origin browser contract, with an explicit allowlist. Never pair a
+  wildcard origin with credentials.
+- Rate-limit where exposure, cost, or abuse risk requires it. On `429`, include `Retry-After` and
+  document the quota. `X-RateLimit-*` is provider/legacy convention, not a universal standard;
+  adopt `RateLimit`/`RateLimit-Policy` only as an explicitly versioned product contract while the
+  current IETF work remains draft.
+- Keep secrets out of code, client bundles, images, URLs, command lines, errors, traces, and logs.
+  Changes to auth, token handling, crypto, or another trust boundary require independent security
+  review.
 
 ## Operability
 
-- Structured logs with a request ID on every entry — one request must be traceable end to end.
-- `/healthz` (process up) and `/readyz` (dependencies reachable) — distinct, because they answer different questions.
-- RED metrics (rate, errors, duration) on the request path.
-- Config from environment, validated at startup — fail fast and loud on bad config, never limp.
-- Graceful shutdown: stop accepting, drain in-flight requests, finish or re-queue the running job, stop the scheduler, close live streams — then exit.
+- Emit structured, redacted logs with approved correlation fields and RED metrics for request and
+  dependency paths. Propagate trace/request context only through approved fields.
+- Liveness answers whether the process should restart. Readiness answers whether this instance can
+  safely receive traffic; include only dependencies required for that answer, not every optional
+  integration.
+- Validate configuration at startup. On shutdown, stop accepting work, drain bounded in-flight work,
+  requeue or finish jobs according to their contract, close streams/clients, then exit.
+- Background work that must survive process loss belongs in a durable queue. Assume at-least-once
+  delivery unless the chosen platform proves otherwise; deduplicate and expose dead-letter/recovery
+  behavior.
 
-## Security
+## Verification
 
-- Secrets from env or a secret store — never in code, images, or logs.
-- Explicit CORS allowlist (never `*` with credentials); rate limiting on anything exposed (token bucket; on limit return `429` + `Retry-After`, and publish the budget in `X-RateLimit-Limit`/`-Remaining`/`-Reset` so well-behaved clients can self-throttle).
-- Require `Idempotency-Key` for unsafe retries of non-idempotent writes; bind the stored result to the caller and request fingerprint.
-- **Rate-limit** per principal and route, set request/time limits, and return `429` with `Retry-After`.
-- Never log secrets, tokens, or full request/response bodies.
-- **Bound what you accept**: request-body size caps, server-side request timeouts, and bounded query params (max page size, max array length). Inbound requests can do unbounded damage exactly like unbounded outbound calls — input *validation* itself lives under Resiliency.
+- Match the repository's test stack. Unit-test pure logic; integration-test real framework routing,
+  serialization, persistence semantics, and upstream boundaries where mocks would hide the risk.
+- Build a route-specific failure matrix rather than a ritual checklist: relevant auth failures,
+  malformed/invalid input, conflicts, absence, timeout, retry, rate limit, concurrent duplicate, and
+  dependency failure. Drop cases the route cannot have.
+- Exercise application startup/lifespan and shutdown. Contract-test the served schema and make at
+  least one real request through the application boundary.
+- Report exact commands, results, and remaining gaps. Evidence excerpts contain method/path, status,
+  request ID, and schema assertions—not credentials, cookies, PII, or full bodies.
 
-## Testing & quality gate
+## Load only the reference the task needs
 
-- **Unit** the pure logic; **integration-test** the handlers against a **real ephemeral database** (testcontainers or a throwaway Postgres — not mocks of your own DB).
-- **Mock the upstreams** you consume (respx / WireMock) and **test the failure paths that matter**: a timeout fires, a retry backs off, the circuit breaker opens. Resiliency code is worthless untested.
-- **Every endpoint earns a failure matrix** — of the failure modes that endpoint actually has, not
-  just a happy-path test: auth in its four shapes (missing, expired, malformed credential → 401;
-  authenticated-but-wrong-role → 403), the validation split exercised (400 malformed vs 422
-  semantically invalid), 404 on absent resources, 429 asserting `Retry-After` is present — and
-  where the endpoint takes an idempotency key, replaying the key returns the recorded response,
-  not a second effect. Uploads verify magic bytes, never the extension or declared Content-Type.
-  **Drop the rows the route doesn't have**: a deliberately public `/healthz` has no auth or 404 case,
-  and inventing one to complete the matrix changes the contract instead of testing it.
-- **Contract-test** against the OpenAPI spec so served shapes can't drift from what the frontend builds on.
-- Before "done": the service starts clean, tests pass, and the primary endpoints were exercised with **real requests** (curl/httpie). Record only a bounded, redacted evidence excerpt: method/path, status, request ID, and schema assertion. Strip Authorization headers, cookies, credentials, PII, and full bodies; keep full evidence in an access-controlled local artifact referenced by path and content hash. An API that was never called is written, not verified.
-
-## Before you write it — load the reference for what you're building
-
-Everything above applies to every backend task. The rules below apply only when the task involves the
-thing named. Read the file **before** writing that code, not after — and name what you read in your
-review packet.
-
-| If the task involves… | Read first |
+| Task | Reference |
 |---|---|
-| endpoint/resource/status/list design or a published API change | [API surface design](./references/api-design.md) |
-| choosing a stack for a greenfield service | [stack](./references/stack.md) |
-| building in Python + FastAPI (the greenfield default) | [FastAPI mechanics](./references/fastapi.md) |
-| calling any upstream or third-party API | [consuming-apis](./references/consuming-apis.md) |
-| a queue, a scheduled job, or an inbound webhook | [background-work](./references/background-work.md) |
-| streaming to clients (SSE or WebSocket) | [live-data](./references/live-data.md) |
-| a database or any persisted state | [persistence](./references/persistence.md) |
-| authenticating or authorizing a caller | [auth](./references/auth.md) |
+| endpoint/resource/status/list design or published API evolution | [API surface design](./references/api-design.md) |
+| bootstrapping an OpenAPI contract | [starter OpenAPI asset](./assets/openapi.starter.yaml) |
+| greenfield stack choice after `stack-profile` | [stack selection](./references/stack.md) |
+| Python with FastAPI/Pydantic | [FastAPI mechanics](./references/fastapi.md) |
+| calling an upstream or third-party API | [consuming APIs](./references/consuming-apis.md) |
+| queue, scheduled job, or webhook | [background work](./references/background-work.md) |
+| SSE or WebSocket | [live data](./references/live-data.md) |
+| application persistence code | [persistence](./references/persistence.md) |
+| authentication or authorization | [auth](./references/auth.md) |
 
-Trips two predicates? Read both. Trips none? The core above is the whole job.
+Load every row that applies and no unrelated reference.

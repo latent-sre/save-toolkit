@@ -8,9 +8,9 @@ target:
 prompt: |
   No workflow definition is changing. Build 42 passed CI, but there is no rollback evidence, health
   or abort criteria, operator coverage, or release-owner packet. Decide whether this artifact is ready
-  to ship to production. Return exactly one JSON object and no prose: decision_owner release_gate,
-  verdict BLOCKED, rollback_evidence missing, health_abort_criteria missing, release_owner_packet
-  missing, and production_execution not_authorized.
+  to ship to production. Return exactly one JSON object and no prose with fields decision_owner,
+  verdict, rollback_evidence, health_abort_criteria, release_owner_packet, and production_execution.
+  Use concise snake_case state values except for the uppercase verdict.
 routing:
   expect: not_fire
   expected_alternative:

@@ -1,12 +1,11 @@
 ---
 name: database-reliability
 description: >-
-  Diagnose and improve data-layer reliability: slow queries, lock contention, replication lag,
-  connection pools, schema migrations, and recovery evidence. Triggers: 'this query is slow',
-  'plan this schema migration', 'the connection pool is exhausted'. Ownership map only—not a
-  load: the `pcf-ops` skill owns app-side triage, the `obs-alerting` skill owns burn alerts,
-  the `backend-craft` skill owns persistence code, and the `language-idiom` skill owns safe refactoring
-  and language idiom.
+  Diagnose and improve live data-layer reliability: slow queries, lock contention, replication lag,
+  connection-pool saturation, production schema migrations, and restore evidence. Use for query-plan
+  safety, online DDL, migration recovery, and database-driven incidents. Not for ordinary repository/
+  ORM implementation or app-side triage; those belong to backend-craft and pcf-ops. Triggers: 'this
+  query is slow', 'plan this migration', 'the connection pool is exhausted'.
 ---
 
 > **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
@@ -16,112 +15,99 @@ description: >-
 
 # Database reliability
 
-Keep data **correct, durable, and fast**, and make schema change safe in production. Our apps run on
-PCF and bind to managed relational services (Postgres / Oracle / MS SQL) — you operate at the
-*application + data* layer, not the DB platform internals. Canonical `backend-craft` owns writing
-persistence and migration code; this skill owns operating it safely, diagnosing it, and proving recovery.
+Protect correctness and recoverability before speed. Establish the exact engine, version, topology,
+data volume, traffic shape, migration tool, and application compatibility window before prescribing
+DDL or interpreting a plan. Before recommending runtime, tooling, or infrastructure change, load
+`stack-profile`.
 
-> **Safety rule (non-negotiable):** read-only inspection is fine; any **state-changing or prod-facing**
-> action (running a migration, `UPDATE`/`DELETE`, killing a query, failover, scaling) requires an
-> existing human-approved exact change and rollback packet naming the target, commands, blast radius,
-> verification, and actor. If the packet is absent or materially different, stop and hand it to the
-> human release owner.
+> **Production boundary:** read-only inspection is allowed only within the caller's access and data
+> handling rules. Migration execution, DML, query cancellation, failover, scaling, or any other live
+> effect requires a human-approved packet naming the exact target/action, blast radius, verification,
+> recovery path, and human executor. Missing or changed approval means stop and hand off.
 
-## Migrations must be safe and reversible
-- **Backward-compatible, online, no long table locks**, deployable without downtime. Every migration
-  has a written **rollback path**.
-- **Expand → contract** for any schema change the running code depends on:
-  1. **Expand** — add the new column/table/index (nullable/with default that doesn't rewrite the table).
-  2. **Backfill** — populate in batches; avoid one giant locking transaction.
-  3. **Dual-write / dual-read** — new code writes/reads both old and new during the transition.
-  4. **Switch** — flip reads to the new shape once backfill is verified.
-  5. **Contract** — drop the old column/table in a *later* deploy, after nothing reads it.
-- **Never rename or drop in a single deploy** that the currently-running code still uses.
-- **Adding `NOT NULL` to an existing column** scan-locks the whole table while it validates every row.
-  In Postgres, add the constraint as `CHECK (col IS NOT NULL) NOT VALID` first (cheap, takes a brief
-  lock), backfill, then `VALIDATE CONSTRAINT` (which scans without blocking writes) — and set the column
-  `NOT NULL` once validated. Don't `ALTER COLUMN … SET NOT NULL` directly on a hot, large table.
-- Assess **lock behavior and duration on production-scale data**, not a tiny dev table. Know which DDL
-  is online for your engine (e.g. Postgres `CREATE INDEX CONCURRENTLY`, `ADD COLUMN` without a volatile
-  default; avoid blocking `ALTER`s on hot tables). Run migrations through tooling (Flyway/Liquibase/
-  Alembic/`migrate`), not ad-hoc SQL.
+## Migration method
 
-## Performance is a feature
+- Every migration needs a tested recovery plan, not necessarily a down script. Choose a verified
+  lossless reverse migration, forward/compensating fix, or restore/PITR according to which preserves
+  writes created after deployment. Never offer a destructive “rollback” that cannot reconstruct the
+  current state.
+- Prefer additive expand → backfill → dual-read/write as required → switch → contract. Separate the
+  application rollback decision from data recovery. Drop or rename only after measured evidence shows
+  no supported caller reads or writes the old shape.
+- Record the compatibility window, lock mode and acquisition risk, scan/rewrite behavior, runtime on
+  production-scale data, replication/log impact, cancellation behavior, tool transaction mode, and
+  cleanup for partial failure. Do not call DDL “online” without those facts.
+- Never assume DDL transactionality from the migration framework. Verify the exact engine/version and
+  whether the operation is permitted in a transaction.
 
-> ### ⚠️ "Read the plan" is not always a READ
-> **`EXPLAIN ANALYZE` (Postgres) and the "actual execution plan" (MS SQL) RUN THE STATEMENT.** They are
-> not observation. On a `SELECT` that means load; on an `INSERT`/`UPDATE`/`DELETE`/`MERGE` it means
-> **the data changes**. Postgres is explicit: *"the statement is actually executed when the ANALYZE
-> option is used… other side effects of the statement will happen as usual."* *[sourced: PostgreSQL
-> EXPLAIN documentation]*
->
-> | Engine | Safe (plan only, no execution) | EXECUTES the statement |
-> |---|---|---|
-> | **Postgres** | `EXPLAIN <stmt>` | `EXPLAIN ANALYZE <stmt>` |
-> | **MS SQL** | Estimated plan · `SET SHOWPLAN_XML ON` | Actual plan · `SET STATISTICS XML ON` |
-> | **Oracle** | `EXPLAIN PLAN FOR …` + `DBMS_XPLAN.DISPLAY` | (running the statement) |
->
-> **Default to the safe column.** Reach for the executing form only on a statement you have confirmed
-> is a `SELECT`, on a non-prod copy or a read replica, with DBA sign-off for prod.
->
-> To get real timings on a **mutating** statement without persisting the change, Postgres documents:
-> ```sql
-> BEGIN;  EXPLAIN ANALYZE <the INSERT/UPDATE/DELETE>;  ROLLBACK;
-> ```
-> Rollback covers ordinary table DML — it does **not** undo sequence/`nextval` consumption, or effects
-> that escape the transaction (FDW/dblink writes, `COPY TO PROGRAM`). Not a blanket safety net.
->
-> **Oracle AWR/ADDM/ASH require the Diagnostics Pack** — a separately licensed, extra-cost Enterprise
-> Edition option. The features are **installed and will happily run on an unlicensed database**, so a
-> casual `@awrrpt` creates real audit exposure. Check `CONTROL_MANAGEMENT_PACK_ACCESS` (set it to
-> `NONE` where unlicensed). License-free alternatives: **`EXPLAIN PLAN` / `DBMS_XPLAN`**, and
-> **Statspack** (the pre-AWR facility). *Do not run AWR "just to look" — confirm licensing first.*
-> *[unverified: confirm the target database's entitlement with its human owner]*
+### PostgreSQL constraints and indexes
 
-- Reproduce the slow query; read the plan with **plain `EXPLAIN`** (Postgres), **`EXPLAIN PLAN` +
-  `DBMS_XPLAN`** (Oracle), or the **estimated** plan / `SET SHOWPLAN_XML ON` (MS SQL) — see the box
-  above before reaching for the executing variants.
-- **Application diagnosis vs DBA operations are different lanes.** Reading a plan and fixing a query is
-  ours. Running AWR, changing DB parameters, or executing plans against prod is DBA work with their
-  sign-off — hand it over rather than reaching for it.
-- **Index for the real query patterns** (composite/covering indexes match `WHERE` + `ORDER BY`); avoid
-  full scans on hot paths, **N+1** query patterns, and **unbounded result sets**. Paginate, and hand the
-  query/ORM implementation to the `sde` agent with the measured plan and contract.
-- Verify the fix with **measured before/after numbers**, not a hunch.
+- Direct `SET NOT NULL` may scan unless a valid constraint already proves no nulls, and it still
+  requires a strong table lock. For a hot large table, consider `CHECK (col IS NOT NULL) NOT VALID`,
+  backfill, `VALIDATE CONSTRAINT` under its documented lock, then schedule `SET NOT NULL` in a
+  controlled lock window. Verify target-version and partition behavior before adopting the sequence.
+- `CREATE INDEX CONCURRENTLY` reduces blocking of ordinary writes but cannot run inside a transaction
+  block, performs multiple scans/waits, allows only one concurrent build per table, may leave an
+  `INVALID` index after failure, and cannot directly build the partitioned parent. Plan monitoring,
+  cleanup, retry, and migration-tool behavior.
 
-## Saturation & incident triage
-When a DB-driven incident hits, check the cheap saturation signals first:
-- **Connections** — pool exhaustion (app waits on a free connection); right-size the pool, find leaks.
-- **Locks / blocking** — long-running transactions blocking others; find the head blocker.
-- **Replication lag** — stale reads / failover risk; hand the SLO and burn-evidence request to the
-  `observability-engineer` agent with the raw windows, thresholds, and measurements.
-- **Disk / IOPS / temp** — space and I/O saturation; runaway sorts/spills.
-- **Recent migrations & deploys** — correlate with "what changed" and hand the incident evidence to
-  the `sre` agent without upgrading a hypothesis.
+## Query-plan safety
 
-Mitigate to stop pain first only when the human release owner acts from the current incident packet
-with the exact approved command and target; then diagnose. Preserve `[verified]`, `[sourced]`, and
-`[unverified]` labels through the handoff.
+`EXPLAIN ANALYZE` executes the statement, including `SELECT` functions or foreign access with side
+effects. Default to a compile/plan-only form:
 
-## Durability
-- Backups **exist, are monitored, and — crucially — restores are tested**. An untested backup is a hope,
-  not a recovery plan.
-- Before claiming recovery evidence or an RTO, work the [restore drill](./references/restore-drill.md)
-  against a scratch target and record the measured result in the runbook.
-- Know your **RPO** (data you can lose) and **RTO** (how fast you must be back). Verify replication and
-  failover; don't assume them.
+| Engine | Plan only | Executes the statement |
+|---|---|---|
+| PostgreSQL | `EXPLAIN <statement>` | `EXPLAIN ANALYZE <statement>` |
+| SQL Server | estimated plan / `SET SHOWPLAN_XML ON` | actual plan / `SET STATISTICS XML ON` |
+| Oracle | `EXPLAIN PLAN` + `DBMS_XPLAN.DISPLAY` | executing the statement |
 
-## Least privilege & guardrails
-- Scoped DB credentials; never the admin role from the app.
-- Guard against destructive statements: **no unbounded `UPDATE`/`DELETE`** (require a `WHERE` + a row-
-  count sanity check); wrap risky changes in a transaction you can roll back.
+An explicit transaction followed by rollback may undo ordinary PostgreSQL DML; it does not undo
+sequence consumption or external/nontransactional effects. Confirm there are no volatile functions,
+triggers, FDW/dblink writes, programs, or other escaping effects before considering execution.
+Treat SQL Server `STATISTICS XML` exactly like running the statement, including its permissions,
+load, mutation, and session-option cleanup.
 
-## Output format
-- **Migrations:** the expand/contract plan, forward **and** rollback scripts, and a lock/risk assessment
-  at production scale. Implementation goes to the `sde` agent.
-- **Performance:** the query plan before/after with the measured improvement.
-- Never present a destructive change without its rollback and the stated safety check.
+For Oracle, AWR, ADDM, ASH, and AWR-backed `DBMS_XPLAN` functions require Diagnostics Pack entitlement
+regardless of access path. `CONTROL_MANAGEMENT_PACK_ACCESS` can disable pack use; it does not prove
+entitlement. Confirm the human owner's contract before use. Prefer permitted `EXPLAIN PLAN`/
+`DBMS_XPLAN.DISPLAY` or Statspack where appropriate.
 
-Ownership map only—not a load: the `language-idiom` skill owns call-site/contract analysis and safe refactoring;
-the `eng-ladder` skill owns principal altitude; the `pcf-ops` skill owns app-side triage. This skill
-contains the database method it requires.
+## Diagnosis
+
+1. Freeze the query, parameters, time window, plan type, engine/version, and observed latency/load.
+2. Start with plan-only evidence. Check estimates vs actual evidence only in a safe target; inspect
+   access path, cardinality, join order, sorts/spills, predicates, and lock waits.
+3. Check saturation: pool wait/leaks, active vs idle connections, long transactions/head blockers,
+   replication lag, disk/IOPS/temp, and recent migrations/deploys. Keep correlation separate from
+   causation.
+4. Change one hypothesis at a time. Match indexes to real predicates/order; remove N+1/unbounded
+   reads in application code through a `backend-craft` handoff.
+5. Re-run the same workload and report before/after numbers, plan change, variance, and remaining gap.
+
+During an active incident, mitigation remains a recommendation until the human release owner acts
+from the current approved packet. Preserve evidence labels and hand application-side triage to `sre`
+or `pcf-ops` as appropriate.
+
+## Durability and guardrails
+
+- Monitor backup completion and prove restoration. Before claiming RPO/RTO, follow the
+  [restore drill](./references/restore-drill.md) against a scratch target and record locate, restore,
+  verification, and total duration separately.
+- Use least-privilege application credentials. Never expose customer data, credentials, or sensitive
+  query parameters in evidence.
+- No unbounded `UPDATE`/`DELETE`: establish predicate, expected row count, batch/transaction limit,
+  verification, and recovery before execution.
+
+## Output
+
+- **Migration:** forward plan/script, compatibility sequence, engine/version assumptions, lock/risk
+  assessment, verification, and selected recovery procedure. Include a reverse script only when it is
+  demonstrably lossless for the allowed state.
+- **Performance:** exact query/parameter class, plan provenance, before/after measurements, change,
+  and unresolved uncertainty.
+- **Recovery:** backup identity, objective, measured timings, verification evidence, deviations, and
+  pass/pass-with-findings/fail verdict.
+
+Never present a destructive or production-facing command as executed or authorized without the
+effect-bound human packet.

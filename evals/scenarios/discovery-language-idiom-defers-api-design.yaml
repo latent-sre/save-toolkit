@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-language-idiom-defers-api-design
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: language-idiom
+prompt: |
+  Choose the HTTP resources, compatibility policy, error contract, pagination, and authorization
+  boundary for a new service. No implementation language has been selected. Return exactly one JSON
+  object and no prose with fields decision_owner, language_review, and api_contract. Use concise
+  snake_case state values.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: backend-craft
+success_criteria:
+  - Keeps API and resiliency design with the backend lane
+  - Treats language idiom as secondary until an implementation language exists
+graders:
+  - type: json_exact_object
+    expected:
+      decision_owner: backend_craft
+      language_review: secondary
+      api_contract: primary

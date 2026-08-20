@@ -176,9 +176,10 @@ the response is one closed JSON decision record with fixed recommendation-only, 
 not-approved, and not-started enums. Extra fields, prose, duplicate keys, or different authority
 states fail closed.
 
-`[verified]` At exact commit `81338871e12a1778a8b6be464d66f5ded99178cb`, a clean normal checkout
-passed Gate A 40/40 and `evals/test_graders.py` passed 375/375. A fresh exact-SHA Sol review of the
-structured replacement is pending; Batch 1 is not called accepted until it returns no P0/P1.
+The final Batch 1 authority-schema repair is
+`65aa407540f4a51c1c5e72f605a5416edab5d143`. `[verified]` A clean normal checkout at that exact
+commit passed Gate A 40/40. A fresh independent `gpt-5.6-sol` review bound to the immutable commit and
+tree returned `APPROVE` with no P0, P1, or P2 finding. Batch 1 is accepted for this campaign.
 
 ### Batch 2 — readiness, authorization, and deployment
 
@@ -242,9 +243,82 @@ reconciliation, uses the real `runs-on.group` form, adds a stale-Green regressio
 and two adjacent-negative production-change discovery cases, replaces keyword bags with exact or
 relationship-aware graders, and pins both revision-row and droplet-pruning implementation paths.
 
-`[verified]` At exact commit `81338871e12a1778a8b6be464d66f5ded99178cb`, a clean normal checkout
-passed Gate A 40/40. The suite parsed 76 scenarios (21 direct, 55 discovery, 35 regression), all
-375 grader checks and 37 fleet-contract tests passed, evaluator bootstrap integrity passed, the
-generator wrote 300 adapter files with parity, `git diff --check` passed, and strict Claude plugin
-validation passed. Fresh exact-SHA Sol review of the repair remains required before Batch 2 is
-accepted.
+The next review found that free-form safety graders still accepted contradictory prose, rejected
+valid negated refusals, and encoded an impossible automatic alternative for the explicit-only
+`pcf-deploy` skill. Commit `7ce30e1398689fef7448e7190895696aad877e37` replaced those graders with
+one closed, strictly typed JSON-object contract: duplicate keys, non-finite values, extra fields,
+wrong JSON types, and trailing prose fail closed. A clean normal checkout at that exact commit passed
+Gate A 40/40. The follow-up exact-SHA review verified the strict parser but found that five discovery
+prompts disclosed their expected enum values, turning those cases into answer-copying tests. The
+current candidate removes that leakage from discovery and direct scenarios and adds adversarial
+fixtures for nested types, extra fields, duplicate keys, `NaN`, `Infinity`, and invalid evaluator
+configuration. Batch 2 remains open until this candidate is committed and independently re-reviewed.
+
+### Batch 3 — implementation and data-layer correctness
+
+`[verified]` Baseline body/reference bytes from `origin/main`:
+
+| Skill | Body bytes | Reference bytes |
+|---|---:|---:|
+| `backend-craft` | 11,080 | 17,198 |
+| `frontend-craft` | 14,201 | 35,502 |
+| `language-idiom` | 2,605 | 23,176 |
+| `database-reliability` | 8,528 | 2,081 |
+
+The contract pass preserved each lane's trigger, near-miss boundary, stack-profile dependency,
+authority boundary, and output contract. The accuracy pass removed framework defaults and corrected
+API, browser, language, accessibility, migration, and database claims. The context-economy pass
+deduplicated entrypoints and kept framework or language detail behind directly linked references.
+The adversarial pass added positive and adjacent-negative routing cases plus closed typed behavior
+records for unsafe retries, production DDL, `EXPLAIN ANALYZE`, PowerShell trust, and Go-version
+semantics.
+
+Candidate body/reference bytes after the four author passes:
+
+| Skill | Body bytes | Reference bytes | Body change |
+|---|---:|---:|---:|
+| `backend-craft` | 7,917 | 12,673 | -28.5% |
+| `frontend-craft` | 7,026 | 32,185 | -50.5% |
+| `language-idiom` | 2,433 | 14,589 | -6.6% |
+| `database-reliability` | 6,923 | 2,081 | -18.8% |
+
+`[verified]` Activated-body mass fell from 36,414 to 24,299 bytes (33.3%). The
+`language-idiom` entrypoint still makes its five-language routing and boundary explicit while its
+conditional references lost 8,587 bytes of generic ceremony and volatile tool mandates.
+
+Context7 established the documented contracts; GitHits separately checked current source,
+implementation, version, or adoption evidence:
+
+- `[sourced]` FastAPI response models are output boundaries; Pydantic `from_attributes=True` is not a
+  substitute. HTTPX `ASGITransport` does not run ASGI lifespan events. Evidence was queried through
+  Context7 `/websites/fastapi_tiangolo`, `/pydantic/pydantic`, and `/encode/httpx`, then checked
+  against FastAPI `0.140.13` commit `628663f4…`, Pydantic `2.13.4` commit `cf67d4b3…`, and HTTPX
+  `0.28.1` documentation commit `b5addb64…`.
+- `[sourced]` Browser `EventSource` construction has no arbitrary request-header option, so native
+  SSE cannot be described as accepting a bearer `Authorization` header. WCAG 2.2 AA target-size
+  minimum is 24×24 CSS pixels with exceptions; 44×44 is a stricter project preference, not the AA
+  minimum. Context7 sources were `/mdn/content` and `/websites/w3_tr_wcag22`; GitHits checked WCAG
+  commit `58080bdb…`.
+- `[sourced]` RFC 9457 problem-details members are optional, `Sunset` does not require HTTP 410, and
+  legacy `X-RateLimit-*` names are not a universal HTTP standard. The rewrite keeps project-specific
+  contracts explicit rather than presenting them as protocol requirements. Sources were Context7
+  `/websites/rfc-editor_rfc` and GitHits snapshots `ef2a6da1…`, `9addc0a2…`, and `9b4bc45c…`.
+- `[sourced]` `pytest --cov` comes from `pytest-cov`; Bash strict mode is not safe as an unconditional
+  library/sourced-script default; Go loop, timer, vendor, and toolchain behavior depends on the
+  repository's target version; PowerShell signing and `AllSigned` are not sandboxes, while WDAC or
+  AppLocker policy governs Constrained Language Mode. Context7 sources were the current pytest,
+  pytest-cov, GNU Bash, Go, and Microsoft PowerShell documentation; GitHits checked pytest `9.1.1`,
+  pytest-cov `7.1.0`, and current Go source.
+- `[sourced]` Database rollback is a recovery decision, not a requirement to ship a destructive down
+  script. PostgreSQL concurrent-index and `NOT NULL` techniques have transaction and lock caveats,
+  and `EXPLAIN ANALYZE` executes the statement. Context7 sources included
+  `/websites/postgresql_current`, `/microsoftdocs/sql-docs`, and
+  `/websites/oracle_en_database_oracle_oracle-database_19`; PostgreSQL source was checked at
+  `cb217c4f…`.
+
+`[verified]` Red-first evidence was observed before the Batch 3 scenario files existed: the new
+typed-behavior contract test failed nine cases, then passed after the scenarios were added or
+converted. The current local candidate passes `check_links.py`, 523/523 grader checks, adapter
+generation/parity for 300 files, and `git diff --check`. Exact-commit Gate A, strict plugin
+validation, and independent Sol review remain required before acceptance. No live routing-rate claim
+is made.

@@ -1,63 +1,42 @@
 # PowerShell idiom
 
-Write cmdlet-style PowerShell that composes in a pipeline and fails safely. **Windows PowerShell 5.1**
-and **PowerShell 7+** differ — state which you target.
+State whether the target is Windows PowerShell 5.1 or PowerShell 7+, then match the repository's
+module, analyzer, and Pester versions.
 
-## Function shape
-```powershell
-function Get-Thing {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)][string]$Name,
-        [int]$Count = 1
-    )
-    # comment-based help above; approved verb (Get/Set/New/Remove/...) + singular noun
-}
-```
-- **Approved verbs** (`Get-Verb`); `[CmdletBinding()]` + typed, validated params
-  (`[ValidateSet()]`, `[ValidateNotNullOrEmpty()]`).
-- Support `-WhatIf`/`-Confirm` via `SupportsShouldProcess` for state-changing functions.
+## Function and pipeline contract
 
-## Error handling
-- Set `$ErrorActionPreference = 'Stop'` (or `-ErrorAction Stop` per call) so failures are catchable;
-  wrap risky work in `try/catch`. Don't rely on `$?`.
-- Throw `terminating` errors for real failures; use `Write-Error` for non-terminating with context.
-- In a `catch`, re-throw with `$PSCmdlet.ThrowTerminatingError($PSItem)` (keeps your cmdlet as the
-  error source — better than a bare `throw`).
+- Advanced functions use approved verbs, singular nouns, `[CmdletBinding()]`, typed/validated
+  parameters, and comment-based help according to the repository's public-module standards.
+- State-changing functions implement `SupportsShouldProcess` and call `ShouldProcess` around the
+  exact effect so `-WhatIf`/`-Confirm` describe the real target/action.
+- Emit data as objects on the success pipeline. Use Information, Verbose, Warning, and Error streams
+  for diagnostics; formatting belongs at the display boundary. `Write-Host` is host-oriented and,
+  since PowerShell 5, writes through the Information stream—it is not data output.
 
-## Output & pipeline
-- **Emit objects, not formatted text** (`[pscustomobject]@{...}`); let the caller format. Reserve
-  `Format-*` for the end of a display pipeline.
-- **Never `Write-Host` for data** — it bypasses the pipeline. Use `Write-Output`/return, and
-  `Write-Verbose`/`Write-Information` for diagnostics.
+## Failure behavior
 
-## Correctness traps
-- **`$null` on the left:** `if ($null -eq $x)`, not `if ($x -eq $null)` (array-comparison gotcha).
-- Use **splatting** for many params: `$p = @{ Name='x'; Count=2 }; Get-Thing @p`.
-- `5.1 vs 7`: `??`/`?:`/ternary, `ForEach-Object -Parallel`, and some cmdlets are 7-only. Avoid
-  `2>&1` capture quirks on native exes in 5.1.
-- Need a Windows-PowerShell-only module from PS 7? `Import-Module <name> -UseWindowsPowerShell` proxies
-  via a 5.1 session — but objects return **deserialized** (properties only, no live methods).
+- Make cmdlet failures terminating where they must be caught (`-ErrorAction Stop` or a scoped
+  preference). Do not rely on `$?` after unrelated commands.
+- In `catch`, use bare `throw` when preserving the original execution information is the goal. Use
+  `$PSCmdlet.ThrowTerminatingError($ErrorRecord)` when intentionally presenting the advanced
+  function/cmdlet as the error source.
+- Put `$null` on the left of comparisons, use splatting for composed parameters, and avoid aliases or
+  version-only syntax outside the declared target.
+- Native-process stderr/exit handling and redirection differ across 5.1 and 7+; test the exact host.
+  Objects imported through `-UseWindowsPowerShell` are deserialized and lose live methods.
 
-## Cross-platform (PS 7 on Linux/PCF too)
-- Don't hardcode separators: use `Join-Path` and `[IO.Path]::DirectorySeparatorChar` for paths,
-  `[IO.Path]::PathSeparator` for PATH-style lists.
-- Branch OS-specific work on the automatic vars `$IsWindows` / `$IsLinux` / `$IsMacOS`.
-- Linux is **case-sensitive** for both file paths *and* environment-variable names (`$env:Path` ≠
-  `$env:PATH`) — match exact case.
+## Security and portability
 
-## Secrets & signing
-- Pull automation secrets from a vault at run time via **SecretManagement + SecretStore** (or Azure Key
-  Vault / HashiCorp Vault) — `Get-Secret` — never bake them into scripts, params, or transcripts.
-- Sign production scripts with **`Set-AuthenticodeSignature`** so they run under `AllSigned` policy /
-  Constrained Language Mode on locked-down hosts.
+- Secrets come from the approved secret provider and stay out of arguments, transcripts, errors, and
+  serialized output. `SecureString` alone does not make an unsafe transport safe.
+- Sign scripts where policy requires it, but signing and `AllSigned` are not sandboxes. WDAC or
+  AppLocker policy determines Constrained Language Mode and trusted-script behavior.
+- Use `Join-Path`/platform APIs and exact environment-variable casing on Unix. Branch on supported
+  automatic platform variables only for the declared PowerShell version.
 
-## Quality gate & tests
-- **Pass `PSScriptAnalyzer`** (fail CI on `Error` severity). High-value rules to enforce:
-  `PSUseApprovedVerbs`, `PSAvoidUsingCmdletAliases`, `PSUseShouldProcessForStateChangingFunctions`,
-  `PSAvoidUsingInvokeExpression`, `PSAvoidUsingPlainTextForPassword`,
-  `PSAvoidUsingConvertToSecureStringWithPlainText`.
-- Test with **`Pester`**: `Describe/Context/It`, `Mock`, `Should`; test param validation and error paths.
-  **Pester 5** runs Discovery then Run — put setup in `BeforeAll`/`BeforeEach` (not bare code in
-  `Describe`), share state via `$script:`, assert mocks with `Should -Invoke`. See the [tests-first process](./tdd.md).
-- Keep secrets out of logs/transcripts; use `SecureString`/credential objects, never plaintext.
+## Verification
+
+Run the repository's PSScriptAnalyzer rules and Pester suite. Pester 5 separates Discovery and Run;
+put setup in `BeforeAll`/`BeforeEach` as required. Test parameter binding, pipeline input/output,
+terminating and native failures, `ShouldProcess`, object shape, platform/version differences, and
+secret redaction.

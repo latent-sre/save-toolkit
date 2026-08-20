@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-frontend-craft-product-form
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: frontend-craft
+prompt: |
+  Build the customer-facing account settings form in the existing web application. Before coding,
+  return exactly one JSON decision record and no prose with fields ui_kind, framework, states,
+  accessibility, and browser_verification. Use JSON arrays for states and accessibility and concise
+  snake_case state values elsewhere.
+routing:
+  expect: fire
+success_criteria:
+  - Routes product UI implementation to the frontend lane
+  - Matches the repository rather than imposing a framework
+  - Covers resilient states, accessible interaction, and real-browser verification
+graders:
+  - type: json_exact_object
+    expected:
+      ui_kind: product_form
+      framework: repository_existing
+      states: [loading, error, empty, success]
+      accessibility: [programmatic_labels, keyboard_focus, visible_focus]
+      browser_verification: required

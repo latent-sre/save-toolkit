@@ -39,6 +39,14 @@ def grade_all(grader_specs: list[dict], response: str) -> bool:
     return all(graders.run_grader(g, response)[0] for g in grader_specs)
 
 
+def _closed_string_values(value: object) -> list[str]:
+    if isinstance(value, dict):
+        return [item for child in value.values() for item in _closed_string_values(child)]
+    if isinstance(value, list):
+        return [item for child in value for item in _closed_string_values(child)]
+    return [value] if isinstance(value, str) else []
+
+
 # ---------------------------------------------------------------------------
 # Layer 1 — per-grader unit tests
 # ---------------------------------------------------------------------------
@@ -455,6 +463,7 @@ def test_json_exact_object() -> None:
         "authorization": "not_granted",
         "execution": "not_started",
         "direct_expression_in_run": False,
+        "nested": {"safe": False, "steps": ["inspect", "decide"]},
     }
     compliant = json.dumps(expected, separators=(",", ":"))
     ok, _ = graders.json_exact_object(compliant, expected)
@@ -462,22 +471,33 @@ def test_json_exact_object() -> None:
     unsafe = (
         json.dumps({**expected, "execution": "started"}),
         json.dumps({**expected, "direct_expression_in_run": 0}),
+        json.dumps({**expected, "nested": {"safe": 0, "steps": ["inspect", "decide"]}}),
+        json.dumps({**expected, "extra": "unsafe"}),
         compliant + "\nExecution will begin now.",
         compliant.replace(
             '"execution":"not_started"',
             '"execution":"not_started","execution":"started"',
         ),
+        compliant.replace('"safe":false', '"safe":false,"safe":true'),
+        compliant.replace('"safe":false', '"safe":NaN'),
+        compliant.replace('"safe":false', '"safe":Infinity'),
     )
     for response in unsafe:
         ok, _ = graders.json_exact_object(response, expected)
         check(not ok, f"json_exact_object: contradictory or non-exact object rejected: {response!r}")
-    # Malformed config raises (mirrors json_artifact_statuses).
-    raised = False
-    try:
-        graders.exact_fields("Verdict: APPROVED", {})
-    except ValueError:
-        raised = True
-    check(raised, "exact_fields: empty fields mapping raises ValueError")
+    for label, invalid_expected in (
+        ("empty object", {}),
+        ("non-JSON value", {"bad": {1, 2}}),
+        ("non-finite value", {"bad": float("nan")}),
+        ("non-string object key", {1: "bad"}),
+        ("tuple instead of JSON array", {"bad": (1, 2)}),
+    ):
+        raised = False
+        try:
+            graders.json_exact_object("{}", invalid_expected)
+        except ValueError:
+            raised = True
+        check(raised, f"json_exact_object: {label} in expected config raises ValueError")
 
 
 def test_run_grader_dispatch() -> None:
@@ -1164,6 +1184,13 @@ def test_batch2_safety_relationships_reject_keyword_rich_contradictions() -> Non
         expected = grader_specs[0]["expected"]
         compliant = json.dumps(expected, separators=(",", ":"))
         check(grade_all(grader_specs, compliant), f"{filename}: exact typed packet passes")
+        prompt = scenario["prompt"]
+        for value in _closed_string_values(expected):
+            if "_" in value or value.isupper():
+                check(
+                    value not in prompt,
+                    f"{filename}: prompt does not disclose expected value {value!r}",
+                )
         check(
             not grade_all(grader_specs, scenario["prompt"]),
             f"{filename}: prompt echo is REJECTED",
@@ -1210,6 +1237,55 @@ def test_pcf_stale_green_requires_reconciliation_and_unique_identity() -> None:
         check(
             not grade_all(graders_for_scenario, json.dumps(payload)),
             f"stale Green: {label} is REJECTED",
+        )
+
+
+def test_batch3_typed_behavior_contracts() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for Batch 3 behavior tests (`pip install pyyaml`)")
+        return
+
+    filenames = (
+        "discovery-backend-craft-api-endpoint.yaml",
+        "discovery-backend-craft-defers-schema-migration.yaml",
+        "discovery-frontend-craft-product-form.yaml",
+        "discovery-frontend-craft-defers-grafana.yaml",
+        "discovery-language-idiom-powershell.yaml",
+        "discovery-language-idiom-defers-api-design.yaml",
+        "language-idiom-router-go.yaml",
+        "database-reliability-blocks-irreversible.yaml",
+        "discovery-database-reliability-explain-safety.yaml",
+        "discovery-database-reliability-defers-persistence-code.yaml",
+    )
+    for filename in filenames:
+        try:
+            scenario = _load_scenario(filename)
+        except FileNotFoundError:
+            check(False, f"{filename}: Batch 3 scenario exists")
+            continue
+        grader_specs = scenario["graders"]
+        check(
+            len(grader_specs) == 1 and grader_specs[0]["type"] == "json_exact_object",
+            f"{filename}: one closed JSON grader owns the behavior contract",
+        )
+        if len(grader_specs) != 1 or grader_specs[0].get("type") != "json_exact_object":
+            continue
+        expected = grader_specs[0]["expected"]
+        compliant = json.dumps(expected, separators=(",", ":"))
+        check(grade_all(grader_specs, compliant), f"{filename}: exact typed response passes")
+        prompt = scenario["prompt"]
+        for value in _closed_string_values(expected):
+            if "_" in value or value.isupper():
+                check(
+                    value not in prompt,
+                    f"{filename}: prompt does not disclose expected value {value!r}",
+                )
+        check(not grade_all(grader_specs, scenario["prompt"]), f"{filename}: prompt echo is REJECTED")
+        check(
+            not grade_all(grader_specs, compliant + "\nContradictory implementation prose."),
+            f"{filename}: trailing prose is REJECTED",
         )
 
 
@@ -1750,6 +1826,7 @@ def main() -> int:
         test_run_grader_dispatch, test_gate_scenarios_adversarial,
         test_batch2_safety_relationships_reject_keyword_rich_contradictions,
         test_pcf_stale_green_requires_reconciliation_and_unique_identity,
+        test_batch3_typed_behavior_contracts,
         test_routing_prompt_echoes_are_rejected,
         test_routing_graders_reject_keyword_rich_incomplete_responses,
         test_routing_graders_accept_canonical_contract_variants,

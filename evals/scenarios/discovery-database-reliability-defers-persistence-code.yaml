@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-database-reliability-defers-persistence-code
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: database-reliability
+prompt: |
+  Implement the repository layer and transaction boundaries for a new order-creation endpoint. No
+  slow query, incident, live migration, or recovery task exists. Return exactly one JSON object and
+  no prose with fields decision_owner, database_operations, and implementation. Use concise
+  snake_case state values.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: backend-craft
+success_criteria:
+  - Keeps application persistence implementation with the backend lane
+  - Does not invent live database operations or reliability work
+graders:
+  - type: json_exact_object
+    expected:
+      decision_owner: backend_craft
+      database_operations: not_requested
+      implementation: application_persistence_code

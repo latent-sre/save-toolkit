@@ -1,0 +1,27 @@
+schema_version: 1
+id: discovery-backend-craft-api-endpoint
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: backend-craft
+prompt: |
+  Add an order-creation HTTP endpoint that calls billing. Billing can time out, clients repeat
+  requests, and two duplicates may arrive concurrently. Before implementation, return exactly one
+  JSON decision record and no prose with fields contract, upstream_timeout, unsafe_retry,
+  failure_tests, and implementation. Use a JSON array for failure_tests and concise snake_case state
+  values elsewhere.
+routing:
+  expect: fire
+success_criteria:
+  - Routes backend endpoint work to the backend implementation lane
+  - Makes the response contract, finite timeout, and concurrent idempotency boundary explicit
+  - Requires failure-path tests before implementation
+graders:
+  - type: json_exact_object
+    expected:
+      contract: explicit_request_and_response_schema
+      upstream_timeout: finite
+      unsafe_retry: idempotency_key_bound_to_principal_operation_fingerprint
+      failure_tests: [timeout, concurrent_duplicate]
+      implementation: not_started

@@ -1,36 +1,21 @@
-Read this when writing tests-first or after any bug fix (the regression test is non-negotiable).
+# Tests-first change method
 
-## Red → green → refactor
-1. **Red.** Write a test that states the desired behavior and **run it — confirm it fails** (and fails
-   for the right reason, not a typo/import error).
-2. **Green.** Write the minimum code to make it pass. Run the suite.
-3. **Refactor.** Clean up with the test as your safety net; keep it green. See the [safe refactoring process](./safe-refactor.md).
+Use when behavior is gradeable before implementation and for every reproducible bug fix.
 
-The value isn't ritual — it's that **you have seen the test fail**, which is the only proof it *can*
-fail. A test written after the code and never observed red may assert nothing at all; that's the most
-common defect in a test suite, and it's invisible.
+1. State the observable contract and smallest failing example.
+2. Run the test against the pre-change behavior. Confirm it fails for the intended reason—not import,
+   fixture, or environment failure.
+3. Make the smallest coherent change that satisfies the contract; run the focused test.
+4. Refactor only while the behavior stays pinned, then run proportionate regression and failure-path
+   coverage.
 
-**Spike-then-pin carve-out:** full TDD earns its cost where behavior is specifiable up front
-(parsers, calculations, state machines). Exploring an unknown API or a UI's shape? Spike first, then
-write the tests that pin what you learned before calling it done. Either order is fine; shipping
-untested logic is not.
+For unfamiliar APIs, UX discovery, or performance exploration, a disposable spike may come first.
+Convert what was learned into behavior tests before shipping; do not preserve the spike as evidence.
 
-## Regression-first for bug fixes (non-negotiable)
-Before fixing a bug, write the test that **reproduces it** and **fails on the current (broken) code**.
-Then fix and watch it go green. This proves the bug is real and guards against its return.
+Test contracts rather than private implementation. Cover meaningful boundaries, error/timeout/
+cancellation paths, concurrency where applicable, and nondeterminism through injected clocks/random/
+network boundaries. Avoid sleeps, order dependence, and mocks that merely restate the code.
 
-## What to test
-- **Behavior and contracts**, not implementation details — so tests survive refactors.
-- Happy path, **edge cases** (empty/null/zero/negative, boundaries, large/unicode, concurrency), and
-  **error/failure paths**.
-- Inject or freeze nondeterminism (clock, randomness, network) — no flakiness, no order-dependence.
-- Prefer many fast unit tests; integration where components meet; a few e2e for critical journeys.
-
-## Frameworks (this team)
-Per-language frameworks and setup live in **`language-idiom`** (read the language file) — `pytest` (Python),
-`Pester` (PowerShell), `bats` (Bash), Vitest (TS/React), `testing` (Go). This skill owns the *method*
-(red-green, what to test); `language-idiom` owns the *tooling*.
-
-## Done
-- New behavior is covered; the bug-fix test fails without the fix.
-- Suite is green and fast; you state coverage delta and any gaps you left on purpose (and why).
+Evidence records the red failure, green result, regression command, and intentional gaps. A test that
+never failed may still be useful, but it is not evidence that it detects the named regression; use a
+targeted mutation or pre-fix run when that claim matters.

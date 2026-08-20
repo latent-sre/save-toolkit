@@ -1,0 +1,26 @@
+schema_version: 1
+id: discovery-language-idiom-powershell
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: language-idiom
+prompt: |
+  Review a state-changing Windows PowerShell 5.1 advanced function for pipeline behavior and trust
+  boundaries. Return exactly one JSON object and no prose with fields target, pipeline_output,
+  state_change_guard, signing_is_sandbox, and clm_boundary. Use a boolean for signing_is_sandbox and
+  concise snake_case state values elsewhere.
+routing:
+  expect: fire
+success_criteria:
+  - Routes language-specific PowerShell review to the language lane
+  - Preserves object-pipeline and ShouldProcess behavior
+  - Does not misrepresent signing or AllSigned as a sandbox
+graders:
+  - type: json_exact_object
+    expected:
+      target: windows_powershell_5_1
+      pipeline_output: objects
+      state_change_guard: supports_should_process
+      signing_is_sandbox: false
+      clm_boundary: wdac_or_applocker

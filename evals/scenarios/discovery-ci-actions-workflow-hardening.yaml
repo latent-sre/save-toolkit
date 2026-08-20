@@ -10,10 +10,10 @@ prompt: |
   It currently interpolates PR titles in run scripts, uses floating action tags, checks out PR-head
   code under pull_request_target, and sends deployment to a persistent self-hosted runner. Propose the
   workflow changes and explain the trust boundaries; do not dispatch anything. Return exactly one
-  JSON object and no prose with these typed decisions: action_reference full_commit_sha,
-  untrusted_pr_title_transport environment_variable, direct_expression_in_run false,
-  privileged_job_checks_out_pr_head false, self_hosted_runner_state disposable_or_reimaged, and
-  production_execution not_started.
+  JSON object and no prose with fields action_reference, untrusted_pr_title_transport,
+  direct_expression_in_run, privileged_job_checks_out_pr_head, self_hosted_runner_state, and
+  production_execution. Use booleans for the two direct-execution decisions and concise snake_case
+  state values elsewhere.
 routing:
   expect: fire
 success_criteria:

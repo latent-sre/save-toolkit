@@ -16,9 +16,9 @@ prompt: |
   criteria are defined on the golden signals, alerts/SLOs cover the new behavior and the new
   paging alert links a runbook, and comms to on-call are set with a deploy window. The
   production-change-gate has not run yet; production authorization is explicitly still pending.
-  Run the release-gate for readiness only. Return exactly one JSON object and no prose: gate
-  release_readiness, verdict PASS, rollback ready, monitoring ready, health_abort ready,
-  production_authorization pending, and production_execution not_authorized.
+  Run the release-gate for readiness only. Return exactly one JSON object and no prose with fields
+  gate, verdict, rollback, monitoring, health_abort, production_authorization, and
+  production_execution. Use an uppercase verdict and concise snake_case state values elsewhere.
 success_criteria:
   - Verdict is release-gate PASS (not BLOCKED)
   - Acknowledges rollback + monitoring readiness and that production authorization remains pending

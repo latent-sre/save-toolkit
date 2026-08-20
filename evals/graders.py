@@ -640,9 +640,12 @@ def json_exact_object(response: str, expected: dict[str, object]) -> tuple[bool,
         return actual == wanted
 
     try:
-        json.dumps(expected, allow_nan=False)
+        encoded_expected = json.dumps(expected, allow_nan=False)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"json_exact_object expected value is not strict JSON: {exc}") from exc
+    normalized_expected = json.loads(encoded_expected)
+    if not exact_types(normalized_expected, expected):
+        raise ValueError("json_exact_object expected value must use exact JSON types and string keys")
     try:
         payload = json.loads(
             response,

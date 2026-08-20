@@ -1,0 +1,25 @@
+schema_version: 1
+id: discovery-frontend-craft-defers-grafana
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: frontend-craft
+prompt: |
+  Create a Grafana operations dashboard for service latency, errors, traffic, and saturation. No
+  product web page is changing. Return exactly one JSON object and no prose with fields
+  decision_owner, ui_kind, and product_ui_implementation. Use concise snake_case state values.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: obs-dashboards
+success_criteria:
+  - Keeps Grafana operational dashboards with the observability dashboard lane
+  - Does not rebuild an operations dashboard as product UI
+graders:
+  - type: json_exact_object
+    expected:
+      decision_owner: obs_dashboards
+      ui_kind: grafana_operations_dashboard
+      product_ui_implementation: not_applicable

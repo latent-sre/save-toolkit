@@ -67,8 +67,8 @@ On any conflict, those owners and the target repository win.
 - Setup and cleanup are one reversible process. Remove listeners, disconnect subscriptions, clear
   timers, and abort or retire stale work. Strict Mode re-runs render, Effects, and ref callbacks in
   development to expose impurity and missing cleanup; fix the lifecycle instead of disabling it.
-- Use the repository's router/framework loader or query/cache layer (TanStack Query in this
-  skill's default stack) for server data. A manual fetch Effect needs cancellation or stale-result
+- Use the repository's router/framework loader or query/cache layer for server data. A manual fetch
+  Effect needs cancellation or stale-result
   suppression, error/loading state, caching, and a plan for waterfalls and server rendering.
 - Subscribe to an external mutable store through `useSyncExternalStore` or the repository's
   established wrapper rather than recreating subscription state with ad hoc Effects.
@@ -137,8 +137,8 @@ On any conflict, those owners and the target repository win.
   React Compiler rather than layering speculative manual memoization over it.
 - Keep props stable at expensive boundaries and subscribe at the granularity consumed. Split routes
   and genuinely heavy widgets, virtualize measured large lists, and verify the production bundle.
-- Test observable behavior through accessible roles, labels, text, and user interactions (React
-  Testing Library + MSW in this skill's default stack). Avoid assertions on Hook order, private
+- Test observable behavior through accessible roles, labels, text, and user interactions using the
+  repository's component/network tools. Avoid assertions on Hook order, private
   state, or component internals.
 - Exercise Effect cleanup, stale async results, error-boundary reset, Strict Mode development
   behavior, and state preservation/reset where those contracts changed.
