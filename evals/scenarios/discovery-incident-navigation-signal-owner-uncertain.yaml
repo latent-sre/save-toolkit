@@ -33,4 +33,6 @@ graders:
   - type: exact_fields
     fields:
       Where to look: "grafana://checkout-latency"
+      Question: "Is checkout latency elevated relative to its recent baseline?"
+      Signal owner: "obs-dashboards"
       State changed: "no"

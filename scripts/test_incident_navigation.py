@@ -142,7 +142,7 @@ SCENARIO_EVIDENCE_CONTRACTS = {
         "Branch protection evidence: enforce_admins=true; required_reviews=2; dismiss_stale=true [verified]",
         "Timing: maintenance window; no freeze in effect [verified]",
         "Comms: checkout stakeholders and checkout on-call notified [verified]",
-        "Return only the six-line production-change-gate verdict packet",
+        "Return only the ten-line production-change-gate verdict packet",
     ),
     "discovery-incident-navigation-defers-incident-command.yaml": (
         "First detected and declaration/cadence anchor: 18:04 UTC",
@@ -188,7 +188,11 @@ SCENARIO_EVIDENCE_CONTRACTS = {
 DESTINATION_SKILL_CONTRACTS = {
     Path("skills/production-change-gate/SKILL.md"): (
         "the entire response is the verdict packet",
-        "return exactly these six non-empty field lines as plaintext",
+        "return exactly these ten non-empty field lines as plaintext",
+        "Blast radius: <affected scope and worst credible failure>",
+        "Verification: <observable success evidence and duration>",
+        "Timing/freeze: <window, freeze state, or [unverified]>",
+        "Comms: <stakeholders/on-call notification evidence or [unverified]>",
         "do not include a code fence",
         "copy supplied evidence values without upgrading their labels",
         "include both the watcher and the supplied signals",
@@ -239,12 +243,16 @@ SCENARIO_CONTRACTS = {
         "mode: discovery",
         "name: incident-navigation",
         "expect: fire",
+        'Question: "Is checkout latency elevated relative to its recent baseline?"',
+        'Signal owner: "obs-metrics"',
         'First safe check: "Retrieve checkout p95 latency comparison."',
     ),
     "discovery-incident-navigation-signal-owner-uncertain.yaml": (
         "mode: discovery",
         "name: incident-navigation",
         "expect: fire",
+        'Question: "Is checkout latency elevated relative to its recent baseline?"',
+        'Signal owner: "obs-dashboards"',
     ),
     "discovery-incident-navigation-defers-known-triage.yaml": (
         "expect: not_fire",

@@ -34,3 +34,7 @@ graders:
     of: ["## Summary", "## Impact", "## Timeline (UTC, from evidence)", "## Trigger, root cause, and contributing factors", "## Where we got lucky", "## Action items", "## Verification gaps"]
   - type: contains_all
     of: ["preventative", "Owner", "Due", "Durable artifact / proof of done"]
+  - type: contains_all
+    of: ["42%", "two regions", "18:04", "18:31 UTC", "checkout-214", "18:22 human release owner", "unbounded downstream retry policy", "payment-provider timeouts", "canary did not exercise the payment timeout path", "unaffected region", "checkout owner", "bound downstream retries", "2026-09-03", "passing timeout-path integration test", "deployed configuration evidence", "notification-route delivery timestamp is unavailable"]
+  - type: not_regex
+    pattern: '^## Verification gaps\s*\n\s*(?:none|no gaps)\b'

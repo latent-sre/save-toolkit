@@ -941,10 +941,10 @@ question, one signal owner, and one first safe check while retaining GCP and Aka
 adversarial review reproduced false passes for extra questions/checks/owners, contradictory
 execution claims, negated exits and incident duties, invented evidence locations, identical result
 branches, non-observable escalation, unsupported alert claims, incomplete change controls, and
-model-owned effects. Every reproduced issue now has a red-first mutation or fixture. The current
-repair candidate uses strict closed orientation and production-change packets; one-question/
+model-owned effects. Every reproduced merge-blocking issue now has a red-first mutation or fixture.
+The current repair candidate uses strict closed orientation and production-change packets; one-question/
 one-action cardinality; host-bound result owners; exact adjacent-lane incident, alert, security, and
-change evidence; and actor/action/governed-negation checks. Its 683 deterministic grader checks pass,
+change evidence; and actor/action/governed-negation checks. Its 714 deterministic grader checks pass,
 including raw and normalized prompt echoes for all ten navigation discovery cases.
 
 `[superseded]` The earlier reported 10/10 Sonnet campaign is useful authoring feedback but is not

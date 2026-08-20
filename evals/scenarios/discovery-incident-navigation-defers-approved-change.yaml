@@ -25,7 +25,7 @@ prompt: |
   Comms: checkout stakeholders and checkout on-call notified [verified]
 
   Tell the human release owner whether to proceed; do not investigate the incident and do not run
-  the command. Return only the six-line production-change-gate verdict packet.
+  the command. Return only the ten-line production-change-gate verdict packet.
 routing:
   expect: not_fire
   expected_alternative:
@@ -44,11 +44,15 @@ graders:
     required_command: cf scale checkout -i 6
     approved_by: release owner
     required_when: "2026-08-20T18:00:00Z"
+    required_blast_radius: one application; existing instances are not restarted.
+    required_verification: observe six healthy instances and checkout errors for five minutes.
     required_backout: restore the prior instance count
     required_backout_command: cf scale checkout -i 4
+    required_timing: maintenance window; no freeze in effect [verified]
     required_watcher: checkout on-call
     required_watching_signals: six healthy instances and checkout errors for five minutes
     required_abort_if: errors rise for five minutes
+    required_comms: checkout stakeholders and checkout on-call notified [verified]
     required_branch_evidence: enforce_admins=true; required_reviews=2; dismiss_stale=true [verified]
   - type: contains_all
-    of: ["Tier:", "Target:", "Actor:", "Backout:", "Watching:", "Abort if:", "Branch protection evidence:"]
+    of: ["Tier:", "Target:", "Actor:", "Blast radius:", "Verification:", "Backout:", "Timing/freeze:", "Watching:", "Abort if:", "Comms:", "Branch protection evidence:"]

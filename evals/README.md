@@ -522,7 +522,7 @@ first-person/model execution claims, effects claimed during the response, and in
 imperatives.
 `incident_navigation_exit_contract` requires a closed five-field
 hard-exit packet whose destination, reason category, preserve-state instruction, and no-change claim
-exactly match the scenario. The adjacent-lane graders require the complete six-line
+exactly match the scenario. The adjacent-lane graders require the complete ten-line
 `production-change-gate` packet with exact target, actor, action, approval, and control binding; the
 complete eight-line security `incident-command` packet with a scenario-bound incident title,
 impact, timeline, investigating severity, exact human roles, evidence preservation, and bounded next

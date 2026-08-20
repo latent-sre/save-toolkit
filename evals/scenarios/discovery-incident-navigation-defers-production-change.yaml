@@ -24,12 +24,17 @@ graders:
     tier: 2
     target: checkout in prod
     actor: human release owner
-    required_change: requested checkout production action; approval, blast radius, and verification are missing
+    required_change: restart checkout
+    required_command: cf restart checkout
     approved_by: "[unverified]"
     required_when: "[unverified]"
+    required_blast_radius: "[unverified]"
+    required_verification: "[unverified]"
     required_backout: evidence is missing
+    required_timing: "[unverified]"
     required_watcher: "[unverified]"
     required_abort_if: "[unverified]"
+    required_comms: "[unverified]"
     required_branch_evidence: "[unverified]"
   - type: contains_all
-    of: ["approval", "blast radius", "verification", "Backout:"]
+    of: ["Approved by:", "Blast radius:", "Verification:", "Backout:", "Timing/freeze:", "Comms:"]

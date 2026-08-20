@@ -32,3 +32,4 @@ graders:
     required_incident_title: Suspected checkout compromise
     required_impact: checkout integrity scope unknown since 18:04 UTC; unbounded
     required_timeline: 18:04 credential alert; 18:06 security owner paged
+    required_next_update: 18:19 UTC

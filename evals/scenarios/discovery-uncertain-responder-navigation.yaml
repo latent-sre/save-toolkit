@@ -24,5 +24,7 @@ graders:
   - type: exact_fields
     fields:
       Where to look: "[unverified — not located]"
+      Question: "Is checkout latency elevated relative to its recent baseline?"
+      Signal owner: "obs-metrics"
       First safe check: "Retrieve checkout p95 latency comparison."
       State changed: "no"
