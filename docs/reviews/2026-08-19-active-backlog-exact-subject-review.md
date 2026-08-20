@@ -32,9 +32,12 @@ untouched. No reset, checkout-based restoration, stash, clean, or broad staging 
 `work/active-backlog-evidence`. Historical subjects were checked out detached by full SHA; the
 working branch was restored before the mutation regression was authored.
 
-`[verified]` The target files for the grader repair and POSIX cleanup are byte-identical between
-their final PR heads and refreshed main. The PR #119 evaluator hardening is present in refreshed
-main through its merge.
+`[verified]` The `evals/graders.py` implementation for the grader repair and both POSIX-cleanup
+target files are byte-identical between their final PR heads and refreshed main. PR #120 added a
+routing fixture, changing `evals/test_graders.py` from blob
+`ec3a61e0cf5174c50b14eed840479bee27f4046d` at PR #113 final head to
+`1418971191b02791eeae2540c087d8e4f53ed1e7` in refreshed main. The PR #119 evaluator hardening is
+present in refreshed main through its merge.
 
 ## ROUTE-001 -- grader repair
 
@@ -251,17 +254,10 @@ included the 50-test mutation-guard file (2 platform skips), 48 POSIX trial test
 345/345 current grader checks, and 73 evaluator-runner tests. This proves the branch is well-formed;
 it does not independently approve the author-written mutation test.
 
-## Ordered next actions
+## Subsequent work
 
-1. Obtain independent correctness/security review of `ec35aad33d97970a0a1b3c76598344f3bf10f857`,
-   and produce the fresh MUTATION-001 evidence envelope without rewriting retrospective chronology.
-2. Bind the ROUTE-001 and EVAL-002 exact-subject pass verdicts into their typed records through the
-   repository's approved lifecycle rather than treating this Markdown packet as self-promotion.
-3. Reconcile and resolve the obsolete PR #113/#114 threads and the PR #118/#119 threads only with
-   explicit GitHub write authority, preserving links to the exact reviewed heads.
-4. For ROUTE-001, provision and independently verify the protected Python/Git/object-store/host
-   boundary. Run one fixed authenticated canary only after that boundary passes. Implement and run
-   the fixed 48-trial executor only after the canary succeeds.
+This dated packet is round-closure evidence, not an actionable queue. The only live backlog and the
+governing next actions are in [`docs/fleet-roadmap.md`](../fleet-roadmap.md).
 
 ## What I did NOT do
 

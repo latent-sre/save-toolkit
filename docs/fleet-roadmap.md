@@ -324,10 +324,11 @@ limitation is recorded rather than implied covered: the detector is a normalizer
 search, not a shell parser. The typed record stays `observed` — its target paths already fit an
 attempt, so the missing piece is an independent evaluation of the exact candidate.
 
-**Exact-subject review (2026-08-19):** A separate clean clone at PR #113 final head
+**Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at PR #113 final head
 `9a5dbe648995013134fcb63ede3d917275982ad5` passed all 342 grader checks. Fresh static
-correctness/security review found no remaining P0/P1 in the grader repair and confirmed that current
-main retains the reviewed implementation bytes. The pass verdict and its shell-normalizer limits are
+correctness/security review found no remaining P0/P1 in the grader repair, and the grader
+implementation in current main retains the reviewed bytes. The pass verdict and its
+shell-normalizer limits are
 recorded in the
 [`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
 That Markdown packet is not a typed-record attempt or evidence envelope and ran no live trial.
@@ -379,23 +380,27 @@ the preparation-only
 no evaluation, promotion, or monitoring authority.
 
 PR #116 final head `ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b` changed both linked target
-paths from base `f75dca0ccd9063360318fb8f11bf5806f03cd357`; current main retains those exact
-target bytes. GitHub Actions runs
+paths from base `f75dca0ccd9063360318fb8f11bf5806f03cd357`. `[verified]` The
+`scripts/mutation_guard.py` implementation remains byte-identical to that final head. The
+`scripts/test_mutation_guard.py` bytes at blob `751c9ae56b207143d2b3678d5e5f6435198991b4`
+belong to the test-only follow-up commit `ec35aad33d97970a0a1b3c76598344f3bf10f857`,
+not PR #116 (whose test blob was `d8f624bea6562c98ba5561a79b3b37ca26ce9d26`). `[verified]`
+GitHub Actions runs
 [#32030853567](https://github.com/latent-sre/save-toolkit/actions/runs/32030853567) and
 [#32034404514](https://github.com/latent-sre/save-toolkit/actions/runs/32034404514) passed Gate A on
 Ubuntu, macOS, and Windows. The last independent review was bound to `b90e56f9`; final head then
 added 88 lines and removed 3 across the target paths, so neither that review nor green CI supplies
 the missing exact-subject verdict.
 
-**Exact-subject review (2026-08-19):** The full focused suite at `ccceb33` passed (49 tests, 2
-skipped), but an unbounded self-sweep reported 48 survivors and exposed one actionable missing
+**Exact-subject review (2026-08-19):** `[verified]` The full focused suite at `ccceb33` passed (49
+tests, 2 skipped), but an unbounded self-sweep reported 48 survivors and exposed one actionable missing
 assertion: changing `_sample_limit` from `< 0` to `<= 0` survived even though that mutant rejects the
-documented unbounded `--limit 0` input. The implementation is correct; its contract was not pinned.
-The review therefore requested changes. Test-only commit
+documented unbounded `--limit 0` input. The implementation is correct; its contract was
+not pinned, so the review requested changes. Test-only commit
 `ec35aad33d97970a0a1b3c76598344f3bf10f857` adds the missing public-behavior regression. The exact
 mutant fails the new test with `EXIT_USAGE`; the restored implementation passes, and the focused
-suite is green at 50 tests with 2 skips. The complete final branch worktree also passes all 40 Gate A
-steps in the pinned network-disabled, read-only container. See the
+suite is green at 50 tests with 2 skips. The complete final branch worktree also passes
+all 40 Gate A steps in the pinned network-disabled, read-only container. See the
 [`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
 
 **Next action:** Produce a fresh evaluation envelope for the selected artifacts at `ec35aad`, then
@@ -521,7 +526,8 @@ on Ubuntu, macOS, and Windows. This supplies repeated macOS execution for the re
 fresh evidence envelope or independent final-byte review was produced; the record therefore remains
 `observed` with empty attempt and review arrays.
 
-**Exact-subject review (2026-08-19):** A separate clean clone at final PR subject `106ee282` passed
+**Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at final PR subject
+`106ee282` passed
 all 48 `test_codex_trial.py` tests on Windows (6 platform skips) and in the pinned network-disabled,
 read-only Linux container (2 platform skips). The Linux run covered the real descendant checks.
 Fresh static correctness/security review confirmed the two-fact invariant and found no remaining
@@ -675,12 +681,12 @@ call-order, discovery-mismatch, and cross-trial mutation regressions all failed 
 subjects; the full 72-test evaluator suite now passes in the network-disabled pinned Python 3.12
 container.
 
-**Final whole-diff review (2026-08-19):** Review of `4479833..9fef148` confirmed that the evaluator
-executes only the frozen trusted parser, treats the measured parser as byte-compared data, binds the
+**Final whole-diff review (2026-08-19):** `[verified]` Review of `4479833..9fef148` confirmed that the
+evaluator executes only the frozen trusted parser, treats the measured parser as byte-compared data, binds the
 support digest, preloads before candidate mutation, freezes direct-agent tools, and verifies parent
-teardown. The exact final head passed all 40 Gate A steps in the pinned network-disabled, read-only
-container, including 73 evaluator-runner tests and 342 grader checks. No P0/P1 remains in the code
-diff. See the
+teardown. The exact final head passed all 40 Gate A steps in the pinned network-disabled,
+read-only container, including 73 evaluator-runner tests and 342 grader checks. No P0/P1
+remains in the code diff. See the
 [`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
 
 **Next action:** Reconcile and resolve the PR #118 candidate-code execution thread and PR #119
