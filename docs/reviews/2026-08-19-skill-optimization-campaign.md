@@ -356,6 +356,25 @@ The unbounded `evals/graders.py` mutation sweep generated 224 mutants and left 5
 it therefore exits nonzero and is not represented as a clean mutation score. No mutant survives in
 `json_incident_command_packet` or `json_exact_object`.
 
-Two independent exact-SHA closing reviews of this repaired, evidence-bound candidate remain the
-acceptance condition. No live routing/model campaign, production effect, release, push, or external
-system mutation is part of this evidence.
+The first exact-SHA closing pair reviewed evidence-bound candidate `8c713827…`. The authority and
+technical-accuracy lane approved it with no finding. The prompt/evaluator lane found one P1: the Go
+scenario encoded an unordered concern set as a positionally compared array, while the database plan
+scenario required the undisclosed spelling `plain_explain`; semantically correct reordered or
+`plan_only` answers could therefore fail.
+
+`[verified]` Regression checks added before the scenario repair failed 7 of 663 checks. Commit
+`c80334b43850165ccdd2561457c9882bb084eb93` represents the Go concern set as an exact-key JSON
+object, makes object-key order irrelevant while rejecting missing/false/extra concerns, and closes
+the database scenario over an explicit two-choice vocabulary with mixed expected-choice positions.
+At that exact commit and tree `acdd0a94d26dfe23e2e861f2aedcb3ffdc32e1a5`:
+
+- the focused grader suite passes 664/664;
+- all 87 scenarios validate (23 direct, 64 discovery, 42 regression);
+- fleet-contract tests pass 43/43;
+- Gate A passes 40/40 in a clean normal checkout and strict plugin validation passes;
+- a fresh unbounded `evals/graders.py` mutation sweep again generates 224 mutants and leaves the
+  same 55 legacy survivors, with no survivor in `json_exact_object`.
+
+Both independent `gpt-5.6-sol` closing re-reviews approved exact `c80334b…` with P0=0, P1=0, and
+P2=0. Batch 2 and Batch 3 are therefore accepted as local reviewed candidates. No live routing/model
+campaign, production effect, release, push, or external-system mutation is part of this evidence.
