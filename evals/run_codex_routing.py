@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Validate and plan the fixed Codex/Terra ROUTE-001 campaign.
+"""Validate and run the fixed Codex/Terra ROUTE-001 instruments.
 
-The live executor is added only after the provider-native activation trace has an independently
-tested contract.  This module already freezes the model, scenario, revision, and authority inputs
-so a behavior-only Codex transcript cannot be mistaken for routing evidence.
+The campaign and development probes freeze their model, scenario, revision, and authority inputs.
+Description selection, explicit body behavior, and the narrower campaign evidence remain separately
+labeled so one observation cannot be promoted into another.
 """
 from __future__ import annotations
 
@@ -58,6 +58,15 @@ CURRENT_REVISION = "7aef80aede95394f6c4237ed2aedb911e141c3c0"
 CANARY_SCENARIO_ID = "discovery-gcp-ops-cloud-run-startup"
 CANARY_EXPLICIT_SKILL = "gcp-ops"
 CANARY_TRIAL = 1
+CANARY_PROBE_MODES = frozenset({"body", "description"})
+CANARY_DESCRIPTION_PROMPT_PREFIX = (
+    "This is a skill-description selection check. Do not solve the task. Choose the one "
+    "available skill whose description best matches it. Reply with exactly the bare skill name "
+    "and no other text.\n\nTask:\n"
+)
+CANARY_SKILL_BODY_SHA256 = (
+    "a319096742e87f45fa6e9cf3652247237a9aff3cdec7835cd775b78bd4dd3bd6"
+)
 CANARY_CANONICAL_SHA256 = (
     "5c516ab15a31cd26923193b97ab69e7c16337ef8ab916bf43706c3047f79fd6b"
 )
@@ -138,6 +147,7 @@ LINUX_MANIFEST_KEYS = BASE_MANIFEST_KEYS | {
     "base_image_digest",
     "python_executable_path",
     "codex_executable_path",
+    "scenario_bundle_sha256",
 }
 WINDOWS_MANIFEST_KEYS = BASE_MANIFEST_KEYS
 MANIFEST_KEYS = LINUX_MANIFEST_KEYS
@@ -205,6 +215,9 @@ LINUX_EXPECTED_VALUES = {
     ),
     "codex_executable_path": "/opt/route001/codex-runtime/bin/codex",
     "codex_executable_sha256": CODEX_EXECUTABLE_SHA256,
+    "scenario_bundle_sha256": (
+        "640ed0da086f976b390e1f1e2c664a4181aef302c7f2dd9d7031cfe881c549cb"
+    ),
 }
 EXPECTED_VALUES = LINUX_EXPECTED_VALUES
 RESERVED_AUTHORITY = {
@@ -290,6 +303,8 @@ def load_manifest(path: Path = MANIFEST_PATH) -> dict:
 
 def load_stable_scenario_bundle(
     path: Path = SCENARIO_BUNDLE_PATH,
+    *,
+    expected_sha256: str,
 ) -> tuple[bytes, dict[str, dict]]:
     """Load the JSON-only live scenario closure without PyYAML or mutable suite discovery."""
 
@@ -297,6 +312,12 @@ def load_stable_scenario_bundle(
     after = path.read_bytes()
     if before != after:
         raise ValueError("scenario bundle changed while it was loaded")
+    if (
+        not isinstance(expected_sha256, str)
+        or not SHA256_RE.fullmatch(expected_sha256)
+        or hashlib.sha256(before).hexdigest() != expected_sha256
+    ):
+        raise ValueError("scenario bundle digest does not match the manifest")
     payload = parse_manifest(before)
     if set(payload) != {"schema_version", "scenarios"} or payload.get("schema_version") != 1:
         raise ValueError("scenario bundle has an invalid schema")
@@ -754,11 +775,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="precreated private result root used only with --campaign",
     )
     parser.add_argument(
+        "--container-image-id",
+        help="immutable outer image ID used only with --campaign",
+    )
+    parser.add_argument(
         "--scenario-id",
         default=CANARY_SCENARIO_ID,
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--canary-arm",
+        choices=sorted(CANARY_PROBE_MODES),
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args(argv)
+
+    if not args.canary and args.canary_arm is not None:
+        print(
+            "codex-terra-routing: --canary-arm is canary-only",
+            file=sys.stderr,
+        )
+        return 3
 
     try:
         manifest_before, manifest = load_stable_manifest(args.manifest)
@@ -775,7 +812,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         ]
         if args.campaign:
             try:
-                _scenario_bytes, live_scenarios = load_stable_scenario_bundle()
+                _scenario_bytes, live_scenarios = load_stable_scenario_bundle(
+                    expected_sha256=manifest.get("scenario_bundle_sha256")
+                )
             except (OSError, ValueError) as exc:
                 print(
                     f"codex-terra-routing: scenario bundle could not be frozen: {type(exc).__name__}",
@@ -806,9 +845,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             or args.repo_root is None
             or args.private_root is None
             or (args.campaign and args.campaign_root is None)
+            or (args.campaign and args.container_image_id is None)
         ):
             print(
                 "codex-terra-routing: live setup requires its fixed executable, repository, and private-root inputs",
+                file=sys.stderr,
+            )
+            return 3
+        if not args.campaign and args.container_image_id is not None:
+            print(
+                "codex-terra-routing: --container-image-id is campaign-only",
                 file=sys.stderr,
             )
             return 3
@@ -846,7 +892,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result = codex_trial.run_preflight(
                     scenario=manifest["canary_scenario"],
                     spec=spec,
-                    canary_body_probe=True,
+                    canary_probe_mode="body",
                     **common,
                 )
             elif args.campaign:
@@ -856,29 +902,34 @@ def main(argv: Sequence[str] | None = None) -> int:
 
                 plan = campaign_plan(manifest, CURRENT_REVISION)
                 campaign_root = Path(args.campaign_root).resolve(strict=True)
-                if any(campaign_root.iterdir()):
-                    journal = codex_campaign.CampaignJournal.open(
-                        campaign_root,
-                        plan=plan,
-                        manifest_sha256=common["manifest_sha256"],
-                    )
-                else:
-                    journal = codex_campaign.CampaignJournal.create(
-                        campaign_root,
-                        plan=plan,
-                        manifest_sha256=common["manifest_sha256"],
-                    )
+                with codex_campaign.CampaignLock(campaign_root) as lock:
+                    if (campaign_root / "campaign.json").is_file():
+                        journal = codex_campaign.CampaignJournal.open(
+                            campaign_root,
+                            plan=plan,
+                            manifest_sha256=common["manifest_sha256"],
+                            container_image_id=args.container_image_id,
+                            lock=lock,
+                        )
+                    else:
+                        journal = codex_campaign.CampaignJournal.create(
+                            campaign_root,
+                            plan=plan,
+                            manifest_sha256=common["manifest_sha256"],
+                            container_image_id=args.container_image_id,
+                            lock=lock,
+                        )
 
-                def run_campaign_trial(item: TrialSpec) -> Mapping[str, object]:
-                    trial_result = codex_trial.run_trial(
-                        auth_file=args.auth_file,
-                        scenario=live_scenarios[item.scenario_id],
-                        spec=item,
-                        **{**common, "exact_revision": True},
-                    )
-                    return trial_result.as_dict()
+                    def run_campaign_trial(item: TrialSpec) -> Mapping[str, object]:
+                        trial_result = codex_trial.run_trial(
+                            auth_file=args.auth_file,
+                            scenario=live_scenarios[item.scenario_id],
+                            spec=item,
+                            **{**common, "exact_revision": True},
+                        )
+                        return trial_result.as_dict()
 
-                summary = codex_campaign.run_campaign(journal, run_campaign_trial)
+                    summary = codex_campaign.run_campaign(journal, run_campaign_trial)
                 print(json.dumps(summary, sort_keys=True, separators=(",", ":")))
                 return 0 if summary["status"] == "complete" else 4
             else:
@@ -887,7 +938,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     auth_file=args.auth_file,
                     scenario=manifest["canary_scenario"],
                     spec=spec,
-                    canary_body_probe=True,
+                    canary_probe_mode=args.canary_arm or "body",
                     **common,
                 )
         except (KeyError, OSError, ValueError) as exc:

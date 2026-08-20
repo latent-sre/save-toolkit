@@ -34,6 +34,7 @@ WINDOWS_EVALUATOR_FILES = (
     "codex_hook_recorder.py",
     "codex_model_catalog.py",
     "codex_routing_grade.py",
+    "codex_runtime.py",
     "codex_snapshot.py",
     "codex_trial.py",
     "graders.py",

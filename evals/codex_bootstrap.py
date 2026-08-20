@@ -49,6 +49,7 @@ CANARY_BUNDLE_FILES = frozenset(
         "evals/codex_hook_recorder.py",
         "evals/codex_model_catalog.py",
         "evals/codex_routing_grade.py",
+        "evals/codex_runtime.py",
         "evals/codex_snapshot.py",
         "evals/graders.py",
         CANARY_MANIFEST,

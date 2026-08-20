@@ -9,7 +9,7 @@ their prominence. The runnable Claude suite is the third row.
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
-| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed; seven development canaries: four inconclusive, three behavior failures | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
+| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed; fourteen development probes: four inconclusive, six valid `FAIL`, four `PASS`; campaign never run | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
@@ -66,7 +66,7 @@ starts from an externally verified copy of [`codex_bootstrap.py`](codex_bootstra
 absolute, protected Python installation with `-I -S -B`. A Windows review packet must pin the complete
 Python DLL/standard-library closure, the protected bootstrap bytes, and the exact SHA-256 of
 [`codex-terra-evaluator-v1.json`](conformance/codex-terra-evaluator-v1.json). The bootstrap then
-copies the exact nine-file evaluator closure into a private stage, synthesizes either the auth-free
+copies the exact ten-file evaluator closure into a private stage, synthesizes either the auth-free
 preflight or the only accepted `--canary` argument set, and verifies that stage before and after
 execution. The external launcher
 must also supply an empty private root on a local fixed NTFS volume; UNC, mapped, substituted,
@@ -85,6 +85,34 @@ Repeated development attempts update that one file; they do not require a new na
 Update durable campaign documentation only when a canary produces a valid verdict, the instrument
 contract changes, or the work is deliberately closed. Standalone `preflight` remains available for a
 credential-free diagnostic, and `campaign` retains its separate 48-trial journal and review gates.
+
+The approved three-round diagnostic uses the existing one-call container command six times, with a
+fresh output root for every coordinate: `--canary-arm description`, then `--canary-arm body`, in
+that order for rounds one through three. Each command runs its own credential-free, networkless
+preflight and can start at most one paid call. Do not retry an ambiguous, invalid, or `INCONCLUSIVE`
+coordinate; stop the sequence and report it. Valid `PASS` and `FAIL` observations continue until all
+six calls are complete so the repetitions expose variance. This intentionally small operator
+sequence adds no campaign journal or second executor. Keep the six compact `canary-result.json`
+files separate and compare arms only within the same round.
+
+The description arm asks for exactly one bare skill name from the rendered catalog and never names
+the expected skill in its user prompt. It records `catalog-description-selection`; it neither loads
+nor grades a skill body and is not a provider-native activation receipt. The body arm uses explicit
+`$gcp-ops`, records `explicit-skill-body-probe`, and requires the staged projected
+`gcp-ops/SKILL.md` to match SHA-256
+`a319096742e87f45fa6e9cf3652247237a9aff3cdec7835cd775b78bd4dd3bd6` before launch. Current official
+Codex documentation establishes that explicit selection injects full skill instructions; exact
+Codex `rust-v0.148.0` source at `3ba0f711642a888aec92a611a3f3b2211157ff89` separately confirms
+that explicit selections are read and injected while `skill_search` remains shadow-only. The body
+arm tests the entrypoint, not conditional reference loading. Neither arm is campaign, baseline,
+promotion, or release evidence. The current manifest digest is recorded in the dated review packet.
+
+The approved three rounds completed against exact evaluator commit
+`cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` and image
+`sha256:2ddd1652e8ceb8afa0c68146ad0d4399a4068d1e09f4c64c730c55985c39a06b`.
+Description selection passed 3/3. Explicit body behavior passed 1/3; rounds one and three failed only
+grader 5. The dated review records the compact artifact hashes and the conflicting fence contracts
+that explain why this is not campaign-ready.
 
 The historical Windows host arm does not satisfy that launch contract: its Python installation and runtime
 closure are writable by the operator identity. The canary is therefore **NO-GO** until a protected
@@ -106,9 +134,13 @@ returned `0`, but trace or hook validation failed closed. A third bounded 0.148.
 A fourth authorized canary from clean commit `79a27cf2e52af15db66cef7ad435f0374ecaca1c` and image
 `sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b`
 exercised that repair but again returned `trace-or-hook-invalid`. Commit
-`6819773e5fab4c7bc1747f1be6907c8a8b269110` now distinguishes sanitized `trace-invalid` from
-`hook-invalid` with red-first coverage; it has not had a live retry. All four results remain
-`INCONCLUSIVE`.
+`6819773e5fab4c7bc1747f1be6907c8a8b269110` distinguishes sanitized `trace-invalid` from
+`hook-invalid` with red-first coverage. Four later 0.148.0 development canaries reached behavior
+grading and returned valid `FAIL` verdicts. The latest ran the explicit body-load probe from commit
+`09cca0ef93c739caccfb0051f6ce900d8108ad8f` and image
+`sha256:e2a285bc329cca97dceb6d1561fbfc0b877022edccea7d7d95a15cb28372102f`:
+graders 0 and 4 failed while 1, 2, 3, and 5 passed. Its compact result has SHA-256
+`9209f4d7108325ae326fd9692611d4e7351aba03cdb1a8f108ba74ac7b7eccef`; no retry followed.
 See the [Linux canary evidence packet](../docs/reviews/2026-08-20-route001-linux-canary.md). No Terra
 campaign, routing result, or baseline has been recorded.
 The full campaign may run only from exact,
@@ -138,13 +170,18 @@ The fixed authenticated development canary still uses the non-root
 selected host `SKILL.md` without exposing a file tool. The derived prompt SHA-256 is
 `65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3`, and the trial records
 `explicit-skill-body-probe`. This canary-only diagnostic tests body injection and response shaping;
-it is not an implicit-routing result and is rejected for every other scenario coordinate. It has not
-yet been run live. The canary disables multi-agent, permits only the fixed linear graders
+it is not an implicit-routing result and is rejected for every other scenario coordinate. Its one
+authorized live run produced the valid `FAIL` above; it did not authorize a retry or campaign. The
+canary disables multi-agent, permits only the fixed linear graders
 `contains_all`, `contains_any`, and `cloud_run_rollback_packet`, and rejects responses above 256 KiB
 total or 8 KiB per line before grading. The rollback grader accepts exactly one fenced JSON packet,
 binds its two command fields to the scenario's exact service and synthetic revision IDs, and rejects
 extra traffic commands, shell syntax, wrong weights, or mismatched context flags. The remaining
 seventeen non-root scenarios require zero command/collaboration receipts.
+
+The approved three-pair diagnostic does not replace that historical one-arm canary. It adds the
+target-blind catalog-selection arm beside the exact-body arm and reports the two outcomes separately.
+The nineteen campaign inputs, their hashes, and the 48-trial plan are unchanged.
 
 The evaluator stages only exact Git-object skill and custom-agent projections into a neutral Codex
 project. Terra's stock 0.147 metadata would force code mode and expose `apply_patch`, which can read

@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import stat
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +23,8 @@ import run_codex_routing
 MAX_LEDGER_BYTES = 1024 * 1024
 MAX_RESULT_BYTES = 1024 * 1024
 SHA256_RE = run_codex_routing.SHA256_RE
+IMAGE_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+LOCK_DIRECTORY = ".campaign.lock"
 
 
 class CampaignContractError(ValueError):
@@ -30,6 +33,10 @@ class CampaignContractError(ValueError):
 
 class UnknownOutcomeError(CampaignContractError):
     """A paid call may have started but lacks a trustworthy terminal record."""
+
+
+class CampaignBusyError(CampaignContractError):
+    """Another invocation, or a crash-stale lock, owns the campaign root."""
 
 
 def _is_link_or_reparse(path: Path) -> bool:
@@ -91,6 +98,68 @@ def _fsync_directory(path: Path) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+
+
+@dataclass
+class CampaignLock:
+    """Hold one fail-closed, process-crash-visible lock for a campaign root."""
+
+    root: Path
+    held: bool = False
+
+    @property
+    def path(self) -> Path:
+        return self.root / LOCK_DIRECTORY
+
+    def __enter__(self) -> "CampaignLock":
+        candidate = Path(self.root)
+        if not candidate.is_absolute() or _is_link_or_reparse(candidate):
+            raise CampaignContractError(
+                "campaign root must be an ordinary absolute directory"
+            )
+        try:
+            metadata = candidate.lstat()
+        except OSError as exc:
+            raise CampaignContractError("campaign root is unavailable") from exc
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise CampaignContractError("campaign root must be an ordinary directory")
+        if os.name != "nt" and metadata.st_mode & 0o077:
+            raise CampaignContractError("campaign root must be private to its owner")
+        self.root = candidate
+        try:
+            self.path.mkdir(mode=0o700)
+        except FileExistsError as exc:
+            raise CampaignBusyError(
+                "campaign root is locked; reconcile a stale lock before retrying"
+            ) from exc
+        except OSError as exc:
+            raise CampaignContractError("campaign lock could not be created") from exc
+        try:
+            _fsync_directory(candidate)
+        except OSError as exc:
+            raise CampaignContractError("campaign lock could not be made durable") from exc
+        self.held = True
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        del traceback
+        if not self.held:
+            return
+        try:
+            self.path.rmdir()
+            _fsync_directory(self.root)
+        except OSError as cleanup_error:
+            self.held = False
+            if exc_type is None:
+                raise CampaignContractError(
+                    "campaign lock could not be released; reconcile it before retrying"
+                ) from cleanup_error
+            return
+        self.held = False
+
+    def require(self, root: Path) -> None:
+        if not self.held or Path(root) != self.root or not self.path.is_dir():
+            raise CampaignContractError("campaign journal requires its held campaign lock")
 
 
 def _create_file(path: Path, raw: bytes, *, mode: int = 0o600) -> None:
@@ -177,15 +246,22 @@ def validate_campaign_plan(plan: Sequence[codex_harness.TrialSpec]) -> None:
 
 
 def _campaign_contract(
-    plan: Sequence[codex_harness.TrialSpec], manifest_sha256: str
+    plan: Sequence[codex_harness.TrialSpec],
+    manifest_sha256: str,
+    container_image_id: str,
 ) -> dict[str, object]:
     if not isinstance(manifest_sha256, str) or not SHA256_RE.fullmatch(manifest_sha256):
         raise CampaignContractError("manifest_sha256 must be one lowercase SHA-256")
+    if not isinstance(container_image_id, str) or not IMAGE_ID_RE.fullmatch(
+        container_image_id
+    ):
+        raise CampaignContractError("container_image_id must be one immutable image ID")
     validate_campaign_plan(plan)
     return {
         "schema_version": 1,
         "campaign": "route-001-codex-terra-linux-v1",
         "manifest_sha256": manifest_sha256,
+        "container_image_id": container_image_id,
         "planned_trials": len(plan),
         "plan": [_coordinate(spec) for spec in plan],
         "authority": {
@@ -230,8 +306,11 @@ class CampaignJournal:
     root: Path
     plan: tuple[codex_harness.TrialSpec, ...]
     manifest_sha256: str
+    container_image_id: str
+    lock: CampaignLock
     completed: int = 0
     unknown_outcome: bool = False
+    inconclusive_result: bool = False
 
     @property
     def contract_path(self) -> Path:
@@ -252,26 +331,32 @@ class CampaignJournal:
         *,
         plan: Sequence[codex_harness.TrialSpec],
         manifest_sha256: str,
+        container_image_id: str,
+        lock: CampaignLock,
     ) -> "CampaignJournal":
         candidate = Path(root)
+        lock.require(candidate)
         if not candidate.is_absolute() or _is_link_or_reparse(candidate):
             raise CampaignContractError("campaign root must be an ordinary absolute directory")
         try:
             metadata = candidate.lstat()
-            if not stat.S_ISDIR(metadata.st_mode) or any(candidate.iterdir()):
-                raise CampaignContractError("campaign root must be precreated and empty")
+            entries = {entry.name for entry in candidate.iterdir()}
+            if not stat.S_ISDIR(metadata.st_mode) or entries != {LOCK_DIRECTORY}:
+                raise CampaignContractError(
+                    "campaign root must be precreated and empty except for its held lock"
+                )
         except OSError as exc:
             raise CampaignContractError("campaign root is unavailable") from exc
         if os.name != "nt" and metadata.st_mode & 0o077:
             raise CampaignContractError("campaign root must be private to its owner")
         frozen = tuple(plan)
-        contract = _campaign_contract(frozen, manifest_sha256)
+        contract = _campaign_contract(frozen, manifest_sha256, container_image_id)
         results = candidate / "results"
         results.mkdir(mode=0o700)
         _fsync_directory(candidate)
         _create_file(candidate / "campaign.json", _canonical_json(contract))
         _create_file(candidate / "ledger.jsonl", b"")
-        return cls(candidate, frozen, manifest_sha256)
+        return cls(candidate, frozen, manifest_sha256, container_image_id, lock)
 
     @classmethod
     def open(
@@ -280,10 +365,15 @@ class CampaignJournal:
         *,
         plan: Sequence[codex_harness.TrialSpec],
         manifest_sha256: str,
+        container_image_id: str,
+        lock: CampaignLock,
     ) -> "CampaignJournal":
         candidate = Path(root)
+        lock.require(candidate)
         frozen = tuple(plan)
-        expected = _canonical_json(_campaign_contract(frozen, manifest_sha256))
+        expected = _canonical_json(
+            _campaign_contract(frozen, manifest_sha256, container_image_id)
+        )
         if _read_stable(
             candidate / "campaign.json", maximum=MAX_LEDGER_BYTES, label="campaign contract"
         ) != expected:
@@ -294,15 +384,27 @@ class CampaignJournal:
         ledger = _read_stable(
             candidate / "ledger.jsonl", maximum=MAX_LEDGER_BYTES, label="campaign ledger"
         )
-        instance = cls(candidate, frozen, manifest_sha256)
+        instance = cls(
+            candidate, frozen, manifest_sha256, container_image_id, lock
+        )
         active: int | None = None
         terminal: set[int] = set()
         for line_number, line in enumerate(ledger.splitlines(), start=1):
+            if instance.inconclusive_result:
+                raise CampaignContractError(
+                    "campaign ledger continues after an inconclusive result"
+                )
             if not line or len(line) > 64 * 1024:
                 raise CampaignContractError("campaign ledger has an invalid line")
             event = _strict_json(line, label=f"campaign ledger line {line_number}")
             if not isinstance(event, dict) or set(event) != {
-                "schema_version", "event", "index", "coordinate", "manifest_sha256", "result"
+                "schema_version",
+                "event",
+                "index",
+                "coordinate",
+                "manifest_sha256",
+                "container_image_id",
+                "result",
             }:
                 raise CampaignContractError("campaign ledger event has an invalid schema")
             index = event.get("index")
@@ -313,6 +415,7 @@ class CampaignJournal:
                 or index < 0
                 or index >= len(frozen)
                 or event.get("manifest_sha256") != manifest_sha256
+                or event.get("container_image_id") != container_image_id
                 or event.get("coordinate") != _coordinate(frozen[index])
             ):
                 raise CampaignContractError("campaign ledger event does not match the plan")
@@ -350,6 +453,8 @@ class CampaignJournal:
             if not isinstance(parsed, dict):
                 raise CampaignContractError("campaign result must be a JSON object")
             _validate_result(parsed, spec=frozen[index], manifest_sha256=manifest_sha256)
+            if parsed.get("state") == "INCONCLUSIVE":
+                instance.inconclusive_result = True
             terminal.add(index)
             instance.completed += 1
         if active is not None:
@@ -365,12 +470,19 @@ class CampaignJournal:
             "index": index,
             "coordinate": _coordinate(self.plan[index]),
             "manifest_sha256": self.manifest_sha256,
+            "container_image_id": self.container_image_id,
             "result": result,
         }
 
+    def _require_active(self) -> None:
+        self.lock.require(self.root)
+
     def begin(self, spec: codex_harness.TrialSpec) -> None:
+        self._require_active()
         if self.unknown_outcome:
             raise UnknownOutcomeError("campaign has an unreconciled unknown outcome")
+        if self.inconclusive_result:
+            raise CampaignContractError("campaign has a durable inconclusive result")
         if self.completed >= len(self.plan) or spec != self.plan[self.completed]:
             raise CampaignContractError("campaign trial is not the next fixed coordinate")
         _append_file(
@@ -385,6 +497,7 @@ class CampaignJournal:
         self.unknown_outcome = True
 
     def finish(self, spec: codex_harness.TrialSpec, result: Mapping[str, object]) -> None:
+        self._require_active()
         index = self.completed
         if index >= len(self.plan) or spec != self.plan[index]:
             raise CampaignContractError("campaign result is not the next fixed coordinate")
@@ -402,12 +515,17 @@ class CampaignJournal:
             ),
         )
         self.completed += 1
+        if result.get("state") == "INCONCLUSIVE":
+            self.inconclusive_result = True
 
     def run_next(
         self, runner: Callable[[codex_harness.TrialSpec], Mapping[str, object]]
     ) -> Mapping[str, object]:
+        self._require_active()
         if self.unknown_outcome:
             raise UnknownOutcomeError("campaign has an unreconciled unknown outcome")
+        if self.inconclusive_result:
+            raise CampaignContractError("campaign has a durable inconclusive result")
         if self.completed >= len(self.plan):
             raise CampaignContractError("campaign is already complete")
         index = self.completed
@@ -428,18 +546,31 @@ def run_campaign(
 ) -> dict[str, object]:
     """Run one call at a time, stopping immediately on instrument uncertainty."""
 
-    while journal.completed < len(journal.plan):
+    journal._require_active()
+    while (
+        not journal.unknown_outcome
+        and not journal.inconclusive_result
+        and journal.completed < len(journal.plan)
+    ):
         result = journal.run_next(runner)
         if result.get("state") == "INCONCLUSIVE":
             break
-    status = "complete" if journal.completed == len(journal.plan) else "blocked"
+    status = (
+        "complete"
+        if journal.completed == len(journal.plan)
+        and not journal.unknown_outcome
+        and not journal.inconclusive_result
+        else "blocked"
+    )
     return {
         "schema_version": 1,
         "campaign": "route-001-codex-terra-linux-v1",
+        "container_image_id": journal.container_image_id,
         "status": status,
         "planned_trials": len(journal.plan),
         "completed_trials": journal.completed,
         "unknown_outcome": journal.unknown_outcome,
+        "inconclusive_result": journal.inconclusive_result,
         "authority": {
             "independent_evaluator": False,
             "baseline_eligible": False,
