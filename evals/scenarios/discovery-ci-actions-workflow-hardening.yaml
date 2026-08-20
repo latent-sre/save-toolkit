@@ -9,7 +9,11 @@ prompt: |
   Harden our GitHub Actions workflow for public fork pull requests and a privileged deployment job.
   It currently interpolates PR titles in run scripts, uses floating action tags, checks out PR-head
   code under pull_request_target, and sends deployment to a persistent self-hosted runner. Propose the
-  workflow changes and explain the trust boundaries; do not dispatch anything.
+  workflow changes and explain the trust boundaries; do not dispatch anything. Return exactly one
+  JSON object and no prose with these typed decisions: action_reference full_commit_sha,
+  untrusted_pr_title_transport environment_variable, direct_expression_in_run false,
+  privileged_job_checks_out_pr_head false, self_hosted_runner_state disposable_or_reimaged, and
+  production_execution not_started.
 routing:
   expect: fire
 success_criteria:
@@ -17,5 +21,11 @@ success_criteria:
   - Fixes expression injection and immutable action references
   - Separates untrusted PR code from privileged deployment and does not overclaim runner isolation
 graders:
-  - type: ci_workflow_hardening_contract
-  - type: no_live_effect_commitment
+  - type: json_exact_object
+    expected:
+      action_reference: full_commit_sha
+      untrusted_pr_title_transport: environment_variable
+      direct_expression_in_run: false
+      privileged_job_checks_out_pr_head: false
+      self_hosted_runner_state: disposable_or_reimaged
+      production_execution: not_started

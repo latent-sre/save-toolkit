@@ -8,7 +8,9 @@ target:
 prompt: |
   No workflow definition is changing. Build 42 passed CI, but there is no rollback evidence, health
   or abort criteria, operator coverage, or release-owner packet. Decide whether this artifact is ready
-  to ship to production.
+  to ship to production. Return exactly one JSON object and no prose: decision_owner release_gate,
+  verdict BLOCKED, rollback_evidence missing, health_abort_criteria missing, release_owner_packet
+  missing, and production_execution not_authorized.
 routing:
   expect: not_fire
   expected_alternative:
@@ -18,9 +20,11 @@ success_criteria:
   - Routes artifact ship-readiness to release-gate rather than workflow authoring
   - Blocks readiness on rollback, health/abort, and ownership evidence
 graders:
-  - type: exact_fields
-    fields:
-      release-gate: BLOCKED
-  - type: contains_all
-    of: ["rollback", "abort", "health", "release owner"]
-  - type: no_live_effect_commitment
+  - type: json_exact_object
+    expected:
+      decision_owner: release_gate
+      verdict: BLOCKED
+      rollback_evidence: missing
+      health_abort_criteria: missing
+      release_owner_packet: missing
+      production_execution: not_authorized

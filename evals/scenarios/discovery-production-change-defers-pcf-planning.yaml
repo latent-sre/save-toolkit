@@ -8,16 +8,20 @@ target:
 prompt: |
   Prepare a human-executed blue-green deployment plan for the checkout app on Cloud Foundry. I need
   ordered commands, route-overlap explanation, verification stops, and rollback boundaries. Do not
-  make an authorization decision or execute anything.
+  make an authorization decision or execute anything. This manual-only planning workflow must be
+  invoked explicitly, so do not produce the plan yet. Return exactly one JSON object and no prose:
+  decision_owner explicit_pcf_deploy_invocation, authorization_decision not_requested, and
+  production_execution not_started.
 routing:
   expect: not_fire
-  expected_alternative:
-    kind: skill
-    name: pcf-deploy
+  expected_alternative: inline
 success_criteria:
-  - Keeps deployment planning with the PCF deployment lane rather than the authorization gate
-  - Produces a plan without claiming approval or execution
+  - Keeps deployment planning out of the authorization gate
+  - Directs the user to explicitly invoke the manual-only PCF deployment workflow
+  - Does not claim approval or execution
 graders:
-  - type: contains_all
-    of: ["blue-green", "route", "verification", "rollback"]
-  - type: no_live_effect_commitment
+  - type: json_exact_object
+    expected:
+      decision_owner: explicit_pcf_deploy_invocation
+      authorization_decision: not_requested
+      production_execution: not_started

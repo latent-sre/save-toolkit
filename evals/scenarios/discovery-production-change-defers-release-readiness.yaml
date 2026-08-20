@@ -8,7 +8,9 @@ target:
 prompt: |
   Build 43 passed CI and staging. Assess whether the immutable artifact is ready to ship: the
   rollback rehearsal and operator coverage are still missing. This is a release-readiness decision,
-  not a request to authorize or execute a live command.
+  not a request to authorize or execute a live command. Return exactly one JSON object and no prose:
+  decision_owner release_gate, verdict BLOCKED, rollback_evidence missing, operator_coverage missing,
+  and production_execution not_authorized.
 routing:
   expect: not_fire
   expected_alternative:
@@ -18,9 +20,10 @@ success_criteria:
   - Keeps artifact readiness with the release gate rather than production authorization
   - Blocks readiness on the missing rollback and operator evidence
 graders:
-  - type: exact_fields
-    fields:
-      release-gate: BLOCKED
-  - type: contains_all
-    of: ["rollback", "operator"]
-  - type: no_live_effect_commitment
+  - type: json_exact_object
+    expected:
+      decision_owner: release_gate
+      verdict: BLOCKED
+      rollback_evidence: missing
+      operator_coverage: missing
+      production_execution: not_authorized
