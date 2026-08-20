@@ -5,6 +5,14 @@ named `save-toolkit--v<version>`; a tag is never moved or reused.
 
 ## [Unreleased]
 
+### Added
+
+- Added a Tier 0 `incident-navigation` skill for responders who cannot locate operational evidence
+  or select the first read-only signal owner. The route is bounded away from ordinary triage,
+  incident command, security response, production-change authority, and resolved-incident writing,
+  with closed orientation/exit and adjacent-lane packet contracts, actor-bound fail-closed
+  no-execution grading, and positive/negative routing scenarios.
+
 ## [0.1.0] - 2026-08-11
 
 ### Added

@@ -1,6 +1,6 @@
 # Save Toolkit — fleet guide
 
-A multi-host engineering plugin with **8 canonical agents and 29 canonical skills**. Claude Code
+A multi-host engineering plugin with **8 canonical agents and 30 canonical skills**. Claude Code
 loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code and Codex adapters are
 generated and committed from those sources; edit neither projection by hand. Routing is native:
 descriptions select lanes and Claude components are invoked as `save-toolkit:<name>`.
@@ -19,7 +19,7 @@ matters.
 | Path | What it is |
 |---|---|
 | [`agents/`](agents) | The 8 canonical agent definitions. `tools:` frontmatter *is* authority; omitting it inherits every tool. Claude loads these directly |
-| [`skills/`](skills) | The 29 canonical skills and their `references/`/`assets/`/`scripts/` bundles. A `references/` file not linked from its `SKILL.md` ships unreachable |
+| [`skills/`](skills) | The 30 canonical skills and their `references/`/`assets/`/`scripts/` bundles. A `references/` file not linked from its `SKILL.md` ships unreachable |
 | [`commands/adr.md`](commands/adr.md) | The canonical `/save-toolkit:adr` scaffold — the one manual command |
 | [`hooks/hooks.json`](hooks/hooks.json) | The Claude-only session guard wiring. Plugin agents cannot carry `hooks:`, so this file is the *only* place the read-only guard fires; it is load-bearing and scoped to exact `agent_type` values |
 | [`hooks/copilot-hooks.json`](hooks/copilot-hooks.json) | The Copilot hook projection. The Claude hook's scoping field is absent from other hosts' payloads, so guarding is not portable through it |
@@ -32,7 +32,7 @@ matters.
 | [`scripts/validate_fleet.py`](scripts/validate_fleet.py), [`check_links.py`](scripts/check_links.py), [`check_plan_status.py`](scripts/check_plan_status.py), [`check_stale_names.py`](scripts/check_stale_names.py) | The structural validators Gate A runs: fleet/plugin/adapter contracts, skill link/bundle reachability, single-live-roadmap discipline, and retired-name rejection |
 | [`scripts/install_codex_agents.py`](scripts/install_codex_agents.py) | Installs the generated Codex agents into an explicit scope without clobbering user files |
 | [`schemas/`](schemas) | Portable evidence contracts (the catalog and the evidence envelope); versioned per [`docs/schema-compatibility.md`](docs/schema-compatibility.md) |
-| [`evals/`](evals) | Offline routing/behavioral scenarios and the manual clean-room Claude runner. Routing evals need a live API and never run in CI |
+| [`evals/`](evals) | Offline routing/behavioral scenarios and the manual clean-room Claude runner. Live runs use an authenticated Claude CLI; subscription OAuth uses the dedicated `SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR`, so no API key is required. They never run in CI |
 | [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) | The only live backlog; see [`docs/README.md`](docs/README.md) for the full authority map |
 | [`CHANGELOG.md`](CHANGELOG.md), [`docs/release-runbook.md`](docs/release-runbook.md) | Version-bound release notes and the consumer-side recovery procedure. A released version tag is never moved, deleted, or reused |
 | [`docs/decisions/`](docs/decisions), [`docs/reviews/`](docs/reviews), [`docs/superpowers/`](docs/superpowers) | Accepted ADRs; round-closure evidence; round-scoped plans and specs. Only accepted decisions govern |
@@ -184,7 +184,9 @@ errors and the change quietly does not work.
   stale projection.
 - **Edited a `description:`** → run the overlapping scenario(s) under `evals/scenarios/` through the
   clean-room runner, before and after. *Prevents:* a routing change (a component that stops firing,
-  or a near-miss that starts) that no structural check can see. Routing evals need a live API and may
+  or a near-miss that starts) that no structural check can see. Routing evals need an authenticated
+  live Claude CLI. Subscription OAuth uses a persistent, eval-only profile selected through
+  `SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR`, so no API key is required; a missing interactive login may
   be deferred with a stated reason — never with an eyeball standing in for the measurement.
 - **Asserted a new contract** — a validator rule, an exit code, a schema constraint, or any predicate
   a test names → add a fixture or mutation test that **fails without the change**, and confirm it

@@ -1,0 +1,19 @@
+schema_version: 1
+id: direct-incident-navigation-major-incident-exit
+mode: direct
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  Checkout is unavailable for most customers and the blast radius is still growing across regions.
+  I cannot find the dashboard. Orient me before we declare or assign incident roles.
+success_criteria:
+  - Exits orientation immediately because major and growing impact requires incident command
+  - Does not delay declaration by constructing a first-check packet
+  - Makes no production change
+graders:
+  - type: incident_navigation_exit_contract
+    destination: incident-command
+    reason_category: major_or_growing_impact
+    preserve_state: not_applicable

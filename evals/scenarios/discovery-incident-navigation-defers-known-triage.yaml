@@ -1,0 +1,35 @@
+schema_version: 1
+id: discovery-incident-navigation-defers-known-triage
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  I own checkout and know the first check is its latency/error dashboard. Use only the supplied
+  evidence; do not search the repository or delegate evidence retrieval.
+
+  Supplied evidence:
+  - At 18:04 UTC, production p99 latency rose from 250 ms to 3.4 s after revision checkout-214.
+  - Errors rose to 18%.
+  - Blast radius is 40% of checkout requests across two regions and is still growing.
+  - All six app instances report healthy; downstream payment timeouts rose at the same onset.
+  - Runbook: ops://checkout/latency; release record: ops://releases/checkout-214.
+
+  Investigate the active incident, assess severity and blast radius, and form testable hypotheses
+  without changing production.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: sre
+success_criteria:
+  - Keeps ordinary investigation with SRE when evidence and the first check are already known
+  - Does not confuse root-cause uncertainty with responder-orientation uncertainty
+graders:
+  - type: contains_all
+    of: ["Incident summary:", "Timeline (UTC):", "Hypotheses tested:", "Root cause:", "Mitigation:", "Recommended course of action:"]
+  - type: regex
+    pattern: '^(?:Incident summary:.*\bSEV[1-4]\b|\s*(?:\*\*)?Severity(?:\*\*)?\s*:\s*SEV[1-4]\b)'
+  - type: regex
+    pattern: '^(?:Incident summary:|\s*(?:\*\*)?Blast radius(?:\*\*)?\s*:)[^\n]*(?:\d+(?:\.\d+)?%|\d+\s+(?:regions?|routes?|services?|users?)|\b(?:all|most|subset)\b)[^\n]*\b(?:requests?|traffic|users?|regions?|routes?|services?)\b[^\n]*\b(?:growing|steady|recovering|worsening|improving)\b'

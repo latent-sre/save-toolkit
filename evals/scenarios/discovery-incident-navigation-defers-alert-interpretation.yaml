@@ -1,0 +1,41 @@
+schema_version: 1
+id: discovery-incident-navigation-defers-alert-interpretation
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  Review the supplied CheckoutErrorBudgetBurn definition and linked SLO. Use only the supplied
+  evidence; do not search the repository or delegate evidence retrieval.
+
+  Supplied definition:
+  - SLI: successful checkout attempts divided by total checkout attempts.
+  - Measured failed-request fraction: 0.0004 over the current evaluation period.
+  - SLO-permitted failed-request fraction: 0.001 from the 99.9% availability objective.
+  - Ratio definition: measured fraction divided by permitted fraction.
+  - Fast pair: one-hour long window and five-minute short window, threshold 14.4.
+  - Slow pair: six-hour long window and thirty-minute short window, threshold 6.
+  - Paging rule: the matching long AND short windows must both exceed their threshold.
+  - Owner: checkout on-call.
+  - Notification route: PagerDuty checkout-primary.
+  - Runbook: ops://checkout/error-budget-burn.
+
+  The alert is not currently firing. Explain whether the windows page on user-impacting symptoms,
+  whether the notification is actionable, and what should be tuned. Use the labeled known-alert
+  review format before the tuning advice.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: obs-alerting
+success_criteria:
+  - Routes known steady-state alert interpretation to obs-alerting
+  - Does not invoke incident orientation when the evidence source and question are already known
+graders:
+  - type: contains_all
+    of: ["observed bad fraction", "allowed bad fraction", "burn rate"]
+  - type: regex
+    pattern: '(?is)\blong\b.*\bshort\b.*\bAND\b'
+  - type: contains_all
+    of: ["owner", "notification route", "runbook"]

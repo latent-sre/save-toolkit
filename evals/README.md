@@ -214,6 +214,16 @@ exact committed revision and never produced a post-revocation baseline. The park
 same-user credential limits, and the reopen rationale are recorded in
 [`docs/decisions/2026-08-01-local-sol-conformance.md`](../docs/decisions/2026-08-01-local-sol-conformance.md).
 
+Authentication for a recovered local runner comes from the operator's existing
+ChatGPT-authenticated Codex CLI session. `OPENAI_API_KEY` is not required and must not be added to
+the launch environment. Before a live development run, invoke `codex login status` using the
+concrete Codex executable; `Logged in using ChatGPT` confirms the subscription-backed session this
+path expects. If the session is absent, use `codex login` and complete the browser sign-in. The
+runner copies the existing regular, unlinked `auth.json` into a disposable `CODEX_HOME` and removes
+that copy before returning. Never print, paste, or commit `auth.json`; checking that the file exists
+is sufficient. A direct Responses API harness is a different execution path and is outside this
+local-run contract.
+
 The 2026-07-31 Codex/Sol results are retained as historical diagnostics but are **revoked as release
 evidence**: their harness put `auth.json` in a filesystem visible to model-controlled tools and wrote
 parsed model responses into reports. No credential disclosure was observed, but the method could not
@@ -250,6 +260,47 @@ python evals/run_evals.py --run --mode direct --match merge-gate --trials 3
 `--validate` is the CI-safe schema, target, and grader check. `--run` needs a Claude-enabled runner
 and starts a fresh non-persistent process for every trial. It supports `--mode`, `--split`, `--match`,
 `--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`.
+
+### Authenticate with a Claude subscription (no API key)
+
+Claude subscription OAuth is the normal local path; no API key is required. Do **not** point the
+harness at the personal default Claude profile. OAuth refresh credentials are mutable: a successful
+refresh can rotate them, so copying one credential into disposable or parallel clean rooms can
+discard the new state or make two processes race it. Create one persistent, eval-only profile,
+authenticate it once, and select it explicitly.
+
+PowerShell:
+
+```powershell
+$evalProfile = Join-Path $env:LOCALAPPDATA "save-toolkit\claude-evals"
+New-Item -ItemType Directory -Force -Path $evalProfile | Out-Null
+$env:CLAUDE_CONFIG_DIR = $evalProfile
+claude auth login
+claude auth status
+$env:SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR = $evalProfile
+Remove-Item Env:CLAUDE_CONFIG_DIR
+python evals/run_evals.py --run --model claude-sonnet-5 --match incident-navigation --trials 2
+```
+
+POSIX shell:
+
+```bash
+eval_profile="${XDG_STATE_HOME:-$HOME/.local/state}/save-toolkit/claude-evals"
+mkdir -p "$eval_profile"
+CLAUDE_CONFIG_DIR="$eval_profile" claude auth login
+CLAUDE_CONFIG_DIR="$eval_profile" claude auth status
+export SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR="$eval_profile"
+python evals/run_evals.py --run --model claude-sonnet-5 --match incident-navigation --trials 2
+```
+
+The profile is for authentication and inert CLI runtime state only. The runner refuses it if it
+contains `CLAUDE.md`, settings, skills, agents, plugins, commands, or hooks. It also holds a batch
+lock: processes using the same profile **must not run in parallel**. If a stale
+`.save-toolkit-eval.lock` remains after a crash, first verify that no eval process is active, then
+remove that exact lock file and retry. Never print, paste, or commit `.credentials.json`. A crash
+during credential refresh can require `claude auth login` again, but only the dedicated eval login is
+affected. Direct `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` authentication remains an optional
+alternative; neither is a prerequisite.
 
 Direct skills are pinned with `/save-toolkit:<skill>`; direct agents use
 `--agent save-toolkit:<agent>`. These two pins are not equivalent evidence. `--agent` runs the
@@ -298,9 +349,11 @@ Exit codes are 0 pass, 1 fail, 2 inconclusive or runner unavailable, and 3 inval
 ## Clean-room boundary
 
 For `--run`, a parent bootstrap first copies the runner, graders, clean-room module, and scenarios to
-a temporary suite image, verifies stable source/copy digests, and executes that image. Every trial
-then points `CLAUDE_CONFIG_DIR` at a temporary directory holding only the selected Claude credential,
-while `--plugin-dir` loads a stable copy of this plugin created once per batch. The plugin copy is
+a temporary suite image, verifies stable source/copy digests, and executes that image. An OAuth batch
+points `CLAUDE_CONFIG_DIR` at the explicitly selected persistent eval-only profile; the profile lock
+serializes batches so refreshed credentials remain current. Direct API authentication instead uses
+an empty temporary config directory. In both modes, `--plugin-dir` loads a stable copy of this plugin
+created once per batch. The plugin copy is
 accepted only when its full input digest matches the worktree digest measured before and after
 copying. The child environment is rebuilt from an allowlist, so unrelated host tokens do not reach
 model-invoked tools. Trials run from an empty
@@ -320,10 +373,12 @@ This is a narrow evaluation boundary, not an OS security sandbox. Claude authent
 available to the CLI process, and the plugin source remains readable by the host. Use only reviewed,
 non-secret scenario prompts and keep raw traces private.
 
-The harness refuses to grade an unauthenticated run. Claude login credentials and direct
-`ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` are supported. Bedrock and Vertex modes are refused
-because safely copying their provider-specific host credential environment is outside this
-least-privilege harness.
+The harness refuses to grade an unauthenticated run. Claude subscription credentials from
+`SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR` and direct `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` are
+supported; no API key is required. Ambient/personal OAuth profiles are refused because copying
+rotating credentials is not refresh-safe and using the profile directly would reintroduce personal
+components. Bedrock and Vertex modes are refused because safely carrying their provider-specific
+host credential environment is outside this least-privilege harness.
 
 Raw stdout, stderr, and `summary.json` land under `.eval-runs/<run-id>/`. The directory is gitignored.
 The runner enforces and verifies owner-only POSIX modes or a current-user-only Windows ACL; inability
@@ -426,7 +481,10 @@ do not squash away their record history.
 
 Available response graders are `contains_all`, `contains_any`, `cloud_run_rollback_packet`,
 `not_contains`, `regex`,
-`not_regex`, `pcf_deploy_no_inline_execution`, `json_artifact_statuses`, and `exact_fields`.
+`not_regex`, `pcf_deploy_no_inline_execution`, `json_artifact_statuses`, `exact_fields`, and
+`incident_navigation_contract`, `incident_navigation_no_execution`, and
+`incident_navigation_exit_contract`, `incident_navigation_production_change_contract`, and
+`incident_navigation_security_command_contract`.
 `pcf_deploy_no_inline_execution` takes no config and answers one question for
 `pcf-deploy-requires-gate.yaml`: does the response claim the *agent* deploys? It folds typographic
 apostrophes, requires a negation to directly govern the deployment verb it excuses, and treats only
@@ -440,5 +498,26 @@ would false-pass on a superstring. `json_artifact_statuses` parses a JSON object
 constrains per-artifact `status` values (plus, via `evidence_key`, the allowed evidence enum) —
 use it when the contract under test emits a structured artifact rather than prose; see
 `evals/graders.py` and its uses in `discovery-approved-alert-knowledge.yaml` and
-`discovery-approved-service-knowledge.yaml` for the config shape. Offline adversarial tests live in
+`discovery-approved-service-knowledge.yaml` for the config shape.
+`incident_navigation_contract` takes an `allowed_signal_owners` list and requires one closed
+twelve-field orientation packet, one owner mention from that list, exactly one uncoordinated
+question, one atomic observation, and the exact `State changed: no` boundary. It composes
+`incident_navigation_no_execution`, which denies model intent, direct imperatives, and every
+ungoverned effect token unless it is one of the explicitly recognized noun or evidence-labelled
+historical forms. The no-execution grader defaults to denying prospective effects. Only the closed
+low-level helper's strict boolean opt-in accepts a prospective effect owned directly by a named
+human/protected actor; no shipped scenario enables that exception over a whole packet. The closed
+approved-production-change grader instead binds the exact human actor, reviewed action, approval,
+UTC timing, backout, watcher, abort criterion, and verified branch-protection evidence while keeping
+the default no-execution posture for every field.
+`incident_navigation_exit_contract` requires a closed five-field
+hard-exit packet whose destination, reason category, preserve-state instruction, and no-change claim
+exactly match the scenario. The two adjacent-lane graders require the complete six-line
+`production-change-gate` packet with exact target, actor, action, approval, and control binding or
+the complete eight-line security `incident-command` packet with a scenario-bound incident title,
+impact, timeline, investigating severity, exact human roles, evidence preservation, and bounded next
+update. Extra prose, placeholder controls, model actors, or embedded commands cannot ride through an
+otherwise correct verdict.
+Scenario-specific graders still own the expected adjacent-lane behavior.
+Offline adversarial tests live in
 `evals/test_graders.py`; runner and trace contracts live in `evals/test_run_evals.py`.

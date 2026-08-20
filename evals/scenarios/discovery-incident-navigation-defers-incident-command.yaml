@@ -1,0 +1,37 @@
+schema_version: 1
+id: discovery-incident-navigation-defers-incident-command
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  Checkout is unavailable for most customers and the impact is growing across regions. Use only the
+  supplied evidence; do not search the repository or delegate evidence retrieval.
+
+  Supplied coordination record:
+  - First detected: 18:04 UTC.
+  - Incident commander: Morgan Lee.
+  - Communications lead: Avery Chen.
+  - Investigation: checkout on-call; Ops: human release owner.
+  - Runbook: ops://checkout/major-incident.
+  - No mitigation has been approved or performed.
+
+  Declare the incident, set an initial severity and fifteen-minute update cadence, bind the supplied
+  roles, and start the authoritative timeline. Use the canonical status-block labels and their
+  documented order.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: incident-command
+success_criteria:
+  - Routes major-incident declaration and coordination directly to incident command
+  - Does not delay declaration with responder orientation
+graders:
+  - type: contains_all
+    of: ["Incident:", "Severity:", "Status:", "Impact:", "Roles:", "Timeline (UTC):", "Current focus:", "Mitigation decision:", "Open action items:", "Next update:"]
+  - type: regex
+    pattern: '(?im)^Incident:.*Severity:\s*SEV[1-4].*Status:\s*(?:investigating|mitigating|monitoring|resolved)'
+  - type: regex
+    pattern: '(?im)^Roles:.*Investigation=.*Ops=.*Comms='

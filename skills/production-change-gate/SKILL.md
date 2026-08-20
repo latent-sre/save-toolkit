@@ -90,14 +90,19 @@ The example is `[unverified]`: it is the required approval-request shape, not ev
 
 ## Verdict
 
-```text
+The entire response is the verdict packet. Choose one verdict and return exactly these six non-empty
+field lines as plaintext. Do not include a code fence, checklist, introduction, closing explanation,
+or execution advice. Copy supplied evidence values without upgrading their labels. If a required
+check is missing, choose `BLOCKED` and put the missing evidence in the applicable field; do not add a
+seventh line. In `Watching`, include both the watcher and the supplied signals. End immediately after
+the `Branch protection evidence` line.
+
 production-change-gate: APPROVED | BLOCKED
 Tier: <0|1|2|3>   Target: <exact target>   Actor: <human or protected automation>
 Change: <what, where>   Approved by: <human>   When: <UTC>
 Backout: <exact reversible steps>
 Watching: <who, which signals>   Abort if: <criteria>
 Branch protection evidence: <output or [unverified]>
-```
 
 ## Emergency exception
 

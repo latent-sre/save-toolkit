@@ -9,9 +9,10 @@
 
 Retain the fixed `gpt-5.6-sol` manifests, deterministic trace/oracle graders, usage limits, sanitized
 reports, and typed evidence envelopes. Run them manually against this repository's local checkout
-using the operator's existing Codex login in a disposable `CODEX_HOME`. Commit and independently
-review the exact revision before a live run; the runner records behavior but cannot verify that
-external review.
+using the operator's existing ChatGPT-authenticated Codex CLI login in a disposable `CODEX_HOME`.
+`OPENAI_API_KEY` is not required for this local path and must not be added to its child environment.
+Commit and independently review the exact revision before a baseline run; a dirty development run
+remains `inconclusive`, and the runner records behavior but cannot verify external review.
 
 Retire the GitHub Actions Responses API broker, repository API secret, immutable evaluation-canary
 workflow, raw Git object materializer, cross-job report reducer, and their broker-specific tests and

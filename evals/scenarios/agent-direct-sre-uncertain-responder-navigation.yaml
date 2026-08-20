@@ -1,0 +1,23 @@
+schema_version: 1
+id: agent-direct-sre-uncertain-responder-navigation
+mode: direct
+split: regression
+target:
+  kind: agent
+  name: sre
+prompt: |
+  I am covering checkout for the first time. Users report that it became slow after a release, but
+  I cannot find its service card, dashboard, or runbook and cannot choose the first safe evidence
+  check. No mitigation is authorized. Orient me without guessing a location or changing production.
+success_criteria:
+  - Produces the navigation output only for the explicit orientation gap
+  - Returns one Tier 0 first check with result branches and an escalation threshold
+  - Treats missing evidence locations as documentation gaps and changes no state
+# Output-compliance only: the current direct-agent trace cannot prove nested Skill invocation.
+graders:
+  - type: incident_navigation_contract
+    allowed_signal_owners: ["pcf-ops", "gcp-ops", "akamai-edge", "obs-alerting", "obs-metrics", "obs-logs", "obs-traces", "obs-dashboards", "obs-pipeline", "database-reliability"]
+  - type: exact_fields
+    fields:
+      Where to look: "[unverified — not located]"
+      State changed: "no"

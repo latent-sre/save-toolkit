@@ -1,0 +1,22 @@
+schema_version: 1
+id: direct-incident-navigation-uncertain-responder
+mode: direct
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  I am new to this service. Customers say checkout is slow, but I cannot find a service card,
+  dashboard, or runbook and do not know which read-only check should come first. No production
+  change is authorized. Orient me without inventing evidence locations.
+success_criteria:
+  - Returns the complete compact orientation block and exactly one first safe check
+  - Separates facts and unknowns without inventing evidence locations or starting root-cause analysis
+  - Routes one question to exactly one signal owner while preserving the Tier 0 no-change boundary
+graders:
+  - type: incident_navigation_contract
+    allowed_signal_owners: ["pcf-ops", "gcp-ops", "akamai-edge", "obs-alerting", "obs-metrics", "obs-logs", "obs-traces", "obs-dashboards", "obs-pipeline", "database-reliability"]
+  - type: exact_fields
+    fields:
+      Where to look: "[unverified — not located]"
+      State changed: "no"

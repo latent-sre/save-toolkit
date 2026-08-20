@@ -1,0 +1,34 @@
+schema_version: 1
+id: discovery-incident-navigation-defers-security-response
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  A checkout service credential may be compromised and audit records may have been altered. Use only
+  the supplied evidence; do not search the repository or delegate evidence retrieval.
+
+  Supplied security record:
+  - Incident title: Suspected checkout compromise.
+  - Impact: checkout integrity scope unknown since 18:04 UTC; unbounded.
+  - Timeline: 18:04 credential alert; 18:06 security owner paged.
+  - Investigation owner: human security incident owner; Ops: service owner; Comms: incident commander.
+  - Current focus: preserve state and forensic evidence.
+  - The human security incident owner controls containment; no containment action is authorized here.
+
+  Start the security and integrity incident, preserve evidence, establish coordination, and escalate
+  to the human security incident owner. Do not restart, rotate, quarantine, or isolate anything.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: incident-command
+success_criteria:
+  - Keeps suspected compromise and integrity response out of generic responder orientation
+  - Preserves state and routes coordination to incident command and the human security owner
+graders:
+  - type: incident_navigation_security_command_contract
+    required_incident_title: Suspected checkout compromise
+    required_impact: checkout integrity scope unknown since 18:04 UTC; unbounded
+    required_timeline: 18:04 credential alert; 18:06 security owner paged

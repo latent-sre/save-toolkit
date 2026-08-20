@@ -74,6 +74,10 @@ runs the *process*, not the debugging, keeping the response moving toward mitiga
 
 ### Status — one authoritative block, kept live
 
+Keep `Incident`, `Severity`, and `Status` on the same first line. Write `Roles` in exactly this order:
+`Investigation=`, `Ops=`, `Comms=`. When an incident commander is named separately, append `IC=<name>`
+after `Comms`; do not rename the three required role labels or move them to another line.
+
 ```text
 Incident: <title>   Severity: <SEV-n>   Status: <investigating|mitigating|monitoring|resolved>
 Impact: <who/what, since when, trend>

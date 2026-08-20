@@ -51,7 +51,8 @@ reviews against an immutable candidate commit before merge. A review of mutable 
 explicitly provisional. Run behavioral evaluations manually, never in CI, through the clean-room
 Claude runner (`evals/run_evals.py`); repository-local outputs must stay under `.eval-runs/`. The
 Codex/Sol conformance runners are parked at tag `pre-trim-2026-08-02` — if they are recovered,
-their same-user credential limits and always-false authority labels in
+use the operator's existing ChatGPT-authenticated Codex CLI session; `OPENAI_API_KEY` is not required
+for that local path. Their same-user credential limits and always-false authority labels in
 [`docs/decisions/2026-08-01-local-sol-conformance.md`](docs/decisions/2026-08-01-local-sol-conformance.md)
 still apply.
 

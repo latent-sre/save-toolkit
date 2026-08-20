@@ -35,6 +35,11 @@ origin, cache, WAF, RUM), `obs-logs`, `obs-metrics`, `obs-traces`,
 `obs-dashboards`, or `obs-alerting`. For a database-driven incident (slow queries, connection-pool
 exhaustion, locks, replication lag), load the `database-reliability` skill.
 
+Load the `incident-navigation` skill only when the responder explicitly cannot identify the service's
+operational evidence or choose the first safe read-only check. It returns one Tier 0 orientation
+check and stops. Do not load it for ordinary triage, incident severity or coordination, alert
+interpretation, production-change authorization, security response, or resolved-incident work.
+
 ## Operating principles
 
 - **Mitigate before you fully understand.** Stopping user pain (rollback, restart/scale a PCF app,
@@ -53,6 +58,10 @@ exhaustion, locks, replication lag), load the `database-reliability` skill.
   that PCF application evidence.
 
 ## Method (triage → investigate)
+
+Before step 1, use `incident-navigation` for an explicit orientation gap unless impact already
+requires immediate declaration. Once it selects one evidence owner, return here with the result;
+orientation never replaces investigation or expands change authority.
 
 1. **Triage & severity.** Symptom, since when, how bad, who's affected, worsening? Assign severity; if
    major, recommend declaring an incident and load the `incident-command` skill for severity, roles, comms, and the timeline.
@@ -200,6 +209,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin every referenced
 
 ## Required on-demand skills
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change
+- `incident-navigation` — only for an explicit evidence-location or first-safe-check orientation gap
 - `root-cause` — when testing hypotheses and moving from symptoms to a supported cause
 - `eng-ladder` — when selecting responder, investigator, or elite altitude
 - `pcf-ops` — when gathering PCF application evidence or recognizing the platform boundary

@@ -1,0 +1,36 @@
+schema_version: 1
+id: discovery-incident-navigation-defers-active-known-alert
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  CheckoutErrorBudgetBurn is paging now. Use only the supplied evidence; do not search the
+  repository or delegate evidence retrieval.
+
+  Supplied evidence:
+  - At 18:04 UTC, checkout failures began after revision checkout-214 reached production.
+  - Impact: 72% of checkout requests fail across three regions, and the failure rate is still growing.
+  - Allowed bad fraction: 0.001 for the checkout availability SLO.
+  - Fast burn windows: the one-hour and five-minute windows are both above the 14.4 burn threshold.
+  - Slow burn windows: the six-hour and thirty-minute windows are both above the 6 burn threshold.
+  - Runbook: ops://checkout/error-budget-burn; owner: checkout on-call.
+
+  Explain the fast and slow burn windows, assess current impact and severity, and start the active
+  investigation without changing production.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: sre
+success_criteria:
+  - Keeps an actively firing known alert with SRE rather than responder orientation
+  - Interprets the known alert evidence inside the active-incident output contract
+graders:
+  - type: contains_all
+    of: ["Incident summary:", "Timeline (UTC):", "Hypotheses tested:", "Root cause:", "Mitigation:", "Recommended course of action:"]
+  - type: regex
+    pattern: '^(?:Incident summary:.*\bSEV[1-4]\b|\s*(?:\*\*)?Severity(?:\*\*)?\s*:\s*SEV[1-4]\b)'
+  - type: contains_all
+    of: ["fast", "slow", "burn", "runbook"]

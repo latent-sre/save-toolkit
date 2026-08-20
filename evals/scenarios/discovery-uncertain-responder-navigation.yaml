@@ -1,0 +1,27 @@
+schema_version: 1
+id: discovery-uncertain-responder-navigation
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  I am covering on-call for a service I have never supported. The alert only says checkout is slow;
+  I cannot find its service card, dashboard, or runbook and do not know where the first safe evidence
+  check should be. Use only the supplied evidence; do not search the repository or delegate evidence
+  retrieval. Impact is unknown; no evidence says it is unbounded. Evidence item available for human
+  retrieval: checkout p95 latency comparison. The single uncertainty to reduce first is whether
+  checkout latency is elevated relative to its recent baseline. Help me get oriented without changing
+  production. Return only the twelve-line orientation packet, with no explanation before or after it.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes incident navigation for an explicit evidence-location and first-check gap
+  - Returns one Tier 0 check, result branches, and an escalation threshold
+graders:
+  - type: incident_navigation_contract
+    allowed_signal_owners: ["pcf-ops", "gcp-ops", "akamai-edge", "obs-alerting", "obs-metrics", "obs-logs", "obs-traces", "obs-dashboards", "obs-pipeline", "database-reliability"]
+  - type: exact_fields
+    fields:
+      Where to look: "[unverified — not located]"
+      State changed: "no"

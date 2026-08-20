@@ -1,0 +1,36 @@
+schema_version: 1
+id: discovery-resolved-incident-bypasses-navigation
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  INC-944 is resolved. Use only the supplied evidence; do not search the repository or delegate
+  evidence retrieval.
+
+  Supplied RCA packet:
+  - Impact: checkout failed for 42% of requests in two regions from 18:04 to 18:31 UTC.
+  - Timeline: 18:01 revision checkout-214 deployed; 18:04 errors began; 18:22 human release owner
+    rolled back; 18:31 service recovered.
+  - Root cause: an unbounded downstream retry policy amplified payment-provider timeouts.
+  - Contributing factor: the canary did not exercise the payment timeout path.
+  - Where we got lucky: the unaffected region retained enough capacity for partial checkout traffic.
+  - Action item: checkout owner — bound downstream retries — due 2026-09-03 — proof is a passing
+    timeout-path integration test and deployed configuration evidence.
+  - Verification gap: the notification-route delivery timestamp is unavailable.
+
+  Write the blameless repository postmortem with systemic causes and the supplied owned follow-up.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: scribe
+success_criteria:
+  - Keeps resolved-incident documentation out of live orientation
+  - Routes the completed evidence packet to the documentation owner
+graders:
+  - type: contains_all
+    of: ["## Summary", "## Impact", "## Timeline (UTC, from evidence)", "## Trigger, root cause, and contributing factors", "## Where we got lucky", "## Action items", "## Verification gaps"]
+  - type: contains_all
+    of: ["preventative", "Owner", "Due", "Durable artifact / proof of done"]

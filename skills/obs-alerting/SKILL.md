@@ -3,8 +3,9 @@ name: obs-alerting
 description: >-
   Design alerting that pages on symptoms — SLIs/SLOs and multi-window burn rates, Grafana unified
   alerting as code, Splunk saved-search alerts, Moogsoft correlation, and ThousandEyes synthetics.
-  Triggers: 'define an SLO', 'this alert is too noisy', 'what should page', 'design a synthetic
-  check'. Ownership map only—not a load:
+  Interpret a known alert definition and design alerting. Triggers: 'define an SLO', 'this alert is
+  too noisy', 'why is this burn alert not firing', 'is this notification actionable'. Ownership map
+  only—not a load:
   obs-metrics/obs-logs own queries and obs-dashboards owns dashboards.
 argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 ---
@@ -66,6 +67,23 @@ Require BOTH the long and short windows to meet that pair's threshold. The long 
 significance; the short window proves the burn is still active and lets the notification resolve
 quickly after recovery. A one-window spike or a recovered short window is not a page, but neither is
 an all-clear about budget status.
+
+### Interpret a known alert definition
+
+When the requester supplies a complete SLI/SLO alert definition, begin the review with these literal
+labels. Derive the values from the supplied evidence; do not replace the labels with synonyms.
+
+Observed bad fraction: <measured bad-event fraction and window>
+Allowed bad fraction: <bad-event fraction permitted by the SLO>
+Burn rate: <observed divided by allowed>
+Window rule: <long window> AND <short window> at <threshold>
+Owner: <named owner or [unverified]>
+Notification route: <named route or [unverified]>
+Runbook: <exact URL/path or [unverified]>
+
+After those labels, explain whether the notification should fire, whether it pages on a user-facing
+symptom, and which evidence-backed gap should be tuned. A silent alert is not proof that the service
+is healthy or that budget remains.
 
 Read only the row needed for the task:
 

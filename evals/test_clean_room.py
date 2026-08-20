@@ -10,20 +10,42 @@ Runnable:
 """
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 import tempfile
+import unittest.mock as mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import clean_room  # noqa: E402
 
 _results: list[tuple[bool, str]] = []
+EVAL_PROFILE_ENV = "SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR"
+EVAL_PROFILE_LOCK = ".save-toolkit-eval.lock"
 
 
 def check(cond: bool, label: str) -> None:
     _results.append((bool(cond), label))
     print(f"  [{'PASS' if cond else 'FAIL'}] {label}")
+
+
+@contextlib.contextmanager
+def _temporary_environment(**updates: str | None):
+    previous = {key: os.environ.get(key) for key in updates}
+    try:
+        for key, value in updates.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 def _fake_home(tmp: Path) -> Path:
@@ -37,49 +59,134 @@ def _fake_home(tmp: Path) -> Path:
     return cfg
 
 
-def test_clean_env_copies_only_the_credentials() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        cfg = _fake_home(Path(td))
-        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
-        try:
-            with clean_room.clean_env() as env:
-                room = Path(env["CLAUDE_CONFIG_DIR"])
-                names = sorted(p.name for p in room.iterdir())
-                check(names == [clean_room.CREDENTIALS],
-                      f"clean room holds ONLY the credentials (got {names})")
-                check((room / clean_room.CREDENTIALS).read_text(encoding="utf-8") == '{"token": "secret"}',
-                      "credentials were copied, not fabricated")
-                check(not (room / "skills").exists(), "personal skills are NOT visible")
-                check(not (room / "agents").exists(), "personal agents are NOT visible")
-                check(not (room / "plugins").exists(), "installed plugins are NOT visible")
-                check(not (room / "CLAUDE.md").exists(), "personal CLAUDE.md is NOT visible")
-        finally:
-            del os.environ["CLAUDE_CONFIG_DIR"]
+def _fake_eval_profile(tmp: Path) -> Path:
+    cfg = tmp / "eval-profile"
+    cfg.mkdir()
+    (cfg / clean_room.CREDENTIALS).write_text('{"token": "secret"}', encoding="utf-8")
+    return cfg
 
 
-def test_clean_env_is_removed_even_when_the_body_raises() -> None:
+def test_oauth_requires_an_explicit_dedicated_eval_profile() -> None:
     with tempfile.TemporaryDirectory() as td:
-        cfg = _fake_home(Path(td))
-        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
-        room = None
-        try:
+        personal = _fake_home(Path(td))
+        with _temporary_environment(
+            CLAUDE_CONFIG_DIR=str(personal),
+            SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR=None,
+            ANTHROPIC_API_KEY=None,
+            ANTHROPIC_AUTH_TOKEN=None,
+        ):
+            try:
+                with clean_room.clean_env():
+                    check(False, "ambient OAuth credentials must NOT be copied into an eval batch")
+            except clean_room.AuthUnavailable as exc:
+                check(EVAL_PROFILE_ENV in str(exc), "the refusal names the dedicated-profile setting")
+                check("API key" not in str(exc) or "not required" in str(exc),
+                      "the refusal does not present an API key as a prerequisite")
+
+
+def test_oauth_uses_one_persistent_profile_and_serializes_batches() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        cfg = _fake_eval_profile(Path(td))
+        with _temporary_environment(
+            CLAUDE_CONFIG_DIR=str(Path(td) / "personal-profile-must-not-be-used"),
+            SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR=str(cfg),
+            ANTHROPIC_API_KEY=None,
+            ANTHROPIC_AUTH_TOKEN=None,
+        ):
             with clean_room.clean_env() as env:
                 room = Path(env["CLAUDE_CONFIG_DIR"])
-                raise RuntimeError("boom")
-        except RuntimeError:
-            pass
-        finally:
-            del os.environ["CLAUDE_CONFIG_DIR"]
-        check(room is not None and not room.exists(),
-              "the temp dir (which held an auth secret) is removed on exception")
+                check(room.resolve() == cfg.resolve(),
+                      "OAuth uses the dedicated profile directly so refreshed credentials persist")
+                check((cfg / EVAL_PROFILE_LOCK).is_file(), "the profile is locked for the whole batch")
+                (room / clean_room.CREDENTIALS).write_text('{"token": "refreshed"}', encoding="utf-8")
+                try:
+                    with clean_room.clean_env():
+                        check(False, "a concurrent batch must NOT reuse the rotating OAuth profile")
+                except clean_room.AuthUnavailable as exc:
+                    check("already in use" in str(exc), "concurrent reuse fails with an actionable reason")
+            check((cfg / clean_room.CREDENTIALS).read_text(encoding="utf-8") == '{"token": "refreshed"}',
+                  "a child credential refresh survives the batch")
+            check(not (cfg / EVAL_PROFILE_LOCK).exists(), "the batch lock is removed on normal exit")
+
+
+def test_oauth_profile_lock_is_removed_even_when_the_body_raises() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        cfg = _fake_eval_profile(Path(td))
+        with _temporary_environment(
+            SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR=str(cfg),
+            ANTHROPIC_API_KEY=None,
+            ANTHROPIC_AUTH_TOKEN=None,
+        ):
+            try:
+                with clean_room.clean_env():
+                    raise RuntimeError("boom")
+            except RuntimeError:
+                pass
+            check(cfg.is_dir(), "the persistent eval profile survives an exception")
+            check(not (cfg / EVAL_PROFILE_LOCK).exists(), "the batch lock is removed on exception")
+
+
+def test_oauth_profile_rejects_behavior_bearing_configuration() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        cfg = _fake_eval_profile(Path(td))
+        (cfg / "skills").mkdir()
+        with _temporary_environment(
+            SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR=str(cfg),
+            ANTHROPIC_API_KEY=None,
+            ANTHROPIC_AUTH_TOKEN=None,
+        ):
+            try:
+                with clean_room.clean_env():
+                    check(False, "a profile containing personal skills must NOT enter the clean room")
+            except clean_room.AuthUnavailable as exc:
+                check("behavior-bearing" in str(exc), "the refusal identifies profile contamination")
+
+
+def test_oauth_profile_rejects_the_personal_default_even_when_explicit() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        personal = _fake_eval_profile(Path(td))
+        with (
+            _temporary_environment(
+                SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR=str(personal),
+                ANTHROPIC_API_KEY=None,
+                ANTHROPIC_AUTH_TOKEN=None,
+            ),
+            mock.patch.object(clean_room, "default_user_config_dir", return_value=personal),
+        ):
+            try:
+                with clean_room.clean_env():
+                    check(False, "the personal default profile must NOT become an eval profile")
+            except clean_room.AuthUnavailable as exc:
+                check("personal default profile" in str(exc), "explicit ambient-profile reuse fails closed")
+
+
+def test_oauth_profile_rejects_a_path_inside_the_repository() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        fake_repo = Path(td) / "repository"
+        fake_repo.mkdir()
+        cfg = _fake_eval_profile(fake_repo)
+        with _temporary_environment(
+            FLEET_ROOT=str(fake_repo),
+            SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR=str(cfg),
+            ANTHROPIC_API_KEY=None,
+            ANTHROPIC_AUTH_TOKEN=None,
+        ):
+            try:
+                with clean_room.clean_env():
+                    check(False, "an OAuth credential profile must NOT live inside the repository")
+            except clean_room.AuthUnavailable as exc:
+                check("outside the repository" in str(exc), "the refusal prevents committing credentials")
 
 
 def test_missing_credentials_raises_instead_of_running() -> None:
     with tempfile.TemporaryDirectory() as td:
         cfg = Path(td) / "cfg"
         cfg.mkdir()  # exists, but no credentials
-        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
-        try:
+        with _temporary_environment(
+            SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR=str(cfg),
+            ANTHROPIC_API_KEY=None,
+            ANTHROPIC_AUTH_TOKEN=None,
+        ):
             try:
                 with clean_room.clean_env():
                     check(False, "clean_env must NOT yield without credentials")
@@ -87,8 +194,6 @@ def test_missing_credentials_raises_instead_of_running() -> None:
                 check("no Claude credentials" in str(e), "AuthUnavailable names the problem")
                 check("no-route" in str(e),
                       "the error explains WHY this is fatal (else it reads as a fake finding)")
-        finally:
-            del os.environ["CLAUDE_CONFIG_DIR"]
 
 
 def test_api_key_auth_bypasses_the_credentials_file_requirement() -> None:
@@ -98,24 +203,37 @@ def test_api_key_auth_bypasses_the_credentials_file_requirement() -> None:
     with tempfile.TemporaryDirectory() as td:
         cfg = Path(td) / "cfg"
         cfg.mkdir()  # exists, but no credentials -- would normally raise AuthUnavailable
-        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
-        os.environ["ANTHROPIC_API_KEY"] = "sk-test-not-a-real-key"
-        os.environ["GITHUB_TOKEN"] = "must-not-reach-model-tools"
-        try:
-            with clean_room.clean_env() as env:
-                room = Path(env["CLAUDE_CONFIG_DIR"])
-                check(room.is_dir(), "clean_env yields a temp dir even with no credentials file")
-                check(list(room.iterdir()) == [], "the temp dir is empty -- no credentials to copy")
-                check(env.get("ANTHROPIC_API_KEY") == "sk-test-not-a-real-key",
-                      "the selected Claude authentication variable is retained")
-                check("GITHUB_TOKEN" not in env, "unrelated host secrets are scrubbed from the child env")
-                check(bool(env.get("PATH")), "the executable PATH is retained")
-        except clean_room.AuthUnavailable:
-            check(False, "an API-key operator must NOT be refused for lacking a credentials file")
-        finally:
-            del os.environ["CLAUDE_CONFIG_DIR"]
-            del os.environ["ANTHROPIC_API_KEY"]
-            del os.environ["GITHUB_TOKEN"]
+        with _temporary_environment(
+            CLAUDE_CONFIG_DIR=str(cfg),
+            SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR=None,
+            ANTHROPIC_API_KEY="sk-test-not-a-real-key",
+            ANTHROPIC_AUTH_TOKEN=None,
+            GITHUB_TOKEN="must-not-reach-model-tools",
+        ):
+            try:
+                with clean_room.clean_env() as env:
+                    room = Path(env["CLAUDE_CONFIG_DIR"])
+                    check(room.is_dir(), "clean_env yields a temp dir even with no credentials file")
+                    check(list(room.iterdir()) == [], "the temp dir is empty -- no credentials to copy")
+                    check(env.get("ANTHROPIC_API_KEY") == "sk-test-not-a-real-key",
+                          "the selected Claude authentication variable is retained")
+                    check("GITHUB_TOKEN" not in env, "unrelated host secrets are scrubbed from the child env")
+                    check(bool(env.get("PATH")), "the executable PATH is retained")
+            except clean_room.AuthUnavailable:
+                check(False, "an API-key operator must NOT be refused for lacking a credentials file")
+
+
+def test_current_docs_name_the_refresh_safe_no_key_contract() -> None:
+    readme = (Path(__file__).resolve().parent / "README.md").read_text(encoding="utf-8")
+    agents = (Path(__file__).resolve().parent.parent / "AGENTS.md").read_text(encoding="utf-8")
+    roadmap = (
+        Path(__file__).resolve().parent.parent / "docs" / "fleet-roadmap.md"
+    ).read_text(encoding="utf-8")
+    for document, name in ((readme, "eval guide"), (agents, "fleet guide"), (roadmap, "roadmap")):
+        check(EVAL_PROFILE_ENV in document, f"{name} names the dedicated Claude eval profile")
+        check("no API key is required" in document, f"{name} says subscription OAuth needs no API key")
+    check("claude auth login" in readme, "eval guide gives the subscription login command")
+    check("must not run in parallel" in readme, "eval guide explains the rotating-token concurrency rule")
 
 
 def test_neutral_workspace_is_empty_outside_the_repository_and_removed() -> None:
@@ -145,6 +263,13 @@ def test_is_auth_failure_recognises_a_real_not_logged_in_trace() -> None:
     check(clean_room.is_auth_failure(assistant, returncode=1), "detects error=authentication_failed")
     check(clean_room.is_auth_failure(result, returncode=1), "detects the 'Not logged in' result text")
     check(clean_room.is_auth_failure(assistant + "\n" + result, returncode=1), "detects it in a full trace")
+    check(
+        clean_room.is_auth_failure(
+            "Failed to authenticate: OAuth session expired and could not be refreshed",
+            returncode=1,
+        ),
+        "detects the observed OAuth refresh failure even without stream-json metadata",
+    )
 
 
 def test_is_auth_failure_does_not_fire_on_a_healthy_trace() -> None:
@@ -234,10 +359,15 @@ def test_run_evals_raises_runner_failed_on_a_non_auth_nonzero_exit() -> None:
 
 def main() -> int:
     tests = [
-        test_clean_env_copies_only_the_credentials,
-        test_clean_env_is_removed_even_when_the_body_raises,
+        test_oauth_requires_an_explicit_dedicated_eval_profile,
+        test_oauth_uses_one_persistent_profile_and_serializes_batches,
+        test_oauth_profile_lock_is_removed_even_when_the_body_raises,
+        test_oauth_profile_rejects_behavior_bearing_configuration,
+        test_oauth_profile_rejects_the_personal_default_even_when_explicit,
+        test_oauth_profile_rejects_a_path_inside_the_repository,
         test_missing_credentials_raises_instead_of_running,
         test_api_key_auth_bypasses_the_credentials_file_requirement,
+        test_current_docs_name_the_refresh_safe_no_key_contract,
         test_neutral_workspace_is_empty_outside_the_repository_and_removed,
         test_is_auth_failure_recognises_a_real_not_logged_in_trace,
         test_is_auth_failure_does_not_fire_on_a_healthy_trace,

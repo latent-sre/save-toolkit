@@ -200,8 +200,11 @@ Claude users, via `evals/run_evals.py`, which is confirmed working on this host 
 the existing **Codex/Terra** arm (which measures the *generated Codex adapters*, not the Claude
 components — see the staging note below), and **a third provider such as Grok/xAI** as a candidate
 once the first two produce comparable evidence. Each arm reports under its own label; no arm's
-result is relabeled as another's. The Claude arm has no remaining environmental blocker and can
-proceed first; the Terra arm's host prerequisites are unchanged.
+result is relabeled as another's. The Claude arm has no API-key prerequisite: subscription OAuth is
+supported through a persistent, eval-only profile selected by
+`SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR`, so no API key is required. Each host must complete the
+interactive `claude auth login` for that profile before running; the Terra arm's host prerequisites
+are unchanged.
 
 **Each arm needs a different isolation boundary — do not apply one arm's prerequisites to another.**
 The three differ because the hosts differ, and conflating them either paralyses the cheap arm or
@@ -209,7 +212,7 @@ under-protects the expensive one:
 
 | Arm | Boundary it needs | State |
 |---|---|---|
-| Claude | The clean-room in [`evals/clean_room.py`](../evals/clean_room.py): relocated `CLAUDE_CONFIG_DIR` holding only the selected credential, digest-checked plugin snapshot, allowlisted child environment, empty working directory outside the repo, strict empty MCP, exact `Skill,Task` tool allowlist. Documented in [`evals/README.md`](../evals/README.md) under *Clean-room boundary*, which states plainly that it is an evaluation boundary, **not** an OS security sandbox. | **Exists and runs.** Executed 2026-08-19/20 on two models. |
+| Claude | The clean-room in [`evals/clean_room.py`](../evals/clean_room.py): a persistent, eval-only OAuth profile selected by `SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR` and serialized across batches so rotating credentials remain current; direct API auth uses an empty temporary profile. Both paths retain the digest-checked plugin snapshot, allowlisted child environment, empty working directory outside the repo, strict empty MCP, and exact `Skill,Task` tool allowlist. Documented in [`evals/README.md`](../evals/README.md) under *Clean-room boundary*, which states plainly that it is an evaluation boundary, **not** an OS security sandbox. | **Exists and runs.** Executed 2026-08-19/20 on two models. A new host needs one interactive login to the dedicated profile; no API key is required. |
 | Codex/Terra | Full host trusted-launch: protected Python runtime closure (or a separate OS identity), protected bootstrap launch, precreated NTFS private root, clean launch account/registry with no MCP/dynamic-tool/guardian/proxy/AutoRun override, protected Git executable and sanitized object store. Heavier because Codex 0.147 exposes code-mode tooling and runs Windows hook commands through the shell, and because the credential copy is same-SID application-layer isolation only. | **Requirements documented; nothing provisioned.** No owner, date, or plan is recorded — this, not the evaluator, is what blocks the campaign. |
 | Grok/xAI (candidate) | **Unanalysed.** Before any trial: what tool surface the CLI exposes by default, how its credentials are stored and whether they can be confined to a disposable config root, and whether an equivalent of the clean-room's tool allowlist and empty-MCP guarantee exists. | **Nothing written.** Do not schedule trials before this analysis exists. |
 
@@ -637,9 +640,11 @@ not widen the two-fact `PermissionError` invariant or treat the review packet al
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
 **Status:** `active` (2026-08-20) — the live-runner dependency is **resolved**: `evals/run_evals.py`
-drives the Claude CLI, which authenticates through the operator's existing login, so no
-`ANTHROPIC_API_KEY` is required. Verified by executing it on this host on 2026-08-19/20 against two
-models. Both halves can now proceed.
+drives the Claude CLI and supports a dedicated subscription-OAuth profile through
+`SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR`, so no API key is required. It deliberately refuses the
+operator's personal profile because refresh credentials rotate and personal components would
+contaminate routing. Verified by executing the runner on this host on 2026-08-19/20 against two
+models. Both halves can proceed after the one-time eval-profile login on each host.
 
 **Outcome:** No skill spends a caller's context on content that call did not need. **These eight
 skills** become routers with a conditional "if the question involves X, read Y" table —
@@ -665,7 +670,8 @@ no stated criterion and does not survive one; `frontend-craft` and `backend-craf
 but route more reference bytes than they keep. The sweep records the correction.
 
 **Prerequisites:** The `obs-logs` conditional table is the pattern to copy. Description edits need
-the clean-room runner and a live API, per the change playbook — which is what blocks that half.
+the clean-room runner and an authenticated live Claude CLI, per the change playbook. Subscription
+OAuth uses `SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR`, so no API key is required.
 
 **Acceptance:** **All eight named skills** — not a subset — satisfy the criterion in reverse: each
 either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
@@ -686,10 +692,11 @@ definitions changed which lane fires for an altitude question. The edit removed 
 and added a trigger, so the intended direction is better routing, but intent is not measurement.
 
 **Correction (2026-08-20):** the reason recorded above was "this environment has no live API", and
-that was **wrong** — `run_evals.py` invokes the Claude CLI, which uses the operator's login rather
-than an API key. The runner executed here on 2026-08-19/20 (`claude-opus-5[1m]` and
-`claude-sonnet-5`, live trials, graded results). The `eng-ladder` deferral therefore has no
-remaining blocker: re-run its overlapping scenarios and record the rate diff.
+that was **wrong** — `run_evals.py` invokes the Claude CLI. The refresh-safe path is an eval-only
+subscription-OAuth profile, not a copied personal credential; no API key is required. The runner
+executed here on 2026-08-19/20 (`claude-opus-5[1m]` and `claude-sonnet-5`, live trials, graded
+results). The remaining host prerequisite is an interactive login to that dedicated profile, not an
+API key; then re-run the `eng-ladder` overlapping scenarios and record the rate diff.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 
@@ -894,6 +901,69 @@ remains in the code diff. See the
 follow-up threads against exact head `9fef1486`, linking the final whole-diff verdict. Close
 SCRIPTS-001 only after that review-state disposition is durable on GitHub.
 
+### NAV-001 — resume incident navigation on current main
+
+**Status:** `active` (2026-08-20) — the owner authorized work on responder orientation as a separate
+Tier 0 feature. This does not accept PR #112's bounded-envelope policy and does not authorize cleanup
+of the preserved prototype worktree.
+
+**Outcome:** A responder who explicitly cannot locate operational evidence or choose its first
+read-only signal owner receives one bounded orientation packet, then hands the result to `sre` or
+the named specialist. Ordinary triage, incident command, security response, production-change
+authority, and resolved-incident documentation stay with their existing owners.
+
+**Source:** `[verified]` The dirty `.worktrees/incident-navigation` prototype remains preserved and
+untouched. It is 119 commits behind `origin/main`, has no unique commit, and contains stale SRE edits
+that would remove current `gcp-ops` and `akamai-edge` routing if copied wholesale. The exact original
+inventory remains in
+[`2026-08-12-incident-navigation-preservation`](reviews/2026-08-12-incident-navigation-preservation/README.md).
+Implementation therefore restarted from canonical sources in an isolated worktree at current
+`origin/main` `c671c515359955790d12155fe8990123027f3964`.
+
+**Prerequisites:** Satisfied. The preservation packet protects the recoverable prototype, and the
+owner's 2026-08-20 direction resolves the former product-scope decision in favor of a fresh
+current-main implementation. No prerequisite authorizes deleting or rewriting the source worktree.
+
+**Acceptance:** Canonical sources add the narrowly triggered skill without losing any current signal
+lane; the fleet inventory says 30 canonical skills; host projections are regenerated, never edited
+directly; deterministic tests reject incomplete, multi-owner, or state-changing orientation packets;
+positive evidence-location and signal-owner cases fire while ordinary triage, incident command,
+known-alert interpretation, security response, production changes, and resolved-event writing do
+not; Gate A passes; the description receives before/after live routing evidence; and independent
+review finds no unresolved correctness or security issue.
+
+**Evidence to date:** `[verified]` The missing-skill contract failed red before implementation. The
+new deterministic packet grader then failed while absent and passes its complete, duplicate,
+missing, empty, unknown-owner, multi-owner, malformed-question, and changed-state cases after
+implementation. Clean-context prompt review narrowed the old prototype from a mini-RCA flow to one
+question, one signal owner, and one first safe check while retaining GCP and Akamai routes. Its first
+adversarial review then reproduced false passes for extra questions/checks/owners, contradictory
+execution claims, and negated hard exits, plus false failures for safe refusals. Repeated clean-room
+review expanded that corpus with model-intent, imperative, historical-tense, noun-laundering,
+multi-source, placeholder-approval, and security-denial counterexamples. The repaired oracle uses
+closed orientation, exit, production-change, and security-command packets; one-question/one-action
+cardinality; exact adjacent-lane control binding; and an actor/action/governed-negation detector.
+All 585 deterministic grader checks now pass, including every reproduced counterexample and
+raw/normalized prompt echoes for all ten navigation discovery cases. `[verified]` Final independent
+re-review replayed 57 unsafe packets, 12 required safe cases, four canonical packets, and both
+human-effect isolation outcomes; it found no reproducible P0/P1. The final overlaid candidate bytes
+pass all 44 Gate A steps in an ordinary disposable clone, including the Git-directory-sensitive
+snapshot tests. `[verified]` The exact-final candidate then completed ten Claude Sonnet discovery
+trials on Claude Code 2.1.237 with `claude-sonnet-5`: two each for missing-location orientation,
+signal-owner selection, major-incident deferral, approved-change deferral, and known-alert
+interpretation. All ten passed routing and their full deterministic contract at threshold 1.0; all
+five batches reported integrity `PASS`, the same plugin digest
+`854910c4bd946af0a16ff05f691361f6ef9c1cfab1724b33c79d3dcfa7363626`, and the same eval-suite
+digest `773573579f3ef7f749ad808b93a89d7ca725f4e778c546be78e64385bcaaf4a0`. Subscription OAuth used a
+persistent eval-only profile selected by `SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR`; no API key was
+required, the post-run login remained valid, and no stale batch lock remained.
+
+**Next action:** Keep NAV-001 active for two acceptance items that the 10/10 exact-final campaign does
+not supply: a comparable pre-change rate (the earlier current-main attempt was inconclusive under the
+old SRE discovery tool boundary) and independent review of the complete current diff. Do not relabel
+the exact-final after-result as a before/after delta. Prototype cleanup remains a separate named
+destructive decision.
+
 ## Decisions needed
 
 ### REVIEW-001 — enforce final-SHA review reconciliation
@@ -958,33 +1028,6 @@ dies after.
 consequence, since RELEASE-001's acceptance rests on contracts whose own suite does not notice their
 predicates changing. Do not read a survivor count as a defect count, and do not read a clean sweep
 over `_authority_check` as evidence the census is sound — that code generates no mutants at all.
-
-### NAV-001 — dispose the incident-navigation prototype
-
-**Status:** `decision-needed` (2026-08-12)
-
-**Outcome:** The recovered incident-navigation prototype is either preserved and resumed as a
-current-main feature or explicitly archived/rejected; it is not silently lost, deleted, or treated as
-accepted fleet behavior.
-
-**Source:** `[verified]` The dirty local worktree `.worktrees/incident-navigation` contains an
-uncommitted canonical skill, SRE-agent routing edits, direct/discovery scenarios, tests, and generated
-projections. At the 2026-08-12 capture its branch had no unique commit, was 18 commits behind
-`origin/main`, and had no pull request. Current main contains no accepted `incident-navigation`
-component. The exact 11-file inventory and recoverable patch set are preserved in
-[`2026-08-12-incident-navigation-preservation`](reviews/2026-08-12-incident-navigation-preservation/README.md).
-
-**Prerequisites:** `[verified]` The file/digest inventory and recoverable patch prerequisite is
-satisfied by the preservation packet outside the dirty worktree. The owner still must decide whether
-responder-orientation is in current product scope before any cleanup, rebase, or implementation work.
-
-**Acceptance:** If resumed, canonical sources are rebased onto current main, projections are regenerated,
-route/behavior eval obligations are met, and independent review passes. If rejected, the owner records
-the reason and explicitly authorizes removal only after the recoverable snapshot is verified.
-
-**Next action:** Request the owner disposition: resume from canonical sources on current main, or
-archive/reject with a recorded reason. The preservation packet grants neither acceptance nor cleanup
-authority; do not delete, reset, or regenerate inside the source worktree without that decision.
 
 ## Deferred
 

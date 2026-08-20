@@ -1,0 +1,36 @@
+schema_version: 1
+id: discovery-incident-navigation-signal-owner-uncertain
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-navigation
+prompt: |
+  I am covering checkout for the first time. Use only the supplied evidence; do not search the
+  repository or delegate evidence retrieval.
+
+  Service card: ops://services/checkout
+  Dashboard: grafana://checkout-latency
+  Log search: loki://checkout-errors
+  Trace view: tempo://checkout-journey
+  Runbook: ops://checkout/latency
+  Impact is unknown; no evidence says it is unbounded.
+
+  These sources do not designate which one owns the first read-only check for a new latency report.
+  The single uncertainty to reduce first is whether checkout latency is elevated relative to its
+  recent baseline; the supplied dashboard directly answers it, while the service card is only an
+  index for this question. Help me choose where to look first without running anything or changing
+  production. Return only the twelve-line orientation packet, with no explanation before or after it.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes responder orientation for explicit first-signal ownership uncertainty
+  - Chooses one discriminating question and exactly one canonical signal owner
+  - Returns one Tier 0 check and stops without performing ordinary incident investigation
+graders:
+  - type: incident_navigation_contract
+    allowed_signal_owners: ["pcf-ops", "gcp-ops", "akamai-edge", "obs-alerting", "obs-metrics", "obs-logs", "obs-traces", "obs-dashboards", "obs-pipeline", "database-reliability"]
+  - type: exact_fields
+    fields:
+      Where to look: "grafana://checkout-latency"
+      State changed: "no"
