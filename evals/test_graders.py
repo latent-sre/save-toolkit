@@ -1268,7 +1268,7 @@ def test_pcf_stale_green_requires_reconciliation_and_unique_identity() -> None:
         )
 
 
-_CRAFT_CHOICE_CONTRACTS = {
+_CLOSED_CHOICE_CONTRACTS = {
     "discovery-backend-craft-api-endpoint.yaml": {
         "contract": ("explicit_request_response_schema", "implicit_contract"),
         "upstream_timeout": ("finite", "unbounded"),
@@ -1293,6 +1293,12 @@ _CRAFT_CHOICE_CONTRACTS = {
         ),
         "browser_verification": ("narrow_wide_real_browser", "unit_only"),
         "implementation": ("not_started", "started"),
+    },
+    "discovery-database-reliability-explain-safety.yaml": {
+        "decision": ("BLOCKED_EXECUTION", "APPROVED_EXECUTION"),
+        "plan_mode": ("plan_only", "explain_analyze"),
+        "side_effect_review": ("required", "omitted"),
+        "production_execution": ("not_authorized", "authorized"),
     },
 }
 
@@ -1331,17 +1337,17 @@ def test_batch3_typed_behavior_contracts() -> None:
         if len(grader_specs) != 1 or grader_specs[0].get("type") != "json_exact_object":
             continue
         expected = grader_specs[0]["expected"]
-        if filename in _CRAFT_CHOICE_CONTRACTS:
+        if filename in _CLOSED_CHOICE_CONTRACTS:
             check(
                 all(not isinstance(value, list) for value in expected.values()),
-                f"{filename}: craft choices use closed scalar enums, not exact open-ended arrays",
+                f"{filename}: choices use closed scalar enums, not exact open-ended arrays",
             )
             prompt = re.sub(r"\s+", " ", scenario["prompt"].casefold())
             expected_first: list[bool] = []
-            for field, (right, wrong) in _CRAFT_CHOICE_CONTRACTS[filename].items():
+            for field, (right, wrong) in _CLOSED_CHOICE_CONTRACTS[filename].items():
                 check(expected.get(field) == right, f"{filename}: {field} uses its reviewed enum")
-                right_first = f"{field}: {right} | {wrong}"
-                wrong_first = f"{field}: {wrong} | {right}"
+                right_first = f"{field}: {right} | {wrong}".casefold()
+                wrong_first = f"{field}: {wrong} | {right}".casefold()
                 check(
                     right_first in prompt or wrong_first in prompt,
                     f"{filename}: prompt closes both choices for {field}",
@@ -1357,10 +1363,42 @@ def test_batch3_typed_behavior_contracts() -> None:
                 any(expected_first) and not all(expected_first),
                 f"{filename}: correct choices are not exposed by a fixed option position",
             )
+        if filename == "language-idiom-router-go.yaml":
+            version_sensitive = expected.get("version_sensitive")
+            is_object = isinstance(version_sensitive, dict)
+            check(
+                is_object,
+                f"{filename}: unordered version-sensitive concerns use a JSON object, not an array",
+            )
+            if is_object:
+                check(
+                    version_sensitive
+                    == {"loop_variables": True, "timers": True, "vendor_mode": True},
+                    f"{filename}: all three reviewed Go concerns are marked version-sensitive",
+                )
+                reordered = dict(expected)
+                reordered["version_sensitive"] = {
+                    "vendor_mode": True,
+                    "timers": True,
+                    "loop_variables": True,
+                }
+                check(
+                    grade_all(grader_specs, json.dumps(reordered)),
+                    f"{filename}: equivalent concern-key ordering passes",
+                )
+                missing_concern = dict(expected)
+                missing_concern["version_sensitive"] = {
+                    "loop_variables": True,
+                    "timers": True,
+                }
+                check(
+                    not grade_all(grader_specs, json.dumps(missing_concern)),
+                    f"{filename}: a missing reviewed concern is REJECTED",
+                )
         compliant = json.dumps(expected, separators=(",", ":"))
         check(grade_all(grader_specs, compliant), f"{filename}: exact typed response passes")
         prompt = scenario["prompt"]
-        if filename not in _CRAFT_CHOICE_CONTRACTS:
+        if filename not in _CLOSED_CHOICE_CONTRACTS:
             for value in _closed_string_values(expected):
                 if "_" in value or value.isupper():
                     check(

@@ -7,10 +7,10 @@ target:
   name: language-idiom
 prompt: |
   We are building an MCP host in Go. Return exactly one JSON decision record and no prose with fields
-  target_version_source, format, error_contract, concurrency_check, and version_sensitive. Use a JSON
-  array for version_sensitive and concise snake_case state values elsewhere. Derive the choices from
-  the repository's Go configuration and the language contracts rather than assuming the latest
-  toolchain.
+  target_version_source, format, error_contract, concurrency_check, and version_sensitive. Set
+  version_sensitive to a JSON object with exactly three boolean fields: loop_variables, timers, and
+  vendor_mode. Use concise snake_case state values elsewhere. Derive the values from the repository's
+  Go configuration and the language contracts rather than assuming the latest toolchain.
 success_criteria:
   - Uses the module and toolchain directives for version-sensitive behavior
   - Preserves Go formatting and intentional wrapped-error contracts
@@ -22,4 +22,7 @@ graders:
       format: gofmt
       error_contract: wrap_with_percent_w_when_exposed
       concurrency_check: race_on_relevant_packages
-      version_sensitive: [loop_variables, timers, vendor_mode]
+      version_sensitive:
+        loop_variables: true
+        timers: true
+        vendor_mode: true
