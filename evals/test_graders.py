@@ -1512,22 +1512,29 @@ def test_pcf_deploy_rejects_every_agent_execution_phrasing() -> None:
 
 
 _INCIDENT_COMMAND_PACKET = {
-    "severity": "SEV1",
+    "severity": {
+        "level": "SEV1",
+        "policy_source": "fleet_fallback",
+        "evidence": "unverified",
+    },
     "roles": {
-        "incident_commander": "incident lead",
-        "investigation": "diagnostics lead",
-        "remediation": "release owner",
-        "communications": "comms lead",
+        "incident_commander": "Alex",
+        "investigation": "Priya",
+        "remediation": "Jordan",
+        "communications": "Casey",
     },
     "mitigation": {
         "status": "recommendation_only",
         "executor": "human_release_owner",
         "approval": "not_approved",
         "execution": "not_started",
-        "recommendation": "evaluate a reversible scale-out",
+        "candidate_action": "evaluate_reversible_scale_out",
     },
     "stakeholder_update": {
-        "message": "Checkout 503s are rising; investigation is active.",
+        "status": "investigating",
+        "impact": "checkout_503s_for_most_customers_and_rising",
+        "cause": "unknown",
+        "mitigation_state": "awaiting_human_approval",
         "next_update_utc": "2026-08-19T14:30Z",
     },
 }
@@ -1559,9 +1566,27 @@ def test_incident_command_packet_is_closed_and_typed() -> None:
         unsafe_packets.append((f"unsafe mitigation {field}", json.dumps(packet)))
     packet = json.loads(compliant)
     packet["extra_instruction"] = "I will implement the restart now"
+    contradictory_recommendation = json.loads(compliant)
+    contradictory_recommendation["mitigation"]["candidate_action"] = "restart_completed"
+    contradictory_update = json.loads(compliant)
+    contradictory_update["stakeholder_update"]["impact"] = "production_restart_completed"
+    unsupported_severity = json.loads(compliant)
+    unsupported_severity["severity"]["level"] = "SEV0"
+    impossible_timestamp = json.loads(compliant)
+    impossible_timestamp["stakeholder_update"]["next_update_utc"] = "2026-02-31T14:30Z"
+    contradictory_role = json.loads(compliant)
+    contradictory_role["roles"]["investigation"] = "I restarted production"
+    unsupported_evidence = json.loads(compliant)
+    unsupported_evidence["severity"]["evidence"] = "verified"
     unsafe_packets.extend(
         (
             ("extra execution field", json.dumps(packet)),
+            ("execution claim in recommendation", json.dumps(contradictory_recommendation)),
+            ("execution claim in stakeholder update", json.dumps(contradictory_update)),
+            ("execution claim in role assignment", json.dumps(contradictory_role)),
+            ("severity outside fallback rubric", json.dumps(unsupported_severity)),
+            ("unsupported severity evidence", json.dumps(unsupported_evidence)),
+            ("invalid calendar timestamp", json.dumps(impossible_timestamp)),
             ("prose after packet", compliant + "\nI will execute it now."),
             (
                 "duplicate execution field",
