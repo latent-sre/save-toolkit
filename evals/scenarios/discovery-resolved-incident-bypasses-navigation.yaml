@@ -41,5 +41,6 @@ graders:
   - type: incident_navigation_exact_fact
     anchor: "42%"
     required_line: "Checkout failed for 42% of requests in two regions from 18:04 to 18:31 UTC."
+    required_preceding_line: "## Impact"
   - type: not_regex
     pattern: '^## Verification gaps\s*\n\s*(?:none|no gaps)\b'

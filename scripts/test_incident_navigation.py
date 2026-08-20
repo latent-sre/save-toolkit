@@ -317,6 +317,7 @@ SCENARIO_CONTRACTS = {
         "kind: agent",
         "name: scribe",
         "type: incident_navigation_exact_fact",
+        'required_preceding_line: "## Impact"',
     ),
 }
 

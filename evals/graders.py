@@ -528,6 +528,7 @@ def incident_navigation_exact_fact(
     response: str,
     required_line: str,
     anchor: str,
+    required_preceding_line: str | None = None,
 ) -> tuple[bool, str]:
     """Require one supplied fact as one exact line and one bounded anchor occurrence.
 
@@ -547,9 +548,17 @@ def incident_navigation_exact_fact(
             raise ValueError(f"exact fact {name} must be one exact non-empty line value")
     if anchor not in required_line:
         raise ValueError("exact fact anchor must appear in required_line")
+    if required_preceding_line is not None and (
+        not isinstance(required_preceding_line, str)
+        or not required_preceding_line.strip()
+        or required_preceding_line != required_preceding_line.strip()
+        or "\n" in required_preceding_line
+        or "\r" in required_preceding_line
+    ):
+        raise ValueError("exact fact required_preceding_line must be one exact non-empty line")
 
-    exact_lines = [line.strip() for line in response.splitlines()]
-    line_count = exact_lines.count(required_line)
+    nonempty_lines = [line.strip() for line in response.splitlines() if line.strip()]
+    line_count = nonempty_lines.count(required_line)
     bounded_anchor = re.compile(
         rf"(?<![A-Za-z0-9]){re.escape(anchor)}(?![A-Za-z0-9])",
         re.IGNORECASE,
@@ -559,6 +568,15 @@ def incident_navigation_exact_fact(
         return False, f"required fact line appears {line_count} time(s), need exactly 1"
     if anchor_count != 1:
         return False, f"fact anchor appears {anchor_count} bounded time(s), need exactly 1"
+    if required_preceding_line is not None:
+        required_index = nonempty_lines.index(required_line)
+        if (
+            required_index == 0
+            or nonempty_lines[required_index - 1] != required_preceding_line
+        ):
+            return False, (
+                "required fact line is not directly under its supplied structural heading"
+            )
     return True, "one exact supplied fact line matched"
 
 

@@ -945,7 +945,7 @@ model-owned effects. Every reproduced merge-blocking issue now has a red-first m
 The current repair candidate uses strict closed orientation, known-alert, and production-change
 packets; enumerated result meanings; one-question/one-action cardinality; host-bound result owners;
 prompt-mandated exact incident fact lines; and exact adjacent-lane security/change evidence. This
-removes the prior free-text relationship, branch-action, and alert-narrative parsers. Its 732
+removes the prior free-text relationship, branch-action, and alert-narrative parsers. Its 735
 deterministic grader checks pass, including raw and normalized prompt echoes for all ten navigation
 discovery cases.
 

@@ -477,6 +477,33 @@ def test_incident_navigation_exact_fact() -> None:
             raised = True
         check(raised, "exact fact: malformed configuration raises")
 
+    section_fact = "Checkout failed for 42% of requests in two regions."
+    ok, _ = graders.incident_navigation_exact_fact(
+        f"## Impact\n{section_fact}",
+        section_fact,
+        "42%",
+        required_preceding_line="## Impact",
+    )
+    check(ok, "exact fact: supplied line directly under its required heading passes")
+    ok, _ = graders.incident_navigation_exact_fact(
+        f"## Impact\nNo impact recorded.\n## Timeline\n{section_fact}",
+        section_fact,
+        "42%",
+        required_preceding_line="## Impact",
+    )
+    check(not ok, "exact fact: supplied line moved under another heading rejects")
+    raised = False
+    try:
+        graders.incident_navigation_exact_fact(
+            section_fact,
+            section_fact,
+            "42%",
+            required_preceding_line="",
+        )
+    except ValueError:
+        raised = True
+    check(raised, "exact fact: malformed required heading raises")
+
 
 def test_incident_navigation_contract() -> None:
     owners = ["obs-metrics", "obs-logs", "pcf-ops"]

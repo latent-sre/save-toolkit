@@ -504,7 +504,8 @@ use it when the contract under test emits a structured artifact rather than pros
 `discovery-approved-service-knowledge.yaml` for the config shape.
 `incident_navigation_exact_fact` requires one prompt-mandated fact as one exact complete response
 line and requires its bounded anchor to occur exactly once. It intentionally avoids semantic prose
-parsing; a numeric superstring or second contradictory restatement cannot satisfy it.
+parsing; a numeric superstring or second contradictory restatement cannot satisfy it. Its optional
+`required_preceding_line` binds that fact directly under a supplied structural heading.
 `incident_navigation_contract` takes an `allowed_signal_owners` list and requires one closed,
 strict-plaintext twelve-field orientation packet, one owner mention from that list, exactly one
 uncoordinated question, one atomic observation, two distinct enumerated result meanings, an observable
