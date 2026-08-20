@@ -3,6 +3,8 @@
 
 The evaluator accepts no provider-native activation trace for filesystem-injected skills. Skill
 positives and near-miss negatives therefore use the existing deterministic response graders only.
+The separate target-blind development probe scores one exact catalog-description selection and does
+not claim that Codex invoked or loaded the selected skill.
 Root-scoped delegation is less observable still: the accepted trace has no joinable V2 spawn edge,
 ``PostToolUse`` does not expose a joinable plaintext delegation task, and ``wait_agent`` reports
 mailbox activity rather than semantic root consumption. Root trials therefore validate the
@@ -101,6 +103,13 @@ _ROOT_LIMITATIONS = (
     "semantic result.",
     "No observed event proves semantic root consumption; root delegation is reported as "
     "INCONCLUSIVE (root-delegation-unobservable-v2).",
+)
+_DESCRIPTION_SELECTION_LIMITATIONS = (
+    "This probe measures selection from the rendered skill catalog; it does not load or grade the "
+    "selected skill body.",
+    "The selected name is observed from the final response, not from a provider-native skill "
+    "activation event.",
+    "Raw prompts, responses, paths, and runtime identifiers are not persisted by this verdict.",
 )
 
 
@@ -367,4 +376,63 @@ def grade_trial(
         root_scope=root_scope,
         behavior_grades=behavior_grades,
         reason_codes=("observational-behavior-pass",),
+    )
+
+
+def grade_description_selection(
+    *,
+    expected_skill: str,
+    trace: codex_harness.ParsedTrace,
+    hooks: codex_harness.ParsedHookReceipts,
+) -> RoutingVerdict:
+    """Grade the target-blind catalog-selection probe without loading a skill body."""
+
+    if (
+        not isinstance(expected_skill, str)
+        or not expected_skill
+        or expected_skill.strip() != expected_skill
+    ):
+        return RoutingVerdict(
+            state=VerdictState.INCONCLUSIVE,
+            evidence_mode="catalog-description-selection",
+            behavior_grades=(),
+            ancestry=None,
+            reason_codes=("description-target-invalid",),
+            limitations=_DESCRIPTION_SELECTION_LIMITATIONS,
+        )
+    instrument_problem = _instrument_problem(
+        root_scope=False,
+        trace=trace,
+        hooks=hooks,
+    )
+    response = trace.last_agent_message
+    if trace.terminal != "completed" or not isinstance(response, str) or not response:
+        return RoutingVerdict(
+            state=VerdictState.INCONCLUSIVE,
+            evidence_mode="catalog-description-selection",
+            behavior_grades=(),
+            ancestry=None,
+            reason_codes=(instrument_problem or "description-response-missing",),
+            limitations=_DESCRIPTION_SELECTION_LIMITATIONS,
+        )
+    size_problem = _response_size_problem(response)
+    if instrument_problem is not None or size_problem is not None:
+        return RoutingVerdict(
+            state=VerdictState.INCONCLUSIVE,
+            evidence_mode="catalog-description-selection",
+            behavior_grades=(),
+            ancestry=None,
+            reason_codes=(instrument_problem or size_problem,),
+            limitations=_DESCRIPTION_SELECTION_LIMITATIONS,
+        )
+    passed = response.strip() == expected_skill
+    return RoutingVerdict(
+        state=VerdictState.PASS if passed else VerdictState.FAIL,
+        evidence_mode="catalog-description-selection",
+        behavior_grades=(BehaviorGrade(index=0, passed=passed),),
+        ancestry=None,
+        reason_codes=(
+            "description-selection-pass" if passed else "description-selection-failed",
+        ),
+        limitations=_DESCRIPTION_SELECTION_LIMITATIONS,
     )

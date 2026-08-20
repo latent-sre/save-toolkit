@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Validate and plan the fixed Codex/Terra ROUTE-001 campaign.
+"""Validate and run the fixed Codex/Terra ROUTE-001 instruments.
 
-The live executor is added only after the provider-native activation trace has an independently
-tested contract.  This module already freezes the model, scenario, revision, and authority inputs
-so a behavior-only Codex transcript cannot be mistaken for routing evidence.
+The campaign and development probes freeze their model, scenario, revision, and authority inputs.
+Description selection, explicit body behavior, and the narrower campaign evidence remain separately
+labeled so one observation cannot be promoted into another.
 """
 from __future__ import annotations
 
@@ -58,6 +58,15 @@ CURRENT_REVISION = "7aef80aede95394f6c4237ed2aedb911e141c3c0"
 CANARY_SCENARIO_ID = "discovery-gcp-ops-cloud-run-startup"
 CANARY_EXPLICIT_SKILL = "gcp-ops"
 CANARY_TRIAL = 1
+CANARY_PROBE_MODES = frozenset({"body", "description"})
+CANARY_DESCRIPTION_PROMPT_PREFIX = (
+    "This is a skill-description selection check. Do not solve the task. Choose the one "
+    "available skill whose description best matches it. Reply with exactly the bare skill name "
+    "and no other text.\n\nTask:\n"
+)
+CANARY_SKILL_BODY_SHA256 = (
+    "a319096742e87f45fa6e9cf3652247237a9aff3cdec7835cd775b78bd4dd3bd6"
+)
 CANARY_CANONICAL_SHA256 = (
     "5c516ab15a31cd26923193b97ab69e7c16337ef8ab916bf43706c3047f79fd6b"
 )
@@ -774,7 +783,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=CANARY_SCENARIO_ID,
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--canary-arm",
+        choices=sorted(CANARY_PROBE_MODES),
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args(argv)
+
+    if not args.canary and args.canary_arm is not None:
+        print(
+            "codex-terra-routing: --canary-arm is canary-only",
+            file=sys.stderr,
+        )
+        return 3
 
     try:
         manifest_before, manifest = load_stable_manifest(args.manifest)
@@ -871,7 +892,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result = codex_trial.run_preflight(
                     scenario=manifest["canary_scenario"],
                     spec=spec,
-                    canary_body_probe=True,
+                    canary_probe_mode="body",
                     **common,
                 )
             elif args.campaign:
@@ -917,7 +938,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     auth_file=args.auth_file,
                     scenario=manifest["canary_scenario"],
                     spec=spec,
-                    canary_body_probe=True,
+                    canary_probe_mode=args.canary_arm or "body",
                     **common,
                 )
         except (KeyError, OSError, ValueError) as exc:

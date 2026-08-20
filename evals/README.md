@@ -86,6 +86,27 @@ Update durable campaign documentation only when a canary produces a valid verdic
 contract changes, or the work is deliberately closed. Standalone `preflight` remains available for a
 credential-free diagnostic, and `campaign` retains its separate 48-trial journal and review gates.
 
+The approved three-round diagnostic uses the existing one-call container command six times, with a
+fresh output root for every coordinate: `--canary-arm description`, then `--canary-arm body`, in
+that order for rounds one through three. Each command runs its own credential-free, networkless
+preflight and can start at most one paid call. Do not retry an ambiguous, invalid, or `INCONCLUSIVE`
+coordinate; stop the sequence and report it. Valid `PASS` and `FAIL` observations continue until all
+six calls are complete so the repetitions expose variance. This intentionally small operator
+sequence adds no campaign journal or second executor. Keep the six compact `canary-result.json`
+files separate and compare arms only within the same round.
+
+The description arm asks for exactly one bare skill name from the rendered catalog and never names
+the expected skill in its user prompt. It records `catalog-description-selection`; it neither loads
+nor grades a skill body and is not a provider-native activation receipt. The body arm uses explicit
+`$gcp-ops`, records `explicit-skill-body-probe`, and requires the staged projected
+`gcp-ops/SKILL.md` to match SHA-256
+`a319096742e87f45fa6e9cf3652247237a9aff3cdec7835cd775b78bd4dd3bd6` before launch. Current official
+Codex documentation establishes that explicit selection injects full skill instructions; exact
+Codex `rust-v0.148.0` source at `3ba0f711642a888aec92a611a3f3b2211157ff89` separately confirms
+that explicit selections are read and injected while `skill_search` remains shadow-only. The body
+arm tests the entrypoint, not conditional reference loading. Neither arm is campaign, baseline,
+promotion, or release evidence. The current manifest digest is recorded in the dated review packet.
+
 The historical Windows host arm does not satisfy that launch contract: its Python installation and runtime
 closure are writable by the operator identity. The canary is therefore **NO-GO** until a protected
 runtime/closure or separate OS identity is provisioned and independently bound. A clean launch
@@ -150,6 +171,10 @@ total or 8 KiB per line before grading. The rollback grader accepts exactly one 
 binds its two command fields to the scenario's exact service and synthetic revision IDs, and rejects
 extra traffic commands, shell syntax, wrong weights, or mismatched context flags. The remaining
 seventeen non-root scenarios require zero command/collaboration receipts.
+
+The approved three-pair diagnostic does not replace that historical one-arm canary. It adds the
+target-blind catalog-selection arm beside the exact-body arm and reports the two outcomes separately.
+The nineteen campaign inputs, their hashes, and the 48-trial plan are unchanged.
 
 The evaluator stages only exact Git-object skill and custom-agent projections into a neutral Codex
 project. Terra's stock 0.147 metadata would force code mode and expose `apply_patch`, which can read

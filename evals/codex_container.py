@@ -17,10 +17,15 @@ from typing import Mapping, Sequence
 
 IMAGE_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 MODES = frozenset({"preflight", "canary", "campaign"})
+CANARY_ARMS = ("description", "body")
 CONTAINER_USER = "65532:65532"
 CONTAINER_UID = 65532
 CANARY_RESULT_NAME = "canary-result.json"
-CANARY_PROMPT_SHA256 = "65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3"
+CANARY_BODY_PROMPT_SHA256 = "65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3"
+CANARY_DESCRIPTION_PROMPT_SHA256 = "fe2e7b6c9af8f884efc77cf983c9051b55ab1c4217b95e9afdea76e00fe58475"
+CANARY_SKILL_BODY_SHA256 = "a319096742e87f45fa6e9cf3652247237a9aff3cdec7835cd775b78bd4dd3bd6"
+# Compatibility name for the original body-only canary.
+CANARY_PROMPT_SHA256 = CANARY_BODY_PROMPT_SHA256
 MAX_CHILD_JSON_BYTES = 1024 * 1024
 ENTRYPOINT = [
     "/usr/local/bin/python3.12",
@@ -133,9 +138,20 @@ def _validate_inputs(mode: str, inputs: ContainerInputs) -> tuple[Path, Path, Pa
     return repository, output, auth
 
 
-def build_docker_command(mode: str, inputs: ContainerInputs) -> tuple[str, ...]:
+def build_docker_command(
+    mode: str,
+    inputs: ContainerInputs,
+    *,
+    canary_arm: str | None = None,
+) -> tuple[str, ...]:
     """Return the complete argument vector; no credential or provider secret enters it."""
 
+    if mode == "canary":
+        canary_arm = canary_arm or "body"
+        if canary_arm not in CANARY_ARMS:
+            raise ContainerContractError("canary arm must be description or body")
+    elif canary_arm is not None:
+        raise ContainerContractError("canary arm is valid only for canary launches")
     repository, output, auth = _validate_inputs(mode, inputs)
     command = [
         "docker",
@@ -180,7 +196,15 @@ def build_docker_command(mode: str, inputs: ContainerInputs) -> tuple[str, ...]:
     if mode == "preflight":
         command.append("--preflight")
     elif mode == "canary":
-        command.extend(("--canary", "--auth-file", "/run/secrets/auth.json"))
+        command.extend(
+            (
+                "--canary",
+                "--canary-arm",
+                str(canary_arm),
+                "--auth-file",
+                "/run/secrets/auth.json",
+            )
+        )
     else:
         command.extend(
             (
@@ -362,7 +386,11 @@ def _failed_grader_indices(payload: Mapping[str, object]) -> list[int] | None:
     return failed
 
 
-def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str, object], int]:
+def _canary_result(
+    process: subprocess.CompletedProcess[str], *, arm: str = "body"
+) -> tuple[dict[str, object], int]:
+    if arm not in CANARY_ARMS:
+        raise ContainerContractError("canary arm must be description or body")
     payload = _json_object(process.stdout)
     state = payload.get("state") if payload is not None else None
     reasons = _reason_codes(payload.get("reason_codes")) if payload is not None else None
@@ -376,6 +404,29 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
     prompt_sha256 = (
         scenario.get("prompt_sha256") if isinstance(scenario, dict) else None
     )
+    runtime = payload.get("runtime") if payload is not None else None
+    selected_skill_name = (
+        runtime.get("selected_skill_name") if isinstance(runtime, dict) else None
+    )
+    selected_skill_body_sha256 = (
+        runtime.get("selected_skill_body_sha256")
+        if isinstance(runtime, dict)
+        else None
+    )
+    expected_invocation_mode = {
+        "description": "description-selection-probe",
+        "body": "explicit-skill-body-probe",
+    }[arm]
+    expected_prompt_sha256 = {
+        "description": CANARY_DESCRIPTION_PROMPT_SHA256,
+        "body": CANARY_BODY_PROMPT_SHA256,
+    }[arm]
+    body_binding_valid = (
+        selected_skill_name is None and selected_skill_body_sha256 is None
+        if arm == "description"
+        else selected_skill_name == "gcp-ops"
+        and selected_skill_body_sha256 == CANARY_SKILL_BODY_SHA256
+    )
     failed_grader_indices = (
         _failed_grader_indices(payload)
         if payload is not None and state in {"PASS", "FAIL"}
@@ -386,13 +437,21 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
         or (state == "PASS" and failed_grader_indices == [])
         or (state == "FAIL" and bool(failed_grader_indices))
     )
+    expected_reason = {
+        ("description", "PASS"): ["description-selection-pass"],
+        ("description", "FAIL"): ["description-selection-failed"],
+        ("body", "PASS"): ["observational-behavior-pass"],
+        ("body", "FAIL"): ["behavior-grader-failed"],
+    }.get((arm, state))
     expected_exit_code = {"PASS": 0, "FAIL": 2, "INCONCLUSIVE": 4}.get(state)
     if (
         state not in {"PASS", "FAIL", "INCONCLUSIVE"}
         or reasons is None
-        or invocation_mode != "explicit-skill-body-probe"
-        or prompt_sha256 != CANARY_PROMPT_SHA256
+        or invocation_mode != expected_invocation_mode
+        or prompt_sha256 != expected_prompt_sha256
+        or not body_binding_valid
         or not behavior_result_valid
+        or (state != "INCONCLUSIVE" and reasons != expected_reason)
         or process.returncode != expected_exit_code
     ):
         return (
@@ -402,8 +461,10 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
                 "state": "INCONCLUSIVE",
                 "reason_codes": ["canary-output-invalid"],
                 "failed_grader_indices": None,
+                "arm": arm,
                 "invocation_mode": None,
                 "prompt_sha256": None,
+                "selected_skill_body_sha256": None,
                 "usage": None,
             },
             3,
@@ -415,18 +476,22 @@ def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str,
             "state": state,
             "reason_codes": reasons,
             "failed_grader_indices": failed_grader_indices,
+            "arm": arm,
             "invocation_mode": invocation_mode,
             "prompt_sha256": prompt_sha256,
+            "selected_skill_body_sha256": selected_skill_body_sha256,
             "usage": _usage(payload),
         },
         process.returncode,
     )
 
 
-def run_development_canary(inputs: ContainerInputs) -> tuple[int, dict[str, object]]:
+def run_development_canary(
+    inputs: ContainerInputs, *, arm: str = "body"
+) -> tuple[int, dict[str, object]]:
     """Run one credential-free preflight and at most one authenticated trial."""
 
-    canary_command = build_docker_command("canary", inputs)
+    canary_command = build_docker_command("canary", inputs, canary_arm=arm)
     preflight_inputs = ContainerInputs(
         image_id=inputs.image_id,
         repository=inputs.repository,
@@ -446,17 +511,17 @@ def run_development_canary(inputs: ContainerInputs) -> tuple[int, dict[str, obje
             "state": None,
             "reason_codes": ["preflight-failed"],
             "failed_grader_indices": None,
+            "arm": arm,
             "invocation_mode": None,
             "prompt_sha256": None,
+            "selected_skill_body_sha256": None,
             "usage": None,
         },
     }
     if preflight["passed"] is not True:
         return (4 if preflight["exit_code"] == 4 else 3), summary
 
-    canary, exit_code = _canary_result(
-        _run_captured(canary_command)
-    )
+    canary, exit_code = _canary_result(_run_captured(canary_command), arm=arm)
     summary["canary"] = canary
     return exit_code, summary
 
@@ -500,6 +565,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="result directory; canary mode writes the latest canary-result.json",
     )
     parser.add_argument("--auth-file", type=Path)
+    parser.add_argument("--canary-arm", choices=CANARY_ARMS)
     args = parser.parse_args(argv)
     inputs = ContainerInputs(
         image_id=args.image_id,
@@ -508,9 +574,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         auth_file=args.auth_file,
     )
     try:
+        if args.mode != "canary" and args.canary_arm is not None:
+            raise ContainerContractError("canary arm is valid only in canary mode")
         inspect_image(inputs.image_id)
         if args.mode == "canary":
-            exit_code, result = run_development_canary(inputs)
+            exit_code, result = run_development_canary(
+                inputs, arm=args.canary_arm or "body"
+            )
             print(json.dumps(result, sort_keys=True, separators=(",", ":")))
             _write_canary_result(inputs.output_root, result)
             return exit_code

@@ -1016,7 +1016,7 @@ def validate_trial_contract(
     *,
     manifest_sha256: str,
     manifest_path: Path = run_codex_routing.MANIFEST_PATH,
-    canary_body_probe: bool = False,
+    canary_probe_mode: str | None = None,
 ) -> TrialContract:
     """Bind a scenario object and trial coordinate to the fixed manifest shape."""
 
@@ -1067,10 +1067,12 @@ def validate_trial_contract(
     prompt = scenario.get("prompt")
     if not isinstance(prompt, str) or not prompt:
         raise TrialContractError("scenario prompt must be non-empty text")
-    if not isinstance(canary_body_probe, bool):
-        raise TrialContractError("canary body-probe selector must be boolean")
+    if canary_probe_mode is not None and canary_probe_mode not in (
+        run_codex_routing.CANARY_PROBE_MODES
+    ):
+        raise TrialContractError("canary probe mode is invalid")
     invocation_mode = "implicit-discovery"
-    if canary_body_probe:
+    if canary_probe_mode is not None:
         if (
             scenario_id != run_codex_routing.CANARY_SCENARIO_ID
             or spec.trial != run_codex_routing.CANARY_TRIAL
@@ -1078,10 +1080,14 @@ def validate_trial_contract(
             != {"kind": "skill", "name": run_codex_routing.CANARY_EXPLICIT_SKILL}
         ):
             raise TrialContractError(
-                "explicit body probe is limited to the fixed development canary"
+                "canary probe mode is limited to the fixed development canary"
             )
+    if canary_probe_mode == "body":
         prompt = f"${run_codex_routing.CANARY_EXPLICIT_SKILL}\n\n{prompt}"
         invocation_mode = "explicit-skill-body-probe"
+    elif canary_probe_mode == "description":
+        prompt = f"{run_codex_routing.CANARY_DESCRIPTION_PROMPT_PREFIX}{prompt}"
+        invocation_mode = "description-selection-probe"
     try:
         codex_harness.reject_credentials(prompt, location="scenario_prompt")
     except codex_harness.CredentialExposureError as exc:
@@ -2111,7 +2117,7 @@ def run_preflight(
     manifest_sha256: str,
     exact_revision: bool,
     runtime_profile: codex_runtime.RuntimeProfile | None = None,
-    canary_body_probe: bool = False,
+    canary_probe_mode: str | None = None,
     temp_parent: Path | None = None,
     command_runner: CommandRunner = _default_command_runner,
 ) -> TrialResult:
@@ -2126,7 +2132,7 @@ def run_preflight(
         manifest_sha256=manifest_sha256,
         exact_revision=exact_revision,
         runtime_profile=runtime_profile,
-        canary_body_probe=canary_body_probe,
+        canary_probe_mode=canary_probe_mode,
         credential_free_only=True,
         temp_parent=temp_parent,
         command_runner=command_runner,
@@ -2144,7 +2150,7 @@ def run_trial(
     manifest_sha256: str,
     exact_revision: bool,
     runtime_profile: codex_runtime.RuntimeProfile | None = None,
-    canary_body_probe: bool = False,
+    canary_probe_mode: str | None = None,
     temp_parent: Path | None = None,
     command_runner: CommandRunner = _default_command_runner,
     process_runner: ProcessRunner = launch_process,
@@ -2160,7 +2166,7 @@ def run_trial(
         manifest_sha256=manifest_sha256,
         exact_revision=exact_revision,
         runtime_profile=runtime_profile,
-        canary_body_probe=canary_body_probe,
+        canary_probe_mode=canary_probe_mode,
         credential_free_only=False,
         temp_parent=temp_parent,
         command_runner=command_runner,
@@ -2178,7 +2184,7 @@ def _execute_trial(
     manifest_sha256: str,
     exact_revision: bool,
     runtime_profile: codex_runtime.RuntimeProfile | None,
-    canary_body_probe: bool,
+    canary_probe_mode: str | None,
     credential_free_only: bool,
     temp_parent: Path | None,
     command_runner: CommandRunner,
@@ -2195,7 +2201,7 @@ def _execute_trial(
             if runtime_profile is not None
             else run_codex_routing.MANIFEST_PATH
         ),
-        canary_body_probe=canary_body_probe,
+        canary_probe_mode=canary_probe_mode,
     )
     if not isinstance(exact_revision, bool):
         raise TrialContractError("exact_revision must be a caller-supplied boolean")
@@ -2305,6 +2311,28 @@ def _execute_trial(
             stage_receipt = codex_snapshot.stage_neutral_project(
                 paths["snapshot"], paths["project"]
             )
+            if contract.invocation_mode == "explicit-skill-body-probe":
+                skill_body = _stable_file_bytes(
+                    paths["project"]
+                    / ".agents"
+                    / "skills"
+                    / run_codex_routing.CANARY_EXPLICIT_SKILL
+                    / "SKILL.md",
+                    label="selected canary skill body",
+                    max_bytes=1024 * 1024,
+                )
+                skill_body_sha256 = hashlib.sha256(skill_body).hexdigest()
+                if skill_body_sha256 != run_codex_routing.CANARY_SKILL_BODY_SHA256:
+                    raise InstrumentError(
+                        "skill-body-mismatch",
+                        "selected canary skill body differs from the fixed snapshot",
+                    )
+                runtime_facts.update(
+                    {
+                        "selected_skill_name": run_codex_routing.CANARY_EXPLICIT_SKILL,
+                        "selected_skill_body_sha256": skill_body_sha256,
+                    }
+                )
             if runtime_profile is not None and not runtime_profile.copy_codex_executable:
                 staged_codex = _ordinary_file(Path(codex_bin), label="protected Codex executable")
                 if (
@@ -2583,7 +2611,15 @@ def _execute_trial(
                     state=codex_routing_grade.VerdictState.INCONCLUSIVE,
                     reason_codes=("hook-invalid",),
                 )
-            verdict = codex_routing_grade.grade_trial(scenario, trace, hooks)
+            verdict = (
+                codex_routing_grade.grade_description_selection(
+                    expected_skill=run_codex_routing.CANARY_EXPLICIT_SKILL,
+                    trace=trace,
+                    hooks=hooks,
+                )
+                if contract.invocation_mode == "description-selection-probe"
+                else codex_routing_grade.grade_trial(scenario, trace, hooks)
+            )
             return finish_result(
                 state=verdict.state,
                 reason_codes=verdict.reason_codes,

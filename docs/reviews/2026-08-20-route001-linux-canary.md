@@ -394,3 +394,36 @@ The focused evaluator set passes 85 tests with two expected platform skips, and 
 validation passes. Gate A passes 42 of 43 steps in the linked worktree; its sole failure is the known
 snapshot test that deliberately requires an ordinary `.git` directory. The campaign remains
 `NO-GO`; these executor fixes do not resolve the measurement-design decision.
+
+## Three-pair description/body diagnostic candidate
+
+The owner then chose to measure both questions separately for three rounds. The candidate adds one
+target-blind catalog-description selection followed by one explicit `$gcp-ops` body response per
+round: six paid calls and no retries. Each coordinate uses the existing one-call canary with a fresh
+output root, so it receives a credential-free preflight and can dispatch at most one model call. An
+ambiguous, invalid, or `INCONCLUSIVE` coordinate stops the sequence; a valid behavioral `FAIL` does
+not stop later repetitions because variance is the measurement. An interrupted coordinate is an
+unknown outcome and is not retried. This keeps the diagnostic separate without adding another
+campaign executor.
+
+The description arm's effective prompt contains the unchanged Cloud Run task but not the expected
+skill name; it accepts only the bare name `gcp-ops` and reports
+`catalog-description-selection`. The body arm retains the existing explicit prompt and graders and
+now binds the staged projected entrypoint to SHA-256
+`a319096742e87f45fa6e9cf3652247237a9aff3cdec7835cd775b78bd4dd3bd6`. That receipt makes the exact
+candidate body observable without claiming that conditional references were loaded. The two arms
+have separate prompt hashes, invocation modes, grades, and usage totals in
+their six `canary-result.json` files; neither is promoted into campaign evidence.
+
+Context7's current official Codex documentation establishes the explicit-selection injection
+contract. GitHits exact-source evidence remains pinned separately to `rust-v0.148.0` commit
+`3ba0f711642a888aec92a611a3f3b2211157ff89`: explicit entries are selected in
+`codex-rs/ext/skills/src/selection.rs:21-79`, read at
+`codex-rs/ext/skills/src/extension.rs:440-487`, while shadow selection at `:389-408` does not enter
+that injected set. No paired live call has run yet. The candidate must be committed, rebuilt into a
+new exact image, pass offline checks and credential-free preflight, and then consume only the six
+calls the owner approved. The focused affected set passes 133 tests with six expected platform
+skips, strict plugin validation passes, and Gate A passes 42 of 43 steps in the linked worktree; its
+sole failure is the known ordinary-`.git` snapshot requirement. The final ten-file evaluator
+manifest is 1,296 bytes with SHA-256
+`e824fbafc3f6c7374fba135413eb5121f63a665bfde46d8ebdd8117d053bacb1`.

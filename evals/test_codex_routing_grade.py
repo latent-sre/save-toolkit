@@ -159,6 +159,42 @@ def _hooks_with_post_tool() -> codex_harness.ParsedHookReceipts:
 
 
 class ObservationalSkillRoutingTests(unittest.TestCase):
+    def test_description_selection_requires_the_exact_bare_skill_name(self) -> None:
+        for response, expected_state in (
+            ("gcp-ops", codex_routing_grade.VerdictState.PASS),
+            (" gcp-ops\n", codex_routing_grade.VerdictState.PASS),
+            ("$gcp-ops", codex_routing_grade.VerdictState.FAIL),
+            ("gcp-ops because it handles GCP", codex_routing_grade.VerdictState.FAIL),
+            ("observability", codex_routing_grade.VerdictState.FAIL),
+        ):
+            with self.subTest(response=response):
+                verdict = codex_routing_grade.grade_description_selection(
+                    expected_skill="gcp-ops",
+                    trace=_trace(response),
+                    hooks=_hooks(),
+                )
+                self.assertEqual(expected_state, verdict.state)
+                self.assertEqual("catalog-description-selection", verdict.evidence_mode)
+                self.assertEqual(
+                    [expected_state is codex_routing_grade.VerdictState.PASS],
+                    [grade.passed for grade in verdict.behavior_grades],
+                )
+                self.assertTrue(
+                    any("does not load" in item for item in verdict.limitations)
+                )
+
+    def test_description_selection_fails_closed_on_tool_flow(self) -> None:
+        verdict = codex_routing_grade.grade_description_selection(
+            expected_skill="gcp-ops",
+            trace=_trace("gcp-ops"),
+            hooks=_hooks_with_post_tool(),
+        )
+
+        self.assertEqual(
+            codex_routing_grade.VerdictState.INCONCLUSIVE, verdict.state
+        )
+        self.assertIn("forbidden-tool-observed", verdict.reason_codes)
+
     def test_positive_skill_case_passes_only_from_existing_response_graders(self) -> None:
         verdict = codex_routing_grade.grade_trial(
             _scenario(expect="fire"), _trace(), _hooks()

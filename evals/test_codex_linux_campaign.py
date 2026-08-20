@@ -306,6 +306,20 @@ class ContainerCommandTests(unittest.TestCase):
 
         self.assertEqual(expected, codex_container.CANARY_PROMPT_SHA256)
 
+    def test_description_prompt_digest_is_target_blind_and_exact(self) -> None:
+        manifest = run_codex_routing.load_manifest(
+            run_codex_routing.LINUX_MANIFEST_PATH
+        )
+        prompt = (
+            f"{run_codex_routing.CANARY_DESCRIPTION_PROMPT_PREFIX}"
+            f"{manifest['canary_scenario']['prompt']}"
+        )
+        self.assertNotIn("gcp-ops", run_codex_routing.CANARY_DESCRIPTION_PROMPT_PREFIX)
+        self.assertEqual(
+            hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            codex_container.CANARY_DESCRIPTION_PROMPT_SHA256,
+        )
+
     def _inputs(self, root: Path, *, auth: bool) -> codex_container.ContainerInputs:
         repository = root / "repository"
         output = root / "output"
@@ -361,7 +375,14 @@ class ContainerCommandTests(unittest.TestCase):
         self.assertIn("target=/source,readonly", rendered)
         self.assertNotIn("target=/output", rendered)
         self.assertEqual(
-            ("--canary", "--auth-file", "/run/secrets/auth.json"), command[-3:]
+            (
+                "--canary",
+                "--canary-arm",
+                "body",
+                "--auth-file",
+                "/run/secrets/auth.json",
+            ),
+            command[-5:],
         )
         self.assertNotIn("HTTP_PROXY", rendered.upper())
         self.assertNotIn("OPENAI_API", rendered.upper())
@@ -433,7 +454,9 @@ class ContainerCommandTests(unittest.TestCase):
             ):
                 codex_container.build_docker_command("preflight", inputs)
 
-    def _canary_args(self, inputs: codex_container.ContainerInputs) -> list[str]:
+    def _canary_args(
+        self, inputs: codex_container.ContainerInputs, *, arm: str | None = None
+    ) -> list[str]:
         arguments = [
             "canary",
             "--image-id",
@@ -445,9 +468,11 @@ class ContainerCommandTests(unittest.TestCase):
         ]
         if inputs.auth_file is not None:
             arguments.extend(("--auth-file", str(inputs.auth_file)))
+        if arm is not None:
+            arguments.extend(("--canary-arm", arm))
         return arguments
 
-    def _run_canary_main(self, inputs, runner):
+    def _run_canary_main(self, inputs, runner, *, arm: str | None = None):
         with (
             mock.patch("codex_container.inspect_image", return_value={}),
             mock.patch("codex_container.subprocess.run", side_effect=runner),
@@ -455,7 +480,7 @@ class ContainerCommandTests(unittest.TestCase):
             contextlib.redirect_stdout(io.StringIO()),
             contextlib.redirect_stderr(io.StringIO()),
         ):
-            exit_code = codex_container.main(self._canary_args(inputs))
+            exit_code = codex_container.main(self._canary_args(inputs, arm=arm))
         result_path = inputs.output_root / "canary-result.json"
         result = (
             json.loads(result_path.read_text(encoding="utf-8"))
@@ -486,6 +511,10 @@ class ContainerCommandTests(unittest.TestCase):
             "reason_codes": ["observational-behavior-pass"],
             "scenario": {"prompt_sha256": codex_container.CANARY_PROMPT_SHA256},
             "configuration": {"invocation_mode": "explicit-skill-body-probe"},
+            "runtime": {
+                "selected_skill_name": "gcp-ops",
+                "selected_skill_body_sha256": codex_container.CANARY_SKILL_BODY_SHA256,
+            },
             "trace": {"usage": usage},
             "verdict": {
                 "behavior": {
@@ -521,8 +550,14 @@ class ContainerCommandTests(unittest.TestCase):
         self.assertEqual("--preflight", preflight_command[-1])
         self.assertNotIn("auth.json", " ".join(preflight_command))
         self.assertEqual(
-            ("--canary", "--auth-file", "/run/secrets/auth.json"),
-            canary_command[-3:],
+            (
+                "--canary",
+                "--canary-arm",
+                "body",
+                "--auth-file",
+                "/run/secrets/auth.json",
+            ),
+            canary_command[-5:],
         )
         self.assertIn("target=/run/secrets/auth.json,readonly", " ".join(canary_command))
         for kwargs in (preflight_kwargs, canary_kwargs):
@@ -546,8 +581,10 @@ class ContainerCommandTests(unittest.TestCase):
                     "state": "PASS",
                     "reason_codes": ["observational-behavior-pass"],
                     "failed_grader_indices": [],
+                    "arm": "body",
                     "invocation_mode": "explicit-skill-body-probe",
                     "prompt_sha256": codex_container.CANARY_PROMPT_SHA256,
+                    "selected_skill_body_sha256": codex_container.CANARY_SKILL_BODY_SHA256,
                     "usage": usage,
                 },
             },
@@ -569,6 +606,10 @@ class ContainerCommandTests(unittest.TestCase):
             "reason_codes": ["behavior-grader-failed"],
             "scenario": {"prompt_sha256": codex_container.CANARY_PROMPT_SHA256},
             "configuration": {"invocation_mode": "explicit-skill-body-probe"},
+            "runtime": {
+                "selected_skill_name": "gcp-ops",
+                "selected_skill_body_sha256": codex_container.CANARY_SKILL_BODY_SHA256,
+            },
             "trace": {"usage": {}},
             "verdict": {
                 "behavior": {
@@ -608,7 +649,58 @@ class ContainerCommandTests(unittest.TestCase):
             codex_container.CANARY_PROMPT_SHA256,
             result["canary"]["prompt_sha256"],
         )
+        self.assertEqual(
+            codex_container.CANARY_SKILL_BODY_SHA256,
+            result["canary"]["selected_skill_body_sha256"],
+        )
         self.assertNotIn("private grader detail", json.dumps(result))
+
+    def test_description_canary_uses_catalog_selection_without_body_binding(self) -> None:
+        preflight = {
+            "mode": "credential-free-preflight",
+            "authenticated_call_started": False,
+            "live_authorized": False,
+            "result": {
+                "state": "PASS",
+                "reason_codes": ["credential-free-preflight-pass"],
+            },
+        }
+        canary = {
+            "state": "PASS",
+            "reason_codes": ["description-selection-pass"],
+            "scenario": {
+                "prompt_sha256": codex_container.CANARY_DESCRIPTION_PROMPT_SHA256
+            },
+            "configuration": {"invocation_mode": "description-selection-probe"},
+            "trace": {"usage": {}},
+            "verdict": {
+                "behavior": {
+                    "grader_count": 1,
+                    "passed_count": 1,
+                    "graders": [{"index": 0, "passed": True}],
+                }
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as raw:
+            inputs = self._inputs(Path(raw), auth=True)
+
+            def runner(command, **kwargs):
+                del kwargs
+                command = tuple(command)
+                payload = preflight if command[-1] == "--preflight" else canary
+                return subprocess.CompletedProcess(command, 0, json.dumps(payload), "")
+
+            exit_code, result = self._run_canary_main(
+                inputs, runner, arm="description"
+            )
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual("description", result["canary"]["arm"])
+        self.assertEqual(
+            "description-selection-probe", result["canary"]["invocation_mode"]
+        )
+        self.assertIsNone(result["canary"]["selected_skill_body_sha256"])
 
     def test_canary_rejects_a_missing_explicit_probe_mode(self) -> None:
         payload = {
@@ -771,8 +863,10 @@ class ContainerCommandTests(unittest.TestCase):
                 "state": None,
                 "reason_codes": ["preflight-failed"],
                 "failed_grader_indices": None,
+                "arm": "body",
                 "invocation_mode": None,
                 "prompt_sha256": None,
+                "selected_skill_body_sha256": None,
                 "usage": None,
             },
             result["canary"],

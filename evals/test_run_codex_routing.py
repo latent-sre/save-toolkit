@@ -426,7 +426,7 @@ class CanaryContractTests(unittest.TestCase):
         isolated.assert_called_once()
         preflight.assert_called_once()
         self.assertNotIn("auth_file", preflight.call_args.kwargs)
-        self.assertIs(True, preflight.call_args.kwargs["canary_body_probe"])
+        self.assertEqual("body", preflight.call_args.kwargs["canary_probe_mode"])
         serialized = printed.call_args.args[0]
         self.assertIn('"authenticated_call_started":false', serialized)
         self.assertIn('"live_authorized":false', serialized)
@@ -476,7 +476,55 @@ class CanaryContractTests(unittest.TestCase):
 
         self.assertEqual(0, exit_code)
         trial.assert_called_once()
-        self.assertIs(True, trial.call_args.kwargs["canary_body_probe"])
+        self.assertEqual("body", trial.call_args.kwargs["canary_probe_mode"])
+
+    def test_authenticated_canary_can_select_the_description_only_arm(self) -> None:
+        result = SimpleNamespace(
+            state=SimpleNamespace(value="PASS"),
+            as_dict=lambda: {"state": "PASS"},
+        )
+        with (
+            mock.patch.object(run_codex_routing, "require_isolated_canary_launch"),
+            mock.patch.object(codex_trial, "run_trial", return_value=result) as trial,
+            mock.patch("builtins.print"),
+        ):
+            exit_code = run_codex_routing.main(
+                [
+                    "--canary",
+                    "--canary-arm",
+                    "description",
+                    "--repo-root",
+                    "C:/repo",
+                    "--codex-bin",
+                    "C:/codex.exe",
+                    "--private-root",
+                    "C:/private",
+                    "--auth-file",
+                    "C:/auth.json",
+                ]
+            )
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual("description", trial.call_args.kwargs["canary_probe_mode"])
+
+    def test_canary_arm_is_rejected_outside_the_development_canary(self) -> None:
+        for arguments in (
+            ["--canary-arm", "description"],
+            [
+                "--plan",
+                "--current-revision",
+                run_codex_routing.CURRENT_REVISION,
+                "--canary-arm",
+                "description",
+            ],
+        ):
+            with self.subTest(arguments=arguments), mock.patch(
+                "builtins.print"
+            ) as printed:
+                exit_code = run_codex_routing.main(arguments)
+
+            self.assertEqual(3, exit_code)
+            self.assertIn("canary-only", printed.call_args.args[0])
 
     def test_canary_requires_the_isolated_staged_entrypoint(self) -> None:
         evaluator_root = Path(run_codex_routing.__file__).resolve().parent

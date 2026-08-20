@@ -745,6 +745,7 @@ class TrialExecutionTests(unittest.TestCase):
         capture: codex_trial.ProcessCapture | BaseException,
         *,
         credential_free_only: bool = False,
+        canary_probe_mode: str | None = None,
     ) -> tuple[codex_trial.TrialResult, list[Path]]:
         root = root.resolve(strict=True)
         python_executable = Path(sys.executable).resolve(strict=True)
@@ -824,11 +825,28 @@ class TrialExecutionTests(unittest.TestCase):
             path.mkdir(parents=True, exist_ok=True)
             return path
 
+        def stage_project(_snapshot: Path, project: Path):
+            if canary_probe_mode == "body":
+                target = project / ".agents" / "skills" / "gcp-ops" / "SKILL.md"
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source = (
+                    Path(__file__).resolve().parents[1]
+                    / "plugins"
+                    / "save-toolkit"
+                    / "skills"
+                    / "gcp-ops"
+                    / "SKILL.md"
+                )
+                target.write_bytes(source.read_bytes())
+            return stage_receipt
+
         with (
             mock.patch.object(
                 codex_snapshot, "materialize_snapshot", return_value=snapshot_receipt
             ) as materialize,
-            mock.patch.object(codex_snapshot, "stage_neutral_project", return_value=stage_receipt),
+            mock.patch.object(
+                codex_snapshot, "stage_neutral_project", side_effect=stage_project
+            ),
             mock.patch.object(codex_snapshot, "verify_staged_project", return_value=None),
             mock.patch.object(codex_model_catalog, "write_safe_catalog", side_effect=write_catalog),
             mock.patch("codex_trial._secure_directory", side_effect=fast_secure),
@@ -857,6 +875,7 @@ class TrialExecutionTests(unittest.TestCase):
                 "exact_revision": False,
                 "temp_parent": root,
                 "command_runner": command_runner,
+                "canary_probe_mode": canary_probe_mode,
             }
             if credential_free_only:
                 result = codex_trial.run_preflight(**arguments)
@@ -905,6 +924,24 @@ class TrialExecutionTests(unittest.TestCase):
         serialized = json.dumps(result.as_dict(), sort_keys=True)
         self.assertNotIn(str(root), serialized)
         self.assertNotIn("sk-proj-", serialized)
+
+    def test_body_probe_preflight_records_the_exact_staged_skill_body(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            result, observed_homes = self._run(
+                Path(raw).resolve(strict=True),
+                AssertionError("preflight must not launch a model"),
+                credential_free_only=True,
+                canary_probe_mode="body",
+            )
+
+        self.assertEqual([], observed_homes)
+        self.assertEqual(
+            "gcp-ops", result.runtime_facts["selected_skill_name"]
+        )
+        self.assertEqual(
+            run_codex_routing.CANARY_SKILL_BODY_SHA256,
+            result.runtime_facts["selected_skill_body_sha256"],
+        )
 
     def test_success_is_graded_and_serialized_without_raw_content(self) -> None:
         capture = codex_trial.ProcessCapture(
@@ -1337,7 +1374,7 @@ class TrialExecutionTests(unittest.TestCase):
             scenario,
             _spec(),
             manifest_sha256=_manifest_sha256(),
-            canary_body_probe=True,
+            canary_probe_mode="body",
         )
 
         expected_prompt = f"$gcp-ops\n\n{scenario['prompt']}"
@@ -1357,6 +1394,29 @@ class TrialExecutionTests(unittest.TestCase):
             "explicit-skill-body-probe",
             result.as_dict()["configuration"]["invocation_mode"],
         )
+
+    def test_canary_description_probe_binds_a_target_blind_selection_prompt(self) -> None:
+        scenario = _scenario()
+
+        contract = codex_trial.validate_trial_contract(
+            scenario,
+            _spec(),
+            manifest_sha256=_manifest_sha256(),
+            canary_probe_mode="description",
+        )
+
+        expected_prompt = (
+            f"{run_codex_routing.CANARY_DESCRIPTION_PROMPT_PREFIX}"
+            f"{scenario['prompt']}"
+        )
+        self.assertEqual(expected_prompt, contract.prompt)
+        self.assertNotIn("gcp-ops", contract.prompt)
+        self.assertNotIn("$", contract.prompt)
+        self.assertEqual(
+            hashlib.sha256(expected_prompt.encode("utf-8")).hexdigest(),
+            contract.prompt_sha256,
+        )
+        self.assertEqual("description-selection-probe", contract.invocation_mode)
 
     def test_ordinary_campaign_contract_remains_implicit_discovery(self) -> None:
         scenario = _scenario()
@@ -1388,7 +1448,7 @@ class TrialExecutionTests(unittest.TestCase):
                 scenario,
                 spec,
                 manifest_sha256=_manifest_sha256(),
-                canary_body_probe=True,
+                canary_probe_mode="body",
             )
 
     def test_explicit_body_probe_rejects_a_second_campaign_trial_coordinate(self) -> None:
@@ -1402,8 +1462,20 @@ class TrialExecutionTests(unittest.TestCase):
                 scenario,
                 spec,
                 manifest_sha256=_manifest_sha256(),
-                canary_body_probe=True,
+                canary_probe_mode="body",
             )
+
+    def test_canary_probe_mode_rejects_unknown_or_non_text_values(self) -> None:
+        for value in ("other", True, 1):
+            with self.subTest(value=value), self.assertRaisesRegex(
+                codex_trial.TrialContractError, "probe mode"
+            ):
+                codex_trial.validate_trial_contract(
+                    _scenario(),
+                    _spec(),
+                    manifest_sha256=_manifest_sha256(),
+                    canary_probe_mode=value,
+                )
 
     def test_staged_entrypoint_trial_spec_has_one_shared_runtime_identity(self) -> None:
         staged_namespace = runpy.run_path(

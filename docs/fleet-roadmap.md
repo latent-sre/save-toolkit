@@ -428,6 +428,18 @@ The obsolete snapshot-reachability finding needs no code change because `7aef80a
 current main. The evaluator bundle is now ten files; its manifest is 1,295 bytes with SHA-256
 `16b9c68b24226b850ae7d9da4f7f14634406d9aa8c063799df4b1f85da5afe02`.
 
+**Paired diagnostic direction (2026-08-20):** The owner approved three rounds that measure both
+halves without conflating them: a target-blind catalog-description choice and an explicit
+`gcp-ops` entrypoint-body response, six paid calls total with no retries. The candidate runs a
+networkless preflight before each paid call, binds both prompt digests and the exact staged
+`SKILL.md` digest, and preserves each arm in a separate compact result. The operator runs the
+existing one-call canary six times in description/body order and stops on the first ambiguous,
+invalid, or `INCONCLUSIVE` coordinate; there is no second campaign-like executor. This development
+diagnostic does not change the nineteen scenarios or 48-trial plan and cannot authorize that
+campaign. No call under this paired contract has run yet; exact committed candidate bytes, a new
+immutable image, and passing preflight are required first. The current manifest digest is recorded
+in the dated review packet.
+
 ## Repository work
 
 ### MUTATION-001 — close the mutation-guard evidence gaps
