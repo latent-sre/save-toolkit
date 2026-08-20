@@ -132,17 +132,17 @@ class SafeCatalogTests(unittest.TestCase):
             if os.name != "nt":
                 self.assertEqual(0o600, destination.stat().st_mode & 0o777)
 
-    def test_production_digests_are_pinned_to_installed_0147_bytes(self) -> None:
+    def test_production_digests_are_pinned_to_installed_0148_bytes(self) -> None:
         self.assertEqual(
-            "dd06f2ae3786e852ca884d6c189a364da38f7b7492fd960b05cdd2e3e232e443",
+            "3a934e842c9b6a813dfe04ec826da0b79dcfc9b3187696d4b2c1b7110cdb811c",
             codex_model_catalog.EXPECTED_SOURCE_ENTRY_SHA256,
         )
         self.assertEqual(
-            "ac89f9a13959269da2f67c095f10d4da76890c04eda12c01c58d3c40e64faf71",
+            "1c03b5e12771bc6e961c0fac20830a0a2c5fcca011793ec985d24aa4d41140e9",
             codex_model_catalog.EXPECTED_TRANSFORMED_ENTRY_SHA256,
         )
         self.assertEqual(
-            "2d23cea7bd13463424eca49df927a38f8480501820eec853e3789015c6a321b6",
+            "b5122f71336f146cb6c656167e7f3258a9e4735583b95435f808261562bb646f",
             codex_model_catalog.EXPECTED_SAFE_CATALOG_SHA256,
         )
 

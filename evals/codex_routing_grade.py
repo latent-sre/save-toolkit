@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Observational ROUTE-001 grading for Codex Terra trials.
 
-Codex rust-v0.147.0 does not emit an activation trace for filesystem-injected skills.  Skill
+The evaluator accepts no provider-native activation trace for filesystem-injected skills. Skill
 positives and near-miss negatives therefore use the existing deterministic response graders only.
-Root-scoped delegation is less observable still: V2 spawn is absent from ``codex exec`` JSONL,
+Root-scoped delegation is less observable still: the accepted trace has no joinable V2 spawn edge,
 ``PostToolUse`` does not expose a joinable plaintext delegation task, and ``wait_agent`` reports
-mailbox activity rather than semantic root consumption.  Root trials therefore validate the
+mailbox activity rather than semantic root consumption. Root trials therefore validate the
 instrument and required terminal response, skip response graders, and deterministically remain
 inconclusive.
 
@@ -81,20 +81,22 @@ _RESPONSE_SIZE_REASON = "response-size-limit-exceeded"
 MAX_RESPONSE_BYTES = 256 * 1024
 MAX_RESPONSE_LINE_BYTES = 8 * 1024
 _SKILL_LIMITATIONS = (
-    "Codex 0.147 filesystem skill injection emits no activation trace; exact skill activation "
+    "The Codex 0.148 campaign accepts no activation trace for filesystem-injected skills; exact "
+    "activation "
     "is not asserted.",
     "Near-miss skill negatives are graded from response behavior; target-skill absence is not "
     "asserted.",
     "Raw prompts, responses, paths, and runtime identifiers are not persisted by this verdict.",
 )
 _ROOT_LIMITATIONS = (
-    "Codex 0.147 filesystem skill injection emits no activation trace; exact skill activation "
+    "The Codex 0.148 campaign accepts no activation trace for filesystem-injected skills; exact "
+    "activation "
     "is not asserted.",
     "Root-scoped response graders are not executed because no observed event proves that the "
     "root consumed delegated semantics.",
     "Raw prompts, responses, paths, and runtime identifiers are not persisted by this verdict.",
-    "Codex rust-v0.147.0 emits no V2 spawn edge in codex exec JSONL, and PostToolUse does not "
-    "expose a joinable plaintext delegation task.",
+    "The accepted Codex exec JSONL has no joinable V2 spawn edge, and PostToolUse does not expose "
+    "a joinable plaintext delegation task.",
     "wait_agent is a mailbox notification, not evidence that the root consumed a child's "
     "semantic result.",
     "No observed event proves semantic root consumption; root delegation is reported as "

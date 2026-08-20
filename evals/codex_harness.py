@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed Codex CLI 0.147 JSONL parsing and sanitized evidence facts.
+"""Fail-closed Codex CLI 0.148 JSONL parsing and sanitized evidence facts.
 
 The parser retains the final agent message only as transient in-memory grading input.  Callers must
 persist :meth:`ParsedTrace.persistable_facts`, which contains hashes and bounded structural facts,
@@ -14,11 +14,14 @@ import re
 from dataclasses import dataclass, field
 from typing import Mapping
 
-CODEX_CLI_VERSION = "0.147.0"
+CODEX_CLI_VERSION = "0.148.0"
 MODEL = "gpt-5.6-terra"
 REASONING_EFFORT = "medium"
 SANDBOX_MODE = "read-only"
 APPROVAL_POLICY = "never"
+# Codex hook payloads expose the approval posture, not the filesystem sandbox label.
+# In Codex 0.148, AskForApproval::Never serializes as this exact hook value.
+HOOK_PERMISSION_MODE = "bypassPermissions"
 TIMEOUT_SECONDS = 300
 TRIALS = 2
 
@@ -45,10 +48,11 @@ _TOP_LEVEL_EVENTS = {
 }
 _HOOK_EVENTS = {"SessionStart", "SubagentStart", "PostToolUse"}
 _TERMINAL_EVENTS = {"turn.completed", "turn.failed"}
-_COMPLETION_ONLY_ITEMS = {"agent_message", "reasoning"}
+_COMPLETION_ONLY_ITEMS = {"agent_message", "reasoning", "error"}
 _ALLOWED_ITEM_TYPES = _COMPLETION_ONLY_ITEMS | {
     "command_execution",
     "collab_tool_call",
+    "todo_list",
 }
 _COMMAND_STATUSES = {"in_progress", "completed", "failed", "declined"}
 _COLLAB_TOOLS = {"spawn_agent", "send_input", "wait", "close_agent"}
@@ -354,9 +358,18 @@ def _collab_fields(
     states: dict[str, str] = {}
     for thread_id, state in states_value.items():
         thread = _require_string(thread_id, field="collab_tool_call.agents_states key")
-        if not isinstance(state, str) or state not in _AGENT_STATES:
+        if not isinstance(state, Mapping):
             raise TraceError("collab_tool_call agent state is invalid")
-        states[thread] = state
+        status = state.get("status")
+        message = state.get("message")
+        if (
+            not isinstance(status, str)
+            or status not in _AGENT_STATES
+            or "message" not in state
+            or (message is not None and not isinstance(message, str))
+        ):
+            raise TraceError("collab_tool_call agent state is invalid")
+        states[thread] = status
     status = item.get("status")
     if not isinstance(status, str) or status not in _COLLAB_STATUSES:
         raise TraceError("collab_tool_call.status is invalid")
@@ -365,6 +378,18 @@ def _collab_fields(
     if phase == "completed" and status == "in_progress":
         raise TraceError("completed collab_tool_call cannot remain in_progress")
     return tool, sender, receivers, prompt, states, status
+
+
+def _validate_todo_list_item(item: Mapping[str, object]) -> None:
+    items = item.get("items")
+    if not isinstance(items, list):
+        raise TraceError("todo_list.items must be a list")
+    for todo in items:
+        if not isinstance(todo, Mapping):
+            raise TraceError("todo_list item must be an object")
+        _require_string(todo.get("text"), field="todo_list.items[].text")
+        if not isinstance(todo.get("completed"), bool):
+            raise TraceError("todo_list.items[].completed must be a boolean")
 
 
 def _command_fact(item: Mapping[str, object]) -> CommandFact:
@@ -411,7 +436,7 @@ def _collab_fact(item: Mapping[str, object]) -> CollabToolFact:
 
 def _validate_usage(value: object) -> dict[str, int]:
     if not isinstance(value, Mapping) or set(value) != _USAGE_FIELDS:
-        raise TraceError("turn.completed usage does not match the Codex 0.147 schema")
+        raise TraceError("turn.completed usage does not match the Codex 0.148 schema")
     usage: dict[str, int] = {}
     for field in sorted(_USAGE_FIELDS):
         count = value[field]
@@ -436,7 +461,7 @@ def _decode_events(text: str) -> list[dict[str, object]]:
             raise TraceError(f"JSONL line {line_number} must contain an object")
         event_type = value.get("type")
         if not isinstance(event_type, str) or event_type not in _TOP_LEVEL_EVENTS:
-            raise TraceError(f"unknown Codex 0.147 event at line {line_number}")
+            raise TraceError(f"unknown Codex 0.148 event at line {line_number}")
         _reject_credentials(value, location=f"event[{line_number}]")
         events.append(value)
     if not events:
@@ -468,7 +493,7 @@ def _validate_completed_matches_started(
 
 
 def parse_jsonl(text: str, *, process_exit_code: int) -> ParsedTrace:
-    """Parse exactly one Codex CLI 0.147 turn and fail closed on ambiguity."""
+    """Parse exactly one Codex CLI 0.148 turn and fail closed on ambiguity."""
 
     if isinstance(process_exit_code, bool) or not isinstance(process_exit_code, int):
         raise TraceError("process exit code must be an integer")
@@ -499,12 +524,33 @@ def parse_jsonl(text: str, *, process_exit_code: int) -> ParsedTrace:
             continue
 
         if event_type == "turn.started":
-            if event_index != 1 or thread_sha256 is None or turn_started:
-                raise TraceError("turn.started must immediately follow thread.started")
+            if thread_sha256 is None or turn_started:
+                raise TraceError("turn.started requires one prior thread.started event")
             turn_started = True
             continue
 
-        if thread_sha256 is None or not turn_started:
+        if thread_sha256 is None:
+            raise TraceError(f"{event_type} appeared before thread and turn start")
+
+        if not turn_started:
+            if event_type == "error":
+                _require_string(event.get("message"), field="error.message")
+                continue
+            if event_type == "item.completed":
+                item = _require_item(event, event_type=event_type)
+                item_id = _require_string(item.get("id"), field="item.completed.item.id")
+                item_type = _require_string(
+                    item.get("type"), field="item.completed.item.type"
+                )
+                if item_type != "error":
+                    raise TraceError(
+                        f"{item_type} appeared before thread and turn start"
+                    )
+                if item_id in completed_item_ids:
+                    raise TraceError("item.completed reused an item id")
+                _require_string(item.get("message"), field="error.message")
+                completed_item_ids.add(item_id)
+                continue
             raise TraceError(f"{event_type} appeared before thread and turn start")
 
         if event_type in {"item.started", "item.updated", "item.completed"}:
@@ -522,6 +568,8 @@ def parse_jsonl(text: str, *, process_exit_code: int) -> ParsedTrace:
                     _validate_command_item(item, phase="started")
                 elif item_type == "collab_tool_call":
                     _collab_fields(item, phase="started")
+                elif item_type == "todo_list":
+                    _validate_todo_list_item(item)
                 started_items[item_id] = item
                 continue
             if event_type == "item.updated":
@@ -530,6 +578,9 @@ def parse_jsonl(text: str, *, process_exit_code: int) -> ParsedTrace:
                     raise TraceError("item.updated requires one unfinished matching item.start")
                 if started.get("type") != item_type:
                     raise TraceError("item.updated changed its item type")
+                if item_type != "todo_list":
+                    raise TraceError("item.updated is only valid for todo_list")
+                _validate_todo_list_item(item)
                 continue
 
             if item_id in completed_item_ids:
@@ -547,10 +598,16 @@ def parse_jsonl(text: str, *, process_exit_code: int) -> ParsedTrace:
                 last_agent_message = _require_string(
                     item.get("text"), field="agent_message.text"
                 )
+            elif item_type == "reasoning":
+                _require_string(item.get("text"), field="reasoning.text")
+            elif item_type == "error":
+                _require_string(item.get("message"), field="error.message")
             elif item_type == "command_execution":
                 command_facts.append(_command_fact(item))
             elif item_type == "collab_tool_call":
                 collab_tool_facts.append(_collab_fact(item))
+            elif item_type == "todo_list":
+                _validate_todo_list_item(item)
             continue
 
         if event_type == "error":
@@ -647,6 +704,17 @@ def _hook_string(receipt: Mapping[str, object], field: str, event_name: str) -> 
     return value
 
 
+def _hook_nullable_string(
+    receipt: Mapping[str, object], field: str, event_name: str
+) -> str | None:
+    if field not in receipt:
+        raise HookReceiptError(f"{event_name}.{field} is required")
+    value = receipt[field]
+    if value is not None and (not isinstance(value, str) or not value):
+        raise HookReceiptError(f"{event_name}.{field} must be null or a non-empty string")
+    return value
+
+
 def _hook_component_name(
     receipt: Mapping[str, object],
     field: str,
@@ -666,7 +734,7 @@ def _validate_hook_common(
     event_name: str,
 ) -> tuple[str, str]:
     session_id = _hook_string(receipt, "session_id", event_name)
-    _hook_string(receipt, "transcript_path", event_name)
+    _hook_nullable_string(receipt, "transcript_path", event_name)
     _hook_string(receipt, "cwd", event_name)
     model = _hook_string(receipt, "model", event_name)
     permission_mode = _hook_string(receipt, "permission_mode", event_name)
@@ -674,9 +742,9 @@ def _validate_hook_common(
         raise HookReceiptError(
             f"{event_name}.model must be the exact authorized model {MODEL}"
         )
-    if permission_mode != SANDBOX_MODE:
+    if permission_mode != HOOK_PERMISSION_MODE:
         raise HookReceiptError(
-            f"{event_name}.permission_mode must be {SANDBOX_MODE}"
+            f"{event_name}.permission_mode must be {HOOK_PERMISSION_MODE}"
         )
     return session_id, model
 
@@ -696,7 +764,7 @@ def _canonical_json_sha256(value: object, *, field: str) -> str:
 
 
 def parse_hook_receipts(text: str) -> ParsedHookReceipts:
-    """Validate and reduce trusted Codex 0.147 hook receipts without retaining identities."""
+    """Validate and reduce trusted Codex 0.148 hook receipts without retaining identities."""
 
     receipts = _decode_hook_receipts(text)
     if receipts[0].get("hook_event_name") != "SessionStart":

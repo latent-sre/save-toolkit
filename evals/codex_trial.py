@@ -34,6 +34,7 @@ import codex_harness
 import codex_hook_recorder
 import codex_model_catalog
 import codex_routing_grade
+import codex_runtime
 import codex_snapshot
 import run_codex_routing
 
@@ -154,6 +155,7 @@ class TrialContract:
     manifest_sha256: str
     prompt: str = dataclasses.field(repr=False)
     enable_multi_agent: bool = False
+    invocation_mode: str = "implicit-discovery"
 
 
 @dataclass(frozen=True)
@@ -213,6 +215,7 @@ class TrialResult:
     prompt_sha256: str
     exact_revision: bool
     tool_policy: str
+    invocation_mode: str
     runtime_facts: dict[str, object] | None = None
     trace_facts: dict[str, object] | None = None
     hook_facts: dict[str, object] | None = None
@@ -224,6 +227,11 @@ class TrialResult:
         authority = run_codex_routing.authority_facts(
             {}, exact_revision=self.exact_revision
         )
+        codex_cli_version = codex_harness.CODEX_CLI_VERSION
+        if self.runtime_facts is not None:
+            observed_version = self.runtime_facts.get("codex_cli_version")
+            if isinstance(observed_version, str) and observed_version:
+                codex_cli_version = observed_version
         return {
             "schema_version": 1,
             "scenario": {
@@ -237,13 +245,14 @@ class TrialResult:
             },
             "configuration": {
                 "provider": "openai-codex",
-                "codex_cli_version": codex_harness.CODEX_CLI_VERSION,
+                "codex_cli_version": codex_cli_version,
                 "model": codex_harness.MODEL,
                 "reasoning_effort": codex_harness.REASONING_EFFORT,
                 "sandbox": codex_harness.SANDBOX_MODE,
                 "approval_policy": codex_harness.APPROVAL_POLICY,
                 "timeout_s": codex_harness.TIMEOUT_SECONDS,
                 "tool_policy": self.tool_policy,
+                "invocation_mode": self.invocation_mode,
             },
             "state": self.state.value,
             "reason_codes": list(self.reason_codes),
@@ -902,16 +911,35 @@ def _trusted_process_environment() -> dict[str, str]:
     }
 
 
-def verify_python_runtime() -> tuple[Path, str]:
+def verify_python_runtime(
+    runtime_profile: codex_runtime.RuntimeProfile | None = None,
+) -> tuple[Path, str]:
     """Bind the running evaluator and later hook interpreter to one reviewed runtime."""
 
     executable = _ordinary_file(Path(sys.executable), label="Python runtime")
     digest = _sha256_file(executable, label="Python runtime")
     version = ".".join(str(item) for item in sys.version_info[:3])
+    expected_platform = (
+        runtime_profile.runtime_platform
+        if runtime_profile is not None
+        else run_codex_routing.RUNTIME_PLATFORM
+    )
+    expected_version = (
+        runtime_profile.python_version
+        if runtime_profile is not None
+        else run_codex_routing.PYTHON_VERSION
+    )
+    expected_digest = (
+        runtime_profile.python_executable_sha256
+        if runtime_profile is not None
+        else run_codex_routing.PYTHON_EXECUTABLE_SHA256
+    )
+    expected_path = runtime_profile.python_executable_path if runtime_profile is not None else None
     if (
-        _runtime_platform() != run_codex_routing.RUNTIME_PLATFORM
-        or version != run_codex_routing.PYTHON_VERSION
-        or digest != run_codex_routing.PYTHON_EXECUTABLE_SHA256
+        _runtime_platform() != expected_platform
+        or version != expected_version
+        or digest != expected_digest
+        or (expected_path is not None and executable != expected_path)
     ):
         raise InstrumentError(
             "python-runtime-mismatch",
@@ -987,6 +1015,8 @@ def validate_trial_contract(
     spec: codex_harness.TrialSpec,
     *,
     manifest_sha256: str,
+    manifest_path: Path = run_codex_routing.MANIFEST_PATH,
+    canary_body_probe: bool = False,
 ) -> TrialContract:
     """Bind a scenario object and trial coordinate to the fixed manifest shape."""
 
@@ -997,7 +1027,7 @@ def validate_trial_contract(
     try:
         evaluator_manifest_sha256 = hashlib.sha256(
             _stable_file_bytes(
-                run_codex_routing.MANIFEST_PATH,
+                manifest_path,
                 label="Terra evaluator manifest",
                 max_bytes=1024 * 1024,
             )
@@ -1037,6 +1067,21 @@ def validate_trial_contract(
     prompt = scenario.get("prompt")
     if not isinstance(prompt, str) or not prompt:
         raise TrialContractError("scenario prompt must be non-empty text")
+    if not isinstance(canary_body_probe, bool):
+        raise TrialContractError("canary body-probe selector must be boolean")
+    invocation_mode = "implicit-discovery"
+    if canary_body_probe:
+        if (
+            scenario_id != run_codex_routing.CANARY_SCENARIO_ID
+            or spec.trial != run_codex_routing.CANARY_TRIAL
+            or scenario.get("target")
+            != {"kind": "skill", "name": run_codex_routing.CANARY_EXPLICIT_SKILL}
+        ):
+            raise TrialContractError(
+                "explicit body probe is limited to the fixed development canary"
+            )
+        prompt = f"${run_codex_routing.CANARY_EXPLICIT_SKILL}\n\n{prompt}"
+        invocation_mode = "explicit-skill-body-probe"
     try:
         codex_harness.reject_credentials(prompt, location="scenario_prompt")
     except codex_harness.CredentialExposureError as exc:
@@ -1055,6 +1100,7 @@ def validate_trial_contract(
         manifest_sha256=manifest_sha256,
         prompt=prompt,
         enable_multi_agent=enable_multi_agent,
+        invocation_mode=invocation_mode,
     )
 
 
@@ -1295,7 +1341,12 @@ def copy_hook_bundle(source_root: Path, destination: Path) -> HookBundleReceipt:
     )
 
 
-def copy_authorized_executable(source: Path, destination: Path) -> Path:
+def copy_authorized_executable(
+    source: Path,
+    destination: Path,
+    *,
+    expected_sha256: str | None = None,
+) -> Path:
     """Copy only the manifest-pinned Codex executable into the private trial boundary."""
 
     origin = _ordinary_file(Path(source), label="Codex executable")
@@ -1350,7 +1401,8 @@ def copy_authorized_executable(source: Path, destination: Path) -> Path:
         raise InstrumentError(
             "codex-executable-drift", "Codex executable changed while it was copied"
         )
-    if digest.hexdigest() != run_codex_routing.CODEX_EXECUTABLE_SHA256:
+    authorized_sha256 = expected_sha256 or run_codex_routing.CODEX_EXECUTABLE_SHA256
+    if digest.hexdigest() != authorized_sha256:
         target.unlink(missing_ok=True)
         raise InstrumentError(
             "codex-executable-mismatch",
@@ -1416,6 +1468,7 @@ def probe_codex(
     env: Mapping[str, str],
     *,
     cwd: Path,
+    expected_cli_version: str = codex_harness.CODEX_CLI_VERSION,
     command_runner: CommandRunner = _default_command_runner,
 ) -> CodexProbe:
     """Prove exact CLI bytes/version and return the local bundled catalog transiently."""
@@ -1437,11 +1490,13 @@ def probe_codex(
         )
     except (UnicodeDecodeError, codex_harness.CredentialExposureError) as exc:
         raise InstrumentError("codex-cli-version-mismatch", "Codex CLI version output is invalid") from exc
-    expected = f"codex-cli {codex_harness.CODEX_CLI_VERSION}"
+    if not isinstance(expected_cli_version, str) or not expected_cli_version:
+        raise InstrumentError("codex-cli-version-mismatch", "Codex CLI version pin is invalid")
+    expected = f"codex-cli {expected_cli_version}"
     if version.returncode != 0 or version_stdout.strip() != expected or version_stderr.strip():
         raise InstrumentError(
             "codex-cli-version-mismatch",
-            f"Codex CLI version must be exactly {codex_harness.CODEX_CLI_VERSION}",
+            f"Codex CLI version must be exactly {expected_cli_version}",
         )
 
     catalog = command_runner(
@@ -1465,7 +1520,7 @@ def probe_codex(
             "model-catalog-probe-failed", "Codex bundled model catalog could not be read"
         )
     return CodexProbe(
-        cli_version=codex_harness.CODEX_CLI_VERSION,
+        cli_version=expected_cli_version,
         executable_sha256=executable_sha256,
         bundled_catalog=bytes(catalog.stdout),
     )
@@ -1934,6 +1989,7 @@ def _base_result(
             if contract.enable_multi_agent
             else "no-model-tools-non-root"
         ),
+        invocation_mode=contract.invocation_mode,
         runtime_facts=runtime_facts,
         trace_facts=trace_facts,
         hook_facts=hook_facts,
@@ -2054,6 +2110,8 @@ def run_preflight(
     spec: codex_harness.TrialSpec,
     manifest_sha256: str,
     exact_revision: bool,
+    runtime_profile: codex_runtime.RuntimeProfile | None = None,
+    canary_body_probe: bool = False,
     temp_parent: Path | None = None,
     command_runner: CommandRunner = _default_command_runner,
 ) -> TrialResult:
@@ -2067,6 +2125,8 @@ def run_preflight(
         spec=spec,
         manifest_sha256=manifest_sha256,
         exact_revision=exact_revision,
+        runtime_profile=runtime_profile,
+        canary_body_probe=canary_body_probe,
         credential_free_only=True,
         temp_parent=temp_parent,
         command_runner=command_runner,
@@ -2083,6 +2143,8 @@ def run_trial(
     spec: codex_harness.TrialSpec,
     manifest_sha256: str,
     exact_revision: bool,
+    runtime_profile: codex_runtime.RuntimeProfile | None = None,
+    canary_body_probe: bool = False,
     temp_parent: Path | None = None,
     command_runner: CommandRunner = _default_command_runner,
     process_runner: ProcessRunner = launch_process,
@@ -2097,6 +2159,8 @@ def run_trial(
         spec=spec,
         manifest_sha256=manifest_sha256,
         exact_revision=exact_revision,
+        runtime_profile=runtime_profile,
+        canary_body_probe=canary_body_probe,
         credential_free_only=False,
         temp_parent=temp_parent,
         command_runner=command_runner,
@@ -2113,6 +2177,8 @@ def _execute_trial(
     spec: codex_harness.TrialSpec,
     manifest_sha256: str,
     exact_revision: bool,
+    runtime_profile: codex_runtime.RuntimeProfile | None,
+    canary_body_probe: bool,
     credential_free_only: bool,
     temp_parent: Path | None,
     command_runner: CommandRunner,
@@ -2121,12 +2187,42 @@ def _execute_trial(
     """Run the shared setup, optionally continuing into the authenticated model step."""
 
     contract = validate_trial_contract(
-        scenario, spec, manifest_sha256=manifest_sha256
+        scenario,
+        spec,
+        manifest_sha256=manifest_sha256,
+        manifest_path=(
+            runtime_profile.manifest_path
+            if runtime_profile is not None
+            else run_codex_routing.MANIFEST_PATH
+        ),
+        canary_body_probe=canary_body_probe,
     )
     if not isinstance(exact_revision, bool):
         raise TrialContractError("exact_revision must be a caller-supplied boolean")
     evaluator_root = Path(__file__).resolve().parent
-    runtime_facts: dict[str, object] = {}
+    expected_codex_cli_version = (
+        runtime_profile.codex_cli_version
+        if runtime_profile is not None
+        else codex_harness.CODEX_CLI_VERSION
+    )
+    runtime_facts: dict[str, object] = {
+        "codex_cli_version": expected_codex_cli_version,
+    }
+    expected_codex_sha256 = (
+        runtime_profile.codex_executable_sha256
+        if runtime_profile is not None
+        else run_codex_routing.CODEX_EXECUTABLE_SHA256
+    )
+    expected_python_version = (
+        runtime_profile.python_version
+        if runtime_profile is not None
+        else run_codex_routing.PYTHON_VERSION
+    )
+    evaluator_files = (
+        runtime_profile.evaluator_files
+        if runtime_profile is not None
+        else EVALUATOR_FILES
+    )
     finish_after_launch: Callable[..., TrialResult] | None = None
 
     def finish_result(
@@ -2157,10 +2253,8 @@ def _execute_trial(
         )
 
     try:
-        python_executable, python_sha256 = verify_python_runtime()
-        runtime_facts["evaluator_tree_sha256"] = _tree_digest(
-            evaluator_root, EVALUATOR_FILES
-        )
+        python_executable, python_sha256 = verify_python_runtime(runtime_profile)
+        runtime_facts["evaluator_tree_sha256"] = _tree_digest(evaluator_root, evaluator_files)
     except InstrumentError as exc:
         return finish_result(
             state=codex_routing_grade.VerdictState.INCONCLUSIVE,
@@ -2196,15 +2290,39 @@ def _execute_trial(
                 repository,
                 contract.revision,
                 paths["snapshot"],
+                git_executable=(
+                    runtime_profile.git_executable_path
+                    if runtime_profile is not None
+                    else codex_snapshot.GIT_EXECUTABLE_PATH
+                ),
+                git_executable_sha256=(
+                    runtime_profile.git_executable_sha256
+                    if runtime_profile is not None
+                    else codex_snapshot.GIT_EXECUTABLE_SHA256
+                ),
                 command_runner=_bounded_git_runner,
             )
             stage_receipt = codex_snapshot.stage_neutral_project(
                 paths["snapshot"], paths["project"]
             )
-            staged_codex = copy_authorized_executable(
-                Path(codex_bin),
-                paths["runtime"] / ("codex.exe" if os.name == "nt" else "codex"),
-            )
+            if runtime_profile is not None and not runtime_profile.copy_codex_executable:
+                staged_codex = _ordinary_file(Path(codex_bin), label="protected Codex executable")
+                if (
+                    runtime_profile.codex_executable_path is None
+                    or staged_codex != runtime_profile.codex_executable_path
+                    or _sha256_file(staged_codex, label="protected Codex executable")
+                    != expected_codex_sha256
+                ):
+                    raise InstrumentError(
+                        "codex-executable-mismatch",
+                        "protected Codex executable differs from the runtime profile",
+                    )
+            else:
+                staged_codex = copy_authorized_executable(
+                    Path(codex_bin),
+                    paths["runtime"] / ("codex.exe" if os.name == "nt" else "codex"),
+                    expected_sha256=expected_codex_sha256,
+                )
             probe_env = scrubbed_environment(
                 home=paths["home"],
                 codex_home=paths["probe-home"],
@@ -2214,9 +2332,10 @@ def _execute_trial(
                 staged_codex,
                 probe_env,
                 cwd=paths["probe-home"],
+                expected_cli_version=expected_codex_cli_version,
                 command_runner=command_runner,
             )
-            if probe.executable_sha256 != run_codex_routing.CODEX_EXECUTABLE_SHA256:
+            if probe.executable_sha256 != expected_codex_sha256:
                 raise InstrumentError(
                     "codex-executable-mismatch",
                     "staged Codex executable differs from the manifest pin",
@@ -2248,7 +2367,7 @@ def _execute_trial(
             resolved_codex = _ordinary_file(staged_codex, label="staged Codex executable")
             if (
                 _sha256_file(resolved_codex, label="staged Codex executable")
-                != run_codex_routing.CODEX_EXECUTABLE_SHA256
+                != expected_codex_sha256
             ):
                 raise InstrumentError(
                     "codex-executable-drift",
@@ -2265,7 +2384,7 @@ def _execute_trial(
                     "codex_cli_version": probe.cli_version,
                     "codex_executable_sha256": probe.executable_sha256,
                     "runtime_platform": _runtime_platform(),
-                    "python_version": run_codex_routing.PYTHON_VERSION,
+                    "python_version": expected_python_version,
                     "python_executable_sha256": python_sha256,
                     "hook_bundle": hook_bundle.persistable_facts(),
                     "snapshot": _receipt_dict(snapshot_receipt),
@@ -2289,7 +2408,7 @@ def _execute_trial(
                 != codex_model_catalog.EXPECTED_SAFE_CATALOG_SHA256
                 or _sha256_file(python_executable, label="Python executable")
                 != python_sha256
-                or _tree_digest(evaluator_root, EVALUATOR_FILES)
+                or _tree_digest(evaluator_root, evaluator_files)
                 != runtime_facts["evaluator_tree_sha256"]
             ):
                 raise InstrumentError(
@@ -2345,14 +2464,14 @@ def _execute_trial(
                     verify_hook_bundle(evaluator_root, hook_bundle)
                     drift = (
                         _sha256_file(resolved_codex, label="staged Codex executable")
-                        != run_codex_routing.CODEX_EXECUTABLE_SHA256
+                        != expected_codex_sha256
                         or _sha256_file(config_path, label="Codex config")
                         != runtime_facts["config_sha256"]
                         or _sha256_file(catalog_path, label="safe model catalog")
                         != codex_model_catalog.EXPECTED_SAFE_CATALOG_SHA256
                         or _sha256_file(python_executable, label="Python executable")
                         != python_sha256
-                        or _tree_digest(evaluator_root, EVALUATOR_FILES)
+                        or _tree_digest(evaluator_root, evaluator_files)
                         != runtime_facts["evaluator_tree_sha256"]
                     )
                 except (
@@ -2440,6 +2559,17 @@ def _execute_trial(
                 trace = codex_harness.parse_jsonl(
                     capture.stdout, process_exit_code=capture.returncode
                 )
+            except CredentialEchoError:
+                return finish_result(
+                    state=codex_routing_grade.VerdictState.INCONCLUSIVE,
+                    reason_codes=("credential-shaped-output",),
+                )
+            except codex_harness.TraceError:
+                return finish_result(
+                    state=codex_routing_grade.VerdictState.INCONCLUSIVE,
+                    reason_codes=("trace-invalid",),
+                )
+            try:
                 hooks = codex_hook_recorder.load_receipts(
                     paths["receipts"], nonce, payload_validator=refreshed_guard.reject_value
                 )
@@ -2451,7 +2581,7 @@ def _execute_trial(
             except (OSError, ValueError, codex_harness.TraceError):
                 return finish_result(
                     state=codex_routing_grade.VerdictState.INCONCLUSIVE,
-                    reason_codes=("trace-or-hook-invalid",),
+                    reason_codes=("hook-invalid",),
                 )
             verdict = codex_routing_grade.grade_trial(scenario, trace, hooks)
             return finish_result(
