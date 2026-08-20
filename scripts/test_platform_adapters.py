@@ -104,6 +104,41 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertTrue(scanned, "no Codex skill files were scanned — the projection path moved")
         self.assertEqual([], sorted(offenders))
 
+    def test_incident_navigation_result_owner_matches_host_identity(self) -> None:
+        """The result template must offer the same SRE identity as the host prose."""
+        expected = adapters.expected_outputs(ROOT)
+        surfaces = {
+            "canonical": (
+                (ROOT / "skills/incident-navigation/SKILL.md").read_text(encoding="utf-8"),
+                "sre",
+            ),
+            "copilot": (
+                expected[
+                    adapters.COPILOT_SKILLS / "incident-navigation/SKILL.md"
+                ].decode("utf-8"),
+                "sre",
+            ),
+            "codex": (
+                expected[
+                    adapters.CODEX_SKILLS / "incident-navigation/SKILL.md"
+                ].decode("utf-8"),
+                "save-toolkit-sre",
+            ),
+        }
+        for host, (text, expected_identity) in surfaces.items():
+            relevant_lines = [
+                line
+                for line in text.splitlines()
+                if "choosing `" in line or line.startswith(("If result A:", "If result B:"))
+            ]
+            self.assertEqual(3, len(relevant_lines), f"{host}: owner-bearing lines moved")
+            identities = []
+            for line in relevant_lines:
+                match = re.search(r"`((?:save-toolkit-)?sre)`", line)
+                self.assertIsNotNone(match, f"{host}: SRE identity is not explicit in {line!r}")
+                identities.append(match.group(1))
+            self.assertEqual([expected_identity] * 3, identities, host)
+
     def test_codex_agent_filenames_carry_a_fleet_prefix(self) -> None:
         """Codex custom agents share ONE flat global directory with no namespace.
 

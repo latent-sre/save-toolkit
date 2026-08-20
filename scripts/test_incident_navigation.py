@@ -81,6 +81,9 @@ LIVE_OUTPUT_GUARDS = {
     "result branches may prescribe another action": (
         "end each result branch immediately after that owner"
     ),
+    "result owner choices are not explicit host-rewritable identities": (
+        "choosing `sre`, `service owner`, `incident commander`, or `human owner`"
+    ),
     "the packet may grow a thirteenth prose line": (
         "a valid packet has no thirteenth non-empty line"
     ),
@@ -123,6 +126,8 @@ SCENARIO_EVIDENCE_CONTRACTS = {
         "Owner:",
         "Notification route:",
         "Runbook:",
+        "Render the window rule as `1h AND 5m at 14.4x; 6h AND 30m at 6x`",
+        "window-specific measurements, fire/resolve behavior, notification delivery, and runbook resolution",
         "Use the labeled known-alert review format",
     ),
     "discovery-incident-navigation-defers-approved-change.yaml": (
@@ -136,9 +141,11 @@ SCENARIO_EVIDENCE_CONTRACTS = {
         "Return only the six-line production-change-gate verdict packet",
     ),
     "discovery-incident-navigation-defers-incident-command.yaml": (
+        "First detected and declaration/cadence anchor: 18:04 UTC",
         "Incident commander: Morgan Lee",
         "Communications lead: Avery Chen",
         "Runbook: ops://checkout/major-incident",
+        "Declare `Checkout unavailable` as the incident",
         "Use the canonical status-block labels",
     ),
     "discovery-incident-navigation-defers-known-triage.yaml": (
@@ -243,11 +250,17 @@ SCENARIO_CONTRACTS = {
         "expect: not_fire",
         "kind: skill",
         "name: incident-command",
+        "type: incident_navigation_incident_command_contract",
+        "required_investigation: checkout on-call",
+        "required_ic: Morgan Lee",
     ),
     "discovery-incident-navigation-defers-alert-interpretation.yaml": (
         "expect: not_fire",
         "kind: skill",
         "name: obs-alerting",
+        "type: incident_navigation_known_alert_contract",
+        'required_observed_fraction: "0.0004"',
+        "required_notification_route: PagerDuty checkout-primary",
     ),
     "discovery-incident-navigation-defers-active-known-alert.yaml": (
         "expect: not_fire",

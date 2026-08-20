@@ -10,16 +10,17 @@ prompt: |
   supplied evidence; do not search the repository or delegate evidence retrieval.
 
   Supplied coordination record:
-  - First detected: 18:04 UTC.
+  - First detected and declaration/cadence anchor: 18:04 UTC.
   - Incident commander: Morgan Lee.
   - Communications lead: Avery Chen.
   - Investigation: checkout on-call; Ops: human release owner.
   - Runbook: ops://checkout/major-incident.
   - No mitigation has been approved or performed.
 
-  Declare the incident, set an initial severity and fifteen-minute update cadence, bind the supplied
-  roles, and start the authoritative timeline. Use the canonical status-block labels and their
-  documented order.
+  Declare `Checkout unavailable` as the incident, set an initial severity and fifteen-minute update
+  cadence, bind the supplied roles, and start the authoritative timeline. Use the canonical
+  status-block labels and their documented order. Keep mitigation pending and explicitly state that
+  none has been approved or performed. Use the supplied runbook as the current coordination focus.
 routing:
   expect: not_fire
   expected_alternative:
@@ -29,9 +30,12 @@ success_criteria:
   - Routes major-incident declaration and coordination directly to incident command
   - Does not delay declaration with responder orientation
 graders:
-  - type: contains_all
-    of: ["Incident:", "Severity:", "Status:", "Impact:", "Roles:", "Timeline (UTC):", "Current focus:", "Mitigation decision:", "Open action items:", "Next update:"]
-  - type: regex
-    pattern: '(?im)^Incident:.*Severity:\s*SEV[1-4].*Status:\s*(?:investigating|mitigating|monitoring|resolved)'
-  - type: regex
-    pattern: '(?im)^Roles:.*Investigation=.*Ops=.*Comms='
+  - type: incident_navigation_incident_command_contract
+    required_incident_title: Checkout unavailable
+    required_detected_at: "18:04 UTC"
+    required_investigation: checkout on-call
+    required_ops: human release owner
+    required_comms: Avery Chen
+    required_ic: Morgan Lee
+    required_runbook: ops://checkout/major-incident
+    required_next_update: "18:19 UTC"

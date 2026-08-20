@@ -205,8 +205,8 @@ Where to look: <one exact service/alert/index/runbook/config location, or [unver
 Question: <one yes/no uncertainty ending in ?>
 Signal owner: <exactly one canonical skill name from the routing table, without prose or backticks>
 First safe check: <one allowed observation verb> <one evidence source>.
-If result A: <one interpretation> · next owner: <sre, service owner, incident commander, or human owner>
-If result B: <one interpretation> · next owner: <sre, service owner, incident commander, or human owner>
+If result A: <one interpretation> · next owner: <one of `sre`, service owner, incident commander, or human owner; emit only the chosen owner text>
+If result B: <one interpretation> · next owner: <one of `sre`, service owner, incident commander, or human owner; emit only the chosen owner text>
 Escalate when: <observable threshold · destination>
-Documentation gaps: <missing/stale entry point · proposed owner, or none>
+Documentation gaps: <none, or one missing/stale service card|alert card|operations knowledge index|runbook|dashboard|ownership record|evidence location · proposed owner: service owner|on-call lead>
 State changed: no
