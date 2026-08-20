@@ -73,7 +73,10 @@ LIVE_OUTPUT_GUARDS = {
         "copy the twelve labels below, replace each placeholder"
     ),
     "a supplied uncertainty may be rewritten or expanded": (
-        "when the requester supplies one uncertainty, copy it into `question` without adding another"
+        "when the requester supplies one uncertainty, copy its wording verbatim into `question`"
+    ),
+    "multiple documentation gaps may be combined in one field": (
+        "record only the first one in the lookup order above"
     ),
     "URI punctuation is confused with a second source": (
         "uri or path punctuation inside that one source is allowed"
@@ -179,6 +182,8 @@ SCENARIO_EVIDENCE_CONTRACTS = {
         "Evidence item available for human retrieval: checkout p95 latency comparison",
         "Return only the twelve-line orientation packet",
         "Impact is unknown; no evidence says it is unbounded",
+        "Question: Is checkout latency elevated relative to its recent baseline?",
+        "Documentation gaps: missing service card · proposed owner: service owner",
     ),
     "discovery-resolved-incident-bypasses-navigation.yaml": (
         "Impact:",
@@ -257,6 +262,7 @@ SCENARIO_CONTRACTS = {
         'Question: "Is checkout latency elevated relative to its recent baseline?"',
         'Signal owner: "obs-metrics"',
         'First safe check: "Retrieve checkout p95 latency comparison."',
+        'Documentation gaps: "missing service card · proposed owner: service owner"',
     ),
     "discovery-incident-navigation-signal-owner-uncertain.yaml": (
         "mode: discovery",

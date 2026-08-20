@@ -2061,6 +2061,10 @@ def test_incident_navigation_routing_graders_are_satisfiable_and_reject_echoes()
                 "Signal owner: obs-metrics",
                 "Signal owner: obs-logs",
             ),
+            _INCIDENT_NAVIGATION_ORIENTATION_ANSWER.replace(
+                "Documentation gaps: missing service card · proposed owner: service owner",
+                "Documentation gaps: missing dashboard · proposed owner: service owner",
+            ),
         ),
         "discovery-incident-navigation-signal-owner-uncertain.yaml": (
             _INCIDENT_NAVIGATION_KNOWN_LOCATION_ANSWER.replace(

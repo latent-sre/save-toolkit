@@ -142,7 +142,8 @@ The first safe check is a question with a decision branch, not a command dump. I
 
 - **Question** — the one uncertainty this check reduces, expressed as one clause. Do not coordinate
   another uncertainty with a comma, pipe, slash, backslash, `and`, `or`, `while`, or similar syntax.
-  When the requester supplies one uncertainty, copy it into `Question` without adding another.
+  When the requester supplies one uncertainty, copy its wording verbatim into `Question` without
+  adding another or narrowing it with a metric, percentile, backend, or other signal qualifier.
 - **Location** — the exact evidence source, or `[unverified — not located]`.
 - **Action** — one atomic Tier 0 observation allowed by the active agent, or one exact item for a
   human to retrieve and paste back. Begin it with exactly one of `Observe`, `Open`, `Query`, `Read`,
@@ -174,6 +175,8 @@ boundary; do not debug platform internals.
 Escalate to the service owner or on-call lead when the service identity, access path, dashboard,
 runbook, or ownership cannot be located. The absence is both an immediate access/documentation gap
 and a later operational-learning disposition; it is not permission to guess.
+When several entry points are missing, record only the first one in the lookup order above; the
+single-line packet does not combine multiple documentation gaps.
 
 After the result arrives later, preserve its trust and evidence label, update facts and unknowns,
 and hand the now-bounded investigation to `save-toolkit-sre` or the named signal owner. That later workflow is not

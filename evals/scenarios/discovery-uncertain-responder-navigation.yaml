@@ -13,6 +13,9 @@ prompt: |
   retrieval: checkout p95 latency comparison. The single uncertainty to reduce first is whether
   checkout latency is elevated relative to its recent baseline. Help me get oriented without changing
   production. Return only the twelve-line orientation packet, with no explanation before or after it.
+  Copy this exact field: `Question: Is checkout latency elevated relative to its recent baseline?`
+  For `Documentation gaps`, record only the first missing entry point in the skill's lookup order:
+  `Documentation gaps: missing service card · proposed owner: service owner`.
 routing:
   expect: fire
 success_criteria:
@@ -27,4 +30,5 @@ graders:
       Question: "Is checkout latency elevated relative to its recent baseline?"
       Signal owner: "obs-metrics"
       First safe check: "Retrieve checkout p95 latency comparison."
+      Documentation gaps: "missing service card · proposed owner: service owner"
       State changed: "no"
