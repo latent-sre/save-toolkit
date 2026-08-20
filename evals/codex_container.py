@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and launch the fixed headless Linux Docker boundary for ROUTE-001."""
+"""Launch the fixed ROUTE-001 Linux boundary; canary mode preflights before one paid trial."""
 from __future__ import annotations
 
 import argparse
@@ -9,6 +9,7 @@ import re
 import stat
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -17,6 +18,8 @@ from typing import Mapping, Sequence
 IMAGE_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 MODES = frozenset({"preflight", "canary", "campaign"})
 CONTAINER_USER = "65532:65532"
+CANARY_RESULT_NAME = "canary-result.json"
+MAX_CHILD_JSON_BYTES = 1024 * 1024
 ENTRYPOINT = [
     "/usr/local/bin/python3.12",
     "-I",
@@ -213,12 +216,178 @@ def inspect_image(image_id: str) -> Mapping[str, object]:
     return validate_image_inspection(process.stdout, image_id=image_id)
 
 
+def _run_captured(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+
+def _json_object(raw: str) -> dict[str, object] | None:
+    if not isinstance(raw, str) or len(raw.encode("utf-8")) > MAX_CHILD_JSON_BYTES:
+        return None
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _reason_codes(value: object) -> list[str] | None:
+    if (
+        not isinstance(value, list)
+        or not value
+        or any(
+            not isinstance(item, str)
+            or not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", item)
+            for item in value
+        )
+    ):
+        return None
+    return list(value)
+
+
+def _preflight_result(process: subprocess.CompletedProcess[str]) -> dict[str, object]:
+    payload = _json_object(process.stdout)
+    result = payload.get("result") if payload is not None else None
+    reasons = _reason_codes(result.get("reason_codes")) if isinstance(result, dict) else None
+    valid_envelope = (
+        payload is not None
+        and payload.get("mode") == "credential-free-preflight"
+        and payload.get("authenticated_call_started") is False
+        and payload.get("live_authorized") is False
+        and reasons is not None
+    )
+    passed = (
+        valid_envelope
+        and process.returncode == 0
+        and reasons == ["credential-free-preflight-pass"]
+    )
+    return {
+        "passed": passed,
+        "exit_code": process.returncode,
+        "reason_codes": reasons if valid_envelope else ["preflight-output-invalid"],
+    }
+
+
+def _usage(payload: Mapping[str, object]) -> dict[str, int] | None:
+    trace = payload.get("trace")
+    value = trace.get("usage") if isinstance(trace, Mapping) else None
+    if not isinstance(value, Mapping) or any(
+        not isinstance(key, str)
+        or isinstance(count, bool)
+        or not isinstance(count, int)
+        or count < 0
+        for key, count in value.items()
+    ):
+        return None
+    return dict(sorted(value.items()))
+
+
+def _canary_result(process: subprocess.CompletedProcess[str]) -> tuple[dict[str, object], int]:
+    payload = _json_object(process.stdout)
+    state = payload.get("state") if payload is not None else None
+    reasons = _reason_codes(payload.get("reason_codes")) if payload is not None else None
+    if state not in {"PASS", "FAIL", "INCONCLUSIVE"} or reasons is None:
+        return (
+            {
+                "started": True,
+                "exit_code": process.returncode,
+                "state": "INCONCLUSIVE",
+                "reason_codes": ["canary-output-invalid"],
+                "usage": None,
+            },
+            3,
+        )
+    return (
+        {
+            "started": True,
+            "exit_code": process.returncode,
+            "state": state,
+            "reason_codes": reasons,
+            "usage": _usage(payload),
+        },
+        process.returncode,
+    )
+
+
+def run_development_canary(inputs: ContainerInputs) -> tuple[int, dict[str, object]]:
+    """Run one credential-free preflight and at most one authenticated trial."""
+
+    canary_command = build_docker_command("canary", inputs)
+    preflight_inputs = ContainerInputs(
+        image_id=inputs.image_id,
+        repository=inputs.repository,
+        output_root=inputs.output_root,
+        auth_file=None,
+    )
+    preflight = _preflight_result(
+        _run_captured(build_docker_command("preflight", preflight_inputs))
+    )
+    summary: dict[str, object] = {
+        "schema_version": 1,
+        "image_id": inputs.image_id,
+        "preflight": preflight,
+        "canary": {
+            "started": False,
+            "exit_code": None,
+            "state": None,
+            "reason_codes": ["preflight-failed"],
+            "usage": None,
+        },
+    }
+    if preflight["passed"] is not True:
+        return (4 if preflight["exit_code"] == 4 else 3), summary
+
+    canary, exit_code = _canary_result(
+        _run_captured(canary_command)
+    )
+    summary["canary"] = canary
+    return exit_code, summary
+
+
+def _write_canary_result(output_root: Path, result: Mapping[str, object]) -> None:
+    rendered = json.dumps(result, sort_keys=True, separators=(",", ":")) + "\n"
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="\n",
+            prefix=".canary-result-",
+            suffix=".tmp",
+            dir=output_root,
+            delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(rendered)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, output_root / CANARY_RESULT_NAME)
+    except OSError as exc:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise ContainerContractError("canary result could not be written") from exc
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=sorted(MODES))
     parser.add_argument("--image-id", required=True)
     parser.add_argument("--repository", type=Path, required=True)
-    parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument(
+        "--output-root",
+        type=Path,
+        required=True,
+        help="result directory; canary mode writes the latest canary-result.json",
+    )
     parser.add_argument("--auth-file", type=Path)
     args = parser.parse_args(argv)
     inputs = ContainerInputs(
@@ -229,6 +398,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     try:
         inspect_image(inputs.image_id)
+        if args.mode == "canary":
+            exit_code, result = run_development_canary(inputs)
+            print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+            _write_canary_result(inputs.output_root, result)
+            return exit_code
         command = build_docker_command(args.mode, inputs)
         process = subprocess.run(command, check=False)
     except ContainerContractError as exc:

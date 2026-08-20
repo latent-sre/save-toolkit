@@ -253,8 +253,18 @@ repair and makes no independent-review claim.
 ROUTE-001 remains active and the 48-trial campaign remains **NO-GO**. The startup, hook-permission,
 and nullable-transcript defects were repaired before the fourth attempt, but that canary remained
 inconclusive. The diagnostic split at `6819773e5fab4c7bc1747f1be6907c8a8b269110` is offline-verified
-and not live-exercised. Any retry requires a new exact image, credential-free preflight, and fresh
-owner authorization; it remains development evidence until the campaign prerequisites are met.
+and was later exercised through the bounded host `canary` command. The exact Linux `amd64` image
+`sha256:10c7f4f77092ae30ebc5b52f17a5d43b80176195d63deb87614be7fb48a4fcf6`, running as
+`65532:65532`, passed the automatic credential-free preflight and produced a valid `FAIL` verdict
+with reason `behavior-grader-failed`. The trace instrument is therefore live-proven, but the skill
+behavior did not pass and the current candidate has not received independent exact-byte review.
+
+The compact result records 18,672 input tokens, 8,960 cached input tokens, zero cache-write input
+tokens, 668 output tokens, and 403 reasoning-output tokens. It is stored at
+`F:\route001-runs\canary-20260820\canary-result.json` (432 bytes, SHA-256
+`f066fb5cbfea741c12c84690c3bb76baebbb4efcf811f5e4f0ce1a0ee1840d40`). The result identifies only
+the aggregate behavior-grader failure, so a per-grader reason identifier is the next bounded
+diagnostic change; guessing at a skill edit or starting the 48-trial campaign is not justified.
 
 The focused current-repair suite passed 117 tests with 8 expected platform skips. Gate A passed all
 41 structural steps from a clean ordinary clone at exact commit `6819773e…`; the snapshot contract
@@ -262,7 +272,8 @@ was not weakened to accommodate the linked development worktree.
 
 ## What did not happen
 
-- No retry followed the fourth development canary.
+- No further live call followed the valid bounded canary.
 - No 48-trial campaign, baseline, promotion, release, push, or pull request occurred.
-- No successful model response or routing verdict was recorded.
-- No verified token or monetary-cost claim is available from any attempt.
+- No passing behavior or promotion verdict was recorded.
+- No verified monetary-cost claim is available; the token counts above are the recorded canary
+  usage, not a price calculation.

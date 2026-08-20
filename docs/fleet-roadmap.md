@@ -390,12 +390,16 @@ That Markdown packet is not a typed-record attempt or evidence envelope and ran 
 **Next action:** The Linux canary's 50 ms Codex 0.147 startup failure is reproduced and repaired
 offline; the supported schema requires nested `[tools.*]` controls rather than the rejected root
 keys. The bounded 0.148.0 repin is committed and has exact local images and passing networkless
-preflight, but all three 0.148 development canaries failed closed at trace or hook validation. The
-combined diagnostic is now split and offline-verified; rebuild and preflight it, then obtain
-independent exact-candidate review.
-Only a separately authorized canary that produces a valid boundary and verdict can unblock the
-implemented 48-trial executor. Do not tune descriptions or claim a current baseline from historical
-Claude/Sol output or any inconclusive development canary.
+preflight. Earlier 0.148 development canaries failed closed at trace or hook validation. The parser
+now handles the exact 0.148 item lifecycle, structured collaboration state, and pre-turn warnings. A
+subsequent bounded Linux canary against image
+`sha256:10c7f4f77092ae30ebc5b52f17a5d43b80176195d63deb87614be7fb48a4fcf6` passed the automatic
+credential-free preflight and produced a valid `FAIL` verdict with reason
+`behavior-grader-failed`. That clears the environment/trace blocker, but the 48-trial campaign
+remains **NO-GO**. Add compact per-grader failure identifiers without retaining raw output, verify
+that diagnostic, obtain independent exact-candidate review, and then use one targeted canary to
+localize the skill behavior. Do not tune descriptions or claim a current baseline until that failure
+is identified.
 
 ## Repository work
 

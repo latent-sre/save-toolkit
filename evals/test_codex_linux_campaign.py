@@ -2,9 +2,12 @@
 """Fail-closed contracts for the Linux-container ROUTE-001 executor."""
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -240,6 +243,172 @@ class ContainerCommandTests(unittest.TestCase):
                 codex_container.ContainerContractError, "immutable image ID"
             ):
                 codex_container.build_docker_command("preflight", inputs)
+
+    def _canary_args(self, inputs: codex_container.ContainerInputs) -> list[str]:
+        arguments = [
+            "canary",
+            "--image-id",
+            inputs.image_id,
+            "--repository",
+            str(inputs.repository),
+            "--output-root",
+            str(inputs.output_root),
+        ]
+        if inputs.auth_file is not None:
+            arguments.extend(("--auth-file", str(inputs.auth_file)))
+        return arguments
+
+    def _run_canary_main(self, inputs, runner):
+        with (
+            mock.patch("codex_container.inspect_image", return_value={}),
+            mock.patch("codex_container.subprocess.run", side_effect=runner),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            exit_code = codex_container.main(self._canary_args(inputs))
+        result_path = inputs.output_root / "canary-result.json"
+        result = (
+            json.loads(result_path.read_text(encoding="utf-8"))
+            if result_path.is_file()
+            else None
+        )
+        return exit_code, result
+
+    def test_canary_runs_preflight_then_one_live_trial_and_writes_compact_result(self) -> None:
+        usage = {
+            "input_tokens": 100,
+            "cached_input_tokens": 20,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 30,
+            "reasoning_output_tokens": 10,
+        }
+        preflight = {
+            "mode": "credential-free-preflight",
+            "authenticated_call_started": False,
+            "live_authorized": False,
+            "result": {
+                "state": "PASS",
+                "reason_codes": ["credential-free-preflight-pass"],
+            },
+        }
+        canary = {
+            "state": "PASS",
+            "reason_codes": ["observational-behavior-pass"],
+            "trace": {"usage": usage},
+        }
+
+        with tempfile.TemporaryDirectory() as raw:
+            inputs = self._inputs(Path(raw), auth=True)
+            observed: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+            def runner(command, **kwargs):
+                command = tuple(command)
+                observed.append((command, kwargs))
+                payload = preflight if command[-1] == "--preflight" else canary
+                return subprocess.CompletedProcess(
+                    command, 0, json.dumps(payload), ""
+                )
+
+            exit_code, result = self._run_canary_main(inputs, runner)
+
+        self.assertEqual(0, exit_code)
+        self.assertIsNotNone(result)
+        self.assertEqual(2, len(observed))
+        preflight_command, preflight_kwargs = observed[0]
+        canary_command, canary_kwargs = observed[1]
+        self.assertEqual("--preflight", preflight_command[-1])
+        self.assertNotIn("auth.json", " ".join(preflight_command))
+        self.assertEqual(
+            ("--canary", "--auth-file", "/run/secrets/auth.json"),
+            canary_command[-3:],
+        )
+        self.assertIn("target=/run/secrets/auth.json,readonly", " ".join(canary_command))
+        for kwargs in (preflight_kwargs, canary_kwargs):
+            self.assertIs(subprocess.DEVNULL, kwargs["stdin"])
+            self.assertIs(subprocess.PIPE, kwargs["stdout"])
+            self.assertIs(subprocess.PIPE, kwargs["stderr"])
+            self.assertTrue(kwargs["text"])
+            self.assertFalse(kwargs["check"])
+        self.assertEqual(
+            {
+                "schema_version": 1,
+                "image_id": IMAGE_ID,
+                "preflight": {
+                    "passed": True,
+                    "exit_code": 0,
+                    "reason_codes": ["credential-free-preflight-pass"],
+                },
+                "canary": {
+                    "started": True,
+                    "exit_code": 0,
+                    "state": "PASS",
+                    "reason_codes": ["observational-behavior-pass"],
+                    "usage": usage,
+                },
+            },
+            result,
+        )
+
+    def test_failed_preflight_writes_result_and_never_starts_the_paid_trial(self) -> None:
+        preflight = {
+            "mode": "credential-free-preflight",
+            "authenticated_call_started": False,
+            "live_authorized": False,
+            "result": {
+                "state": "INCONCLUSIVE",
+                "reason_codes": ["python-runtime-mismatch"],
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as raw:
+            inputs = self._inputs(Path(raw), auth=True)
+            observed: list[tuple[str, ...]] = []
+
+            def runner(command, **kwargs):
+                del kwargs
+                command = tuple(command)
+                observed.append(command)
+                if command[-1] != "--preflight":
+                    raise AssertionError("paid canary started after failed preflight")
+                return subprocess.CompletedProcess(
+                    command, 4, json.dumps(preflight), ""
+                )
+
+            exit_code, result = self._run_canary_main(inputs, runner)
+
+        self.assertEqual(4, exit_code)
+        self.assertIsNotNone(result)
+        self.assertEqual(1, len(observed))
+        self.assertEqual(
+            {
+                "started": False,
+                "exit_code": None,
+                "state": None,
+                "reason_codes": ["preflight-failed"],
+                "usage": None,
+            },
+            result["canary"],
+        )
+        self.assertEqual(
+            {
+                "passed": False,
+                "exit_code": 4,
+                "reason_codes": ["python-runtime-mismatch"],
+            },
+            result["preflight"],
+        )
+
+    def test_canary_rejects_missing_auth_before_running_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            inputs = self._inputs(Path(raw), auth=False)
+            runner = mock.Mock(
+                side_effect=AssertionError("preflight ran before live inputs were valid")
+            )
+            exit_code, result = self._run_canary_main(inputs, runner)
+
+        self.assertEqual(3, exit_code)
+        self.assertIsNone(result)
+        runner.assert_not_called()
 
 
 if __name__ == "__main__":
