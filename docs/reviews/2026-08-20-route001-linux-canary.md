@@ -3,18 +3,20 @@
 - **Date:** 2026-08-20
 - **Branch:** `feat/route001-linux-container`
 - **Base commit:** `e31d04e06d3d50e7351f0251768b11c8016c3f10`
-- **Candidate state:** repaired through `cfb185173c0434a2792c5bf30270bef1e24606b1`; not independently reviewed
+- **Candidate state:** diagnostic repair through `6819773e5fab4c7bc1747f1be6907c8a8b269110`; not independently reviewed
 - **Authority:** development instrument evidence only; not campaign, baseline, release, or promotion
 
 ## Outcome
 
-The Linux Docker arm is viable, but all three owner-approved authenticated development canaries are
+The Linux Docker arm is viable, but all four owner-approved authenticated development canaries are
 **INCONCLUSIVE**. The first, under Codex 0.147.0, exited before producing a response or valid trace.
-The two Codex 0.148.0 subprocesses returned `0`, but the evaluator rejected their JSONL trace or hook
+The three Codex 0.148.0 subprocesses returned `0`, but the evaluator rejected their JSONL trace or hook
 receipts. Exact 0.148 source review found two evaluator mismatches: hook `permission_mode` reflects
 approval policy, and `transcript_path` is nullable. Both are now repaired and covered by red-first
-tests, but the nullable-path repair has not had a live retry. No attempt is a routing result, and no
-48-trial campaign followed.
+tests. The fourth canary exercised the nullable-path repair and still reached the evaluator's combined
+`trace-or-hook-invalid` branch, proving that repair was insufficient. Commit `6819773e…` now separates
+trace parsing from hook-receipt loading with sanitized reason codes; it has offline coverage but no
+live retry. No attempt is a routing result, and no 48-trial campaign followed.
 
 | Check | Evidence |
 |---|---|
@@ -22,13 +24,15 @@ tests, but the nullable-path repair has not had a live retry. No attempt is a ro
 | Corrected 0.147 image | `[verified]` `sha256:0c6ae299da5088f9a93d0a968c2a95a61e6640d6b585e4740919f435afcd7287` |
 | Repinned 0.148 canary image | `[verified]` `sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf` |
 | Third 0.148 canary image | `[verified]` `sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c` |
+| Fourth 0.148 canary image | `[verified]` `sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b` |
 | Runtime shape | `[verified]` Linux `amd64`; non-root `65532:65532`; launcher image inspection passed |
-| Focused current-repair contracts | `[verified]` 115 passed; 8 expected platform skips |
+| Focused current-repair contracts | `[verified]` 117 passed; 8 expected platform skips |
 | Credential-free preflight | `[verified]` exit `0`; `credential-free-preflight-pass`; no auth or model process started |
 | 0.147 development canary | `[verified]` outer exit `4`; verdict `INCONCLUSIVE`; `trace-or-hook-invalid` |
-| 0.148 development canary | `[verified]` verdict `INCONCLUSIVE`; `trace-or-hook-invalid`; no retry |
+| Three 0.148 development canaries | `[verified]` each verdict `INCONCLUSIVE`; `trace-or-hook-invalid` |
 | 0.148 Codex subprocess | `[verified]` exit `0` after 15,865 ms; stdout 1,684 bytes; stderr 144 bytes |
 | Third Codex subprocess | `[verified]` exit `0` after 15,213 ms; stdout 1,760 bytes; stderr 144 bytes |
+| Fourth Codex subprocess | `[verified]` exit `0` after 28,716 ms; stdout 2,266 bytes; stderr 144 bytes |
 | Usage and cost | `[unverified]` no token, usage, billing, request, or resolved-model receipt was produced |
 | Persistent run artifacts | `[verified]` `F:\route001-runs\canary-20260820` contained zero files after the run |
 
@@ -102,8 +106,36 @@ retry followed.
 The evaluator instead required a non-empty string for every hook receipt. A red-first regression
 reproduced that rejection, and commit `cfb185173c0434a2792c5bf30270bef1e24606b1` now accepts only JSON
 `null` or a non-empty string while still rejecting a missing, empty, or non-string field. The focused
-bootstrap/harness/recorder/trial suite passed 115 tests with 8 expected platform skips. This repair is
-not yet a live routing result.
+bootstrap/harness/recorder/trial suite passed 115 tests with 8 expected platform skips. This repair
+was exercised by the fourth canary but did not produce a live routing result.
+
+## Fourth Codex 0.148 canary and diagnostic split
+
+`[verified]` The fourth and most recent authorized canary ran from clean commit
+`79a27cf2e52af15db66cef7ad435f0374ecaca1c` using exact image
+`sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b`.
+The immediately preceding credential-free preflight exited `0` with evaluator tree SHA-256
+`dbf709d2d1194cd80d6ba4fdcd260bf8cc72847d2fabeda4cb49d184335abcda`, hook-bundle SHA-256
+`a2b767504ed1e780c120aacc6e75c8ebce300d5fd7f7b4bcbb945579911f7b4f`, Linux manifest SHA-256
+`de6d9d45f39dddd98dc9d1189c802be9a6f00595f64fb843c317e04d6be7871d`, and snapshot tree SHA-256
+`867f92cccb6eff6e994f27eff7301722ebb82da24b6f2adcd26be92fe2babf4a`.
+
+The authenticated Codex process returned `0` after 28,716 ms without timeout or output limiting.
+The outer evaluator exited `1` and returned `INCONCLUSIVE` with `trace-or-hook-invalid`; stdout was
+2,266 bytes and stderr was 144 bytes with SHA-256
+`355dd364ff9da4d0184641771399592890bb63124dadc4d2154d35d5b67b05a2`. No trace facts, hook facts,
+verdict, usage, cost, or persistent artifact was accepted. One call was authorized and one call was
+made; no automatic retry followed.
+
+`[verified]` The repeated coarse reason could not identify which boundary failed because
+`codex_trial.py` parsed the trace and loaded hook receipts inside one exception block. Two red-first
+tests demonstrated that both distinct failures returned `trace-or-hook-invalid`. Commit
+`6819773e5fab4c7bc1747f1be6907c8a8b269110` now parses them sequentially and returns only sanitized
+`trace-invalid` or `hook-invalid`, without retaining exception text, raw output, or private paths.
+The 117 focused tests passed with 8 expected platform skips, and Gate A passed all 41 steps from an
+ordinary clone pinned to that exact commit. The refreshed nine-file evaluator manifest is 1,173
+bytes with SHA-256 `7316b398ea260e16d9baaa95c8f962e92c242f3fee39d2fec99fc3e536070fde`.
+This diagnostic split has not been built into an image or exercised by a live model call.
 
 ## Offline root cause and repair
 
@@ -219,18 +251,18 @@ repair and makes no independent-review claim.
 ## Disposition
 
 ROUTE-001 remains active and the 48-trial campaign remains **NO-GO**. The startup, hook-permission,
-and nullable-transcript defects are repaired through
-`cfb185173c0434a2792c5bf30270bef1e24606b1`, but the latest repair has not been rebuilt or exercised
-by a live canary. Any retry requires a new exact image, credential-free preflight, and fresh owner
-authorization; it remains development evidence until the campaign prerequisites are met.
+and nullable-transcript defects were repaired before the fourth attempt, but that canary remained
+inconclusive. The diagnostic split at `6819773e5fab4c7bc1747f1be6907c8a8b269110` is offline-verified
+and not live-exercised. Any retry requires a new exact image, credential-free preflight, and fresh
+owner authorization; it remains development evidence until the campaign prerequisites are met.
 
-The focused nullable-path repair suite passed 115 tests with 8 expected platform skips. Gate A
-passed all 41 structural steps from a clean ordinary clone at the preceding committed candidate;
-the snapshot contract was not weakened to accommodate the linked development worktree.
+The focused current-repair suite passed 117 tests with 8 expected platform skips. Gate A passed all
+41 structural steps from a clean ordinary clone at exact commit `6819773e…`; the snapshot contract
+was not weakened to accommodate the linked development worktree.
 
 ## What did not happen
 
-- No retry followed the third development canary.
+- No retry followed the fourth development canary.
 - No 48-trial campaign, baseline, promotion, release, push, or pull request occurred.
 - No successful model response or routing verdict was recorded.
 - No verified token or monetary-cost claim is available from any attempt.

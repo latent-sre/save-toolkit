@@ -9,7 +9,7 @@ their prominence. The runnable Claude suite is the third row.
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
-| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed, three development canaries inconclusive | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
+| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed, four development canaries inconclusive | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
@@ -90,8 +90,13 @@ development canary ended `INCONCLUSIVE` before producing model output. A second 
 0.148.0 canary ran from clean commit `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`; its Codex subprocess
 returned `0`, but trace or hook validation failed closed. A third bounded 0.148.0 canary from
 `0e9e7daa4cf8dab6692b80b4e3f17fa60b809068` did the same. Exact tagged source then exposed a nullable
-`transcript_path` contract mismatch, repaired at `cfb185173c0434a2792c5bf30270bef1e24606b1` but not yet
-live-retried; all three results remain `INCONCLUSIVE`.
+`transcript_path` contract mismatch, repaired at `cfb185173c0434a2792c5bf30270bef1e24606b1`.
+A fourth authorized canary from clean commit `79a27cf2e52af15db66cef7ad435f0374ecaca1c` and image
+`sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b`
+exercised that repair but again returned `trace-or-hook-invalid`. Commit
+`6819773e5fab4c7bc1747f1be6907c8a8b269110` now distinguishes sanitized `trace-invalid` from
+`hook-invalid` with red-first coverage; it has not had a live retry. All four results remain
+`INCONCLUSIVE`.
 See the [Linux canary evidence packet](../docs/reviews/2026-08-20-route001-linux-canary.md). No Terra
 campaign, routing result, or baseline has been recorded.
 The full campaign may run only from exact,

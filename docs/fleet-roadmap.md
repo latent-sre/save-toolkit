@@ -186,12 +186,14 @@ create or move a release ref manually.
 ### ROUTE-001 — routing evals for the 2026-08 description changes
 
 **Status:** `active` (2026-08-20) — PR
-[#103](https://github.com/latent-sre/save-toolkit/pull/103) supplied the original evaluator. An
-Linux Docker arm implements the fixed 48-trial executor and passes credential-free preflight. Three
+[#103](https://github.com/latent-sre/save-toolkit/pull/103) supplied the original evaluator. A
+Linux Docker arm implements the fixed 48-trial executor and passes credential-free preflight. Four
 owner-approved development canaries ended `INCONCLUSIVE`: Codex 0.147 failed during startup, while
-both Codex 0.148 processes returned `0` but their trace or hook receipts failed validation. Exact
-tagged source exposed hook-permission and nullable-transcript mismatches, now repaired through
-`cfb185173c0434a2792c5bf30270bef1e24606b1`; the latest repair has not been live-retried. No campaign,
+all three Codex 0.148 processes returned `0` but their trace or hook receipts failed validation.
+Exact tagged source exposed
+hook-permission and nullable-transcript mismatches. The fourth attempt proved those repairs were
+insufficient, and `6819773e5fab4c7bc1747f1be6907c8a8b269110` now distinguishes trace failure from
+hook failure without retaining private diagnostics; that split has not been live-retried. No campaign,
 routing result, or baseline followed. See the
 [`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
 
@@ -309,10 +311,10 @@ directory is enforced, the disposable auth copy is removed before model-controll
 decoded exact auth values are scanned, receipts and output are bounded, and every launched outcome
 receives a post-trial drift check. Under the accepted live boundary, the operator login will still exist in a
 disposable `CODEX_HOME` under the same OS user: this is application-layer isolation, not a
-separate-principal sandbox, and that limitation must be retained in every result. Exactly two
-owner-approved authenticated development attempts ran: 0.147.0 exited before model output, and
-0.148.0 returned `0` but failed trace or hook validation. No successful authenticated canary or
-campaign was run. Historical Claude runs and the prepared Claude campaign remain
+separate-principal sandbox, and that limitation must be retained in every result. Exactly four
+owner-approved authenticated development attempts ran: 0.147.0 exited before model output, and all
+three 0.148.0 processes returned `0` but failed trace or hook validation. No successful authenticated
+canary or campaign was run. Historical Claude runs and the prepared Claude campaign remain
 preserved under their original labels; none is relabeled as Terra evidence. The 2026-07-31 Sol results
 remain retained but revoked as release evidence.
 
@@ -340,7 +342,13 @@ passed the credential-free networkless preflight. A subsequent owner-authorized 
 ran from clean commit `0e9e7daa4cf8dab6692b80b4e3f17fa60b809068`; Codex returned `0`, but the
 result remained `INCONCLUSIVE` because trace or hook validation failed. Exact tagged source then
 confirmed that the evaluator wrongly rejected Codex's nullable `transcript_path`; commit
-`cfb185173c0434a2792c5bf30270bef1e24606b1` repairs that boundary with red-first coverage. See the
+`cfb185173c0434a2792c5bf30270bef1e24606b1` repairs that boundary with red-first coverage. A fourth
+canary from clean commit `79a27cf2e52af15db66cef7ad435f0374ecaca1c` and exact image
+`sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b`
+exercised the repair but remained `INCONCLUSIVE` at the same combined reason. The evaluator now
+distinguishes sanitized `trace-invalid` from `hook-invalid` at commit
+`6819773e5fab4c7bc1747f1be6907c8a8b269110`; 117 focused tests and all 41 Gate A steps passed, but
+that diagnostic split has not had a live retry. See the
 [`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
 
 **Grader repair (2026-08-15):** The outside-packet detector is repaired and evidenced in the
@@ -381,12 +389,13 @@ That Markdown packet is not a typed-record attempt or evidence envelope and ran 
 
 **Next action:** The Linux canary's 50 ms Codex 0.147 startup failure is reproduced and repaired
 offline; the supported schema requires nested `[tools.*]` controls rather than the rejected root
-keys. The bounded 0.148.0 repin is committed and has an exact local image and passing networkless
-preflight, but its single development canary failed closed at trace or hook validation. Diagnose that
-instrument boundary without rerunning the model, then obtain independent exact-candidate review.
+keys. The bounded 0.148.0 repin is committed and has exact local images and passing networkless
+preflight, but all three 0.148 development canaries failed closed at trace or hook validation. The
+combined diagnostic is now split and offline-verified; rebuild and preflight it, then obtain
+independent exact-candidate review.
 Only a separately authorized canary that produces a valid boundary and verdict can unblock the
 implemented 48-trial executor. Do not tune descriptions or claim a current baseline from historical
-Claude/Sol output or either inconclusive development canary.
+Claude/Sol output or any inconclusive development canary.
 
 ## Repository work
 
