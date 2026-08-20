@@ -194,12 +194,17 @@ class ContainerCommandTests(unittest.TestCase):
         repository.mkdir()
         (repository / ".git").mkdir()
         output.mkdir(mode=0o700)
+        # Resolve after creation so symlinked temp roots (e.g. /var → /private/var on macOS)
+        # do not trip the _normal_path resolved != candidate check.
+        repository = repository.resolve()
+        output = output.resolve()
         auth_file = None
         if auth:
             auth_file = root / "auth.json"
             auth_file.write_text('{"tokens":{"access_token":"opaque-secret"}}', encoding="utf-8")
             if os.name != "nt":
                 auth_file.chmod(0o600)
+            auth_file = auth_file.resolve()
         return codex_container.ContainerInputs(
             image_id=IMAGE_ID,
             repository=repository,
