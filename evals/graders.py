@@ -731,7 +731,7 @@ _NAV_ESCALATION = re.compile(
     re.IGNORECASE,
 )
 _NAV_ESCALATION_TRIGGER = re.compile(
-    r"\b(?:major|growing|widespread|unbounded|suspected|security|integrity|"
+    r"\b(?:major|grow(?:s|ing)?|widen(?:s|ed|ing)?|widespread|unbounded|suspected|security|integrity|"
     r"several responders?|not stabilized|missing|stale|not located|cannot be located|"
     r"cross(?:es|ed|ing)? (?:the )?(?:application|service) boundary|"
     r"exceed(?:s|ed|ing)?|breach(?:es|ed|ing)?|persist(?:s|ed|ing)?|fail(?:s|ed|ing)?)\b|"
@@ -739,7 +739,8 @@ _NAV_ESCALATION_TRIGGER = re.compile(
     re.IGNORECASE,
 )
 _NAV_ESCALATION_NEGATED_TRIGGER = re.compile(
-    r"\b(?:not|never|no longer)\b[^·\r\n]{0,48}\b(?:major|growing|widespread|"
+    r"\b(?:not|never|no longer)\b[^·\r\n]{0,48}\b(?:major|grow(?:s|ing)?|"
+    r"widen(?:s|ed|ing)?|widespread|"
     r"unbounded|suspected|security|integrity|several responders?|"
     r"cross(?:es|ed|ing)?|exceed(?:s|ed|ing)?|breach(?:es|ed|ing)?|"
     r"persist(?:s|ed|ing)?|fail(?:s|ed|ing)?)\b",

@@ -532,6 +532,13 @@ State changed: no"""
     ok, _ = graders.incident_navigation_contract(unknown_location, owners)
     check(ok, "incident_navigation_contract: an unknown location retrieves one supplied item")
 
+    growing_impact = valid.replace(
+        "Escalate when: Impact is major, growing, widespread, or unbounded · incident-command",
+        "Escalate when: Impact grows or widens beyond checkout · incident-command",
+    )
+    ok, _ = graders.incident_navigation_contract(growing_impact, owners)
+    check(ok, "incident_navigation_contract: observable impact growth phrasing passes")
+
     for path in (r"C:\ops\checkout\dashboard.json", "/ops/checkout/dashboard.json"):
         path_response = valid.replace(
             "Where to look: grafana://checkout-latency",
@@ -809,6 +816,10 @@ State changed: no"""
         valid.replace(
             "Escalate when: Impact is major, growing, widespread, or unbounded · incident-command",
             "Escalate when: Impact isn't growing · incident-command",
+        ),
+        valid.replace(
+            "Escalate when: Impact is major, growing, widespread, or unbounded · incident-command",
+            "Escalate when: Impact does not grow or widen · incident-command",
         ),
         valid.replace(
             "Escalate when: Impact is major, growing, widespread, or unbounded · incident-command",
