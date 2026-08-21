@@ -28,10 +28,11 @@ patch; you contain it. *[sourced: industry consensus; Simon Willison, "The letha
 
 The execution boundary today: `save-toolkit-reviewer` and `save-toolkit-repository-investigator` are local-only and hold no
 Bash, Write, web, or external MCP tools; `save-toolkit-researcher` is external-only and holds no local read, Bash,
-Write, Skill, or Agent tool. `save-toolkit-sre` and `save-toolkit-observability-engineer` run Bash under the fail-closed allowlist guard
-(the repo's `readonly-guard.py`, wired through the plugin-level session hook). `save-toolkit-sde` and
-`save-toolkit-prompt-engineer` retain unguarded Bash for team-authored repository work, so host/network egress
-controls remain load-bearing even though their direct web tools are absent. Verify every claim
+Write, Skill, or Agent tool. `save-toolkit-sre` runs Bash under the fail-closed allowlist guard (the repo's
+`readonly-guard.py`, wired through the plugin-level session hook). `save-toolkit-sde`, `save-toolkit-observability-engineer`,
+and `save-toolkit-prompt-engineer` retain unguarded Bash (team-authored repository work; Grafana dashboard
+applies), so host/network egress controls remain load-bearing even though their direct web tools
+are absent. Verify every claim
 against agent frontmatter and guard tests; generated Codex profiles need outer isolation because
 their TOML cannot deny inherited tools.
 

@@ -1,22 +1,43 @@
-# Grafana 13 provisioning
+# Grafana 13 provisioning and dashboards as code
 
-Use this reference when a dashboard must become reproducible and reviewable. It records the source-of-truth
-contract; verify paths and feature availability against the target Grafana instance before applying it.
+Use this reference when a dashboard must become reproducible and reviewable. It records the
+source-of-truth contract, the delivery paths Grafana 13 supports, and the CI shape that keeps the
+repository and the instance equal; verify paths and feature availability against the target before
+applying it. The live-write flow is in [http-api](./http-api.md).
 
 ## Primary sources
 
 - `[sourced]` [Provision Grafana](https://grafana.com/docs/grafana/latest/administration/provisioning/)
 - `[sourced]` [Dashboard JSON model](https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/view-dashboard-json-model/)
-- `[sourced]` [Git Sync provisioned dashboards](https://grafana.com/docs/grafana/latest/as-code/observability-as-code/git-sync/provisioned-dashboards/)
-- `[sourced]` [File-path setup](https://grafana.com/docs/grafana/latest/as-code/observability-as-code/provision-resources/file-path-setup/)
+- `[sourced]` [Observability as code](https://grafana.com/docs/grafana/latest/as-code/observability-as-code/) and its
+  [Git Sync](https://grafana.com/docs/grafana/latest/as-code/observability-as-code/git-sync/) section
+- `[sourced]` `github:kubernetes-monitoring/kubernetes-mixin` (Makefile, `.lint`, CI), `github:grafana/loki`
+  `production/loki-mixin`, `github:dotdc/grafana-dashboards-kubernetes`, `github:grafana-community/helm-charts`
+  `charts/grafana/values.yaml` — the repository conventions below
 
-Sources reviewed 2026-07-14. They establish the generic Grafana behavior below; local paths, access,
+Sources reviewed 2026-08-21. They establish the generic Grafana behavior below; local paths, access,
 licensing, and enabled features remain `[unverified]` until checked on the target.
+
+## The contract
+
+The repository holds the dashboard JSON; Grafana holds a copy. Every path below differs only in how
+the copy is refreshed. Consequences the docs state plainly:
+
+- "If you save a provisioned dashboard in the UI and then later update the provisioning source,
+  Grafana always overwrites the database dashboard with the one from the provisioning file. Grafana
+  ignores the `version` property in the JSON file, even if it's lower than the dashboard in the database."
+- "If you save a provisioned dashboard in the UI and remove the provisioning source, Grafana deletes
+  the dashboard in the database unless you have set the option `disableDeletion` to `true`."
+- "If you set `allowUiUpdates` to `false`, you can't save changes to a provisioned dashboard" — the UI
+  shows "Cannot save provisioned dashboard", which is the contract made visible.
+- "You _must_ use the Kubernetes resource format to provision dashboards v2 / dynamic dashboards."
+
+`[sourced: docs administration/provisioning]`
 
 ## File-provider inventory
 
-Keep the provider YAML under Grafana's `provisioning/dashboards` configuration tree and the dashboard JSON
-under the repository-owned directory named by `options.path`. Record the exact local values here:
+Keep the provider YAML under Grafana's `provisioning/dashboards` configuration tree and the dashboard
+JSON under the repository-owned directory named by `options.path`. Record the exact local values here:
 
 | Field | Reviewed value |
 |---|---|
@@ -24,6 +45,7 @@ under the repository-owned directory named by `options.path`. Record the exact l
 | JSON root | `<repo path>/<dashboard-json-root>` |
 | Grafana folder / filesystem directory | `<folder>` / `<directory>` |
 | Dashboard UID / title | `<stable uid>` / `<title>` |
+| Schema recorded | `<Classic / V1 Resource / V2 Resource>` |
 | Data-source UIDs | `<metrics uid>`, `<logs uid>`, `<traces uid>` |
 | Apply/reload owner | `<team or controlled automation>` |
 
@@ -35,52 +57,89 @@ apiVersion: 1
 providers:
   - name: operations-dashboards
     type: file
-    disableDeletion: false
-    allowUiUpdates: false
-    updateIntervalSeconds: 30
+    disableDeletion: true          # removing a file must not delete the dashboard unreviewed
+    allowUiUpdates: false          # "Cannot save provisioned dashboard" is the contract, stated
+    updateIntervalSeconds: 30      # >10 polls; <=10 watches, and bind/network mounts can miss events
     options:
       path: /var/lib/grafana/dashboards
-      foldersFromFilesStructure: true
+      foldersFromFilesStructure: true   # then leave `folder` and `folderUid` unset; depth <= 4
 ```
 
-Use a stable `uid` in every dashboard JSON model and refer to data sources by stable data-source UIDs,
-not installation-specific numeric IDs or display names. With `foldersFromFilesStructure: true`, do not
-also set a provider-level folder; the filesystem layout supplies the folder structure.
+Dashboard files may be Classic JSON or the Kubernetes resource (`kind: Dashboard`,
+`apiVersion: dashboard.grafana.app/v1` or `v2beta1`, `metadata.name` = uid, `spec`); V2 requires the
+latter. Use a stable `uid` in every model and refer to data sources through the `${datasource}`
+variable, not installation-specific uids or display names ([json-model](./json-model.md)).
+
+## Delivery paths
+
+| Path | When | Notes |
+|---|---|---|
+| **File provider** (above) | Self-managed, dashboards already in a repository | Default here; the provisioner reloads on its interval. Reload on demand: `POST /api/admin/provisioning/dashboards/reload` (admin) |
+| **Git Sync** | Grafana 13, repository policy permits a Grafana-held Git credential | "Git Sync is the recommended method for provisioning your dashboards." GA in 13.0; bidirectional — UI saves can open a pull request; folder per repository; **≤ 1,000 resources per connection** ("Shard by capacity, not by team"); `_folder.json` pins a folder uid; 13.0.0 had a migration bug that could lose Git-synced dashboards — enter via 13.0.1 or later |
+| **Sidecar ConfigMaps** (Kubernetes only) | Grafana runs in Kubernetes | ConfigMap labeled `grafana_dashboard: "1"`, annotation `grafana_folder`, sidecar `folderAnnotation` + `provider.foldersFromFilesStructure: true`. The Helm chart moved to `grafana-community/helm-charts` after 2026-01-30 |
+| **Terraform** | Stack already Terraform-managed | `grafana_dashboard { config_json = file(...) }` for Classic; `grafana_apps_dashboard_dashboard_v1beta1` / `_v2beta1` "recommended for Grafana 13 and later" |
+| **gcx push / HTTP API** | A controlled write outside provisioning | Creates a DB-owned dashboard; must be followed by export + commit so the repository stays authoritative |
+
+`[sourced: docs git-sync/*, usage-limits, upgrade-v13.0; grafana-community/helm-charts values.yaml; grafana/terraform-provider-grafana docs/resources/dashboard.md]`
+
+`stack-profile` records that on-prem stays Kubernetes-free, so the sidecar row is for a cloud-hosted
+Grafana only.
+
+## Repository conventions (what the well-kept projects do)
+
+- **One file per dashboard, named by uid**, in folders mirroring the Grafana folder tree. UIDs are
+  literal and stable (`reads`, `writes`, `<svc>-health`) or deterministic (`md5(filename)`), "necessary
+  for stable links". *[sourced: kubernetes-mixin config.libsonnet; loki-mixin dashboards]*
+- **Dashboards, alert rules, and recording rules ship together** with one `_config` for labels and
+  selectors — the monitoring-mixin shape: "the best people to build the alerting rules and dashboards
+  for a given application are the authors of that application". Keep `alerts/`, `rules/`, and
+  `dashboards/` for a service side by side even when they are plain YAML/JSON rather than jsonnet.
+  *[sourced: kubernetes-mixin DESIGN.md]*
+- **Generated artifacts are committed next to source** (`loki-mixin-compiled/`,
+  `dashboards_out/`) and CI fails on drift: `make generate && git diff --exit-code`.
+  *[sourced: kubernetes-mixin .github/workflows/ci.yaml; loki Makefile loki-mixin-check]*
+- **Extend upstream, never fork-and-edit**: add rows with jsonnet `+:` or drop an unwanted upstream
+  dashboard with a `null` merge-patch, so upstream updates still flow. *[sourced: kube-prometheus docs]*
+- **Typed code goes through the Foundation SDK**, emitting the Kubernetes manifest; "Grafonnet is not
+  officially supported by Grafana" (existing mixins keep working). *[sourced: docs observability-as-code]*
+
+## CI — what a pull request must prove
+
+1. `jq empty` on every changed JSON (syntax).
+2. `dashboard-linter lint --strict` on every dashboard, from a **pinned, checksummed prebuilt binary**
+   (`go install` of the linter is broken upstream by design; v0.2.0 adds V2 support). Exclusions in a
+   `.lint` file beside the dashboards, each with a `reason:`, scoped by `entries:` where possible.
+   *[sourced: grafana/dashboard-linter README, docs/index.md; kubernetes-mixin Makefile]*
+3. `promtool check rules` on co-shipped rules; the drift gate for generated artifacts.
+4. Review by a human of: title/purpose, stable `uid`, folder, `${datasource}` usage, every query, units,
+   thresholds, links, no-data/error behavior, the schema recorded, and the target Grafana minor.
+5. Apply only on merge to the main branch, through the provisioning path, by the job that holds the
+   write credential; never from a feature branch.
+
+A worked GitHub Actions shape (lint on PR, apply on merge, `concurrency` group per instance) exists in
+the OSS corpus; `ci-actions` carries the hardening rules for writing it.
 
 ## Review and apply
 
 1. Export or edit the JSON in the repository. Normalize only with an approved formatter; avoid noisy
    rewrites that hide query changes.
-2. In the pull request, review title/purpose, stable `uid`, folder, data-source UIDs, variables, every
-   query, units, thresholds, links, no-data/error behavior, and the expected target Grafana 13 minor.
-3. Render or preview against a non-production target with representative data. Capture the exact time
+2. Render or preview against a non-production target with representative data. Capture the exact time
    range and variable values; a syntactically valid dashboard can still query the wrong service.
-4. Apply through the controlled provisioning path. Confirm Grafana loaded the expected dashboard UID and
-   source revision, then exercise its top-level health-to-drill-down path.
-5. Preserve the previous source revision for rollback. Rollback means reverting the reviewed JSON/provider
-   change and reapplying it through the same controlled path, then verifying the prior UID content loaded.
+3. Apply through the controlled path. Confirm Grafana loaded the expected dashboard uid and source
+   revision (`meta.provisioned`, version/generation), then exercise its top-level health-to-drill-down path.
+4. Preserve the previous source revision for rollback. Rollback means reverting the reviewed JSON/provider
+   change and reapplying it through the same controlled path, then verifying the prior uid content loaded.
 
-`allowUiUpdates: false` makes the source contract explicit. Even when UI saves are allowed, Grafana does
-not write UI edits back to the provisioning source; a later source update overwrites the database copy.
-Do not treat an in-browser edit as durable until it passes the pull request workflow.
+## Toolchain status
 
-## Grafana 13 Git Sync alternative
-
-Grafana 13 documents Git Sync as generally available. 13.0.0 shipped a Git Sync upgrade bug that
-could lose or revert dashboards — enter via 13.0.1 or later *[sourced: Grafana release notes,
-re-checked 2026-08-19]*. Use it only when the target edition and repository
-policy permit it. Record the configured repository, branch, path, folder behavior, service identity, and
-review protection; never place a token in dashboard JSON or this inventory. File provisioning remains a
-valid path and is the default when Git Sync has not been admitted locally.
-
-Toolchain status, reviewed 2026-08-07, re-checked 2026-08-19 against live pages *[sourced:
-grafana.com/docs "Observability as code" section]*: the **Foundation SDK** (Go/TypeScript/Python/
-Java/PHP typed dashboard definitions) is the documented programmatic path; **Grizzly is
-deprecated**, its successor **`grafanactl` was archived 2026-06-01**, and the as-code docs now name
-**`gcx`** as the Grafana CLI; and the dashboard
-model now has three schemas — **V2 Resource (current)**, V1 Resource, and the pre-v12.2 "Classic"
-`schemaVersion` JSON that community sharing still uses. State which schema a dashboard uses in its
-inventory row; a V2-only feature silently degrades when pasted into a Classic-consuming path.
+Reviewed 2026-08-21 against the live pages and upstream repositories *[sourced]*: the as-code docs
+name **gcx** (GA, "Use gcx to work with AI agents"), the **Foundation SDK**, and **Git Sync**;
+**grafanactl is deprecated** (its README announced archival for 2026-06-01; the page fetched on
+2026-08-21 showed no archive banner yet — migrate by search-and-replace to `gcx`, `resources serve` →
+`gcx dev serve`); **Grizzly is archived** (2026-06-05); **Grafonnet is unsupported**. The dashboard
+model has three schemas — V2 Resource (current), V1 Resource, and Classic — state which one each
+dashboard uses in its inventory row; a V2-only feature silently degrades when pasted into a
+Classic-consuming path. See [agent-tooling](./agent-tooling.md) for what each tool adds.
 `[unverified for the deployed Grafana minor — confirm before migrating any dashboard's schema]`
 
 <!-- terminal-canary: q_odprov_91c4 -->

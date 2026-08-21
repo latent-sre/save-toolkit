@@ -37,7 +37,7 @@ Kubernetes-free.
 | Logs | Splunk (SPL) | Loki (LogQL) |
 | Metrics | Wavefront / Aria Ops for Applications — now Broadcom DX OpenExplore (WQL) | Mimir / Prometheus (PromQL) |
 | Traces | — (new capability) | Tempo (TraceQL) |
-| Dashboards | Grafana 13.x | Grafana 13.x |
+| Dashboards | Grafana 13.1.x self-managed; **13.2 upgrade planned** `[sourced: owner, 2026-08-21]` | same instance |
 | Alerting / correlation | Moogsoft (Dell APEX AIOps, on-prem v9.x); ThousandEyes synthetics | Grafana unified alerting |
 | Pipeline | — | Alloy + OTel collectors |
 | Edge / CDN / WAF / RUM | Akamai (Property Manager delivery, App & API Protector, DataStream 2 logs, mPulse RUM) | — |
