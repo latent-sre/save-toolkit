@@ -110,13 +110,15 @@ change record" generically; name whichever system governs the change in hand rat
 one. *[sourced: operator statement 2026-08-21]*
 
 ## Documentation home
-Runbooks and postmortems live in **both Confluence and a team-owned GitHub repository**. This is a
-dual home, not a migration with an end state — neither destination is being retired, so a document
-skill must not assume the other one is going away.
+**The team-owned GitHub repository is the living source.** Confluence still holds operational
+documentation and is actively being drained into the repo — one direction, import only. Both
+therefore exist today, but they are not co-equal homes: a page in Confluence is a source to import,
+not a destination to write to.
 
-Which content belongs where is **not yet recorded**. Until it is, `save-toolkit-scribe` and `runbook` state the
-destination they authored for rather than picking one silently, and
-`skills/runbook/scripts/confluence_to_runbook.py` remains live.
+What follows for the document lanes: `save-toolkit-scribe` authors into the repository (it has no web tools and
+could not reach Confluence anyway), `runbook` owns the import path, and
+`skills/runbook/scripts/confluence_to_runbook.py` is live working software, not a migration
+leftover. Never write new operational documentation into Confluence.
 *[sourced: operator statement 2026-08-21]*
 
 ## Stay in lane
