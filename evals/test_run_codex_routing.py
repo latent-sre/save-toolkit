@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import sys
 import tempfile
@@ -66,7 +67,7 @@ class ManifestContractTests(unittest.TestCase):
     def test_manifest_states_the_host_observability_and_tool_boundaries(self) -> None:
         manifest = run_codex_routing.load_manifest()
         self.assertEqual(
-            "behavioral-only-codex-0.147", manifest["skill_activation_evidence"]
+            "behavioral-only-codex-0.148", manifest["skill_activation_evidence"]
         )
         self.assertEqual(
             "root-delegation-unobservable-v2", manifest["agent_activation_evidence"]
@@ -75,41 +76,45 @@ class ManifestContractTests(unittest.TestCase):
             "no-model-tools-non-root-root-collaboration-unscored",
             manifest["tool_policy"],
         )
-        self.assertEqual("0.147.0", manifest["codex_cli_version"])
-        self.assertEqual("win32-amd64", manifest["runtime_platform"])
+        self.assertEqual("0.148.0", manifest["codex_cli_version"])
+        self.assertEqual("linux-x86_64", manifest["runtime_platform"])
         self.assertEqual("3.12.10", manifest["python_version"])
+        self.assertEqual("/usr/local/bin/python3.12", manifest["python_executable_path"])
+        self.assertEqual("2.39.5", manifest["git_cli_version"])
+        self.assertEqual("/usr/bin/git", manifest["git_executable_path"])
         self.assertEqual(
-            "4d6f5f81a4bca11191c4c7c6b43632694d0a4ce74e068619d8fdc161d469859a",
-            manifest["python_executable_sha256"],
-        )
-        self.assertEqual("2.53.0.windows.2", manifest["git_cli_version"])
-        self.assertEqual(
-            r"C:\Program Files\Git\mingw64\bin\git.exe",
-            manifest["git_executable_path"],
-        )
-        self.assertEqual(
-            "c39b1b4f7a57935bbeadf246dc2466316619453a6a9da77c4a9c6bd6d8fb21d3",
-            manifest["git_executable_sha256"],
-        )
-        self.assertEqual(
-            "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d",
+            "ac2cfed85fb647d61e0150b8548102b330e4799d9d81ad5d354de701edf6b074",
             manifest["codex_executable_sha256"],
         )
         self.assertEqual(
-            "dd06f2ae3786e852ca884d6c189a364da38f7b7492fd960b05cdd2e3e232e443",
+            "3a934e842c9b6a813dfe04ec826da0b79dcfc9b3187696d4b2c1b7110cdb811c",
             manifest["source_model_entry_sha256"],
         )
         self.assertEqual(
-            "2d23cea7bd13463424eca49df927a38f8480501820eec853e3789015c6a321b6",
+            "b5122f71336f146cb6c656167e7f3258a9e4735583b95435f808261562bb646f",
             manifest["safe_model_catalog_sha256"],
         )
         self.assertEqual(
             {
                 "a39a81f33f7ad7325c52d883822bbbdd80c7ed28": "195e5afad5ccd95f0aa3611b96cd31c8c1e9bc06818009603e2c4181240f62b5",
-                "b459a5d3a209d384acb2b2b7ca325aa63697113b": "867f92cccb6eff6e994f27eff7301722ebb82da24b6f2adcd26be92fe2babf4a",
+                "7aef80aede95394f6c4237ed2aedb911e141c3c0": "b9167b5200994d8265a2c592c7730028e81aa6f3a7fb19646bce0ceffc052a10",
             },
             manifest["snapshot_tree_sha256"],
         )
+
+    def test_scenario_bundle_bytes_must_match_the_manifest_digest(self) -> None:
+        approved = run_codex_routing.SCENARIO_BUNDLE_PATH.read_bytes()
+        expected = hashlib.sha256(approved).hexdigest()
+        payload = json.loads(approved)
+        payload["scenarios"][0]["prompt"] += " attacker-selected suffix"
+
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "scenarios.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "digest"):
+                run_codex_routing.load_stable_scenario_bundle(
+                    path, expected_sha256=expected
+                )
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -117,7 +122,7 @@ class ManifestContractTests(unittest.TestCase):
         cls.manifest = run_codex_routing.load_manifest()
 
     def test_manifest_pins_exact_terra_campaign(self) -> None:
-        self.assertEqual(1, self.manifest["schema_version"])
+        self.assertEqual(2, self.manifest["schema_version"])
         self.assertEqual("gpt-5.6-terra", self.manifest["model"])
         self.assertEqual("medium", self.manifest["reasoning_effort"])
         self.assertEqual("read-only", self.manifest["sandbox"])
@@ -129,7 +134,7 @@ class ManifestContractTests(unittest.TestCase):
             self.manifest["before_revision"],
         )
         self.assertEqual(
-            "b459a5d3a209d384acb2b2b7ca325aa63697113b",
+            "7aef80aede95394f6c4237ed2aedb911e141c3c0",
             self.manifest["current_revision"],
         )
 
@@ -329,8 +334,12 @@ class CampaignPlanTests(unittest.TestCase):
         self.assertEqual(str(model_catalog), parsed["model_catalog_json"])
         self.assertNotIn("default_permissions", parsed)
         self.assertNotIn("permissions", parsed)
-        self.assertFalse(parsed["update_plan_enabled"])
-        self.assertFalse(parsed["experimental_request_user_input_enabled"])
+        self.assertNotIn("update_plan_enabled", parsed)
+        self.assertNotIn("experimental_request_user_input_enabled", parsed)
+        self.assertFalse(parsed["tools"]["update_plan"]["enabled"])
+        self.assertFalse(
+            parsed["tools"]["experimental_request_user_input"]["enabled"]
+        )
         self.assertFalse(parsed["skills"]["bundled"]["enabled"])
         self.assertFalse(parsed["orchestrator"]["skills"]["enabled"])
         self.assertFalse(parsed["orchestrator"]["mcp"]["enabled"])
@@ -417,6 +426,7 @@ class CanaryContractTests(unittest.TestCase):
         isolated.assert_called_once()
         preflight.assert_called_once()
         self.assertNotIn("auth_file", preflight.call_args.kwargs)
+        self.assertEqual("body", preflight.call_args.kwargs["canary_probe_mode"])
         serialized = printed.call_args.args[0]
         self.assertIn('"authenticated_call_started":false', serialized)
         self.assertIn('"live_authorized":false', serialized)
@@ -439,6 +449,82 @@ class CanaryContractTests(unittest.TestCase):
 
         self.assertEqual(3, exit_code)
         preflight.assert_not_called()
+
+    def test_authenticated_canary_uses_the_explicit_body_probe(self) -> None:
+        result = SimpleNamespace(
+            state=SimpleNamespace(value="PASS"),
+            as_dict=lambda: {"state": "PASS"},
+        )
+        with (
+            mock.patch.object(run_codex_routing, "require_isolated_canary_launch"),
+            mock.patch.object(codex_trial, "run_trial", return_value=result) as trial,
+            mock.patch("builtins.print"),
+        ):
+            exit_code = run_codex_routing.main(
+                [
+                    "--canary",
+                    "--repo-root",
+                    "C:/repo",
+                    "--codex-bin",
+                    "C:/codex.exe",
+                    "--private-root",
+                    "C:/private",
+                    "--auth-file",
+                    "C:/auth.json",
+                ]
+            )
+
+        self.assertEqual(0, exit_code)
+        trial.assert_called_once()
+        self.assertEqual("body", trial.call_args.kwargs["canary_probe_mode"])
+
+    def test_authenticated_canary_can_select_the_description_only_arm(self) -> None:
+        result = SimpleNamespace(
+            state=SimpleNamespace(value="PASS"),
+            as_dict=lambda: {"state": "PASS"},
+        )
+        with (
+            mock.patch.object(run_codex_routing, "require_isolated_canary_launch"),
+            mock.patch.object(codex_trial, "run_trial", return_value=result) as trial,
+            mock.patch("builtins.print"),
+        ):
+            exit_code = run_codex_routing.main(
+                [
+                    "--canary",
+                    "--canary-arm",
+                    "description",
+                    "--repo-root",
+                    "C:/repo",
+                    "--codex-bin",
+                    "C:/codex.exe",
+                    "--private-root",
+                    "C:/private",
+                    "--auth-file",
+                    "C:/auth.json",
+                ]
+            )
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual("description", trial.call_args.kwargs["canary_probe_mode"])
+
+    def test_canary_arm_is_rejected_outside_the_development_canary(self) -> None:
+        for arguments in (
+            ["--canary-arm", "description"],
+            [
+                "--plan",
+                "--current-revision",
+                run_codex_routing.CURRENT_REVISION,
+                "--canary-arm",
+                "description",
+            ],
+        ):
+            with self.subTest(arguments=arguments), mock.patch(
+                "builtins.print"
+            ) as printed:
+                exit_code = run_codex_routing.main(arguments)
+
+            self.assertEqual(3, exit_code)
+            self.assertIn("canary-only", printed.call_args.args[0])
 
     def test_canary_requires_the_isolated_staged_entrypoint(self) -> None:
         evaluator_root = Path(run_codex_routing.__file__).resolve().parent

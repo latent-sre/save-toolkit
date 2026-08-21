@@ -863,6 +863,7 @@ raise SystemExit(int(sys.argv[1]))
 
     def test_real_cli_requires_isolation_and_synthesizes_only_fixed_canary_args(self) -> None:
         entrypoint = b"""\
+import codex_runtime
 import pathlib
 import sys
 args = sys.argv[1:]

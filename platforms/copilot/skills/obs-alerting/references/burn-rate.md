@@ -12,11 +12,11 @@ backend query: carry the reviewed numerator/denominator query and its result int
 consumption relative to the SLO, recommends multi-window/multi-burn-rate alerting, and in Table 5-8
 binds these three starting-point pairs for a 99.9% SLO:
 
-| Long window | Short window | Threshold | Action |
-|---|---|---|---|
-| 1h | 5m | 14.4x | PAGE (fast burn) |
-| 6h | 30m | 6.0x | PAGE (slow burn) |
-| 3d | 6h | 1.0x | TICKET (slow leak) |
+| Long window | Short window | Threshold | Budget consumed at threshold | Action |
+|---|---|---|---|---|
+| 1h | 5m | 14.4x | 2% in 1h | PAGE (fast burn) |
+| 6h | 30m | 6.0x | 5% in 6h | PAGE (slow burn) |
+| 3d | 6h | 1.0x | 10% in 3d | TICKET (slow leak) |
 
 The pairs are one unit: both windows must meet the pair's one threshold. Do not mix a long window from
 one row with a short window from another, apply one row's threshold to another pair, or weaken the
@@ -51,8 +51,10 @@ The SLI unit still matters:
 
 ## Calculator
 
-The bundled [error_budget.py](../scripts/error_budget.py) is pure stdlib and supports budget-status and
-burn-rate modes. These examples exercise its three admitted pair behaviors:
+The bundled [error_budget.py](../scripts/error_budget.py) is pure stdlib and supports budget-status
+and burn-rate modes. A human (or an unguarded lane) runs it and pastes the output — the fleet's
+read-only guard deliberately denies script execution. These examples exercise its three admitted
+pair behaviors:
 
 ```powershell
 py -3 skills/obs-alerting/scripts/error_budget.py --slo 99.9 --sli-long 99.45 --sli-short 99.95

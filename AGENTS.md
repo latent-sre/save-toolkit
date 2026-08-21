@@ -47,10 +47,11 @@ that sorts first.
 
 - [`.ignore`](.ignore) excludes the four generated roots from `rg`, so a plain search returns each
   hit once, from the file you can actually edit. Add `--no-ignore` to search projections on purpose.
-- [`.claude/settings.json`](.claude/settings.json) denies `Edit`/`Write`/`Grep`/`Glob` on those same
-  roots. This is not bureaucracy: editing a projection and then running the mandated regenerate step
-  **silently erases your edit** — `os.replace()` swaps whole directories, and the byte gate only
-  catches the opposite mistake (forgetting to regenerate).
+- **Nothing mechanically blocks a write to a generated root.** `.ignore` is a search filter, not a
+  guard, and no permission rule stands behind it. This is not bureaucracy: editing a projection and
+  then running the mandated regenerate step **silently erases your edit** — `os.replace()` swaps
+  whole directories, and the byte gate only catches the opposite mistake (forgetting to regenerate).
+  The banner below and this paragraph are the whole warning; nothing will stop you.
 - Every projected file except `.json` (which has no comment syntax) carries a do-not-edit banner as
   its first line or immediately after a shebang.
 
@@ -76,7 +77,7 @@ To change anything a search turns up in a generated root: edit the canonical sou
 | `reviewer` | Correctness + security review of a change, two lenses in one pass | **Local read-only by tool absence** — only Read/Grep/Glob; no Skill, Bash, Write, web, external MCP, or delegation | — |
 | `repository-investigator` | Answer bounded questions from the current private or uncommitted checkout | **Local read-only by tool absence** — only `Read`/`Grep`/`Glob`; terminal | — |
 | `sre` | Investigate production/staging failures: triage, severity, hypothesis-driven root cause | **Guarded Bash** — read-only `cf`/`git`/`gh` triage under the allowlist; recommends mitigation, never applies it | `observability-engineer`, `scribe`, `researcher` |
-| `observability-engineer` | Steady-state observability as code: dashboards, alerts, SLOs, error budgets, pipelines | **Guarded Bash** — the `sre` read set plus config validators (`promtool check`, `jq empty`, `yamllint`); writes obs-config | `scribe`, `researcher` |
+| `observability-engineer` | Steady-state observability as code: dashboards, alerts, SLOs, error budgets, pipelines | **Guarded Bash** — the `sre` read set plus non-executing config validators (`promtool check`, `jq empty`, `yamllint`); writes obs-config | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documentation: runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local read/write, but **no Bash, web, or delegation**; terminal | — |
 | `researcher` | Cited public fact-finding from official docs, upstream code, packages, and advisories | **External-only by tool absence** — no local read, Bash, Write, Skill, or Agent | — |
 | `prompt-engineer` | The fleet's own files: agents, skills, descriptions, evals | Local read/write + Bash for repo tooling; no direct web tools | `researcher` |

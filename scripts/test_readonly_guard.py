@@ -511,6 +511,8 @@ DENIED = [
     "echo ${PATH/x/y}",
     # --- observability-only validators are DENIED for sre ------------------------------------------
     "promtool check rules rules.yml",
+    "promtool test rules tests/burn_test.yml",
+    "alloy validate config.alloy",
     "yamllint alerts.yml",
     # --- CODE EXECUTION: forbidden outright, including this repo's own scripts ----------------
     # Running a repository's code -- its tests, its build, its validator -- executes that
@@ -679,8 +681,22 @@ class ObservabilityProfileTest(unittest.TestCase):
         "git diff --stat",
     ]
     OBS_DENIED = [
+        # The upstream rules harness creates a temporary disk-backed TSDB even without --junit.
+        "promtool test rules tests/burn_test.yml",
+        "promtool test rules --run fast-burn tests/burn_test.yml",
         "promtool tsdb create-blocks-from rules rules.yml",  # only the check verb reads
         "promtool query instant http://prom:9090 up",         # network query, not a config check
+        # These also write the caller-named JUnit path, independently of the temporary TSDB.
+        "promtool test rules --junit=results.xml tests/burn_test.yml",
+        "promtool test rules --junit results.xml tests/burn_test.yml",
+        # Validation resolves import.http/import.git modules, so an untrusted config can cause
+        # outbound requests (including URLs assembled from environment-backed expressions).
+        "alloy validate config.alloy",
+        "alloy validate --config.format=otelcol collector.yaml",
+        "alloy fmt -w config.alloy",                          # --write/-w rewrites the file
+        "alloy run config.alloy",                             # starts the collector
+        "alloy tools wal-stats /var/lib/alloy",
+        "alloy validate --config.extra-args=--x=1 config.alloy",
         "cf push my-app",
         "cf env my-app",
         "python -m yamllint alerts.yml",                      # no interpreters, even for a validator

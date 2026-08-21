@@ -24,7 +24,7 @@ def _payload(**updates: object) -> dict[str, object]:
         "cwd": "C:/neutral",
         "hook_event_name": "SessionStart",
         "model": "gpt-5.6-terra",
-        "permission_mode": "read-only",
+        "permission_mode": "bypassPermissions",
         "source": "exec",
     }
     value.update(updates)

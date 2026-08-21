@@ -103,7 +103,21 @@ does.
 
 ### Recent platform changes worth knowing
 
-[doc-checked 2026-08-05, CLI 2.1.193–2.1.222 changelog] Perishable — re-verify after upgrades:
+[doc-checked 2026-08-19, CLI 2.1.193–2.1.236 changelog] Perishable — re-verify after upgrades:
+
+- **Skills synced from claude.ai are sandboxed harder** (2.1.228): they no longer shadow local
+  commands or MCP prompts, their descriptions are sanitized and labeled, and their bodies don't
+  run `!` commands or expand `@` files. The personal-skill shadowing trap above still applies to
+  skills *installed* locally — only the claude.ai-sync path was narrowed.
+- **`claude plugin validate` now checks a bare `.claude/skills` directory** (2.1.233), reporting
+  SKILL.md files whose frontmatter fails to parse. Our canonical `skills/` sits in a plugin, so
+  the existing `--strict` run already covered it; this widens the net for project-scope skills.
+- **Upstream precedent for the bundle pattern** (2.1.236): the built-in `claude-api` skill's
+  context cost dropped from ~200k+ tokens to ~25k by moving reference docs to on-demand loads —
+  the same Level-3 `references/` discipline this fleet already mandates.
+- **Skill/command argument substitution hardened** (2.1.233): argument values are no longer
+  re-expanded as template markers. Nothing to change here; noted because our skills take
+  `argument-hint` arguments.
 
 - **`context: fork` skills now run in the background by default** (2.1.218). Add `background: false`
   to keep the old inline-result behavior. This fleet uses neither field today.
@@ -217,7 +231,11 @@ parses fine in the runtime and in the repo's `validate_fleet.py` but can fail `c
 `claude plugin validate --strict` and sibling descriptions with a simple `: ` passed. [probed on
 CLI 2.1.220] This bites us directly: several descriptions name a component as `save-toolkit:<name>`
 after a colon. **Double-quote the whole scalar** when a description embeds such a namespaced
-reference; the rendered string is identical, so routing and evals are unaffected. Quoting works only
-while the text needs no internal escapes — the adapter generator copies the raw value, so `\"`
-sequences would land literally in the generated projections; a description that would need escaped
-quotes gets a punctuation reword instead.
+reference; the rendered string is identical, so routing and evals are unaffected. Internal `\"` escapes are fine — an
+earlier version of this section claimed they would land literally in the projections and told
+authors to reword instead; that was **wrong** and is corrected here. [probed 2026-08-19, CLI
+2.1.236] The four descriptions that carry escapes (`save-toolkit-sre`, `save-toolkit-sde`, `save-toolkit-scribe`,
+`save-toolkit-observability-engineer`) hold 8 escaped-quote pairs each in canonical, Copilot, and Codex form —
+byte-identical across all three, every one decoding cleanly as a double-quoted string — and
+`claude plugin tag --dry-run` completes on this tree, printing the tag it would create rather than
+failing to parse. So quote the scalar and escape what you must; no punctuation reword is owed.

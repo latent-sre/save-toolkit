@@ -59,6 +59,22 @@ Every result distinguishes `[verified]`, `[sourced]`, and `[unverified]` claims.
 what passed, and every residual item that could not be verified. Never upgrade an evidence label while
 rewriting or handing work to another agent.
 
+### Two reference-file conventions with teeth
+
+**Canary tokens.** A bundled reference ends with a short token (`q_omwql_7b31`) so an agent that
+actually loaded the file can quote it, letting a reviewer tell a sourced answer from one
+reconstructed from model memory. The property that makes it work is uniqueness: a token identifies
+exactly one file. `scripts/test_canary_tokens.py` enforces that everywhere the convention is used,
+and enforces presence in the bundles that have fully adopted it (`CANARY_REQUIRED_GLOBS` — obs and
+akamai today). Adding a reference to one of those bundles means giving it a fresh token; adopting
+the convention in a new bundle means adding its glob to that list.
+
+**Dated verification stamps replace, never accumulate.** A reference carries stamps like
+`[sourced: … reviewed 2026-08-19]`. On re-verification, **replace the prior date rather than
+appending a second one**: a stack of dates turns a claim's provenance into archaeology a reader has
+to reconstruct, and the only load-bearing fact is when the claim was last checked against the
+source. Keep an older date only when it marks a genuinely different assertion.
+
 Runtime probes follow the single probe/schema contract family in
 [`docs/schema-compatibility.md`](docs/schema-compatibility.md) and
 [`docs/verification-sandbox.md`](docs/verification-sandbox.md) (versioned schemas, evidence envelopes

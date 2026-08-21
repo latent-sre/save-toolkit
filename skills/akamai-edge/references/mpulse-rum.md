@@ -13,10 +13,11 @@ and business data from real browsers and sends **beacons** to mPulse for aggrega
 - **Page timing** split into **Back-End Time** (page request until the first byte of the response
   — where CDN, network, and origin latency land) and **Front-End Time** (loading the HTML page and
   all embedded content — where client-side/app work lands) *[sourced:
-  …/mpulse/docs/key-concepts-terms]*.
-- **Core Web Vitals** dashboard — LCP, FID, CLS confirmed at feature launch; whether INP has since
-  replaced FID in the dashboard is `[unverified — post-2024 changelog unread; check before citing
-  a vital]`.
+  …/mpulse/docs/use-metrics — the definitions live there, not on key-concepts-terms;
+  re-checked 2026-08-19]*.
+- **Core Web Vitals** dashboard — LCP, FID, CLS at feature launch (2020-10-09 changelog); the
+  Core Web Vitals 2024 dashboard **replaced FID with INP** *[sourced: mPulse changelog 2024-02-20,
+  re-checked 2026-08-19]*. Cite INP, not FID, for responsiveness.
 - **Custom timers and metrics** — any measurable user-defined duration or business event; the
   Query API (REST/JSON) pulls aggregates programmatically *[sourced: …/mpulse/reference/api]*.
 - **Waterfall view** — object-level component timings (DNS lookup, TCP connect, SSL connect,

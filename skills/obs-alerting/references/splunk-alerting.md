@@ -31,9 +31,13 @@ and examples from the cron-expressions page)]*
   data. Mismatch is the most common silent defect in inherited alerts — check it first.
 - **Timezone**: Splunk Cloud evaluates cron in UTC; Splunk Enterprise uses the search head's
   timezone *[sourced: cron-expressions page]*. Record which applies next to every schedule.
-- Trigger conditions: `alert_type` (number of events/hosts/sources, or `custom` with
-  `alert_condition` — a secondary search over the results), `alert_comparator` +
-  `alert_threshold`. `alert.digest_mode` decides whole-result-set vs per-result actions.
+- Trigger conditions in `savedsearches.conf`: `counttype` (number of events/hosts/sources, or
+  `always`) with `relation` + `quantity`; or `alert_condition` — a secondary search over the
+  results that, when set, replaces the counttype trio. `alert_type`/`alert_comparator`/
+  `alert_threshold` are the **REST API's** names for these settings, not .conf keys — using them
+  in the file silently configures nothing *[sourced: Alerting Manual "Configure alerts in
+  savedsearches.conf"; key-absence cross-checked against a spec mirror, official spec page blocks
+  retrieval]*. `alert.digest_mode` decides whole-result-set vs per-result actions.
 
 ## Throttling — suppression is part of the design, not a mute button
 
@@ -52,8 +56,9 @@ time-box hides a still-burning condition — check the pair together.
 
 - **Webhook**: generic HTTP POST of the result payload. `alert_actions.conf` ships with
   `enable_allowlist = false` and the official docs caution that without an allowlist the webhook
-  "can then query against any endpoint, including external endpoints … that could be malicious"
-  *[sourced: use-a-webhook-alert-action; alert_actions.conf]* — turning the allowlist on with the
+  can post to any endpoint, including malicious external ones — mechanism and default `[sourced]`
+  (re-checked 2026-08-19); the exact caution wording is `[unverified]`, docs.splunk.com blocks
+  direct retrieval *[sourced: use-a-webhook-alert-action; alert_actions.conf]* — turning the allowlist on with the
   Moogsoft/receiver URLs enumerated is part of the alert's review checklist here, not optional
   hardening.
 - **Email**: restrict allowed recipient domains (the Email Domains setting exists precisely

@@ -1,0 +1,464 @@
+# ROUTE-001 Linux container development canary
+
+- **Date:** 2026-08-20
+- **Branch:** `feat/route001-linux-container`
+- **Base commit:** `c671c515359955790d12155fe8990123027f3964`
+- **Candidate state:** `gcp-ops` answer-contract fix at `7aef80aede95394f6c4237ed2aedb911e141c3c0`; repinned evaluator candidate not independently reviewed
+- **Authority:** development instrument evidence only; not campaign, baseline, release, or promotion
+
+## Outcome
+
+The Linux Docker arm is viable. The first four owner-approved development canaries were
+**INCONCLUSIVE** while the evaluator boundary was repaired. Three later Codex 0.148 canaries reached
+behavior grading and returned valid `FAIL` verdicts. The latest ran after the `gcp-ops` four-slot
+answer-contract change and failed the same grader indices as the preceding diagnostic canary, so the
+wording change did not improve the measured behavior. No 48-trial campaign followed.
+
+| Check | Evidence |
+|---|---|
+| Original 0.147 candidate image | `[verified]` `sha256:c339d945cc6d77661a836b3f81eddf0102f950fb9a43beae4529c57cb2f9047c` |
+| Corrected 0.147 image | `[verified]` `sha256:0c6ae299da5088f9a93d0a968c2a95a61e6640d6b585e4740919f435afcd7287` |
+| Repinned 0.148 canary image | `[verified]` `sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf` |
+| Third 0.148 canary image | `[verified]` `sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c` |
+| Fourth 0.148 canary image | `[verified]` `sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b` |
+| Pre-fix behavior image | `[verified]` `sha256:10c7f4f77092ae30ebc5b52f17a5d43b80176195d63deb87614be7fb48a4fcf6` |
+| Post-fix behavior image | `[verified]` `sha256:086b63ee981e0997ce8f4201d4e6a85b1e05703cc2c939c0746540a925f59064` |
+| Runtime shape | `[verified]` Linux `amd64`; non-root `65532:65532`; launcher image inspection passed |
+| Focused current-repair contracts | `[verified]` 117 passed; 8 expected platform skips |
+| Credential-free preflight | `[verified]` exit `0`; `credential-free-preflight-pass`; no auth or model process started |
+| 0.147 development canary | `[verified]` outer exit `4`; verdict `INCONCLUSIVE`; `trace-or-hook-invalid` |
+| Later 0.148 development canaries | `[verified]` three `INCONCLUSIVE`, then three valid `FAIL`; no passing result |
+| 0.148 Codex subprocess | `[verified]` exit `0` after 15,865 ms; stdout 1,684 bytes; stderr 144 bytes |
+| Third Codex subprocess | `[verified]` exit `0` after 15,213 ms; stdout 1,760 bytes; stderr 144 bytes |
+| Fourth Codex subprocess | `[verified]` exit `0` after 28,716 ms; stdout 2,266 bytes; stderr 144 bytes |
+| Latest token usage | `[verified]` 18,615 input; 12,800 cached input; 869 output; 540 reasoning output; monetary cost remains unverified |
+| Persistent run artifacts | `[verified]` latest and preserved pre-fix compact result files under `F:\route001-runs\canary-20260820` |
+
+## Original 0.147 preflight evidence
+
+The original immutable-image launch exercised the real evaluator setup with `--network none`, no auth mount,
+read-only source, a read-only root filesystem, dropped capabilities, `no-new-privileges`, and a
+private tmpfs. It verified:
+
+- Python 3.12.10 at SHA-256
+  `4dbf3143240288fb2170257ffaa7bd030cdda5d2703d1f5f30b627042267e2e3`;
+- Git 2.39.5 at SHA-256
+  `2540879925a6881e3877ff7e3330746ba3027b04edf16a3a12dccd1644c4f32d`;
+- Codex 0.147.0 at SHA-256
+  `cb0a15567e9a60a5820d54b0f6ae86d504dc3805c1eab21a47f70e3eb7b73a40`;
+- exact current snapshot `b459a5d3a209d384acb2b2b7ca325aa63697113b`, tree digest
+  `867f92cccb6eff6e994f27eff7301722ebb82da24b6f2adcd26be92fe2babf4a`;
+- evaluator tree digest
+  `a4034a47395dc1ae6ac7b60e5c13da85e2d719a812ee3585628797c27d1e811a`;
+- the pinned Terra catalog, hook bundle, sanitized environment, and no-model-tools argv.
+
+Two preflight defects were corrected before that pass: Python `-I` omitted the evaluator directory
+from `sys.path`, and the image omitted the historical Windows manifest that the accepted-manifest
+check resolves. A dry run then exposed that the manifest's deployment label did not equal Python's
+measurable `linux-x86_64` runtime fact; that value was corrected before the final image was built.
+
+## Canary evidence and interpretation
+
+The canary used the fixed synthetic `discovery-gcp-ops-cloud-run-startup` scenario with
+`gpt-5.6-terra`, medium reasoning, approval policy `never`, a read-only staged project, disabled
+model tools, and the operator-approved existing Codex account copy inside disposable tmpfs.
+
+The authenticated Codex subprocess returned `1` in 50 ms. Because it emitted no JSONL stdout, the
+evaluator could not establish a model response, activation trace, hook receipt, routing verdict,
+token usage, or cost. The raw stderr was deliberately removed with the private trial boundary; only
+its byte count and digest remain. This is instrument/startup evidence, not evidence that Terra ran or
+that the target skill routed correctly.
+
+## Codex 0.148 canary evidence
+
+`[verified]` The second canary ran from clean commit
+`262dfc93daf8663b50f6175b7beb7fdfae9b15cc` using exact image
+`sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf`,
+the fixed `discovery-gcp-ops-cloud-run-startup` scenario, `gpt-5.6-terra`, medium reasoning,
+approval policy `never`, read-only sandboxing, and the operator-approved existing Codex account.
+The Codex subprocess returned `0` after 15,865 ms without timing out or reaching an output limit.
+
+The evaluator then failed closed with `trace-or-hook-invalid`. That reason deliberately aggregates
+failure in either JSONL trace parsing or hook-receipt loading; the sanitized result retained neither
+object and the disposable raw boundary was removed. The available evidence therefore cannot identify
+which parser rejected the run, establish a successful model response, grade the scenario, or recover
+token/cost data. No inference that Codex 0.148 changed hook behavior is made from this single result.
+
+## Third Codex 0.148 canary and nullable-path repair
+
+`[verified]` A third bounded canary ran from clean commit
+`0e9e7daa4cf8dab6692b80b4e3f17fa60b809068` using exact image
+`sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c`.
+Its credential-free preflight passed first with evaluator tree SHA-256
+`c1ead9f601d02ca3438cc7adb9a279f8f08c3236b65552d42a2ba5f5f5d887e7`.
+The authenticated Codex process then returned `0` after 15,213 ms without timeout or output limiting,
+but the evaluator again returned `INCONCLUSIVE` with `trace-or-hook-invalid`; no trace, hook packet,
+verdict, usage, or billing receipt was persisted. The output root remained empty and no automatic
+retry followed.
+
+`[sourced]` Exact Codex 0.148 source defines `SessionStartRequest.transcript_path` as
+`Option<PathBuf>` and serializes it through a transparent nullable-string wrapper:
+[`session_start.rs`](https://github.com/openai/codex/blob/3ba0f711642a888aec92a611a3f3b2211157ff89/codex-rs/hooks/src/events/session_start.rs#L42-L50),
+[`schema.rs`](https://github.com/openai/codex/blob/3ba0f711642a888aec92a611a3f3b2211157ff89/codex-rs/hooks/src/schema.rs#L40-L51), and
+[`schema.rs`](https://github.com/openai/codex/blob/3ba0f711642a888aec92a611a3f3b2211157ff89/codex-rs/hooks/src/schema.rs#L483-L529).
+The evaluator instead required a non-empty string for every hook receipt. A red-first regression
+reproduced that rejection, and commit `cfb185173c0434a2792c5bf30270bef1e24606b1` now accepts only JSON
+`null` or a non-empty string while still rejecting a missing, empty, or non-string field. The focused
+bootstrap/harness/recorder/trial suite passed 115 tests with 8 expected platform skips. This repair
+was exercised by the fourth canary but did not produce a live routing result.
+
+## Fourth Codex 0.148 canary and diagnostic split
+
+`[verified]` The fourth and most recent authorized canary ran from clean commit
+`79a27cf2e52af15db66cef7ad435f0374ecaca1c` using exact image
+`sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b`.
+The immediately preceding credential-free preflight exited `0` with evaluator tree SHA-256
+`dbf709d2d1194cd80d6ba4fdcd260bf8cc72847d2fabeda4cb49d184335abcda`, hook-bundle SHA-256
+`a2b767504ed1e780c120aacc6e75c8ebce300d5fd7f7b4bcbb945579911f7b4f`, Linux manifest SHA-256
+`de6d9d45f39dddd98dc9d1189c802be9a6f00595f64fb843c317e04d6be7871d`, and snapshot tree SHA-256
+`867f92cccb6eff6e994f27eff7301722ebb82da24b6f2adcd26be92fe2babf4a`.
+
+The authenticated Codex process returned `0` after 28,716 ms without timeout or output limiting.
+The outer evaluator exited `1` and returned `INCONCLUSIVE` with `trace-or-hook-invalid`; stdout was
+2,266 bytes and stderr was 144 bytes with SHA-256
+`355dd364ff9da4d0184641771399592890bb63124dadc4d2154d35d5b67b05a2`. No trace facts, hook facts,
+verdict, usage, cost, or persistent artifact was accepted. One call was authorized and one call was
+made; no automatic retry followed.
+
+`[verified]` The repeated coarse reason could not identify which boundary failed because
+`codex_trial.py` parsed the trace and loaded hook receipts inside one exception block. Two red-first
+tests demonstrated that both distinct failures returned `trace-or-hook-invalid`. Commit
+`6819773e5fab4c7bc1747f1be6907c8a8b269110` now parses them sequentially and returns only sanitized
+`trace-invalid` or `hook-invalid`, without retaining exception text, raw output, or private paths.
+The 117 focused tests passed with 8 expected platform skips, and Gate A passed all 41 steps from an
+ordinary clone pinned to that exact commit. The refreshed nine-file evaluator manifest is 1,173
+bytes with SHA-256 `7316b398ea260e16d9baaa95c8f962e92c242f3fee39d2fec99fc3e536070fde`.
+This diagnostic split has not been built into an image or exercised by a live model call.
+
+## Offline root cause and repair
+
+`[verified]` A network-disabled reproduction with the same credential boundary returned the same
+shape as the canary — exit `1` after 50 ms, zero stdout bytes, and 213 stderr bytes — and safely
+identified the startup error: Codex 0.147 rejected root configuration field
+`update_plan_enabled` under `--strict-config`. The differing stderr digest was caused by the
+randomized private path embedded in the message.
+
+`[sourced]` Context7's current official Codex schema places these controls under
+`[tools.update_plan]` and `[tools.experimental_request_user_input]`. GitHits confirmed the same
+contract in exact tag `rust-v0.147.0`, commit
+`be6e8eac029b183056b7e4402879f15d2c85f61b`: the nested structs and `enabled` fields are in
+[`config_toml.rs`](https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/config/src/config_toml.rs#L630-L654),
+with the disabled request-input form exercised in
+[`config_tests.rs`](https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/config/config_tests.rs#L411-L450).
+
+The renderer now uses the supported nested tables. Corrected image
+`sha256:0c6ae299da5088f9a93d0a968c2a95a61e6640d6b585e4740919f435afcd7287`
+passed the immutable-image credential-free preflight. A separate three-second startup check used
+the exact `exec --strict-config` argv with `--network none` and no auth mount: it produced no stderr
+or config error and remained active until the diagnostic terminated it. This proves the local
+configuration defect is repaired; it is not a model, routing, or authenticated-canary result.
+
+## Codex 0.148 repin
+
+`[sourced]` The [OpenAI Codex changelog](https://developers.openai.com/codex/changelog) records
+Codex CLI 0.148.0 on 2026-08-18. GitHits resolved exact tag
+`rust-v0.148.0` to commit
+[`3ba0f711642a888aec92a611a3f3b2211157ff89`](https://github.com/openai/codex/tree/3ba0f711642a888aec92a611a3f3b2211157ff89).
+The tagged schema retains the nested tool controls in
+[`config_toml.rs`](https://github.com/openai/codex/blob/3ba0f711642a888aec92a611a3f3b2211157ff89/codex-rs/config/src/config_toml.rs#L602-L632).
+
+`[verified]` The no-cache build installed exact npm version 0.148.0 and accepted Linux executable
+SHA-256 `ac2cfed85fb647d61e0150b8548102b330e4799d9d81ad5d354de701edf6b074`.
+The bundled Terra entry was rebound to source digest
+`3a934e842c9b6a813dfe04ec826da0b79dcfc9b3187696d4b2c1b7110cdb811c`;
+the no-local-tools transform produced entry digest
+`1c03b5e12771bc6e961c0fac20830a0a2c5fcca011793ec985d24aa4d41140e9`
+and catalog digest
+`b5122f71336f146cb6c656167e7f3258a9e4735583b95435f808261562bb646f`.
+A structural 0.147-to-0.148 comparison found no changed instruction text: 0.148 adds a null
+`model_messages.multi_agent` slot, explicit false `node_repl_*` metadata, and replaces the prior
+parallel-tool boolean with null. The existing transform still removes the same four model-tool
+fields, and the rendered configuration still disables code mode, shell, MCP orchestration, and the
+other declared model features.
+
+`[verified]` Image
+`sha256:054e5dc1deb0ed111443ffacb1616bb86261f4eefc8f8376f079e8884c906905`
+inspected as Linux `amd64`, user `65532:65532`, with the fixed isolated Python entrypoint. Its
+credential-free, `--network none` preflight exited `0` with
+`credential-free-preflight-pass`, `authenticated_call_started=false`, and these bindings:
+
+- evaluator tree SHA-256
+  `4777f90edc78305c6420d649ca6963a3b886d7e2487e28ea6fe87de332ebd999`;
+- Linux manifest SHA-256
+  `de6d9d45f39dddd98dc9d1189c802be9a6f00595f64fb843c317e04d6be7871d`;
+- rendered config SHA-256
+  `62d87ca88c1a51bdb0d3e3ed5611331a6308e92d3f2ce9ee73d2c09f0f21d56d`;
+- exact current snapshot tree SHA-256
+  `867f92cccb6eff6e994f27eff7301722ebb82da24b6f2adcd26be92fe2babf4a`.
+
+The shared nine-file Windows bootstrap manifest was refreshed with the repaired shared evaluator
+modules. Its current file is 1,173 bytes with SHA-256
+`fae728dfcc8da1a9b522ff61b63c4e655b9f134e36c030613a14e19b18f22fe5`.
+This preserves exact-byte rejection but invalidates the older review digest; it requires a fresh
+exact-byte review before any historical Windows launch could be considered.
+
+A separate exact-command startup diagnostic used the same image with `--network none`, no auth
+mount, and the rendered 0.148 strict config. Codex returned `1` without starting an authenticated
+turn; stdout was empty, stderr was 30 bytes with SHA-256
+`9d207bb1613f71b10fdfdc9e0bcc9c191d8f6d7084780e5d21c86e2e7af396d4`, and the bounded diagnostic
+reported `config_error=false`. This is startup/configuration evidence, not a model result.
+
+`[verified]` An earlier no-cache rebuild from the then-final normalized input closure produced
+image
+`sha256:6f3f918ff7e2fddded78dfae3bc4c304440cab57182ea3f087ef1c8f7140cdaf`.
+The tag now resolves to that image; the earlier image is no longer present in the current Docker
+daemon. The rebuilt image again inspected as Linux `amd64`, user `65532:65532`, and passed the
+credential-free networkless preflight. The final newline normalization changed the evaluator tree
+SHA-256 to `2d3ad45bfdc667a9d25352d02e273732e6feb25d2d16a286f250dfe82c6ed28e`;
+the Codex executable, manifest, catalog, and snapshot digests remained unchanged. Its per-run
+rendered-config SHA-256 was
+`00f5bc9ff7e22f1e0d9bcf1caad0a584ff6fb4c195e11a60544f453dce692480`.
+The Dockerfile pins the base-image digests and Codex executable but does not pin Debian package
+repository contents or BuildKit provenance bytes, so the whole-image ID remains build-specific.
+This observation is recorded rather than expanded into a separate dependency-pinning change.
+
+## Exact third-canary 0.148 image input closure
+
+Image `sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c`
+copies the following exact files from clean commit
+`0e9e7daa4cf8dab6692b80b4e3f17fa60b809068`. This table does not include the later nullable-path
+repair and makes no independent-review claim.
+
+| Path | Bytes | SHA-256 |
+|---|---:|---|
+| `evals/codex_campaign.py` | 16879 | `9bfc06bf4a9f77a46382456f7f683b6e9b9e8d2db4b234815979142870921920` |
+| `evals/codex_harness.py` | 33660 | `3ae3dd05990e0f54e0048d8fdd66113ca6389906da48e0abf7f82616e208eb2a` |
+| `evals/codex_hook_recorder.py` | 9942 | `c2fd5b9b3583b6dd12874850a1528eafa20b42a7d60f0c5435a1606f1105ddc8` |
+| `evals/codex_model_catalog.py` | 7198 | `6d7ea260d70bf3cf54add7ea9c2771995e6710eb638036a3074538ff1c32b11a` |
+| `evals/codex_routing_grade.py` | 13878 | `3bfc79b547a050c7817096f531572f3d0de07e412b7a1630ccac70e522102a52` |
+| `evals/codex_runtime.py` | 4683 | `6a02af5f02f53b4516a72ceb7696cb282fd7d0791974c69b38fb20a3ea31a63a` |
+| `evals/codex_snapshot.py` | 33911 | `b23102b211c78acbf142091aa4ffec728875cb30e5b1f2bb8ab8f235502b5d43` |
+| `evals/codex_trial.py` | 97803 | `18ead6da11978b3f57d117c9f750b05a92a22f3894829e02725bf4e0fd64f5dc` |
+| `evals/graders.py` | 27013 | `cde406078548619d95f11f4c70af6010bca411043d4ee3e7a02647aab39e1ae1` |
+| `evals/run_codex_routing.py` | 35409 | `6db8b0d046879fae45e90cb8bb6a62d94ca979857806f3fef1571f02894ec58a` |
+| `evals/conformance/codex-terra-routing-linux-v1.json` | 7752 | `de6d9d45f39dddd98dc9d1189c802be9a6f00595f64fb843c317e04d6be7871d` |
+| `evals/conformance/codex-terra-routing-v1.json` | 7495 | `d5c7c06902fe131448f6c7fb5d0e03180ccaff8eab4e4201f41315115e127887` |
+| `evals/conformance/codex-terra-scenarios-v1.json` | 36415 | `640ed0da086f976b390e1f1e2c664a4181aef302c7f2dd9d7031cfe881c549cb` |
+| `evals/container/route001-linux/Dockerfile` | 2656 | `26f80998798a36ecdac7d743562623ba6e912ff64190a60d6c41fc4fc00e382e` |
+
+## Disposition
+
+ROUTE-001 remains active and the 48-trial campaign remains **NO-GO**. The startup, hook-permission,
+and nullable-transcript defects were repaired before the fourth attempt, but that canary remained
+inconclusive. The diagnostic split at `6819773e5fab4c7bc1747f1be6907c8a8b269110` is offline-verified
+and was later exercised through the bounded host `canary` command. The exact Linux `amd64` image
+`sha256:10c7f4f77092ae30ebc5b52f17a5d43b80176195d63deb87614be7fb48a4fcf6`, running as
+`65532:65532`, passed the automatic credential-free preflight and produced a valid `FAIL` verdict
+with reason `behavior-grader-failed`. The trace instrument is therefore live-proven, but the skill
+behavior did not pass and the current candidate has not received independent exact-byte review.
+
+The host reducer was then changed red-first to retain only validated failed numeric grader indices
+from the already-sanitized verdict. Its focused suite and Gate A passed before the one authorized
+follow-up canary. That canary again passed preflight and returned `FAIL`, now identifying graders
+0, 1, 3, and 4 as failed while graders 2 and 5 passed. The failing groups require the read-only
+service/revision commands, one log-read command, the `127.0.0.1`/loopback contrast, and the
+`[unverified]`/Tier 2/human release owner/error-rate qualifiers. The `0.0.0.0:$PORT` diagnosis and
+exact rollback packet already passed.
+
+The current compact result records 18,686 input tokens, 8,960 cached input tokens, zero cache-write
+input tokens, 685 output tokens, and 403 reasoning-output tokens. It is stored at
+`F:\route001-runs\canary-20260820\canary-result.json` (466 bytes, SHA-256
+`473e3628f7c1673812f13331323a68122cf3ac1ab43ebef05008882b4472da6d`). No raw response, grader
+detail, prompt, path from inside the container, or credential was retained.
+
+Prompt-craft's required-slot form was applied narrowly: the loose `gcp-ops` orientation block is now
+a four-slot answer contract for combined Cloud Run startup/rollback tasks. It consolidates the exact
+failed groups without changing the skill description, the scenario, or any grader. Generated host
+adapters were refreshed. The separately authorized post-fix canary did run and failed the same four
+grader groups, so the improvement is not verified and the 48-trial campaign remains **NO-GO**.
+
+The focused current-repair suite passed 117 tests with 8 expected platform skips. Gate A passed all
+41 structural steps from a clean ordinary clone at exact commit `6819773e…`; the snapshot contract
+was not weakened to accommodate the linked development worktree.
+
+## Post-fix repin and canary
+
+`[verified]` The feature branch was rebased onto `origin/main` at
+`c671c515359955790d12155fe8990123027f3964`; the committed `gcp-ops` answer-contract fix is
+`7aef80aede95394f6c4237ed2aedb911e141c3c0`. The evaluator candidate repins that exact object as
+the current snapshot: 143 files, 882,207 bytes, tree SHA-256
+`b9167b5200994d8265a2c592c7730028e81aa6f3a7fb19646bce0ceffc052a10`.
+The nine-file evaluator manifest is 1,173 bytes with SHA-256
+`24a64d524fb4177a81600ceb32c63e6a64890a62f9fbbac167a92098c5a59bc9`.
+
+`[verified]` The repinned candidate passed 46 focused snapshot/routing tests, all 43 Gate A steps in
+an ordinary disposable clone, and strict plugin validation. Exact image
+`sha256:086b63ee981e0997ce8f4201d4e6a85b1e05703cc2c939c0746540a925f59064`
+inspected as Linux `amd64`, user `65532:65532`, with the fixed isolated Python entrypoint. Its
+credential-free preflight exited `0` and bound evaluator tree SHA-256
+`a8d7e27d719bb1da5e56b7a88183b98cdaf783afacda5c105cb2b4c254587185`, Linux manifest SHA-256
+`353e5475d1e9064f0a234400ef97e7784172805458c356be8d07852c44334929`, and rendered-config SHA-256
+`81b227b8084f98c1db2a1163581c0cb32264de6268255c5e0bf57a2857ecaa0e`.
+
+`[verified]` Exactly one post-fix paid canary followed. The automatic preflight passed, the canary
+started, and the outer evaluator exited `2` with `FAIL`, `behavior-grader-failed`, and failed grader
+indices 0, 1, 3, and 4; graders 2 and 5 passed. Usage was 18,615 input tokens, 12,800 cached input
+tokens, zero cache-write input tokens, 869 output tokens, and 540 reasoning-output tokens. The
+compact result is `F:\route001-runs\canary-20260820\canary-result.json` (467 bytes, SHA-256
+`fd42cf06abca5ea789570013f7f15c38a851682741499e728445f38abb426102`). The previous result was
+preserved as `canary-result-pre-fix-473e3628.json` with its original SHA-256
+`473e3628f7c1673812f13331323a68122cf3ac1ab43ebef05008882b4472da6d`.
+
+The post-fix result does not prove whether the skill was loaded; Codex 0.148 exposes only
+behavioral response evidence for this non-root trial. It does prove that this wording change did not
+alter the measured grader outcome in the single authorized run. Another prompt edit or paid retry
+is not justified by the retained evidence.
+
+## Offline body-loading diagnosis and candidate correction
+
+`[verified]` Exact materialization and neutral staging of snapshot `7aef80a…` reproduced tree
+SHA-256 `b9167b5200994d8265a2c592c7730028e81aa6f3a7fb19646bce0ceffc052a10`; the generated
+`gcp-ops/SKILL.md` and both of its references were present. Every requirement behind failed grader
+indices 0, 1, 3, and 4 is in that entrypoint, so a missing conditional reference is not the cause.
+
+`[sourced]` Context7's current `/openai/codex` documentation confirms `.agents/skills` ancestor
+discovery and the requirement to read a selected filesystem `SKILL.md`. GitHits then resolved exact
+tag `rust-v0.148.0` to `3ba0f711642a888aec92a611a3f3b2211157ff89`: project roots are
+loaded in `codex-rs/ext/skills/src/host_roots.rs:136-179`; `skill_search` runs only shadow selection in
+`extension.rs:389-408`; explicit `$name` selection occurs in `selection.rs:49-75`; and only selected
+entries have their full body injected in `extension.rs:440-487`. The exact tagged source governs the
+version-specific conclusion; Context7 is current documentation, not a 0.148 pin.
+
+`[verified]` The evaluator's transformed model catalog exposes no model tools, and its configuration
+disables shell and unified execution. An implicit canary could therefore see skill metadata but had
+no route to load the changed body. The unchanged pre/post failure indices are expected under that
+boundary and do not measure the four-slot edit's response shaping.
+
+The one red-first candidate correction is canary-only: derive the authenticated development prompt
+as exact `$gcp-ops\n\n` plus the unchanged manifest prompt. The effective prompt SHA-256 is
+`65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3`; the trial records
+`explicit-skill-body-probe`, retains that exact digest in the compact canary result, and rejects that
+mode outside the fixed trial-1 canary coordinate. The nineteen discovery inputs, their hashes, and
+the 48-trial plan remain unchanged. This is a body-load and response-shaping diagnostic, not an
+implicit-routing result, and it had not yet been run live at that point.
+
+`[verified]` The refreshed nine-file evaluator manifest is 1,173 bytes with SHA-256
+`92e2bdc5535fa8cf630cf3063f787bc9c1cff572c8f3a68b69219a4ead4c59c0`; all nine rows match
+their current file sizes and SHA-256 values. The focused evaluator suites pass 93 tests with six
+expected platform skips, and strict plugin validation passes. Gate A passes 42 of 43 steps in the
+linked development worktree; only `evals/test_codex_snapshot.py` rejects the worktree's `.git` file
+because its protected snapshot contract requires an ordinary `.git` directory. The unchanged
+26-test suite passes separately against the canonical ordinary Git directory with one Windows
+symlink-privilege skip. No product or test boundary was weakened to make that environmental result
+green.
+
+One known interpretation risk remains: the skill's four-slot block shows read commands in a Bash
+fence, while the scenario permits exactly one JSON fence. An offline literal response that follows
+both bodies passes graders 0-4 and fails grader 5; rendering the read commands as inline-code bullets
+passes all six. The candidate deliberately does not make a second skill/grader edit. A live probe
+must therefore be interpreted by its per-index movement, not by PASS/FAIL alone.
+
+## What did not happen
+
+- No further live call followed the post-fix canary.
+- No 48-trial campaign, baseline, promotion, or release occurred. Draft PR #124 carries the Linux
+  evaluator work; this historical section does not attest whether the later body-probe commit was
+  pushed.
+- No passing behavior or promotion verdict was recorded.
+- No verified monetary-cost claim is available; the token counts above are the recorded canary
+  usage, not a price calculation.
+
+## Post-merge result and hardening
+
+`[verified]` PR #124 merged as `a29864f3457ad292c5f01ad7beefe3cb85d162e6`. Before merge, one
+authorized explicit body-load canary ran from commit
+`09cca0ef93c739caccfb0051f6ce900d8108ad8f` and image
+`sha256:e2a285bc329cca97dceb6d1561fbfc0b877022edccea7d7d95a15cb28372102f`.
+The compact result is 591 bytes with SHA-256
+`9209f4d7108325ae326fd9692611d4e7351aba03cdb1a8f108ba74ac7b7eccef`: preflight passed; the
+probe returned valid `FAIL`; graders 0 and 4 failed while 1, 2, 3, and 5 passed. It recorded 22,435
+input tokens, 9,984 cached input tokens, 909 output tokens, and 468 reasoning-output tokens. No retry
+or campaign followed.
+
+`[verified]` Automated review posted after the merge found seven actionable executor defects. The
+follow-up hardening candidate adds a crash-visible singleton campaign lock; makes an
+`INCONCLUSIVE` result a durable stop across reopen and at the final coordinate; binds the journal to
+the exact outer image; binds the frozen scenario bundle to a manifest SHA-256; rejects native Linux
+auth/campaign mounts inaccessible to UID 65532; enforces PASS=0, FAIL=2, and INCONCLUSIVE=4; and
+adds `codex_runtime.py` to the historical Windows staged closure. The fixed snapshot is already an
+ancestor of current main, so that reported reachability issue is obsolete rather than patched.
+
+No model call was used to test these repairs. The current ten-file evaluator manifest is 1,295 bytes
+with SHA-256 `16b9c68b24226b850ae7d9da4f7f14634406d9aa8c063799df4b1f85da5afe02`.
+The focused evaluator set passes 85 tests with two expected platform skips, and strict plugin
+validation passes. Gate A passes 42 of 43 steps in the linked worktree; its sole failure is the known
+snapshot test that deliberately requires an ordinary `.git` directory. The campaign remains
+`NO-GO`; these executor fixes do not resolve the measurement-design decision.
+
+## Three-pair description/body diagnostic candidate
+
+The owner then chose to measure both questions separately for three rounds. The candidate adds one
+target-blind catalog-description selection followed by one explicit `$gcp-ops` body response per
+round: six paid calls and no retries. Each coordinate uses the existing one-call canary with a fresh
+output root, so it receives a credential-free preflight and can dispatch at most one model call. An
+ambiguous, invalid, or `INCONCLUSIVE` coordinate stops the sequence; a valid behavioral `FAIL` does
+not stop later repetitions because variance is the measurement. An interrupted coordinate is an
+unknown outcome and is not retried. This keeps the diagnostic separate without adding another
+campaign executor.
+
+The description arm's effective prompt contains the unchanged Cloud Run task but not the expected
+skill name; it accepts only the bare name `gcp-ops` and reports
+`catalog-description-selection`. The body arm retains the existing explicit prompt and graders and
+now binds the staged projected entrypoint to SHA-256
+`a319096742e87f45fa6e9cf3652247237a9aff3cdec7835cd775b78bd4dd3bd6`. That receipt makes the exact
+candidate body observable without claiming that conditional references were loaded. The two arms
+have separate prompt hashes, invocation modes, grades, and usage totals in
+their six `canary-result.json` files; neither is promoted into campaign evidence.
+
+Context7's current official Codex documentation establishes the explicit-selection injection
+contract. GitHits exact-source evidence remains pinned separately to `rust-v0.148.0` commit
+`3ba0f711642a888aec92a611a3f3b2211157ff89`: explicit entries are selected in
+`codex-rs/ext/skills/src/selection.rs:21-79`, read at
+`codex-rs/ext/skills/src/extension.rs:440-487`, while shadow selection at `:389-408` does not enter
+that injected set. At candidate freeze no paired live call had run. The focused affected set passes
+133 tests with six expected platform
+skips, strict plugin validation passes, and Gate A passes 42 of 43 steps in the linked worktree; its
+sole failure is the known ordinary-`.git` snapshot requirement. The final ten-file evaluator
+manifest is 1,296 bytes with SHA-256
+`e824fbafc3f6c7374fba135413eb5121f63a665bfde46d8ebdd8117d053bacb1`.
+
+## Three-pair live result
+
+`[verified]` Exact commit `cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` (tree
+`b8a092b6e304ec7c4c8f4e02e0b691e3a40fe289`) passed all 43 Gate A steps in an ordinary clone.
+A no-cache Linux `amd64` build produced image
+`sha256:2ddd1652e8ceb8afa0c68146ad0d4399a4068d1e09f4c64c730c55985c39a06b`; standalone and per-call
+credential-free preflights passed. The six authorized calls then ran sequentially without retry:
+
+| Coordinate | State | Failed graders | Input | Cached input | Output | Reasoning | Result SHA-256 |
+|---|---|---|---:|---:|---:|---:|---|
+| round 1 description | `PASS` | — | 9,252 | 0 | 24 | 14 | `3d5e5961224937f8f011eb5fe51c480457f906c668e2b572d0b5660bda461af3` |
+| round 1 body | `FAIL` | 5 | 11,120 | 0 | 734 | 386 | `2522775f925a13d12eda49b9522b3d3b1228b0ef6ac6b0d04461eda26769650f` |
+| round 2 description | `PASS` | — | 9,223 | 0 | 24 | 14 | `1dffc760b5f1e7cbb6a007b99055a8fa2f4947575bb046a8628aaa737cc35148` |
+| round 2 body | `PASS` | — | 11,150 | 3,840 | 826 | 494 | `f99dddb398a788670d4ee7a31c6653581db3ab1520e682fef6fb68e5724dafaa` |
+| round 3 description | `PASS` | — | 9,252 | 0 | 8 | 0 | `40211492dafe0aabb5eb37e3404d41e2d8b3db58ec331c87f4b109aef7bd4358` |
+| round 3 body | `FAIL` | 5 | 22,485 | 9,984 | 1,039 | 578 | `541ed760f31e0f10a889672821f5c0901156b60e9822330dc8cc38efedec2809` |
+
+Total retained usage is 72,482 input tokens, 13,824 cached input tokens, zero cache-write input
+tokens, 2,655 output tokens, and 1,486 reasoning-output tokens. Compact artifacts remain under
+`F:\route001-runs\paired-cd76ef5-20260820T222227Z`; no raw response or credential is retained.
+
+`[verified]` Description-mediated catalog selection is stable for this case (3/3), and every body
+probe bound the exact projected `gcp-ops/SKILL.md` digest. Body behavior is not stable (1/3). The
+remaining failure is a deterministic contract contradiction: the skill requires its evidence
+commands in a fenced Bash block, while the scenario requires exactly one fenced JSON packet and
+`cloud_run_rollback_packet` rejects any second fence. `[inference]` Literal skill compliance caused
+the two grader-5 failures; the retained compact artifacts intentionally do not contain raw responses,
+so they cannot prove which rendering each response used.
+
+**Disposition:** `observed`, owner `prompt-engineer`. The 48-trial campaign remains **NO-GO**. The
+next bounded change is to make the evidence-command presentation honor caller fence constraints,
+add a deterministic regression for the combined skill/scenario contract, regenerate projections,
+and run only the body probe again. Description selection does not need another paid round. A typed
+fleet-improvement intake can pin this evidence commit in a later ledger-only change; it is not
+fabricated inside the same commit it would need to cite.

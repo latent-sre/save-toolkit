@@ -42,7 +42,7 @@ Sources reviewed 2026-07-14:
 |---|---|
 | Is there loss, latency, jitter, MTU, or a path change to a service? | Network: agent-to-server |
 | What is the path/performance between two controlled sites? | Network: agent-to-agent |
-| Did reachability, the AS path, or a BGP route change? | Routing: BGP plus Path Visualization |
+| Did reachability, the AS path, or a BGP route change? | Routing: BGP (BGP Route Visualization; the Layer-3 hop view is the separate Path Visualization) |
 | Is name resolution correct and timely? | DNS server, DNS trace, or DNSSEC |
 | Does an endpoint or user journey work? | HTTP server, page load, transaction, or API |
 

@@ -87,12 +87,19 @@ def _collab_events(
         "sender_thread_id": "thread-private-123",
         "receiver_thread_ids": ["child-private-456"],
         "prompt": prompt,
-        "agents_states": {"child-private-456": "running"},
+        "agents_states": {
+            "child-private-456": {"status": "running", "message": None}
+        },
         "status": "in_progress",
     }
     completed_item = {
         **started_item,
-        "agents_states": {"child-private-456": "completed"},
+        "agents_states": {
+            "child-private-456": {
+                "status": "completed",
+                "message": "completed safely",
+            }
+        },
         "status": "completed",
     }
     return [
@@ -105,7 +112,7 @@ def _session_start(
     *,
     session_id: str = "session-private-root",
     model: str = "gpt-5.6-terra",
-    permission_mode: str = "read-only",
+    permission_mode: str = "bypassPermissions",
 ) -> dict[str, object]:
     return {
         "session_id": session_id,
@@ -125,7 +132,7 @@ def _subagent_start(
     agent_id: str = "agent-private-1",
     agent_type: str = "save-toolkit-sre",
     model: str = "gpt-5.6-terra",
-    permission_mode: str = "read-only",
+    permission_mode: str = "bypassPermissions",
 ) -> dict[str, object]:
     return {
         "session_id": session_id,
@@ -151,7 +158,7 @@ def _post_tool_use(
     tool_response: object = None,
     tool_use_id: str = "tool-private-1",
     model: str = "gpt-5.6-terra",
-    permission_mode: str = "read-only",
+    permission_mode: str = "bypassPermissions",
 ) -> dict[str, object]:
     receipt: dict[str, object] = {
         "session_id": session_id,
@@ -175,11 +182,12 @@ def _post_tool_use(
 
 class FixedConfigurationTests(unittest.TestCase):
     def test_terra_campaign_configuration_is_exact(self) -> None:
-        self.assertEqual(codex_harness.CODEX_CLI_VERSION, "0.147.0")
+        self.assertEqual(codex_harness.CODEX_CLI_VERSION, "0.148.0")
         self.assertEqual(codex_harness.MODEL, "gpt-5.6-terra")
         self.assertEqual(codex_harness.REASONING_EFFORT, "medium")
         self.assertEqual(codex_harness.SANDBOX_MODE, "read-only")
         self.assertEqual(codex_harness.APPROVAL_POLICY, "never")
+        self.assertEqual(codex_harness.HOOK_PERMISSION_MODE, "bypassPermissions")
         self.assertEqual(codex_harness.TIMEOUT_SECONDS, 300)
         self.assertEqual(codex_harness.TRIALS, 2)
 
@@ -220,6 +228,61 @@ class JsonlParserTests(unittest.TestCase):
             trace.collab_tool_facts[0].prompt_sha256,
             hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
         )
+
+    def test_accepts_codex_0148_todo_and_nonfatal_error_items(self) -> None:
+        started_todo = {
+            "id": "todo-private-1",
+            "type": "todo_list",
+            "items": [{"text": "Inspect the service", "completed": False}],
+        }
+        updated_todo = {
+            **started_todo,
+            "items": [{"text": "Inspect the service", "completed": True}],
+        }
+        events = _completed_trace(
+            {"type": "item.started", "item": started_todo},
+            {"type": "item.updated", "item": updated_todo},
+            {"type": "item.completed", "item": updated_todo},
+            {
+                "type": "item.completed",
+                "item": {
+                    "id": "warning-private-1",
+                    "type": "error",
+                    "message": "nonfatal configuration warning",
+                },
+            },
+            _agent_message("message-1", "final answer"),
+        )
+
+        trace = codex_harness.parse_jsonl(_blob(events), process_exit_code=0)
+
+        self.assertEqual(trace.last_agent_message, "final answer")
+        self.assertEqual(trace.event_count, len(events))
+        serialized = json.dumps(trace.persistable_facts(), sort_keys=True)
+        self.assertNotIn("Inspect the service", serialized)
+        self.assertNotIn("nonfatal configuration warning", serialized)
+
+    def test_accepts_codex_0148_warnings_between_thread_and_turn_start(self) -> None:
+        events = [
+            {"type": "thread.started", "thread_id": "thread-private-123"},
+            {"type": "error", "message": "nonfatal startup warning"},
+            {
+                "type": "item.completed",
+                "item": {
+                    "id": "warning-private-1",
+                    "type": "error",
+                    "message": "nonfatal configuration warning",
+                },
+            },
+            {"type": "turn.started"},
+            _agent_message("message-1", "final answer"),
+            {"type": "turn.completed", "usage": _usage()},
+        ]
+
+        trace = codex_harness.parse_jsonl(_blob(events), process_exit_code=0)
+
+        self.assertEqual(trace.last_agent_message, "final answer")
+        self.assertEqual(trace.event_count, len(events))
 
     def test_malformed_jsonl_fails_closed(self) -> None:
         cases = {
@@ -376,7 +439,9 @@ class SanitizedEvidenceTests(unittest.TestCase):
         # Exercise a distinct child identifier without changing the lifecycle shape.
         for event_index, state in ((4, "running"), (5, "completed")):
             events[event_index]["item"]["receiver_thread_ids"] = [child_id]  # type: ignore[index]
-            events[event_index]["item"]["agents_states"] = {child_id: state}  # type: ignore[index]
+            events[event_index]["item"]["agents_states"] = {  # type: ignore[index]
+                child_id: {"status": state, "message": None}
+            }
 
         trace = codex_harness.parse_jsonl(_blob(events), process_exit_code=0)
         facts = trace.persistable_facts()
@@ -514,6 +579,23 @@ class HookReceiptTests(unittest.TestCase):
         ).hexdigest()
         self.assertEqual(facts["post_tool_use_facts"][0]["tool_input_sha256"], expected_input_hash)
 
+    def test_nullable_transcript_path_matches_codex_0148_schema(self) -> None:
+        receipts = self._valid_receipts()
+        for receipt in receipts:
+            receipt["transcript_path"] = None
+
+        parsed = codex_harness.parse_hook_receipts(_blob(receipts))
+
+        self.assertEqual(parsed.hook_event_counts["SessionStart"], 1)
+        for invalid in ({}, {"transcript_path": ""}, {"transcript_path": []}):
+            malformed = _session_start()
+            malformed.update(invalid)
+            if not invalid:
+                del malformed["transcript_path"]
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(codex_harness.HookReceiptError):
+                    codex_harness.parse_hook_receipts(_blob([malformed]))
+
     def test_persistable_hook_facts_omit_all_raw_ids_paths_inputs_and_responses(self) -> None:
         parsed = codex_harness.parse_hook_receipts(_blob(self._valid_receipts()))
 
@@ -559,6 +641,7 @@ class HookReceiptTests(unittest.TestCase):
                 _subagent_start(model="gpt-5.6-sol"),
             ],
             "wrong-root-permission": [_session_start(permission_mode="workspace-write")],
+            "sandbox-label-is-not-hook-mode": [_session_start(permission_mode="read-only")],
             "mixed-child-permission": [
                 _session_start(),
                 _subagent_start(permission_mode="workspace-write"),

@@ -407,8 +407,9 @@ _GCLOUD_DENY_FLAGS = frozenset({"--impersonate-service-account", "--flags-file"}
 # Commands only observability-engineer may run — it validates observability config; sre does not
 # need these, and the smaller each profile is, the better it fails.
 _OBS_ONLY = frozenset({"yamllint"})
-# `promtool` is verb-gated like git: only its `check` family reads (observability-only as well).
-_PROMTOOL_READ_VERB = "check"
+# `promtool check` parses configuration without starting the disk-backed rule-test harness.
+# `promtool test` is deliberately absent: even without --junit it creates a temporary TSDB.
+_PROMTOOL_READ_VERBS = frozenset({"check"})
 
 # The generic tail appended to every denial. The SPECIFIC rule that fired is stated first by
 # explain(); a denial that cannot say why it fired trains the agent (and the human reading the
@@ -728,7 +729,7 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
         if (
             agent == "observability-engineer"
             and bool(positionals)
-            and positionals[0] == _PROMTOOL_READ_VERB
+            and positionals[0] in _PROMTOOL_READ_VERBS
         ):
             return None
         if agent != "observability-engineer":

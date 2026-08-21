@@ -185,16 +185,43 @@ create or move a release ref manually.
 
 ### ROUTE-001 — routing evals for the 2026-08 description changes
 
-**Status:** `active` (2026-08-12) — the owner-approved Codex/Terra rewrite, fixed evaluator bundle,
-credential-free preflight, and trusted-bootstrap contracts merged in PR
-[#103](https://github.com/latent-sre/save-toolkit/pull/103). The authenticated canary remains NO-GO on
-the current host, the fixed 48-trial executor and campaign remain unfinished, and no Terra campaign,
-result, or baseline exists.
+**Status:** `active` (2026-08-20) — PR
+[#103](https://github.com/latent-sre/save-toolkit/pull/103) supplied the original evaluator. A
+Linux Docker arm implements the fixed 48-trial executor and passes credential-free preflight. Four
+owner-approved development canaries ended `INCONCLUSIVE`, and four later attempts reached behavior
+grading and returned valid `FAIL` verdicts. The latest explicit body-load probe failed graders 0 and
+4 while passing 1, 2, 3, and 5; it changed measured response shaping but did not test or repair
+implicit routing. No campaign, routing result, or baseline followed. See the
+[`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
+
+**Owner direction (2026-08-20) — measure on more than one provider.** This campaign is to be run
+across providers rather than on Codex alone: a **Claude** arm (the components that actually ship to
+Claude users, via `evals/run_evals.py`, which is confirmed working on this host as of 2026-08-20),
+the existing **Codex/Terra** arm (which measures the *generated Codex adapters*, not the Claude
+components — see the staging note below), and **a third provider such as Grok/xAI** as a candidate
+once the first two produce comparable evidence. Each arm reports under its own label; no arm's
+result is relabeled as another's. The Claude arm has no remaining environmental blocker and can
+proceed first; the Terra arm's host prerequisites are unchanged.
+
+**Each arm needs a different isolation boundary — do not apply one arm's prerequisites to another.**
+The three differ because the hosts differ, and conflating them either paralyses the cheap arm or
+under-protects the expensive one:
+
+| Arm | Boundary it needs | State |
+|---|---|---|
+| Claude | The clean-room in [`evals/clean_room.py`](../evals/clean_room.py): relocated `CLAUDE_CONFIG_DIR` holding only the selected credential, digest-checked plugin snapshot, allowlisted child environment, empty working directory outside the repo, strict empty MCP, exact `Skill,Task` tool allowlist. Documented in [`evals/README.md`](../evals/README.md) under *Clean-room boundary*, which states plainly that it is an evaluation boundary, **not** an OS security sandbox. | **Exists and runs.** Executed 2026-08-19/20 on two models. |
+| Codex/Terra | Full host trusted-launch: protected Python runtime closure (or a separate OS identity), protected bootstrap launch, precreated NTFS private root, clean launch account/registry with no MCP/dynamic-tool/guardian/proxy/AutoRun override, protected Git executable and sanitized object store. Heavier because Codex 0.147 exposes code-mode tooling and runs Windows hook commands through the shell, and because the credential copy is same-SID application-layer isolation only. | **Requirements documented; nothing provisioned.** No owner, date, or plan is recorded — this, not the evaluator, is what blocks the campaign. |
+| Grok/xAI (candidate) | **Unanalysed.** Before any trial: what tool surface the CLI exposes by default, how its credentials are stored and whether they can be confined to a disposable config root, and whether an equivalent of the clean-room's tool allowlist and empty-MCP guarantee exists. | **Nothing written.** Do not schedule trials before this analysis exists. |
+
+The [digest-bound verification sandbox](../docs/verification-sandbox.md) is a **different tool for a
+different job** and cannot host any of these arms: it runs with `network mode none` by design, and
+its own documentation records that network-enabled verification is unsupported and stays
+`inconclusive`. It verifies reviewed bytes; it does not talk to model providers.
 
 **Outcome:** A provider-native Codex evaluator measures routing before/after for every description
 edited or added in the SRE/GCP/Akamai expansion. Any measured regression (a component that stops
-firing, or a near-miss that starts) is fixed or explicitly accepted without overstating what Codex
-0.147 can trace.
+firing, or a near-miss that starts) is fixed or explicitly accepted without overstating what the
+Codex 0.148 campaign can trace.
 
 **Source:** The 2026-08 expansion changed the descriptions of `obs-logs`, `obs-metrics`,
 `obs-traces`, `obs-alerting`, and `runbook`, and added two new routed components (`gcp-ops`,
@@ -205,9 +232,9 @@ ROUTE-001 campaign does not reopen the broader deferred EVAL-001 Sol work.
 **Prerequisites:** The fixed evaluator manifest, recorder, parser, snapshotter, catalog transformer,
 and graders must be complete and pass their contract tests and Gate A. The exact evaluator bytes must
 then be committed cleanly and independently reviewed. Live execution requires an externally pinned,
-protected copy of the bootstrap; the exact nine-file evaluator-bundle manifest; a protected absolute
+protected copy of the bootstrap; the exact ten-file evaluator-bundle manifest; a protected absolute
 Python executable/DLL/standard-library closure (or a separate OS identity); independently reviewable
-Codex 0.147 source evidence for the effective Terra tool plan; a precreated local fixed NTFS private
+source evidence for the exact Codex version's effective Terra tool plan; a precreated local fixed NTFS private
 root; a clean launch account/registry with no managed/system/project MCP, dynamic-tool, guardian,
 provider, API-route, proxy, or Command Processor AutoRun override; the
 protected Git executable/DLL/runtime installation closure and sanitized Git object store with no
@@ -222,38 +249,43 @@ boundary and must instead be excluded or isolated by the host.
 policy `never`, and the no-local/effect-tools policy. Run five overlapping
 scenarios against both
 `a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and
-`b459a5d3a209d384acb2b2b7ca325aa63697113b`, then fourteen GCP/Akamai scenarios against the current
+`7aef80aede95394f6c4237ed2aedb911e141c3c0`, then fourteen GCP/Akamai scenarios against the current
 revision only: 48 trials total (20 paired and 28 current-only). Persist only sanitized
 digest/count/verdict/runtime evidence. A non-root skill result remains explicitly
-`behavioral-only-codex-0.147`; both root-scoped active-incident negatives must remain
-`INCONCLUSIVE` with `root-delegation-unobservable-v2` under stock Codex 0.147. A report cannot grant
+`behavioral-only-codex-0.148`; both root-scoped active-incident negatives must remain
+`INCONCLUSIVE` with `root-delegation-unobservable-v2`. A report cannot grant
 baseline, release, or owner acceptance to itself.
 
 **Current evidence:** The implementation merged by PR #103 freezes the nineteen scenario IDs and
 hashes, binds each `TrialSpec` to its manifest scenario digest, and embeds the exact development-canary
-scenario rather than reopening mutable suite bytes. It also freezes both target revisions, Codex CLI
-0.147.0 and its exact executable SHA-256,
+scenario rather than reopening mutable suite bytes. Commit
+`262dfc93daf8663b50f6175b7beb7fdfae9b15cc` preserves those inputs while repinning Codex CLI 0.148.0
+and its exact Linux executable SHA-256; the validation-only
+Windows manifest retains its historical 0.147.0 bytes. The campaign also freezes both target revisions,
 `gpt-5.6-terra`, medium reasoning, two trials, and the
-48-trial shape. Codex 0.147 exposes no supported filesystem-skill activation event, so ordinary skill
-positives and near-miss negatives use deterministic response graders only and never claim exact skill
-activation or target-skill absence. Non-root trials require zero tool receipts and zero collaboration
-facts. Stock 0.147 cannot join its encrypted V2 spawn input, terminal child result, and root
-consumption, so the two active-incident cases short-circuit to `INCONCLUSIVE` before response
+48-trial shape. The 0.148 campaign accepts no provider-native filesystem-skill activation event, so
+ordinary skill positives and near-miss negatives use deterministic response graders only and never
+claim exact skill activation or target-skill absence. Non-root trials require zero tool receipts and
+zero collaboration facts. The accepted root trace cannot join a delegated task, terminal child result,
+and root consumption, so the two active-incident cases short-circuit to `INCONCLUSIVE` before response
 grading. The fixed authenticated canary instead uses the non-root GCP Cloud Run startup case, only
 the fixed linear `contains_all`, `contains_any`, and `cloud_run_rollback_packet` graders, and
 256 KiB total/8 KiB per-line response limits. The structured rollback grader binds one exact fenced
 JSON packet to service `checkout`, synthetic previous/failed revision IDs, 100% traffic, and matching
-region/project context. A post-merge audit reproduced one remaining false pass: an additional
-`gcloud run services` command continued with a POSIX backslash before `update-traffic` is accepted
-outside the packet because the guard searches only one whitespace-normalized literal prefix. This
-must be repaired and rebound into both manifests before any canary.
+region/project context. The current grader normalizes POSIX continuations, quotes, and backslash
+escapes before rejecting an additional `gcloud run services update-traffic` command outside the
+packet. That repair and its manifest binding still require independent exact-candidate review before
+the campaign; the development canary cannot close that prerequisite.
 
 The evaluator now also has a bootstrap-only, credential-free preflight that reuses the actual
 snapshot, executable/catalog probe, safe-catalog/config/hook construction, and drift gates and stops
 before auth or a model process. On 2026-08-12 that preflight passed against the pinned concrete
 versioned Codex 0.147.0 executable path; the normal launcher path was correctly rejected because it
 crosses updater junctions. The result records host trust as unverified and grants no live authority.
-The current Python/runtime and Git object-store trust prerequisites therefore remain open.
+The historical Windows Python/runtime and Git object-store trust prerequisites therefore remain open.
+On 2026-08-20 the replacement Linux image was rebuilt against Codex 0.148.0 and passed the same
+credential-free preflight with no auth mount or model process. The evaluator is committed but remains
+independently unreviewed.
 
 An owner-authorized managed response-only Terra smoke at commit `6d90943664ee0305726cc0ed8feb6b5d9a8e7f68`
 exposed a grader-calibration defect without supplying a resolved-model, installed-skill, or harness
@@ -263,22 +295,24 @@ the previously absent log-read obligation. This is calibration evidence only, no
 campaign result, or baseline; see
 [`2026-08-11-codex-terra-managed-smoke.md`](reviews/2026-08-11-codex-terra-managed-smoke.md).
 
-Terra's stock Codex 0.147 metadata would expose code-mode tooling, including an `apply_patch` read
+Terra's stock Codex 0.148 metadata would expose code-mode tooling, including an `apply_patch` read
 surface. The catalog transformer verifies the exact bundled model entry and emits an authoritative
 one-model catalog with code/local/effect model tools removed; the rendered configuration disables the
 remaining shell, image, browser, computer, app, web, MCP, memory, plugin, guardian, proxy, and
 workspace-dependency features, disables bundled/orchestrator skills and MCP, and pins the built-in
 OpenAI provider/default ChatGPT route. The new
 bootstrap rejects caller-selected evaluator mode/scenario/manifest overrides, accepts only the exact
-nine-file closure, stages those bytes under `-I -S -B`, requires a local fixed NTFS private root, and
+ten-file closure, stages those bytes under `-I -S -B`, requires a local fixed NTFS private root, and
 rechecks the stage after execution. Credential copying uses in-process ACLs, the exact hook import
 directory is enforced, the disposable auth copy is removed before model-controlled parsing/grading,
 decoded exact auth values are scanned, receipts and output are bounded, and every launched outcome
 receives a post-trial drift check. Under the accepted live boundary, the operator login will still exist in a
 disposable `CODEX_HOME` under the same OS user: this is application-layer isolation, not a
-separate-principal sandbox, and that limitation must be retained in every result. The current host's
-user-writable Python runtime closure does not satisfy the trusted-launch prerequisite, so no
-authenticated canary was run. Historical Claude runs and the prepared Claude campaign remain
+separate-principal sandbox, and that limitation must be retained in every result. Exactly eight
+owner-approved authenticated development attempts ran. The first four were inconclusive while the
+runtime/evaluator boundary was repaired; four later 0.148.0 attempts reached behavior grading and
+returned valid `FAIL` verdicts. No passing authenticated canary or campaign was run. Historical
+Claude runs and the prepared Claude campaign remain
 preserved under their original labels; none is relabeled as Terra evidence. The 2026-07-31 Sol results
 remain retained but revoked as release evidence.
 
@@ -296,6 +330,24 @@ surfaces but is not version-pinned evidence for 0.147. The source-review prerequ
 supported; the protected runtime, Git/object-store, clean-host, canary, and campaign blockers remain.
 See the
 [`first-three backlog evidence packet`](reviews/2026-08-18-first-three-backlog-evidence.md).
+
+**Runtime repin (2026-08-20):** The current Linux candidate now pins Codex CLI 0.148.0. GitHits
+resolved exact tag `rust-v0.148.0` to commit
+`3ba0f711642a888aec92a611a3f3b2211157ff89`; Context7 and the tagged source both retain the nested
+`[tools.*]` configuration shape used by the repair. Image
+`sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c`
+passed the credential-free networkless preflight. A subsequent owner-authorized development canary
+ran from clean commit `0e9e7daa4cf8dab6692b80b4e3f17fa60b809068`; Codex returned `0`, but the
+result remained `INCONCLUSIVE` because trace or hook validation failed. Exact tagged source then
+confirmed that the evaluator wrongly rejected Codex's nullable `transcript_path`; commit
+`cfb185173c0434a2792c5bf30270bef1e24606b1` repairs that boundary with red-first coverage. A fourth
+canary from clean commit `79a27cf2e52af15db66cef7ad435f0374ecaca1c` and exact image
+`sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b`
+exercised the repair but remained `INCONCLUSIVE` at the same combined reason. The evaluator now
+distinguishes sanitized `trace-invalid` from `hook-invalid` at commit
+`6819773e5fab4c7bc1747f1be6907c8a8b269110`; 117 focused tests and all 41 Gate A steps passed, but
+that diagnostic split has not had a live retry. See the
+[`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
 
 **Grader repair (2026-08-15):** The outside-packet detector is repaired and evidenced in the
 preparation-only
@@ -324,14 +376,67 @@ limitation is recorded rather than implied covered: the detector is a normalizer
 search, not a shell parser. The typed record stays `observed` — its target paths already fit an
 attempt, so the missing piece is an independent evaluation of the exact candidate.
 
-**Next action:** Obtain independent exact-byte review of the grader repair and append that verdict to
-the typed record. Then provision and independently bind a
-protected Python runtime closure or separate OS identity plus the clean managed-config/registry,
-protected Git installation, and sanitized object-store prerequisites before attempting the one-trial
-canary. Only after the canary and its boundary pass may the still-unimplemented fixed 48-trial
-executor be completed, reviewed, and run sequentially to produce a sanitized closure packet for
-explicit owner disposition. Do not tune descriptions or claim a current baseline from historical
-Claude/Sol output, a development canary, or unreviewed working-tree bytes.
+**Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at PR #113 final head
+`9a5dbe648995013134fcb63ede3d917275982ad5` passed all 342 grader checks. Fresh static
+correctness/security review found no remaining P0/P1 in the grader repair, and the grader
+implementation in current main retains the reviewed bytes. The pass verdict and its
+shell-normalizer limits are
+recorded in the
+[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
+That Markdown packet is not a typed-record attempt or evidence envelope and ran no live trial.
+
+**Next action:** The Linux canary's 50 ms Codex 0.147 startup failure is reproduced and repaired
+offline; the supported schema requires nested `[tools.*]` controls rather than the rejected root
+keys. The bounded 0.148.0 repin is committed and has exact local images and passing networkless
+preflight. Earlier 0.148 development canaries failed closed at trace or hook validation. The parser
+now handles the exact 0.148 item lifecycle, structured collaboration state, and pre-turn warnings. A
+subsequent bounded Linux canary against image
+`sha256:10c7f4f77092ae30ebc5b52f17a5d43b80176195d63deb87614be7fb48a4fcf6` passed the automatic
+credential-free preflight and produced a valid `FAIL` verdict with reason
+`behavior-grader-failed`. A red-first compact diagnostic then exposed only validated numeric grader
+indices; the one authorized follow-up canary failed graders 0, 1, 3, and 4 while passing 2 and 5.
+That localizes the gap to omitted read-only service/revision/log commands, the loopback contrast, and
+evidence/authority qualifiers; the bind-address diagnosis and exact rollback packet already passed.
+The canonical `gcp-ops` skill now uses a four-slot startup/rollback answer contract, with generated
+adapters refreshed. A separately authorized post-fix canary against exact image
+`sha256:086b63ee981e0997ce8f4201d4e6a85b1e05703cc2c939c0746540a925f59064`
+passed preflight but failed the same grader indices 0, 1, 3, and 4 while passing 2 and 5. The wording
+change therefore did not improve this measured sample, and the 48-trial campaign remains **NO-GO**.
+Offline exact-source diagnosis now explains the no-delta result: Codex 0.148 discovers the staged
+`.agents/skills` catalog, but `skill_search = true` is shadow-only and the no-model-tools policy leaves
+no path for an implicit turn to open a filesystem `SKILL.md`. The failed requirements are all in the
+entrypoint, so conditional references are not involved; response shaping was never tested because the
+revised body never reached the model. The evaluator candidate therefore changes only the development
+canary into a fixed explicit `$gcp-ops` body-load probe and binds the derived prompt hash and evidence
+mode. The nineteen discovery inputs and 48-trial plan remain unchanged. One authorized probe ran
+from commit `09cca0ef93c739caccfb0051f6ce900d8108ad8f` and exact image
+`sha256:e2a285bc329cca97dceb6d1561fbfc0b877022edccea7d7d95a15cb28372102f`;
+it failed graders 0 and 4 while passing 1, 2, 3, and 5. That is response-shaping evidence, not implicit
+routing, and it cannot authorize the campaign. Any later canary still requires separate authorization;
+the campaign remains
+**NO-GO** until review accepts its narrower description-mediated measurement or the routing
+instrument is changed.
+
+**Post-merge hardening (2026-08-20):** Review of PR #124 after merge found seven live executor gaps;
+the follow-up candidate closes them without changing a scenario or running a model. Campaign
+invocations now hold one crash-visible lock, persist `INCONCLUSIVE` as a durable stop, and bind every
+journal contract and event to the exact outer image ID. The Linux manifest binds the complete frozen
+scenario-bundle digest. Native Linux launches reject auth files or campaign roots that UID 65532
+cannot access; canary output stays host-side and is not mounted. Canary state and exit code must
+agree, and the historical Windows bootstrap now stages its imported `codex_runtime.py` dependency.
+The obsolete snapshot-reachability finding needs no code change because `7aef80a` is an ancestor of
+current main. The evaluator bundle is now ten files; its manifest is 1,295 bytes with SHA-256
+`16b9c68b24226b850ae7d9da4f7f14634406d9aa8c063799df4b1f85da5afe02`.
+
+**Paired diagnostic result (2026-08-20):** All six authorized calls completed without retry against
+commit `cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` and immutable image
+`sha256:2ddd1652e8ceb8afa0c68146ad0d4399a4068d1e09f4c64c730c55985c39a06b` after 43/43 Gate A and
+credential-free preflight passed. Target-blind description selection passed 3/3. The exact
+`gcp-ops` body was digest-bound in all three body probes; behavior passed 1/3, while rounds one and
+three failed only grader 5. The body tells the model to render evidence in a fenced Bash block, but
+the scenario requires exactly one fenced JSON packet and grader 5 rejects every additional fence.
+That deterministic contract conflict is now the single next correction; description routing does
+not need another rewrite. ROUTE-001 remains active and its 48-trial campaign remains **NO-GO**.
 
 ## Repository work
 
@@ -371,19 +476,34 @@ the preparation-only
 no evaluation, promotion, or monitoring authority.
 
 PR #116 final head `ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b` changed both linked target
-paths from base `f75dca0ccd9063360318fb8f11bf5806f03cd357`; current main retains those exact
-target bytes. GitHub Actions runs
+paths from base `f75dca0ccd9063360318fb8f11bf5806f03cd357`. `[verified]` The
+`scripts/mutation_guard.py` implementation remains byte-identical to that final head. The
+`scripts/test_mutation_guard.py` bytes at blob `751c9ae56b207143d2b3678d5e5f6435198991b4`
+belong to the test-only follow-up commit `ec35aad33d97970a0a1b3c76598344f3bf10f857`,
+not PR #116 (whose test blob was `d8f624bea6562c98ba5561a79b3b37ca26ce9d26`). `[verified]`
+GitHub Actions runs
 [#32030853567](https://github.com/latent-sre/save-toolkit/actions/runs/32030853567) and
 [#32034404514](https://github.com/latent-sre/save-toolkit/actions/runs/32034404514) passed Gate A on
 Ubuntu, macOS, and Windows. The last independent review was bound to `b90e56f9`; final head then
 added 88 lines and removed 3 across the target paths, so neither that review nor green CI supplies
 the missing exact-subject verdict.
 
-**Next action:** Produce a fresh evaluation envelope for the exact selected artifacts at
-`ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b`, then obtain independent correctness/security review
-of that same subject. Preserve the chronology limitation: PR #116 merged before the linked record
-and its evaluation existed, so do not backfill a normal pre-merge promotion or treat the author's
-own sweep as independent evidence.
+**Exact-subject review (2026-08-19):** `[verified]` The full focused suite at `ccceb33` passed (49
+tests, 2 skipped), but an unbounded self-sweep reported 48 survivors and exposed one actionable missing
+assertion: changing `_sample_limit` from `< 0` to `<= 0` survived even though that mutant rejects the
+documented unbounded `--limit 0` input. The implementation is correct; its contract was
+not pinned, so the review requested changes. Test-only commit
+`ec35aad33d97970a0a1b3c76598344f3bf10f857` adds the missing public-behavior regression. The exact
+mutant fails the new test with `EXIT_USAGE`; the restored implementation passes, and the focused
+suite is green at 50 tests with 2 skips. The complete final branch worktree also passes
+all 40 Gate A steps in the pinned network-disabled, read-only container. See the
+[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
+
+**Next action:** Produce a fresh evaluation envelope for the selected artifacts at `ec35aad`, then
+obtain independent correctness/security review of that same subject and append the result to the
+linked typed record without self-promotion. Preserve the chronology limitation: PR #116 merged
+before the linked record and its evaluation existed, so do not backfill a normal pre-merge promotion
+or treat the author's own sweep as independent evidence.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
@@ -502,15 +622,24 @@ on Ubuntu, macOS, and Windows. This supplies repeated macOS execution for the re
 fresh evidence envelope or independent final-byte review was produced; the record therefore remains
 `observed` with empty attempt and review arrays.
 
-**Next action:** Bind a fresh deterministic evaluation to final PR subject `106ee282903076dc54020df295ac37a0e66bc9d8`,
-then obtain independent exact-subject correctness/security review. Do not substitute the earlier
-`b521f38c` review, author replies, or green CI for that verdict, and do not widen the two-fact
-`PermissionError` invariant.
+**Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at final PR subject
+`106ee282` passed
+all 48 `test_codex_trial.py` tests on Windows (6 platform skips) and in the pinned network-disabled,
+read-only Linux container (2 platform skips). The Linux run covered the real descendant checks.
+Fresh static correctness/security review confirmed the two-fact invariant and found no remaining
+P0/P1. No new live macOS observation was made. See the
+[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
+
+**Next action:** Bind the deterministic exact-subject execution and pass verdict into a fresh
+validated evidence envelope and the typed record, then reconcile the outdated PR #114 threads. Do
+not widen the two-fact `PermissionError` invariant or treat the review packet alone as promotion.
 
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
-**Status:** `blocked` (2026-08-17) — the description half cannot be verified without the live
-routing runner; the structural half is unblocked and can proceed first.
+**Status:** `active` (2026-08-20) — the live-runner dependency is **resolved**: `evals/run_evals.py`
+drives the Claude CLI, which authenticates through the operator's existing login, so no
+`ANTHROPIC_API_KEY` is required. Verified by executing it on this host on 2026-08-19/20 against two
+models. Both halves can now proceed.
 
 **Outcome:** No skill spends a caller's context on content that call did not need. **These eight
 skills** become routers with a conditional "if the question involves X, read Y" table —
@@ -547,20 +676,26 @@ green.
 
 **Next action:** Convert one monolith as a pattern — `incident-command` is the highest-traffic and
 has zero references — and land it alone so the conversion shape can be reviewed before it is applied
-to ten more. The description half waits on the runner.
+to ten more. The description half is no longer waiting: run the overlapping scenarios before and
+after each description edit with the clean-room runner.
 
 **Stated deferral, recorded here because the playbook requires it be stated rather than silent:**
 the `eng-ladder` description was rewritten on 2026-08-17 (merged in #115) from 599 bytes to 418
-**without** before/after routing runs, because this environment has no live API. What that omission
-cannot prove is whether the trimmed rung definitions changed which lane fires for an altitude
-question. The edit removed a workflow summary and added a trigger, so the intended direction is
-better routing, but intent is not measurement. Re-run the overlapping scenarios when the runner is
-next available.
+**without** before/after routing runs. What that omission cannot prove is whether the trimmed rung
+definitions changed which lane fires for an altitude question. The edit removed a workflow summary
+and added a trigger, so the intended direction is better routing, but intent is not measurement.
+
+**Correction (2026-08-20):** the reason recorded above was "this environment has no live API", and
+that was **wrong** — `run_evals.py` invokes the Claude CLI, which uses the operator's login rather
+than an API key. The runner executed here on 2026-08-19/20 (`claude-opus-5[1m]` and
+`claude-sonnet-5`, live trials, graded results). The `eng-ladder` deferral therefore has no
+remaining blocker: re-run its overlapping scenarios and record the rate diff.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 
-**Status:** `blocked` (2026-08-18) — the missing defer scenario is structurally prepared; the same
-live-runner dependency as SKILL-001 remains.
+**Status:** `active` (2026-08-20) — deliberately **kept open**. The live-runner dependency is
+resolved and the collision is now measured (below), but the "no other overlapping scenario moved"
+half of acceptance is not yet evidenced, so this item does not close on the result it already has.
 
 **Outcome:** One skill owns log-based alert design **in the canonical text**, and the routing suite
 contains a scenario that would fail if the other started firing for it. Both halves are required:
@@ -591,17 +726,115 @@ today's descriptions, that is evidence the collision is currently latent — not
 and closing on it would leave `obs-logs` still advertising `'build a log alert'` with the ownership
 map still silent about `obs-alerting`.
 
-**Next action:** Run the new defer scenario and its overlapping `obs-alerting`/`obs-logs` cases
-against the current descriptions to establish the before baseline. Do not edit either description
-until that result exists; an unmeasured description change is what created the ambiguity.
+**Measured evidence (2026-08-20).** The scenario ran for the first time, on branch
+`fix/obs-skill-hardening` (PR [#122](https://github.com/latent-sre/save-toolkit/pull/122)); full
+detail in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
+
+- **The collision was real, not latent.** `discovery-obs-logs-defers-obs-alerting` at base
+  `e31d04e06d3d` routed **1/2** — one trial kept log-based alert design inside `obs-logs` instead of
+  deferring. After the ownership-map edit it routes **2/2** on `claude-opus-5[1m]` and **2/2** on
+  `claude-sonnet-5`. This is the outcome this item warned might be ambiguous; it is not.
+- **Acceptance half (1) is satisfied in canonical text:** `obs-logs`'s ownership map now names
+  `obs-alerting` explicitly. The `'build a log alert'` trigger is retained deliberately — the
+  disjunctive acceptance allows either remedy, and the trigger is how a user actually phrases the
+  request.
+- **Acceptance half (2) is partially evidenced.** The scenario exists and passes *routing*; it still
+  fails its `contains_all` graders, as does every scenario in the 2026-08-11 batch, on both models
+  and at base — that is a separate defect, tracked as GRADER-001, not a routing result.
+- **Process deviation, recorded rather than glossed:** the description was edited **before** the
+  before-baseline existed, contrary to this item's prior next action. The baseline was recovered
+  retrospectively by running the scenario against the base commit's bytes in a throwaway worktree,
+  which is the same pre-change state, so the evidence is equivalent — but the order was wrong and
+  the next description edit should follow the stated sequence.
+
+**Next action:** Establish the missing half of acceptance — run the *other* overlapping
+`obs-alerting`/`obs-logs` scenarios before and after, and show none of them moved. Then close. Do
+not close on the defer scenario alone.
+
+### GRADER-001 — reconcile the 2026-08-11 scenario graders with what the skills teach
+
+**Status:** `decision-needed` (2026-08-20) — the measurement is done and unambiguous; the direction
+is a design decision the owner has reserved for review.
+
+**Outcome:** The scenario graders and the canonical skills agree on one output contract. Either the
+skills teach the named-field packet the graders require, or the graders assert behavior instead of
+verbatim transcription. Today neither is true, and the suite cannot pass on any model.
+
+**Source:** `[verified]` (2026-08-19/20) — every scenario in the 2026-08-11 batch fails its
+`contains_all`/regex graders — on `claude-opus-5[1m]` and `claude-sonnet-5`, on branch and at base
+`e31d04e06d3d`, including scenarios no recent branch touched. Three facts locate the defect:
+
+- **The graders are satisfiable.** `evals/test_graders.py` carries fixture answers that pass them
+  (for example `_AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER`), so this is not an impossible rule.
+- **The shape they require is a named-field packet** — `Numerator:`, `Denominator:`,
+  `Minimum traffic:`, `Evaluation window:`, `Schedule:`, `Throttle key:`, `Throttle period:`,
+  `Escalation time-box:`, `Owner:`, `Notification route:`, `Runbook URL:` — and the equivalent
+  query/evidence shapes for the logs, metrics, and trace scenarios.
+- **No skill teaches that shape.** Those headings appear nowhere under `skills/obs-alerting/`
+  (grep proven against known-present strings in the same tree).
+
+The batch was authored 2026-08-11 in `b459a5d` and validated only against synthetic fixtures; a real
+model had never been asked for that shape until 2026-08-19. This is an unmet contract, not rot.
+
+**Prerequisites:** None to decide — the measurement is complete. To *act* on option (b), the
+scenario bytes are digest-pinned into ROUTE-001's evaluator manifest
+(`evals/conformance/codex-terra-routing-v1.json`), so editing a grader re-freezes both hash-bound
+manifests and invalidates the prior independent review; that remedy cannot land ahead of ROUTE-001's
+own sequencing. Options (a) and (c) touch no frozen bytes.
+
+**Acceptance:** One contract holds across both sides, and the suite's result means something: either
+the canonical skills teach the packet and the affected scenarios pass on a named model with
+before/after evidence, or the graders are rewritten to assert behavior and re-frozen through
+ROUTE-001's review path, or the scenarios are explicitly recorded as aspirational so a red suite is
+never read as a regression. Whichever is chosen is written here with its evidence.
+
+**Options for review:** (a) teach the packet in the canonical skills — no frozen bytes change, and a
+checkable alert-definition contract is defensible on its own merits; (b) loosen the graders to
+assert behavior — changes frozen bytes and needs ROUTE-001 sequencing; (c) accept the scenarios as
+aspirational and record them as such so a red suite stops reading as a regression.
+
+**Cross-provider evidence (2026-08-20), which refined the diagnosis rather than confirming it.**
+The working hypothesis was that these graders demand output no model produces, and that the Terra
+canary's `behavior-grader-failed` on `discovery-gcp-ops-cloud-run-startup` was the same defect seen
+from a second provider. Running that exact scenario on `claude-sonnet-5` against the same revision
+**refuted it**: the two providers fail nearly inverse grader sets.
+
+| Grader outcome on `discovery-gcp-ops-cloud-run-startup` | `gpt-5.6-terra` | `claude-sonnet-5` |
+|---|---|---|
+| Failed | 0, 1, 3, 4 | 5 (both trials), 4 (one trial) |
+| Passed | 2, 5 | 0, 1, 2, 3 |
+
+Claude produced the required content — the `gcloud run services logs read` form, the
+`127.0.0.1`/loopback distinction, every `contains_all` string — and failed only
+`cloud_run_rollback_packet` ("expected the JSON rollback packet to be the only fenced block"),
+because it also fenced its commands. Terra did the reverse: a clean single packet, missing content.
+
+**The distinction this exposes is calibration, not satisfiability.** `gcp-ops-cloud-run-startup` is
+the canary whose graders were calibrated against real model output and repaired twice after the
+2026-08-11 managed smoke exposed false passes — and a real model now nearly passes it. The
+2026-08-11 obs batch graders were only ever exercised against synthetic fixtures in
+`evals/test_graders.py`, and they fail on every model tried, at every revision. So the defect is not
+"the graders ask for the impossible"; it is that one set was checked against a real answer and the
+other never was.
+
+Two consequences for the options above: option (b) should mean **calibrate against real model
+output**, the way the canary's graders were, rather than a blanket loosening; and
+`cloud_run_rollback_packet`'s only-fenced-block rule deserves review on its own merits, since it
+penalises an answer that fences its commands — which is arguably the better answer.
+
+**Next action:** Owner review of the three options, now with the calibration distinction above. Until
+that review, do not tune skills to satisfy these graders and do not edit the frozen scenario bytes;
+both would pre-empt the decision. Evidence
+is in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 
-**Status:** `active` (2026-08-18) — the consolidated parser merged in PR #118 at
+**Status:** `active` (2026-08-19) — the consolidated parser merged in PR #118 at
 `4479833fcb2d64059c6aa8047dbc8370b95584f3`, but its exact-head review left one current P1
 undisposed. The repair now ends at `adbd88eb8836ce69df4f9fae4ebaa06fcf216498`; independent
 code/test review found no remaining P0/P1, and cross-platform CI passed (workflow run 32188436302,
-Ubuntu, macOS, and Windows). The final whole-diff verdict remains pending.
+Ubuntu, macOS, and Windows). Fresh whole-diff review at PR #119 final head `9fef1486` passed; GitHub
+thread reconciliation remains pending.
 
 **Outcome:** `scripts/` has a single stdlib frontmatter parser, so a document that one tool accepts
 cannot be malformed to another.
@@ -649,8 +882,17 @@ call-order, discovery-mismatch, and cross-trial mutation regressions all failed 
 subjects; the full 72-test evaluator suite now passes in the network-disabled pinned Python 3.12
 container.
 
-**Next action:** Bind the final whole-diff correctness/security verdict and resolve the PR #118 thread only after that check covers the exact head. Do not close SCRIPTS-001 on the merged grammar alone while the candidate-code execution finding remains
-undisposed.
+**Final whole-diff review (2026-08-19):** `[verified]` Review of `4479833..9fef148` confirmed that the
+evaluator executes only the frozen trusted parser, treats the measured parser as byte-compared data, binds the
+support digest, preloads before candidate mutation, freezes direct-agent tools, and verifies parent
+teardown. The exact final head passed all 40 Gate A steps in the pinned network-disabled,
+read-only container, including 73 evaluator-runner tests and 342 grader checks. No P0/P1
+remains in the code diff. See the
+[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
+
+**Next action:** Reconcile and resolve the PR #118 candidate-code execution thread and PR #119
+follow-up threads against exact head `9fef1486`, linking the final whole-diff verdict. Close
+SCRIPTS-001 only after that review-state disposition is durable on GitHub.
 
 ### DOCTOR-001 — make `fleet_doctor` diagnose the guard, not just the checkout
 

@@ -2,6 +2,7 @@
 """Contract tests for the isolated one-trial Codex/Terra executor."""
 from __future__ import annotations
 
+import dataclasses
 import json
 import hashlib
 import contextlib
@@ -84,7 +85,7 @@ def _hooks() -> codex_harness.ParsedHookReceipts:
         "cwd": "private-workspace",
         "hook_event_name": "SessionStart",
         "model": codex_harness.MODEL,
-        "permission_mode": codex_harness.SANDBOX_MODE,
+        "permission_mode": codex_harness.HOOK_PERMISSION_MODE,
         "source": "startup",
     }
     return codex_harness.parse_hook_receipts(json.dumps(payload, separators=(",", ":")))
@@ -511,7 +512,7 @@ class ProbeTests(unittest.TestCase):
             executable.write_bytes(b"fake executable")
 
             def wrong_version(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
-                return subprocess.CompletedProcess([], 0, b"codex-cli 0.148.0\n", b"")
+                return subprocess.CompletedProcess([], 0, b"codex-cli 0.147.0\n", b"")
 
             with self.assertRaisesRegex(codex_trial.InstrumentError, "CLI version"):
                 codex_trial.probe_codex(
@@ -544,7 +545,11 @@ class ProbeTests(unittest.TestCase):
                 return subprocess.CompletedProcess(command, 0, b"{}", b"")
 
             codex_trial.probe_codex(
-                executable, {}, cwd=root, command_runner=runner
+                executable,
+                {},
+                cwd=root,
+                expected_cli_version=run_codex_routing.WINDOWS_CODEX_CLI_VERSION,
+                command_runner=runner,
             )
 
             self.assertEqual([root, root], observed)
@@ -740,6 +745,7 @@ class TrialExecutionTests(unittest.TestCase):
         capture: codex_trial.ProcessCapture | BaseException,
         *,
         credential_free_only: bool = False,
+        canary_probe_mode: str | None = None,
     ) -> tuple[codex_trial.TrialResult, list[Path]]:
         root = root.resolve(strict=True)
         python_executable = Path(sys.executable).resolve(strict=True)
@@ -764,7 +770,7 @@ class TrialExecutionTests(unittest.TestCase):
             del env, timeout_s
             self.assertTrue(cwd.is_dir())
             if command[-1] == "--version":
-                return subprocess.CompletedProcess(command, 0, b"codex-cli 0.147.0\n", b"")
+                return subprocess.CompletedProcess(command, 0, b"codex-cli 0.148.0\n", b"")
             self.assertEqual(command[-3:], ("debug", "models", "--bundled"))
             return subprocess.CompletedProcess(command, 0, b"{}", b"")
 
@@ -806,7 +812,7 @@ class TrialExecutionTests(unittest.TestCase):
             source_entry_sha256=codex_model_catalog.EXPECTED_SOURCE_ENTRY_SHA256,
             transformed_entry_sha256=codex_model_catalog.EXPECTED_TRANSFORMED_ENTRY_SHA256,
             safe_catalog_sha256=fake_catalog_sha256,
-            source_field_count=36,
+            source_field_count=37,
             changed_fields=codex_model_catalog.CHANGED_FIELDS,
         )
 
@@ -819,11 +825,28 @@ class TrialExecutionTests(unittest.TestCase):
             path.mkdir(parents=True, exist_ok=True)
             return path
 
+        def stage_project(_snapshot: Path, project: Path):
+            if canary_probe_mode == "body":
+                target = project / ".agents" / "skills" / "gcp-ops" / "SKILL.md"
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source = (
+                    Path(__file__).resolve().parents[1]
+                    / "plugins"
+                    / "save-toolkit"
+                    / "skills"
+                    / "gcp-ops"
+                    / "SKILL.md"
+                )
+                target.write_bytes(source.read_bytes())
+            return stage_receipt
+
         with (
             mock.patch.object(
                 codex_snapshot, "materialize_snapshot", return_value=snapshot_receipt
             ) as materialize,
-            mock.patch.object(codex_snapshot, "stage_neutral_project", return_value=stage_receipt),
+            mock.patch.object(
+                codex_snapshot, "stage_neutral_project", side_effect=stage_project
+            ),
             mock.patch.object(codex_snapshot, "verify_staged_project", return_value=None),
             mock.patch.object(codex_model_catalog, "write_safe_catalog", side_effect=write_catalog),
             mock.patch("codex_trial._secure_directory", side_effect=fast_secure),
@@ -852,6 +875,7 @@ class TrialExecutionTests(unittest.TestCase):
                 "exact_revision": False,
                 "temp_parent": root,
                 "command_runner": command_runner,
+                "canary_probe_mode": canary_probe_mode,
             }
             if credential_free_only:
                 result = codex_trial.run_preflight(**arguments)
@@ -901,6 +925,24 @@ class TrialExecutionTests(unittest.TestCase):
         self.assertNotIn(str(root), serialized)
         self.assertNotIn("sk-proj-", serialized)
 
+    def test_body_probe_preflight_records_the_exact_staged_skill_body(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            result, observed_homes = self._run(
+                Path(raw).resolve(strict=True),
+                AssertionError("preflight must not launch a model"),
+                credential_free_only=True,
+                canary_probe_mode="body",
+            )
+
+        self.assertEqual([], observed_homes)
+        self.assertEqual(
+            "gcp-ops", result.runtime_facts["selected_skill_name"]
+        )
+        self.assertEqual(
+            run_codex_routing.CANARY_SKILL_BODY_SHA256,
+            result.runtime_facts["selected_skill_body_sha256"],
+        )
+
     def test_success_is_graded_and_serialized_without_raw_content(self) -> None:
         capture = codex_trial.ProcessCapture(
             stdout=_trace(),
@@ -931,6 +973,53 @@ class TrialExecutionTests(unittest.TestCase):
                 "no-model-tools-non-root",
                 result.as_dict()["configuration"]["tool_policy"],
             )
+
+    def test_invalid_trace_is_distinguished_before_hook_receipts_are_loaded(self) -> None:
+        capture = codex_trial.ProcessCapture(
+            stdout='{"type":"unsupported-private-event"}\n',
+            stderr="",
+            returncode=0,
+            duration_ms=1,
+            timed_out=False,
+            output_limited=False,
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(strict=True)
+            with mock.patch(
+                "codex_trial.codex_hook_recorder.load_receipts",
+                side_effect=AssertionError("receipts must not be loaded after an invalid trace"),
+            ) as load_receipts:
+                result, _ = self._run(root, capture)
+
+        self.assertEqual(codex_routing_grade.VerdictState.INCONCLUSIVE, result.state)
+        self.assertEqual(("trace-invalid",), result.reason_codes)
+        self.assertIsNone(result.trace_facts)
+        self.assertIsNone(result.hook_facts)
+        load_receipts.assert_not_called()
+
+    def test_invalid_hook_receipts_are_distinguished_without_private_diagnostics(self) -> None:
+        capture = codex_trial.ProcessCapture(
+            stdout=_trace(),
+            stderr="",
+            returncode=0,
+            duration_ms=1,
+            timed_out=False,
+            output_limited=False,
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(strict=True)
+            with mock.patch(
+                "codex_trial.codex_hook_recorder.load_receipts",
+                side_effect=ValueError("private hook parser detail"),
+            ):
+                result, _ = self._run(root, capture)
+
+        serialized = json.dumps(result.as_dict(), sort_keys=True)
+        self.assertEqual(codex_routing_grade.VerdictState.INCONCLUSIVE, result.state)
+        self.assertEqual(("hook-invalid",), result.reason_codes)
+        self.assertIsNone(result.trace_facts)
+        self.assertIsNone(result.hook_facts)
+        self.assertNotIn("private hook parser detail", serialized)
 
     def test_serialized_root_tool_policy_is_explicitly_unscored(self) -> None:
         contract = codex_trial.TrialContract(
@@ -1277,6 +1366,116 @@ class TrialExecutionTests(unittest.TestCase):
                 _spec(),
                 manifest_sha256="0" * 64,
             )
+
+    def test_canary_body_probe_binds_the_explicit_skill_and_effective_prompt_hash(self) -> None:
+        scenario = _scenario()
+
+        contract = codex_trial.validate_trial_contract(
+            scenario,
+            _spec(),
+            manifest_sha256=_manifest_sha256(),
+            canary_probe_mode="body",
+        )
+
+        expected_prompt = f"$gcp-ops\n\n{scenario['prompt']}"
+        self.assertEqual(expected_prompt, contract.prompt)
+        self.assertEqual(
+            hashlib.sha256(expected_prompt.encode("utf-8")).hexdigest(),
+            contract.prompt_sha256,
+        )
+        self.assertEqual("explicit-skill-body-probe", contract.invocation_mode)
+        result = codex_trial._base_result(
+            contract,
+            state=codex_routing_grade.VerdictState.INCONCLUSIVE,
+            reason_codes=("credential-free-preflight-pass",),
+            exact_revision=False,
+        )
+        self.assertEqual(
+            "explicit-skill-body-probe",
+            result.as_dict()["configuration"]["invocation_mode"],
+        )
+
+    def test_canary_description_probe_binds_a_target_blind_selection_prompt(self) -> None:
+        scenario = _scenario()
+
+        contract = codex_trial.validate_trial_contract(
+            scenario,
+            _spec(),
+            manifest_sha256=_manifest_sha256(),
+            canary_probe_mode="description",
+        )
+
+        expected_prompt = (
+            f"{run_codex_routing.CANARY_DESCRIPTION_PROMPT_PREFIX}"
+            f"{scenario['prompt']}"
+        )
+        self.assertEqual(expected_prompt, contract.prompt)
+        self.assertNotIn("gcp-ops", contract.prompt)
+        self.assertNotIn("$", contract.prompt)
+        self.assertEqual(
+            hashlib.sha256(expected_prompt.encode("utf-8")).hexdigest(),
+            contract.prompt_sha256,
+        )
+        self.assertEqual("description-selection-probe", contract.invocation_mode)
+
+    def test_ordinary_campaign_contract_remains_implicit_discovery(self) -> None:
+        scenario = _scenario()
+
+        contract = codex_trial.validate_trial_contract(
+            scenario,
+            _spec(),
+            manifest_sha256=_manifest_sha256(),
+        )
+
+        self.assertEqual(scenario["prompt"], contract.prompt)
+        self.assertEqual("implicit-discovery", contract.invocation_mode)
+
+    def test_explicit_body_probe_rejects_any_non_canary_coordinate(self) -> None:
+        scenario = _scenario()
+        scenario["id"] = "discovery-obs-logs-cloud-logging"
+        spec = run_codex_routing.TrialSpec(
+            scenario_id="discovery-obs-logs-cloud-logging",
+            cohort="paired",
+            revision=run_codex_routing.CURRENT_REVISION,
+            trial=1,
+            scenario_sha256="a" * 64,
+        )
+
+        with self.assertRaisesRegex(
+            codex_trial.TrialContractError, "fixed development canary"
+        ):
+            codex_trial.validate_trial_contract(
+                scenario,
+                spec,
+                manifest_sha256=_manifest_sha256(),
+                canary_probe_mode="body",
+            )
+
+    def test_explicit_body_probe_rejects_a_second_campaign_trial_coordinate(self) -> None:
+        scenario = _scenario()
+        spec = dataclasses.replace(_spec(), trial=2)
+
+        with self.assertRaisesRegex(
+            codex_trial.TrialContractError, "fixed development canary"
+        ):
+            codex_trial.validate_trial_contract(
+                scenario,
+                spec,
+                manifest_sha256=_manifest_sha256(),
+                canary_probe_mode="body",
+            )
+
+    def test_canary_probe_mode_rejects_unknown_or_non_text_values(self) -> None:
+        for value in ("other", True, 1):
+            with self.subTest(value=value), self.assertRaisesRegex(
+                codex_trial.TrialContractError, "probe mode"
+            ):
+                codex_trial.validate_trial_contract(
+                    _scenario(),
+                    _spec(),
+                    manifest_sha256=_manifest_sha256(),
+                    canary_probe_mode=value,
+                )
 
     def test_staged_entrypoint_trial_spec_has_one_shared_runtime_identity(self) -> None:
         staged_namespace = runpy.run_path(

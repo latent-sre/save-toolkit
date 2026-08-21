@@ -5,6 +5,15 @@
 Alert rules are independent operational resources, not legacy per-panel dashboard alerts. Keep rule
 groups, notification routing, and runbook metadata under review with the same rigor as application code.
 
+## Contents
+
+- Primary sources
+- The evaluation lifecycle — design every rule around all four knobs
+- Provisioning paths and recording rules
+- Rule groups as code
+- Contact points and notification policies
+- Review and rollback
+
 ## Primary sources
 
 Sources reviewed 2026-07-14, extended 2026-08-07 (indirect retrieval of official pages):
@@ -26,15 +35,22 @@ evaluation owner—never duplicate the same rule in both paths.
 - **`keep_firing_for`**: when the condition clears while Alerting, the instance enters a
   **Recovering** state for that duration before Normal + resolved notification; a re-fire during
   Recovering returns to Alerting **without a new notification** — the flap filter on exit. Zero
-  skips Recovering. `[sourced: state-and-health page]` (The exact provisioning-file key spelling is
-  `[unverified]` — confirm against the current file-provisioning schema before committing YAML.)
+  skips Recovering. `[sourced: state-and-health page]` The provisioning/HTTP-API key is camelCase
+  **`keepFiringFor`** *[sourced: alerting-provisioning reference example, re-checked 2026-08-19]*,
+  and an open upstream bug reports file provisioning failing to apply it (value stays 0 after
+  export + reload — grafana/grafana #109367) — verify the running rule's state, not just the
+  YAML, before trusting the flap filter.
 - **No-data state**: map to No Data (default — fires a `DatasourceNoData` alert), Alerting,
   Normal, or Keep Last State. Choose deliberately per the parent skill's missing-data rule: for a
   paging burn-rate rule, silent-telemetry-means-Normal is the false all-clear.
 - **Execution-error state**: Error/Alerting/Normal/Keep Last State — same deliberateness; an
   erroring query that maps to Normal disarms the alert invisibly.
 
-Review all four per rule; the defaults are not a decision.
+Review all four per rule; the defaults are not a decision. In file-provisioning YAML the
+"Normal" option is spelled `OK` (`noDataState: NoData|Alerting|OK`,
+`execErrState: Error|Alerting|OK`) and `KeepLast` is absent from the file-provisioning enum — a
+generated YAML carrying `Normal` or `Keep Last State` fails to load *[sourced: file-provisioning
+page, re-checked 2026-08-19]*.
 
 ## Provisioning paths and recording rules
 
