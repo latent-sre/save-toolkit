@@ -4,11 +4,12 @@ Use this reference only after applying the product-agnostic investigation shape 
 Fill in the team's indexes, sourcetypes, correlation-id field, and saved searches in
 [local log inventory](./indexes.md) before treating any placeholder as real.
 
-Official syntax basis: Splunk's current documentation for
-[comments](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.2/use-the-search-app/add-comments-to-searches),
+Official syntax basis: Splunk's current documentation (Splunk Enterprise **10.4**, the latest in the
+docs version selector *[sourced: help.splunk.com; reviewed 2026-08-21]*) for
+[comments](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.4/use-the-search-app/add-comments-to-searches),
 [classic SPL quoting and escaping](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.4/use-the-search-app/anatomy-of-a-search),
-[`timechart`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.2/search-commands/timechart),
-and [`streamstats`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.2/search-commands/streamstats).
+[`timechart`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.4/search-commands/timechart),
+and [`streamstats`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.4/search-commands/streamstats).
 Every example still requires confirmation against the target Splunk version, permissions, index
 inventory, and field extractions.
 

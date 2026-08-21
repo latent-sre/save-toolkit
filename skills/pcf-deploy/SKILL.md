@@ -113,8 +113,13 @@ runs the full rolling deployment. Each canary after the first tears down one pre
 and the deployment holds one extra instance over the target until it finishes — size quota for it.
 *[sourced: Cloud Foundry dev guide, rolling and canary deployments; reviewed 2026-08-21]*
 
-Which cf CLI and CAPI versions support canary and `--instance-steps` on the team's foundation is
-`[unverified]` until the human release owner records the versions and non-production output.
+Version floors — `[sourced]` (cf CLI release notes; reviewed 2026-08-21): `--strategy canary`
+arrived in **cf CLI v8.10.0** ("push apps using a weighted canary deployment"); the step flags
+including `--instance-steps` landed in **v8.16.0** ("rolling and canary deployment behavior with
+scaling flags"). Current upstream is v8.18.x. The CLI floor is necessary, not sufficient — the
+foundation's CAPI must also support the deployment features, which is `[unverified]` until the
+human release owner records the CAPI version and non-production output. `cf push --help` on the
+deployed CLI is the one-line check for the flags.
 
 With app revisions enabled, `cf rollback checkout --version <n>` reverts to a prior droplet + config
 (revisions/rollback are GA in cf CLI v8.10.0+; older v8.x marks them experimental).
