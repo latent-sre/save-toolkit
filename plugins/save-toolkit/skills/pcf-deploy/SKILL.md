@@ -116,7 +116,11 @@ A canary deploy can be stepped rather than all-at-once: `--instance-steps 5,10,2
 each step for a `cf continue-deployment` or `cf cancel-deployment`, and continuing past the last step
 runs the full rolling deployment. Each canary after the first tears down one pre-deployment instance,
 and the deployment holds one extra instance over the target until it finishes — size quota for it.
-*[sourced: Cloud Foundry dev guide, rolling and canary deployments; reviewed 2026-08-21]*
+`--max-in-flight N` bounds how many **new** instances start simultaneously — "defaults to 1" — for
+both rolling and canary deploys, and at each canary step. Raising it shortens a large app's rollout
+at the cost of a wider blast radius per step; leaving it at 1 is the conservative default the
+playbook assumes. *[sourced: Cloud Foundry dev guide, rolling and canary deployments; reviewed
+2026-08-21]*
 
 Version floors — `[sourced]` (cf CLI release notes; reviewed 2026-08-21): `--strategy canary`
 arrived in **cf CLI v8.10.0** ("push apps using a weighted canary deployment"); the step flags

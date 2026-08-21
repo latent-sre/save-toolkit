@@ -28,6 +28,22 @@ canary run proves it.
 
    Standard env config either way: `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`
    (gRPC 4317 / HTTP 4318), `OTEL_EXPORTER_OTLP_PROTOCOL`.
+
+   **Spring Boot: agent or starter — pick one, and the default is the agent.** The
+   `-javaagent` path instruments bytecode at startup with no code change and the widest library
+   coverage. The **starter** (`io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter`,
+   versions via the `opentelemetry-instrumentation-bom`) is library-mode auto-configuration; the
+   upstream docs name exactly when to prefer it: a **Spring Boot native image**, "for which the
+   OpenTelemetry Java agent does not work"; "startup overhead of the OpenTelemetry Java agent
+   exceeding your requirements"; "a Java monitoring agent already used because the OpenTelemetry
+   Java agent might not work with the other agent"; or wanting OTel configured from
+   `application.yml` (including declarative YAML) rather than env vars. It supports Spring Boot
+   2.6+ and 3.1+ per the docs, and upstream carries a Spring Boot 4 test suite; current release
+   is 2.31.x. The two are alternatives — do not load both. On PCF the Java buildpack can inject
+   the agent for you, so check what the buildpack already does before adding the starter.
+   *[sourced: opentelemetry.io zero-code Java Spring Boot starter pages;
+   opentelemetry-java-instrumentation repo; reviewed 2026-08-21]* Which path the team's services
+   use today is `[unverified]` — read the build file and the buildpack config.
 3. **Resource attributes** — set `service.name`, `service.version`, and **`deployment.environment.name`**
    (OTel semantic conventions) so signals are filterable per app/space.
    > ⚠️ **`deployment.environment` is DEPRECATED** — renamed to **`deployment.environment.name`** in
