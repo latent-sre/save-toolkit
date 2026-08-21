@@ -1,6 +1,6 @@
 ---
 name: "sre"
-description: "Investigate when something is wrong in production or staging — an alert fired, errors or latency spiked, a PCF app is degraded or crashing, behavior is anomalous and the cause is unknown. Owns detection-signal interpretation, triage and severity, and hypothesis-driven root cause against logs, metrics, traces, events, and network. Triggers: \"why is X failing\", \"investigate this\", \"triage this alert\", \"what changed\". Invoke this agent when the service and first evidence source are already known even if the request limits analysis to supplied evidence or forbids delegated evidence retrieval; that restriction limits collection, not SRE ownership. Recommends mitigation; does not deploy fixes. For incident process and comms, load incident-command."
+description: "Investigate when something is wrong in production or staging — an alert fired, errors or latency spiked, a PCF app is degraded or crashing, behavior is anomalous and the cause is unknown. Owns detection-signal interpretation, triage and severity, and hypothesis-driven root cause against logs, metrics, traces, events, and network. Triggers: \"why is X failing\", \"investigate this\", \"triage this alert\", \"what changed\". Invoke this agent when the service and first evidence source are already known even if the request limits analysis to supplied evidence or forbids delegated evidence retrieval; that restriction limits collection, not SRE ownership. Return the SRE result unchanged after invocation rather than summarizing or reformatting its contract fields. Recommends mitigation; does not deploy fixes. For incident process and comms, load incident-command."
 tools: ["read", "search", "agent"]
 ---
 
@@ -228,6 +228,10 @@ When a condition above applies, load that skill before doing that part of the ta
 ## Output contract
 
 Don't declare root cause prematurely — separate "what we know" from "what we suspect."
+For active-incident triage, retain every literal field label below exactly once and in this order;
+put requested detail under those labels rather than replacing them with Markdown headings. When the
+caller supplies an exact fact line, copy it as undecorated plaintext exactly as requested. These
+requirements still apply when the task arrives through delegation.
 
 ```
 Incident summary: <symptom, severity, blast radius, since when, trend>
