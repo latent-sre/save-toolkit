@@ -57,7 +57,7 @@ stealing code) is the cautionary tale — assume any action you don't pin can ch
   approval gate and the credential are the same control — an environment secret is only readable by
   a job that already cleared that environment's reviewers. Rotate on a schedule and on any runner
   rebuild; a long-lived secret's blast radius is however long nobody rotated it.
-- **OIDC is not available here, and the reason is structural**: `permissions: { id-token: write }`
+- **OIDC is not a path on this stack, and the reason is structural**: `permissions: { id-token: write }`
   mints a short-lived token from an OIDC-aware broker, but CredHub authenticates via UAA and does
   not accept GitHub OIDC JWTs, so there is no exchange to broker. Do not design around one, and do
   not treat `id-token: write` as a hardening step on this stack. It becomes relevant only for a
@@ -136,7 +136,8 @@ use them. Prefer **`--ephemeral`** runners (one job per runner, fresh each time)
 persist and tamper with the next — and **never** attach self-hosted runners to public repos.
 
 Keep the runner binary current on the RHEL 9 hosts: `actions/checkout` moved to **Node 24 at
-v5.0.0**, and other first-party actions follow — a self-hosted runner whose bundled Node is too old
+v5.0.0**, and other first-party actions are moving the same way — a self-hosted runner whose
+bundled Node is too old
 fails the step before your workflow runs a line. GitHub-hosted runners carry the right Node already;
 self-hosted ones only do if someone updates them. *[sourced: actions/checkout CHANGELOG v5.0.0;
 reviewed 2026-08-21]*
@@ -159,9 +160,8 @@ Prefer a CI **service account** with the minimum org/space roles, and rotate its
 schedule rather than relying on it being short-lived — on this stack it is a GitHub environment
 secret, so nothing expires it for you *[sourced: operator statement 2026-08-21]*. Bind the secret to
 the protected environment that already gates the deploy, so the reviewer approval and the credential
-release are one step. GitHub-OIDC→CredHub is not an option to design toward: CredHub authenticates
-via UAA and does not accept GitHub OIDC JWTs. For a **GCP** target, OIDC to a cloud IdP does apply
-and would avoid a stored credential — but the landing runtime is decision-pending per
+release are one step. GitHub-OIDC→CredHub is not a path — the Security section above says why. For
+a **GCP** target, OIDC to a cloud IdP does apply and would avoid a stored credential — but the landing runtime is decision-pending per
 `stack-profile`, so treat that path as `[unverified]` until a human owner records the decision.
 
 ## Tips

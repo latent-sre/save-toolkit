@@ -25,13 +25,13 @@ Match the repo's existing tooling first; defaults below apply when none is set.
   `common` hides unrelated responsibilities.
 
 ## Nullability
-- **Annotate packages `@NullMarked`** (JSpecify) and mark the exceptions `@Nullable`; run NullAway so a
-  violation fails the build instead of throwing in prod. Spring Framework 7 / Boot 4 APIs are
+- **Annotate packages `@NullMarked`** (JSpecify) and mark the exceptions `@Nullable`; run NullAway
+  so a violation fails the build instead of throwing in prod. Spring Framework 7 / Boot 4 APIs are
   JSpecify-annotated, so the checker understands framework return types. JSpecify annotations are
   `TYPE_USE`: `List<@Nullable String>` and `@Nullable List<String>` mean different things.
   *[sourced: spring-framework `core/null-safety.adoc`; reviewed 2026-08-21]*
-- **`Optional` is a return type** — never a field, parameter, or collection element. `.get()` without
-  a presence check is a null check with extra steps; use `orElseThrow`, `map`, `orElse`.
+- **`Optional` is a return type** — never a field, parameter, or collection element. `.get()`
+  without a presence check is a null check with extra steps; use `orElseThrow`, `map`, `orElse`.
 
 ## Errors
 - **Unchecked for programming errors and unrecoverable failures**; checked only when every caller can
@@ -44,8 +44,8 @@ Match the repo's existing tooling first; defaults below apply when none is set.
 ## Concurrency
 - **Virtual threads for blocking I/O** (21+): one task per thread, no pool to size. Don't pool them;
   bound concurrency with a `Semaphore` instead. Before Java 24, `synchronized` around I/O pins the
-  carrier thread — use `ReentrantLock`; Spring recommends 24+ for this reason. *[sourced: Spring Boot
-  `spring-application.adoc`; reviewed 2026-08-21]*
+  carrier thread — use `ReentrantLock`; Spring recommends 24+ for this reason. *[sourced: Spring
+  Boot `spring-application.adoc`; reviewed 2026-08-21]*
 - Prefer immutable values; `ConcurrentHashMap` over synchronized wrappers; `AtomicX` for counters.
   **`ThreadLocal` leaks on pooled threads** and is expensive per virtual thread — pass context
   explicitly.
@@ -63,7 +63,8 @@ Match the repo's existing tooling first; defaults below apply when none is set.
   `List` component.
 - **`Collectors.toMap` throws on duplicate keys** — pass a merge function. A stream is single-use;
   don't mutate shared state inside `map`/`forEach`.
-- String concatenation in a loop → `StringBuilder`; `"…".formatted(…)` and text blocks for templates.
+- String concatenation in a loop → `StringBuilder`; `"…".formatted(…)` and text blocks for
+  templates.
 
 ## Logging
 - **SLF4J, parameterized**: `log.info("order={} status={}", id, status)` — never concatenate; the

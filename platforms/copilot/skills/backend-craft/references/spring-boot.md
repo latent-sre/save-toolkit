@@ -9,7 +9,7 @@ same rules with that stack's idioms.
 The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conflict, SKILL.md wins.
 
 Upstream is at Spring Boot 4.1.x *[sourced: Maven Central `org.springframework.boot:spring-boot`
-4.1.1, checked 2026-08-21]*; the 3.5 line is still maintained. The version a given repository
+4.1.1, checked 2026-08-21]*. The version a given repository
 runs is `[unverified]` until read from its build file — Boot 4 split several starters into
 per-module artifacts (noted below where it bites), so check before copying a dependency coordinate.
 
@@ -44,8 +44,8 @@ per-module artifacts (noted below where it bites), so check before copying a dep
   `flyway-database-postgresql`, `flyway-mysql`; the starter alone covers only embedded databases).
   Migrations run at startup by default. For a non-embedded database `spring.jpa.hibernate.ddl-auto`
   defaults to `none`; leave it there — `update` against production is not a migration strategy.
-  Live migration mechanics on a database with data — expand → migrate → contract, lock-light DDL,
-  restores — belong to the `database-reliability` skill, not this file.
+  Live migration mechanics on a database with data — expand → migrate → contract, lock-light
+  DDL, restores — belong to the `database-reliability` skill, not this file.
   *[sourced: Spring Boot `data-initialization.adoc`; reviewed 2026-08-21]*
 - **Graceful shutdown is on by default** (`server.shutdown=graceful`); in-flight requests drain for
   `spring.lifecycle.timeout-per-shutdown-phase` (default 30s). That is where SKILL.md's graceful
@@ -70,8 +70,9 @@ per-module artifacts (noted below where it bites), so check before copying a dep
   confirmed against three OSS handlers via GitHits `get_example`; reviewed 2026-08-21]*
 - **Validation failures are `422`, not `400`.** Spring's default for a `@Valid` failure is
   `400`, and the common OSS handler copies that. SKILL.md's contract reserves `400` for malformed
-  and `422` for valid-shape-bad-value, so the override above passes `HttpStatus.UNPROCESSABLE_CONTENT`
-  explicitly rather than the status the framework hands it.
+  and `422` for valid-shape-bad-value, so the override above passes 422 explicitly
+  (`HttpStatus.UNPROCESSABLE_CONTENT`, the RFC 9110 name; older Framework versions spell it
+  `UNPROCESSABLE_ENTITY`) rather than the status the framework hands it.
 
 ## Dependency injection
 

@@ -97,9 +97,9 @@ route re-mapping; after `cf delete`, rollback is a fresh push of the previous ar
 > and the manifest holds **exactly one** application, that stanza is renamed to the argument and the
 > push proceeds; if the manifest holds **several** applications, the push fails with
 > `AppNotInManifestError`. So the blue-green command is the documented path for a single-app
-> manifest — no `manifest-green.yml` is needed — and the thing to check before approving is that the
-> manifest has one stanza. *[sourced: `cloudfoundry/cli` `actor/v7pushaction/handle_app_name_override.go`
-> at `fcb3492`]* Behavior on the exact deployed CLI and foundation remains `[unverified]` until the
+> manifest — no `manifest-green.yml` is needed — and the thing to check before approving is that
+> the manifest has one stanza. *[sourced: `cloudfoundry/cli`
+> `actor/v7pushaction/handle_app_name_override.go` at `fcb3492`]* Behavior on the exact deployed CLI and foundation remains `[unverified]` until the
 > human release owner runs it once on a bounded non-production foundation and attaches the output.
 
 ## Built-in strategies (lower-risk changes)

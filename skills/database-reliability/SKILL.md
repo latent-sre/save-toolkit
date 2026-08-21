@@ -52,23 +52,30 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
     because a validated check already proves it.
 
   The deployed major is `[unverified]`; `SHOW server_version;` before choosing.
-- **In MS SQL the cheap path is a *new* column, not a tightened one.** `ADD col … NOT NULL DEFAULT
-  <constant>` is metadata-only and near-instant on **Enterprise edition** — the default is written to
-  a row only when that row is next updated or the index rebuilt. It is not online for `varchar(max)`,
+- **In MS SQL the cheap path is a *new* column, not a tightened one.** `ADD col … NOT NULL
+  DEFAULT <constant>` is metadata-only and near-instant on **Enterprise edition** — the default is
+  written to a row only when that row is next updated or the index rebuilt. It is not online for `varchar(max)`,
   `xml`, or CLR types, and it silently falls back to an offline rewrite if the addition pushes the row
   past 8,060 bytes. Tightening an *existing* nullable column to `NOT NULL` still scans: backfill in
   batches first, then alter in a quiet window, or use `ALTER COLUMN … WITH (ONLINE = ON)` — also
   Enterprise, and it needs roughly **twice the space** while the hidden replacement column exists.
   *[sourced: SQL Server `ALTER TABLE` reference; reviewed 2026-08-21]* The target's edition is
-  `[unverified]` — Standard edition gets none of the online paths.
-- Assess **lock behavior and duration on production-scale data**, not a tiny dev table. Know which DDL
-  is online for your engine (Postgres `CREATE INDEX CONCURRENTLY` and `ADD COLUMN` without a volatile
-  default — and on 18+ generated columns are **virtual by default**, computed on read, so an
-  `ADD COLUMN … GENERATED ALWAYS AS (…)` no longer rewrites the table but does move that cost onto
-  every query; say `STORED` when you meant the old behavior *[sourced: PostgreSQL 18 release notes]*; MS SQL `CREATE INDEX … WITH (ONLINE = ON)`, which takes only short locks at start and end
-  but is **Enterprise-only** and waits for every open transaction on the table before it begins —
-  a long-running report can stall the migration; avoid blocking `ALTER`s on hot tables). Run migrations through tooling (Flyway/Liquibase/
+  `[unverified]`; the docs say online operations are "not available in all editions", so confirm
+  Enterprise before planning on any of them.
+- Assess **lock behavior and duration on production-scale data**, not a tiny dev table, and know
+  which DDL is online for your engine. Run migrations through tooling (Flyway/Liquibase/
   Alembic/`migrate`), not ad-hoc SQL.
+  - **Postgres**: `CREATE INDEX CONCURRENTLY`; `ADD COLUMN` without a volatile default. On 18+
+    generated columns are **virtual by default** — computed on read — so
+    `ADD COLUMN … GENERATED ALWAYS AS (…)` no longer rewrites the table but moves that cost onto
+    every query; say `STORED` when you meant the old behavior. *[sourced: PostgreSQL 18 release
+    notes; reviewed 2026-08-21]*
+  - **MS SQL**: `CREATE INDEX … WITH (ONLINE = ON)` takes only short locks at start and end, but
+    is Enterprise-only and **waits for every open transaction on the table** before it begins — a
+    long-running report can stall the migration. *[sourced: SQL Server `ALTER TABLE` reference;
+    reviewed 2026-08-21]*
+
+  Avoid blocking `ALTER`s on hot tables in either engine.
 
 ## Performance is a feature
 

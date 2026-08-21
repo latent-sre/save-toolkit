@@ -65,13 +65,14 @@ authenticates via UAA and no turnkey integration exists. *[sourced: operator sta
 ## Frameworks
 - **Backend:** **Spring Boot** on the JVM (matching the `java_buildpack_offline` in the PCF manifest
   example); **FastAPI** on Python.
-- **Frontend:** **both React and Vue** are in use — neither reference in `frontend-craft` is surplus.
+- **Frontend:** **both React and Vue** are in use — neither reference in `frontend-craft` is
+  surplus.
 
 *[sourced: operator statement 2026-08-21]*
 
 ## Hosts & runners
 On-prem hosts and self-hosted Actions runners are **RHEL 9+**. GitHub-hosted Linux runners are
-Ubuntu (`ubuntu-latest` resolves to 24.04 today). Both classes are in active use, so portable shell
+Ubuntu. Both classes are in active use, so portable shell
 must run on both: the effective **bash floor is 5.1**, past every pre-4.4 workaround.
 *[sourced: operator statement 2026-08-21; confirm exact minor versions on the target]*
 

@@ -55,8 +55,8 @@ Match the repo's existing tooling first; defaults below apply when none is set.
 - `subprocess.run([...], check=True)` with a **list**. Avoid `shell=True`; if it's unavoidable, never
   interpolate variables into the command string.
 - HTTP (`requests`/`httpx`): **always set timeouts**; retry idempotent calls with backoff; check status.
-- Parameterize SQL — never f-string user input into a query. On 3.14, a **t-string** (`t'… {x} …'`)
-  is not a string: it yields a `string.templatelib.Template` that keeps static text and
+- Parameterize SQL — never f-string user input into a query. On 3.14, a **t-string**
+  (`t'… {x} …'`) is not a string: it yields a `string.templatelib.Template` that keeps static text and
   interpolations apart at runtime, so a consuming library can escape or parameterize each value —
   the documented motivation is exactly SQL/HTML/shell sanitising. It only helps when the receiving
   API accepts a `Template`; an f-string-shaped habit with a `t` prefix handed to `str()` gains
