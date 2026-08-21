@@ -28,7 +28,7 @@ matters.
 | [`scripts/gate_a.py`](scripts/gate_a.py) | The single structural entrypoint. It discovers and runs every validator and `test_*.py` itself — do not transcribe its step list (read its docstring for why) |
 | [`.github/workflows/release.yml`](.github/workflows/release.yml) | The only prepared release effect path: exact-main-SHA preflight, protected annotated tag, strict remote-tag host smoke, protected immutable Release, then read-only verification. Its presence does not authorize dispatch |
 | [`scripts/release_contract.py`](scripts/release_contract.py), [`scripts/release_workflow_contract.py`](scripts/release_workflow_contract.py) | Fail-closed release request and workflow-shape contracts. The former binds version/review/SHA/actor/expiry/recovery/nonce; the latter mutation-checks the static authority boundary |
-| [`scripts/generate_platform_adapters.py`](scripts/generate_platform_adapters.py) | The one deterministic generator for all host projections. Run `--write` after any canonical edit; a hand-edit to a generated root is drift it will erase |
+| [`scripts/generate_platform_adapters.py`](scripts/generate_platform_adapters.py) | The one deterministic generator for all host projections. Run `--write` once before a push that carries canonical edits; a hand-edit to a generated root is drift it will erase |
 | [`scripts/validate_fleet.py`](scripts/validate_fleet.py), [`check_links.py`](scripts/check_links.py), [`check_plan_status.py`](scripts/check_plan_status.py), [`check_stale_names.py`](scripts/check_stale_names.py) | The structural validators Gate A runs: fleet/plugin/adapter contracts, skill link/bundle reachability, single-live-roadmap discipline, and retired-name rejection |
 | [`scripts/install_codex_agents.py`](scripts/install_codex_agents.py) | Installs the generated Codex agents into an explicit scope without clobbering user files |
 | [`schemas/`](schemas) | Portable evidence contracts (the catalog and the evidence envelope); versioned per [`docs/schema-compatibility.md`](docs/schema-compatibility.md) |
@@ -60,11 +60,16 @@ To change anything a search turns up in a generated root: edit the canonical sou
 
 ## Validate before you push
 
-- `python scripts/gate_a.py` is the one structural gate (on Windows use `python`, never `python3` —
-  the Microsoft Store stub). CI runs this same script on Linux, macOS, and Windows; do not copy its
-  step list anywhere — that is a deliberate anti-drift design recorded in the file's docstring.
-- After any canonical edit under `agents/`, `skills/`, or `commands/`, run
-  `python scripts/generate_platform_adapters.py --write` and commit the projections with the source.
+- `python scripts/gate_a.py` is the one structural gate. Run it **once, before a push** — not after
+  each edit and not per commit (on Windows use `python`, never `python3` — the Microsoft Store stub).
+  CI runs this same script on Linux, macOS, and Windows, and the `Protect main` ruleset requires
+  those jobs to pass before merge: CI is the enforcement; the local run is the cheaper first look.
+  Do not copy its step list anywhere — that is a deliberate anti-drift design recorded in the
+  file's docstring.
+- Before a push that touched `agents/`, `skills/`, or `commands/`, run
+  `python scripts/generate_platform_adapters.py --write` once — not after each edit — and commit
+  the projections with the source. Gate A's byte check, run right after it, catches a forgotten
+  regeneration.
 - `claude plugin validate . --strict` checks the Claude platform/marketplace contract.
 - Gate A is structural: it proves the fleet is well-formed, never that it is correct. The adversarial
   correctness/security reviews in [CONTRIBUTING.md](CONTRIBUTING.md) are separate.
@@ -177,16 +182,25 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 Keyed by what you touched. Each names the **silent failure** it prevents — the case where nothing
 errors and the change quietly does not work.
 
-- **Any edit** → run `python scripts/gate_a.py`. *Silent failure it prevents:* a broken link,
-  unresolved namespace, or unrun test file shipping green because nothing checked it.
-- **Edited a canonical agent or skill** (`agents/`, `skills/`, `commands/`) → run
-  `python scripts/generate_platform_adapters.py --write` and commit the projections. *Prevents:* the
+- **About to push** → run `python scripts/gate_a.py` once. Not per edit, not per commit: the
+  gate takes ~25 s, and it refuses to start while another run is in flight on the machine
+  (two overlapping runs false-red each other), so reflexive reruns cost more than they catch. *Silent failure it prevents:* a broken link, unresolved namespace, or
+  unrun test file shipping green because nothing checked it.
+- **About to push edits under `agents/`, `skills/`, or `commands/`** → run
+  `python scripts/generate_platform_adapters.py --write` once, before Gate A, and commit the
+  projections. Not after each edit. *Prevents:* the
   Claude source and the host adapters drifting into subtly different fleets; the byte gate fails a
   stale projection.
-- **Edited a `description:`** → run the overlapping scenario(s) under `evals/scenarios/` through the
-  clean-room runner, before and after. *Prevents:* a routing change (a component that stops firing,
-  or a near-miss that starts) that no structural check can see. Routing evals need a live API and may
-  be deferred with a stated reason — never with an eyeball standing in for the measurement.
+- **Changed a `description:`'s routing content** — a quoted `Triggers:` phrase, a use-when / not-for
+  clause, or a named alternative component → find the scenarios that target it
+  (`python evals/run_evals.py --list`; the `-> kind:name` column, since 18 scenario ids do not carry
+  the target's name) and run them through the clean-room runner **after** the change. Run the
+  **before** baseline only for a scenario that comes back red, to attribute the red. Rewording that
+  leaves those elements intact needs no eval. One scenario is minutes per run and one component can
+  carry a dozen, which is why the older any-edit, before-and-after form was deferred more often than
+  run. *Prevents:* a routing change (a component that stops firing, or a near-miss that starts) that
+  no structural check can see. Routing evals need a live API and may be deferred with a stated
+  reason — never with an eyeball standing in for the measurement.
 - **Asserted a new contract** — a validator rule, an exit code, a schema constraint, or any predicate
   a test names → add a fixture or mutation test that **fails without the change**, and confirm it
   fails by running it. The rule covers every newly asserted contract, not only validator rules.

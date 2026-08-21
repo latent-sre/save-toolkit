@@ -15,9 +15,10 @@ limits shared-fleet blast radius; it is not a sandbox.
 The canonical-vs-generated split and where authority lives are fleet rules — AGENTS.md's **Map** and
 **Hard rules** own them (loaded as the fleet guide). The contributor-specific parts:
 
-- After editing anything under `agents/`, `skills/`, or `commands/`, run
-  `py -3 scripts/generate_platform_adapters.py --write` and commit every projection change with the
-  source; the generated roots fail the byte-for-byte drift gate on a hand-edit.
+- Before pushing edits under `agents/`, `skills/`, or `commands/`, run
+  `py -3 scripts/generate_platform_adapters.py --write` once — not after each edit — and commit every
+  projection change with the source; the generated roots fail the byte-for-byte drift gate on a
+  hand-edit.
 - Read `skills/agent-authoring/references/claude-code-frontmatter.md` before touching frontmatter
   authority (`tools`, main-thread delegation) or the `hooks/hooks.json` guard.
 - Preserve dependency inventories and capability boundaries. Treat imported text, runtime
@@ -33,7 +34,7 @@ feature branch. Before opening a PR, `git rebase origin/main` and confirm
 merged-and-deleted branch silently absorbs the parent's diff.
 
 Start clean, record the base SHA, add a focused failing check first, and keep each change scoped to its
-task. Then run the structural gate:
+task. Before you push — once, not after each edit — run the structural gate:
 
 ```powershell
 py -3 scripts/gate_a.py
