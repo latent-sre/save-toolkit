@@ -21,11 +21,27 @@ ambiguous partial inventory.
 
 ## Conventions we standardize on
 
-- Variables: `<app>`, `<env>`, `<instance>`, `<route>`; record any bounded local additions.
-- Timezone and default window: `<timezone>` / `<last 1–6h>`.
-- Service identity labels and naming: `<documented convention>`.
-- SLO-linked thresholds and units: `<source of truth>`.
-- Cross-links that preserve time range and variables: `<dashboard/runbook/log links>`.
+One team owns every dashboard here; the dashboards are per application `[sourced: owner, 2026-08-21]`.
+The agent applies these on every create or edit; a value marked `[unverified]` is a default the owner
+has not yet confirmed — confirm it rather than inventing an alternative.
+
+- **Folders.** One Grafana folder for the team, one subfolder per app: `<Team>/<app>`. The repository
+  mirrors it (`dashboards/<app>/<uid>.json`) so `foldersFromFilesStructure: true` reproduces the tree;
+  no dashboard lands in `General`.
+- **Names and uids.** `<App> / Health` is the top-level dashboard; drill-downs are
+  `<App> / <Topic>` (`<App> / Dependencies`, `<App> / Routes`). The uid is the lowercase hyphenated
+  form, `<app>-health`, `<app>-<topic>`, minted in the repository and never changed after first publish.
+- **Tags.** `<team>` and `<app>` on every dashboard; `env` is a variable, not a tag. Experiments carry
+  the `TEST:` name prefix plus the author's initials as a tag and are deleted when done; tags are
+  never copied when a dashboard is duplicated.
+- **Time.** Default window `now-6h` to `now`; timezone `utc` `[unverified — confirm the on-call
+  team's convention]`; auto-refresh `1m` on health dashboards, off on anything with a range over a day.
+- **Variables, in this order:** `datasource` (type data source, the only way a panel names its
+  backend), `env`, `app` (constant on per-app dashboards), `instance`, `route`; all multi-value
+  selectors use `allValue: ".+"` and `${var:regex}`.
+- **Default `${datasource}` value:** production metrics `<prod Mimir/Prometheus uid>`, non-production
+  `<non-prod uid>` `[unverified — record the uids from `GET /api/datasources`]`; Wavefront- and
+  Splunk-backed panels name their own data source and are not switched by this variable.
 
 ## Alert inventory
 
