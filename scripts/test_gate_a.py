@@ -9,6 +9,8 @@ no test here runs the real gate inside itself.
 """
 import ast
 import contextlib
+import os
+import subprocess
 import sys
 import io
 import tempfile
@@ -180,6 +182,103 @@ class PreflightInterpreterFloorTests(unittest.TestCase):
         self.assertGreaterEqual(sys.version_info[:2], gate_a.MINIMUM_PYTHON)
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertTrue(gate_a.preflight())
+
+
+class GateLockTests(unittest.TestCase):
+    """Two Gate A runs on one machine must not overlap.
+
+    Measured 2026-08-21: `scripts/test_host_install_probe.py` and `evals/test_codex_trial.py` pass
+    alone and fail -- 19 failures, `KeyError: 'selected_skill_name'`, finishing in a third of their
+    normal time -- whenever a second python process is running the same file. The usual way that
+    happens is `gate_a.py | head`, which on Windows leaves the whole gate running orphaned after
+    `head` exits. A false red costs far more than the gate, so the gate refuses to start while
+    another run holds the machine-wide lock, reclaims a lock whose holder is dead, and always
+    releases its own.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.lock = Path(self._tmp.name) / "gate_a.lock"
+        patcher = mock.patch.object(gate_a, "LOCK_PATH", self.lock)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        # Preflight is proven elsewhere; here it must not decide the outcome.
+        pre = mock.patch.object(gate_a, "preflight", return_value=True)
+        pre.start()
+        self.addCleanup(pre.stop)
+
+    def _main(self, run_steps):
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(gate_a, "run_steps", side_effect=run_steps):
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = gate_a.main()
+        return code, out.getvalue(), err.getvalue()
+
+    def test_refuses_while_a_live_gate_holds_the_lock(self) -> None:
+        # This process is alive, so a lock naming our own pid is a live holder.
+        self.lock.write_text(f"{os.getpid()}\n/some/other/checkout\n", encoding="utf-8")
+
+        def must_not_run(steps):
+            raise AssertionError("run_steps executed under a held lock")
+
+        code, _out, err = self._main(must_not_run)
+        self.assertNotEqual(0, code)
+        self.assertIn(str(os.getpid()), err)
+        self.assertIn(str(self.lock), err)
+        # The message has to say why, or the next reader deletes the lock and overlaps anyway.
+        self.assertIn("overlap", err.lower())
+        # The other run's lock is left untouched.
+        self.assertTrue(self.lock.exists())
+
+    def test_stale_lock_from_a_dead_holder_is_reclaimed(self) -> None:
+        self.lock.write_text("999999\n/gone\n", encoding="utf-8")
+        ran = []
+        with mock.patch.object(gate_a, "_pid_alive", return_value=False):
+            code, _out, _err = self._main(lambda steps: ran.append(True) or [])
+        self.assertEqual(0, code)
+        self.assertEqual([True], ran)
+        self.assertFalse(self.lock.exists(), "lock must be released after the run")
+
+    def test_lock_names_this_run_and_is_released_after_success(self) -> None:
+        seen = {}
+
+        def record(steps):
+            seen["holder"] = self.lock.read_text(encoding="utf-8")
+            return []
+
+        code, _out, _err = self._main(record)
+        self.assertEqual(0, code)
+        self.assertTrue(seen["holder"].startswith(f"{os.getpid()}\n"))
+        self.assertFalse(self.lock.exists())
+
+    def test_lock_is_released_when_the_run_raises(self) -> None:
+        def explode(steps):
+            raise RuntimeError("step runner died")
+
+        with mock.patch.object(gate_a, "preflight", return_value=True):
+            with self.assertRaises(RuntimeError):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    with mock.patch.object(gate_a, "run_steps", side_effect=explode):
+                        gate_a.main()
+        self.assertFalse(self.lock.exists())
+
+    def test_unreadable_lock_is_treated_as_stale(self) -> None:
+        # A crash can leave an empty or garbage file; that must not wedge every future gate.
+        self.lock.write_text("", encoding="utf-8")
+        code, _out, _err = self._main(lambda steps: [])
+        self.assertEqual(0, code)
+        self.assertFalse(self.lock.exists())
+
+
+class PidAliveTests(unittest.TestCase):
+    def test_current_process_is_alive(self) -> None:
+        self.assertTrue(gate_a._pid_alive(os.getpid()))
+
+    def test_exited_child_is_not_alive(self) -> None:
+        proc = subprocess.Popen([sys.executable, "-c", "pass"])
+        proc.wait()
+        self.assertFalse(gate_a._pid_alive(proc.pid))
 
 
 if __name__ == "__main__":

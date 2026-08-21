@@ -17,6 +17,18 @@ on Windows (`python` vs `py -3` vs `python3`, the last being the Microsoft Store
 disarmed the read-only guard). Sub-steps here run under `sys.executable` -- whichever interpreter you
 started this script with, by construction the right one.
 
+ONE RUN PER MACHINE
+-------------------
+Two gates overlapping on one machine false-red each other. Measured 2026-08-21: with a second python
+process running the same file, scripts/test_host_install_probe.py reports 19 failures and
+evals/test_codex_trial.py a KeyError, both finishing in a third of their healthy time; alone and in
+sequence they pass 6/6. The shared resource was not pinned down, and the common way to overlap is not
+deliberate at all: `gate_a.py | head` on Windows leaves the whole gate running orphaned after `head`
+exits, so every gate started afterwards collides with it. A false red sends a session into a
+debugging spiral that costs far more than the gate, so the gate takes a machine-wide lock in the
+temp directory, refuses to start while a live holder has it, reclaims a lock whose holder is dead,
+and always releases its own. Covered by scripts/test_gate_a.py.
+
 WHAT IT DOES NOT DO
 -------------------
 Gate A is STRUCTURAL. It proves the fleet is well-formed; it never proves the fleet is right. It passes
@@ -24,11 +36,14 @@ green over a skill that leaks the production password into argv. The adversarial
 conformance reviews required by CONTRIBUTING.md are the ones that catch that.
 """
 
+import contextlib
 import glob
 import os
 import subprocess
 import sys
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -118,6 +133,81 @@ def preflight():
     return True
 
 
+# Machine-wide on purpose: the overlap failure is per host (shared temp and user directories), not
+# per checkout, so two clones running the gate at once must also be refused.
+LOCK_PATH = Path(tempfile.gettempdir()) / "save-toolkit-gate_a.lock"
+
+
+class GateBusy(Exception):
+    def __init__(self, lock_path, holder_pid, holder_root):
+        super().__init__(lock_path, holder_pid, holder_root)
+        self.lock_path, self.holder_pid, self.holder_root = lock_path, holder_pid, holder_root
+
+
+def _pid_alive(pid):
+    """Liveness without signals: on Windows os.kill(pid, 0) TERMINATES the process."""
+    if os.name == "nt":
+        import ctypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        PROCESS_QUERY_LIMITED_INFORMATION, STILL_ACTIVE, ERROR_ACCESS_DENIED = 0x1000, 259, 5
+        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+        if not handle:
+            # No access still means the process exists; any other failure means it does not.
+            return ctypes.get_last_error() == ERROR_ACCESS_DENIED
+        try:
+            code = ctypes.c_ulong()
+            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return True
+            return code.value == STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(int(pid), 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _read_holder(lock_path):
+    """(pid, root) from a lock file, or None when the file is empty or garbage — a crash artefact."""
+    try:
+        lines = lock_path.read_text(encoding="utf-8").splitlines()
+        return int(lines[0]), (lines[1] if len(lines) > 1 else "?")
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+@contextlib.contextmanager
+def gate_lock(lock_path=None):
+    lock_path = Path(lock_path or LOCK_PATH)
+    for _attempt in range(2):
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            break
+        except FileExistsError:
+            holder = _read_holder(lock_path)
+            if holder is not None and _pid_alive(holder[0]):
+                raise GateBusy(lock_path, holder[0], holder[1])
+            # Stale (dead holder, or unreadable): reclaim and retry the atomic create once.
+            try:
+                os.unlink(lock_path)
+            except FileNotFoundError:
+                pass
+    else:
+        raise GateBusy(lock_path, "?", "?")
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write("%d\n%s\n" % (os.getpid(), ROOT))
+    try:
+        yield
+    finally:
+        try:
+            os.unlink(lock_path)
+        except FileNotFoundError:
+            pass
+
+
 def run_steps(steps):
     """Run every step to completion and return the failed labels, in roster order.
 
@@ -155,7 +245,17 @@ def main():
     if not preflight():
         return 1
 
-    failed = run_steps(STEPS)
+    try:
+        with gate_lock():
+            failed = run_steps(STEPS)
+    except GateBusy as busy:
+        print("Gate A: REFUSED -- another Gate A is already running (pid %s, started from %s).\n"
+              "  Two runs that overlap on one machine false-red each other (test_host_install_probe,\n"
+              "  test_codex_trial), so this run did not start. Wait for that one to finish -- or, if it\n"
+              "  is an orphan (for example a `gate_a.py | head` whose reader already exited), stop it --\n"
+              "  and rerun. Lock: %s" % (busy.holder_pid, busy.holder_root, busy.lock_path),
+              file=sys.stderr)
+        return 1
 
     print("\n" + "-" * 60)
     if failed:
