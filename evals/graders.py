@@ -857,6 +857,12 @@ def _nav_effect_is_safe_noun(action: str, before: str, after: str) -> bool:
             and re.match(r"\s*:\s*\S", after)
         )
     if normalized_action in {"change", "changes"}:
+        if normalized_action == "change" and re.search(
+            r"\b(?:latency|errors?|traffic|saturation|impact|scope|baseline|metric|signal)\s+$",
+            before,
+            re.IGNORECASE,
+        ) and re.match(r"\s*(?:$|[.,;:)])", after):
+            return True
         if normalized_action == "changes" and re.search(
             r"\b(?:recent|prior|previous|historical)\s+$", before, re.IGNORECASE
         ) and re.match(r"\s*(?:$|[.,;:)])", after):
