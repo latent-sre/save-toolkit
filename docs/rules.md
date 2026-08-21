@@ -80,7 +80,7 @@ authoritative?*
 | Checklists: `merge-gate` → `release-gate` → `production-change-gate`; branch protection and protected environments are the real enforcement | Gate skills; [`AGENTS.md`](../AGENTS.md) |
 | Agents may prepare/recommend Tier 2/3; a human release owner (or protected automation) executes — agents never apply | [`production-change-gate/SKILL.md`](../skills/production-change-gate/SKILL.md) |
 | Gate checklists are evidence, not the boundary | Gate skill notes |
-| Handoffs: one owner, pinned SHAs, labels preserved, taint marked, “what I did NOT do” stated | [`AGENTS.md`](../AGENTS.md) |
+| Handoffs: one owner; SHAs pinned where a downstream decision depends on byte identity (`Change: none` when the packet carries no repository bytes); labels preserved, taint marked, “what I did NOT do” stated | [`AGENTS.md`](../AGENTS.md) |
 | Learning is reviewable repository state with an explicit disposition and owner — never model memory | [`disposition-policy.md`](../skills/operational-learning/references/disposition-policy.md) |
 | Fleet improvement is encounter-driven; `fi_` ledger; ≤3 attempts; only human/protected workflow promotes | [`improvement-lifecycle.md`](../skills/agent-authoring/references/improvement-lifecycle.md) |
 | Gate A is structural only; independent correctness/security reviews run on an immutable commit before merge | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |

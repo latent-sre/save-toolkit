@@ -28,7 +28,9 @@ authorized live change; an agent never executes it.
 - [ ] **Classify first** — Classify the change: Tier 0 (observe) / Tier 1 (prepare) / Tier 2 (reversible
       live) / Tier 3 (destructive or access-path). Tier 0–1 proceed; Tier 2 needs explicit approval of the
       exact command shown; Tier 3 needs Tier-2 evidence plus a proven backup/recovery path. Approval covers
-      only the commands and target shown — a material change re-enters this gate.
+      only the commands and target shown — a material change re-enters this gate. During a declared
+      incident the incident commander may instead approve a **bounded envelope** (see the incident fast
+      path below); only action outside the envelope re-enters approval.
 
       A human release owner or separately approved protected automation performs every Tier 2/3 live
       action; the agent never executes it. Approval does not grant the agent live-change authority.
@@ -54,8 +56,11 @@ The example is `[unverified]`: it is the required approval-request shape, not ev
 - [ ] **Readiness evidence present** — for a release, attach the reviewed SHA, green checks, exact release
       artifact, and named approver. Consume those records as existing evidence; do not load or execute a
       readiness gate. For a non-release action, mark artifact fields not applicable and attach the current
-      reviewed command/diff and named approval instead.
-- [ ] **The boundary is actually ON** — verified, not assumed. Everything below is a record; branch
+      reviewed command/diff and named approval instead. Rolling back to the immediately previously live
+      artifact re-uses that artifact's existing records — never reassemble release evidence to undo a
+      change.
+- [ ] **The boundary is actually ON** *(planned changes; deferred during a declared incident — see the
+      incident fast path)* — verified, not assumed. Everything below is a record; branch
       protection is the control and must be checked by an authorized human or protected evidence job.
       Note: `gh api` is deliberately absent from the guarded-Bash allowlist (it can silently POST), so
       a guarded `sre`/`observability-engineer` session cannot run this itself. A denial here is by design rather
@@ -70,8 +75,10 @@ The example is `[unverified]`: it is the required approval-request shape, not ev
       ```
 
       `enforce_admins` must be **true** (GitHub's administrator bypass setting is disabled). If it is
-      false — or the call **404s**, meaning no branch protection — **BLOCK** before any production change.
-      Record the exact output. Until attached, the boundary and every dependent claim remain `[unverified]`.
+      false — or the call **404s**, meaning no branch protection — **BLOCK** any planned production
+      change. Record the exact output. Until attached, the boundary and every dependent claim remain
+      `[unverified]`. During a declared incident this evidence is deferred to reconciliation: it governs
+      what merges and ships, not whether a live mitigation may proceed.
 - [ ] **Approved** — an authorized human explicitly approved this exact target, command or diff, applying
       actor, and time; attach the change record when the process requires one.
 - [ ] **Blast radius understood** — record affected apps, routes, spaces, users or traffic share and the
@@ -84,9 +91,12 @@ The example is `[unverified]`: it is the required approval-request shape, not ev
 - [ ] **Plan/diff shown** — show all commands and the manifest or configuration diff; approval covers no
       undisclosed side effect.
 - [ ] **Timing** — consider peak and freeze periods; document any emergency exception, maintenance window,
-      or Moogsoft suppression.
+      or Moogsoft suppression. During a declared incident, document after mitigation, not before.
 - [ ] **Monitoring during change** — name the human watching the golden signals and agree abort criteria.
-- [ ] **Comms** — notify stakeholders and on-call before and after the change.
+      During a declared incident the incident commander's ops role satisfies this item.
+- [ ] **Comms** — notify stakeholders and on-call before and after the change. During a declared incident
+      the incident comms cadence satisfies this item — never delay a mitigation for a separate
+      notification.
 
 ## Verdict
 
@@ -99,8 +109,47 @@ Watching: <who, which signals>   Abort if: <criteria>
 Branch protection evidence: <output or [unverified]>
 ```
 
-## Emergency exception
+## Incident fast path (emergency exception)
 
-During a declared incident, mitigation speed can outweigh the full process, but never skip human
-confirmation, exact scope, and a backout plan. Record who made the emergency decision and reconcile the
-change record afterward. Tier 2/3 execution remains human-owned or protected-automation-owned.
+During a declared incident, gate latency is itself harm: every minute of ceremony on the mitigation
+path is user pain. The gate shrinks to its load-bearing core — the items below and nothing else block
+execution.
+
+**What this path covers:** Tier 0–2 operational mitigation and rollback to an already-live artifact —
+the reversible actions in the `incident-command` mitigation table (route remap, revision rollback,
+restart, restage, scale, flag flip). Two things stay on the full gate even at SEV1:
+
+- **A new artifact.** An incident hotfix is still a release: reviewed SHA, lower-environment
+  evidence, migration safety, and rollback evidence are exactly what stop one incident from becoming
+  two. Rolling *back* to the previously live artifact is covered here; shipping new bytes is not.
+- **Any Tier 3 destructive or access-path action** (data deletion, storage/backup, credential or
+  identity, DNS, firewall, VPN, proxy, remote access). Tier 3 keeps its proven backup/recovery
+  requirement — a backout plan cannot reverse an irreversible mutation, so speed cannot buy it out.
+
+**Never skipped, even at SEV1:**
+
+- **Classification**, one line — and it still gates: a Tier 3 action leaves this path for the full
+  checklist above, and the tier decides who executes.
+- **Explicit human confirmation** of the exact command, **or of a bounded envelope** the incident
+  commander approves once (e.g. "scale `checkout` up to 10 instances", "remap the prod route between
+  `checkout-blue` and `checkout-green` as needed"). Only action outside the envelope re-enters
+  approval — an iterative mitigation does not re-run the gate per attempt.
+- **Blast radius and verification**, a sentence each.
+- **A backout plan** — prefer the reversible mitigations in the `incident-command` skill's table.
+- **Who made the call**, recorded in the incident timeline (UTC).
+
+**Deferred to post-incident reconciliation — these never delay a mitigation:**
+
+- Readiness evidence and artifact records **for the covered actions only** — a rollback re-uses the
+  previously live artifact's existing records. A new artifact is out of scope above and keeps them.
+- Branch-protection evidence (the `gh api` check above). A live `cf` action is not a merge, and a
+  GitHub API call must never sit on the rollback path — a GitHub outage cannot be allowed to block
+  recovery.
+- Timing/freeze documentation, Moogsoft suppression records, and the formal change record.
+- Pre-change stakeholder notification — the incident comms cadence covers stakeholders, and the IC
+  roles satisfy the monitoring and comms items.
+
+The fast path narrows the paperwork, never the authority boundary: Tier 2/3 execution remains owned by
+a human release owner or separately approved protected automation, and the security/integrity carve-out
+in `incident-command` still exits this path entirely. After resolution, reconcile every deferred record
+and give the timeline to the typed `scribe` agent.

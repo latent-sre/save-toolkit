@@ -2,17 +2,27 @@
 
 # Roster altitude — design the agent system, not one artifact
 
+Four disciplines shape this fleet, and the sections below are grouped by them: **loop engineering**
+(the verify step inside each lane), **graph engineering** (which lanes exist and what each may see),
+**handoff engineering** (what survives between contexts), and **learning engineering** (where durable
+knowledge lands). Each names a failure mode this fleet has actually hit; none is free-standing
+ceremony. Citations throughout locate a published post by title and URL — they are `[sourced]`, never
+`[verified]`, because none was fetched during this repository's checks.
+
 ## Contents
 
 - First question: should this be multi-agent at all?
 - Agent vs. skill (this fleet's decision rule)
-- Orchestration shapes
+- The loop inside each lane (loop engineering)
+- Orchestration shapes (graph engineering)
+- Handoffs between contexts (handoff engineering)
 - Design principles
 - Failure modes to diagnose
 - Deliverable
 - When it pays — and when it doesn't
 - Right-sizing
 - Multi-agent pattern catalog (design vocabulary)
+- Learning as repository state (learning engineering)
 - Wrapper-layer failure taxonomy
 
 ## First question: should this be multi-agent at all?
@@ -43,7 +53,29 @@ authority. Keeping both jobs in one prompt would preserve the sensitive-data plu
 plus egress combination, so this boundary warrants two agents. A mixed question is orchestrated by
 the caller with a sanitized public handoff, never by giving either worker both evidence domains.
 
-## Orchestration shapes
+## The loop inside each lane (loop engineering)
+
+The roster shape is the second design decision. The first is the loop every single lane runs:
+**gather context → take action → verify → repeat.** A lane's quality is set by its verify step —
+the mechanism that lets the agent check its own work instead of asserting it. Design that step
+explicitly:
+
+- **Name the verifier before the work.** A failing test or fixture for `sde`; the two-lens packet
+  for `reviewer`; golden-signal recovery evidence for `sre` and `observability-engineer`; Gate A
+  plus `mutation_guard.py` for changes to the fleet itself. An agent whose loop has no verifier
+  can only emit `[unverified]` claims, however good the prose.
+- **Gather minimally.** Pull the slice (grep, tail, a pinned file:line), not the corpus —
+  oversized gathering is the loop-level cause of context rot, and it is why workers return short
+  summaries instead of transcripts.
+- **The loop beats the model.** A weaker model in a tight loop with a real verifier outperforms a
+  stronger model asserting once — which is why this fleet invests in verifiers and carries no
+  `model:` pins.
+
+*[sourced: Anthropic, "Building agents with the Claude Agent SDK",
+claude.com/blog/building-agents-with-the-claude-agent-sdk; "Building effective agents",
+anthropic.com/engineering/building-effective-agents — located by title and URL, not fetched here]*
+
+## Orchestration shapes (graph engineering)
 
 - **Orchestrator–workers** — the main session owns plan + synthesis; workers get bounded mandates
   and isolated context. This is the fleet default.
@@ -56,6 +88,37 @@ the caller with a sanitized public handoff, never by giving either worker both e
   worth the cost on high-stakes review.
 - **Loop-until-dry** — for unknown-size discovery, iterate until K consecutive rounds surface
   nothing new; fixed counts miss the tail.
+
+Decompose by **context boundary — what each lane may see — not by job title.** That is why `reviewer`
+reads the local checkout but holds no web, shell, or delegation, and `researcher` holds only the
+public web and no local read. Fan-out costs real tokens (see *When it pays*), so the single-lane
+default stands until breadth, isolation, or adversarial verification pays for the split.
+
+*[sourced: Anthropic, "How we built our multi-agent research system"; "When to use multi-agent
+systems (and when not to)", claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them —
+located by title and URL, not fetched here]*
+
+## Handoffs between contexts (handoff engineering)
+
+The graph's edges carry more risk than its nodes. A worker's context dies when it returns, so the
+packet is the only thing that survives — and an underspecified handoff fails *silently*: the receiver
+produces confident work on the wrong premise. This is the most common multi-agent defect.
+
+- **Structured note-taking beats a summary.** The packet convention in each agent body is a fixed
+  field set — owner, change, findings with evidence, current state, what was NOT done, success
+  criteria — because free-form prose drops whichever field the sender did not think mattered.
+- **Labels survive the trip.** `[verified]`, `[sourced]`, `[unverified]`, and `[UNTRUSTED]` are
+  copied exactly and never upgraded in transit. A receiver that re-labels has manufactured evidence.
+- **Name the change or it is stale on arrival.** The `Change:` line pins the commit or range the
+  packet describes, and the receiver's first act is to compare it against the current head. That one
+  field carries byte identity for review and merge work — which is why the full-SHA pin on *other*
+  references is scoped to release evidence rather than demanded of every link.
+- **State what you did not do.** The omission a sender finds obvious is the gap a receiver fills
+  with an assumption.
+
+*[sourced: Anthropic, "Effective context engineering for AI agents",
+anthropic.com/engineering/effective-context-engineering-for-ai-agents — located by title and URL,
+not fetched here]*
 
 ## Design principles
 
@@ -129,6 +192,21 @@ above; this is the compact naming reference, including the two shapes that secti
   new; fixed counts miss the tail.
 - **Completeness critic** — a final pass that asks "what's missing?"; its answers become the next
   round of work. Guards against a roster that stops at the first plausible-looking result.
+
+## Learning as repository state (learning engineering)
+
+The fleet's durable memory is files. Skills with progressive disclosure hold the how-to; new
+operational knowledge lands as reviewable repository state under the learning-disposition and
+fleet-improvement lifecycles — consolidation is deliberate, bounded, and human-promoted, never a
+background memory write. This is the conservative end of the current platform direction (Agent
+Skills as files; the managed-agent memory-consolidation preview gates every learned change behind
+human approve/reject), so the stance is a choice, not a gap. The failure mode it prevents is
+below: memory poisoning by admission.
+
+*[sourced: Anthropic, "Equipping agents for the real world with Agent Skills",
+anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills. The 2026-05
+"dreaming" memory-consolidation preview is `[unverified]`: primary announcement not reached, detail
+from third-party coverage only]*
 
 ## Wrapper-layer failure taxonomy
 

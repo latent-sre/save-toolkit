@@ -85,3 +85,28 @@ Example packets live beside the schemas in
 Repository tests validate every example and both migration results with the stronger Python validator,
 and assert that exactly one knowledge-update version is catalogued `current` and that it matches the
 validator's own current-version constant.
+
+## Running the validators
+
+(Relocated from the README, which now links here; on Windows use `python` or `py -3`, never
+`python3` — the Microsoft Store stub.)
+
+Validate a knowledge-update packet after its documentation diff exists. The allowed roots are caller
+policy supplied outside the packet — the packet's own `target.knowledge_roots` cannot authorize a
+write location:
+
+```sh
+python skills/operational-learning/scripts/knowledge_update.py \
+  .sre/knowledge-updates/<update-id>.json \
+  --target-root /path/to/target-checkout \
+  --allowed-knowledge-root docs/operations \
+  --allowed-knowledge-root docs/runbooks
+```
+
+Migrate a superseded packet forward without changing the source (each migration validates its own
+output and fails closed rather than emitting an invalid packet):
+
+```sh
+python skills/operational-learning/scripts/migrate_v1_to_v2.py <packet>.json --output <packet>-v2.json
+python skills/operational-learning/scripts/migrate_v2_to_v3.py <packet>-v2.json --output <packet>-v3.json
+```

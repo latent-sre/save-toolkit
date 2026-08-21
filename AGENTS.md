@@ -144,8 +144,9 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   explicit human confirmation with the plan and rollback shown first. The three gates
   (`merge-gate`, `release-gate`, `production-change-gate`) are the checklists; GitHub branch
   protection and protected environments are the real enforcement.
-- **Handoffs use the packet convention** carried in each agent's body: one owner, pinned SHAs,
-  evidence labels preserved, taint marked, "what I did NOT do" stated.
+- **Handoffs use the packet convention** carried in each agent's body: one owner, the change named,
+  release artifacts pinned to a full SHA, evidence labels preserved, taint marked, "what I did NOT
+  do" stated.
 - **Learning is reviewable repository state, not model memory.** Every durable operational discovery
   receives a `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable` disposition with
   evidence and an owner. An agent never treats its own assertion as accepted knowledge.

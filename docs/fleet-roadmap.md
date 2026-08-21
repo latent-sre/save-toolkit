@@ -894,6 +894,122 @@ remains in the code diff. See the
 follow-up threads against exact head `9fef1486`, linking the final whole-diff verdict. Close
 SCRIPTS-001 only after that review-state disposition is durable on GitHub.
 
+### DOCTOR-001 — make `fleet_doctor` diagnose the guard, not just the checkout
+
+**Status:** `ready` (2026-08-14)
+
+**Outcome:** A user whose Bash suddenly denies session-wide can run one command and learn why.
+`scripts/fleet_doctor.py` reports whether the `PreToolUse` hook is registered in the installed
+plugin, whether a Python on the hook's candidate list answers with the guard's `42`/`43` exit
+codes, and whether the guard file resolves under `CLAUDE_PLUGIN_ROOT` — and it runs from an
+installed plugin, not only from a repository checkout.
+
+**Source:** Owner-requested usability review, 2026-08-13. `fleet_doctor` covers git revision,
+worktree state, fleet contracts, plan status, host CLIs, plugin inventory, and Codex agent parity —
+none of which is a failure mode users actually hit. The three that are load-bearing are unchecked:
+the hook is the only mechanism that arms the guard (`scripts/readonly-guard.py` docstring), and
+`scripts/readonly-guard-hook.sh` denies **all** Bash session-wide, main loop included, when no
+interpreter answers 42/43. That is the blast radius of a missing Python or an unset
+`CLAUDE_PLUGIN_ROOT`, and today it presents as "Bash mysteriously stopped working" with no
+diagnostic. `REPO_ROOT = Path(__file__).resolve().parents[1]` plus imports of `validate_fleet` and
+`check_plan_status` also make the tool checkout-only, so the marketplace user who most needs it
+cannot run it.
+
+**Prerequisites:** Preserve the existing evidence-envelope contract and the rule that a missing CLI
+is `skip`, never `pass`. The interpreter probe must assert the exact 42/43 answer rather than exit
+0 — accepting exit 0 is the stand-in-interpreter hole the exit codes exist to close, and a
+diagnostic that repeats it would certify a disarmed guard as healthy. Repository-dependent checks
+must degrade to `skip` outside a checkout instead of failing the run.
+
+**Acceptance:** Red-first tests cover hook registered/absent, interpreter answering 42/43 versus
+exit 0 versus absent, and guard file present/missing; the tool returns useful output with no
+checkout present; the guard's own suite and Gate A pass; no new dependency (standard library only).
+
+**Next action:** Add the interpreter-answer probe first — it is the single highest-value check and
+needs no host inventory work.
+
+### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
+
+**Status:** `blocked` (2026-08-20) — blocked on ROUTE-001's re-freeze window, not on effort.
+
+**Outcome:** `skills/gcp-ops/SKILL.md` stops telling agents that a quoted `severity>=ERROR` trips the
+read-only guard, which stopped being true when PR #112 loosened the guard's proven-safe false
+positives.
+
+**Source:** PR #112. The branch originally corrected this sentence, but the file's bytes are the
+ROUTE-001 canary body: `evals/run_codex_routing.py`'s `CANARY_SKILL_BODY_SHA256` pins
+`plugins/save-toolkit/skills/gcp-ops/SKILL.md`, and `evals/codex_trial.py` raises
+`skill-body-mismatch` on any edit. The edit was therefore reverted so #112 could land, on the same
+reasoning this file already applies to the frozen scenario bytes — re-freezing a hash-bound manifest
+invalidates the prior independent review.
+
+**Interim mitigation (in place):** `skills/obs-logs/references/gcp-logging.md` carries the correct
+behavior, probe-cited, and `gcp-ops` already routes Logging query-language detail to that reference
+rather than owning it. The stale sentence is in the triage-flow skill; the query-construction skill
+an agent is told to load is right.
+
+**Verified 2026-08-20** by probing `scripts/readonly-guard.py` on the #112 branch:
+`gcloud logging read 'severity>=ERROR AND resource.type=cloud_run_revision' --freshness=1h` returns
+exit 42 (allow); the same filter unquoted returns exit 43 (deny). On `origin/main`'s guard the quoted
+form returns exit 43, so the sentence is correct on main and becomes stale only once #112 merges.
+
+**Prerequisites:** ROUTE-001 reaches a point where the canary body may be re-frozen and
+independently re-reviewed. This item must not pre-empt that sequencing.
+
+**Acceptance:** `gcp-ops` states the guard's real behavior, `CANARY_SKILL_BODY_SHA256` matches the
+new bytes, the canary is re-run rather than re-derived, and Gate A passes.
+
+**Next action:** None until ROUTE-001 opens its re-freeze window. Do not edit `gcp-ops/SKILL.md` or
+bump the pin before then.
+
+### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
+
+**Status:** `ready` (2026-08-13)
+
+**Outcome:** A user who opens any of the 29 skills reaches actionable content within a few lines: the
+evidence-default statement is one line per `SKILL.md` (kept per-file because host projections load
+without the fleet guide), worked examples carry their provenance as a single footnote instead of a
+paragraph retracting the example, superseded schema versions live at a tag rather than in every
+install, and the packaging question for maintenance skills has a recorded decision.
+
+**Source:** Owner-requested usability review, 2026-08-13 (evidence recorded inline here; measured
+against this repository at the review session's checkout). Findings, each `[sourced]` to that
+review: the identical 4-line evidence-default banner opens 29/29 `SKILL.md` files; first actionable
+content starts at line 16–19 (mean 16.7), and `skills/service-onboarding/SKILL.md` stacks two
+banners so content starts at line 25 of 72; provenance boilerplate totals ~249 lines (8.2% of the
+SKILL.md corpus) with 155 `[unverified]` markers across bundles; two worked examples retract
+themselves (`skills/pcf-deploy/SKILL.md` manifest-name interaction; `skills/runbook/SKILL.md`
+example footer); `skills/operational-learning/` is 3,714 lines — 27% of toolkit bytes — including
+three schema versions, two migration scripts, and a drift watcher, and `skills/agent-authoring/` is
+1,678 lines, both shipped to every end user.
+
+**Correction (2026-08-13, PR #112 review):** this item was filed claiming six tracked
+`__pycache__/*.pyc` files under `skills/operational-learning/scripts/`. That claim was false and is
+withdrawn — `git ls-files` finds no tracked bytecode at this commit or its parent, and `.gitignore`
+has excluded `__pycache__/` and `*.pyc` throughout. The reviewing agent observed an *untracked*
+directory generated by running the test suite and reported it as committed; the claim was labeled
+`[sourced]` and promoted here without the one-command check that would have refuted it. Recorded
+rather than silently deleted: it is a worked example of the failure the evidence convention exists
+to prevent, and of why an agent's own assertion is never accepted knowledge.
+
+**Prerequisites:** None blocking. Verified during the review: no validator enforces the banner's
+current 4-line text, so the collapse is prose-plus-regeneration. Constraints to respect: the
+one-line form must survive in every generated projection (Copilot/Codex load skills without
+AGENTS.md, so a plugin-level-only statement disappears there); schema parking follows the
+`pre-trim-2026-08-02` precedent; `knowledge_update.py` currently accepts v1 and v2 packets, so
+parking v1/v2 is a validator-contract change needing its own red-first fixtures; the
+maintenance-skill packaging split stays deferred until after the first release (the accepted
+packaging ADR governs the surface).
+
+**Acceptance:** All 29 `SKILL.md` files open with a ≤1-line evidence default and adapters
+regenerate byte-clean; the two self-retracting examples keep their labels as one-line footnotes;
+superseded schemas and migration scripts are parked at a tag with
+`operational-learning` updated to the current version only — or an explicit decision records why
+they stay; Gate A passes; the scribe-bundle required phrases in `validate_fleet.py` are untouched.
+
+**Next action:** Collapse the banner in the 29 canonical `SKILL.md` files and regenerate adapters —
+the smallest step, independent of the schema and packaging decisions.
+
 ## Decisions needed
 
 ### REVIEW-001 — enforce final-SHA review reconciliation
