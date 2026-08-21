@@ -1,0 +1,137 @@
+# Spring Boot mechanics
+
+Read this when building in Java + Spring Boot — the JVM default named in [stack](stack.md). These
+are the stack-specific mechanics behind the language-neutral rules; in another stack, satisfy the
+same rules with that stack's idioms.
+
+The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conflict, SKILL.md wins.
+
+Upstream is at Spring Boot 4.1.x *[sourced: Maven Central `org.springframework.boot:spring-boot`
+4.1.1, checked 2026-08-21]*; the 3.5 line is still maintained. The version a given repository
+runs is `[unverified]` until read from its build file — Boot 4 split several starters into
+per-module artifacts (noted below where it bites), so check before copying a dependency coordinate.
+
+## Contents
+
+- Shape of the app
+- Request and response contracts
+- Dependency injection
+- Service layer owns transactions
+- Operability
+- Testing
+
+## Shape of the app
+
+- **Layered layout**: `web/` (thin `@RestController`s), `api/` (request/response records),
+  `domain/` (entities + services), `persistence/` (Spring Data repositories), plus a
+  `@ConfigurationProperties` class per concern. Controllers stay thin — a handler that hashes
+  passwords or writes rows is the anti-pattern; it can't be tested or reused without HTTP.
+- **Config via `@ConfigurationProperties` + `@Validated`**: one typed class per prefix, bound once
+  at startup. `@Validated` is what makes it the validate-at-startup rule — binding runs
+  `jakarta.validation` constraints **before** `@PostConstruct`, and a failure is a startup failure
+  with the property name, rejected value, and origin file in the report. Without `@Validated` the
+  constraints are silently ignored and a missing `DATABASE_URL` surfaces on first query instead.
+  *[sourced: Spring Boot `ConfigurationPropertiesBinder` and `external-config.adoc`; reviewed
+  2026-08-21]*
+- **On PCF, credentials arrive through `VCAP_SERVICES`** per [stack](stack.md). `java-cfenv-boot`
+  parses it into Spring properties at environment post-processing time, activating only when the
+  Cloud Foundry platform is detected, so the same jar runs locally against `application.yml`.
+  *[sourced: `pivotal-cf/java-cfenv` README and `CfEnvironmentPostProcessor`; reviewed
+  2026-08-21]*
+- **Schema changes go through Flyway** (`spring-boot-starter-flyway` **plus** the engine module —
+  `flyway-database-postgresql`, `flyway-mysql`; the starter alone covers only embedded databases).
+  Migrations run at startup by default. For a non-embedded database `spring.jpa.hibernate.ddl-auto`
+  defaults to `none`; leave it there — `update` against production is not a migration strategy.
+  Live migration mechanics on a database with data — expand → migrate → contract, lock-light DDL,
+  restores — belong to the `save-toolkit:database-reliability` skill, not this file.
+  *[sourced: Spring Boot `data-initialization.adoc`; reviewed 2026-08-21]*
+- **Graceful shutdown is on by default** (`server.shutdown=graceful`); in-flight requests drain for
+  `spring.lifecycle.timeout-per-shutdown-phase` (default 30s). That is where SKILL.md's graceful
+  shutdown lives — do not reimplement it in a shutdown hook. If you raise the phase timeout, raise
+  the platform's stop grace period to match or the drain gets SIGKILLed mid-request.
+  *[sourced: Spring Boot `graceful-shutdown.adoc`, `cloud.adoc`; reviewed 2026-08-21]*
+
+## Request and response contracts
+
+- **Records are the DTOs**, one per direction per resource (`CreateOrderRequest` /
+  `OrderResponse`). A controller returns the response record, never the entity — that is what
+  makes "never return ORM objects" enforceable, and it is why the Jackson `@JsonIgnore` on a
+  password field is the wrong layer: the field should not be in the type at all.
+- **`@Valid` on every `@RequestBody`**; cross-field rules as a class-level constraint on the
+  record. Spring raises `MethodArgumentNotValidException` for you.
+- **One RFC 9457 shape everywhere** via a `@RestControllerAdvice` extending
+  `ResponseEntityExceptionHandler`: domain exceptions map to `ProblemDetail.forStatusAndDetail`
+  with `type`, `title`, and extension fields set; override `handleMethodArgumentNotValid` to put
+  the field errors in an extension property. Set `spring.mvc.problemdetails.enabled=true` so the
+  framework's own exceptions (unknown route, unsupported media type) render as problem+json too
+  instead of the default error attributes shape. *[sourced: Spring Boot `servlet.adoc`; shape
+  confirmed against three OSS handlers via GitHits `get_example`; reviewed 2026-08-21]*
+- **Validation failures are `422`, not `400`.** Spring's default for a `@Valid` failure is
+  `400`, and the common OSS handler copies that. SKILL.md's contract reserves `400` for malformed
+  and `422` for valid-shape-bad-value, so the override above passes `HttpStatus.UNPROCESSABLE_CONTENT`
+  explicitly rather than the status the framework hands it.
+
+## Dependency injection
+
+- **Constructor injection only**: one constructor, `final` fields, no `@Autowired` on it. A class
+  whose constructor lists six collaborators is telling you it does too much; field injection hides
+  that and makes the class unconstructable in a plain unit test.
+- Split **authentication** (the Spring Security filter chain → `401` + `WWW-Authenticate`) from
+  **authorization** (`@PreAuthorize` on the service method → `403`) — that's how the 401/403
+  distinction in [API surface design](api-design.md) stays honest. Method security belongs on the
+  service, not the controller, so a second caller of the service gets the same check.
+
+## Service layer owns transactions
+
+- **`@Transactional` on the service method**, not the repository and not the controller. The
+  proxy only intercepts calls that arrive from *outside* the bean: a `public` method calling its own
+  `@Transactional` sibling via `this` runs with **no transaction at all**, and the code appears to
+  work until a rollback test. Move the transactional method to a separate bean or annotate the
+  entry point. *[sourced: Spring Framework `transaction/declarative/annotations.adoc`,
+  `core/aop/proxying.adoc`; reviewed 2026-08-21]*
+- **Let the database enforce uniqueness**: attempt the insert, catch
+  `DataIntegrityViolationException`, translate to a typed domain error. A `findBy`-then-`save`
+  precheck is a race; the unique index is the truth — which means the index must exist in the
+  migration. The write-side transaction-boundary rules live in [persistence](persistence.md).
+- **Set `spring.jpa.open-in-view=false`.** The default registers `OpenEntityManagerInViewInterceptor`,
+  which keeps the persistence context — and its connection — open for the whole request so views
+  can lazy-load. In an API service that means a connection held while you call an upstream, and
+  a `LazyInitializationException` that only appears once you turn it off in production. Turn it
+  off on day one and fetch what the response needs inside the transaction.
+  *[sourced: Spring Boot `data/sql.adoc`; reviewed 2026-08-21]*
+- **Blocking I/O is fine on virtual threads** (`spring.threads.virtual.enabled=true`, Java 21+;
+  Java 24+ recommended). That is this stack's answer to "don't block the request thread" — not a
+  reactive rewrite. Thread-pool properties stop applying once it's on, and synchronized blocks
+  around I/O can pin the carrier thread; JFR surfaces pinning. *[sourced: Spring Boot
+  `spring-application.adoc`; reviewed 2026-08-21]*
+
+## Operability
+
+- **Actuator probes are auto-configured**: `/actuator/health/liveness` and `/readiness` are
+  separate health groups, on by default, wired to the application's availability state — so
+  readiness goes `OUT_OF_SERVICE` during graceful shutdown while liveness stays `UP`. Point the
+  platform health check at **readiness**. If management runs on its own port, set
+  `management.endpoint.health.probes.add-additional-paths=true` so the probes are also served on
+  the main port the router actually reaches. *[sourced: Spring Boot `actuator/endpoints.adoc`,
+  `AvailabilityProbesAutoConfiguration`; reviewed 2026-08-21]*
+- Micrometer is on the classpath with Actuator; the RED metrics and trace propagation that
+  [stack](stack.md) requires come from it plus the OTel bridge — the `obs-pipeline` skill owns
+  the exporter wiring.
+
+## Testing
+
+- **Integration tests drive the real app** with `@SpringBootTest(webEnvironment = RANDOM_PORT)`
+  against a **real database in Testcontainers**, wired by `@ServiceConnection` on the container
+  field — no datasource URL properties in the test at all. Needs the `spring-boot-testcontainers`
+  test dependency; a `GenericContainer` needs `@ServiceConnection(name = "...")` because Boot
+  can't infer the service from an untyped container. *[sourced: Spring Boot
+  `testing/testcontainers.adoc`; reviewed 2026-08-21]*
+- **Slices for the layer under test**: `@WebMvcTest` for controller + advice + validation with
+  `MockMvc` (the problem+json contract is tested here, cheaply); `@DataJpaTest` for repository
+  queries against the container. Slices skip `@Configuration` classes, so a custom
+  `WebMvcConfigurer` needs an explicit `@Import`. In Boot 4 the slices ship per module
+  (`spring-boot-webmvc-test`, etc.) — another reason to read the build file first.
+  *[sourced: Spring Boot `testing/test-modules.adoc`, `spring-boot-applications.adoc`; reviewed
+  2026-08-21]*
+- **Mock the upstreams with WireMock** and test the failure paths SKILL.md names — the timeout
+  fires, the retry backs off, the breaker opens. Resiliency code is worthless untested.

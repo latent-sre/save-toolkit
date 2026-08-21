@@ -135,6 +135,7 @@ review packet.
 | endpoint/resource/status/list design or a published API change | [API surface design](./references/api-design.md) |
 | choosing a stack for a greenfield service | [stack](./references/stack.md) |
 | building in Python + FastAPI (the greenfield default) | [FastAPI mechanics](./references/fastapi.md) |
+| building in Java + Spring Boot (the JVM default) | [Spring Boot mechanics](./references/spring-boot.md) |
 | calling any upstream or third-party API | [consuming-apis](./references/consuming-apis.md) |
 | a queue, a scheduled job, or an inbound webhook | [background-work](./references/background-work.md) |
 | streaming to clients (SSE or WebSocket) | [live-data](./references/live-data.md) |

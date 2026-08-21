@@ -6,8 +6,10 @@ if you are working in one, you do not need this file.
 The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conflict, SKILL.md wins.
 
 ## Framework & observability
-- Python is primary → **FastAPI** (pydantic validation + async + OpenAPI for free); Flask is fine for
-  small; Go → `net/http`/chi. Follow the repository's established language conventions for the implementation.
+- Python → **FastAPI** (pydantic validation + async + OpenAPI for free); Flask is fine for small.
+  Java/JVM → **Spring Boot** (the team's established JVM framework; mechanics in
+  [spring-boot.md](spring-boot.md)). Go → `net/http`/chi. Follow the repository's established
+  language conventions for the implementation.
 - Emit **RED metrics + structured logs + trace propagation**, including approved request/correlation
   fields, and expose distinct **health/readiness endpoints** for PCF. Deployment execution belongs to
   the human release owner after the target, action, health check, and rollback are approved.
