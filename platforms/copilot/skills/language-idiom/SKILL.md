@@ -1,7 +1,7 @@
 ---
 name: language-idiom
 description: >-
-  Write, review, test, debug, or safely refactor Python, TypeScript, Bash, PowerShell, and Go using
+  Write, review, test, debug, or safely refactor Python, Java, TypeScript, Bash, PowerShell, and Go using
   language-specific conventions plus the bundled tests-first and behavior-preserving-refactoring
   processes. Triggers: 'write this in Python', 'review this Bash script', 'refactor this Go code'.
   Ownership map only—not a load: backend-craft owns API/resiliency design and frontend-craft owns
