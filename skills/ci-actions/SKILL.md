@@ -58,7 +58,9 @@ stealing code) is the cautionary tale — assume any action you don't pin can ch
   not treat `id-token: write` as a hardening step on this stack. It becomes relevant only for a
   cloud IdP target — see the GCP note in the deploy section.
 - **Pin third-party actions by full commit SHA** (tags are mutable), version in a trailing comment:
-  `- uses: actions/checkout@<40-char-sha> # v4.2.2`. Re-pin deliberately (Dependabot can propose SHA
+  `- uses: actions/checkout@<40-char-sha> # v7.0.1`. Some actions no longer publish floating major
+  tags at all (`astral-sh/setup-uv` dropped `@v8`-style tags from v8.0.0 — only full release tags
+  exist), so the comment must name the full tag. Re-pin deliberately (Dependabot can propose SHA
   bumps), read the diff when you do, and give routine re-pins a **cooldown** — adopt a release only
   after it has been public a few days, because compromise campaigns count on fast adoption before
   detection catches the malicious version. One exception: a fix for a disclosed vulnerability in the
@@ -72,7 +74,10 @@ stealing code) is the cautionary tale — assume any action you don't pin can ch
   them through a quoted `env:` var and reference `"$VAR"`.
 - **Treat `pull_request_target` as dangerous:** it runs *your* workflow with repo secrets but can be
   triggered by untrusted fork PRs ("pwn request"). Don't check out + build fork code under it; prefer
-  plain `pull_request` (no secrets) for untrusted contributions.
+  plain `pull_request` (no secrets) for untrusted contributions. `actions/checkout` **v7.0.0+ refuses
+  to check out a fork at all** under `pull_request_target` and `workflow_run` — a workflow that
+  relied on it fails on upgrade, which is the action telling you the design was wrong.
+  *[sourced: actions/checkout CHANGELOG v7.0.0; reviewed 2026-08-21]*
 - **Fork PRs don't get secrets, by design** — a workflow that requires a secret to pass will always
   fail on fork contributions. Split it: the required checks run without secrets, the secret-needing
   job runs post-merge or on a label.
@@ -99,7 +104,10 @@ the artifact was built by your pipeline from your source, not swapped in. Pin ev
 - **Cache the dependency store, not the build output**, with `actions/cache` (or `setup-*` built-in
   caching), keyed on the lockfile hash. A cache key that ignores the lockfile serves stale
   dependencies — a debugging nightmare that looks like flakiness. **Never cache anything derived from
-  untrusted PR code into a shared key.**
+  untrusted PR code into a shared key.** Tooling is starting to enforce this: `astral-sh/setup-uv`
+  v10.0.0+ with `enable-cache: auto` **disables the cache on `pull_request_target`, `workflow_run`,
+  and `release` events** to block cache poisoning — so a cache "miss" on those events is the
+  default, not a bug. *[sourced: astral-sh/setup-uv releases v10.0.0; reviewed 2026-08-21]*
 - **Concurrency** to cancel superseded runs on a branch: `concurrency: { group: ${{ github.ref }},
   cancel-in-progress: true }` (but **not** for prod deploys — never cancel a deploy mid-flight).
 - Upload build outputs with `actions/upload-artifact`; download in the deploy job to promote the *same*
@@ -111,6 +119,12 @@ PCF foundations and on-prem services are usually not reachable from GitHub-hoste
 that run `cf` against a foundation. Keep them patched and least-privileged; restrict which workflows can
 use them. Prefer **`--ephemeral`** runners (one job per runner, fresh each time) so a poisoned job can't
 persist and tamper with the next — and **never** attach self-hosted runners to public repos.
+
+Keep the runner binary current on the RHEL 9 hosts: `actions/checkout` moved to **Node 24 at
+v5.0.0**, and other first-party actions follow — a self-hosted runner whose bundled Node is too old
+fails the step before your workflow runs a line. GitHub-hosted runners carry the right Node already;
+self-hosted ones only do if someone updates them. *[sourced: actions/checkout CHANGELOG v5.0.0;
+reviewed 2026-08-21]*
 
 ## Deploy to PCF from Actions (paste-ready planning example)
 Use a self-hosted runner with a pinned cf CLI v8 installed (or installed from an internal,

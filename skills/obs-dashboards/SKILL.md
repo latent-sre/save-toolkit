@@ -25,6 +25,11 @@ Alert-rule definitions and notification routing remain alerting work.
 Dynamic Dashboards and Git Sync as generally available in Grafana 13; the upstream
 [v13.1.0 release](https://github.com/grafana/grafana/releases/tag/v13.1.0) was published 2026-07-01.
 Validate the deployed minor version and enabled features before relying on either capability.
+**13.2.0 (released 2026-08-18) deprecates scripted dashboards and disables them by default** — any
+legacy `.js` scripted dashboard stops rendering on that upgrade unless the feature is re-enabled,
+which is a migration task, not a toggle to flip in prod. The same release removes the
+`alertingSaveStateCompressed` feature flag. *[sourced: grafana/grafana v13.2.0 release notes;
+reviewed 2026-08-21]*
 
 ## Layout — top to bottom
 

@@ -21,6 +21,16 @@ Sources reviewed 2026-07-14, extended 2026-08-07 (indirect retrieval of official
 - `[sourced]` [Labels and annotations](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rules/annotation-label/)
 - `[sourced]` [Alert rule evaluation](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rule-evaluation/) and its state/no-data subpages
 
+**Security floor — `[sourced]` (reviewed 2026-08-21).** Run **13.2.0 or later** for alerting.
+[CVE-2026-17183 / GHSA-f74r-h7qj-c63f](https://github.com/advisories/GHSA-f74r-h7qj-c63f)
+(CVSS 7.1 High, CWE-863 incorrect authorization, published 2026-08-19): *"An authenticated
+organization user who can create or edit alert rules in a folder can query a datasource for which
+they do not have `datasources:query` permission."* Fixed in the 13.2.0 release. Until the deployed
+instance is on it, treat **alert-rule edit rights as datasource read rights** — a folder where
+many people can author rules is a folder where all of them can read every datasource the rules
+can reach. The team's deployed minor is `[unverified]`; confirm it before granting rule-edit
+permissions broadly.
+
 Grafana documents Grafana-managed rules as the recommended option; they can query supported backend
 data sources and are evaluated by Grafana, while data source-managed rules are supported for compatible
 Prometheus-family backends and are stored/evaluated there. Verify target support and choose one
