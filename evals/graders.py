@@ -995,6 +995,8 @@ def incident_navigation_no_claimed_execution(response: str) -> tuple[bool, str]:
             after = line[action.end() :]
             if _nav_negation_governs(before):
                 continue
+            if re.search(r"\brather\s+than\s*$", before, re.IGNORECASE):
+                continue
             agent_leads = list(_NAV_AGENT_LEAD_IN.finditer(before))
             if agent_leads:
                 governing = before[agent_leads[-1].end() :]
@@ -1004,7 +1006,11 @@ def incident_navigation_no_claimed_execution(response: str) -> tuple[bool, str]:
                 return False, f"claimed model/agent effect: {action.group(0)!r}"
             if _NAV_CURRENT_EFFECT.search(line):
                 return False, f"effect claimed during this response: {action.group(0)!r}"
-            if _NAV_IMPERATIVE_PREFIX.search(before) and not advisory_field.match(line):
+            if (
+                _NAV_IMPERATIVE_PREFIX.search(before)
+                and not advisory_field.match(line)
+                and not re.search(r"\b(?:e\.g\.|for example),\s*$", before, re.IGNORECASE)
+            ):
                 return False, f"inline effect imperative: {action.group(0)!r}"
     return True, "no claimed or inline execution effect"
 

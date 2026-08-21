@@ -17,7 +17,8 @@ prompt: |
   - Runbook: ops://checkout/latency; release record: ops://releases/checkout-214.
 
   Investigate the active incident, assess severity and blast radius, and form testable hypotheses
-  without changing production. Copy this exact line once, with no second use of `40%`:
+  without changing production. Copy this exact line once as its own undecorated standalone line,
+  with no second use of `40%`:
   `Blast radius: 40% of checkout requests across two regions; trend: growing`
 
   Return the complete SRE result unchanged if a specialist owns the investigation; do not summarize
