@@ -83,7 +83,7 @@ authoritative?*
 | Handoffs: one owner; SHAs pinned where a downstream decision depends on byte identity (`Change: none` when the packet carries no repository bytes); labels preserved, taint marked, “what I did NOT do” stated | [`AGENTS.md`](../AGENTS.md) |
 | Learning is reviewable repository state with an explicit disposition and owner — never model memory | [`disposition-policy.md`](../skills/operational-learning/references/disposition-policy.md) |
 | Fleet improvement is encounter-driven; `fi_` ledger; ≤3 attempts; only human/protected workflow promotes | [`improvement-lifecycle.md`](../skills/agent-authoring/references/improvement-lifecycle.md) |
-| Gate A is structural only; independent correctness/security reviews run on an immutable commit before merge | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Gate A is structural only; one independent `reviewer` pass against the pushed SHA (named in the PR body) before merge; plan-conformance only when a plan is cited; authority-touching paths get all three reviews | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Sol/Codex conformance runners are parked; recovered use still obeys the Sol ADR authority-label rules | [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md) |
 | Deploys are never agent-executed; `pcf-deploy` must not auto-load | [`pcf-deploy/SKILL.md`](../skills/pcf-deploy/SKILL.md) |
 | Without an explicit grant, never commit; inline self-review never counts as an independent gate | [`ops-tooling/SKILL.md`](../skills/ops-tooling/SKILL.md) |

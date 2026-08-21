@@ -47,9 +47,13 @@ checkout form, not a regression: clone the commit under test and run the gate th
 snapshot's directory check to make it pass — the same predicate rejects link and reparse-point
 indirection, so loosening it is a security-boundary change needing its own review.
 
-Gate A is structural. Complete independent correctness, security/agentic-boundary, and plan-conformance
-reviews against an immutable candidate commit before merge. A review of mutable working-tree bytes is
-explicitly provisional. Run behavioral evaluations manually, never in CI, through the clean-room
+Gate A is structural. Before merge, run one independent `reviewer` pass — it carries both the
+correctness lens and the security/agentic-boundary lens — against the pushed candidate SHA, and name
+that SHA in the PR body so a skipped review is visible rather than silent. Add a plan-conformance
+review only when the PR cites a roadmap item or plan. A change that touches authority — `agents/`
+frontmatter, `hooks/`, `scripts/readonly-guard.py`, the release scripts and workflow, the adapter
+generator, or the GitHub rulesets — still gets all three reviews as separate passes. A review of
+mutable working-tree bytes is explicitly provisional. Run behavioral evaluations manually, never in CI, through the clean-room
 Claude runner (`evals/run_evals.py`); repository-local outputs must stay under `.eval-runs/`. The
 Codex/Sol conformance runners are parked at tag `pre-trim-2026-08-02` — if they are recovered,
 their same-user credential limits and always-false authority labels in
