@@ -962,6 +962,13 @@ new bytes, the canary is re-run rather than re-derived, and Gate A passes.
 **Next action:** None until ROUTE-001 opens its re-freeze window. Do not edit `gcp-ops/SKILL.md` or
 bump the pin before then.
 
+**Also queued for the same re-freeze (2026-08-21):** the OOM bullet in the frozen body still reads
+"exact memory-limit error text `[unverified]`". The text is resolved — *"While handling this request,
+the container instance was found to be using too much memory and was terminated."*, an HTTP 500/503
+log line with no exit code, and local-filesystem writes count toward instance memory — and now lives
+in [`references/cf-to-cloud-run.md`](../skills/gcp-ops/references/cf-to-cloud-run.md), which the
+body already routes to. Fold it into the body when the pin is bumped.
+
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
 **Status:** `ready` (2026-08-13)

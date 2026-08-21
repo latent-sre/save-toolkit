@@ -92,13 +92,16 @@ Why the rotation is load-bearing: without it, the second run pushes onto the app
 docs.cloudfoundry.org/devguide/deploy-apps/manifest-attributes.html]* Rollback before the rotation is
 route re-mapping; after `cf delete`, rollback is a fresh push of the previous artifact.
 
-> **[unverified] Manifest-name interaction.** The example manifest pins `name: checkout`; cf CLI v7+
-> may reject or reinterpret `cf push checkout-green -f manifest.yml` when the manifest names a
-> different app. This exact interaction has not been exercised on a real foundation. Before approving
-> the playbook, the human release owner must either create a reviewed `manifest-green.yml` stanza/file
-> naming `checkout-green`, or run the exact command on a bounded non-production foundation and attach
-> its output. Until that real-foundation evidence exists, do not label the command `[verified]` and do
-> not use it for production.
+> **Manifest-name interaction — `[sourced]` (cf CLI source, reviewed 2026-08-21).** The example
+> manifest pins `name: checkout`, and the playbook pushes `checkout-green` against it. The v7+ CLI
+> applies the app-name argument *before* anything else in the manifest: if the name is not found
+> and the manifest holds **exactly one** application, that stanza is renamed to the argument and the
+> push proceeds; if the manifest holds **several** applications, the push fails with
+> `AppNotInManifestError`. So the blue-green command is the documented path for a single-app
+> manifest — no `manifest-green.yml` is needed — and the thing to check before approving is that the
+> manifest has one stanza. *[sourced: `cloudfoundry/cli` `actor/v7pushaction/handle_app_name_override.go`
+> at `fcb3492`]* Behavior on the exact deployed CLI and foundation remains `[unverified]` until the
+> human release owner runs it once on a bounded non-production foundation and attaches the output.
 
 ## Built-in strategies (lower-risk changes)
 
@@ -109,8 +112,15 @@ cf continue-deployment checkout
 cf cancel-deployment checkout
 ```
 
-Support for canary and revisions varies by cf CLI/CAPI version and foundation configuration. It is
-`[unverified]` for the target until the human release owner records version and non-production output.
+A canary deploy can be stepped rather than all-at-once: `--instance-steps 5,10,20` names successive
+**percentages** of the web process's instances to roll out as canaries; the deployment pauses after
+each step for a `cf continue-deployment` or `cf cancel-deployment`, and continuing past the last step
+runs the full rolling deployment. Each canary after the first tears down one pre-deployment instance,
+and the deployment holds one extra instance over the target until it finishes — size quota for it.
+*[sourced: Cloud Foundry dev guide, rolling and canary deployments; reviewed 2026-08-21]*
+
+Which cf CLI and CAPI versions support canary and `--instance-steps` on the team's foundation is
+`[unverified]` until the human release owner records the versions and non-production output.
 
 With app revisions enabled, `cf rollback checkout --version <n>` reverts to a prior droplet + config
 (revisions/rollback are GA in cf CLI v8.10.0+; older v8.x marks them experimental).

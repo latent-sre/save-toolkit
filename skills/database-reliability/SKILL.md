@@ -17,7 +17,8 @@ description: >-
 # Database reliability
 
 Keep data **correct, durable, and fast**, and make schema change safe in production. Our apps run on
-PCF and bind to managed relational services (Postgres / MS SQL) — you operate at the
+PCF and bind to managed relational services (Postgres / MS SQL; a few apps embed SQLite, which is
+not an operated engine — the one rule that matters is in `stack-profile`) — you operate at the
 *application + data* layer, not the DB platform internals. Canonical `backend-craft` owns writing
 persistence and migration code; this skill owns operating it safely, diagnosing it, and proving recovery.
 
@@ -41,9 +42,20 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
   In Postgres, add the constraint as `CHECK (col IS NOT NULL) NOT VALID` first (cheap, takes a brief
   lock), backfill, then `VALIDATE CONSTRAINT` (which scans without blocking writes) — and set the column
   `NOT NULL` once validated. Don't `ALTER COLUMN … SET NOT NULL` directly on a hot, large table.
+- **In MS SQL the cheap path is a *new* column, not a tightened one.** `ADD col … NOT NULL DEFAULT
+  <constant>` is metadata-only and near-instant on **Enterprise edition** — the default is written to
+  a row only when that row is next updated or the index rebuilt. It is not online for `varchar(max)`,
+  `xml`, or CLR types, and it silently falls back to an offline rewrite if the addition pushes the row
+  past 8,060 bytes. Tightening an *existing* nullable column to `NOT NULL` still scans: backfill in
+  batches first, then alter in a quiet window, or use `ALTER COLUMN … WITH (ONLINE = ON)` — also
+  Enterprise, and it needs roughly **twice the space** while the hidden replacement column exists.
+  *[sourced: SQL Server `ALTER TABLE` reference; reviewed 2026-08-21]* The target's edition is
+  `[unverified]` — Standard edition gets none of the online paths.
 - Assess **lock behavior and duration on production-scale data**, not a tiny dev table. Know which DDL
-  is online for your engine (e.g. Postgres `CREATE INDEX CONCURRENTLY`, `ADD COLUMN` without a volatile
-  default; avoid blocking `ALTER`s on hot tables). Run migrations through tooling (Flyway/Liquibase/
+  is online for your engine (Postgres `CREATE INDEX CONCURRENTLY` and `ADD COLUMN` without a volatile
+  default; MS SQL `CREATE INDEX … WITH (ONLINE = ON)`, which takes only short locks at start and end
+  but is **Enterprise-only** and waits for every open transaction on the table before it begins —
+  a long-running report can stall the migration; avoid blocking `ALTER`s on hot tables). Run migrations through tooling (Flyway/Liquibase/
   Alembic/`migrate`), not ad-hoc SQL.
 
 ## Performance is a feature

@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest migrates gradually and varies run-to-run mid-migration
     strategy:
       matrix: { python-version: ["3.11", "3.12"] }
     steps:
