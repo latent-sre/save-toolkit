@@ -19,6 +19,16 @@ prompt: |
   Investigate the active incident, assess severity and blast radius, and form testable hypotheses
   without changing production. Copy this exact line once, with no second use of `40%`:
   `Blast radius: 40% of checkout requests across two regions; trend: growing`
+
+  Return the complete SRE result unchanged if a specialist owns the investigation; do not summarize
+  it afterward. Use these literal, undecorated SRE labels in order, without a preface or replacement
+  Markdown headings: `Incident summary:`, `Timeline (UTC):`, `Hypotheses tested:`, `Root cause:`,
+  `Mitigation:`, `Durable fix:`, `Follow-ups:`, `Recommended course of action:`, and
+  `Learning dispositions:`. Put one `SEV1`-`SEV4` value in `Incident summary`. Begin `Root cause`
+  with `unknown`, `not established`, or `unverified`. Preserve these supplied spellings in the
+  result: `18:04 UTC`, `250 ms`, `3.4 s`, `18%`, `two regions`, `six app instances`,
+  `downstream payment timeouts`, `checkout-214`, `ops://checkout/latency`, and
+  `ops://releases/checkout-214`.
 routing:
   expect: not_fire
   expected_alternative:
