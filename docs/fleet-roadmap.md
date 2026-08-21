@@ -822,6 +822,19 @@ output**, the way the canary's graders were, rather than a blanket loosening; an
 `cloud_run_rollback_packet`'s only-fenced-block rule deserves review on its own merits, since it
 penalises an answer that fences its commands — which is arguably the better answer.
 
+**Confirmed as a contract contradiction, not a model failure (2026-08-20).** ROUTE-001's paired
+Linux canary reached the same conclusion from the Terra side and labelled it `[inference]`, because
+its compact artifacts deliberately retain no raw responses and so cannot show which rendering each
+response used. The Claude run supplies exactly that missing evidence, so the finding is now
+`[verified]` across both providers: `claude-sonnet-5` failed
+`cloud_run_rollback_packet` on both trials of the same scenario while passing every content grader.
+The contradiction is in the repository's own bytes — `skills/gcp-ops/SKILL.md:29-35` instructs the
+answer to place its evidence commands in a fenced `bash` block, while the scenario's
+`cloud_run_rollback_packet` grader rejects any fence other than the single JSON packet. A model
+that follows the skill literally cannot pass the grader; a model that passes the grader has ignored
+the skill. Neither side is a model-quality signal, and no amount of prompt tuning resolves it while
+both contracts stand.
+
 **Next action:** Owner review of the three options, now with the calibration distinction above. Until
 that review, do not tune skills to satisfy these graders and do not edit the frozen scenario bytes;
 both would pre-empt the decision. Evidence
