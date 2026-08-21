@@ -23,7 +23,7 @@ matters.
 | [`commands/adr.md`](commands/adr.md) | The canonical `/save-toolkit:adr` scaffold — the one manual command |
 | [`hooks/hooks.json`](hooks/hooks.json) | The Claude-only session guard wiring. Plugin agents cannot carry `hooks:`, so this file is the *only* place the read-only guard fires; it is load-bearing and scoped to exact `agent_type` values |
 | [`hooks/copilot-hooks.json`](hooks/copilot-hooks.json) | The Copilot hook projection. The Claude hook's scoping field is absent from other hosts' payloads, so guarding is not portable through it |
-| [`scripts/readonly-guard.py`](scripts/readonly-guard.py) | The fail-closed allowlist guard for `sre` and `observability-engineer`. Exit codes are a contract: 42 allow, 43 deny, 44 indeterminate — the hook uses them to tell this guard from a stand-in interpreter |
+| [`scripts/readonly-guard.py`](scripts/readonly-guard.py) | The fail-closed allowlist guard for `sre`. Exit codes are a contract: 42 allow, 43 deny, 44 indeterminate — the hook uses them to tell this guard from a stand-in interpreter |
 | [`scripts/readonly-guard-hook.sh`](scripts/readonly-guard-hook.sh) | The standalone copy of the launcher whose one-line form `hooks/hooks.json` carries **inlined** — the JSON does not invoke this file. `test_hook_wiring.py` byte-syncs the two, so editing either alone fails the gate |
 | [`scripts/gate_a.py`](scripts/gate_a.py) | The single structural entrypoint. It discovers and runs every validator and `test_*.py` itself — do not transcribe its step list (read its docstring for why) |
 | [`.github/workflows/release.yml`](.github/workflows/release.yml) | The only prepared release effect path: exact-main-SHA preflight, protected annotated tag, strict remote-tag host smoke, protected immutable Release, then read-only verification. Its presence does not authorize dispatch |
@@ -84,7 +84,7 @@ To change anything a search turns up in a generated root: edit the canonical sou
 | `reviewer` | Correctness + security review of a change, two lenses in one pass | **Local read-only by tool absence** — only Read/Grep/Glob; no Skill, Bash, Write, web, external MCP, or delegation | — |
 | `repository-investigator` | Answer bounded questions from the current private or uncommitted checkout | **Local read-only by tool absence** — only `Read`/`Grep`/`Glob`; terminal | — |
 | `sre` | Investigate production/staging failures: triage, severity, hypothesis-driven root cause | **Guarded Bash** — read-only `cf`/`git`/`gh` triage under the allowlist; recommends mitigation, never applies it | `observability-engineer`, `scribe`, `researcher` |
-| `observability-engineer` | Steady-state observability as code: dashboards, alerts, SLOs, error budgets, pipelines | **Guarded Bash** — the `sre` read set plus non-executing config validators (`promtool check`, `jq empty`, `yamllint`); writes obs-config | `scribe`, `researcher` |
+| `observability-engineer` | Steady-state observability as code: dashboards, alerts, SLOs, error budgets, pipelines | **Unguarded Bash** ([ADR 2026-08-21](docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md)) — runs config validators, reads/exports live Grafana, and applies dashboard create/update over the HTTP API under the dashboard write rule (diff shown first, version pinned, export committed); every other live change stays recommend-only; writes obs-config | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documentation: runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local read/write, but **no Bash, web, or delegation**; terminal | — |
 | `researcher` | Cited public fact-finding from official docs, upstream code, packages, and advisories | **External-only by tool absence** — no local read, Bash, Write, Skill, or Agent | — |
 | `prompt-engineer` | The fleet's own files: agents, skills, descriptions, evals | Local read/write + Bash for repo tooling; no direct web tools | `researcher` |
@@ -102,7 +102,7 @@ trade-off and the revisit condition are recorded in
    `researcher` is external-only without local file reads, Bash, Write, Skill, or Agent. Every other
    canonical local role also lacks direct `WebFetch`/`WebSearch`; public lookups use a sanitized
    handoff to `researcher`.
-2. **The allowlist guard** for agents that need live Bash reads (`sre`, `observability-engineer`):
+2. **The allowlist guard** for the agent that needs live Bash reads and nothing more (`sre` — `observability-engineer` left the roster on 2026-08-21 so it can apply dashboards itself; see [the ADR](docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md)):
    [`scripts/readonly-guard.py`](scripts/readonly-guard.py), fail-closed, allowlist-not-denylist,
    wired once at plugin scope in [`hooks/hooks.json`](hooks/hooks.json) and self-scoped to exact
    guarded `agent_type` values. Plugin agent frontmatter hooks are ignored and forbidden here. The
@@ -116,8 +116,9 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   The graph is a convention plus main-thread enforcement, not a universal control.
 - The guard is a command filter, not a sandbox; OS-level least privilege remains the load-bearing
   control underneath it.
-- Removing direct web tools does not remove network capability from `sde` or `prompt-engineer`, which
-  retain unguarded Bash. Host/network outbound controls remain load-bearing for those lanes.
+- Removing direct web tools does not remove network capability from `sde`, `observability-engineer`,
+  or `prompt-engineer`, which retain unguarded Bash. Host/network outbound controls remain
+  load-bearing for those lanes.
 - The `researcher` input gate is cooperative: a caller can still place sensitive text in its prompt.
   Callers must send only sanitized public questions. The local/external split prevents the researcher
   from fetching checkout bytes itself; it is not a data-loss-prevention broker.
@@ -129,8 +130,8 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 - **A VS Code `tools:` list is a default, not a boundary.** Omitting a tool does disable it for the
   model, but a workspace agent's list loses to session tool selection, to a prompt file's own list,
   and to a chat deep link — and the tools picker writes the user's change back into the `.agent.md`
-  file. Only extension-contributed agents are read-only. So the omitted `execute` on `sre` and
-  `observability-engineer` states intent and narrows the default; it is not the Claude guard's
+  file. Only extension-contributed agents are read-only. So the omitted `execute` on `sre` states
+  intent and narrows the default; it is not the Claude guard's
   equivalent and must never be described as one. Real enforcement on that host is policy-delivered
   Copilot managed settings (`permissions.deny` with `Shell()`/`Read()`/`Edit()`/`Domain()` selectors,
   `ChatAgentMode`, the network-domain policies), which a repository cannot grant itself.

@@ -63,7 +63,7 @@ The example is `[unverified]`: it is the required approval-request shape, not ev
       incident fast path)* — verified, not assumed. Everything below is a record; branch
       protection is the control and must be checked by an authorized human or protected evidence job.
       Note: `gh api` is deliberately absent from the guarded-Bash allowlist (it can silently POST), so
-      a guarded `sre`/`observability-engineer` session cannot run this itself. A denial here is by design rather
+      a guarded `sre` session cannot run this itself. A denial here is by design rather
       than allowlist drift: still record it, but hand the command to the human or evidence job instead
       of opening an allowlist PR.
 
