@@ -857,46 +857,20 @@ def _nav_effect_is_safe_noun(action: str, before: str, after: str) -> bool:
             and re.match(r"\s*:\s*\S", after)
         )
     if normalized_action in {"change", "changes"}:
-        if normalized_action == "change" and re.search(
-            r"\b(?:latency|errors?|traffic|saturation|impact|scope|baseline|metric|signal)\s+$",
-            before,
-            re.IGNORECASE,
-        ) and re.match(r"\s*(?:$|[.,;:)])", after):
-            return True
-        if normalized_action == "changes" and re.search(
-            r"\b(?:recent|prior|previous|historical)\s+$", before, re.IGNORECASE
-        ) and re.match(r"\s*(?:$|[.,;:)])", after):
-            return True
         if re.search(r"\bproduction-$", before, re.IGNORECASE) and re.match(
             r"-gate\b",
             after,
             re.IGNORECASE,
         ):
             return True
-        if re.search(r"\b(?:the|a|this|that|approved|production)\s+$", before, re.IGNORECASE) and re.match(
-            r"\s*(?:$|[.,;:)]|\b(?:record|request|history|window|plan|control|evidence)\b)",
+        if _NAV_CURRENT_EFFECT.search(after) or re.match(
+            r"\s+(?:checkout|production|configuration|config|credential|route|"
+            r"traffic|instances?|service|state)\b",
             after,
             re.IGNORECASE,
         ):
-            return True
-        if re.search(
-            r"(?:\b(?:configuration|config|deploys?|recent|prior|previous|historical)\s+|/)\s*$",
-            before,
-            re.IGNORECASE,
-        ) and re.match(
-            r"\s*(?:$|[.,;:)]|/(?:release|deployment|config(?:uration)?)\b|"
-            r"\b(?:history|correlation|coincides?|correlates?|timing|status|record)\b)",
-            after,
-            re.IGNORECASE,
-        ):
-            return True
-        return bool(
-            re.match(
-                r"\s+(?:record|request|history|window|plan|control|evidence)\b",
-                after,
-                re.IGNORECASE,
-            )
-        )
+            return False
+        return True
     if normalized_action == "changed" and re.search(r"\bState\s+$", before) and re.match(
         r"\s*:\s*(?:no|yes)\b",
         after,
