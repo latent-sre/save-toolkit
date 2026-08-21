@@ -190,8 +190,15 @@ class HookWiringTests(unittest.TestCase):
             wrapper.write_text(f'#!/bin/sh\nexec "{Path(sys.executable).as_posix()}" "$@"\n', encoding="utf-8")
             wrapper.chmod(0o755)
             tools = os.path.dirname(cat)
+            # The tools dir is wherever `cat` lives -- /usr/bin on Linux, which also holds the real
+            # python3. So the stubs-only case stubs EVERY name the hook walks, ahead of it.
+            all_stubs = Path(tmp) / "all-stubs"
+            all_stubs.mkdir()
+            for name in ("python3", "python", "py"):
+                shutil.copy(stub, all_stubs / name)
+                (all_stubs / name).chmod(0o755)
             stub_then_real = os.pathsep.join([str(stub_dir), str(real_dir), tools])
-            stubs_only = os.pathsep.join([str(stub_dir), tools])
+            stubs_only = os.pathsep.join([str(all_stubs), tools])
 
             denied = run(stub_then_real, guarded_write)
             self.assertTrue(marker.exists(), "the stub was never consulted, so this proves nothing")
