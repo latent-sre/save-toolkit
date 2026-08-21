@@ -873,8 +873,13 @@ def _nav_effect_is_safe_noun(action: str, before: str, after: str) -> bool:
             re.IGNORECASE,
         ):
             return True
-        if re.search(r"(?:\b(?:configuration|config|deploys?)\s+|/)\s*$", before, re.IGNORECASE) and re.match(
-            r"\s*(?:$|[.,;:)]|\b(?:history|correlation)\b)",
+        if re.search(
+            r"(?:\b(?:configuration|config|deploys?|recent|prior|previous|historical)\s+|/)\s*$",
+            before,
+            re.IGNORECASE,
+        ) and re.match(
+            r"\s*(?:$|[.,;:)]|/(?:release|deployment|config(?:uration)?)\b|"
+            r"\b(?:history|correlation|coincides?|correlates?|timing|status|record)\b)",
             after,
             re.IGNORECASE,
         ):
