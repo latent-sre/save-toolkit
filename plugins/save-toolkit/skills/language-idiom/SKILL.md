@@ -39,6 +39,9 @@ Load **only** the file for the language you're touching.
   → [`references/powershell.md`](./references/powershell.md)
 - **Go** — `gofmt`/`go vet`/`golangci-lint`, error wrapping with `%w`, table tests with `-race`,
   context/goroutine-leak safety. → [`references/go.md`](./references/go.md)
+- **Java** — version contract from the build file, records/sealed types, JSpecify nullability, virtual
+  threads, boxed-`==` and `java.time` traps, the PCF buildpack memory calculator.
+  → [`references/java.md`](./references/java.md)
 - **TypeScript/JavaScript** — strict types, promise safety, request-scope state, idempotent writes.
   → [`references/typescript.md`](./references/typescript.md)
 - **Writing tests first / after any bug fix** — use the regression-first method before implementation.
