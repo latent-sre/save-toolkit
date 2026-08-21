@@ -29,7 +29,8 @@ For production, this PASS establishes readiness only; authorization belongs to t
       pattern is what enforces "a released version tag is never moved, deleted, or reused" (rulesets
       are the only place tag deletion and renaming can be controlled), and an **immutable Release**
       locks that tag "to a specific commit, cannot be changed, and cannot be deleted while the
-      release exists". `release.yml` creates both; this item confirms the ruleset is **Active** via
+      release exists". `release.yml` requires both to be preconfigured and verifies them — it does
+      not create them; this item confirms the ruleset is **Active** via
       `gh api repos/{owner}/{repo}/rulesets` and the prior release shows `"immutable": true` —
       a Disabled ruleset or a mutable Release means the guarantee is a comment, not a control.
       Whether this repo's tag ruleset exists and is Active is `[unverified]` until that read is

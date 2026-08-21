@@ -194,6 +194,10 @@ class GateLockTests(unittest.TestCase):
     `head` exits. A false red costs far more than the gate, so the gate refuses to start while
     another run holds the machine-wide lock, reclaims a lock whose holder is dead, and always
     releases its own.
+
+    Stale-lock reclamation is now ownership-preserving: the lock is an OS advisory lock
+    (``fcntl.flock`` on POSIX, ``msvcrt.locking`` on Windows) so the OS releases it when the
+    holder dies — no file-content race between a reclaimer and a just-acquired lock.
     """
 
     def setUp(self) -> None:
@@ -215,30 +219,77 @@ class GateLockTests(unittest.TestCase):
                 code = gate_a.main()
         return code, out.getvalue(), err.getvalue()
 
+    def _child_script_that_holds_lock(self):
+        """Return a Python script (str) that acquires the OS advisory lock on self.lock and
+        writes 'ready' to stdout, then waits on stdin before releasing.  Used to simulate a
+        live concurrent gate run in a subprocess."""
+        return (
+            "import os, sys\n"
+            f"lock_path = {str(self.lock)!r}\n"
+            "fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)\n"
+            "if os.name == 'nt':\n"
+            "    import msvcrt; os.lseek(fd, 0, os.SEEK_SET); msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)\n"
+            "else:\n"
+            "    import fcntl; fcntl.flock(fd, fcntl.LOCK_EX)\n"
+            "os.ftruncate(fd, 0); os.lseek(fd, 0, os.SEEK_SET)\n"
+            "os.write(fd, (str(os.getpid()) + '\\n/child\\n').encode())\n"
+            "sys.stdout.write('ready\\n'); sys.stdout.flush()\n"
+            "sys.stdin.readline()\n"  # hold lock until parent signals done
+            "os.close(fd)\n"
+        )
+
     def test_refuses_while_a_live_gate_holds_the_lock(self) -> None:
-        # This process is alive, so a lock naming our own pid is a live holder.
-        self.lock.write_text(f"{os.getpid()}\n/some/other/checkout\n", encoding="utf-8")
+        # A subprocess holds the OS advisory lock; this process must get GateBusy.
+        child = subprocess.Popen(
+            [sys.executable, "-c", self._child_script_that_holds_lock()],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+        )
+        try:
+            line = child.stdout.readline()
+            self.assertEqual("ready\n", line, "child subprocess did not acquire the lock")
 
-        def must_not_run(steps):
-            raise AssertionError("run_steps executed under a held lock")
+            def must_not_run(steps):
+                raise AssertionError("run_steps executed under a held lock")
 
-        code, _out, err = self._main(must_not_run)
-        self.assertNotEqual(0, code)
-        self.assertIn(str(os.getpid()), err)
-        self.assertIn(str(self.lock), err)
-        # The message has to say why, or the next reader deletes the lock and overlaps anyway.
-        self.assertIn("overlap", err.lower())
-        # The other run's lock is left untouched.
-        self.assertTrue(self.lock.exists())
+            code, _out, err = self._main(must_not_run)
+            self.assertNotEqual(0, code)
+            self.assertIn(str(child.pid), err)
+            self.assertIn(str(self.lock), err)
+            self.assertIn("overlap", err.lower())
+            # The child's lock file is left untouched (we must not unlink a held lock).
+            self.assertTrue(self.lock.exists())
+        finally:
+            child.stdin.write("\n")
+            child.stdin.flush()
+            child.wait(timeout=5)
 
     def test_stale_lock_from_a_dead_holder_is_reclaimed(self) -> None:
+        # Write a stale lock file (dead process, no OS lock held).  The new run must succeed.
         self.lock.write_text("999999\n/gone\n", encoding="utf-8")
         ran = []
-        with mock.patch.object(gate_a, "_pid_alive", return_value=False):
-            code, _out, _err = self._main(lambda steps: ran.append(True) or [])
+        code, _out, _err = self._main(lambda steps: ran.append(True) or [])
         self.assertEqual(0, code)
         self.assertEqual([True], ran)
         self.assertFalse(self.lock.exists(), "lock must be released after the run")
+
+    def test_concurrent_acquisition_is_refused(self) -> None:
+        # Directly exercise gate_lock in a cross-process scenario: a subprocess holds the OS
+        # advisory lock while this process tries to acquire the same lock; GateBusy must be raised.
+        child = subprocess.Popen(
+            [sys.executable, "-c", self._child_script_that_holds_lock()],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+        )
+        try:
+            line = child.stdout.readline()
+            self.assertEqual("ready\n", line, "child subprocess did not acquire the lock")
+            with self.assertRaises(gate_a.GateBusy) as cm:
+                with gate_a.gate_lock():
+                    pass
+            self.assertEqual(str(child.pid), str(cm.exception.holder_pid))
+        finally:
+            child.stdin.write("\n")
+            child.stdin.flush()
+            child.wait(timeout=5)
 
     def test_lock_names_this_run_and_is_released_after_success(self) -> None:
         seen = {}

@@ -179,33 +179,62 @@ def _read_holder(lock_path):
         return None
 
 
+def _os_lock_nonblocking(fd):
+    """Acquire an exclusive OS advisory lock on *fd* without blocking.
+
+    Returns True on success. Returns False if another process already holds the lock.
+    Uses ``fcntl.flock`` on POSIX and ``msvcrt.locking`` on Windows — both are stdlib.
+    """
+    if os.name == "nt":
+        import msvcrt
+        os.lseek(fd, 0, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        except OSError:
+            return False
+    else:
+        import fcntl
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return False
+    return True
+
+
+def _os_unlock(fd):
+    """Release the OS advisory lock on *fd* (Windows only; POSIX releases on close)."""
+    if os.name == "nt":
+        import msvcrt
+        os.lseek(fd, 0, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        except OSError:
+            pass
+
+
 @contextlib.contextmanager
 def gate_lock(lock_path=None):
     lock_path = Path(lock_path or LOCK_PATH)
-    for _attempt in range(2):
-        try:
-            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            break
-        except FileExistsError:
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
+    try:
+        if not _os_lock_nonblocking(fd):
+            # Another process holds the OS advisory lock; read its identity for the message.
             holder = _read_holder(lock_path)
-            if holder is not None and _pid_alive(holder[0]):
-                raise GateBusy(lock_path, holder[0], holder[1])
-            # Stale (dead holder, or unreadable): reclaim and retry the atomic create once.
+            raise GateBusy(lock_path, *(holder if holder is not None else ("?", "?")))
+        # We hold the lock — record our identity so a future GateBusy message names us.
+        os.ftruncate(fd, 0)
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.write(fd, ("%d\n%s\n" % (os.getpid(), ROOT)).encode("utf-8"))
+        try:
+            yield
+        finally:
             try:
-                os.unlink(lock_path)
+                os.unlink(str(lock_path))
             except FileNotFoundError:
                 pass
-    else:
-        raise GateBusy(lock_path, "?", "?")
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write("%d\n%s\n" % (os.getpid(), ROOT))
-    try:
-        yield
+            _os_unlock(fd)
     finally:
-        try:
-            os.unlink(lock_path)
-        except FileNotFoundError:
-            pass
+        os.close(fd)
 
 
 def run_steps(steps):

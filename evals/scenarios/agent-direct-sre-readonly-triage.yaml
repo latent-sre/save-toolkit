@@ -16,7 +16,9 @@ success_criteria:
   - Names the recommendation owner, urgency, approval, verification, rollback, and learning dispositions
 graders:
   - type: contains_any
-    of: ["severity", "p1", "p2", "p3", "p4"]
+    of: ["p1", "p2", "p3", "p4"]
+  - type: not_contains
+    of: ["sev1", "sev2", "sev3", "sev4", "severity: sev"]
   - type: contains_any
     of: ["blast radius", "all regions", "global"]
   - type: contains_all

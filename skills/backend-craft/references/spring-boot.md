@@ -22,10 +22,14 @@ per-module artifacts (noted below where it bites), so check before copying a dep
 
 ## Shape of the app
 
-- **Layered layout**: `web/` (thin `@RestController`s), `api/` (request/response records),
-  `domain/` (entities + services), `persistence/` (Spring Data repositories), plus a
+- **Package by feature**: each top-level package names a feature (`orders/`, `payments/`), and
+  contains its own internal layers — `web/` (thin `@RestController`s), `api/` (request/response
+  records), `domain/` (entities + services), `persistence/` (Spring Data repositories) — plus a
   `@ConfigurationProperties` class per concern. Controllers stay thin — a handler that hashes
   passwords or writes rows is the anti-pattern; it can't be tested or reused without HTTP.
+  Top-level packages named `controllers/`, `services/`, or `repositories/` are the package-by-layer
+  anti-pattern; the language-idiom Java rules require package-by-feature and reject layer packages
+  at the top level.
 - **Config via `@ConfigurationProperties` + `@Validated`**: one typed class per prefix, bound once
   at startup. `@Validated` is what makes it the validate-at-startup rule — binding runs
   `jakarta.validation` constraints **before** `@PostConstruct`, and a failure is a startup failure
@@ -81,6 +85,12 @@ per-module artifacts (noted below where it bites), so check before copying a dep
   **authorization** (`@PreAuthorize` on the service method → `403`) — that's how the 401/403
   distinction in [API surface design](api-design.md) stays honest. Method security belongs on the
   service, not the controller, so a second caller of the service gets the same check.
+  **`@PreAuthorize` is silently ignored unless method security is activated**: add
+  `@EnableMethodSecurity` (Boot 3+ / Spring Security 6+) to a `@Configuration` class; without it
+  an authenticated caller with insufficient privileges reaches the annotated method and receives no
+  `403`. Add an integration test that proves both an HTTP call and a direct service call are denied
+  when the caller lacks the required role or grant. *[sourced: Spring Security
+  `method/authorization.adoc`; reviewed 2026-08-21]*
 
 ## Service layer owns transactions
 
@@ -111,7 +121,10 @@ per-module artifacts (noted below where it bites), so check before copying a dep
 - **Actuator probes are auto-configured**: `/actuator/health/liveness` and `/readiness` are
   separate health groups, on by default, wired to the application's availability state — so
   readiness goes `OUT_OF_SERVICE` during graceful shutdown while liveness stays `UP`. Point the
-  platform health check at **readiness**. If management runs on its own port, set
+  **platform restart probe at liveness** (`/actuator/health/liveness`); expose readiness separately
+  for load-balancer traffic routing. Pointing the platform health check at readiness means a
+  dependency outage marks every instance unhealthy and triggers restarts, amplifying the outage
+  rather than routing around it. If management runs on its own port, set
   `management.endpoint.health.probes.add-additional-paths=true` so the probes are also served on
   the main port the router actually reaches. *[sourced: Spring Boot `actuator/endpoints.adoc`,
   `AvailabilityProbesAutoConfiguration`; reviewed 2026-08-21]*
