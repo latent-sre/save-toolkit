@@ -89,8 +89,13 @@ the artifact was built by your pipeline from your source, not swapped in. Pin ev
 ## Make it fast & correct
 - **Matrix** for multi-version testing: `strategy: { matrix: { python: ['3.11','3.12'] } }`.
 - **`timeout-minutes:` on every job** — a hung job holds a runner until the platform's 6-hour cap.
-- **Pin the runner image** (`ubuntu-24.04`, not `ubuntu-latest`) when reproducibility matters —
-  `latest` moves and breaks builds on the platform's schedule, not yours.
+- **Pin the runner image on GitHub-hosted jobs** (`ubuntu-24.04`, not `ubuntu-latest`).
+  `ubuntu-latest` resolves to Ubuntu 24.04 today, with `ubuntu-26.04` already published as a
+  preview label — the next `-latest` move is pending, not hypothetical. GitHub migrates the label
+  *gradually over 1–2 months*, so mid-migration the same workflow can draw a different OS version
+  from one run to the next; that run-to-run variance reads as flakiness, and pinning is the only
+  way to opt out. *[sourced: actions/runner-images README label table and "Latest Migration
+  Process"; reviewed 2026-08-21]* Self-hosted jobs select by runner label instead — see below.
 - **Cache the dependency store, not the build output**, with `actions/cache` (or `setup-*` built-in
   caching), keyed on the lockfile hash. A cache key that ignores the lockfile serves stale
   dependencies — a debugging nightmare that looks like flakiness. **Never cache anything derived from

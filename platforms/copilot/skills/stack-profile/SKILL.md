@@ -59,7 +59,40 @@ Cloud Trace join as additional backends via reference files in the obs skills �
 everything else in the right column.
 
 ## Languages & CI
-Python, Bash, PowerShell first (Go/TS where a repo already uses them). GitHub + GitHub Actions.
+Services are built in **Java/JVM, Python, JavaScript/TypeScript, and Go**. Bash and PowerShell are
+glue and automation, not service languages. GitHub + GitHub Actions; Bamboo is legacy.
+*[sourced: operator statement 2026-08-21]*
+
+**CI jobs authenticate from GitHub environment secrets**, not GitHub OIDC. This settles the hedge
+the `ci-actions` skill carries: do not design around a GitHub-OIDC→CredHub exchange — CredHub
+authenticates via UAA and no turnkey integration exists. *[sourced: operator statement 2026-08-21]*
+
+## Hosts & runners
+On-prem hosts and self-hosted Actions runners are **RHEL 9+**. GitHub-hosted Linux runners are
+Ubuntu (`ubuntu-latest` resolves to 24.04 today). Both classes are in active use, so portable shell
+must run on both: the effective **bash floor is 5.1**, past every pre-4.4 workaround.
+*[sourced: operator statement 2026-08-21; confirm exact minor versions on the target]*
+
+## Data stores
+PostgreSQL, SQL Server, and MySQL/MariaDB — **all running on-prem today**. **No Oracle is
+recorded.** A managed cloud database is a possible future addition alongside the GCP migration, but
+nothing is running there now: treat cloud-database guidance as not-yet-applicable rather than
+optional. Engine-specific migration, locking, and failover mechanics remain `[unverified]` per
+target until captured against a real instance. *[sourced: operator statement 2026-08-21]*
+
+## Incident response
+A formal on-call rotation is in place, with a four-tier severity ladder:
+
+| Tier | Meaning |
+|---|---|
+| **P1** | Critical |
+| **P2** | High |
+| **P3** | Medium |
+| **P4** | Low |
+
+Use these names directly — `incident-command`, `obs-alerting`, and `postmortem` refer to this
+ladder rather than inventing their own. Entry criteria per tier are **not yet recorded here**;
+capture them when the incident owner confirms them. *[sourced: operator statement 2026-08-21]*
 
 ## Stay in lane
 Stay in the app/ops lane; hand platform-internal problems to the platform team. GCP managed
