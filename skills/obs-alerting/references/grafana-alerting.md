@@ -48,6 +48,13 @@ evaluation owner—never duplicate the same rule in both paths.
   and an open upstream bug reports file provisioning failing to apply it (value stays 0 after
   export + reload — grafana/grafana #109367) — verify the running rule's state, not just the
   YAML, before trusting the flap filter.
+- **Recovery threshold** — not one of the four evaluation knobs but the same flap problem from the
+  query side: "the alert returns to the Normal or Recovering state only after the recovery
+  threshold is crossed." A rule that fires above 1000 ms and recovers only below 900 ms cannot
+  oscillate on a value hovering at 1000 — hysteresis that `for` and `keep_firing_for` (which are
+  time-based) do not give you. Set it on the threshold expression of every latency/ratio rule
+  whose input is noisy; leave it off where the signal is a step function. *[sourced: Grafana
+  alerting queries-and-conditions; reviewed 2026-08-21]*
 - **No-data state**: map to No Data (default — fires a `DatasourceNoData` alert), Alerting,
   Normal, or Keep Last State. Choose deliberately per the parent skill's missing-data rule: for a
   paging burn-rate rule, silent-telemetry-means-Normal is the false all-clear.
@@ -93,6 +100,15 @@ service/owner/severity labels to route and investigate it. Never place a token o
 rule, label, annotation, or tracked provider file; tracked alerting configuration contains no credentials.
 
 ## Contact points and notification policies
+
+**Notification templates are the message; annotations are the facts.** A notification template
+(Go template syntax, `{{ define "name" }} … {{ end }}`) is assigned to a contact point and "changes
+the title, message, and format of notifications" — it shapes what Slack or email shows, iterating
+`{{ .Alerts }}` with `.Status`, `.Labels`, `.Annotations.summary`, `.CommonLabels`. An annotation
+template, by contrast, fills the alert's own `summary`/`runbook_url` from query values. Keep the
+division: the runbook link and the measured value live in annotations so every channel gets them;
+the template only decides layout. A template that computes facts is a second source of truth that
+drifts from the rule. *[sourced: Grafana alerting, template notifications; reviewed 2026-08-21]*
 
 Contact points define where a notification can go; notification policies select contact points using
 labels, grouping, and timing. Keep the route inventory explicit:

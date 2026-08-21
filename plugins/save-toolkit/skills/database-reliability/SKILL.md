@@ -44,9 +44,19 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
   5. **Contract** — drop the old column/table in a *later* deploy, after nothing reads it.
 - **Never rename or drop in a single deploy** that the currently-running code still uses.
 - **Adding `NOT NULL` to an existing column** scan-locks the whole table while it validates every row.
-  In Postgres, add the constraint as `CHECK (col IS NOT NULL) NOT VALID` first (cheap, takes a brief
-  lock), backfill, then `VALIDATE CONSTRAINT` (which scans without blocking writes) — and set the column
-  `NOT NULL` once validated. Don't `ALTER COLUMN … SET NOT NULL` directly on a hot, large table.
+  Don't `ALTER COLUMN … SET NOT NULL` directly on a hot, large table. The safe shape depends on the
+  Postgres major:
+  - **18+**: `NOT NULL` is a catalogued, nameable constraint that accepts `NOT VALID` directly —
+    `ALTER TABLE t ADD CONSTRAINT t_col_nn NOT NULL col NOT VALID;` enforces it for new writes at
+    once, then `ALTER TABLE t VALIDATE CONSTRAINT t_col_nn;` scans under `SHARE UPDATE EXCLUSIVE`
+    without blocking writes. No `CHECK` detour, no second `SET NOT NULL` step.
+    *[sourced: PostgreSQL 18 release notes and `ALTER TABLE` reference; GA 2025-09-25; reviewed
+    2026-08-21]*
+  - **≤17**: add `CHECK (col IS NOT NULL) NOT VALID` first (cheap, brief lock), backfill, then
+    `VALIDATE CONSTRAINT`, and only then `SET NOT NULL` — which on these versions skips the scan
+    because a validated check already proves it.
+
+  The deployed major is `[unverified]`; `SHOW server_version;` before choosing.
 - **In MS SQL the cheap path is a *new* column, not a tightened one.** `ADD col … NOT NULL DEFAULT
   <constant>` is metadata-only and near-instant on **Enterprise edition** — the default is written to
   a row only when that row is next updated or the index rebuilt. It is not online for `varchar(max)`,
@@ -58,7 +68,9 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
   `[unverified]` — Standard edition gets none of the online paths.
 - Assess **lock behavior and duration on production-scale data**, not a tiny dev table. Know which DDL
   is online for your engine (Postgres `CREATE INDEX CONCURRENTLY` and `ADD COLUMN` without a volatile
-  default; MS SQL `CREATE INDEX … WITH (ONLINE = ON)`, which takes only short locks at start and end
+  default — and on 18+ generated columns are **virtual by default**, computed on read, so an
+  `ADD COLUMN … GENERATED ALWAYS AS (…)` no longer rewrites the table but does move that cost onto
+  every query; say `STORED` when you meant the old behavior *[sourced: PostgreSQL 18 release notes]*; MS SQL `CREATE INDEX … WITH (ONLINE = ON)`, which takes only short locks at start and end
   but is **Enterprise-only** and waits for every open transaction on the table before it begins —
   a long-running report can stall the migration; avoid blocking `ALTER`s on hot tables). Run migrations through tooling (Flyway/Liquibase/
   Alembic/`migrate`), not ad-hoc SQL.
