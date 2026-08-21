@@ -96,6 +96,16 @@ For artifacts you ship, attest provenance: `actions/attest-build-provenance` plu
 `actions/attest-sbom`, and verify downstream with `gh attestation verify`. This lets a consumer prove
 the artifact was built by your pipeline from your source, not swapped in. Pin every action by full SHA.
 
+**Publish as an immutable release** — this repo's own `release.yml` already requires it. Once
+published, "release assets cannot be modified or deleted" and the tag "is locked to a specific
+commit, cannot be changed, and cannot be deleted while the release exists"; publishing also
+"automatically generates a release attestation". Two consequences shape the workflow: build it as a
+**draft, attach every asset, then publish** — there is no adding a forgotten asset afterwards; and
+a bad release is handled by a *new* release, because even if you delete the immutable one "you
+cannot reuse the same tag name". The setting is per repository or organization; the API exposes
+`immutable: true` on the release object, which is what a downstream check should key on rather
+than the tag's existence. *[sourced: GitHub Docs, immutable releases; reviewed 2026-08-21]*
+
 ## Make it fast & correct
 - **Matrix** for multi-version testing: `strategy: { matrix: { python: ['3.11','3.12'] } }`.
 - **`timeout-minutes:` on every job** — a hung job holds a runner until the platform's 6-hour cap.

@@ -8,7 +8,8 @@ Match the repo's existing tooling first; defaults below apply when none is set.
   the interpreter on `PATH` does not.
 - **Version-gate behavior, not just syntax.** `asyncio.TaskGroup`/`ExceptionGroup` need 3.11;
   `typing.override` needs 3.12; free-threaded CPython starts at 3.13; annotation evaluation goes
-  lazy in 3.14. Use a backport only when the repo already adopts it.
+  lazy and template strings (`t'…'`) arrive in 3.14. Use a backport only when the repo already
+  adopts it.
 - **No import-time side effects.** Importing a module must not connect to a service, start a thread,
   parse `sys.argv`, or mutate global config. Startup goes behind an explicit function; scripts
   behind `if __name__ == "__main__"`.
@@ -54,7 +55,12 @@ Match the repo's existing tooling first; defaults below apply when none is set.
 - `subprocess.run([...], check=True)` with a **list**. Avoid `shell=True`; if it's unavoidable, never
   interpolate variables into the command string.
 - HTTP (`requests`/`httpx`): **always set timeouts**; retry idempotent calls with backoff; check status.
-- Parameterize SQL — never f-string user input into a query.
+- Parameterize SQL — never f-string user input into a query. On 3.14, a **t-string** (`t'… {x} …'`)
+  is not a string: it yields a `string.templatelib.Template` that keeps static text and
+  interpolations apart at runtime, so a consuming library can escape or parameterize each value —
+  the documented motivation is exactly SQL/HTML/shell sanitising. It only helps when the receiving
+  API accepts a `Template`; an f-string-shaped habit with a `t` prefix handed to `str()` gains
+  nothing. *[sourced: Python 3.14 What's New, PEP 750; reviewed 2026-08-21]*
 - **Annotations are not runtime validation** — still validate decoded JSON, env vars, and user input
   at the boundary even when everything is typed.
 - Credentials/reset tokens come from `secrets`, never `random`; never unpickle untrusted data.
