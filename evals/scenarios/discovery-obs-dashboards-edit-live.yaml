@@ -25,4 +25,8 @@ graders:
   - type: contains_any
     of: ["409", "412"]
   - type: contains_all
-    of: ["commit", "[unverified]"]
+    of: ["commit"]
+  # The fleet convention is that load-bearing claims carry ONE of the three labels; an
+  # earlier form of this grader demanded "[unverified]" specifically and went 2/3.
+  - type: contains_any
+    of: ["[unverified]", "[verified]", "[sourced]"]

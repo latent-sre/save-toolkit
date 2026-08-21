@@ -36,10 +36,16 @@ available** and on by default; 13.1 renamed ad hoc filters to "Filter and Group 
 `alertingSaveStateCompressed` flag, redesigns the query-variable editor, and is the **security floor**
 for alerting (CVE-2026-17183, rule editors could query data sources without `datasources:query`).
 Grafana 13 also **deprecates every legacy `/api` endpoint** in favor of `/apis` — still served, no
-longer updated. Across the upgrade window: export every dashboard with the API version pinned
-before (that is the rollback), and after it re-read one dashboard to confirm the stored schema and
-that no scripted dashboard was in use. *[sourced: grafana/grafana whats-new v13.0–v13.2, release notes
-v13.2.0, GHSA-f74r-h7qj-c63f, docs http-api index]*
+longer updated. **Across 13.1 → 13.2 the dashboard surface barely moves:** the
+`/apis/dashboard.grafana.app` version set is identical and `schemaVersion` stays **42** at both
+tags, and the 13.2 upgrade guide's technical notes are empty — no dashboard migration step. Two
+things do bite: a **scripted** dashboard now fails to load with **HTTP 410** unless the
+`disableScriptedDashboards` toggle is set to `false` (removal in Grafana 14), and 13.2.0 carries an
+open regression where bundled data-source plugins are not found after upgrade (#130921) — render a
+panel before trusting a dashboard's silence. Export every dashboard before the upgrade; that export
+is the rollback. *[sourced: grafana/grafana whats-new v13.0–v13.2, release notes v13.2.0,
+GHSA-f74r-h7qj-c63f, docs http-api index; version set, schemaVersion 42, and the 410 verified
+against tags v13.1.4 and v13.2.0]*
 
 ## The loop — every create or edit
 

@@ -44,7 +44,7 @@ Rules that follow from the split:
 | `id` | Database-generated numeric id. `null` on create; drop it from exports ("Grafana removes the `id` field from the dashboard JSON to help the provisioning workflow") |
 | `title` | Unique within a folder — "Be careful not to reuse the same `title` multiple times within a folder" |
 | `tags` | Array of strings, ≤ 50 characters each; search metadata. Never copy tags when duplicating a dashboard |
-| `schemaVersion` | Integer Grafana bumps when the JSON schema changes; current exports carry 41/42. Leave it as exported — Grafana migrates old versions on load |
+| `schemaVersion` | Integer Grafana bumps when the JSON schema changes. **42 is the final version for the V1 API** — the source constant carries "DO NOT increment this number" — and is unchanged across 13.1.4 and 13.2.0. Leave it as exported; Grafana migrates older versions on load |
 | `version` | Grafana-owned save counter; send the value you read when updating so a concurrent edit fails loudly |
 | `editable` | Set `false` for provisioned dashboards so the UI says so (linter `uneditable-dashboard`) |
 | `timezone` | `utc` or `browser`; the team default is recorded in [wavefront-legacy](./wavefront-legacy.md) |
@@ -65,7 +65,7 @@ half 12, third 8, quarter 6. *[sourced: docs JSON model; grafana/skills dashboar
 ```json
 {
   "uid": "<svc>-health", "title": "<Service> / Health", "tags": ["<team>", "<svc>"],
-  "editable": false, "timezone": "utc", "graphTooltip": 1, "schemaVersion": 41, "version": 0,
+  "editable": false, "timezone": "utc", "graphTooltip": 1, "schemaVersion": 42, "version": 0,
   "time": {"from": "now-6h", "to": "now"}, "refresh": "1m",
   "templating": {"list": [
     {"name": "datasource", "label": "Data Source", "type": "datasource", "query": "prometheus",
