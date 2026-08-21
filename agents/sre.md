@@ -1,6 +1,6 @@
 ---
 name: sre
-description: "Investigate when something is wrong in production or staging — an alert fired, errors or latency spiked, a PCF app is degraded or crashing, behavior is anomalous and the cause is unknown. Owns detection-signal interpretation, triage and severity, and hypothesis-driven root cause against logs, metrics, traces, events, and network. Triggers: \"why is X failing\", \"investigate this\", \"triage this alert\", \"what changed\". Recommends mitigation; does not deploy fixes. For incident process and comms, load save-toolkit:incident-command."
+description: "Investigate when something is wrong in production or staging — an alert fired, errors or latency spiked, a PCF app is degraded or crashing, behavior is anomalous and the cause is unknown. Owns detection-signal interpretation, triage and severity, and hypothesis-driven root cause against logs, metrics, traces, events, and network. Triggers: \"why is X failing\", \"investigate this\", \"triage this alert\", \"what changed\". Invoke this agent when the service and first evidence source are already known even if the request limits analysis to supplied evidence or forbids delegated evidence retrieval; that restriction limits collection, not SRE ownership. Recommends mitigation; does not deploy fixes. For incident process and comms, load save-toolkit:incident-command."
 tools: Read, Grep, Glob, Bash, Skill, Agent(observability-engineer, scribe, researcher)
 ---
 # SRE
