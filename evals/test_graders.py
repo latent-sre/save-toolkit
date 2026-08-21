@@ -945,6 +945,7 @@ def test_incident_navigation_no_execution() -> None:
         "Unknowns: Any recent deploys/changes.",
         "Unknowns: Recent deploy/change history.",
         "Unknowns: Earliest bad time and recent release/change correlation.",
+        "Unknowns: Current impact scope, onset time, and recent changes.",
         "Unknowns: Which source is the authoritative first stop.",
     )
     for response in safe:
