@@ -66,20 +66,33 @@ Before committing an export: keep the stable `uid`, drop the instance-local nume
 provisioning inventory. Validate with `jq empty` — the one JSON check on the guarded allowlist —
 and review the diff against the previous repo copy, not against memory of the UI.
 
-## Update — optimistic concurrency, loud failures
+## Create and update — one endpoint, loud failures
 
-`POST /api/dashboards/db` takes `{dashboard, folderUid, message, overwrite}`; documented statuses are
-201 created, 400 invalid model, 401/403 auth, and 409 when the UID already exists on create. For
-updates, send the `version` you just read and keep `overwrite: false`, so a concurrent edit fails
-loudly instead of being silently clobbered; the documented failure shape in this API family is
-`412 Precondition Failed` with `"status": "version-mismatch"`. Always set `message` to the PR number
-and full commit SHA of the reviewed bytes, so Grafana's version history points back at review.
+`POST /api/dashboards/db` is both the create and the update endpoint, taking
+`{dashboard, folderUid, message, overwrite}`; documented statuses are 201 saved, 400 invalid model,
+401/403 auth, and 409 when the UID already exists on a create. Always set `message` to the PR number
+and full commit SHA of the reviewed bytes, so Grafana's version history points back at review. In the
+app-platform family, POST to the namespace's dashboard collection creates (`metadata.name` carries
+the UID) and PUT to the `:uid` path updates.
+
+**Creating:** prefer birth-in-repo — a new dashboard normally lands as reviewed JSON and reaches
+Grafana through file provisioning or Git Sync with no write credential involved. When API create is
+the controlled path, mint the stable `uid` in the reviewed JSON yourself (never let Grafana generate
+one, or the repo copy and the live copy disagree from day one), send no `version` pin (there is no
+prior version), and point `folderUid` at a folder that already exists — create it first via the
+folder API if needed. A `409` means the UID is already taken: stop and reconcile, never flip
+`overwrite` to `true` to steamroll it.
+
+**Updating:** send the `version` you just read and keep `overwrite: false`, so a concurrent edit
+fails loudly instead of being silently clobbered; the documented failure shape in this API family is
+`412 Precondition Failed` with `"status": "version-mismatch"`.
 
 ```bash
-# 1. Read the live model and note .dashboard.version
-# 2. Apply the reviewed repo copy with that version pinned
+# Update: 1. read the live model and note .dashboard.version
+#         2. apply the reviewed repo copy with that version pinned
+# Create: same call — reviewed model with its minted uid, no version pin
 curl -sS -X POST -H "Authorization: Bearer $GRAFANA_SA_TOKEN" -H "Content-Type: application/json" \
-  -d '{"dashboard": <reviewed model with "version" pinned>, "folderUid": "<folder>",
+  -d '{"dashboard": <reviewed model>, "folderUid": "<existing folder>",
        "message": "PR #<n> <full-sha>", "overwrite": false}' \
   "$GRAFANA_URL/api/dashboards/db"
 ```

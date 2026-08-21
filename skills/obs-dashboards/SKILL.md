@@ -107,7 +107,7 @@ Read only the reference needed for the task:
 |---|---|
 | Dashboard provisioning, JSON models, UIDs, folders, or PR review | [Grafana 13 provisioning](./references/provisioning.md) |
 | Existing Wavefront or Splunk dashboard inventory | [legacy data-source inventory](./references/wavefront-legacy.md) |
-| Read, export, or update a live dashboard over HTTP — drift checks, repo import, CI apply, version history | [dashboard HTTP API](./references/http-api.md) |
+| Create, read, export, or update a live dashboard over HTTP — drift checks, repo import, CI apply, version history | [dashboard HTTP API](./references/http-api.md) |
 | Help Viewer/Editor users get more from Grafana — roles, folder permissions, Explore access, sharing state, annotations | [viewer & editor workflows](./references/viewer-editor-workflows.md) |
 
 ## Handoff
