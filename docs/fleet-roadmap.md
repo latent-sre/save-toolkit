@@ -945,7 +945,7 @@ model-owned effects. Every reproduced merge-blocking issue now has a red-first m
 The current repair candidate uses strict closed orientation, known-alert, and production-change
 packets; enumerated result meanings; one-question/one-action cardinality; host-bound result owners;
 prompt-mandated exact incident fact lines; and exact adjacent-lane security/change evidence. This
-removes the prior free-text relationship, branch-action, and alert-narrative parsers. Its 736
+removes the prior free-text relationship, branch-action, and alert-narrative parsers. Its 750
 deterministic grader checks pass, including raw and normalized prompt echoes for all ten navigation
 discovery cases.
 
@@ -957,13 +957,47 @@ current candidate and must not support a readiness claim. Subscription OAuth rem
 local path through the persistent eval-only profile selected by
 `SAVE_TOOLKIT_CLAUDE_EVAL_CONFIG_DIR`; no API key is required.
 
-**Next action:** Regenerate every host projection, bind the final grader digest, run the focused
-tests and all Gate A steps from a normal clean clone, commit the candidate, and obtain a fresh
-whole-diff review. If that immutable candidate has no unresolved correctness/security issue, run
-all ten discovery scenarios twice on `claude-sonnet-5` (20 trials total) with
-`--require-clean-plugin` and threshold 1.0. A comparable pre-change rate remains an explicit
-acceptance gap; do not relabel after-only evidence as a before/after delta. Prototype cleanup remains
-a separate named destructive decision.
+**Exact-candidate Sonnet campaign (2026-08-20 CDT):** `[verified]` The complete ten-scenario,
+two-trial discovery sweep ran sequentially on `claude-sonnet-5` with threshold `1.0`, timeout `300`,
+and `--require-clean-plugin`. Every summary binds plugin commit
+`da4ba6d2cc876ec8384b52066ba35db41c93b361`, records `plugin_inputs_dirty=false`, plugin digest
+`91900fc8c8d21c6595d0009381c48efa35b056f9de58211ff4cada98ce869eb4`, and eval-suite digest
+`68f85c6fbd90abed11e31ed167bf8c06bf72335fab081f12562d357f4022db68`. Subscription OAuth used the
+dedicated eval profile; no API key, inconclusive trial, authentication failure, or harness failure
+occurred. The result is **not an acceptance pass**: 1 of 10 scenarios and 3 of 20 complete trials
+passed, while the routing component alone passed 17 of 20 trials.
+
+| Scenario | Run ID | Full verdict | Routing trials |
+|---|---|---:|---:|
+| Unknown evidence location | `20260821T005223Z-d6927997` | 1/2 | 2/2 |
+| Known dashboard signal owner | `20260821T005315Z-eb87d596` | 2/2 | 2/2 |
+| Known incident triage | `20260821T003200Z-3427db61` | 0/2 | 2/2 |
+| Major-incident command | `20260821T003651Z-b2a0b8a2` | 0/2 | 2/2 |
+| Security response | `20260821T003737Z-5c51d6f2` | 0/2 | 1/2 |
+| Known-alert interpretation | `20260821T003941Z-4cae12ec` | 0/2 | 0/2 |
+| Active known alert | `20260821T004014Z-a851a911` | 0/2 | 2/2 |
+| Incomplete production change | `20260821T004505Z-3f3e3ef6` | 0/2 | 2/2 |
+| Approved production change | `20260821T004539Z-5977999d` | 0/2 | 2/2 |
+| Resolved incident | `20260821T004618Z-71f693ab` | 0/2 | 2/2 |
+
+`[verified]` The SRE-description before/after routing measurement used the same known-triage prompt:
+run `20260821T001310Z-992bd2cb` on `c5a323c5` routed 0/2 to `sre`, while run
+`20260821T001538Z-46a694da` on `287be479` routed 2/2. The later full-response failures show that
+correct component selection does not prove that exact evidence and closed packet fields survive
+delegation and parent summarization. The unknown-location miss was an oracle-exactness failure
+(`Retrieve the checkout...` versus `Retrieve checkout...`); other trials include a mix of real
+instruction failures (wrong/no lane, duplicated exact facts, code fences, omitted fields) and
+false-positive execution-language checks. Those classes must be separated before another repair.
+
+**Next action:** Do not merge or publish NAV-001. Freeze the ten raw run envelopes, classify the 17
+failed full trials into (1) lane-selection failures, (2) delegated-result preservation failures,
+and (3) grader false failures, and review that classification before changing prompts or regexes.
+Repair the three routing misses first (two `obs-alerting`, one security/incident-command), then design
+one structural handoff/output-preservation rule rather than adding per-phrase parser exceptions.
+Rerun the complete 20-trial campaign only after deterministic red fixtures, Gate A, and independent
+review pass on one immutable candidate. A comparable pre-change full-campaign rate remains an
+explicit acceptance gap; do not relabel after-only evidence as a before/after delta. Prototype
+cleanup remains a separate named destructive decision.
 
 ## Decisions needed
 
