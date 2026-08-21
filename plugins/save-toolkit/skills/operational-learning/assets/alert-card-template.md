@@ -4,7 +4,7 @@ alert_id: <stable-alert-slug>
 exact_name: <exact backend alert name>
 service_id: <stable-service-slug>
 status: proposed | active | disabled | retired
-severity: <SEV-n / page | ticket>
+severity: <P1|P2|P3|P4 / page | ticket>
 owner: <team/role>
 source_definition: <repository path + full SHA>
 runbook: <repository-relative runbook path>

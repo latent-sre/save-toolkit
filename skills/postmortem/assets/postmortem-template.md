@@ -2,7 +2,7 @@
 schema_version: 1
 incident_id: <stable incident/ticket ID>
 status: draft | final
-severity: <SEV-n>
+severity: <P1|P2|P3|P4>
 service_ids: []
 started_at: <RFC3339 UTC>
 resolved_at: <RFC3339 UTC>

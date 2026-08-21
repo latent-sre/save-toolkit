@@ -238,7 +238,7 @@ Learning dispositions: <artifact → prepared/proposed/blocked/duplicate/not-app
 > **Finding**: checkout p99 went 220ms → 8s at 14:02 UTC; cause is connection-pool exhaustion against
 > the orders DB, triggered by the 13:55 deploy of orders v2.14 doubling per-request queries.
 > [verified: the obs-metrics query and `cf events orders` output quoted above]
-> **Severity**: SEV2 by the incident-command rubric (all checkout users, degraded not down, worsening).
+> **Severity**: P2 by the incident-command rubric (all checkout users, degraded not down, worsening).
 > **Mitigation recommended**: roll back orders to v2.13 — reversible, ~3 min; Tier 2, human executes;
 > exact command + rollback in the approval request above.
 > **Not verified**: whether the query change is v2.14's only regression — the cache hit-rate

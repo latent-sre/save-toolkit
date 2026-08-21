@@ -217,7 +217,7 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         "status: draft",
         "alert_names: []",
         f"owner: {owner}",
-        "severity: <SEV-n / page | ticket>",
+        "severity: <P1|P2|P3|P4 / page | ticket>",
         "source_revision: <repository@full-sha or reviewed release identifier>",
         "last_reviewed: null",
         "last_verified: null",
