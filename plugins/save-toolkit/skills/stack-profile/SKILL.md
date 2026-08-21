@@ -67,6 +67,13 @@ glue and automation, not service languages. GitHub + GitHub Actions; Bamboo is l
 the `ci-actions` skill carries: do not design around a GitHub-OIDC→CredHub exchange — CredHub
 authenticates via UAA and no turnkey integration exists. *[sourced: operator statement 2026-08-21]*
 
+## Frameworks
+- **Backend:** **Spring Boot** on the JVM (matching the `java_buildpack_offline` in the PCF manifest
+  example); **FastAPI** on Python.
+- **Frontend:** **both React and Vue** are in use — neither reference in `frontend-craft` is surplus.
+
+*[sourced: operator statement 2026-08-21]*
+
 ## Hosts & runners
 On-prem hosts and self-hosted Actions runners are **RHEL 9+**. GitHub-hosted Linux runners are
 Ubuntu (`ubuntu-latest` resolves to 24.04 today). Both classes are in active use, so portable shell
@@ -93,6 +100,21 @@ A formal on-call rotation is in place, with a four-tier severity ladder:
 Use these names directly — `incident-command`, `obs-alerting`, and `postmortem` refer to this
 ladder rather than inventing their own. Entry criteria per tier are **not yet recorded here**;
 capture them when the incident owner confirms them. *[sourced: operator statement 2026-08-21]*
+
+## Change management
+Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal
+change record" generically; name whichever system governs the change in hand rather than assuming
+one. *[sourced: operator statement 2026-08-21]*
+
+## Documentation home
+Runbooks and postmortems live in **both Confluence and a team-owned GitHub repository**. This is a
+dual home, not a migration with an end state — neither destination is being retired, so a document
+skill must not assume the other one is going away.
+
+Which content belongs where is **not yet recorded**. Until it is, `save-toolkit-scribe` and `runbook` state the
+destination they authored for rather than picking one silently, and
+`skills/runbook/scripts/confluence_to_runbook.py` remains live.
+*[sourced: operator statement 2026-08-21]*
 
 ## Stay in lane
 Stay in the app/ops lane; hand platform-internal problems to the platform team. GCP managed
