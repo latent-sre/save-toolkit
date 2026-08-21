@@ -6,6 +6,8 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -148,6 +150,63 @@ class HookWiringTests(unittest.TestCase):
         self.assertEqual("deny", json.loads(whitespace.stdout)["hookSpecificOutput"]["permissionDecision"])
         self.assertEqual("deny", json.loads(renamed.stdout)["hookSpecificOutput"]["permissionDecision"])
         self.assertEqual("deny", json.loads(unavailable.stdout)["hookSpecificOutput"]["permissionDecision"])
+
+    @unittest.skipUnless(available_shell(), "POSIX shell not available")
+    def test_a_stub_interpreter_first_on_path_does_not_disarm_the_guard(self) -> None:
+        """The incident validate.yml cites, reproduced: a non-interpreter named `python3` answers first.
+
+        The Microsoft Store stub is on PATH as `python3` on a stock Windows box. The guard's earlier
+        inline form ran it, took exit 0 as "allowed", and every guarded Bash call sailed through. The
+        current loop only trusts the guard's own exit codes (42 allow / 43 deny), so a stub that exits
+        0 with no output must be skipped, the next interpreter must answer, and a machine with ONLY
+        stubs must fail closed. The marker file proves the stub was actually consulted -- without it
+        this test could pass while `command -v` never found the stub at all.
+        """
+        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
+        command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        cat = shutil.which("cat")
+        if cat is None:
+            self.skipTest("`cat` not on PATH; the hook reads stdin through it")
+        guarded_write = json.dumps({"tool_name": "Bash", "agent_type": "save-toolkit:sre", "tool_input": {"command": "git push origin main"}})
+        main_thread = json.dumps({"tool_name": "Bash", "tool_input": {"command": "git push origin main"}})
+
+        def run(path: str, payload: str) -> subprocess.CompletedProcess[str]:
+            env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT), PATH=path)
+            return subprocess.run([available_shell(), "-c", command], input=payload, text=True,
+                                  capture_output=True, cwd=ROOT, env=env, timeout=30, check=False)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            stub_dir = Path(tmp) / "stub"
+            real_dir = Path(tmp) / "real"
+            stub_dir.mkdir()
+            real_dir.mkdir()
+            marker = Path(tmp) / "stub-was-consulted"
+            stub = stub_dir / "python3"
+            stub.write_text(f"#!/bin/sh\necho hit >> '{marker.as_posix()}'\nexit 0\n", encoding="utf-8")
+            stub.chmod(0o755)
+            # A `python` wrapper to the real interpreter, so the walk has something honest to reach
+            # after the stub regardless of what the host calls its interpreter.
+            wrapper = real_dir / "python"
+            wrapper.write_text(f'#!/bin/sh\nexec "{Path(sys.executable).as_posix()}" "$@"\n', encoding="utf-8")
+            wrapper.chmod(0o755)
+            tools = os.path.dirname(cat)
+            stub_then_real = os.pathsep.join([str(stub_dir), str(real_dir), tools])
+            stubs_only = os.pathsep.join([str(stub_dir), tools])
+
+            denied = run(stub_then_real, guarded_write)
+            self.assertTrue(marker.exists(), "the stub was never consulted, so this proves nothing")
+            self.assertTrue(denied.stdout, "the guarded write was ALLOWED: the stub's exit 0 was taken as the guard's answer -- the original disarm")
+            decision = json.loads(denied.stdout)["hookSpecificOutput"]
+            self.assertEqual("deny", decision["permissionDecision"])
+            self.assertIn("allowlist", decision["permissionDecisionReason"], "the GUARD must have answered, not the fail-closed fallback")
+
+            allowed = run(stub_then_real, main_thread)
+            self.assertEqual((0, ""), (allowed.returncode, allowed.stdout), "a stub first on PATH must not turn into a false deny either")
+
+            closed = run(stubs_only, guarded_write)
+            decision = json.loads(closed.stdout)["hookSpecificOutput"]
+            self.assertEqual("deny", decision["permissionDecision"])
+            self.assertIn("unavailable", decision["permissionDecisionReason"], "with only stubs, the hook must fail closed by name")
 
     def test_ci_must_not_skip_the_real_hook_invocation(self) -> None:
         """On CI, an absent shell is a broken runner, not a reason to pass quietly.
