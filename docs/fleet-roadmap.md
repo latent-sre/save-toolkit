@@ -928,6 +928,40 @@ checkout present; the guard's own suite and Gate A pass; no new dependency (stan
 **Next action:** Add the interpreter-answer probe first — it is the single highest-value check and
 needs no host inventory work.
 
+### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
+
+**Status:** `blocked` (2026-08-20) — blocked on ROUTE-001's re-freeze window, not on effort.
+
+**Outcome:** `skills/gcp-ops/SKILL.md` stops telling agents that a quoted `severity>=ERROR` trips the
+read-only guard, which stopped being true when PR #112 loosened the guard's proven-safe false
+positives.
+
+**Source:** PR #112. The branch originally corrected this sentence, but the file's bytes are the
+ROUTE-001 canary body: `evals/run_codex_routing.py`'s `CANARY_SKILL_BODY_SHA256` pins
+`plugins/save-toolkit/skills/gcp-ops/SKILL.md`, and `evals/codex_trial.py` raises
+`skill-body-mismatch` on any edit. The edit was therefore reverted so #112 could land, on the same
+reasoning this file already applies to the frozen scenario bytes — re-freezing a hash-bound manifest
+invalidates the prior independent review.
+
+**Interim mitigation (in place):** `skills/obs-logs/references/gcp-logging.md` carries the correct
+behavior, probe-cited, and `gcp-ops` already routes Logging query-language detail to that reference
+rather than owning it. The stale sentence is in the triage-flow skill; the query-construction skill
+an agent is told to load is right.
+
+**Verified 2026-08-20** by probing `scripts/readonly-guard.py` on the #112 branch:
+`gcloud logging read 'severity>=ERROR AND resource.type=cloud_run_revision' --freshness=1h` returns
+exit 42 (allow); the same filter unquoted returns exit 43 (deny). On `origin/main`'s guard the quoted
+form returns exit 43, so the sentence is correct on main and becomes stale only once #112 merges.
+
+**Prerequisites:** ROUTE-001 reaches a point where the canary body may be re-frozen and
+independently re-reviewed. This item must not pre-empt that sequencing.
+
+**Acceptance:** `gcp-ops` states the guard's real behavior, `CANARY_SKILL_BODY_SHA256` matches the
+new bytes, the canary is re-run rather than re-derived, and Gate A passes.
+
+**Next action:** None until ROUTE-001 opens its re-freeze window. Do not edit `gcp-ops/SKILL.md` or
+bump the pin before then.
+
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
 **Status:** `ready` (2026-08-13)

@@ -68,21 +68,20 @@ gcloud run revisions describe <revision>
 A new revision lining up with incident onset is the prime suspect — same discipline as `cf events`:
 temporal alignment is a hypothesis, not proof.
 
-## Logs — filter shapes
+## Logs — guard-safe filter shapes
 
 ```bash
 gcloud run services logs read <service> --limit=100
-gcloud logging read 'severity>=ERROR AND resource.type=cloud_run_revision AND resource.labels.service_name=<service>' --freshness=1h --limit=50
+gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name=<service> AND severity=(ERROR OR CRITICAL)' --freshness=1h --limit=50
 ```
 
 Two shapes matter to this fleet specifically:
 
-- **Quote the filter.** Comparison operators (`severity>=ERROR`, timestamp bounds) are valid
-  Logging query language *[sourced: docs.cloud.google.com/logging/docs/view/logging-query-language]*
-  and pass the read-only guard **inside a quoted argument** — the guard judges unquoted shell
-  redirects only. An unquoted `severity>=ERROR` is a shell redirect and is denied; the quotes are
-  load-bearing. `--freshness` for the time bound and `severity=(ERROR OR CRITICAL)` remain fine
-  alternate spellings.
+- Use **`--freshness`** for the time bound and **`severity=(ERROR OR CRITICAL)`** for the severity
+  floor. A `severity>=ERROR` filter is valid Logging query language *[sourced:
+  docs.cloud.google.com/logging/docs/view/logging-query-language]* but the `>=` trips the
+  read-only guard's structure rule — that deny is by design, not a bug. A filter that genuinely
+  needs comparison operators (timestamps, numeric fields) is a **recommend-for-human** query.
 - The Logging query language details (operators, `log_id()`, `SEARCH()`) belong to the `obs-logs`
   skill's GCP reference — load that for query construction; this skill owns the triage flow.
 
