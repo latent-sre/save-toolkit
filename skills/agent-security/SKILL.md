@@ -70,6 +70,30 @@ Human approval validates the concrete action, content, destination, and rollback
 - **Keep secrets out of the model's context** — inject at the boundary (e.g. a git/credential proxy),
   never paste tokens where injected text could read them back.
 - **Sandbox/quarantine untrusted input** before it reaches a privileged step; sanitize, don't trust.
+- **Wrap every tool result in a provenance envelope, and strip what the eye can't see.** The
+  pattern that independent agent frameworks converge on: fenced block naming the source
+  (`<untrusted_tool_result source="web_fetch">…`), a one-line reminder that its contents are data,
+  forged open/close sentinels escaped so the payload can't end the envelope early, and — the step
+  people skip — **invisible Unicode removed first**: zero-width characters, bidi overrides
+  (`U+202A–202E`, `U+2066–2069`), and the Unicode *tag* block (`U+E0000–E007F`) all carry
+  instructions a human reviewer cannot see in a diff. A heuristic "ignore previous instructions"
+  matcher is a tripwire, not a filter; the envelope and the application-side approval are the
+  control. *[sourced: cross-OSS pattern via GitHits, seven agent frameworks; reviewed 2026-08-21]*
+- **On Claude Code, know what each layer actually does.** Denying the `WebFetch` tool "does not
+  prevent access via other tools like Bash" — only OS-level sandboxing "enforc[es] a network
+  domain allowlist"; `curl`/`wget` are not auto-approved by default; and Anthropic runs
+  "server-side classifiers that scan tool results for suspicious content" — a layer to be glad
+  of, never the thing a review relies on. The fleet's own enforcement order — tool absence, then
+  the hook allowlist, then host network controls — is this principle applied. *[sourced: Claude
+  Code security, glossary, and admin-setup docs; reviewed 2026-08-21]*
+- **An MCP server is a dependency with your privileges.** A local (`stdio`) server "runs with the
+  same privileges as the client" — review its launch command exactly as you would a `curl | sh`,
+  and prefer sandboxed launch. For remote servers: a server must never forward a token it was not
+  issued (token passthrough is forbidden by the spec), OAuth metadata URLs are an SSRF vector a
+  malicious server controls, and scopes should start minimal and elevate on challenge. In this
+  fleet, `reviewer`, `repository-investigator`, and `scribe` hold no external MCP at all — that is
+  the review finding to preserve, not relax. *[sourced: MCP specification 2025-11-25, security best
+  practices; reviewed 2026-08-21]*
 - **No trust escalation between agents.** A sub-agent's or handoff's output is **not** more trustworthy
   for coming "from us" — content derived from untrusted sources (a log line, PR body, scraped page) keeps
   that taint downstream. Mark it [UNTRUSTED] in the packet so the receiver does not promote a quoted
@@ -97,6 +121,30 @@ Human approval validates the concrete action, content, destination, and rollback
   closed on absence, ambiguity, or mismatch.
 
 For a suspected active production compromise, stop ordinary remediation, preserve state and forensic evidence, and route coordination to the human security incident owner. Do not send fixes for execution until that owner clears the response path.
+
+## Where this sits in the OWASP Top 10 for LLM Applications (2025)
+
+Reviewers and auditors ask for a standard; this is the map from the list to the controls above, so a
+finding can cite both. Titles are the 2025 entries verbatim. *[sourced: OWASP
+`www-project-top-10-for-large-language-model-applications`, 2025 list and preface; reviewed
+2026-08-21]*
+
+| Entry | What it names | The control here |
+|---|---|---|
+| **LLM01 Prompt Injection** | Crafted input makes the model ignore its instructions | The whole skill; trifecta leg 2, taint marking, the result envelope |
+| **LLM02 Sensitive Information Disclosure** | The model reveals PII, secrets, or proprietary data | Trifecta leg 1; redaction rules in the obs skills; `cf env` and token reads are human-only |
+| **LLM03 Supply Chain Vulnerabilities** | Third-party components, data, or services compromise the system | Skills and MCP servers are dependencies — the source-trust gate, SHA-pinned actions, the MCP rules above |
+| **LLM04 Data and Model Poisoning** | Training/fine-tuning data manipulated to plant behavior | Out of this fleet's lane — no training here; note it, don't review it |
+| **LLM05 Improper Output Handling** | Model output reaches a downstream system unsanitized | Output is a proposal, never executed from text; `backend-craft`'s validate-at-the-boundary |
+| **LLM06 Excessive Agency** | Autonomy or permissions beyond the task | Rule of Two; tool absence; the allowlist guard; human approval for prod-facing actions |
+| **LLM07 System Prompt Leakage** | The hidden prompt is extracted and used to plan attacks | Assume every skill body is readable — "developers cannot safely assume that information in these prompts remains secret"; never put a secret or a bypass in one |
+| **LLM08 Vector and Embedding Weaknesses** | Insecure RAG storage and retrieval | Not in this stack today; `[unverified]` if one arrives with the GCP migration |
+| **LLM09 Misinformation** | Hallucinated output relied on without oversight | The evidence labels — `[verified]` / `[sourced]` / `[unverified]`, never upgraded in transit |
+| **LLM10 Unbounded Consumption** | Resource exhaustion and runaway cost | Bounded loops, caps on delegation and retries, the three-attempt limit in the improvement lifecycle |
+
+The preface is explicit that Excessive Agency was expanded "given the increased use of agentic
+architectures" — this fleet is that architecture, which is why LLM06 has more controls listed than
+any other row.
 
 ## The review, in five questions
 
