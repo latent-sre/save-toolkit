@@ -1,7 +1,7 @@
 ---
 name: incident-command
 description: >-
-  Run a live incident — classify SEV1–SEV4 by user impact × scope × trend, assign roles, keep the
+  Run a live incident — classify P1–P4 by user impact × scope × trend, assign roles, keep the
   authoritative timeline, drive to mitigation (fastest reversible action: route remap, rollback, restart,
   scale, flag flip), send initial/update/resolution comms. Triggers: 'declare an incident', 'what severity
   is this', 'send a status update', 'should we roll back'. Mitigation is executed by a human; the sre agent

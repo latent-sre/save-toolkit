@@ -559,7 +559,7 @@ _BLOCK_CASES = {
 
 _SRE_INCIDENT_ANSWER = (
     "Incident summary: checkout failures are affecting customers and are still growing.\n"
-    "Severity: SEV2\n"
+    "Severity: P2\n"
     "Blast radius: 35% of checkout requests across two regions since 14:05 UTC; trend: growing.\n"
     "Timeline (UTC): 14:02 instance saturation began; 14:05 customer 5xx increased.\n"
     "Hypotheses tested: saturation predicts rising latency and maxed instances; both signals match.\n"
@@ -611,7 +611,7 @@ _AKAMAI_ALERT_INCOMPLETE_ANSWER = (
 )
 
 _SRE_CANONICAL_MARKDOWN_ANSWER = (
-    "Incident summary: SEV2 — 35% of checkout requests across two regions since 14:05 UTC; growing.\n"
+    "Incident summary: P2 — 35% of checkout requests across two regions since 14:05 UTC; growing.\n"
     "Timeline (UTC): 14:02 instance saturation began; 14:05 customer 5xx increased.\n"
     "Hypotheses tested: saturation predicts rising latency and maxed instances; both signals match.\n"
     "Root cause: saturation is the leading cause with medium confidence [unverified].\n"

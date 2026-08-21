@@ -120,16 +120,23 @@ per-module artifacts (noted below where it bites), so check before copying a dep
 
 ## Operability
 
-- **Actuator probes are auto-configured**: `/actuator/health/liveness` and `/readiness` are
-  separate health groups, on by default, wired to the application's availability state — so
-  readiness goes `OUT_OF_SERVICE` during graceful shutdown while liveness stays `UP`. Point the
-  **platform restart probe at liveness** (`/actuator/health/liveness`); expose readiness separately
-  for load-balancer traffic routing. Pointing the platform health check at readiness means a
-  dependency outage marks every instance unhealthy and triggers restarts, amplifying the outage
-  rather than routing around it. If management runs on its own port, set
+- **Actuator probes — enable them explicitly on PCF, then point the right check at each.**
+  `/actuator/health/liveness` and `/readiness` are separate health groups wired to the
+  application's availability state — readiness goes `OUT_OF_SERVICE` during graceful shutdown
+  while liveness stays `UP`. Whether they *exist* depends on the Boot major and the platform: on
+  **Boot 3.x** the probe groups are "enabled by default in Kubernetes environments" and **disabled
+  everywhere else** — on PCF you must set `management.endpoint.health.probes.enabled=true`, or the
+  platform polls a path that returns 404 and every new instance is marked unhealthy. On **Boot 4**
+  the auto-configuration defaults the property on (`matchIfMissing = true`). Set it explicitly on
+  every Boot major so an upgrade cannot change it, and `curl` the path on a non-prod instance before
+  pointing a health check at it. Then: point the **platform restart probe at liveness**; expose
+  readiness separately for load-balancer traffic routing. Pointing the platform health check at
+  readiness means a dependency outage marks every instance unhealthy and triggers restarts,
+  amplifying the outage rather than routing around it. If management runs on its own port, set
   `management.endpoint.health.probes.add-additional-paths=true` so the probes are also served on
-  the main port the router actually reaches. *[sourced: Spring Boot `actuator/endpoints.adoc`,
-  `AvailabilityProbesAutoConfiguration`; reviewed 2026-08-21]*
+  the main port the router actually reaches. *[sourced: Spring Boot 3.5 `actuator/endpoints` and
+  application-properties appendix; Boot 4 `AvailabilityProbesAutoConfiguration`; reviewed
+  2026-08-21]*
 - Micrometer is on the classpath with Actuator; the RED metrics and trace propagation that
   [stack](stack.md) requires come from it plus the OTel bridge — the `obs-pipeline` skill owns
   the exporter wiring.

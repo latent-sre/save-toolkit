@@ -194,6 +194,15 @@ grading and returned valid `FAIL` verdicts. The latest explicit body-load probe 
 implicit routing. No campaign, routing result, or baseline followed. See the
 [`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
 
+**Re-frozen 2026-08-21 (owner decision, closing an adversarial-review finding):** the two
+`defers-active-incident` scenarios' graders changed from `SEV[1-4]` to `P[1-4]` to match the team's
+severity ladder, so their `_source_sha256`, both manifests' per-scenario digests, the scenario
+bundle, and `scenario_bundle_sha256` were recomputed. **The prior independent review of those two
+scenarios is invalidated** and must be re-run before they count as campaign evidence. In the same
+change `incident-command`'s `description:` moved from `SEV1–SEV4` to `P1–P4` **without a
+before/after routing run** — the owner deferred the measurement; it remains owed and is recorded
+here so a future routing result on that skill is read as the first measurement, not a regression.
+
 **Owner direction (2026-08-20) — measure on more than one provider.** This campaign is to be run
 across providers rather than on Codex alone: a **Claude** arm (the components that actually ship to
 Claude users, via `evals/run_evals.py`, which is confirmed working on this host as of 2026-08-20),

@@ -62,10 +62,10 @@ To change anything a search turns up in a generated root: edit the canonical sou
 
 - `python scripts/gate_a.py` is the one structural gate. Run it **once, before a push** — not after
   each edit and not per commit (on Windows use `python`, never `python3` — the Microsoft Store stub).
-  CI runs this same script on Linux and macOS for every pull request, and on Windows for pushes to
-  `main`, weekly, and on dispatch — the Windows run is off the PR path because the owner runs the
-  full gate on Windows locally before every push. CI is advisory today — `Protect main` requires a
-  pull request but no status check — so a red run is a signal to read, not a merge block.
+  CI runs this same script on Linux, macOS, and Windows for every pull request (Windows as its own
+  job so its ~44 s does not hold the others' fail-fast matrix), plus on pushes to `main`, weekly, and
+  on dispatch. CI is advisory today — `Protect main` requires a pull request but no status check —
+  so a red run is a signal to read, not a merge block.
   Do not copy its step list anywhere — that is a deliberate anti-drift design recorded in the
   file's docstring.
 - Before a push that touched `agents/`, `skills/`, or `commands/`, run

@@ -38,18 +38,24 @@ class ValidateWorkflowTests(unittest.TestCase):
         self.assertGreaterEqual(gate_runs, 2, "expected at least the matrix job and the Windows job to run the gate")
         self.assertEqual(gate_runs, full_checkouts, "a Gate A job without fetch-depth: 0 cannot materialize the pinned historical SHAs")
 
-    def test_windows_gate_is_off_the_pull_request_path(self) -> None:
-        """Windows is the PR long pole (Gate A ~44 s there vs ~19 s on Linux) and the owner runs the
-        full gate on Windows locally before every push, so PRs do not wait for it. It still runs on
-        pushes to main, on a weekly schedule, and on dispatch, so a Linux-authored change that breaks
-        Windows is caught on merge or within the week rather than never."""
+    def test_windows_gate_runs_on_pull_requests(self) -> None:
+        """Windows is its own job rather than a matrix entry so its ~44 s gate does not hold the
+        Linux/macOS fail-fast matrix -- but it runs on every pull request. The guard, the gate lock,
+        the adapters, and the host-install probes all have Windows-only behavior the other OSes
+        cannot exercise, and `Protect main` has no required status check, so catching a Windows
+        break on merge or on the weekly schedule is too late. A local owner run is not enforceable
+        evidence. The schedule and dispatch remain as the floor for quiet weeks."""
         workflow = WORKFLOW.read_text(encoding="utf-8")
         matrix_job, separator, remainder = workflow.partition("\n  validate-windows:")
         self.assertTrue(separator, "validate workflow has no dedicated validate-windows job")
-        self.assertNotIn("windows-latest", matrix_job, "the PR matrix must not carry a Windows entry")
+        self.assertNotIn("windows-latest", matrix_job, "Windows runs as its own job, not a matrix entry")
         windows_job = remainder.partition("\n  claude-plugin-contract:")[0]
         self.assertIn("runs-on: windows-latest", windows_job)
-        self.assertRegex(windows_job, re.compile(r"^    if: github\.event_name != 'pull_request'$", re.MULTILINE))
+        self.assertNotRegex(
+            windows_job,
+            re.compile(r"^    if: .*pull_request", re.MULTILINE),
+            "the Windows gate must not be skipped on pull requests",
+        )
         self.assertIn("run: python scripts/gate_a.py", windows_job, "Windows must invoke `python`, never the Store-stub `python3`")
 
     def test_windows_gate_still_has_a_schedule(self) -> None:

@@ -13,7 +13,7 @@ on:
   # running. This workflow was disabled by hand on 2026-08-02 and six PRs merged unverified before
   # anyone noticed. Manual dispatch makes "is the gate alive?" a ten-second question.
   workflow_dispatch:
-  # The Windows gate is off the pull-request path (see validate-windows); this is its floor.
+  # Weekly floor so the whole gate runs even in a week with no pushes.
   schedule:
     - cron: '0 14 * * 1'  # Mondays 14:00 UTC
 
@@ -27,10 +27,8 @@ jobs:
     # Store stub, which is not an interpreter, so the hook ran nothing and every Bash call sailed
     # through unguarded. A Linux-only CI would never have seen it. That incident is now reproduced
     # directly by scripts/test_hook_wiring.py (a stub `python3` first on PATH), which runs on every
-    # OS here. Windows itself runs in the `validate-windows` job below, off the pull-request path:
-    # Gate A takes ~44 s there against ~19 s on Linux, making it the PR long pole, and the owner runs
-    # the full gate on Windows locally before every push. It still runs on main, weekly, and on
-    # dispatch, so a Linux-authored change that breaks Windows is caught on merge or within the week.
+    # OS here. Windows itself runs in the `validate-windows` job below on every pull request -- as
+    # a separate job so its ~44 s does not hold this fail-fast matrix, not as a skipped one.
     strategy:
       fail-fast: false
       matrix:
@@ -77,9 +75,11 @@ jobs:
         run: ${{ matrix.py }} scripts/gate_a.py
 
   validate-windows:
-    # Same gate, Windows host, not on pull requests -- see the matrix comment above for why.
-    # `python`, never `python3`: on this runner `python3` is the Store stub.
-    if: github.event_name != 'pull_request'
+    # Same gate, Windows host, on every pull request. Its own job rather than a matrix entry so its
+    # ~44 s does not hold the Linux/macOS fail-fast matrix, but never skipped: the guard, the gate
+    # lock, the adapters, and the host-install probes all have Windows-only behavior that the other
+    # two OSes cannot exercise, and `Protect main` has no required status check, so post-merge
+    # detection is too late. `python`, never `python3`: on this runner `python3` is the Store stub.
     runs-on: windows-latest
     steps:
       - name: Check out repository

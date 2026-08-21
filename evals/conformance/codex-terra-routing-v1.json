@@ -128,7 +128,7 @@
     {
       "id": "discovery-akamai-edge-defers-active-incident",
       "cohort": "current_only",
-      "sha256": "043ea8fcea8ff03403593ba80267fe061dd1e34ce5af86946c7dcc269bda464b"
+      "sha256": "82e5f46a3f1549024dbc8becec9379a610548ee6f638d49411dda54a791ec20d"
     },
     {
       "id": "discovery-akamai-edge-defers-obs-alerting",
@@ -168,7 +168,7 @@
     {
       "id": "discovery-gcp-ops-defers-active-incident",
       "cohort": "current_only",
-      "sha256": "1fc02ed90aff987235af13b7f5d511ecc49a7edc68ca648977c062d0ccb4fe4d"
+      "sha256": "e22d04fcfe10cdcc021a949aff87ef7a204d0a358c7a151b57b57abb3053169f"
     },
     {
       "id": "discovery-gcp-ops-defers-obs-alerting",
