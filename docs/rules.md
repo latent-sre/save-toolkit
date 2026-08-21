@@ -14,11 +14,11 @@ authoritative?*
 
 | Rule | Primary source |
 |---|---|
-| `python scripts/gate_a.py` is the single structural gate; do not transcribe its step list | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring; [`AGENTS.md`](../AGENTS.md) |
+| `python scripts/gate_a.py` is the single structural gate, run once before a push (never per edit); CI runs it on every PR as advisory evidence (no required check on `main`); do not transcribe its step list | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring; [`AGENTS.md`](../AGENTS.md) |
 | On Windows use `python` / `py -3`, never bare `python3` (Store stub) | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring and `preflight()`; restated in [`AGENTS.md`](../AGENTS.md) |
 | stdlib only under `scripts/` — no new deps, no pytest, no third-party YAML for validators/tests/guard/generator | [`AGENTS.md`](../AGENTS.md) Hard rules |
 | Canonical authored source is `agents/`, `skills/`, and `commands/` only | [`2026-07-31-multi-platform-plugin-packaging.md`](decisions/2026-07-31-multi-platform-plugin-packaging.md) |
-| After canonical edits, run `generate_platform_adapters.py --write` and commit projections with source | [`AGENTS.md`](../AGENTS.md) Change playbooks; [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Before a push that carries canonical edits, run `generate_platform_adapters.py --write` once (not per edit) and commit projections with source | [`AGENTS.md`](../AGENTS.md) Change playbooks; [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Never hand-edit generated roots: `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | [`AGENTS.md`](../AGENTS.md) Hard rules |
 | The three `plugin.json` manifests (`.claude-plugin/` Claude, root Copilot/VS Code, `plugins/save-toolkit/.codex-plugin/` Codex) are per-host selectors, not duplication — never dedupe or drop one; all three must exist and share the identity fields, while component paths stay host-specific — the Copilot manifest carries exactly `./.github/agents/`, `./platforms/copilot/skills/`, and `./hooks/copilot-hooks.json`, and the Codex manifest carries `./skills/` and must **not** claim `agents` or `hooks` | `validate_platform_contracts` in `generate_platform_adapters.py`, run by `validate_fleet.py` |
 | Byte-for-byte adapter drift fails the gate | Packaging ADR; `validate_fleet.py` |
@@ -34,7 +34,7 @@ authoritative?*
 | Retired names are rejected under live `agents/`/`skills/`/`commands/` trees | [`check_stale_names.py`](../scripts/check_stale_names.py) |
 | Routing/behavioral evals are manual clean-room only — never in CI; outputs under `.eval-runs/` | [`AGENTS.md`](../AGENTS.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Any newly asserted contract — validator rule, exit code, schema constraint, or any predicate a test names — needs a fixture/mutation that fails without the change, confirmed by running it | [`AGENTS.md`](../AGENTS.md) Change playbooks; [`mutation_guard.py`](../scripts/mutation_guard.py) |
-| Description edits need before/after clean-room scenario runs (or a stated deferral — not an eyeball) | [`AGENTS.md`](../AGENTS.md) Change playbooks |
+| Description edits that change routing content (`Triggers:` phrases, use-when/not-for clauses, named alternatives) need after-change clean-room runs of the scenarios targeting the component, with a before-run only to attribute a red; pure rewording needs none (or a stated deferral — not an eyeball) | [`AGENTS.md`](../AGENTS.md) Change playbooks |
 | Personal-first: prototype under `~/.claude`, promote by PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Branch from `main` only; rebase on `origin/main` before PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Until RELEASE-001 closes: never publish manually; repository workflow bytes do not activate publication without explicitly approved live controls | [`CONTRIBUTING.md`](../CONTRIBUTING.md); [`fleet-roadmap.md`](fleet-roadmap.md) |
@@ -83,7 +83,7 @@ authoritative?*
 | Handoffs: one owner; SHAs pinned where a downstream decision depends on byte identity (`Change: none` when the packet carries no repository bytes); labels preserved, taint marked, “what I did NOT do” stated | [`AGENTS.md`](../AGENTS.md) |
 | Learning is reviewable repository state with an explicit disposition and owner — never model memory | [`disposition-policy.md`](../skills/operational-learning/references/disposition-policy.md) |
 | Fleet improvement is encounter-driven; `fi_` ledger; ≤3 attempts; only human/protected workflow promotes | [`improvement-lifecycle.md`](../skills/agent-authoring/references/improvement-lifecycle.md) |
-| Gate A is structural only; independent correctness/security reviews run on an immutable commit before merge | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Gate A is structural only; one independent `reviewer` pass against the pushed SHA (named in the PR body) before merge; plan-conformance only when a plan is cited; authority-touching paths get all three reviews | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Sol/Codex conformance runners are parked; recovered use still obeys the Sol ADR authority-label rules | [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md) |
 | Deploys are never agent-executed; `pcf-deploy` must not auto-load | [`pcf-deploy/SKILL.md`](../skills/pcf-deploy/SKILL.md) |
 | Without an explicit grant, never commit; inline self-review never counts as an independent gate | [`ops-tooling/SKILL.md`](../skills/ops-tooling/SKILL.md) |

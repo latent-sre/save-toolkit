@@ -70,7 +70,15 @@ Waivers (if any): <item — approved by <human> — reason>
 
 ## Notes
 
-- Back this checklist with required CI and human review in branch protection.
+- Back this checklist with required CI and human review in a **ruleset** — this repo's is the
+  `Protect main` ruleset — or in a legacy branch protection rule. Rulesets are the current
+  mechanism and differ in ways that matter to a gate: "multiple rulesets can apply to the same
+  branch at the same time" and "the most restrictive version of the rule applies", so a second
+  ruleset can only tighten, never loosen; bypass is a named list (roles, teams, or GitHub Apps), so
+  *who* can skip the gate is auditable; and a ruleset can be switched from Active to **Disabled
+  without being deleted** — which is the silent failure to check for when a merge that should have
+  been blocked was not. Rulesets and branch protection rules "work alongside each other, and all
+  applicable rules are enforced." *[sourced: GitHub Docs, about rulesets; reviewed 2026-08-21]*
 - **The stale-approval check above is a self-run speed-bump, not the control.** The enforcement is branch
   protection's **"Dismiss stale pull request approvals when new commits are pushed"** — it invalidates
   approval mechanically when a later fix lands. Do not rely on the tick-box.

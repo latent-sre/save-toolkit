@@ -17,6 +17,18 @@ on Windows (`python` vs `py -3` vs `python3`, the last being the Microsoft Store
 disarmed the read-only guard). Sub-steps here run under `sys.executable` -- whichever interpreter you
 started this script with, by construction the right one.
 
+ONE RUN PER MACHINE
+-------------------
+Two gates overlapping on one machine false-red each other. Measured 2026-08-21: with a second python
+process running the same file, scripts/test_host_install_probe.py reports 19 failures and
+evals/test_codex_trial.py a KeyError, both finishing in a third of their healthy time; alone and in
+sequence they pass 6/6. The shared resource was not pinned down, and the common way to overlap is not
+deliberate at all: `gate_a.py | head` on Windows leaves the whole gate running orphaned after `head`
+exits, so every gate started afterwards collides with it. A false red sends a session into a
+debugging spiral that costs far more than the gate, so the gate takes a machine-wide lock in the
+temp directory, refuses to start while a live holder has it, reclaims a lock whose holder is dead,
+and always releases its own. Covered by scripts/test_gate_a.py.
+
 WHAT IT DOES NOT DO
 -------------------
 Gate A is STRUCTURAL. It proves the fleet is well-formed; it never proves the fleet is right. It passes
@@ -24,11 +36,14 @@ green over a skill that leaks the production password into argv. The adversarial
 conformance reviews required by CONTRIBUTING.md are the ones that catch that.
 """
 
+import contextlib
 import glob
 import os
 import subprocess
 import sys
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -118,6 +133,91 @@ def preflight():
     return True
 
 
+# Machine-wide on purpose: the overlap failure is per host (shared temp and user directories), not
+# per checkout, so two clones running the gate at once must also be refused.
+LOCK_PATH = Path(tempfile.gettempdir()) / "save-toolkit-gate_a.lock"
+
+
+class GateBusy(Exception):
+    def __init__(self, lock_path, holder_pid, holder_root):
+        super().__init__(lock_path, holder_pid, holder_root)
+        self.lock_path, self.holder_pid, self.holder_root = lock_path, holder_pid, holder_root
+
+
+def _read_holder(lock_path):
+    """(pid, root) from a lock file, or None when the file is empty or garbage — a crash artefact."""
+    try:
+        lines = lock_path.read_text(encoding="utf-8").splitlines()
+        return int(lines[0]), (lines[1] if len(lines) > 1 else "?")
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+# The Windows lock is MANDATORY, not advisory: a byte range locked with msvcrt.locking cannot be read
+# by anyone else, and the whole point of the identity text is that a refused run can read it. So the
+# locked byte lives far past the identity (locking beyond EOF is allowed), and the identity at offset
+# 0 stays readable. POSIX flock() is whole-file advisory and does not care.
+LOCK_BYTE_OFFSET = 1 << 16
+
+
+def _os_lock_nonblocking(fd):
+    """Acquire an exclusive OS lock on *fd* without blocking.
+
+    Returns True on success. Returns False if another process already holds the lock.
+    Uses ``fcntl.flock`` on POSIX and ``msvcrt.locking`` on Windows — both are stdlib.
+    """
+    if os.name == "nt":
+        import msvcrt
+        os.lseek(fd, LOCK_BYTE_OFFSET, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        except OSError:
+            return False
+    else:
+        import fcntl
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return False
+    return True
+
+
+def _os_unlock(fd):
+    """Release the OS advisory lock on *fd* (Windows only; POSIX releases on close)."""
+    if os.name == "nt":
+        import msvcrt
+        os.lseek(fd, LOCK_BYTE_OFFSET, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        except OSError:
+            pass
+
+
+@contextlib.contextmanager
+def gate_lock(lock_path=None):
+    lock_path = Path(lock_path or LOCK_PATH)
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
+    try:
+        if not _os_lock_nonblocking(fd):
+            # Another process holds the OS advisory lock; read its identity for the message.
+            holder = _read_holder(lock_path)
+            raise GateBusy(lock_path, *(holder if holder is not None else ("?", "?")))
+        # We hold the lock — record our identity so a future GateBusy message names us.
+        os.ftruncate(fd, 0)
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.write(fd, ("%d\n%s\n" % (os.getpid(), ROOT)).encode("utf-8"))
+        try:
+            yield
+        finally:
+            # Release, never delete. Windows cannot unlink an open file at all, and on POSIX deleting
+            # a lock file is the classic race: a waiter that already opened the old inode and a
+            # newcomer that creates a fresh file both "win". The file is one line in the temp dir;
+            # "released" means the next gate_lock() succeeds, not that the file is gone.
+            _os_unlock(fd)
+    finally:
+        os.close(fd)
+
+
 def run_steps(steps):
     """Run every step to completion and return the failed labels, in roster order.
 
@@ -155,7 +255,17 @@ def main():
     if not preflight():
         return 1
 
-    failed = run_steps(STEPS)
+    try:
+        with gate_lock():
+            failed = run_steps(STEPS)
+    except GateBusy as busy:
+        print("Gate A: REFUSED -- another Gate A is already running (pid %s, started from %s).\n"
+              "  Two runs that overlap on one machine false-red each other (test_host_install_probe,\n"
+              "  test_codex_trial), so this run did not start. Wait for that one to finish -- or, if it\n"
+              "  is an orphan (for example a `gate_a.py | head` whose reader already exited), stop it --\n"
+              "  and rerun. Lock: %s" % (busy.holder_pid, busy.holder_root, busy.lock_path),
+              file=sys.stderr)
+        return 1
 
     print("\n" + "-" * 60)
     if failed:

@@ -29,6 +29,17 @@ For production, this PASS establishes readiness only; authorization belongs to t
 - [ ] **Merge readiness exists** — attach a recorded PASS from the `merge-gate` skill for the exact
       reviewed SHA. This skill does not load or execute that sibling gate; missing evidence is a blocking
       item.
+- [ ] **The release tag cannot move and the Release cannot be edited** — two GitHub controls, both
+      checked as *state*, not assumed from the workflow file. A **tag ruleset** on the release tag
+      pattern is what enforces "a released version tag is never moved, deleted, or reused" (rulesets
+      are the only place tag deletion and renaming can be controlled), and an **immutable Release**
+      locks that tag "to a specific commit, cannot be changed, and cannot be deleted while the
+      release exists". `release.yml` requires both to be preconfigured and verifies them — it does
+      not create them; this item confirms the ruleset is **Active** via
+      `gh api repos/{owner}/{repo}/rulesets` and the prior release shows `"immutable": true` —
+      a Disabled ruleset or a mutable Release means the guarantee is a comment, not a control.
+      Whether this repo's tag ruleset exists and is Active is `[unverified]` until that read is
+      attached. *[sourced: GitHub Docs, about rulesets and immutable releases; reviewed 2026-08-21]*
 - [ ] **One identified artifact, promoted** — the version and changelog or release notes identify the
       candidate, and the exact artifact tested in lower environments is the one shipping; build once and
       promote rather than rebuilding.

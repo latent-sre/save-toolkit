@@ -52,13 +52,20 @@ The **2025 tj-actions/changed-files compromise** (a popular action's tags repoin
 stealing code) is the cautionary tale — assume any action you don't pin can change under you.
 - **Least-privilege token:** set `permissions:` explicitly; default to `contents: read` and grant only
   what's needed. Avoid the broad default token.
-- **OIDC over long-lived secrets:** `permissions: { id-token: write }` lets a job mint a short-lived
-  token from an OIDC-aware broker (a cloud IdP, Vault) at run time instead of storing static creds
-  (it only grants *requesting* the token). On our PCF stack this rarely means a cloud IdP — deploy creds
-  usually come from a self-hosted runner's internal store (CredHub auth is via UAA, not GitHub OIDC — see
-  the PCF deploy notes below).
+- **This team authenticates CI jobs from GitHub environment secrets**, not OIDC
+  *[sourced: operator statement 2026-08-21]*. Scope every secret to a protected environment so the
+  approval gate and the credential are the same control — an environment secret is only readable by
+  a job that already cleared that environment's reviewers. Rotate on a schedule and on any runner
+  rebuild; a long-lived secret's blast radius is however long nobody rotated it.
+- **OIDC is not a path on this stack, and the reason is structural**: `permissions: { id-token: write }`
+  mints a short-lived token from an OIDC-aware broker, but CredHub authenticates via UAA and does
+  not accept GitHub OIDC JWTs, so there is no exchange to broker. Do not design around one, and do
+  not treat `id-token: write` as a hardening step on this stack. It becomes relevant only for a
+  cloud IdP target — see the GCP note in the deploy section.
 - **Pin third-party actions by full commit SHA** (tags are mutable), version in a trailing comment:
-  `- uses: actions/checkout@<40-char-sha> # v4.2.2`. Re-pin deliberately (Dependabot can propose SHA
+  `- uses: actions/checkout@<40-char-sha> # v7.0.1`. Some actions no longer publish floating major
+  tags at all (`astral-sh/setup-uv` dropped `@v8`-style tags from v8.0.0 — only full release tags
+  exist), so the comment must name the full tag. Re-pin deliberately (Dependabot can propose SHA
   bumps), read the diff when you do, and give routine re-pins a **cooldown** — adopt a release only
   after it has been public a few days, because compromise campaigns count on fast adoption before
   detection catches the malicious version. One exception: a fix for a disclosed vulnerability in the
@@ -72,7 +79,10 @@ stealing code) is the cautionary tale — assume any action you don't pin can ch
   them through a quoted `env:` var and reference `"$VAR"`.
 - **Treat `pull_request_target` as dangerous:** it runs *your* workflow with repo secrets but can be
   triggered by untrusted fork PRs ("pwn request"). Don't check out + build fork code under it; prefer
-  plain `pull_request` (no secrets) for untrusted contributions.
+  plain `pull_request` (no secrets) for untrusted contributions. `actions/checkout` **v7.0.0+ refuses
+  to check out a fork at all** under `pull_request_target` and `workflow_run` — a workflow that
+  relied on it fails on upgrade, which is the action telling you the design was wrong.
+  *[sourced: actions/checkout CHANGELOG v7.0.0; reviewed 2026-08-21]*
 - **Fork PRs don't get secrets, by design** — a workflow that requires a secret to pass will always
   fail on fork contributions. Split it: the required checks run without secrets, the secret-needing
   job runs post-merge or on a label.
@@ -86,15 +96,33 @@ For artifacts you ship, attest provenance: `actions/attest-build-provenance` plu
 `actions/attest-sbom`, and verify downstream with `gh attestation verify`. This lets a consumer prove
 the artifact was built by your pipeline from your source, not swapped in. Pin every action by full SHA.
 
+**Publish as an immutable release** — this repo's own `release.yml` already requires it. Once
+published, "release assets cannot be modified or deleted" and the tag "is locked to a specific
+commit, cannot be changed, and cannot be deleted while the release exists"; publishing also
+"automatically generates a release attestation". Two consequences shape the workflow: build it as a
+**draft, attach every asset, then publish** — there is no adding a forgotten asset afterwards; and
+a bad release is handled by a *new* release, because even if you delete the immutable one "you
+cannot reuse the same tag name". The setting is per repository or organization; the API exposes
+`immutable: true` on the release object, which is what a downstream check should key on rather
+than the tag's existence. *[sourced: GitHub Docs, immutable releases; reviewed 2026-08-21]*
+
 ## Make it fast & correct
 - **Matrix** for multi-version testing: `strategy: { matrix: { python: ['3.11','3.12'] } }`.
 - **`timeout-minutes:` on every job** — a hung job holds a runner until the platform's 6-hour cap.
-- **Pin the runner image** (`ubuntu-24.04`, not `ubuntu-latest`) when reproducibility matters —
-  `latest` moves and breaks builds on the platform's schedule, not yours.
+- **Pin the runner image on GitHub-hosted jobs** (`ubuntu-24.04`, not `ubuntu-latest`).
+  `ubuntu-latest` resolves to Ubuntu 24.04 today, with `ubuntu-26.04` already published as a
+  preview label — the next `-latest` move is pending, not hypothetical. GitHub migrates the label
+  *gradually over 1–2 months*, so mid-migration the same workflow can draw a different OS version
+  from one run to the next; that run-to-run variance reads as flakiness, and pinning is the only
+  way to opt out. *[sourced: actions/runner-images README label table and "Latest Migration
+  Process"; reviewed 2026-08-21]* Self-hosted jobs select by runner label instead — see below.
 - **Cache the dependency store, not the build output**, with `actions/cache` (or `setup-*` built-in
   caching), keyed on the lockfile hash. A cache key that ignores the lockfile serves stale
   dependencies — a debugging nightmare that looks like flakiness. **Never cache anything derived from
-  untrusted PR code into a shared key.**
+  untrusted PR code into a shared key.** Tooling is starting to enforce this: `astral-sh/setup-uv`
+  v10.0.0+ with `enable-cache: auto` **disables the cache on `pull_request_target`, `workflow_run`,
+  and `release` events** to block cache poisoning — so a cache "miss" on those events is the
+  default, not a bug. *[sourced: astral-sh/setup-uv releases v10.0.0; reviewed 2026-08-21]*
 - **Concurrency** to cancel superseded runs on a branch: `concurrency: { group: ${{ github.ref }},
   cancel-in-progress: true }` (but **not** for prod deploys — never cancel a deploy mid-flight).
 - Upload build outputs with `actions/upload-artifact`; download in the deploy job to promote the *same*
@@ -106,6 +134,13 @@ PCF foundations and on-prem services are usually not reachable from GitHub-hoste
 that run `cf` against a foundation. Keep them patched and least-privileged; restrict which workflows can
 use them. Prefer **`--ephemeral`** runners (one job per runner, fresh each time) so a poisoned job can't
 persist and tamper with the next — and **never** attach self-hosted runners to public repos.
+
+Keep the runner binary current on the RHEL 9 hosts: `actions/checkout` moved to **Node 24 at
+v5.0.0**, and other first-party actions are moving the same way — a self-hosted runner whose
+bundled Node is too old
+fails the step before your workflow runs a line. GitHub-hosted runners carry the right Node already;
+self-hosted ones only do if someone updates them. *[sourced: actions/checkout CHANGELOG v5.0.0;
+reviewed 2026-08-21]*
 
 ## Deploy to PCF from Actions (paste-ready planning example)
 Use a self-hosted runner with a pinned cf CLI v8 installed (or installed from an internal,
@@ -121,10 +156,13 @@ job, and current human approval. Require an existing evidence packet for release
 exact approved production action; this skill does not load or run either gate. The agent authors or
 reviews the workflow; it never executes deployment.
 
-Prefer a CI **service account** with the minimum org/space roles and short-lived or frequently rotated
-credentials. For cloud targets, OIDC to your cloud IdP avoids long-lived tokens (note:
-GitHub-OIDC→CredHub is **not** a turnkey integration — CredHub authenticates via UAA, not GitHub OIDC
-JWTs). The target integration remains `[unverified]` until the platform/security owners provide evidence.
+Prefer a CI **service account** with the minimum org/space roles, and rotate its credential on a
+schedule rather than relying on it being short-lived — on this stack it is a GitHub environment
+secret, so nothing expires it for you *[sourced: operator statement 2026-08-21]*. Bind the secret to
+the protected environment that already gates the deploy, so the reviewer approval and the credential
+release are one step. GitHub-OIDC→CredHub is not a path — the Security section above says why. For
+a **GCP** target, OIDC to a cloud IdP does apply and would avoid a stored credential — but the landing runtime is decision-pending per
+`stack-profile`, so treat that path as `[unverified]` until a human owner records the decision.
 
 ## Tips
 - **A workflow is unverified until it has run.** For ordinary CI (build/test on a branch), push and

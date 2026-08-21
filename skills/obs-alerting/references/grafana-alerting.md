@@ -21,6 +21,16 @@ Sources reviewed 2026-07-14, extended 2026-08-07 (indirect retrieval of official
 - `[sourced]` [Labels and annotations](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rules/annotation-label/)
 - `[sourced]` [Alert rule evaluation](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rule-evaluation/) and its state/no-data subpages
 
+**Security floor — `[sourced]` (reviewed 2026-08-21).** Run **13.2.0 or later** for alerting.
+[CVE-2026-17183 / GHSA-f74r-h7qj-c63f](https://github.com/advisories/GHSA-f74r-h7qj-c63f)
+(CVSS 7.1 High, CWE-863 incorrect authorization, published 2026-08-19): *"An authenticated
+organization user who can create or edit alert rules in a folder can query a datasource for which
+they do not have `datasources:query` permission."* Fixed in the 13.2.0 release. Until the deployed
+instance is on it, treat **alert-rule edit rights as datasource read rights** — a folder where
+many people can author rules is a folder where all of them can read every datasource the rules
+can reach. The team's deployed minor is `[unverified]`; confirm it before granting rule-edit
+permissions broadly.
+
 Grafana documents Grafana-managed rules as the recommended option; they can query supported backend
 data sources and are evaluated by Grafana, while data source-managed rules are supported for compatible
 Prometheus-family backends and are stored/evaluated there. Verify target support and choose one
@@ -38,6 +48,13 @@ evaluation owner—never duplicate the same rule in both paths.
   and an open upstream bug reports file provisioning failing to apply it (value stays 0 after
   export + reload — grafana/grafana #109367) — verify the running rule's state, not just the
   YAML, before trusting the flap filter.
+- **Recovery threshold** — not one of the four evaluation knobs but the same flap problem from the
+  query side: "the alert returns to the Normal or Recovering state only after the recovery
+  threshold is crossed." A rule that fires above 1000 ms and recovers only below 900 ms cannot
+  oscillate on a value hovering at 1000 — hysteresis that `for` and `keep_firing_for` (which are
+  time-based) do not give you. Set it on the threshold expression of every latency/ratio rule
+  whose input is noisy; leave it off where the signal is a step function. *[sourced: Grafana
+  alerting queries-and-conditions; reviewed 2026-08-21]*
 - **No-data state**: map to No Data (default — fires a `DatasourceNoData` alert), Alerting,
   Normal, or Keep Last State. Choose deliberately per the parent skill's missing-data rule: for a
   paging burn-rate rule, silent-telemetry-means-Normal is the false all-clear.
@@ -83,6 +100,15 @@ service/owner/severity labels to route and investigate it. Never place a token o
 rule, label, annotation, or tracked provider file; tracked alerting configuration contains no credentials.
 
 ## Contact points and notification policies
+
+**Notification templates are the message; annotations are the facts.** A notification template
+(Go template syntax, `{{ define "name" }} … {{ end }}`) is assigned to a contact point and "changes
+the title, message, and format of notifications" — it shapes what Slack or email shows, iterating
+`{{ .Alerts }}` with `.Status`, `.Labels`, `.Annotations.summary`, `.CommonLabels`. An annotation
+template, by contrast, fills the alert's own `summary`/`runbook_url` from query values. Keep the
+division: the runbook link and the measured value live in annotations so every channel gets them;
+the template only decides layout. A template that computes facts is a second source of truth that
+drifts from the rule. *[sourced: Grafana alerting, template notifications; reviewed 2026-08-21]*
 
 Contact points define where a notification can go; notification policies select contact points using
 labels, grouping, and timing. Keep the route inventory explicit:

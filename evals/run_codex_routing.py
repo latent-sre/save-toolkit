@@ -216,7 +216,7 @@ LINUX_EXPECTED_VALUES = {
     "codex_executable_path": "/opt/route001/codex-runtime/bin/codex",
     "codex_executable_sha256": CODEX_EXECUTABLE_SHA256,
     "scenario_bundle_sha256": (
-        "640ed0da086f976b390e1f1e2c664a4181aef302c7f2dd9d7031cfe881c549cb"
+        "04417ded34826a9f7a67f72d78fa569b2e4fd91f35ca0c38329a1c6131808191"
     ),
 }
 EXPECTED_VALUES = LINUX_EXPECTED_VALUES

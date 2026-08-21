@@ -11,6 +11,12 @@ accessibility, and resilience UX remain owned by `frontend-craft`.
 - Separate input and output models; server-owned IDs and timestamps do not become optional caller
   fields merely because one interface was reused.
 - Keep `strict` enabled. Avoid `any`; narrow `unknown` at the boundary with a schema or type guard.
+- **`satisfies` checks a literal against a type without widening it.** `const palette = {…}
+  satisfies Record<Colors, string | RGB>` catches a misspelled key *and* keeps `palette.green` as
+  `string`, so `.toUpperCase()` still type-checks; an annotation (`const palette: Record<…>`) would
+  catch the typo but erase the per-key type. Reach for it on config objects, lookup tables, and
+  route maps — anywhere the exact literal shape is the point. *[sourced: TypeScript 4.9 release
+  notes; reviewed 2026-08-21]*
 
 ## Async traps
 
@@ -19,6 +25,13 @@ accessibility, and resilience UX remain owned by `frontend-craft`.
 - Start independent work together and await it with `Promise.all`; do not build accidental network
   waterfalls. Move an await inside the branch that consumes it so early returns remain cheap.
 - Bound outbound work with cancellation/timeouts and pass abort signals through client layers.
+- **`using` / `await using` (TS 5.2+) is the `try/finally` you stop forgetting.** A value with
+  `[Symbol.dispose]` (or `[Symbol.asyncDispose]`) declared with `using` is disposed at scope exit —
+  on normal exit, early `return`, or throw — in last-in-first-out order; if both the body and the
+  disposer throw, you get a `SuppressedError` carrying both. It needs `lib: ["esnext.disposable"]`
+  and, on runtimes without the symbols, the two-line polyfill
+  (`Symbol.dispose ??= Symbol("Symbol.dispose")`). Check the repo's target before using it in
+  shared code. *[sourced: TypeScript 5.2 release notes; reviewed 2026-08-21]*
 
 ## State and module boundaries
 

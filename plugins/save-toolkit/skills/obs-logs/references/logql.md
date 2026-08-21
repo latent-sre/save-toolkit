@@ -64,6 +64,36 @@ Parser failures can set the `__error__` label, and metric queries cannot contain
 or filter parser errors explicitly before trusting an aggregate. *[sourced: Grafana Loki pipeline-error
 documentation; unverified for target error policy]*
 
+**Structured metadata — filter it before you parse anything.** Loki 3.x can carry high-cardinality
+values (trace IDs, pod names, user IDs, `detected_level`) as *structured metadata*: attached to the
+line, not indexed, not in the line text. It is "extracted automatically for each returned log line
+and added to the labels", so it filters with plain label syntax and **no parser stage**:
+
+```logql
+{app="checkout", env="prod"} | traceID="3c0e3dcd33e7"
+```
+
+That is the right shape for "follow one request" — the docs put trace and transaction IDs here
+precisely because they are "often used in queries but high cardinality and expensive to extract at
+query time". Two rules follow. First, **order matters**: put the structured-metadata filter before
+any `| json` / `| logfmt`; if bloom-filter query acceleration is enabled (experimental, needs
+structured metadata, aimed at 75 TB/month+ tenants) only a filter that precedes every parser stage
+is accelerated. Second, it needs schema v13+ with the `tsdb` index — whether the team's Loki emits
+structured metadata at all, and which keys, is `[unverified]` until read from a real line.
+*[sourced: Loki structured-metadata, query-acceleration, and cardinality documentation;
+reviewed 2026-08-21]*
+
+**`pattern` is the parser for fixed-shape lines** — "easier and faster to write" than `regexp`
+and it "outperforms the regexp parser". Named captures become labels, `<_>` skips a field:
+
+```logql
+{app="gateway"} | pattern `<ip> - - <_> "<method> <uri> <_>" <status> <size> <_> "<agent>" <_>`
+```
+
+A pattern is invalid with no named capture, or with two captures not separated by whitespace —
+so a line whose fields abut needs `regexp` after all. *[sourced: LogQL log-queries reference,
+pattern parser; reviewed 2026-08-21]*
+
 ## Metric queries: rates and complete buckets
 
 `rate` returns log entries per second over a range; `count_over_time` returns the number of entries in

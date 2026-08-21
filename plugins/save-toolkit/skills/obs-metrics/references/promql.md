@@ -156,6 +156,18 @@ prometheus/prometheus CHANGELOG; unverified for the deployed Prometheus/Mimir ve
   may be missing recent samples at the receiving end — a pipeline finding for the
   `obs-pipeline` skill, not a query rewrite.
 
+**Mimir 3.2.0 changes query-path defaults — `[sourced]` (reviewed 2026-08-21).** Three behaviors a
+query author feels, from the 3.2.0 release notes: *"Remote execution enabled by default. You must
+ensure all queriers are on Mimir 3.1 before upgrading"* (the old
+`-query-frontend.enable-multiple-node-remote-execution-requests` flag is removed, so the upgrade
+**order** is the control); *"Enable query sharding by default. Disable it with
+`-query-frontend.parallelize-shardable-queries=false`"* — a query that changed cost or result shape
+after the upgrade may be sharded now when it was not before; and ingester request hedging is now
+**off** by default (restore with `-querier.minimize-ingester-requests-hedging-delay=3s`), so a
+single slow ingester shows up as tail latency it previously hid. Query-planning metrics moved from
+`component="querier"` to `engine="querier"` — no fleet query keys on it, but a borrowed
+self-monitoring dashboard might. The deployed Mimir version is `[unverified]`.
+
 ## Mimir per-tenant limits — typed `err-mimir-*` errors
 
 Mimir enforces per-tenant limits and rejects with typed error IDs; record the ID verbatim — it

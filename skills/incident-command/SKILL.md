@@ -1,7 +1,7 @@
 ---
 name: incident-command
 description: >-
-  Run a live incident — classify SEV1–SEV4 by user impact × scope × trend, assign roles, keep the
+  Run a live incident — classify P1–P4 by user impact × scope × trend, assign roles, keep the
   authoritative timeline, drive to mitigation (fastest reversible action: route remap, rollback, restart,
   scale, flag flip), send initial/update/resolution comms. Triggers: 'declare an incident', 'what severity
   is this', 'send a status update', 'should we roll back'. Mitigation is executed by a human; the sre agent
@@ -22,21 +22,21 @@ becomes clear.
 
 ## Severity rubric (round up when unsure)
 
-| SEV | Definition (user impact × scope) | What it triggers |
-|-----|----------------------------------|------------------|
-| **SEV1** | Customer-facing outage for all/most users, **or** data-loss / integrity / security event | Declare **now**; assign an incident commander (run the process below); page on-call + service owner + leadership; status updates every **15 min**; full blameless postmortem |
-| **SEV2** | Major degradation, or a single critical service/journey down for a subset of users | Declare; assign an incident commander (run the process below); page on-call + service owner; updates every **30 min**; postmortem required |
-| **SEV3** | Minor / contained impairment; core journeys work or a workaround exists | On-call owns the lifecycle; no IC required; update stakeholders at start + resolution; abbreviated postmortem |
-| **SEV4** | Cosmetic / informational; no user impact | Normal work queue; no incident process |
+| Tier | Definition (user impact × scope) | What it triggers |
+|------|----------------------------------|------------------|
+| **P1 — Critical** | Customer-facing outage for all/most users, **or** data-loss / integrity / security event | Declare **now**; assign an incident commander (run the process below); page on-call + service owner + leadership; status updates every **15 min**; full blameless postmortem |
+| **P2 — High** | Major degradation, or a single critical service/journey down for a subset of users | Declare; assign an incident commander (run the process below); page on-call + service owner; updates every **30 min**; postmortem required |
+| **P3 — Medium** | Minor / contained impairment; core journeys work or a workaround exists | On-call owns the lifecycle; no IC required; update stakeholders at start + resolution; abbreviated postmortem |
+| **P4 — Low** | Cosmetic / informational; no user impact | Normal work queue; no incident process |
 
 ## How to classify
 
 - **Impact × scope × trend.** Multiply *how bad for a user* by *how many users / which journeys*, then
-  weigh *direction* — a SEV3 that's **growing** is escalating toward SEV2; say so and re-page.
+  weigh *direction* — a P3 that's **growing** is escalating toward P2; say so and re-page.
 - **Bound the blast radius.** One app/route/instance ⇒ likely app-side (yours). Many apps at once, or
   failing/evacuating Diego cells ⇒ platform-side ⇒ escalate to the platform team with evidence: capture
   `cf apps`, `cf app`, `cf events`, and bounded `cf logs --recent` output, or give the packet to the typed
-  `sre` agent. If you **can't yet bound** the blast radius, that alone justifies SEV2 and declaring.
+  `sre` agent. If you **can't yet bound** the blast radius, that alone justifies P2 and declaring.
 - **Time-box the responder.** First on scene and not stabilized in **~15 min**, or the impact is
   growing → declare and assign an incident commander (run the process below); don't keep digging solo.
 
@@ -70,7 +70,7 @@ runs the *process*, not the debugging, keeping the response moving toward mitiga
 ### Status — one authoritative block, kept live
 
 ```text
-Incident: <title>   Severity: <SEV-n>   Status: <investigating|mitigating|monitoring|resolved>
+Incident: <title>   Severity: <P1|P2|P3|P4>   Status: <investigating|mitigating|monitoring|resolved>
 Impact: <who/what, since when, trend>
 Roles: Investigation=<>, Ops=<>, Comms=<>
 Timeline (UTC): <ts — event/decision> …
@@ -84,8 +84,8 @@ Next update: <time>
 
 Update on the **fixed cadence for the severity above, even with no news** ("still investigating, next
 update by HH:MM") — silence reads as loss of control. Keep it honest and jargon-free: never overstate
-confidence or understate impact. For SEV1, the first external update goes out within the hour. For a
-large SEV1, split **Comms lead** and **Scribe** off from the IC; otherwise the IC owns both.
+confidence or understate impact. For P1, the first external update goes out within the hour. For a
+large P1, split **Comms lead** and **Scribe** off from the IC; otherwise the IC owns both.
 
 ### Templates
 
@@ -94,7 +94,7 @@ large SEV1, split **Comms lead** and **Scribe** off from the IC; otherwise the I
 - **Update** — *What changed since last update*, *Current status* (investigating | mitigating |
   monitoring), *Mitigation in progress / ETA*, *Next update by* `<HH:MM UTC>`.
 - **Resolution** — *Impact has ended* (and since when), *Root-cause summary* (or "`[unverified]` — under
-  investigation"), *What we did*, *Follow-ups + owners*, *Postmortem to follow* (SEV1/SEV2).
+  investigation"), *What we did*, *Follow-ups + owners*, *Postmortem to follow* (P1/P2).
 
 ## Downgrade & resolve
 

@@ -17,12 +17,12 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest migrates gradually and varies run-to-run mid-migration
     strategy:
       matrix: { python-version: ["3.11", "3.12"] }
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   # v4.2.2
-      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5.4.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1 — needs a Node 24 runner; refuses fork checkout under pull_request_target
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1 — no @v10 floating tag exists; cache auto-disabled on pull_request_target/workflow_run/release
         with: { python-version: "${{ matrix.python-version }}" }
       - run: uv sync --frozen
       - run: uv run ruff check .

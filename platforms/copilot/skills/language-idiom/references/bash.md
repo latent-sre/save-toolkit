@@ -9,15 +9,21 @@ Shell is for glue and orchestration. If a script grows real logic/data structure
 ```bash
 #!/usr/bin/env bash
 set -Eeuo pipefail
-shopt -s inherit_errexit 2>/dev/null || true   # bash>=4.4 only; best-effort on RHEL7-era on-prem hosts
+shopt -s inherit_errexit
 ```
+
+**The fleet's bash floor is 5.1** — on-prem hosts and runners are RHEL 9+, and GitHub-hosted Linux
+runners are Ubuntu; both are well past the 4.4 that `inherit_errexit` needs *[sourced: operator
+statement 2026-08-21; confirm the exact minor on the target host]*. Write the bare `shopt`. The defensive
+`shopt -s inherit_errexit 2>/dev/null || true` form belongs to pre-4.4 hosts, and carrying it
+forward is worse than useless here: `|| true` swallows a genuine failure and leaves `-e` quietly
+not reaching `$(...)`.
 - **Set `IFS` locally where you split, not globally.** A global `IFS=$'\n\t'` changes *every* unquoted
   expansion and surprises more than it helps; scope it to the read that needs it
   (`while IFS=',' read -r a b; do …`). Quoting every expansion is the real fix.
 - Trap cleanup: `tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT`.
 - **`set -e` is leakier than it looks** — suppressed inside `if`/`while`/`&&`/`||` conditions and
-  command substitutions `$(...)`. `shopt -s inherit_errexit` makes `-e` reach `$(...)` (bash>=4.4; guard
-  as `shopt -s inherit_errexit 2>/dev/null || true` on RHEL7-era on-prem hosts); the `-E` in
+  command substitutions `$(...)`. `shopt -s inherit_errexit` makes `-e` reach `$(...)`; the `-E` in
   `set -Eeuo pipefail` is `set -o errtrace` — without it an `ERR` trap does **not** fire inside
   functions/subshells. And a function called from an `if` condition runs with `-e` disabled *inside
   it too* — a failure there is data, not an exit.
@@ -27,8 +33,9 @@ shopt -s inherit_errexit 2>/dev/null || true   # bash>=4.4 only; best-effort on 
   fails — capture into a variable first if the exit status matters.
 - `((i++))` **returns non-zero when the result is 0**, which under `-e` exits the script — use
   `((i++)) || true` or `i=$((i+1))`.
-- **`-u` and empty arrays**: `"${arr[@]}"` on an empty array is an unbound-variable error in older
-  bash; write `${arr[@]+"${arr[@]}"}` where the script must run on pre-4.4 hosts.
+- **`-u` and empty arrays**: `"${arr[@]}"` on an empty array is an unbound-variable error in bash
+  before 4.4. The fleet is past that, so write it plainly; reach for
+  `${arr[@]+"${arr[@]}"}` only when a script must also run somewhere older than the fleet floor.
 
 The honest conclusion: check the exit statuses that matter explicitly. `set -e` is a backstop, not
 a policy.

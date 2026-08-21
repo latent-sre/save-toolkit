@@ -102,6 +102,14 @@ On any conflict, those owners and the target repository win.
   an error boundary.
 - Mark non-urgent rendering with the repository's transition pattern only when it preserves input
   responsiveness. A transition is not a network timeout, cancellation policy, or error handler.
+- **React 19 form Actions replace the hand-rolled submit handler.** Pass an async function to
+  `<form action={…}>` and read it through `useActionState(action, initialState)`, which returns
+  `[state, submitAction, isPending]`; the action receives `(previousState, formData)`, **returns**
+  the error or next state instead of throwing it, and `isPending` is the disable-the-button flag —
+  no `useState` for loading, no try/catch in the handler, and a pre-hydration submit is replayed
+  rather than lost. Use it for every mutation form on React 19; keep the manual pattern only where
+  the repo is pinned below 19. *[sourced: react.dev `useActionState`, `<form>`, React 19 release
+  post; reviewed 2026-08-21]*
 
 ## SSR and hydration
 

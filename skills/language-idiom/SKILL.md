@@ -1,7 +1,7 @@
 ---
 name: language-idiom
 description: >-
-  Write, review, test, debug, or safely refactor Python, TypeScript, Bash, PowerShell, and Go using
+  Write, review, test, debug, or safely refactor Python, Java, TypeScript, Bash, PowerShell, and Go using
   language-specific conventions plus the bundled tests-first and behavior-preserving-refactoring
   processes. Triggers: 'write this in Python', 'review this Bash script', 'refactor this Go code'.
   Ownership map only—not a load: backend-craft owns API/resiliency design and frontend-craft owns
@@ -34,6 +34,9 @@ Load **only** the file for the language you're touching.
   → [`references/powershell.md`](./references/powershell.md)
 - **Go** — `gofmt`/`go vet`/`golangci-lint`, error wrapping with `%w`, table tests with `-race`,
   context/goroutine-leak safety. → [`references/go.md`](./references/go.md)
+- **Java** — version contract from the build file, records/sealed types, JSpecify nullability,
+  virtual threads, boxed-`==` and `java.time` traps, the PCF buildpack memory calculator.
+  → [`references/java.md`](./references/java.md)
 - **TypeScript/JavaScript** — strict types, promise safety, request-scope state, idempotent writes.
   → [`references/typescript.md`](./references/typescript.md)
 - **Writing tests first / after any bug fix** — use the regression-first method before implementation.

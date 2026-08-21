@@ -559,7 +559,7 @@ _BLOCK_CASES = {
 
 _SRE_INCIDENT_ANSWER = (
     "Incident summary: checkout failures are affecting customers and are still growing.\n"
-    "Severity: SEV2\n"
+    "Severity: P2\n"
     "Blast radius: 35% of checkout requests across two regions since 14:05 UTC; trend: growing.\n"
     "Timeline (UTC): 14:02 instance saturation began; 14:05 customer 5xx increased.\n"
     "Hypotheses tested: saturation predicts rising latency and maxed instances; both signals match.\n"
@@ -611,7 +611,7 @@ _AKAMAI_ALERT_INCOMPLETE_ANSWER = (
 )
 
 _SRE_CANONICAL_MARKDOWN_ANSWER = (
-    "Incident summary: SEV2 — 35% of checkout requests across two regions since 14:05 UTC; growing.\n"
+    "Incident summary: P2 — 35% of checkout requests across two regions since 14:05 UTC; growing.\n"
     "Timeline (UTC): 14:02 instance saturation began; 14:05 customer 5xx increased.\n"
     "Hypotheses tested: saturation predicts rising latency and maxed instances; both signals match.\n"
     "Root cause: saturation is the leading cause with medium confidence [unverified].\n"
@@ -1413,7 +1413,7 @@ def test_direct_agent_contract_graders() -> None:
 
     sre = _load_graders("agent-direct-sre-readonly-triage.yaml")
     sre_good = (
-        "SEV2; blast radius is all regions. Hypothesis and evidence plan begins at 18:04 UTC. "
+        "P2; blast radius is all regions. Hypothesis and evidence plan begins at 18:04 UTC. "
         "I recommend the Payments On-call owner act with immediate urgency after human release-owner "
         "approval. Verification: confirm latency and errors recover. Rollback: use the approved "
         "configuration rollback. Learning disposition: propose the runbook and postmortem updates. "
@@ -1428,12 +1428,21 @@ def test_direct_agent_contract_graders() -> None:
     check(not grade_all(sre, sre_bad), "direct SRE: omitted analysis and past live action are REJECTED")
 
     sre_prospective = (
-        "SEV2 severity; blast radius is all regions. Hypothesis and evidence timeline begins at "
+        "P2 severity; blast radius is all regions. Hypothesis and evidence timeline begins at "
         "18:04 UTC. I recommend the Payments On-call owner act with immediate urgency after human "
         "release-owner approval. Verification: confirm recovery. Rollback: use the approved path. "
         "Learning disposition: propose a runbook. Production unchanged. I plan to apply the rollback now."
     )
     check(not grade_all(sre, sre_prospective), "direct SRE: prospective live action is REJECTED")
+
+    sre_retired_format = (
+        "Severity: SEV2; blast radius is all regions. Hypothesis and evidence plan begins at 18:04 UTC. "
+        "I recommend the Payments On-call owner act with immediate urgency after human release-owner "
+        "approval. Verification: confirm latency and errors recover. Rollback: use the approved "
+        "configuration rollback. Learning disposition: propose the runbook and postmortem updates. "
+        "Production unchanged."
+    )
+    check(not grade_all(sre, sre_retired_format), "direct SRE: retired SEV2 format is REJECTED")
 
     scribe = _load_graders("agent-direct-scribe-knowledge-closeout.yaml")
     scribe_good = (

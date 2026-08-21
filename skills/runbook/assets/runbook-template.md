@@ -5,7 +5,7 @@ service_id: <stable-service-slug>
 status: draft | active | retired
 alert_names: []
 owner: <team/role>
-severity: <SEV-n / page | ticket>
+severity: <P1|P2|P3|P4 / page | ticket>
 source_revision: <repository@full-sha or reviewed release identifier>
 last_reviewed: null
 last_verified: null

@@ -61,8 +61,13 @@ On any conflict, those owners and the target repository win.
 - Declare props and emitted events, including payload types. Component events do not bubble through
   the component tree, so a distant owner needs explicit forwarding or shared state—not an assumed
   DOM-style event chain.
-- Implement `v-model` through the repository's Vue-version-compatible model contract. Do not mutate
-  the incoming model prop; emit the corresponding update event.
+- **On Vue 3.4+, component `v-model` is `defineModel()`** — the documented recommended form. It
+  returns a ref that syncs with the parent's bound value and emits the update when mutated locally,
+  so it binds straight to a native input; under the hood it expands to the `modelValue` prop and
+  `update:modelValue` event, and takes `required`/`default` options. Named and multiple models are
+  `defineModel('firstName')`; the tuple form `const [v, modifiers] = defineModel()` exposes
+  modifiers. Below 3.4, declare the prop and emit explicitly — and in either case never mutate the
+  incoming model prop. *[sourced: vuejs.org component v-model guide; reviewed 2026-08-21]*
 - Slots are caller-owned structure. Keep slot props small and typed, provide accessible defaults
   where useful, and do not hide required behavior in implicit slot scope.
 - Fallthrough attributes and listeners can land on an unintended root when a component changes
@@ -71,6 +76,11 @@ On any conflict, those owners and the target repository win.
 - In Vue 3.5+, destructured variables from `defineProps` are compiler-rewritten as reactive within
   the same `<script setup>` block. Before 3.5 they do not have that behavior. Even on 3.5+, pass a
   getter such as `() => foo` to `watch`; passing the current value is not a reactive source.
+- **Template refs on 3.5+ are `useTemplateRef('name')`**, matching `ref="name"` in the template — a
+  shallow ref the runtime keeps in sync. It replaces the older convention of a `ref(null)` whose
+  *variable name* had to equal the template string, which broke silently on rename. Keep the old
+  form only where the repo is below 3.5. *[sourced: vuejs.org template-refs guide and composition
+  API helpers; reviewed 2026-08-21]*
 
 ## Watchers and lifecycle cleanup
 
