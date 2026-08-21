@@ -150,7 +150,10 @@ restart, restage, scale, flag flip). Two things stay on the full gate even at P1
 - Branch-protection evidence (the `gh api` check above). A live `cf` action is not a merge, and a
   GitHub API call must never sit on the rollback path — a GitHub outage cannot be allowed to block
   recovery.
-- Timing/freeze documentation, Moogsoft suppression records, and the formal change record.
+- Timing/freeze documentation, Moogsoft suppression records, and the formal change record. This team
+  keeps change records in **both BMC Remedy and Jira** *[sourced: operator statement 2026-08-21]*, so
+  name the system and the record ID rather than writing "the change record" — a packet that does not
+  say which system it means cannot be checked by the person approving it.
 - Pre-change stakeholder notification — the incident comms cadence covers stakeholders, and the IC
   roles satisfy the monitoring and comms items.
 

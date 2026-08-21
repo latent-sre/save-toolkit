@@ -47,11 +47,16 @@ The **2025 tj-actions/changed-files compromise** (a popular action's tags repoin
 stealing code) is the cautionary tale — assume any action you don't pin can change under you.
 - **Least-privilege token:** set `permissions:` explicitly; default to `contents: read` and grant only
   what's needed. Avoid the broad default token.
-- **OIDC over long-lived secrets:** `permissions: { id-token: write }` lets a job mint a short-lived
-  token from an OIDC-aware broker (a cloud IdP, Vault) at run time instead of storing static creds
-  (it only grants *requesting* the token). On our PCF stack this rarely means a cloud IdP — deploy creds
-  usually come from a self-hosted runner's internal store (CredHub auth is via UAA, not GitHub OIDC — see
-  the PCF deploy notes below).
+- **This team authenticates CI jobs from GitHub environment secrets**, not OIDC
+  *[sourced: operator statement 2026-08-21]*. Scope every secret to a protected environment so the
+  approval gate and the credential are the same control — an environment secret is only readable by
+  a job that already cleared that environment's reviewers. Rotate on a schedule and on any runner
+  rebuild; a long-lived secret's blast radius is however long nobody rotated it.
+- **OIDC is not available here, and the reason is structural**: `permissions: { id-token: write }`
+  mints a short-lived token from an OIDC-aware broker, but CredHub authenticates via UAA and does
+  not accept GitHub OIDC JWTs, so there is no exchange to broker. Do not design around one, and do
+  not treat `id-token: write` as a hardening step on this stack. It becomes relevant only for a
+  cloud IdP target — see the GCP note in the deploy section.
 - **Pin third-party actions by full commit SHA** (tags are mutable), version in a trailing comment:
   `- uses: actions/checkout@<40-char-sha> # v4.2.2`. Re-pin deliberately (Dependabot can propose SHA
   bumps), read the diff when you do, and give routine re-pins a **cooldown** — adopt a release only
@@ -121,10 +126,14 @@ job, and current human approval. Require an existing evidence packet for release
 exact approved production action; this skill does not load or run either gate. The agent authors or
 reviews the workflow; it never executes deployment.
 
-Prefer a CI **service account** with the minimum org/space roles and short-lived or frequently rotated
-credentials. For cloud targets, OIDC to your cloud IdP avoids long-lived tokens (note:
-GitHub-OIDC→CredHub is **not** a turnkey integration — CredHub authenticates via UAA, not GitHub OIDC
-JWTs). The target integration remains `[unverified]` until the platform/security owners provide evidence.
+Prefer a CI **service account** with the minimum org/space roles, and rotate its credential on a
+schedule rather than relying on it being short-lived — on this stack it is a GitHub environment
+secret, so nothing expires it for you *[sourced: operator statement 2026-08-21]*. Bind the secret to
+the protected environment that already gates the deploy, so the reviewer approval and the credential
+release are one step. GitHub-OIDC→CredHub is not an option to design toward: CredHub authenticates
+via UAA and does not accept GitHub OIDC JWTs. For a **GCP** target, OIDC to a cloud IdP does apply
+and would avoid a stored credential — but the landing runtime is decision-pending per
+`stack-profile`, so treat that path as `[unverified]` until a human owner records the decision.
 
 ## Tips
 - **A workflow is unverified until it has run.** For ordinary CI (build/test on a branch), push and
