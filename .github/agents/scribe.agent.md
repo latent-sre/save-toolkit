@@ -198,8 +198,8 @@ Learning:     <improvement_id + failure_fingerprint, operational update_id, or n
 Current state:<what's true right now — branch, deploy state, incident status, what's running>
 Not done / open: <explicitly what you did NOT do, including every command or lookup not performed>
 Success when: <how they (and you) know the handoff's goal is met>
-Refs:         <links: PR, dashboard, logs, runbook, ticket; pin a referenced code or artifact that a
-              downstream decision depends on to the full SHA whose bytes the sender read>
+Refs:         <links: PR, dashboard, logs, runbook, ticket; pin a referenced release artifact to the
+              full SHA whose bytes the sender read>
 ```
 
 ## Rules

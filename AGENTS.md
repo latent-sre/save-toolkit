@@ -133,43 +133,6 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   twins), `gcloud secrets versions access`, and `gcloud kms decrypt` are off the allowlist for the
   same reason.
 
-## Design disciplines (why the fleet is shaped this way)
-
-The conventions and rules below are consequences of four disciplines, not free-standing
-bureaucracy. They map directly onto Anthropic's current agent-engineering guidance.
-
-- **Loop engineering.** Every lane runs gather context → take action → verify → repeat, and the
-  verify step is designed, not hoped for: Gate A, the fixture-that-fails-first rule, and
-  `mutation_guard.py` — a deliberate sweep that refuses a dirty tree and runs mutants in throwaway
-  Git worktrees — exist to be that step for fleet changes; golden-signal recovery evidence is that
-  step for incident work. A result with no verification path can only be `[unverified]`.
-  *[sourced: Anthropic, "Building agents with the Claude Agent SDK",
-  claude.com/blog/building-agents-with-the-claude-agent-sdk; "Building effective agents",
-  anthropic.com/engineering/building-effective-agents]*
-- **Graph engineering.** The roster's delegation edges are decomposed by context boundary — what
-  each lane may see — not by job title: `reviewer` reads the local checkout but holds no web, shell,
-  or delegation; `researcher` holds only the public web and no local read. Fan-out costs ~15× chat
-  tokens, so the single-lane default stands until breadth, isolation, or adversarial verification
-  pays for the split.
-  *[sourced: Anthropic, "How we built our multi-agent research system"; "When to use multi-agent
-  systems (and when not to)", claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them]*
-- **Handoff engineering.** The packet convention below is this fleet's structured note-taking
-  between contexts; underspecified handoffs are the #1 multi-agent bug.
-  *[sourced: Anthropic, "Effective context engineering for AI agents",
-  anthropic.com/engineering/effective-context-engineering-for-ai-agents]*
-- **Learning engineering.** Skills-as-files with progressive disclosure are the fleet's durable
-  memory, and learning lands as reviewable repository state with human-gated promotion — the same
-  approve/reject gate Anthropic's managed-agent memory consolidation ("dreaming") ships with.
-  *[sourced: Anthropic, "Equipping agents for the real world with Agent Skills",
-  anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills. The 2026-05
-  "dreaming" research preview is `[unverified]` here: the primary announcement was not reached, and
-  the approve/reject detail comes from third-party coverage
-  (venturebeat.com/technology/anthropic-introduces-dreaming-a-system-that-lets-ai-agents-learn-from-their-own-mistakes)]*
-
-Each citation locates a published post by title and URL; none was fetched during this repository's
-checks, so they are `[sourced]`, never `[verified]`. Depth for all four:
-[`agent-authoring/references/roster.md`](skills/agent-authoring/references/roster.md).
-
 ## Shared conventions (every agent follows)
 
 - **Evidence over assertion.** Label load-bearing claims `[verified]` (ran/observed it),
@@ -181,9 +144,9 @@ checks, so they are `[sourced]`, never `[verified]`. Depth for all four:
   explicit human confirmation with the plan and rollback shown first. The three gates
   (`merge-gate`, `release-gate`, `production-change-gate`) are the checklists; GitHub branch
   protection and protected environments are the real enforcement.
-- **Handoffs use the packet convention** carried in each agent's body: one owner, SHAs pinned where
-  a decision depends on byte identity, evidence labels preserved, taint marked, "what I did NOT do"
-  stated.
+- **Handoffs use the packet convention** carried in each agent's body: one owner, the change named,
+  release artifacts pinned to a full SHA, evidence labels preserved, taint marked, "what I did NOT
+  do" stated.
 - **Learning is reviewable repository state, not model memory.** Every durable operational discovery
   receives a `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable` disposition with
   evidence and an owner. An agent never treats its own assertion as accepted knowledge.

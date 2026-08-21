@@ -2,12 +2,20 @@
 
 # Roster altitude — design the agent system, not one artifact
 
+Four disciplines shape this fleet, and the sections below are grouped by them: **loop engineering**
+(the verify step inside each lane), **graph engineering** (which lanes exist and what each may see),
+**handoff engineering** (what survives between contexts), and **learning engineering** (where durable
+knowledge lands). Each names a failure mode this fleet has actually hit; none is free-standing
+ceremony. Citations throughout locate a published post by title and URL — they are `[sourced]`, never
+`[verified]`, because none was fetched during this repository's checks.
+
 ## Contents
 
 - First question: should this be multi-agent at all?
 - Agent vs. skill (this fleet's decision rule)
 - The loop inside each lane (loop engineering)
 - Orchestration shapes (graph engineering)
+- Handoffs between contexts (handoff engineering)
 - Design principles
 - Failure modes to diagnose
 - Deliverable
@@ -80,6 +88,37 @@ anthropic.com/engineering/building-effective-agents — located by title and URL
   worth the cost on high-stakes review.
 - **Loop-until-dry** — for unknown-size discovery, iterate until K consecutive rounds surface
   nothing new; fixed counts miss the tail.
+
+Decompose by **context boundary — what each lane may see — not by job title.** That is why `save-toolkit-reviewer`
+reads the local checkout but holds no web, shell, or delegation, and `save-toolkit-researcher` holds only the
+public web and no local read. Fan-out costs real tokens (see *When it pays*), so the single-lane
+default stands until breadth, isolation, or adversarial verification pays for the split.
+
+*[sourced: Anthropic, "How we built our multi-agent research system"; "When to use multi-agent
+systems (and when not to)", claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them —
+located by title and URL, not fetched here]*
+
+## Handoffs between contexts (handoff engineering)
+
+The graph's edges carry more risk than its nodes. A worker's context dies when it returns, so the
+packet is the only thing that survives — and an underspecified handoff fails *silently*: the receiver
+produces confident work on the wrong premise. This is the most common multi-agent defect.
+
+- **Structured note-taking beats a summary.** The packet convention in each agent body is a fixed
+  field set — owner, change, findings with evidence, current state, what was NOT done, success
+  criteria — because free-form prose drops whichever field the sender did not think mattered.
+- **Labels survive the trip.** `[verified]`, `[sourced]`, `[unverified]`, and `[UNTRUSTED]` are
+  copied exactly and never upgraded in transit. A receiver that re-labels has manufactured evidence.
+- **Name the change or it is stale on arrival.** The `Change:` line pins the commit or range the
+  packet describes, and the receiver's first act is to compare it against the current head. That one
+  field carries byte identity for review and merge work — which is why the full-SHA pin on *other*
+  references is scoped to release evidence rather than demanded of every link.
+- **State what you did not do.** The omission a sender finds obvious is the gap a receiver fills
+  with an assumption.
+
+*[sourced: Anthropic, "Effective context engineering for AI agents",
+anthropic.com/engineering/effective-context-engineering-for-ai-agents — located by title and URL,
+not fetched here]*
 
 ## Design principles
 
