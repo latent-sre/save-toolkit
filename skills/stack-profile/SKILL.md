@@ -76,8 +76,11 @@ must run on both: the effective **bash floor is 5.1**, past every pre-4.4 workar
 *[sourced: operator statement 2026-08-21; confirm exact minor versions on the target]*
 
 ## Data stores
-PostgreSQL, SQL Server, and MySQL/MariaDB — **all running on-prem today**. **No Oracle is
-recorded.** A managed cloud database is a possible future addition alongside the GCP migration, but
+**PostgreSQL and SQL Server** are the operated engines, **all on-prem today**. Some applications
+embed **SQLite**; treat it as something to be aware of, not an engine the team operates — the one
+rule worth carrying is that a SQLite file behind a multi-instance app on PCF's ephemeral disk is
+not shared and not durable. MySQL exists but is minor; **MariaDB and Oracle are not used**.
+A managed cloud database is a possible future addition alongside the GCP migration, but
 nothing is running there now: treat cloud-database guidance as not-yet-applicable rather than
 optional. Engine-specific migration, locking, and failover mechanics remain `[unverified]` per
 target until captured against a real instance. *[sourced: operator statement 2026-08-21]*

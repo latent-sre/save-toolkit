@@ -22,7 +22,7 @@ description: >-
 # Database reliability
 
 Keep data **correct, durable, and fast**, and make schema change safe in production. Our apps run on
-PCF and bind to managed relational services (Postgres / Oracle / MS SQL) — you operate at the
+PCF and bind to managed relational services (Postgres / MS SQL) — you operate at the
 *application + data* layer, not the DB platform internals. Canonical `backend-craft` owns writing
 persistence and migration code; this skill owns operating it safely, diagnosing it, and proving recovery.
 
@@ -64,7 +64,6 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
 > |---|---|---|
 > | **Postgres** | `EXPLAIN <stmt>` | `EXPLAIN ANALYZE <stmt>` |
 > | **MS SQL** | Estimated plan · `SET SHOWPLAN_XML ON` | Actual plan · `SET STATISTICS XML ON` |
-> | **Oracle** | `EXPLAIN PLAN FOR …` + `DBMS_XPLAN.DISPLAY` | (running the statement) |
 >
 > **Default to the safe column.** Reach for the executing form only on a statement you have confirmed
 > is a `SELECT`, on a non-prod copy or a read replica, with DBA sign-off for prod.
@@ -75,19 +74,12 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
 > ```
 > Rollback covers ordinary table DML — it does **not** undo sequence/`nextval` consumption, or effects
 > that escape the transaction (FDW/dblink writes, `COPY TO PROGRAM`). Not a blanket safety net.
->
-> **Oracle AWR/ADDM/ASH require the Diagnostics Pack** — a separately licensed, extra-cost Enterprise
-> Edition option. The features are **installed and will happily run on an unlicensed database**, so a
-> casual `@awrrpt` creates real audit exposure. Check `CONTROL_MANAGEMENT_PACK_ACCESS` (set it to
-> `NONE` where unlicensed). License-free alternatives: **`EXPLAIN PLAN` / `DBMS_XPLAN`**, and
-> **Statspack** (the pre-AWR facility). *Do not run AWR "just to look" — confirm licensing first.*
-> *[unverified: confirm the target database's entitlement with its human owner]*
 
-- Reproduce the slow query; read the plan with **plain `EXPLAIN`** (Postgres), **`EXPLAIN PLAN` +
-  `DBMS_XPLAN`** (Oracle), or the **estimated** plan / `SET SHOWPLAN_XML ON` (MS SQL) — see the box
-  above before reaching for the executing variants.
+- Reproduce the slow query; read the plan with **plain `EXPLAIN`** (Postgres) or the **estimated**
+  plan / `SET SHOWPLAN_XML ON` (MS SQL) — see the box above before reaching for the executing
+  variants.
 - **Application diagnosis vs DBA operations are different lanes.** Reading a plan and fixing a query is
-  ours. Running AWR, changing DB parameters, or executing plans against prod is DBA work with their
+  ours. Changing DB parameters or executing plans against prod is DBA work with their
   sign-off — hand it over rather than reaching for it.
 - **Index for the real query patterns** (composite/covering indexes match `WHERE` + `ORDER BY`); avoid
   full scans on hot paths, **N+1** query patterns, and **unbounded result sets**. Paginate, and hand the
