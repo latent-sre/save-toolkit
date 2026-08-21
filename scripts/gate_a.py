@@ -144,32 +144,6 @@ class GateBusy(Exception):
         self.lock_path, self.holder_pid, self.holder_root = lock_path, holder_pid, holder_root
 
 
-def _pid_alive(pid):
-    """Liveness without signals: on Windows os.kill(pid, 0) TERMINATES the process."""
-    if os.name == "nt":
-        import ctypes
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        PROCESS_QUERY_LIMITED_INFORMATION, STILL_ACTIVE, ERROR_ACCESS_DENIED = 0x1000, 259, 5
-        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
-        if not handle:
-            # No access still means the process exists; any other failure means it does not.
-            return ctypes.get_last_error() == ERROR_ACCESS_DENIED
-        try:
-            code = ctypes.c_ulong()
-            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
-                return True
-            return code.value == STILL_ACTIVE
-        finally:
-            kernel32.CloseHandle(handle)
-    try:
-        os.kill(int(pid), 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
-
-
 def _read_holder(lock_path):
     """(pid, root) from a lock file, or None when the file is empty or garbage — a crash artefact."""
     try:
@@ -179,15 +153,22 @@ def _read_holder(lock_path):
         return None
 
 
+# The Windows lock is MANDATORY, not advisory: a byte range locked with msvcrt.locking cannot be read
+# by anyone else, and the whole point of the identity text is that a refused run can read it. So the
+# locked byte lives far past the identity (locking beyond EOF is allowed), and the identity at offset
+# 0 stays readable. POSIX flock() is whole-file advisory and does not care.
+LOCK_BYTE_OFFSET = 1 << 16
+
+
 def _os_lock_nonblocking(fd):
-    """Acquire an exclusive OS advisory lock on *fd* without blocking.
+    """Acquire an exclusive OS lock on *fd* without blocking.
 
     Returns True on success. Returns False if another process already holds the lock.
     Uses ``fcntl.flock`` on POSIX and ``msvcrt.locking`` on Windows — both are stdlib.
     """
     if os.name == "nt":
         import msvcrt
-        os.lseek(fd, 0, os.SEEK_SET)
+        os.lseek(fd, LOCK_BYTE_OFFSET, os.SEEK_SET)
         try:
             msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
         except OSError:
@@ -205,7 +186,7 @@ def _os_unlock(fd):
     """Release the OS advisory lock on *fd* (Windows only; POSIX releases on close)."""
     if os.name == "nt":
         import msvcrt
-        os.lseek(fd, 0, os.SEEK_SET)
+        os.lseek(fd, LOCK_BYTE_OFFSET, os.SEEK_SET)
         try:
             msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
         except OSError:
@@ -228,10 +209,10 @@ def gate_lock(lock_path=None):
         try:
             yield
         finally:
-            try:
-                os.unlink(str(lock_path))
-            except FileNotFoundError:
-                pass
+            # Release, never delete. Windows cannot unlink an open file at all, and on POSIX deleting
+            # a lock file is the classic race: a waiter that already opened the old inode and a
+            # newcomer that creates a fresh file both "win". The file is one line in the temp dir;
+            # "released" means the next gate_lock() succeeds, not that the file is gone.
             _os_unlock(fd)
     finally:
         os.close(fd)

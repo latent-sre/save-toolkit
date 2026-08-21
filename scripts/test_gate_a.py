@@ -192,8 +192,7 @@ class GateLockTests(unittest.TestCase):
     normal time -- whenever a second python process is running the same file. The usual way that
     happens is `gate_a.py | head`, which on Windows leaves the whole gate running orphaned after
     `head` exits. A false red costs far more than the gate, so the gate refuses to start while
-    another run holds the machine-wide lock, reclaims a lock whose holder is dead, and always
-    releases its own.
+    another run holds the machine-wide lock, and the OS drops the lock when its holder dies.
 
     Stale-lock reclamation is now ownership-preserving: the lock is an OS advisory lock
     (``fcntl.flock`` on POSIX, ``msvcrt.locking`` on Windows) so the OS releases it when the
@@ -220,23 +219,26 @@ class GateLockTests(unittest.TestCase):
         return code, out.getvalue(), err.getvalue()
 
     def _child_script_that_holds_lock(self):
-        """Return a Python script (str) that acquires the OS advisory lock on self.lock and
-        writes 'ready' to stdout, then waits on stdin before releasing.  Used to simulate a
-        live concurrent gate run in a subprocess."""
+        """A script that takes the OS lock on self.lock exactly the way gate_a does, prints
+        'ready', and holds it until stdin delivers a line -- a live concurrent gate in miniature.
+        """
         return (
             "import os, sys\n"
-            f"lock_path = {str(self.lock)!r}\n"
-            "fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)\n"
-            "if os.name == 'nt':\n"
-            "    import msvcrt; os.lseek(fd, 0, os.SEEK_SET); msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)\n"
-            "else:\n"
-            "    import fcntl; fcntl.flock(fd, fcntl.LOCK_EX)\n"
+            f"sys.path.insert(0, {str(Path(gate_a.__file__).parent)!r})\n"
+            "import gate_a\n"
+            f"fd = os.open({str(self.lock)!r}, os.O_CREAT | os.O_RDWR)\n"
+            "assert gate_a._os_lock_nonblocking(fd), 'child could not take the lock'\n"
             "os.ftruncate(fd, 0); os.lseek(fd, 0, os.SEEK_SET)\n"
             "os.write(fd, (str(os.getpid()) + '\\n/child\\n').encode())\n"
             "sys.stdout.write('ready\\n'); sys.stdout.flush()\n"
-            "sys.stdin.readline()\n"  # hold lock until parent signals done
-            "os.close(fd)\n"
+            "sys.stdin.readline()\n"
+            "gate_a._os_unlock(fd); os.close(fd)\n"
         )
+
+    def _assert_released(self) -> None:
+        """Released means re-acquirable. The file itself stays: deleting a lock file is a race."""
+        with gate_a.gate_lock(self.lock):
+            pass
 
     def test_refuses_while_a_live_gate_holds_the_lock(self) -> None:
         # A subprocess holds the OS advisory lock; this process must get GateBusy.
@@ -270,7 +272,7 @@ class GateLockTests(unittest.TestCase):
         code, _out, _err = self._main(lambda steps: ran.append(True) or [])
         self.assertEqual(0, code)
         self.assertEqual([True], ran)
-        self.assertFalse(self.lock.exists(), "lock must be released after the run")
+        self._assert_released()
 
     def test_concurrent_acquisition_is_refused(self) -> None:
         # Directly exercise gate_lock in a cross-process scenario: a subprocess holds the OS
@@ -301,7 +303,7 @@ class GateLockTests(unittest.TestCase):
         code, _out, _err = self._main(record)
         self.assertEqual(0, code)
         self.assertTrue(seen["holder"].startswith(f"{os.getpid()}\n"))
-        self.assertFalse(self.lock.exists())
+        self._assert_released()
 
     def test_lock_is_released_when_the_run_raises(self) -> None:
         def explode(steps):
@@ -312,24 +314,14 @@ class GateLockTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     with mock.patch.object(gate_a, "run_steps", side_effect=explode):
                         gate_a.main()
-        self.assertFalse(self.lock.exists())
+        self._assert_released()
 
     def test_unreadable_lock_is_treated_as_stale(self) -> None:
         # A crash can leave an empty or garbage file; that must not wedge every future gate.
         self.lock.write_text("", encoding="utf-8")
         code, _out, _err = self._main(lambda steps: [])
         self.assertEqual(0, code)
-        self.assertFalse(self.lock.exists())
-
-
-class PidAliveTests(unittest.TestCase):
-    def test_current_process_is_alive(self) -> None:
-        self.assertTrue(gate_a._pid_alive(os.getpid()))
-
-    def test_exited_child_is_not_alive(self) -> None:
-        proc = subprocess.Popen([sys.executable, "-c", "pass"])
-        proc.wait()
-        self.assertFalse(gate_a._pid_alive(proc.pid))
+        self._assert_released()
 
 
 if __name__ == "__main__":
