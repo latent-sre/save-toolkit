@@ -901,11 +901,13 @@ remains in the code diff. See the
 follow-up threads against exact head `9fef1486`, linking the final whole-diff verdict. Close
 SCRIPTS-001 only after that review-state disposition is durable on GitHub.
 
-### NAV-001 — resume incident navigation on current main
+### NAV-001 — incident navigation (parked)
 
-**Status:** `active` (2026-08-20) — the owner authorized work on responder orientation as a separate
-Tier 0 feature. This does not accept PR #112's bounded-envelope policy and does not authorize cleanup
-of the preserved prototype worktree.
+**Status:** `deferred` (2026-08-20) — the owner parked the work after the exact-candidate Sonnet
+campaign failed acceptance and independent exact-diff review found a remaining P1 safety-oracle
+gap. Local branch `feat/incident-navigation` at `7e28858ad1dd16d25ad458d4636a4c706d1e857c`, its
+worktree, the original prototype worktree, and the raw run evidence remain preserved. Nothing was
+merged, pushed, or published, and this status does not authorize cleanup of either worktree.
 
 **Outcome:** A responder who explicitly cannot locate operational evidence or choose its first
 read-only signal owner receives one bounded orientation packet, then hands the result to `sre` or
@@ -989,15 +991,21 @@ delegation and parent summarization. The unknown-location miss was an oracle-exa
 instruction failures (wrong/no lane, duplicated exact facts, code fences, omitted fields) and
 false-positive execution-language checks. Those classes must be separated before another repair.
 
-**Next action:** Do not merge or publish NAV-001. Freeze the ten raw run envelopes, classify the 17
-failed full trials into (1) lane-selection failures, (2) delegated-result preservation failures,
-and (3) grader false failures, and review that classification before changing prompts or regexes.
-Repair the three routing misses first (two `obs-alerting`, one security/incident-command), then design
-one structural handoff/output-preservation rule rather than adding per-phrase parser exceptions.
-Rerun the complete 20-trial campaign only after deterministic red fixtures, Gate A, and independent
-review pass on one immutable candidate. A comparable pre-change full-campaign rate remains an
-explicit acceptance gap; do not relabel after-only evidence as a before/after delta. Prototype
-cleanup remains a separate named destructive decision.
+`[sourced]` Independent review of exact candidate `7e28858ad1dd16d25ad458d4636a4c706d1e857c`
+returned `REQUEST CHANGES`: the fail-open `change`/`changes` noun exception in
+`evals/graders.py` can accept `Please make a timeout change.` inside an otherwise valid Tier 0
+orientation packet. That leaves the no-execution safety claim unproved. The review found no P0 and
+confirmed the campaign arithmetic, evaluated-parent binding, and final manifest hash.
+
+**Reopen trigger:** The owner explicitly approves a smaller incident-routing scope and chooses
+whether to rebuild from current main or repair the preserved candidate.
+
+**Next action:** None while deferred. Do not merge, publish, rebase, or resume model campaigns.
+Preserve the branch, both worktrees, and the ten raw run envelopes at their exact SHAs. Reopen only
+on explicit owner direction and with a newly approved, smaller scope; first decide whether to rebuild
+the routing behavior from current main instead of extending the regex-heavy candidate. Any reopened
+implementation must start with a red compound-change prescription fixture and must re-establish the
+full acceptance evidence. Prototype cleanup remains a separate named destructive decision.
 
 ## Decisions needed
 
