@@ -2,9 +2,10 @@
 name: obs-dashboards
 description: >-
   Grafana 13 dashboards as code — layout for the 3am reader (top-level health → drill-down), panel
-  hygiene, variables, provisioning, and data-source licence facts. Triggers: 'build a dashboard',
-  'what should we dashboard', 'dashboard as code', 'add a panel for'. Ownership map only—not a load:
-  frontend-craft owns product-UI data visualizations and obs-alerting owns alert rules.
+  hygiene, variables, provisioning, the dashboard HTTP API (read, export, controlled update),
+  Viewer/Editor role workflows, and data-source licence facts. Triggers: 'build a dashboard',
+  'what should we dashboard', 'dashboard as code', 'add a panel for'. Ownership map only—not a
+  load: frontend-craft owns product-UI data visualizations and obs-alerting owns alert rules.
 argument-hint: "[service, dashboard question, or dashboard change]"
 ---
 
@@ -96,6 +97,9 @@ active licence and plugin allowlist with the Grafana administrator before provis
   keep the repository as the source of truth; do not create an unreviewed snowflake dashboard.
 - The repository's read-only Grafana MCP configuration is an optional inspection aid. It is not required
   to author, review, or provision a dashboard and must never carry credentials in tracked configuration.
+- The dashboard HTTP API is a read/export and controlled-automation surface, not an editing shortcut:
+  export live models for drift checks or repository import, and let only reviewed CI apply writes.
+  Service-account tokens stay with humans and CI — never in tracked config or agent context.
 
 Read only the reference needed for the task:
 
@@ -103,6 +107,8 @@ Read only the reference needed for the task:
 |---|---|
 | Dashboard provisioning, JSON models, UIDs, folders, or PR review | [Grafana 13 provisioning](./references/provisioning.md) |
 | Existing Wavefront or Splunk dashboard inventory | [legacy data-source inventory](./references/wavefront-legacy.md) |
+| Read, export, or update a live dashboard over HTTP — drift checks, repo import, CI apply, version history | [dashboard HTTP API](./references/http-api.md) |
+| Help Viewer/Editor users get more from Grafana — roles, folder permissions, Explore access, sharing state, annotations | [viewer & editor workflows](./references/viewer-editor-workflows.md) |
 
 ## Handoff
 
