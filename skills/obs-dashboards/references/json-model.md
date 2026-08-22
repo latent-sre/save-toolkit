@@ -326,6 +326,33 @@ create-dashboard skill; grafana/skills grafana-oss dashboards reference]`
 - The UI import dialog can change name, folder, and uid and maps data-source inputs — useful for a
   one-off copy, never a substitute for the repository path.
 
+## Checking a dashboard before you write it
+
+Two tools, and the bundled one always runs:
+
+- **[`dashboard_hygiene.py`](../scripts/dashboard_hygiene.py)** — bundled, pure stdlib, offline.
+  Applies the mechanically checkable subset of the rules above to a Classic/V1 model (a bare model, a
+  k8s wrapper, or a legacy `GET` body are all accepted) and exits `0` clean, `1` with violations, `2`
+  when it cannot check — notably it **refuses a V2 model rather than reporting zero** for panels it
+  never read. It parses no PromQL and contacts no Grafana, so a clean report means "no rule here
+  fired", never "this dashboard is correct".
+- **`dashboard-linter lint --strict`** — Grafana's reference implementation, strictly better where it
+  runs because it validates PromQL/LogQL and knows the real unit catalogue. It ships as a prebuilt
+  binary per platform (upstream does not support `go install`), so treat the bundled checker as the
+  always-available pre-filter and this as the authority when present.
+
+**Worked example — the rules against a real dashboard `[verified 2026-08-22]`.** Run against the
+community *Alertmanager* dashboard (33 panels) imported onto a live Grafana, the checker reported
+**113 violations**: 17 panels with no description, 33 with no unit, 33 with no `noValue`, 27 queries
+using `rate`/`increase` without `$__rate_interval`, one raw `_total` counter, an `Include All`
+variable with an empty custom all value, and `editable: true`. It passed the rules for titles,
+targets, and — worth noting — data-source references, which correctly use `$datasource` throughout.
+
+Read that as calibration, not as criticism of that dashboard: a popular community dashboard is built
+to render anywhere, not to meet one team's operational contract. It is exactly what arrives when
+someone imports from grafana.com, and it is why the import path ends with "export, fix, then commit"
+rather than "export and commit".
+
 ## The linter as a checklist
 
 `dashboard-linter lint --strict <file>` (Prometheus-focused; Loki partially; V2 supported since

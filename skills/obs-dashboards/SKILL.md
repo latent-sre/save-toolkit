@@ -58,8 +58,10 @@ write call.
    an empty instance, so check the grants before believing a negative.
 3. **Read the live model with the API version pinned** and export it; that export is the rollback.
 4. **Author in the repository copy**, following the rules below and [json-model](./references/json-model.md).
-5. **Validate**: `jq empty`; `dashboard-linter lint --strict` where available; the schema you wrote is
-   the schema the dashboard is stored as.
+5. **Validate**: `python skills/obs-dashboards/scripts/dashboard_hygiene.py <file>` — the bundled,
+   stdlib-only checker for the panel rules below (exit 0 clean, 1 violations, 2 uncheckable); then
+   `dashboard-linter lint --strict` where the binary is available, since it validates PromQL properly.
+   Confirm the schema you wrote is the schema it will be stored as.
 6. **Show the diff and the target**, then write with the version you read and `overwrite: false`
    ([http-api](./references/http-api.md)). A 409/412 re-reads; it never forces.
 7. **Verify**: read it back, prove each changed query returns data on a real window, look at a
@@ -176,6 +178,7 @@ Read only the reference needed for the task:
 | Need | Reference |
 |---|---|
 | Instance preflight, search, read, export, import, create, update, verify, version history, drift check; the pre-write checklist; failure table | [dashboard HTTP API](./references/http-api.md) |
+| Check a dashboard's panel hygiene before writing it, with no binary to install | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
 | Field rules, Classic/V1/V2 shapes and skeletons, variables and formats, panel choice and hygiene, export/import, the linter checklist | [JSON model](./references/json-model.md) |
 | Provisioning, Git Sync, sidecar/Terraform delivery, repository conventions, CI, rollback | [provisioning and as code](./references/provisioning.md) |
 | gcx, the Grafana MCP server, vendor skill packages, Foundation SDK | [agent tooling](./references/agent-tooling.md) |
