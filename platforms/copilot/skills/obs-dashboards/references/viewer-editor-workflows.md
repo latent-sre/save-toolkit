@@ -60,8 +60,13 @@ Grafana 13 minor is `[unverified]` until exercised there.
   deploy cause this?" evidence. Annotate at the moment of the event, tagged consistently; they can
   also be written by automation through the annotations HTTP API.
 - **Version history** (dashboard settings → versions) shows who changed what, with diffs, and
-  restores a prior version — triage for "this dashboard looked different yesterday". On a provisioned
-  dashboard the restore is temporary; the durable change is a fresh write through the API.
+  restores a prior version — triage for "this dashboard looked different yesterday". **Check ownership
+  before calling a rollback done.** On a provisioned or tool-managed dashboard a UI restore is
+  temporary *and* the API write that would replace it is refused
+  ([http-api](./http-api.md)) — the owning tool reconciles its own source on the next cycle and your
+  change disappears. There is no durable rollback from this lane: stop, name the owning tool, and
+  hand the revert to whoever controls that source. Only an unmanaged dashboard rolls back here, by a
+  fresh API write of the saved model.
 - **Snapshots are data egress.** A snapshot embeds the queried data and detaches it from access
   control; anyone with the link sees the numbers. Prefer an internal share link. If a snapshot is
   genuinely needed (external party, ephemeral data), scrub it, set an expiry, and treat posting it

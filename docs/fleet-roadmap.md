@@ -676,57 +676,18 @@ references `${datasource}` — solves the *panel* half, but the variable still h
 something per instance, and the skill does not say how. This is the seam where "dashboards as code"
 usually breaks in practice.
 
-**Options, none yet chosen:**
-1. **Pin identical data-source uids across environments** by provisioning the data sources
-   themselves as code with an explicit `uid`. Dashboards then reference a uid that means the same
-   thing everywhere, and the `${datasource}` variable becomes a convenience rather than a
-   portability mechanism. Cleanest, but requires owning data-source provisioning on both instances.
-2. **Bind at import time** — keep `__inputs`/`${DS_*}` in the committed file and let
-   `POST /api/dashboards/import` resolve them per instance (verified working; see
-   [`http-api.md`](../skills/obs-dashboards/references/http-api.md)). Standard for community
-   dashboards, but the committed artifact is then not the artifact that runs.
-3. **Substitute at deploy time** — template the JSON in CI per environment. Most flexible, adds a
-   build step, and the file in the repository is no longer directly loadable.
-4. **A data-source *variable* whose default differs per instance**, set by provisioning rather than
-   by the dashboard. Smallest change from today; leaves a per-instance value outside the dashboard.
+**The options analysis is retired with the item.** It weighed four ways to make one *committed*
+dashboard JSON portable across instances; none can apply where no committed copy exists. The
+reasoning is preserved in git history rather than restated here, so nothing reads as open work.
 
-**Prerequisites:** None. This is a decision, not an implementation; it needs the owner and whoever
-owns data-source provisioning on the production instance.
+**Prerequisites:** None — and none can now be met. The item needed a committed dashboard artefact to
+make portable; the owner has recorded that no such artefact exists.
 
-**Acceptance:** The chosen option is recorded (an ADR if it constrains provisioning), the
-data-source inventory table in
-[`wavefront-legacy.md`](../skills/obs-dashboards/references/wavefront-legacy.md) is filled in
-accordingly, and `obs-dashboards` states the mechanism in one place rather than implying it.
+**Acceptance:** Retired without a chosen option. The `${datasource}` variable convention stays in
+`obs-dashboards` on its own merits — it keeps a dashboard working when a data source is rebuilt on
+the same instance — but nothing here asserts cross-instance portability.
 
-**Recommendation (2026-08-22): option 4, a `datasource`-type variable with no pinned `current`.**
-
-Because the sources are hand-made rather than provisioned, option 1 would mean recreating them to
-control their uids — a uid cannot be edited in place — which breaks every dashboard already pointing
-at them. Option 3 costs a build step and means the file in the repository is no longer the file that
-runs. Option 2 leaves the committed artifact different from the deployed one.
-
-Option 4 needs no platform work and no new machinery: a `datasource`-type variable offers whatever
-sources of that type exist on the instance that loads the dashboard, and with `current` left empty it
-resolves to **that instance's default data source**. Checked on QA `[verified 2026-08-22]`:
-`prometheus-production-read-only` carries `isDefault: true`, so an unpinned variable resolves there
-with no per-instance edit. Add a `regex` (for example `/prometheus/`) where an instance holds several
-sources of one type, so a viewer cannot silently pick the wrong backend.
-
-**Correction, 2026-08-22.** The export-hygiene rule was first written here as "exporting from the UI
-populates the variable's `current` with that instance's uid". That claim is **not supported**: the one
-sample available — the community dashboard imported onto QA — carries
-`current = {"text": "default", "value": "default"}`, a portable sentinel rather than a uid. What *is*
-verified is narrower and more useful: **an API write preserves `current` exactly as sent** (`{}`
-stored as `{}`, a uid stored as that uid), so portability is decided by what gets committed, not by
-what the server does to it. The rule for `json-model.md` is therefore "commit an empty or `default`
-`current`, never a uid" — and it is already written there, verified.
-
-Its honest cost: it depends on every instance having a sensible default data source set — configuration
-nobody currently owns as code, which is the same weakness that ruled out option 1, in a cheaper place.
-QA has one (`prometheus-production-read-only`, `isDefault: true`); production is `[unverified]`.
-
-**Next action:** Confirm option 4 (or pick another), then add the blank-`current` rule to
-`json-model.md` and fill the inventory table per instance.
+**Next action:** None. Reopen only on the trigger above.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 

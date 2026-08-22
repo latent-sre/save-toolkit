@@ -235,7 +235,7 @@ dashboard is file-provisioned and **not API-writable** — the owning tool's sou
 Creating is a live change like any other: the **dashboard write rule** applies (scope below).
 
 ```bash
-# App platform: metadata.name IS the uid; folder and commit message travel as annotations
+# App platform: metadata.name IS the uid; folder and save message travel as annotations
 # On create there is no stored version yet — the version you pick BECOMES the stored one, so set
 # APIVER deliberately here (there is nothing to probe) and let the body follow it.
 jq -n --slurpfile spec dashboard.json --arg av "dashboard.grafana.app/$APIVER" '{
@@ -288,9 +288,13 @@ curl -sS "${H[@]}" -X POST "$GRAFANA_URL/api/dashboards/import" --data @import.j
 
 **`[verified: QA]`** after import the stored model carries **no** `__inputs`: the placeholder is
 replaced by the concrete `{"type":"prometheus","uid":"<bound uid>"}`, panels that used the template
-variable keep `{"uid":"$datasource"}`, and a `gnetId` records the source id. Export that stored model
-and commit *it* — not the downloaded file — then swap the bound uid for `${datasource}` so the
-dashboard stays portable across instances ([json-model](./json-model.md)).
+variable keep `{"uid":"$datasource"}`, and a `gnetId` records the source id. **Fix the import in
+place:** swap that concrete bound uid for `${datasource}` and write the corrected model back, so the
+dashboard does not carry one instance's data-source identity ([json-model](./json-model.md)). There
+is nothing to commit — an imported dashboard's record is Grafana's version history like any other.
+If a model ever leaves the instance for a separately authorized reason, sanitize the
+instance-specific identifiers — data-source and folder uids, instance URLs — **before** it leaves,
+never after.
 
 Never `POST /api/dashboards/db` a file that still contains `${DS_*}`: that path does no binding and
 stores the placeholder literally, producing "Datasource named ${DS_PROMETHEUS} was not found".
@@ -343,8 +347,8 @@ Two traps in that table:
 One useful bit of leniency: **re-applying byte-identical content is idempotent** — the version
 counter does not move and no conflict is raised, so re-sending a model you have already applied is inert rather than a new version. `[verified: QA]`
 
-Two guard rails: a **file-provisioned** dashboard refuses API saves — edit its source and let the
-provisioner reload; and **`overwrite: true` is the failure this reference exists to prevent** — it
+Two guard rails: a **file-provisioned** dashboard refuses API saves, and no retry changes that —
+the owning tool's source is the only way in, and it is not this team's repository; and **`overwrite: true` is the failure this reference exists to prevent** — it
 silently discards a concurrent edit and is never the fix for a 409/412.
 
 ## Verify — a write is not done when the call returns
