@@ -18,7 +18,8 @@ What the draft guarantees, matching the import reference's provenance rules:
   * Confluence macro elements (<ac:...>/<ri:...>) are suppressed from the prose, COUNTED, and
     reported as conversion losses in the draft's provenance and on stdout.
 
-Covered by scripts/test_confluence_import.py (pure stdlib, offline, runs in CI via gate_a.py).
+Covered by scripts/test_confluence_import.py (pure stdlib; run directly when this converter or its
+import contract changes). Gate A does not run component tests.
 """
 
 from __future__ import annotations

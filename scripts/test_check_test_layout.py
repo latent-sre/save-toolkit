@@ -40,13 +40,37 @@ class TestLayoutTests(unittest.TestCase):
         self.assertEqual(1, len(failures))
         self.assertIn("class Hidden is unreachable", failures[0])
 
+    def test_missing_script_entrypoint_is_rejected(self) -> None:
+        self._write(
+            "import unittest\n"
+            "class Silent(unittest.TestCase):\n"
+            "    pass\n"
+        )
+        failures = check_test_layout.validate(self.root)
+        self.assertEqual(1, len(failures))
+        self.assertIn("missing executable test entrypoint", failures[0])
+
+    def test_main_guard_without_a_test_runner_is_rejected(self) -> None:
+        self._write(
+            "import unittest\n"
+            "class Silent(unittest.TestCase):\n"
+            "    pass\n"
+            "if __name__ == '__main__':\n"
+            "    print('defined tests but ran none')\n"
+        )
+        failures = check_test_layout.validate(self.root)
+        self.assertEqual(1, len(failures))
+        self.assertIn("missing executable test entrypoint", failures[0])
+
     def test_entrypoint_text_inside_a_fixture_is_not_code(self) -> None:
         self._write(
             "FIXTURE = \"if __name__ == '__main__':\"\n"
             "class T:\n"
             "    pass\n"
         )
-        self.assertEqual([], check_test_layout.validate(self.root))
+        failures = check_test_layout.validate(self.root)
+        self.assertEqual(1, len(failures))
+        self.assertIn("missing executable test entrypoint", failures[0])
 
     def test_empty_test_corpus_is_not_a_vacuous_pass(self) -> None:
         self.assertEqual(
