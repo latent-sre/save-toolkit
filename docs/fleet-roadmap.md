@@ -950,6 +950,47 @@ checkout present; the guard's own suite and Gate A pass; no new dependency (stan
 **Next action:** Add the interpreter-answer probe first — it is the single highest-value check and
 needs no host inventory work.
 
+### DASH-001 — verify the dashboard API shapes against a live Grafana, and close the evidence-label gap
+
+**Status:** `blocked` (2026-08-21) — needs a QA Grafana URL and a Viewer service-account token; the
+owner offered to check whether one exists.
+
+**Outcome:** Every request shape in `skills/obs-dashboards/references/http-api.md` is labeled
+against a real instance rather than composed from documentation, and the skill drives its own
+evidence convention deterministically instead of about two times in three.
+
+**Source:** This branch's own verification gap, stated at authoring time. The rewrite
+(`b8ff5dc`) gives `observability-engineer` a live dashboard write path, but no call in it has ever
+been executed: the `POST /api/ds/query` verify body, the `GET /render/d-solo/...` visual check, the
+`GET /apis/dashboard.grafana.app/` version discovery, every `jq` recipe, and the Classic skeleton in
+`json-model.md` are constructions. Three facts are explicitly hedged in the file and only a live
+instance settles them: whether the app-platform family is enabled on the deployed 13.1, whether the
+namespace is `default` or `org-N`, and which field the app-platform `PUT` checks when it answers
+`409` (`metadata.resourceVersion` or `spec.version`).
+
+Separately, `evals/scenarios/discovery-obs-dashboards-edit-live.yaml` carried a grader asserting the
+fleet's evidence-label convention. Across six trials on 2026-08-21 it passed four and failed two,
+the second failure with **no label of any kind** in the response — a measured ~33% miss rate on a
+convention the skill declares in its own first four lines. The grader was removed in `e839388` to
+get the scenario green; the run record (`20260821T233201Z-5f18b526`,
+`20260821T234157Z-5e978815`) holds the evidence. Removing a working detector is the wrong half of
+the fix.
+
+**Prerequisites:** A QA Grafana reachable from the authoring host, ideally on the same minor as
+production (13.1.x), and a Viewer-scoped service-account token supplied through a curl config file
+rather than a command line or a transcript. The write half additionally needs an Editor token
+scoped to one throwaway folder. Read-only verification must run first and stand on its own; no
+call touches a production instance under this item.
+
+**Acceptance:** Each request shape in `http-api.md` carries `[verified]` with the instance's actual
+response, or is corrected and re-labeled; a forced version conflict records which field the `409`
+names; the renderer's presence or absence is recorded so the visual-check step states its own
+availability; the evidence-label grader is restored **and** the skill's output contract is
+strengthened so it passes on behavior rather than by deletion, evidenced by a fresh 3/3 run.
+
+**Next action:** Ask the owner whether a QA Grafana exists; if so, run the read-only half
+(search, get, export, versions, discovery) and correct the reference from what it answers.
+
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
 **Status:** `blocked` (2026-08-20) — blocked on ROUTE-001's re-freeze window, not on effort.
