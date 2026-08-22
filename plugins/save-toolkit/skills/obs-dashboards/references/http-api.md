@@ -9,24 +9,13 @@ rule** in its change ladder); the main session can run them too. The repository 
 truth per [provisioning](./provisioning.md): every write here ends with the applied JSON exported and
 committed.
 
-## Primary sources
-
-- `[sourced]` [Dashboard HTTP API (Grafana 12+, app platform)](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/dashboard/)
-- `[sourced]` [API structure, namespaces, stability levels](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/apis/)
-- `[sourced]` [Resource history](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/resource-history/),
-  [Folder API](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/folder/)
-- `[sourced]` Legacy [search](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/api-legacy/folder_dashboard_search/)
-  and [versions](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/api-legacy/dashboard_versions/) pages;
-  the legacy dashboard page as it stood at v12.4.1 (`github:grafana/grafana#v12.4.1`
-  `docs/sources/developer-resources/api-reference/http-api/dashboard.md`) — it no longer exists in the 13.x docs
-- `[sourced]` [RBAC fixed roles](https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/access-control/rbac-fixed-basic-role-definitions/),
-  [service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/)
-
-Sources reviewed 2026-08-21 against the docs source for the `latest` (13.2) site. Every call in this
-reference — search, read, export, create, update, the concurrency conflict on both API families, and
-delete — was exercised against **a non-production Grafana 13.1.4 Enterprise instance (org 1)** on
-2026-08-21 and is marked `[verified: QA]` where the observed behavior is load-bearing. Behavior after
-the 13.2 upgrade is `[unverified]`, as is anything on a Grafana Cloud stack.
+**Evidence frame.** Every call here — search, read, export, create, update, the concurrency conflict
+on both API families, and delete — was executed against a non-production **Grafana 13.1.4 Enterprise**
+instance (org 1) on 2026-08-21; `[verified: QA]` marks where the observed behaviour is load-bearing
+and differs from the docs. **After the 13.2 upgrade every one of those labels demotes to
+`[unverified]`**, as does anything on Grafana Cloud. Docs reviewed the same day against the `latest`
+(13.2) site; the legacy dashboard page is cited from `grafana/grafana#v12.4.1`, having been removed
+from the 13.x docs.
 
 ## Credentials and scope
 
@@ -414,24 +403,16 @@ export. For a provisioned dashboard the durable rollback is the repository rever
 restored in the UI is overwritten on the next provisioning cycle. The UI keeps 20 versions by default
 (`[dashboards] versions_to_keep`). *[sourced: docs resource-history; api-legacy/dashboard_versions; manage-version-history]*
 
-## The dashboard write rule — pre-write checklist
+## The dashboard write rule — scope
 
-This is the `save-toolkit-observability-engineer` change-ladder rule, in the order it must be satisfied; the main
-session follows the same list.
+The conditions are the skill's loop, steps 2–8; satisfy them in that order. Two things the loop does
+not say:
 
-1. Target shown: Grafana URL, namespace/org, folder uid, dashboard uid — and whether it is production.
-2. Live model exported first (`live.json`) and kept as the rollback.
-3. Full JSON diff against the live `spec` shown before the call.
-4. Update pins the version you read; `overwrite` stays `false`; a conflict re-reads, never forces.
-5. Data-source uids, folder uid, metric and label names all came from the target, not from memory.
-6. `jq empty` passed; `dashboard-linter lint --strict` passed or its exclusions are reasoned.
-7. After the call: read back, queries return data, visual check made or its absence stated.
-8. Applied JSON exported and committed to the dashboards-as-code path in the same task, with the
-   PR/commit in the save message.
-
-Dashboards and their folders only. Deleting a dashboard (`DELETE …/dashboards/<uid>`), changing
-permissions, data sources, alert rules, or contact points is outside the rule — prepare and recommend
-under the change ladder.
+- **Name whether the target is production** when you show the target. The rule permits a production
+  write; it does not permit an unannounced one.
+- **Dashboards and their folders only.** Deleting a dashboard (`DELETE …/dashboards/<uid>`), changing
+  permissions, data sources, alert rules, or contact points is outside the rule — prepare and
+  recommend under the change ladder.
 
 ## Failure table
 

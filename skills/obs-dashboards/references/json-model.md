@@ -363,16 +363,6 @@ Two tools, and the bundled one always runs:
   binary per platform (upstream does not support `go install`), so treat the bundled checker as the
   always-available pre-filter and this as the authority when present.
 
-**Worked example — the rules against a real dashboard `[verified 2026-08-22]`.** Run against the
-community *Alertmanager* dashboard (33 panels) imported onto a live Grafana, the checker reported
-**113 violations**: 17 panels with no description, 33 with no unit, 33 with no `noValue`, 27 queries
-using `rate`/`increase` without `$__rate_interval`, one raw `_total` counter, an `Include All`
-variable with an empty custom all value, and `editable: true`. It passed the rules for titles,
-targets, and — worth noting — data-source references, which correctly use `$datasource` throughout.
-
-A community dashboard is built to render anywhere, not to meet one team's operational contract — which
-is why the import path ends "export, fix, then commit".
-
 ## The linter as a checklist
 
 `dashboard-linter lint --strict <file>` (Prometheus-focused; Loki partially; V2 supported since

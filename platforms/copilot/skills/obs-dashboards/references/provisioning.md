@@ -7,17 +7,10 @@ source-of-truth contract, the delivery paths Grafana 13 supports, and the CI sha
 repository and the instance equal; verify paths and feature availability against the target before
 applying it. The live-write flow is in [http-api](./http-api.md).
 
-## Primary sources
-
-- `[sourced]` [Provision Grafana](https://grafana.com/docs/grafana/latest/administration/provisioning/)
-- `[sourced]` [Dashboard JSON model](https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/view-dashboard-json-model/)
-- `[sourced]` [Observability as code](https://grafana.com/docs/grafana/latest/as-code/observability-as-code/) and its
-  [Git Sync](https://grafana.com/docs/grafana/latest/as-code/observability-as-code/git-sync/) section
-- `[sourced]` `kubernetes-monitoring/kubernetes-mixin` and `grafana/loki` `production/loki-mixin` —
-  the repository-layout conventions below (their Kubernetes subject matter is irrelevant to those)
-
-Sources reviewed 2026-08-21. They establish the generic Grafana behavior below; local paths, access,
-licensing, and enabled features remain `[unverified]` until checked on the target.
+Sourced from Grafana's provisioning, JSON-model, and observability-as-code docs (reviewed
+2026-08-21) and, for the repository-layout conventions, from `kubernetes-monitoring/kubernetes-mixin`
+and `grafana/loki`. These establish generic Grafana behaviour; local paths, access, licensing, and
+enabled features remain `[unverified]` until checked on the target.
 
 ## The contract
 
@@ -137,16 +130,14 @@ the OSS corpus; `ci-actions` carries the hardening rules for writing it.
 4. Preserve the previous source revision for rollback. Rollback means reverting the reviewed JSON/provider
    change and reapplying it through the same controlled path, then verifying the prior uid content loaded.
 
-## Toolchain status
+## Toolchain
 
-Reviewed 2026-08-21 against the live pages and upstream repositories *[sourced]*: the as-code docs
-name **gcx** (GA, "Use gcx to work with AI agents"), the **Foundation SDK**, and **Git Sync**;
-**grafanactl is deprecated** (its README announced archival for 2026-06-01; the page fetched on
-2026-08-21 showed no archive banner yet — migrate by search-and-replace to `gcx`, `resources serve` →
-`gcx dev serve`); **Grizzly is archived** (2026-06-05); **Grafonnet is unsupported**. The dashboard
-model has three schemas — V2 Resource (current), V1 Resource, and Classic — state which one each
-dashboard uses in its inventory row; a V2-only feature silently degrades when pasted into a
-Classic-consuming path. See [agent-tooling](./agent-tooling.md) for what each tool adds.
-`[unverified for the deployed Grafana minor — confirm before migrating any dashboard's schema]`
+The as-code docs name **gcx** (GA; "Use gcx to work with AI agents"), the **Foundation SDK**, and
+**Git Sync**. `grafanactl` is deprecated in favour of gcx, Grizzly is archived, and **Grafonnet is
+not officially supported** — use the Foundation SDK for typed generation. The dashboard model has
+three schemas (V2 Resource current, V1 Resource, and pre-12.2 Classic); record which one each
+dashboard uses in its inventory row, because a V2-only feature degrades silently when pasted into a
+Classic-consuming path. `[unverified for the deployed minor — confirm before migrating any
+dashboard's schema]`
 
 <!-- terminal-canary: q_odprov_91c4 -->

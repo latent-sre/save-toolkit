@@ -8,27 +8,19 @@ ambiguous partial inventory.
 
 ## Licence and plugin evidence
 
-Catalogue guidance, not proof that this installation is entitled — confirm the active licence and the
-installed plugin list (`GET /api/plugins`) with the Grafana administrator before provisioning either.
+Catalogue guidance, not proof of entitlement — confirm the licence and the installed plugin list
+(`GET /api/plugins`) with the Grafana administrator before provisioning either.
 
-- **Wavefront / Aria Operations for Applications `[sourced, reviewed 2026-07-14]`.** The
-  [plugin documentation](https://grafana.com/docs/plugins/grafana-wavefront-datasource/latest/)
-  identifies `grafana-wavefront-datasource` as an **Enterprise** plugin: Grafana Cloud Pro/Advanced,
-  or a self-managed Enterprise licence. **Lifecycle `[sourced, reviewed 2026-08-19]`:** the backend
-  continues as **Broadcom DX OpenExplore** — the Wavefront engine on Broadcom's DX platform; the
+- **Wavefront** — `grafana-wavefront-datasource` is an **Enterprise** plugin (Cloud Pro/Advanced, or
+  a self-managed Enterprise licence). Its backend continues as **Broadcom DX OpenExplore**; the
   2025-10-31 end-of-availability retired the VMware Tanzu Observability offering, not the engine
-  (see `stack-profile`). Whether the Enterprise plugin is supported against a DX OpenExplore tenant
-  is `[unverified]`.
-- **Splunk `[sourced, reviewed 2026-07-14]`.** The
-  [installation page](https://grafana.com/docs/plugins/grafana-splunk-datasource/latest/install/)
-  identifies `grafana-splunk-datasource`: Grafana Cloud Pro/Advanced, or a self-managed Enterprise
-  licence that includes it. Cloud Free and Starter do not.
-- **ThousandEyes `[sourced, reviewed 2026-07-14]`.** No named ThousandEyes Grafana data-source plugin
-  exists in the official documentation or catalogue — do not invent a plugin type or uid. Cisco's
-  [documented path](https://docs.thousandeyes.com/product-documentation/integration-guides/opentelemetry/observability-platforms/grafana)
-  exports OpenTelemetry signals into Prometheus/Mimir, Tempo, or Loki; query those with PromQL, or
-  link to the ThousandEyes console. This is an inference from the named integration path, not a claim
-  that no other integration exists.
+  (see `stack-profile`). Whether the plugin is supported against a DX OpenExplore tenant is
+  `[unverified]`.
+- **Splunk** — `grafana-splunk-datasource`, same entitlement rule. Cloud Free and Starter exclude it.
+- **ThousandEyes** — no Grafana data-source plugin exists; do not invent a plugin type or uid. Its
+  OpenTelemetry signals land in Prometheus/Mimir, Tempo, or Loki and are queried there.
+
+`[sourced, reviewed 2026-07-14; lifecycle re-checked 2026-08-19]`
 
 ## Data sources
 

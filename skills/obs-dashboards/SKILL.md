@@ -12,11 +12,9 @@ argument-hint: "[service, dashboard uid, or dashboard change]"
 
 # Grafana 13 operations dashboards — as code, applied by the agent
 
-A dashboard must answer the on-call reader's next question quickly under stress. Start with service
-health, preserve a single time context, and make every lower row a deliberate drill-down. This skill
-owns Grafana operations dashboards end to end: the agent reads, creates, and edits them on the live
-instance over the HTTP API and keeps the repository copy authoritative. Product-UI charts inside the
-application remain frontend work; alert-rule definitions and notification routing remain alerting work.
+A dashboard must answer the on-call reader's next question under stress. The agent reads, creates,
+and edits dashboards on the live instance over the HTTP API, and keeps the repository copy
+authoritative.
 
 **Version facts that change what you do** — deployed 13.1.x, 13.2.0 planned (`stack-profile`):
 dynamic dashboards (schema V2) and Git Sync are GA and on since 13.0; legacy `/api` is deprecated in
@@ -30,8 +28,7 @@ before trusting a dashboard's silence, and export everything first as the rollba
 
 ## The loop — every create or edit
 
-Adapted from Grafana's own agent skill for `gcx`; the definition of done is the last step, not the
-write call.
+
 
 1. **Name the dashboard's job** in one sentence — the question it answers for whom. "If the dashboard
    doesn't have a goal, then ask yourself if you really need the dashboard."
@@ -58,7 +55,7 @@ write call.
    rendered panel when a renderer exists — "Do not claim the dashboard was visually reviewed when it
    was not."
 8. **Export and commit** the applied JSON to the dashboards-as-code path in the same task, with the
-   PR/commit in the save message. A write that is not committed is an unreviewed snowflake.
+   PR/commit in    the save message.
 9. **Close with the evidence line, every time.** What you proved against the instance `[verified]`,
    what came from this skill or the docs `[sourced]`, what you could not check `[unverified]`.
    Naming no `[unverified]` item is itself a claim — the usual unchecked ones are which schema the
@@ -93,12 +90,11 @@ suspect text rather than echoing it into a shell. Nothing enforces this — say 
 - Thresholds only where they encode an operational decision; colours mean something; normalise axes
   (percent, not raw cores); stacking off by default.
 
-*[sourced: docs build-dashboards/best-practices; grafana/gcx create-dashboard skill]*
+
 
 ## Layout — top to bottom
 
-1. **Health / SLO row.** SLI, target, current burn, budget remaining together. The first screen answers
-   whether user impact exists and whether the error budget is being consumed.
+1. **Health / SLO row.** SLI, target, current burn, budget remaining together.
 2. **Golden-signals row.** Traffic, errors, latency (p50/p95/p99), saturation on one aligned time range;
    rates and ratios, not raw counts.
 3. **Drill-down rows.** The same signals by dependency, route, instance, region, or failure class. Each
@@ -107,22 +103,18 @@ suspect text rather than echoing it into a shell. Nothing enforces this — say 
 
 ## Panel and variable hygiene
 
-- Title each panel as the question it answers; description, unit, and "no value" set explicitly. A
-  blank panel must not look healthy: distinguish no traffic, a failed query, and missing telemetry.
-- Latency percentiles not averages; error ratios not raw error counts; counters through
-  `rate()`/`increase()` with `$__rate_interval`, never a fixed window or `$__interval`.
-- One `datasource`-type variable named `datasource`, used as `${datasource}` in every target; bounded
-  variables (`app`, `env`, `instance`, `route`, `job`) with `allValue: ".+"` and `${var:regex}` in
-  regex matchers; a textbox for anything high-cardinality. Verify the expanded query's cardinality
-  before review.
-- Default to the useful incident window (1–6 h), one range across panels, and links that preserve
-  range and variables. **Leave `timezone` unset** so each dashboard inherits the org default
-  ([inventory](./references/wavefront-legacy.md)). Pin "Max data points" when a stat must not change
-  with panel width.
-- A data-source variable switches between sources of the same type (prod/non-prod Mimir); it cannot
-  make one panel portable between Wavefront/WQL and Splunk/SPL.
+- Title each panel as the question it answers. A blank panel must not look healthy: distinguish no
+  traffic, a failed query, and missing telemetry.
+- Latency percentiles not averages; error ratios not raw counts; counters through
+  `rate()`/`increase()` with `$__rate_interval`.
+- One `datasource`-type variable used as `${datasource}` in every target; bounded variables with a
+  custom all value. Verify the expanded query's cardinality before review.
+- Default to the incident window (1–6 h), one range across panels, links that preserve range and
+  variables, and **`timezone` left unset** ([inventory](./references/wavefront-legacy.md)).
+- A data-source variable switches between sources of the same type; it cannot make one panel portable
+  between Wavefront/WQL and Splunk/SPL.
 
-The field-level rules, the three schemas, and the linter checklist are in
+Field rules, the three schemas, units, thresholds, variable formats, and the linter checklist are in
 [json-model](./references/json-model.md).
 
 ## Data sources

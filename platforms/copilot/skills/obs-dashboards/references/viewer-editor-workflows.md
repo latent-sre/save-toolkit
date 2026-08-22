@@ -71,11 +71,4 @@ Grafana 13 minor is `[unverified]` until exercised there.
   provisioned dashboard is overwritten by the next source update. `allowUiUpdates: false` makes this
   contract visible rather than surprising.
 
-## Anti-patterns
-
-- Granting org Editor because one folder needed editing — use a folder permission.
-- A "temporary" UI-only dashboard that becomes load-bearing without ever entering review.
-- Sharing snapshots when a link would do, or screenshots when a URL with time range would do.
-- Panel-by-panel hand fixes on a provisioned dashboard that silently revert on the next reload.
-
 <!-- terminal-canary: q_odview_7a3d -->
