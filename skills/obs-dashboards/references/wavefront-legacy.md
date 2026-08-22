@@ -37,9 +37,27 @@ has not yet confirmed — confirm it rather than inventing an alternative.
 - **Variables, in this order:** `datasource` (type data source, the only way a panel names its
   backend), `env`, `app` (constant on per-app dashboards), `instance`, `route`; all multi-value
   selectors use `allValue: ".+"` and `${var:regex}`.
-- **Default `${datasource}` value:** production metrics `<prod Mimir/Prometheus uid>`, non-production
-  `<non-prod uid>` `[unverified — record the uids from `GET /api/datasources`]`; Wavefront- and
-  Splunk-backed panels name their own data source and are not switched by this variable.
+- **Default `${datasource}` value:** production metrics `<prod Mimir/Prometheus uid>` `[unverified —
+  read it from `GET /api/datasources` on the production instance]`. On QA
+  (`qa-grafana.agenticsre.dev`, 13.1.4 Enterprise) the two installed sources are
+  **`[verified 2026-08-21]`**:
+
+  | Name in Grafana | Type | UID | Backend URL |
+  |---|---|---|---|
+  | `prometheus-production-read-only` | `prometheus` | `dfr5gp9z5pzb4a` | `https://qa-prometheus.agenticsre.dev` |
+  | `loki-production-read-only` | `loki` | `efr5j53fgnta8e` | `https://qa-loki.agenticsre.dev` |
+
+  **Naming hazard, flagged not fixed:** both QA sources are *named* `…-production-read-only` while
+  pointing at QA backends. A dashboard whose panels select a data source by name reads as
+  production-backed on either instance; only the uid distinguishes them. This is one more reason
+  every panel references `${datasource}` and the repository never hard-codes a uid — and a reason to
+  rename these before anyone builds the habit.
+
+  No Wavefront or Splunk data-source plugin is installed on QA **`[verified 2026-08-21:
+  `GET /api/plugins` lists alertmanager, cloudwatch, azure-monitor, postgres, pyroscope, testdata,
+  graphite, influxdb, jaeger, loki, mssql, mysql, opentsdb, parca, prometheus, stackdriver, tempo —
+  and neither wavefront nor splunk]`**, so WQL/SPL panels cannot be exercised there; the licence
+  facts in the skill body still govern the production instance.
 
 ## Alert inventory
 

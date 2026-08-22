@@ -30,7 +30,9 @@ Rules that follow from the split:
   the V2 version instead. *[sourced: grafana/mcp-grafana tools/dashboard.go, v1/v2 write guard]*
 - Whether a dashboard *created* through the UI on 13.1/13.2 is stored as V1 or V2 is not stated in the
   docs `[unverified]` — read `status.conversion.storedVersion` (app-platform API) or export with the
-  model pinned before assuming.
+  model pinned before assuming. What *is* settled: **`[verified: qa-grafana.agenticsre.dev (Grafana 13.1.4 Enterprise, org 1))]`**
+  the group's `preferredVersion` is already `v2` on 13.1.4 with `dashboardNewLayouts` enabled, so an
+  unpinned read hands you the V2 shape on a 13.1 instance, not just after the 13.2 upgrade.
 - Export "Classic if you plan to use the dashboard in Grafana v12.4 or older"; the community catalog
   accepts Classic only. *[sourced: docs share-dashboards-panels]*
 

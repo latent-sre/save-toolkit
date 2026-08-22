@@ -22,9 +22,11 @@ committed.
 - `[sourced]` [RBAC fixed roles](https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/access-control/rbac-fixed-basic-role-definitions/),
   [service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/)
 
-Sources reviewed 2026-08-21 against the docs source for the `latest` (13.2) site. Exact behavior on
-the deployed 13.1 minor, and after the 13.2 upgrade, is `[unverified]` until exercised against it —
-run the read-only calls first and record what the target actually answers.
+Sources reviewed 2026-08-21 against the docs source for the `latest` (13.2) site. The read-only
+half of this reference was then **exercised against qa-grafana.agenticsre.dev (Grafana 13.1.4 Enterprise, org 1)** on
+2026-08-21; calls proven there are marked `[verified: QA]` inline. The write half (create,
+update, conflict, delete) is still `[unverified]` — no dashboard has been written through it —
+and behavior after the 13.2 upgrade is `[unverified]` for every call.
 
 ## Credentials and scope
 
@@ -40,6 +42,11 @@ run the read-only calls first and record what the target actually answers.
   plan-rbac-rollout-strategy]*
 - No dashboard-API rate limit is documented `[searched the docs tree; did not confirm the search would
   find one]`; search caps `limit` at 5000.
+- **Know what your token can do before you conclude anything from a read.**
+  `GET /api/access-control/user/permissions` returns the effective grants and their scopes
+  (`dashboards:create: ["folders:uid:general"]`, `datasources:query: [...]`, and so on).
+  **`[verified: QA]`** An empty `/api/search` result from a token lacking `dashboards:read` is
+  byte-identical to an empty instance — check the grants before writing either conclusion down.
 
 ## Two API families — which to call
 
@@ -52,12 +59,17 @@ run the read-only calls first and record what the target actually answers.
 
 **Namespace (`<ns>`):** `default` for org 1; `org-<ORG_ID>` for any other org; `stacks-<STACK_ID>` on
 Grafana Cloud. The URL path always uses `metadata.name` — the dashboard **uid** — never
-`metadata.uid`. *[sourced: docs http-api/apis]* Read it off an existing dashboard's app-platform
-listing before scripting; the value for the deployed instance is `[unverified]` here.
+`metadata.uid`. *[sourced: docs http-api/apis]* **`[verified: QA]`** org 1 → namespace `default`,
+and naming the org form for org 1 fails loudly rather than 404-ing:
+`/apis/dashboard.grafana.app/v1/namespaces/org-1/dashboards` answers **HTTP 500** with
+`Internal Server Error: "...": use default rather than org-1` — the message names the namespace
+you should have used, so read it rather than guessing.
 
 **Version to pin:** `v1` carries a Classic-model `spec`; `v2beta1` carries elements/layout (see
-[json-model](./json-model.md)). Always name one; an unpinned read returns the server's preferred
-version, whose shape may differ from what your `jq` expects.
+[json-model](./json-model.md)). Always name one. **`[verified: QA]`** on 13.1.4 the group serves
+`v2`, `v2beta1`, `v2alpha1`, `v0alpha1`, `v1`, `v1beta1` — and its **`preferredVersion` is `v2`**.
+So an unpinned read on a 13.1 instance already returns the V2 shape, and a `jq` recipe written for
+`spec.panels[]` silently returns nothing. This is not a 13.2 concern; it is true today.
 
 ```bash
 # Common header block for every call below
@@ -169,16 +181,26 @@ silently discards a concurrent edit and is never the fix for a 409/412.
    dashboard's default range and a real variable value:
    ```bash
    curl -sS "${H[@]}" -X POST "$GRAFANA_URL/api/ds/query" --data '{"from":"now-1h","to":"now",
-     "queries":[{"refId":"A","datasource":{"uid":"<ds uid>"},"expr":"<expr with variables substituted>","intervalMs":60000,"maxDataPoints":500}]}' \
-     | jq '.results.A.frames | length'
+     "queries":[{"refId":"A","datasource":{"type":"prometheus","uid":"<ds uid>"},"expr":"<expr with variables substituted>","intervalMs":60000,"maxDataPoints":500}]}' \
+     | jq '.results.A.status, (.results.A.frames | length)'
    ```
-   Zero frames on a window where traffic existed means a wrong label, job, or data source —
-   fix before declaring done. `[sourced: legacy query API; behavior on target unverified]`
-3. **Look at it** when an image renderer is deployed (13 requires it as a separate service):
-   `GET $GRAFANA_URL/render/d-solo/<uid>?panelId=<id>&width=1000&height=500&from=now-6h&to=now` —
-   check for empty top-row panels, truncated titles, overlapping panels, missing units. Without a
-   renderer, say so: never claim a visual check you did not make. *[sourced: docs share-dashboards-panels;
-   upgrade-v13.0 renderer note; gcx create-dashboard skill]*
+   **`[verified: QA]`** this exact body returns `results.A.status: 200` with populated
+   `results.A.frames[]`; the response echoes what the server ran in
+   `frames[0].schema.meta.executedQueryString` (`"Expr: up\nStep: 1m0s"`), which is the fastest way
+   to see how `intervalMs` became the step and whether your variables actually expanded. Include
+   `datasource.type` alongside `uid`. Zero frames on a window where traffic existed means a wrong
+   label, job, or data source — fix before declaring done.
+3. **Look at it — but check the renderer exists first.** Grafana 13 requires the image renderer as a
+   separate service, and it is frequently absent:
+   ```bash
+   curl -sS "${H[@]}" "$GRAFANA_URL/api/frontend/settings" | jq .rendererAvailable
+   ```
+   **`[verified: QA]`** this returns `false` on the QA instance — so on that host the visual check is
+   **unavailable** and `/render/...` will not produce an image. When it returns `true`:
+   `GET $GRAFANA_URL/render/d-solo/<uid>?panelId=<id>&width=1000&height=500&from=now-6h&to=now`
+   `[unverified — no renderer was available to exercise it]`, then check for empty top-row panels,
+   truncated titles, overlapping panels, missing units. When it returns `false`, say so plainly and
+   report the write as verified-by-query-only: never claim a visual check you did not make.
 4. **Export and commit** the applied model to the dashboards-as-code path in the same task, with the
    PR/commit in the `grafana.app/message` you sent.
 
@@ -222,7 +244,9 @@ under the change ladder.
 |---|---|---|
 | `400` | Invalid body — wrong schema for the pinned version, missing required field, bad JSON | Fix the file; re-run `jq empty` and the linter; check you did not mix V1 and V2 fields |
 | `401` / `403` | Token missing, expired, or lacks `dashboards:create`/`write` on that folder | Fix the service account's role/scope; never widen to org Admin |
-| `404` on GET | Wrong uid, wrong namespace, or the app-platform version is not enabled | Search first; try `v1`; fall back to the legacy family |
+| `404` on GET | Wrong uid, or the app-platform version is not enabled | Search first; try `v1`; fall back to the legacy family |
+| `500` naming a namespace | The namespace segment is wrong — the body reads `use default rather than org-1` `[verified: QA]` | Use the namespace the message names; do not retry the same path |
+| `[]` from search with no error | May be genuinely empty **or** the token may lack `dashboards:read` `[verified: QA — a token with `dashboards:create` but no read grant returns `[]` indistinguishably]` | Check `/api/access-control/user/permissions` before reporting "no dashboards exist" |
 | `409` (app platform) | uid already exists (create) or the dashboard changed since you read it (update) | Reconcile / re-read and re-diff; never force |
 | `412 version-mismatch` / `name-exists` (legacy) | Same two cases on the legacy endpoint | Same |
 | `412 plugin-dashboard` (legacy) | A plugin owns the dashboard | Leave it; it is not yours to write |
