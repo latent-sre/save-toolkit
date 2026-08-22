@@ -46,34 +46,31 @@ Grafana 13 minor is `[unverified]` until exercised there.
 - **Star the dashboards you actually use.** Starred dashboards filter to the top of search and the
   home list — the cheap fix for "I can never find the right dashboard".
 - **Propose changes as code.** A viewer who spots a wrong threshold or a missing panel does not need
-  edit rights: dashboards are repository JSON here, so the change is a pull request against the
-  provisioned source (see [provisioning](./provisioning.md)), reviewed like any other change.
+  edit rights: an Editor or the observability lane can make the change on the instance — say which
+  dashboard, which panel, and what should differ.
 
 ## Editor workflows — beyond dragging panels
 
 - **Library panels** publish one reviewed panel for reuse across dashboards; an edit propagates to
-  every consumer. Use them for the shared health/SLO rows this skill's layout mandates, instead of
+  every consumer. Use them for a health/SLO row shared across dashboards, instead of
   copy-pasted near-duplicates that drift apart.
 - **Annotations** mark deploys, incidents, and config changes on the time axis — the fastest "did the
   deploy cause this?" evidence. Annotate at the moment of the event, tagged consistently; they can
   also be written by automation through the annotations HTTP API.
 - **Version history** (dashboard settings → versions) shows who changed what, with diffs, and
-  restores a prior version — triage for "this dashboard looked different yesterday". On a provisioned
-  dashboard the restore is temporary; the durable change is the repository revert.
+  restores a prior version — triage for "this dashboard looked different yesterday". **Check ownership
+  before calling a rollback done.** On a provisioned or tool-managed dashboard a UI restore is
+  temporary *and* the API write that would replace it is refused
+  ([http-api](./http-api.md)) — the owning tool reconciles its own source on the next cycle and your
+  change disappears. There is no durable rollback from this lane: stop, name the owning tool, and
+  hand the revert to whoever controls that source. Only an unmanaged dashboard rolls back here, by a
+  fresh API write of the saved model.
 - **Snapshots are data egress.** A snapshot embeds the queried data and detaches it from access
   control; anyone with the link sees the numbers. Prefer an internal share link. If a snapshot is
   genuinely needed (external party, ephemeral data), scrub it, set an expiry, and treat posting it
   like attaching a log excerpt — redaction rules apply.
-- **The UI is a preview, not the record.** Draft in the UI, then export and commit per
-  [provisioning](./provisioning.md) and the [HTTP API reference](./http-api.md); a UI-only edit to a
-  provisioned dashboard is overwritten by the next source update. `allowUiUpdates: false` makes this
-  contract visible rather than surprising.
-
-## Anti-patterns
-
-- Granting org Editor because one folder needed editing — use a folder permission.
-- A "temporary" UI-only dashboard that becomes load-bearing without ever entering review.
-- Sharing snapshots when a link would do, or screenshots when a URL with time range would do.
-- Panel-by-panel hand fixes on a provisioned dashboard that silently revert on the next reload.
+- **A UI edit is a real change with no review.** Grafana records it in version history with your
+  name, and that history is the only trace. Set a meaningful save message, and prefer the API path in
+  [http-api](./http-api.md) when the change is worth a diff and a rollback.
 
 <!-- terminal-canary: q_odview_7a3d -->

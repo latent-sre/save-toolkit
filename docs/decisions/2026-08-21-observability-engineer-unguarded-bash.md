@@ -29,10 +29,9 @@ Three shapes were on the table:
 Shape 1. `GUARDED_AGENT_NAMES` and the generator's `GUARDED_AGENTS` both shrink to `{"sre"}`;
 `observability-engineer` holds unguarded Bash like `sde` and `prompt-engineer`. The agent body gains
 a **dashboard write rule**: Grafana dashboard create/update over the HTTP API is the one live apply
-this agent performs itself, in any environment, under four ordered conditions — target and full
-JSON diff shown before the call; live model exported first as the rollback; updates pin the live
-`version` with `overwrite: false`; the applied JSON is exported and committed to the
-dashboards-as-code path in the same task with the PR/commit in the save `message`. Dashboards and
+this agent performs itself, in any environment, under three ordered conditions — target and full
+JSON diff shown before the call; live model exported first as the rollback; and the update carries
+its API family's concurrency token so a concurrent edit fails loudly. Dashboards and
 their folders only. Every other live change (alert rules, data sources, contact points, permissions,
 pipelines) keeps its Tier 2/3 recommend-only posture.
 
@@ -76,3 +75,41 @@ Restore `"observability-engineer"` to `GUARDED_AGENT_NAMES` in `scripts/readonly
 branches, revert the agent body's Bash paragraph and dashboard write rule, and regenerate adapters
 with `python scripts/generate_platform_adapters.py --write`. `validate_fleet.validate_guard_wiring`
 fails if only one of the two rosters is reverted.
+
+## Amendment, 2026-08-22 — the fourth condition is withdrawn
+
+As originally accepted this rule had a fourth condition: the applied JSON exported and committed to a
+dashboards-as-code path, giving every unattended production write a reviewed artefact outside the
+instance. The owner has since recorded that this team does not keep dashboards as code — they are
+managed in the UI and over the API, and no repository copy exists — so the condition cannot be
+satisfied and has been removed rather than left as text nobody can follow.
+
+**This weakens the grant, and the weakening is deliberate.** The original bargain traded human
+approval for four conditions, one of which produced a durable, reviewable record of what changed.
+With three, the only record of an unattended production dashboard write is Grafana's own version
+history and whatever the agent put in `grafana.app/message`. That history is per-dashboard, lives on
+the instance being changed, and is not reviewed by anyone before the change takes effect.
+
+Mitigations that remain: the diff is still shown before the call, the pre-write export is still the
+rollback, the concurrency token still makes a concurrent edit fail loudly, and the authority is still
+scoped to dashboards and their folders. The agent must state in its handoff that no artefact of the
+change exists outside the instance.
+
+**Revisit if** the team adopts any repository copy of dashboards, or if a production dashboard change
+ever needs to be reconstructed after the instance's version history has rolled over.
+
+## Amendment, 2026-08-22 — the conditions are bound to the loop
+
+An adversarial review found that the grant, as written, let a production write proceed on three
+conditions alone: the rule ended "the conditions above are the checklist," while the verification
+work — permission and identifier discovery, validation, post-write read-back, query proof, visual
+check, and history confirmation — lived only in the `obs-dashboards` skill body. An agent that
+satisfied the three conditions and skipped the loop was inside the letter of the grant and could
+apply a valid-but-wrong dashboard to production unattended.
+
+The three conditions are now stated as **necessary, not sufficient**: the grant holds only when the
+skill's loop is completed, and a step that cannot be completed converts the write back into a
+hand-off. This tightens the grant. It removes no capability the owner granted on 2026-08-21 — the
+agent still writes to any Grafana including production without separate approval — it only refuses
+to call three checks a finished job.
+

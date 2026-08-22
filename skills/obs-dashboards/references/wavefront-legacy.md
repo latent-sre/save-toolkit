@@ -6,27 +6,19 @@ ambiguous partial inventory.
 
 ## Licence and plugin evidence
 
-Catalogue guidance, not proof that this installation is entitled — confirm the active licence and the
-installed plugin list (`GET /api/plugins`) with the Grafana administrator before provisioning either.
+Catalogue guidance, not proof of entitlement — confirm the licence and the installed plugin list
+(`GET /api/plugins`) with the Grafana administrator before provisioning either.
 
-- **Wavefront / Aria Operations for Applications `[sourced, reviewed 2026-07-14]`.** The
-  [plugin documentation](https://grafana.com/docs/plugins/grafana-wavefront-datasource/latest/)
-  identifies `grafana-wavefront-datasource` as an **Enterprise** plugin: Grafana Cloud Pro/Advanced,
-  or a self-managed Enterprise licence. **Lifecycle `[sourced, reviewed 2026-08-19]`:** the backend
-  continues as **Broadcom DX OpenExplore** — the Wavefront engine on Broadcom's DX platform; the
+- **Wavefront** — `grafana-wavefront-datasource` is an **Enterprise** plugin (Cloud Pro/Advanced, or
+  a self-managed Enterprise licence). Its backend continues as **Broadcom DX OpenExplore**; the
   2025-10-31 end-of-availability retired the VMware Tanzu Observability offering, not the engine
-  (see `stack-profile`). Whether the Enterprise plugin is supported against a DX OpenExplore tenant
-  is `[unverified]`.
-- **Splunk `[sourced, reviewed 2026-07-14]`.** The
-  [installation page](https://grafana.com/docs/plugins/grafana-splunk-datasource/latest/install/)
-  identifies `grafana-splunk-datasource`: Grafana Cloud Pro/Advanced, or a self-managed Enterprise
-  licence that includes it. Cloud Free and Starter do not.
-- **ThousandEyes `[sourced, reviewed 2026-07-14]`.** No named ThousandEyes Grafana data-source plugin
-  exists in the official documentation or catalogue — do not invent a plugin type or uid. Cisco's
-  [documented path](https://docs.thousandeyes.com/product-documentation/integration-guides/opentelemetry/observability-platforms/grafana)
-  exports OpenTelemetry signals into Prometheus/Mimir, Tempo, or Loki; query those with PromQL, or
-  link to the ThousandEyes console. This is an inference from the named integration path, not a claim
-  that no other integration exists.
+  (see `stack-profile`). Whether the plugin is supported against a DX OpenExplore tenant is
+  `[unverified]`.
+- **Splunk** — `grafana-splunk-datasource`, same entitlement rule. Cloud Free and Starter exclude it.
+- **ThousandEyes** — no Grafana data-source plugin exists; do not invent a plugin type or uid. Its
+  OpenTelemetry signals land in Prometheus/Mimir, Tempo, or Loki and are queried there.
+
+`[sourced, reviewed 2026-07-14; lifecycle re-checked 2026-08-19]`
 
 ## Data sources
 
@@ -37,9 +29,9 @@ installed plugin list (`GET /api/plugins`) with the Grafana administrator before
 
 ## Dashboard inventory
 
-| Dashboard | Stable UID | Folder | Source path | Owner | Purpose / SLO |
-|---|---|---|---|---|---|
-| `<service health>` | `<uid>` | `<folder>` | `<repo path>` | `<team>` | `<top-level health → drill-down>` |
+| Dashboard | Stable UID | Folder | Owner | Purpose / SLO |
+|---|---|---|---|---|
+| `<service health>` | `<uid>` | `<folder>` | `<team>` | `<top-level health → drill-down>` |
 
 ## Conventions we standardize on
 
@@ -48,8 +40,7 @@ The agent applies these on every create or edit; a value marked `[unverified]` i
 has not yet confirmed — confirm it rather than inventing an alternative.
 
 - **Folders.** One Grafana folder for the team, one subfolder per app: `<Team>/<app>`. The repository
-  mirrors it (`dashboards/<app>/<uid>.json`) so `foldersFromFilesStructure: true` reproduces the tree;
-  no dashboard lands in `General`.
+    no dashboard lands in `General`.
 - **Names and uids.** `<App> / Health` is the top-level dashboard; drill-downs are
   `<App> / <Topic>` (`<App> / Dependencies`, `<App> / Routes`). The uid is the lowercase hyphenated
   form, `<app>-health`, `<app>-<topic>`, minted in the repository and never changed after first publish.
@@ -89,14 +80,5 @@ routing are owned by alerting work and must be reviewed there.
 |---|---|---|---|---|
 | `<burn-rate / availability>` | `<uid or URL>#<panel>` | `<Grafana or backend>` | `<route>` | `<runbook URL>` |
 
-## Provisioning
-
-| Item | Reviewed value |
-|---|---|
-| Dashboard-as-code root | `<repo path>` |
-| Provider / Git Sync path | `<provider YAML or Git Sync path>` |
-| Controlled apply path | `<CI job or operator procedure>` |
-| Validation target | `<non-production Grafana URL/name>` |
-| Rollback revision/procedure | `<revision and controlled reapply step>` |
 
 <!-- terminal-canary: q_odwf_6a2e -->

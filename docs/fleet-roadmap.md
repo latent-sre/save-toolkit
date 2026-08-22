@@ -595,7 +595,7 @@ availability; the evidence-label grader is restored **and** the skill's output c
 strengthened so it passes on behavior rather than by deletion, evidenced by a fresh 3/3 run.
 
 **Progress (2026-08-21):** Done. Every call in `http-api.md` was exercised against
-`qa-grafana.agenticsre.dev` (13.1.4 Enterprise) across commits `273d4a3`, `24449c9`, and this one:
+the team's non-production Grafana (13.1.4 Enterprise) across commits `273d4a3`, `24449c9`, and this one:
 namespace, discovery, `/api/ds/query`, create on both families, the concurrency conflict on both,
 and delete. Five documented behaviors turned out to be wrong or incomplete on 13.1.4 and are
 corrected in the reference — a bad namespace answers `500` not `404`; the legacy conflict answers
@@ -654,74 +654,40 @@ closing line, then re-run the scenario and expect 3/3 on behavior rather than on
 
 ### DASH-002 — decide how one dashboard JSON serves two Grafana instances
 
-**Status:** `decision-needed` (2026-08-22) — raised by the owner while templating the data-source
-inventory: "these are just qa, they are not the real ones… that opens up a new question for later."
-**Owner input, 2026-08-22: data sources are NOT provisioned as code on either instance.** That
-removes the cheap form of option 1 and elects option 4 as the recommendation below; one confirmation
-closes the item.
+**Status:** `deferred` (2026-08-22) — **retired; the premise no longer holds.** The item asked how one
+committed dashboard JSON could serve two Grafana instances whose data-source uids differ. The owner
+has since recorded that this team does not keep dashboards as code at all: they are managed in the
+UI and over the API, with no repository copy. There is no committed artefact to make portable, so
+the question does not arise. The `${datasource}` variable convention stays in `obs-dashboards` on
+its own merits — it keeps a dashboard usable when a source is replaced on the same instance — but
+the cross-instance portability problem is retired.
+
+**Reopen trigger:** the team adopts any repository copy of dashboards — file provisioning, Git Sync,
+Terraform, or committed JSON exports. Until then there is no artefact whose portability can matter.
 
 **Outcome:** The team has one recorded answer for how a committed dashboard reaches both the
 non-production and production Grafana without editing the JSON per environment, and
 `obs-dashboards` teaches that answer instead of leaving it implicit.
 
 **Source:** The QA verification run. Data-source uids are per-instance
-(`dfr5gp9z5pzb4a` on the QA box) and are minted at data-source creation, so the same committed
+(an opaque 14-character string, different on every instance) and are minted at data-source creation, so the same committed
 dashboard cannot name a uid and work in both places. The skill's current answer — every panel
 references `${datasource}` — solves the *panel* half, but the variable still has to resolve to
 something per instance, and the skill does not say how. This is the seam where "dashboards as code"
 usually breaks in practice.
 
-**Options, none yet chosen:**
-1. **Pin identical data-source uids across environments** by provisioning the data sources
-   themselves as code with an explicit `uid`. Dashboards then reference a uid that means the same
-   thing everywhere, and the `${datasource}` variable becomes a convenience rather than a
-   portability mechanism. Cleanest, but requires owning data-source provisioning on both instances.
-2. **Bind at import time** — keep `__inputs`/`${DS_*}` in the committed file and let
-   `POST /api/dashboards/import` resolve them per instance (verified working; see
-   [`http-api.md`](../skills/obs-dashboards/references/http-api.md)). Standard for community
-   dashboards, but the committed artifact is then not the artifact that runs.
-3. **Substitute at deploy time** — template the JSON in CI per environment. Most flexible, adds a
-   build step, and the file in the repository is no longer directly loadable.
-4. **A data-source *variable* whose default differs per instance**, set by provisioning rather than
-   by the dashboard. Smallest change from today; leaves a per-instance value outside the dashboard.
+**The options analysis is retired with the item.** It weighed four ways to make one *committed*
+dashboard JSON portable across instances; none can apply where no committed copy exists. The
+reasoning is preserved in git history rather than restated here, so nothing reads as open work.
 
-**Prerequisites:** None. This is a decision, not an implementation; it needs the owner and whoever
-owns data-source provisioning on the production instance.
+**Prerequisites:** None — and none can now be met. The item needed a committed dashboard artefact to
+make portable; the owner has recorded that no such artefact exists.
 
-**Acceptance:** The chosen option is recorded (an ADR if it constrains provisioning), the
-data-source inventory table in
-[`wavefront-legacy.md`](../skills/obs-dashboards/references/wavefront-legacy.md) is filled in
-accordingly, and `obs-dashboards` states the mechanism in one place rather than implying it.
+**Acceptance:** Retired without a chosen option. The `${datasource}` variable convention stays in
+`obs-dashboards` on its own merits — it keeps a dashboard working when a data source is rebuilt on
+the same instance — but nothing here asserts cross-instance portability.
 
-**Recommendation (2026-08-22): option 4, a `datasource`-type variable with no pinned `current`.**
-
-Because the sources are hand-made rather than provisioned, option 1 would mean recreating them to
-control their uids — a uid cannot be edited in place — which breaks every dashboard already pointing
-at them. Option 3 costs a build step and means the file in the repository is no longer the file that
-runs. Option 2 leaves the committed artifact different from the deployed one.
-
-Option 4 needs no platform work and no new machinery: a `datasource`-type variable offers whatever
-sources of that type exist on the instance that loads the dashboard, and with `current` left empty it
-resolves to **that instance's default data source**. Checked on QA `[verified 2026-08-22]`:
-`prometheus-production-read-only` carries `isDefault: true`, so an unpinned variable resolves there
-with no per-instance edit. Add a `regex` (for example `/prometheus/`) where an instance holds several
-sources of one type, so a viewer cannot silently pick the wrong backend.
-
-**Correction, 2026-08-22.** The export-hygiene rule was first written here as "exporting from the UI
-populates the variable's `current` with that instance's uid". That claim is **not supported**: the one
-sample available — the community dashboard imported onto QA — carries
-`current = {"text": "default", "value": "default"}`, a portable sentinel rather than a uid. What *is*
-verified is narrower and more useful: **an API write preserves `current` exactly as sent** (`{}`
-stored as `{}`, a uid stored as that uid), so portability is decided by what gets committed, not by
-what the server does to it. The rule for `json-model.md` is therefore "commit an empty or `default`
-`current`, never a uid" — and it is already written there, verified.
-
-Its honest cost: it depends on every instance having a sensible default data source set — configuration
-nobody currently owns as code, which is the same weakness that ruled out option 1, in a cheaper place.
-QA has one (`prometheus-production-read-only`, `isDefault: true`); production is `[unverified]`.
-
-**Next action:** Confirm option 4 (or pick another), then add the blank-`current` rule to
-`json-model.md` and fill the inventory table per instance.
+**Next action:** None. Reopen only on the trigger above.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
