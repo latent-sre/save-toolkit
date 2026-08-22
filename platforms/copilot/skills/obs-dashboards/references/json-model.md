@@ -118,7 +118,7 @@ Rules that follow from the split:
     1. `status.conversion.storedVersion` tells you the truth about storage; its **absence** means you
      asked for the version it is already stored in — *unless someone has round-tripped a `status`
      into the object*, after which it reports a stale version at every read and the absence signal is
-     gone for good. See the strip-`status` rule below.
+     gone for good — see the strip-`status` rule above.
   2. The same dashboard answers in either shape, so a `jq` recipe cannot detect which schema it is
      "really" in — only the version you pinned decides what you get. Pin deliberately.
     3. **`conversion.failed: false` does not mean the conversion was lossless.** Data-loss detection
@@ -149,7 +149,7 @@ Rules that follow from the split:
 | `schemaVersion` | Integer Grafana bumps when the JSON schema changes. **42 is the final version for the V1 API** — the source constant carries "DO NOT increment this number" — and is unchanged across 13.1.4 and 13.2.0. Leave it as exported; Grafana migrates older versions on load |
 | `version` | Grafana-owned save counter; send the value you read when updating so a concurrent edit fails loudly |
 | `editable` | Set `false` for provisioned dashboards so the UI says so (linter `uneditable-dashboard`) |
-| `timezone` | `utc` or `browser`; the team default is recorded in [wavefront-legacy](./wavefront-legacy.md) |
+| `timezone` | `utc` or `browser`. **This team leaves it unset** so each dashboard inherits the org default — the skeleton below omits it deliberately ([inventory](./wavefront-legacy.md)) |
 | `time` / `refresh` / `timepicker` | Default window and auto-refresh. "Avoid unnecessary dashboard refreshing"; `nowDelay` hides the last minutes when ingestion lags |
 | `graphTooltip` | `0` none, `1` shared crosshair, `2` shared crosshair + tooltip (V2: `cursorSync: Off|Crosshair|Tooltip`) |
 | `templating.list[]` | Variables — see below |
@@ -167,7 +167,7 @@ half 12, third 8, quarter 6. *[sourced: docs JSON model; grafana/skills dashboar
 ```json
 {
   "uid": "<svc>-health", "title": "<Service> / Health", "tags": ["<team>", "<svc>"],
-  "editable": false, "timezone": "utc", "graphTooltip": 1, "schemaVersion": 42, "version": 0,
+  "editable": false, "graphTooltip": 1, "schemaVersion": 42, "version": 0,
   "time": {"from": "now-6h", "to": "now"}, "refresh": "1m",
   "templating": {"list": [
     {"name": "datasource", "label": "Data Source", "type": "datasource", "query": "prometheus",

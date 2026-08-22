@@ -216,8 +216,12 @@ same from the response. `[verified: QA run]`
 
 **Read `meta` before you write — it answers three questions in one call. `[verified: QA]`** The
 legacy `GET /api/dashboards/uid/<uid>` returns a `meta` block carrying `canSave`, `canEdit`,
-`canAdmin`, `canDelete`, `provisioned`, `folderUid`/`folderTitle`, `version`, and `apiVersion` (the
-stored schema — a legacy-created dashboard on 13.1.4 reports `v0alpha1`). Checking `meta.canSave`
+`canAdmin`, `canDelete`, `provisioned`, `folderUid`/`folderTitle`, and `version`. It also carries an
+`apiVersion`, which is **not** the stored schema: it reports the version the *client* asked for, and
+Grafana pins that client to `v0alpha1`, so it reads `v0alpha1` for every dashboard regardless of
+storage. Use `status.conversion.storedVersion` for that question
+([json-model](./json-model.md)) — the coincidence that a legacy-created dashboard really is stored
+`v0alpha1` is what makes this field look trustworthy. Checking `meta.canSave`
 tells you the write will be permitted *before* you attempt it, and `meta.provisioned` tells you the
 file provider owns it, which no amount of retrying will change. The app-platform equivalent is
 `status.conversion` — `{"failed": false, "storedVersion": "v0alpha1"}` — which reports the stored
@@ -254,7 +258,8 @@ curl -sS "${H[@]}" -X POST --data @create.json \
 jq -n --slurpfile d dashboard.json '{dashboard: ($d[0] | .id = null), folderUid: "<existing folder uid>",
   message: "PR #<n> <full-sha>", overwrite: false}' > create-legacy.json
 curl -sS "${H[@]}" -X POST --data @create-legacy.json "$GRAFANA_URL/api/dashboards/db"
-#   200 · 400 · 401/403 · 412 {status:"name-exists"} when the uid is taken
+#   200 · 400 · 401/403 · 409 when the uid is taken [verified: QA 13.1.4] (412 name-exists is the
+#       older documented shape and was not observed there)
 # [verified: QA] a fresh-uid create answers HTTP 200 with exactly:
 #   {"folderUid":"","id":1346080749527040,"slug":"test3a-claude-legacy-probe","status":"success",
 #    "uid":"test-claude-legacy","url":"/d/test-claude-legacy/test3a-claude-legacy-probe","version":1}
@@ -305,7 +310,9 @@ jq --slurpfile spec dashboard.json \
    live.json > update.json
 curl -sS "${H[@]}" -X PUT --data @update.json \
   "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>"
-#   200 updated · 400 · 401/403 · 409 "dashboard with the same version already exists" → someone saved first: re-read, re-diff, retry
+#   200 updated · 400 · 401/403 · 409 → someone saved first: re-read, re-diff, retry. The body reads
+#       "Operation cannot be fulfilled ... the object has been modified" [verified: QA] — match on the
+#       409 and reason:"Conflict", never on a message string
 
 # Legacy fallback: pin the version you read, keep overwrite:false
 jq -n --slurpfile d dashboard.json --argjson v "$(jq .dashboard.version live-legacy.json)" \
