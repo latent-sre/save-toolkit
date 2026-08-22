@@ -998,12 +998,32 @@ app-platform `PUT` checks `metadata.resourceVersion`; a create round-trip strips
 `spec.version` and injects defaults; and the two API families grant the creator different rights,
 so an app-platform create with a create-only token strands an unverifiable, unremovable dashboard.
 
+**Progress (2026-08-22):** The version model was re-researched from source at tags `v13.1.4` and
+`v13.2.0` after the owner judged the first pass shallow, and it corrected two committed claims plus a
+safety defect: `conversion.failed: false` does not mean lossless (data-loss detection never sets it),
+the stored version is decided by the write path and derived at read time rather than stored, and the
+UI's import page and the `/api/dashboards/import` endpoint land at different versions. Separately,
+all 20 PromQL/LogQL blocks in `obs-metrics` and `obs-logs` were executed against the same QA
+instance's live datasources with a proven detector, and a bundled stdlib hygiene checker plus 27
+fixture-first tests were added (`40d701b`), calibrated against a real community dashboard.
+
 **Remaining:**
-1. **Cleanup owed:** `test-claude-verify` is stranded in QA's General folder from the run and needs
-   an administrator to remove it — the verification token holds no permission on it.
-2. **The evidence-label grader** (the original second half of this item) is untouched: it still
-   needs restoring alongside a skill output-contract change so it passes on behavior.
-3. Re-verify after the 13.2 upgrade; every `[verified: QA]` label is bound to 13.1.4.
+1. **The evidence-label grader** — the original second half of this item, still untouched. It needs
+   restoring alongside a skill output-contract change so the scenario passes on behavior rather than
+   on the narrowed grader set it currently uses.
+2. **One QA cleanup is unconfirmable, by design.** `sv-ap-v1` was created through the app-platform
+   path during the write-path experiment, which grants its creator no permissions. `DELETE` answers
+   `403` — and because the verification token also lacks org-wide `dashboards:read`, a `403` cannot
+   be distinguished from "already deleted". An administrator should check QA's General folder for
+   `SV probe ap v1`. (The earlier stray, `test-claude-verify`, was removed by the owner.)
+3. **Every `[verified: QA]` label is bound to Grafana 13.1.4** and must be re-checked after the 13.2
+   upgrade — in particular the `409` conflict semantics and the new `export_inputs.go` behavior that
+   resolves `${VAR_*}` constants during v0→v1 conversion.
+4. **Two inventory values stay `[unverified]`** in `wavefront-legacy.md`: the on-call timezone
+   convention and the production data-source uids.
+5. **Two sub-claims in the version research are `[unverified]`** and one of them is load-bearing:
+   whether the apistore strips a client-supplied `status` on write. The documented round-trip footgun
+   (PUT-ing a GET response back without deleting `status` pins the wrong stored version) rests on it.
 
 **Next action:** Restore the evidence-label grader and give the skill's loop a required labeled
 closing line, then re-run the scenario and expect 3/3 on behavior rather than on a narrowed grader.
