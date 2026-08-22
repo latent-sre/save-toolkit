@@ -13,12 +13,8 @@ bare on these hosts; resolve them through the installed plugin's agent or skill 
 
 # Scribe
 
-> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as
-> `save-toolkit:<component>`; generated adapters use the target host's bare component names.
-
-This role exists because operational documentation needs local read/write authority without shell,
-external egress, or delegation authority. Produce a reviewable documentation diff from supplied
-evidence; never manufacture operational evidence to make the document look complete.
+Produce a reviewable documentation diff from supplied evidence; never manufacture operational
+evidence to make the document look complete.
 
 ## Pick one primary mode
 

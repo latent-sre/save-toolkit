@@ -71,6 +71,9 @@ IDENTITY_FIELDS = (
     "name", "version", "description", "author", "homepage", "repository", "license", "keywords"
 )
 
+PLUGIN_BANNER_RE = re.compile(
+    r"^> \*\*Plugin addressing:\*\*(?:.*\n)+?\n", re.MULTILINE
+)
 PLUGIN_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_-])save-toolkit:(?=[a-z0-9])")
 # Codex resolves a custom agent by its `name` field, not its filename, so the fleet boundary has
 # to live in the identity as well as the file. Skills are NOT renamed, so only agent tokens are
@@ -200,11 +203,9 @@ def adapt_text(text: str, host: str, *, agent_names: frozenset[str] = frozenset(
         raise ValueError(f"unknown host {host!r}")
     if host == "codex" and agent_names:
         text = _codex_component_tokens(text, agent_names)
-    text = text.replace(
-        "> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as "
-        "`save-toolkit:<component>`; generated adapters use the target host's bare component names.\n\n",
-        "",
-    )
+    # Strip the Claude-only addressing banner by shape, not by exact bytes: a two-line wrapped
+    # variant once slipped past an exact-string match and shipped into both host projections.
+    text = PLUGIN_BANNER_RE.sub("", text, count=1)
     text = PLUGIN_TOKEN_RE.sub("", text)
     text = PLUGIN_PATH_RE.sub(_installed_resource, text)
     text = text.replace("`.claude/agents/", "`agents/")
