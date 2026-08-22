@@ -66,19 +66,19 @@ providers:
       foldersFromFilesStructure: true   # then leave `folder` and `folderUid` unset; depth <= 4
 ```
 
-**What the file provider accepts is `[unverified]`, and the two available sources disagree.** Grafana's
-provisioning documentation states "You _must_ use the Kubernetes resource format to provision
-dashboards v2 / dynamic dashboards", while review of this file reported that the 13.1 file provider
-rejects the app-platform envelope and points callers at `/apis` (citing grafana/grafana #126641 and
-#128167). Neither was tested here: verifying it needs filesystem access to the Grafana host, which
-this work never had. **Until someone runs it on the target, provision Classic JSON through the file
-provider** — the shape both sources agree it accepts — and use the app-platform API or Git Sync for
-V1/V2 resources. Do not let a V2 dashboard's delivery depend on the unsettled case.
+**The file provider accepts both shapes `[sourced: grafana/grafana source, tags v13.1.4 and v13.2.0]`.**
+A file whose top level carries a non-empty `apiVersion` is routed to the app-platform parser, which
+unwraps `spec` and maps `metadata.name` to the uid, `metadata.namespace` to the org, and
+`metadata.annotations["grafana.app/folder"]` to the folder; anything else is read as Classic JSON.
+The branch keys only on `apiVersion` being **present**, never on its value, so `v1` and `v2beta1`
+both take it, and the version is carried through to storage — which is what makes a V2 dashboard
+provisionable at all. Identical at both tags. *[`pkg/services/dashboards/models.go:90-94, 128-186`;
+`pkg/services/provisioning/dashboards/types.go:67`; upstream tests build
+`dashboard.grafana.app/v2alpha1` envelopes and assert title, org, uid, and folder resolve]*
 
-Separately and not in doubt: the app-platform **API** accepts and stores the resource envelope on a
-plain self-managed Grafana — created, read back, and deleted at `v1` and `v2beta1` on a
-non-Kubernetes 13.1.4 instance `[verified: QA]`. That is a different surface from the file provider,
-and the original wording here conflated the two.
+The failure mode is a **bare** V2 body — top-level `elements`/`layout` with no envelope — which is
+rejected with *"dashboard appears to be in v2 format. Please use the /apis/dashboard.grafana.app/v2
+API"*. Read that message as the instruction it is: wrap the body, do not abandon the file provider.
 
 Use a stable `uid` in every model and refer to data sources through the `${datasource}` variable, not
 installation-specific uids or display names ([json-model](./json-model.md)).
@@ -88,7 +88,7 @@ installation-specific uids or display names ([json-model](./json-model.md)).
 | Path | When | Notes |
 |---|---|---|
 | **File provider** (above) | Self-managed, dashboards already in a repository | Default here; the provisioner reloads on its interval. Reload on demand: `POST /api/admin/provisioning/dashboards/reload` (admin) |
-| **Git Sync** | Grafana 13, repository policy permits a Grafana-held Git credential | "Git Sync is the recommended method for provisioning your dashboards." GA in 13.0; bidirectional — UI saves can open a pull request; folder per repository; **≤ 1,000 resources per connection** ("Shard by capacity, not by team"); `_folder.json` pins a folder uid; 13.0.0 had a migration bug that could lose Git-synced dashboards — enter via 13.0.1 or later. The `provisioning` feature toggle that used to gate the whole subsystem is **removed in 13.2** — a config line disabling it silently does nothing there; 13.2 also makes the signed-in user the default commit author |
+| **Git Sync** | Grafana 13, repository policy permits a Grafana-held Git credential. **Note it is a different reader from the file provider, with stricter rules in both directions** `[sourced: pkg/registry/apis/provisioning/resources/fileformat.go]`: it is k8s-first, refuses a classic file that already carries `apiVersion` and `kind`, and its classic fallback demands `panels`, `schemaVersion`, and `tags` together — where the file provider needs only a title. A file that provisions cleanly one way may not the other | "Git Sync is the recommended method for provisioning your dashboards." GA in 13.0; bidirectional — UI saves can open a pull request; folder per repository; **≤ 1,000 resources per connection** ("Shard by capacity, not by team"); `_folder.json` pins a folder uid; 13.0.0 had a migration bug that could lose Git-synced dashboards — enter via 13.0.1 or later. The `provisioning` feature toggle that used to gate the whole subsystem is **removed in 13.2** — a config line disabling it silently does nothing there; 13.2 also makes the signed-in user the default commit author |
 | **gcx push / HTTP API** | A controlled write outside provisioning | Creates a DB-owned dashboard; must be followed by export + commit so the repository stays authoritative |
 
 `[sourced: docs git-sync/*, usage-limits, upgrade-v13.0]`
