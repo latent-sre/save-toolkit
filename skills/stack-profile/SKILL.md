@@ -8,11 +8,6 @@ description: >-
   ground shifts.
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Stack profile — current facts, not aspirations
 
 Phrased as what is true today. When the ground shifts, this file changes and nothing else does.

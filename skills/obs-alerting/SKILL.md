@@ -9,11 +9,6 @@ description: >-
 argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Alert, correlate, page
 
 Page on user-visible symptoms that require action now. Use an SLI and error budget to distinguish a

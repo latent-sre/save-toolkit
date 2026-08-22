@@ -8,11 +8,6 @@ description: >-
   gate authorizes the prod action.
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Production change gate
 
 Any action that touches production must clear this gate **before execution**. The agent may classify,

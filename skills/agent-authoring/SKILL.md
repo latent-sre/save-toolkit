@@ -9,11 +9,6 @@ description: >-
 argument-hint: "[artifact, roster, tool, or context problem]"
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Agent authoring
 
 For quick jobs, apply this method inline. For anything needing iterative testing or a full

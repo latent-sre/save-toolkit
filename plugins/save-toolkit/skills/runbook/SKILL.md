@@ -16,11 +16,6 @@ argument-hint: "[service or tool]"
 > **Codex adapter:** Fleet component names are bare in this generated copy.
 > Resolve them from the installed plugin using the host's agent or skill picker.
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 Runbooks are read at 3 a.m. by someone who is tired — usually future-you. Terse, copy-pasteable, zero ambiguity.
 
 Investigate before writing: read the actual config, compose/unit files, and any existing docs. A runbook written from memory documents the lab you *think* you have.

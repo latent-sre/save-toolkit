@@ -8,11 +8,6 @@ description: >-
 argument-hint: "[what the tool should do]"
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 Announce at start: "Running the ops-tooling pipeline: requirements → right-sized design → build → review → verify."
 
 **Right-size before Phase 0 — the exit is the first gate, not a buried clause.** A scoped change

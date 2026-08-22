@@ -9,11 +9,6 @@ description: >-
 argument-hint: "[task, diff, file, or design doc]"
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 ## The ladder
 
 Pick the rung the work actually sits at, then **read exactly one tier file** — the tiers are

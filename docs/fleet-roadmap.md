@@ -1148,6 +1148,14 @@ independently re-reviewed. This item must not pre-empt that sequencing.
 **Acceptance:** `gcp-ops` states the guard's real behavior, `CANARY_SKILL_BODY_SHA256` matches the
 new bytes, the canary is re-run rather than re-derived, and Gate A passes.
 
+**Second deferred edit accumulated, 2026-08-22.** The owner approved deleting the shared
+evidence-default banner from every skill. It was removed from 28 of 29; **`gcp-ops` keeps its banner
+because of this freeze**, so the fleet is deliberately asymmetric until the re-freeze window opens.
+The `check_links` presence/identity check that would otherwise have caught that asymmetry was retired
+in the same change, so nothing mechanical will report it — this paragraph is the record. When the
+window opens, delete the banner from `skills/gcp-ops/SKILL.md` in the same pass as the guard-sentence
+correction, so the canary is re-frozen once rather than twice.
+
 **Next action:** None until ROUTE-001 opens its re-freeze window. Do not edit `gcp-ops/SKILL.md` or
 bump the pin before then.
 

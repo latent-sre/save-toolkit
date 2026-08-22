@@ -15,11 +15,6 @@ description: >-
 > Resolve them from the installed plugin using the host's agent or skill picker.
 > This skill is explicit-only through the generated `agents/openai.yaml` policy.
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 > **Audit evidence boundary.** Report sanitized commands and only the minimal redacted output excerpt
 > needed to prove each finding; identify every redaction with a typed marker such as
 > `[REDACTED:token]`. Prefer an access-controlled source link over copied telemetry, and include only

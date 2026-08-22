@@ -8,11 +8,6 @@ description: >-
   "postmortem mode selected", "apply the postmortem structure", "use the postmortem template".
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Blameless postmortem
 
 Start from the [postmortem template](./assets/postmortem-template.md). Fill every slot or mark it

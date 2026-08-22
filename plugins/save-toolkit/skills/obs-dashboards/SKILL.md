@@ -15,11 +15,6 @@ argument-hint: "[service, dashboard uid, or dashboard change]"
 > **Codex adapter:** Fleet component names are bare in this generated copy.
 > Resolve them from the installed plugin using the host's agent or skill picker.
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Grafana 13 operations dashboards — as code, applied by the agent
 
 A dashboard must answer the on-call reader's next question quickly under stress. Start with service

@@ -8,11 +8,6 @@ description: >-
   boundary unverified.
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Agent security (prompt injection & the lethal trifecta)
 
 An LLM **cannot reliably separate trusted instructions from untrusted data** — both arrive as one token
