@@ -30,11 +30,26 @@ Rules that follow from the split:
 - **Never mix fields from two schemas in one body**, and never write a V2 body over a dashboard stored as
   V1: Grafana pins the stored schema, so the V2 content is silently down-converted. Create a new uid for
   the V2 version instead. *[sourced: grafana/mcp-grafana tools/dashboard.go, v1/v2 write guard]*
-- Whether a dashboard *created* through the UI on 13.1/13.2 is stored as V1 or V2 is not stated in the
-  docs `[unverified]` — read `status.conversion.storedVersion` (app-platform API) or export with the
-  model pinned before assuming. What *is* settled: **`[verified: qa-grafana.agenticsre.dev (Grafana 13.1.4 Enterprise, org 1))]`**
-  the group's `preferredVersion` is already `v2` on 13.1.4 with `dashboardNewLayouts` enabled, so an
-  unpinned read hands you the V2 shape on a 13.1 instance, not just after the 13.2 upgrade.
+- **Stored schema and requested schema are different things, and the server converts between them on
+  read. `[verified: QA, 13.1.4]`** A dashboard created through the UI (a community import) was
+  **stored as V1** with `schemaVersion: 42` — *not* V2, despite `dashboardNewLayouts` being enabled
+  and the group's `preferredVersion` being `v2`. Requesting it at `v2beta1` or `v2` returned a
+  genuine V2 body (`elements`, `layout`, `variables`, `cursorSync`, `timeSettings`, `preload`,
+  `liveNow`) built by on-the-fly conversion, with `status.conversion = {"failed": false,
+  "storedVersion": "v1"}`. Requesting it at `v1` returned the Classic shape and **no**
+  `status.conversion` block at all, because nothing was converted.
+
+  Three consequences:
+  1. `status.conversion.storedVersion` tells you the truth about storage; its **absence** means you
+     asked for the version it is already stored in.
+  2. The same dashboard answers in either shape, so a `jq` recipe cannot detect which schema it is
+     "really" in — only the version you pinned decides what you get. Pin deliberately.
+  3. Always check `conversion.failed` before treating a converted body as canonical, and never write
+     a converted body back at a different version than it was stored in — see the V1/V2 write rule above.
+
+  Note the mismatch in vocabulary: for the same dashboard, the **legacy** `GET /api/dashboards/uid/<uid>`
+  reports `meta.apiVersion: "v0alpha1"` while the app-platform `status.conversion.storedVersion` reports
+  `"v1"`. They are different fields answering different questions; do not treat them as the same signal.
 - Export "Classic if you plan to use the dashboard in Grafana v12.4 or older"; the community catalog
   accepts Classic only. *[sourced: docs share-dashboards-panels]*
 
@@ -227,10 +242,19 @@ create-dashboard skill; grafana/skills grafana-oss dashboards reference]`
 ## Export and import
 
 - Exporting with "Share dashboard with another instance" (formerly "Export for sharing externally")
-  rewrites each data source to `${DS_<NAME>}` and adds `__inputs`/`__requires`. Those inputs are
-  substituted by the **UI import dialog only**; provisioning and the API leave them literal, and a panel
-  then reads "Datasource named ${DS_PROMETHEUS} was not found". The repository copy therefore uses the
-  `${datasource}` variable and no `__inputs` block. *[sourced: public/app/features/dashboard-scene/scene/export/exporters.ts; issues #80666, #82260]*
+  rewrites each data source to `${DS_<NAME>}` and adds `__inputs`/`__requires`. *[sourced:
+  public/app/features/dashboard-scene/scene/export/exporters.ts]*
+- **`__inputs` are resolved and stripped at import time, not stored. `[verified: QA, 13.1.4]`** A
+  community dashboard imported onto the instance carried **no** `__inputs` block afterwards: its
+  panels held a concrete `{"type": "prometheus", "uid": "<real uid>"}` where the placeholder had
+  been, alongside `{"uid": "$datasource"}` in panels that used the template variable, plus a
+  `gnetId` recording the grafana.com id it came from. The binding is done by the importer — the UI
+  dialog **or** `POST /api/dashboards/import` with an `inputs` array — so a programmatic import
+  works exactly like the dialog. What does *not* resolve them is plain provisioning or a raw
+  `POST /api/dashboards/db` of a file that still contains `${DS_*}`: those store the placeholder
+  literally and the panel reads "Datasource named ${DS_PROMETHEUS} was not found"
+  *[sourced: issues #80666, #82260]*. Commit the **post-import export**, not the community file,
+  and replace the bound uid with `${datasource}` before it lands in the repository.
 - Before committing an export: keep `uid`, drop `id`, drop `__inputs`/`__requires` if the export added
   them, leave `version` alone (Grafana owns it; provisioning ignores it), and run `jq empty`.
 - The UI import dialog can change name, folder, and uid and maps data-source inputs — useful for a

@@ -183,6 +183,31 @@ the folder at one that exists (create it first through the folder API); send no 
 `name-exists` means the uid is taken: stop and reconcile — never flip `overwrite` to steamroll it.
 `[sourced: docs http-api/dashboard; v12.4.1 legacy dashboard page]`
 
+## Import a published or exported dashboard
+
+A dashboard that arrives with `__inputs`/`${DS_*}` placeholders — anything from grafana.com, or an
+"export for another instance" file — goes through the import endpoint, which binds each placeholder
+to a real data source. This is the same path the UI dialog uses.
+
+```bash
+# Fetch a published dashboard (id from grafana.com/dashboards)
+curl -sS "https://grafana.com/api/dashboards/<id>/revisions/latest/download" > community.json
+# Import it, binding every __inputs entry to a data source that exists here
+curl -sS "${H[@]}" -X POST "$GRAFANA_URL/api/dashboards/import" --data @import.json
+#   import.json = {"dashboard": <the model>, "overwrite": false, "folderUid": "<uid>",
+#                  "inputs": [{"name":"DS_PROMETHEUS","type":"datasource",
+#                              "pluginId":"prometheus","value":"<your ds uid>"}]}
+```
+
+**`[verified: QA]`** after import the stored model carries **no** `__inputs`: the placeholder is
+replaced by the concrete `{"type":"prometheus","uid":"<bound uid>"}`, panels that used the template
+variable keep `{"uid":"$datasource"}`, and a `gnetId` records the source id. Export that stored model
+and commit *it* — not the downloaded file — then swap the bound uid for `${datasource}` so the
+repository copy stays portable ([json-model](./json-model.md)).
+
+Never `POST /api/dashboards/db` a file that still contains `${DS_*}`: that path does no binding and
+stores the placeholder literally, producing "Datasource named ${DS_PROMETHEUS} was not found".
+
 ## Update — read, diff, write with the version you read
 
 ```bash
