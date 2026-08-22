@@ -66,7 +66,10 @@ unified runner measures two different properties and never blends their scores:
   instruction present (the clean room strips `AGENTS.md`), and that is model-dependent: on
   2026-08-22 Opus 5 dispatched 0/3 and Sonnet 3/3 on the same scenario (`EVAL-002` in the roadmap).
   Pass `--model` and record it with the result; an agent-target red without a model named is not
-  a routing finding.
+  a routing finding. The clean room's `--tools Skill,Task` and `--disallowedTools` reach every
+  subagent the main session dispatches, so a routed agent can report but never Read, Write, or run
+  anything: discovery graders must be satisfiable by a tool-less, routed response, and a grader that
+  demands execution evidence is unsatisfiable here by construction.
 - **Direct contract compliance**: once the component is explicitly pinned, does its response satisfy
   the behavioral contract?
 
