@@ -2,7 +2,7 @@
   "schema_version": 1,
   "improvement_id": "fi_mutation_guard_evidence_gaps",
   "created_at": "2026-08-18T20:44:26Z",
-  "updated_at": "2026-08-18T20:44:26Z",
+  "updated_at": "2026-08-22T04:40:09Z",
   "target": {
     "repository": "latent-sre/save-toolkit",
     "base_revision": "f75dca0ccd9063360318fb8f11bf5806f03cd357",
@@ -85,7 +85,7 @@
     "control_path": "scripts/mutation_guard.py",
     "reason": "The intended durable control is an honest sampled verdict, a distinct usage exit, and regression tests that fail when either contract collapses."
   },
-  "disposition_reason": "The human owner authorized a linked rescope on 2026-08-18 because the original record names AGENTS.md and scripts/gate_a.py while the observed defects and repair belong to scripts/mutation_guard.py and scripts/test_mutation_guard.py. PR #116 repaired the declared targets before this linked record existed; the evidence here is a retrospective historical import and cannot seed an observed lifecycle. This record is rejected as a retrospective evaluation.",
+  "disposition_reason": "The human owner authorized a linked rescope on 2026-08-18 because the original record names AGENTS.md and scripts/gate_a.py while the observed defects and repair belong to scripts/mutation_guard.py and scripts/test_mutation_guard.py. PR #116 repaired the declared targets before this linked record existed; the evidence here is a retrospective historical import and cannot seed an observed lifecycle. This record is rejected as a retrospective evaluation. On 2026-08-21 the owner explicitly confirmed that MUTATION-001 is closed: the three guard defects are repaired, another retrospective evaluation envelope is declined, and aggregate survivors do not create backlog work. The original observation remains historical evidence; no attempt, promotion, or monitoring claim is added.",
   "limitations": [
     "retrospective_import",
     "The source packet is author-prepared historical evidence, not a fresh evaluation envelope for this linked record.",

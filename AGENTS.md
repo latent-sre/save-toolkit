@@ -210,25 +210,22 @@ errors and the change quietly does not work.
   no structural check can see. Routing evals need a live API and may be deferred with a stated
   reason — never with an eyeball standing in for the measurement.
 - **Asserted a new contract** — a validator rule, an exit code, a schema constraint, or any predicate
-  a test names → add a fixture or mutation test that **fails without the change**, and confirm it
-  fails by running it. The rule covers every newly asserted contract, not only validator rules.
-  *Prevents:* a test that asserts nothing — this repo has shipped a test that silently matched
-  nothing after a refactor moved the string it keyed on, and one that asserted the opposite of the
-  contract named in its own comment while passing.
-- **Touched release packaging or promotion** (`CHANGELOG.md`, version-bearing manifests,
-  `.github/workflows/release.yml`, release/probe scripts) → run the release-contract and workflow
-  mutation tests plus the host-probe tests, then Gate A. Never dispatch from a feature branch or use a
-  local smoke as published-artifact evidence. *Prevents:* a plausible-looking workflow silently
-  widening authority, accepting partial host evidence, replaying an unknown effect, or publishing
-  bytes other than the exact reviewed main SHA.
-- **Suspect a suite proves less than it looks like it proves** → run
-  [`python scripts/mutation_guard.py`](scripts/mutation_guard.py), which breaks the code on purpose
-  and reports mutants the tests fail to notice. **Your working tree is never modified** — each sweep
-  runs inside a throwaway `git worktree` at HEAD. It still refuses to start on a dirty tree, but for
-  a different reason than recovery: the worktree is pinned at HEAD, so uncommitted changes would go
-  untested while the report implied otherwise. A full sweep runs the suite once per mutant, so like
-  the routing evals it is a deliberate run and never a CI step. *Prevents:* trusting a green suite as
-  evidence about the code when it is only evidence about the instrument.
+  a test names → add one focused fixture or test, deliberately break that exact contract in an
+  isolated tree, and run the focused test. It must fail for the named behavior; after the contract is
+  restored, it must pass. That red-to-green result is the evidence. Mutation tooling is optional; if
+  it helps identify one test gap, the only allowed form is
+  `python scripts/mutation_guard.py --module <one-file.py>`. Stop after one named mutant is killed by
+  the regression. A survivor count is not a finding or backlog item. *Prevents:* both a test that
+  asserts nothing and a discovery tool turning weak signals into an open-ended work program.
+- **Touched release-related files** → run only the checks owned by the changed surface. A
+  metadata-only `CHANGELOG.md` or manifest-version edit adds no release-specific suite beyond Gate A
+  at the push boundary. A change to `scripts/release_contract.py` runs
+  `python scripts/test_release_contract.py`; a change to `.github/workflows/release.yml` or
+  `scripts/release_workflow_contract.py` runs `python scripts/test_release_workflow_contract.py`; a
+  change to `scripts/host_install_probe.py` runs `python scripts/test_host_install_probe.py`. If a
+  change spans owners, run that union—never the untouched suites by habit. Never dispatch from a
+  feature branch or use a local smoke as published-artifact evidence. *Prevents:* authority logic or
+  probe behavior shipping untested without charging metadata-only work for unrelated suites.
 - **Touched the guard or the hook** (`scripts/readonly-guard.py`, `hooks/hooks.json`) → read their
   docstrings first, then run `python scripts/test_readonly_guard.py` and
   `python scripts/test_hook_wiring.py`, diff the allow/deny corpus, and keep the 42 allow / 43 deny /

@@ -4,6 +4,16 @@
 control was repaired, no typed record was opened, and nothing here is a promotion, an approval, or
 evidence that any item may close. A survivor is not automatically a defect.
 
+**Owner disposition (2026-08-21):** `not_applicable` as live work, owner `latent-sre`. The aggregate
+survivor inventories below remain historical diagnostic output, not findings or backlog. The owner
+declined retrospective conversion of the release-contract, host-probe, grader, and guard counts into
+work: the release contracts were unpublished, the grader transformations exceeded this tool's
+operator model, and none of the counts establishes a broken contract. Already repaired named defects
+remain evidence of those repairs. A future concrete contract change gets one focused red-first test;
+an optional mutation run may inspect one named module, stops at its first survivor, and ends after one
+named mutant is killed. This disposition closes SWEEP-001 without asserting that every survivor was
+equivalent or harmless.
+
 | Field | Value |
 |---|---|
 | Revision swept | `e163d2d` (batch); `0536fcb` for `host_install_probe.py` |

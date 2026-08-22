@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -252,6 +253,82 @@ class SpecPointerAndDecisionStatusTests(unittest.TestCase):
         self.assertEqual(
             "accepted", check_plan_status._status_value("# T\n\n- **Status:** accepted\n")
         )
+
+
+class WorkflowPolicyTests(unittest.TestCase):
+    """The governing surfaces must not reintroduce broad, routine work."""
+
+    @staticmethod
+    def _read(relative: str) -> str:
+        return (check_plan_status.ROOT / relative).read_text(encoding="utf-8")
+
+    @staticmethod
+    def _normalized(text: str) -> str:
+        return " ".join(text.split())
+
+    def test_description_changes_use_after_first_routing_evidence(self) -> None:
+        agents = self._read("AGENTS.md")
+        rules = self._read("docs/rules.md")
+        pull_request = self._read(".github/pull_request_template.md")
+        roadmap = self._normalized(self._read("docs/fleet-roadmap.md")).lower()
+
+        normalized_agents = self._normalized(agents)
+        self.assertIn("run them through the clean-room runner **after** the change", normalized_agents)
+        self.assertIn(
+            "Run the **before** baseline only for a scenario that comes back red",
+            normalized_agents,
+        )
+        self.assertIn("after-change clean-room runs", rules)
+        self.assertNotIn("before and after", pull_request.lower())
+        self.assertIn("after-change", pull_request)
+        for forbidden in (
+            "every description edit shows before/after",
+            "scenarios before and after",
+            "without before/after routing runs",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, roadmap)
+
+    def test_repository_bootstrap_applies_only_to_pr_implementation(self) -> None:
+        contributing = self._read("CONTRIBUTING.md")
+        rules = self._read("docs/rules.md")
+        normalized = self._normalized(contributing)
+
+        self.assertNotIn("Open every working session", normalized)
+        self.assertIn("implementation intended for a pull request", normalized)
+        self.assertIn("Read-only investigation or review", normalized)
+        self.assertIn("preserve dirty and published branches", rules)
+        self.assertNotIn("rebase on `origin/main` before PR", rules)
+
+    def test_release_verification_is_owned_by_the_changed_surface(self) -> None:
+        agents = self._read("AGENTS.md")
+        rules = self._read("docs/rules.md")
+        pull_request = self._read(".github/pull_request_template.md")
+
+        old_blanket = (
+            "run the release-contract and workflow mutation tests plus the host-probe tests"
+        )
+        self.assertNotIn(old_blanket, agents)
+        for text in (agents, rules, pull_request):
+            self.assertIn("metadata-only", text)
+            self.assertIn("release_contract.py", text)
+            self.assertIn("release_workflow_contract.py", text)
+            self.assertIn("host_install_probe.py", text)
+
+    def test_closed_mutation_campaigns_keep_owner_dispositions(self) -> None:
+        roadmap = self._read("docs/fleet-roadmap.md")
+        linked_record = json.loads(
+            self._read("evals/improvements/fi_mutation_guard_evidence_gaps/record.json")
+        )
+        sweep = self._read("docs/reviews/2026-08-15-fleet-mutation-sweep.md")
+
+        self.assertNotIn("### MUTATION-001", roadmap)
+        self.assertNotIn("### SWEEP-001", roadmap)
+        self.assertIn("explicit owner disposition", roadmap)
+        self.assertEqual("rejected", linked_record["status"])
+        self.assertIn("MUTATION-001 is closed", linked_record["disposition_reason"])
+        self.assertIn("**Owner disposition (2026-08-21):** `not_applicable`", sweep)
+        self.assertIn("owner `latent-sre`", sweep)
 
 
 if __name__ == "__main__":

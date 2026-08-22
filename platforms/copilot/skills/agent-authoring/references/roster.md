@@ -61,9 +61,9 @@ the mechanism that lets the agent check its own work instead of asserting it. De
 explicitly:
 
 - **Name the verifier before the work.** A failing test or fixture for `sde`; the two-lens packet
-  for `reviewer`; golden-signal recovery evidence for `sre` and `observability-engineer`; Gate A
-  plus `mutation_guard.py` for changes to the fleet itself. An agent whose loop has no verifier
-  can only emit `[unverified]` claims, however good the prose.
+  for `reviewer`; golden-signal recovery evidence for `sre` and `observability-engineer`; one
+  focused red-first test for a changed fleet contract, plus Gate A once before push. An agent whose
+  loop has no verifier can only emit `[unverified]` claims, however good the prose.
 - **Gather minimally.** Pull the slice (grep, tail, a pinned file:line), not the corpus —
   oversized gathering is the loop-level cause of context rot, and it is why workers return short
   summaries instead of transcripts.

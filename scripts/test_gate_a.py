@@ -3,9 +3,10 @@
 
 The runner replaced a serial loop, so the properties that must not regress are the ones a green
 gate could otherwise hide: a failing step must appear in the failed list, EVERY step must run
-even after one fails (the gate's documented no-bisect contract), and the report must print in
-roster order regardless of completion order. All pinned against synthetic interpreter steps —
-no test here runs the real gate inside itself.
+even after one fails (the gate's documented no-bisect contract), successful output is quiet by
+default, failed output remains attributed, and verbose output prints in roster order regardless of
+completion order. All pinned against synthetic interpreter steps — no test here runs the real gate
+inside itself.
 """
 import ast
 import contextlib
@@ -32,18 +33,34 @@ def _step(label, code, marker_file=None):
 
 
 class RunStepsTests(unittest.TestCase):
-    def _run(self, steps):
+    def _run(self, steps, *, verbose=False):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            failed = gate_a.run_steps(steps)
+            if verbose:
+                failed = gate_a.run_steps(steps, verbose=True)
+            else:
+                failed = gate_a.run_steps(steps)
         return failed, out.getvalue()
 
-    def test_all_green_returns_no_failures_and_prints_in_roster_order(self) -> None:
+    def test_all_green_returns_no_failures_and_is_quiet_by_default(self) -> None:
         failed, out = self._run([_step("alpha", 0), _step("beta", 0), _step("gamma", 0)])
         self.assertEqual([], failed)
-        self.assertLess(out.index("=== alpha ==="), out.index("=== beta ==="))
-        self.assertLess(out.index("=== beta ==="), out.index("=== gamma ==="))
-        self.assertIn("step alpha output", out)
+        self.assertEqual("", out)
+
+    def test_successful_skips_keep_one_compact_qualification(self) -> None:
+        step = (
+            "platform adapters",
+            ["-c", "print('Ran 38 tests'); print('OK (skipped=2)')"],
+            None,
+        )
+
+        failed, out = self._run([step])
+
+        self.assertEqual([], failed)
+        self.assertEqual(
+            "Gate A: QUALIFIED -- platform adapters: 2 tests skipped\n",
+            out,
+        )
 
     def test_failing_step_is_named_and_later_steps_still_run(self) -> None:
         # The no-bisect contract: one failure must not stop the roster. The marker file proves
@@ -57,13 +74,16 @@ class RunStepsTests(unittest.TestCase):
             ])
             self.assertEqual(["breaks"], failed)
             self.assertEqual("ran", marker.read_text(encoding="utf-8"))
-        self.assertIn("=== after-the-failure ===", out)
+        self.assertIn("=== breaks ===", out)
+        self.assertIn("step breaks output", out)
+        self.assertNotIn("step first output", out)
+        self.assertNotIn("step after-the-failure output", out)
 
-    def test_step_output_is_attributed_to_its_own_header(self) -> None:
+    def test_verbose_step_output_is_attributed_to_its_own_header(self) -> None:
         # Buffered concurrency must not interleave: each step's output appears after its own
         # header and before the next one, or a failure's traceback would be blamed on the
         # wrong step.
-        failed, out = self._run([_step("one", 0), _step("two", 0)])
+        failed, out = self._run([_step("one", 0), _step("two", 0)], verbose=True)
         self.assertEqual([], failed)
         section = out[out.index("=== one ==="):out.index("=== two ===")]
         self.assertIn("step one output", section)
@@ -94,7 +114,7 @@ class RunStepsTests(unittest.TestCase):
             ("fast", ["-c", "fast"], None),
         ]
         with mock.patch.object(gate_a.subprocess, "run", side_effect=fake_run):
-            failed, out = self._run(steps)
+            failed, out = self._run(steps, verbose=True)
 
         self.assertEqual([], failed)
         self.assertLess(out.index("=== slow ==="), out.index("=== fast ==="))
@@ -187,11 +207,10 @@ class PreflightInterpreterFloorTests(unittest.TestCase):
 class GateLockTests(unittest.TestCase):
     """Two Gate A runs on one machine must not overlap.
 
-    Measured 2026-08-21: `scripts/test_host_install_probe.py` and `evals/test_codex_trial.py` pass
-    alone and fail -- 19 failures, `KeyError: 'selected_skill_name'`, finishing in a third of their
-    normal time -- whenever a second python process is running the same file. The usual way that
-    happens is `gate_a.py | head`, which on Windows leaves the whole gate running orphaned after
-    `head` exits. A false red costs far more than the gate, so the gate refuses to start while
+    Measured 2026-08-21: subprocess-heavy suites pass alone and false-red, while finishing in a
+    third of their normal time, whenever a second Python process is running the same file. The usual
+    way that happens is `gate_a.py | head`, which on Windows leaves the whole gate running orphaned
+    after `head` exits. A false red costs far more than the gate, so the gate refuses to start while
     another run holds the machine-wide lock, and the OS drops the lock when its holder dies.
 
     Stale-lock reclamation is now ownership-preserving: the lock is an OS advisory lock
@@ -211,11 +230,11 @@ class GateLockTests(unittest.TestCase):
         pre.start()
         self.addCleanup(pre.stop)
 
-    def _main(self, run_steps):
+    def _main(self, run_steps, argv=None):
         out, err = io.StringIO(), io.StringIO()
         with mock.patch.object(gate_a, "run_steps", side_effect=run_steps):
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = gate_a.main()
+                code = gate_a.main([] if argv is None else argv)
         return code, out.getvalue(), err.getvalue()
 
     def _child_script_that_holds_lock(self):
@@ -305,6 +324,31 @@ class GateLockTests(unittest.TestCase):
         self.assertTrue(seen["holder"].startswith(f"{os.getpid()}\n"))
         self._assert_released()
 
+    def test_verbose_flag_is_forwarded_to_the_step_runner(self) -> None:
+        seen = []
+
+        def record(steps, *, verbose=False):
+            seen.append(verbose)
+            return []
+
+        code, _out, _err = self._main(record, ["--verbose"])
+        self.assertEqual(0, code)
+        self.assertEqual([True], seen)
+
+    def test_success_main_prints_one_concise_verdict(self) -> None:
+        code, out, err = self._main(lambda steps: [])
+
+        self.assertEqual(0, code)
+        self.assertEqual("", err)
+        self.assertEqual(
+            [
+                "Gate A: PASS -- %d/%d structural steps green "
+                "(well-formed only; correctness review remains separate)."
+                % (len(gate_a.STEPS), len(gate_a.STEPS))
+            ],
+            out.strip().splitlines(),
+        )
+
     def test_lock_is_released_when_the_run_raises(self) -> None:
         def explode(steps):
             raise RuntimeError("step runner died")
@@ -313,7 +357,7 @@ class GateLockTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 with contextlib.redirect_stdout(io.StringIO()):
                     with mock.patch.object(gate_a, "run_steps", side_effect=explode):
-                        gate_a.main()
+                        gate_a.main([])
         self._assert_released()
 
     def test_unreadable_lock_is_treated_as_stale(self) -> None:
