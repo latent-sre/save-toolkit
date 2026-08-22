@@ -53,8 +53,13 @@ So the write path decides the stored schema — `[verified: QA + source]`:
 | The **UI import page** | **`v1`** | yes |
 | UI save, classic spec | **`v1`** | yes |
 | UI save, dynamic spec (has `elements`) | **`v2`** | n/a |
-| `POST /apis/.../v1/...` | `v1` | yes |
-| `POST /apis/.../v2beta1/...` | `v2beta1` | n/a |
+| `POST /apis/.../v1/...` | **`v1`** `[verified: QA]` | yes |
+| `POST /apis/.../v2beta1/...` | **`v2beta1`** `[verified: QA]` | n/a |
+
+The app-platform rows were confirmed with an administrator token: a create at `v1` reads back with no
+conversion block at `v1` and `storedVersion: "v1"` at `v2`; a create at `v2beta1` is the mirror image.
+**The version you POST to is the version it is stored as** — no negotiation, no coercion to the
+group's preferred version.
 
 Two traps in that table. **The UI's import page does not call `/api/dashboards/import`** — it posts
 straight to the app-platform v1 client, which is why a UI-imported dashboard lands at `v1` while the
@@ -253,10 +258,15 @@ Conventions and their reasons:
 
 - **One `datasource`-type variable named `datasource`, referenced as `${datasource}` in every panel and
   target.** A hard-coded data-source uid breaks the moment the JSON moves instances (grafana/grafana
-  #60769); the `${DS_PROMETHEUS}` / `__inputs` form from "Share dashboard with another instance" is
-  resolved only by the UI import dialog, not by provisioning or the API (#80666, #82260). The linter's
-  `template-datasource-rule` and `panel-datasource-rule` encode this; every mixin (kubernetes-mixin,
-  Loki, Tempo) does it. *[sourced: issue threads; grafana/dashboard-linter docs/rules]*
+  #60769). The linter's `template-datasource-rule` and `panel-datasource-rule` encode this; every
+  mixin (kubernetes-mixin, Loki, Tempo) does it. *[sourced: issue threads; dashboard-linter docs/rules]*
+- **Leave that variable's `current` unpinned in the committed copy. `[verified: QA, 13.1.4]`** An API
+  write preserves `current` exactly as sent — `{}` was stored as `{}`, and a `current` naming a
+  concrete uid was stored naming that uid. So portability is decided entirely by what you commit: an
+  empty `current` (or the sentinel `{"text": "default", "value": "default"}`, which is what a
+  community import writes) resolves to whichever data source the loading instance has marked default,
+  while a committed uid pins the file to one instance. Add `regex` when an instance holds several
+  sources of one type, so a reader cannot silently select the wrong backend.
 - **Multi-value / Include All:** set `allValue` to `.+` and use `${var:regex}` inside regex matchers
   (`job=~"${job:regex}"`). The default "All" concatenation "can become very long and can have
   performance problems", and a custom all value "is never escaped". *[sourced: docs add-template-variables]*

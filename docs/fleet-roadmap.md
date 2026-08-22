@@ -1017,11 +1017,14 @@ firing on every trial** (run `20260822T053153Z-e08aa40c`), where two of six tria
 produced no label at all.
 
 **Remaining (none blocking):**
-2. **One QA object is stranded — owner confirmed it is present, 2026-08-22.** `SV probe ap v1`
-   (`sv-ap-v1`) sits in QA's General folder. It was created through the app-platform path during the
-   write-path experiment, which grants its creator no permissions at all, so the verification token
-   cannot read, edit, or delete it — `DELETE` answers `403`. It needs an administrator, a UI delete,
-   or a permission grant on that one dashboard. It is inert: one panel, no alerts, no links.
+2. **Closed 2026-08-22 with a short-lived administrator token.** Both strays are deleted
+   (`sv-ap-v1` and `test-claude-verify`) and the instance holds only the owner's two dashboards.
+   **A correction belongs here:** `test-claude-verify` was reported cleared by the owner on
+   2026-08-21 — it was not. It had merely vanished from the verification token's listing, because a
+   dashboard created through the app-platform path is invisible to a token holding no permission on
+   it. The admin view showed all three. That is the same "an empty result is not an absence" trap the
+   reference documents, made twice: once by writing through that path, and once by *reporting* from a
+   listing that could not see the result.
 
    Worth keeping as the worked example rather than only as a chore: this is the failure the
    reference now warns about, produced by an agent that had already documented it. The rule it
@@ -1098,12 +1101,18 @@ resolves to **that instance's default data source**. Checked on QA `[verified 20
 with no per-instance edit. Add a `regex` (for example `/prometheus/`) where an instance holds several
 sources of one type, so a viewer cannot silently pick the wrong backend.
 
-It brings one **export-hygiene rule** that lands in `json-model.md` when confirmed: exporting from
-the UI populates the variable's `current` with **that instance's uid**, so a committed export
-silently pins one environment. Blank `current` before committing, exactly as `id` is dropped.
+**Correction, 2026-08-22.** The export-hygiene rule was first written here as "exporting from the UI
+populates the variable's `current` with that instance's uid". That claim is **not supported**: the one
+sample available — the community dashboard imported onto QA — carries
+`current = {"text": "default", "value": "default"}`, a portable sentinel rather than a uid. What *is*
+verified is narrower and more useful: **an API write preserves `current` exactly as sent** (`{}`
+stored as `{}`, a uid stored as that uid), so portability is decided by what gets committed, not by
+what the server does to it. The rule for `json-model.md` is therefore "commit an empty or `default`
+`current`, never a uid" — and it is already written there, verified.
 
 Its honest cost: it depends on every instance having a sensible default data source set — configuration
 nobody currently owns as code, which is the same weakness that ruled out option 1, in a cheaper place.
+QA has one (`prometheus-production-read-only`, `isDefault: true`); production is `[unverified]`.
 
 **Next action:** Confirm option 4 (or pick another), then add the blank-`current` rule to
 `json-model.md` and fill the inventory table per instance.
