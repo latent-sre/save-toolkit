@@ -84,12 +84,22 @@ Rules that follow from the split:
 - **Never round-trip V2 → V1 → V2.** The V2→V1 direction flattens four layout kinds into a single
   `panels[]` array and turns tabs into expanded row panels. It is structurally lossy and not
   reversible. *[sourced: v2_to_v1_layout_conversion.md:7-14]*
-- **Strip `status` before you PUT anything you just GET-ed.** The conversion helper prefers the
-  *incoming* object's `status.conversion.storedVersion` over the object's own version. So reading a
-  `v0alpha1`-stored dashboard at `v2` (response says `storedVersion: v0alpha1`) and PUT-ing that whole
-  object back without deleting `status` permanently pins the wrong stored version onto the row.
-  Grafana's own legacy handler deletes it; a direct client must too.
-  *[sourced: conversion.go:47-52; pkg/api/dashboard.go:478]*
+- **Strip `status` before you PUT anything you just GET-ed — this one is reproduced, not theorised.**
+  The conversion helper prefers the *incoming* object's `status.conversion.storedVersion` over the
+  object's own version, and the apistore does not strip a client-supplied `status`. Verified end to
+  end on 13.1.4 `[verified: QA, 2026-08-22]`:
+
+  | Step | read at `v0alpha1` | read at `v2` |
+  |---|---|---|
+  | legacy create → row stored at `v0alpha1` | **no conversion block** (correct) | `storedVersion: v0alpha1` |
+  | GET at `v2`, PUT straight back **with `status`** → row now stored at `v2` | `storedVersion: v0alpha1` | `storedVersion: v0alpha1` |
+
+  After that one round-trip the object misreports its stored version **permanently**, and the
+  absence rule above is destroyed with it: a read at `v2` — the version it is now actually stored
+  at — returns a conversion block instead of none, so nothing in the response can tell you the
+  truth any more. Grafana's own legacy handler deletes `status` before writing
+  (`pkg/api/dashboard.go:478`); a direct client must do the same. `del(.status)` on every body you
+  send back, without exception.
 - **Stored schema and requested schema are different things, and the server converts between them on
   read. `[verified: QA, 13.1.4]`** A dashboard created through the UI (a community import) was
   **stored as V1** with `schemaVersion: 42` — *not* V2, despite `dashboardNewLayouts` being enabled
@@ -100,8 +110,10 @@ Rules that follow from the split:
   `status.conversion` block at all, because nothing was converted.
 
   Three consequences:
-  1. `status.conversion.storedVersion` tells you the truth about storage; its **absence** means you
-     asked for the version it is already stored in.
+    1. `status.conversion.storedVersion` tells you the truth about storage; its **absence** means you
+     asked for the version it is already stored in — *unless someone has round-tripped a `status`
+     into the object*, after which it reports a stale version at every read and the absence signal is
+     gone for good. See the strip-`status` rule below.
   2. The same dashboard answers in either shape, so a `jq` recipe cannot detect which schema it is
      "really" in — only the version you pinned decides what you get. Pin deliberately.
     3. **`conversion.failed: false` does not mean the conversion was lossless.** Data-loss detection
