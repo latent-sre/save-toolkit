@@ -22,13 +22,11 @@ committed.
 - `[sourced]` [RBAC fixed roles](https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/access-control/rbac-fixed-basic-role-definitions/),
   [service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/)
 
-Sources reviewed 2026-08-21 against the docs source for the `latest` (13.2) site. The read-only
-half of this reference, and the **create** half of the write path, were then exercised against
-**qa-grafana.agenticsre.dev (Grafana 13.1.4 Enterprise, org 1)** on 2026-08-21; calls proven there
-are marked `[verified: QA]` inline. **Update, conflict, and delete remain `[unverified]`** — the
-service account available for the run held `dashboards:create` and nothing else, so a 403 arrived
-before any conflict could be provoked. Behavior after the 13.2 upgrade is `[unverified]` for every
-call.
+Sources reviewed 2026-08-21 against the docs source for the `latest` (13.2) site. Every call in this
+reference — search, read, export, create, update, the concurrency conflict on both API families, and
+delete — was exercised against **qa-grafana.agenticsre.dev (Grafana 13.1.4 Enterprise, org 1)** on
+2026-08-21 and is marked `[verified: QA]` where the observed behavior is load-bearing. Behavior after
+the 13.2 upgrade is `[unverified]`, as is anything on a Grafana Cloud stack.
 
 ## Credentials and scope
 
@@ -50,13 +48,22 @@ call.
   proven on QA, both silent:
   - **`[verified: QA]`** An empty `/api/search` result from a token lacking `dashboards:read` is
     byte-identical to an empty instance. Check the grants before writing down "no dashboards exist".
-  - **`[verified: QA]`** A token holding only `dashboards:create` **creates successfully and then
-    cannot read, update, or delete what it made** — every follow-up call answers `403`. That token
-    can write a dashboard nobody can verify and it cannot clean up after itself. So before any
-    write, require `dashboards:create`/`dashboards:write` **and** `dashboards:read` on the target
-    folder, and `dashboards:delete` if the task might need to roll back by removing the object.
-    A write path without a read grant makes step 7 of the skill's loop impossible; refuse it rather
-    than writing blind.
+  - **The two API families grant the creator different rights, and this decides whether your agent
+    can verify its own write. `[verified: QA]`** A token holding only
+    `dashboards:create` on a folder:
+    - creating through **legacy `POST /api/dashboards/db`** receives managed permissions on the new
+      object — `dashboards:read`, `:write`, `:delete`, and `dashboards.permissions:read`/`:write`,
+      each scoped to `dashboards:uid:<new uid>`. The read-back, the update, and the cleanup all work.
+    - creating through the **app-platform `POST /apis/...`** receives **nothing**. The dashboard
+      exists and every follow-up call — `GET`, `PUT`, `DELETE`, on either family — answers `403`.
+      The object is orphaned from its own creator: unverifiable and unremovable without an
+      administrator.
+
+    So an Editor-level agent that must verify its own writes should create through the legacy
+    endpoint, or hold explicit `dashboards:read`/`:write`/`:delete` on the target folder. Never
+    write through the app-platform family with a create-only grant — you cannot complete step 7 of
+    the skill's loop and you cannot roll back. (A dashboard was stranded this way during the
+    verification run.)
 
 ## Two API families — which to call
 
@@ -121,6 +128,15 @@ and a `jq`-built request body silently became an empty file — the API answered
 had nothing to do with the dashboard. Check `command -v jq` before relying on it, and fall back to
 `python -c` for building and validating JSON. A malformed local payload and a rejected model look the
 same from the response. `[verified: QA run]`
+
+**Read `meta` before you write — it answers three questions in one call. `[verified: QA]`** The
+legacy `GET /api/dashboards/uid/<uid>` returns a `meta` block carrying `canSave`, `canEdit`,
+`canAdmin`, `canDelete`, `provisioned`, `folderUid`/`folderTitle`, `version`, and `apiVersion` (the
+stored schema — a legacy-created dashboard on 13.1.4 reports `v0alpha1`). Checking `meta.canSave`
+tells you the write will be permitted *before* you attempt it, and `meta.provisioned` tells you the
+file provider owns it, which no amount of retrying will change. The app-platform equivalent is
+`status.conversion` — `{"failed": false, "storedVersion": "v0alpha1"}` — which reports the stored
+schema and whether converting it to the version you asked for lost anything.
 
 Export hygiene before the repository sees the file: keep `uid`; drop the numeric `id` (legacy body) and
 the `metadata.resourceVersion`/`generation`/`status` block (app-platform body); leave `version`
@@ -188,11 +204,28 @@ curl -sS "${H[@]}" -X POST --data @update-legacy.json "$GRAFANA_URL/api/dashboar
 #   412 {status:"version-mismatch", message:"The dashboard has been changed by someone else"} → re-read, never overwrite:true
 ```
 
-Which field the app-platform PUT checks for the 409 — `metadata.resourceVersion` (Kubernetes
-convention) or the `spec.version` counter — is not spelled out in the docs; round-tripping the whole
-live object, as above, satisfies both. Confirm on the target by forcing a conflict once
-(`[unverified]` until then). Legacy `412` semantics are `[sourced]` to the v12.4.1 docs; 13.x still
-serves the endpoint but no longer documents it.
+**Settled by forcing a conflict on 13.1.4 `[verified: QA]`.** Both families protect you, with
+different fields and different codes — and the legacy code is not what the archived docs say:
+
+| Family | Field checked | Correct value | Stale value | Message |
+|---|---|---|---|---|
+| App platform `PUT` | **`metadata.resourceVersion`** | `200`, `resourceVersion` changes and `metadata.generation` increments | **`409`** with `"reason": "Conflict"` | `Operation cannot be fulfilled on dashboards.dashboard.grafana.app "<uid>": the object has been modified; please apply your changes to the latest version and try again` |
+| Legacy `POST` | **`dashboard.version`** | `200`, response `version` increments | **`409`** | `Dashboard already exists. Use overwrite flag to update.` |
+
+Two traps in that table:
+
+- **The legacy answer is `409`, not the `412 version-mismatch` the v12.4.1 docs describe**, and its
+  message says *"Dashboard already exists"* even when the uid is fine and only the version is stale.
+  Omitting `version` entirely on an existing uid produces the identical `409` and message. So the
+  legacy body cannot tell you *which* problem you have — re-read the dashboard and compare the
+  version yourself rather than parsing the string.
+- **`overwrite: true` defeats the check silently.** Sending a stale `version: 1` against a stored
+  version 2 with `overwrite: true` returned `200` and moved the dashboard to version 3, discarding
+  the concurrent edit with no warning. This is the failure the rule exists to prevent, reproduced.
+
+One useful bit of leniency: **re-applying byte-identical content is idempotent** — the version
+counter does not move and no conflict is raised, so a drift-check job that re-applies the reviewed
+model when nothing changed is safe to run repeatedly. `[verified: QA]`
 
 Two guard rails: a **file-provisioned** dashboard refuses API saves — edit its source and let the
 provisioner reload; and **`overwrite: true` is the failure this reference exists to prevent** — it
@@ -272,8 +305,9 @@ under the change ladder.
 | `404` on GET | Wrong uid, or the app-platform version is not enabled | Search first; try `v1`; fall back to the legacy family |
 | `500` naming a namespace | The namespace segment is wrong — the body reads `use default rather than org-1` `[verified: QA]` | Use the namespace the message names; do not retry the same path |
 | `[]` from search with no error | May be genuinely empty **or** the token may lack `dashboards:read` `[verified: QA — a token with `dashboards:create` but no read grant returns `[]` indistinguishably]` | Check `/api/access-control/user/permissions` before reporting "no dashboards exist" |
-| `409` (app platform) | uid already exists (create) or the dashboard changed since you read it (update) | Reconcile / re-read and re-diff; never force |
-| `412 version-mismatch` / `name-exists` (legacy) | Same two cases on the legacy endpoint | Same |
+| `409` (app platform) | uid already exists (create), or `metadata.resourceVersion` is stale (update). `reason: "Conflict"`, message names the object `[verified: QA]` | Re-read, re-diff, retry with the fresh `resourceVersion`; never force |
+| `409` (legacy) | **On 13.1.4 this is the answer for BOTH a taken uid and a stale `dashboard.version`**, with the same message `Dashboard already exists. Use overwrite flag to update.` `[verified: QA]` | Re-read and compare the version yourself — the body cannot distinguish the two. Do not set `overwrite: true` to make it go away: that discards the other person's save |
+| `412 version-mismatch` / `name-exists` (legacy) | The documented v12.4.1 shape. **Not observed on 13.1.4** — it answered `409` instead `[verified: QA]` | Handle both; treat either as "re-read before writing" |
 | `412 plugin-dashboard` (legacy) | A plugin owns the dashboard | Leave it; it is not yours to write |
 | Save refused, dashboard is provisioned | File provider owns it | Change the repository file; let the provisioner reload |
 | `grafana.app/managed-by` set to another tool | Git Sync, Terraform, or gcx manages it | Stop; change it through that tool or ask before taking ownership |

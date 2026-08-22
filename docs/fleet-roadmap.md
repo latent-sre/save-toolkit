@@ -952,8 +952,8 @@ needs no host inventory work.
 
 ### DASH-001 — verify the dashboard API shapes against a live Grafana, and close the evidence-label gap
 
-**Status:** `blocked` (2026-08-21) — needs a QA Grafana URL and a Viewer service-account token; the
-owner offered to check whether one exists.
+**Status:** `active` (2026-08-21) — the API half is verified against QA; the evidence-label half and
+one cleanup remain.
 
 **Outcome:** Every request shape in `skills/obs-dashboards/references/http-api.md` is labeled
 against a real instance rather than composed from documentation, and the skill drives its own
@@ -988,8 +988,25 @@ names; the renderer's presence or absence is recorded so the visual-check step s
 availability; the evidence-label grader is restored **and** the skill's output contract is
 strengthened so it passes on behavior rather than by deletion, evidenced by a fresh 3/3 run.
 
-**Next action:** Ask the owner whether a QA Grafana exists; if so, run the read-only half
-(search, get, export, versions, discovery) and correct the reference from what it answers.
+**Progress (2026-08-21):** Done. Every call in `http-api.md` was exercised against
+`qa-grafana.agenticsre.dev` (13.1.4 Enterprise) across commits `273d4a3`, `24449c9`, and this one:
+namespace, discovery, `/api/ds/query`, create on both families, the concurrency conflict on both,
+and delete. Five documented behaviors turned out to be wrong or incomplete on 13.1.4 and are
+corrected in the reference — a bad namespace answers `500` not `404`; the legacy conflict answers
+`409` with a misleading "already exists" message rather than `412 version-mismatch`; the
+app-platform `PUT` checks `metadata.resourceVersion`; a create round-trip strips `spec.uid`/
+`spec.version` and injects defaults; and the two API families grant the creator different rights,
+so an app-platform create with a create-only token strands an unverifiable, unremovable dashboard.
+
+**Remaining:**
+1. **Cleanup owed:** `test-claude-verify` is stranded in QA's General folder from the run and needs
+   an administrator to remove it — the verification token holds no permission on it.
+2. **The evidence-label grader** (the original second half of this item) is untouched: it still
+   needs restoring alongside a skill output-contract change so it passes on behavior.
+3. Re-verify after the 13.2 upgrade; every `[verified: QA]` label is bound to 13.1.4.
+
+**Next action:** Restore the evidence-label grader and give the skill's loop a required labeled
+closing line, then re-run the scenario and expect 3/3 on behavior rather than on a narrowed grader.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
