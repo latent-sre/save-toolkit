@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-sde-build-cli-with-tests
+mode: discovery
+split: regression
+target:
+  kind: agent
+  name: sde
+prompt: |
+  Write a small Python CLI at scripts/wordfreq.py that prints the ten most common words in a text
+  file, with pytest tests for the counting and for an empty file. Build it end to end in this repo
+  and tell me what you ran to verify it. This is a code change, not a design question, not a
+  review, and not an incident.
+routing:
+  expect: fire
+success_criteria:
+  - Delegates to the build lane rather than answering inline or routing to reviewer, sre, or scribe
+  - Returns code plus tests and states what was run to verify, or that it was not verified
+graders:
+  - type: contains_any
+    of: ["wordfreq", "word frequency", "most common"]
+  - type: contains_any
+    of: ["pytest", "test_"]
+  - type: contains_any
+    of: ["verified", "not verified", "[verified]", "[unverified]", "ran "]

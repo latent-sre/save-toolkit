@@ -879,6 +879,44 @@ checkout. Retain each sanitized report beside the matching review packet; accept
 an external human/protected-workflow decision, never a field the runner grants itself. Keep implicit
 routing observational rather than making it a release gate.
 
+### EVAL-002 — discovery-mode agent routing measures main-session dispatch propensity, not fleet drift
+
+**Status:** `decision-needed` (2026-08-22) — measured, not yet decided.
+
+**Outcome:** Every discovery-mode scenario that targets an *agent* (23 of 54 discovery scenarios)
+produced `routing saw []` on 2026-08-22 under the session model, including the `regression`-split
+`discovery-staging-incident-triage`, on both the edited tree and pristine `main` (`007fcc6`). The
+instrument was proven before the negative was accepted: the plugin loaded (init lists all eight
+agents), the model held the delegation tool (init `tools: ['Task','Skill']`; `Task` and `Agent` are
+aliases on CLI 2.1.240), and a forced delegation emits exactly the `Agent`/`subagent_type` event the
+routing grader keys on. The main session's own words in the control trial: *"only the Agent and Skill
+tools, and you haven't asked me to dispatch an investigation agent."* It loaded the right skill
+(`incident-command`) and answered inline.
+
+The same control on `--model sonnet` delegated in **3/3 trials** (one PASS, two timeouts at 300 s
+with the `sre` subagent still working). The property under test is therefore the main session's
+willingness to self-dispatch an agent in `-p` mode with **no route instruction present** — the clean
+room strips `AGENTS.md`/`CLAUDE.md` by design (`evals/clean_room.py:138`), so the fleet's only "route
+work to the fleet" text is absent from every discovery measurement. Skill routing is unaffected.
+
+**Source:** runs `20260822T192621Z`, `192824Z`, `193550Z` (Opus, 0/3 each), `194152Z` (pristine main,
+0/3), `195008Z` (Sonnet, 3/3 delegated); the detector probe in the same session. This is the
+mechanism the 2026-07-11 delegation collapse recorded in the authoring notes (9/9 → 3/9 after an
+`AGENTS.md` trim) reproduced by construction instead of by a trim.
+
+**Prerequisites:** None for the decision. For option 2, a probe of whether a subagent spawned via
+`Agent` receives the project's `CLAUDE.md`/`AGENTS.md` (unmeasured).
+
+**Acceptance:** One of: (1) the discovery runner pins a measurement model for agent targets and
+`evals/README.md` states that agent-discovery numbers are per-model; (2) the clean room adds a
+minimal, fixed project-context route instruction so the measurement includes the fleet's real
+dispatch text; or (3) the agent-target discovery split is relabelled as a propensity probe and
+removed from the regression floor. Whichever is chosen, the `regression` label on an agent-target
+discovery scenario must again be backed by a recorded green run naming its model.
+
+**Next action:** Owner decides among the three; until then, read every agent-target discovery red
+as "not dispatched", not "misrouted", and do not edit a description to chase it.
+
 ### STATE-001 — durable orchestration state
 
 **Status:** `deferred`
