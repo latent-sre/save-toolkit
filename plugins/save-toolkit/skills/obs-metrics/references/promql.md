@@ -14,6 +14,17 @@ Primary references:
 - [histogram practices](https://prometheus.io/docs/practices/histograms/)
 - [Grafana Mimir HTTP API](https://grafana.com/docs/mimir/latest/references/http-api/)
 
+**Syntax verification — `[verified 2026-08-22]`.** Every query block in this file was executed against
+a live Prometheus (the `qa-grafana.agenticsre.dev` 13.1.4 instance's Prometheus source, 3,283 metric
+names) through `POST /api/ds/query`. All 8 parse and execute; the example labels are illustrative, so
+they return zero series rather than data. The harness was proved to fire first: an unbalanced
+grouping paren, a missing `histogram_quantile` comma, and a truncated range selector were each
+rejected with a specific parse error, so "all valid" is a measurement rather than an assumption. The
+same shapes re-pointed at real metric names returned data — `sum(rate(...))`, `sum by (job) (rate(...))`,
+and `histogram_quantile(0.95, sum by (le) (rate(..._bucket[5m])))` all produced 31 points over 30
+minutes. Semantics against *your* metric names, and Mimir's deployed version and tenancy, remain
+`[unverified]`.
+
 ## Contents
 
 - Selectors and label matchers
