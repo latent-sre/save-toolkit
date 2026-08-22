@@ -19,11 +19,11 @@ started this script with, by construction the right one.
 
 ONE RUN PER MACHINE
 -------------------
-Two gates overlapping on one machine false-red each other. Measured 2026-08-21: with a second python
-process running the same file, scripts/test_host_install_probe.py reports 19 failures and
-evals/test_codex_trial.py a KeyError, both finishing in a third of their healthy time; alone and in
-sequence they pass 6/6. The shared resource was not pinned down, and the common way to overlap is not
-deliberate at all: `gate_a.py | head` on Windows leaves the whole gate running orphaned after `head`
+Two gates overlapping on one machine false-red each other. Measured 2026-08-21: with a second Python
+process running the same file, subprocess-heavy suites produced false failures and finished in a
+third of their healthy time; alone and in sequence they passed. The shared resource was not pinned
+down. The common way to overlap is not deliberate at all: `gate_a.py | head` on Windows leaves the
+whole gate running orphaned after `head`
 exits, so every gate started afterwards collides with it. A false red sends a session into a
 debugging spiral that costs far more than the gate, so the gate takes a machine-wide lock in the
 temp directory, refuses to start while a live holder has it, reclaims a lock whose holder is dead,
@@ -34,11 +34,19 @@ WHAT IT DOES NOT DO
 Gate A is STRUCTURAL. It proves the fleet is well-formed; it never proves the fleet is right. It passes
 green over a skill that leaks the production password into argv. The adversarial correctness/security/
 conformance reviews required by CONTRIBUTING.md are the ones that catch that.
+
+OUTPUT
+------
+A successful default run prints Gate A's final verdict plus one compact qualification for each
+successful suite that reported skipped tests. Failed steps always retain their full, attributed
+diagnostics. Pass ``--verbose`` when the complete step transcript is useful.
 """
 
+import argparse
 import contextlib
 import glob
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -46,6 +54,11 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+_SUCCESSFUL_SKIP_RE = re.compile(
+    r"^OK \([^\r\n]*\bskipped=(\d+)\b[^\r\n]*\)$",
+    re.MULTILINE,
+)
 
 # Non-test structural steps that need a fixed position or non-default arguments. Ordered
 # cheapest-and-most-foundational first: a broken validator makes every downstream result
@@ -218,15 +231,17 @@ def gate_lock(lock_path=None):
         os.close(fd)
 
 
-def run_steps(steps):
+def run_steps(steps, *, verbose=False):
     """Run every step to completion and return the failed labels, in roster order.
 
     Steps were always independent interpreter processes; they now run concurrently, which cuts
     the gate's wall-clock from the sum of the step times to roughly the slowest step. Two
     properties of the serial gate are deliberately preserved: every step runs even after one
-    fails (an agent fixing the fleet wants the whole list of what is broken, not a bisect), and
-    output prints in the roster's order — foundational checks first, logs deterministic —
-    regardless of completion order, by buffering each step's output until its turn.
+    fails (an agent fixing the fleet wants the whole list of what is broken, not a bisect), and any
+    output that is shown prints in roster order regardless of completion order. Successful output is
+    suppressed by default except for a compact qualification when unittest reports skips; a failure
+    keeps its complete attributed diagnostics, and ``verbose`` restores the full deterministic
+    transcript.
     """
     def run_one(step):
         _label, argv, env_extra = step
@@ -243,41 +258,59 @@ def run_steps(steps):
         futures = [pool.submit(run_one, step) for step in steps]
         for (label, _argv, _env), future in zip(steps, futures):
             rc, output = future.result()
-            print("\n=== %s ===" % label, flush=True)
-            sys.stdout.write(output)
-            sys.stdout.flush()
+            if verbose or rc != 0:
+                print("\n=== %s ===" % label, flush=True)
+                sys.stdout.write(output)
+                sys.stdout.flush()
+            elif matches := _SUCCESSFUL_SKIP_RE.findall(output):
+                skipped = int(matches[-1])
+                noun = "test" if skipped == 1 else "tests"
+                print(
+                    f"Gate A: QUALIFIED -- {label}: {skipped} {noun} skipped",
+                    flush=True,
+                )
             if rc != 0:
                 failed.append(label)
     return failed
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print every step's output; failures are always printed",
+    )
+    args = parser.parse_args(argv)
+
     if not preflight():
         return 1
 
     try:
         with gate_lock():
-            failed = run_steps(STEPS)
+            failed = run_steps(STEPS, verbose=True) if args.verbose else run_steps(STEPS)
     except GateBusy as busy:
         print("Gate A: REFUSED -- another Gate A is already running (pid %s, started from %s).\n"
-              "  Two runs that overlap on one machine false-red each other (test_host_install_probe,\n"
-              "  test_codex_trial), so this run did not start. Wait for that one to finish -- or, if it\n"
+              "  Two runs that overlap on one machine false-red subprocess-heavy suites, so this run\n"
+              "  did not start. Wait for that one to finish -- or, if it\n"
               "  is an orphan (for example a `gate_a.py | head` whose reader already exited), stop it --\n"
               "  and rerun. Lock: %s" % (busy.holder_pid, busy.holder_root, busy.lock_path),
               file=sys.stderr)
         return 1
 
-    print("\n" + "-" * 60)
     if failed:
+        print("\n" + "-" * 60)
         print("Gate A: FAIL -- %d of %d step(s) failed:" % (len(failed), len(STEPS)))
         for label in failed:
             print("  - %s" % label)
         print("\nGate A is structural only. Passing it would still not clear the adversarial reviews (CONTRIBUTING.md).")
         return 1
 
-    print("Gate A: PASS -- %d/%d structural steps green." % (len(STEPS), len(STEPS)))
-    print("This proves the fleet is WELL-FORMED, not that it is CORRECT.")
-    print("The adversarial correctness/security/conformance reviews (CONTRIBUTING.md) are still owed.")
+    print(
+        "Gate A: PASS -- %d/%d structural steps green "
+        "(well-formed only; correctness review remains separate)."
+        % (len(STEPS), len(STEPS))
+    )
     return 0
 
 

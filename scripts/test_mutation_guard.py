@@ -378,22 +378,42 @@ class MainReportingTests(unittest.TestCase):
         )
 
     def _run_main(self, root: Path, *extra: str) -> tuple[int, str]:
-        return _run_guard(root, *extra)
+        return _run_guard(root, "--module", "scripts/subject.py", *extra)
 
     def test_a_suite_that_kills_every_mutant_passes_with_exit_zero(self) -> None:
         code, output = self._run_main(self._repository(HONEST_TEST))
         self.assertEqual(0, code, output)
         self.assertIn("PASS", output)
 
-    def test_a_sibling_pair_that_notices_nothing_is_a_finding_not_a_collapse(self) -> None:
-        """The most severe result this tool can produce. The repository's own naming convention
-        asserts the link, so total survival means the test proves nothing — it must never be
-        filed beside inferred path-string artifacts."""
+    def test_a_sibling_pair_reports_one_named_survivor_not_an_inventory(self) -> None:
+        """Even when later mutants would survive, the CLI creates one lead and stops."""
         code, output = self._run_main(self._repository(BLIND_TEST))
         self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
         self.assertIn("surviving mutant", output)
+        self.assertEqual(1, output.count("survived test_subject.py"), output)
+        self.assertIn("Further mutants are intentionally not executed or inventoried", output)
         self.assertNotIn("unexercised", output)
         self.assertNotIn("PASS", output)
+
+    def test_cli_stops_execution_after_first_surviving_mutant(self) -> None:
+        """The one-lead contract bounds execution, not merely the printed survivor list."""
+        with tempfile.TemporaryDirectory() as temporary:
+            counter = Path(temporary) / "test-runs.txt"
+            counting_test = BLIND_TEST.replace(
+                "import os, sys, unittest\n",
+                "import os, sys, unittest\n"
+                f"with open({str(counter)!r}, 'a', encoding='utf-8') as stream:\n"
+                "    stream.write('run\\n')\n",
+            )
+
+            code, output = self._run_main(self._repository(counting_test))
+
+            self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
+            self.assertEqual(
+                2,
+                len(counter.read_text(encoding="utf-8").splitlines()),
+                "expected one baseline run and one surviving-mutant run, then an immediate stop",
+            )
 
     def test_an_unverifiable_pair_never_reports_pass(self) -> None:
         root = self._repository(HONEST_TEST)
@@ -454,6 +474,12 @@ class ExitStatusTests(unittest.TestCase):
             f"exit statuses collide and cannot be told apart: {codes}",
         )
 
+    def test_one_explicit_module_is_required(self) -> None:
+        """An omitted target must be usage failure, never an accidental fleet-wide sweep."""
+        code, output = _run_guard(self._repository())
+        self.assertEqual(mutation_guard.EXIT_USAGE, code, output)
+        self.assertIn("--module", output)
+
     def test_a_negative_limit_exits_usage_not_refused(self) -> None:
         code, output = self._run_guard_here("--limit", "-1")
         self.assertEqual(mutation_guard.EXIT_USAGE, code, output)
@@ -463,8 +489,8 @@ class ExitStatusTests(unittest.TestCase):
         code, output = self._run_guard_here("--limit", "half")
         self.assertEqual(mutation_guard.EXIT_USAGE, code, output)
 
-    def test_zero_limit_runs_the_documented_unbounded_sweep(self) -> None:
-        """Zero means every mutant; it must not be rejected as a usage error."""
+    def test_zero_limit_removes_the_sample_cap_for_the_named_module(self) -> None:
+        """Zero keeps the full named-module population available; it is not a fleet target."""
         code, output = self._run_guard_here("--limit", "0")
         self.assertEqual(0, code, output)
         self.assertNotIn("usage:", output.lower())
@@ -482,18 +508,13 @@ class ExitStatusTests(unittest.TestCase):
         self.assertIn("--limit", output)
 
     def _run_guard_here(self, *extra: str) -> tuple[int, str]:
-        return _run_guard(self._repository(), *extra)
+        return _run_guard(
+            self._repository(), "--module", "scripts/subject.py", *extra
+        )
 
 
-class SampledCollapseTests(unittest.TestCase):
-    """A sampled all-survivor result may never be reported as "the test never exercises it".
-
-    The collapse rule was `len(survivors) == tried`, where under `--limit` *tried* is the sample
-    size rather than the mutant population. A module the test genuinely exercises could therefore be
-    labelled unexercised because the one or two mutants that happened to be sampled survived — the
-    tool asserting a strong negative from a bounded observation, which is the same overclaim it
-    exists to detect.
-    """
+class SingleSurvivorTests(unittest.TestCase):
+    """A run reports one observed survivor and never infers aggregate coverage from it."""
 
     def _repository(self, test_body: str) -> Path:
         return _git_repository(
@@ -510,7 +531,9 @@ class SampledCollapseTests(unittest.TestCase):
         # exercises other.py — an unbounded sweep kills the two `pinned` mutants — so the sampled
         # all-survivor result must be reported as the survivor it is, never as a negative claim.
         root = self._repository(EXERCISES_OTHER_TEST)
-        code, output = _run_guard(root, "--limit", "1")
+        code, output = _run_guard(
+            root, "--module", "scripts/other.py", "--limit", "1"
+        )
         self.assertNotIn("unexercised -- scripts/other.py", output)
         self.assertNotIn("probably never exercises it", output)
         self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
@@ -520,28 +543,35 @@ class SampledCollapseTests(unittest.TestCase):
         """Pins the premise of the test above. If `pinned` ever stopped being contract-pinned, the
         module really would be unexercised and the assertion above would prove nothing."""
         root = self._repository(EXERCISES_OTHER_TEST)
-        code, output = _run_guard(root)
+        survivors = mutation_guard.surviving_mutants(
+            root / "scripts/other.py", root / "scripts/test_subject.py"
+        )
+        self.assertEqual(2, len(survivors))
+        self.assertEqual({5}, {mutant.lineno for mutant in survivors})
+        code, output = _run_guard(root, "--module", "scripts/other.py")
         self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
         self.assertNotIn("probably never exercises it", output)
-        # Exactly the two `unpinned` operand drops survive; the two `pinned` drops are killed.
-        self.assertEqual(2, output.count("scripts/other.py:5"), output)
+        # The CLI intentionally emits only one named survivor instead of inventorying both.
+        self.assertEqual(1, output.count("scripts/other.py:5"), output)
         self.assertEqual(0, output.count("scripts/other.py:9"), output)
 
-    def test_an_unbounded_run_still_collapses_a_genuinely_unexercised_pair(self) -> None:
-        """The narrowing must not delete the rule. An inferred subject the test never imports still
-        collapses to one message on an unbounded run, and never reports PASS."""
+    def test_an_unexercised_pair_still_stops_at_one_observed_survivor(self) -> None:
+        """Even a likely-bad inferred pairing does not justify inventorying the population."""
         root = self._repository(NAMES_OTHER_WITHOUT_IMPORTING_TEST)
-        code, output = _run_guard(root)
-        self.assertEqual(mutation_guard.EXIT_INCONCLUSIVE, code, output)
-        self.assertIn("probably never exercises it", output)
+        code, output = _run_guard(root, "--module", "scripts/other.py")
+        self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
+        self.assertIn("surviving mutant", output)
+        self.assertNotIn("probably never exercises it", output)
         self.assertNotIn("PASS", output)
-        self.assertEqual(1, output.count("probably never exercises it"), output)
+        self.assertEqual(1, output.count("survived test_subject.py"), output)
 
     def test_a_bounded_run_of_the_unexercised_pair_reports_survivors_instead(self) -> None:
         """Bounded, the same genuinely-unexercised pair may not borrow the unbounded conclusion: it
         reports what it observed — surviving mutants — rather than a claim it cannot support."""
         root = self._repository(NAMES_OTHER_WITHOUT_IMPORTING_TEST)
-        code, output = _run_guard(root, "--limit", "1")
+        code, output = _run_guard(
+            root, "--module", "scripts/other.py", "--limit", "1"
+        )
         self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
         self.assertNotIn("probably never exercises it", output)
 
@@ -573,8 +603,8 @@ class NonCanonicalRootTests(unittest.TestCase):
             self.skipTest(f"symlinks unavailable on this host: {exc}")
         self.addCleanup(link.unlink)
 
-        code, output = _run_guard(link)
-        self.assertNotIn("Traceback", output, "a non-canonical root must not crash the sweep")
+        code, output = _run_guard(link, "--module", "scripts/other.py")
+        self.assertNotIn("Traceback", output, "a non-canonical root must not crash the run")
         self.assertNotIn("ValueError", output)
         # The literal subject must still be found and reported, not silently lost with the crash.
         self.assertIn("scripts/other.py", output)
@@ -612,12 +642,13 @@ class SamplingHonestyTests(unittest.TestCase):
         invites the reader to infer that the evenly spaced sample includes it. It does not."""
         documentation = self._prose(mutation_guard.mutants.__doc__)
         self.assertIn("evenly spaced sample can still miss", documentation)
-        self.assertIn("unbounded run", documentation)
+        self.assertIn("unbounded selection contains every generated mutant", documentation)
+        self.assertIn("CLI still stops executing as soon as one survives", documentation)
 
-    def test_the_module_docstring_scopes_the_unexercised_claim_to_unbounded_runs(self) -> None:
+    def test_the_module_docstring_promises_execution_stops_at_one_survivor(self) -> None:
         documentation = self._prose(mutation_guard.__doc__)
-        self.assertIn("unbounded run", documentation)
-        self.assertIn("probably never exercises it", documentation)
+        self.assertIn("stops executing mutants as soon as it finds that first survivor", documentation)
+        self.assertNotIn("probably never exercises it", documentation)
 
 
 class DiscoveryTests(unittest.TestCase):
@@ -672,33 +703,37 @@ class DiscoveryTests(unittest.TestCase):
             "sibling", subjects["test_readonly_guard.py"].get("readonly-guard.py")
         )
 
-    def test_guard_is_documented_as_a_deliberate_run_not_a_gate_step(self) -> None:
-        """A full sweep runs the whole suite once per mutant, so it is far too slow for a
-        per-push gate. It follows the routing-eval precedent: deliberate, documented, never CI.
-        Gate A still proves the guard itself works, because this file is auto-discovered."""
+    def test_guard_is_documented_as_optional_single_module_work_not_a_gate_step(self) -> None:
+        """Gate A proves the helper itself works without turning it into routine project work."""
         gate = (ROOT / "scripts/gate_a.py").read_text(encoding="utf-8")
         self.assertNotIn("mutation_guard.py", gate)
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("mutation_guard.py", agents)
+        self.assertIn("mutation_guard.py --module <one-file.py>", agents)
 
-    def test_the_fleet_guide_does_not_contradict_the_isolation_contract(self) -> None:
-        """AGENTS.md is what a contributor actually reads before running this.
-
-        It described the tool as rewriting files in place and requiring a clean tree so an
-        interrupted run could be recovered with `git restore`. Worktree isolation made the first
-        half false and the second half true for a different reason, and a safety instruction that
-        is wrong about where the damage lands is worse than no instruction. The docstring was
-        updated in the same change and the guide was not, which is the drift this pins.
-        """
+    def test_governing_surfaces_do_not_turn_survivor_counts_into_work(self) -> None:
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        playbook = agents[agents.index("mutation_guard.py"):][:900]
-        self.assertNotIn("rewrites files in place", playbook)
-        self.assertIn("worktree", playbook.lower())
-        # The clean-tree rule survives; only its stated reason changed. Losing the rule from the
-        # guide would be the opposite failure -- a contributor sweeping over uncommitted work and
-        # reading a report about HEAD instead.
-        self.assertIn("dirty tree", playbook)
+        rules = (ROOT / "docs/rules.md").read_text(encoding="utf-8")
+        pull_request = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8")
+        roster = (ROOT / "skills/agent-authoring/references/roster.md").read_text(encoding="utf-8")
 
+        self.assertIn("add one focused fixture or test", agents)
+        self.assertIn("deliberately break that exact contract", agents)
+        self.assertIn("--module <one-file.py>", agents)
+        self.assertIn("A survivor count is not a finding or backlog item", agents)
+        self.assertIn(
+            "one focused test that fails when that exact contract is deliberately broken and "
+            "passes when restored",
+            rules,
+        )
+        self.assertIn("A survivor count is not a finding or backlog item", rules)
+        self.assertIn(
+            "one focused test that fails when that exact contract is deliberately broken and "
+            "passes when restored",
+            pull_request,
+        )
+        self.assertNotIn("mutation_guard.py", pull_request)
+        self.assertNotIn("mutation_guard.py", roster)
+        self.assertIn("focused red-first test for a changed fleet contract", roster)
 
 class InconclusiveVerdictTests(unittest.TestCase):
     """`blind` must reach the verdict, not just the printout."""
@@ -706,19 +741,18 @@ class InconclusiveVerdictTests(unittest.TestCase):
     def test_blind_test_files_alone_make_a_run_inconclusive(self) -> None:
         # The regression: this returned False, so a run in which NO subject could be derived for
         # any test file still printed PASS.
-        self.assertTrue(mutation_guard.is_inconclusive([], [], ["scripts/test_x.py"], 12))
+        self.assertTrue(mutation_guard.is_inconclusive([], ["scripts/test_x.py"], 12))
 
     def test_a_fully_inspected_run_is_conclusive(self) -> None:
         # The complement matters as much: if this returned True the tool could never say PASS, and
         # the assertion above would pass for the wrong reason.
-        self.assertFalse(mutation_guard.is_inconclusive([], [], [], 12))
+        self.assertFalse(mutation_guard.is_inconclusive([], [], 12))
 
     def test_each_uninspected_bucket_is_sufficient_on_its_own(self) -> None:
         for label, args in (
-            ("unverifiable", (["pair"], [], [], 12)),
-            ("unexercised", ([], ["pair"], [], 12)),
-            ("blind", ([], [], ["test"], 12)),
-            ("nothing attempted", ([], [], [], 0)),
+            ("unverifiable", (["pair"], [], 12)),
+            ("blind", ([], ["test"], 12)),
+            ("nothing attempted", ([], [], 0)),
         ):
             with self.subTest(bucket=label):
                 self.assertTrue(mutation_guard.is_inconclusive(*args))
@@ -887,7 +921,7 @@ class IsolationTests(unittest.TestCase):
 
         completed = subprocess.run(
             [sys.executable, str(ROOT / "scripts/mutation_guard.py"),
-             "--root", str(root), "--limit", "3"],
+             "--root", str(root), "--module", "scripts/subject.py", "--limit", "3"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False,
             env={**os.environ, "TMPDIR": str(aliased)},
         )
@@ -985,7 +1019,7 @@ class IsolationTests(unittest.TestCase):
             "scripts/test_subject.py": HONEST_TEST,
         })
         (root / "scripts/subject.py").write_text(HONEST_MODULE + "\n# edit\n", encoding="utf-8")
-        code, output = _run_guard(root)
+        code, output = _run_guard(root, "--module", "scripts/subject.py")
         self.assertEqual(mutation_guard.EXIT_REFUSED, code, output)
         self.assertIn("working tree is dirty", output)
 

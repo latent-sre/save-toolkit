@@ -34,8 +34,9 @@ Every live item carries:
 | Acceptance | Evidence required to close the item |
 | Next action | Smallest safe step that advances it |
 
-An item leaves this file after its acceptance evidence is committed and the change is merged. Git
-history and archived source documents retain the implementation detail.
+An item leaves this file after its acceptance evidence is committed and the change is merged, or
+after an explicit owner disposition is committed with the reason it is no longer work. Git history
+and archived source documents retain the implementation detail.
 
 ## Active runtime work
 
@@ -141,18 +142,6 @@ authorization limits are bound in the dated preparation-only
 clean exact-commit tag dry-run derives `save-toolkit--v0.1.0`; no force flag was used and no tag or
 Release was created.
 
-**Sweep finding (2026-08-15), discovered and not fixed:** A mutation sweep of the two fail-closed
-release contracts found their suites largely unpinned — `release_contract.py` at 35 surviving mutants
-of 68, `release_workflow_contract.py` at 33 of 77 — with the survivors clustered on the authority
-checks themselves: symlink rejection, every approval-expiry boundary, the UTC binding on
-`issued_at`/`expires_at`, and the reservation-precedes-tag-creation ordering, whose five mutants all
-survive. No claim is made that the workflow is wrong or that anything is exploitable; the narrower
-claim is that the suite mutation-checking the release authority boundary is not itself
-mutation-proof, so a future edit to those predicates could pass CI unnoticed. Evidence and triage are
-in the [`fleet mutation sweep`](reviews/2026-08-15-fleet-mutation-sweep.md) packet. This does not
-change the item's status and is not a merge, review, or publication blocker on its own; it is
-context an owner should weigh before authorizing a live dispatch.
-
 **Live blockers:** The merge step is complete. The Claude authority-census false pass now has a
 red-first defense-in-depth repair: an unlisted persistent `history.jsonl` write failed before the
 change and is caught after the probe switches from five selected paths to the complete lexical
@@ -183,336 +172,7 @@ weakening the criterion to metadata-visible residue is not an implementation sho
 that boundary and the missing live GitHub controls exist should the owner consider dispatch. Do not
 create or move a release ref manually.
 
-### ROUTE-001 — routing evals for the 2026-08 description changes
-
-**Status:** `active` (2026-08-20) — PR
-[#103](https://github.com/latent-sre/save-toolkit/pull/103) supplied the original evaluator. A
-Linux Docker arm implements the fixed 48-trial executor and passes credential-free preflight. Four
-owner-approved development canaries ended `INCONCLUSIVE`, and four later attempts reached behavior
-grading and returned valid `FAIL` verdicts. The latest explicit body-load probe failed graders 0 and
-4 while passing 1, 2, 3, and 5; it changed measured response shaping but did not test or repair
-implicit routing. No campaign, routing result, or baseline followed. See the
-[`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
-
-**Re-frozen 2026-08-21 (owner decision, closing an adversarial-review finding):** the two
-`defers-active-incident` scenarios' graders changed from `SEV[1-4]` to `P[1-4]` to match the team's
-severity ladder, so their `_source_sha256`, both manifests' per-scenario digests, the scenario
-bundle, and `scenario_bundle_sha256` were recomputed. **The prior independent review of those two
-scenarios is invalidated** and must be re-run before they count as campaign evidence. In the same
-change `incident-command`'s `description:` moved from `SEV1–SEV4` to `P1–P4` **without a
-before/after routing run** — the owner deferred the measurement; it remains owed and is recorded
-here so a future routing result on that skill is read as the first measurement, not a regression.
-
-**Owner direction (2026-08-20) — measure on more than one provider.** This campaign is to be run
-across providers rather than on Codex alone: a **Claude** arm (the components that actually ship to
-Claude users, via `evals/run_evals.py`, which is confirmed working on this host as of 2026-08-20),
-the existing **Codex/Terra** arm (which measures the *generated Codex adapters*, not the Claude
-components — see the staging note below), and **a third provider such as Grok/xAI** as a candidate
-once the first two produce comparable evidence. Each arm reports under its own label; no arm's
-result is relabeled as another's. The Claude arm has no remaining environmental blocker and can
-proceed first; the Terra arm's host prerequisites are unchanged.
-
-**Each arm needs a different isolation boundary — do not apply one arm's prerequisites to another.**
-The three differ because the hosts differ, and conflating them either paralyses the cheap arm or
-under-protects the expensive one:
-
-| Arm | Boundary it needs | State |
-|---|---|---|
-| Claude | The clean-room in [`evals/clean_room.py`](../evals/clean_room.py): relocated `CLAUDE_CONFIG_DIR` holding only the selected credential, digest-checked plugin snapshot, allowlisted child environment, empty working directory outside the repo, strict empty MCP, exact `Skill,Task` tool allowlist. Documented in [`evals/README.md`](../evals/README.md) under *Clean-room boundary*, which states plainly that it is an evaluation boundary, **not** an OS security sandbox. | **Exists and runs.** Executed 2026-08-19/20 on two models. |
-| Codex/Terra | Full host trusted-launch: protected Python runtime closure (or a separate OS identity), protected bootstrap launch, precreated NTFS private root, clean launch account/registry with no MCP/dynamic-tool/guardian/proxy/AutoRun override, protected Git executable and sanitized object store. Heavier because Codex 0.147 exposes code-mode tooling and runs Windows hook commands through the shell, and because the credential copy is same-SID application-layer isolation only. | **Requirements documented; nothing provisioned.** No owner, date, or plan is recorded — this, not the evaluator, is what blocks the campaign. |
-| Grok/xAI (candidate) | **Unanalysed.** Before any trial: what tool surface the CLI exposes by default, how its credentials are stored and whether they can be confined to a disposable config root, and whether an equivalent of the clean-room's tool allowlist and empty-MCP guarantee exists. | **Nothing written.** Do not schedule trials before this analysis exists. |
-
-The [digest-bound verification sandbox](../docs/verification-sandbox.md) is a **different tool for a
-different job** and cannot host any of these arms: it runs with `network mode none` by design, and
-its own documentation records that network-enabled verification is unsupported and stays
-`inconclusive`. It verifies reviewed bytes; it does not talk to model providers.
-
-**Outcome:** A provider-native Codex evaluator measures routing before/after for every description
-edited or added in the SRE/GCP/Akamai expansion. Any measured regression (a component that stops
-firing, or a near-miss that starts) is fixed or explicitly accepted without overstating what the
-Codex 0.148 campaign can trace.
-
-**Source:** The 2026-08 expansion changed the descriptions of `obs-logs`, `obs-metrics`,
-`obs-traces`, `obs-alerting`, and `runbook`, and added two new routed components (`gcp-ops`,
-`akamai-edge`). The owner-approved provider rewrite and evidence boundary are recorded in
-[`2026-08-11-codex-terra-routing.md`](decisions/2026-08-11-codex-terra-routing.md). This narrow
-ROUTE-001 campaign does not reopen the broader deferred EVAL-001 Sol work.
-
-**Prerequisites:** The fixed evaluator manifest, recorder, parser, snapshotter, catalog transformer,
-and graders must be complete and pass their contract tests and Gate A. The exact evaluator bytes must
-then be committed cleanly and independently reviewed. Live execution requires an externally pinned,
-protected copy of the bootstrap; the exact ten-file evaluator-bundle manifest; a protected absolute
-Python executable/DLL/standard-library closure (or a separate OS identity); independently reviewable
-source evidence for the exact Codex version's effective Terra tool plan; a precreated local fixed NTFS private
-root; a clean launch account/registry with no managed/system/project MCP, dynamic-tool, guardian,
-provider, API-route, proxy, or Command Processor AutoRun override; the
-protected Git executable/DLL/runtime installation closure and sanitized Git object store with no
-repository-config includes, object alternates, replacement refs, or UNC/network resolution; the
-manifest-pinned Codex CLI executable bytes; the operator-owned Codex login; and only the fixed
-non-secret prompts and isolated staged component bytes the owner approved for transmission. A
-development canary from dirty or unreviewed evaluator bytes is instrument evidence only and cannot
-become campaign or baseline evidence. An active same-SID compromise is outside this application-layer
-boundary and must instead be excluded or isolated by the host.
-
-**Acceptance:** Pin `gpt-5.6-terra` at medium reasoning, 300 seconds, two sequential trials, approval
-policy `never`, and the no-local/effect-tools policy. Run five overlapping
-scenarios against both
-`a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and
-`7aef80aede95394f6c4237ed2aedb911e141c3c0`, then fourteen GCP/Akamai scenarios against the current
-revision only: 48 trials total (20 paired and 28 current-only). Persist only sanitized
-digest/count/verdict/runtime evidence. A non-root skill result remains explicitly
-`behavioral-only-codex-0.148`; both root-scoped active-incident negatives must remain
-`INCONCLUSIVE` with `root-delegation-unobservable-v2`. A report cannot grant
-baseline, release, or owner acceptance to itself.
-
-**Current evidence:** The implementation merged by PR #103 freezes the nineteen scenario IDs and
-hashes, binds each `TrialSpec` to its manifest scenario digest, and embeds the exact development-canary
-scenario rather than reopening mutable suite bytes. Commit
-`262dfc93daf8663b50f6175b7beb7fdfae9b15cc` preserves those inputs while repinning Codex CLI 0.148.0
-and its exact Linux executable SHA-256; the validation-only
-Windows manifest retains its historical 0.147.0 bytes. The campaign also freezes both target revisions,
-`gpt-5.6-terra`, medium reasoning, two trials, and the
-48-trial shape. The 0.148 campaign accepts no provider-native filesystem-skill activation event, so
-ordinary skill positives and near-miss negatives use deterministic response graders only and never
-claim exact skill activation or target-skill absence. Non-root trials require zero tool receipts and
-zero collaboration facts. The accepted root trace cannot join a delegated task, terminal child result,
-and root consumption, so the two active-incident cases short-circuit to `INCONCLUSIVE` before response
-grading. The fixed authenticated canary instead uses the non-root GCP Cloud Run startup case, only
-the fixed linear `contains_all`, `contains_any`, and `cloud_run_rollback_packet` graders, and
-256 KiB total/8 KiB per-line response limits. The structured rollback grader binds one exact fenced
-JSON packet to service `checkout`, synthetic previous/failed revision IDs, 100% traffic, and matching
-region/project context. The current grader normalizes POSIX continuations, quotes, and backslash
-escapes before rejecting an additional `gcloud run services update-traffic` command outside the
-packet. That repair and its manifest binding still require independent exact-candidate review before
-the campaign; the development canary cannot close that prerequisite.
-
-The evaluator now also has a bootstrap-only, credential-free preflight that reuses the actual
-snapshot, executable/catalog probe, safe-catalog/config/hook construction, and drift gates and stops
-before auth or a model process. On 2026-08-12 that preflight passed against the pinned concrete
-versioned Codex 0.147.0 executable path; the normal launcher path was correctly rejected because it
-crosses updater junctions. The result records host trust as unverified and grants no live authority.
-The historical Windows Python/runtime and Git object-store trust prerequisites therefore remain open.
-On 2026-08-20 the replacement Linux image was rebuilt against Codex 0.148.0 and passed the same
-credential-free preflight with no auth mount or model process. The evaluator is committed but remains
-independently unreviewed.
-
-An owner-authorized managed response-only Terra smoke at commit `6d90943664ee0305726cc0ed8feb6b5d9a8e7f68`
-exposed a grader-calibration defect without supplying a resolved-model, installed-skill, or harness
-trace receipt. The red-first repair accepts equivalent placeholder and bind-address wording while
-still rejecting the response's missing orientation and operator-ready rollback packet; it also adds
-the previously absent log-read obligation. This is calibration evidence only, not a canary,
-campaign result, or baseline; see
-[`2026-08-11-codex-terra-managed-smoke.md`](reviews/2026-08-11-codex-terra-managed-smoke.md).
-
-Terra's stock Codex 0.148 metadata would expose code-mode tooling, including an `apply_patch` read
-surface. The catalog transformer verifies the exact bundled model entry and emits an authoritative
-one-model catalog with code/local/effect model tools removed; the rendered configuration disables the
-remaining shell, image, browser, computer, app, web, MCP, memory, plugin, guardian, proxy, and
-workspace-dependency features, disables bundled/orchestrator skills and MCP, and pins the built-in
-OpenAI provider/default ChatGPT route. The new
-bootstrap rejects caller-selected evaluator mode/scenario/manifest overrides, accepts only the exact
-ten-file closure, stages those bytes under `-I -S -B`, requires a local fixed NTFS private root, and
-rechecks the stage after execution. Credential copying uses in-process ACLs, the exact hook import
-directory is enforced, the disposable auth copy is removed before model-controlled parsing/grading,
-decoded exact auth values are scanned, receipts and output are bounded, and every launched outcome
-receives a post-trial drift check. Under the accepted live boundary, the operator login will still exist in a
-disposable `CODEX_HOME` under the same OS user: this is application-layer isolation, not a
-separate-principal sandbox, and that limitation must be retained in every result. Exactly eight
-owner-approved authenticated development attempts ran. The first four were inconclusive while the
-runtime/evaluator boundary was repaired; four later 0.148.0 attempts reached behavior grading and
-returned valid `FAIL` verdicts. No passing authenticated canary or campaign was run. Historical
-Claude runs and the prepared Claude campaign remain
-preserved under their original labels; none is relabeled as Terra evidence. The 2026-07-31 Sol results
-remain retained but revoked as release evidence.
-
-The exact offline checks, red-first defects, frozen byte manifest, and remaining live-host gates are
-recorded in the
-[`Codex/Terra pre-canary evidence packet`](reviews/2026-08-11-codex-terra-precanary.md). That packet
-is preparation evidence only; it does not authorize credentials, model calls, campaign execution,
-baseline eligibility, or release use.
-
-**Source refresh (2026-08-18):** GitHits resolved the exact Codex `rust-v0.147.0` tag and independently
-confirmed the tool-plan behavior assumed by the ADR: model `tool_mode` precedence and separate
-environment/model/feature gates for shell, MCP resources, `apply_patch`, collaboration, and utility
-tools. Context7's current official configuration reference establishes the supported configuration
-surfaces but is not version-pinned evidence for 0.147. The source-review prerequisite is therefore
-supported; the protected runtime, Git/object-store, clean-host, canary, and campaign blockers remain.
-See the
-[`first-three backlog evidence packet`](reviews/2026-08-18-first-three-backlog-evidence.md).
-
-**Runtime repin (2026-08-20):** The current Linux candidate now pins Codex CLI 0.148.0. GitHits
-resolved exact tag `rust-v0.148.0` to commit
-`3ba0f711642a888aec92a611a3f3b2211157ff89`; Context7 and the tagged source both retain the nested
-`[tools.*]` configuration shape used by the repair. Image
-`sha256:861d701ba93bcf1ee098610c55a4c683688b5d1d1fdd18dc9963f653d22c764c`
-passed the credential-free networkless preflight. A subsequent owner-authorized development canary
-ran from clean commit `0e9e7daa4cf8dab6692b80b4e3f17fa60b809068`; Codex returned `0`, but the
-result remained `INCONCLUSIVE` because trace or hook validation failed. Exact tagged source then
-confirmed that the evaluator wrongly rejected Codex's nullable `transcript_path`; commit
-`cfb185173c0434a2792c5bf30270bef1e24606b1` repairs that boundary with red-first coverage. A fourth
-canary from clean commit `79a27cf2e52af15db66cef7ad435f0374ecaca1c` and exact image
-`sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b`
-exercised the repair but remained `INCONCLUSIVE` at the same combined reason. The evaluator now
-distinguishes sanitized `trace-invalid` from `hook-invalid` at commit
-`6819773e5fab4c7bc1747f1be6907c8a8b269110`; 117 focused tests and all 41 Gate A steps passed, but
-that diagnostic split has not had a live retry. See the
-[`Linux canary evidence packet`](reviews/2026-08-20-route001-linux-canary.md).
-
-**Grader repair (2026-08-15):** The outside-packet detector is repaired and evidenced in the
-preparation-only
-[`Cloud Run outside-command repair packet`](reviews/2026-08-15-cloud-run-outside-command-repair.md).
-Probing the boundary first showed the recorded POSIX-continuation case was one of seven accepted
-evasions, not the only one — continuations at other word boundaries, CRLF continuations, a
-continuation with trailing horizontal space, and quoted or backslash-escaped separators all reached a
-pass. The detector now normalizes those word-hiding devices before the literal search, so it matches
-command shape rather than one rendering; it stays linear on adversarial input and still runs before
-the packet's own commands are accepted. Prose that merely names `update-traffic` still passes.
-
-Mutation-sweeping that repair then found two more defects **in the repair itself**, and both are the
-reason the packet is worth reading. A POSIX continuation joins its halves with no separator, so
-`serv\`+newline+`ices` is the word `services`; the first version substituted a space and split the
-word, leaving a live bypass that every fixture passed over. The pattern also carried an unreachable
-`\r?` that no fixture could kill, because the caller splits the response before the pattern sees it.
-Both are fixed. The sweep also established that `mutation_guard` **cannot evaluate this code at
-all** — its operator set generates zero mutants for a pure string transformation — so a clean guard
-report there is near-vacuous and a hand-built mutant set is what actually holds the line: 3 of 9
-killed on the first version, 9 of 9 now. Separately, `evals/graders.py` carries 54 surviving mutants
-of 167, identical before and after this change and none in the new code, so they are pre-existing
-gaps in the other graders rather than a regression. The
-`evals/graders.py` row of the evaluator bundle was refreshed; the scenario, the routing manifest, the
-frozen scenario digests, and the trial shape are unchanged, and no live trial was run. A known
-limitation is recorded rather than implied covered: the detector is a normalizer plus a literal
-search, not a shell parser. The typed record stays `observed` — its target paths already fit an
-attempt, so the missing piece is an independent evaluation of the exact candidate.
-
-**Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at PR #113 final head
-`9a5dbe648995013134fcb63ede3d917275982ad5` passed all 342 grader checks. Fresh static
-correctness/security review found no remaining P0/P1 in the grader repair, and the grader
-implementation in current main retains the reviewed bytes. The pass verdict and its
-shell-normalizer limits are
-recorded in the
-[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
-That Markdown packet is not a typed-record attempt or evidence envelope and ran no live trial.
-
-**Next action:** The Linux canary's 50 ms Codex 0.147 startup failure is reproduced and repaired
-offline; the supported schema requires nested `[tools.*]` controls rather than the rejected root
-keys. The bounded 0.148.0 repin is committed and has exact local images and passing networkless
-preflight. Earlier 0.148 development canaries failed closed at trace or hook validation. The parser
-now handles the exact 0.148 item lifecycle, structured collaboration state, and pre-turn warnings. A
-subsequent bounded Linux canary against image
-`sha256:10c7f4f77092ae30ebc5b52f17a5d43b80176195d63deb87614be7fb48a4fcf6` passed the automatic
-credential-free preflight and produced a valid `FAIL` verdict with reason
-`behavior-grader-failed`. A red-first compact diagnostic then exposed only validated numeric grader
-indices; the one authorized follow-up canary failed graders 0, 1, 3, and 4 while passing 2 and 5.
-That localizes the gap to omitted read-only service/revision/log commands, the loopback contrast, and
-evidence/authority qualifiers; the bind-address diagnosis and exact rollback packet already passed.
-The canonical `gcp-ops` skill now uses a four-slot startup/rollback answer contract, with generated
-adapters refreshed. A separately authorized post-fix canary against exact image
-`sha256:086b63ee981e0997ce8f4201d4e6a85b1e05703cc2c939c0746540a925f59064`
-passed preflight but failed the same grader indices 0, 1, 3, and 4 while passing 2 and 5. The wording
-change therefore did not improve this measured sample, and the 48-trial campaign remains **NO-GO**.
-Offline exact-source diagnosis now explains the no-delta result: Codex 0.148 discovers the staged
-`.agents/skills` catalog, but `skill_search = true` is shadow-only and the no-model-tools policy leaves
-no path for an implicit turn to open a filesystem `SKILL.md`. The failed requirements are all in the
-entrypoint, so conditional references are not involved; response shaping was never tested because the
-revised body never reached the model. The evaluator candidate therefore changes only the development
-canary into a fixed explicit `$gcp-ops` body-load probe and binds the derived prompt hash and evidence
-mode. The nineteen discovery inputs and 48-trial plan remain unchanged. One authorized probe ran
-from commit `09cca0ef93c739caccfb0051f6ce900d8108ad8f` and exact image
-`sha256:e2a285bc329cca97dceb6d1561fbfc0b877022edccea7d7d95a15cb28372102f`;
-it failed graders 0 and 4 while passing 1, 2, 3, and 5. That is response-shaping evidence, not implicit
-routing, and it cannot authorize the campaign. Any later canary still requires separate authorization;
-the campaign remains
-**NO-GO** until review accepts its narrower description-mediated measurement or the routing
-instrument is changed.
-
-**Post-merge hardening (2026-08-20):** Review of PR #124 after merge found seven live executor gaps;
-the follow-up candidate closes them without changing a scenario or running a model. Campaign
-invocations now hold one crash-visible lock, persist `INCONCLUSIVE` as a durable stop, and bind every
-journal contract and event to the exact outer image ID. The Linux manifest binds the complete frozen
-scenario-bundle digest. Native Linux launches reject auth files or campaign roots that UID 65532
-cannot access; canary output stays host-side and is not mounted. Canary state and exit code must
-agree, and the historical Windows bootstrap now stages its imported `codex_runtime.py` dependency.
-The obsolete snapshot-reachability finding needs no code change because `7aef80a` is an ancestor of
-current main. The evaluator bundle is now ten files; its manifest is 1,295 bytes with SHA-256
-`16b9c68b24226b850ae7d9da4f7f14634406d9aa8c063799df4b1f85da5afe02`.
-
-**Paired diagnostic result (2026-08-20):** All six authorized calls completed without retry against
-commit `cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` and immutable image
-`sha256:2ddd1652e8ceb8afa0c68146ad0d4399a4068d1e09f4c64c730c55985c39a06b` after 43/43 Gate A and
-credential-free preflight passed. Target-blind description selection passed 3/3. The exact
-`gcp-ops` body was digest-bound in all three body probes; behavior passed 1/3, while rounds one and
-three failed only grader 5. The body tells the model to render evidence in a fenced Bash block, but
-the scenario requires exactly one fenced JSON packet and grader 5 rejects every additional fence.
-That deterministic contract conflict is now the single next correction; description routing does
-not need another rewrite. ROUTE-001 remains active and its 48-trial campaign remains **NO-GO**.
-
 ## Repository work
-
-### MUTATION-001 — close the mutation-guard evidence gaps
-
-**Status:** `active` (2026-08-18) — the owner authorized a linked rescope to the mutation guard and
-its test. PR #116's final head is the current retrospective subject and has cross-platform CI, but
-no fresh evaluation envelope or independent review covers its final bytes.
-
-**Outcome:** `scripts/mutation_guard.py` never labels a sampled all-survivor result as proof that a
-suite probably never exercises its subject, refuses invalid limits with a distinct exit status, and
-documents sampling without implying that a bounded run covers the motivating mutant.
-
-**Source:** The original typed record
-[`fi_mutation_untested_assertions`](../evals/improvements/fi_mutation_untested_assertions/record.json)
-retains the motivating false-green incident. The owner-approved linked record
-[`fi_mutation_guard_evidence_gaps`](../evals/improvements/fi_mutation_guard_evidence_gaps/record.json)
-now owns the three guard defects against `scripts/mutation_guard.py` and its test. Both remain
-`observed`; neither inherits or claims a formal attempt, review, merge, or promotion.
-
-**Prerequisites:** Use one bounded lifecycle attempt under the linked record's two-attempt budget.
-Calibrate sampled versus unbounded semantics first, and keep refusal, instrument failure, survivor,
-and clean-result exits distinguishable.
-
-**Acceptance:** Red-first tests prove all three recorded guard defects; the focused mutation-guard
-suite and Gate A pass; a deliberate load-bearing mutant is still killed; independent evaluation is
-appended to the linked typed record without self-promoting it.
-
-**Current evidence:** The three recorded defects remain repaired in current main: the unexercised
-claim requires an unbounded run, invalid `--limit` values and every other argparse usage error exit a
-distinct `EXIT_USAGE`, and the operator-facing text says an evenly spaced sample can miss any given
-mutant. `[verified]` The 24 focused exit-status, sampled-collapse, sampling-honesty,
-inconclusive-verdict, and isolation tests passed in the network-disabled pinned Python 3.12 container
-on 2026-08-18. The author's original red-first evidence and deliberate-mutant sweep remain bound in
-the preparation-only
-[`mutation-guard evidence-gap packet`](reviews/2026-08-15-mutation-guard-evidence-gaps.md); it claims
-no evaluation, promotion, or monitoring authority.
-
-PR #116 final head `ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b` changed both linked target
-paths from base `f75dca0ccd9063360318fb8f11bf5806f03cd357`. `[verified]` The
-`scripts/mutation_guard.py` implementation remains byte-identical to that final head. The
-`scripts/test_mutation_guard.py` bytes at blob `751c9ae56b207143d2b3678d5e5f6435198991b4`
-belong to the test-only follow-up commit `ec35aad33d97970a0a1b3c76598344f3bf10f857`,
-not PR #116 (whose test blob was `d8f624bea6562c98ba5561a79b3b37ca26ce9d26`). `[verified]`
-GitHub Actions runs
-[#32030853567](https://github.com/latent-sre/save-toolkit/actions/runs/32030853567) and
-[#32034404514](https://github.com/latent-sre/save-toolkit/actions/runs/32034404514) passed Gate A on
-Ubuntu, macOS, and Windows. The last independent review was bound to `b90e56f9`; final head then
-added 88 lines and removed 3 across the target paths, so neither that review nor green CI supplies
-the missing exact-subject verdict.
-
-**Exact-subject review (2026-08-19):** `[verified]` The full focused suite at `ccceb33` passed (49
-tests, 2 skipped), but an unbounded self-sweep reported 48 survivors and exposed one actionable missing
-assertion: changing `_sample_limit` from `< 0` to `<= 0` survived even though that mutant rejects the
-documented unbounded `--limit 0` input. The implementation is correct; its contract was
-not pinned, so the review requested changes. Test-only commit
-`ec35aad33d97970a0a1b3c76598344f3bf10f857` adds the missing public-behavior regression. The exact
-mutant fails the new test with `EXIT_USAGE`; the restored implementation passes, and the focused
-suite is green at 50 tests with 2 skips. The complete final branch worktree also passes
-all 40 Gate A steps in the pinned network-disabled, read-only container. See the
-[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
-
-**Next action:** Produce a fresh evaluation envelope for the selected artifacts at `ec35aad`, then
-obtain independent correctness/security review of that same subject and append the result to the
-linked typed record without self-promotion. Preserve the chronology limitation: PR #116 merged
-before the linked record and its evaluation existed, so do not backfill a normal pre-merge promotion
-or treat the author's own sweep as independent evidence.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
@@ -590,59 +250,6 @@ validate its per-criterion evidence envelopes, and record the dated packet. Do n
 `AGENTS.md` limit on inference alone, and do not populate `hooks/copilot-hooks.json` before a probe
 shows the payload can scope to an exact agent identity.
 
-### EVAL-002 — make POSIX process-boundary cleanup idempotent
-
-**Status:** `active` (2026-08-18) — the repaired target bytes reached PR #114 final head
-`106ee282903076dc54020df295ac37a0e66bc9d8` and passed the PR and merged-main matrices. A fresh
-evidence envelope and independent review of the final repaired bytes remain outstanding.
-
-**Outcome:** A timed-out Codex trial terminates its complete process tree and closes the POSIX
-boundary deterministically; final cleanup does not turn an already-completed termination into an
-`EPERM` test error, and no exception handling masks a surviving descendant.
-
-**Source:** The observed-only record
-[`fi_macos_process_group_cleanup_race`](../evals/improvements/fi_macos_process_group_cleanup_race/record.json)
-and its [intake packet](reviews/2026-08-13-macos-process-group-cleanup-race-intake.md) bind two
-identical macOS failures on PR #106 to exact head `a2a046e1`, while the byte-identical merge tree
-passed on main.
-
-**Prerequisites:** Start one bounded lifecycle attempt from current main. First define the narrow
-idempotent-cleanup invariant and a deterministic seam for the post-timeout `EPERM` state; do not
-generalize from runner timing or broadly swallow `PermissionError`.
-
-**Acceptance:** A red-first, mutation-sensitive regression proves the failure and the descendant-
-termination guarantee; focused process-boundary tests pass repeatedly on macOS; Ubuntu, macOS, and
-Windows Gate A jobs pass on the exact candidate; the typed record receives independent exact-revision
-correctness/security review without self-promotion.
-
-**Current evidence:** The POSIX final close tolerates `EPERM` only after a prior successful group kill
-and a reaped leader; either fact missing remains a fail-closed boundary error because a descendant may
-still be alive. The initial termination never tolerates `EPERM`. The regression set is deterministic
-(mocked `os.killpg`, stubbed `poll()`, no real processes or sleeps) and distinguishes the correct fix
-from the unsafe broad catch. The pre-existing real-process descendant assertions remain. Bound in the
-preparation-only
-[`POSIX boundary cleanup packet`](reviews/2026-08-15-posix-boundary-cleanup-repair.md).
-
-`[verified]` The target files at final head `106ee282` and merge `796435bf` are byte-identical to the
-repaired `13e6fd4` files and to current main. GitHub Actions runs
-[#31893669482](https://github.com/latent-sre/save-toolkit/actions/runs/31893669482) and
-[#31894502043](https://github.com/latent-sre/save-toolkit/actions/runs/31894502043) both passed Gate A
-on Ubuntu, macOS, and Windows. This supplies repeated macOS execution for the repaired bytes, but no
-fresh evidence envelope or independent final-byte review was produced; the record therefore remains
-`observed` with empty attempt and review arrays.
-
-**Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at final PR subject
-`106ee282` passed
-all 48 `test_codex_trial.py` tests on Windows (6 platform skips) and in the pinned network-disabled,
-read-only Linux container (2 platform skips). The Linux run covered the real descendant checks.
-Fresh static correctness/security review confirmed the two-fact invariant and found no remaining
-P0/P1. No new live macOS observation was made. See the
-[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
-
-**Next action:** Bind the deterministic exact-subject execution and pass verdict into a fresh
-validated evidence envelope and the typed record, then reconcile the outdated PR #114 threads. Do
-not widen the two-fact `PermissionError` invariant or treat the review packet alone as promotion.
-
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
 **Status:** `active` (2026-08-20) — the live-runner dependency is **resolved**: `evals/run_evals.py`
@@ -680,17 +287,17 @@ the clean-room runner and a live API, per the change playbook — which is what 
 either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
 conditional table whose targets are reachable through `check_links`. Re-running the sweep's command
 must return an empty set. Each reworded description passes the 600-byte cap and the `Triggers:`
-contract, and every description edit shows before/after scenario runs with the rate diff. Gate A
-green.
+contract, and every routing-content description edit shows an after-change scenario run. A
+previous-revision baseline is required only for a scenario that comes back red. Gate A green.
 
 **Next action:** Convert one monolith as a pattern — `incident-command` is the highest-traffic and
 has zero references — and land it alone so the conversion shape can be reviewed before it is applied
-to ten more. The description half is no longer waiting: run the overlapping scenarios before and
-after each description edit with the clean-room runner.
+to ten more. The description half is no longer waiting: run the overlapping scenarios after each
+routing-content edit, and fetch the prior baseline only for a red scenario.
 
 **Stated deferral, recorded here because the playbook requires it be stated rather than silent:**
 the `eng-ladder` description was rewritten on 2026-08-17 (merged in #115) from 599 bytes to 418
-**without** before/after routing runs. What that omission cannot prove is whether the trimmed rung
+**without** an after-change routing run. What that omission cannot prove is whether the trimmed rung
 definitions changed which lane fires for an altitude question. The edit removed a workflow summary
 and added a trigger, so the intended direction is better routing, but intent is not measurement.
 
@@ -698,7 +305,8 @@ and added a trigger, so the intended direction is better routing, but intent is 
 that was **wrong** — `run_evals.py` invokes the Claude CLI, which uses the operator's login rather
 than an API key. The runner executed here on 2026-08-19/20 (`claude-opus-5[1m]` and
 `claude-sonnet-5`, live trials, graded results). The `eng-ladder` deferral therefore has no
-remaining blocker: re-run its overlapping scenarios and record the rate diff.
+remaining blocker: run its overlapping scenarios on the changed description; obtain the prior
+baseline only for any red scenario.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 
@@ -727,8 +335,9 @@ collision measurable; no live routing result exists, and neither canonical descr
 
 **Acceptance:** Both, and neither alone. (1) The canonical text disambiguates: `obs-logs` no longer
 advertises a trigger that `obs-alerting` owns, **or** its ownership map names `obs-alerting`
-explicitly. (2) A `discovery-obs-logs-defers-obs-alerting` scenario exists and passes, and the
-before/after runs show no other overlapping scenario moved.
+explicitly. (2) A `discovery-obs-logs-defers-obs-alerting` scenario exists and passes after the edit,
+and the other overlapping scenarios remain green. A prior-revision baseline is needed only for a
+scenario that is red.
 
 A passing scenario on its own does **not** close this item. If the scenario already passes against
 today's descriptions, that is evidence the collision is currently latent — not that it is resolved —
@@ -757,8 +366,9 @@ detail in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-
   the next description edit should follow the stated sequence.
 
 **Next action:** Establish the missing half of acceptance — run the *other* overlapping
-`obs-alerting`/`obs-logs` scenarios before and after, and show none of them moved. Then close. Do
-not close on the defer scenario alone.
+`obs-alerting`/`obs-logs` scenarios against the changed descriptions and show they remain green. If
+one is red, run that scenario at the prior revision to attribute it. Then close. Do not close on the
+defer scenario alone.
 
 ### GRADER-001 — reconcile the 2026-08-11 scenario graders with what the skills teach
 
@@ -785,22 +395,19 @@ verbatim transcription. Today neither is true, and the suite cannot pass on any 
 The batch was authored 2026-08-11 in `b459a5d` and validated only against synthetic fixtures; a real
 model had never been asked for that shape until 2026-08-19. This is an unmet contract, not rot.
 
-**Prerequisites:** None to decide — the measurement is complete. To *act* on option (b), the
-scenario bytes are digest-pinned into ROUTE-001's evaluator manifest
-(`evals/conformance/codex-terra-routing-v1.json`), so editing a grader re-freezes both hash-bound
-manifests and invalidates the prior independent review; that remedy cannot land ahead of ROUTE-001's
-own sequencing. Options (a) and (c) touch no frozen bytes.
+**Prerequisites:** None to decide — the measurement is complete. The retired Codex/Terra evaluator
+no longer pins scenario or grader bytes. Any implementation follows the ordinary red-first contract
+rule and the affected Claude clean-room eval trigger; it does not need an evaluator re-freeze.
 
 **Acceptance:** One contract holds across both sides, and the suite's result means something: either
 the canonical skills teach the packet and the affected scenarios pass on a named model with
-before/after evidence, or the graders are rewritten to assert behavior and re-frozen through
-ROUTE-001's review path, or the scenarios are explicitly recorded as aspirational so a red suite is
-never read as a regression. Whichever is chosen is written here with its evidence.
+before/after evidence, or the graders are rewritten to assert behavior and are covered by focused
+mutation-sensitive tests, or the scenarios are explicitly recorded as aspirational so a red suite
+is never read as a regression. Whichever is chosen is written here with its evidence.
 
-**Options for review:** (a) teach the packet in the canonical skills — no frozen bytes change, and a
-checkable alert-definition contract is defensible on its own merits; (b) loosen the graders to
-assert behavior — changes frozen bytes and needs ROUTE-001 sequencing; (c) accept the scenarios as
-aspirational and record them as such so a red suite stops reading as a regression.
+**Options for review:** (a) teach the packet in the canonical skills, if the named-field contract is
+defensible on its own merits; (b) rewrite the graders to assert behavior; (c) record the scenarios as
+aspirational so a red suite stops reading as a regression.
 
 **Cross-provider evidence (2026-08-20), which refined the diagnosis rather than confirming it.**
 The working hypothesis was that these graders demand output no model produces, and that the Terra
@@ -826,28 +433,27 @@ the canary whose graders were calibrated against real model output and repaired 
 "the graders ask for the impossible"; it is that one set was checked against a real answer and the
 other never was.
 
-Two consequences for the options above: option (b) should mean **calibrate against real model
-output**, the way the canary's graders were, rather than a blanket loosening; and
-`cloud_run_rollback_packet`'s only-fenced-block rule deserves review on its own merits, since it
-penalises an answer that fences its commands — which is arguably the better answer.
+For the remaining options, option (b) should mean **calibrate against real model output**, the way
+the Cloud Run graders were, rather than a blanket loosening. The Cloud Run exact-output rule remains;
+the conflicting default Bash fence was the contract that needed removal.
 
-**Confirmed as a contract contradiction, not a model failure (2026-08-20).** ROUTE-001's paired
+**Confirmed as a contract contradiction, not a model failure (2026-08-20).** The retired paired
 Linux canary reached the same conclusion from the Terra side and labelled it `[inference]`, because
 its compact artifacts deliberately retain no raw responses and so cannot show which rendering each
 response used. The Claude run supplies exactly that missing evidence, so the finding is now
 `[verified]` across both providers: `claude-sonnet-5` failed
 `cloud_run_rollback_packet` on both trials of the same scenario while passing every content grader.
-The contradiction is in the repository's own bytes — `skills/gcp-ops/SKILL.md:29-35` instructs the
-answer to place its evidence commands in a fenced `bash` block, while the scenario's
-`cloud_run_rollback_packet` grader rejects any fence other than the single JSON packet. A model
-that follows the skill literally cannot pass the grader; a model that passes the grader has ignored
-the skill. Neither side is a model-quality signal, and no amount of prompt tuning resolves it while
-both contracts stand.
+The then-current `gcp-ops` skill instructed the answer to add a fenced Bash block while the scenario
+rejected any fence other than the single JSON packet. Neither result was a model-quality signal.
 
-**Next action:** Owner review of the three options, now with the calibration distinction above. Until
-that review, do not tune skills to satisfy these graders and do not edit the frozen scenario bytes;
-both would pre-empt the decision. Evidence
-is in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
+**Contract repair (2026-08-22):** `gcp-ops` now preserves caller fence constraints and keeps the
+evidence commands inline. A red-first check in `evals/test_graders.py` fails if that instruction or
+the fence-free answer shape is removed. This closes the Cloud Run contradiction without a paid rerun;
+it does not decide the remaining 2026-08-11 observability packet-shape options.
+
+**Next action:** Owner review of the three remaining observability options, with the calibration
+distinction above. Evidence is in
+[`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 
@@ -952,18 +558,17 @@ needs no host inventory work.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
-**Status:** `blocked` (2026-08-20) — blocked on ROUTE-001's re-freeze window, not on effort.
+**Status:** `ready` (2026-08-22) — retirement of the Codex/Terra evaluator removed the body-digest
+pin that had blocked this independent correction.
 
 **Outcome:** `skills/gcp-ops/SKILL.md` stops telling agents that a quoted `severity>=ERROR` trips the
 read-only guard, which stopped being true when PR #112 loosened the guard's proven-safe false
 positives.
 
-**Source:** PR #112. The branch originally corrected this sentence, but the file's bytes are the
-ROUTE-001 canary body: `evals/run_codex_routing.py`'s `CANARY_SKILL_BODY_SHA256` pins
-`plugins/save-toolkit/skills/gcp-ops/SKILL.md`, and `evals/codex_trial.py` raises
-`skill-body-mismatch` on any edit. The edit was therefore reverted so #112 could land, on the same
-reasoning this file already applies to the frozen scenario bytes — re-freezing a hash-bound manifest
-invalidates the prior independent review.
+**Source:** PR #112. The branch originally corrected this sentence, but the edit was deferred because
+the now-retired ROUTE-001 canary pinned the exact projected `gcp-ops` body. That evaluator dependency
+no longer exists; its historical rationale remains in the accepted
+[`retirement decision`](decisions/2026-08-11-codex-terra-routing.md).
 
 **Interim mitigation (in place):** `skills/obs-logs/references/gcp-logging.md` carries the correct
 behavior, probe-cited, and `gcp-ops` already routes Logging query-language detail to that reference
@@ -975,21 +580,22 @@ an agent is told to load is right.
 exit 42 (allow); the same filter unquoted returns exit 43 (deny). On `origin/main`'s guard the quoted
 form returns exit 43, so the sentence is correct on main and becomes stale only once #112 merges.
 
-**Prerequisites:** ROUTE-001 reaches a point where the canary body may be re-frozen and
-independently re-reviewed. This item must not pre-empt that sequencing.
+**Prerequisites:** None. Reconfirm the quoted and unquoted filter cases against the focused guard
+corpus before changing the canonical skill.
 
-**Acceptance:** `gcp-ops` states the guard's real behavior, `CANARY_SKILL_BODY_SHA256` matches the
-new bytes, the canary is re-run rather than re-derived, and Gate A passes.
+**Acceptance:** `gcp-ops` states the guard's real behavior, the focused allow/deny corpus proves it,
+generated projections match, and Gate A passes.
 
-**Next action:** None until ROUTE-001 opens its re-freeze window. Do not edit `gcp-ops/SKILL.md` or
-bump the pin before then.
+**Next action:** Correct the stale sentence with the focused guard regression, regenerate once, and
+stop; no provider evaluation is attached to this text correction.
 
-**Also queued for the same re-freeze (2026-08-21):** the OOM bullet in the frozen body still reads
+**Separate follow-up (2026-08-21):** the OOM bullet still reads
 "exact memory-limit error text `[unverified]`". The text is resolved — *"While handling this request,
 the container instance was found to be using too much memory and was terminated."*, an HTTP 500/503
 log line with no exit code, and local-filesystem writes count toward instance memory — and now lives
 in [`references/cf-to-cloud-run.md`](../skills/gcp-ops/references/cf-to-cloud-run.md), which the
-body already routes to. Fold it into the body when the pin is bumped.
+body already routes to. Do not couple that content change to GCPOPS-001 merely because both once
+shared the retired body pin.
 
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
@@ -1050,7 +656,8 @@ review or while actionable current findings remain undisposed, even when an auto
 a large diff or comments on an earlier SHA.
 
 **Source:** PR #103 exceeded Copilot's 20,000-line review limit and merged with unresolved review
-threads, including the two reproducible false passes now recorded under RELEASE-001 and ROUTE-001.
+threads, including the reproducible false passes recorded under RELEASE-001 and in the dated
+ROUTE-001 review evidence.
 The live `Protect main` ruleset requires a pull request but zero approvals and no review-thread
 resolution; the separate Copilot rule reviews drafts but does not review every push. Repository policy
 already requires immutable-candidate correctness and security review before merge.
@@ -1066,43 +673,6 @@ explicitly rejected with evidence.
 
 **Next action:** Owner decision on the enforcement mechanism. Until then, treat final-SHA review and
 thread reconciliation as a manual merge blocker rather than assuming green CI is review evidence.
-
-### SWEEP-001 — dispose the 2026-08-15 mutation-sweep findings
-
-**Status:** `decision-needed` (2026-08-15)
-
-**Outcome:** Each finding from the fleet mutation sweep is either owned and repaired, or explicitly
-accepted as not worth fixing with a recorded reason. None is left as an unowned number in a review
-packet that a later reader mistakes for either a defect list or a clean bill of health.
-
-**Source:** The findings-only
-[`fleet mutation sweep`](reviews/2026-08-15-fleet-mutation-sweep.md), which swept seven modules
-unbounded on the repo-pinned Python 3.12. Everything in it is discovered and **not** fixed, except
-the one fail-open already closed under its own commit. The three highest-consequence groups:
-
-- `[verified]` `scripts/release_contract.py` (35 of 68) and `scripts/release_workflow_contract.py`
-  (33 of 77) — symlink rejection, every approval-expiry boundary, UTC binding, manifest identity,
-  `required=True` on the release arguments, and the whole reservation-precedes-tag invariant are
-  unpinned. These gate RELEASE-001's acceptance.
-- `[verified]` `scripts/host_install_probe.py` (253 of 553) — the census machinery under
-  `host.claude.probe-authority` is barely pinned, including the criterion that an unreadable tree
-  must yield inconclusive rather than pass.
-- `[verified]` `evals/graders.py` (54 of 167), pre-existing and unchanged before and after this
-  session's grader repair.
-
-**Prerequisites:** None to decide. Any repair is ordinary bounded work under the relevant record;
-opening typed `fi_` records for the release-contract and host-probe groups is part of the decision,
-not a precondition for it.
-
-**Acceptance:** Every group above carries a disposition — `prepared`, `proposed`, `blocked`,
-`duplicate`, or `not_applicable` — with an owner and a reason. Any group accepted as not worth
-fixing says why in writing. Repairs land red-first, proving the mutant survives before the fix and
-dies after.
-
-**Next action:** Owner disposition per group. Treat the release-contract group as the highest
-consequence, since RELEASE-001's acceptance rests on contracts whose own suite does not notice their
-predicates changing. Do not read a survivor count as a defect count, and do not read a clean sweep
-over `_authority_check` as evidence the census is sound — that code generates no mutants at all.
 
 ### NAV-001 — dispose the incident-navigation prototype
 
@@ -1136,11 +706,10 @@ authority; do not delete, reset, or regenerate inside the source worktree withou
 ### EVAL-001 — expand risk-weighted Sol coverage
 
 **Status:** `deferred` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
-manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A, the local Claude runner, and the
-narrow active ROUTE-001 Terra evaluator are the beta's current verification surfaces; ROUTE-001 does
-not supply this item's broader direct Sol coverage. Reopen when a Codex/Sol behavioral baseline is
-actually needed for a release decision; the prerequisites and acceptance below are unchanged and
-still apply at that point.
+manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A and the local Claude runner are the
+beta's current verification surfaces; no active Codex evaluator supplies this item's broader direct
+Sol coverage. Reopen when a Codex/Sol behavioral baseline is actually needed for a release decision;
+the prerequisites and acceptance below are unchanged and still apply at that point.
 
 **Outcome:** The highest-risk skills and every explicitly installed Codex custom agent have direct
 behavioral evidence on `gpt-5.6-sol`, while implicit routing remains an observational metric rather

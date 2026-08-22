@@ -2,208 +2,41 @@
 
 ## What is here, and which of it you can run
 
-Read this table first. Two of the four components below cannot be run from this checkout, and they
-occupy most of the directory — 16 of the 20 top-level `.py` files are `codex_*`, so `ls` overstates
-their prominence. The runnable Claude suite is the third row.
+Read this table first. Provider-specific helpers and historical evidence make a directory listing
+look like a menu even when a path is not runnable or authoritative.
 
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
-| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; Linux preflight passed; fourteen development probes: four inconclusive, six valid `FAIL`, four `PASS`; campaign never run | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
+| **Codex/Terra ROUTE-001** | **retired 2026-08-22**; historical evidence only | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
 
-Nothing here is unmaintained: every `evals/test_*.py` runs in Gate A, enrolled by file existence
-rather than a hand-kept roster. The Terra stack is green and owned, not dead weight. Its current
-snapshot is one exact Git object with a separately computed tree digest; a later checkout does not
-silently become campaign input.
+Every active `evals/test_*.py` runs in Gate A, enrolled by file existence rather than a hand-kept
+roster. Parked execution code stays out of the active tree, and frozen evidence remains read-only.
 
 > **Shallow clones:** every "recover from tag `pre-trim-2026-08-02`" instruction in this repository
 > fails with `fatal: unknown revision` unless you fetch tags first
 > (`git fetch --tags --depth=1000`). The tag exists on the remote.
 
-## ROUTE-001 Codex/Terra campaign (implementation active; campaign not run)
+## Codex/Terra ROUTE-001 (retired)
 
-The ROUTE-001 owner approved a narrow Codex rewrite of the 2026-08 routing campaign. The canonical
-Linux manifest now pins Codex CLI 0.148.0 and its exact executable SHA-256; the validation-only
-historical Windows manifest retains its reviewed 0.147.0 bytes. Both pin `gpt-5.6-terra` at medium reasoning,
-a 300-second timeout, approval
-policy `never`, two sequential trials, and a threshold of 1.0. Five overlapping scenarios run
-against both `a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and
-`7aef80aede95394f6c4237ed2aedb911e141c3c0`; fourteen GCP/Akamai scenarios run against the current
-revision only. The fixed campaign is therefore nineteen scenarios and 48 trials: 20 paired and 28
-current-only. This is ROUTE-001 only; the broader EVAL-001 Sol work below remains deferred.
-The historical Windows arm copies the executable into its private trial boundary. The canonical
-Linux arm keeps the complete Codex package tree protected inside an immutable non-root image and
-rehashes the executable before and after the trial. Every `TrialSpec` also carries its manifest
-scenario digest, and the canary reuses the same
-stable scenario load it validated rather than reopening mutable prompt bytes.
+The Codex/Terra evaluator, its container preflight, its single canary, and all eight dedicated test
+suites were retired on 2026-08-22. They produced useful bounded diagnostics, but no baseline or
+release evidence, and no current decision needs a provider-specific evaluator. There is no standing
+paid-eval task or runnable Codex/Terra path in this tree.
 
-The checked-in interface supports offline validation/planning. It deliberately rejects a live
-canary unless it is running from the isolated staged entrypoint. These direct commands never receive
-an auth path and do not authorize the campaign:
+The last paired diagnostic found target-blind `gcp-ops` description selection at 3/3 and body
+behavior at 1/3. The two body failures isolated a repository contract conflict: the skill requested
+a Bash fence while the scenario allowed exactly one JSON fence. The skill now preserves the caller's
+fence constraints, and `evals/test_graders.py` carries the offline red-first regression. No paid
+rerun was needed to establish that contract.
 
-```powershell
-python evals/run_codex_routing.py
-python evals/run_codex_routing.py --plan `
-  --current-revision 7aef80aede95394f6c4237ed2aedb911e141c3c0
-```
-
-The same protected bootstrap also supports a credential-free `--preflight` mode. It stages the
-exact evaluator closure, materializes the fixed Git object, probes the pinned Codex version and
-bundled Terra catalog, renders and rechecks the safe catalog/config/hooks, then stops before reading
-an auth file or starting a model process. Preflight output always records
-`host_trust = not-verified-by-runner`, `authenticated_call_started = false`, and
-`live_authorized = false`; passing it diagnoses runner compatibility but cannot authorize a canary.
-Use the concrete versioned `codex.exe` path, not either updater junction or the `codex` PowerShell
-wrapper. The externally reviewed launch packet supplies the exact bootstrap, evaluator-manifest
-digest, repository, Codex executable, and empty private root; no auth argument is accepted.
-
-Do **not** invoke `run_codex_routing.py --canary` or `--preflight` directly. The canonical Linux path
-uses [`codex_container.py`](codex_container.py) with an exact image ID; the historical Windows path
-starts from an externally verified copy of [`codex_bootstrap.py`](codex_bootstrap.py), launched by an
-absolute, protected Python installation with `-I -S -B`. A Windows review packet must pin the complete
-Python DLL/standard-library closure, the protected bootstrap bytes, and the exact SHA-256 of
-[`codex-terra-evaluator-v1.json`](conformance/codex-terra-evaluator-v1.json). The bootstrap then
-copies the exact ten-file evaluator closure into a private stage, synthesizes either the auth-free
-preflight or the only accepted `--canary` argument set, and verifies that stage before and after
-execution. The external launcher
-must also supply an empty private root on a local fixed NTFS volume; UNC, mapped, substituted,
-remote, removable, and non-NTFS storage are rejected. Caller-supplied mode, manifest, scenario, or
-temporary-path overrides are rejected. A consumer must accept output only
-when the bootstrap's final exit status accepts both the post-run scan and cleanup.
-
-For a Linux development canary, invoking `codex_container.py canary` is the authorization for exactly
-one paid trial. That single command validates all live inputs, runs the same image credential-free and
-networkless first, stops if preflight fails, and otherwise runs one authenticated canary with no retry.
-It prints and writes only this compact summary to `<output-root>/canary-result.json`: image ID,
-preflight result, canary state/reason codes, failed numeric grader indices for a valid behavioral
-verdict, the exact canary invocation mode and prompt SHA-256, and token usage when the accepted trace
-contains it.
-Repeated development attempts update that one file; they do not require a new narrative review packet.
-Update durable campaign documentation only when a canary produces a valid verdict, the instrument
-contract changes, or the work is deliberately closed. Standalone `preflight` remains available for a
-credential-free diagnostic, and `campaign` retains its separate 48-trial journal and review gates.
-
-The approved three-round diagnostic uses the existing one-call container command six times, with a
-fresh output root for every coordinate: `--canary-arm description`, then `--canary-arm body`, in
-that order for rounds one through three. Each command runs its own credential-free, networkless
-preflight and can start at most one paid call. Do not retry an ambiguous, invalid, or `INCONCLUSIVE`
-coordinate; stop the sequence and report it. Valid `PASS` and `FAIL` observations continue until all
-six calls are complete so the repetitions expose variance. This intentionally small operator
-sequence adds no campaign journal or second executor. Keep the six compact `canary-result.json`
-files separate and compare arms only within the same round.
-
-The description arm asks for exactly one bare skill name from the rendered catalog and never names
-the expected skill in its user prompt. It records `catalog-description-selection`; it neither loads
-nor grades a skill body and is not a provider-native activation receipt. The body arm uses explicit
-`$gcp-ops`, records `explicit-skill-body-probe`, and requires the staged projected
-`gcp-ops/SKILL.md` to match SHA-256
-`a319096742e87f45fa6e9cf3652247237a9aff3cdec7835cd775b78bd4dd3bd6` before launch. Current official
-Codex documentation establishes that explicit selection injects full skill instructions; exact
-Codex `rust-v0.148.0` source at `3ba0f711642a888aec92a611a3f3b2211157ff89` separately confirms
-that explicit selections are read and injected while `skill_search` remains shadow-only. The body
-arm tests the entrypoint, not conditional reference loading. Neither arm is campaign, baseline,
-promotion, or release evidence. The current manifest digest is recorded in the dated review packet.
-
-The approved three rounds completed against exact evaluator commit
-`cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` and image
-`sha256:2ddd1652e8ceb8afa0c68146ad0d4399a4068d1e09f4c64c730c55985c39a06b`.
-Description selection passed 3/3. Explicit body behavior passed 1/3; rounds one and three failed only
-grader 5. The dated review records the compact artifact hashes and the conflicting fence contracts
-that explain why this is not campaign-ready.
-
-The historical Windows host arm does not satisfy that launch contract: its Python installation and runtime
-closure are writable by the operator identity. The canary is therefore **NO-GO** until a protected
-runtime/closure or separate OS identity is provisioned and independently bound. A clean launch
-account/registry must additionally prove that managed, system, and project layers supply no MCP,
-dynamic tool, guardian, provider, API-route, proxy, or Command Processor AutoRun override. The boundary also
-requires a protected Git executable/DLL/runtime installation closure and a protected, sanitized Git
-object store with no repository-config includes, object alternates, replacement refs, or UNC/network
-resolution; the executable/archive digests prevent evidence acceptance but cannot protect load-time
-dependencies or prevent pre-validation reads. It
-excludes an already-compromised same-SID process; a current-user ACL cannot isolate credentials from
-another process running as that same user. On 2026-08-20 the replacement Linux-container preflight
-passed first on Codex 0.147.0 and again after the bounded 0.148.0 repin. The owner-approved 0.147.0
-development canary ended `INCONCLUSIVE` before producing model output. A second owner-approved
-0.148.0 canary ran from clean commit `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`; its Codex subprocess
-returned `0`, but trace or hook validation failed closed. A third bounded 0.148.0 canary from
-`0e9e7daa4cf8dab6692b80b4e3f17fa60b809068` did the same. Exact tagged source then exposed a nullable
-`transcript_path` contract mismatch, repaired at `cfb185173c0434a2792c5bf30270bef1e24606b1`.
-A fourth authorized canary from clean commit `79a27cf2e52af15db66cef7ad435f0374ecaca1c` and image
-`sha256:b73dd55658d4ceab93ce2df159a681672f36d0b743f7ce34946f8decfe674d6b`
-exercised that repair but again returned `trace-or-hook-invalid`. Commit
-`6819773e5fab4c7bc1747f1be6907c8a8b269110` distinguishes sanitized `trace-invalid` from
-`hook-invalid` with red-first coverage. Four later 0.148.0 development canaries reached behavior
-grading and returned valid `FAIL` verdicts. The latest ran the explicit body-load probe from commit
-`09cca0ef93c739caccfb0051f6ce900d8108ad8f` and image
-`sha256:e2a285bc329cca97dceb6d1561fbfc0b877022edccea7d7d95a15cb28372102f`:
-graders 0 and 4 failed while 1, 2, 3, and 5 passed. Its compact result has SHA-256
-`9209f4d7108325ae326fd9692611d4e7351aba03cdb1a8f108ba74ac7b7eccef`; no retry followed.
-See the [Linux canary evidence packet](../docs/reviews/2026-08-20-route001-linux-canary.md). No Terra
-campaign, routing result, or baseline has been recorded.
-The full campaign may run only from exact,
-clean, committed evaluator bytes after
-independent review. A development canary can never be promoted into campaign, baseline, or release
-evidence. The report-authority contract fixes `source_review = not-verified-by-runner`,
-`independent_evaluator = false`, `baseline_eligible = false`, and `release_granted = false`; those
-authority decisions remain outside the model and runner.
-
-The 0.148 campaign accepts no provider-native activation event for a discovered filesystem skill.
-Exact tagged source now establishes a stronger limit: with this evaluator's no-model-tools policy,
-an implicit discovery turn can see the project skill catalog but cannot load a filesystem skill body.
-`skill_search = true` runs selection only in shadow mode; Codex injects `SKILL.md` itself only after
-an explicit `$name`, structured, or path selection, while every other path requires a model-visible
-file read that this boundary deliberately removes. Skill positives and near-miss negatives are
-therefore description-mediated response observations, not skill-body behavior. The frozen campaign
-remains **NO-GO** until independent review accepts that narrower measurement or the routing
-instrument is changed; a green development canary cannot make that decision. Root-scoped trials
-retain a stricter conservative boundary: the accepted
-trace does not join a plaintext delegated task, terminal child result, and root consumption;
-`wait_agent` is mailbox-only. The two root-scoped active-incident cases therefore always return
-`INCONCLUSIVE` with `root-delegation-unobservable-v2`; response graders do not run for them.
-
-The fixed authenticated development canary still uses the non-root
-`discovery-gcp-ops-cloud-run-startup` scenario, but its execution prompt is now derived as exact
-`$gcp-ops\n\n` plus the unchanged manifest-bound discovery prompt. Codex 0.148 then injects the
-selected host `SKILL.md` without exposing a file tool. The derived prompt SHA-256 is
-`65139f00bc31a3b18f82a3563f7a96c8300c40166ecd133f1c77227e681128c3`, and the trial records
-`explicit-skill-body-probe`. This canary-only diagnostic tests body injection and response shaping;
-it is not an implicit-routing result and is rejected for every other scenario coordinate. Its one
-authorized live run produced the valid `FAIL` above; it did not authorize a retry or campaign. The
-canary disables multi-agent, permits only the fixed linear graders
-`contains_all`, `contains_any`, and `cloud_run_rollback_packet`, and rejects responses above 256 KiB
-total or 8 KiB per line before grading. The rollback grader accepts exactly one fenced JSON packet,
-binds its two command fields to the scenario's exact service and synthetic revision IDs, and rejects
-extra traffic commands, shell syntax, wrong weights, or mismatched context flags. The remaining
-seventeen non-root scenarios require zero command/collaboration receipts.
-
-The approved three-pair diagnostic does not replace that historical one-arm canary. It adds the
-target-blind catalog-selection arm beside the exact-body arm and reports the two outcomes separately.
-The nineteen campaign inputs, their hashes, and the 48-trial plan are unchanged.
-
-The evaluator stages only exact Git-object skill and custom-agent projections into a neutral Codex
-project. Terra's stock 0.147 metadata would force code mode and expose `apply_patch`, which can read
-a target before a read-only write is rejected. The evaluator therefore verifies the exact bundled
-Terra entry and supplies an authoritative one-model catalog designed to remove code/local/effect
-model tools, while disabling the remaining shell, image, browser, computer, app, web, MCP, memory,
-plugin, guardian, proxy, and workspace-dependency features. Bundled and orchestrator skills/MCP are
-disabled; the built-in OpenAI provider and default ChatGPT route are pinned. Any command, local,
-effect, unknown, or collaboration receipt in a non-root trial makes it `INCONCLUSIVE`. The effective
-tool plan is bound to exact Codex 0.147 source in the routing ADR; transformed catalog hashes alone
-are not proof of tool absence.
-
-The prepared live boundary copies the operator-owned Codex login only after credential-free staging
-into a disposable `CODEX_HOME`; native ACL work is complete before that write and no helper process
-runs between the copy and staged Codex launch. This is same-user application-layer isolation, not a
-separate OS principal or a claim that the model process lacks the credential bytes. The executor
-keeps raw JSONL, hook payloads, and response text inside the private temporary boundary, applies both
-credential-shape and decoded exact-value guards, removes and verifies absence of the disposable auth
-copy before parsing or grading model-controlled data, and deletes the boundary after sanitized reduction.
-The exact boundary, remaining no-go prerequisites, comparability rules, and accepted owner decision
-are recorded in
-[`2026-08-11-codex-terra-routing.md`](../docs/decisions/2026-08-11-codex-terra-routing.md).
+The dated [Linux canary evidence packet](../docs/reviews/2026-08-20-route001-linux-canary.md) retains
+the exact diagnostic results and artifact digests. The accepted
+[retirement decision](../docs/decisions/2026-08-11-codex-terra-routing.md) records what was removed,
+why it conferred no authority, and the narrow condition for recovery from Git history.
 
 ## Codex/Sol conformance (parked)
 

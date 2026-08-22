@@ -1017,6 +1017,20 @@ def test_gcp_cloud_run_requires_one_exact_rollback_packet() -> None:
     )
 
 
+def test_gcp_ops_honors_caller_fence_constraints() -> None:
+    skill = (HERE.parent / "skills" / "gcp-ops" / "SKILL.md").read_text(encoding="utf-8")
+    _, start, remainder = skill.partition(
+        "> **Cloud Run startup/rollback answer shape"
+    )
+    answer_shape, end, _ = remainder.partition("> The service describe")
+    check(
+        bool(start and end)
+        and "Never add a fenced block the caller did not permit." in answer_shape
+        and "```bash" not in answer_shape,
+        "gcp-ops: caller fence constraints override the default evidence-command shape",
+    )
+
+
 def test_akamai_alert_rejects_reversed_throttle_relationship() -> None:
     try:
         import yaml  # noqa: F401
@@ -1525,6 +1539,7 @@ def main() -> int:
         test_routing_graders_reject_keyword_rich_incomplete_responses,
         test_routing_graders_accept_canonical_contract_variants,
         test_gcp_cloud_run_requires_one_exact_rollback_packet,
+        test_gcp_ops_honors_caller_fence_constraints,
         test_akamai_alert_rejects_reversed_throttle_relationship,
         test_akamai_alert_rejects_negated_safe_relationships,
         test_readonly_scenario_verbal_discipline, test_injection_scenarios,
