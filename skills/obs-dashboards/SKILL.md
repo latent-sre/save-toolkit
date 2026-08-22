@@ -49,9 +49,13 @@ write call.
 
 1. **Name the dashboard's job** in one sentence — the question it answers for whom. "If the dashboard
    doesn't have a goal, then ask yourself if you really need the dashboard."
-2. **Discover, never invent.** Data-source uids, folder uid, metric and label names, existing
-   dashboard uid all come from the target (search, data-source list, an existing panel's query) —
-   "Do not invent PromQL, LogQL, datasource UIDs, label names, or folder UIDs."
+2. **Preflight the instance, then discover — never invent.** On an unfamiliar Grafana run the
+   eight-call preflight in [http-api](./references/http-api.md) first: version and edition, **what
+   your token may actually do**, org/namespace, which API versions are served and which is preferred,
+   data-source uids, whether a renderer exists, the feature toggles, and what is really there. Then
+   take every identifier from the target — "Do not invent PromQL, LogQL, datasource UIDs, label
+   names, or folder UIDs." An empty search from a token without `dashboards:read` looks exactly like
+   an empty instance, so check the grants before believing a negative.
 3. **Read the live model with the API version pinned** and export it; that export is the rollback.
 4. **Author in the repository copy**, following the rules below and [json-model](./references/json-model.md).
 5. **Validate**: `jq empty`; `dashboard-linter lint --strict` where available; the schema you wrote is
@@ -154,6 +158,10 @@ active licence and plugin allowlist with the Grafana administrator before provis
   references; review query changes, scope, units, thresholds, links, and no-data behavior in a pull
   request; provisioning ignores `version` and overwrites UI saves, so a UI edit is a draft until it is
   exported and committed ([provisioning](./references/provisioning.md)).
+- **Detect drift rather than hoping for it.** Grafana stamps
+  `metadata.annotations["grafana.app/saved-from-ui"]` when a dashboard's last write came from the
+  browser, which makes hand-edits to a reviewed dashboard cheap to find; pair it with a diff of the
+  stored spec against the repository copy ([http-api](./references/http-api.md)).
 - Know which schema each dashboard is stored as (Classic, V1 Resource, V2 Resource); pin the API
   version on reads; never mix fields or write V2 over a V1-stored dashboard.
 - `curl` + JSON files is the primary path and works on every host and in CI. `gcx` (GA, built for
@@ -167,7 +175,7 @@ Read only the reference needed for the task:
 
 | Need | Reference |
 |---|---|
-| Search, read, export, create, update, verify, version history over HTTP; the pre-write checklist; failure table | [dashboard HTTP API](./references/http-api.md) |
+| Instance preflight, search, read, export, import, create, update, verify, version history, drift check; the pre-write checklist; failure table | [dashboard HTTP API](./references/http-api.md) |
 | Field rules, Classic/V1/V2 shapes and skeletons, variables and formats, panel choice and hygiene, export/import, the linter checklist | [JSON model](./references/json-model.md) |
 | Provisioning, Git Sync, sidecar/Terraform delivery, repository conventions, CI, rollback | [provisioning and as code](./references/provisioning.md) |
 | gcx, the Grafana MCP server, vendor skill packages, Foundation SDK | [agent tooling](./references/agent-tooling.md) |

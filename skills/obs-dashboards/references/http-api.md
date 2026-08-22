@@ -92,6 +92,89 @@ H=(-H "Authorization: Bearer $GRAFANA_SA_TOKEN" -H "Content-Type: application/js
 NS=default   # confirm on the target
 ```
 
+## Preflight — the first eight calls against an unfamiliar Grafana
+
+Run this before the first read and before any write. Every call below was executed in this order
+against a real instance; each one answers a question that silently changes what the rest of this
+reference means. `[verified: QA]`
+
+```bash
+# 1. Reachable, and which version and edition? (no auth needed)
+curl -sS "$GRAFANA_URL/api/health"
+#    -> {"database":"ok","version":"13.1.4","commit":"...","enterpriseCommit":"..."}
+#    An `enterpriseCommit` field means an Enterprise build — the precondition for the Wavefront and
+#    Splunk plugins. Absent means OSS, and those plugins cannot be licensed here at all.
+
+# 2. What can this token actually do? Do this BEFORE trusting any empty result.
+curl -sS "${H[@]}" "$GRAFANA_URL/api/access-control/user/permissions"
+#    Look for dashboards:read / :write / :create / :delete and their SCOPES. A grant scoped to
+#    `folders:uid:general` is not org-wide, and a missing `dashboards:read` makes every search lie.
+
+# 3. Which org, therefore which namespace?
+curl -sS "${H[@]}" "$GRAFANA_URL/api/org"          # id 1 -> namespace `default`
+
+# 4. Which dashboard API versions are served, and which is preferred?
+curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/"
+#    -> 13.1.4 serves v0alpha1, v1, v1beta1, v2alpha1, v2beta1, v2 with preferredVersion v2.
+#    Pin a version on every subsequent read; the preferred one is NOT the Classic shape.
+
+# 5. Which data sources exist, with their uids and types?
+curl -sS "${H[@]}" "$GRAFANA_URL/api/datasources"
+#    Take uid AND type from here. Never copy a uid from another instance or from a dashboard file.
+
+# 6. Is an image renderer deployed? (decides whether a visual check is even possible)
+curl -sS "${H[@]}" "$GRAFANA_URL/api/frontend/settings"   # -> .rendererAvailable
+
+# 7. Which dashboard-relevant feature toggles are on?
+#    Same response as 6: .featureToggles — dashboardNewLayouts, provisioning, and friends.
+#    `provisioning` on means Git Sync/as-code provisioning is live; note it is REMOVED in 13.2.
+
+# 8. What is actually here, and is the answer trustworthy?
+curl -sS "${H[@]}" "$GRAFANA_URL/api/search?type=dash-db&limit=100"
+#    Cross-check the count against step 2. An empty list from a token without `dashboards:read`
+#    is byte-identical to an empty instance.
+```
+
+Record the answers in the inventory ([wavefront-legacy](./wavefront-legacy.md)) rather than
+re-deriving them each session, and re-run the preflight after any Grafana upgrade — every fact above
+is version-bound.
+
+## Drift check — has anyone edited a provisioned dashboard by hand?
+
+The as-code contract only holds if someone notices when it is broken. Two signals, both cheap:
+
+```bash
+# 1. Was this dashboard last saved from a browser rather than from code?
+curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>" \
+  | jq -r '.metadata.annotations["grafana.app/saved-from-ui"] // "not saved from the UI"'
+#    -> "Grafana v13.1.4 (afdab62868)" when the last write came from the browser. [verified: QA]
+#    Grafana stamps this annotation on a UI save; a provisioned or API-applied dashboard has it
+#    only if a human overwrote it since. That makes it the cheapest drift detector available.
+
+# 2. Does the live model still equal the reviewed repository copy?
+#    Diff the STORED spec against the repo file — never the raw response, which carries
+#    server-owned metadata, and never your local file against itself.
+python - <<'PY'
+import json, subprocess
+live = json.loads(subprocess.run([...], capture_output=True, text=True).stdout)["spec"]
+repo = json.load(open("dashboards/<app>/<uid>.json"))
+print("DRIFT" if json.dumps(live, sort_keys=True) != json.dumps(repo, sort_keys=True) else "clean")
+PY
+```
+
+Two properties make this safe to run on a schedule, both `[verified: QA]`:
+
+- **Re-applying byte-identical content is idempotent** — the version counter does not move and no
+  conflict is raised, so a job that re-applies the reviewed model when nothing changed is inert.
+- **A create round-trip is not byte-preserving** (see [json-model](./json-model.md)): the server
+  injects defaults and strips `spec.uid`/`spec.version`. So the *first* diff after adopting an
+  existing dashboard will show additions you never wrote. Normalize once — commit the exported
+  stored model as the baseline — and diff against that from then on, or the check cries wolf forever.
+
+When drift is found, the fix is a pull request against the repository copy, then re-apply through the
+controlled path. Never "fix" it by exporting the hand-edit over the reviewed source without review —
+that launders an unreviewed change into the record.
+
 ## Discover — never invent a uid, folder, or data source
 
 ```bash
