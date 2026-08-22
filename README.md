@@ -47,7 +47,7 @@ The one manual command is `/save-toolkit:adr` (ADR scaffold).
 
 | Agent | Lane | Routing |
 |---|---|---|
-| `sde` | Build, fix, refactor, and test code or operations tooling | Delegates review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
+| `sde` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `reviewer` | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `sde`; terminal |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
 | `sre` | Investigate active production or staging failures (guarded read-only Bash) | Delegates observability follow-up to `observability-engineer`, operational docs to `scribe`, and fact checks to `researcher` |

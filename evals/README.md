@@ -246,7 +246,7 @@ Make one candidate by default. Only an explicitly requested optimization may try
 candidates under a fixed call or cost budget. Keep scratch prompts, transcripts, and rejected
 intermediate candidates ephemeral. Retain the regression case, exact incumbent and winning
 revisions, per-case results, cost, and decision in the PR. Unfinished work belongs in
-`docs/fleet-roadmap.md` with one owner. PR review promotes the exact revision; the eval runner never edits,
+`docs/fleet-roadmap.md` with one owner. Human acceptance of the exact PR revision promotes it; the eval runner never edits,
 merges, releases, deploys, or changes a live system.
 
 ## Adding scenarios

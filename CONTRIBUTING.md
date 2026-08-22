@@ -7,7 +7,7 @@ file is the contributor protocol — how to change, verify, and promote work.
 
 Use the `agent-authoring` method to prototype a new agent or skill in
 `~/.claude/{agents,skills}`. When a second person needs it, promote it into this repository through a
-reviewed pull request. Personal definitions still run with the user's local authority, so personal-first
+pull request. Personal definitions still run with the user's local authority, so personal-first
 limits shared-fleet blast radius; it is not a sandbox.
 
 ## Edit canonical source, generate host adapters

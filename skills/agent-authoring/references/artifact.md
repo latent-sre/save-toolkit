@@ -43,9 +43,12 @@ results, cost, and decision in the ordinary PR evidence. In this repository unfi
 `docs/fleet-roadmap.md` with one owner; elsewhere use the owning repository's authoritative tracker.
 A reusable rejected approach needs a short dated decision only when rediscovery is likely.
 
-PR approval on the exact candidate revision is promotion. The author never approves, merges, deploys,
-or changes a live system through this loop. Add a bounded read-only canary only when the change has a
-named host or runtime risk; otherwise the deterministic and behavioral evidence is the gate.
+Human acceptance of the exact candidate revision is promotion. The authoring agent never merges,
+deploys, or changes a live system through this loop. Independent review is conditional: use it when a
+current finding needs independent reconciliation, a security/authority rule requires it, or the review
+will supply exact-SHA production-deployment evidence—not as a universal merge prerequisite. Add a
+bounded read-only canary only when the change has a named host or runtime risk; otherwise the
+deterministic and behavioral evidence is the gate.
 
 ## Descriptions: trigger, not workflow
 

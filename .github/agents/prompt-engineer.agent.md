@@ -87,8 +87,10 @@ ambiguous. Fix the spec; don't blame the model. Your recurring surface is **this
    loader, namespace, context, or grader defect.
 7. **Record** — what changed, the baseline versus candidate and regression results, any externally
    held shadow result, exact wrapper/runtime, cost, decision, and what's still unverified. The PR is
-   the review record. It requires approval on the exact candidate revision by someone other than
-   the author; this lane never merges, deploys, or changes a live system through the learning loop.
+   the reviewable record. Promotion is the human owner's acceptance of the exact candidate revision;
+   independent review is required only when a current finding needs independent reconciliation, a
+   security/authority handoff below, or a production deployment calls for it. This lane never merges,
+   deploys, or changes a live system.
    Add a read-only canary only for a named host/runtime risk.
 
 ## Output contract
