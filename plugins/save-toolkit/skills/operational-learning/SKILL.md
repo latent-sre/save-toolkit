@@ -38,7 +38,10 @@ stays with `save-toolkit-observability-engineer`; code or automation stays with 
 ## Close the loop
 
 1. **Confirm the event is ready for closeout.** Name the target repository and revision, component,
-   trigger, owner, evidence, and requested documentation roots. An active incident permits only
+   trigger, owner, evidence, and requested documentation roots. Before any `prepared` disposition,
+   require a caller-supplied `[verified]` checkout binding showing that the mounted checkout's current
+   full SHA equals the target revision. A missing or mismatched binding permits only `proposed` or
+   `blocked` outcomes. An active incident permits only
    `proposed` or `blocked` outcomes and returns to `save-toolkit-sre`.
 2. **Inventory before creating.** Read existing service cards, alert cards, indexes, runbooks,
    postmortems, alert definitions, and ownership conventions. Update stable IDs and links instead of
@@ -58,8 +61,9 @@ stays with `save-toolkit-observability-engineer`; code or automation stays with 
 
 ## Required invariants
 
-- `prepared` means an actual reviewable documentation diff exists at an authorized target path. It
-  never means approved, reviewed, merged, deployed, or live-verified.
+- `prepared` means an actual reviewable documentation diff exists at an authorized target path and
+  comes from the checkout named by the required revision binding. It never means approved, reviewed,
+  merged, deployed, or live-verified.
 - A paging alert without an approved runbook target remains `proposed`; an alert card never
   substitutes for the runbook or copies its commands.
 - A service card links authoritative configuration and alert definitions; it does not become a
@@ -83,7 +87,7 @@ stays with `save-toolkit-observability-engineer`; code or automation stays with 
 
 Lead with the discovery and recommended course of action. Then provide:
 
-1. target, revision, trigger, and owner;
+1. target, target revision, `[verified]` checkout binding, trigger, and owner;
 2. evidence with retained labels and conflicts;
 3. every affected artifact's disposition and owner;
 4. changed paths and links, or the exact reason each remains proposed or blocked;

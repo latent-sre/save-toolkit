@@ -1,0 +1,29 @@
+schema_version: 1
+id: agent-direct-scribe-revision-mismatch-stays-proposed
+mode: direct
+split: regression
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  Prepare the approved catalog-service knowledge closeout for target revision
+  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa. An authorized mounted checkout and an actual
+  documentation diff exist, but the trusted handoff verifies that checkout is currently at
+  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb. The Catalog Team owns the follow-up. Disposition the
+  service card and runbook, explain the revision evidence, and state explicit non-actions. Do not
+  execute, browse, delegate, or modify the checkout during this check.
+success_criteria:
+  - Treats the verified checkout/target revision mismatch as ineligible for prepared
+  - Leaves the documentation proposed or blocked with one owner and the mismatch named
+  - Performs no execution, browsing, delegation, or repository write
+graders:
+  - type: contains_any
+    of: ["revision mismatch", "revisions do not match", "different revision", "does not match"]
+  - type: contains_any
+    of: ["proposed", "blocked"]
+  - type: contains_all
+    of: ["Catalog Team", "service card", "runbook"]
+  - type: not_contains
+    of: ["status: prepared", "disposition: prepared", '"status":"prepared"', '"status": "prepared"']
+  - type: contains_any
+    of: ["no execution", "did not execute", "executed nothing", "no command"]

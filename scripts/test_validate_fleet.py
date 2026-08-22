@@ -109,6 +109,47 @@ class FleetValidatorTests(unittest.TestCase):
             with self.subTest(template=relative.as_posix()):
                 self.assertIn("last_reviewed: null", (ROOT / relative).read_text(encoding="utf-8"))
 
+    def test_operational_templates_use_reviewable_provenance_not_retired_ids(self) -> None:
+        expected_provenance = {
+            Path("skills/operational-learning/assets/service-card-template.md"): (
+                "| Date | PR / revision / evidence reference | Change | Reviewer |"
+            ),
+            Path("skills/operational-learning/assets/alert-card-template.md"): (
+                "| Date | PR / revision / evidence reference | Change | Reviewer |"
+            ),
+            Path("skills/operational-learning/assets/knowledge-index-template.md"): (
+                "| PR / revision / evidence reference | Trigger | Summary | Dispositions | Reviewed change |"
+            ),
+            Path("skills/runbook/assets/runbook-template.md"): (
+                "- Provenance: <PR, target revision, and evidence references>"
+            ),
+        }
+        for relative, marker in expected_provenance.items():
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(template=relative.as_posix()):
+                self.assertNotIn("knowledge update id", text.lower())
+                self.assertNotIn("update id", text.lower())
+                self.assertNotIn("ol_ id", text.lower())
+                self.assertIn(marker, text)
+
+    def test_prepared_requires_verified_checkout_revision_binding(self) -> None:
+        contract_paths = (
+            Path("agents/scribe.md"),
+            Path("skills/operational-learning/SKILL.md"),
+            Path("skills/operational-learning/references/disposition-policy.md"),
+        )
+        for relative in contract_paths:
+            text = re.sub(
+                r"\s+",
+                " ",
+                (ROOT / relative).read_text(encoding="utf-8").lower(),
+            )
+            with self.subTest(contract=relative.as_posix()):
+                self.assertIn("mounted checkout's current full sha equals the target revision", text)
+                self.assertIn("`[verified]` checkout binding", text)
+                self.assertIn("`proposed`", text)
+                self.assertIn("`blocked`", text)
+
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
         fields, body, _ = validate_fleet.adapters.parse_frontmatter(
             ROOT / "agents" / "observability-engineer.md"

@@ -154,6 +154,14 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertIn("https://example.atlassian.net/wiki/pages/123", self.draft)
         self.assertIn("page.html", self.draft)
 
+    def test_incident_history_uses_reviewable_provenance_not_retired_update_ids(self) -> None:
+        self.assertIn(
+            "Follow-up (disposition / PR or evidence reference)",
+            self.draft,
+        )
+        self.assertNotIn("update id", self.draft.lower())
+        self.assertNotIn("ol_ id", self.draft.lower())
+
     def test_report_survives_a_hostile_inherited_encoding(self) -> None:
         # The bug this pins: the child encoded with an inherited PYTHONIOENCODING while the parent
         # decoded with the locale encoding, so a curly quote the locale lacked killed the reader

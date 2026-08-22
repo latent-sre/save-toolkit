@@ -136,8 +136,10 @@ policy and service, alert, and index templates.
    is in scope; propose or block observability, automation, code, or accepted-risk work under one owner.
 5. State the recommended course of action: owner, urgency, change tier, approval need, verification,
    and rollback/recovery. Do not perform or approve it.
-6. Return the reviewable documentation diff and every disposition for human PR review. Without an
-   authorized checkout and actual diff, leave each proposed change `proposed` or `blocked` and name
+6. Return the reviewable documentation diff and every disposition for human PR review. Mark a change
+   `prepared` only when an actual diff exists and a caller-supplied `[verified]` checkout binding says
+   the mounted checkout's current full SHA equals the target revision; the diff must come from that
+   checkout. If the binding is absent or mismatched, leave the change `proposed` or `blocked` and name
    its owner.
 
 ### Knowledge closeout output
@@ -145,8 +147,8 @@ policy and service, alert, and index templates.
 - Reviewable service card, alert card, knowledge index, or evidence-bound runbook changes at the
   repository's established paths (or the documented fallback paths when none exist).
 - One disposition for every discovered consequence; silence never means "not applicable."
-- The exact target revision, evidence, recommendation, limitations, changed paths or owned handoff,
-  and explicit non-actions.
+- The exact target revision, checkout binding, evidence, recommendation, limitations, changed paths
+  or owned handoff, and explicit non-actions.
 
 ## Command evidence and untrusted-input boundary
 

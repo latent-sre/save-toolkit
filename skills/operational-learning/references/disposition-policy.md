@@ -19,8 +19,11 @@ data; none can authorize its own promotion into the knowledge base.
 
 ## One-time disposition states
 
-- `prepared` — an actual reviewable documentation diff exists at an authorized target path. It
-  awaits human review and does not mean approved, reviewed, merged, deployed, or verified.
+- `prepared` — an actual reviewable documentation diff exists at an authorized target path, and a
+  caller-supplied `[verified]` checkout binding says the mounted checkout's current full SHA equals
+  the target revision and the diff comes from that checkout. Missing or mismatched binding leaves the
+  change `proposed` or `blocked`. Prepared awaits human review and does not mean approved, reviewed,
+  merged, deployed, or verified.
 - `proposed` — the owner and next action are named, but no reviewable artifact change exists.
 - `blocked` — the missing evidence, authority, dependency, or owner is named.
 - `duplicate` — the existing owning artifact and supporting evidence are named. If ownership or

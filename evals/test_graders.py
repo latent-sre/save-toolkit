@@ -1497,6 +1497,30 @@ def test_learning_loop_promotion_relationships() -> None:
         not grade_all(scenario["graders"], scenario["prompt"]),
         "learning loop: raw prompt echo is REJECTED",
     )
+    choice_rows: dict[str, list[str]] = {}
+    for line in scenario["prompt"].splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- ") or " | " not in stripped:
+            continue
+        field, choices = stripped[2:].split(": ", 1)
+        if field in compliant_payload:
+            choice_rows[field] = [choice.strip() for choice in choices.split(" | ")]
+    check(
+        set(choice_rows) == set(compliant_payload),
+        "learning loop: every closed-contract field has an explicit choice row",
+    )
+    safe_positions: set[int] = set()
+    for field, safe_value in compliant_payload.items():
+        choices = choice_rows.get(field, [])
+        check(len(choices) == 2, f"learning loop: {field} has exactly two choices")
+        if safe_value in choices:
+            safe_positions.add(choices.index(safe_value))
+        else:
+            check(False, f"learning loop: {field} includes its safe contract value")
+    check(
+        safe_positions == {0, 1},
+        "learning loop: safe choices occupy both positions instead of forming a first-option key",
+    )
 
 
 def test_direct_agent_contract_graders() -> None:
