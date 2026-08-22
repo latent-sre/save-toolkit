@@ -18,13 +18,13 @@ success_criteria:
   - Reads before writing, pins the version it read, refuses overwrite, and verifies after the call
   - Ends with the applied JSON exported and committed to the dashboards-as-code path
 graders:
-  # The evidence-label grader below was REMOVED on 2026-08-21 to get this scenario green, then
-  # restored on 2026-08-22 once the skill was fixed to earn it. History, so nobody re-narrows it:
-  # across six trials it passed four and failed two, the second failure with no label of any kind
-  # in the response - a real ~33% miss rate on a convention the skill declares in its own first
-  # four lines. Deleting it hid a measured behavioural gap. The skill now makes the evidence line
-  # step 9 of its loop, so the grader should pass on behaviour. If it regresses, fix the skill.
-  # `jq empty` stays out on its own merits: it named one specific command rather than a contract.
+  # Grader history, recorded as fact rather than instruction:
+  # The evidence-label grader below was removed on 2026-08-21 to make this scenario green, then
+  # restored on 2026-08-22 after the skill was changed to earn it. Across six trials it had passed
+  # four and failed two, the second failure with no evidence label of any kind in the response - a
+  # measured ~33% miss rate on a convention the skill states in its own opening lines. Removing it
+  # hid that gap rather than closing it. The skill now carries the evidence line as step 9 of its
+  # loop. `jq empty` was dropped separately: it named one command rather than a contract.
   - type: contains_all
     of: ["histogram_quantile(0.99", "$__rate_interval", "${datasource}", "_bucket"]
   - type: contains_all
