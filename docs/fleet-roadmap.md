@@ -1017,11 +1017,16 @@ firing on every trial** (run `20260822T053153Z-e08aa40c`), where two of six tria
 produced no label at all.
 
 **Remaining (none blocking):**
-2. **One QA cleanup is unconfirmable, by design.** `sv-ap-v1` was created through the app-platform
-   path during the write-path experiment, which grants its creator no permissions. `DELETE` answers
-   `403` — and because the verification token also lacks org-wide `dashboards:read`, a `403` cannot
-   be distinguished from "already deleted". An administrator should check QA's General folder for
-   `SV probe ap v1`. (The earlier stray, `test-claude-verify`, was removed by the owner.)
+2. **One QA object is stranded — owner confirmed it is present, 2026-08-22.** `SV probe ap v1`
+   (`sv-ap-v1`) sits in QA's General folder. It was created through the app-platform path during the
+   write-path experiment, which grants its creator no permissions at all, so the verification token
+   cannot read, edit, or delete it — `DELETE` answers `403`. It needs an administrator, a UI delete,
+   or a permission grant on that one dashboard. It is inert: one panel, no alerts, no links.
+
+   Worth keeping as the worked example rather than only as a chore: this is the failure the
+   reference now warns about, produced by an agent that had already documented it. The rule it
+   proves — never write through the app-platform family with a create-only grant, because you can
+   neither verify nor roll back — is in `http-api.md` under the credentials section.
 3. **Every `[verified: QA]` label is bound to Grafana 13.1.4** and must be re-checked after the 13.2
    upgrade — in particular the `409` conflict semantics and the new `export_inputs.go` behavior that
    resolves `${VAR_*}` constants during v0→v1 conversion.
