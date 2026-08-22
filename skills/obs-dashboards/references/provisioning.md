@@ -64,11 +64,11 @@ providers:
       foldersFromFilesStructure: true   # then leave `folder` and `folderUid` unset; depth <= 4
 ```
 
-Dashboard files may be Classic JSON or the Kubernetes-style resource (`kind: Dashboard`,
-`apiVersion: dashboard.grafana.app/v1` or `v2beta1`, `metadata.name` = uid, `spec`); V2 requires the
-latter. That shape is Grafana's own API envelope and implies no Kubernetes — a plain self-managed
-Grafana serves and stores it `[verified]`. Use a stable `uid` in every model and refer to data sources through the `${datasource}`
-variable, not installation-specific uids or display names ([json-model](./json-model.md)).
+Dashboard files consumed by this file provider must use Classic JSON; it does not accept the
+app-platform resource envelope. Use the app-platform API or Git Sync for V1/V2 resources (V2
+requires the resource format). Use a stable `uid` in every model and refer to data sources through
+the `${datasource}` variable, not installation-specific uids or display names
+([json-model](./json-model.md)).
 
 ## Delivery paths
 
