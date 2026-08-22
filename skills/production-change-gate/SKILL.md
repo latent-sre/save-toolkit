@@ -14,13 +14,10 @@ Any action that touches production must clear this gate **before execution**. Th
 prepare, and recommend. A human release owner or separately approved protected automation executes an
 authorized live change; an agent never executes it.
 
-**One exception exists and it is narrow.** `observability-engineer` applies Grafana **dashboard**
-create/update itself, production included, under the dashboard write rule in its own body
-(ADR `docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md`). That rule's four
-conditions — target and full diff shown first, live model exported as the rollback, the API family's
-concurrency token pinned, applied JSON committed in the same task — stand in place of the approval
-step, not beside it. Dashboards and their folders only: alert rules, data sources, contact points,
-permissions, and everything in every other lane clear this gate normally.
+**Grafana dashboard exception.** `observability-engineer` may create or update Grafana dashboards
+without this gate's approval; this is the sole live-write exception. Its agent body owns the authority
+and stop rule; `obs-dashboards` owns the procedure. If that procedure routes the change to a human,
+the human apply follows this gate. Every other live change follows this gate.
 
 > **The checklist is not the enforcement.** It records a human decision. For a production deployment,
 > a protected environment gates access to the deployment credential. For another planned production
