@@ -69,6 +69,10 @@ unified runner measures two different properties and never blends their scores:
   and host with the result, and never put it in the regression split. A red means "not dispatched",
   not "agent misrouted" or "agent broken". See the
   [accepted EVAL-002 decision](../docs/decisions/2026-08-22-agent-discovery-calibration.md).
+  The clean room's `--tools Skill,Task` and `--disallowedTools` reach every subagent the main session
+  dispatches, so a routed agent can report but never Read, Write, or run anything. Discovery graders
+  must therefore be satisfiable by a tool-less, routed response; a grader that demands execution
+  evidence is unsatisfiable here by construction.
 - **Direct contract compliance**: once the component is explicitly pinned, does its response satisfy
   the behavioral contract?
 
