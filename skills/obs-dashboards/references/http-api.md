@@ -311,7 +311,10 @@ curl -sS "${H[@]}" -X PUT --data @update.json \
 jq -n --slurpfile d dashboard.json --argjson v "$(jq .dashboard.version live-legacy.json)" \
   '{dashboard: ($d[0] | .version = $v), folderUid: "<folder uid>", message: "PR #<n> <full-sha>", overwrite: false}' > update-legacy.json
 curl -sS "${H[@]}" -X POST --data @update-legacy.json "$GRAFANA_URL/api/dashboards/db"
-#   412 {status:"version-mismatch", message:"The dashboard has been changed by someone else"} → re-read, never overwrite:true
+#   409 {"message":"Dashboard already exists. Use overwrite flag to update."} on 13.1.4 [verified: QA]
+#       — the SAME body for a stale version and for a taken uid; re-read and compare the version
+#   412 {status:"version-mismatch"} — the v12.4.1 documented shape, not observed on 13.1.4
+#       → either way: re-read, never overwrite:true
 ```
 
 **Settled by forcing a conflict on 13.1.4 `[verified: QA]`.** Both families protect you, with
@@ -382,9 +385,25 @@ curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>/versions?limit=20"
 curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>/versions/<version>"
 ```
 
-The export you took **before** the write is the rollback: re-apply it through the same update path.
-For a provisioned dashboard the durable rollback is the repository revert; a version restored in the UI
-is overwritten on the next provisioning cycle. The UI keeps 20 versions by default
+**Rolling back is not "re-apply the export".** The model you exported before the write carries the
+concurrency token as it was *then*; your own write has since moved it, so re-applying that file
+under the pinning discipline above returns `409` and rolls nothing back. Rebase the saved content
+onto the current object:
+
+```bash
+# 1. read the live object again — this is the only source of a usable token
+curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>" > now.json
+# 2. put the SAVED spec into the CURRENT envelope, and drop status (see json-model.md)
+python -c "import json,sys; live=json.load(open('now.json')); saved=json.load(open('live.json')); \
+  live['spec']=saved['spec']; live.pop('status',None); json.dump(live,open('rollback.json','w'))"
+# 3. apply it like any other update
+curl -sS "${H[@]}" -X PUT --data @rollback.json \
+  "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>"
+```
+
+On the legacy path the same rule holds: take `dashboard.version` from a fresh read, not from the
+export. For a provisioned dashboard the durable rollback is the repository revert; a version
+restored in the UI is overwritten on the next provisioning cycle. The UI keeps 20 versions by default
 (`[dashboards] versions_to_keep`). *[sourced: docs resource-history; api-legacy/dashboard_versions; manage-version-history]*
 
 ## The dashboard write rule — pre-write checklist

@@ -78,6 +78,25 @@ class RuleMutationTest(unittest.TestCase):
         fired = self._mutate(lambda m: m["panels"][0]["fieldConfig"]["defaults"].pop("unit"))
         self.assertIn("panel-units", fired)
 
+    def test_a_text_panel_is_not_asked_for_a_query_or_a_no_value(self) -> None:
+        # Shipped defect: the documentation Text panel this skill tells authors to add was reported
+        # for having no target and no "No value", so the mandatory pre-write check failed on a
+        # correct dashboard.
+        model = clean_model()
+        model["panels"] = [{
+            "id": 9, "type": "text", "title": "About this dashboard",
+            "description": "purpose, links, and how to read it",
+            "options": {"content": "# Purpose"}, "fieldConfig": {"defaults": {}},
+        }]
+        fired = rules_fired(model)
+        self.assertNotIn("panel-no-targets", fired)
+        self.assertNotIn("panel-no-value", fired)
+        self.assertNotIn("panel-units", fired)
+
+    def test_a_querying_panel_is_still_asked_for_a_target(self) -> None:
+        # The exemption must be scoped to non-querying types, not a hole for every panel.
+        self.assertIn("panel-no-targets", self._mutate(lambda m: m["panels"][0].update(targets=[])))
+
     def test_unit_is_not_demanded_of_a_text_panel(self) -> None:
         # The rule must not fire where a unit is meaningless, or people learn to ignore it.
         def mutate(m):
@@ -98,6 +117,25 @@ class RuleMutationTest(unittest.TestCase):
         )
         self.assertIn("panel-datasource", fired)
 
+    def test_a_target_level_datasource_override_is_flagged(self) -> None:
+        # Shipped defect: only panel.datasource was inspected. Grafana uses the target's override
+        # when present, so a panel reading ${datasource} with one hard-coded target broke on move
+        # while reporting clean.
+        fired = self._mutate(
+            lambda m: m["panels"][0]["targets"][0].update(
+                datasource={"type": "prometheus", "uid": "dfr5gp9z5pzb4a"}
+            )
+        )
+        self.assertIn("panel-datasource", fired)
+
+    def test_a_target_datasource_variable_is_not_flagged(self) -> None:
+        fired = self._mutate(
+            lambda m: m["panels"][0]["targets"][0].update(
+                datasource={"type": "prometheus", "uid": "${datasource}"}
+            )
+        )
+        self.assertNotIn("panel-datasource", fired)
+
     def test_builtin_datasource_is_not_flagged(self) -> None:
         fired = self._mutate(
             lambda m: m["panels"][0].update(datasource={"type": "datasource", "uid": "-- Grafana --"})
@@ -117,12 +155,48 @@ class RuleMutationTest(unittest.TestCase):
         )
         self.assertIn("target-rate-interval", fired)
 
+    def test_one_correct_rate_call_does_not_excuse_a_second_wrong_one(self) -> None:
+        # Shipped defect: the rule asked whether $__rate_interval appeared ANYWHERE in the
+        # expression, so a compound query passed on the strength of its first call.
+        fired = self._mutate(
+            lambda m: m["panels"][0]["targets"][0].update(
+                expr="rate(a_total[$__rate_interval]) + rate(b_total[5m])"
+            )
+        )
+        self.assertIn("target-rate-interval", fired)
+
+    def test_every_rate_call_correct_is_clean(self) -> None:
+        fired = self._mutate(
+            lambda m: m["panels"][0]["targets"][0].update(
+                expr="rate(a_total[$__rate_interval]) + rate(b_total[$__rate_interval])"
+            )
+        )
+        self.assertNotIn("target-rate-interval", fired)
+
     def test_raw_counter_without_aggregation(self) -> None:
         fired = self._mutate(lambda m: m["panels"][0]["targets"][0].update(expr="http_requests_total"))
         self.assertIn("target-counter-agg", fired)
 
     def test_counter_inside_rate_is_not_flagged(self) -> None:
         self.assertNotIn("target-counter-agg", rules_fired(clean_model()))
+
+    def test_a_raw_counter_after_a_closed_rate_call_is_flagged(self) -> None:
+        # Shipped defect: scope was inferred by counting parentheses before the metric, so the
+        # already-closed rate call earlier in the expression made this counter look rated.
+        fired = self._mutate(
+            lambda m: m["panels"][0]["targets"][0].update(
+                expr="sum(rate(a_total[$__rate_interval])) / sum(b_total)"
+            )
+        )
+        self.assertIn("target-counter-agg", fired)
+
+    def test_a_raw_counter_beside_a_rate_call_is_flagged(self) -> None:
+        fired = self._mutate(
+            lambda m: m["panels"][0]["targets"][0].update(
+                expr="rate(a_total[$__rate_interval]) + sum(b_total)"
+            )
+        )
+        self.assertIn("target-counter-agg", fired)
 
     def test_include_all_without_custom_all_value(self) -> None:
         fired = self._mutate(lambda m: m["templating"]["list"][1].update(allValue=""))
@@ -136,6 +210,11 @@ class RuleMutationTest(unittest.TestCase):
 
     def test_editable_dashboard(self) -> None:
         self.assertIn("uneditable-dashboard", self._mutate(lambda m: m.update(editable=True)))
+
+    def test_a_missing_editable_key_is_flagged_like_true(self) -> None:
+        # Grafana's default is editable, so omitting the key stores a writable dashboard exactly as
+        # `true` does. Only asserting the literal `true` case let the absent case through.
+        self.assertIn("uneditable-dashboard", self._mutate(lambda m: m.pop("editable")))
 
     def test_missing_tags(self) -> None:
         self.assertIn("dashboard-tags", self._mutate(lambda m: m.update(tags=[])))
@@ -152,10 +231,17 @@ class StructureTest(unittest.TestCase):
         self.assertIn("panel-description", rules_fired(model))
 
     def test_row_panels_are_not_themselves_checked(self) -> None:
+        # A row has no unit, description, or targets and must not be reported for lacking them.
+        # Written flat on purpose: the previous form was `fired - {a} & {b, c}`, which is correct
+        # (binary `-` binds tighter than `&`) and was proven to fail under mutation, but a reviewer
+        # read it as vacuous. An assertion whose correctness needs a precedence argument is a bad
+        # assertion even when it works.
         model = clean_model()
         model["panels"] = [{"type": "row", "title": "R", "panels": []}]
-        # A row has no unit, description, or targets and must not be reported for lacking them.
-        self.assertEqual(set(), rules_fired(model) - {"dashboard-tags"} & {"panel-units", "panel-no-targets"})
+        fired = rules_fired(model)
+        self.assertNotIn("panel-units", fired)
+        self.assertNotIn("panel-no-targets", fired)
+        self.assertNotIn("panel-description", fired)
 
     def test_k8s_wrapper_is_unwrapped(self) -> None:
         wrapped = {"apiVersion": "dashboard.grafana.app/v1", "kind": "Dashboard",

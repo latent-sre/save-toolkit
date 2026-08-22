@@ -18,7 +18,7 @@ workflows below.
   folder's grants. Reach for a folder-scoped grant before proposing an org-role bump — "needs to edit
   the team's dashboards" is not "needs org Editor". Organization admins keep full access regardless.
   `[sourced: dashboard permissions API and manage-dashboards docs]`
-- **Explore is permission-gated**, not tied to a hardware role: it hangs off the `datasources:explore`
+- **Explore is permission-gated**, not tied to a hard-wired role: it hangs off the `datasources:explore`
   permission. Where RBAC is licensed (Enterprise/Cloud), grant `fixed:datasources:explorer` to a team
   of viewers to give them ad-hoc querying without dashboard-edit rights; data-source query permissions
   still apply. `[sourced: RBAC rollout-strategy scenario docs]` On the deployed edition the available

@@ -35,11 +35,50 @@ import sys
 # Panel types for which a unit is meaningful. A `text` or `row` panel has no unit, and flagging one
 # would train people to ignore the checker.
 UNIT_BEARING = frozenset({"timeseries", "stat", "gauge", "bargauge", "table", "barchart", "trend"})
-# Range-vector functions that need an interval that adapts to the panel's resolution.
+# Panels that render without querying. Demanding a target or a "no value" string from these reports
+# the very documentation panel this skill tells you to add, which trains people to ignore the
+# checker as surely as a false unit warning would.
+NON_QUERYING = frozenset({"text", "dashlist", "news", "welcome", "alertlist"})
+# Range-vector functions whose window must adapt to the panel's resolution.
 RATE_FUNCS = re.compile(r"\b(rate|irate|increase)\s*\(")
 COUNTER_NAME = re.compile(r"\b(\w+_total)\b")
+RANGE_SELECTOR = re.compile(r"\[([^\]]*)\]")
 # A datasource reference that is a literal uid rather than a variable.
 BUILTIN_DS = frozenset({"-- Grafana --", "-- Mixed --", "-- Dashboard --", "grafana"})
+
+
+def rate_call_spans(expr):
+    """[(start, end)] for each rate/irate/increase call, end just past its closing paren.
+
+    Span-based, because both rules that use it are per-call and the string-level shortcuts are
+    wrong in opposite directions:
+
+    * "does the expression contain $__rate_interval anywhere" passes
+      `rate(a_total[$__rate_interval]) + rate(b_total[5m])`, whose second call is exactly what the
+      rule exists to reject;
+    * "count parentheses before the metric" decides `sum(rate(a[$__rate_interval])) / sum(b_total)`
+      has `b_total` inside a rate call, because it cannot see that the earlier call already closed.
+
+    Both were shipped and both were caught in review; the spans make each call answerable on its own.
+    """
+    spans = []
+    for match in RATE_FUNCS.finditer(expr):
+        depth = 0
+        index = match.end() - 1  # the opening paren
+        while index < len(expr):
+            if expr[index] == "(":
+                depth += 1
+            elif expr[index] == ")":
+                depth -= 1
+                if depth == 0:
+                    spans.append((match.start(), index + 1))
+                    break
+            index += 1
+        else:
+            # Unbalanced input: treat the remainder as the call rather than dropping it, so a
+            # malformed query is still inspected instead of silently passing.
+            spans.append((match.start(), len(expr)))
+    return spans
 
 
 def unwrap(model: dict) -> dict:
@@ -73,40 +112,51 @@ def check(spec: dict) -> list[tuple[str, str, str]]:
         defaults = (panel.get("fieldConfig") or {}).get("defaults") or {}
         ptype = panel.get("type")
 
+        querying = ptype not in NON_QUERYING
+
         if not title:
             out.append(("panel-title", where, "panel has no title; a title states the question it answers"))
         if not (panel.get("description") or "").strip():
             out.append(("panel-description", where, "no description; it renders as the panel's tooltip"))
         if ptype in UNIT_BEARING and not defaults.get("unit"):
             out.append(("panel-units", where, f"{ptype} panel has no unit set"))
-        if not (panel.get("targets") or []):
+        if querying and not (panel.get("targets") or []):
             out.append(("panel-no-targets", where, "panel has no query"))
-        if "noValue" not in defaults:
+        if querying and "noValue" not in defaults:
             out.append(("panel-no-value", where, "no 'No value' text; an empty panel must not read as healthy"))
 
-        datasource = panel.get("datasource")
-        if isinstance(datasource, dict):
+        # Portability is decided per datasource reference, and a target may override the panel's.
+        # Checking only the panel level passes a dashboard whose panel says ${datasource} while one
+        # target names a uid -- Grafana uses the target's, so the model breaks on another instance.
+        references = [("panel", panel.get("datasource"))]
+        references += [(f"target {t.get('refId', '?')}", t.get("datasource"))
+                       for t in panel.get("targets") or []]
+        for scope, datasource in references:
+            if not isinstance(datasource, dict):
+                continue
             uid = datasource.get("uid")
             if isinstance(uid, str) and not uid.startswith("$") and uid not in BUILTIN_DS:
                 out.append(("panel-datasource", where,
-                            f"hard-coded data-source uid {uid!r}; use a datasource variable so the model is portable"))
+                            f"{scope} names a hard-coded data-source uid {uid!r}; use a datasource "
+                            f"variable so the model is portable"))
 
         for target in panel.get("targets") or []:
             expr = target.get("expr") or target.get("query") or ""
             if not isinstance(expr, str) or not expr:
                 continue
             ref = target.get("refId", "?")
-            if RATE_FUNCS.search(expr) and "$__rate_interval" not in expr:
-                out.append(("target-rate-interval", f"{where} [{ref}]",
-                            "rate/irate/increase without $__rate_interval; a fixed or $__interval window "
-                            "returns No Data when zoomed in"))
+            spans = rate_call_spans(expr)
+            for start, end in spans:
+                call = expr[start:end]
+                windows = RANGE_SELECTOR.findall(call)
+                if windows and not any("$__rate_interval" in w for w in windows):
+                    out.append(("target-rate-interval", f"{where} [{ref}]",
+                                f"{call[:60]!r} uses a fixed or $__interval window; $__rate_interval "
+                                f"is required or the panel returns No Data when zoomed in"))
             for match in COUNTER_NAME.finditer(expr):
-                before = expr[:match.start()]
-                # inside a rate-family call if one opened and has not closed before the metric
-                opened = RATE_FUNCS.search(before)
-                if not opened or before.count("(") <= before.count(")"):
+                if not any(start <= match.start() < end for start, end in spans):
                     out.append(("target-counter-agg", f"{where} [{ref}]",
-                                f"counter {match.group(1)!r} used without rate/irate/increase"))
+                                f"counter {match.group(1)!r} is not inside a rate/irate/increase call"))
                     break
 
     for variable in (spec.get("templating") or {}).get("list") or []:
@@ -116,9 +166,13 @@ def check(spec: dict) -> list[tuple[str, str, str]]:
                         "'Include All' with no custom all value; the expanded expression can grow "
                         "unbounded — set one such as '.+'"))
 
-    if spec.get("editable") is True:
+    if spec.get("editable") is not False:
+        # Absent is not neutral: Grafana's default is editable, so an omitted key stores a writable
+        # dashboard exactly as `true` does. The rule is "the repository model says false", not
+        # "the repository model does not say true".
         out.append(("uneditable-dashboard", "dashboard",
-                    "editable:true on a dashboard kept as code; set false so the UI states the contract"))
+                    "set editable:false explicitly on a dashboard kept as code; omitting it stores a "
+                    "writable dashboard, same as true"))
     if not (spec.get("tags") or []):
         out.append(("dashboard-tags", "dashboard", "no tags; search and the dashboard list rely on them"))
 

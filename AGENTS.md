@@ -152,6 +152,11 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   explicit human confirmation with the plan and rollback shown first. The three gates
   (`merge-gate`, `release-gate`, `production-change-gate`) are the checklists; GitHub branch
   protection and protected environments are the real enforcement.
+  **One narrow exception, granted deliberately:** `observability-engineer` applies Grafana
+  **dashboard** create/update itself, production included, under the dashboard write rule in its
+  own body ([ADR](docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md)). Dashboards
+  and their folders only; the rule's conditions replace the approval, they do not waive it. Nothing
+  else in any lane is exempt.
 - **Handoffs use the packet convention** carried in each agent's body: one owner, the change named,
   release artifacts pinned to a full SHA, evidence labels preserved, taint marked, "what I did NOT
   do" stated.
