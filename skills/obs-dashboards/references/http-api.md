@@ -3,9 +3,8 @@
 Use this reference when the agent talks to a live Grafana itself: finding a dashboard, reading or
 exporting its model, creating or updating one, walking version history, or proving a write landed.
 `observability-engineer` runs these calls directly (its Bash is unguarded — see the **dashboard write
-rule** in its change ladder); the main session can run them too. The repository stays the source of
-truth per [provisioning](./provisioning.md): every write here ends with the applied JSON exported and
-committed.
+rule** in its change ladder); the main session can run them too. Grafana is the record — there is no
+committed copy — so the save `message` and the version history are what a later reader has.
 
 **Evidence frame.** Every call here — search, read, export, create, update, the concurrency conflict
 on both API families, and delete — was executed against a non-production **Grafana 13.1.4 Enterprise**
@@ -131,41 +130,19 @@ Record the answers in the inventory ([wavefront-legacy](./wavefront-legacy.md)) 
 re-deriving them each session, and re-run the preflight after any Grafana upgrade — every fact above
 is version-bound.
 
-## Drift check — has anyone edited a provisioned dashboard by hand?
+## Who last wrote this dashboard, and from where
 
-The as-code contract only holds if someone notices when it is broken. Two signals, both cheap:
+Without a committed copy there is nothing to diff against, but one signal still answers the question
+that matters before you overwrite someone's work:
 
 ```bash
-# 1. Was this dashboard last saved from a browser rather than from code?
 curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>" \
-  | jq -r '.metadata.annotations["grafana.app/saved-from-ui"] // "not saved from the UI"'
-#    -> "Grafana v13.1.4 (afdab62868)" when the last write came from the browser. [verified: QA]
-#    Grafana stamps this annotation on a UI save; a provisioned or API-applied dashboard has it
-#    only if a human overwrote it since. That makes it the cheapest drift detector available.
-
-# 2. Does the live model still equal the reviewed repository copy?
-#    Diff the STORED spec against the repo file — never the raw response, which carries
-#    server-owned metadata, and never your local file against itself.
-python - <<'PY'
-import json, subprocess
-live = json.loads(subprocess.run([...], capture_output=True, text=True).stdout)["spec"]
-repo = json.load(open("dashboards/<app>/<uid>.json"))
-print("DRIFT" if json.dumps(live, sort_keys=True) != json.dumps(repo, sort_keys=True) else "clean")
-PY
+  | jq -r '.metadata.annotations["grafana.app/saved-from-ui"] // "last written through the API"'
+#    -> "Grafana v13.1.4 (afdab62868)" when the last write came from the browser [verified: QA]
 ```
 
-Two properties make this safe to run on a schedule, both `[verified: QA]`:
-
-- **Re-applying byte-identical content is idempotent** — the version counter does not move and no
-  conflict is raised, so a job that re-applies the reviewed model when nothing changed is inert.
-- **A create round-trip is not byte-preserving** (see [json-model](./json-model.md)): the server
-  injects defaults and strips `spec.uid`/`spec.version`. So the *first* diff after adopting an
-  existing dashboard will show additions you never wrote. Commit the exported stored model as the baseline and diff against that
-  from then on, or every run reports drift that is not there.
-
-When drift is found, the fix is a pull request against the repository copy, then re-apply through the
-controlled path. Never "fix" it by exporting the hand-edit over the reviewed source without review —
-that launders an unreviewed change into the record.
+A dashboard last saved from the UI has an owner who edited it by hand; check the version history and
+the save messages before replacing it. `GET /api/dashboards/uid/<uid>/versions` names who and when.
 
 ## Discover — never invent a uid, folder, or data source
 
@@ -218,7 +195,7 @@ schema and whether converting it to the version you asked for lost anything.
 Export hygiene before the repository sees the file: keep `uid`; drop the numeric `id` (legacy body) and
 the `metadata.resourceVersion`/`generation`/`status` block (app-platform body); leave `version`
 untouched in review; use `${datasource}` rather than instance uids; `jq empty` it; diff against the
-previous repository copy, not against memory of the UI. `meta.provisioned: true` (legacy) tells you the
+previously exported model, not against memory of the UI. `meta.provisioned: true` (legacy) tells you the
 dashboard is file-provisioned and **not API-writable** — change its source file instead.
 
 ## Create
@@ -281,7 +258,7 @@ curl -sS "${H[@]}" -X POST "$GRAFANA_URL/api/dashboards/import" --data @import.j
 replaced by the concrete `{"type":"prometheus","uid":"<bound uid>"}`, panels that used the template
 variable keep `{"uid":"$datasource"}`, and a `gnetId` records the source id. Export that stored model
 and commit *it* — not the downloaded file — then swap the bound uid for `${datasource}` so the
-repository copy stays portable ([json-model](./json-model.md)).
+dashboard stays portable across instances ([json-model](./json-model.md)).
 
 Never `POST /api/dashboards/db` a file that still contains `${DS_*}`: that path does no binding and
 stores the placeholder literally, producing "Datasource named ${DS_PROMETHEUS} was not found".
@@ -367,8 +344,8 @@ silently discards a concurrent edit and is never the fix for a 409/412.
    `[unverified — no renderer was available to exercise it]`, then check for empty top-row panels,
    truncated titles, overlapping panels, missing units. When it returns `false`, say so plainly and
    report the write as verified-by-query-only: never claim a visual check you did not make.
-4. **Export and commit** the applied model to the dashboards-as-code path in the same task, with the
-   PR/commit in the `grafana.app/message` you sent.
+4. **Set `grafana.app/message`** to a ticket or change reference on the write itself, so the version
+   history carries why. It is the only durable record of the change.
 
 ## Version history and rollback
 

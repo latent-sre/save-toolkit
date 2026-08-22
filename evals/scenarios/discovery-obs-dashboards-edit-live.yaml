@@ -10,28 +10,30 @@ prompt: |
   on our self-managed Grafana 13.1 and apply the change over the HTTP API yourself. Show the panel
   JSON with its PromQL, the exact read and write calls, how you avoid clobbering someone else's
   concurrent save, how you verify the write landed, and what you commit afterwards. This is a
-  dashboard edit, not alert design and not incident triage.
+    dashboard edit, not alert design and not incident triage. Dashboards here are managed in Grafana
+  itself; there is no repository copy to commit to.
 routing:
   expect: fire
 success_criteria:
   - Routes a live dashboard edit to the dashboards lane rather than metrics, alerting, or sre
   - Reads before writing, pins the version it read, refuses overwrite, and verifies after the call
-  - Ends with the applied JSON exported and committed to the dashboards-as-code path
+    - Records the change in the save message, the only durable trace of an instance-only write
 graders:
   # Grader history, recorded as fact rather than instruction:
   # The evidence-label grader below was removed on 2026-08-21 to make this scenario green, then
   # restored on 2026-08-22 after the skill was changed to earn it. Across six trials it had passed
   # four and failed two, the second failure with no evidence label of any kind in the response - a
-  # measured ~33% miss rate on a convention the skill states in its own opening lines. Removing it
-  # hid that gap rather than closing it. The skill now carries the evidence line as step 9 of its
-  # loop. `jq empty` was dropped separately: it named one command rather than a contract.
+  # measured ~33% miss rate on a convention the skill states in its own opening lines.
+  # The `commit` grader was replaced on 2026-08-22: the owner recorded that dashboards are managed
+  # in Grafana only, with no repository copy, so a committed artefact is not something the skill can
+  # produce. The save message and version history are the durable record it asserts instead.
   - type: contains_all
     of: ["histogram_quantile(0.99", "$__rate_interval", "${datasource}", "_bucket"]
   - type: contains_all
     of: ["overwrite", "version", "diff"]
   - type: contains_any
     of: ["409", "412"]
-  - type: contains_all
-    of: ["commit"]
+  - type: contains_any
+    of: ["message", "version history"]
   - type: contains_any
     of: ["[unverified]", "[verified]", "[sourced]"]

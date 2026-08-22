@@ -48,8 +48,8 @@ Grafana 13 minor is `[unverified]` until exercised there.
 - **Star the dashboards you actually use.** Starred dashboards filter to the top of search and the
   home list — the cheap fix for "I can never find the right dashboard".
 - **Propose changes as code.** A viewer who spots a wrong threshold or a missing panel does not need
-  edit rights: dashboards are repository JSON here, so the change is a pull request against the
-  provisioned source (see [provisioning](./provisioning.md)), reviewed like any other change.
+  edit rights: an Editor or the observability lane can make the change on the instance — say which
+  dashboard, which panel, and what should differ.
 
 ## Editor workflows — beyond dragging panels
 
@@ -66,9 +66,8 @@ Grafana 13 minor is `[unverified]` until exercised there.
   control; anyone with the link sees the numbers. Prefer an internal share link. If a snapshot is
   genuinely needed (external party, ephemeral data), scrub it, set an expiry, and treat posting it
   like attaching a log excerpt — redaction rules apply.
-- **The UI is a preview, not the record.** Draft in the UI, then export and commit per
-  [provisioning](./provisioning.md) and the [HTTP API reference](./http-api.md); a UI-only edit to a
-  provisioned dashboard is overwritten by the next source update. `allowUiUpdates: false` makes this
-  contract visible rather than surprising.
+- **A UI edit is a real change with no review.** Grafana records it in version history with your
+  name, and that history is the only trace. Set a meaningful save message, and prefer the API path in
+  [http-api](./http-api.md) when the change is worth a diff and a rollback.
 
 <!-- terminal-canary: q_odview_7a3d -->

@@ -654,11 +654,16 @@ closing line, then re-run the scenario and expect 3/3 on behavior rather than on
 
 ### DASH-002 — decide how one dashboard JSON serves two Grafana instances
 
-**Status:** `decision-needed` (2026-08-22) — raised by the owner while templating the data-source
-inventory: "these are just qa, they are not the real ones… that opens up a new question for later."
-**Owner input, 2026-08-22: data sources are NOT provisioned as code on either instance.** That
-removes the cheap form of option 1 and elects option 4 as the recommendation below; one confirmation
-closes the item.
+**Status:** `deferred` (2026-08-22) — **retired; the premise no longer holds.** The item asked how one
+committed dashboard JSON could serve two Grafana instances whose data-source uids differ. The owner
+has since recorded that this team does not keep dashboards as code at all: they are managed in the
+UI and over the API, with no repository copy. There is no committed artefact to make portable, so
+the question does not arise. The `${datasource}` variable convention stays in `obs-dashboards` on
+its own merits — it keeps a dashboard usable when a source is replaced on the same instance — but
+the cross-instance portability problem is retired.
+
+**Reopen trigger:** the team adopts any repository copy of dashboards — file provisioning, Git Sync,
+Terraform, or committed JSON exports. Until then there is no artefact whose portability can matter.
 
 **Outcome:** The team has one recorded answer for how a committed dashboard reaches both the
 non-production and production Grafana without editing the JSON per environment, and

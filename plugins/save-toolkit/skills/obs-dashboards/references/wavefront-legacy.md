@@ -87,7 +87,7 @@ routing are owned by alerting work and must be reviewed there.
 
 | Item | Reviewed value |
 |---|---|
-| Dashboard-as-code root | `<repo path>` |
+
 | Provider / Git Sync path | `<provider YAML or Git Sync path>` |
 | Controlled apply path | `<CI job or operator procedure>` |
 | Validation target | `<non-production Grafana URL/name>` |

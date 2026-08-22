@@ -3,8 +3,7 @@
 Use this reference when you hold dashboard JSON in hand: exporting it, diffing it, adding a panel or
 variable, or authoring a new one. It records the three schemas Grafana 13 speaks, the field rules that
 make a model valid and portable, and the conventions the official linter and every well-maintained
-dashboards-as-code repository converge on. Request shapes live in [http-api](./http-api.md); the
-repository contract lives in [provisioning](./provisioning.md).
+well-maintained dashboard corpus converges on. Request shapes live in [http-api](./http-api.md).
 
 Sources reviewed 2026-08-21, read from the docs source in `github:grafana/grafana` (HEAD, the
 `latest`/13.2 site) unless marked otherwise. Field behavior on the deployed minor is `[unverified]`

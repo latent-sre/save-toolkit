@@ -1,20 +1,20 @@
 ---
 name: obs-dashboards
 description: >-
-  Grafana 13 dashboards — view, create, edit, and export them over the HTTP API and keep them as
-  code: 3am-reader layout (health, golden signals, drill-down), official best-practice rules,
-  Classic/V1/V2 schemas, variables, provisioning and Git Sync, the read-diff-write-verify-commit
+    Grafana 13 dashboards — view, create, edit, and export them over the HTTP API, where the instance
+  is the record: official best-practice rules, panel and variable hygiene, Classic/V1/V2 schemas and
+  which one a write lands in, concurrency conflicts and rollback, the discover-read-diff-write-verify
   loop, Viewer/Editor workflows, data-source licence facts. Triggers: 'build a dashboard', 'edit a
-  dashboard', 'add a panel for', 'dashboard as code'. Ownership map only, not a load: frontend-craft
-  owns product-UI charts, obs-alerting owns alert rules, sre owns an active incident.
+  dashboard', 'add a panel for', 'export the dashboard'. Ownership map only, not a load:
+  frontend-craft owns product-UI charts, obs-alerting owns alert rules, sre owns an active incident.
 argument-hint: "[service, dashboard uid, or dashboard change]"
 ---
 
 # Grafana 13 operations dashboards — as code, applied by the agent
 
 A dashboard must answer the on-call reader's next question under stress. The agent reads, creates,
-and edits dashboards on the live instance over the HTTP API, and keeps the repository copy
-authoritative.
+and edits dashboards on the live instance over the HTTP API. Grafana is the record: there is no
+committed copy of a dashboard, so the instance and its version history are the only source of truth.
 
 **Version facts that change what you do** — deployed 13.1.x, 13.2.0 planned (`stack-profile`):
 dynamic dashboards (schema V2) and Git Sync are GA and on since 13.0; legacy `/api` is deprecated in
@@ -40,7 +40,7 @@ before trusting a dashboard's silence, and export everything first as the rollba
 3. **Read the live model with the API version pinned** and export it. That export is the rollback
    *content* — not a rollback you can re-apply as-is: your own write moves the concurrency token, so
    rolling back means rebasing the saved spec onto a fresh read ([http-api](./references/http-api.md)).
-4. **Author in the repository copy**, following the rules below and [json-model](./references/json-model.md).
+4. **Author the model**, following the rules below and [json-model](./references/json-model.md).
 5. **Validate**: `python skills/obs-dashboards/scripts/dashboard_hygiene.py <file>` — the bundled,
    stdlib-only checker for the panel rules below (exit 0 clean, 1 violations, 2 uncheckable); then
    `dashboard-linter lint --strict` where the binary is available, since it validates PromQL properly.
@@ -52,8 +52,8 @@ before trusting a dashboard's silence, and export everything first as the rollba
 7. **Verify**: read it back, prove each changed query returns data on a real window, look at a
    rendered panel when a renderer exists — "Do not claim the dashboard was visually reviewed when it
    was not."
-8. **Export and commit** the applied JSON to the dashboards-as-code path in the same task, with the
-   PR/commit in the save message.
+8. **Record what changed** in the save `message` — a ticket or change reference — so Grafana's
+   version history can answer "what changed and why" later. That history is the only record.
 9. **Close with the evidence line, every time.** What you proved against the instance `[verified]`,
    what came from this skill or the docs `[sourced]`, what you could not check `[unverified]`.
    Naming no `[unverified]` item is itself a claim — the usual unchecked ones are which schema the
@@ -88,15 +88,6 @@ suspect text rather than echoing it into a shell. Nothing enforces this — say 
 - Thresholds only where they encode an operational decision; colours mean something; normalise axes
   (percent, not raw cores); stacking off by default.
 
-## Layout — top to bottom
-
-1. **Health / SLO row.** SLI, target, current burn, budget remaining together.
-2. **Golden-signals row.** Traffic, errors, latency (p50/p95/p99), saturation on one aligned time range;
-   rates and ratios, not raw counts.
-3. **Drill-down rows.** The same signals by dependency, route, instance, region, or failure class. Each
-   tests a response hypothesis; omit panels that do not change a decision. One row per service, row
-   order following the data flow.
-
 ## Panel and variable hygiene
 
 - Title each panel as the question it answers. A blank panel must not look healthy: distinguish no
@@ -123,21 +114,6 @@ list on the target (`GET /api/plugins`) before proposing either; the catalogue e
 Broadcom DX OpenExplore lifecycle note are in
 [the inventory](./references/wavefront-legacy.md).
 
-## As code
-
-- The repository holds the JSON; Grafana holds a copy. Commit stable uids and `${datasource}`
-  references with `current` unpinned; provisioning ignores `version` and overwrites UI saves, so a UI
-  edit is a draft until exported and committed ([provisioning](./references/provisioning.md)).
-- Know which version each dashboard is **stored** at and pin it on reads; the write path decides
-  storage, and a converted read can lose panels while still reporting success
-  ([json-model](./references/json-model.md)).
-- Find drift instead of hoping: `metadata.annotations["grafana.app/saved-from-ui"]` marks a dashboard
-  whose last write came from the browser ([http-api](./references/http-api.md)).
-- `curl` + JSON files is the primary path and works everywhere including CI; `gcx` and the official
-  MCP server are alternatives ([agent-tooling](./references/agent-tooling.md)).
-- Service-account tokens come from the environment at call time and never enter tracked files,
-  transcripts, or handoff packets.
-
 Read only the reference needed for the task:
 
 | Need | Reference |
@@ -145,7 +121,7 @@ Read only the reference needed for the task:
 | Instance preflight, search, read, export, import, create, update, **concurrency conflicts and rollback**, version history, drift check; the write rule's scope; failure table | [dashboard HTTP API](./references/http-api.md) |
 | Check a dashboard's panel hygiene before writing it, with no binary to install | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
 | Field rules, Classic/V1/V2 shapes and skeletons, **which version a write lands in and why `status` must be stripped**, variables and formats, panel choice and hygiene, export/import, the linter checklist | [JSON model](./references/json-model.md) |
-| Provisioning, Git Sync, repository conventions, CI, rollback | [provisioning and as code](./references/provisioning.md) |
+
 | gcx, the Grafana MCP server (**whose patch mode forces `overwrite: true`**), vendor skill packages, Foundation SDK | [agent tooling](./references/agent-tooling.md) |
 | Help Viewer/Editor users — roles, folder permissions, Explore access, sharing state, annotations | [viewer & editor workflows](./references/viewer-editor-workflows.md) |
 | Existing Wavefront/Splunk dashboard inventory and the team's naming, folder, and timezone conventions | [legacy data-source inventory](./references/wavefront-legacy.md) |
