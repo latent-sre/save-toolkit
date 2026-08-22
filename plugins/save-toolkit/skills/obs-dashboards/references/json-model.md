@@ -101,6 +101,20 @@ app-platform API or Kubernetes-format provisioning. The folder lives in the anno
 `folderUID` field inside `spec`; putting one there is ignored and silently lands the dashboard in
 General." *[sourced: grafana/gcx create-dashboard skill]*
 
+**What the server does to your model on write — `[verified: QA, 13.1.4]`.** A create round-trip is not
+byte-preserving, so diff the *stored* object, never your local file, when checking for drift:
+
+- **`spec.uid` and `spec.version` are stripped.** In the app-platform family identity is
+  `metadata.name` and concurrency is `metadata.resourceVersion` / `metadata.generation`; the copies
+  inside `spec` are accepted, recorded in `metadata.managedFields`, and dropped from the stored spec.
+  Keep `uid` in the repository file (the Classic and provisioning paths need it) but never read
+  identity or version back out of `spec` on this API.
+- **Defaults are injected.** Sending `"annotations": {"list": []}` came back carrying the built-in
+  `Annotations & Alerts` query; `fiscalYearStartMonth: 0`, `weekStart: ""`, and `timepicker: {}`
+  appeared unbidden. A first diff after any create shows these additions and they are not your change.
+- `metadata.uid` is a server-minted GUID entirely distinct from the dashboard uid in `metadata.name` —
+  the URL path uses `name`.
+
 ## V2 Resource — what changes
 
 - Panels become named **elements** (`spec.elements.<name>` of kind `Panel` or `LibraryPanel`); position

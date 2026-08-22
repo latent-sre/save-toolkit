@@ -21,10 +21,12 @@ committed.
   [service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/)
 
 Sources reviewed 2026-08-21 against the docs source for the `latest` (13.2) site. The read-only
-half of this reference was then **exercised against qa-grafana.agenticsre.dev (Grafana 13.1.4 Enterprise, org 1)** on
-2026-08-21; calls proven there are marked `[verified: QA]` inline. The write half (create,
-update, conflict, delete) is still `[unverified]` — no dashboard has been written through it —
-and behavior after the 13.2 upgrade is `[unverified]` for every call.
+half of this reference, and the **create** half of the write path, were then exercised against
+**qa-grafana.agenticsre.dev (Grafana 13.1.4 Enterprise, org 1)** on 2026-08-21; calls proven there
+are marked `[verified: QA]` inline. **Update, conflict, and delete remain `[unverified]`** — the
+service account available for the run held `dashboards:create` and nothing else, so a 403 arrived
+before any conflict could be provoked. Behavior after the 13.2 upgrade is `[unverified]` for every
+call.
 
 ## Credentials and scope
 
@@ -40,11 +42,19 @@ and behavior after the 13.2 upgrade is `[unverified]` for every call.
   plan-rbac-rollout-strategy]*
 - No dashboard-API rate limit is documented `[searched the docs tree; did not confirm the search would
   find one]`; search caps `limit` at 5000.
-- **Know what your token can do before you conclude anything from a read.**
+- **Check the token's grants before you read, and again before you write.**
   `GET /api/access-control/user/permissions` returns the effective grants and their scopes
-  (`dashboards:create: ["folders:uid:general"]`, `datasources:query: [...]`, and so on).
-  **`[verified: QA]`** An empty `/api/search` result from a token lacking `dashboards:read` is
-  byte-identical to an empty instance — check the grants before writing either conclusion down.
+  (`dashboards:create: ["folders:uid:general"]`, `datasources:query: [...]`, and so on). Two traps
+  proven on QA, both silent:
+  - **`[verified: QA]`** An empty `/api/search` result from a token lacking `dashboards:read` is
+    byte-identical to an empty instance. Check the grants before writing down "no dashboards exist".
+  - **`[verified: QA]`** A token holding only `dashboards:create` **creates successfully and then
+    cannot read, update, or delete what it made** — every follow-up call answers `403`. That token
+    can write a dashboard nobody can verify and it cannot clean up after itself. So before any
+    write, require `dashboards:create`/`dashboards:write` **and** `dashboards:read` on the target
+    folder, and `dashboards:delete` if the task might need to roll back by removing the object.
+    A write path without a read grant makes step 7 of the skill's loop impossible; refuse it rather
+    than writing blind.
 
 ## Two API families — which to call
 
@@ -104,6 +114,12 @@ curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>" > live-legacy.json
 curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards?limit=200"
 ```
 
+**`jq` is not guaranteed to exist.** On the Windows host used for the 2026-08-21 run it was absent,
+and a `jq`-built request body silently became an empty file — the API answered `400` for a reason that
+had nothing to do with the dashboard. Check `command -v jq` before relying on it, and fall back to
+`python -c` for building and validating JSON. A malformed local payload and a rejected model look the
+same from the response. `[verified: QA run]`
+
 Export hygiene before the repository sees the file: keep `uid`; drop the numeric `id` (legacy body) and
 the `metadata.resourceVersion`/`generation`/`status` block (app-platform body); leave `version`
 untouched in review; use `${datasource}` rather than instance uids; `jq empty` it; diff against the
@@ -127,12 +143,21 @@ jq -n --slurpfile spec dashboard.json '{
 curl -sS "${H[@]}" -X POST --data @create.json \
   "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards"
 #   201 created · 400 invalid body · 401/403 auth · 409 "dashboard with the same uid already exists"
+# [verified: QA] 201 returns the stored object: metadata.name = your uid, metadata.uid = a separate
+# server-minted GUID, metadata.resourceVersion (opaque, e.g. "1787372025152018"), metadata.generation: 1,
+# annotations["grafana.app/createdBy"] = "service-account:<id>", and your grafana.app/message preserved.
 
 # Legacy fallback: one endpoint creates and updates
 jq -n --slurpfile d dashboard.json '{dashboard: ($d[0] | .id = null), folderUid: "<existing folder uid>",
   message: "PR #<n> <full-sha>", overwrite: false}' > create-legacy.json
 curl -sS "${H[@]}" -X POST --data @create-legacy.json "$GRAFANA_URL/api/dashboards/db"
-#   200 {status:"success", uid, version, url} · 400 · 401/403 · 412 {status:"name-exists"} when the uid is taken
+#   200 · 400 · 401/403 · 412 {status:"name-exists"} when the uid is taken
+# [verified: QA] a fresh-uid create answers HTTP 200 with exactly:
+#   {"folderUid":"","id":1346080749527040,"slug":"test3a-claude-legacy-probe","status":"success",
+#    "uid":"test-claude-legacy","url":"/d/test-claude-legacy/test3a-claude-legacy-probe","version":1}
+# Note `version: 1` on create, and that the slug hex-encodes punctuation from the title (":" -> "3a").
+# The 412 name-exists branch is [unverified]: with a create-only token the permission check fires
+# first and returns 403 with an empty `{}` body.
 ```
 
 Mint the `uid` yourself (8–40 characters) so the repository and the live copy agree from day one; point
@@ -241,7 +266,7 @@ under the change ladder.
 | Response | Meaning | Do |
 |---|---|---|
 | `400` | Invalid body — wrong schema for the pinned version, missing required field, bad JSON | Fix the file; re-run `jq empty` and the linter; check you did not mix V1 and V2 fields |
-| `401` / `403` | Token missing, expired, or lacks `dashboards:create`/`write` on that folder | Fix the service account's role/scope; never widen to org Admin |
+| `401` / `403` | Token missing, expired, or lacks the grant for *this* verb on that folder | Fix the service account's role/scope; never widen to org Admin. **`[verified: QA]`** the app-platform body is `{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","code":403}` — it does **not** name the missing permission; the legacy path returns a bare `{}`. Neither tells you what you lack, so read `/api/access-control/user/permissions` instead of guessing from the error |
 | `404` on GET | Wrong uid, or the app-platform version is not enabled | Search first; try `v1`; fall back to the legacy family |
 | `500` naming a namespace | The namespace segment is wrong — the body reads `use default rather than org-1` `[verified: QA]` | Use the namespace the message names; do not retry the same path |
 | `[]` from search with no error | May be genuinely empty **or** the token may lack `dashboards:read` `[verified: QA — a token with `dashboards:create` but no read grant returns `[]` indistinguishably]` | Check `/api/access-control/user/permissions` before reporting "no dashboards exist" |
