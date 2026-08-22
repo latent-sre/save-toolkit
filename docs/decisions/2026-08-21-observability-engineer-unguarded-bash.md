@@ -97,3 +97,19 @@ change exists outside the instance.
 
 **Revisit if** the team adopts any repository copy of dashboards, or if a production dashboard change
 ever needs to be reconstructed after the instance's version history has rolled over.
+
+## Amendment, 2026-08-22 — the conditions are bound to the loop
+
+An adversarial review found that the grant, as written, let a production write proceed on three
+conditions alone: the rule ended "the conditions above are the checklist," while the verification
+work — permission and identifier discovery, validation, post-write read-back, query proof, visual
+check, and history confirmation — lived only in the `obs-dashboards` skill body. An agent that
+satisfied the three conditions and skipped the loop was inside the letter of the grant and could
+apply a valid-but-wrong dashboard to production unattended.
+
+The three conditions are now stated as **necessary, not sufficient**: the grant holds only when the
+skill's loop is completed, and a step that cannot be completed converts the write back into a
+hand-off. This tightens the grant. It removes no capability the owner granted on 2026-08-21 — the
+agent still writes to any Grafana including production without separate approval — it only refuses
+to call three checks a finished job.
+

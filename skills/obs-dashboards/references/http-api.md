@@ -83,12 +83,35 @@ So an unpinned read on a 13.1 instance already returns the V2 shape, and a `jq` 
 # neither is guaranteed (see the jq trap below).
 H=(-H "Authorization: Bearer $GRAFANA_SA_TOKEN" -H "Content-Type: application/json")
 NS=default        # confirm on the target
-APIVER=v1         # NOT a default: set this to the version the dashboard is STORED at, read below.
-                  # Writing at any other version silently rewrites the row's stored schema.
+APIVER=           # deliberately EMPTY. Set it from the probe below — never by hand, and never to a
+                  # remembered value. It must equal the version the dashboard is STORED at.
 ```
 
-Every `/apis/` path below uses `$APIVER` for that reason. A read may pin any version deliberately;
-a **write** uses the stored one.
+**Three things must name the same version: the URL path, the body's `apiVersion`, and the schema the
+`spec` is actually written in.** Any mismatch is silent. Writing a Classic `spec` at `$APIVER=v1`
+over a dashboard stored at `v2` does not error — it rewrites the row's stored schema to V1 and drops
+whatever V2 expressed that V1 cannot, and the response still reads `200`.
+
+`APIVER` therefore comes from a **probe**, not from a guess:
+
+```bash
+# PROBE ONLY — this read exists to learn the stored version, and its body is NOT the model you edit.
+# v0alpha1 never migrates and never validates, so it is the one read that cannot rewrite the answer.
+PROBE="$GRAFANA_URL/apis/dashboard.grafana.app/v0alpha1/namespaces/$NS/dashboards/<uid>"
+STORED=$(curl -sS "${H[@]}" "$PROBE" | python -c "import json,sys; d=json.load(sys.stdin); c=(d.get('status') or {}).get('conversion') or {}; print((c.get('storedVersion') or d.get('apiVersion','')).rsplit('/',1)[-1])")
+APIVER=$STORED
+echo "stored at: $APIVER"     # e.g. v2 — a bare version, never a group-qualified string
+```
+
+**Normalize, or the value is unusable.** `status.conversion.storedVersion` is bare (`v2`); the
+`apiVersion` fallback is group-qualified (`dashboard.grafana.app/v2`). Pasting the second into a URL
+path produces a 404 that looks like a missing dashboard. The `rsplit` above is what makes the two
+forms interchangeable — keep it. `[unverified]` the probe's exact `status.conversion` shape when the
+dashboard is already stored at `v0alpha1` was not re-measured after the QA instance was withdrawn;
+the fallback covers that case, and step 2 below fails loudly if it is wrong.
+
+Then **re-read at `$APIVER`** — that second read is the authoritative model. Never diff, edit, or
+write the probe body.
 
 ## Preflight — the first eight calls against an unfamiliar Grafana
 
@@ -170,10 +193,12 @@ backend (`obs-metrics`) or read an existing panel's `targets[].expr` before writ
 ## Read and export
 
 ```bash
-# App platform, version pinned; {apiVersion, kind, metadata{name, annotations, resourceVersion, generation}, spec, status}
+# App platform, pinned to the PROBED stored version; {apiVersion, kind,
+# metadata{name, annotations, resourceVersion, generation}, spec, status}
 curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" > live.json
-# Which schema is it actually stored as?
-jq -r '.status.conversion.storedVersion // .apiVersion' live.json
+# ASSERT the round trip before trusting live.json: what came back must be stored at what you asked for.
+python -c "import json,sys; d=json.load(open('live.json')); c=(d.get('status') or {}).get('conversion') or {}; s=(c.get('storedVersion') or d.get('apiVersion','')).rsplit('/',1)[-1]; print('stored=%s asked=%s' % (s, '$APIVER')); sys.exit(s != '$APIVER')"
+# Non-zero here means you do not know what you are editing. Do not diff and do not write.
 # Legacy: {dashboard, meta{folderUid, provisioned, version, ...}}
 curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>" > live-legacy.json
 # Full listing, paginated until no metadata.continue
@@ -211,8 +236,10 @@ Creating is a live change like any other: the **dashboard write rule** applies (
 
 ```bash
 # App platform: metadata.name IS the uid; folder and commit message travel as annotations
-jq -n --slurpfile spec dashboard.json '{
-  apiVersion: "dashboard.grafana.app/v1", kind: "Dashboard",
+# On create there is no stored version yet — the version you pick BECOMES the stored one, so set
+# APIVER deliberately here (there is nothing to probe) and let the body follow it.
+jq -n --slurpfile spec dashboard.json --arg av "dashboard.grafana.app/$APIVER" '{
+  apiVersion: $av, kind: "Dashboard",
   metadata: {name: $spec[0].uid,
              annotations: {"grafana.app/folder": "<existing folder uid>",
                            "grafana.app/message": "<ticket or change reference>"}},
