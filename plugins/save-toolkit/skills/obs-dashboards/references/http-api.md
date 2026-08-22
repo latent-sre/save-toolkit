@@ -174,8 +174,8 @@ Two properties make this safe to run on a schedule, both `[verified: QA]`:
   conflict is raised, so a job that re-applies the reviewed model when nothing changed is inert.
 - **A create round-trip is not byte-preserving** (see [json-model](./json-model.md)): the server
   injects defaults and strips `spec.uid`/`spec.version`. So the *first* diff after adopting an
-  existing dashboard will show additions you never wrote. Normalize once — commit the exported
-  stored model as the baseline — and diff against that from then on, or the check cries wolf forever.
+  existing dashboard will show additions you never wrote. Commit the exported stored model as the baseline and diff against that
+  from then on, or every run reports drift that is not there.
 
 When drift is found, the fix is a pull request against the repository copy, then re-apply through the
 controlled path. Never "fix" it by exporting the hand-edit over the reviewed source without review —

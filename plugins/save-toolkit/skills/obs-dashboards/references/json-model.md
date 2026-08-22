@@ -372,10 +372,8 @@ using `rate`/`increase` without `$__rate_interval`, one raw `_total` counter, an
 variable with an empty custom all value, and `editable: true`. It passed the rules for titles,
 targets, and — worth noting — data-source references, which correctly use `$datasource` throughout.
 
-Read that as calibration, not as criticism of that dashboard: a popular community dashboard is built
-to render anywhere, not to meet one team's operational contract. It is exactly what arrives when
-someone imports from grafana.com, and it is why the import path ends with "export, fix, then commit"
-rather than "export and commit".
+A community dashboard is built to render anywhere, not to meet one team's operational contract — which
+is why the import path ends "export, fix, then commit".
 
 ## The linter as a checklist
 

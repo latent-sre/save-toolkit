@@ -4,6 +4,30 @@ Fill this inventory with names, UIDs, owners, and repository links only—never 
 unredacted sensitive queries. Replace every placeholder or explicitly record `none`; do not leave an
 ambiguous partial inventory.
 
+## Licence and plugin evidence
+
+Catalogue guidance, not proof that this installation is entitled — confirm the active licence and the
+installed plugin list (`GET /api/plugins`) with the Grafana administrator before provisioning either.
+
+- **Wavefront / Aria Operations for Applications `[sourced, reviewed 2026-07-14]`.** The
+  [plugin documentation](https://grafana.com/docs/plugins/grafana-wavefront-datasource/latest/)
+  identifies `grafana-wavefront-datasource` as an **Enterprise** plugin: Grafana Cloud Pro/Advanced,
+  or a self-managed Enterprise licence. **Lifecycle `[sourced, reviewed 2026-08-19]`:** the backend
+  continues as **Broadcom DX OpenExplore** — the Wavefront engine on Broadcom's DX platform; the
+  2025-10-31 end-of-availability retired the VMware Tanzu Observability offering, not the engine
+  (see `stack-profile`). Whether the Enterprise plugin is supported against a DX OpenExplore tenant
+  is `[unverified]`.
+- **Splunk `[sourced, reviewed 2026-07-14]`.** The
+  [installation page](https://grafana.com/docs/plugins/grafana-splunk-datasource/latest/install/)
+  identifies `grafana-splunk-datasource`: Grafana Cloud Pro/Advanced, or a self-managed Enterprise
+  licence that includes it. Cloud Free and Starter do not.
+- **ThousandEyes `[sourced, reviewed 2026-07-14]`.** No named ThousandEyes Grafana data-source plugin
+  exists in the official documentation or catalogue — do not invent a plugin type or uid. Cisco's
+  [documented path](https://docs.thousandeyes.com/product-documentation/integration-guides/opentelemetry/observability-platforms/grafana)
+  exports OpenTelemetry signals into Prometheus/Mimir, Tempo, or Loki; query those with PromQL, or
+  link to the ThousandEyes console. This is an inference from the named integration path, not a claim
+  that no other integration exists.
+
 ## Data sources
 
 | Installed name | Signal/query language | Grafana plugin ID | Data-source UID | Owner / entitlement evidence |
