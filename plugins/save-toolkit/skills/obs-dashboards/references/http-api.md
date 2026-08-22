@@ -83,7 +83,11 @@ and naming the org form for org 1 fails loudly rather than 404-ing:
 you should have used, so read it rather than guessing.
 
 **Version to pin:** `v1` carries a Classic-model `spec`; `v2beta1` carries elements/layout (see
-[json-model](./json-model.md)). Always name one. **`[verified: QA]`** on 13.1.4 the group serves
+[json-model](./json-model.md) for all six served versions and what a write at each one does). Always
+name one — and know that **the version you read at is not necessarily the version it is stored at**;
+the server converts on the fly, and a conversion that loses panels still returns `200` with
+`conversion.failed: false`. Read at `v0alpha1` when you want the bytes exactly as stored: that
+version never migrates and never validates. **`[verified: QA]`** on 13.1.4 the group serves
 `v2`, `v2beta1`, `v2alpha1`, `v0alpha1`, `v1`, `v1beta1` — and its **`preferredVersion` is `v2`**.
 So an unpinned read on a 13.1 instance already returns the V2 shape, and a `jq` recipe written for
 `spec.panels[]` silently returns nothing. This is not a 13.2 concern; it is true today.

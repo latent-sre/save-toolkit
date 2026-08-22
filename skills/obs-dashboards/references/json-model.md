@@ -10,24 +10,84 @@ Sources reviewed 2026-08-21, read from the docs source in `github:grafana/grafan
 `latest`/13.2 site) unless marked otherwise. Field behavior on the deployed minor is `[unverified]`
 until exercised against it.
 
-## Three schemas — know which one you are holding
+## The version ladder — six served versions, three real shapes
 
-| Model | How to recognize it | Status in Grafana 13 |
+The docs describe three models (Classic, V1 Resource, V2 Resource). The API serves **six versions**,
+and the difference between them is not cosmetic — it decides whether your write gets migrated and
+validated. Verified against `github:grafana/grafana` at tags `v13.1.4` and `v13.2.0`; identical at both.
+
+| Version | Spec shape | What a **write** at this version does |
 |---|---|---|
-| **Classic** | Bare object: `schemaVersion`, `panels[]`, `templating.list[]`; no `apiVersion` | "A non-Kubernetes resource that was the default before Grafana v12.2.0." Still what `/api/dashboards/*` and community sharing use |
-| **V1 Resource** | `apiVersion: dashboard.grafana.app/v1`, `kind: Dashboard`, `metadata.name` = uid, `spec` = the Classic model | "The Classic dashboard schema formatted as a Kubernetes-style resource… the default format for API communication between Grafana v12.2.0 and v13.0.0" |
-| **V2 Resource** | `apiVersion: dashboard.grafana.app/v2beta1` (or `v2`), `spec.elements{}` + `spec.layout{}` + `spec.variables[]` | "The current schema, supporting new features such as advanced layouts and conditional rendering." Dynamic dashboards — GA and on by default since 13.0 |
+| `v0alpha1` | Classic, stored verbatim (`DashboardSpec = common.Unstructured`) | **Nothing.** No schema migration, no CUE validation, never errors on a schema mismatch |
+| `v1` | Classic | **Migrates the model to `schemaVersion` 42** and CUE-validates it (Strict by default); rejects any other schemaVersion |
+| `v1beta1` | **Go type alias of `v1`** — not a separate schema | Same as `v1`. Note it reports `storedVersion: "v1"`, because both are one Go type |
+| `v2alpha1` | V2 (`elements`/`layout`) | Validates; no schemaVersion concept |
+| `v2beta1` | V2, datasource-ref restructure vs `v2alpha1` | Same |
+| `v2` | V2, transformation alignment vs `v2beta1` | Same |
 
-`[sourced: docs view-dashboard-json-model; whats-new-in-v13-0]`
+`[sourced: apps/dashboard/pkg/apis/dashboard/*/register.go; pkg/registry/apis/dashboard/mutate.go;
+.../schema_validation.go; v1/validation.go @v13.1.4]`
+
+**The discovery order is a Go slice literal, not a stability ranking.** `preferredVersion` is simply
+the first element of `GetGroupVersions()`, and an operator can reorder it with
+`[grafana-apiserver] preferred_api_version`. Do not infer maturity from where a version appears.
+*[sourced: register.go:261-270,332]*
+
+### Where the "stored version" actually comes from
+
+**There is no stored-version column.** A dashboard row is persisted with whatever `apiVersion` the
+**write request** used — Grafana's apistore deliberately serializes each object with its own GVK.
+`status.conversion.storedVersion` is not persisted at all: it is **computed at read time** and equals
+the decoded row's own version. *[sourced: pkg/storage/unified/apistore/prepare.go:438-451;
+apps/dashboard/pkg/migration/conversion/conversion.go:47-95]*
+
+So the write path decides the stored schema — `[verified: QA + source]`:
+
+| How the dashboard was written | Stored as | Migrated to schemaVersion 42? |
+|---|---|---|
+| Legacy `POST /api/dashboards/db` with a Classic body | **`v0alpha1`** | no — and not validated either |
+| Legacy `POST /api/dashboards/db` with a k8s-wrapped body | the `apiVersion` **you** sent | per that version |
+| `POST /api/dashboards/import` (the server endpoint) | **`v0alpha1`** | no |
+| The **UI import page** | **`v1`** | yes |
+| UI save, classic spec | **`v1`** | yes |
+| UI save, dynamic spec (has `elements`) | **`v2`** | n/a |
+| `POST /apis/.../v1/...` | `v1` | yes |
+| `POST /apis/.../v2beta1/...` | `v2beta1` | n/a |
+
+Two traps in that table. **The UI's import page does not call `/api/dashboards/import`** — it posts
+straight to the app-platform v1 client, which is why a UI-imported dashboard lands at `v1` while the
+API endpoint of the same name lands at `v0alpha1`. And the editor dispatches on **spec shape**, not on
+the `dashboardNewLayouts` toggle: a spec containing `elements` saves at `v2`, anything else at `v1`.
+*[sourced: ImportOverviewV1.tsx:74-88; browseDashboardsAPI.ts:453-468; dashboardimport/service/service.go:132-140;
+dashboard_service.go:2368,2383-2385; pkg/api/dashboard.go:429-436]*
+
+**Reading the stored version:** ask for a version you know it is *not* and read
+`status.conversion.storedVersion`. A read at the stored version returns **no `status.conversion`
+block at all** — the absence is the signal, not a value, because that field is only ever written by a
+conversion function. Never use the legacy DTO's `meta.apiVersion` for this: it reports the version the
+*client requested*, and Grafana's own dashboard service pins that client to `v0alpha1`, so it reads
+`v0alpha1` for every dashboard regardless of storage. Override it with
+`GET /api/dashboards/uid/<uid>?apiVersion=v1`. *[sourced: client.go:85; dashboard_service.go:2231-2247,2277;
+pkg/api/dashboard.go:53-54,77-78]*
 
 Rules that follow from the split:
 
 - **Pin the API version on every read.** Without it "the server returns its preferred version, which may
   use a different spec shape (elements/layout/variables instead of panels/templating)" — a `jq` recipe
   written for `panels[]` then silently returns nothing. *[sourced: grafana/gcx create-dashboard skill]*
-- **Never mix fields from two schemas in one body**, and never write a V2 body over a dashboard stored as
-  V1: Grafana pins the stored schema, so the V2 content is silently down-converted. Create a new uid for
-  the V2 version instead. *[sourced: grafana/mcp-grafana tools/dashboard.go, v1/v2 write guard]*
+- **Write at the version the dashboard is already stored at.** Writing at a different version does not
+  convert anything — it silently **rewrites the row's stored version** and runs that version's mutate
+  hook (schema migration for `v1`, layout defaults for `v2*`). No guard rejects the change.
+  *[sourced: prepare.go:438-451; mutate.go:54-140]*
+- **Never round-trip V2 → V1 → V2.** The V2→V1 direction flattens four layout kinds into a single
+  `panels[]` array and turns tabs into expanded row panels. It is structurally lossy and not
+  reversible. *[sourced: v2_to_v1_layout_conversion.md:7-14]*
+- **Strip `status` before you PUT anything you just GET-ed.** The conversion helper prefers the
+  *incoming* object's `status.conversion.storedVersion` over the object's own version. So reading a
+  `v0alpha1`-stored dashboard at `v2` (response says `storedVersion: v0alpha1`) and PUT-ing that whole
+  object back without deleting `status` permanently pins the wrong stored version onto the row.
+  Grafana's own legacy handler deletes it; a direct client must too.
+  *[sourced: conversion.go:47-52; pkg/api/dashboard.go:478]*
 - **Stored schema and requested schema are different things, and the server converts between them on
   read. `[verified: QA, 13.1.4]`** A dashboard created through the UI (a community import) was
   **stored as V1** with `schemaVersion: 42` — *not* V2, despite `dashboardNewLayouts` being enabled
@@ -42,8 +102,16 @@ Rules that follow from the split:
      asked for the version it is already stored in.
   2. The same dashboard answers in either shape, so a `jq` recipe cannot detect which schema it is
      "really" in — only the version you pinned decides what you get. Pin deliberately.
-  3. Always check `conversion.failed` before treating a converted body as canonical, and never write
-     a converted body back at a different version than it was stored in — see the V1/V2 write rule above.
+    3. **`conversion.failed: false` does not mean the conversion was lossless.** Data-loss detection
+     runs *after* the status is set and deliberately never touches it: a conversion that structurally
+     succeeds while dropping panels, queries, annotations, links, or variables still reports
+     `failed: false`. The loss is visible only in the server's
+     `grafana_dashboard_conversion_failure_total{error_type="conversion_data_loss_error"}` metric and
+     in log fields `panelsLost`/`queriesLost`/`annotationsLost`/`linksLost`/`variablesLost`.
+     Worse, a conversion error **never fails your request** — the wrapper returns `nil`
+     unconditionally, so you get `200 OK` with `failed: true` and a possibly-empty spec. Check the
+     flag, and do not treat its absence as proof of fidelity.
+     *[sourced: metrics.go:261-283; conversion_data_loss_detection.go:379-444]*
 
   Note the mismatch in vocabulary: for the same dashboard, the **legacy** `GET /api/dashboards/uid/<uid>`
   reports `meta.apiVersion: "v0alpha1"` while the app-platform `status.conversion.storedVersion` reports
