@@ -1047,6 +1047,9 @@ closing line, then re-run the scenario and expect 3/3 on behavior rather than on
 
 **Status:** `decision-needed` (2026-08-22) — raised by the owner while templating the data-source
 inventory: "these are just qa, they are not the real ones… that opens up a new question for later."
+**Owner input, 2026-08-22: data sources are NOT provisioned as code on either instance.** That
+removes the cheap form of option 1 and elects option 4 as the recommendation below; one confirmation
+closes the item.
 
 **Outcome:** The team has one recorded answer for how a committed dashboard reaches both the
 non-production and production Grafana without editing the JSON per environment, and
@@ -1081,8 +1084,29 @@ data-source inventory table in
 [`wavefront-legacy.md`](../skills/obs-dashboards/references/wavefront-legacy.md) is filled in
 accordingly, and `obs-dashboards` states the mechanism in one place rather than implying it.
 
-**Next action:** Ask whether data sources are already provisioned as code on either instance — that
-single fact eliminates or elects option 1 and makes the rest a short conversation.
+**Recommendation (2026-08-22): option 4, a `datasource`-type variable with no pinned `current`.**
+
+Because the sources are hand-made rather than provisioned, option 1 would mean recreating them to
+control their uids — a uid cannot be edited in place — which breaks every dashboard already pointing
+at them. Option 3 costs a build step and means the file in the repository is no longer the file that
+runs. Option 2 leaves the committed artifact different from the deployed one.
+
+Option 4 needs no platform work and no new machinery: a `datasource`-type variable offers whatever
+sources of that type exist on the instance that loads the dashboard, and with `current` left empty it
+resolves to **that instance's default data source**. Checked on QA `[verified 2026-08-22]`:
+`prometheus-production-read-only` carries `isDefault: true`, so an unpinned variable resolves there
+with no per-instance edit. Add a `regex` (for example `/prometheus/`) where an instance holds several
+sources of one type, so a viewer cannot silently pick the wrong backend.
+
+It brings one **export-hygiene rule** that lands in `json-model.md` when confirmed: exporting from
+the UI populates the variable's `current` with **that instance's uid**, so a committed export
+silently pins one environment. Blank `current` before committing, exactly as `id` is dropped.
+
+Its honest cost: it depends on every instance having a sensible default data source set — configuration
+nobody currently owns as code, which is the same weakness that ruled out option 1, in a cheaper place.
+
+**Next action:** Confirm option 4 (or pick another), then add the blank-`current` rule to
+`json-model.md` and fill the inventory table per instance.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
