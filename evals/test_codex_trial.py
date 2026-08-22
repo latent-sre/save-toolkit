@@ -548,7 +548,7 @@ class ProbeTests(unittest.TestCase):
                 executable,
                 {},
                 cwd=root,
-                expected_cli_version=run_codex_routing.WINDOWS_CODEX_CLI_VERSION,
+                expected_cli_version="0.147.0",
                 command_runner=runner,
             )
 

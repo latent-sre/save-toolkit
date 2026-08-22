@@ -2,9 +2,8 @@
 
 ## What is here, and which of it you can run
 
-Read this table first. Two of the four components below cannot be run from this checkout, and they
-occupy most of the directory — 16 of the 20 top-level `.py` files are `codex_*`, so `ls` overstates
-their prominence. The runnable Claude suite is the third row.
+Read this table first. Provider-specific helpers and historical evidence make a directory listing
+look like a menu even when a path is not runnable or authoritative.
 
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
@@ -14,10 +13,10 @@ their prominence. The runnable Claude suite is the third row.
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
 
-Nothing here is unmaintained: every `evals/test_*.py` runs in Gate A, enrolled by file existence
-rather than a hand-kept roster. The Terra stack is green and owned, not dead weight. Its current
-snapshot is one exact Git object with a separately computed tree digest; a later checkout does not
-silently become campaign input.
+Every active `evals/test_*.py` runs in Gate A, enrolled by file existence rather than a hand-kept
+roster. Parked execution code stays out of the active tree, and frozen evidence remains read-only.
+The Terra snapshot is one exact Git object with a separately computed tree digest; a later checkout
+does not silently become campaign input.
 
 > **Shallow clones:** every "recover from tag `pre-trim-2026-08-02`" instruction in this repository
 > fails with `fatal: unknown revision` unless you fetch tags first
@@ -26,15 +25,13 @@ silently become campaign input.
 ## ROUTE-001 Codex/Terra campaign (implementation active; campaign not run)
 
 The ROUTE-001 owner approved a narrow Codex rewrite of the 2026-08 routing campaign. The canonical
-Linux manifest now pins Codex CLI 0.148.0 and its exact executable SHA-256; the validation-only
-historical Windows manifest retains its reviewed 0.147.0 bytes. Both pin `gpt-5.6-terra` at medium reasoning,
-a 300-second timeout, approval
+Linux manifest pins Codex CLI 0.148.0 and its exact executable SHA-256. It also pins
+`gpt-5.6-terra` at medium reasoning, a 300-second timeout, approval
 policy `never`, two sequential trials, and a threshold of 1.0. Five overlapping scenarios run
 against both `a39a81f33f7ad7325c52d883822bbbdd80c7ed28` and
 `7aef80aede95394f6c4237ed2aedb911e141c3c0`; fourteen GCP/Akamai scenarios run against the current
 revision only. The fixed campaign is therefore nineteen scenarios and 48 trials: 20 paired and 28
-current-only. This is ROUTE-001 only; the broader EVAL-001 Sol work below remains deferred.
-The historical Windows arm copies the executable into its private trial boundary. The canonical
+current-only. This is ROUTE-001 only; the broader EVAL-001 Sol work below remains deferred. The
 Linux arm keeps the complete Codex package tree protected inside an immutable non-root image and
 rehashes the executable before and after the trial. Every `TrialSpec` also carries its manifest
 scenario digest, and the canary reuses the same
@@ -50,29 +47,16 @@ python evals/run_codex_routing.py --plan `
   --current-revision 7aef80aede95394f6c4237ed2aedb911e141c3c0
 ```
 
-The same protected bootstrap also supports a credential-free `--preflight` mode. It stages the
-exact evaluator closure, materializes the fixed Git object, probes the pinned Codex version and
-bundled Terra catalog, renders and rechecks the safe catalog/config/hooks, then stops before reading
-an auth file or starting a model process. Preflight output always records
+The container launcher supports a credential-free `preflight` mode. It starts the exact immutable
+image without a network or auth mount, materializes the fixed Git object, probes the pinned Codex
+version and bundled Terra catalog, renders and rechecks the safe catalog/config/hooks, then stops
+before starting a model process. Preflight output always records
 `host_trust = not-verified-by-runner`, `authenticated_call_started = false`, and
 `live_authorized = false`; passing it diagnoses runner compatibility but cannot authorize a canary.
-Use the concrete versioned `codex.exe` path, not either updater junction or the `codex` PowerShell
-wrapper. The externally reviewed launch packet supplies the exact bootstrap, evaluator-manifest
-digest, repository, Codex executable, and empty private root; no auth argument is accepted.
 
 Do **not** invoke `run_codex_routing.py --canary` or `--preflight` directly. The canonical Linux path
-uses [`codex_container.py`](codex_container.py) with an exact image ID; the historical Windows path
-starts from an externally verified copy of [`codex_bootstrap.py`](codex_bootstrap.py), launched by an
-absolute, protected Python installation with `-I -S -B`. A Windows review packet must pin the complete
-Python DLL/standard-library closure, the protected bootstrap bytes, and the exact SHA-256 of
-[`codex-terra-evaluator-v1.json`](conformance/codex-terra-evaluator-v1.json). The bootstrap then
-copies the exact ten-file evaluator closure into a private stage, synthesizes either the auth-free
-preflight or the only accepted `--canary` argument set, and verifies that stage before and after
-execution. The external launcher
-must also supply an empty private root on a local fixed NTFS volume; UNC, mapped, substituted,
-remote, removable, and non-NTFS storage are rejected. Caller-supplied mode, manifest, scenario, or
-temporary-path overrides are rejected. A consumer must accept output only
-when the bootstrap's final exit status accepts both the post-run scan and cleanup.
+uses [`codex_container.py`](codex_container.py) with an exact image ID. The image contains the one
+supported evaluator closure, and the launcher verifies its ID before either preflight or canary.
 
 For a Linux development canary, invoking `codex_container.py canary` is the authorization for exactly
 one paid trial. That single command validates all live inputs, runs the same image credential-free and
@@ -114,17 +98,12 @@ Description selection passed 3/3. Explicit body behavior passed 1/3; rounds one 
 grader 5. The dated review records the compact artifact hashes and the conflicting fence contracts
 that explain why this is not campaign-ready.
 
-The historical Windows host arm does not satisfy that launch contract: its Python installation and runtime
-closure are writable by the operator identity. The canary is therefore **NO-GO** until a protected
-runtime/closure or separate OS identity is provisioned and independently bound. A clean launch
-account/registry must additionally prove that managed, system, and project layers supply no MCP,
-dynamic tool, guardian, provider, API-route, proxy, or Command Processor AutoRun override. The boundary also
-requires a protected Git executable/DLL/runtime installation closure and a protected, sanitized Git
-object store with no repository-config includes, object alternates, replacement refs, or UNC/network
-resolution; the executable/archive digests prevent evidence acceptance but cannot protect load-time
-dependencies or prevent pre-validation reads. It
-excludes an already-compromised same-SID process; a current-user ACL cannot isolate credentials from
-another process running as that same user. On 2026-08-20 the replacement Linux-container preflight
+The unprovisioned Windows host arm was retired on 2026-08-22. Its bootstrap, routing manifest, and
+evaluator-bundle manifest remain recoverable from Git history but are not supported execution or
+Gate A surfaces. Reopening Windows execution requires a named owner and a concrete need that the
+canonical Linux container cannot meet; the old same-user boundary must not be restored by default.
+
+On 2026-08-20 the Linux-container preflight
 passed first on Codex 0.147.0 and again after the bounded 0.148.0 repin. The owner-approved 0.147.0
 development canary ended `INCONCLUSIVE` before producing model output. A second owner-approved
 0.148.0 canary ran from clean commit `262dfc93daf8663b50f6175b7beb7fdfae9b15cc`; its Codex subprocess

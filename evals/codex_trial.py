@@ -2333,11 +2333,10 @@ def _execute_trial(
                         "selected_skill_body_sha256": skill_body_sha256,
                     }
                 )
-            if runtime_profile is not None and not runtime_profile.copy_codex_executable:
+            if runtime_profile is not None:
                 staged_codex = _ordinary_file(Path(codex_bin), label="protected Codex executable")
                 if (
-                    runtime_profile.codex_executable_path is None
-                    or staged_codex != runtime_profile.codex_executable_path
+                    staged_codex != runtime_profile.codex_executable_path
                     or _sha256_file(staged_codex, label="protected Codex executable")
                     != expected_codex_sha256
                 ):

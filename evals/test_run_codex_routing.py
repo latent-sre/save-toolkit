@@ -529,7 +529,7 @@ class CanaryContractTests(unittest.TestCase):
     def test_canary_requires_the_isolated_staged_entrypoint(self) -> None:
         evaluator_root = Path(run_codex_routing.__file__).resolve().parent
         entrypoint = evaluator_root / "run_codex_routing.py"
-        manifest = evaluator_root / "conformance" / "codex-terra-routing-v1.json"
+        manifest = run_codex_routing.LINUX_MANIFEST_PATH
         isolated = SimpleNamespace(
             isolated=1,
             no_site=1,

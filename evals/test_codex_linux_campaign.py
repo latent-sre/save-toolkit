@@ -75,13 +75,14 @@ class LinuxManifestTests(unittest.TestCase):
         self.assertEqual(48, len(_plan()))
         self.assertEqual([], run_codex_routing.validate_manifest(manifest, None))
 
-    def test_historical_windows_manifest_remains_explicitly_valid(self) -> None:
-        manifest = run_codex_routing.load_manifest(
-            run_codex_routing.WINDOWS_MANIFEST_PATH
+    def test_retired_windows_campaign_is_not_an_accepted_runtime(self) -> None:
+        manifest = run_codex_routing.load_manifest()
+        manifest["campaign"] = "route-001-codex-terra-v1"
+
+        self.assertIn(
+            "manifest campaign is not the canonical Linux ROUTE-001 arm",
+            run_codex_routing.validate_manifest(manifest, None),
         )
-        self.assertEqual("win32-amd64", manifest["runtime_platform"])
-        self.assertEqual("0.147.0", manifest["codex_cli_version"])
-        self.assertEqual([], run_codex_routing.validate_manifest(manifest, None))
 
 
 class CampaignJournalTests(unittest.TestCase):

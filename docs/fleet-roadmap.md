@@ -227,21 +227,15 @@ Codex 0.148 campaign can trace.
 [`2026-08-11-codex-terra-routing.md`](decisions/2026-08-11-codex-terra-routing.md). This narrow
 ROUTE-001 campaign does not reopen the broader deferred EVAL-001 Sol work.
 
-**Prerequisites:** The fixed evaluator manifest, recorder, parser, snapshotter, catalog transformer,
-and graders must be complete and pass their contract tests and Gate A. The exact evaluator bytes must
-then be committed cleanly and independently reviewed. Live execution requires an externally pinned,
-protected copy of the bootstrap; the exact ten-file evaluator-bundle manifest; a protected absolute
-Python executable/DLL/standard-library closure (or a separate OS identity); independently reviewable
-source evidence for the exact Codex version's effective Terra tool plan; a precreated local fixed NTFS private
-root; a clean launch account/registry with no managed/system/project MCP, dynamic-tool, guardian,
-provider, API-route, proxy, or Command Processor AutoRun override; the
-protected Git executable/DLL/runtime installation closure and sanitized Git object store with no
-repository-config includes, object alternates, replacement refs, or UNC/network resolution; the
-manifest-pinned Codex CLI executable bytes; the operator-owned Codex login; and only the fixed
-non-secret prompts and isolated staged component bytes the owner approved for transmission. A
+**Prerequisites:** The Linux routing manifest, recorder, parser, snapshotter, catalog transformer,
+graders, and immutable image must pass their contract tests and Gate A. The exact evaluator commit
+and image ID must then be independently reviewed. Live execution uses only `codex_container.py` with
+that image ID, a successful credential-free/networkless preflight, the operator-owned Codex login,
+and the fixed non-secret prompts and staged component bytes approved for transmission. Source
+evidence for the exact Codex version's effective Terra tool plan remains independently reviewable. A
 development canary from dirty or unreviewed evaluator bytes is instrument evidence only and cannot
-become campaign or baseline evidence. An active same-SID compromise is outside this application-layer
-boundary and must instead be excluded or isolated by the host.
+become campaign or baseline evidence. The unprovisioned Windows host arm and its separate bootstrap
+manifest were retired on 2026-08-22; they are not campaign prerequisites.
 
 **Acceptance:** Pin `gpt-5.6-terra` at medium reasoning, 300 seconds, two sequential trials, approval
 policy `never`, and the no-local/effect-tools policy. Run five overlapping
@@ -258,8 +252,7 @@ baseline, release, or owner acceptance to itself.
 hashes, binds each `TrialSpec` to its manifest scenario digest, and embeds the exact development-canary
 scenario rather than reopening mutable suite bytes. Commit
 `262dfc93daf8663b50f6175b7beb7fdfae9b15cc` preserves those inputs while repinning Codex CLI 0.148.0
-and its exact Linux executable SHA-256; the validation-only
-Windows manifest retains its historical 0.147.0 bytes. The campaign also freezes both target revisions,
+and its exact Linux executable SHA-256. The campaign also freezes both target revisions,
 `gpt-5.6-terra`, medium reasoning, two trials, and the
 48-trial shape. The 0.148 campaign accepts no provider-native filesystem-skill activation event, so
 ordinary skill positives and near-miss negatives use deterministic response graders only and never
@@ -275,15 +268,11 @@ escapes before rejecting an additional `gcloud run services update-traffic` comm
 packet. That repair and its manifest binding still require independent exact-candidate review before
 the campaign; the development canary cannot close that prerequisite.
 
-The evaluator now also has a bootstrap-only, credential-free preflight that reuses the actual
-snapshot, executable/catalog probe, safe-catalog/config/hook construction, and drift gates and stops
-before auth or a model process. On 2026-08-12 that preflight passed against the pinned concrete
-versioned Codex 0.147.0 executable path; the normal launcher path was correctly rejected because it
-crosses updater junctions. The result records host trust as unverified and grants no live authority.
-The historical Windows Python/runtime and Git object-store trust prerequisites therefore remain open.
-On 2026-08-20 the replacement Linux image was rebuilt against Codex 0.148.0 and passed the same
-credential-free preflight with no auth mount or model process. The evaluator is committed but remains
-independently unreviewed.
+The Linux container has a credential-free preflight that reuses the actual snapshot,
+executable/catalog probe, safe-catalog/config/hook construction, and drift gates and stops before an
+auth mount or model process. On 2026-08-20 the image was rebuilt against Codex 0.148.0 and passed that
+networkless preflight. The evaluator is committed but remains independently unreviewed. The earlier
+Windows preflight is historical evidence only after retirement of that arm.
 
 An owner-authorized managed response-only Terra smoke at commit `6d90943664ee0305726cc0ed8feb6b5d9a8e7f68`
 exposed a grader-calibration defect without supplying a resolved-model, installed-skill, or harness
@@ -298,15 +287,11 @@ surface. The catalog transformer verifies the exact bundled model entry and emit
 one-model catalog with code/local/effect model tools removed; the rendered configuration disables the
 remaining shell, image, browser, computer, app, web, MCP, memory, plugin, guardian, proxy, and
 workspace-dependency features, disables bundled/orchestrator skills and MCP, and pins the built-in
-OpenAI provider/default ChatGPT route. The new
-bootstrap rejects caller-selected evaluator mode/scenario/manifest overrides, accepts only the exact
-ten-file closure, stages those bytes under `-I -S -B`, requires a local fixed NTFS private root, and
-rechecks the stage after execution. Credential copying uses in-process ACLs, the exact hook import
-directory is enforced, the disposable auth copy is removed before model-controlled parsing/grading,
-decoded exact auth values are scanned, receipts and output are bounded, and every launched outcome
-receives a post-trial drift check. Under the accepted live boundary, the operator login will still exist in a
-disposable `CODEX_HOME` under the same OS user: this is application-layer isolation, not a
-separate-principal sandbox, and that limitation must be retained in every result. Exactly eight
+OpenAI provider/default ChatGPT route. The immutable image runs read-only and non-root, contains the
+only accepted evaluator closure and manifest, and starts Python under `-I -S -B`. The exact hook
+import directory is enforced, the disposable auth copy is removed before model-controlled
+parsing/grading, decoded exact auth values are scanned, receipts and output are bounded, and every
+launched outcome receives a post-trial drift check. Exactly eight
 owner-approved authenticated development attempts ran. The first four were inconclusive while the
 runtime/evaluator boundary was repaired; four later 0.148.0 attempts reached behavior grading and
 returned valid `FAIL` verdicts. No passing authenticated canary or campaign was run. Historical
@@ -314,11 +299,10 @@ Claude runs and the prepared Claude campaign remain
 preserved under their original labels; none is relabeled as Terra evidence. The 2026-07-31 Sol results
 remain retained but revoked as release evidence.
 
-The exact offline checks, red-first defects, frozen byte manifest, and remaining live-host gates are
-recorded in the
-[`Codex/Terra pre-canary evidence packet`](reviews/2026-08-11-codex-terra-precanary.md). That packet
-is preparation evidence only; it does not authorize credentials, model calls, campaign execution,
-baseline eligibility, or release use.
+The [`Codex/Terra pre-canary evidence packet`](reviews/2026-08-11-codex-terra-precanary.md)
+preserves the retired Windows design and its checks as historical preparation evidence. Current
+Linux-container evidence is recorded separately; neither packet authorizes credentials, model calls,
+campaign execution, baseline eligibility, or release use.
 
 **Source refresh (2026-08-18):** GitHits resolved the exact Codex `rust-v0.147.0` tag and independently
 confirmed the tool-plan behavior assumed by the ADR: model `tool_mode` precedence and separate
@@ -416,10 +400,9 @@ invocations now hold one crash-visible lock, persist `INCONCLUSIVE` as a durable
 journal contract and event to the exact outer image ID. The Linux manifest binds the complete frozen
 scenario-bundle digest. Native Linux launches reject auth files or campaign roots that UID 65532
 cannot access; canary output stays host-side and is not mounted. Canary state and exit code must
-agree, and the historical Windows bootstrap now stages its imported `codex_runtime.py` dependency.
-The obsolete snapshot-reachability finding needs no code change because `7aef80a` is an ancestor of
-current main. The evaluator bundle is now ten files; its manifest is 1,295 bytes with SHA-256
-`16b9c68b24226b850ae7d9da4f7f14634406d9aa8c063799df4b1f85da5afe02`.
+agree. The obsolete snapshot-reachability finding needs no code change because `7aef80a` is an
+ancestor of current main. The Windows bootstrap and evaluator-bundle manifest described by that
+review were retired on 2026-08-22 and are no longer Gate A or execution contracts.
 
 **Paired diagnostic result (2026-08-20):** All six authorized calls completed without retry against
 commit `cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` and immutable image
@@ -707,11 +690,11 @@ verbatim transcription. Today neither is true, and the suite cannot pass on any 
 The batch was authored 2026-08-11 in `b459a5d` and validated only against synthetic fixtures; a real
 model had never been asked for that shape until 2026-08-19. This is an unmet contract, not rot.
 
-**Prerequisites:** None to decide — the measurement is complete. To *act* on option (b), the
-scenario bytes are digest-pinned into ROUTE-001's evaluator manifest
-(`evals/conformance/codex-terra-routing-v1.json`), so editing a grader re-freezes both hash-bound
-manifests and invalidates the prior independent review; that remedy cannot land ahead of ROUTE-001's
-own sequencing. Options (a) and (c) touch no frozen bytes.
+**Prerequisites:** None to decide — the measurement is complete. To *act* on option (b), scenario
+bytes remain digest-pinned by the canonical Linux routing manifest and scenario bundle, while a
+grader edit changes the immutable evaluator image. Either change invalidates the prior independent
+review and cannot land ahead of ROUTE-001's own sequencing. The retired Windows evaluator manifest
+adds no second re-freeze. Options (a) and (c) touch no frozen evaluator bytes.
 
 **Acceptance:** One contract holds across both sides, and the suite's result means something: either
 the canonical skills teach the packet and the affected scenarios pass on a named model with

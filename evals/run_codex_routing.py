@@ -31,11 +31,8 @@ import codex_snapshot
 
 
 EVAL_ROOT = Path(__file__).resolve().parent
-WINDOWS_MANIFEST_PATH = EVAL_ROOT / "conformance" / "codex-terra-routing-v1.json"
 LINUX_MANIFEST_PATH = EVAL_ROOT / "conformance" / "codex-terra-routing-linux-v1.json"
 SCENARIO_BUNDLE_PATH = EVAL_ROOT / "conformance" / "codex-terra-scenarios-v1.json"
-# The Linux container is the canonical execution arm.  The Windows path remains accepted only as
-# historical/optional conformance evidence and retains its historical runtime identity.
 MANIFEST_PATH = LINUX_MANIFEST_PATH
 MODEL = "gpt-5.6-terra"
 REASONING_EFFORT = "medium"
@@ -49,7 +46,6 @@ PYTHON_EXECUTABLE_SHA256 = (
 CODEX_EXECUTABLE_SHA256 = (
     "ac2cfed85fb647d61e0150b8548102b330e4799d9d81ad5d354de701edf6b074"
 )
-WINDOWS_CODEX_CLI_VERSION = "0.147.0"
 TIMEOUT_S = 300
 TRIALS = 2
 THRESHOLD = 1.0
@@ -141,7 +137,7 @@ BASE_MANIFEST_KEYS = {
     "canary_scenario",
     "scenarios",
 }
-LINUX_MANIFEST_KEYS = BASE_MANIFEST_KEYS | {
+MANIFEST_KEYS = BASE_MANIFEST_KEYS | {
     "runtime_kind",
     "container_user",
     "base_image_digest",
@@ -149,10 +145,8 @@ LINUX_MANIFEST_KEYS = BASE_MANIFEST_KEYS | {
     "codex_executable_path",
     "scenario_bundle_sha256",
 }
-WINDOWS_MANIFEST_KEYS = BASE_MANIFEST_KEYS
-MANIFEST_KEYS = LINUX_MANIFEST_KEYS
 SCENARIO_KEYS = {"id", "cohort", "sha256"}
-COMMON_EXPECTED_VALUES = {
+EXPECTED_VALUES = {
     "provider": "openai-codex",
     "codex_cli_version": codex_harness.CODEX_CLI_VERSION,
     "model": MODEL,
@@ -170,35 +164,7 @@ COMMON_EXPECTED_VALUES = {
     "before_revision": BEFORE_REVISION,
     "current_revision": CURRENT_REVISION,
     "snapshot_tree_sha256": codex_snapshot.EXPECTED_SNAPSHOT_TREE_SHA256,
-}
-WINDOWS_EXPECTED_VALUES = {
-    **COMMON_EXPECTED_VALUES,
-    "schema_version": 1,
-    "campaign": "route-001-codex-terra-v1",
-    "runtime_platform": "win32-amd64",
-    "python_version": "3.12.10",
-    "python_executable_sha256": (
-        "4d6f5f81a4bca11191c4c7c6b43632694d0a4ce74e068619d8fdc161d469859a"
-    ),
-    "git_cli_version": "2.53.0.windows.2",
-    "git_executable_path": str(codex_snapshot.GIT_EXECUTABLE_PATH),
-    "git_executable_sha256": codex_snapshot.GIT_EXECUTABLE_SHA256,
-    "codex_cli_version": WINDOWS_CODEX_CLI_VERSION,
-    "skill_activation_evidence": "behavioral-only-codex-0.147",
-    "source_model_entry_sha256": (
-        "dd06f2ae3786e852ca884d6c189a364da38f7b7492fd960b05cdd2e3e232e443"
-    ),
-    "safe_model_catalog_sha256": (
-        "2d23cea7bd13463424eca49df927a38f8480501820eec853e3789015c6a321b6"
-    ),
-    "codex_executable_sha256": (
-        "935a1911ed2556e4ffcec995f4886ac2ac425863ba26fed264df62e30272ad9d"
-    ),
-}
-LINUX_EXPECTED_VALUES = {
-    **COMMON_EXPECTED_VALUES,
     "schema_version": 2,
-    "campaign": "route-001-codex-terra-linux-v1",
     "runtime_kind": "linux-container",
     "runtime_platform": RUNTIME_PLATFORM,
     "container_user": "65532:65532",
@@ -219,7 +185,6 @@ LINUX_EXPECTED_VALUES = {
         "04417ded34826a9f7a67f72d78fa569b2e4fd91f35ca0c38329a1c6131808191"
     ),
 }
-EXPECTED_VALUES = LINUX_EXPECTED_VALUES
 RESERVED_AUTHORITY = {
     "source_review",
     "independent_evaluator",
@@ -384,23 +349,15 @@ def validate_manifest(
 ) -> list[str]:
     problems: list[str] = []
     campaign = manifest.get("campaign")
-    if campaign == "route-001-codex-terra-linux-v1":
-        manifest_keys = LINUX_MANIFEST_KEYS
-        expected_values = LINUX_EXPECTED_VALUES
-    elif campaign == "route-001-codex-terra-v1":
-        manifest_keys = WINDOWS_MANIFEST_KEYS
-        expected_values = WINDOWS_EXPECTED_VALUES
-    else:
-        manifest_keys = LINUX_MANIFEST_KEYS
-        expected_values = LINUX_EXPECTED_VALUES
-        problems.append("manifest campaign is not one supported exact ROUTE-001 arm")
-    unknown = set(manifest) - manifest_keys
-    missing = manifest_keys - set(manifest)
+    if campaign != "route-001-codex-terra-linux-v1":
+        problems.append("manifest campaign is not the canonical Linux ROUTE-001 arm")
+    unknown = set(manifest) - MANIFEST_KEYS
+    missing = MANIFEST_KEYS - set(manifest)
     if unknown:
         problems.append(f"manifest has unknown keys: {', '.join(sorted(unknown))}")
     if missing:
         problems.append(f"manifest is missing keys: {', '.join(sorted(missing))}")
-    for key, expected in expected_values.items():
+    for key, expected in EXPECTED_VALUES.items():
         if manifest.get(key) != expected:
             problems.append(f"manifest {key} must be {expected!r}")
     before = manifest.get("before_revision")
@@ -719,10 +676,7 @@ def require_isolated_canary_launch(manifest_path: Path) -> None:
             raise ValueError("canary interpreter isolation is incomplete")
     try:
         expected_entrypoint = (EVAL_ROOT / "run_codex_routing.py").resolve(strict=True)
-        expected_manifests = {
-            WINDOWS_MANIFEST_PATH.resolve(strict=True),
-            LINUX_MANIFEST_PATH.resolve(strict=True),
-        }
+        expected_manifest = LINUX_MANIFEST_PATH.resolve(strict=True)
         observed_entrypoint = Path(sys.argv[0]).resolve(strict=True)
         observed_manifest = Path(manifest_path).resolve(strict=True)
         observed_import_root = Path(sys.path[-1]).resolve(strict=True)
@@ -730,7 +684,7 @@ def require_isolated_canary_launch(manifest_path: Path) -> None:
         raise ValueError("canary staged launch could not be resolved") from exc
     if (
         observed_entrypoint != expected_entrypoint
-        or observed_manifest not in expected_manifests
+        or observed_manifest != expected_manifest
         or observed_import_root != EVAL_ROOT
     ):
         raise ValueError("canary must execute the fixed staged entrypoint and manifest")

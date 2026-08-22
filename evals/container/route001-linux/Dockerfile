@@ -24,8 +24,6 @@ COPY evals/graders.py /opt/route001/evals/graders.py
 COPY evals/run_codex_routing.py /opt/route001/evals/run_codex_routing.py
 COPY evals/conformance/codex-terra-routing-linux-v1.json \
     /opt/route001/evals/conformance/codex-terra-routing-linux-v1.json
-COPY evals/conformance/codex-terra-routing-v1.json \
-    /opt/route001/evals/conformance/codex-terra-routing-v1.json
 COPY evals/conformance/codex-terra-scenarios-v1.json \
     /opt/route001/evals/conformance/codex-terra-scenarios-v1.json
 

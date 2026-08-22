@@ -1,10 +1,23 @@
 # Codex/Terra routing evidence for ROUTE-001
 
 - **Date:** 2026-08-11
-- **Status:** accepted by the ROUTE-001 owner; offline implementation is active; live canary is NO-GO
+- **Status:** accepted for the canonical Linux arm; the Windows host arm was retired 2026-08-22
 - **Scope:** the nineteen 2026-08 routing regression scenarios only
 
-## Decision
+## 2026-08-22 amendment: retire the Windows host arm
+
+The canonical Linux container superseded the Windows host design. No protected Windows launcher,
+runtime closure, owner, or in-repository consumer was ever provisioned, while its bootstrap and two
+manifests continued to make every evaluator change maintain and test an unusable authority path.
+The owner therefore retired `evals/codex_bootstrap.py`, its test suite, the Windows routing manifest,
+and the evaluator-bundle manifest from the active tree. The immutable Linux image remains the only
+supported live execution boundary.
+
+Git history and the dated reviews preserve the exact Windows artifacts and results. Reopen Windows
+execution only for a named requirement the Linux container cannot meet, with a named owner and a
+newly reviewed trust boundary; do not restore the retired files as a default fallback.
+
+## Original decision
 
 Replace ROUTE-001's pending Claude/Sonnet campaign with a Codex campaign pinned to
 `gpt-5.6-terra` at medium reasoning. This is a provider-specific rewrite, not a relabeling of Claude
@@ -120,14 +133,15 @@ branch, pull request, or caller-selected source. If executable, scenario, catalo
 hook, config, or child-profile drift reintroduces ambiguity or a file capability, the trial is
 inconclusive before its response can count.
 
-## Trusted launch and current no-go
+## Retired Windows trusted-launch design
 
-The mutable checkout is never an authenticated entrypoint. A separately trusted launcher must first
-verify and copy the exact reviewed [`codex_bootstrap.py`](../../evals/codex_bootstrap.py) bytes into a
+The original Windows design did not allow a mutable checkout as an authenticated entrypoint. A
+separately trusted launcher first had to verify and copy the exact reviewed
+`evals/codex_bootstrap.py` bytes into a
 protected location, then invoke that copy with an absolute protected Python installation using
 `-I -S -B`. The external approval packet—not the bootstrap itself—pins the bootstrap digest, the
 complete Python executable/DLL/standard-library closure, and the digest of
-[`codex-terra-evaluator-v1.json`](../../evals/conformance/codex-terra-evaluator-v1.json). The bootstrap
+`evals/conformance/codex-terra-evaluator-v1.json`. The bootstrap
 accepts exactly the ten-file evaluator closure, stages it create-only, synthesizes one fixed canary
 request, and rechecks the exact staged tree after execution before any result is eligible. It also
 requires a precreated empty private root on a local fixed NTFS volume; UNC, mapped, substituted,

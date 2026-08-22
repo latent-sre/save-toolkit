@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Immutable runtime profiles for the historical Windows and canonical Linux arms."""
+"""Immutable runtime profile for the canonical Linux evaluator."""
 from __future__ import annotations
 
 import re
@@ -15,32 +15,18 @@ class RuntimeProfile:
     runtime_kind: str
     runtime_platform: str
     python_version: str
-    python_executable_path: Path | None
+    python_executable_path: Path
     python_executable_sha256: str
     git_cli_version: str
     git_executable_path: Path
     git_executable_sha256: str
     codex_cli_version: str
-    codex_executable_path: Path | None
+    codex_executable_path: Path
     codex_executable_sha256: str
-    copy_codex_executable: bool
     manifest_path: Path
     evaluator_files: tuple[str, ...]
     container_user: str | None = None
 
-
-WINDOWS_EVALUATOR_FILES = (
-    "codex_harness.py",
-    "codex_hook_recorder.py",
-    "codex_model_catalog.py",
-    "codex_routing_grade.py",
-    "codex_runtime.py",
-    "codex_snapshot.py",
-    "codex_trial.py",
-    "graders.py",
-    "run_codex_routing.py",
-    "conformance/codex-terra-routing-v1.json",
-)
 
 LINUX_EVALUATOR_FILES = (
     "codex_campaign.py",
@@ -54,7 +40,6 @@ LINUX_EVALUATOR_FILES = (
     "graders.py",
     "run_codex_routing.py",
     "conformance/codex-terra-routing-linux-v1.json",
-    "conformance/codex-terra-routing-v1.json",
     "conformance/codex-terra-scenarios-v1.json",
 )
 
@@ -83,23 +68,6 @@ def profile_from_manifest(
     """Create a typed profile only after the caller has validated exact manifest values."""
 
     platform = _text(manifest, "runtime_platform")
-    if platform == "win32-amd64":
-        return RuntimeProfile(
-            runtime_kind="windows-host",
-            runtime_platform=platform,
-            python_version=_text(manifest, "python_version"),
-            python_executable_path=None,
-            python_executable_sha256=_sha(manifest, "python_executable_sha256"),
-            git_cli_version=_text(manifest, "git_cli_version"),
-            git_executable_path=Path(_text(manifest, "git_executable_path")),
-            git_executable_sha256=_sha(manifest, "git_executable_sha256"),
-            codex_cli_version=_text(manifest, "codex_cli_version"),
-            codex_executable_path=None,
-            codex_executable_sha256=_sha(manifest, "codex_executable_sha256"),
-            copy_codex_executable=True,
-            manifest_path=manifest_path,
-            evaluator_files=WINDOWS_EVALUATOR_FILES,
-        )
     if platform != "linux-x86_64" or manifest.get("runtime_kind") != "linux-container":
         raise RuntimeProfileError("manifest runtime is not a supported exact profile")
     python_path = Path(_text(manifest, "python_executable_path"))
@@ -122,7 +90,6 @@ def profile_from_manifest(
         codex_cli_version=_text(manifest, "codex_cli_version"),
         codex_executable_path=codex_path,
         codex_executable_sha256=_sha(manifest, "codex_executable_sha256"),
-        copy_codex_executable=False,
         manifest_path=manifest_path,
         evaluator_files=LINUX_EVALUATOR_FILES,
         container_user=_text(manifest, "container_user"),
