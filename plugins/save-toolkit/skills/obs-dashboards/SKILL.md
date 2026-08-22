@@ -74,6 +74,16 @@ write call.
    was not."
 8. **Export and commit** the applied JSON to the dashboards-as-code path in the same task, PR/commit in
    the save message. A write without the commit is a snowflake with extra steps.
+9. **Close with the evidence line — every time, including when nothing went wrong.** One short block
+   naming what you proved against the instance `[verified]`, what you took from this skill or the
+   docs `[sourced]`, and what you could not check `[unverified]`. Answering a dashboard question
+   without one is an incomplete answer, not a tidy one.
+
+   A dashboard task that names **no** `[unverified]` item has almost certainly missed one. The usual
+   suspects, none of which a well-formed dashboard reveals: which schema the target actually stores
+   ([json-model](./references/json-model.md)), whether the data-source plugin is licensed here,
+   whether an image renderer exists so a visual check was even possible, and how the panel behaves
+   on the target's real cardinality. Name them rather than implying they were checked.
 
 Under `save-toolkit-observability-engineer` this is the **dashboard write rule** in its change ladder — the one
 live apply that lane performs itself, production included, only when steps 2–8 hold in order.
@@ -195,7 +205,8 @@ Read only the reference needed for the task:
 A finished dashboard task reports: the dashboard uid, folder, and instance; the schema written; the
 diff applied and the version/generation after the write; the evidence that queries returned data and
 whether a visual check was made; the commit that holds the applied JSON; data-source and licence
-checks; and every remaining `[unverified]` item. If the work uncovers active user impact or an
+checks; and the step-9 evidence line, whose `[unverified]` items are required rather than optional —
+"nothing outstanding" is a claim about the instance you would have had to check to make. If the work uncovers active user impact or an
 unknown-cause incident, hand the time-bounded signal evidence to the `save-toolkit-sre` agent; do not diagnose it in
 this skill. New alert rules or SLOs go to `obs-alerting`; a runbook link for a new health row goes to
 `save-toolkit-scribe`. Redact sensitive data visible in screenshots or rendered evidence before attaching; prefer

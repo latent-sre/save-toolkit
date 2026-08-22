@@ -18,12 +18,13 @@ success_criteria:
   - Reads before writing, pins the version it read, refuses overwrite, and verifies after the call
   - Ends with the applied JSON exported and committed to the dashboards-as-code path
 graders:
-  # Only graders that passed 3/3 in BOTH runs of 2026-08-21 are kept. Two earlier ones —
-  # `jq empty` and an evidence-label check — failed one trial each across the two runs while
-  # routing passed 6/6, so they measured response variance, not the skill's contract. The
-  # contract this scenario asserts is: the dashboards lane fires for a live edit, the response
-  # carries the percentile query with the right interval and datasource variable, and it names
-  # the concurrency discipline (version pinned, overwrite refused, conflict re-read) and the commit.
+  # The evidence-label grader below was REMOVED on 2026-08-21 to get this scenario green, then
+  # restored on 2026-08-22 once the skill was fixed to earn it. History, so nobody re-narrows it:
+  # across six trials it passed four and failed two, the second failure with no label of any kind
+  # in the response - a real ~33% miss rate on a convention the skill declares in its own first
+  # four lines. Deleting it hid a measured behavioural gap. The skill now makes the evidence line
+  # step 9 of its loop, so the grader should pass on behaviour. If it regresses, fix the skill.
+  # `jq empty` stays out on its own merits: it named one specific command rather than a contract.
   - type: contains_all
     of: ["histogram_quantile(0.99", "$__rate_interval", "${datasource}", "_bucket"]
   - type: contains_all
@@ -32,3 +33,5 @@ graders:
     of: ["409", "412"]
   - type: contains_all
     of: ["commit"]
+  - type: contains_any
+    of: ["[unverified]", "[verified]", "[sourced]"]
