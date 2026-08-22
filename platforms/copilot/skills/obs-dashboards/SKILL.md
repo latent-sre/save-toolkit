@@ -1,11 +1,10 @@
 ---
 name: obs-dashboards
 description: >-
-    Grafana 13 dashboards — view, create, edit, and export them over the HTTP API, where the instance
-  is the record: official best-practice rules, panel and variable hygiene, Classic/V1/V2 schemas and
-  which one a write lands in, concurrency conflicts and rollback, the discover-read-diff-write-verify
-  loop, Viewer/Editor workflows, data-source licence facts. Triggers: 'build a dashboard', 'edit a
-  dashboard', 'add a panel for', 'export the dashboard'. Ownership map only, not a load:
+  Grafana 13 dashboards — build, view, edit, and export them over the HTTP API: panel and dashboard
+  design for the 3am reader, panel and variable hygiene, Classic/V1/V2 dashboard JSON, concurrency
+  conflicts and rollback, and data-source licence facts. Triggers: 'build a dashboard', 'edit a
+  dashboard', 'add a panel for', 'what should we dashboard'. Ownership map only, not a load:
   frontend-craft owns product-UI charts, obs-alerting owns alert rules, sre owns an active incident.
 argument-hint: "[service, dashboard uid, or dashboard change]"
 ---

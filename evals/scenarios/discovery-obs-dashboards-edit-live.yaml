@@ -10,8 +10,7 @@ prompt: |
   on our self-managed Grafana 13.1 and apply the change over the HTTP API yourself. Show the panel
   JSON with its PromQL, the exact read and write calls, how you avoid clobbering someone else's
   concurrent save, how you verify the write landed, and what you commit afterwards. This is a
-    dashboard edit, not alert design and not incident triage. Dashboards here are managed in Grafana
-  itself; there is no repository copy to commit to.
+    dashboard edit, not alert design and not incident triage.
 routing:
   expect: fire
 success_criteria:
