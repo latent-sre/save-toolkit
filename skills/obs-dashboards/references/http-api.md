@@ -3,28 +3,16 @@
 Use this reference when the agent talks to a live Grafana itself: finding a dashboard, reading or
 exporting its model, creating or updating one, walking version history, or proving a write landed.
 `observability-engineer` runs these calls directly (its Bash is unguarded — see the **dashboard write
-rule** in its change ladder); the main session can run them too. The repository stays the source of
-truth per [provisioning](./provisioning.md): every write here ends with the applied JSON exported and
-committed.
+rule** in its change ladder); the main session can run them too. Grafana is the record — there is no
+committed copy — so the save `message` and the version history are what a later reader has.
 
-## Primary sources
-
-- `[sourced]` [Dashboard HTTP API (Grafana 12+, app platform)](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/dashboard/)
-- `[sourced]` [API structure, namespaces, stability levels](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/apis/)
-- `[sourced]` [Resource history](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/resource-history/),
-  [Folder API](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/folder/)
-- `[sourced]` Legacy [search](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/api-legacy/folder_dashboard_search/)
-  and [versions](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/api-legacy/dashboard_versions/) pages;
-  the legacy dashboard page as it stood at v12.4.1 (`github:grafana/grafana#v12.4.1`
-  `docs/sources/developer-resources/api-reference/http-api/dashboard.md`) — it no longer exists in the 13.x docs
-- `[sourced]` [RBAC fixed roles](https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/access-control/rbac-fixed-basic-role-definitions/),
-  [service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/)
-
-Sources reviewed 2026-08-21 against the docs source for the `latest` (13.2) site. Every call in this
-reference — search, read, export, create, update, the concurrency conflict on both API families, and
-delete — was exercised against **qa-grafana.agenticsre.dev (Grafana 13.1.4 Enterprise, org 1)** on
-2026-08-21 and is marked `[verified: QA]` where the observed behavior is load-bearing. Behavior after
-the 13.2 upgrade is `[unverified]`, as is anything on a Grafana Cloud stack.
+**Evidence frame.** Every call here — search, read, export, create, update, the concurrency conflict
+on both API families, and delete — was executed against a non-production **Grafana 13.1.4 Enterprise**
+instance (org 1) on 2026-08-21; `[verified: QA]` marks where the observed behaviour is load-bearing
+and differs from the docs. **After the 13.2 upgrade every one of those labels demotes to
+`[unverified]`**, as does anything on Grafana Cloud. Docs reviewed the same day against the `latest`
+(13.2) site; the legacy dashboard page is cited from `grafana/grafana#v12.4.1`, having been removed
+from the 13.x docs.
 
 ## Credentials and scope
 
@@ -60,8 +48,7 @@ the 13.2 upgrade is `[unverified]`, as is anything on a Grafana Cloud stack.
     So an Editor-level agent that must verify its own writes should create through the legacy
     endpoint, or hold explicit `dashboards:read`/`:write`/`:delete` on the target folder. Never
     write through the app-platform family with a create-only grant — you cannot complete step 7 of
-    the skill's loop and you cannot roll back. (A dashboard was stranded this way during the
-    verification run.)
+    the skill's loop and you cannot roll back.
 
 ## Two API families — which to call
 
@@ -91,10 +78,40 @@ So an unpinned read on a 13.1 instance already returns the V2 shape, and a `jq` 
 `spec.panels[]` silently returns nothing. This is not a 13.2 concern; it is true today.
 
 ```bash
-# Common header block for every call below
+# Common header block for every call below. Bash arrays: on PowerShell or a POSIX `sh`, pass the two
+# -H flags literally, or drive the API from `python -c` with urllib. `command -v curl jq` first —
+# neither is guaranteed (see the jq trap below).
 H=(-H "Authorization: Bearer $GRAFANA_SA_TOKEN" -H "Content-Type: application/json")
-NS=default   # confirm on the target
+NS=default        # confirm on the target
+APIVER=           # deliberately EMPTY. Set it from the probe below — never by hand, and never to a
+                  # remembered value. It must equal the version the dashboard is STORED at.
 ```
+
+**Three things must name the same version: the URL path, the body's `apiVersion`, and the schema the
+`spec` is actually written in.** Any mismatch is silent. Writing a Classic `spec` at `$APIVER=v1`
+over a dashboard stored at `v2` does not error — it rewrites the row's stored schema to V1 and drops
+whatever V2 expressed that V1 cannot, and the response still reads `200`.
+
+`APIVER` therefore comes from a **probe**, not from a guess:
+
+```bash
+# PROBE ONLY — this read exists to learn the stored version, and its body is NOT the model you edit.
+# v0alpha1 never migrates and never validates, so it is the one read that cannot rewrite the answer.
+PROBE="$GRAFANA_URL/apis/dashboard.grafana.app/v0alpha1/namespaces/$NS/dashboards/<uid>"
+STORED=$(curl -sS "${H[@]}" "$PROBE" | python -c "import json,sys; d=json.load(sys.stdin); c=(d.get('status') or {}).get('conversion') or {}; print((c.get('storedVersion') or d.get('apiVersion','')).rsplit('/',1)[-1])")
+APIVER=$STORED
+echo "stored at: $APIVER"     # e.g. v2 — a bare version, never a group-qualified string
+```
+
+**Normalize, or the value is unusable.** `status.conversion.storedVersion` is bare (`v2`); the
+`apiVersion` fallback is group-qualified (`dashboard.grafana.app/v2`). Pasting the second into a URL
+path produces a 404 that looks like a missing dashboard. The `rsplit` above is what makes the two
+forms interchangeable — keep it. `[unverified]` the probe's exact `status.conversion` shape when the
+dashboard is already stored at `v0alpha1` was not re-measured after the QA instance was withdrawn;
+the fallback covers that case, and step 2 below fails loudly if it is wrong.
+
+Then **re-read at `$APIVER`** — that second read is the authoritative model. Never diff, edit, or
+write the probe body.
 
 ## Preflight — the first eight calls against an unfamiliar Grafana
 
@@ -131,7 +148,7 @@ curl -sS "${H[@]}" "$GRAFANA_URL/api/frontend/settings"   # -> .rendererAvailabl
 
 # 7. Which dashboard-relevant feature toggles are on?
 #    Same response as 6: .featureToggles — dashboardNewLayouts, provisioning, and friends.
-#    `provisioning` on means Git Sync/as-code provisioning is live; note it is REMOVED in 13.2.
+#    (`provisioning` relates to Git Sync, which this team does not use — note it, do not act on it.)
 
 # 8. What is actually here, and is the answer trustworthy?
 curl -sS "${H[@]}" "$GRAFANA_URL/api/search?type=dash-db&limit=100"
@@ -143,41 +160,19 @@ Record the answers in the inventory ([wavefront-legacy](./wavefront-legacy.md)) 
 re-deriving them each session, and re-run the preflight after any Grafana upgrade — every fact above
 is version-bound.
 
-## Drift check — has anyone edited a provisioned dashboard by hand?
+## Who last wrote this dashboard, and from where
 
-The as-code contract only holds if someone notices when it is broken. Two signals, both cheap:
+Without a committed copy there is nothing to diff against, but one signal still answers the question
+that matters before you overwrite someone's work:
 
 ```bash
-# 1. Was this dashboard last saved from a browser rather than from code?
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>" \
-  | jq -r '.metadata.annotations["grafana.app/saved-from-ui"] // "not saved from the UI"'
-#    -> "Grafana v13.1.4 (afdab62868)" when the last write came from the browser. [verified: QA]
-#    Grafana stamps this annotation on a UI save; a provisioned or API-applied dashboard has it
-#    only if a human overwrote it since. That makes it the cheapest drift detector available.
-
-# 2. Does the live model still equal the reviewed repository copy?
-#    Diff the STORED spec against the repo file — never the raw response, which carries
-#    server-owned metadata, and never your local file against itself.
-python - <<'PY'
-import json, subprocess
-live = json.loads(subprocess.run([...], capture_output=True, text=True).stdout)["spec"]
-repo = json.load(open("dashboards/<app>/<uid>.json"))
-print("DRIFT" if json.dumps(live, sort_keys=True) != json.dumps(repo, sort_keys=True) else "clean")
-PY
+curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" \
+  | jq -r '.metadata.annotations["grafana.app/saved-from-ui"] // "last written through the API"'
+#    -> "Grafana v13.1.4 (afdab62868)" when the last write came from the browser [verified: QA]
 ```
 
-Two properties make this safe to run on a schedule, both `[verified: QA]`:
-
-- **Re-applying byte-identical content is idempotent** — the version counter does not move and no
-  conflict is raised, so a job that re-applies the reviewed model when nothing changed is inert.
-- **A create round-trip is not byte-preserving** (see [json-model](./json-model.md)): the server
-  injects defaults and strips `spec.uid`/`spec.version`. So the *first* diff after adopting an
-  existing dashboard will show additions you never wrote. Commit the exported stored model as the baseline and diff against that
-  from then on, or every run reports drift that is not there.
-
-When drift is found, the fix is a pull request against the repository copy, then re-apply through the
-controlled path. Never "fix" it by exporting the hand-edit over the reviewed source without review —
-that launders an unreviewed change into the record.
+A dashboard last saved from the UI has an owner who edited it by hand; check the version history and
+the save messages before replacing it. `GET /api/dashboards/uid/<uid>/versions` names who and when.
 
 ## Discover — never invent a uid, folder, or data source
 
@@ -198,14 +193,16 @@ backend (`obs-metrics`) or read an existing panel's `targets[].expr` before writ
 ## Read and export
 
 ```bash
-# App platform, version pinned; {apiVersion, kind, metadata{name, annotations, resourceVersion, generation}, spec, status}
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>" > live.json
-# Which schema is it actually stored as?
-jq -r '.status.conversion.storedVersion // .apiVersion' live.json
+# App platform, pinned to the PROBED stored version; {apiVersion, kind,
+# metadata{name, annotations, resourceVersion, generation}, spec, status}
+curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" > live.json
+# ASSERT the round trip before trusting live.json: what came back must be stored at what you asked for.
+python -c "import json,sys; d=json.load(open('live.json')); c=(d.get('status') or {}).get('conversion') or {}; s=(c.get('storedVersion') or d.get('apiVersion','')).rsplit('/',1)[-1]; print('stored=%s asked=%s' % (s, '$APIVER')); sys.exit(s != '$APIVER')"
+# Non-zero here means you do not know what you are editing. Do not diff and do not write.
 # Legacy: {dashboard, meta{folderUid, provisioned, version, ...}}
 curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>" > live-legacy.json
 # Full listing, paginated until no metadata.continue
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards?limit=200"
+curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards?limit=200"
 ```
 
 **`jq` is not guaranteed to exist.** On the Windows host used for the 2026-08-21 run it was absent,
@@ -216,35 +213,39 @@ same from the response. `[verified: QA run]`
 
 **Read `meta` before you write — it answers three questions in one call. `[verified: QA]`** The
 legacy `GET /api/dashboards/uid/<uid>` returns a `meta` block carrying `canSave`, `canEdit`,
-`canAdmin`, `canDelete`, `provisioned`, `folderUid`/`folderTitle`, `version`, and `apiVersion` (the
-stored schema — a legacy-created dashboard on 13.1.4 reports `v0alpha1`). Checking `meta.canSave`
+`canAdmin`, `canDelete`, `provisioned`, `folderUid`/`folderTitle`, and `version`. It also carries an
+`apiVersion`, which is **not** the stored schema: it reports the version the *client* asked for, and
+Grafana pins that client to `v0alpha1` `[sourced: client.go:85 — read from source, not measured
+here; the QA run observed only a dashboard whose storage happened to equal v0alpha1, so it could not
+have told the two apart]`. Use `status.conversion.storedVersion` for that question
+([json-model](./json-model.md)). Checking `meta.canSave`
 tells you the write will be permitted *before* you attempt it, and `meta.provisioned` tells you the
 file provider owns it, which no amount of retrying will change. The app-platform equivalent is
 `status.conversion` — `{"failed": false, "storedVersion": "v0alpha1"}` — which reports the stored
 schema and whether converting it to the version you asked for lost anything.
 
-Export hygiene before the repository sees the file: keep `uid`; drop the numeric `id` (legacy body) and
+Export hygiene before you keep or re-apply a model: keep `uid`; drop the numeric `id` (legacy body) and
 the `metadata.resourceVersion`/`generation`/`status` block (app-platform body); leave `version`
 untouched in review; use `${datasource}` rather than instance uids; `jq empty` it; diff against the
-previous repository copy, not against memory of the UI. `meta.provisioned: true` (legacy) tells you the
-dashboard is file-provisioned and **not API-writable** — change its source file instead.
+previously exported model, not against memory of the UI. `meta.provisioned: true` (legacy) tells you the
+dashboard is file-provisioned and **not API-writable** — the owning tool's source must change instead — that is not this team's repository.
 
 ## Create
 
-Birth-in-repo is the default: a new dashboard normally lands as reviewed JSON and reaches Grafana
-through provisioning or Git Sync with no write credential involved. When the API is the path, the
-**dashboard write rule** applies (checklist below).
+Creating is a live change like any other: the **dashboard write rule** applies (scope below).
 
 ```bash
-# App platform: metadata.name IS the uid; folder and commit message travel as annotations
-jq -n --slurpfile spec dashboard.json '{
-  apiVersion: "dashboard.grafana.app/v1", kind: "Dashboard",
+# App platform: metadata.name IS the uid; folder and save message travel as annotations
+# On create there is no stored version yet — the version you pick BECOMES the stored one, so set
+# APIVER deliberately here (there is nothing to probe) and let the body follow it.
+jq -n --slurpfile spec dashboard.json --arg av "dashboard.grafana.app/$APIVER" '{
+  apiVersion: $av, kind: "Dashboard",
   metadata: {name: $spec[0].uid,
              annotations: {"grafana.app/folder": "<existing folder uid>",
-                           "grafana.app/message": "PR #<n> <full-sha>"}},
+                           "grafana.app/message": "<ticket or change reference>"}},
   spec: $spec[0]}' > create.json
 curl -sS "${H[@]}" -X POST --data @create.json \
-  "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards"
+  "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards"
 #   201 created · 400 invalid body · 401/403 auth · 409 "dashboard with the same uid already exists"
 # [verified: QA] 201 returns the stored object: metadata.name = your uid, metadata.uid = a separate
 # server-minted GUID, metadata.resourceVersion (opaque, e.g. "1787372025152018"), metadata.generation: 1,
@@ -252,9 +253,10 @@ curl -sS "${H[@]}" -X POST --data @create.json \
 
 # Legacy fallback: one endpoint creates and updates
 jq -n --slurpfile d dashboard.json '{dashboard: ($d[0] | .id = null), folderUid: "<existing folder uid>",
-  message: "PR #<n> <full-sha>", overwrite: false}' > create-legacy.json
+  message: "<ticket or change reference>", overwrite: false}' > create-legacy.json
 curl -sS "${H[@]}" -X POST --data @create-legacy.json "$GRAFANA_URL/api/dashboards/db"
-#   200 · 400 · 401/403 · 412 {status:"name-exists"} when the uid is taken
+#   200 · 400 · 401/403 · 409 when the uid is taken [verified: QA 13.1.4] (412 name-exists is the
+#       older documented shape and was not observed there)
 # [verified: QA] a fresh-uid create answers HTTP 200 with exactly:
 #   {"folderUid":"","id":1346080749527040,"slug":"test3a-claude-legacy-probe","status":"success",
 #    "uid":"test-claude-legacy","url":"/d/test-claude-legacy/test3a-claude-legacy-probe","version":1}
@@ -263,7 +265,7 @@ curl -sS "${H[@]}" -X POST --data @create-legacy.json "$GRAFANA_URL/api/dashboar
 # first and returns 403 with an empty `{}` body.
 ```
 
-Mint the `uid` yourself (8–40 characters) so the repository and the live copy agree from day one; point
+Mint the `uid` yourself (8–40 characters) so every later reference to this dashboard means the same object; point
 the folder at one that exists (create it first through the folder API); send no `version`. A 409 /
 `name-exists` means the uid is taken: stop and reconcile — never flip `overwrite` to steamroll it.
 `[sourced: docs http-api/dashboard; v12.4.1 legacy dashboard page]`
@@ -286,9 +288,13 @@ curl -sS "${H[@]}" -X POST "$GRAFANA_URL/api/dashboards/import" --data @import.j
 
 **`[verified: QA]`** after import the stored model carries **no** `__inputs`: the placeholder is
 replaced by the concrete `{"type":"prometheus","uid":"<bound uid>"}`, panels that used the template
-variable keep `{"uid":"$datasource"}`, and a `gnetId` records the source id. Export that stored model
-and commit *it* — not the downloaded file — then swap the bound uid for `${datasource}` so the
-repository copy stays portable ([json-model](./json-model.md)).
+variable keep `{"uid":"$datasource"}`, and a `gnetId` records the source id. **Fix the import in
+place:** swap that concrete bound uid for `${datasource}` and write the corrected model back, so the
+dashboard does not carry one instance's data-source identity ([json-model](./json-model.md)). There
+is nothing to commit — an imported dashboard's record is Grafana's version history like any other.
+If a model ever leaves the instance for a separately authorized reason, sanitize the
+instance-specific identifiers — data-source and folder uids, instance URLs — **before** it leaves,
+never after.
 
 Never `POST /api/dashboards/db` a file that still contains `${DS_*}`: that path does no binding and
 stores the placeholder literally, producing "Datasource named ${DS_PROMETHEUS} was not found".
@@ -301,15 +307,17 @@ jq -S .spec live.json > live.spec.json && jq -S . dashboard.json > new.spec.json
 diff -u live.spec.json new.spec.json
 # 2. build the update from the live object so metadata (resourceVersion, labels) round-trips intact
 jq --slurpfile spec dashboard.json \
-   '.spec = $spec[0] | .metadata.annotations["grafana.app/message"] = "PR #<n> <full-sha>" | del(.status)' \
+   '.spec = $spec[0] | .metadata.annotations["grafana.app/message"] = "<ticket or change reference>" | del(.status)' \
    live.json > update.json
 curl -sS "${H[@]}" -X PUT --data @update.json \
-  "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>"
-#   200 updated · 400 · 401/403 · 409 "dashboard with the same version already exists" → someone saved first: re-read, re-diff, retry
+  "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>"
+#   200 updated · 400 · 401/403 · 409 → someone saved first: re-read, re-diff, retry. The body reads
+#       "Operation cannot be fulfilled ... the object has been modified" [verified: QA] — match on the
+#       409 and reason:"Conflict", never on a message string
 
 # Legacy fallback: pin the version you read, keep overwrite:false
 jq -n --slurpfile d dashboard.json --argjson v "$(jq .dashboard.version live-legacy.json)" \
-  '{dashboard: ($d[0] | .version = $v), folderUid: "<folder uid>", message: "PR #<n> <full-sha>", overwrite: false}' > update-legacy.json
+  '{dashboard: ($d[0] | .version = $v), folderUid: "<folder uid>", message: "<ticket or change reference>", overwrite: false}' > update-legacy.json
 curl -sS "${H[@]}" -X POST --data @update-legacy.json "$GRAFANA_URL/api/dashboards/db"
 #   409 {"message":"Dashboard already exists. Use overwrite flag to update."} on 13.1.4 [verified: QA]
 #       — the SAME body for a stale version and for a taken uid; re-read and compare the version
@@ -334,20 +342,21 @@ Two traps in that table:
   version yourself rather than parsing the string.
 - **`overwrite: true` defeats the check silently.** Sending a stale `version: 1` against a stored
   version 2 with `overwrite: true` returned `200` and moved the dashboard to version 3, discarding
-  the concurrent edit with no warning. This is the failure the rule exists to prevent, reproduced.
+  the concurrent edit with no warning.
 
 One useful bit of leniency: **re-applying byte-identical content is idempotent** — the version
-counter does not move and no conflict is raised, so a drift-check job that re-applies the reviewed
-model when nothing changed is safe to run repeatedly. `[verified: QA]`
+counter does not move and no conflict is raised, so re-sending a model you have already applied is inert rather than a new version. `[verified: QA]`
 
-Two guard rails: a **file-provisioned** dashboard refuses API saves — edit its source and let the
-provisioner reload; and **`overwrite: true` is the failure this reference exists to prevent** — it
+Two guard rails: a **file-provisioned** dashboard refuses API saves, and no retry changes that —
+the owning tool's source is the only way in, and it is not this team's repository; and **`overwrite: true` is the failure this reference exists to prevent** — it
 silently discards a concurrent edit and is never the fix for a 409/412.
 
 ## Verify — a write is not done when the call returns
 
-1. **Read it back** with the version pinned and compare `uid`, folder annotation, and
-   `spec` to what you sent; note the new `version` (legacy) or `metadata.generation` (app platform).
+1. **Read it back into a different file** — `> after.json`, never over `live.json`. That export is
+   still your rollback source, and overwriting it with the post-write model turns the rollback into
+   a re-apply of the change you are trying to undo. Compare `uid`, folder annotation, and `spec` to
+   what you sent; note the new `version` (legacy) or `metadata.generation` (app platform).
 2. **Prove the queries return data.** Run each new or changed target through the query API with the
    dashboard's default range and a real variable value:
    ```bash
@@ -355,6 +364,9 @@ silently discards a concurrent edit and is never the fix for a 409/412.
      "queries":[{"refId":"A","datasource":{"type":"prometheus","uid":"<ds uid>"},"expr":"<expr with variables substituted>","intervalMs":60000,"maxDataPoints":500}]}' \
      | jq '.results.A.status, (.results.A.frames | length)'
    ```
+      `$__rate_interval` does not exist here — it is resolved at render time from the panel width and
+   the data source's scrape interval. Substitute a concrete window (`[5m]`, or `4 ×` your scrape
+   interval) and say in the report that the proof used that window, not the one the panel will run.
    **`[verified: QA]`** this exact body returns `results.A.status: 200` with populated
    `results.A.frames[]`; the response echoes what the server ran in
    `frames[0].schema.meta.executedQueryString` (`"Expr: up\nStep: 1m0s"`), which is the fastest way
@@ -372,14 +384,14 @@ silently discards a concurrent edit and is never the fix for a 409/412.
    `[unverified — no renderer was available to exercise it]`, then check for empty top-row panels,
    truncated titles, overlapping panels, missing units. When it returns `false`, say so plainly and
    report the write as verified-by-query-only: never claim a visual check you did not make.
-4. **Export and commit** the applied model to the dashboards-as-code path in the same task, with the
-   PR/commit in the `grafana.app/message` you sent.
+4. **Set `grafana.app/message`** to a ticket or change reference on the write itself, so the version
+   history carries why. It is the only durable record of the change.
 
 ## Version history and rollback
 
 ```bash
 # App platform resource history (GA versions only)
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards?labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>"
+curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards?labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>"
 # Legacy: who/when/message per version, and the full model at one version
 curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>/versions?limit=20"
 curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>/versions/<version>"
@@ -392,38 +404,30 @@ onto the current object:
 
 ```bash
 # 1. read the live object again — this is the only source of a usable token
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>" > now.json
+curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" > now.json
 # 2. put the SAVED spec into the CURRENT envelope, and drop status (see json-model.md)
 python -c "import json,sys; live=json.load(open('now.json')); saved=json.load(open('live.json')); \
   live['spec']=saved['spec']; live.pop('status',None); json.dump(live,open('rollback.json','w'))"
 # 3. apply it like any other update
 curl -sS "${H[@]}" -X PUT --data @rollback.json \
-  "$GRAFANA_URL/apis/dashboard.grafana.app/v1/namespaces/$NS/dashboards/<uid>"
+  "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>"
 ```
 
 On the legacy path the same rule holds: take `dashboard.version` from a fresh read, not from the
-export. For a provisioned dashboard the durable rollback is the repository revert; a version
-restored in the UI is overwritten on the next provisioning cycle. The UI keeps 20 versions by default
+export. If a dashboard turns out to be owned by a provisioner or another tool, rollback belongs to that tool
+— a version restored here is overwritten on its next cycle. The UI keeps 20 versions by default
 (`[dashboards] versions_to_keep`). *[sourced: docs resource-history; api-legacy/dashboard_versions; manage-version-history]*
 
-## The dashboard write rule — pre-write checklist
+## The dashboard write rule — scope
 
-This is the `observability-engineer` change-ladder rule, in the order it must be satisfied; the main
-session follows the same list.
+The conditions are the skill's loop, steps 2–8; satisfy them in that order. Two things the loop does
+not say:
 
-1. Target shown: Grafana URL, namespace/org, folder uid, dashboard uid — and whether it is production.
-2. Live model exported first (`live.json`) and kept as the rollback.
-3. Full JSON diff against the live `spec` shown before the call.
-4. Update pins the version you read; `overwrite` stays `false`; a conflict re-reads, never forces.
-5. Data-source uids, folder uid, metric and label names all came from the target, not from memory.
-6. `jq empty` passed; `dashboard-linter lint --strict` passed or its exclusions are reasoned.
-7. After the call: read back, queries return data, visual check made or its absence stated.
-8. Applied JSON exported and committed to the dashboards-as-code path in the same task, with the
-   PR/commit in the save message.
-
-Dashboards and their folders only. Deleting a dashboard (`DELETE …/dashboards/<uid>`), changing
-permissions, data sources, alert rules, or contact points is outside the rule — prepare and recommend
-under the change ladder.
+- **Name whether the target is production** when you show the target. The rule permits a production
+  write; it does not permit an unannounced one.
+- **Dashboards and their folders only.** Deleting a dashboard (`DELETE …/dashboards/<uid>`), changing
+  permissions, data sources, alert rules, or contact points is outside the rule — prepare and
+  recommend under the change ladder.
 
 ## Failure table
 
@@ -438,7 +442,7 @@ under the change ladder.
 | `409` (legacy) | **On 13.1.4 this is the answer for BOTH a taken uid and a stale `dashboard.version`**, with the same message `Dashboard already exists. Use overwrite flag to update.` `[verified: QA]` | Re-read and compare the version yourself — the body cannot distinguish the two. Do not set `overwrite: true` to make it go away: that discards the other person's save |
 | `412 version-mismatch` / `name-exists` (legacy) | The documented v12.4.1 shape. **Not observed on 13.1.4** — it answered `409` instead `[verified: QA]` | Handle both; treat either as "re-read before writing" |
 | `412 plugin-dashboard` (legacy) | A plugin owns the dashboard | Leave it; it is not yours to write |
-| Save refused, dashboard is provisioned | File provider owns it | Change the repository file; let the provisioner reload |
+| Save refused, dashboard is provisioned | File provider owns it | Not writable from here; the owning tool must change it |
 | `grafana.app/managed-by` set to another tool | Git Sync, Terraform, or gcx manages it | Stop; change it through that tool or ask before taking ownership |
 | Queries return 0 frames after write | Wrong uid/label/job, or the variable has no value | Fix before declaring done; a blank panel must not look healthy |
 

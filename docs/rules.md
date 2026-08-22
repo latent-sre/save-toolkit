@@ -55,7 +55,7 @@ authoritative?*
 | Callers must sanitize researcher prompts (cooperative gate, not DLP) | Same ADR; [`AGENTS.md`](../AGENTS.md) Honest limits |
 | `scribe`: local document write; no Bash, web, or Agent | [`AGENTS.md`](../AGENTS.md) roster |
 | `sre`: guarded Bash; recommends mitigation, never applies it | [`AGENTS.md`](../AGENTS.md) |
-| `observability-engineer`: unguarded Bash + obs-config write; Grafana dashboard create/update is its one live apply (diff shown first, `version` pinned, export committed); every other Tier 2/3 change recommend-only | Agent body; [ADR 2026-08-21](decisions/2026-08-21-observability-engineer-unguarded-bash.md); production-change-gate |
+| `observability-engineer`: unguarded Bash + obs-config write; Grafana dashboard create/update is its one live apply (diff shown first, live model exported as rollback, concurrency token pinned — three conditions since 2026-08-22; no committed record exists); every other Tier 2/3 change recommend-only | Agent body; [ADR 2026-08-21](decisions/2026-08-21-observability-engineer-unguarded-bash.md); production-change-gate |
 | `sde` / `prompt-engineer`: unguarded Bash — host/network egress controls remain load-bearing | [`AGENTS.md`](../AGENTS.md) Honest limits |
 | Guard is a command filter, not a sandbox; OS least privilege remains load-bearing | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | `Agent(target)` grants enforce on the main thread only; at subagent depth the list is documentary | Frontmatter reference; [`AGENTS.md`](../AGENTS.md) |

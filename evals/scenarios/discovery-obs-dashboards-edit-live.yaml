@@ -9,29 +9,48 @@ prompt: |
   Add a p99 request-latency panel to the existing "Checkout / Health" dashboard (uid checkout-health)
   on our self-managed Grafana 13.1 and apply the change over the HTTP API yourself. Show the panel
   JSON with its PromQL, the exact read and write calls, how you avoid clobbering someone else's
-  concurrent save, how you verify the write landed, and what you commit afterwards. This is a
-  dashboard edit, not alert design and not incident triage.
+  concurrent save, how you verify the write landed, and what record of the change survives afterwards. This is a
+    dashboard edit, not alert design and not incident triage.
 routing:
   expect: fire
 success_criteria:
   - Routes a live dashboard edit to the dashboards lane rather than metrics, alerting, or sre
   - Reads before writing, pins the version it read, refuses overwrite, and verifies after the call
-  - Ends with the applied JSON exported and committed to the dashboards-as-code path
+  - Records the change in the save message, the only durable trace of an instance-only write
 graders:
   # Grader history, recorded as fact rather than instruction:
   # The evidence-label grader below was removed on 2026-08-21 to make this scenario green, then
   # restored on 2026-08-22 after the skill was changed to earn it. Across six trials it had passed
   # four and failed two, the second failure with no evidence label of any kind in the response - a
-  # measured ~33% miss rate on a convention the skill states in its own opening lines. Removing it
-  # hid that gap rather than closing it. The skill now carries the evidence line as step 9 of its
-  # loop. `jq empty` was dropped separately: it named one command rather than a contract.
+  # measured ~33% miss rate on a convention the skill states in its own opening lines.
+  # The `commit` grader was replaced on 2026-08-22: the owner recorded that dashboards are managed
+  # in Grafana only, with no repository copy, so a committed artefact is not something the skill can
+  # produce. The save message and version history are the durable record it asserts instead.
   - type: contains_all
     of: ["histogram_quantile(0.99", "$__rate_interval", "${datasource}", "_bucket"]
-  - type: contains_all
-    of: ["overwrite", "version", "diff"]
-  - type: contains_any
-    of: ["409", "412"]
-  - type: contains_all
-    of: ["commit"]
+  # Tightened 2026-08-22 after an adversarial review showed the previous substring set green-lit a
+  # wrong answer: `contains_all: [overwrite, version, diff]` passed on "overwrite: true", "diff
+  # omitted"; `contains_any: [409, 412]` passed on "ignore the 409"; `contains_any: [message,
+  # version history]` passed on "no save message/version history". Presence of a word is not the
+  # posture. The replacements below name the concurrency token and use ADJACENCY - the conflict code
+  # and the re-read must land within ~160 chars of each other - which a "just ignore it" answer
+  # cannot produce. Measured against three fixtures: the wrong answer above goes red on five of
+  # these, a correct answer green, and a correct answer that *names* the anti-pattern ("never set
+  # overwrite: true") also green.
+  # A `not_regex` on `overwrite: true` was designed and REJECTED: it false-reds that third fixture,
+  # failing a response for correctly warning against the thing. Grader 2 catches the same case
+  # positively and cannot be gamed by anti-pattern prose.
+  - type: regex
+    pattern: '(metadata\.)?resourceVersion|dashboard\.version|overwrite["'' ]*[:=]["'' ]*false'
+  - type: regex
+    pattern: '(409|conflict)[\s\S]{0,160}?(re-?read|re-?fetch)|(re-?read|re-?fetch)[\s\S]{0,160}?(409|conflict)'
+  - type: not_regex
+    pattern: 'diff (is )?(omitted|skipped|not shown)|diff omitted'
+  - type: regex
+    pattern: 'read .{0,12}back|re-?read after|after\.json'
+  - type: regex
+    pattern: '(grafana\.app/message|save message|message)[\s\S]{0,200}?(version history|/versions)'
+  - type: not_regex
+    pattern: 'no (save )?message|without a (save )?message|no version history|no save message/version history'
   - type: contains_any
     of: ["[unverified]", "[verified]", "[sourced]"]

@@ -37,7 +37,7 @@ on any name below**; the vendor's own `assistant-mcp` skill was found naming MCP
   dashboard JSON; it is Cloud-backed and billable. *[sourced: gcx docs/reference/cli/gcx_assistant_dashboard.md]*
 
 When gcx is on the host, prefer it for **validate → dry-run → push → snapshot**; keep curl for reads
-in CI and for anything gcx does not expose. Either way the repository copy is committed afterwards.
+in CI and for anything gcx does not expose.
 
 ## `grafana/mcp-grafana` — the official MCP server
 
