@@ -172,62 +172,6 @@ weakening the criterion to metadata-visible residue is not an implementation sho
 that boundary and the missing live GitHub controls exist should the owner consider dispatch. Do not
 create or move a release ref manually.
 
-### ROUTE-001 — routing evals for the 2026-08 description changes
-
-**Status:** `active` (2026-08-22) — the broad evaluation campaign is retired. ROUTE-001 now
-owns only the exact unresolved routing/response-shaping question described below.
-
-**Outcome:** The canonical `gcp-ops` body contract no longer asks for mutually incompatible fenced
-outputs, with no standing broad evaluation work left behind.
-
-**Source:** The accepted amended
-[`Codex/Terra routing decision`](decisions/2026-08-11-codex-terra-routing.md) and the bounded
-[`Linux canary packet`](reviews/2026-08-20-route001-linux-canary.md).
-
-**Prerequisites:** None for the offline contract repair. Any paid follow-up requires owner
-authorization naming the one uncertainty that remains after offline verification.
-
-**Acceptance:** A red-first offline test proves the conflicting contract is removed. If an owner
-authorizes live measurement, one affected canary arm runs once against an immutable image and
-revision, records its bounded result, and stops.
-
-**Decision (2026-08-22):** Retire the dormant Codex/Terra 48-trial executor, its duplicate
-nineteen-scenario bundle, before/current cohort plan, resumable journal, and campaign-specific
-container mode. No campaign result exists to preserve. The remaining instrument is one immutable
-Linux-container preflight plus one fixed GCP Cloud Run canary with either a target-blind
-`description` arm or an explicit `$gcp-ops` body arm. The unprovisioned Windows host arm was
-retired separately on the same date.
-
-This is a scope correction, not a claim that the deleted campaign passed. A fixed call count was
-not a finding, and unpublished release contracts, inaccessible graders, and provider-wide parity
-were outside the question the live evidence could answer. Recreating a broad campaign requires a
-new named decision, a current measurement need, an explicit budget, and an evaluator designed for
-that need; historical manifests do not authorize it.
-
-**Current evidence:** The paired diagnostic at commit
-`cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` and immutable image
-`sha256:2ddd1652e8ceb8afa0c68146ad0d4399a4068d1e09f4c64c730c55985c39a06b`
-completed six authorized calls without retry after Gate A and credential-free preflight passed.
-Target-blind description selection passed 3/3. The exact `gcp-ops` body was digest-bound in all
-three body probes; behavior passed 1/3, and the other two failed only grader 5. The body requests a
-fenced Bash block while the scenario permits exactly one fenced JSON packet, so the remaining
-failure is a deterministic authoring-contract conflict, not evidence that description routing
-failed. No baseline, release, or campaign authority follows from these canaries. The detailed
-evidence remains in the
-[Linux canary packet](reviews/2026-08-20-route001-linux-canary.md) and the accepted
-[Codex/Terra decision](decisions/2026-08-11-codex-terra-routing.md).
-
-**Paid-eval rule:** A live model run is not a backlog item by itself. It must name one uncertainty
-that offline source/tests cannot settle, use one scenario, one arm, and one trial by default, record
-the exact immutable image and revision, and stop after that result. A larger comparison needs
-separate owner authorization and budget. A canary remains instrument evidence only and cannot
-grant baseline, release, or owner acceptance to itself.
-
-**Next action:** Resolve the Bash-fence versus JSON-packet contradiction in the canonical
-`gcp-ops` contract with a red-first offline test. After that, run no paid evaluation unless the
-owner names the remaining uncertainty; if measurement is authorized, run the one affected canary
-arm once and stop. Description routing needs no rewrite based on the current 3/3 result.
-
 ## Repository work
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
@@ -305,59 +249,6 @@ the linked [`HOST-002 VS Code tool-enforcement probe`](probes/host-002-vscode-to
 validate its per-criterion evidence envelopes, and record the dated packet. Do not weaken the
 `AGENTS.md` limit on inference alone, and do not populate `hooks/copilot-hooks.json` before a probe
 shows the payload can scope to an exact agent identity.
-
-### EVAL-002 — make POSIX process-boundary cleanup idempotent
-
-**Status:** `active` (2026-08-18) — the repaired target bytes reached PR #114 final head
-`106ee282903076dc54020df295ac37a0e66bc9d8` and passed the PR and merged-main matrices. A fresh
-evidence envelope and independent review of the final repaired bytes remain outstanding.
-
-**Outcome:** A timed-out Codex trial terminates its complete process tree and closes the POSIX
-boundary deterministically; final cleanup does not turn an already-completed termination into an
-`EPERM` test error, and no exception handling masks a surviving descendant.
-
-**Source:** The observed-only record
-[`fi_macos_process_group_cleanup_race`](../evals/improvements/fi_macos_process_group_cleanup_race/record.json)
-and its [intake packet](reviews/2026-08-13-macos-process-group-cleanup-race-intake.md) bind two
-identical macOS failures on PR #106 to exact head `a2a046e1`, while the byte-identical merge tree
-passed on main.
-
-**Prerequisites:** Start one bounded lifecycle attempt from current main. First define the narrow
-idempotent-cleanup invariant and a deterministic seam for the post-timeout `EPERM` state; do not
-generalize from runner timing or broadly swallow `PermissionError`.
-
-**Acceptance:** A red-first, mutation-sensitive regression proves the failure and the descendant-
-termination guarantee; focused process-boundary tests pass repeatedly on macOS; Ubuntu, macOS, and
-Windows Gate A jobs pass on the exact candidate; the typed record receives independent exact-revision
-correctness/security review without self-promotion.
-
-**Current evidence:** The POSIX final close tolerates `EPERM` only after a prior successful group kill
-and a reaped leader; either fact missing remains a fail-closed boundary error because a descendant may
-still be alive. The initial termination never tolerates `EPERM`. The regression set is deterministic
-(mocked `os.killpg`, stubbed `poll()`, no real processes or sleeps) and distinguishes the correct fix
-from the unsafe broad catch. The pre-existing real-process descendant assertions remain. Bound in the
-preparation-only
-[`POSIX boundary cleanup packet`](reviews/2026-08-15-posix-boundary-cleanup-repair.md).
-
-`[verified]` The target files at final head `106ee282` and merge `796435bf` are byte-identical to the
-repaired `13e6fd4` files and to current main. GitHub Actions runs
-[#31893669482](https://github.com/latent-sre/save-toolkit/actions/runs/31893669482) and
-[#31894502043](https://github.com/latent-sre/save-toolkit/actions/runs/31894502043) both passed Gate A
-on Ubuntu, macOS, and Windows. This supplies repeated macOS execution for the repaired bytes, but no
-fresh evidence envelope or independent final-byte review was produced; the record therefore remains
-`observed` with empty attempt and review arrays.
-
-**Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at final PR subject
-`106ee282` passed
-all 48 `test_codex_trial.py` tests on Windows (6 platform skips) and in the pinned network-disabled,
-read-only Linux container (2 platform skips). The Linux run covered the real descendant checks.
-Fresh static correctness/security review confirmed the two-fact invariant and found no remaining
-P0/P1. No new live macOS observation was made. See the
-[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
-
-**Next action:** Bind the deterministic exact-subject execution and pass verdict into a fresh
-validated evidence envelope and the typed record, then reconcile the outdated PR #114 threads. Do
-not widen the two-fact `PermissionError` invariant or treat the review packet alone as promotion.
 
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
@@ -504,22 +395,19 @@ verbatim transcription. Today neither is true, and the suite cannot pass on any 
 The batch was authored 2026-08-11 in `b459a5d` and validated only against synthetic fixtures; a real
 model had never been asked for that shape until 2026-08-19. This is an unmet contract, not rot.
 
-**Prerequisites:** None to decide — the measurement is complete. To *act* on option (b), scenario
-bytes remain digest-pinned by the canonical Linux routing manifest and scenario bundle, while a
-grader edit changes the immutable evaluator image. Either change invalidates the prior independent
-review and cannot land ahead of ROUTE-001's own sequencing. The retired Windows evaluator manifest
-adds no second re-freeze. Options (a) and (c) touch no frozen evaluator bytes.
+**Prerequisites:** None to decide — the measurement is complete. The retired Codex/Terra evaluator
+no longer pins scenario or grader bytes. Any implementation follows the ordinary red-first contract
+rule and the affected Claude clean-room eval trigger; it does not need an evaluator re-freeze.
 
 **Acceptance:** One contract holds across both sides, and the suite's result means something: either
 the canonical skills teach the packet and the affected scenarios pass on a named model with
-before/after evidence, or the graders are rewritten to assert behavior and re-frozen through
-ROUTE-001's review path, or the scenarios are explicitly recorded as aspirational so a red suite is
-never read as a regression. Whichever is chosen is written here with its evidence.
+before/after evidence, or the graders are rewritten to assert behavior and are covered by focused
+mutation-sensitive tests, or the scenarios are explicitly recorded as aspirational so a red suite
+is never read as a regression. Whichever is chosen is written here with its evidence.
 
-**Options for review:** (a) teach the packet in the canonical skills — no frozen bytes change, and a
-checkable alert-definition contract is defensible on its own merits; (b) loosen the graders to
-assert behavior — changes frozen bytes and needs ROUTE-001 sequencing; (c) accept the scenarios as
-aspirational and record them as such so a red suite stops reading as a regression.
+**Options for review:** (a) teach the packet in the canonical skills, if the named-field contract is
+defensible on its own merits; (b) rewrite the graders to assert behavior; (c) record the scenarios as
+aspirational so a red suite stops reading as a regression.
 
 **Cross-provider evidence (2026-08-20), which refined the diagnosis rather than confirming it.**
 The working hypothesis was that these graders demand output no model produces, and that the Terra
@@ -545,28 +433,27 @@ the canary whose graders were calibrated against real model output and repaired 
 "the graders ask for the impossible"; it is that one set was checked against a real answer and the
 other never was.
 
-Two consequences for the options above: option (b) should mean **calibrate against real model
-output**, the way the canary's graders were, rather than a blanket loosening; and
-`cloud_run_rollback_packet`'s only-fenced-block rule deserves review on its own merits, since it
-penalises an answer that fences its commands — which is arguably the better answer.
+For the remaining options, option (b) should mean **calibrate against real model output**, the way
+the Cloud Run graders were, rather than a blanket loosening. The Cloud Run exact-output rule remains;
+the conflicting default Bash fence was the contract that needed removal.
 
-**Confirmed as a contract contradiction, not a model failure (2026-08-20).** ROUTE-001's paired
+**Confirmed as a contract contradiction, not a model failure (2026-08-20).** The retired paired
 Linux canary reached the same conclusion from the Terra side and labelled it `[inference]`, because
 its compact artifacts deliberately retain no raw responses and so cannot show which rendering each
 response used. The Claude run supplies exactly that missing evidence, so the finding is now
 `[verified]` across both providers: `claude-sonnet-5` failed
 `cloud_run_rollback_packet` on both trials of the same scenario while passing every content grader.
-The contradiction is in the repository's own bytes — `skills/gcp-ops/SKILL.md:29-35` instructs the
-answer to place its evidence commands in a fenced `bash` block, while the scenario's
-`cloud_run_rollback_packet` grader rejects any fence other than the single JSON packet. A model
-that follows the skill literally cannot pass the grader; a model that passes the grader has ignored
-the skill. Neither side is a model-quality signal, and no amount of prompt tuning resolves it while
-both contracts stand.
+The then-current `gcp-ops` skill instructed the answer to add a fenced Bash block while the scenario
+rejected any fence other than the single JSON packet. Neither result was a model-quality signal.
 
-**Next action:** Owner review of the three options, now with the calibration distinction above. Until
-that review, do not tune skills to satisfy these graders and do not edit the frozen scenario bytes;
-both would pre-empt the decision. Evidence
-is in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
+**Contract repair (2026-08-22):** `gcp-ops` now preserves caller fence constraints and keeps the
+evidence commands inline. A red-first check in `evals/test_graders.py` fails if that instruction or
+the fence-free answer shape is removed. This closes the Cloud Run contradiction without a paid rerun;
+it does not decide the remaining 2026-08-11 observability packet-shape options.
+
+**Next action:** Owner review of the three remaining observability options, with the calibration
+distinction above. Evidence is in
+[`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 
@@ -671,18 +558,17 @@ needs no host inventory work.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
-**Status:** `blocked` (2026-08-20) — blocked on ROUTE-001's re-freeze window, not on effort.
+**Status:** `ready` (2026-08-22) — retirement of the Codex/Terra evaluator removed the body-digest
+pin that had blocked this independent correction.
 
 **Outcome:** `skills/gcp-ops/SKILL.md` stops telling agents that a quoted `severity>=ERROR` trips the
 read-only guard, which stopped being true when PR #112 loosened the guard's proven-safe false
 positives.
 
-**Source:** PR #112. The branch originally corrected this sentence, but the file's bytes are the
-ROUTE-001 canary body: `evals/run_codex_routing.py`'s `CANARY_SKILL_BODY_SHA256` pins
-`plugins/save-toolkit/skills/gcp-ops/SKILL.md`, and `evals/codex_trial.py` raises
-`skill-body-mismatch` on any edit. The edit was therefore reverted so #112 could land, on the same
-reasoning this file already applies to the frozen scenario bytes — re-freezing a hash-bound manifest
-invalidates the prior independent review.
+**Source:** PR #112. The branch originally corrected this sentence, but the edit was deferred because
+the now-retired ROUTE-001 canary pinned the exact projected `gcp-ops` body. That evaluator dependency
+no longer exists; its historical rationale remains in the accepted
+[`retirement decision`](decisions/2026-08-11-codex-terra-routing.md).
 
 **Interim mitigation (in place):** `skills/obs-logs/references/gcp-logging.md` carries the correct
 behavior, probe-cited, and `gcp-ops` already routes Logging query-language detail to that reference
@@ -694,21 +580,22 @@ an agent is told to load is right.
 exit 42 (allow); the same filter unquoted returns exit 43 (deny). On `origin/main`'s guard the quoted
 form returns exit 43, so the sentence is correct on main and becomes stale only once #112 merges.
 
-**Prerequisites:** ROUTE-001 reaches a point where the canary body may be re-frozen and
-independently re-reviewed. This item must not pre-empt that sequencing.
+**Prerequisites:** None. Reconfirm the quoted and unquoted filter cases against the focused guard
+corpus before changing the canonical skill.
 
-**Acceptance:** `gcp-ops` states the guard's real behavior, `CANARY_SKILL_BODY_SHA256` matches the
-new bytes, the canary is re-run rather than re-derived, and Gate A passes.
+**Acceptance:** `gcp-ops` states the guard's real behavior, the focused allow/deny corpus proves it,
+generated projections match, and Gate A passes.
 
-**Next action:** None until ROUTE-001 opens its re-freeze window. Do not edit `gcp-ops/SKILL.md` or
-bump the pin before then.
+**Next action:** Correct the stale sentence with the focused guard regression, regenerate once, and
+stop; no provider evaluation is attached to this text correction.
 
-**Also queued for the same re-freeze (2026-08-21):** the OOM bullet in the frozen body still reads
+**Separate follow-up (2026-08-21):** the OOM bullet still reads
 "exact memory-limit error text `[unverified]`". The text is resolved — *"While handling this request,
 the container instance was found to be using too much memory and was terminated."*, an HTTP 500/503
 log line with no exit code, and local-filesystem writes count toward instance memory — and now lives
 in [`references/cf-to-cloud-run.md`](../skills/gcp-ops/references/cf-to-cloud-run.md), which the
-body already routes to. Fold it into the body when the pin is bumped.
+body already routes to. Do not couple that content change to GCPOPS-001 merely because both once
+shared the retired body pin.
 
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
@@ -769,7 +656,8 @@ review or while actionable current findings remain undisposed, even when an auto
 a large diff or comments on an earlier SHA.
 
 **Source:** PR #103 exceeded Copilot's 20,000-line review limit and merged with unresolved review
-threads, including the two reproducible false passes now recorded under RELEASE-001 and ROUTE-001.
+threads, including the reproducible false passes recorded under RELEASE-001 and in the dated
+ROUTE-001 review evidence.
 The live `Protect main` ruleset requires a pull request but zero approvals and no review-thread
 resolution; the separate Copilot rule reviews drafts but does not review every push. Repository policy
 already requires immutable-candidate correctness and security review before merge.
@@ -818,11 +706,10 @@ authority; do not delete, reset, or regenerate inside the source worktree withou
 ### EVAL-001 — expand risk-weighted Sol coverage
 
 **Status:** `deferred` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
-manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A, the local Claude runner, and the
-narrow active ROUTE-001 Terra evaluator are the beta's current verification surfaces; ROUTE-001 does
-not supply this item's broader direct Sol coverage. Reopen when a Codex/Sol behavioral baseline is
-actually needed for a release decision; the prerequisites and acceptance below are unchanged and
-still apply at that point.
+manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A and the local Claude runner are the
+beta's current verification surfaces; no active Codex evaluator supplies this item's broader direct
+Sol coverage. Reopen when a Codex/Sol behavioral baseline is actually needed for a release decision;
+the prerequisites and acceptance below are unchanged and still apply at that point.
 
 **Outcome:** The highest-risk skills and every explicitly installed Codex custom agent have direct
 behavioral evidence on `gpt-5.6-sol`, while implicit routing remains an observational metric rather

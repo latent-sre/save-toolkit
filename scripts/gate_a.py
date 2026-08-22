@@ -19,11 +19,11 @@ started this script with, by construction the right one.
 
 ONE RUN PER MACHINE
 -------------------
-Two gates overlapping on one machine false-red each other. Measured 2026-08-21: with a second python
-process running the same file, scripts/test_host_install_probe.py reports 19 failures and
-evals/test_codex_trial.py a KeyError, both finishing in a third of their healthy time; alone and in
-sequence they pass 6/6. The shared resource was not pinned down, and the common way to overlap is not
-deliberate at all: `gate_a.py | head` on Windows leaves the whole gate running orphaned after `head`
+Two gates overlapping on one machine false-red each other. Measured 2026-08-21: with a second Python
+process running the same file, subprocess-heavy suites produced false failures and finished in a
+third of their healthy time; alone and in sequence they passed. The shared resource was not pinned
+down. The common way to overlap is not deliberate at all: `gate_a.py | head` on Windows leaves the
+whole gate running orphaned after `head`
 exits, so every gate started afterwards collides with it. A false red sends a session into a
 debugging spiral that costs far more than the gate, so the gate takes a machine-wide lock in the
 temp directory, refuses to start while a live holder has it, reclaims a lock whose holder is dead,
@@ -291,8 +291,8 @@ def main(argv=None):
             failed = run_steps(STEPS, verbose=True) if args.verbose else run_steps(STEPS)
     except GateBusy as busy:
         print("Gate A: REFUSED -- another Gate A is already running (pid %s, started from %s).\n"
-              "  Two runs that overlap on one machine false-red each other (test_host_install_probe,\n"
-              "  test_codex_trial), so this run did not start. Wait for that one to finish -- or, if it\n"
+              "  Two runs that overlap on one machine false-red subprocess-heavy suites, so this run\n"
+              "  did not start. Wait for that one to finish -- or, if it\n"
               "  is an orphan (for example a `gate_a.py | head` whose reader already exited), stop it --\n"
               "  and rerun. Lock: %s" % (busy.holder_pid, busy.holder_root, busy.lock_path),
               file=sys.stderr)

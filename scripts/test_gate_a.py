@@ -207,11 +207,10 @@ class PreflightInterpreterFloorTests(unittest.TestCase):
 class GateLockTests(unittest.TestCase):
     """Two Gate A runs on one machine must not overlap.
 
-    Measured 2026-08-21: `scripts/test_host_install_probe.py` and `evals/test_codex_trial.py` pass
-    alone and fail -- 19 failures, `KeyError: 'selected_skill_name'`, finishing in a third of their
-    normal time -- whenever a second python process is running the same file. The usual way that
-    happens is `gate_a.py | head`, which on Windows leaves the whole gate running orphaned after
-    `head` exits. A false red costs far more than the gate, so the gate refuses to start while
+    Measured 2026-08-21: subprocess-heavy suites pass alone and false-red, while finishing in a
+    third of their normal time, whenever a second Python process is running the same file. The usual
+    way that happens is `gate_a.py | head`, which on Windows leaves the whole gate running orphaned
+    after `head` exits. A false red costs far more than the gate, so the gate refuses to start while
     another run holds the machine-wide lock, and the OS drops the lock when its holder dies.
 
     Stale-lock reclamation is now ownership-preserving: the lock is an OS advisory lock

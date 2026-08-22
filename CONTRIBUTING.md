@@ -44,13 +44,6 @@ Before you push — once, not after each edit — run the structural gate:
 py -3 scripts/gate_a.py
 ```
 
-Run it from a normal checkout. In a **linked `git worktree`** the gate fails `evals/test_codex_snapshot.py`
-with `SnapshotError: repository Git directory must be an existing directory`, because a linked
-worktree's `.git` is a pointer file and the snapshot boundary requires a real directory. That is the
-checkout form, not a regression: clone the commit under test and run the gate there. Do not relax the
-snapshot's directory check to make it pass — the same predicate rejects link and reparse-point
-indirection, so loosening it is a security-boundary change needing its own review.
-
 Gate A is structural. Before merge, run one independent `reviewer` pass — it carries both the
 correctness lens and the security/agentic-boundary lens — against the pushed candidate SHA, and name
 that SHA in the PR body so a skipped review is visible rather than silent. Add a plan-conformance

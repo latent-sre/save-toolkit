@@ -8,76 +8,35 @@ look like a menu even when a path is not runnable or authoritative.
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
-| **ROUTE-001 Codex/Terra** — `codex_*.py`, [`conformance/`](conformance) | active; fixed Linux preflight and one canary; broad campaign retired | contract tests only | [`codex_container.py`](codex_container.py) through an exact image ID |
+| **Codex/Terra ROUTE-001** | **retired 2026-08-22**; historical evidence only | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
 
 Every active `evals/test_*.py` runs in Gate A, enrolled by file existence rather than a hand-kept
 roster. Parked execution code stays out of the active tree, and frozen evidence remains read-only.
-The Terra snapshot is one exact Git object with a separately computed tree digest; a later checkout
-does not silently become canary input.
 
 > **Shallow clones:** every "recover from tag `pre-trim-2026-08-02`" instruction in this repository
 > fails with `fatal: unknown revision` unless you fetch tags first
 > (`git fetch --tags --depth=1000`). The tag exists on the remote.
 
-## ROUTE-001 Codex/Terra canary
+## Codex/Terra ROUTE-001 (retired)
 
-The active instrument is deliberately small. The canonical manifest pins Codex CLI 0.148.0,
-`gpt-5.6-terra` at medium reasoning, approval policy `never`, a 300-second timeout, one exact
-Linux runtime, one current Git revision, and one embedded GCP Cloud Run scenario. It supports a
-credential-free preflight and one authenticated canary. It does not support planning, cohorts,
-baselines, or a multi-scenario campaign.
+The Codex/Terra evaluator, its container preflight, its single canary, and all eight dedicated test
+suites were retired on 2026-08-22. They produced useful bounded diagnostics, but no baseline or
+release evidence, and no current decision needs a provider-specific evaluator. There is no standing
+paid-eval task or runnable Codex/Terra path in this tree.
 
-Offline validation is free and starts no model process:
+The last paired diagnostic found target-blind `gcp-ops` description selection at 3/3 and body
+behavior at 1/3. The two body failures isolated a repository contract conflict: the skill requested
+a Bash fence while the scenario allowed exactly one JSON fence. The skill now preserves the caller's
+fence constraints, and `evals/test_graders.py` carries the offline red-first regression. No paid
+rerun was needed to establish that contract.
 
-```powershell
-python evals/run_codex_routing.py
-```
-
-Do not invoke the inner runner's live modes directly. The canonical path is
-[`codex_container.py`](codex_container.py) with an immutable image ID. The launcher verifies the
-image, repository, auth, and output boundaries. A `canary` command always runs the same image in
-credential-free, networkless `preflight` mode first and stops on any failure before making at most
-one paid call. It writes only the compact result to `<output-root>/canary-result.json`: image ID,
-preflight facts, state/reason codes, failed numeric grader indices, invocation mode, prompt digest,
-skill-body digest when applicable, and accepted token-usage counters.
-
-The two canary arms answer different named questions:
-
-- `description` asks for one bare skill name from the catalog without naming the expected skill. It
-  measures description selection only.
-- `body` explicitly selects `$gcp-ops`, verifies the staged `SKILL.md` digest, and measures the
-  resulting response against the fixed linear graders. It is not implicit-routing evidence.
-
-A live run is not standing work. It needs owner authorization for one named uncertainty that offline
-source and tests cannot settle, defaults to one scenario, one arm, and one trial, and stops after that
-result. Retrying, adding repetitions, comparing providers, or expanding the scenario set needs a
-separate budget and authorization. Neither a preflight nor a canary grants baseline, release, or
-owner acceptance; the serialized authority facts remain fail-closed.
-
-The most recent paired diagnostic completed six previously authorized calls at exact evaluator
-commit `cd76ef58e75d5e0fc3d1fa191cbe9bcb851e069e` and image
-`sha256:2ddd1652e8ceb8afa0c68146ad0d4399a4068d1e09f4c64c730c55985c39a06b`.
-Description selection passed 3/3. Body behavior passed 1/3; the two failures were isolated to grader
-5 because the body requested a fenced Bash block while the scenario permits exactly one fenced JSON
-packet. That is the active authoring contradiction. The
-[Linux canary evidence packet](../docs/reviews/2026-08-20-route001-linux-canary.md) preserves the
-full run history and artifact digests.
-
-The fixed 48-trial executor, duplicate nineteen-scenario JSON bundle, before/current plan, resumable
-journal, and campaign container mode were retired on 2026-08-22 without ever producing a campaign
-result. The unprovisioned Windows evaluator arm was retired the same day. Both designs remain
-recoverable from Git history; neither is an active execution or Gate A surface. Reopening either
-requires a named need and a new accepted decision.
-
-The immutable Linux image retains the security-relevant boundary: non-root/read-only execution,
-exact evaluator and executable bytes, a one-model tool-reduced catalog, isolated Python, bounded
-captures and receipts, a disposable auth copy removed before model-controlled parsing/grading, and
-post-trial drift checks. The accepted
-[Codex/Terra decision](../docs/decisions/2026-08-11-codex-terra-routing.md) records the limits and
-historical rationale.
+The dated [Linux canary evidence packet](../docs/reviews/2026-08-20-route001-linux-canary.md) retains
+the exact diagnostic results and artifact digests. The accepted
+[retirement decision](../docs/decisions/2026-08-11-codex-terra-routing.md) records what was removed,
+why it conferred no authority, and the narrow condition for recovery from Git history.
 
 ## Codex/Sol conformance (parked)
 
