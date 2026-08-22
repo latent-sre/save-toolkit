@@ -49,12 +49,52 @@ def _is_test_runner_call(node: ast.AST) -> bool:
     )
 
 
+def _statically_false(node: ast.expr) -> bool:
+    """True only for conditions a reader can prove never execute.
+
+    Deliberately narrow — a bare ``False``/``0`` literal or ``not <truthy literal>``. Anything
+    wider risks declaring a live branch dead and hiding its runner call, which is the exact
+    silent-pass shape this validator exists to reject.
+    """
+    if isinstance(node, ast.Constant):
+        return not node.value
+    return (
+        isinstance(node, ast.UnaryOp)
+        and isinstance(node.op, ast.Not)
+        and isinstance(node.operand, ast.Constant)
+        and bool(node.operand.value)
+    )
+
+
+def _reachable_children(node: ast.AST) -> list[ast.AST]:
+    if isinstance(node, ast.If):
+        children: list[ast.AST] = []
+        if not _statically_false(node.test):
+            children.extend(node.body)
+        children.extend(node.orelse)
+        return children
+    if isinstance(node, ast.While):
+        # A statically-false condition means the body never runs; the else clause still can.
+        if _statically_false(node.test):
+            return list(node.orelse)
+        return list(node.body) + list(node.orelse)
+    if isinstance(node, ast.Try):
+        return list(node.body) + list(node.orelse) + list(node.finalbody) + [
+            child for handler in node.handlers for child in ast.iter_child_nodes(handler)
+        ]
+    if isinstance(node, (ast.Match, ast.IfExp)):
+        # Pattern/value matching cannot be proven dead statically; treat every branch reachable.
+        return [child for child in ast.iter_child_nodes(node) if not isinstance(child, ast.expr)]
+    return list(ast.iter_child_nodes(node))
+
+
 def _guard_calls_runner(statements: list[ast.stmt]) -> bool:
     """True when the guard body itself reaches a test-runner call.
 
     Nested function or class bodies are never executed by running the guard, so a
     ``unittest.main()`` defined only inside one leaves the script silent; those
-    statements are not descended into.
+    statements are not descended into. A call inside a statically dead branch
+    (``if False:``, ``while 0:``) likewise never runs, so it does not count either.
     """
     stack: list[ast.AST] = list(statements)
     while stack:
@@ -63,7 +103,7 @@ def _guard_calls_runner(statements: list[ast.stmt]) -> bool:
             return True
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             continue
-        stack.extend(ast.iter_child_nodes(node))
+        stack.extend(_reachable_children(node))
     return False
 
 

@@ -75,6 +75,33 @@ class TestLayoutTests(unittest.TestCase):
         self.assertEqual(1, len(failures))
         self.assertIn("missing executable test entrypoint", failures[0])
 
+    def test_runner_call_in_a_statically_dead_branch_is_rejected(self) -> None:
+        self._write(
+            "import unittest\n"
+            "class Silent(unittest.TestCase):\n"
+            "    pass\n"
+            "if __name__ == '__main__':\n"
+            "    if False:\n"
+            "        unittest.main()\n"
+        )
+        failures = check_test_layout.validate(self.root)
+        self.assertEqual(1, len(failures))
+        self.assertIn("missing executable test entrypoint", failures[0])
+
+    def test_runner_call_in_a_reachable_branch_is_accepted(self) -> None:
+        self._write(
+            "import sys\n"
+            "import unittest\n"
+            "class T(unittest.TestCase):\n"
+            "    pass\n"
+            "if __name__ == '__main__':\n"
+            "    if sys.argv[1:]:\n"
+            "        unittest.main()\n"
+            "    else:\n"
+            "        unittest.main()\n"
+        )
+        self.assertEqual([], check_test_layout.validate(self.root))
+
     def test_entrypoint_text_inside_a_fixture_is_not_code(self) -> None:
         self._write(
             "FIXTURE = \"if __name__ == '__main__':\"\n"

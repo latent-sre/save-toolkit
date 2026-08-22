@@ -73,6 +73,10 @@ response. Discovery adds a separate deterministic routing grader over the invoca
 
 ## Run it
 
+The eval harness needs **Python 3.12 or newer** — one notch above the repository-wide 3.11 floor —
+because the clean-room runner calls `shutil.rmtree(..., onexc=...)`, a 3.12-only API. Run it with a
+3.12+ interpreter or the first `clean_room` teardown raises `TypeError` mid-suite.
+
 ```bash
 python3 -m pip install -r requirements-dev.txt
 python evals/run_evals.py --validate

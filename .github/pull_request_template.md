@@ -55,7 +55,8 @@ does not apply and say so in one line; do not leave a heading with nothing under
 | release-related files | only the owning checks: metadata-only changelog/version edits add no release-specific suite beyond Gate A; `release_contract.py` → `python scripts/test_release_contract.py`; `release_workflow_contract.py` or `release.yml` → `python scripts/test_release_workflow_contract.py`; `host_install_probe.py` → `python scripts/test_host_install_probe.py`; use the union only when the diff spans owners |
 | any canonical agent or skill (`agents/`, `skills/`, `commands/`) | `python scripts/generate_platform_adapters.py --write` re-run and the projections committed; no generated root (`.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/`) hand-edited |
 | status text under `docs/` | `python scripts/check_plan_status.py` green — a landed item still reading as open sends the next session to redo it |
-| an added, renamed, or removed component | host adapters regenerated and `python scripts/check_stale_names.py` green; the retired name must not linger in `agents/`, `skills/`, or `commands/` |
+| an added, renamed, or removed component | host adapters regenerated and `python scripts/check_stale_names.py` green; the retired name must not linger in `agents/`, `skills/`, or `commands/` — plus `python evals/run_evals.py --validate` green, since a rename/remove can orphan a scenario target that the stale-name scanner does not track |
+| the runbook frontmatter template, its schema, or its catalog entry (`skills/runbook/assets/runbook-template.md`, `schemas/runbook-frontmatter-v1.schema.json`, `schemas/catalog-v1.json`) | `python scripts/test_runbook_schema.py` green — the template/schema/catalog lockstep; it is not structural, so Gate A does not run it |
 | anything users install | whether every host manifest and marketplace needs the same version or cache update |
 
 ## Risk
