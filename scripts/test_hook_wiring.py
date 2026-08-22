@@ -108,12 +108,9 @@ class HookWiringTests(unittest.TestCase):
         invocation: it never exercises `"$C" -I -S "$G"` (isolated mode, no site) or the
         `python3 python py` interpreter walk that the live hook depends on.
 
-        The skip below is a local-developer convenience, and on CI it is a hole. Gate A reads exit
-        codes only, so a runner without `sh` reports this file green with its one load-bearing test
-        silently skipped -- and `.github/workflows/validate.yml` says the matrix exists precisely
-        because "the guard's earlier inline form SILENTLY DISABLED ITSELF on Windows". A skip here
-        is therefore indistinguishable from the failure the matrix was added to catch.
-        `test_ci_must_not_skip_the_real_hook_invocation` below closes that.
+        The skip below is a local-developer convenience. A focused run that reports this test
+        skipped did not exercise the real hook command and is incomplete evidence; rerun it on a
+        machine with `sh`. Gate A does not run this component suite.
         """
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
@@ -215,14 +212,12 @@ class HookWiringTests(unittest.TestCase):
             self.assertEqual("deny", decision["permissionDecision"])
             self.assertIn("unavailable", decision["permissionDecisionReason"], "with only stubs, the hook must fail closed by name")
 
-    def test_ci_must_not_skip_the_real_hook_invocation(self) -> None:
-        """On CI, an absent shell is a broken runner, not a reason to pass quietly.
+    def test_explicit_ci_run_must_not_skip_the_real_hook_invocation(self) -> None:
+        """When this suite is explicitly run in CI, an absent shell is a failure.
 
-        Locally, skipping is right: a contributor without `sh` should not be blocked. On CI the
-        same skip means the guard's real invocation went unexercised while the job reported green
-        -- the precise silent-disarm shape this fleet hardens against everywhere else, sitting in
-        the test suite for the guard itself. So the skip is allowed to remain, and this asserts
-        that it never takes effect where it would matter.
+        The structural workflow does not invoke component suites. This assertion applies whenever
+        a caller explicitly adds this focused suite to a CI job: the job must not turn a missing
+        shell into green evidence for the hook boundary.
         """
         if not os.environ.get("CI"):
             self.skipTest("local run; the shell requirement is enforced on CI")

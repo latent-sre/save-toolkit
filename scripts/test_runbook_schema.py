@@ -14,7 +14,8 @@ published shape. Three ways this silently rots, each pinned here:
     closed-object rule (docs/schema-compatibility.md) stops holding for this entry.
 
 Shape-sync only, per the policy: this partial check is NOT the catalog validator and upgrades
-nothing. Pure stdlib; runs offline in CI via gate_a.py.
+nothing. Pure stdlib; run directly when this schema/catalog/template contract changes. Gate A does
+not run component tests.
 """
 
 from __future__ import annotations

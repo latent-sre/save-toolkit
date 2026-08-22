@@ -13,7 +13,8 @@ XHTML best-effort) into a DRAFT runbook in the template shape. The contract unde
   * provenance (source file, title, optional URL, loss counts) is stamped into the draft.
 
 Written before the converter existed and confirmed failing (fails-without-the-change rule).
-Pure stdlib; runs offline in CI via gate_a.py.
+Pure stdlib; run directly when the converter or its import contract changes. Gate A does not run
+component tests.
 """
 
 from __future__ import annotations

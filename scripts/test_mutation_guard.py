@@ -685,7 +685,7 @@ class DiscoveryTests(unittest.TestCase):
         )
 
     def test_guard_is_documented_as_optional_single_module_work_not_a_gate_step(self) -> None:
-        """Gate A proves the helper itself works without turning it into routine project work."""
+        """The helper's focused suite proves it when changed; Gate A never turns it into routine work."""
         gate = (ROOT / "scripts/gate_a.py").read_text(encoding="utf-8")
         self.assertNotIn("mutation_guard.py", gate)
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")

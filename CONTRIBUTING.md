@@ -37,8 +37,10 @@ Rebase only an unpublished branch; preserve published history unless the owner e
 rewriting it. Confirm `git log --oneline origin/main..HEAD` contains only the intended commits—a PR
 stacked on a merged-and-deleted branch can silently absorb its parent's diff.
 
-For that implementation, add a focused failing check first and keep each change scoped to its task.
-Before you push — once, not after each edit — run the structural gate:
+For that implementation, run the focused tests owned by the code you change. When the change asserts
+or alters a contract, make its focused test fail for that exact break before restoring it. Gate A
+does not rerun component tests. Before you push — once, not after each edit — run the live-tree
+structural gate:
 
 ```powershell
 py -3 scripts/gate_a.py
