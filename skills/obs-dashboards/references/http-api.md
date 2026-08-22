@@ -22,7 +22,7 @@ committed.
 
 Sources reviewed 2026-08-21 against the docs source for the `latest` (13.2) site. Every call in this
 reference — search, read, export, create, update, the concurrency conflict on both API families, and
-delete — was exercised against **qa-grafana.agenticsre.dev (Grafana 13.1.4 Enterprise, org 1)** on
+delete — was exercised against **a non-production Grafana 13.1.4 Enterprise instance (org 1)** on
 2026-08-21 and is marked `[verified: QA]` where the observed behavior is load-bearing. Behavior after
 the 13.2 upgrade is `[unverified]`, as is anything on a Grafana Cloud stack.
 

@@ -15,7 +15,7 @@ Primary references:
 - [Grafana Mimir HTTP API](https://grafana.com/docs/mimir/latest/references/http-api/)
 
 **Syntax verification — `[verified 2026-08-22]`.** Every query block in this file was executed against
-a live Prometheus (the `qa-grafana.agenticsre.dev` 13.1.4 instance's Prometheus source, 3,283 metric
+a live Prometheus (a non-production Grafana 13.1.4 instance's Prometheus source, 3,283 metric
 names) through `POST /api/ds/query`. All 8 parse and execute; the example labels are illustrative, so
 they return zero series rather than data. The harness was proved to fire first: an unbalanced
 grouping paren, a missing `histogram_quantile` comma, and a truncated range selector were each

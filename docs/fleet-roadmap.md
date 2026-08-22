@@ -595,7 +595,7 @@ availability; the evidence-label grader is restored **and** the skill's output c
 strengthened so it passes on behavior rather than by deletion, evidenced by a fresh 3/3 run.
 
 **Progress (2026-08-21):** Done. Every call in `http-api.md` was exercised against
-`qa-grafana.agenticsre.dev` (13.1.4 Enterprise) across commits `273d4a3`, `24449c9`, and this one:
+the team's non-production Grafana (13.1.4 Enterprise) across commits `273d4a3`, `24449c9`, and this one:
 namespace, discovery, `/api/ds/query`, create on both families, the concurrency conflict on both,
 and delete. Five documented behaviors turned out to be wrong or incomplete on 13.1.4 and are
 corrected in the reference — a bad namespace answers `500` not `404`; the legacy conflict answers
@@ -665,7 +665,7 @@ non-production and production Grafana without editing the JSON per environment, 
 `obs-dashboards` teaches that answer instead of leaving it implicit.
 
 **Source:** The QA verification run. Data-source uids are per-instance
-(`dfr5gp9z5pzb4a` on the QA box) and are minted at data-source creation, so the same committed
+(an opaque 14-character string, different on every instance) and are minted at data-source creation, so the same committed
 dashboard cannot name a uid and work in both places. The skill's current answer — every panel
 references `${datasource}` — solves the *panel* half, but the variable still has to resolve to
 something per instance, and the skill does not say how. This is the seam where "dashboards as code"

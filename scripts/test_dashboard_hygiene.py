@@ -113,7 +113,7 @@ class RuleMutationTest(unittest.TestCase):
 
     def test_hardcoded_datasource_uid(self) -> None:
         fired = self._mutate(
-            lambda m: m["panels"][0].update(datasource={"type": "prometheus", "uid": "dfr5gp9z5pzb4a"})
+            lambda m: m["panels"][0].update(datasource={"type": "prometheus", "uid": "P1234567890ABCD"})
         )
         self.assertIn("panel-datasource", fired)
 
@@ -123,7 +123,7 @@ class RuleMutationTest(unittest.TestCase):
         # while reporting clean.
         fired = self._mutate(
             lambda m: m["panels"][0]["targets"][0].update(
-                datasource={"type": "prometheus", "uid": "dfr5gp9z5pzb4a"}
+                datasource={"type": "prometheus", "uid": "P1234567890ABCD"}
             )
         )
         self.assertIn("panel-datasource", fired)
