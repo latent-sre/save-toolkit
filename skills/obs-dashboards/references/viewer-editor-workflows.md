@@ -52,14 +52,14 @@ Grafana 13 minor is `[unverified]` until exercised there.
 ## Editor workflows — beyond dragging panels
 
 - **Library panels** publish one reviewed panel for reuse across dashboards; an edit propagates to
-  every consumer. Use them for the shared health/SLO rows this skill's layout mandates, instead of
+  every consumer. Use them for a health/SLO row shared across dashboards, instead of
   copy-pasted near-duplicates that drift apart.
 - **Annotations** mark deploys, incidents, and config changes on the time axis — the fastest "did the
   deploy cause this?" evidence. Annotate at the moment of the event, tagged consistently; they can
   also be written by automation through the annotations HTTP API.
 - **Version history** (dashboard settings → versions) shows who changed what, with diffs, and
   restores a prior version — triage for "this dashboard looked different yesterday". On a provisioned
-  dashboard the restore is temporary; the durable change is the repository revert.
+  dashboard the restore is temporary; the durable change is a fresh write through the API.
 - **Snapshots are data egress.** A snapshot embeds the queried data and detaches it from access
   control; anyone with the link sees the numbers. Prefer an internal share link. If a snapshot is
   genuinely needed (external party, ephemeral data), scrub it, set an expiry, and treat posting it

@@ -167,13 +167,11 @@ def check(spec: dict) -> list[tuple[str, str, str]]:
                         "'Include All' with no custom all value; the expanded expression can grow "
                         "unbounded — set one such as '.+'"))
 
-    if spec.get("editable") is not False:
-        # Absent is not neutral: Grafana's default is editable, so an omitted key stores a writable
-        # dashboard exactly as `true` does. The rule is "the repository model says false", not
-        # "the repository model does not say true".
-        out.append(("uneditable-dashboard", "dashboard",
-                    "set editable:false explicitly on a dashboard kept as code; omitting it stores a "
-                    "writable dashboard, same as true"))
+    # `editable` is deliberately NOT checked. It was once required to be false, on the reasoning
+    # that a dashboard kept as code should refuse UI edits. This team keeps no dashboards as code and
+    # edits them in the UI by design, so that rule fired on every dashboard and, worse, told authors
+    # to ship a flag that blocks the workflow this skill recommends. A checker that contradicts its
+    # own skill trains people to ignore it.
     if not (spec.get("tags") or []):
         out.append(("dashboard-tags", "dashboard", "no tags; search and the dashboard list rely on them"))
 

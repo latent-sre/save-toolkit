@@ -9,15 +9,15 @@ description: >-
 argument-hint: "[service, dashboard uid, or dashboard change]"
 ---
 
-# Grafana 13 operations dashboards — as code, applied by the agent
+# Grafana 13 operations dashboards — applied by the agent
 
 A dashboard must answer the on-call reader's next question under stress. The agent reads, creates,
 and edits dashboards on the live instance over the HTTP API. Grafana is the record: there is no
 committed copy of a dashboard, so the instance and its version history are the only source of truth.
 
 **Version facts that change what you do** — deployed 13.1.x, 13.2.0 planned (`stack-profile`):
-dynamic dashboards (schema V2) and Git Sync are GA and on since 13.0; legacy `/api` is deprecated in
-favour of `/apis`, still served but no longer updated; **13.2.0 disables scripted dashboards** (they
+dynamic dashboards (schema V2) are GA and on since 13.0; legacy `/api` is deprecated in favour of
+`/apis`, still served but no longer updated; **13.2.0 disables scripted dashboards** (they
 fail with HTTP 410 unless `disableScriptedDashboards=false`; removed in Grafana 14) and is the
 alerting **security floor** (CVE-2026-17183). The 13.1 → 13.2 dashboard surface is otherwise
 unchanged — same version set, `schemaVersion` stays 42, no migration step — but 13.2.0 has an open
@@ -41,18 +41,24 @@ before trusting a dashboard's silence, and export everything first as the rollba
    rolling back means rebasing the saved spec onto a fresh read ([http-api](./references/http-api.md)).
 4. **Author the model**, following the rules below and [json-model](./references/json-model.md).
 5. **Validate**: `python skills/obs-dashboards/scripts/dashboard_hygiene.py <file>` — the bundled,
-   stdlib-only checker for the panel rules below (exit 0 clean, 1 violations, 2 uncheckable); then
-   `dashboard-linter lint --strict` where the binary is available, since it validates PromQL properly.
-   Confirm the schema you wrote is the schema it will be stored as.
-6. **Show the diff and the target**, then write with the concurrency token of the family you are
-   using — `metadata.resourceVersion` from a fresh read on the app-platform `PUT`, or
+   stdlib-only checker (exit 0 clean, 1 violations, 2 uncheckable); then `dashboard-linter lint
+   --strict` where the binary is available, since it validates PromQL properly.
+   **On an edit, run it on the live model first.** An existing dashboard will fail rules nobody asked
+   you to fix — a missing `noValue`, a hard-coded uid, `editable` unset. Only violations *your diff
+   introduces* block the write; report the pre-existing ones as a finding and leave them. Confirm the
+   schema you wrote is the schema it will be stored at (step 3 read it).
+6. **Show the diff and the target**, then write — carrying the concurrency token of the family you
+   are using (`metadata.resourceVersion` from a fresh read on the app-platform `PUT`, or
    `dashboard.version` plus `overwrite: false` on the legacy `POST`; `overwrite` does not exist on
-   the app-platform path ([http-api](./references/http-api.md)). A conflict re-reads; it never forces.
+   the app-platform path) **and a save message naming the ticket or change reference**, because the
+   message travels inside the write body and cannot be added afterwards
+   ([http-api](./references/http-api.md)). A conflict re-reads; it never forces.
 7. **Verify**: read it back, prove each changed query returns data on a real window, look at a
    rendered panel when a renderer exists — "Do not claim the dashboard was visually reviewed when it
    was not."
-8. **Record what changed** in the save `message` — a ticket or change reference — so Grafana's
-   version history can answer "what changed and why" later. That history is the only record.
+8. **Confirm the record exists.** Read the version history back and check your save message is on
+   the new version (`GET /api/dashboards/uid/<uid>/versions`). Grafana's history is the only record
+   of this change — if the message did not land, nothing outside the instance says what you did.
 9. **Close with the evidence line, every time.** What you proved against the instance `[verified]`,
    what came from this skill or the docs `[sourced]`, what you could not check `[unverified]`.
    Naming no `[unverified]` item is itself a claim — the usual unchecked ones are which schema the
@@ -117,10 +123,9 @@ Read only the reference needed for the task:
 
 | Need | Reference |
 |---|---|
-| Instance preflight, search, read, export, import, create, update, **concurrency conflicts and rollback**, version history, drift check; the write rule's scope; failure table | [dashboard HTTP API](./references/http-api.md) |
+| Instance preflight, search, read, export, import, create, update, **concurrency conflicts and rollback**, version history, who last wrote a dashboard; the write rule's scope; failure table | [dashboard HTTP API](./references/http-api.md) |
 | Check a dashboard's panel hygiene before writing it, with no binary to install | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
 | Field rules, Classic/V1/V2 shapes and skeletons, **which version a write lands in and why `status` must be stripped**, variables and formats, panel choice and hygiene, export/import, the linter checklist | [JSON model](./references/json-model.md) |
-
 | gcx, the Grafana MCP server (**whose patch mode forces `overwrite: true`**), vendor skill packages, Foundation SDK | [agent tooling](./references/agent-tooling.md) |
 | Help Viewer/Editor users — roles, folder permissions, Explore access, sharing state, annotations | [viewer & editor workflows](./references/viewer-editor-workflows.md) |
 | Existing Wavefront/Splunk dashboard inventory and the team's naming, folder, and timezone conventions | [legacy data-source inventory](./references/wavefront-legacy.md) |
@@ -129,7 +134,7 @@ Read only the reference needed for the task:
 
 A finished dashboard task reports: the dashboard uid, folder, and instance; the schema written; the
 diff applied and the version/generation after the write; the evidence that queries returned data and
-whether a visual check was made; the commit that holds the applied JSON; data-source and licence
+whether a visual check was made; the save message recorded against the change; data-source and licence
 checks; and the step-9 evidence line, whose `[unverified]` items are required rather than optional —
 "nothing outstanding" is a claim about the instance you would have had to check to make. If the work uncovers active user impact or an
 unknown-cause incident, hand the time-bounded signal evidence to the `sre` agent; do not diagnose it in

@@ -30,7 +30,6 @@ def clean_model() -> dict:
         "title": "Checkout / Health",
         "uid": "checkout-health",
         "tags": ["platform", "checkout"],
-        "editable": False,
         "templating": {"list": [
             {"name": "datasource", "type": "datasource", "query": "prometheus"},
             {"name": "job", "type": "query", "multi": True, "includeAll": True, "allValue": ".+"},
@@ -208,14 +207,6 @@ class RuleMutationTest(unittest.TestCase):
             m["templating"]["list"][1]["allValue"] = ""
         self.assertNotIn("template-all-value", self._mutate(mutate))
 
-    def test_editable_dashboard(self) -> None:
-        self.assertIn("uneditable-dashboard", self._mutate(lambda m: m.update(editable=True)))
-
-    def test_a_missing_editable_key_is_flagged_like_true(self) -> None:
-        # Grafana's default is editable, so omitting the key stores a writable dashboard exactly as
-        # `true` does. Only asserting the literal `true` case let the absent case through.
-        self.assertIn("uneditable-dashboard", self._mutate(lambda m: m.pop("editable")))
-
     def test_missing_tags(self) -> None:
         self.assertIn("dashboard-tags", self._mutate(lambda m: m.update(tags=[])))
 
@@ -270,7 +261,7 @@ class ExitCodeTest(unittest.TestCase):
 
     def test_violations_exit_one(self) -> None:
         model = clean_model()
-        model["editable"] = True
+        model["panels"][0].pop("description")   # any real rule will do; this one is stable
         self.assertEqual(1, self._run(model))
 
     def test_v2_dashboard_is_refused_not_silently_passed(self) -> None:

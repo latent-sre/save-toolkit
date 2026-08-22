@@ -229,7 +229,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin a referenced rel
 - `obs-logs` — when log evidence or a log-derived SLI or alert is required
 - `obs-metrics` — when metric evidence or a metric-derived SLI or alert is required
 - `obs-traces` — when trace evidence or trace-derived coverage is required
-- `obs-dashboards` — when designing or reviewing a dashboard as code
+- `obs-dashboards` — when designing, reviewing, or applying a dashboard
 - `obs-alerting` — when defining SLOs, error budgets, alert rules, correlation, paging policy, or synthetic checks
 - `obs-pipeline` — when telemetry collection, transformation, routing, or storage must change, or a signal is missing at a pipeline boundary
 - `gcp-ops` — when the observed or instrumented service runs on GCP/Cloud Run

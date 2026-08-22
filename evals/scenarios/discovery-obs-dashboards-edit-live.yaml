@@ -9,14 +9,14 @@ prompt: |
   Add a p99 request-latency panel to the existing "Checkout / Health" dashboard (uid checkout-health)
   on our self-managed Grafana 13.1 and apply the change over the HTTP API yourself. Show the panel
   JSON with its PromQL, the exact read and write calls, how you avoid clobbering someone else's
-  concurrent save, how you verify the write landed, and what you commit afterwards. This is a
+  concurrent save, how you verify the write landed, and what record of the change survives afterwards. This is a
     dashboard edit, not alert design and not incident triage.
 routing:
   expect: fire
 success_criteria:
   - Routes a live dashboard edit to the dashboards lane rather than metrics, alerting, or sre
   - Reads before writing, pins the version it read, refuses overwrite, and verifies after the call
-    - Records the change in the save message, the only durable trace of an instance-only write
+  - Records the change in the save message, the only durable trace of an instance-only write
 graders:
   # Grader history, recorded as fact rather than instruction:
   # The evidence-label grader below was removed on 2026-08-21 to make this scenario green, then

@@ -29,9 +29,9 @@ Catalogue guidance, not proof of entitlement — confirm the licence and the ins
 
 ## Dashboard inventory
 
-| Dashboard | Stable UID | Folder | Source path | Owner | Purpose / SLO |
-|---|---|---|---|---|---|
-| `<service health>` | `<uid>` | `<folder>` | `<repo path>` | `<team>` | `<top-level health → drill-down>` |
+| Dashboard | Stable UID | Folder | Owner | Purpose / SLO |
+|---|---|---|---|---|
+| `<service health>` | `<uid>` | `<folder>` | `<team>` | `<top-level health → drill-down>` |
 
 ## Conventions we standardize on
 
@@ -40,8 +40,7 @@ The agent applies these on every create or edit; a value marked `[unverified]` i
 has not yet confirmed — confirm it rather than inventing an alternative.
 
 - **Folders.** One Grafana folder for the team, one subfolder per app: `<Team>/<app>`. The repository
-  mirrors it (`dashboards/<app>/<uid>.json`) so `foldersFromFilesStructure: true` reproduces the tree;
-  no dashboard lands in `General`.
+    no dashboard lands in `General`.
 - **Names and uids.** `<App> / Health` is the top-level dashboard; drill-downs are
   `<App> / <Topic>` (`<App> / Dependencies`, `<App> / Routes`). The uid is the lowercase hyphenated
   form, `<app>-health`, `<app>-<topic>`, minted in the repository and never changed after first publish.
@@ -81,14 +80,5 @@ routing are owned by alerting work and must be reviewed there.
 |---|---|---|---|---|
 | `<burn-rate / availability>` | `<uid or URL>#<panel>` | `<Grafana or backend>` | `<route>` | `<runbook URL>` |
 
-## Provisioning
-
-| Item | Reviewed value |
-|---|---|
-
-| Provider / Git Sync path | `<provider YAML or Git Sync path>` |
-| Controlled apply path | `<CI job or operator procedure>` |
-| Validation target | `<non-production Grafana URL/name>` |
-| Rollback revision/procedure | `<revision and controlled reapply step>` |
 
 <!-- terminal-canary: q_odwf_6a2e -->
