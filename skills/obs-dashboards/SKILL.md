@@ -147,7 +147,7 @@ Read only the reference needed for the task:
 | Instance preflight, search, read, export, import, create, update, verify, version history, drift check; the pre-write checklist; failure table | [dashboard HTTP API](./references/http-api.md) |
 | Check a dashboard's panel hygiene before writing it, with no binary to install | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
 | Field rules, Classic/V1/V2 shapes and skeletons, variables and formats, panel choice and hygiene, export/import, the linter checklist | [JSON model](./references/json-model.md) |
-| Provisioning, Git Sync, sidecar/Terraform delivery, repository conventions, CI, rollback | [provisioning and as code](./references/provisioning.md) |
+| Provisioning, Git Sync, repository conventions, CI, rollback | [provisioning and as code](./references/provisioning.md) |
 | gcx, the Grafana MCP server, vendor skill packages, Foundation SDK | [agent tooling](./references/agent-tooling.md) |
 | Help Viewer/Editor users — roles, folder permissions, Explore access, sharing state, annotations | [viewer & editor workflows](./references/viewer-editor-workflows.md) |
 | Existing Wavefront/Splunk dashboard inventory and the team's naming, folder, and timezone conventions | [legacy data-source inventory](./references/wavefront-legacy.md) |

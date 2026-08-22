@@ -11,9 +11,8 @@ applying it. The live-write flow is in [http-api](./http-api.md).
 - `[sourced]` [Dashboard JSON model](https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/view-dashboard-json-model/)
 - `[sourced]` [Observability as code](https://grafana.com/docs/grafana/latest/as-code/observability-as-code/) and its
   [Git Sync](https://grafana.com/docs/grafana/latest/as-code/observability-as-code/git-sync/) section
-- `[sourced]` `github:kubernetes-monitoring/kubernetes-mixin` (Makefile, `.lint`, CI), `github:grafana/loki`
-  `production/loki-mixin`, `github:dotdc/grafana-dashboards-kubernetes`, `github:grafana-community/helm-charts`
-  `charts/grafana/values.yaml` — the repository conventions below
+- `[sourced]` `kubernetes-monitoring/kubernetes-mixin` and `grafana/loki` `production/loki-mixin` —
+  the repository-layout conventions below (their Kubernetes subject matter is irrelevant to those)
 
 Sources reviewed 2026-08-21. They establish the generic Grafana behavior below; local paths, access,
 licensing, and enabled features remain `[unverified]` until checked on the target.
@@ -65,9 +64,10 @@ providers:
       foldersFromFilesStructure: true   # then leave `folder` and `folderUid` unset; depth <= 4
 ```
 
-Dashboard files may be Classic JSON or the Kubernetes resource (`kind: Dashboard`,
+Dashboard files may be Classic JSON or the Kubernetes-style resource (`kind: Dashboard`,
 `apiVersion: dashboard.grafana.app/v1` or `v2beta1`, `metadata.name` = uid, `spec`); V2 requires the
-latter. Use a stable `uid` in every model and refer to data sources through the `${datasource}`
+latter. That shape is Grafana's own API envelope and implies no Kubernetes — a plain self-managed
+Grafana serves and stores it `[verified]`. Use a stable `uid` in every model and refer to data sources through the `${datasource}`
 variable, not installation-specific uids or display names ([json-model](./json-model.md)).
 
 ## Delivery paths
@@ -76,32 +76,26 @@ variable, not installation-specific uids or display names ([json-model](./json-m
 |---|---|---|
 | **File provider** (above) | Self-managed, dashboards already in a repository | Default here; the provisioner reloads on its interval. Reload on demand: `POST /api/admin/provisioning/dashboards/reload` (admin) |
 | **Git Sync** | Grafana 13, repository policy permits a Grafana-held Git credential | "Git Sync is the recommended method for provisioning your dashboards." GA in 13.0; bidirectional — UI saves can open a pull request; folder per repository; **≤ 1,000 resources per connection** ("Shard by capacity, not by team"); `_folder.json` pins a folder uid; 13.0.0 had a migration bug that could lose Git-synced dashboards — enter via 13.0.1 or later. The `provisioning` feature toggle that used to gate the whole subsystem is **removed in 13.2** — a config line disabling it silently does nothing there; 13.2 also makes the signed-in user the default commit author |
-| **Sidecar ConfigMaps** (Kubernetes only) | Grafana runs in Kubernetes | ConfigMap labeled `grafana_dashboard: "1"`, annotation `grafana_folder`, sidecar `folderAnnotation` + `provider.foldersFromFilesStructure: true`. The Helm chart moved to `grafana-community/helm-charts` after 2026-01-30 |
-| **Terraform** | Stack already Terraform-managed | `grafana_dashboard { config_json = file(...) }` for Classic; `grafana_apps_dashboard_dashboard_v1beta1` / `_v2beta1` "recommended for Grafana 13 and later" |
 | **gcx push / HTTP API** | A controlled write outside provisioning | Creates a DB-owned dashboard; must be followed by export + commit so the repository stays authoritative |
 
-`[sourced: docs git-sync/*, usage-limits, upgrade-v13.0; grafana-community/helm-charts values.yaml; grafana/terraform-provider-grafana docs/resources/dashboard.md]`
+`[sourced: docs git-sync/*, usage-limits, upgrade-v13.0]`
 
-`stack-profile` records that on-prem stays Kubernetes-free, so the sidecar row is for a cloud-hosted
-Grafana only.
+Grafana's sidecar/ConfigMap and Terraform delivery paths are omitted: `stack-profile` records no
+self-managed Kubernetes and no Terraform. Add a row if that changes.
 
 ## Repository conventions (what the well-kept projects do)
 
 - **One file per dashboard, named by uid**, in folders mirroring the Grafana folder tree. UIDs are
   literal and stable (`reads`, `writes`, `<svc>-health`) or deterministic (`md5(filename)`), "necessary
   for stable links". *[sourced: kubernetes-mixin config.libsonnet; loki-mixin dashboards]*
-- **Dashboards, alert rules, and recording rules ship together** with one `_config` for labels and
-  selectors — the monitoring-mixin shape: "the best people to build the alerting rules and dashboards
-  for a given application are the authors of that application". Keep `alerts/`, `rules/`, and
-  `dashboards/` for a service side by side even when they are plain YAML/JSON rather than jsonnet.
-  *[sourced: kubernetes-mixin DESIGN.md]*
-- **Generated artifacts are committed next to source** (`loki-mixin-compiled/`,
-  `dashboards_out/`) and CI fails on drift: `make generate && git diff --exit-code`.
-  *[sourced: kubernetes-mixin .github/workflows/ci.yaml; loki Makefile loki-mixin-check]*
-- **Extend upstream, never fork-and-edit**: add rows with jsonnet `+:` or drop an unwanted upstream
-  dashboard with a `null` merge-patch, so upstream updates still flow. *[sourced: kube-prometheus docs]*
-- **Typed code goes through the Foundation SDK**, emitting the Kubernetes manifest; "Grafonnet is not
-  officially supported by Grafana" (existing mixins keep working). *[sourced: docs observability-as-code]*
+- **Dashboards, alert rules, and recording rules for a service sit side by side**, sharing one place
+  for the labels and selectors they all key on — "the best people to build the alerting rules and
+  dashboards for a given application are the authors of that application". Plain JSON and YAML are
+    enough; the shape matters, not the templating language.
+- **If anything is generated, commit the output next to its source and fail CI on drift**
+    (`make generate && git diff --exit-code`). Nothing here is generated today.
+- **If typed generation is ever adopted, use the Foundation SDK** — "Grafonnet is not officially
+  supported by Grafana". *[sourced: docs observability-as-code]*
 
 ## CI — what a pull request must prove
 
@@ -109,7 +103,7 @@ Grafana only.
 2. `dashboard-linter lint --strict` on every dashboard, from a **pinned, checksummed prebuilt binary**
    (`go install` of the linter is broken upstream by design; v0.2.0 adds V2 support). Exclusions in a
    `.lint` file beside the dashboards, each with a `reason:`, scoped by `entries:` where possible.
-   *[sourced: grafana/dashboard-linter README, docs/index.md; kubernetes-mixin Makefile]*
+      *[sourced: grafana/dashboard-linter README, docs/index.md]*
 3. `promtool check rules` on co-shipped rules; the drift gate for generated artifacts.
 4. Review by a human of: title/purpose, stable `uid`, folder, `${datasource}` usage, every query, units,
    thresholds, links, no-data/error behavior, the schema recorded, and the target Grafana minor.
