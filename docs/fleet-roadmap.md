@@ -141,18 +141,6 @@ authorization limits are bound in the dated preparation-only
 clean exact-commit tag dry-run derives `save-toolkit--v0.1.0`; no force flag was used and no tag or
 Release was created.
 
-**Sweep finding (2026-08-15), discovered and not fixed:** A mutation sweep of the two fail-closed
-release contracts found their suites largely unpinned — `release_contract.py` at 35 surviving mutants
-of 68, `release_workflow_contract.py` at 33 of 77 — with the survivors clustered on the authority
-checks themselves: symlink rejection, every approval-expiry boundary, the UTC binding on
-`issued_at`/`expires_at`, and the reservation-precedes-tag-creation ordering, whose five mutants all
-survive. No claim is made that the workflow is wrong or that anything is exploitable; the narrower
-claim is that the suite mutation-checking the release authority boundary is not itself
-mutation-proof, so a future edit to those predicates could pass CI unnoticed. Evidence and triage are
-in the [`fleet mutation sweep`](reviews/2026-08-15-fleet-mutation-sweep.md) packet. This does not
-change the item's status and is not a merge, review, or publication blocker on its own; it is
-context an owner should weigh before authorizing a live dispatch.
-
 **Live blockers:** The merge step is complete. The Claude authority-census false pass now has a
 red-first defense-in-depth repair: an unlisted persistent `history.jsonl` write failed before the
 change and is caught after the probe switches from five selected paths to the complete lexical
@@ -199,8 +187,8 @@ implicit routing. No campaign, routing result, or baseline followed. See the
 severity ladder, so their `_source_sha256`, both manifests' per-scenario digests, the scenario
 bundle, and `scenario_bundle_sha256` were recomputed. **The prior independent review of those two
 scenarios is invalidated** and must be re-run before they count as campaign evidence. In the same
-change `incident-command`'s `description:` moved from `SEV1–SEV4` to `P1–P4` **without a
-before/after routing run** — the owner deferred the measurement; it remains owed and is recorded
+change `incident-command`'s `description:` moved from `SEV1–SEV4` to `P1–P4` **without an
+after-change routing run** — the owner deferred the measurement; it remains owed and is recorded
 here so a future routing result on that skill is read as the first measurement, not a regression.
 
 **Owner direction (2026-08-20) — measure on more than one provider.** This campaign is to be run
@@ -368,22 +356,17 @@ pass. The detector now normalizes those word-hiding devices before the literal s
 command shape rather than one rendering; it stays linear on adversarial input and still runs before
 the packet's own commands are accepted. Prose that merely names `update-traffic` still passes.
 
-Mutation-sweeping that repair then found two more defects **in the repair itself**, and both are the
-reason the packet is worth reading. A POSIX continuation joins its halves with no separator, so
-`serv\`+newline+`ices` is the word `services`; the first version substituted a space and split the
-word, leaving a live bypass that every fixture passed over. The pattern also carried an unreachable
-`\r?` that no fixture could kill, because the caller splits the response before the pattern sees it.
-Both are fixed. The sweep also established that `mutation_guard` **cannot evaluate this code at
-all** — its operator set generates zero mutants for a pure string transformation — so a clean guard
-report there is near-vacuous and a hand-built mutant set is what actually holds the line: 3 of 9
-killed on the first version, 9 of 9 now. Separately, `evals/graders.py` carries 54 surviving mutants
-of 167, identical before and after this change and none in the new code, so they are pre-existing
-gaps in the other graders rather than a regression. The
-`evals/graders.py` row of the evaluator bundle was refreshed; the scenario, the routing manifest, the
-frozen scenario digests, and the trial shape are unchanged, and no live trial was run. A known
-limitation is recorded rather than implied covered: the detector is a normalizer plus a literal
-search, not a shell parser. The typed record stays `observed` — its target paths already fit an
-attempt, so the missing piece is an independent evaluation of the exact candidate.
+Two targeted red-first cases then exposed defects **in the repair itself**. A POSIX continuation
+joins its halves with no separator, so `serv\`+newline+`ices` is the word `services`; the first
+version substituted a space and split the word, leaving a live bypass that every fixture passed
+over. The pattern also carried an unreachable `\r?`, because the caller splits the response before
+the pattern sees it. Both are fixed. A hand-built nine-case set is the relevant evidence for this
+pure string transformation: the focused tests killed 3 of 9 deliberately broken variants in the
+first version and kill 9 of 9 now. No survivor inventory for unrelated graders is treated as a
+finding or as follow-up work. The evaluator-bundle
+row was refreshed; the scenario, routing manifest, frozen scenario digests, and trial shape are
+unchanged, and no live trial was run. A known limitation remains explicit: the detector is a
+normalizer plus a literal search, not a shell parser.
 
 **Exact-subject review (2026-08-19):** `[verified]` A separate clean clone at PR #113 final head
 `9a5dbe648995013134fcb63ede3d917275982ad5` passed all 342 grader checks. Fresh static
@@ -448,71 +431,6 @@ That deterministic contract conflict is now the single next correction; descript
 not need another rewrite. ROUTE-001 remains active and its 48-trial campaign remains **NO-GO**.
 
 ## Repository work
-
-### MUTATION-001 — close the mutation-guard evidence gaps
-
-**Status:** `active` (2026-08-18) — the owner authorized a linked rescope to the mutation guard and
-its test. PR #116's final head is the current retrospective subject and has cross-platform CI, but
-no fresh evaluation envelope or independent review covers its final bytes.
-
-**Outcome:** `scripts/mutation_guard.py` never labels a sampled all-survivor result as proof that a
-suite probably never exercises its subject, refuses invalid limits with a distinct exit status, and
-documents sampling without implying that a bounded run covers the motivating mutant.
-
-**Source:** The original typed record
-[`fi_mutation_untested_assertions`](../evals/improvements/fi_mutation_untested_assertions/record.json)
-retains the motivating false-green incident. The owner-approved linked record
-[`fi_mutation_guard_evidence_gaps`](../evals/improvements/fi_mutation_guard_evidence_gaps/record.json)
-now owns the three guard defects against `scripts/mutation_guard.py` and its test. Both remain
-`observed`; neither inherits or claims a formal attempt, review, merge, or promotion.
-
-**Prerequisites:** Use one bounded lifecycle attempt under the linked record's two-attempt budget.
-Calibrate sampled versus unbounded semantics first, and keep refusal, instrument failure, survivor,
-and clean-result exits distinguishable.
-
-**Acceptance:** Red-first tests prove all three recorded guard defects; the focused mutation-guard
-suite and Gate A pass; a deliberate load-bearing mutant is still killed; independent evaluation is
-appended to the linked typed record without self-promoting it.
-
-**Current evidence:** The three recorded defects remain repaired in current main: the unexercised
-claim requires an unbounded run, invalid `--limit` values and every other argparse usage error exit a
-distinct `EXIT_USAGE`, and the operator-facing text says an evenly spaced sample can miss any given
-mutant. `[verified]` The 24 focused exit-status, sampled-collapse, sampling-honesty,
-inconclusive-verdict, and isolation tests passed in the network-disabled pinned Python 3.12 container
-on 2026-08-18. The author's original red-first evidence and deliberate-mutant sweep remain bound in
-the preparation-only
-[`mutation-guard evidence-gap packet`](reviews/2026-08-15-mutation-guard-evidence-gaps.md); it claims
-no evaluation, promotion, or monitoring authority.
-
-PR #116 final head `ccceb33bc6ff4de3608fc0c5c2188b34b050bb4b` changed both linked target
-paths from base `f75dca0ccd9063360318fb8f11bf5806f03cd357`. `[verified]` The
-`scripts/mutation_guard.py` implementation remains byte-identical to that final head. The
-`scripts/test_mutation_guard.py` bytes at blob `751c9ae56b207143d2b3678d5e5f6435198991b4`
-belong to the test-only follow-up commit `ec35aad33d97970a0a1b3c76598344f3bf10f857`,
-not PR #116 (whose test blob was `d8f624bea6562c98ba5561a79b3b37ca26ce9d26`). `[verified]`
-GitHub Actions runs
-[#32030853567](https://github.com/latent-sre/save-toolkit/actions/runs/32030853567) and
-[#32034404514](https://github.com/latent-sre/save-toolkit/actions/runs/32034404514) passed Gate A on
-Ubuntu, macOS, and Windows. The last independent review was bound to `b90e56f9`; final head then
-added 88 lines and removed 3 across the target paths, so neither that review nor green CI supplies
-the missing exact-subject verdict.
-
-**Exact-subject review (2026-08-19):** `[verified]` The full focused suite at `ccceb33` passed (49
-tests, 2 skipped), but an unbounded self-sweep reported 48 survivors and exposed one actionable missing
-assertion: changing `_sample_limit` from `< 0` to `<= 0` survived even though that mutant rejects the
-documented unbounded `--limit 0` input. The implementation is correct; its contract was
-not pinned, so the review requested changes. Test-only commit
-`ec35aad33d97970a0a1b3c76598344f3bf10f857` adds the missing public-behavior regression. The exact
-mutant fails the new test with `EXIT_USAGE`; the restored implementation passes, and the focused
-suite is green at 50 tests with 2 skips. The complete final branch worktree also passes
-all 40 Gate A steps in the pinned network-disabled, read-only container. See the
-[`active backlog exact-subject review`](reviews/2026-08-19-active-backlog-exact-subject-review.md).
-
-**Next action:** Produce a fresh evaluation envelope for the selected artifacts at `ec35aad`, then
-obtain independent correctness/security review of that same subject and append the result to the
-linked typed record without self-promotion. Preserve the chronology limitation: PR #116 merged
-before the linked record and its evaluation existed, so do not backfill a normal pre-merge promotion
-or treat the author's own sweep as independent evidence.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
@@ -680,17 +598,17 @@ the clean-room runner and a live API, per the change playbook — which is what 
 either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
 conditional table whose targets are reachable through `check_links`. Re-running the sweep's command
 must return an empty set. Each reworded description passes the 600-byte cap and the `Triggers:`
-contract, and every description edit shows before/after scenario runs with the rate diff. Gate A
-green.
+contract, and every routing-content description edit shows an after-change scenario run. A
+previous-revision baseline is required only for a scenario that comes back red. Gate A green.
 
 **Next action:** Convert one monolith as a pattern — `incident-command` is the highest-traffic and
 has zero references — and land it alone so the conversion shape can be reviewed before it is applied
-to ten more. The description half is no longer waiting: run the overlapping scenarios before and
-after each description edit with the clean-room runner.
+to ten more. The description half is no longer waiting: run the overlapping scenarios after each
+routing-content edit, and fetch the prior baseline only for a red scenario.
 
 **Stated deferral, recorded here because the playbook requires it be stated rather than silent:**
 the `eng-ladder` description was rewritten on 2026-08-17 (merged in #115) from 599 bytes to 418
-**without** before/after routing runs. What that omission cannot prove is whether the trimmed rung
+**without** an after-change routing run. What that omission cannot prove is whether the trimmed rung
 definitions changed which lane fires for an altitude question. The edit removed a workflow summary
 and added a trigger, so the intended direction is better routing, but intent is not measurement.
 
@@ -698,7 +616,8 @@ and added a trigger, so the intended direction is better routing, but intent is 
 that was **wrong** — `run_evals.py` invokes the Claude CLI, which uses the operator's login rather
 than an API key. The runner executed here on 2026-08-19/20 (`claude-opus-5[1m]` and
 `claude-sonnet-5`, live trials, graded results). The `eng-ladder` deferral therefore has no
-remaining blocker: re-run its overlapping scenarios and record the rate diff.
+remaining blocker: run its overlapping scenarios on the changed description; obtain the prior
+baseline only for any red scenario.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 
@@ -727,8 +646,9 @@ collision measurable; no live routing result exists, and neither canonical descr
 
 **Acceptance:** Both, and neither alone. (1) The canonical text disambiguates: `obs-logs` no longer
 advertises a trigger that `obs-alerting` owns, **or** its ownership map names `obs-alerting`
-explicitly. (2) A `discovery-obs-logs-defers-obs-alerting` scenario exists and passes, and the
-before/after runs show no other overlapping scenario moved.
+explicitly. (2) A `discovery-obs-logs-defers-obs-alerting` scenario exists and passes after the edit,
+and the other overlapping scenarios remain green. A prior-revision baseline is needed only for a
+scenario that is red.
 
 A passing scenario on its own does **not** close this item. If the scenario already passes against
 today's descriptions, that is evidence the collision is currently latent — not that it is resolved —
@@ -757,8 +677,9 @@ detail in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-
   the next description edit should follow the stated sequence.
 
 **Next action:** Establish the missing half of acceptance — run the *other* overlapping
-`obs-alerting`/`obs-logs` scenarios before and after, and show none of them moved. Then close. Do
-not close on the defer scenario alone.
+`obs-alerting`/`obs-logs` scenarios against the changed descriptions and show they remain green. If
+one is red, run that scenario at the prior revision to attribute it. Then close. Do not close on the
+defer scenario alone.
 
 ### GRADER-001 — reconcile the 2026-08-11 scenario graders with what the skills teach
 
@@ -1066,43 +987,6 @@ explicitly rejected with evidence.
 
 **Next action:** Owner decision on the enforcement mechanism. Until then, treat final-SHA review and
 thread reconciliation as a manual merge blocker rather than assuming green CI is review evidence.
-
-### SWEEP-001 — dispose the 2026-08-15 mutation-sweep findings
-
-**Status:** `decision-needed` (2026-08-15)
-
-**Outcome:** Each finding from the fleet mutation sweep is either owned and repaired, or explicitly
-accepted as not worth fixing with a recorded reason. None is left as an unowned number in a review
-packet that a later reader mistakes for either a defect list or a clean bill of health.
-
-**Source:** The findings-only
-[`fleet mutation sweep`](reviews/2026-08-15-fleet-mutation-sweep.md), which swept seven modules
-unbounded on the repo-pinned Python 3.12. Everything in it is discovered and **not** fixed, except
-the one fail-open already closed under its own commit. The three highest-consequence groups:
-
-- `[verified]` `scripts/release_contract.py` (35 of 68) and `scripts/release_workflow_contract.py`
-  (33 of 77) — symlink rejection, every approval-expiry boundary, UTC binding, manifest identity,
-  `required=True` on the release arguments, and the whole reservation-precedes-tag invariant are
-  unpinned. These gate RELEASE-001's acceptance.
-- `[verified]` `scripts/host_install_probe.py` (253 of 553) — the census machinery under
-  `host.claude.probe-authority` is barely pinned, including the criterion that an unreadable tree
-  must yield inconclusive rather than pass.
-- `[verified]` `evals/graders.py` (54 of 167), pre-existing and unchanged before and after this
-  session's grader repair.
-
-**Prerequisites:** None to decide. Any repair is ordinary bounded work under the relevant record;
-opening typed `fi_` records for the release-contract and host-probe groups is part of the decision,
-not a precondition for it.
-
-**Acceptance:** Every group above carries a disposition — `prepared`, `proposed`, `blocked`,
-`duplicate`, or `not_applicable` — with an owner and a reason. Any group accepted as not worth
-fixing says why in writing. Repairs land red-first, proving the mutant survives before the fix and
-dies after.
-
-**Next action:** Owner disposition per group. Treat the release-contract group as the highest
-consequence, since RELEASE-001's acceptance rests on contracts whose own suite does not notice their
-predicates changing. Do not read a survivor count as a defect count, and do not read a clean sweep
-over `_authority_check` as evidence the census is sound — that code generates no mutants at all.
 
 ### NAV-001 — dispose the incident-navigation prototype
 

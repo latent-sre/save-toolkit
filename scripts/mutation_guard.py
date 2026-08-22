@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove that a test suite fails when the contract it names is broken.
+"""Check one named module for a contract mutation its focused tests fail to notice.
 
 WHY THIS EXISTS
 ---------------
@@ -14,12 +14,13 @@ break the code on purpose and require someone to notice.
 
 WHAT IT DOES
 ------------
-For each test file, it derives the module(s) that test actually exercises, rewrites one small piece
-of that module's logic, and runs the test file. A mutant that **survives** — the suite still passes
-against deliberately broken code — is reported with the exact source change that went unnoticed.
-Survivors are not automatically defects: a mutant can be semantically equivalent, or land on a line
-whose behaviour genuinely does not matter. They are places where the suite proves less than it looks
-like it proves.
+For one module supplied with `--module`, it derives the test file(s) that exercise that module,
+rewrites one small piece of its logic, and runs those tests. A mutant that **survives** — the suite
+still passes after the change — is a diagnostic lead, not a defect or backlog item. Turn at most one
+named survivor into a focused red-first regression, prove that regression kills it, then stop.
+
+The CLI deliberately refuses an omitted `--module`. Fleet-wide sweeps and survivor inventories cost
+time without establishing a contract; this helper exists only for a bounded question about one file.
 
 SUBJECTS ARE DERIVED, NEVER HAND-KEPT
 -------------------------------------
@@ -30,7 +31,7 @@ forgot it.
 
 HONEST LIMITS
 -------------
-**Your working tree is never modified.** Every sweep runs inside a throwaway `git worktree` at HEAD
+**Your working tree is never modified.** Every run uses a throwaway `git worktree` at HEAD
 (`isolated_checkout`), so the mutated bytes only ever exist in a temporary directory that is deleted
 afterwards and reclaimed by `git worktree prune` if a run is killed outright.
 
@@ -43,9 +44,8 @@ autosave, or a second agent on the same checkout are the same hazard. Isolation 
 the in-mutant `finally` and the SIGTERM handler remain as cheap belt-and-braces inside the sandbox.
 
 It still refuses to start on a dirty working tree, now for honesty rather than recovery: a worktree
-is pinned at HEAD, so with uncommitted changes present the sweep would report on code that is not
-the code in front of you. A full sweep runs the suite once per mutant, which is far too slow for CI
--- it is a deliberate run, like the routing evals.
+is pinned at HEAD, so with uncommitted changes present the run would report on code that is not the
+code in front of you. It is a deliberate single-module diagnostic, never a CI or per-push gate.
 
 `--limit` makes it a sampling tool rather than a proof. A clean bounded report means "no survivor
 among the mutants tried"; it never means "the suite is complete", and it never establishes that any
@@ -55,9 +55,7 @@ that is a claim about mutants nobody ran, and a bounded observation cannot suppo
 
 Pure standard library.
 
-    python3 scripts/mutation_guard.py                 # every mutant of every pair (slow)
-    python3 scripts/mutation_guard.py --limit 12      # an evenly spaced sample per module
-    python3 scripts/mutation_guard.py --module skills/operational-learning/scripts/packet_drift.py
+    python scripts/mutation_guard.py --module skills/operational-learning/scripts/packet_drift.py
 """
 
 from __future__ import annotations
@@ -472,7 +470,7 @@ def _require_clean_tree(root: Path) -> None:
         raise RuntimeError(f"cannot read git status in {root}")
     if completed.stdout.strip():
         raise RuntimeError(
-            "working tree is dirty; the sweep runs against an isolated worktree pinned at HEAD, so "
+            "working tree is dirty; the module run uses an isolated worktree pinned at HEAD, so "
             "uncommitted changes would not be tested and the report would describe code other than "
             "the code in front of you. Commit or stash first"
         )
@@ -551,17 +549,10 @@ def _run_sweep(args: argparse.Namespace) -> int:
     Split out of `main` so the isolation boundary is a single visible `with`, rather than a
     convention someone has to preserve while editing a long function.
     """
-    # A `--module` run asks about ONE module, so repository-wide blind test files are not evidence
-    # about it. Counting them would make every targeted run INCONCLUSIVE regardless of its own
-    # result -- six such files exist here today -- which would train a reader to ignore the verdict,
-    # the opposite of what feeding `blind` into it is for. An unfiltered sweep does claim whole-repo
-    # coverage, so there the blind set is exactly on point.
-    blind = [] if args.module is not None else unresolved(args.root)
-    if blind:
-        print("mutation_guard: no subject derived for these test files (not mutated):")
-        for test in blind:
-            print(f"  {test.relative_to(args.root).as_posix()}")
-        print()
+    # This CLI can ask only about one module. Repository-wide blind test files say nothing about
+    # that named target and therefore cannot turn its result inconclusive.
+    blind: list[Path] = []
+    target = (args.root / args.module).resolve()
 
     findings: list[tuple[Path, Path, Mutant]] = []
     unverifiable: list[str] = []
@@ -571,7 +562,7 @@ def _run_sweep(args: argparse.Namespace) -> int:
     for test, subjects in discover(args.root):
         for subject in subjects:
             module = subject.path
-            if args.module is not None and module != (args.root / args.module).resolve():
+            if module != target:
                 continue
             checked += 1
             print(f"  {module.relative_to(args.root).as_posix()} <- {test.name}", flush=True)
@@ -621,7 +612,11 @@ def _run_sweep(args: argparse.Namespace) -> int:
                     "on an unbounded run; the test probably never exercises it"
                 )
                 continue
-            findings.extend((test, module, mutant) for mutant in survivors)
+            if survivors:
+                findings.append((test, module, survivors[0]))
+                break
+        if findings:
+            break
 
     for message in unexercised:
         print(f"mutation_guard: unexercised -- {message}", file=sys.stderr)
@@ -646,14 +641,16 @@ def _run_sweep(args: argparse.Namespace) -> int:
         print(f"mutation_guard: PASS -- {summary}")
         return 0
 
-    print(f"\nmutation_guard: {len(findings)} surviving mutant(s) -- the suite did not notice:")
-    for test, module, mutant in findings:
-        print(
-            f"  {module.relative_to(args.root).as_posix()}:{mutant.lineno} "
-            f"[{mutant.description}] survived {test.name}"
-        )
-    print("\nA survivor is not automatically a defect -- it may be semantically equivalent.")
-    print("It is a place where the suite proves less than it appears to.")
+    test, module, mutant = findings[0]
+    print("\nmutation_guard: surviving mutant -- the focused test did not notice:")
+    print(
+        f"  {module.relative_to(args.root).as_posix()}:{mutant.lineno} "
+        f"[{mutant.description}] survived {test.name}"
+    )
+    print("Other survivors are intentionally not inventoried.")
+    print("\nA survivor may be equivalent or irrelevant to the intended contract.")
+    print("A survivor count is not a finding or backlog item.")
+    print("Pin one named survivor with a focused red-first test, then stop.")
     return EXIT_INCONCLUSIVE if (unverifiable or unexercised) else EXIT_SURVIVORS
 
 
@@ -666,7 +663,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=DEFAULT_LIMIT,
         help="mutants per module as an evenly spaced sample; 0 means every mutant (slow)",
     )
-    parser.add_argument("--module", type=Path, help="restrict to one module path")
+    parser.add_argument(
+        "--module",
+        type=Path,
+        required=True,
+        metavar="PATH",
+        help="one repository module to inspect; fleet-wide runs are refused",
+    )
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
@@ -692,19 +695,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     # "no test/module pair matched". A relative --module happened to keep working, which is what
     # made this easy to miss. Normalizing to a repo-relative path here means the join inside the
     # worktree is correct for both spellings.
-    if args.module is not None:
-        target = (args.root / args.module).resolve()
-        try:
-            args.module = target.relative_to(args.root)
-        except ValueError:
-            # Previously this fell through to the generic "no pair matched" refusal, which reads
-            # like "your module has no tests" rather than "that path is not in this repository".
-            print(
-                f"mutation_guard: --module {args.module} resolves to {target}, which is outside "
-                f"{args.root}; pass a path inside the repository being swept",
-                file=sys.stderr,
-            )
-            return EXIT_REFUSED
+    target = (args.root / args.module).resolve()
+    try:
+        args.module = target.relative_to(args.root)
+    except ValueError:
+        # Previously this fell through to the generic "no pair matched" refusal, which reads
+        # like "your module has no tests" rather than "that path is not in this repository".
+        print(
+            f"mutation_guard: --module {args.module} resolves to {target}, which is outside "
+            f"{args.root}; pass a path inside the repository being inspected",
+            file=sys.stderr,
+        )
+        return EXIT_REFUSED
 
     try:
         _require_clean_tree(args.root)

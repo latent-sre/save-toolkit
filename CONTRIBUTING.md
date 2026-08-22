@@ -26,15 +26,19 @@ The canonical-vs-generated split and where authority lives are fleet rules — A
 
 ## Work and verification protocol
 
-Open every working session from a clean tree: `git fetch --prune origin`, then
-`git switch main && git pull --ff-only origin main` (`--ff-only` fails loudly instead of
-manufacturing a merge commit), record the base SHA, and branch from `main` — never from another
-feature branch. Before opening a PR, `git rebase origin/main` and confirm
-`git log --oneline origin/main..HEAD` shows only your commits; a PR stacked on a
-merged-and-deleted branch silently absorbs the parent's diff.
+When starting implementation intended for a pull request, inspect `git status` first. Refresh
+`origin/main`, record its SHA, and start from that revision in a clean branch or separate checkout.
+If the current checkout is dirty or belongs to another task, leave it untouched. Read-only
+investigation or review uses the checkout it was asked to inspect and fetches only when remote
+freshness affects the answer; it does not switch, pull, branch, stash, or rebase merely to begin.
 
-Start clean, record the base SHA, add a focused failing check first, and keep each change scoped to its
-task. Before you push — once, not after each edit — run the structural gate:
+Before opening a PR, refresh `origin/main`, inspect the divergence, and integrate current main.
+Rebase only an unpublished branch; preserve published history unless the owner explicitly authorizes
+rewriting it. Confirm `git log --oneline origin/main..HEAD` contains only the intended commits—a PR
+stacked on a merged-and-deleted branch can silently absorb its parent's diff.
+
+For that implementation, add a focused failing check first and keep each change scoped to its task.
+Before you push — once, not after each edit — run the structural gate:
 
 ```powershell
 py -3 scripts/gate_a.py
