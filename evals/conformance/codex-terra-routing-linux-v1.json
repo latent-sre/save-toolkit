@@ -1,6 +1,6 @@
 {
-  "schema_version": 2,
-  "campaign": "route-001-codex-terra-linux-v1",
+  "schema_version": 3,
+  "instrument": "route-001-codex-terra-canary-v1",
   "provider": "openai-codex",
   "runtime_platform": "linux-x86_64",
   "python_version": "3.12.10",
@@ -15,17 +15,12 @@
   "sandbox": "read-only",
   "approval_policy": "never",
   "skill_activation_evidence": "behavioral-only-codex-0.148",
-  "agent_activation_evidence": "root-delegation-unobservable-v2",
-  "tool_policy": "no-model-tools-non-root-root-collaboration-unscored",
+  "tool_policy": "no-model-tools-non-root",
   "source_model_entry_sha256": "3a934e842c9b6a813dfe04ec826da0b79dcfc9b3187696d4b2c1b7110cdb811c",
   "safe_model_catalog_sha256": "b5122f71336f146cb6c656167e7f3258a9e4735583b95435f808261562bb646f",
   "timeout_s": 300,
-  "trials": 2,
-  "threshold": 1,
-  "before_revision": "a39a81f33f7ad7325c52d883822bbbdd80c7ed28",
   "current_revision": "7aef80aede95394f6c4237ed2aedb911e141c3c0",
   "snapshot_tree_sha256": {
-    "a39a81f33f7ad7325c52d883822bbbdd80c7ed28": "195e5afad5ccd95f0aa3611b96cd31c8c1e9bc06818009603e2c4181240f62b5",
     "7aef80aede95394f6c4237ed2aedb911e141c3c0": "b9167b5200994d8265a2c592c7730028e81aa6f3a7fb19646bce0ceffc052a10"
   },
   "canary_scenario": {
@@ -99,107 +94,9 @@
       "name": "gcp-ops"
     }
   },
-  "scenarios": [
-    {
-      "id": "discovery-obs-alerting-splunk-saved-search",
-      "cohort": "paired",
-      "sha256": "41ca04c4d042a68ba6913d325e98362875847a027fc998b017fdb16c01a75457"
-    },
-    {
-      "id": "discovery-obs-logs-cloud-logging",
-      "cohort": "paired",
-      "sha256": "94cdb926b9bf22811921a2d0f7a41e4f4c3dadb55e5a5e060fa50e9ab8f9572d"
-    },
-    {
-      "id": "discovery-obs-metrics-cloud-monitoring",
-      "cohort": "paired",
-      "sha256": "827f4e6199194e0e0280a11c8da19a2660118dfe6eb582171815bdab698827ca"
-    },
-    {
-      "id": "discovery-obs-traces-cloud-trace",
-      "cohort": "paired",
-      "sha256": "748b48ed3c5eaf82e08ea2d53accf8e681ad4f3fda08c2b78805379e77e8ca34"
-    },
-    {
-      "id": "discovery-runbook-incident-update",
-      "cohort": "paired",
-      "sha256": "255c603a87f94bb1c107af651ab7de17a00c7119f09e1522060c85d157f6c4fb"
-    },
-    {
-      "id": "discovery-akamai-edge-defers-active-incident",
-      "cohort": "current_only",
-      "sha256": "82e5f46a3f1549024dbc8becec9379a610548ee6f638d49411dda54a791ec20d"
-    },
-    {
-      "id": "discovery-akamai-edge-defers-obs-alerting",
-      "cohort": "current_only",
-      "sha256": "60e1eb43ec398fdb7fde5807dbc9010cff902311ee0278134bed546e3d4d2881"
-    },
-    {
-      "id": "discovery-akamai-edge-defers-obs-logs",
-      "cohort": "current_only",
-      "sha256": "5a69fc3fb4142af120119aa46f24b69234c55ecbf1696cd339a412ad9996a9ee"
-    },
-    {
-      "id": "discovery-akamai-edge-defers-obs-metrics",
-      "cohort": "current_only",
-      "sha256": "8b9c537605d18b94e9ea4507665f041ab6063ffdc514eceadfc3431572ea4e76"
-    },
-    {
-      "id": "discovery-akamai-edge-defers-obs-traces",
-      "cohort": "current_only",
-      "sha256": "1e002a157c8f692fe464a37c6ebac4accc4c7db2eab989bdcab9c71fcc723e0c"
-    },
-    {
-      "id": "discovery-akamai-edge-defers-pcf",
-      "cohort": "current_only",
-      "sha256": "245c9a6f778bb86dd96e3f12f4b38237161431c5ec804a9a911b21e4084dcf64"
-    },
-    {
-      "id": "discovery-akamai-edge-reference-error",
-      "cohort": "current_only",
-      "sha256": "a51bff4e3f427b4310d37b27ae58dedcb30fa5d1d0b182eaad8f2af6dd58fab5"
-    },
-    {
-      "id": "discovery-gcp-ops-cloud-run-startup",
-      "cohort": "current_only",
-      "sha256": "3d3507272fbe0e6d3ee28bf51ad33cf2d913c5afb2e69a79881fba5ce29712fd"
-    },
-    {
-      "id": "discovery-gcp-ops-defers-active-incident",
-      "cohort": "current_only",
-      "sha256": "e22d04fcfe10cdcc021a949aff87ef7a204d0a358c7a151b57b57abb3053169f"
-    },
-    {
-      "id": "discovery-gcp-ops-defers-obs-alerting",
-      "cohort": "current_only",
-      "sha256": "c3c29ade368cacf44fc2aa5a37cc9d4730c95bbe90afcf72eee8b9044533829b"
-    },
-    {
-      "id": "discovery-gcp-ops-defers-obs-logs",
-      "cohort": "current_only",
-      "sha256": "a0b73abdfed2165e95166650d1082ea84458d52bbdbc57b404ffdbd65d509cd0"
-    },
-    {
-      "id": "discovery-gcp-ops-defers-obs-metrics",
-      "cohort": "current_only",
-      "sha256": "3910e5600bb85a09a8a3b90149977ee1723bf5ef544cc736b359102d68759069"
-    },
-    {
-      "id": "discovery-gcp-ops-defers-obs-traces",
-      "cohort": "current_only",
-      "sha256": "d90003d483c39d9eabf52e1035d7fd50d918ed25080c6ac6070af01fb136fb11"
-    },
-    {
-      "id": "discovery-gcp-ops-defers-pcf",
-      "cohort": "current_only",
-      "sha256": "4db4d8d526413860ecc50de51417a7ad67a99da29c51315627e4312d7f929c57"
-    }
-  ],
   "runtime_kind": "linux-container",
   "container_user": "65532:65532",
   "base_image_digest": "sha256:97983fa8cc88343512862c62307159a82261c3528dc025f79e5a3f7af43e50b4",
   "python_executable_path": "/usr/local/bin/python3.12",
-  "codex_executable_path": "/opt/route001/codex-runtime/bin/codex",
-  "scenario_bundle_sha256": "04417ded34826a9f7a67f72d78fa569b2e4fd91f35ca0c38329a1c6131808191"
+  "codex_executable_path": "/opt/route001/codex-runtime/bin/codex"
 }

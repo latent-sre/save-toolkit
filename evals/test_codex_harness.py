@@ -181,7 +181,7 @@ def _post_tool_use(
 
 
 class FixedConfigurationTests(unittest.TestCase):
-    def test_terra_campaign_configuration_is_exact(self) -> None:
+    def test_terra_probe_configuration_is_exact(self) -> None:
         self.assertEqual(codex_harness.CODEX_CLI_VERSION, "0.148.0")
         self.assertEqual(codex_harness.MODEL, "gpt-5.6-terra")
         self.assertEqual(codex_harness.REASONING_EFFORT, "medium")
@@ -189,7 +189,6 @@ class FixedConfigurationTests(unittest.TestCase):
         self.assertEqual(codex_harness.APPROVAL_POLICY, "never")
         self.assertEqual(codex_harness.HOOK_PERMISSION_MODE, "bypassPermissions")
         self.assertEqual(codex_harness.TIMEOUT_SECONDS, 300)
-        self.assertEqual(codex_harness.TRIALS, 2)
 
 
 class JsonlParserTests(unittest.TestCase):

@@ -16,7 +16,7 @@ from typing import Mapping, Sequence
 
 
 IMAGE_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-MODES = frozenset({"preflight", "canary", "campaign"})
+MODES = frozenset({"preflight", "canary"})
 CANARY_ARMS = ("description", "body")
 CONTAINER_USER = "65532:65532"
 CONTAINER_UID = 65532
@@ -112,7 +112,7 @@ def _require_container_uid_owner(path: Path, *, label: str) -> None:
 
 def _validate_inputs(mode: str, inputs: ContainerInputs) -> tuple[Path, Path, Path | None]:
     if mode not in MODES:
-        raise ContainerContractError("mode must be preflight, canary, or campaign")
+        raise ContainerContractError("mode must be preflight or canary")
     if not IMAGE_ID_RE.fullmatch(inputs.image_id):
         raise ContainerContractError("container image must be one immutable image ID")
     repository = _normal_path(inputs.repository, label="repository", directory=True)
@@ -132,8 +132,6 @@ def _validate_inputs(mode: str, inputs: ContainerInputs) -> tuple[Path, Path, Pa
         auth = _normal_path(inputs.auth_file, label="auth file", directory=False)
         if os.name != "nt" and auth.lstat().st_mode & 0o077:
             raise ContainerContractError("auth file must be private to its owner")
-        if mode == "campaign":
-            _require_container_uid_owner(output, label="output root")
         _require_container_uid_owner(auth, label="auth file")
     return repository, output, auth
 
@@ -181,10 +179,6 @@ def build_docker_command(
         "--mount",
         _mount(source=repository, target="/source", readonly=True),
     ]
-    if mode == "campaign":
-        command.extend(
-            ("--mount", _mount(source=output, target="/output", readonly=False))
-        )
     if auth is not None:
         command.extend(
             (
@@ -203,18 +197,6 @@ def build_docker_command(
                 str(canary_arm),
                 "--auth-file",
                 "/run/secrets/auth.json",
-            )
-        )
-    else:
-        command.extend(
-            (
-                "--campaign",
-                "--auth-file",
-                "/run/secrets/auth.json",
-                "--campaign-root",
-                "/output",
-                "--container-image-id",
-                inputs.image_id,
             )
         )
     return tuple(command)

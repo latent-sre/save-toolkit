@@ -23,15 +23,13 @@ APPROVAL_POLICY = "never"
 # In Codex 0.148, AskForApproval::Never serializes as this exact hook value.
 HOOK_PERMISSION_MODE = "bypassPermissions"
 TIMEOUT_SECONDS = 300
-TRIALS = 2
 
 
 @dataclass(frozen=True)
 class TrialSpec:
-    """One immutable ROUTE-001 scenario/revision/trial coordinate."""
+    """The immutable ROUTE-001 canary coordinate."""
 
     scenario_id: str
-    cohort: str
     revision: str
     trial: int
     scenario_sha256: str

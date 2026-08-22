@@ -20,7 +20,6 @@ import codex_harness
 
 MAX_STDIN_BYTES = 2_000_000
 TOKEN_RE = re.compile(r"^[0-9a-f]{32}$")
-FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 MAX_RECEIPT_FILE_BYTES = MAX_STDIN_BYTES + 4096
 MAX_RECEIPTS = 64
 MAX_TOTAL_RECEIPT_BYTES = 8 * 1024 * 1024
@@ -28,14 +27,8 @@ _WRITE_LOCK_NAME = ".receipt-write.lock"
 
 
 def _ordinary_directory(path: Path) -> Path:
-    try:
-        metadata = path.lstat()
-    except OSError as exc:
-        raise ValueError("receipt directory must already exist") from exc
     if path.is_symlink() or not path.is_dir():
         raise ValueError("receipt directory must be an ordinary directory")
-    if getattr(metadata, "st_file_attributes", 0) & FILE_ATTRIBUTE_REPARSE_POINT:
-        raise ValueError("receipt directory must not be a reparse point")
     try:
         resolved = path.resolve(strict=True)
     except OSError as exc:
@@ -127,7 +120,6 @@ def load_receipts(
             match is None
             or entry.is_symlink()
             or not entry.is_file()
-            or getattr(metadata, "st_file_attributes", 0) & FILE_ATTRIBUTE_REPARSE_POINT
             or getattr(metadata, "st_nlink", 1) != 1
             or metadata.st_size <= 0
             or metadata.st_size > MAX_RECEIPT_FILE_BYTES

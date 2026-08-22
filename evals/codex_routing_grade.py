@@ -2,17 +2,12 @@
 """Observational ROUTE-001 grading for Codex Terra trials.
 
 The evaluator accepts no provider-native activation trace for filesystem-injected skills. Skill
-positives and near-miss negatives therefore use the existing deterministic response graders only.
+behavior therefore uses the existing deterministic response graders only.
 The separate target-blind development probe scores one exact catalog-description selection and does
 not claim that Codex invoked or loaded the selected skill.
-Root-scoped delegation is less observable still: the accepted trace has no joinable V2 spawn edge,
-``PostToolUse`` does not expose a joinable plaintext delegation task, and ``wait_agent`` reports
-mailbox activity rather than semantic root consumption. Root trials therefore validate the
-instrument and required terminal response, skip response graders, and deterministically remain
-inconclusive.
 
 The returned verdict owns no prompt, response, path, runtime ID, or parsed trace object.  Only
-``RoutingVerdict.as_dict()`` is suitable for persisted campaign evidence.
+``RoutingVerdict.as_dict()`` is suitable for persisted sanitized probe evidence.
 """
 from __future__ import annotations
 
@@ -76,33 +71,16 @@ class RoutingVerdict:
 
 _HOOK_EVENTS = {"SessionStart", "SubagentStart", "PostToolUse"}
 _COLLAB_TOOLS = {"spawn_agent", "wait", "send_input", "close_agent"}
-_ROOT_UNOBSERVABLE_REASON = "root-delegation-unobservable-v2"
 _RESPONSE_SIZE_REASON = "response-size-limit-exceeded"
 # A routing response is expected to be a short operational answer.  These limits are deliberately
-# much smaller than the executor's raw-output ceiling and are checked before any non-root grader.
+# much smaller than the executor's raw-output ceiling and are checked before any response grader.
 MAX_RESPONSE_BYTES = 256 * 1024
 MAX_RESPONSE_LINE_BYTES = 8 * 1024
 _SKILL_LIMITATIONS = (
-    "The Codex 0.148 campaign accepts no activation trace for filesystem-injected skills; exact "
+    "The Codex 0.148 probe accepts no activation trace for filesystem-injected skills; exact "
     "activation "
     "is not asserted.",
-    "Near-miss skill negatives are graded from response behavior; target-skill absence is not "
-    "asserted.",
     "Raw prompts, responses, paths, and runtime identifiers are not persisted by this verdict.",
-)
-_ROOT_LIMITATIONS = (
-    "The Codex 0.148 campaign accepts no activation trace for filesystem-injected skills; exact "
-    "activation "
-    "is not asserted.",
-    "Root-scoped response graders are not executed because no observed event proves that the "
-    "root consumed delegated semantics.",
-    "Raw prompts, responses, paths, and runtime identifiers are not persisted by this verdict.",
-    "The accepted Codex exec JSONL has no joinable V2 spawn edge, and PostToolUse does not expose "
-    "a joinable plaintext delegation task.",
-    "wait_agent is a mailbox notification, not evidence that the root consumed a child's "
-    "semantic result.",
-    "No observed event proves semantic root consumption; root delegation is reported as "
-    "INCONCLUSIVE (root-delegation-unobservable-v2).",
 )
 _DESCRIPTION_SELECTION_LIMITATIONS = (
     "This probe measures selection from the rendered skill catalog; it does not load or grade the "
@@ -115,71 +93,52 @@ _DESCRIPTION_SELECTION_LIMITATIONS = (
 
 @dataclass(frozen=True)
 class _ScenarioContract:
-    root_scope: bool
     graders: tuple[Mapping[str, object], ...]
-
-
-def _evidence_mode(root_scope: bool) -> str:
-    return _ROOT_UNOBSERVABLE_REASON if root_scope else "observational-response-graders"
-
-
-def _limitations(root_scope: bool) -> tuple[str, ...]:
-    return _ROOT_LIMITATIONS if root_scope else _SKILL_LIMITATIONS
 
 
 def _result(
     *,
     state: VerdictState,
-    root_scope: bool,
     behavior_grades: tuple[BehaviorGrade, ...] = (),
     reason_codes: tuple[str, ...],
 ) -> RoutingVerdict:
     return RoutingVerdict(
         state=state,
-        evidence_mode=_evidence_mode(root_scope),
+        evidence_mode="observational-response-graders",
         behavior_grades=behavior_grades,
         ancestry=None,
         reason_codes=reason_codes,
-        limitations=_limitations(root_scope),
+        limitations=_SKILL_LIMITATIONS,
     )
 
 
 def _parse_scenario_contract(scenario: Mapping[str, object]) -> _ScenarioContract:
     if scenario.get("mode") != "discovery":
-        raise ValueError("campaign scenario must be discovery mode")
+        raise ValueError("probe scenario must be discovery mode")
     target = scenario.get("target")
     if not isinstance(target, Mapping) or target.get("kind") != "skill":
-        raise ValueError("campaign scenario target must be a skill")
+        raise ValueError("probe scenario target must be a skill")
     target_name = target.get("name")
     if not isinstance(target_name, str) or not target_name:
-        raise ValueError("campaign scenario target name is invalid")
+        raise ValueError("probe scenario target name is invalid")
 
     routing = scenario.get("routing")
-    if not isinstance(routing, Mapping) or routing.get("expect") not in {"fire", "not_fire"}:
-        raise ValueError("campaign routing expectation is invalid")
-    scope = routing.get("scope")
-    if scope not in {None, "root"}:
-        raise ValueError("campaign routing scope is invalid")
-    root_scope = scope == "root"
-    if root_scope:
-        if routing.get("expect") != "not_fire":
-            raise ValueError("root incident scenario must be a near-miss negative")
-        alternative = routing.get("expected_alternative")
-        if not isinstance(alternative, Mapping) or dict(alternative) != {
-            "kind": "agent",
-            "name": "sre",
-        }:
-            raise ValueError("root incident scenario must require the SRE alternative")
+    if (
+        not isinstance(routing, Mapping)
+        or routing.get("expect") != "fire"
+        or routing.get("scope") is not None
+    ):
+        raise ValueError("probe routing contract must be one non-root positive")
 
     grader_specs = scenario.get("graders")
     if not isinstance(grader_specs, list) or not grader_specs:
-        raise ValueError("campaign scenario requires response graders")
+        raise ValueError("probe scenario requires response graders")
     normalized: list[Mapping[str, object]] = []
     for spec in grader_specs:
         if not isinstance(spec, Mapping):
             raise ValueError("response grader specification must be an object")
         normalized.append(spec)
-    return _ScenarioContract(root_scope=root_scope, graders=tuple(normalized))
+    return _ScenarioContract(graders=tuple(normalized))
 
 
 def _valid_counts(values: Mapping[str, int]) -> bool:
@@ -237,11 +196,10 @@ def _hook_facts_problem(hooks: codex_harness.ParsedHookReceipts) -> str | None:
 
 def _instrument_problem(
     *,
-    root_scope: bool,
     trace: codex_harness.ParsedTrace,
     hooks: codex_harness.ParsedHookReceipts,
 ) -> str | None:
-    """Reject forbidden tools and non-root collaboration before routing interpretation."""
+    """Reject every model tool or collaboration event before grading."""
 
     hook_problem = _hook_facts_problem(hooks)
     if hook_problem is not None:
@@ -252,13 +210,13 @@ def _instrument_problem(
         return "forbidden-tool-observed"
     if not trace_tools.issubset(_COLLAB_TOOLS):
         return "forbidden-tool-observed"
-    if not root_scope and (
+    if (
         hooks.hook_event_counts.get("SubagentStart", 0)
         or hooks.agent_type_counts
         or hook_tools
         or trace.collab_tool_facts
     ):
-        return "non-root-tool-flow-observed"
+        return "canary-tool-flow-observed"
     return None
 
 
@@ -294,41 +252,28 @@ def grade_trial(
 ) -> RoutingVerdict:
     """Grade one Terra trial without asserting unobservable filesystem-skill activation."""
 
-    root_scope = False
     try:
         contract = _parse_scenario_contract(scenario)
-        root_scope = contract.root_scope
     except (TypeError, ValueError):
         return _result(
             state=VerdictState.INCONCLUSIVE,
-            root_scope=False,
             reason_codes=("scenario-contract-invalid",),
         )
 
     instrument_problem = _instrument_problem(
-        root_scope=root_scope,
         trace=trace,
         hooks=hooks,
     )
     if trace.terminal != "completed":
         return _result(
             state=VerdictState.INCONCLUSIVE,
-            root_scope=root_scope,
             reason_codes=(instrument_problem or "trace-not-completed",),
         )
     response = trace.last_agent_message
     if not isinstance(response, str) or not response:
         return _result(
             state=VerdictState.INCONCLUSIVE,
-            root_scope=root_scope,
             reason_codes=(instrument_problem or "response-missing",),
-        )
-
-    if root_scope:
-        return _result(
-            state=VerdictState.INCONCLUSIVE,
-            root_scope=True,
-            reason_codes=(instrument_problem or _ROOT_UNOBSERVABLE_REASON,),
         )
 
     response_size_problem = _response_size_problem(response)
@@ -340,7 +285,6 @@ def grade_trial(
         )
         return _result(
             state=VerdictState.INCONCLUSIVE,
-            root_scope=False,
             reason_codes=reasons,
         )
 
@@ -353,27 +297,23 @@ def grade_trial(
         )
         return _result(
             state=VerdictState.INCONCLUSIVE,
-            root_scope=root_scope,
             behavior_grades=behavior_grades,
             reason_codes=reasons,
         )
     if instrument_problem is not None:
         return _result(
             state=VerdictState.INCONCLUSIVE,
-            root_scope=root_scope,
             behavior_grades=behavior_grades,
             reason_codes=(instrument_problem,),
         )
     if not all(grade.passed for grade in behavior_grades):
         return _result(
             state=VerdictState.FAIL,
-            root_scope=root_scope,
             behavior_grades=behavior_grades,
             reason_codes=("behavior-grader-failed",),
         )
     return _result(
         state=VerdictState.PASS,
-        root_scope=root_scope,
         behavior_grades=behavior_grades,
         reason_codes=("observational-behavior-pass",),
     )
@@ -401,7 +341,6 @@ def grade_description_selection(
             limitations=_DESCRIPTION_SELECTION_LIMITATIONS,
         )
     instrument_problem = _instrument_problem(
-        root_scope=False,
         trace=trace,
         hooks=hooks,
     )

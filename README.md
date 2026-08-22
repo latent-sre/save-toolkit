@@ -86,7 +86,7 @@ Gate A proves the fleet is well-formed, never that it is correct — the adversa
 [CONTRIBUTING.md](CONTRIBUTING.md) are separate. Contract validators (knowledge-update packets,
 schema migrations) are documented in the
 [schema compatibility policy](docs/schema-compatibility.md); behavioral and routing evals — status,
-clean-room boundary, and the ROUTE-001 Codex campaign — live in [`evals/README.md`](evals/README.md);
+clean-room boundary, and the ROUTE-001 Codex canary — live in [`evals/README.md`](evals/README.md);
 the fleet-improvement ledger contract is
 [`improvement-lifecycle.md`](skills/agent-authoring/references/improvement-lifecycle.md).
 

@@ -2,7 +2,7 @@
 """Materialize fixed ROUTE-001 Git objects and stage a neutral Codex project.
 
 The evaluator must not read routing inputs from the mutable checkout.  This module asks Git for
-only the committed Codex projection needed by the campaign, validates the tar stream without
+only the committed Codex projection needed by the fixed canary, validates the tar stream without
 ``extractall()``, and publishes ordinary files create-only into a caller-owned temporary directory.
 The neutral project contains only the projected skills and custom agents.  Each custom-agent TOML
 has its legacy ``sandbox_mode`` assignment removed so no child can widen the root evaluator's named
@@ -11,8 +11,6 @@ permission profile; both the source and transformed trees are bound into the ret
 from __future__ import annotations
 
 import hashlib
-import ctypes
-import functools
 import io
 import json
 import ntpath
@@ -31,7 +29,6 @@ from typing import Callable, Mapping
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_REVISIONS = frozenset(
     {
-        "a39a81f33f7ad7325c52d883822bbbdd80c7ed28",
         "7aef80aede95394f6c4237ed2aedb911e141c3c0",
     }
 )
@@ -53,14 +50,7 @@ MAX_FILE_BYTES = 8 * 1024 * 1024
 MAX_MEMBERS = 4096
 GIT_TIMEOUT_SECONDS = 60
 MAX_GIT_EXECUTABLE_BYTES = 16 * 1024 * 1024
-GIT_EXECUTABLE_PATH = Path(r"C:\Program Files\Git\mingw64\bin\git.exe")
-GIT_EXECUTABLE_SHA256 = (
-    "c39b1b4f7a57935bbeadf246dc2466316619453a6a9da77c4a9c6bd6d8fb21d3"
-)
 EXPECTED_SNAPSHOT_TREE_SHA256 = {
-    "a39a81f33f7ad7325c52d883822bbbdd80c7ed28": (
-        "195e5afad5ccd95f0aa3611b96cd31c8c1e9bc06818009603e2c4181240f62b5"
-    ),
     "7aef80aede95394f6c4237ed2aedb911e141c3c0": (
         "b9167b5200994d8265a2c592c7730028e81aa6f3a7fb19646bce0ceffc052a10"
     ),
@@ -119,19 +109,13 @@ class StageReceipt:
     project_tree_sha256: str
 
 
-def _is_link_or_reparse(path: Path) -> bool:
-    if path.is_symlink():
-        return True
-    try:
-        attributes = getattr(path.lstat(), "st_file_attributes", 0)
-    except OSError:
-        return False
-    return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+def _is_symlink(path: Path) -> bool:
+    return path.is_symlink()
 
 
 def _resolved_normal_directory(path: Path, *, label: str) -> Path:
-    if _is_link_or_reparse(path):
-        raise SnapshotError(f"{label} must not be a link or reparse point")
+    if _is_symlink(path):
+        raise SnapshotError(f"{label} must not be a symbolic link")
     try:
         metadata = path.lstat()
         resolved = path.resolve(strict=True)
@@ -143,7 +127,7 @@ def _resolved_normal_directory(path: Path, *, label: str) -> Path:
 
 
 def _assert_no_indirection_below(root: Path, path: Path, *, label: str) -> None:
-    """Reject every existing link/reparse component from ``root`` through ``path``."""
+    """Reject every existing symbolic-link component from ``root`` through ``path``."""
 
     try:
         relative = path.relative_to(root)
@@ -152,8 +136,8 @@ def _assert_no_indirection_below(root: Path, path: Path, *, label: str) -> None:
     current = root
     for component in relative.parts:
         current /= component
-        if (current.exists() or current.is_symlink()) and _is_link_or_reparse(current):
-            raise SnapshotError(f"{label} must not traverse a link or reparse point")
+        if (current.exists() or current.is_symlink()) and _is_symlink(current):
+            raise SnapshotError(f"{label} must not traverse a symbolic link")
 
 
 def _is_below(path: Path, parent: Path) -> bool:
@@ -179,7 +163,7 @@ def _sha256_regular_file(path: Path, *, label: str, max_bytes: int) -> str:
         raise SnapshotError(f"{label} is unavailable") from exc
     if (
         not candidate.is_absolute()
-        or _is_link_or_reparse(candidate)
+        or _is_symlink(candidate)
         or not stat.S_ISREG(metadata.st_mode)
         or resolved != candidate.absolute()
         or metadata.st_size <= 0
@@ -197,7 +181,7 @@ def _sha256_regular_file(path: Path, *, label: str, max_bytes: int) -> str:
 
 
 def _pinned_git_executable(
-    path: Path, *, expected_sha256: str = GIT_EXECUTABLE_SHA256
+    path: Path, *, expected_sha256: str
 ) -> tuple[Path, os.stat_result]:
     candidate = Path(path)
     digest = _sha256_regular_file(
@@ -238,30 +222,7 @@ def _git_environment(neutral_root: Path) -> dict[str, str]:
     return env
 
 
-@functools.lru_cache(maxsize=1)
 def _trusted_os_environment() -> dict[str, str]:
-    if os.name == "nt":
-        from ctypes import wintypes
-
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel32.GetWindowsDirectoryW.argtypes = (wintypes.LPWSTR, wintypes.UINT)
-        kernel32.GetWindowsDirectoryW.restype = wintypes.UINT
-        buffer = ctypes.create_unicode_buffer(32768)
-        length = kernel32.GetWindowsDirectoryW(buffer, len(buffer))
-        if length == 0 or length >= len(buffer):
-            raise SnapshotError("trusted Windows directory could not be resolved")
-        windows = Path(buffer.value).resolve(strict=True)
-        system32 = windows / "System32"
-        command_shell = system32 / "cmd.exe"
-        if not command_shell.is_file() or _is_link_or_reparse(command_shell):
-            raise SnapshotError("trusted Windows command shell is unavailable")
-        return {
-            "SYSTEMROOT": str(windows),
-            "WINDIR": str(windows),
-            "COMSPEC": str(command_shell.resolve(strict=True)),
-            "PATH": str(system32),
-            "PATHEXT": ".COM;.EXE;.BAT;.CMD",
-        }
     return {"PATH": "/usr/bin:/bin", "COMSPEC": "/bin/sh"}
 
 
@@ -455,8 +416,8 @@ def _scan_regular_tree(root: Path, *, label: str) -> tuple[dict[str, bytes], set
     total_bytes = 0
     for current, child_directories, child_files in os.walk(resolved, followlinks=False):
         current_path = Path(current)
-        if _is_link_or_reparse(current_path):
-            raise SnapshotError(f"{label} must not traverse a link or reparse point")
+        if _is_symlink(current_path):
+            raise SnapshotError(f"{label} must not traverse a symbolic link")
         relative_current = current_path.relative_to(resolved)
         if relative_current.parts:
             directories.add(relative_current.as_posix())
@@ -466,8 +427,8 @@ def _scan_regular_tree(root: Path, *, label: str) -> tuple[dict[str, bytes], set
             raise SnapshotError(f"{label} contains too many entries")
         for name in child_directories:
             child = current_path / name
-            if _is_link_or_reparse(child):
-                raise SnapshotError(f"{label} must not contain a link or reparse point")
+            if _is_symlink(child):
+                raise SnapshotError(f"{label} must not contain a symbolic link")
             try:
                 metadata = child.lstat()
             except OSError as exc:
@@ -476,8 +437,8 @@ def _scan_regular_tree(root: Path, *, label: str) -> tuple[dict[str, bytes], set
                 raise SnapshotError(f"{label} contains a non-directory traversal entry")
         for name in child_files:
             child = current_path / name
-            if _is_link_or_reparse(child):
-                raise SnapshotError(f"{label} must not contain a link or reparse point")
+            if _is_symlink(child):
+                raise SnapshotError(f"{label} must not contain a symbolic link")
             try:
                 metadata = child.lstat()
                 content = child.read_bytes()
@@ -534,8 +495,8 @@ def materialize_snapshot(
     revision: str,
     destination: Path | str,
     *,
-    git_executable: Path | str = GIT_EXECUTABLE_PATH,
-    git_executable_sha256: str | None = None,
+    git_executable: Path | str,
+    git_executable_sha256: str,
     command_runner: Callable[..., subprocess.CompletedProcess[bytes]] | None = None,
 ) -> SnapshotReceipt:
     """Materialize one fixed ROUTE-001 commit into an existing empty temp directory."""
@@ -554,13 +515,8 @@ def materialize_snapshot(
     except OSError as exc:
         raise SnapshotError("snapshot destination could not be inspected") from exc
 
-    expected_git_sha256 = (
-        GIT_EXECUTABLE_SHA256
-        if git_executable_sha256 is None
-        else git_executable_sha256
-    )
     git_binary, git_before = _pinned_git_executable(
-        Path(git_executable), expected_sha256=expected_git_sha256
+        Path(git_executable), expected_sha256=git_executable_sha256
     )
     command = [
         str(git_binary),
@@ -603,7 +559,7 @@ def materialize_snapshot(
         or _sha256_regular_file(
             git_binary, label="Git executable", max_bytes=MAX_GIT_EXECUTABLE_BYTES
         )
-        != expected_git_sha256
+        != git_executable_sha256
     ):
         raise SnapshotError("Git executable changed during snapshot materialization")
 

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Offline contract tests for the Codex/Terra ROUTE-001 campaign."""
+"""Offline contract tests for the Codex/Terra ROUTE-001 canary."""
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import sys
 import tempfile
@@ -18,32 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_codex_routing  # noqa: E402
 import run_evals  # noqa: E402
 import codex_trial  # noqa: E402
-
-
-PAIRED_IDS = {
-    "discovery-obs-alerting-splunk-saved-search",
-    "discovery-obs-logs-cloud-logging",
-    "discovery-obs-metrics-cloud-monitoring",
-    "discovery-obs-traces-cloud-trace",
-    "discovery-runbook-incident-update",
-}
-
-CURRENT_ONLY_IDS = {
-    "discovery-akamai-edge-defers-active-incident",
-    "discovery-akamai-edge-defers-obs-alerting",
-    "discovery-akamai-edge-defers-obs-logs",
-    "discovery-akamai-edge-defers-obs-metrics",
-    "discovery-akamai-edge-defers-obs-traces",
-    "discovery-akamai-edge-defers-pcf",
-    "discovery-akamai-edge-reference-error",
-    "discovery-gcp-ops-cloud-run-startup",
-    "discovery-gcp-ops-defers-active-incident",
-    "discovery-gcp-ops-defers-obs-alerting",
-    "discovery-gcp-ops-defers-obs-logs",
-    "discovery-gcp-ops-defers-obs-metrics",
-    "discovery-gcp-ops-defers-obs-traces",
-    "discovery-gcp-ops-defers-pcf",
-}
 
 
 class ManifestContractTests(unittest.TestCase):
@@ -64,18 +37,13 @@ class ManifestContractTests(unittest.TestCase):
         self.assertEqual(approved, raw)
         self.assertEqual("gpt-5.6-terra", parsed["model"])
 
-    def test_manifest_states_the_host_observability_and_tool_boundaries(self) -> None:
+    def test_manifest_states_the_canary_observability_and_tool_boundaries(self) -> None:
         manifest = run_codex_routing.load_manifest()
         self.assertEqual(
             "behavioral-only-codex-0.148", manifest["skill_activation_evidence"]
         )
-        self.assertEqual(
-            "root-delegation-unobservable-v2", manifest["agent_activation_evidence"]
-        )
-        self.assertEqual(
-            "no-model-tools-non-root-root-collaboration-unscored",
-            manifest["tool_policy"],
-        )
+        self.assertNotIn("agent_activation_evidence", manifest)
+        self.assertEqual("no-model-tools-non-root", manifest["tool_policy"])
         self.assertEqual("0.148.0", manifest["codex_cli_version"])
         self.assertEqual("linux-x86_64", manifest["runtime_platform"])
         self.assertEqual("3.12.10", manifest["python_version"])
@@ -96,60 +64,30 @@ class ManifestContractTests(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "a39a81f33f7ad7325c52d883822bbbdd80c7ed28": "195e5afad5ccd95f0aa3611b96cd31c8c1e9bc06818009603e2c4181240f62b5",
                 "7aef80aede95394f6c4237ed2aedb911e141c3c0": "b9167b5200994d8265a2c592c7730028e81aa6f3a7fb19646bce0ceffc052a10",
             },
             manifest["snapshot_tree_sha256"],
         )
-
-    def test_scenario_bundle_bytes_must_match_the_manifest_digest(self) -> None:
-        approved = run_codex_routing.SCENARIO_BUNDLE_PATH.read_bytes()
-        expected = hashlib.sha256(approved).hexdigest()
-        payload = json.loads(approved)
-        payload["scenarios"][0]["prompt"] += " attacker-selected suffix"
-
-        with tempfile.TemporaryDirectory() as raw:
-            path = Path(raw) / "scenarios.json"
-            path.write_text(json.dumps(payload), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "digest"):
-                run_codex_routing.load_stable_scenario_bundle(
-                    path, expected_sha256=expected
-                )
 
     @classmethod
     def setUpClass(cls) -> None:
         cls.scenarios = {item["id"]: item for item in run_evals.load_scenarios()}
         cls.manifest = run_codex_routing.load_manifest()
 
-    def test_manifest_pins_exact_terra_campaign(self) -> None:
-        self.assertEqual(2, self.manifest["schema_version"])
+    def test_manifest_pins_exact_terra_canary(self) -> None:
+        self.assertEqual(3, self.manifest["schema_version"])
+        self.assertEqual(
+            "route-001-codex-terra-canary-v1", self.manifest["instrument"]
+        )
         self.assertEqual("gpt-5.6-terra", self.manifest["model"])
         self.assertEqual("medium", self.manifest["reasoning_effort"])
         self.assertEqual("read-only", self.manifest["sandbox"])
         self.assertEqual("never", self.manifest["approval_policy"])
         self.assertEqual(300, self.manifest["timeout_s"])
-        self.assertEqual(2, self.manifest["trials"])
-        self.assertEqual(
-            "a39a81f33f7ad7325c52d883822bbbdd80c7ed28",
-            self.manifest["before_revision"],
-        )
         self.assertEqual(
             "7aef80aede95394f6c4237ed2aedb911e141c3c0",
             self.manifest["current_revision"],
         )
-
-    def test_manifest_has_exact_five_paired_and_fourteen_current_only(self) -> None:
-        cohorts = {row["id"]: row["cohort"] for row in self.manifest["scenarios"]}
-        self.assertEqual(PAIRED_IDS, {key for key, value in cohorts.items() if value == "paired"})
-        self.assertEqual(
-            CURRENT_ONLY_IDS,
-            {key for key, value in cohorts.items() if value == "current_only"},
-        )
-        self.assertEqual(19, len(cohorts))
-
-    def test_manifest_digests_match_current_evaluator_scenarios(self) -> None:
-        problems = run_codex_routing.validate_manifest(self.manifest, self.scenarios)
-        self.assertEqual([], problems)
 
     def test_embedded_canary_is_canonical_and_matches_the_yaml_source(self) -> None:
         self.assertEqual(
@@ -201,14 +139,6 @@ class ManifestContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "canary scenario contract"):
             run_codex_routing.canary_spec(mutated)
 
-    def test_manifest_rejects_duplicate_or_drifted_scenario(self) -> None:
-        duplicate = copy.deepcopy(self.manifest)
-        duplicate["scenarios"].append(copy.deepcopy(duplicate["scenarios"][0]))
-        drifted = copy.deepcopy(self.manifest)
-        drifted["scenarios"][0]["sha256"] = "0" * 64
-        self.assertTrue(any("duplicate" in item for item in run_codex_routing.validate_manifest(duplicate, self.scenarios)))
-        self.assertTrue(any("digest" in item for item in run_codex_routing.validate_manifest(drifted, self.scenarios)))
-
     def test_manifest_rejects_weakened_runtime_conditions(self) -> None:
         mutations = {
             "model": "gpt-5.6-sol",
@@ -219,45 +149,22 @@ class ManifestContractTests(unittest.TestCase):
             "git_executable_sha256": "0" * 64,
             "snapshot_tree_sha256": {},
             "timeout_s": 299,
-            "trials": 1,
         }
         for key, value in mutations.items():
             with self.subTest(key=key):
                 candidate = copy.deepcopy(self.manifest)
                 candidate[key] = value
-                self.assertTrue(run_codex_routing.validate_manifest(candidate, self.scenarios))
+                self.assertTrue(run_codex_routing.validate_manifest(candidate))
 
 
-class CampaignPlanTests(unittest.TestCase):
-    def test_plan_has_twenty_paired_and_twenty_eight_current_trials(self) -> None:
-        plan = run_codex_routing.campaign_plan(
-            run_codex_routing.load_manifest(), run_codex_routing.CURRENT_REVISION
-        )
-        before = [trial for trial in plan if trial.revision == run_codex_routing.BEFORE_REVISION]
-        current = [trial for trial in plan if trial.revision == run_codex_routing.CURRENT_REVISION]
-        self.assertEqual(10, len(before))
-        self.assertEqual(38, len(current))
-        self.assertEqual(48, len(plan))
-        self.assertEqual(PAIRED_IDS, {trial.scenario_id for trial in before})
-        scenario_digests = {
-            row["id"]: row["sha256"] for row in run_codex_routing.load_manifest()["scenarios"]
-        }
-        self.assertTrue(
-            all(
-                trial.scenario_sha256 == scenario_digests[trial.scenario_id]
-                for trial in plan
-            )
-        )
-
-    def test_plan_rejects_a_caller_selected_current_revision(self) -> None:
-        with self.assertRaises(ValueError):
-            run_codex_routing.campaign_plan(run_codex_routing.load_manifest(), "f" * 40)
-
+class RuntimeCommandTests(unittest.TestCase):
     def test_command_is_stdin_driven_and_pins_the_runtime_boundary(self) -> None:
+        codex_path = Path("/opt/route001/codex")
         command = run_codex_routing.build_command(
-            Path(r"C:\Codex\codex.exe"), Path(r"C:\neutral"), enable_multi_agent=True
+            codex_path,
+            Path("/run/route001/project"),
         )
-        self.assertEqual(r"C:\Codex\codex.exe", command[0])
+        self.assertEqual(str(codex_path), command[0])
         self.assertIn("gpt-5.6-terra", command)
         self.assertIn('model_reasoning_effort="medium"', command)
         self.assertIn('model_provider="openai"', command)
@@ -297,6 +204,7 @@ class CampaignPlanTests(unittest.TestCase):
                 "image_generation",
                 "in_app_browser",
                 "memories",
+                "multi_agent",
                 "network_proxy",
                 "plugin_sharing",
                 "plugins",
@@ -317,9 +225,7 @@ class CampaignPlanTests(unittest.TestCase):
     def test_generated_config_contains_only_the_trusted_receipt_hooks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve(strict=True)
-            python_executable = root / (
-                "python.exe" if sys.platform == "win32" else "python"
-            )
+            python_executable = root / "python"
             recorder = root / "suite" / "codex_hook_recorder.py"
             receipts = root / "private" / "receipts"
             model_catalog = root / "private" / "route-models.json"
@@ -344,11 +250,11 @@ class CampaignPlanTests(unittest.TestCase):
         self.assertFalse(parsed["orchestrator"]["skills"]["enabled"])
         self.assertFalse(parsed["orchestrator"]["mcp"]["enabled"])
         self.assertTrue(parsed["features"]["hooks"])
-        self.assertTrue(parsed["features"]["multi_agent"])
+        self.assertFalse(parsed["features"]["multi_agent"])
         self.assertTrue(parsed["features"]["skill_search"])
         self.assertFalse(parsed["features"]["shell_tool"])
         self.assertFalse(parsed["features"]["plugins"])
-        self.assertEqual(3, sum(bool(value) for value in parsed["features"].values()))
+        self.assertEqual(2, sum(bool(value) for value in parsed["features"].values()))
         self.assertEqual(
             {"SessionStart", "SubagentStart", "PostToolUse"},
             set(parsed["hooks"]),
@@ -360,10 +266,10 @@ class CampaignPlanTests(unittest.TestCase):
             self.assertEqual("command", handler["type"])
             self.assertFalse(handler["async"])
             self.assertEqual(10, handler["timeout"])
-            self.assertIn("codex_hook_recorder.py", handler["command_windows"])
-            self.assertIn("a" * 32, handler["command_windows"])
+            self.assertNotIn("command_windows", handler)
+            self.assertIn("codex_hook_recorder.py", handler["command"])
+            self.assertIn("a" * 32, handler["command"])
             self.assertIn(" -E -s -S -B ", f" {handler['command']} ")
-            self.assertIn(" -E -s -S -B ", f" {handler['command_windows']} ")
 
     def test_hook_command_paths_reject_shell_metacharacters(self) -> None:
         for character in ("%", "!", "^", "&", "|", "<", ">", '"', "\n"):
@@ -371,15 +277,23 @@ class CampaignPlanTests(unittest.TestCase):
                 ValueError, "safe-character"
             ):
                 run_codex_routing.render_config(
-                    Path(r"C:\Python\python.exe"),
-                    Path(f"C:/private/unsafe{character}hook.py"),
-                    Path(r"C:\private\receipts"),
-                    Path(r"C:\private\route-models.json"),
+                    Path("/usr/local/bin/python3.12"),
+                    Path(f"/run/route001/unsafe{character}hook.py"),
+                    Path("/run/route001/receipts"),
+                    Path("/run/route001/route-models.json"),
                     "a" * 32,
                 )
 
 
 class CanaryContractTests(unittest.TestCase):
+    def test_retired_campaign_flag_is_rejected_by_the_inner_cli(self) -> None:
+        with mock.patch.object(run_codex_routing.sys, "stderr"), self.assertRaises(
+            SystemExit
+        ) as raised:
+            run_codex_routing.main(["--campaign"])
+
+        self.assertEqual(2, raised.exception.code)
+
     def test_canary_is_exactly_one_current_unscored_trial(self) -> None:
         manifest = run_codex_routing.load_manifest()
 
@@ -387,7 +301,6 @@ class CanaryContractTests(unittest.TestCase):
             manifest, "discovery-gcp-ops-cloud-run-startup"
         )
 
-        self.assertEqual("current_only", spec.cohort)
         self.assertEqual(run_codex_routing.CURRENT_REVISION, spec.revision)
         self.assertEqual(1, spec.trial)
 
@@ -414,11 +327,11 @@ class CanaryContractTests(unittest.TestCase):
                 [
                     "--preflight",
                     "--repo-root",
-                    "C:/repo",
+                    "/source",
                     "--codex-bin",
-                    "C:/codex.exe",
+                    "/opt/route001/codex-runtime/bin/codex",
                     "--private-root",
-                    "C:/private",
+                    "/run/route001",
                 ]
             )
 
@@ -437,13 +350,13 @@ class CanaryContractTests(unittest.TestCase):
                 [
                     "--preflight",
                     "--repo-root",
-                    "C:/repo",
+                    "/source",
                     "--codex-bin",
-                    "C:/codex.exe",
+                    "/opt/route001/codex-runtime/bin/codex",
                     "--private-root",
-                    "C:/private",
+                    "/run/route001",
                     "--auth-file",
-                    "C:/auth.json",
+                    "/run/secrets/auth.json",
                 ]
             )
 
@@ -464,13 +377,13 @@ class CanaryContractTests(unittest.TestCase):
                 [
                     "--canary",
                     "--repo-root",
-                    "C:/repo",
+                    "/source",
                     "--codex-bin",
-                    "C:/codex.exe",
+                    "/opt/route001/codex-runtime/bin/codex",
                     "--private-root",
-                    "C:/private",
+                    "/run/route001",
                     "--auth-file",
-                    "C:/auth.json",
+                    "/run/secrets/auth.json",
                 ]
             )
 
@@ -494,13 +407,13 @@ class CanaryContractTests(unittest.TestCase):
                     "--canary-arm",
                     "description",
                     "--repo-root",
-                    "C:/repo",
+                    "/source",
                     "--codex-bin",
-                    "C:/codex.exe",
+                    "/opt/route001/codex-runtime/bin/codex",
                     "--private-root",
-                    "C:/private",
+                    "/run/route001",
                     "--auth-file",
-                    "C:/auth.json",
+                    "/run/secrets/auth.json",
                 ]
             )
 
@@ -511,9 +424,7 @@ class CanaryContractTests(unittest.TestCase):
         for arguments in (
             ["--canary-arm", "description"],
             [
-                "--plan",
-                "--current-revision",
-                run_codex_routing.CURRENT_REVISION,
+                "--preflight",
                 "--canary-arm",
                 "description",
             ],

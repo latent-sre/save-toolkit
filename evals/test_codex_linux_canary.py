@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed contracts for the Linux-container ROUTE-001 executor."""
+"""Fail-closed contracts for the Linux-container ROUTE-001 canary."""
 from __future__ import annotations
 
 import contextlib
@@ -16,283 +16,54 @@ from unittest import mock
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import codex_campaign  # noqa: E402
 import codex_container  # noqa: E402
 import run_codex_routing  # noqa: E402
 
 
 # The mutation guard derives subjects from exact path literals when a test spans several modules.
 MUTATION_SUBJECTS = (
-    "evals/codex_campaign.py",
     "evals/codex_container.py",
     "evals/run_codex_routing.py",
 )
 
 
 IMAGE_ID = "sha256:" + "a" * 64
-OTHER_IMAGE_ID = "sha256:" + "d" * 64
-MANIFEST_SHA256 = "b" * 64
-
-
-def _plan():
-    return run_codex_routing.campaign_plan(
-        run_codex_routing.load_manifest(run_codex_routing.LINUX_MANIFEST_PATH),
-        run_codex_routing.CURRENT_REVISION,
-    )
-
-
-def _result(spec, *, state: str = "PASS") -> dict[str, object]:
-    return {
-        "schema_version": 1,
-        "scenario": {
-            "id": spec.scenario_id,
-            "cohort": spec.cohort,
-            "revision": spec.revision,
-            "trial": spec.trial,
-            "manifest_sha256": MANIFEST_SHA256,
-            "scenario_sha256": spec.scenario_sha256,
-            "prompt_sha256": "c" * 64,
-        },
-        "state": state,
-        "authority": {
-            "source_review": "not-verified-by-runner",
-            "independent_evaluator": False,
-            "baseline_eligible": False,
-            "release_granted": False,
-            "exact_revision": True,
-        },
-    }
-
-
 class LinuxManifestTests(unittest.TestCase):
-    def test_linux_manifest_is_the_canonical_exact_48_trial_shape(self) -> None:
+    def test_linux_manifest_is_the_exact_fixed_canary_shape(self) -> None:
         manifest = run_codex_routing.load_manifest(
             run_codex_routing.LINUX_MANIFEST_PATH
+        )
+
+        self.assertEqual(
+            "route-001-codex-terra-canary-v1", manifest["instrument"]
         )
         self.assertEqual("linux-x86_64", manifest["runtime_platform"])
         self.assertEqual("linux-container", manifest["runtime_kind"])
         self.assertEqual("65532:65532", manifest["container_user"])
-        self.assertEqual(48, len(_plan()))
-        self.assertEqual([], run_codex_routing.validate_manifest(manifest, None))
+        for retired in (
+            "campaign",
+            "trials",
+            "threshold",
+            "before_revision",
+            "scenarios",
+            "scenario_bundle_sha256",
+        ):
+            self.assertNotIn(retired, manifest)
+        self.assertEqual([], run_codex_routing.validate_manifest(manifest))
+        self.assertEqual([], run_codex_routing.validate_canary_scenario(manifest))
+        spec = run_codex_routing.canary_spec(manifest)
+        self.assertEqual(run_codex_routing.CANARY_SCENARIO_ID, spec.scenario_id)
+        self.assertEqual(run_codex_routing.CURRENT_REVISION, spec.revision)
+        self.assertEqual(run_codex_routing.CANARY_TRIAL, spec.trial)
 
-    def test_retired_windows_campaign_is_not_an_accepted_runtime(self) -> None:
+    def test_legacy_campaign_key_is_rejected(self) -> None:
         manifest = run_codex_routing.load_manifest()
-        manifest["campaign"] = "route-001-codex-terra-v1"
+        manifest["campaign"] = "route-001-codex-terra-linux-v1"
 
         self.assertIn(
-            "manifest campaign is not the canonical Linux ROUTE-001 arm",
-            run_codex_routing.validate_manifest(manifest, None),
+            "manifest has unknown keys: campaign",
+            run_codex_routing.validate_manifest(manifest),
         )
-
-
-class CampaignJournalTests(unittest.TestCase):
-    def test_plan_cannot_exceed_or_differ_from_the_fixed_48_calls(self) -> None:
-        plan = _plan()
-        codex_campaign.validate_campaign_plan(plan)
-        for candidate in (plan[:-1], [*plan, plan[-1]], [plan[1], plan[0], *plan[2:]]):
-            with self.subTest(length=len(candidate)), self.assertRaises(
-                codex_campaign.CampaignContractError
-            ):
-                codex_campaign.validate_campaign_plan(candidate)
-
-    def test_started_record_is_fsynced_before_dispatch(self) -> None:
-        plan = _plan()
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            with codex_campaign.CampaignLock(root) as lock:
-                journal = codex_campaign.CampaignJournal.create(
-                    root,
-                    plan=plan,
-                    manifest_sha256=MANIFEST_SHA256,
-                    container_image_id=IMAGE_ID,
-                    lock=lock,
-                )
-                events: list[str] = []
-
-                def fsync(fd: int) -> None:
-                    self.assertGreaterEqual(fd, 0)
-                    events.append("fsync")
-
-                with mock.patch.object(codex_campaign.os, "fsync", side_effect=fsync):
-                    journal.run_next(
-                        lambda spec: events.append("dispatch") or _result(spec)
-                    )
-
-        self.assertIn("dispatch", events)
-        self.assertIn("fsync", events)
-        self.assertLess(events.index("fsync"), events.index("dispatch"))
-
-    def test_unfinished_started_record_is_unknown_and_never_replayed(self) -> None:
-        plan = _plan()
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            with codex_campaign.CampaignLock(root) as lock:
-                journal = codex_campaign.CampaignJournal.create(
-                    root,
-                    plan=plan,
-                    manifest_sha256=MANIFEST_SHA256,
-                    container_image_id=IMAGE_ID,
-                    lock=lock,
-                )
-                journal.begin(plan[0])
-            with codex_campaign.CampaignLock(root) as lock:
-                resumed = codex_campaign.CampaignJournal.open(
-                    root,
-                    plan=plan,
-                    manifest_sha256=MANIFEST_SHA256,
-                    container_image_id=IMAGE_ID,
-                    lock=lock,
-                )
-                dispatched = mock.Mock()
-                with self.assertRaises(codex_campaign.UnknownOutcomeError):
-                    resumed.run_next(dispatched)
-                dispatched.assert_not_called()
-
-    def test_resume_verifies_finished_result_bytes_and_digest(self) -> None:
-        plan = _plan()
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            with codex_campaign.CampaignLock(root) as lock:
-                journal = codex_campaign.CampaignJournal.create(
-                    root,
-                    plan=plan,
-                    manifest_sha256=MANIFEST_SHA256,
-                    container_image_id=IMAGE_ID,
-                    lock=lock,
-                )
-                journal.run_next(lambda spec: _result(spec))
-            result_path = next((root / "results").glob("*.json"))
-            result_path.write_text("{}\n", encoding="utf-8")
-
-            with codex_campaign.CampaignLock(root) as lock:
-                with self.assertRaisesRegex(
-                    codex_campaign.CampaignContractError, "result digest"
-                ):
-                    codex_campaign.CampaignJournal.open(
-                        root,
-                        plan=plan,
-                        manifest_sha256=MANIFEST_SHA256,
-                        container_image_id=IMAGE_ID,
-                        lock=lock,
-                    )
-
-    def test_campaign_runs_strictly_sequential_and_stops_on_inconclusive(self) -> None:
-        plan = _plan()
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            with codex_campaign.CampaignLock(root) as lock:
-                journal = codex_campaign.CampaignJournal.create(
-                    root,
-                    plan=plan,
-                    manifest_sha256=MANIFEST_SHA256,
-                    container_image_id=IMAGE_ID,
-                    lock=lock,
-                )
-                active = 0
-                maximum = 0
-                dispatched: list[object] = []
-
-                def runner(spec):
-                    nonlocal active, maximum
-                    active += 1
-                    maximum = max(maximum, active)
-                    dispatched.append(spec)
-                    result = _result(spec, state="INCONCLUSIVE")
-                    active -= 1
-                    return result
-
-                summary = codex_campaign.run_campaign(journal, runner)
-
-        self.assertEqual(1, maximum)
-        self.assertEqual([plan[0]], dispatched)
-        self.assertEqual("blocked", summary["status"])
-        self.assertEqual(1, summary["completed_trials"])
-
-    def test_inconclusive_result_remains_blocked_after_reopen(self) -> None:
-        plan = _plan()
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            with codex_campaign.CampaignLock(root) as lock:
-                journal = codex_campaign.CampaignJournal.create(
-                    root,
-                    plan=plan,
-                    manifest_sha256=MANIFEST_SHA256,
-                    container_image_id=IMAGE_ID,
-                    lock=lock,
-                )
-                journal.run_next(lambda spec: _result(spec, state="INCONCLUSIVE"))
-            with codex_campaign.CampaignLock(root) as lock:
-                resumed = codex_campaign.CampaignJournal.open(
-                    root,
-                    plan=plan,
-                    manifest_sha256=MANIFEST_SHA256,
-                    container_image_id=IMAGE_ID,
-                    lock=lock,
-                )
-                dispatched = mock.Mock()
-                summary = codex_campaign.run_campaign(resumed, dispatched)
-
-        dispatched.assert_not_called()
-        self.assertEqual("blocked", summary["status"])
-        self.assertTrue(summary["inconclusive_result"])
-
-    def test_final_inconclusive_result_is_not_reported_complete(self) -> None:
-        plan = _plan()
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            with codex_campaign.CampaignLock(root) as lock:
-                journal = codex_campaign.CampaignJournal.create(
-                    root,
-                    plan=plan,
-                    manifest_sha256=MANIFEST_SHA256,
-                    container_image_id=IMAGE_ID,
-                    lock=lock,
-                )
-                calls = 0
-
-                def runner(spec):
-                    nonlocal calls
-                    calls += 1
-                    state = "INCONCLUSIVE" if calls == len(plan) else "PASS"
-                    return _result(spec, state=state)
-
-                summary = codex_campaign.run_campaign(journal, runner)
-
-        self.assertEqual(len(plan), summary["completed_trials"])
-        self.assertEqual("blocked", summary["status"])
-        self.assertTrue(summary["inconclusive_result"])
-
-    def test_campaign_lock_rejects_a_concurrent_invocation(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            with codex_campaign.CampaignLock(root):
-                with self.assertRaises(codex_campaign.CampaignBusyError):
-                    with codex_campaign.CampaignLock(root):
-                        self.fail("concurrent campaign lock was acquired")
-
-    def test_resume_rejects_a_different_container_image(self) -> None:
-        plan = _plan()
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            with codex_campaign.CampaignLock(root) as lock:
-                codex_campaign.CampaignJournal.create(
-                    root,
-                    plan=plan,
-                    manifest_sha256=MANIFEST_SHA256,
-                    container_image_id=IMAGE_ID,
-                    lock=lock,
-                )
-            with codex_campaign.CampaignLock(root) as lock:
-                with self.assertRaisesRegex(
-                    codex_campaign.CampaignContractError, "contract bytes"
-                ):
-                    codex_campaign.CampaignJournal.open(
-                        root,
-                        plan=plan,
-                        manifest_sha256=MANIFEST_SHA256,
-                        container_image_id=OTHER_IMAGE_ID,
-                        lock=lock,
-                    )
 
 
 class ContainerCommandTests(unittest.TestCase):
@@ -389,20 +160,12 @@ class ContainerCommandTests(unittest.TestCase):
         self.assertNotIn("OPENAI_API", rendered.upper())
         self.assertNotIn("CHATGPT_BASE", rendered.upper())
 
-    def test_campaign_passes_the_exact_image_id_to_the_inner_journal(self) -> None:
+    def test_retired_campaign_mode_is_rejected_before_docker_launch(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            with mock.patch.object(
-                codex_container, "_path_owner_uid", return_value=65532
-            ):
-                command = codex_container.build_docker_command(
+            with self.assertRaisesRegex(codex_container.ContainerContractError, "mode"):
+                codex_container.build_docker_command(
                     "campaign", self._inputs(Path(raw), auth=True)
                 )
-
-        self.assertIn("--container-image-id", command)
-        self.assertIn("target=/output", " ".join(command))
-        self.assertEqual(
-            IMAGE_ID, command[command.index("--container-image-id") + 1]
-        )
 
     def test_native_linux_rejects_auth_not_owned_by_the_container_uid(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -419,27 +182,6 @@ class ContainerCommandTests(unittest.TestCase):
                 ),
             ):
                 codex_container.build_docker_command("canary", inputs)
-
-    def test_native_linux_rejects_campaign_output_not_owned_by_container_uid(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            inputs = self._inputs(Path(raw), auth=True)
-
-            def owner(path: Path) -> int:
-                return 1000 if path == inputs.output_root else 65532
-
-            with (
-                mock.patch.object(
-                    codex_container,
-                    "_host_requires_container_uid_ownership",
-                    return_value=True,
-                ),
-                mock.patch.object(codex_container, "_path_owner_uid", side_effect=owner),
-                self.assertRaisesRegex(
-                    codex_container.ContainerContractError,
-                    "output root must be owned by UID 65532",
-                ),
-            ):
-                codex_container.build_docker_command("campaign", inputs)
 
     def test_mutable_image_tags_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

@@ -13,7 +13,6 @@ from pathlib import Path
 
 MODEL = "gpt-5.6-terra"
 MAX_CATALOG_BYTES = 8 * 1024 * 1024
-FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 EXPECTED_SOURCE_ENTRY_SHA256 = (
     "3a934e842c9b6a813dfe04ec826da0b79dcfc9b3187696d4b2c1b7110cdb811c"
 )
@@ -145,13 +144,11 @@ def build_safe_catalog(raw: bytes) -> tuple[bytes, CatalogReceipt]:
 def _ordinary_parent(path: Path) -> Path:
     try:
         parent = path.parent.resolve(strict=True)
-        metadata = path.parent.lstat()
     except OSError as exc:
         raise CatalogError("safe catalog parent must already exist") from exc
     if (
         path.parent.is_symlink()
         or not path.parent.is_dir()
-        or getattr(metadata, "st_file_attributes", 0) & FILE_ATTRIBUTE_REPARSE_POINT
         or parent != path.parent.absolute()
     ):
         raise CatalogError("safe catalog parent must be an ordinary directory")
@@ -192,7 +189,6 @@ def write_safe_catalog(raw: bytes, destination: Path) -> CatalogReceipt:
     if (
         target.is_symlink()
         or not target.is_file()
-        or getattr(metadata, "st_file_attributes", 0) & FILE_ATTRIBUTE_REPARSE_POINT
         or getattr(metadata, "st_nlink", 1) != 1
         or actual != encoded
     ):

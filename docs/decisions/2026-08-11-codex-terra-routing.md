@@ -1,8 +1,9 @@
 # Codex/Terra routing evidence for ROUTE-001
 
 - **Date:** 2026-08-11
-- **Status:** accepted for the canonical Linux arm; the Windows host arm was retired 2026-08-22
-- **Scope:** the nineteen 2026-08 routing regression scenarios only
+- **Status:** accepted; amended for the canonical Linux preflight and fixed canary only
+- **Scope:** one current-revision GCP Cloud Run canary; the Windows arm and fixed campaign were
+  retired 2026-08-22
 
 ## 2026-08-22 amendment: retire the Windows host arm
 
@@ -17,7 +18,29 @@ Git history and the dated reviews preserve the exact Windows artifacts and resul
 execution only for a named requirement the Linux container cannot meet, with a named owner and a
 newly reviewed trust boundary; do not restore the retired files as a default fallback.
 
-## Original decision
+## 2026-08-22 amendment: retire the fixed campaign
+
+The original nineteen-scenario, 48-trial campaign never ran and produced no result artifact. Its
+executor, duplicate frozen scenario bundle, before/current cohort plan, resumable journal, and
+campaign-specific container mode nevertheless remained an active maintenance and authorization
+surface. Survivor counts, a fixed call envelope, and provider-wide repetition were not findings, and
+the instrument could not observe some of the authority claims the plan proposed to grade.
+
+The owner therefore retired those campaign surfaces. The canonical Linux image keeps only the
+credential-free preflight and one manifest-embedded canary with target-blind description and explicit
+body arms. Canonical YAML scenarios and deterministic graders remain available to the separate
+Claude evaluator; dated review packets and Git history preserve the original campaign design. This
+retirement is not a passing result and grants no baseline or release authority.
+
+Future paid work must begin with one named uncertainty that offline evidence cannot settle. It uses
+one scenario, one arm, and one trial by default, then stops. A broader comparison requires a new
+accepted decision, explicit budget, current evaluator design, and owner authorization; the original
+48-call plan is not standing authority.
+
+## Original decision (historical; operationally superseded)
+
+The text below preserves the accepted rationale and limitations. Its call counts, execution gates,
+and campaign scope are not standing work or authority after the 2026-08-22 amendments above.
 
 Replace ROUTE-001's pending Claude/Sonnet campaign with a Codex campaign pinned to
 `gpt-5.6-terra` at medium reasoning. This is a provider-specific rewrite, not a relabeling of Claude

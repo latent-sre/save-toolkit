@@ -12,7 +12,6 @@ RUN apt-get update \
 COPY --from=codex-package \
     /usr/local/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/ \
     /opt/route001/codex-runtime/
-COPY evals/codex_campaign.py /opt/route001/evals/codex_campaign.py
 COPY evals/codex_harness.py /opt/route001/evals/codex_harness.py
 COPY evals/codex_hook_recorder.py /opt/route001/evals/codex_hook_recorder.py
 COPY evals/codex_model_catalog.py /opt/route001/evals/codex_model_catalog.py
@@ -24,8 +23,6 @@ COPY evals/graders.py /opt/route001/evals/graders.py
 COPY evals/run_codex_routing.py /opt/route001/evals/run_codex_routing.py
 COPY evals/conformance/codex-terra-routing-linux-v1.json \
     /opt/route001/evals/conformance/codex-terra-routing-linux-v1.json
-COPY evals/conformance/codex-terra-scenarios-v1.json \
-    /opt/route001/evals/conformance/codex-terra-scenarios-v1.json
 
 RUN printf '%s  %s\n' \
         ac2cfed85fb647d61e0150b8548102b330e4799d9d81ad5d354de701edf6b074 \

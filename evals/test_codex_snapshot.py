@@ -20,8 +20,29 @@ import codex_snapshot  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BEFORE = "a39a81f33f7ad7325c52d883822bbbdd80c7ed28"
+OTHER_REVISION = "f" * 40
 CURRENT = "7aef80aede95394f6c4237ed2aedb911e141c3c0"
+TEST_GIT_EXECUTABLE = Path(sys.executable).resolve(strict=True)
+
+
+def _materialize(
+    repo_root: Path,
+    revision: str,
+    destination: Path,
+    *,
+    git_executable: Path = TEST_GIT_EXECUTABLE,
+    git_executable_sha256: str | None = None,
+    command_runner=None,
+) -> codex_snapshot.SnapshotReceipt:
+    digest = git_executable_sha256 or hashlib.sha256(git_executable.read_bytes()).hexdigest()
+    return codex_snapshot.materialize_snapshot(
+        repo_root,
+        revision,
+        destination,
+        git_executable=git_executable,
+        git_executable_sha256=digest,
+        command_runner=command_runner,
+    )
 
 
 def _json_bytes(value: object) -> bytes:
@@ -105,9 +126,7 @@ def _materialize_mocked(
     fixture_root: Path | None = None,
 ) -> codex_snapshot.SnapshotReceipt:
     payload = archive if archive is not None else _tar_bytes(_valid_files(), sha=sha)
-    git_executable = (fixture_root or destination.parent) / (
-        "test-git.exe" if sys.platform == "win32" else "test-git"
-    )
+    git_executable = (fixture_root or destination.parent) / "test-git"
     git_executable.write_bytes(b"fixed test git executable")
     git_digest = hashlib.sha256(git_executable.read_bytes()).hexdigest()
     try:
@@ -116,15 +135,17 @@ def _materialize_mocked(
     except codex_snapshot.SnapshotError:
         expected_tree = "0" * 64
     with (
-        mock.patch.object(codex_snapshot, "GIT_EXECUTABLE_PATH", git_executable.resolve()),
-        mock.patch.object(codex_snapshot, "GIT_EXECUTABLE_SHA256", git_digest),
         mock.patch.object(
             codex_snapshot, "EXPECTED_SNAPSHOT_TREE_SHA256", {sha: expected_tree}
         ),
         mock.patch.object(codex_snapshot.subprocess, "run", return_value=_completed(payload)),
     ):
-        return codex_snapshot.materialize_snapshot(
-            ROOT, sha, destination, git_executable=git_executable
+        return _materialize(
+            ROOT,
+            sha,
+            destination,
+            git_executable=git_executable,
+            git_executable_sha256=git_digest,
         )
 
 
@@ -136,23 +157,17 @@ class MaterializeSnapshotTests(unittest.TestCase):
             root = Path(temporary).resolve(strict=True)
             destination = root / "snapshot"
             destination.mkdir()
-            git_executable = root / ("git.exe" if sys.platform == "win32" else "git")
+            git_executable = root / "git"
             git_executable.write_bytes(b"fixed test git executable")
             runner = mock.Mock(return_value=_completed(archive))
             with (
-                mock.patch.object(codex_snapshot, "GIT_EXECUTABLE_PATH", git_executable.resolve()),
-                mock.patch.object(
-                    codex_snapshot,
-                    "GIT_EXECUTABLE_SHA256",
-                    hashlib.sha256(git_executable.read_bytes()).hexdigest(),
-                ),
                 mock.patch.object(
                     codex_snapshot,
                     "EXPECTED_SNAPSHOT_TREE_SHA256",
                     {CURRENT: codex_snapshot._tree_sha256(files)},
                 ),
             ):
-                codex_snapshot.materialize_snapshot(
+                _materialize(
                     ROOT,
                     CURRENT,
                     destination,
@@ -167,16 +182,10 @@ class MaterializeSnapshotTests(unittest.TestCase):
             root = Path(temporary).resolve(strict=True)
             destination = root / "snapshot"
             destination.mkdir()
-            git_executable = root / ("git.exe" if sys.platform == "win32" else "git")
+            git_executable = root / "git"
             git_executable.write_bytes(b"fixed test git executable")
             expected_digest = hashlib.sha256(git_executable.read_bytes()).hexdigest()
             with (
-                mock.patch.object(
-                    codex_snapshot, "GIT_EXECUTABLE_PATH", git_executable.resolve()
-                ),
-                mock.patch.object(
-                    codex_snapshot, "GIT_EXECUTABLE_SHA256", expected_digest
-                ),
                 mock.patch.object(
                     codex_snapshot,
                     "EXPECTED_SNAPSHOT_TREE_SHA256",
@@ -188,11 +197,12 @@ class MaterializeSnapshotTests(unittest.TestCase):
                     return_value=_completed(_tar_bytes(_valid_files())),
                 ) as run,
             ):
-                codex_snapshot.materialize_snapshot(
+                _materialize(
                     ROOT,
                     CURRENT,
                     destination,
                     git_executable=git_executable,
+                    git_executable_sha256=expected_digest,
                 )
 
             command = run.call_args.args[0]
@@ -202,7 +212,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
             self.assertEqual("1", options["env"]["GIT_CONFIG_NOSYSTEM"])
             self.assertEqual("1", options["env"]["GIT_NO_REPLACE_OBJECTS"])
             self.assertEqual("0", options["env"]["GIT_CONFIG_COUNT"])
-            self.assertTrue(Path(options["env"]["COMSPEC"]).is_absolute())
+            self.assertEqual("/bin/sh", options["env"]["COMSPEC"])
             self.assertTrue(options["env"]["PATH"])
             self.assertNotIn(str(ROOT.resolve()), json.dumps(options["env"]))
 
@@ -212,17 +222,9 @@ class MaterializeSnapshotTests(unittest.TestCase):
             root = Path(temporary).resolve(strict=True)
             destination = root / "snapshot"
             destination.mkdir()
-            git_executable = root / ("git.exe" if sys.platform == "win32" else "git")
+            git_executable = root / "git"
             git_executable.write_bytes(b"fixed test git executable")
             with (
-                mock.patch.object(
-                    codex_snapshot, "GIT_EXECUTABLE_PATH", git_executable.resolve()
-                ),
-                mock.patch.object(
-                    codex_snapshot,
-                    "GIT_EXECUTABLE_SHA256",
-                    hashlib.sha256(git_executable.read_bytes()).hexdigest(),
-                ),
                 mock.patch.object(
                     codex_snapshot,
                     "EXPECTED_SNAPSHOT_TREE_SHA256",
@@ -234,7 +236,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
                     return_value=_completed(_tar_bytes(files)),
                 ) as run,
             ):
-                receipt = codex_snapshot.materialize_snapshot(
+                receipt = _materialize(
                     ROOT, CURRENT, destination, git_executable=git_executable
                 )
 
@@ -275,34 +277,33 @@ class MaterializeSnapshotTests(unittest.TestCase):
             self.skipTest("Git is unavailable")
         git_executable = Path(resolved_git).resolve(strict=True)
         git_digest = hashlib.sha256(git_executable.read_bytes()).hexdigest()
-        for sha in (BEFORE, CURRENT):
-            with self.subTest(sha=sha), tempfile.TemporaryDirectory() as temporary:
-                destination = Path(temporary).resolve(strict=True) / "snapshot"
-                destination.mkdir()
-                with (
-                    mock.patch.object(codex_snapshot, "GIT_EXECUTABLE_PATH", git_executable),
-                    mock.patch.object(codex_snapshot, "GIT_EXECUTABLE_SHA256", git_digest),
-                ):
-                    receipt = codex_snapshot.materialize_snapshot(
-                        ROOT, sha, destination, git_executable=git_executable
-                    )
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary).resolve(strict=True) / "snapshot"
+            destination.mkdir()
+            receipt = _materialize(
+                ROOT,
+                CURRENT,
+                destination,
+                git_executable=git_executable,
+                git_executable_sha256=git_digest,
+            )
 
-                self.assertEqual(sha, receipt.commit_sha)
-                self.assertGreater(receipt.file_count, 10)
-                self.assertTrue((destination / ".agents/plugins/marketplace.json").is_file())
-                self.assertTrue((destination / "plugin.json").is_file())
-                self.assertTrue(
-                    (destination / "plugins/save-toolkit/.codex-plugin/plugin.json").is_file()
-                )
+            self.assertEqual(CURRENT, receipt.commit_sha)
+            self.assertGreater(receipt.file_count, 10)
+            self.assertTrue((destination / ".agents/plugins/marketplace.json").is_file())
+            self.assertTrue((destination / "plugin.json").is_file())
+            self.assertTrue(
+                (destination / "plugins/save-toolkit/.codex-plugin/plugin.json").is_file()
+            )
 
-    def test_rejects_any_revision_outside_the_two_fixed_full_shas(self) -> None:
+    def test_rejects_any_revision_outside_the_one_fixed_full_sha(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             destination = Path(temporary).resolve(strict=True) / "snapshot"
             destination.mkdir()
             for revision in ("main", CURRENT[:12], "f" * 40, CURRENT.upper()):
                 with self.subTest(revision=revision):
                     with self.assertRaises(codex_snapshot.SnapshotError):
-                        codex_snapshot.materialize_snapshot(ROOT, revision, destination)
+                        _materialize(ROOT, revision, destination)
 
     def test_rejects_a_different_repository_root_before_running_git(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -312,7 +313,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
             destination.mkdir()
             with mock.patch.object(codex_snapshot.subprocess, "run") as run:
                 with self.assertRaises(codex_snapshot.SnapshotError):
-                    codex_snapshot.materialize_snapshot(other, CURRENT, destination)
+                    _materialize(other, CURRENT, destination)
             run.assert_not_called()
 
     def test_rejects_git_failure_missing_or_mismatched_commit_proof(self) -> None:
@@ -321,7 +322,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
                 args=(), returncode=128, stdout=b"", stderr=b"private diagnostic"
             ),
             "missing-proof": _completed(_tar_bytes(_valid_files(), sha="")),
-            "wrong-proof": _completed(_tar_bytes(_valid_files(), sha=BEFORE)),
+            "wrong-proof": _completed(_tar_bytes(_valid_files(), sha=OTHER_REVISION)),
         }
         for label, result in cases.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
@@ -329,7 +330,7 @@ class MaterializeSnapshotTests(unittest.TestCase):
                 destination.mkdir()
                 with mock.patch.object(codex_snapshot.subprocess, "run", return_value=result):
                     with self.assertRaises(codex_snapshot.SnapshotError) as caught:
-                        codex_snapshot.materialize_snapshot(ROOT, CURRENT, destination)
+                        _materialize(ROOT, CURRENT, destination)
                 self.assertNotIn("private diagnostic", str(caught.exception))
                 self.assertEqual([], list(destination.iterdir()))
 
@@ -508,47 +509,46 @@ class NeutralProjectStageTests(unittest.TestCase):
         self.assertRegex(receipt.project_tree_sha256, r"^[0-9a-f]{64}$")
         self.assertNotIn("SKILL.md", repr(receipt))
 
-    def test_stages_both_real_route_snapshots_and_transforms_every_agent(self) -> None:
+    def test_stages_the_fixed_route_snapshot_and_transforms_every_agent(self) -> None:
         resolved_git = shutil.which("git")
         if resolved_git is None:
             self.skipTest("Git is unavailable")
         git_executable = Path(resolved_git).resolve(strict=True)
         git_digest = hashlib.sha256(git_executable.read_bytes()).hexdigest()
-        for sha in (BEFORE, CURRENT):
-            with self.subTest(sha=sha), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary).resolve(strict=True)
-                snapshot = root / "snapshot"
-                snapshot.mkdir()
-                with (
-                    mock.patch.object(codex_snapshot, "GIT_EXECUTABLE_PATH", git_executable),
-                    mock.patch.object(codex_snapshot, "GIT_EXECUTABLE_SHA256", git_digest),
-                ):
-                    codex_snapshot.materialize_snapshot(
-                        ROOT, sha, snapshot, git_executable=git_executable
-                    )
-                workspace = root / "workspace"
-                workspace.mkdir()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(strict=True)
+            snapshot = root / "snapshot"
+            snapshot.mkdir()
+            _materialize(
+                ROOT,
+                CURRENT,
+                snapshot,
+                git_executable=git_executable,
+                git_executable_sha256=git_digest,
+            )
+            workspace = root / "workspace"
+            workspace.mkdir()
 
-                receipt = codex_snapshot.stage_neutral_project(snapshot, workspace)
+            receipt = codex_snapshot.stage_neutral_project(snapshot, workspace)
 
-                staged_agents = sorted((workspace / ".codex/agents").glob("*.toml"))
-                self.assertEqual(receipt.agent_file_count, len(staged_agents))
-                self.assertEqual(
-                    receipt.agent_file_count, receipt.transformed_agent_file_count
+            staged_agents = sorted((workspace / ".codex/agents").glob("*.toml"))
+            self.assertEqual(receipt.agent_file_count, len(staged_agents))
+            self.assertEqual(
+                receipt.agent_file_count, receipt.transformed_agent_file_count
+            )
+            self.assertGreater(receipt.skill_file_count, receipt.agent_file_count)
+            self.assertNotEqual(
+                receipt.source_agent_tree_sha256,
+                receipt.staged_agent_tree_sha256,
+            )
+            for agent in staged_agents:
+                self.assertFalse(
+                    any(
+                        line.startswith(b"sandbox_mode")
+                        for line in agent.read_bytes().splitlines()
+                    ),
+                    agent.name,
                 )
-                self.assertGreater(receipt.skill_file_count, receipt.agent_file_count)
-                self.assertNotEqual(
-                    receipt.source_agent_tree_sha256,
-                    receipt.staged_agent_tree_sha256,
-                )
-                for agent in staged_agents:
-                    self.assertFalse(
-                        any(
-                            line.startswith(b"sandbox_mode")
-                            for line in agent.read_bytes().splitlines()
-                        ),
-                        agent.name,
-                    )
 
     def test_requires_nonempty_skill_and_agent_sets(self) -> None:
         for missing in ("skills", "agents"):
@@ -604,20 +604,20 @@ class NeutralProjectStageTests(unittest.TestCase):
             with self.assertRaises(codex_snapshot.SnapshotError):
                 codex_snapshot.stage_neutral_project(snapshot, workspace)
 
-    def test_reparse_signal_on_an_intermediate_source_component_fails_closed(self) -> None:
+    def test_symlink_signal_on_an_intermediate_source_component_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve(strict=True)
             snapshot, _files = self._snapshot(root)
             workspace = root / "workspace"
             workspace.mkdir()
             indirect = (snapshot / "plugins").resolve()
-            original = codex_snapshot._is_link_or_reparse
+            original = codex_snapshot._is_symlink
 
             def is_indirect(path: Path) -> bool:
                 return path.resolve() == indirect or original(path)
 
             with mock.patch.object(
-                codex_snapshot, "_is_link_or_reparse", side_effect=is_indirect
+                codex_snapshot, "_is_symlink", side_effect=is_indirect
             ):
                 with self.assertRaises(codex_snapshot.SnapshotError):
                     codex_snapshot.stage_neutral_project(snapshot, workspace)

@@ -16,13 +16,13 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import codex_harness  # noqa: E402
 import codex_model_catalog  # noqa: E402
 import codex_routing_grade  # noqa: E402
+import codex_runtime  # noqa: E402
 import codex_snapshot  # noqa: E402
 import codex_trial  # noqa: E402
 import run_codex_routing  # noqa: E402
@@ -40,22 +40,45 @@ def _scenario() -> dict[str, object]:
         "graders": [{"type": "contains_all", "of": ["READY"]}],
         "routing": {"expect": "fire"},
         "_file": "discovery-gcp-ops-cloud-run-startup.yaml",
-        "_source_sha256": "a" * 64,
+        "_source_sha256": run_codex_routing.CANARY_SOURCE_SHA256,
     }
 
 
 def _spec() -> run_codex_routing.TrialSpec:
     return run_codex_routing.TrialSpec(
         scenario_id="discovery-gcp-ops-cloud-run-startup",
-        cohort="current_only",
         revision=run_codex_routing.CURRENT_REVISION,
         trial=1,
-        scenario_sha256="a" * 64,
+        scenario_sha256=run_codex_routing.CANARY_SOURCE_SHA256,
     )
 
 
 def _manifest_sha256() -> str:
     return hashlib.sha256(run_codex_routing.MANIFEST_PATH.read_bytes()).hexdigest()
+
+
+def _runtime_profile(
+    *, codex_executable: Path | None = None, codex_sha256: str | None = None
+) -> codex_runtime.RuntimeProfile:
+    python_executable = Path(sys.executable).resolve(strict=True)
+    python_sha256 = hashlib.sha256(python_executable.read_bytes()).hexdigest()
+    codex_path = codex_executable or python_executable
+    return codex_runtime.RuntimeProfile(
+        runtime_kind="linux-container",
+        runtime_platform="linux-x86_64",
+        python_version=".".join(str(item) for item in sys.version_info[:3]),
+        python_executable_path=python_executable,
+        python_executable_sha256=python_sha256,
+        git_cli_version="test",
+        git_executable_path=python_executable,
+        git_executable_sha256=python_sha256,
+        codex_cli_version="0.148.0",
+        codex_executable_path=codex_path,
+        codex_executable_sha256=codex_sha256 or python_sha256,
+        manifest_path=run_codex_routing.MANIFEST_PATH,
+        evaluator_files=(),
+        container_user="65532:65532",
+    )
 
 
 def _trace(response: str = "READY") -> str:
@@ -98,87 +121,6 @@ class EnvironmentBoundaryTests(unittest.TestCase):
         self.assertEqual(0o600, codex_trial._posix_private_mode(0o644, directory=False))
         self.assertEqual(0o700, codex_trial._posix_private_mode(0o777, directory=True))
 
-    @unittest.skipUnless(os.name == "nt", "Windows ACL ownership is host-specific")
-    def test_private_path_setter_assigns_the_current_owner_and_exact_dacl(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw).resolve(strict=True)
-            target = root / "private.txt"
-            target.write_bytes(b"private")
-
-            codex_trial._set_windows_private_path(target, directory=False)
-
-            self.assertTrue(
-                codex_trial._windows_path_acl_is_private(target, directory=False)
-            )
-
-    def test_private_acl_shape_rejects_each_security_weakening(self) -> None:
-        baseline = {
-            "dacl_present": True,
-            "protected": True,
-            "owner_matches": True,
-            "ace_count": 1,
-            "ace_type": codex_trial._ACCESS_ALLOWED_ACE_TYPE,
-            "ace_flags": 0,
-            "access_mask": codex_trial._FILE_ALL_ACCESS,
-            "trustee_matches": True,
-            "ace_size_matches": True,
-            "directory": False,
-        }
-        self.assertTrue(codex_trial._windows_acl_shape_is_private(**baseline))
-        inherited = dict(
-            baseline, ace_flags=codex_trial._INHERITED_ACE
-        )
-        self.assertTrue(codex_trial._windows_acl_shape_is_private(**inherited))
-        directory = dict(
-            baseline,
-            ace_flags=(
-                codex_trial._OBJECT_INHERIT_ACE
-                | codex_trial._CONTAINER_INHERIT_ACE
-            ),
-            directory=True,
-        )
-        self.assertTrue(codex_trial._windows_acl_shape_is_private(**directory))
-        inherited_directory = dict(
-            directory,
-            ace_flags=directory["ace_flags"] | codex_trial._INHERITED_ACE,
-        )
-        self.assertTrue(
-            codex_trial._windows_acl_shape_is_private(**inherited_directory)
-        )
-        self.assertFalse(
-            codex_trial._windows_acl_shape_is_private(
-                **dict(directory, ace_flags=codex_trial._OBJECT_INHERIT_ACE)
-            )
-        )
-        self.assertFalse(
-            codex_trial._windows_acl_shape_is_private(
-                **dict(directory, ace_flags=codex_trial._CONTAINER_INHERIT_ACE)
-            )
-        )
-        mutations = {
-            "missing-dacl": {"dacl_present": False},
-            "unprotected": {"protected": False},
-            "wrong-owner": {"owner_matches": False},
-            "zero-ace": {"ace_count": 0},
-            "extra-ace": {"ace_count": 2},
-            "deny-ace": {"ace_type": 1},
-            "file-inheritance": {"ace_flags": codex_trial._OBJECT_INHERIT_ACE},
-            "no-propagate": {"ace_flags": 0x04},
-            "inherit-only": {"ace_flags": 0x08},
-            "success-audit": {"ace_flags": 0x40},
-            "failure-audit": {"ace_flags": 0x80},
-            "wrong-rights": {"access_mask": codex_trial._FILE_ALL_ACCESS ^ 1},
-            "wrong-trustee": {"trustee_matches": False},
-            "trailing-ace-bytes": {"ace_size_matches": False},
-        }
-        for label, mutation in mutations.items():
-            with self.subTest(label=label):
-                self.assertFalse(
-                    codex_trial._windows_acl_shape_is_private(
-                        **dict(baseline, **mutation)
-                    )
-                )
-
     def test_trial_directory_never_falls_back_to_ambient_temp(self) -> None:
         repository = Path(__file__).resolve().parents[1]
         with self.assertRaisesRegex(
@@ -191,92 +133,6 @@ class EnvironmentBoundaryTests(unittest.TestCase):
             ):
                 self.fail("ambient temporary directory was accepted")
 
-    @staticmethod
-    def _windows_volume_facts(
-        *,
-        drive_type: int = 3,
-        filesystem: str = "NTFS",
-        dos_device: str = r"\Device\HarddiskVolume3",
-    ) -> object:
-        return SimpleNamespace(
-            drive_type=drive_type,
-            filesystem=filesystem,
-            dos_device=dos_device,
-            volume_root="C:\\",
-        )
-
-    def test_windows_private_root_requires_local_fixed_ntfs_storage(self) -> None:
-        accepted = mock.Mock(return_value=self._windows_volume_facts())
-        codex_trial._validate_windows_private_root_locality(
-            r"C:\private", volume_probe=accepted
-        )
-        accepted.assert_called_once_with(r"C:\private", "C:")
-
-        cases = {
-            "remote": (self._windows_volume_facts(drive_type=4), "local fixed storage"),
-            "removable": (
-                self._windows_volume_facts(drive_type=2),
-                "local fixed storage",
-            ),
-            "subst": (
-                self._windows_volume_facts(dos_device=r"\??\C:\operator\private"),
-                "substituted or mapped",
-            ),
-            "mapped": (
-                self._windows_volume_facts(
-                    dos_device=r"\Device\LanmanRedirector\server\share"
-                ),
-                "substituted or mapped",
-            ),
-            "non-ntfs": (
-                self._windows_volume_facts(filesystem="ReFS"),
-                "must use NTFS",
-            ),
-        }
-        for label, (facts, message) in cases.items():
-            with self.subTest(label=label), self.assertRaisesRegex(
-                codex_trial.InstrumentError, message
-            ):
-                codex_trial._validate_windows_private_root_locality(
-                    r"C:\private", volume_probe=lambda *_args, value=facts: value
-                )
-
-    def test_windows_private_root_rejects_unc_before_volume_queries(self) -> None:
-        probe = mock.Mock(side_effect=AssertionError("UNC must fail before Win32 probing"))
-
-        with self.assertRaisesRegex(codex_trial.InstrumentError, "local fixed drive"):
-            codex_trial._validate_windows_private_root_locality(
-                r"\\server\share\private", volume_probe=probe
-            )
-
-        probe.assert_not_called()
-
-    def test_trial_validates_the_same_authoritative_external_parent(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw).resolve(strict=True)
-            repository = root / "repository"
-            private_root = root / "private"
-            repository.mkdir()
-            private_root.mkdir()
-            with mock.patch.object(
-                codex_trial,
-                "_validate_private_root_locality",
-                side_effect=codex_trial.InstrumentError(
-                    "unsafe-temp-boundary", "not local fixed storage"
-                ),
-                create=True,
-            ) as validate, self.assertRaisesRegex(
-                codex_trial.InstrumentError, "not local fixed storage"
-            ):
-                codex_trial._validated_private_parent(private_root, repository)
-
-        validate.assert_called_once_with(private_root)
-
-    @unittest.skipUnless(os.name == "nt", "Windows volume APIs are host-specific")
-    def test_current_windows_host_temp_root_is_local_fixed_ntfs(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            codex_trial._validate_private_root_locality(Path(raw).resolve())
-
     def test_scrubbed_environment_rehomes_state_and_drops_secrets(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve(strict=True)
@@ -286,15 +142,14 @@ class EnvironmentBoundaryTests(unittest.TestCase):
             for path in (home, codex_home, temp):
                 path.mkdir()
             source = {
-                "PATH": "C:\\operator\\bin",
-                "SYSTEMROOT": "C:\\operator\\windows",
-                "COMSPEC": "C:\\operator\\cmd.exe",
-                "SSL_CERT_FILE": "C:\\operator\\private-ca.pem",
+                "PATH": "/operator/bin",
+                "COMSPEC": "/operator/shell",
+                "SSL_CERT_FILE": "/operator/private-ca.pem",
                 "OPENAI_API_KEY": "sk-proj-ABCDEFGHIJKLMNOPQRST",
                 "AWS_SECRET_ACCESS_KEY": "not-for-the-child",
-                "HOME": "C:\\operator",
-                "USERPROFILE": "C:\\operator",
-                "APPDATA": "C:\\operator\\AppData\\Roaming",
+                "HOME": "/operator",
+                "USERPROFILE": "/operator",
+                "APPDATA": "/operator/appdata",
                 "UNRELATED": "drop-me",
             }
 
@@ -315,11 +170,12 @@ class EnvironmentBoundaryTests(unittest.TestCase):
             self.assertNotIn("OPENAI_API_KEY", env)
             self.assertNotIn("AWS_SECRET_ACCESS_KEY", env)
             self.assertNotIn("UNRELATED", env)
-            self.assertNotIn("C:\\operator", json.dumps(env))
+            self.assertNotIn("/operator", json.dumps(env))
             self.assertNotIn("SSL_CERT_FILE", env)
             self.assertNotIn("SSL_CERT_DIR", env)
-            self.assertTrue(Path(env["COMSPEC"]).is_absolute())
+            self.assertEqual("/bin/sh", env["COMSPEC"])
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux file-mode semantics")
     def test_auth_copy_is_create_only_and_rejects_hardlinks(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve(strict=True)
@@ -340,7 +196,8 @@ class EnvironmentBoundaryTests(unittest.TestCase):
             with self.assertRaisesRegex(codex_trial.InstrumentError, "ordinary private file"):
                 codex_trial.copy_auth_file(hard_source, root / "hard-dest.json")
 
-    def test_auth_copy_invokes_no_external_acl_helper_after_secret_write(self) -> None:
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux file-mode semantics")
+    def test_auth_copy_uses_only_in_process_file_operations(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve(strict=True)
             source = root / "source-auth.json"
@@ -349,13 +206,14 @@ class EnvironmentBoundaryTests(unittest.TestCase):
             source.write_bytes(b'{"access_token":"opaque-session-value-1234567890"}')
             with mock.patch(
                 "codex_trial.subprocess.run",
-                side_effect=AssertionError("external ACL helper was invoked"),
+                side_effect=AssertionError("external file helper was invoked"),
             ) as external_process:
                 codex_trial.copy_auth_file(source, destination)
 
             external_process.assert_not_called()
             self.assertTrue(destination.is_file())
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux file-mode semantics")
     def test_disposable_auth_removal_rejects_missing_and_linked_targets(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve(strict=True)
@@ -376,6 +234,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
             with self.assertRaisesRegex(codex_trial.InstrumentError, "ordinary private file"):
                 codex_trial.remove_auth_file(linked)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux file-mode semantics")
     def test_auth_guard_detects_exact_opaque_values_not_covered_by_token_regexes(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve(strict=True)
@@ -400,6 +259,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
         with self.assertRaises(codex_trial.CredentialEchoError):
             guard.reject_jsonl(encoded)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux file-mode semantics")
     def test_hook_bundle_is_an_exact_create_only_copy(self) -> None:
         source = Path(__file__).resolve().parent
         with tempfile.TemporaryDirectory() as raw:
@@ -419,6 +279,7 @@ class EnvironmentBoundaryTests(unittest.TestCase):
             with self.assertRaises(codex_trial.InstrumentError):
                 codex_trial.copy_hook_bundle(source, destination)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux file-mode semantics")
     def test_hook_bundle_verification_rejects_an_extra_import_shadow_file(self) -> None:
         source = Path(__file__).resolve().parent
         with tempfile.TemporaryDirectory() as raw:
@@ -436,6 +297,14 @@ class EnvironmentBoundaryTests(unittest.TestCase):
 
 
 class ProbeTests(unittest.TestCase):
+    def test_forged_non_linux_runtime_profile_is_rejected(self) -> None:
+        profile = dataclasses.replace(_runtime_profile(), runtime_kind="host-native")
+
+        with self.assertRaisesRegex(
+            codex_trial.InstrumentError, "Linux container runtime profile"
+        ):
+            codex_trial.verify_python_runtime(profile)
+
     def test_default_probe_runner_uses_the_kill_on_close_process_boundary(self) -> None:
         capture = codex_trial.ProcessCapture(
             stdout="codex-cli 0.147.0\n",
@@ -456,7 +325,7 @@ class ProbeTests(unittest.TestCase):
                 ),
             ):
                 result = codex_trial._default_command_runner(
-                    ("C:/private/codex.exe", "--version"),
+                    ("/run/route001/codex", "--version"),
                     env=env,
                     timeout_s=10,
                     cwd=root,
@@ -467,48 +336,26 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(1, bounded.call_count)
 
     def test_python_runtime_requires_exact_platform_version_and_executable_pin(self) -> None:
-        python_executable = Path(sys.executable).resolve(strict=True)
-        python_digest = hashlib.sha256(python_executable.read_bytes()).hexdigest()
-        python_version = ".".join(str(item) for item in sys.version_info[:3])
-        runtime_platform = codex_trial._runtime_platform()
-        with (
-            mock.patch.object(codex_trial.sys, "executable", str(python_executable)),
-            mock.patch.object(
-                run_codex_routing, "PYTHON_EXECUTABLE_SHA256", python_digest
-            ),
-            mock.patch.object(run_codex_routing, "PYTHON_VERSION", python_version),
-            mock.patch.object(
-                run_codex_routing, "RUNTIME_PLATFORM", runtime_platform
-            ),
+        profile = _runtime_profile()
+        with mock.patch.object(
+            codex_trial, "_runtime_platform", return_value="linux-x86_64"
         ):
-            resolved, observed_digest = codex_trial.verify_python_runtime()
-        self.assertEqual(python_executable, resolved)
-        self.assertEqual(python_digest, observed_digest)
+            resolved, observed_digest = codex_trial.verify_python_runtime(profile)
+        self.assertEqual(profile.python_executable_path, resolved)
+        self.assertEqual(profile.python_executable_sha256, observed_digest)
 
-        with (
-            mock.patch.object(codex_trial.sys, "executable", str(python_executable)),
-            mock.patch.object(
-                run_codex_routing, "PYTHON_EXECUTABLE_SHA256", "0" * 64
-            ),
+        drifted = dataclasses.replace(profile, python_executable_sha256="0" * 64)
+        with mock.patch.object(
+            codex_trial, "_runtime_platform", return_value="linux-x86_64"
         ):
             with self.assertRaisesRegex(
                 codex_trial.InstrumentError, "Python runtime"
             ):
-                codex_trial.verify_python_runtime()
-
-    def test_runtime_copy_rejects_executable_bytes_outside_the_manifest_pin(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw).resolve(strict=True)
-            source = root / ("codex.exe" if os.name == "nt" else "codex")
-            destination = root / ("trial-codex.exe" if os.name == "nt" else "trial-codex")
-            source.write_bytes(b"not the authorized Codex executable")
-
-            with self.assertRaisesRegex(codex_trial.InstrumentError, "authorized digest"):
-                codex_trial.copy_authorized_executable(source, destination)
+                codex_trial.verify_python_runtime(drifted)
 
     def test_probe_requires_exact_cli_version(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            executable = Path(raw).resolve(strict=True) / ("codex.exe" if os.name == "nt" else "codex")
+            executable = Path(raw).resolve(strict=True) / "codex"
             executable.write_bytes(b"fake executable")
 
             def wrong_version(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
@@ -525,7 +372,7 @@ class ProbeTests(unittest.TestCase):
     def test_probe_runs_every_command_from_the_private_neutral_cwd(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve(strict=True)
-            executable = root / ("codex.exe" if os.name == "nt" else "codex")
+            executable = root / "codex"
             executable.write_bytes(b"fake executable")
             observed: list[Path] = []
 
@@ -555,19 +402,9 @@ class ProbeTests(unittest.TestCase):
             self.assertEqual([root, root], observed)
 
 
-@unittest.skipIf(os.name == "nt", "POSIX process-group semantics; Windows uses a Job Object")
+@unittest.skipUnless(sys.platform.startswith("linux"), "Linux process-group semantics")
 class PosixBoundaryClosureTests(unittest.TestCase):
-    """The narrow idempotence of the POSIX final close, pinned without any timing dependence.
-
-    Two macOS jobs on PR #106 failed at exact head `a2a046e1` when the post-timeout
-    `_close_process_boundary` raised `EPERM` from `os.killpg` — after the tree had already been
-    terminated and waited on. The end-to-end timeout test can only reproduce that when the runner
-    happens to lose the race, so these drive the exact state directly instead.
-
-    The invariant being pinned is deliberately narrow: EPERM is a no-op ONLY once the group leader
-    has been reaped. While the process is still running it means the tree was not signalled, and
-    tolerating it there would hide a live descendant — the failure this boundary exists to prevent.
-    """
+    """Pin the narrow idempotence of the Linux process-group final close."""
 
     _EPERM = PermissionError(1, "Operation not permitted")
 
@@ -582,7 +419,7 @@ class PosixBoundaryClosureTests(unittest.TestCase):
         """The reported failure. A completed termination must not become a test error."""
         with mock.patch.object(codex_trial.os, "killpg", side_effect=self._EPERM):
             codex_trial._close_process_boundary(
-                self._process(poll_result=0), None, terminated=True
+                self._process(poll_result=0), terminated=True
             )
 
     def test_eperm_on_a_first_and_only_close_fails_closed(self) -> None:
@@ -597,7 +434,7 @@ class PosixBoundaryClosureTests(unittest.TestCase):
         with mock.patch.object(codex_trial.os, "killpg", side_effect=self._EPERM):
             with self.assertRaises(codex_trial.InstrumentError) as raised:
                 codex_trial._close_process_boundary(
-                    self._process(poll_result=0), None, terminated=False
+                    self._process(poll_result=0), terminated=False
                 )
         self.assertEqual("process-tree-boundary-failed", raised.exception.reason_code)
 
@@ -606,7 +443,7 @@ class PosixBoundaryClosureTests(unittest.TestCase):
         with mock.patch.object(codex_trial.os, "killpg", side_effect=self._EPERM):
             with self.assertRaises(codex_trial.InstrumentError) as raised:
                 codex_trial._close_process_boundary(
-                    self._process(poll_result=None), None, terminated=True
+                    self._process(poll_result=None), terminated=True
                 )
         self.assertEqual("process-tree-boundary-failed", raised.exception.reason_code)
 
@@ -616,26 +453,27 @@ class PosixBoundaryClosureTests(unittest.TestCase):
         surviving descendant through."""
         with mock.patch.object(codex_trial.os, "killpg", side_effect=self._EPERM):
             with self.assertRaises(codex_trial.InstrumentError) as raised:
-                codex_trial._terminate_process_tree(self._process(poll_result=0), None)
+                codex_trial._terminate_process_tree(self._process(poll_result=0))
         self.assertEqual("process-tree-boundary-failed", raised.exception.reason_code)
 
     def test_an_already_gone_group_stays_tolerated_in_both_paths(self) -> None:
         """ESRCH was always a no-op; narrowing the EPERM case must not disturb it."""
         with mock.patch.object(codex_trial.os, "killpg", side_effect=ProcessLookupError()):
-            codex_trial._close_process_boundary(self._process(poll_result=0), None)
+            codex_trial._close_process_boundary(self._process(poll_result=0))
             codex_trial._close_process_boundary(
-                self._process(poll_result=None), None, terminated=True
+                self._process(poll_result=None), terminated=True
             )
-            codex_trial._terminate_process_tree(self._process(poll_result=None), None)
+            codex_trial._terminate_process_tree(self._process(poll_result=None))
 
     def test_a_successful_kill_is_still_issued_to_the_process_group(self) -> None:
         """Pins that the close actually signals, so the tolerance above cannot be satisfied by a
         boundary that quietly stopped killing anything."""
         with mock.patch.object(codex_trial.os, "killpg") as killpg:
-            codex_trial._close_process_boundary(self._process(poll_result=0), None)
+            codex_trial._close_process_boundary(self._process(poll_result=0))
         killpg.assert_called_once_with(4242, signal.SIGKILL)
 
 
+@unittest.skipUnless(sys.platform.startswith("linux"), "Linux process-group semantics")
 class ProcessBoundaryTests(unittest.TestCase):
     def test_normal_bounded_binary_parent_cannot_leave_a_descendant(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -745,16 +583,19 @@ class TrialExecutionTests(unittest.TestCase):
         capture: codex_trial.ProcessCapture | BaseException,
         *,
         credential_free_only: bool = False,
-        canary_probe_mode: str | None = None,
+        canary_probe_mode: str = "body",
     ) -> tuple[codex_trial.TrialResult, list[Path]]:
         root = root.resolve(strict=True)
         python_executable = Path(sys.executable).resolve(strict=True)
         python_sha256 = hashlib.sha256(python_executable.read_bytes()).hexdigest()
-        codex_trial._secure_directory(root)
-        codex_bin = root / ("codex.exe" if os.name == "nt" else "codex")
+        codex_bin = root / "codex"
         fake_codex_bytes = b"fake codex executable"
         codex_bin.write_bytes(fake_codex_bytes)
         fake_codex_sha256 = hashlib.sha256(fake_codex_bytes).hexdigest()
+        runtime_profile = _runtime_profile(
+            codex_executable=codex_bin,
+            codex_sha256=fake_codex_sha256,
+        )
         auth = root / "auth.json"
         if not credential_free_only:
             auth.write_bytes(b'{"access_token":"sk-proj-ABCDEFGHIJKLMNOPQRST"}')
@@ -850,15 +691,11 @@ class TrialExecutionTests(unittest.TestCase):
             mock.patch.object(codex_snapshot, "verify_staged_project", return_value=None),
             mock.patch.object(codex_model_catalog, "write_safe_catalog", side_effect=write_catalog),
             mock.patch("codex_trial._secure_directory", side_effect=fast_secure),
+            mock.patch("codex_trial._assert_private_path", return_value=None),
             mock.patch.object(
                 codex_trial,
                 "verify_python_runtime",
                 return_value=(python_executable, python_sha256),
-            ),
-            mock.patch.object(
-                run_codex_routing,
-                "CODEX_EXECUTABLE_SHA256",
-                fake_codex_sha256,
             ),
             mock.patch.object(
                 codex_model_catalog,
@@ -873,6 +710,7 @@ class TrialExecutionTests(unittest.TestCase):
                 "spec": _spec(),
                 "manifest_sha256": _manifest_sha256(),
                 "exact_revision": False,
+                "runtime_profile": runtime_profile,
                 "temp_parent": root,
                 "command_runner": command_runner,
                 "canary_probe_mode": canary_probe_mode,
@@ -1020,31 +858,6 @@ class TrialExecutionTests(unittest.TestCase):
         self.assertIsNone(result.trace_facts)
         self.assertIsNone(result.hook_facts)
         self.assertNotIn("private hook parser detail", serialized)
-
-    def test_serialized_root_tool_policy_is_explicitly_unscored(self) -> None:
-        contract = codex_trial.TrialContract(
-            scenario_id="root-case",
-            cohort="current_only",
-            revision=run_codex_routing.CURRENT_REVISION,
-            trial=1,
-            scenario_sha256="a" * 64,
-            prompt_sha256="b" * 64,
-            manifest_sha256="c" * 64,
-            prompt="private",
-            enable_multi_agent=True,
-        )
-
-        result = codex_trial._base_result(
-            contract,
-            state=codex_routing_grade.VerdictState.INCONCLUSIVE,
-            reason_codes=("root-delegation-unobservable-v2",),
-            exact_revision=False,
-        )
-
-        self.assertEqual(
-            "no-local-effect-tools-root-collaboration-unscored",
-            result.as_dict()["configuration"]["tool_policy"],
-        )
 
     def test_disposable_auth_is_absent_before_response_grading(self) -> None:
         capture = codex_trial.ProcessCapture(
@@ -1347,6 +1160,7 @@ class TrialExecutionTests(unittest.TestCase):
                 scenario,
                 _spec(),
                 manifest_sha256=_manifest_sha256(),
+                canary_probe_mode="body",
             )
 
     def test_scenario_digest_must_match_the_manifest_bound_trial_spec(self) -> None:
@@ -1357,6 +1171,7 @@ class TrialExecutionTests(unittest.TestCase):
                 scenario,
                 _spec(),
                 manifest_sha256=_manifest_sha256(),
+                canary_probe_mode="body",
             )
 
     def test_manifest_digest_must_match_the_evaluator_manifest_bytes(self) -> None:
@@ -1365,6 +1180,7 @@ class TrialExecutionTests(unittest.TestCase):
                 _scenario(),
                 _spec(),
                 manifest_sha256="0" * 64,
+                canary_probe_mode="body",
             )
 
     def test_canary_body_probe_binds_the_explicit_skill_and_effective_prompt_hash(self) -> None:
@@ -1418,31 +1234,18 @@ class TrialExecutionTests(unittest.TestCase):
         )
         self.assertEqual("description-selection-probe", contract.invocation_mode)
 
-    def test_ordinary_campaign_contract_remains_implicit_discovery(self) -> None:
-        scenario = _scenario()
-
-        contract = codex_trial.validate_trial_contract(
-            scenario,
-            _spec(),
-            manifest_sha256=_manifest_sha256(),
-        )
-
-        self.assertEqual(scenario["prompt"], contract.prompt)
-        self.assertEqual("implicit-discovery", contract.invocation_mode)
-
     def test_explicit_body_probe_rejects_any_non_canary_coordinate(self) -> None:
         scenario = _scenario()
         scenario["id"] = "discovery-obs-logs-cloud-logging"
         spec = run_codex_routing.TrialSpec(
             scenario_id="discovery-obs-logs-cloud-logging",
-            cohort="paired",
             revision=run_codex_routing.CURRENT_REVISION,
             trial=1,
             scenario_sha256="a" * 64,
         )
 
         with self.assertRaisesRegex(
-            codex_trial.TrialContractError, "fixed development canary"
+            codex_trial.TrialContractError, "fixed canary"
         ):
             codex_trial.validate_trial_contract(
                 scenario,
@@ -1451,12 +1254,12 @@ class TrialExecutionTests(unittest.TestCase):
                 canary_probe_mode="body",
             )
 
-    def test_explicit_body_probe_rejects_a_second_campaign_trial_coordinate(self) -> None:
+    def test_explicit_body_probe_rejects_a_second_trial_coordinate(self) -> None:
         scenario = _scenario()
         spec = dataclasses.replace(_spec(), trial=2)
 
         with self.assertRaisesRegex(
-            codex_trial.TrialContractError, "fixed development canary"
+            codex_trial.TrialContractError, "fixed canary"
         ):
             codex_trial.validate_trial_contract(
                 scenario,
@@ -1466,7 +1269,7 @@ class TrialExecutionTests(unittest.TestCase):
             )
 
     def test_canary_probe_mode_rejects_unknown_or_non_text_values(self) -> None:
-        for value in ("other", True, 1):
+        for value in ("other", True, 1, None):
             with self.subTest(value=value), self.assertRaisesRegex(
                 codex_trial.TrialContractError, "probe mode"
             ):
@@ -1477,6 +1280,20 @@ class TrialExecutionTests(unittest.TestCase):
                     canary_probe_mode=value,
                 )
 
+    def test_fixed_canary_rejects_root_routing_scope(self) -> None:
+        scenario = _scenario()
+        scenario["routing"]["scope"] = "root"
+
+        with self.assertRaisesRegex(
+            codex_trial.TrialContractError, "root routing scope"
+        ):
+            codex_trial.validate_trial_contract(
+                scenario,
+                _spec(),
+                manifest_sha256=_manifest_sha256(),
+                canary_probe_mode="body",
+            )
+
     def test_staged_entrypoint_trial_spec_has_one_shared_runtime_identity(self) -> None:
         staged_namespace = runpy.run_path(
             str(Path(run_codex_routing.__file__).resolve()),
@@ -1484,7 +1301,6 @@ class TrialExecutionTests(unittest.TestCase):
         )
         staged_spec = staged_namespace["TrialSpec"](
             scenario_id=_spec().scenario_id,
-            cohort=_spec().cohort,
             revision=_spec().revision,
             trial=_spec().trial,
             scenario_sha256=_spec().scenario_sha256,
@@ -1494,6 +1310,7 @@ class TrialExecutionTests(unittest.TestCase):
             _scenario(),
             staged_spec,
             manifest_sha256=_manifest_sha256(),
+            canary_probe_mode="body",
         )
 
         self.assertEqual(_spec().scenario_id, contract.scenario_id)

@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and run the fixed Codex/Terra ROUTE-001 instruments.
-
-The campaign and development probes freeze their model, scenario, revision, and authority inputs.
-Description selection, explicit body behavior, and the narrower campaign evidence remain separately
-labeled so one observation cannot be promoted into another.
-"""
+"""Validate and run the fixed Codex/Terra ROUTE-001 preflight and canary."""
 from __future__ import annotations
 
 import argparse
@@ -12,7 +7,6 @@ import hashlib
 import json
 import re
 import shlex
-import subprocess
 import sys
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -32,8 +26,8 @@ import codex_snapshot
 
 EVAL_ROOT = Path(__file__).resolve().parent
 LINUX_MANIFEST_PATH = EVAL_ROOT / "conformance" / "codex-terra-routing-linux-v1.json"
-SCENARIO_BUNDLE_PATH = EVAL_ROOT / "conformance" / "codex-terra-scenarios-v1.json"
 MANIFEST_PATH = LINUX_MANIFEST_PATH
+INSTRUMENT = "route-001-codex-terra-canary-v1"
 MODEL = "gpt-5.6-terra"
 REASONING_EFFORT = "medium"
 SANDBOX = "read-only"
@@ -47,11 +41,11 @@ CODEX_EXECUTABLE_SHA256 = (
     "ac2cfed85fb647d61e0150b8548102b330e4799d9d81ad5d354de701edf6b074"
 )
 TIMEOUT_S = 300
-TRIALS = 2
-THRESHOLD = 1.0
-BEFORE_REVISION = "a39a81f33f7ad7325c52d883822bbbdd80c7ed28"
 CURRENT_REVISION = "7aef80aede95394f6c4237ed2aedb911e141c3c0"
 CANARY_SCENARIO_ID = "discovery-gcp-ops-cloud-run-startup"
+CANARY_SOURCE_SHA256 = (
+    "3d3507272fbe0e6d3ee28bf51ad33cf2d913c5afb2e69a79881fba5ce29712fd"
+)
 CANARY_EXPLICIT_SKILL = "gcp-ops"
 CANARY_TRIAL = 1
 CANARY_PROBE_MODES = frozenset({"body", "description"})
@@ -74,42 +68,11 @@ CANARY_LINEAR_GRADER_TYPES = frozenset(
     }
 )
 
-PAIRED_IDS = frozenset(
-    {
-        "discovery-obs-alerting-splunk-saved-search",
-        "discovery-obs-logs-cloud-logging",
-        "discovery-obs-metrics-cloud-monitoring",
-        "discovery-obs-traces-cloud-trace",
-        "discovery-runbook-incident-update",
-    }
-)
-CURRENT_ONLY_IDS = frozenset(
-    {
-        "discovery-akamai-edge-defers-active-incident",
-        "discovery-akamai-edge-defers-obs-alerting",
-        "discovery-akamai-edge-defers-obs-logs",
-        "discovery-akamai-edge-defers-obs-metrics",
-        "discovery-akamai-edge-defers-obs-traces",
-        "discovery-akamai-edge-defers-pcf",
-        "discovery-akamai-edge-reference-error",
-        "discovery-gcp-ops-cloud-run-startup",
-        "discovery-gcp-ops-defers-active-incident",
-        "discovery-gcp-ops-defers-obs-alerting",
-        "discovery-gcp-ops-defers-obs-logs",
-        "discovery-gcp-ops-defers-obs-metrics",
-        "discovery-gcp-ops-defers-obs-traces",
-        "discovery-gcp-ops-defers-pcf",
-    }
-)
-ALL_SCENARIO_IDS = PAIRED_IDS | CURRENT_ONLY_IDS
-SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
-SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SAFE_HOOK_PATH_RE = re.compile(r"^[A-Za-z0-9 _.:\\/\-]+$")
 
-BASE_MANIFEST_KEYS = {
+MANIFEST_KEYS = {
     "schema_version",
-    "campaign",
+    "instrument",
     "provider",
     "runtime_platform",
     "python_version",
@@ -124,29 +87,21 @@ BASE_MANIFEST_KEYS = {
     "sandbox",
     "approval_policy",
     "skill_activation_evidence",
-    "agent_activation_evidence",
     "tool_policy",
     "source_model_entry_sha256",
     "safe_model_catalog_sha256",
     "timeout_s",
-    "trials",
-    "threshold",
-    "before_revision",
     "current_revision",
     "snapshot_tree_sha256",
     "canary_scenario",
-    "scenarios",
-}
-MANIFEST_KEYS = BASE_MANIFEST_KEYS | {
     "runtime_kind",
     "container_user",
     "base_image_digest",
     "python_executable_path",
     "codex_executable_path",
-    "scenario_bundle_sha256",
 }
-SCENARIO_KEYS = {"id", "cohort", "sha256"}
 EXPECTED_VALUES = {
+    "instrument": INSTRUMENT,
     "provider": "openai-codex",
     "codex_cli_version": codex_harness.CODEX_CLI_VERSION,
     "model": MODEL,
@@ -154,17 +109,13 @@ EXPECTED_VALUES = {
     "sandbox": SANDBOX,
     "approval_policy": APPROVAL_POLICY,
     "skill_activation_evidence": "behavioral-only-codex-0.148",
-    "agent_activation_evidence": "root-delegation-unobservable-v2",
-    "tool_policy": "no-model-tools-non-root-root-collaboration-unscored",
+    "tool_policy": "no-model-tools-non-root",
     "source_model_entry_sha256": codex_model_catalog.EXPECTED_SOURCE_ENTRY_SHA256,
     "safe_model_catalog_sha256": codex_model_catalog.EXPECTED_SAFE_CATALOG_SHA256,
     "timeout_s": TIMEOUT_S,
-    "trials": TRIALS,
-    "threshold": THRESHOLD,
-    "before_revision": BEFORE_REVISION,
     "current_revision": CURRENT_REVISION,
     "snapshot_tree_sha256": codex_snapshot.EXPECTED_SNAPSHOT_TREE_SHA256,
-    "schema_version": 2,
+    "schema_version": 3,
     "runtime_kind": "linux-container",
     "runtime_platform": RUNTIME_PLATFORM,
     "container_user": "65532:65532",
@@ -181,9 +132,6 @@ EXPECTED_VALUES = {
     ),
     "codex_executable_path": "/opt/route001/codex-runtime/bin/codex",
     "codex_executable_sha256": CODEX_EXECUTABLE_SHA256,
-    "scenario_bundle_sha256": (
-        "04417ded34826a9f7a67f72d78fa569b2e4fd91f35ca0c38329a1c6131808191"
-    ),
 }
 RESERVED_AUTHORITY = {
     "source_review",
@@ -266,91 +214,17 @@ def load_manifest(path: Path = MANIFEST_PATH) -> dict:
     return manifest
 
 
-def load_stable_scenario_bundle(
-    path: Path = SCENARIO_BUNDLE_PATH,
-    *,
-    expected_sha256: str,
-) -> tuple[bytes, dict[str, dict]]:
-    """Load the JSON-only live scenario closure without PyYAML or mutable suite discovery."""
-
-    before = path.read_bytes()
-    after = path.read_bytes()
-    if before != after:
-        raise ValueError("scenario bundle changed while it was loaded")
-    if (
-        not isinstance(expected_sha256, str)
-        or not SHA256_RE.fullmatch(expected_sha256)
-        or hashlib.sha256(before).hexdigest() != expected_sha256
-    ):
-        raise ValueError("scenario bundle digest does not match the manifest")
-    payload = parse_manifest(before)
-    if set(payload) != {"schema_version", "scenarios"} or payload.get("schema_version") != 1:
-        raise ValueError("scenario bundle has an invalid schema")
-    rows = payload.get("scenarios")
-    if not isinstance(rows, list) or len(rows) != len(ALL_SCENARIO_IDS):
-        raise ValueError("scenario bundle must contain exactly nineteen scenarios")
-    result: dict[str, dict] = {}
-    for row in rows:
-        if not isinstance(row, dict):
-            raise ValueError("scenario bundle rows must be objects")
-        scenario_id = row.get("id")
-        if (
-            not isinstance(scenario_id, str)
-            or scenario_id not in ALL_SCENARIO_IDS
-            or scenario_id in result
-            or row.get("mode") != "discovery"
-            or row.get("split") != "regression"
-            or not isinstance(row.get("routing"), dict)
-            or not isinstance(row.get("prompt"), str)
-            or not isinstance(row.get("_source_sha256"), str)
-            or not SHA256_RE.fullmatch(str(row["_source_sha256"]))
-        ):
-            raise ValueError("scenario bundle contains an invalid fixed scenario")
-        result[scenario_id] = row
-    if set(result) != ALL_SCENARIO_IDS:
-        raise ValueError("scenario bundle does not match the fixed scenario set")
-    return before, result
-
-
-def validate_scenario_bundle(
-    manifest: Mapping[str, object], scenarios: Mapping[str, dict]
-) -> list[str]:
-    problems: list[str] = []
-    rows = manifest.get("scenarios")
-    if not isinstance(rows, list):
-        return ["manifest scenarios must be a list"]
-    expected = {
-        row.get("id"): row.get("sha256")
-        for row in rows
-        if isinstance(row, dict)
-    }
-    if set(expected) != ALL_SCENARIO_IDS or set(scenarios) != ALL_SCENARIO_IDS:
-        problems.append("scenario bundle does not match the manifest scenario set")
-        return problems
-    for scenario_id, digest in expected.items():
-        if scenarios[scenario_id].get("_source_sha256") != digest:
-            problems.append(f"scenario bundle digest mismatch for {scenario_id}")
-    if scenarios.get(CANARY_SCENARIO_ID) != manifest.get("canary_scenario"):
-        problems.append("scenario bundle canary differs from the manifest canary")
-    return problems
-
-
 def runtime_profile(
     manifest: Mapping[str, object], *, manifest_path: Path
 ) -> codex_runtime.RuntimeProfile:
-    problems = validate_manifest(manifest, None)
+    problems = [*validate_manifest(manifest), *validate_canary_scenario(manifest)]
     if problems:
-        raise ValueError("runtime profile requires one valid exact routing manifest")
+        raise ValueError("runtime profile requires one valid exact canary manifest")
     return codex_runtime.profile_from_manifest(manifest, manifest_path=manifest_path)
 
 
-def validate_manifest(
-    manifest: Mapping[str, object], scenarios: Mapping[str, dict] | None
-) -> list[str]:
+def validate_manifest(manifest: Mapping[str, object]) -> list[str]:
     problems: list[str] = []
-    campaign = manifest.get("campaign")
-    if campaign != "route-001-codex-terra-linux-v1":
-        problems.append("manifest campaign is not the canonical Linux ROUTE-001 arm")
     unknown = set(manifest) - MANIFEST_KEYS
     missing = MANIFEST_KEYS - set(manifest)
     if unknown:
@@ -360,65 +234,6 @@ def validate_manifest(
     for key, expected in EXPECTED_VALUES.items():
         if manifest.get(key) != expected:
             problems.append(f"manifest {key} must be {expected!r}")
-    before = manifest.get("before_revision")
-    if not isinstance(before, str) or not REVISION_RE.fullmatch(before):
-        problems.append("manifest before_revision must be a full lowercase Git SHA")
-
-    rows = manifest.get("scenarios")
-    if not isinstance(rows, list):
-        return [*problems, "manifest scenarios must be a list"]
-    seen: set[str] = set()
-    cohort_ids = {"paired": set(), "current_only": set()}
-    for index, row in enumerate(rows):
-        where = f"manifest scenarios[{index}]"
-        if not isinstance(row, dict):
-            problems.append(f"{where} must be an object")
-            continue
-        row_unknown = set(row) - SCENARIO_KEYS
-        row_missing = SCENARIO_KEYS - set(row)
-        if row_unknown:
-            problems.append(f"{where} has unknown keys: {', '.join(sorted(row_unknown))}")
-        if row_missing:
-            problems.append(f"{where} is missing keys: {', '.join(sorted(row_missing))}")
-        scenario_id = row.get("id")
-        cohort = row.get("cohort")
-        digest = row.get("sha256")
-        if not isinstance(scenario_id, str) or not SAFE_ID_RE.fullmatch(scenario_id):
-            problems.append(f"{where} id must be a canonical lowercase slug")
-            continue
-        if scenario_id in seen:
-            problems.append(f"{where} has duplicate scenario id {scenario_id}")
-        seen.add(scenario_id)
-        if cohort not in cohort_ids:
-            problems.append(f"{where} cohort must be paired or current_only")
-        else:
-            cohort_ids[str(cohort)].add(scenario_id)
-        if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
-            problems.append(f"{where} digest must be a lowercase SHA-256")
-        if scenarios is not None:
-            scenario = scenarios.get(scenario_id)
-            if scenario is None:
-                problems.append(f"{where} scenario is missing from the evaluator suite")
-                continue
-            if digest != scenario.get("_source_sha256"):
-                problems.append(f"{where} scenario digest does not match evaluator bytes")
-            if scenario.get("mode") != "discovery" or scenario.get("split") != "regression":
-                problems.append(f"{where} must select a discovery regression scenario")
-            if not isinstance(scenario.get("routing"), dict):
-                problems.append(f"{where} has no routing contract")
-
-    if seen != ALL_SCENARIO_IDS:
-        problems.append("manifest must contain the exact ROUTE-001 scenario set")
-    if cohort_ids["paired"] != PAIRED_IDS:
-        problems.append("manifest paired cohort does not match the fixed five scenarios")
-    if cohort_ids["current_only"] != CURRENT_ONLY_IDS:
-        problems.append("manifest current_only cohort does not match the fixed fourteen scenarios")
-
-    if scenarios is not None:
-        import run_evals
-
-        selected = [scenarios[item] for item in sorted(seen) if item in scenarios]
-        problems.extend(run_evals.validate(selected))
     return problems
 
 
@@ -445,98 +260,38 @@ def validate_canary_scenario(manifest: Mapping[str, object]) -> list[str]:
                     "manifest canary_scenario graders["
                     f"{index}] is outside the linear-only grader allowlist"
                 )
-    rows = manifest.get("scenarios")
-    matching = (
-        [row for row in rows if isinstance(row, dict) and row.get("id") == CANARY_SCENARIO_ID]
-        if isinstance(rows, list)
-        else []
-    )
     if (
-        len(matching) != 1
-        or scenario.get("id") != CANARY_SCENARIO_ID
-        or scenario.get("_source_sha256") != matching[0].get("sha256")
+        scenario.get("id") != CANARY_SCENARIO_ID
+        or scenario.get("_source_sha256") != CANARY_SOURCE_SHA256
     ):
-        problems.append("manifest canary_scenario is not bound to its fixed scenario row")
+        problems.append("manifest canary_scenario is not bound to its fixed source digest")
     return problems
-
-
-def campaign_plan(manifest: Mapping[str, object], current_revision: str) -> list[TrialSpec]:
-    if not REVISION_RE.fullmatch(current_revision):
-        raise ValueError("current revision must be a full lowercase Git SHA")
-    if current_revision != CURRENT_REVISION or manifest.get("current_revision") != CURRENT_REVISION:
-        raise ValueError(f"current revision must be the fixed ROUTE-001 target {CURRENT_REVISION}")
-    rows = manifest.get("scenarios")
-    if not isinstance(rows, list):
-        raise ValueError("manifest scenarios must be a list")
-    trials = manifest.get("trials")
-    if trials != TRIALS:
-        raise ValueError(f"manifest trials must be {TRIALS}")
-    plan: list[TrialSpec] = []
-    for row in rows:
-        if not isinstance(row, dict):
-            raise ValueError("manifest scenario rows must be objects")
-        scenario_id = row.get("id")
-        cohort = row.get("cohort")
-        scenario_sha256 = row.get("sha256")
-        if (
-            not isinstance(scenario_id, str)
-            or cohort not in {"paired", "current_only"}
-            or not isinstance(scenario_sha256, str)
-            or not SHA256_RE.fullmatch(scenario_sha256)
-        ):
-            raise ValueError("manifest contains an invalid scenario row")
-        revisions = (BEFORE_REVISION, current_revision) if cohort == "paired" else (current_revision,)
-        for revision in revisions:
-            for trial in range(1, TRIALS + 1):
-                plan.append(
-                    TrialSpec(
-                        scenario_id,
-                        str(cohort),
-                        revision,
-                        trial,
-                        scenario_sha256,
-                    )
-                )
-    return plan
 
 
 def canary_spec(
     manifest: Mapping[str, object], scenario_id: str = CANARY_SCENARIO_ID
 ) -> TrialSpec:
-    """Return the one fixed development canary; it is not a campaign trial or baseline."""
+    """Return the one fixed development canary; it is not baseline evidence."""
 
     if scenario_id != CANARY_SCENARIO_ID:
         raise ValueError(f"canary scenario must be {CANARY_SCENARIO_ID}")
     canary_problems = validate_canary_scenario(manifest)
     if canary_problems:
         raise ValueError("fixed canary scenario contract is invalid")
-    rows = manifest.get("scenarios")
-    if not isinstance(rows, list):
-        raise ValueError("manifest scenarios must be a list")
-    matches = [
-        row
-        for row in rows
-        if isinstance(row, dict) and row.get("id") == CANARY_SCENARIO_ID
-    ]
-    if len(matches) != 1 or matches[0].get("cohort") != "current_only":
-        raise ValueError("fixed canary is missing from the current-only manifest cohort")
     return TrialSpec(
         scenario_id=CANARY_SCENARIO_ID,
-        cohort="current_only",
         revision=CURRENT_REVISION,
         trial=CANARY_TRIAL,
-        scenario_sha256=str(matches[0]["sha256"]),
+        scenario_sha256=CANARY_SOURCE_SHA256,
     )
 
 
-def build_command(
-    codex_bin: Path, workspace: Path, *, enable_multi_agent: bool
-) -> tuple[str, ...]:
+def build_command(codex_bin: Path, workspace: Path) -> tuple[str, ...]:
     """Build the fixed stdin-driven Codex command; prompt bytes never enter argv."""
 
     command = [
         str(codex_bin),
-        "--enable" if enable_multi_agent else "--disable",
+        "--disable",
         "multi_agent",
     ]
     for feature in DISABLED_MODEL_FEATURES:
@@ -609,7 +364,6 @@ def render_config(
         nonce,
     )
     posix_command = shlex.join(arguments)
-    windows_command = subprocess.list2cmdline(arguments)
     lines = [
         f"model_catalog_json = {json.dumps(str(model_catalog.resolve()))}",
         'web_search = "disabled"',
@@ -625,7 +379,7 @@ def render_config(
         "",
         "[features]",
         "hooks = true",
-        "multi_agent = true",
+        "multi_agent = false",
         "skill_search = true",
         *(f"{feature} = false" for feature in DISABLED_MODEL_FEATURES),
         "",
@@ -643,7 +397,6 @@ def render_config(
                 f"[[hooks.{event}.hooks]]",
                 'type = "command"',
                 f"command = {json.dumps(posix_command)}",
-                f"command_windows = {json.dumps(windows_command)}",
                 "timeout = 10",
                 "async = false",
                 "",
@@ -694,24 +447,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--plan", action="store_true", help="print the fixed campaign shape")
     mode.add_argument(
         "--canary",
         action="store_true",
-        help="run one paid, sanitized development trial; never campaign/baseline evidence",
+        help="run one paid, sanitized development trial; never baseline evidence",
     )
     mode.add_argument(
         "--preflight",
         action="store_true",
         help="exercise fixed credential-free setup without auth or a model request",
     )
-    mode.add_argument(
-        "--campaign",
-        action="store_true",
-        help="run or safely resume the fixed 48-trial Linux-container campaign",
-    )
-    parser.add_argument("--current-revision", help="full SHA used only with --plan")
-    parser.add_argument("--codex-bin", type=Path, help="exact Codex 0.147 executable for --canary")
+    parser.add_argument("--codex-bin", type=Path, help="exact Codex executable for a live probe")
     parser.add_argument("--auth-file", type=Path, help="existing Codex auth.json for --canary")
     parser.add_argument(
         "--private-root",
@@ -722,15 +468,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--repo-root",
         type=Path,
         help="source repository whose fixed Git objects are materialized for --canary",
-    )
-    parser.add_argument(
-        "--campaign-root",
-        type=Path,
-        help="precreated private result root used only with --campaign",
-    )
-    parser.add_argument(
-        "--container-image-id",
-        help="immutable outer image ID used only with --campaign",
     )
     parser.add_argument(
         "--scenario-id",
@@ -756,59 +493,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"codex-terra-routing: invalid manifest: {exc}", file=sys.stderr)
         return 3
-    scenario_map: dict[str, dict] | None = None
-    live_mode = args.canary or args.preflight or args.campaign
-    live_scenarios: dict[str, dict] | None = None
-    if live_mode:
-        problems = [
-            *validate_manifest(manifest, None),
-            *validate_canary_scenario(manifest),
-        ]
-        if args.campaign:
-            try:
-                _scenario_bytes, live_scenarios = load_stable_scenario_bundle(
-                    expected_sha256=manifest.get("scenario_bundle_sha256")
-                )
-            except (OSError, ValueError) as exc:
-                print(
-                    f"codex-terra-routing: scenario bundle could not be frozen: {type(exc).__name__}",
-                    file=sys.stderr,
-                )
-                return 3
-            problems.extend(validate_scenario_bundle(manifest, live_scenarios))
-    else:
-        try:
-            import run_evals
-
-            scenarios, _suite_digest = run_evals.load_stable_suite()
-        except (OSError, ValueError, run_evals.clean_room.RunnerFailed) as exc:
-            print(
-                f"codex-terra-routing: scenario suite could not be frozen: {type(exc).__name__}",
-                file=sys.stderr,
-            )
-            return 3
-        scenario_map = {item["id"]: item for item in scenarios}
-        problems = validate_manifest(manifest, scenario_map)
+    problems = [*validate_manifest(manifest), *validate_canary_scenario(manifest)]
     if problems:
         for problem in problems:
             print(f"codex-terra-routing: {problem}", file=sys.stderr)
         return 3
+    live_mode = args.canary or args.preflight
     if live_mode:
         if (
             args.codex_bin is None
             or args.repo_root is None
             or args.private_root is None
-            or (args.campaign and args.campaign_root is None)
-            or (args.campaign and args.container_image_id is None)
         ):
             print(
                 "codex-terra-routing: live setup requires its fixed executable, repository, and private-root inputs",
-                file=sys.stderr,
-            )
-            return 3
-        if not args.campaign and args.container_image_id is not None:
-            print(
-                "codex-terra-routing: --container-image-id is campaign-only",
                 file=sys.stderr,
             )
             return 3
@@ -818,7 +516,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 3
-        if (args.canary or args.campaign) and args.auth_file is None:
+        if args.canary and args.auth_file is None:
             print(
                 "codex-terra-routing: --canary requires its fixed auth input",
                 file=sys.stderr,
@@ -829,8 +527,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             profile = runtime_profile(
                 manifest, manifest_path=Path(args.manifest).resolve(strict=True)
             )
-            if args.campaign and profile.runtime_kind != "linux-container":
-                raise ValueError("the 48-trial executor is Linux-container only")
             import codex_trial
 
             common = {
@@ -849,43 +545,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                     canary_probe_mode="body",
                     **common,
                 )
-            elif args.campaign:
-                if live_scenarios is None or args.campaign_root is None:
-                    raise ValueError("campaign scenario or result boundary is unavailable")
-                import codex_campaign
-
-                plan = campaign_plan(manifest, CURRENT_REVISION)
-                campaign_root = Path(args.campaign_root).resolve(strict=True)
-                with codex_campaign.CampaignLock(campaign_root) as lock:
-                    if (campaign_root / "campaign.json").is_file():
-                        journal = codex_campaign.CampaignJournal.open(
-                            campaign_root,
-                            plan=plan,
-                            manifest_sha256=common["manifest_sha256"],
-                            container_image_id=args.container_image_id,
-                            lock=lock,
-                        )
-                    else:
-                        journal = codex_campaign.CampaignJournal.create(
-                            campaign_root,
-                            plan=plan,
-                            manifest_sha256=common["manifest_sha256"],
-                            container_image_id=args.container_image_id,
-                            lock=lock,
-                        )
-
-                    def run_campaign_trial(item: TrialSpec) -> Mapping[str, object]:
-                        trial_result = codex_trial.run_trial(
-                            auth_file=args.auth_file,
-                            scenario=live_scenarios[item.scenario_id],
-                            spec=item,
-                            **{**common, "exact_revision": True},
-                        )
-                        return trial_result.as_dict()
-
-                    summary = codex_campaign.run_campaign(journal, run_campaign_trial)
-                print(json.dumps(summary, sort_keys=True, separators=(",", ":")))
-                return 0 if summary["status"] == "complete" else 4
             else:
                 spec = canary_spec(manifest, args.scenario_id)
                 result = codex_trial.run_trial(
@@ -919,30 +578,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "FAIL": 2,
             "INCONCLUSIVE": 4,
         }[result.state.value]
-    if args.plan:
-        if not args.current_revision:
-            print("codex-terra-routing: --plan requires --current-revision", file=sys.stderr)
-            return 3
-        try:
-            plan = campaign_plan(manifest, args.current_revision)
-        except ValueError as exc:
-            print(f"codex-terra-routing: {exc}", file=sys.stderr)
-            return 3
-        before = sum(item.revision == BEFORE_REVISION for item in plan)
-        print(
-            json.dumps(
-                {
-                    "campaign": manifest["campaign"],
-                    "model": MODEL,
-                    "trials": len(plan),
-                    "before_trials": before,
-                    "current_trials": len(plan) - before,
-                },
-                sort_keys=True,
-            )
-        )
-    else:
-        print(f"codex-terra-routing: manifest valid ({len(manifest['scenarios'])} scenarios, 48 trials)")
+    print("codex-terra-routing: manifest valid (one fixed canary)")
     return 0
 
 

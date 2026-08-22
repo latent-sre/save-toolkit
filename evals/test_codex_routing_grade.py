@@ -6,7 +6,6 @@ import hashlib
 import json
 import sys
 import unittest
-from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -23,22 +22,14 @@ ROOT_THREAD = _digest("root-private-thread")
 CHILD_THREAD = _digest("child-private-thread")
 
 
-def _scenario(*, expect: str = "fire", root_scope: bool = False) -> dict[str, object]:
-    routing: dict[str, object] = {"expect": expect}
-    if root_scope:
-        routing.update(
-            {
-                "scope": "root",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            }
-        )
+def _scenario(*, expect: str = "fire") -> dict[str, object]:
     return {
         "schema_version": 1,
         "id": "private-scenario-id",
         "mode": "discovery",
         "target": {"kind": "skill", "name": "private-target-skill"},
         "prompt": "private prompt that must never be serialized",
-        "routing": routing,
+        "routing": {"expect": expect},
         "graders": [
             {"type": "contains_all", "of": ["safe-result"]},
             {"type": "not_contains", "of": ["forbidden-result"]},
@@ -106,7 +97,6 @@ def _command_fact() -> codex_harness.CommandFact:
 def _hooks(
     *agent_types: str,
     post_tools: tuple[str, ...] = (),
-    scenario: dict[str, object] | None = None,
 ) -> codex_harness.ParsedHookReceipts:
     subagent_count = len(agent_types)
     counts: dict[str, int] = {}
@@ -122,14 +112,7 @@ def _hooks(
             codex_harness.TransientToolReceipt(
                 tool_name=tool_name,
                 agent_type=None,
-                tool_input=(
-                    {
-                        "agent_type": "save-toolkit-sre",
-                        "message": scenario["prompt"],
-                    }
-                    if tool_name == "spawn_agent" and scenario is not None
-                    else {"operation": "private collaboration input"}
-                ),
+                tool_input={"operation": "private collaboration input"},
                 tool_response={"status": "private collaboration output"},
             )
             for tool_name in post_tools
@@ -214,7 +197,7 @@ class ObservationalSkillRoutingTests(unittest.TestCase):
         )
 
         self.assertEqual(verdict.state, codex_routing_grade.VerdictState.INCONCLUSIVE)
-        self.assertIn("non-root-tool-flow-observed", verdict.reason_codes)
+        self.assertIn("canary-tool-flow-observed", verdict.reason_codes)
 
     def test_skill_response_grader_failure_is_a_trial_failure(self) -> None:
         verdict = codex_routing_grade.grade_trial(
@@ -224,20 +207,6 @@ class ObservationalSkillRoutingTests(unittest.TestCase):
         self.assertEqual(verdict.state, codex_routing_grade.VerdictState.FAIL)
         self.assertEqual([grade.passed for grade in verdict.behavior_grades], [False, True])
         self.assertIn("behavior-grader-failed", verdict.reason_codes)
-
-    def test_skill_near_miss_pass_is_observational_and_does_not_assert_absence(self) -> None:
-        verdict = codex_routing_grade.grade_trial(
-            _scenario(expect="not_fire"), _trace(), _hooks()
-        )
-
-        self.assertEqual(verdict.state, codex_routing_grade.VerdictState.PASS)
-        self.assertEqual(verdict.evidence_mode, "observational-response-graders")
-        self.assertTrue(
-            any(
-                "absence" in limitation and "not asserted" in limitation
-                for limitation in verdict.limitations
-            )
-        )
 
     def test_every_declared_response_grader_runs(self) -> None:
         scenario = _scenario()
@@ -290,109 +259,6 @@ class ObservationalSkillRoutingTests(unittest.TestCase):
         self.assertEqual(verdict.reason_codes, ("response-size-limit-exceeded",))
 
 
-class RootScopeObservabilityTests(unittest.TestCase):
-    def assert_root_delegation_unobservable(
-        self, verdict: codex_routing_grade.RoutingVerdict
-    ) -> None:
-        self.assertEqual(verdict.state, codex_routing_grade.VerdictState.INCONCLUSIVE)
-        self.assertEqual(verdict.evidence_mode, "root-delegation-unobservable-v2")
-        self.assertIsNone(verdict.ancestry)
-        self.assertEqual(verdict.behavior_grades, ())
-        self.assertEqual(verdict.reason_codes, ("root-delegation-unobservable-v2",))
-        self.assertTrue(
-            any(
-                "semantic root consumption" in limitation
-                for limitation in verdict.limitations
-            )
-        )
-
-    def test_unrelated_sre_spawn_task_is_inconclusive(self) -> None:
-        scenario = _scenario(expect="not_fire", root_scope=True)
-        verdict = codex_routing_grade.grade_trial(
-            scenario,
-            _trace(
-                collab_facts=(
-                    _spawn_fact(prompt="an unrelated task"),
-                    _spawn_fact(
-                        item="wait-private-item",
-                        tool="wait",
-                        prompt="",
-                    ),
-                )
-            ),
-            _hooks(
-                "save-toolkit-sre",
-                post_tools=("spawn_agent", "wait"),
-                scenario=scenario,
-            ),
-        )
-
-        self.assert_root_delegation_unobservable(verdict)
-
-    def test_nonterminal_child_without_a_completed_wait_is_inconclusive(self) -> None:
-        scenario = _scenario(expect="not_fire", root_scope=True)
-        verdict = codex_routing_grade.grade_trial(
-            scenario,
-            _trace(
-                collab_facts=(
-                    _spawn_fact(
-                        states={"running": 1},
-                        prompt=str(scenario["prompt"]),
-                    ),
-                )
-            ),
-            _hooks(
-                "save-toolkit-sre",
-                post_tools=("spawn_agent",),
-                scenario=scenario,
-            ),
-        )
-
-        self.assert_root_delegation_unobservable(verdict)
-
-    def test_exact_sre_child_cannot_make_root_incident_pass(self) -> None:
-        verdict = codex_routing_grade.grade_trial(
-            _scenario(expect="not_fire", root_scope=True),
-            _trace(collab_facts=(_spawn_fact(),)),
-            _hooks("save-toolkit-sre", post_tools=("spawn_agent",)),
-        )
-
-        self.assert_root_delegation_unobservable(verdict)
-
-    def test_wrong_agent_type_cannot_make_root_incident_fail(self) -> None:
-        verdict = codex_routing_grade.grade_trial(
-            _scenario(expect="not_fire", root_scope=True),
-            _trace(collab_facts=(_spawn_fact(),)),
-            _hooks("save-toolkit-researcher", post_tools=("spawn_agent",)),
-        )
-
-        self.assert_root_delegation_unobservable(verdict)
-
-    def test_root_scope_does_not_invoke_a_raising_response_grader(self) -> None:
-        with mock.patch.object(
-            codex_routing_grade.graders,
-            "run_grader",
-            side_effect=AssertionError("root response grader must not execute"),
-        ) as run_grader:
-            verdict = codex_routing_grade.grade_trial(
-                _scenario(expect="not_fire", root_scope=True),
-                _trace("a" * 262_145),
-                _hooks(),
-            )
-
-        run_grader.assert_not_called()
-        self.assert_root_delegation_unobservable(verdict)
-
-    def test_missing_jsonl_spawn_edge_is_the_known_v2_observability_limit(self) -> None:
-        verdict = codex_routing_grade.grade_trial(
-            _scenario(expect="not_fire", root_scope=True),
-            _trace(),
-            _hooks("save-toolkit-sre", post_tools=("spawn_agent",)),
-        )
-
-        self.assert_root_delegation_unobservable(verdict)
-
-
 class FailClosedInstrumentTests(unittest.TestCase):
     def test_any_post_tool_receipt_forces_inconclusive_not_routing_fail(self) -> None:
         verdict = codex_routing_grade.grade_trial(
@@ -422,7 +288,7 @@ class FailClosedInstrumentTests(unittest.TestCase):
 
     def test_instrument_problem_wins_when_response_is_missing(self) -> None:
         verdict = codex_routing_grade.grade_trial(
-            _scenario(expect="not_fire", root_scope=True),
+            _scenario(),
             _trace(None, command_facts=(_command_fact(),)),
             _hooks(),
         )
@@ -435,13 +301,13 @@ class FailClosedInstrumentTests(unittest.TestCase):
         raw_values = (
             "private-response-marker",
             "private prompt that must never be serialized",
-            "C:\\private\\routing\\SKILL.md",
+            "/private/routing/SKILL.md",
             "root-private-thread",
             "child-private-thread",
             ROOT_THREAD,
             CHILD_THREAD,
         )
-        scenario = _scenario(expect="not_fire", root_scope=True)
+        scenario = _scenario()
         scenario["graders"] = [{"type": "contains_all", "of": [raw_values[0]]}]
         verdict = codex_routing_grade.grade_trial(
             scenario,
@@ -458,7 +324,7 @@ class FailClosedInstrumentTests(unittest.TestCase):
         self.assertIsNone(verdict.as_dict()["ancestry"])
         self.assertEqual(
             verdict.as_dict()["reason_codes"],
-            ["root-delegation-unobservable-v2"],
+            ["canary-tool-flow-observed"],
         )
 
     def test_verdict_repr_does_not_retain_transient_response(self) -> None:
@@ -467,26 +333,6 @@ class FailClosedInstrumentTests(unittest.TestCase):
         verdict = codex_routing_grade.grade_trial(_scenario(), _trace(raw_response), _hooks())
 
         self.assertNotIn(raw_response, repr(verdict))
-
-    def test_coherent_root_spawn_and_wait_still_cannot_prove_consumption(self) -> None:
-        verdict = codex_routing_grade.grade_trial(
-            _scenario(expect="not_fire", root_scope=True),
-            _trace(
-                collab_facts=(
-                    _spawn_fact(),
-                    _spawn_fact(item="wait-private-item", tool="wait"),
-                )
-            ),
-            _hooks(
-                "save-toolkit-sre",
-                post_tools=("spawn_agent", "wait"),
-            ),
-        )
-
-        self.assertEqual(verdict.state, codex_routing_grade.VerdictState.INCONCLUSIVE)
-        self.assertEqual(verdict.reason_codes, ("root-delegation-unobservable-v2",))
-        self.assertIsNone(verdict.ancestry)
-        self.assertEqual(verdict.behavior_grades, ())
 
     def test_any_command_fact_is_forbidden_even_without_a_post_tool_receipt(self) -> None:
         verdict = codex_routing_grade.grade_trial(
@@ -502,7 +348,7 @@ class FailClosedInstrumentTests(unittest.TestCase):
             [True, True],
         )
 
-    def test_non_root_skill_trial_forbids_even_an_allowed_collaboration_call(self) -> None:
+    def test_canary_forbids_even_an_allowed_collaboration_call(self) -> None:
         verdict = codex_routing_grade.grade_trial(
             _scenario(),
             _trace(collab_facts=(_spawn_fact(),)),
@@ -510,14 +356,14 @@ class FailClosedInstrumentTests(unittest.TestCase):
         )
 
         self.assertEqual(verdict.state, codex_routing_grade.VerdictState.INCONCLUSIVE)
-        self.assertEqual(verdict.reason_codes, ("non-root-tool-flow-observed",))
+        self.assertEqual(verdict.reason_codes, ("canary-tool-flow-observed",))
         self.assertIsNone(verdict.ancestry)
 
-    def test_root_flow_rejects_shell_filesystem_network_and_unknown_tools(self) -> None:
+    def test_canary_rejects_shell_filesystem_network_and_unknown_tools(self) -> None:
         for tool_name in ("shell_command", "apply_patch", "web_run", "unknown_tool"):
             with self.subTest(tool_name=tool_name):
                 verdict = codex_routing_grade.grade_trial(
-                    _scenario(expect="not_fire", root_scope=True),
+                    _scenario(),
                     _trace(collab_facts=(_spawn_fact(),)),
                     _hooks(
                         "save-toolkit-sre",
@@ -530,7 +376,6 @@ class FailClosedInstrumentTests(unittest.TestCase):
                     codex_routing_grade.VerdictState.INCONCLUSIVE,
                 )
                 self.assertEqual(verdict.reason_codes, ("forbidden-tool-observed",))
-                self.assertEqual(verdict.behavior_grades, ())
 
 
 if __name__ == "__main__":

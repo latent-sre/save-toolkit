@@ -29,7 +29,6 @@ class RuntimeProfile:
 
 
 LINUX_EVALUATOR_FILES = (
-    "codex_campaign.py",
     "codex_harness.py",
     "codex_hook_recorder.py",
     "codex_model_catalog.py",
@@ -40,7 +39,6 @@ LINUX_EVALUATOR_FILES = (
     "graders.py",
     "run_codex_routing.py",
     "conformance/codex-terra-routing-linux-v1.json",
-    "conformance/codex-terra-scenarios-v1.json",
 )
 
 
