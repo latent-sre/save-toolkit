@@ -13,16 +13,19 @@ description: >-
 > **Copilot adapter:** Fleet component names are bare in this generated copy.
 > Resolve them from the installed plugin using the host's agent or skill picker.
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Production change gate
 
 Any action that touches production must clear this gate **before execution**. The agent may classify,
 prepare, and recommend. A human release owner or separately approved protected automation executes an
 authorized live change; an agent never executes it.
+
+**One exception exists and it is narrow.** `observability-engineer` applies Grafana **dashboard**
+create/update itself, production included, under the dashboard write rule in its own body
+(ADR `docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md`). That rule's four
+conditions — target and full diff shown first, live model exported as the rollback, the API family's
+concurrency token pinned, applied JSON committed in the same task — stand in place of the approval
+step, not beside it. Dashboards and their folders only: alert rules, data sources, contact points,
+permissions, and everything in every other lane clear this gate normally.
 
 > **The checklist is not the enforcement.** It records a human decision. The load-bearing controls are
 > branch protection and protected environments with required reviewers, configured so administrators
@@ -68,7 +71,7 @@ The example is `[unverified]`: it is the required approval-request shape, not ev
       incident fast path)* — verified, not assumed. Everything below is a record; branch
       protection is the control and must be checked by an authorized human or protected evidence job.
       Note: `gh api` is deliberately absent from the guarded-Bash allowlist (it can silently POST), so
-      a guarded `sre`/`observability-engineer` session cannot run this itself. A denial here is by design rather
+      a guarded `sre` session cannot run this itself. A denial here is by design rather
       than allowlist drift: still record it, but hand the command to the human or evidence job instead
       of opening an allowlist PR.
 

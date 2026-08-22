@@ -6,6 +6,30 @@ Fill this inventory with names, UIDs, owners, and repository links only—never 
 unredacted sensitive queries. Replace every placeholder or explicitly record `none`; do not leave an
 ambiguous partial inventory.
 
+## Licence and plugin evidence
+
+Catalogue guidance, not proof that this installation is entitled — confirm the active licence and the
+installed plugin list (`GET /api/plugins`) with the Grafana administrator before provisioning either.
+
+- **Wavefront / Aria Operations for Applications `[sourced, reviewed 2026-07-14]`.** The
+  [plugin documentation](https://grafana.com/docs/plugins/grafana-wavefront-datasource/latest/)
+  identifies `grafana-wavefront-datasource` as an **Enterprise** plugin: Grafana Cloud Pro/Advanced,
+  or a self-managed Enterprise licence. **Lifecycle `[sourced, reviewed 2026-08-19]`:** the backend
+  continues as **Broadcom DX OpenExplore** — the Wavefront engine on Broadcom's DX platform; the
+  2025-10-31 end-of-availability retired the VMware Tanzu Observability offering, not the engine
+  (see `stack-profile`). Whether the Enterprise plugin is supported against a DX OpenExplore tenant
+  is `[unverified]`.
+- **Splunk `[sourced, reviewed 2026-07-14]`.** The
+  [installation page](https://grafana.com/docs/plugins/grafana-splunk-datasource/latest/install/)
+  identifies `grafana-splunk-datasource`: Grafana Cloud Pro/Advanced, or a self-managed Enterprise
+  licence that includes it. Cloud Free and Starter do not.
+- **ThousandEyes `[sourced, reviewed 2026-07-14]`.** No named ThousandEyes Grafana data-source plugin
+  exists in the official documentation or catalogue — do not invent a plugin type or uid. Cisco's
+  [documented path](https://docs.thousandeyes.com/product-documentation/integration-guides/opentelemetry/observability-platforms/grafana)
+  exports OpenTelemetry signals into Prometheus/Mimir, Tempo, or Loki; query those with PromQL, or
+  link to the ThousandEyes console. This is an inference from the named integration path, not a claim
+  that no other integration exists.
+
 ## Data sources
 
 | Installed name | Signal/query language | Grafana plugin ID | Data-source UID | Owner / entitlement evidence |
@@ -21,11 +45,42 @@ ambiguous partial inventory.
 
 ## Conventions we standardize on
 
-- Variables: `<app>`, `<env>`, `<instance>`, `<route>`; record any bounded local additions.
-- Timezone and default window: `<timezone>` / `<last 1–6h>`.
-- Service identity labels and naming: `<documented convention>`.
-- SLO-linked thresholds and units: `<source of truth>`.
-- Cross-links that preserve time range and variables: `<dashboard/runbook/log links>`.
+One team owns every dashboard here; the dashboards are per application `[sourced: owner, 2026-08-21]`.
+The agent applies these on every create or edit; a value marked `[unverified]` is a default the owner
+has not yet confirmed — confirm it rather than inventing an alternative.
+
+- **Folders.** One Grafana folder for the team, one subfolder per app: `<Team>/<app>`. The repository
+  mirrors it (`dashboards/<app>/<uid>.json`) so `foldersFromFilesStructure: true` reproduces the tree;
+  no dashboard lands in `General`.
+- **Names and uids.** `<App> / Health` is the top-level dashboard; drill-downs are
+  `<App> / <Topic>` (`<App> / Dependencies`, `<App> / Routes`). The uid is the lowercase hyphenated
+  form, `<app>-health`, `<app>-<topic>`, minted in the repository and never changed after first publish.
+- **Tags.** `<team>` and `<app>` on every dashboard; `env` is a variable, not a tag. Experiments carry
+  the `TEST:` name prefix plus the author's initials as a tag and are deleted when done; tags are
+  never copied when a dashboard is duplicated.
+- **Time.** Default window `now-6h` to `now`; auto-refresh `1m` on health dashboards, off on anything
+  with a range over a day. **Timezone is deliberately not pinned** `[sourced: owner, 2026-08-22]` —
+  leave `timezone` unset so each dashboard inherits the org default and each viewer sees their own
+  local time. The trade-off to know rather than re-litigate: two people comparing the same spike from
+  different regions are reading different clocks, so quote an absolute UTC time (or paste the URL,
+  which carries the range) when handing evidence to someone else.
+- **Variables, in this order:** `datasource` (type data source, the only way a panel names its
+  backend), `env`, `app` (constant on per-app dashboards), `instance`, `route`; all multi-value
+  selectors use `allValue: ".+"` and `${var:regex}`.
+- **Data sources.** Panels never name a data source directly — they reference `${datasource}`, and
+  the variable's default carries the environment. Fill this in per instance from
+  `GET /api/datasources` on that instance; do not copy a uid between environments, and do not assume
+  a source's *name* tells you which backend it points at.
+
+  | Environment | Grafana URL | Metrics source name / uid | Logs source name / uid |
+  |---|---|---|---|
+  | Production | `<url>` | `<name>` / `<uid>` | `<name>` / `<uid>` |
+  | Non-production | `<url>` | `<name>` / `<uid>` | `<name>` / `<uid>` |
+
+  All four uids are `[unverified]` — read them from the target rather than from this table until
+  someone fills it in. Wavefront- and Splunk-backed panels name their own data source and are not
+  switched by this variable; whether those Enterprise plugins are licensed on a given instance is a
+  per-instance check (`GET /api/plugins`), not something this file can assert.
 
 ## Alert inventory
 

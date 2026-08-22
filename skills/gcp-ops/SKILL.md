@@ -10,11 +10,6 @@ description: >-
 compatibility: Requires the gcloud CLI and viewer access to the target GCP project
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # GCP application-side triage (gcloud, read-only)
 
 The migration's Cloud Run lane. Observe the service and assemble evidence; state-changing commands

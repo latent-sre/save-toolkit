@@ -9,11 +9,6 @@ description: >-
 argument-hint: "[trace id, service, or latency question]"
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Traces — the investigation shape
 
 Use a trace when the question is about one request's path, ordering, or latency allocation. Logs are

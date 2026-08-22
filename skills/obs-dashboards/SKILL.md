@@ -1,115 +1,160 @@
 ---
 name: obs-dashboards
 description: >-
-  Grafana 13 dashboards as code — layout for the 3am reader (top-level health → drill-down), panel
-  hygiene, variables, provisioning, and data-source licence facts. Triggers: 'build a dashboard',
-  'what should we dashboard', 'dashboard as code', 'add a panel for'. Ownership map only—not a load:
-  frontend-craft owns product-UI data visualizations and obs-alerting owns alert rules.
-argument-hint: "[service, dashboard question, or dashboard change]"
+  Grafana 13 dashboards — view, create, edit, and export them over the HTTP API and keep them as
+  code: 3am-reader layout (health, golden signals, drill-down), official best-practice rules,
+  Classic/V1/V2 schemas, variables, provisioning and Git Sync, the read-diff-write-verify-commit
+  loop, Viewer/Editor workflows, data-source licence facts. Triggers: 'build a dashboard', 'edit a
+  dashboard', 'add a panel for', 'dashboard as code'. Ownership map only, not a load: frontend-craft
+  owns product-UI charts, obs-alerting owns alert rules, sre owns an active incident.
+argument-hint: "[service, dashboard uid, or dashboard change]"
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
-# Grafana 13 operations dashboards as code
+# Grafana 13 operations dashboards — as code, applied by the agent
 
 A dashboard must answer the on-call reader's next question quickly under stress. Start with service
 health, preserve a single time context, and make every lower row a deliberate drill-down. This skill
-owns Grafana operations dashboards; product-UI charts inside the application remain frontend work.
-Alert-rule definitions and notification routing remain alerting work.
+owns Grafana operations dashboards end to end: the agent reads, creates, and edits them on the live
+instance over the HTTP API and keeps the repository copy authoritative. Product-UI charts inside the
+application remain frontend work; alert-rule definitions and notification routing remain alerting work.
 
-**Version evidence — `[sourced]` (reviewed 2026-07-14; re-checked 2026-08-19, current upstream release 13.2.0).** Grafana's
-[v13 documentation](https://grafana.com/docs/grafana/latest/whatsnew/whats-new-in-v13-0/) records
-Dynamic Dashboards and Git Sync as generally available in Grafana 13; the upstream
-[v13.1.0 release](https://github.com/grafana/grafana/releases/tag/v13.1.0) was published 2026-07-01.
-Validate the deployed minor version and enabled features before relying on either capability.
-**13.2.0 (released 2026-08-18) deprecates scripted dashboards and disables them by default** — any
-legacy `.js` scripted dashboard stops rendering on that upgrade unless the feature is re-enabled,
-which is a migration task, not a toggle to flip in prod. The same release removes the
-`alertingSaveStateCompressed` feature flag. *[sourced: grafana/grafana v13.2.0 release notes;
-reviewed 2026-08-21]*
+**Version facts that change what you do** — deployed 13.1.x, 13.2.0 planned (`stack-profile`):
+dynamic dashboards (schema V2) and Git Sync are GA and on since 13.0; legacy `/api` is deprecated in
+favour of `/apis`, still served but no longer updated; **13.2.0 disables scripted dashboards** (they
+fail with HTTP 410 unless `disableScriptedDashboards=false`; removed in Grafana 14) and is the
+alerting **security floor** (CVE-2026-17183). The 13.1 → 13.2 dashboard surface is otherwise
+unchanged — same version set, `schemaVersion` stays 42, no migration step — but 13.2.0 has an open
+regression where bundled data-source plugins go missing after upgrade (#130921), so render a panel
+before trusting a dashboard's silence, and export everything first as the rollback.
+*[sourced: whats-new v13.0–13.2; verified against tags v13.1.4 and v13.2.0]*
+
+## The loop — every create or edit
+
+Adapted from Grafana's own agent skill for `gcx`; the definition of done is the last step, not the
+write call.
+
+1. **Name the dashboard's job** in one sentence — the question it answers for whom. "If the dashboard
+   doesn't have a goal, then ask yourself if you really need the dashboard."
+2. **Preflight the instance, then discover — never invent.** On an unfamiliar Grafana run the
+   eight-call preflight in [http-api](./references/http-api.md) first: version and edition, **what
+   your token may actually do**, org/namespace, which API versions are served and which is preferred,
+   data-source uids, whether a renderer exists, the feature toggles, and what is really there. Then
+   take every identifier from the target — "Do not invent PromQL, LogQL, datasource UIDs, label
+   names, or folder UIDs." An empty search from a token without `dashboards:read` looks exactly like
+   an empty instance, so check the grants before believing a negative.
+3. **Read the live model with the API version pinned** and export it; that export is the rollback.
+4. **Author in the repository copy**, following the rules below and [json-model](./references/json-model.md).
+5. **Validate**: `python skills/obs-dashboards/scripts/dashboard_hygiene.py <file>` — the bundled,
+   stdlib-only checker for the panel rules below (exit 0 clean, 1 violations, 2 uncheckable); then
+   `dashboard-linter lint --strict` where the binary is available, since it validates PromQL properly.
+   Confirm the schema you wrote is the schema it will be stored as.
+6. **Show the diff and the target**, then write with the version you read and `overwrite: false`
+   ([http-api](./references/http-api.md)). A 409/412 re-reads; it never forces.
+7. **Verify**: read it back, prove each changed query returns data on a real window, look at a
+   rendered panel when a renderer exists — "Do not claim the dashboard was visually reviewed when it
+   was not."
+8. **Export and commit** the applied JSON to the dashboards-as-code path in the same task, with the
+   PR/commit in the save message. A write that is not committed is an unreviewed snowflake.
+9. **Close with the evidence line, every time.** What you proved against the instance `[verified]`,
+   what came from this skill or the docs `[sourced]`, what you could not check `[unverified]`.
+   Naming no `[unverified]` item is itself a claim — the usual unchecked ones are which schema the
+   target stores, whether the data-source plugin is licensed, whether a renderer exists, and the
+   target's real cardinality.
+
+Under `observability-engineer` this is the **dashboard write rule** in its change ladder — the one
+live apply that lane performs itself, production included, only when steps 2–8 hold in order.
+Anything beyond dashboards and their folders stays recommend-only.
+
+## Design rules
+
+- Each dashboard answers one question. No goal, no dashboard.
+- **"The first screen should answer 'is there a problem and where should I look next?'"** Fewer,
+  decision-oriented panels over metric inventory; under ~20 panels.
+- USE for machines, RED for services; page from RED, not from causes.
+- No sprawl: variables instead of copies, never copy tags, `TEST:` prefix plus an owner tag on
+  experiments and delete them when done, experiment on a non-production instance.
+- Document: a Text panel for purpose and links, a description on every panel.
+- Cross-reference: dashboard links carrying time range and variables; most dashboards reachable from
+  an alert.
+- Refresh no faster than the data changes; no auto-refresh on long ranges.
+- Thresholds only where they encode an operational decision; colours mean something; normalise axes
+  (percent, not raw cores); stacking off by default.
+
+*[sourced: docs build-dashboards/best-practices; grafana/gcx create-dashboard skill]*
 
 ## Layout — top to bottom
 
-1. **Health / SLO row.** Show the service's SLI, target, current burn, and budget remaining together.
-   The first screen answers whether user impact exists and whether the error budget is being consumed.
-2. **Golden-signals row.** Keep traffic, errors, latency (p50/p95/p99), and saturation on one aligned
-   time range. Use rates and ratios where volume changes would make raw counts misleading.
-3. **Drill-down rows.** Break down the same signals by dependency, route, instance, region, or failure
-   class. A drill-down should test a response hypothesis; omit panels that do not change a decision.
+1. **Health / SLO row.** SLI, target, current burn, budget remaining together. The first screen answers
+   whether user impact exists and whether the error budget is being consumed.
+2. **Golden-signals row.** Traffic, errors, latency (p50/p95/p99), saturation on one aligned time range;
+   rates and ratios, not raw counts.
+3. **Drill-down rows.** The same signals by dependency, route, instance, region, or failure class. Each
+   tests a response hypothesis; omit panels that do not change a decision. One row per service, row
+   order following the data flow.
 
-## Panel hygiene
+## Panel and variable hygiene
 
-- Title each panel as the question it answers, such as "Is checkout p99 latency breaching target?".
-- Set units, legends, null handling, and the expected data delay explicitly. A blank panel must not look
-  healthy: distinguish no traffic, a failed query, and missing telemetry.
-- Tie thresholds to an SLO or a documented operating limit. Avoid decorative red/amber/green bands.
-- Use latency percentiles rather than averages and error ratios rather than raw error counts.
-- Default to the useful incident window (usually the last 1–6 hours), the agreed timezone, and the same
-  range across panels. Provide links that preserve time range and variables.
+- Title each panel as the question it answers; description, unit, and "no value" set explicitly. A
+  blank panel must not look healthy: distinguish no traffic, a failed query, and missing telemetry.
+- Latency percentiles not averages; error ratios not raw error counts; counters through
+  `rate()`/`increase()` with `$__rate_interval`, never a fixed window or `$__interval`.
+- One `datasource`-type variable named `datasource`, used as `${datasource}` in every target; bounded
+  variables (`app`, `env`, `instance`, `route`, `job`) with `allValue: ".+"` and `${var:regex}` in
+  regex matchers; a textbox for anything high-cardinality. Verify the expanded query's cardinality
+  before review.
+- Default to the useful incident window (1–6 h), the team timezone, one range across panels, and links
+  that preserve range and variables. Pin "Max data points" when a stat must not change with panel width.
+- A data-source variable switches between sources of the same type (prod/non-prod Mimir); it cannot
+  make one panel portable between Wavefront/WQL and Splunk/SPL.
 
-## Variables
+The field-level rules, the three schemas, and the linter checklist are in
+[json-model](./references/json-model.md).
 
-- Use bounded variables such as `app`, `env`, `instance`, and `route` so one reviewed dashboard serves
-  multiple services without unbounded queries.
-- A data-source variable may switch between sources of the same type, such as production and non-production
-  metrics. It cannot make a single panel portable between Wavefront/WQL and Splunk/SPL.
-- Set a safe default and constrain multi-select or "All" values. Verify the expanded query's cardinality
-  and target scope before review.
+## Data sources
 
-## Data sources — licence facts first
-
-These facts are catalogue/licensing guidance, not proof that this installation is entitled. Confirm the
-active licence and plugin allowlist with the Grafana administrator before provisioning either plugin.
-
-- **Wavefront / VMware Aria Operations for Applications — `[sourced]` (reviewed 2026-07-14).** The
-  [official plugin documentation](https://grafana.com/docs/plugins/grafana-wavefront-datasource/latest/)
-  identifies `grafana-wavefront-datasource` as an **Enterprise** plugin. Its current requirements list
-  Grafana Cloud Pro or Advanced; self-managed use requires an activated on-prem Grafana Enterprise
-  licence. Keep WQL queries in Wavefront-backed panels. **Lifecycle — `[sourced]` (reviewed
-  2026-08-19):** the backend continues as **Broadcom DX OpenExplore** — the Wavefront engine under
-  Broadcom's DX platform; the 2025-10-31 end-of-availability retired the VMware Tanzu Observability
-  offering, not the engine (see `stack-profile`). Whether this Enterprise plugin is supported
-  against a DX OpenExplore tenant is `[unverified]` — confirm with the Grafana administrator before
-  provisioning a new Wavefront-backed panel.
-- **Splunk — `[sourced]` (reviewed 2026-07-14).** The
-  [official installation page](https://grafana.com/docs/plugins/grafana-splunk-datasource/latest/install/)
-  identifies `grafana-splunk-datasource`. It is available with Grafana Cloud Pro or Advanced, or a
-  self-managed Grafana Enterprise licence that includes the plugin; Cloud Free and Starter do not
-  include it. Keep SPL in Splunk-backed panels.
-- **ThousandEyes — `[sourced]` (reviewed 2026-07-14).** No named ThousandEyes Grafana
-  data-source plugin was found in the official product documentation or Grafana catalogue, so do not
-  invent a plugin type or UID. Cisco's
-  [documented Grafana path](https://docs.thousandeyes.com/product-documentation/integration-guides/opentelemetry/observability-platforms/grafana)
-  exports ThousandEyes OpenTelemetry signals to Grafana backends such as Prometheus/Mimir, Tempo, or
-  Loki. Query metrics stored in Prometheus/Mimir with PromQL, not WQL; otherwise link to the ThousandEyes
-  console. This is an inference from the named official integration path, not a claim that no other
-  integration exists.
+Never invent a plugin type or uid, and never assume entitlement: the Wavefront and Splunk plugins are
+**Enterprise**, and no ThousandEyes data-source plugin exists at all — its signals arrive through
+OpenTelemetry into Prometheus/Mimir, Tempo, or Loki and are queried with PromQL. Keep WQL in
+Wavefront-backed panels and SPL in Splunk-backed panels. Confirm the licence and the installed plugin
+list on the target (`GET /api/plugins`) before proposing either; the catalogue evidence and the
+Broadcom DX OpenExplore lifecycle note are in
+[the inventory](./references/wavefront-legacy.md).
 
 ## As code
 
-- Commit the dashboard JSON model with stable dashboard and data-source UIDs. Review query changes,
-  target scope, units, thresholds, links, and failure/no-data behavior in a pull request.
-- Prefer file provisioning or the approved Grafana 13 Git Sync workflow. Treat the UI as a preview and
-  keep the repository as the source of truth; do not create an unreviewed snowflake dashboard.
-- The repository's read-only Grafana MCP configuration is an optional inspection aid. It is not required
-  to author, review, or provision a dashboard and must never carry credentials in tracked configuration.
+- The repository holds the JSON; Grafana holds a copy. Commit stable uids and `${datasource}`
+  references with `current` unpinned; provisioning ignores `version` and overwrites UI saves, so a UI
+  edit is a draft until exported and committed ([provisioning](./references/provisioning.md)).
+- Know which version each dashboard is **stored** at and pin it on reads; the write path decides
+  storage, and a converted read can lose panels while still reporting success
+  ([json-model](./references/json-model.md)).
+- Find drift instead of hoping: `metadata.annotations["grafana.app/saved-from-ui"]` marks a dashboard
+  whose last write came from the browser ([http-api](./references/http-api.md)).
+- `curl` + JSON files is the primary path and works everywhere including CI; `gcx` and the official
+  MCP server are alternatives ([agent-tooling](./references/agent-tooling.md)).
+- Service-account tokens come from the environment at call time and never enter tracked files,
+  transcripts, or handoff packets.
 
 Read only the reference needed for the task:
 
 | Need | Reference |
 |---|---|
-| Dashboard provisioning, JSON models, UIDs, folders, or PR review | [Grafana 13 provisioning](./references/provisioning.md) |
-| Existing Wavefront or Splunk dashboard inventory | [legacy data-source inventory](./references/wavefront-legacy.md) |
+| Instance preflight, search, read, export, import, create, update, verify, version history, drift check; the pre-write checklist; failure table | [dashboard HTTP API](./references/http-api.md) |
+| Check a dashboard's panel hygiene before writing it, with no binary to install | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
+| Field rules, Classic/V1/V2 shapes and skeletons, variables and formats, panel choice and hygiene, export/import, the linter checklist | [JSON model](./references/json-model.md) |
+| Provisioning, Git Sync, repository conventions, CI, rollback | [provisioning and as code](./references/provisioning.md) |
+| gcx, the Grafana MCP server, vendor skill packages, Foundation SDK | [agent tooling](./references/agent-tooling.md) |
+| Help Viewer/Editor users — roles, folder permissions, Explore access, sharing state, annotations | [viewer & editor workflows](./references/viewer-editor-workflows.md) |
+| Existing Wavefront/Splunk dashboard inventory and the team's naming, folder, and timezone conventions | [legacy data-source inventory](./references/wavefront-legacy.md) |
 
 ## Handoff
 
-Hand the reviewed dashboard definition and target-validation gaps to the `observability-engineer` agent. Include the
-dashboard UID/folder, source path, target Grafana version, data-source UIDs, query and variable changes,
-licence checks, screenshots or rendered evidence, and every remaining `[unverified]` item. If the work
-uncovers active user impact or an unknown-cause incident, hand the time-bounded signal evidence to the
-`sre` agent; do not diagnose it in this skill.
-Redact sensitive data visible in screenshots or rendered evidence before attaching; prefer cropped
-panels over full-screen captures and an access-controlled link over an embedded image.
+A finished dashboard task reports: the dashboard uid, folder, and instance; the schema written; the
+diff applied and the version/generation after the write; the evidence that queries returned data and
+whether a visual check was made; the commit that holds the applied JSON; data-source and licence
+checks; and the step-9 evidence line, whose `[unverified]` items are required rather than optional —
+"nothing outstanding" is a claim about the instance you would have had to check to make. If the work uncovers active user impact or an
+unknown-cause incident, hand the time-bounded signal evidence to the `sre` agent; do not diagnose it in
+this skill. New alert rules or SLOs go to `obs-alerting`; a runbook link for a new health row goes to
+`scribe`. Redact sensitive data visible in screenshots or rendered evidence before attaching; prefer
+cropped panels over full-screen captures and an access-controlled link over an embedded image.

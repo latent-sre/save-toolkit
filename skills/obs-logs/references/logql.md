@@ -6,6 +6,19 @@ and [metric-query reference](https://grafana.com/docs/loki/latest/query/metric_q
 [string-quoting guidance](https://grafana.com/docs/loki/latest/query/log_queries/). Confirm the
 deployed Loki version, tenant, labels, parsers, and alert-engine behavior before use.
 
+**Syntax verification — `[verified 2026-08-22]`.** Every query block in this file was executed against
+a live Loki (the `qa-grafana.agenticsre.dev` 13.1.4 instance's Loki source) through
+`POST /api/ds/query`. All 12 parse and execute, including the `pattern` block and the `| json |
+status >= 500 | __error__=""` chain; the example labels are illustrative, so they match no streams.
+The harness was proved to fire first — a stream selector missing a comma, a misspelled `jsonn`
+parser, and an unbalanced aggregation paren were each rejected with a specific parse error.
+
+**The no-data fallback is demonstrated, not just asserted `[verified 2026-08-22]`:** on a selector
+matching nothing, `sum(rate(...))` and `sum(count_over_time(...))` returned **zero frames** — an
+alert on those sees *no data*, not zero — while the same expression with `or on() vector(0)` returned
+a full series of 32 points. That is the difference between an alert that evaluates and one that sits
+in No Data, reproduced against a live Loki.
+
 ## Contents
 
 - Stream selectors and label discipline
