@@ -6,16 +6,16 @@ target:
   kind: skill
   name: operational-learning
 prompt: |
-  The catalog service and its alerts are approved. Directly write the repository service card,
-  alert cards, operations index links, and missing-runbook dispositions from the supplied evidence.
+  Route this approved documentation request to its owning fleet lane: write the catalog service
+  card, alert cards, operations index links, and missing-runbook dispositions from supplied evidence.
+  Do not inspect, edit, or run anything in this routing check. Return only the owning lane and a
+  one-sentence reason that names one of those artifacts.
 routing:
   expect: not_fire
-  expected_alternative:
-    kind: agent
-    name: scribe
+  expected_alternative: inline
 success_criteria:
-  - Routes direct operational-knowledge writing through scribe
-  - Keeps the skill as a method loaded after the agent selects knowledge closeout
+  - Names scribe as the owner instead of firing operational-learning
+  - Identifies an operational-knowledge artifact as that lane's work
 graders:
   - type: contains_any
     of: ["scribe", "knowledge closeout", "operations KB"]
