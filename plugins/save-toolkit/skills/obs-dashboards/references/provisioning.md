@@ -66,11 +66,22 @@ providers:
       foldersFromFilesStructure: true   # then leave `folder` and `folderUid` unset; depth <= 4
 ```
 
-Dashboard files may be Classic JSON or the Kubernetes-style resource (`kind: Dashboard`,
-`apiVersion: dashboard.grafana.app/v1` or `v2beta1`, `metadata.name` = uid, `spec`); V2 requires the
-latter. That shape is Grafana's own API envelope and implies no Kubernetes — a plain self-managed
-Grafana serves and stores it `[verified]`. Use a stable `uid` in every model and refer to data sources through the `${datasource}`
-variable, not installation-specific uids or display names ([json-model](./json-model.md)).
+**What the file provider accepts is `[unverified]`, and the two available sources disagree.** Grafana's
+provisioning documentation states "You _must_ use the Kubernetes resource format to provision
+dashboards v2 / dynamic dashboards", while review of this file reported that the 13.1 file provider
+rejects the app-platform envelope and points callers at `/apis` (citing grafana/grafana #126641 and
+#128167). Neither was tested here: verifying it needs filesystem access to the Grafana host, which
+this work never had. **Until someone runs it on the target, provision Classic JSON through the file
+provider** — the shape both sources agree it accepts — and use the app-platform API or Git Sync for
+V1/V2 resources. Do not let a V2 dashboard's delivery depend on the unsettled case.
+
+Separately and not in doubt: the app-platform **API** accepts and stores the resource envelope on a
+plain self-managed Grafana — created, read back, and deleted at `v1` and `v2beta1` on a
+non-Kubernetes 13.1.4 instance `[verified: QA]`. That is a different surface from the file provider,
+and the original wording here conflated the two.
+
+Use a stable `uid` in every model and refer to data sources through the `${datasource}` variable, not
+installation-specific uids or display names ([json-model](./json-model.md)).
 
 ## Delivery paths
 
