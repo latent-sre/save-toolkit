@@ -15,13 +15,22 @@ routing:
 success_criteria:
   - Delegates to the build lane rather than answering inline or routing to reviewer, sre, or scribe
   - Names the artifact and its tests in the response
+  - States explicitly what was verified, or that nothing was — the disclosure AGENTS.md requires of every result
 graders:
   # Discovery measures selection, not execution: the clean room denies Read/Write/Edit/Bash to the
   # main session AND to every subagent it dispatches, so a routed `sde` can only report, never
-  # build. A grader that demands a verification statement ("ran pytest") is therefore unsatisfiable
-  # here by construction — it failed 3/3 on 2026-08-22 with routing green. Graders below must be
-  # satisfiable by a tool-less, routed response; the routing grader carries the delegation proof.
+  # build. Graders must be satisfiable by a tool-less, routed response; the routing grader carries
+  # the delegation proof.
+  #
+  # The third grader is the fleet's evidence contract, not an execution demand. It was deleted on
+  # 2026-08-22 as "unsatisfiable" and restored the same day after review: a tool-less sde CAN and
+  # MUST say that nothing was verified. Measured against the real transcripts — five honest
+  # refusals ("no command was run", "nothing was executed", "nothing was verified") pass; the one
+  # bare progress note ("I've kicked off the sde agent… I'll report back") fails, and that is a
+  # true red: a result that omits the disclosure violates AGENTS.md whatever the routing did.
   - type: contains_any
     of: ["wordfreq", "word frequency", "most common"]
   - type: contains_any
     of: ["pytest", "test_", "tests"]
+  - type: regex
+    pattern: '\[verified\]|\[unverified\]|not verified|unverified|(?:could ?n.t|cannot|unable to|did not|didn.t|never|nothing (?:was |got )?)[^.\n]{0,40}?\b(?:verif|run\b|ran\b|built|execut|tested)'
