@@ -34,8 +34,9 @@ Every live item carries:
 | Acceptance | Evidence required to close the item |
 | Next action | Smallest safe step that advances it |
 
-An item leaves this file after its acceptance evidence is committed and the change is merged. Git
-history and archived source documents retain the implementation detail.
+An item leaves this file after its acceptance evidence is committed and the change is merged, or
+after an explicit owner disposition is committed with the reason it is no longer work. Git history
+and archived source documents retain the implementation detail.
 
 ## Active runtime work
 

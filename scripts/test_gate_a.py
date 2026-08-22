@@ -47,6 +47,21 @@ class RunStepsTests(unittest.TestCase):
         self.assertEqual([], failed)
         self.assertEqual("", out)
 
+    def test_successful_skips_keep_one_compact_qualification(self) -> None:
+        step = (
+            "platform adapters",
+            ["-c", "print('Ran 38 tests'); print('OK (skipped=2)')"],
+            None,
+        )
+
+        failed, out = self._run([step])
+
+        self.assertEqual([], failed)
+        self.assertEqual(
+            "Gate A: QUALIFIED -- platform adapters: 2 tests skipped\n",
+            out,
+        )
+
     def test_failing_step_is_named_and_later_steps_still_run(self) -> None:
         # The no-bisect contract: one failure must not stop the roster. The marker file proves
         # the step after the failure genuinely executed, not merely appeared in the report.

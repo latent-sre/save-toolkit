@@ -37,14 +37,16 @@ conformance reviews required by CONTRIBUTING.md are the ones that catch that.
 
 OUTPUT
 ------
-A successful default run prints only Gate A's final verdict. Failed steps always retain their full,
-attributed diagnostics. Pass ``--verbose`` when the complete step transcript is useful.
+A successful default run prints Gate A's final verdict plus one compact qualification for each
+successful suite that reported skipped tests. Failed steps always retain their full, attributed
+diagnostics. Pass ``--verbose`` when the complete step transcript is useful.
 """
 
 import argparse
 import contextlib
 import glob
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -52,6 +54,11 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+_SUCCESSFUL_SKIP_RE = re.compile(
+    r"^OK \([^\r\n]*\bskipped=(\d+)\b[^\r\n]*\)$",
+    re.MULTILINE,
+)
 
 # Non-test structural steps that need a fixed position or non-default arguments. Ordered
 # cheapest-and-most-foundational first: a broken validator makes every downstream result
@@ -232,8 +239,9 @@ def run_steps(steps, *, verbose=False):
     properties of the serial gate are deliberately preserved: every step runs even after one
     fails (an agent fixing the fleet wants the whole list of what is broken, not a bisect), and any
     output that is shown prints in roster order regardless of completion order. Successful output is
-    suppressed by default; a failure keeps its complete attributed diagnostics, and ``verbose``
-    restores the full deterministic transcript.
+    suppressed by default except for a compact qualification when unittest reports skips; a failure
+    keeps its complete attributed diagnostics, and ``verbose`` restores the full deterministic
+    transcript.
     """
     def run_one(step):
         _label, argv, env_extra = step
@@ -254,6 +262,13 @@ def run_steps(steps, *, verbose=False):
                 print("\n=== %s ===" % label, flush=True)
                 sys.stdout.write(output)
                 sys.stdout.flush()
+            elif matches := _SUCCESSFUL_SKIP_RE.findall(output):
+                skipped = int(matches[-1])
+                noun = "test" if skipped == 1 else "tests"
+                print(
+                    f"Gate A: QUALIFIED -- {label}: {skipped} {noun} skipped",
+                    flush=True,
+                )
             if rc != 0:
                 failed.append(label)
     return failed

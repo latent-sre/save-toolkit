@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -313,6 +314,21 @@ class WorkflowPolicyTests(unittest.TestCase):
             self.assertIn("release_contract.py", text)
             self.assertIn("release_workflow_contract.py", text)
             self.assertIn("host_install_probe.py", text)
+
+    def test_closed_mutation_campaigns_keep_owner_dispositions(self) -> None:
+        roadmap = self._read("docs/fleet-roadmap.md")
+        linked_record = json.loads(
+            self._read("evals/improvements/fi_mutation_guard_evidence_gaps/record.json")
+        )
+        sweep = self._read("docs/reviews/2026-08-15-fleet-mutation-sweep.md")
+
+        self.assertNotIn("### MUTATION-001", roadmap)
+        self.assertNotIn("### SWEEP-001", roadmap)
+        self.assertIn("explicit owner disposition", roadmap)
+        self.assertEqual("rejected", linked_record["status"])
+        self.assertIn("MUTATION-001 is closed", linked_record["disposition_reason"])
+        self.assertIn("**Owner disposition (2026-08-21):** `not_applicable`", sweep)
+        self.assertIn("owner `latent-sre`", sweep)
 
 
 if __name__ == "__main__":

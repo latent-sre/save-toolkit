@@ -17,7 +17,9 @@ WHAT IT DOES
 For one module supplied with `--module`, it derives the test file(s) that exercise that module,
 rewrites one small piece of its logic, and runs those tests. A mutant that **survives** — the suite
 still passes after the change — is a diagnostic lead, not a defect or backlog item. Turn at most one
-named survivor into a focused red-first regression, prove that regression kills it, then stop.
+named survivor into a focused red-first regression, prove that regression kills it, then stop. The
+CLI stops executing mutants as soon as it finds that first survivor; it does not finish an inventory
+and hide the extra results afterward.
 
 The CLI deliberately refuses an omitted `--module`. Fleet-wide sweeps and survivor inventories cost
 time without establishing a contract; this helper exists only for a bounded question about one file.
@@ -49,9 +51,9 @@ code in front of you. It is a deliberate single-module diagnostic, never a CI or
 
 `--limit` makes it a sampling tool rather than a proof. A clean bounded report means "no survivor
 among the mutants tried"; it never means "the suite is complete", and it never establishes that any
-particular mutant was among those tried. Only an unbounded run -- the default -- covers every
-mutant, which is why the "the test probably never exercises it" verdict is withheld under `--limit`:
-that is a claim about mutants nobody ran, and a bounded observation cannot support it.
+particular mutant was among those tried. The default walks the complete generated population only
+when every mutant is killed. Any survivor stops the run immediately, and the CLI never infers from
+survivors that a test probably does not exercise its subject.
 
 Pure standard library.
 
@@ -114,13 +116,10 @@ class Mutant:
 class Subject:
     """A module a test exercises, and how that link was established.
 
-    Provenance is load-bearing, not bookkeeping. A `sibling` subject (`test_x.py` -> `x.py`) is a
-    link the repository's own convention asserts, so if every mutant of it survives, the test
-    proves nothing and that is the most severe finding this tool can produce. A `literal` subject
-    was inferred from a `.py` string in the test's source, which is often a fixture path rather
-    than an import — there, total survival usually means the test never exercised it at all.
-    Treating both the same is what let a real finding be reported in the same breath as four
-    known-benign path-string artifacts.
+    Provenance is retained for discovery diagnostics: a `sibling` subject follows the repository's
+    `test_x.py` -> `x.py` convention, while a `literal` subject comes from a `.py` string in the
+    test's source and may only be a fixture path. The CLI reports one observed survivor and makes no
+    inference from aggregate survival about whether either kind of subject was exercised.
     """
 
     path: Path
@@ -164,7 +163,8 @@ def mutants(source: str, limit: int = 0) -> list[Mutant]:
     sample can still miss any given mutant, the motivating one included -- over those same 48
     sites `--limit 12` selects 34 and 38, bracketing 35 without ever selecting it. Read the
     difference precisely: even spacing guarantees the sample *spans* the file, not that it
-    *contains* anything in particular. Only an unbounded run tries every mutant.
+    *contains* anything in particular. Only an unbounded selection contains every generated mutant;
+    the CLI still stops executing as soon as one survives.
     """
 
     original = ast.parse(source)
@@ -352,8 +352,14 @@ def run_test(test: Path) -> bool:
     return completed.returncode == 0
 
 
-def surviving_mutants(module: Path, test: Path, limit: int = 0) -> list[Mutant]:
-    """Mutants of *module* that *test* fails to notice.
+def _execute_mutants(
+    module: Path,
+    test: Path,
+    limit: int = 0,
+    *,
+    stop_after_first: bool = False,
+) -> tuple[list[Mutant], int]:
+    """Execute selected mutants and return survivors plus the number actually attempted.
 
     Raises `UnverifiablePair` when the test does not pass against the normalized-but-unmutated
     source, because every mutant verdict downstream of that would be meaningless.
@@ -361,6 +367,7 @@ def surviving_mutants(module: Path, test: Path, limit: int = 0) -> list[Mutant]:
 
     original = module.read_bytes()
     survivors: list[Mutant] = []
+    attempted = 0
     try:
         # Baseline: unparse normalization strips comments and rewrites formatting, so the honest
         # baseline is the normalized source rather than the file as committed.
@@ -373,11 +380,14 @@ def surviving_mutants(module: Path, test: Path, limit: int = 0) -> list[Mutant]:
                 "no mutant result from this pair can be trusted"
             )
         for mutant in mutants(original.decode("utf-8"), limit=limit):
+            attempted += 1
             # newline="\n" matters: without it Windows translates to CRLF, so the subject differs
             # from the committed bytes in a way unrelated to the mutation.
             module.write_text(mutant.mutated_source, encoding="utf-8", newline="\n")
             if run_test(test):
                 survivors.append(mutant)
+                if stop_after_first:
+                    break
     finally:
         module.write_bytes(original)
         if module.read_bytes() != original:  # pragma: no cover - filesystem failure
@@ -385,6 +395,17 @@ def surviving_mutants(module: Path, test: Path, limit: int = 0) -> list[Mutant]:
                 f"FAILED TO RESTORE {module}. This path is inside the throwaway worktree, not your "
                 "checkout, so nothing of yours is damaged; discard it with `git worktree prune`"
             )
+    return survivors, attempted
+
+
+def surviving_mutants(module: Path, test: Path, limit: int = 0) -> list[Mutant]:
+    """All selected mutants of *module* that *test* fails to notice.
+
+    The CLI uses `_execute_mutants(..., stop_after_first=True)` instead; this complete result remains
+    useful for focused unit assertions about the detector itself.
+    """
+
+    survivors, _attempted = _execute_mutants(module, test, limit=limit)
     return survivors
 
 
@@ -488,13 +509,12 @@ def _sample_limit(raw: str) -> int:
     except ValueError:
         raise argparse.ArgumentTypeError(f"{raw!r} is not an integer") from None
     if value < 0:
-        raise argparse.ArgumentTypeError("must be 0 (every mutant) or a positive sample size")
+        raise argparse.ArgumentTypeError("must be 0 (no sample cap) or a positive sample size")
     return value
 
 
 def is_inconclusive(
     unverifiable: Sequence[object],
-    unexercised: Sequence[object],
     blind: Sequence[object],
     attempted: int,
 ) -> bool:
@@ -506,7 +526,7 @@ def is_inconclusive(
     strictly more uninspected than a surviving mutant, and reporting it as a pass is the exact
     false-clean this tool exists to detect, committed by the tool itself.
     """
-    return bool(unverifiable or unexercised or blind or not attempted)
+    return bool(unverifiable or blind or not attempted)
 
 
 def _restore_on_termination() -> None:
@@ -556,7 +576,6 @@ def _run_sweep(args: argparse.Namespace) -> int:
 
     findings: list[tuple[Path, Path, Mutant]] = []
     unverifiable: list[str] = []
-    unexercised: list[str] = []
     checked = 0
     attempted = 0
     for test, subjects in discover(args.root):
@@ -570,8 +589,12 @@ def _run_sweep(args: argparse.Namespace) -> int:
                 # Inside the try: read_text and ast.parse raise the same four types the handler
                 # below catches, and leaving them outside reintroduced the sweep-aborting crash
                 # this handler was added to close.
-                tried = len(mutants(module.read_text(encoding="utf-8"), limit=args.limit))
-                survivors = surviving_mutants(module, test, limit=args.limit)
+                survivors, tried = _execute_mutants(
+                    module,
+                    test,
+                    limit=args.limit,
+                    stop_after_first=True,
+                )
                 # Counted only on the path that actually executed, so the reported sample size
                 # cannot include mutants belonging to a pair that never ran.
                 attempted += tried
@@ -589,37 +612,12 @@ def _run_sweep(args: argparse.Namespace) -> int:
             ) as exc:
                 unverifiable.append(f"cannot mutate {module.name}: {exc}")
                 continue
-            # Collapse ONLY inferred subjects, and ONLY on an unbounded run.
-            #
-            # Inferred: a `.py` string in a test is often a fixture path, so total survival there
-            # usually means the test never exercised the module and `tried` separate findings would
-            # bury the real ones. A sibling subject is different — the repository's own naming
-            # convention asserts that link, so total survival is the most severe finding this tool
-            # can produce and must stay a finding. Collapsing both traded one false clean for
-            # another.
-            #
-            # Unbounded: under `--limit`, `tried` is the sample size, not the mutant population, so
-            # `len(survivors) == tried` says only that every *sampled* mutant survived. A module the
-            # test genuinely exercises can sample that way, and calling it unexercised would be this
-            # tool asserting a strong negative from a bounded observation — the same overclaim it
-            # exists to detect. Bounded runs report the survivors they actually saw instead.
-            every_mutant_survived = bool(survivors) and len(survivors) == tried
-            inferred = subject.origin == "literal"
-            if every_mutant_survived and inferred and not args.limit:
-                unexercised.append(
-                    f"{module.relative_to(args.root).as_posix()} <- {test.name}: "
-                    f"all {tried} mutants survived an inferred (non-sibling) pairing "
-                    "on an unbounded run; the test probably never exercises it"
-                )
-                continue
             if survivors:
                 findings.append((test, module, survivors[0]))
                 break
         if findings:
             break
 
-    for message in unexercised:
-        print(f"mutation_guard: unexercised -- {message}", file=sys.stderr)
     for message in unverifiable:
         print(f"mutation_guard: unverifiable -- {message}", file=sys.stderr)
 
@@ -629,13 +627,12 @@ def _run_sweep(args: argparse.Namespace) -> int:
     summary = (
         f"no surviving mutants among {attempted} executed across {checked} pair(s), "
         f"limit={args.limit or 'none'}, {len(unverifiable)} unverifiable, "
-        f"{len(unexercised)} unexercised, {len(blind)} with no subject derived"
+        f"{len(blind)} with no subject derived"
     )
     if not findings:
-        if is_inconclusive(unverifiable, unexercised, blind, attempted):
+        if is_inconclusive(unverifiable, blind, attempted):
             # Never lead with PASS when something went uninspected. The word is what a reader and
-            # a log scraper take away, and "PASS" over an unexercised bucket is this tool
-            # committing the false-clean it exists to detect.
+            # a log scraper take away; a blind or unverifiable run cannot support that claim.
             print(f"mutation_guard: INCONCLUSIVE -- {summary}")
             return EXIT_INCONCLUSIVE
         print(f"mutation_guard: PASS -- {summary}")
@@ -647,11 +644,11 @@ def _run_sweep(args: argparse.Namespace) -> int:
         f"  {module.relative_to(args.root).as_posix()}:{mutant.lineno} "
         f"[{mutant.description}] survived {test.name}"
     )
-    print("Other survivors are intentionally not inventoried.")
+    print("Further mutants are intentionally not executed or inventoried.")
     print("\nA survivor may be equivalent or irrelevant to the intended contract.")
     print("A survivor count is not a finding or backlog item.")
     print("Pin one named survivor with a focused red-first test, then stop.")
-    return EXIT_INCONCLUSIVE if (unverifiable or unexercised) else EXIT_SURVIVORS
+    return EXIT_INCONCLUSIVE if unverifiable else EXIT_SURVIVORS
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -661,7 +658,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--limit",
         type=_sample_limit,
         default=DEFAULT_LIMIT,
-        help="mutants per module as an evenly spaced sample; 0 means every mutant (slow)",
+        help=(
+            "mutants per module as an evenly spaced sample; 0 removes the sample cap; "
+            "execution always stops at the first survivor"
+        ),
     )
     parser.add_argument(
         "--module",

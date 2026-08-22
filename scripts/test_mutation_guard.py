@@ -386,14 +386,34 @@ class MainReportingTests(unittest.TestCase):
         self.assertIn("PASS", output)
 
     def test_a_sibling_pair_reports_one_named_survivor_not_an_inventory(self) -> None:
-        """Even when two mutants survive, the CLI creates one diagnostic lead, not a work list."""
+        """Even when later mutants would survive, the CLI creates one lead and stops."""
         code, output = self._run_main(self._repository(BLIND_TEST))
         self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
         self.assertIn("surviving mutant", output)
         self.assertEqual(1, output.count("survived test_subject.py"), output)
-        self.assertIn("Other survivors are intentionally not inventoried", output)
+        self.assertIn("Further mutants are intentionally not executed or inventoried", output)
         self.assertNotIn("unexercised", output)
         self.assertNotIn("PASS", output)
+
+    def test_cli_stops_execution_after_first_surviving_mutant(self) -> None:
+        """The one-lead contract bounds execution, not merely the printed survivor list."""
+        with tempfile.TemporaryDirectory() as temporary:
+            counter = Path(temporary) / "test-runs.txt"
+            counting_test = BLIND_TEST.replace(
+                "import os, sys, unittest\n",
+                "import os, sys, unittest\n"
+                f"with open({str(counter)!r}, 'a', encoding='utf-8') as stream:\n"
+                "    stream.write('run\\n')\n",
+            )
+
+            code, output = self._run_main(self._repository(counting_test))
+
+            self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
+            self.assertEqual(
+                2,
+                len(counter.read_text(encoding="utf-8").splitlines()),
+                "expected one baseline run and one surviving-mutant run, then an immediate stop",
+            )
 
     def test_an_unverifiable_pair_never_reports_pass(self) -> None:
         root = self._repository(HONEST_TEST)
@@ -469,8 +489,8 @@ class ExitStatusTests(unittest.TestCase):
         code, output = self._run_guard_here("--limit", "half")
         self.assertEqual(mutation_guard.EXIT_USAGE, code, output)
 
-    def test_zero_limit_runs_all_mutants_for_the_named_module(self) -> None:
-        """Zero means every mutant in the named module; it is not a fleet-wide target."""
+    def test_zero_limit_removes_the_sample_cap_for_the_named_module(self) -> None:
+        """Zero keeps the full named-module population available; it is not a fleet target."""
         code, output = self._run_guard_here("--limit", "0")
         self.assertEqual(0, code, output)
         self.assertNotIn("usage:", output.lower())
@@ -493,15 +513,8 @@ class ExitStatusTests(unittest.TestCase):
         )
 
 
-class SampledCollapseTests(unittest.TestCase):
-    """A sampled all-survivor result may never be reported as "the test never exercises it".
-
-    The collapse rule was `len(survivors) == tried`, where under `--limit` *tried* is the sample
-    size rather than the mutant population. A module the test genuinely exercises could therefore be
-    labelled unexercised because the one or two mutants that happened to be sampled survived — the
-    tool asserting a strong negative from a bounded observation, which is the same overclaim it
-    exists to detect.
-    """
+class SingleSurvivorTests(unittest.TestCase):
+    """A run reports one observed survivor and never infers aggregate coverage from it."""
 
     def _repository(self, test_body: str) -> Path:
         return _git_repository(
@@ -542,15 +555,15 @@ class SampledCollapseTests(unittest.TestCase):
         self.assertEqual(1, output.count("scripts/other.py:5"), output)
         self.assertEqual(0, output.count("scripts/other.py:9"), output)
 
-    def test_an_unbounded_run_still_collapses_a_genuinely_unexercised_pair(self) -> None:
-        """The narrowing must not delete the rule. An inferred subject the test never imports still
-        collapses to one message on an unbounded run, and never reports PASS."""
+    def test_an_unexercised_pair_still_stops_at_one_observed_survivor(self) -> None:
+        """Even a likely-bad inferred pairing does not justify inventorying the population."""
         root = self._repository(NAMES_OTHER_WITHOUT_IMPORTING_TEST)
         code, output = _run_guard(root, "--module", "scripts/other.py")
-        self.assertEqual(mutation_guard.EXIT_INCONCLUSIVE, code, output)
-        self.assertIn("probably never exercises it", output)
+        self.assertEqual(mutation_guard.EXIT_SURVIVORS, code, output)
+        self.assertIn("surviving mutant", output)
+        self.assertNotIn("probably never exercises it", output)
         self.assertNotIn("PASS", output)
-        self.assertEqual(1, output.count("probably never exercises it"), output)
+        self.assertEqual(1, output.count("survived test_subject.py"), output)
 
     def test_a_bounded_run_of_the_unexercised_pair_reports_survivors_instead(self) -> None:
         """Bounded, the same genuinely-unexercised pair may not borrow the unbounded conclusion: it
@@ -629,12 +642,13 @@ class SamplingHonestyTests(unittest.TestCase):
         invites the reader to infer that the evenly spaced sample includes it. It does not."""
         documentation = self._prose(mutation_guard.mutants.__doc__)
         self.assertIn("evenly spaced sample can still miss", documentation)
-        self.assertIn("unbounded run", documentation)
+        self.assertIn("unbounded selection contains every generated mutant", documentation)
+        self.assertIn("CLI still stops executing as soon as one survives", documentation)
 
-    def test_the_module_docstring_scopes_the_unexercised_claim_to_unbounded_runs(self) -> None:
+    def test_the_module_docstring_promises_execution_stops_at_one_survivor(self) -> None:
         documentation = self._prose(mutation_guard.__doc__)
-        self.assertIn("unbounded run", documentation)
-        self.assertIn("probably never exercises it", documentation)
+        self.assertIn("stops executing mutants as soon as it finds that first survivor", documentation)
+        self.assertNotIn("probably never exercises it", documentation)
 
 
 class DiscoveryTests(unittest.TestCase):
@@ -727,19 +741,18 @@ class InconclusiveVerdictTests(unittest.TestCase):
     def test_blind_test_files_alone_make_a_run_inconclusive(self) -> None:
         # The regression: this returned False, so a run in which NO subject could be derived for
         # any test file still printed PASS.
-        self.assertTrue(mutation_guard.is_inconclusive([], [], ["scripts/test_x.py"], 12))
+        self.assertTrue(mutation_guard.is_inconclusive([], ["scripts/test_x.py"], 12))
 
     def test_a_fully_inspected_run_is_conclusive(self) -> None:
         # The complement matters as much: if this returned True the tool could never say PASS, and
         # the assertion above would pass for the wrong reason.
-        self.assertFalse(mutation_guard.is_inconclusive([], [], [], 12))
+        self.assertFalse(mutation_guard.is_inconclusive([], [], 12))
 
     def test_each_uninspected_bucket_is_sufficient_on_its_own(self) -> None:
         for label, args in (
-            ("unverifiable", (["pair"], [], [], 12)),
-            ("unexercised", ([], ["pair"], [], 12)),
-            ("blind", ([], [], ["test"], 12)),
-            ("nothing attempted", ([], [], [], 0)),
+            ("unverifiable", (["pair"], [], 12)),
+            ("blind", ([], ["test"], 12)),
+            ("nothing attempted", ([], [], 0)),
         ):
             with self.subTest(bucket=label):
                 self.assertTrue(mutation_guard.is_inconclusive(*args))
