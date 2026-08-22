@@ -372,8 +372,8 @@ defer scenario alone.
 
 ### GRADER-001 — reconcile the 2026-08-11 scenario graders with what the skills teach
 
-**Status:** `decision-needed` (2026-08-20) — the measurement is done and unambiguous; the direction
-is a design decision the owner has reserved for review.
+**Status:** `active` (2026-08-22) — the owner approved option (b), and its acceptance is met in the
+current branch. The item leaves this file when the branch merges.
 
 **Outcome:** The scenario graders and the canonical skills agree on one output contract. Either the
 skills teach the named-field packet the graders require, or the graders assert behavior instead of
@@ -451,9 +451,41 @@ evidence commands inline. A red-first check in `evals/test_graders.py` fails if 
 the fence-free answer shape is removed. This closes the Cloud Run contradiction without a paid rerun;
 it does not decide the remaining 2026-08-11 observability packet-shape options.
 
-**Next action:** Owner review of the three remaining observability options, with the calibration
-distinction above. Evidence is in
-[`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
+**Owner decision and implementation (2026-08-22): option (b), bounded.** The thirteen observability
+discovery cases no longer duplicate a named-field packet. Nine retain one routing-sanity check; four
+existing cases own one focused behavior contract each (`obs-alerting`, `obs-logs`, `obs-metrics`, and
+`obs-traces`). The checks cover observable behavior such as a bounded query, rate-before-aggregation,
+histogram p95, zero-traffic semantics, critical-path accounting, scoped throttling, and delivery
+verification. Equivalent wording and multiline query formatting are accepted. No LLM judge, shared
+grader framework, or new scenario was added; four provisional direct cases were removed, so the suite
+remains **76 scenarios**.
+
+The research supported scorer/property alignment, not more ceremony. Context7's current Claude Code
+documentation shows reference-backed skills paired with filesystem read tools in the official SDK
+example ([Claude Code features](https://code.claude.com/docs/en/agent-sdk/claude-code-features)); this
+repo's clean room deliberately exposes only `Skill,Task` and denies `Read`. GitHits evidence from
+[Promptfoo](https://github.com/promptfoo/promptfoo/blob/127d90534b9c1b1ba4554f007dd4b5fd2c8bf1b4/src/assertions/trajectory.ts#L136-L219),
+[OpenAI Evals](https://github.com/openai/evals/blob/8eac7a7de5215c907fbddc30efdaf316913eccdd/evals/elsuite/basic/json_match.py#L12-L44),
+and [Braintrust Autoevals](https://github.com/braintrustdata/autoevals/blob/b0e1055892bea1305a10f8d42fdc47ff1b41ffa4/evals/src/sync_datasets.ts#L113-L131)
+separates deterministic observable facts from semantic free-form quality and calibrates with paired
+positive/negative examples. The implementation therefore uses tolerant deterministic checks only for
+objective facts and does not buy a second model call to judge prose.
+
+**Calibration and mutation evidence.** Run `20260822T205426Z-4604aa4b` is not accepted as a `0/4`
+behavior verdict: three trials timed out, one completed response correctly declined after the clean
+room prevented a mandatory reference read, and four completed behavior-correct responses were rejected
+by literal wording checks. After calibration, those four responses plus two prior correct alerting
+responses pass the new contracts. The placement contract first failed **12** checks, prompt/grader
+alignment first failed **4**, and deleting one load-bearing grader from each named behavior case made
+its matching defect pass incorrectly (three runs were **422/423**; the trace deletion was **421/423**);
+every deletion was restored. Final evidence is `evals/test_graders.py` **423/423**,
+`evals/run_evals.py --validate` **76 scenarios**, and a clean
+`git diff --check`. No further paid rerun is required for this decision. Widening the clean-room `Read`
+boundary for reference-backed direct skills would be a separate safety decision, not hidden inside
+GRADER-001.
+
+**Next action:** Merge the bounded grader repair, then remove GRADER-001 from the live roadmap. Evidence
+history remains in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
 
 ### SCRIPTS-001 — one frontmatter reader instead of three that disagree
 

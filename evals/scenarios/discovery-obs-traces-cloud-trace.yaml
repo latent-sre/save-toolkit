@@ -7,17 +7,27 @@ target:
   name: obs-traces
 prompt: |
   A single checkout request on Cloud Run is slow and I have its Cloud Trace trace ID. Show how to
-  follow that request across services and identify which span consumed the latency. This is trace
-  interpretation only, not a general incident investigation.
+  follow that request across services and identify the latency-controlling span without
+  double-counting nested spans. Include a known-normal comparison, sampling limits, and the UTC
+  window that bounds the evidence. This is trace interpretation only, not a general incident
+  investigation.
 routing:
   expect: fire
 success_criteria:
   - Routes Cloud Trace request-path analysis to the traces lane
-  - Explains how spans and duration identify the slow leg
+  - Uses the critical path without double-counting and bounds the comparison and sampling claims
 graders:
+  - type: contains_any
+    of: ["Trace explorer", "Cloud Trace"]
   - type: contains_all
-    of: ["Trace explorer", "service", "latency", "status", "TraceQL does not apply"]
-  - type: contains_all
-    of: ["critical path", "nested span durations", "known-normal"]
-  - type: contains_all
-    of: ["absolute UTC window", "sampling caveat", "[unverified]"]
+    of: ["critical path", "trace ID"]
+  - type: regex
+    pattern: '\b(?:(?:do not|don''t|never|without|avoid(?:ing)?)[^\n.]{0,60}(?:sum(?:ming)?|add(?:ing)?)[^\n.]{0,60}(?:nested|parent|child)|nested (?:span )?durations[^\n.]{0,60}(?:overlap|double-count))\b'
+  - type: not_regex
+    pattern: '\b(?:should|must|then|so|therefore)\s+(?:sum|add|total)[^\n.]{0,40}nested(?: span)? durations\b'
+  - type: contains_any
+    of: ["known-normal", "known normal", "normal trace", "comparison trace"]
+  - type: regex
+    pattern: '\bsampl(?:e|ed|ing)\w*\b'
+  - type: contains_any
+    of: ["absolute UTC window", "bounded UTC window", "UTC window", "UTC timestamp", "time window", "lookup window"]

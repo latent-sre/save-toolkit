@@ -18,29 +18,5 @@ success_criteria:
   - Routes DataStream alert design to the alerting lane
   - Does not expand a detection-gap request into Akamai edge triage
 graders:
-  - type: contains_all
-    of: ["numerator", "denominator", "minimum traffic"]
-  - type: regex
-    pattern: '^Minimum traffic:\s*[1-9]\d*\s+(?:valid\s+)?requests\b'
-  - type: regex
-    pattern: '^Evaluation window:\s*[1-9]\d*\s*(?:m|min|minutes)\b'
-  - type: regex
-    pattern: '^Schedule:\s*(?:every\s+)?[1-9]\d*\s*(?:m|min|minutes)\b'
-  - type: regex
-    pattern: '^Window/schedule relationship:\s*.*\b(?:equal|equals|match|matches|same|both|gap|gaps|overlap|cadence)\b'
-  - type: regex
-    pattern: '^Throttle key:\s*.*\bproperty\b.*\bservice\b|^Throttle key:\s*.*\bservice\b.*\bproperty\b'
-  - type: regex
-    pattern: '^Throttle period:\s*[1-9]\d*\s*(?:m|min|minutes)\b'
-  - type: regex
-    pattern: '^Escalation time-box:\s*[1-9]\d*\s*(?:m|min|minutes)\b'
-  - type: regex
-    pattern: '^Throttle relationship:\s*.*(?:\b(?:suppression|throttle)\b(?:(?!\b(?:not|never|no|cannot|doesn(?:\x27|\u2019)t|isn(?:\x27|\u2019)t|won(?:\x27|\u2019)t|can(?:\x27|\u2019)t)\b)[^\n])*\b(?:ends?|expires?)\b[^\n]*\bbefore\b[^\n]*\bescalation\b|\b(?:suppression|throttle)\b(?:(?!\b(?:not|never|no|cannot|doesn(?:\x27|\u2019)t|isn(?:\x27|\u2019)t|won(?:\x27|\u2019)t|can(?:\x27|\u2019)t)\b)[^\n])*\b(?:shorter(?:\s+than)?|less\s+than)\b[^\n]*\bescalation\b|\b(?:suppression|throttle)\b[^\n]*\b(?:does\s+not|cannot)\s+outlast\b[^\n]*\bescalation\b)'
-  - type: regex
-    pattern: '^Owner:\s*(?!<|tbd\b|unknown\b).+\S'
-  - type: regex
-    pattern: '^Notification route:\s*(?!<|tbd\b|unknown\b).+\S'
-  - type: regex
-    pattern: '^Runbook (?:URL|url):\s*https?://\S+'
-  - type: contains_all
-    of: ["force", "fire", "throttle", "notification delivery", "resolve", "[unverified]"]
+  - type: contains_any
+    of: ["observe it fire", "fire and resolve", "notification delivery"]

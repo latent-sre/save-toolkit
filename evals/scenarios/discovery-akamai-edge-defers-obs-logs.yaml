@@ -18,9 +18,5 @@ success_criteria:
   - Routes a DataStream backend query to the log-query lane
   - Does not reopen Akamai edge triage when the requested work is SPL construction
 graders:
-  - type: contains_all
-    of: ["index=", "earliest=-1h", "| bin _time span=5m"]
-  - type: contains_all
-    of: ["| stats count by _time", "cacheStatus", "errorCode", "| sort 0 _time"]
-  - type: contains_all
-    of: ["absolute UTC window", "field extraction", "[unverified]"]
+  - type: contains_any
+    of: ["| stats", "| timechart", "| bin", "earliest=-1h"]

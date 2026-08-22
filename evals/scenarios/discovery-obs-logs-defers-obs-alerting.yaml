@@ -18,9 +18,5 @@ success_criteria:
   - Routes log-derived Splunk saved-search paging-alert design to the alerting lane
   - Does not treat evaluation, suppression, notification, or runbook ownership as log-query work
 graders:
-  - type: contains_all
-    of: ["cron_schedule = */5 * * * *", "dispatch.earliest_time = -5m", "dispatch.latest_time = now"]
-  - type: contains_all
-    of: ["alert.suppress = 1", "alert.suppress.period = 30m", "alert.suppress.fields = service,alert_type"]
-  - type: contains_all
-    of: ["instructions_lookup", "runbook_url", "fire", "resolve", "owner", "[unverified]"]
+  - type: contains_any
+    of: ["cron_schedule", "dispatch.earliest_time", "alert.suppress"]

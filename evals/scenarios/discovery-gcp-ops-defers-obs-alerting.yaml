@@ -18,9 +18,5 @@ success_criteria:
   - Routes Cloud Run SLO alert design to the alerting lane
   - Does not expand steady-state alert work into GCP incident triage
 graders:
-  - type: contains_all
-    of: ["allowed bad fraction", "observed bad fraction", "burn rate"]
-  - type: contains_all
-    of: ["long window", "short window", "AND", "not OR"]
-  - type: contains_all
-    of: ["alert owner", "notification route", "runbook URL", "force", "fire", "resolve", "[unverified]"]
+  - type: contains_any
+    of: ["allowed bad fraction", "burn rate", "long window", "short window"]

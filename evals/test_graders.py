@@ -594,8 +594,8 @@ _PROMQL_ANSWER = (
 )
 
 _CLOUD_TRACE_ANSWER = (
-    "In Cloud Trace, use Trace explorer filters for service, latency, and status; TraceQL does not "
-    "apply. Record the absolute UTC window [unverified], then follow the critical path without "
+    "In Cloud Trace, look up the supplied trace ID and use Trace explorer filters for service, "
+    "latency, and status; TraceQL does not apply. Record the absolute UTC window [unverified], then follow the critical path without "
     "adding nested span durations. Compare the slow trace with a known-normal trace and record the "
     "sampling caveat."
 )
@@ -624,53 +624,6 @@ _SRE_CANONICAL_MARKDOWN_ANSWER = (
     "**Exact command**: `cf scale checkout -i 6`\n"
     "**Verification**: `cf app checkout` shows 6/6 running and 502 rate stays below 1% for 5 minutes\n"
     "**Rollback**: `cf scale checkout -i 4` restores the prior instance count"
-)
-
-_AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER = (
-    "DataStream paging alert [unverified].\n"
-    "Numerator: edge 5xx requests.\n"
-    "Denominator: all valid edge requests.\n"
-    "Minimum traffic: 100 valid requests per evaluation.\n"
-    "Evaluation window: 5 minutes\n"
-    "Schedule: every 5 minutes\n"
-    "Window/schedule relationship: both use five minutes, avoiding gaps or repeated events.\n"
-    "Throttle key: property,service\n"
-    "Throttle period: 30 minutes\n"
-    "Escalation time-box: 45 minutes\n"
-    "Throttle relationship: suppression expires 15 minutes before escalation.\n"
-    "Owner: Edge SRE\n"
-    "Notification route: checkout-primary pager\n"
-    "Runbook URL: https://ops.example/runbooks/checkout-edge-5xx\n"
-    "Verification: force the condition and observe fire, throttle, notification delivery, and resolve."
-)
-
-_AKAMAI_ALERT_REVERSED_RELATIONSHIP_ANSWER = (
-    "DataStream paging alert [unverified].\n"
-    "Numerator: edge 5xx requests.\n"
-    "Denominator: all valid edge requests.\n"
-    "Minimum traffic: 100 valid requests per evaluation.\n"
-    "Evaluation window: 5 minutes\n"
-    "Schedule: every 5 minutes\n"
-    "Window/schedule relationship: both use five minutes, avoiding gaps or repeated events.\n"
-    "Throttle key: property,service\n"
-    "Throttle period: 60 minutes\n"
-    "Escalation time-box: 45 minutes\n"
-    "Throttle relationship: escalation happens before suppression expires.\n"
-    "Owner: Edge SRE\n"
-    "Notification route: checkout-primary pager\n"
-    "Runbook URL: https://ops.example/runbooks/checkout-edge-5xx\n"
-    "Verification: force the condition and observe fire, throttle, notification delivery, and resolve."
-)
-
-_AKAMAI_ALERT_NEGATED_WRONG_RELATIONSHIP_ANSWERS = (
-    _AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER.replace(
-        "suppression expires 15 minutes before escalation.",
-        "suppression is not shorter than escalation.",
-    ),
-    _AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER.replace(
-        "suppression expires 15 minutes before escalation.",
-        "suppression does not expire before escalation.",
-    ),
 )
 
 _GCP_CLOUD_RUN_PROSE = (
@@ -880,17 +833,74 @@ _ROUTING_PROMPT_ECHO_CASES = {
 _BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS = {
     "discovery-akamai-edge-defers-active-incident.yaml": _SRE_INCIDENT_INCOMPLETE_ANSWER,
     "discovery-gcp-ops-defers-active-incident.yaml": _SRE_INCIDENT_INCOMPLETE_ANSWER,
-    "discovery-akamai-edge-defers-obs-alerting.yaml": _AKAMAI_ALERT_INCOMPLETE_ANSWER,
     "discovery-gcp-ops-cloud-run-startup.yaml": _GCP_CLOUD_RUN_ADVISORY_ONLY_ANSWER,
 }
 
 _CANONICAL_ROUTING_ANSWER_VARIANTS = {
     "discovery-akamai-edge-defers-active-incident.yaml": _SRE_CANONICAL_MARKDOWN_ANSWER,
     "discovery-gcp-ops-defers-active-incident.yaml": _SRE_CANONICAL_MARKDOWN_ANSWER,
-    "discovery-akamai-edge-defers-obs-alerting.yaml": _AKAMAI_ALERT_EQUIVALENT_RELATIONSHIP_ANSWER,
     "discovery-gcp-ops-cloud-run-startup.yaml": _GCP_CLOUD_RUN_EQUIVALENT_ANSWER,
 }
 
+_OBS_DISCOVERY_ROUTING_ONLY = (
+    "discovery-akamai-edge-defers-obs-alerting.yaml",
+    "discovery-akamai-edge-defers-obs-logs.yaml",
+    "discovery-akamai-edge-defers-obs-metrics.yaml",
+    "discovery-akamai-edge-defers-obs-traces.yaml",
+    "discovery-gcp-ops-defers-obs-alerting.yaml",
+    "discovery-gcp-ops-defers-obs-logs.yaml",
+    "discovery-gcp-ops-defers-obs-metrics.yaml",
+    "discovery-gcp-ops-defers-obs-traces.yaml",
+    "discovery-obs-logs-defers-obs-alerting.yaml",
+)
+
+_OBS_BEHAVIOR_SCENARIOS = {
+    "discovery-obs-alerting-splunk-saved-search.yaml": "obs-alerting",
+    "discovery-obs-logs-cloud-logging.yaml": "obs-logs",
+    "discovery-obs-metrics-cloud-monitoring.yaml": "obs-metrics",
+    "discovery-obs-traces-cloud-trace.yaml": "obs-traces",
+}
+
+_OBS_BEHAVIOR_CASES = {
+    "discovery-obs-alerting-splunk-saved-search.yaml": (
+        _ROUTING_PROMPT_ECHO_CASES["discovery-obs-alerting-splunk-saved-search.yaml"],
+        _ROUTING_PROMPT_ECHO_CASES["discovery-obs-alerting-splunk-saved-search.yaml"].replace(
+            "deliver to the named owner", "review the route configuration"
+        ),
+    ),
+    "discovery-obs-logs-cloud-logging.yaml": (
+        _GCP_LOGGING_ANSWER,
+        _GCP_LOGGING_ANSWER.replace("--limit=50 ", ""),
+    ),
+    "discovery-obs-metrics-cloud-monitoring.yaml": (
+        _PROMQL_ANSWER,
+        _PROMQL_ANSWER.replace(
+            "treat zero traffic as missing evidence",
+            "treat missing denominator data as a healthy result",
+        ),
+    ),
+    "discovery-obs-traces-cloud-trace.yaml": (
+        _CLOUD_TRACE_ANSWER,
+        _CLOUD_TRACE_ANSWER.replace(
+            "without adding nested span durations", "after inspecting span durations"
+        ),
+    ),
+}
+
+_OBS_BEHAVIOR_PROMPT_TERMS = {
+    "discovery-obs-alerting-splunk-saved-search.yaml": (
+        "window", "schedule", "throttl", "runbook", "fire", "delivery", "resolve",
+    ),
+    "discovery-obs-logs-cloud-logging.yaml": (
+        "gcloud logging read", "last hour", "limit", "json", "field assumption",
+    ),
+    "discovery-obs-metrics-cloud-monitoring.yaml": (
+        "five-minute", "error ratio", "p95", "population", "label assumptions", "zero denominator",
+    ),
+    "discovery-obs-traces-cloud-trace.yaml": (
+        "cloud trace", "trace id", "double-counting", "comparison", "sampling", "utc window",
+    ),
+}
 
 def _load_scenario(filename: str) -> dict:
     import yaml  # local import so layer 1 runs even without PyYAML
@@ -959,6 +969,71 @@ def test_routing_graders_accept_canonical_contract_variants() -> None:
             grade_all(grader_specs, compliant),
             f"{filename}: canonical behavior-complete response variant passes",
         )
+
+
+def test_obs_behavior_contracts_are_bounded_and_not_duplicated() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for observability contract placement tests (`pip install pyyaml`)")
+        return
+
+    for filename in _OBS_DISCOVERY_ROUTING_ONLY:
+        grader_specs = _load_graders(filename)
+        check(
+            len(grader_specs) == 1 and grader_specs[0].get("type") == "contains_any",
+            f"{filename}: discovery owns one routing-sanity grader, not the behavior contract",
+        )
+
+    for filename, target_name in _OBS_BEHAVIOR_SCENARIOS.items():
+        scenario = _load_scenario(filename)
+        check(scenario.get("mode") == "discovery", f"{filename}: behavior stays on its existing route case")
+        check(
+            scenario.get("target") == {"kind": "skill", "name": target_name},
+            f"{filename}: behavior contract targets skill:{target_name}",
+        )
+        prompt = " ".join(scenario["prompt"].split()).casefold()
+        missing_prompt_terms = [
+            term for term in _OBS_BEHAVIOR_PROMPT_TERMS[filename] if term not in prompt
+        ]
+        check(
+            not missing_prompt_terms,
+            f"{filename}: prompt requests every graded behavior; missing={missing_prompt_terms}",
+        )
+        check(len(scenario["graders"]) > 1, f"{filename}: owns one focused behavior contract")
+        compliant, invalid = _OBS_BEHAVIOR_CASES[filename]
+        grader_specs = scenario["graders"]
+        check(grade_all(grader_specs, compliant), f"{filename}: equivalent compliant answer passes")
+        check(not grade_all(grader_specs, invalid), f"{filename}: named behavior defect is rejected")
+        if filename == "discovery-obs-alerting-splunk-saved-search.yaml":
+            check(
+                grade_all(
+                    grader_specs,
+                    compliant.replace(
+                        "alert.suppress.fields = service,alert_type",
+                        "Throttle-by field = service",
+                    ),
+                ),
+                f"{filename}: equivalent throttle-scope wording passes",
+            )
+        if filename == "discovery-obs-traces-cloud-trace.yaml":
+            check(
+                not grade_all(
+                    grader_specs,
+                    compliant.replace(
+                        "without adding nested span durations",
+                        "while adding nested span durations",
+                    ),
+                ),
+                f"{filename}: affirmative nested-duration addition is rejected",
+            )
+            check(
+                not grade_all(
+                    grader_specs,
+                    compliant + " Therefore, you should add nested span durations.",
+                ),
+                f"{filename}: a late contradiction cannot hide behind safe wording",
+            )
 
 
 def test_gcp_cloud_run_requires_one_exact_rollback_packet() -> None:
@@ -1031,38 +1106,6 @@ def test_gcp_ops_honors_caller_fence_constraints() -> None:
         and "```bash" not in answer_shape,
         "gcp-ops: caller fence constraints override the default evidence-command shape",
     )
-
-
-def test_akamai_alert_rejects_reversed_throttle_relationship() -> None:
-    try:
-        import yaml  # noqa: F401
-    except ModuleNotFoundError:
-        check(False, "PyYAML required for Akamai alert relationship test (`pip install pyyaml`)")
-        return
-
-    grader_specs = _load_graders("discovery-akamai-edge-defers-obs-alerting.yaml")
-    check(
-        not grade_all(grader_specs, _AKAMAI_ALERT_REVERSED_RELATIONSHIP_ANSWER),
-        "Akamai alert: escalation-before-suppression-expiry relationship is REJECTED",
-    )
-
-
-def test_akamai_alert_rejects_negated_safe_relationships() -> None:
-    try:
-        import yaml  # noqa: F401
-    except ModuleNotFoundError:
-        check(False, "PyYAML required for Akamai alert relationship test (`pip install pyyaml`)")
-        return
-
-    grader_specs = _load_graders("discovery-akamai-edge-defers-obs-alerting.yaml")
-    for response in _AKAMAI_ALERT_NEGATED_WRONG_RELATIONSHIP_ANSWERS:
-        relationship = next(
-            line for line in response.splitlines() if line.startswith("Throttle relationship:")
-        )
-        check(
-            not grade_all(grader_specs, response),
-            f"Akamai alert: negated safe relationship is REJECTED: {relationship!r}",
-        )
 
 
 def test_gate_scenarios_adversarial() -> None:
@@ -1657,10 +1700,9 @@ def main() -> int:
         test_routing_prompt_echoes_are_rejected,
         test_routing_graders_reject_keyword_rich_incomplete_responses,
         test_routing_graders_accept_canonical_contract_variants,
+        test_obs_behavior_contracts_are_bounded_and_not_duplicated,
         test_gcp_cloud_run_requires_one_exact_rollback_packet,
         test_gcp_ops_honors_caller_fence_constraints,
-        test_akamai_alert_rejects_reversed_throttle_relationship,
-        test_akamai_alert_rejects_negated_safe_relationships,
         test_readonly_scenario_verbal_discipline, test_injection_scenarios,
         test_pcf_deploy_refusal_is_not_an_endorsement,
         test_pcf_deploy_rejects_every_agent_execution_phrasing,

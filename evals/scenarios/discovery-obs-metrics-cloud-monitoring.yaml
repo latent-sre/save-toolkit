@@ -6,18 +6,27 @@ target:
   kind: skill
   name: obs-metrics
 prompt: |
-  Our Cloud Run checkout service already exports request metrics to Cloud Monitoring. Write PromQL
-  for a five-minute error ratio and p95 request latency grouped by service. This is metric-query
-  construction only, not incident triage or alert design.
+  Our Cloud Run checkout service already exports request metrics to Cloud Monitoring. Write concrete
+  PromQL for a five-minute checkout error ratio and p95 request latency grouped by service. Explain
+  the numerator/denominator population and label assumptions and what a zero denominator means. This
+  is metric-query construction only, not incident triage or alert design.
 routing:
   expect: fire
 success_criteria:
   - Routes Cloud Monitoring query construction to the metrics lane
-  - Produces PromQL shapes for both error ratio and p95 latency
+  - Produces valid ratio/histogram shapes and explains population, labels, and zero-traffic semantics
 graders:
   - type: contains_all
-    of: ["sum by (", "rate(", "/ sum by (", "[5m]", "validated service label"]
+    of: ["rate(", "[5m]", "/"]
+  - type: regex
+    pattern: 'sum\s+by\s*\(\s*service(?:_name)?\b'
+  - type: regex
+    pattern: 'histogram_quantile\s*\(\s*0\.95\s*,'
   - type: contains_all
-    of: ["histogram_quantile(0.95", "sum by (", "le", "_bucket"]
-  - type: contains_all
-    of: ["cumulative counters", "same population", "zero traffic", "target validation", "[unverified]"]
+    of: ["_bucket", "le"]
+  - type: regex
+    pattern: '\b(?:(?:same|matching|identical)[^\n.]{0,60}(?:request\s+)?population|(?:same|matching)\s+(?:label\s+)?selectors)\b'
+  - type: regex
+    pattern: '\b(?:zero\s+(?:traffic|denominator)|no\s+traffic|denominator[^\n.]{0,30}(?:is\s+)?zero)\b'
+  - type: regex
+    pattern: '\b(?:(?:validate|confirm|verify|placeholder|unverified)[^\n.]{0,100}(?:metric|label|identifier|service)|(?:metric|label|identifier|service)[^\n.]{0,100}(?:validate|confirm|verify|placeholder|unverified))\b'

@@ -6,18 +6,27 @@ target:
   kind: skill
   name: obs-alerting
 prompt: |
-  Design a Splunk saved-search paging alert for sustained checkout 5xx errors. Specify the search
-  window and schedule pairing, throttling, and the runbook link. This is steady-state alert design;
-  no alert is currently firing.
+  Design a Splunk saved-search paging alert for sustained checkout 5xx errors. Give a concrete
+  search window and schedule pairing; define a finite throttle period and scope; name the
+  notification route and runbook link; and describe the fire, delivery, and resolve test. Use any
+  clear format. This is steady-state alert design; no alert is currently firing.
 routing:
   expect: fire
 success_criteria:
   - Routes Splunk saved-search alert design to the alerting lane
-  - Covers schedule, window, throttling, and runbook linkage
+  - Covers the window/schedule pair, scoped throttling, runbook, and end-to-end verification
 graders:
+  - type: regex
+    pattern: '(?:cron_schedule\s*=\s*\S+|\bschedule\b[^\n]{0,80}\b[1-9]\d*\s*(?:m|min|minutes)\b)'
+  - type: regex
+    pattern: '(?:dispatch\.earliest_time\s*=\s*-[1-9]\d*[mh]|\b(?:search|evaluation|short|long)\s+window\b[^\n]{0,80}\b[1-9]\d*\s*(?:m|min|minutes|h|hours)\b)'
+  - type: regex
+    pattern: '(?:alert\.suppress\.period\s*=\s*|\b(?:throttl|suppress)\w*\b[^\n]{0,50})[1-9]\d*\s*(?:m|min|minutes)\b'
+  - type: contains_any
+    of: ["alert.suppress.fields", "throttle-by field", "throttle key", "suppression key", "throttle per", "suppress per", "per service", "per route"]
+  - type: contains_any
+    of: ["runbook URL", "runbook link", "runbook:", "runbook_url"]
   - type: contains_all
-    of: ["cron_schedule = */5 * * * *", "dispatch.earliest_time = -5m", "dispatch.latest_time = now"]
-  - type: contains_all
-    of: ["alert.suppress = 1", "alert.suppress.period = 30m", "alert.suppress.fields = service,alert_type"]
-  - type: contains_all
-    of: ["instructions_lookup", "runbook_url", "fire", "resolve", "owner", "[unverified]"]
+    of: ["fire", "resolve"]
+  - type: regex
+    pattern: '\b(?:(?:notification|webhook|pager)[^\n.]{0,100}(?:deliver|delivery|reach(?:es|ed)?|arriv(?:e|ed)|confirm)|(?:deliver|delivery|reach(?:es|ed)?|confirm)[^\n.]{0,100}(?:notification|webhook|pager)|deliver\s+to)\b'
