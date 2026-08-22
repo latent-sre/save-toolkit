@@ -281,9 +281,7 @@ class MutantGenerationTests(unittest.TestCase):
         self.assertEqual(len(seen), len(mutants), "mutants must be deduplicated")
 
     def test_a_bounded_sample_spans_the_file_instead_of_its_shallowest_prefix(self) -> None:
-        """A prefix-truncated budget only ever mutates the first sites in walk order. On the real
-        packet_drift.py the motivating mutant sits at index 35 of 48, so a prefix of 12 would never
-        generate the very mutation this guard cites as its demonstration."""
+        """A prefix-truncated budget only ever mutates the first sites in walk order."""
         source = "def f(a, b, c, d, e, f, g, h):\n" + "".join(
             f"    x{i} = {chr(97 + i)} and {chr(98 + i)}\n" for i in range(8)
         )
@@ -612,24 +610,7 @@ class NonCanonicalRootTests(unittest.TestCase):
 
 
 class SamplingHonestyTests(unittest.TestCase):
-    """`--limit` must not be documented in a way that implies a bounded run covers a named mutant.
-
-    Even spacing fixed the *prefix* failure — a budget that only ever mutates the shallowest sites.
-    It did not make a bounded run complete, and the guard's own demonstration case proves it: the
-    motivating mutant is index 35 of 48, and an evenly spaced sample of 12 lands on 34 and 38.
-    """
-
-    def test_an_evenly_spaced_sample_can_still_miss_the_motivating_index(self) -> None:
-        source = "def f():\n" + "".join(f"    x{i} = a{i} and b{i}\n" for i in range(24))
-        every = mutation_guard.mutants(source)
-        self.assertEqual(48, len(every), "fixture must reproduce the demonstration population")
-        chosen = [every.index(mutant) for mutant in mutation_guard.mutants(source, limit=12)]
-        self.assertEqual([0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47], chosen)
-        self.assertNotIn(
-            35,
-            chosen,
-            "even spacing brackets index 35 without selecting it; a bounded run is a sample",
-        )
+    """`--limit` must not imply that a bounded run covers any named mutant."""
 
     @staticmethod
     def _prose(documentation: str | None) -> str:
@@ -662,8 +643,8 @@ class DiscoveryTests(unittest.TestCase):
             for test, subjects in pairs.items()
         }
         self.assertIn(
-            "skills/operational-learning/scripts/packet_drift.py",
-            rendered.get("scripts/test_packet_drift.py", []),
+            "skills/obs-dashboards/scripts/dashboard_hygiene.py",
+            rendered.get("scripts/test_dashboard_hygiene.py", []),
             "path-loaded bundle scripts must be discovered from the test's own source",
         )
         self.assertIn(
@@ -672,7 +653,7 @@ class DiscoveryTests(unittest.TestCase):
             "the sibling test_X.py -> X.py convention must be discovered",
         )
         self.assertNotIn(
-            "scripts/test_packet_drift.py",
+            "scripts/test_dashboard_hygiene.py",
             rendered.get("scripts/test_mutation_guard.py", []),
             "a test file is never a mutation subject; mutating a test proves nothing",
         )

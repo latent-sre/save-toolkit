@@ -14,24 +14,40 @@ Runtime evaluation of an artifact is allowed only for reviewed, team-authored in
 If that harness is unavailable, report the artifact's runtime behavior [unverified].
 Delegation is not isolation. A clean-context subagent is not a sandbox.
 
-## The loop (eval-first)
+## The loop
 
-1. **Success criteria before edits** — what does correct output look like, measurably? Write 3+
-   test cases: happy path, edge case, failure mode.
-2. **Baseline** — run the current artifact and capture the actual failure. No edit without an
-   observed failure (or explicit new-behavior target) pinned to it.
+1. **Criteria and cases where behavior changes** — for an accepted failure or explicit new behavior,
+   state measurable success and add the smallest case set that distinguishes it. One named failure
+   regression is enough unless a specific adjacent risk warrants another case. Ordinary routing
+   edits reuse their overlapping scenarios; pure rewording adds none.
+2. **Match evidence to the change** — for an accepted failure, run the incumbent and capture the
+   failure before editing. For an explicit new-behavior target, define the cases without inventing a
+   failing baseline. For an ordinary routing-description edit, follow `AGENTS.md`'s after-change
+   rule; pure rewording needs no live eval.
 3. **Minimal change** — fix that failure only; don't rewrite everything you'd phrase differently.
-4. **Retest fresh** — fresh-context runs, multiple reps; one pass proves nothing and **variance is
-   a metric**. For fleet artifacts, a subagent given a realistic task tells you whether the thing
-   triggers *and* complies.
+4. **Retest only when step 2 calls for it** — pair incumbent/candidate runs for an accepted failure;
+   run the smallest new-behavior or after-change check that applies; run nothing for pure rewording.
+   Use fresh context and multiple reps only when live behavioral evidence is required.
 
-One encounter does not authorize an open-ended rewrite loop. When the same normalized failure
-recurs—or one material safety/authority failure occurs—open the
-[bounded fleet-improvement lifecycle](./improvement-lifecycle.md): assign a stable fingerprint and
-owner, freeze visible calibration/regression cases, cap the record at three cumulative attempts,
-bind every result to the exact candidate revision, and preserve negative results. A human-owned
-shadow set remains outside the authoring checkout. Stop at `blocked_pending_rescope` when the budget
-or original scope is exhausted; the artifact never approves or promotes itself.
+## Learn from an encountered failure
+
+An observation is evidence, not a contract. A human first decides whether the behavior should be
+durable; when it should, add one named regression case with its scoring rule before editing. Run the
+incumbent and candidate on identical cases and conditions. A missing or inconclusive candidate
+result cannot support promotion, a tie retains the incumbent, and no safety, authority, or existing
+regression may get worse.
+
+Make one candidate by default; every evaluated revision counts as a candidate. Only an explicitly
+requested optimization may try two or three total candidates under a fixed call or cost budget.
+Scratch prompts, transcripts, and rejected intermediate
+candidates stay ephemeral. Retain the regression case, incumbent and winning revision, per-case
+results, cost, and decision in the ordinary PR evidence. In this repository unfinished work goes in
+`docs/fleet-roadmap.md` with one owner; elsewhere use the owning repository's authoritative tracker.
+A reusable rejected approach needs a short dated decision only when rediscovery is likely.
+
+PR approval on the exact candidate revision is promotion. The author never approves, merges, deploys,
+or changes a live system through this loop. Add a bounded read-only canary only when the change has a
+named host or runtime risk; otherwise the deterministic and behavioral evidence is the gate.
 
 ## Descriptions: trigger, not workflow
 
@@ -82,7 +98,8 @@ fixtures. Prose guardrails are for cooperative agents; structural enforcement ho
 - Follow the [roster guidance](./roster.md) when the fix is really a lane or orchestration problem,
   rather than one artifact.
 - Ownership map only—not a load: the `agent-security` skill owns the independent threat review.
-- Run generate → evaluate → refine inline against a measurable fixture.
+- Generate one candidate and evaluate it once; further evaluated revisions consume an explicitly
+  approved two- or three-candidate budget.
 - Send validator, grader, or generator implementation to the typed `sde` agent.
 
 For any authority-changing, production-facing, destructive, or external action, require existing human release-owner approval. The evidence must name the exact target, action, and rollback; an agent may prepare the change but never manufacture or infer approval.

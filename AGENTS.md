@@ -162,11 +162,13 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 - **Learning is reviewable repository state, not model memory.** Every durable operational discovery
   receives a `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable` disposition with
   evidence and an owner. An agent never treats its own assertion as accepted knowledge.
-- **Fleet improvement is encounter-driven and bounded.** A recurring normalized fleet failure—or
-  one material safety/authority failure—gets a typed `fi_` ledger record, exact-subject evidence,
-  one accountable owner, and at most three cumulative attempts. Agents may observe, prepare, test,
-  or review within their lanes; only a human/protected workflow promotes or rolls back. There is no
-  background self-modifying process.
+- **Fleet learning is a focused regression, not a second ledger.** A human accepts an observed
+  failure as a contract, freezes one named test/eval, then compares incumbent and candidate on the
+  same cases and conditions. Missing or inconclusive candidate evidence cannot win; strict
+  improvement with no safety/authority regression is required, and ties retain the incumbent. Make
+  one candidate by default (two or three only for an explicitly budgeted optimization), discard
+  scratch state, put unfinished work in `docs/fleet-roadmap.md` with one owner, and let PR review
+  promote the exact revision. There is no background self-modifying process.
 - **Lead with the conclusion**, then evidence, then next steps. **Blameless** language for all
   incident work.
 
@@ -209,7 +211,9 @@ errors and the change quietly does not work.
   **before** baseline only for a scenario that comes back red, to attribute the red. Rewording that
   leaves those elements intact needs no eval. One scenario is minutes per run and one component can
   carry a dozen, which is why the older any-edit, before-and-after form was deferred more often than
-  run. *Prevents:* a routing change (a component that stops firing, or a near-miss that starts) that
+  run. This after-first shortcut does not replace the incumbent baseline when an accepted fleet
+  failure is what justifies the edit; that case follows the focused-regression rule above. *Prevents:*
+  a routing change (a component that stops firing, or a near-miss that starts) that
   no structural check can see. Routing evals need a live API and may be deferred with a stated
   reason — never with an eyeball standing in for the measurement.
 - **Asserted a new contract** — a validator rule, an exit code, a schema constraint, or any predicate
@@ -236,8 +240,8 @@ errors and the change quietly does not work.
   an interpreter sneaking onto the allowlist reads as "allowed" with no error.
 - **Closed a task that surfaced a discovery** → route it per the operational-learning convention in
   [`skills/operational-learning/references/disposition-policy.md`](skills/operational-learning/references/disposition-policy.md)
-  (a recurring or material *fleet* failure instead follows
-  [`skills/agent-authoring/references/improvement-lifecycle.md`](skills/agent-authoring/references/improvement-lifecycle.md)).
+  (an accepted *fleet* failure instead becomes the focused regression in
+  [`skills/agent-authoring/references/artifact.md`](skills/agent-authoring/references/artifact.md)).
   *Prevents:* an agent treating its own assertion as accepted knowledge; a discovery is repository
   state with an explicit disposition and an owner, never model memory.
 

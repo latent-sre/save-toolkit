@@ -50,6 +50,106 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("## Pick one primary mode", body)
         self.assertIn("**Knowledge closeout mode**", body)
 
+    def test_retired_learning_machinery_stays_absent(self) -> None:
+        retained = (
+            Path("schemas/evidence-envelope-v1.schema.json"),
+            Path("skills/operational-learning/SKILL.md"),
+            Path("skills/operational-learning/references/disposition-policy.md"),
+            Path("skills/operational-learning/assets/service-card-template.md"),
+            Path("skills/operational-learning/assets/alert-card-template.md"),
+            Path("skills/operational-learning/assets/knowledge-index-template.md"),
+        )
+        retired = (
+            Path("skills/operational-learning/assets/knowledge-update-v1.schema.json"),
+            Path("skills/operational-learning/assets/knowledge-update-v2.schema.json"),
+            Path("skills/operational-learning/assets/knowledge-update-v3.schema.json"),
+            Path("skills/operational-learning/scripts/knowledge_update.py"),
+            Path("skills/operational-learning/scripts/migrate_v1_to_v2.py"),
+            Path("skills/operational-learning/scripts/migrate_v2_to_v3.py"),
+            Path("skills/operational-learning/scripts/packet_drift.py"),
+            Path("skills/agent-authoring/assets/fleet-improvement-v1.schema.json"),
+            Path("skills/agent-authoring/references/improvement-lifecycle.md"),
+            Path("scripts/validate_improvements.py"),
+            Path("scripts/test_validate_improvements.py"),
+        )
+        for relative in retained:
+            with self.subTest(retained=relative.as_posix()):
+                self.assertTrue((ROOT / relative).is_file())
+        for relative in retired:
+            with self.subTest(retired=relative.as_posix()):
+                self.assertFalse((ROOT / relative).exists())
+        examples = ROOT / "skills/operational-learning/assets/examples"
+        self.assertEqual([], sorted(examples.glob("*.json")))
+        self.assertEqual([], sorted((ROOT / "evals/improvements").glob("*/record.json")))
+
+        skill = (ROOT / "skills/operational-learning/SKILL.md").read_text(encoding="utf-8").lower()
+        for obsolete_term in ("knowledge-update", "packet drift", "sha-256"):
+            with self.subTest(obsolete_term=obsolete_term):
+                self.assertNotIn(obsolete_term, skill)
+        active_fleet_contracts = (
+            Path("AGENTS.md"),
+            Path("agents/prompt-engineer.md"),
+            Path("agents/reviewer.md"),
+            Path("skills/agent-authoring/SKILL.md"),
+            Path("skills/agent-authoring/references/artifact.md"),
+            Path("skills/agent-authoring/references/roster.md"),
+            Path("skills/agent-security/SKILL.md"),
+        )
+        for relative in active_fleet_contracts:
+            text = (ROOT / relative).read_text(encoding="utf-8").lower()
+            for obsolete_term in (
+                "improvement_id",
+                "failure_fingerprint",
+                "improvement lifecycle",
+                "fleet-improvement-v1",
+            ):
+                with self.subTest(contract=relative.as_posix(), obsolete_term=obsolete_term):
+                    self.assertNotIn(obsolete_term, text)
+        for relative in retained[3:]:
+            with self.subTest(template=relative.as_posix()):
+                self.assertIn("last_reviewed: null", (ROOT / relative).read_text(encoding="utf-8"))
+
+    def test_operational_templates_use_reviewable_provenance_not_retired_ids(self) -> None:
+        expected_provenance = {
+            Path("skills/operational-learning/assets/service-card-template.md"): (
+                "| Date | PR / revision / evidence reference | Change | Reviewer |"
+            ),
+            Path("skills/operational-learning/assets/alert-card-template.md"): (
+                "| Date | PR / revision / evidence reference | Change | Reviewer |"
+            ),
+            Path("skills/operational-learning/assets/knowledge-index-template.md"): (
+                "| PR / revision / evidence reference | Trigger | Summary | Dispositions | Reviewed change |"
+            ),
+            Path("skills/runbook/assets/runbook-template.md"): (
+                "- Provenance: <PR, target revision, and evidence references>"
+            ),
+        }
+        for relative, marker in expected_provenance.items():
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(template=relative.as_posix()):
+                self.assertNotIn("knowledge update id", text.lower())
+                self.assertNotIn("update id", text.lower())
+                self.assertNotIn("ol_ id", text.lower())
+                self.assertIn(marker, text)
+
+    def test_prepared_requires_verified_checkout_revision_binding(self) -> None:
+        contract_paths = (
+            Path("agents/scribe.md"),
+            Path("skills/operational-learning/SKILL.md"),
+            Path("skills/operational-learning/references/disposition-policy.md"),
+        )
+        for relative in contract_paths:
+            text = re.sub(
+                r"\s+",
+                " ",
+                (ROOT / relative).read_text(encoding="utf-8").lower(),
+            )
+            with self.subTest(contract=relative.as_posix()):
+                self.assertIn("mounted checkout's current full sha equals the target revision", text)
+                self.assertIn("`[verified]` checkout binding", text)
+                self.assertIn("`proposed`", text)
+                self.assertIn("`blocked`", text)
+
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
         fields, body, _ = validate_fleet.adapters.parse_frontmatter(
             ROOT / "agents" / "observability-engineer.md"

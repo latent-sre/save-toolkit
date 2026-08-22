@@ -34,7 +34,7 @@ authoritative?*
 | Retired names are rejected under live `agents/`/`skills/`/`commands/` trees | [`check_stale_names.py`](../scripts/check_stale_names.py) |
 | Routing/behavioral evals are manual clean-room only — never in CI; outputs under `.eval-runs/` | [`AGENTS.md`](../AGENTS.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Any newly asserted contract needs one focused test that fails when that exact contract is deliberately broken and passes when restored. Mutation tooling is optional and single-module only; stop after one named mutant is killed. A survivor count is not a finding or backlog item | [`AGENTS.md`](../AGENTS.md) Change playbooks |
-| Description edits that change routing content (`Triggers:` phrases, use-when/not-for clauses, named alternatives) need after-change clean-room runs of the scenarios targeting the component, with a before-run only to attribute a red; pure rewording needs none (or a stated deferral — not an eyeball) | [`AGENTS.md`](../AGENTS.md) Change playbooks |
+| Description edits that change routing content (`Triggers:` phrases, use-when/not-for clauses, named alternatives) need after-change clean-room runs of the scenarios targeting the component, with a before-run only to attribute a red; pure rewording needs none. A failure-driven edit still needs the incumbent baseline required by the fleet-learning rule (or a stated deferral — not an eyeball) | [`AGENTS.md`](../AGENTS.md) Change playbooks |
 | Personal-first: prototype under `~/.claude`, promote by PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | New PR implementation starts from refreshed `origin/main` in a clean branch/checkout; read-only work stays on its requested checkout; preserve dirty and published branches, and never rewrite published history without explicit owner authorization | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Release verification follows the changed owner: metadata-only changelog/version edits add no release-specific suite beyond Gate A; `release_contract.py`, `release_workflow_contract.py`/`release.yml`, and `host_install_probe.py` each trigger only their own focused suite, with the union used when a change spans owners | [`AGENTS.md`](../AGENTS.md) Change playbooks |
@@ -83,7 +83,7 @@ authoritative?*
 | Gate checklists are evidence, not the boundary | Gate skill notes |
 | Handoffs: one owner; SHAs pinned where a downstream decision depends on byte identity (`Change: none` when the packet carries no repository bytes); labels preserved, taint marked, “what I did NOT do” stated | [`AGENTS.md`](../AGENTS.md) |
 | Learning is reviewable repository state with an explicit disposition and owner — never model memory | [`disposition-policy.md`](../skills/operational-learning/references/disposition-policy.md) |
-| Fleet improvement is encounter-driven; `fi_` ledger; ≤3 attempts; only human/protected workflow promotes | [`improvement-lifecycle.md`](../skills/agent-authoring/references/improvement-lifecycle.md) |
+| Fleet learning: one human-accepted failure → one named regression; incumbent/candidate use identical cases; missing or inconclusive cannot win; strict improvement, tie keeps incumbent; PR review promotes the exact revision | [`artifact.md`](../skills/agent-authoring/references/artifact.md); [`AGENTS.md`](../AGENTS.md) |
 | Gate A is structural only; one independent `reviewer` pass against the pushed SHA (named in the PR body) before merge; plan-conformance only when a plan is cited; authority-touching paths get all three reviews | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Sol/Codex conformance runners are parked; recovered use still obeys the Sol ADR authority-label rules | [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md) |
 | Deploys are never agent-executed; `pcf-deploy` must not auto-load | [`pcf-deploy/SKILL.md`](../skills/pcf-deploy/SKILL.md) |
@@ -104,7 +104,7 @@ authoritative?*
 | Operational dispositions: `prepared` / `proposed` / `blocked` / `duplicate` / `not_applicable`; silence is not `not_applicable` | Disposition policy |
 | Config definitions are authoritative; KB cards summarize and link, they do not fork queries | Disposition policy |
 | Agents never self-mark knowledge as approved/merged/deployed/verified | Disposition policy |
-| Operational packets never rewrite fleet definitions; route fleet failures to `prompt-engineer` | Disposition policy; improvement-lifecycle |
+| Operational artifacts never rewrite fleet definitions; route an accepted fleet failure and proposed named regression to `prompt-engineer` | Disposition policy; [`artifact.md`](../skills/agent-authoring/references/artifact.md) |
 | Leave historical plans/evals under old names as evidence — do not rewrite recorded results | Observability-engineer and language-idiom ADRs |
 
 ## 5. Stack / runtime

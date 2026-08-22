@@ -7,7 +7,7 @@ record stays `observed`.
 | Field | Value |
 |---|---|
 | Roadmap item | [ROUTE-001](../fleet-roadmap.md) |
-| Typed record | [`fi_cloud_run_outside_command_continuation`](../../evals/improvements/fi_cloud_run_outside_command_continuation/record.json) |
+| Typed record | [`fi_cloud_run_outside_command_continuation`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/evals/improvements/fi_cloud_run_outside_command_continuation/record.json) |
 | Parent revision | `d9d3c19` |
 | Subject files | [`evals/graders.py`](../../evals/graders.py), [`evals/test_graders.py`](../../evals/test_graders.py), [`evals/conformance/codex-terra-evaluator-v1.json`](../../evals/conformance/codex-terra-evaluator-v1.json) |
 

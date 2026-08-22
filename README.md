@@ -83,12 +83,10 @@ python scripts/fleet_doctor.py                          # repo + installed-host 
 ```
 
 Gate A proves the fleet is well-formed, never that it is correct — the adversarial reviews in
-[CONTRIBUTING.md](CONTRIBUTING.md) are separate. Contract validators (knowledge-update packets,
-schema migrations) are documented in the
-[schema compatibility policy](docs/schema-compatibility.md); active behavioral and routing evals,
-plus the status of retired instruments, live in [`evals/README.md`](evals/README.md); the
-fleet-improvement ledger contract is
-[`improvement-lifecycle.md`](skills/agent-authoring/references/improvement-lifecycle.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) are separate. Portable contracts are documented in the
+[schema compatibility policy](docs/schema-compatibility.md); active behavioral and routing evals
+live in [`evals/README.md`](evals/README.md). Accepted fleet failures become focused regressions and
+ordinary PR evidence rather than a separate improvement ledger.
 
 ## Status
 

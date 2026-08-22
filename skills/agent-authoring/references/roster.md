@@ -193,10 +193,11 @@ above; this is the compact naming reference, including the two shapes that secti
 
 ## Learning as repository state (learning engineering)
 
-The fleet's durable memory is files. Skills with progressive disclosure hold the how-to; new
-operational knowledge lands as reviewable repository state under the learning-disposition and
-fleet-improvement lifecycles — consolidation is deliberate, bounded, and human-promoted, never a
-background memory write. This is the conservative end of the current platform direction (Agent
+The fleet's durable memory is owned files: an accepted behavior becomes a focused test or eval,
+operational knowledge becomes a reviewable documentation diff, and unfinished work in this
+repository has one owner in `docs/fleet-roadmap.md`. Candidate generation is bounded and scratch
+state is discarded; PR review promotes
+the exact winning revision, never a background memory write. This is the conservative end of the current platform direction (Agent
 Skills as files; the managed-agent memory-consolidation preview gates every learned change behind
 human approve/reject), so the stance is a choice, not a gap. The failure mode it prevents is
 below: memory poisoning by admission.

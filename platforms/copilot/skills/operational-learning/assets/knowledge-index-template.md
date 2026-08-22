@@ -30,6 +30,6 @@ configuration. The linked version-controlled source remains authoritative.
 
 ## Recent learning updates
 
-| Update ID | Trigger | Summary | Dispositions | Reviewed change |
+| PR / revision / evidence reference | Trigger | Summary | Dispositions | Reviewed change |
 |---|---|---|---|---|
 |  |  |  |  |  |

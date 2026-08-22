@@ -7,7 +7,7 @@ typed record stays `observed`.
 | Field | Value |
 |---|---|
 | Roadmap item | [MUTATION-001](../fleet-roadmap.md) |
-| Typed record | [`fi_mutation_untested_assertions`](../../evals/improvements/fi_mutation_untested_assertions/record.json) |
+| Typed record | [`fi_mutation_untested_assertions`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/evals/improvements/fi_mutation_untested_assertions/record.json) |
 | Candidate revision | `82333f42c9c1f55286632f0ad4fdad3fba45a5ff` |
 | Parent revision | `c556255f67a7da5e1427943a5f64ffa38fe371ef` |
 | Authoring lane | `prompt-engineer` |
@@ -152,7 +152,7 @@ Reading the survivors:
 
 `[verified]` The typed record declares `target.artifact_paths` as `AGENTS.md` and
 `scripts/gate_a.py`; this candidate touches neither. The
-[improvement lifecycle](../../skills/agent-authoring/references/improvement-lifecycle.md) requires
+[improvement lifecycle](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/skills/agent-authoring/references/improvement-lifecycle.md) required
 that every declared target path be touched by the net candidate diff, so an attempt appended against
 the current target declaration would be malformed. Re-declaring the target to name the control and
 its test is a rescope, and rescoping is an owner decision, not an authoring one.

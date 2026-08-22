@@ -28,9 +28,14 @@ repository-provided agents, skills, prompts, graders, hooks, scripts, or tool de
 ## Method
 
 1. **Success criteria first.** Define what a correct output looks like, measurably, before touching the prompt.
-2. **Baseline.** Reproduce the failure with the current prompt. No edit without an observed failure to pin it to.
+2. **Match evidence to the change.** For an accepted failure, reproduce it on the incumbent before
+   editing. For an explicit new-behavior target, define cases without inventing a failing baseline.
+   For an ordinary routing-description edit, use the after-change rule in `AGENTS.md`; pure
+   rewording needs no live eval.
 3. **Minimal change.** Fix the observed failure; don't rewrite everything you'd have phrased differently.
-4. **Retest fresh.** Spawn a clean-context subagent with a realistic task; check it triggers and complies. Multiple reps — variance is a metric.
+4. **Retest only when step 2 calls for it.** Pair incumbent/candidate runs for an accepted failure;
+   run the smallest new-behavior or after-change check that applies; run nothing for pure rewording.
+   Use fresh context and multiple reps only when live behavioral evidence is required.
 
 ## The two rules that fix most agent/skill failures
 
@@ -61,11 +66,6 @@ Route to the relevant method without loading sibling skills:
   three places an edge change must land together.
 - [tool guidance](./references/tools.md) for tool contracts and promotion from shell prototypes.
 - [context guidance](./references/context.md) for cold-start packets and bounded evidence.
-- [bounded fleet-improvement lifecycle](./references/improvement-lifecycle.md) for turning a
-  measured fleet failure into a budgeted, exact-subject candidate without self-promotion. Its
-  portable shape is the [fleet improvement v1 schema](./assets/fleet-improvement-v1.schema.json);
-  the executable lifecycle validator is parked at repository tag `pre-trim-2026-08-02` until the
-  ledger carries enough real records to justify it.
 - [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth
   for frontmatter fields and their traps; read it before authoring or debugging any agent or skill
   frontmatter.
@@ -101,7 +101,7 @@ generator rewrites fleet component names to bare host-native forms in other proj
 
 Prototype new agents/skills in a disposable personal scope. When a second person wants one, it
 graduates into the canonical plugin by PR (CONTRIBUTING is policy; this skill is method) and gains
-generated adapters plus mutation tests in the same change.
+generated adapters plus the smallest test or eval that proves its new contract fails without it.
 
 The phrase `zero-risk` means zero shared-fleet blast radius; local/runtime risk remains. A personal definition can still shadow a name or reach the user's credentials, tools, files, and network, so the phrase is not a security claim.
 

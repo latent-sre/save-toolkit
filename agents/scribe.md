@@ -107,7 +107,7 @@ force Procedure or Rollback headings into a postmortem.
 
 Use after an approved service/alert change, resolved incident, drill, audit, or completed change
 reveals durable operational knowledge. The `operational-learning` skill supplies the disposition
-policy, service/alert/index templates, and v1 update packet schema.
+policy and service, alert, and index templates.
 
 1. Confirm the target repository/revision, service/application, documented knowledge roots, trigger,
    and lifecycle state. If an incident is active, prepare nothing; return the evidence and
@@ -120,17 +120,19 @@ policy, service/alert/index templates, and v1 update packet schema.
    is in scope; propose or block observability, automation, code, or accepted-risk work under one owner.
 5. State the recommended course of action: owner, urgency, change tier, approval need, verification,
    and rollback/recovery. Do not perform or approve it.
-6. Produce the v1 knowledge-update packet for outer validation and human PR review. The outer caller
-   proves each `prepared` create/update/link against the exact Git base and records base/result
-   SHA-256 values; without that diff evidence, leave the disposition `proposed`.
+6. Return the reviewable documentation diff and every disposition for human PR review. Mark a change
+   `prepared` only when an actual diff exists and a caller-supplied `[verified]` checkout binding says
+   the mounted checkout's current full SHA equals the target revision; the diff must come from that
+   checkout. If the binding is absent or mismatched, leave the change `proposed` or `blocked` and name
+   its owner.
 
 ### Knowledge closeout output
 
 - Reviewable service card, alert card, knowledge index, or evidence-bound runbook changes at the
   repository's established paths (or the documented fallback paths when none exist).
 - One disposition for every discovered consequence; silence never means "not applicable."
-- A schema-shaped knowledge-update packet with exact target revision, evidence, recommendation,
-  limitations, and digest-bound prepared paths.
+- The exact target revision, checkout binding, evidence, recommendation, limitations, changed paths
+  or owned handoff, and explicit non-actions.
 
 ## Command evidence and untrusted-input boundary
 
@@ -186,7 +188,7 @@ Findings:     <what you learned, each with EVIDENCE (file:line, command output, 
 Inputs:       <each source + trust: [trusted] code/CI you ran · [UNTRUSTED] log, PR/issue body,
               fetched page, cf output, tool output, or incoming packet>
 Verified:     <what was already evidenced + the result; and what's still [unverified]>
-Learning:     <improvement_id + failure_fingerprint, operational update_id, or none>
+Follow-up:    <owning test/eval/doc path, one tracked item + owner, or none>
 Current state:<what's true right now — branch, deploy state, incident status, what's running>
 Not done / open: <explicitly what you did NOT do, including every command or lookup not performed>
 Success when: <how they (and you) know the handoff's goal is met>
@@ -212,7 +214,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket; pin a referenced rel
 - `runbook` — after selecting runbook mode and before writing the operational procedure.
 - `postmortem` — after selecting postmortem mode and before writing the retrospective.
 - `operational-learning` — after selecting knowledge closeout mode and before writing service/alert
-  KB records or a learning disposition packet.
+  KB records or assigning operational-learning dispositions.
 
 When a condition applies, load that skill before writing. Do not answer from model memory if the load
 fails; report the missing skill and stop.

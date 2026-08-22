@@ -66,11 +66,6 @@ STRUCTURAL_STEPS = [
         ["scripts/validate_fleet.py"],
         None,
     ),
-    (
-        "Fleet-improvement records satisfy their schema",
-        ["scripts/validate_improvements.py"],
-        None,
-    ),
 ]
 
 STEPS = STRUCTURAL_STEPS

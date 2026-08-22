@@ -56,6 +56,6 @@ evidence_status: sourced | unverified
 
 ## Change log
 
-| Date | Knowledge update ID | Change | Reviewer |
+| Date | PR / revision / evidence reference | Change | Reviewer |
 |---|---|---|---|
 |  |  |  |  |

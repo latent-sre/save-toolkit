@@ -79,13 +79,13 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 > never rewrite or delete them. A "failed / missing" cell that stays empty across many incidents is
 > signal too. Three rows with the same manual fix ⇒ file the Crawl→Walk→Run automation candidate.
 
-| Date (UTC) | Incident / drill ref | Version used | Steps that held | Steps that failed / were missing | Follow-up (disposition / update id) |
+| Date (UTC) | Incident / drill ref | Version used | Steps that held | Steps that failed / were missing | Follow-up (disposition / PR or evidence reference) |
 |---|---|---|---|---|---|
-| <YYYY-MM-DD> | <postmortem or drill link> | <n> | <e.g. steps 1–3> | <e.g. step 4 output differed; no rollback for step 5> | <ol_ id / prepared / proposed> |
+| <YYYY-MM-DD> | <postmortem or drill link> | <n> | <e.g. steps 1–3> | <e.g. step 4 output differed; no rollback for step 5> | <PR, evidence link, prepared, or proposed> |
 
 ## References
 - Related runbooks: <…>
 - Postmortems: <…>
 - Alert definition / SLO: <…>
 - Service card / alert card / knowledge index: <…>
-- Knowledge update IDs: <…>
+- Provenance: <PR, target revision, and evidence references>

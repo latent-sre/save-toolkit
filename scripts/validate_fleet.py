@@ -392,13 +392,13 @@ def validate_scribe_bundle(root: Path) -> list[str]:
         Path("skills/operational-learning/SKILL.md"): {
             "required": (
                 "A discovery is learned only when evidence and an\nexplicit disposition",
-                "only `proposed` or `blocked` dispositions—no terminal KB outcome",
-                "packet-selected fleet/code directory as KB write authority",
+                "An active incident permits only\n   `proposed` or `blocked` outcomes",
+                "`prepared` means an actual reviewable documentation diff exists",
             ),
             "forbidden": (),
         },
         Path("skills/service-onboarding/SKILL.md"): {
-            "required": ("emit a **learning disposition**\n   packet to `scribe`",),
+            "required": ("emit an **evidence-bound\n   handoff** to `scribe`",),
             "forbidden": (),
         },
         Path("skills/incident-command/SKILL.md"): {
