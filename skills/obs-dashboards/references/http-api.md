@@ -60,8 +60,7 @@ the 13.2 upgrade is `[unverified]`, as is anything on a Grafana Cloud stack.
     So an Editor-level agent that must verify its own writes should create through the legacy
     endpoint, or hold explicit `dashboards:read`/`:write`/`:delete` on the target folder. Never
     write through the app-platform family with a create-only grant — you cannot complete step 7 of
-    the skill's loop and you cannot roll back. (A dashboard was stranded this way during the
-    verification run.)
+    the skill's loop and you cannot roll back.
 
 ## Two API families — which to call
 
@@ -341,7 +340,7 @@ Two traps in that table:
   version yourself rather than parsing the string.
 - **`overwrite: true` defeats the check silently.** Sending a stale `version: 1` against a stored
   version 2 with `overwrite: true` returned `200` and moved the dashboard to version 3, discarding
-  the concurrent edit with no warning. This is the failure the rule exists to prevent, reproduced.
+  the concurrent edit with no warning.
 
 One useful bit of leniency: **re-applying byte-identical content is idempotent** — the version
 counter does not move and no conflict is raised, so a drift-check job that re-applies the reviewed

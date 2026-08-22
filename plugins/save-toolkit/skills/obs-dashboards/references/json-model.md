@@ -89,7 +89,7 @@ Rules that follow from the split:
 - **Never round-trip V2 → V1 → V2.** The V2→V1 direction flattens four layout kinds into a single
   `panels[]` array and turns tabs into expanded row panels. It is structurally lossy and not
   reversible. *[sourced: v2_to_v1_layout_conversion.md:7-14]*
-- **Strip `status` before you PUT anything you just GET-ed — this one is reproduced, not theorised.**
+- **Strip `status` before you PUT anything you just GET-ed.**
   The conversion helper prefers the *incoming* object's `status.conversion.storedVersion` over the
   object's own version, and the apistore does not strip a client-supplied `status`. Verified end to
   end on 13.1.4 `[verified: QA, 2026-08-22]`:
