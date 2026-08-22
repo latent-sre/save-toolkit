@@ -952,8 +952,8 @@ needs no host inventory work.
 
 ### DASH-001 — verify the dashboard API shapes against a live Grafana, and close the evidence-label gap
 
-**Status:** `active` (2026-08-21) — the API half is verified against QA; the evidence-label half and
-one cleanup remain.
+**Status:** `active` (2026-08-22) — **all four acceptance criteria are met and committed**; the item
+leaves this file when the branch merges. Residue is listed under Remaining and none of it blocks.
 
 **Outcome:** Every request shape in `skills/obs-dashboards/references/http-api.md` is labeled
 against a real instance rather than composed from documentation, and the skill drives its own
@@ -1007,10 +1007,16 @@ all 20 PromQL/LogQL blocks in `obs-metrics` and `obs-logs` were executed against
 instance's live datasources with a proven detector, and a bundled stdlib hygiene checker plus 27
 fixture-first tests were added (`40d701b`), calibrated against a real community dashboard.
 
-**Remaining:**
-1. **The evidence-label grader** — the original second half of this item, still untouched. It needs
-   restoring alongside a skill output-contract change so the scenario passes on behavior rather than
-   on the narrowed grader set it currently uses.
+**Acceptance met (2026-08-22):** every request shape in `http-api.md` carries `[verified: QA]` or was
+corrected against the instance; the forced conflict recorded that the app-platform `PUT` checks
+`metadata.resourceVersion` (409) while the legacy path checks `dashboard.version` and also answers
+409 rather than the documented 412; the renderer's absence is recorded so the visual-check step
+states its own availability; and the evidence-label grader is restored **and earned** — the skill now
+carries the evidence line as step 9 of its loop, and the scenario passes **3/3 with that grader
+firing on every trial** (run `20260822T053153Z-e08aa40c`), where two of six trials previously
+produced no label at all.
+
+**Remaining (none blocking):**
 2. **One QA cleanup is unconfirmable, by design.** `sv-ap-v1` was created through the app-platform
    path during the write-path experiment, which grants its creator no permissions. `DELETE` answers
    `403` — and because the verification token also lacks org-wide `dashboards:read`, a `403` cannot
@@ -1019,11 +1025,15 @@ fixture-first tests were added (`40d701b`), calibrated against a real community 
 3. **Every `[verified: QA]` label is bound to Grafana 13.1.4** and must be re-checked after the 13.2
    upgrade — in particular the `409` conflict semantics and the new `export_inputs.go` behavior that
    resolves `${VAR_*}` constants during v0→v1 conversion.
-4. **Two inventory values stay `[unverified]`** in `wavefront-legacy.md`: the on-call timezone
-   convention and the production data-source uids.
-5. **Two sub-claims in the version research are `[unverified]`** and one of them is load-bearing:
-   whether the apistore strips a client-supplied `status` on write. The documented round-trip footgun
-   (PUT-ing a GET response back without deleting `status` pins the wrong stored version) rests on it.
+4. **Resolved by owner decision, 2026-08-22:** the timezone is deliberately unpinned (inherit), and
+   the data-source uids are a per-environment template whose values stay `[unverified]` by design —
+   they are read from each instance, never copied between them. The deeper question this raised is
+   tracked separately as **DASH-002**.
+5. **The load-bearing research gap is closed by reproduction** (`50bf790`): the apistore does *not*
+   strip a client-supplied `status`, so PUT-ing a GET response straight back pins the wrong stored
+   version permanently and destroys the absence signal along with it. Verified on QA. The remaining
+   `[unverified]` sub-claim — that a same-version read runs no converter — is standard apimachinery
+   behaviour and is not load-bearing for any rule in the skill.
 
 **Next action:** Restore the evidence-label grader and give the skill's loop a required labeled
 closing line, then re-run the scenario and expect 3/3 on behavior rather than on a narrowed grader.
