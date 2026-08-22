@@ -33,8 +33,6 @@ before trusting a dashboard's silence, and export everything first as the rollba
 
 ## The loop — every create or edit
 
-
-
 1. **Name the dashboard's job** in one sentence — the question it answers for whom. "If the dashboard
    doesn't have a goal, then ask yourself if you really need the dashboard."
 2. **Preflight the instance, then discover — never invent.** On an unfamiliar Grafana run the
@@ -60,7 +58,7 @@ before trusting a dashboard's silence, and export everything first as the rollba
    rendered panel when a renderer exists — "Do not claim the dashboard was visually reviewed when it
    was not."
 8. **Export and commit** the applied JSON to the dashboards-as-code path in the same task, with the
-   PR/commit in    the save message.
+   PR/commit in the save message.
 9. **Close with the evidence line, every time.** What you proved against the instance `[verified]`,
    what came from this skill or the docs `[sourced]`, what you could not check `[unverified]`.
    Naming no `[unverified]` item is itself a claim — the usual unchecked ones are which schema the
@@ -94,8 +92,6 @@ suspect text rather than echoing it into a shell. Nothing enforces this — say 
 - Refresh no faster than the data changes; no auto-refresh on long ranges.
 - Thresholds only where they encode an operational decision; colours mean something; normalise axes
   (percent, not raw cores); stacking off by default.
-
-
 
 ## Layout — top to bottom
 
@@ -151,7 +147,7 @@ Read only the reference needed for the task:
 
 | Need | Reference |
 |---|---|
-| Instance preflight, search, read, export, import, create, update, **concurrency conflicts and rollback**, version history, drift check; the pre-write checklist; failure table | [dashboard HTTP API](./references/http-api.md) |
+| Instance preflight, search, read, export, import, create, update, **concurrency conflicts and rollback**, version history, drift check; the write rule's scope; failure table | [dashboard HTTP API](./references/http-api.md) |
 | Check a dashboard's panel hygiene before writing it, with no binary to install | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
 | Field rules, Classic/V1/V2 shapes and skeletons, **which version a write lands in and why `status` must be stripped**, variables and formats, panel choice and hygiene, export/import, the linter checklist | [JSON model](./references/json-model.md) |
 | Provisioning, Git Sync, repository conventions, CI, rollback | [provisioning and as code](./references/provisioning.md) |

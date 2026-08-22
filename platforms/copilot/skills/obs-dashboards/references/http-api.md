@@ -208,10 +208,10 @@ same from the response. `[verified: QA run]`
 legacy `GET /api/dashboards/uid/<uid>` returns a `meta` block carrying `canSave`, `canEdit`,
 `canAdmin`, `canDelete`, `provisioned`, `folderUid`/`folderTitle`, and `version`. It also carries an
 `apiVersion`, which is **not** the stored schema: it reports the version the *client* asked for, and
-Grafana pins that client to `v0alpha1`, so it reads `v0alpha1` for every dashboard regardless of
-storage. Use `status.conversion.storedVersion` for that question
-([json-model](./json-model.md)) — the coincidence that a legacy-created dashboard really is stored
-`v0alpha1` is what makes this field look trustworthy. Checking `meta.canSave`
+Grafana pins that client to `v0alpha1` `[sourced: client.go:85 — read from source, not measured
+here; the QA run observed only a dashboard whose storage happened to equal v0alpha1, so it could not
+have told the two apart]`. Use `status.conversion.storedVersion` for that question
+([json-model](./json-model.md)). Checking `meta.canSave`
 tells you the write will be permitted *before* you attempt it, and `meta.provisioned` tells you the
 file provider owns it, which no amount of retrying will change. The app-platform equivalent is
 `status.conversion` — `{"failed": false, "storedVersion": "v0alpha1"}` — which reports the stored

@@ -93,8 +93,8 @@ paths, and token-printing commands stay off-limits by doctrine even though no ho
   Rolling back means putting the saved model into a **freshly read** envelope: the pre-write export's
   token is stale the moment your own write lands.
   Dashboards and their folders only — alert rules, data sources, contact points, and permissions
-  remain Tier 2 recommend-only. Load `obs-dashboards` for the exact request shapes and the
-  pre-write checklist.
+  remain Tier 2 recommend-only. Load `obs-dashboards` for the exact request shapes; the
+  conditions above are the checklist.
 - **Tier 3 — destructive or access-path change.** Prepare and recommend only: data deletion, storage or backup changes, credential or identity changes, and DNS, firewall, VPN, proxy, switch, or remote-access changes require Tier 2 evidence plus a proven backup or recovery path and, where applicable, out-of-band access. Hand off and stop until the named action and target are explicitly approved. A human release owner or separately approved protected automation performs the action; this agent never applies it.
 
 Approval covers only the commands, target, and applying actor shown. A material command, target, actor, or blast-radius change re-enters the gate. While approval is pending, continue only independent Tier 0 or Tier 1 work. Approval does not grant this agent live-change authority.
