@@ -39,14 +39,15 @@ does not apply and say so in one line; do not leave a heading with nothing under
      `[verified]` (you ran it), `[sourced]` (cited), or `[unverified]` (couldn't check) — the same
      rule the fleet's own agents follow. -->
 
-- [ ] `python scripts/gate_a.py` — clean <!-- the one structural gate. It discovers and runs every
-      validator and `test_*.py` itself; do not transcribe its step list here (that anti-drift design
-      is in the file's own docstring). CI runs this same script on Linux, macOS, and Windows. -->
+- [ ] `python scripts/gate_a.py` — clean <!-- the live-tree structural gate. It intentionally does
+      not run component tests or evals; those stay with the changed implementation. CI runs this
+      same dependency-free script on Linux and Windows. -->
 
 **Conditional gates — fill only the rows this PR trips, and delete the rest:**
 
 | If this PR touched… | It must show |
 |---|---|
+| executable implementation | the smallest focused test file(s) that exercise the changed owner; Gate A does not rerun them |
 | a routing-content `description:` edit — `Triggers:`, use-when/not-for, or a named alternative | the overlapping scenario(s) run after-change; run the previous-revision baseline only for a red scenario to determine whether the edit caused it. Pure rewording needs no live eval. If deferred, say why and what remains unmeasured |
 | `scripts/readonly-guard.py` or `hooks/hooks.json` | `python scripts/test_readonly_guard.py` and `python scripts/test_hook_wiring.py` green, plus the guard allow/deny corpus diff — and the 42 allow / 43 deny / 44 indeterminate exit-code contract left intact, since the hook tells this guard's answer from a stand-in interpreter by those codes |
 | a newly asserted contract — a validator rule, an exit code, a schema constraint, or any predicate a test names, anywhere in the repo | one focused test that fails when that exact contract is deliberately broken and passes when restored. State the red command and failure reason, then the green command. A survivor inventory or evaluation packet is not a substitute |

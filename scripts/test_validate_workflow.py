@@ -12,43 +12,46 @@ WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
 
 
 class ValidateWorkflowTests(unittest.TestCase):
-    def test_gate_a_checkout_includes_the_full_history_used_by_snapshot_tests(self) -> None:
+    def test_linux_and_windows_are_the_only_gate_platforms(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("runs-on: ubuntu-latest", workflow)
+        self.assertIn("runs-on: windows-latest", workflow)
+        self.assertNotIn(
+            "macos-latest",
+            workflow,
+            "macOS duplicated Linux or Windows in the measured workflow history",
+        )
+
+    def test_gate_a_jobs_do_not_fetch_history_for_focused_component_tests(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         validate_job, separator, _remainder = workflow.partition(
             "\n  claude-plugin-contract:"
         )
         self.assertTrue(separator, "validate workflow lost the plugin-contract job boundary")
-        self.assertRegex(
+        self.assertNotIn(
+            "fetch-depth: 0",
             validate_job,
-            re.compile(
-                r"^      - name: Check out repository\n"
-                r"        uses: actions/checkout@[^\n]+\n"
-                r"        with:\n"
-                r"          fetch-depth: 0(?:\n|$)",
-                re.MULTILINE,
-            ),
-            "Gate A materializes fixed historical SHAs and requires a full checkout",
+            "the structural gate reads the checked-out tree; focused snapshot tests own history",
         )
 
-    def test_every_gate_a_job_checks_out_full_history(self) -> None:
-        """The full-history requirement belongs to every job that runs the gate, not the first one."""
+    def test_gate_a_jobs_do_not_install_eval_harness_dependencies(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        gate_runs = workflow.count("scripts/gate_a.py\n")
-        full_checkouts = len(re.findall(r"^          fetch-depth: 0$", workflow, re.MULTILINE))
-        self.assertGreaterEqual(gate_runs, 2, "expected at least the matrix job and the Windows job to run the gate")
-        self.assertEqual(gate_runs, full_checkouts, "a Gate A job without fetch-depth: 0 cannot materialize the pinned historical SHAs")
+        validate_job, separator, _remainder = workflow.partition(
+            "\n  claude-plugin-contract:"
+        )
+        self.assertTrue(separator, "validate workflow lost the plugin-contract job boundary")
+        self.assertNotIn(
+            "requirements-dev.txt",
+            validate_job,
+            "PyYAML belongs to focused eval work, not every structural CI run",
+        )
 
     def test_windows_gate_runs_on_pull_requests(self) -> None:
-        """Windows is its own job rather than a matrix entry so its ~44 s gate does not hold the
-        Linux/macOS fail-fast matrix -- but it runs on every pull request. The guard, the gate lock,
-        the adapters, and the host-install probes all have Windows-only behavior the other OSes
-        cannot exercise, and `Protect main` has no required status check, so catching a Windows
-        break on merge or on the weekly schedule is too late. A local owner run is not enforceable
-        evidence. The schedule and dispatch remain as the floor for quiet weeks."""
+        """Windows keeps native path and generated-byte validation on every pull request."""
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        matrix_job, separator, remainder = workflow.partition("\n  validate-windows:")
+        linux_job, separator, remainder = workflow.partition("\n  validate-windows:")
         self.assertTrue(separator, "validate workflow has no dedicated validate-windows job")
-        self.assertNotIn("windows-latest", matrix_job, "Windows runs as its own job, not a matrix entry")
+        self.assertNotIn("windows-latest", linux_job, "Windows runs as its own job")
         windows_job = remainder.partition("\n  claude-plugin-contract:")[0]
         self.assertIn("runs-on: windows-latest", windows_job)
         self.assertNotRegex(

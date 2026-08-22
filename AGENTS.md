@@ -24,8 +24,8 @@ matters.
 | [`hooks/hooks.json`](hooks/hooks.json) | The Claude-only session guard wiring. Plugin agents cannot carry `hooks:`, so this file is the *only* place the read-only guard fires; it is load-bearing and scoped to exact `agent_type` values |
 | [`hooks/copilot-hooks.json`](hooks/copilot-hooks.json) | The Copilot hook projection. The Claude hook's scoping field is absent from other hosts' payloads, so guarding is not portable through it |
 | [`scripts/readonly-guard.py`](scripts/readonly-guard.py) | The fail-closed allowlist guard for `sre` and `observability-engineer`. Exit codes are a contract: 42 allow, 43 deny, 44 indeterminate — the hook uses them to tell this guard from a stand-in interpreter |
-| [`scripts/readonly-guard-hook.sh`](scripts/readonly-guard-hook.sh) | The standalone copy of the launcher whose one-line form `hooks/hooks.json` carries **inlined** — the JSON does not invoke this file. `test_hook_wiring.py` byte-syncs the two, so editing either alone fails the gate |
-| [`scripts/gate_a.py`](scripts/gate_a.py) | The single structural entrypoint. It discovers and runs every validator and `test_*.py` itself — do not transcribe its step list (read its docstring for why) |
+| [`scripts/readonly-guard-hook.sh`](scripts/readonly-guard-hook.sh) | The standalone copy of the launcher whose one-line form `hooks/hooks.json` carries **inlined** — the JSON does not invoke this file. The focused `test_hook_wiring.py` suite byte-syncs the two |
+| [`scripts/gate_a.py`](scripts/gate_a.py) | The single push-boundary structural entrypoint. It runs live-tree validators, not component tests or evals; read its docstring for the scope boundary |
 | [`.github/workflows/release.yml`](.github/workflows/release.yml) | The only prepared release effect path: exact-main-SHA preflight, protected annotated tag, strict remote-tag host smoke, protected immutable Release, then read-only verification. Its presence does not authorize dispatch |
 | [`scripts/release_contract.py`](scripts/release_contract.py), [`scripts/release_workflow_contract.py`](scripts/release_workflow_contract.py) | Fail-closed release request and workflow-shape contracts. The former binds version/review/SHA/actor/expiry/recovery/nonce; the latter mutation-checks the static authority boundary |
 | [`scripts/generate_platform_adapters.py`](scripts/generate_platform_adapters.py) | The one deterministic generator for all host projections. Run `--write` once before a push that carries canonical edits; a hand-edit to a generated root is drift it will erase |
@@ -62,12 +62,11 @@ To change anything a search turns up in a generated root: edit the canonical sou
 
 - `python scripts/gate_a.py` is the one structural gate. Run it **once, before a push** — not after
   each edit and not per commit (on Windows use `python`, never `python3` — the Microsoft Store stub).
-  CI runs this same script on Linux, macOS, and Windows for every pull request (Windows as its own
-  job so its ~44 s does not hold the others' fail-fast matrix), plus on pushes to `main`, weekly, and
-  on dispatch. CI is advisory today — `Protect main` requires a pull request but no status check —
-  so a red run is a signal to read, not a merge block.
-  Do not copy its step list anywhere — that is a deliberate anti-drift design recorded in the
-  file's docstring.
+  CI runs this same script on Linux and Windows for every pull request (Windows as its own job),
+  plus on pushes to `main`, weekly, and on dispatch. CI is advisory today — `Protect main`
+  requires a pull request but no status check — so a red run is a signal to read, not a merge block.
+  Gate A needs neither eval dependencies nor full Git history and does not rerun component tests;
+  those stay with the implementation that changed them.
 - Before a push that touched `agents/`, `skills/`, or `commands/`, run
   `python scripts/generate_platform_adapters.py --write` once — not after each edit — and commit
   the projections with the source. Gate A's byte check, run right after it, catches a forgotten
@@ -184,10 +183,14 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 Keyed by what you touched. Each names the **silent failure** it prevents — the case where nothing
 errors and the change quietly does not work.
 
-- **About to push** → run `python scripts/gate_a.py` once. Not per edit, not per commit: the
-  gate takes ~25 s, and it refuses to start while another run is in flight on the machine
-  (two overlapping runs false-red each other), so reflexive reruns cost more than they catch. *Silent failure it prevents:* a broken link, unresolved namespace, or
-  unrun test file shipping green because nothing checked it.
+- **Changed executable code** → run the smallest test file or files that exercise the changed owner
+  while implementing. Gate A does not rerun them at the push boundary. For eval-harness or scenario
+  work, install `requirements-dev.txt`, run the affected `evals/test_*.py`, and run
+  `python evals/run_evals.py --validate` when scenario parsing can change; these are offline checks,
+  not paid routing trials. *Prevents:* changed behavior shipping behind an unrelated green tree scan.
+- **About to push** → run `python scripts/gate_a.py` once, not per edit or per commit. *Silent
+  failure it prevents:* a broken link, unresolved namespace, stale projection, or malformed live
+  fleet record shipping because no validator inspected the final tree.
 - **About to push edits under `agents/`, `skills/`, or `commands/`** → run
   `python scripts/generate_platform_adapters.py --write` once, before Gate A, and commit the
   projections. Not after each edit. *Prevents:* the
