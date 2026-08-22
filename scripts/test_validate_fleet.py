@@ -39,6 +39,28 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
+    def test_exact_sha_independent_review_is_prod_deployment_only(self) -> None:
+        """Deleting or moving the review boundary must fail this contract."""
+        production_gate = re.sub(
+            r"\s+",
+            " ",
+            (ROOT / "skills/production-change-gate/SKILL.md").read_text(encoding="utf-8").lower(),
+        )
+        self.assertIn(
+            "production deployment of a new artifact requires independent review of the exact "
+            "candidate sha",
+            production_gate,
+        )
+
+        for relative in (
+            Path("skills/merge-gate/SKILL.md"),
+            Path("skills/release-gate/SKILL.md"),
+        ):
+            text = re.sub(r"\s+", " ", (ROOT / relative).read_text(encoding="utf-8").lower())
+            with self.subTest(contract=relative.as_posix()):
+                self.assertNotIn("requires independent review", text)
+                self.assertNotIn("reviewed sha", text)
+
     def test_scribe_is_a_non_executing_document_writer(self) -> None:
         path = ROOT / "agents" / "scribe.md"
         fields, body, _ = validate_fleet.adapters.parse_frontmatter(path)

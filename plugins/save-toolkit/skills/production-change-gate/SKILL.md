@@ -27,9 +27,10 @@ concurrency token pinned, applied JSON committed in the same task — stand in p
 step, not beside it. Dashboards and their folders only: alert rules, data sources, contact points,
 permissions, and everything in every other lane clear this gate normally.
 
-> **The checklist is not the enforcement.** It records a human decision. The load-bearing controls are
-> branch protection and protected environments with required reviewers, configured so administrators
-> cannot bypass them. Treat this record as evidence riding on that boundary, not as the boundary itself.
+> **The checklist is not the enforcement.** It records a human decision. The load-bearing control is the
+> production execution boundary: an authorized human release owner or separately approved protected
+> automation. Repository merge rules intentionally require no approval and are not production-review
+> evidence.
 
 ## Checklist
 
@@ -61,32 +62,17 @@ permissions, and everything in every other lane clear this gate normally.
 
 The example is `[unverified]`: it is the required approval-request shape, not evidence from a foundation.
 
-- [ ] **Readiness evidence present** — for a release, attach the reviewed SHA, green checks, exact release
-      artifact, and named approver. Consume those records as existing evidence; do not load or execute a
-      readiness gate. For a non-release action, mark artifact fields not applicable and attach the current
-      reviewed command/diff and named approval instead. Rolling back to the immediately previously live
-      artifact re-uses that artifact's existing records — never reassemble release evidence to undo a
-      change.
-- [ ] **The boundary is actually ON** *(planned changes; deferred during a declared incident — see the
-      incident fast path)* — verified, not assumed. Everything below is a record; branch
-      protection is the control and must be checked by an authorized human or protected evidence job.
-      Note: `gh api` is deliberately absent from the guarded-Bash allowlist (it can silently POST), so
-      a guarded `save-toolkit-sre` session cannot run this itself. A denial here is by design rather
-      than allowlist drift: still record it, but hand the command to the human or evidence job instead
-      of opening an allowlist PR.
-
-      ```sh
-      gh api repos/{owner}/{repo}/branches/{branch}/protection \
-        --jq '{enforce_admins: .enforce_admins.enabled,
-               required_reviews: .required_pull_request_reviews.required_approving_review_count,
-               dismiss_stale: .required_pull_request_reviews.dismiss_stale_reviews}'
-      ```
-
-      `enforce_admins` must be **true** (GitHub's administrator bypass setting is disabled). If it is
-      false — or the call **404s**, meaning no branch protection — **BLOCK** any planned production
-      change. Record the exact output. Until attached, the boundary and every dependent claim remain
-      `[unverified]`. During a declared incident this evidence is deferred to reconciliation: it governs
-      what merges and ships, not whether a live mitigation may proceed.
+- [ ] **Readiness evidence present** — a production deployment of a new artifact requires independent
+      review of the exact candidate SHA. Attach that review, green checks, the exact release artifact,
+      and the named production approver; missing or stale review blocks the deployment. Consume those
+      records as existing evidence rather than loading another gate. For a non-deployment action, mark
+      artifact and code-review fields not applicable and attach the current command or diff plus named
+      approval instead. Rolling back to the immediately previously live artifact re-uses that artifact's
+      existing records — never reassemble release evidence to undo a change.
+- [ ] **The production execution boundary is actually ON** *(planned changes; deferred during a declared
+      incident — see the incident fast path)* — verify the named human release owner or separately
+      approved protected automation that will execute this action. Repository approval counts and review
+      threads are not substitutes for that production authority and are not checked here.
 - [ ] **Approved** — an authorized human explicitly approved this exact target, command or diff, applying
       actor, and time; attach the change record when the process requires one.
 - [ ] **Blast radius understood** — record affected apps, routes, spaces, users or traffic share and the
@@ -114,7 +100,7 @@ Tier: <0|1|2|3>   Target: <exact target>   Actor: <human or protected automation
 Change: <what, where>   Approved by: <human>   When: <UTC>
 Backout: <exact reversible steps>
 Watching: <who, which signals>   Abort if: <criteria>
-Branch protection evidence: <output or [unverified]>
+Production execution boundary: <authorized human or protected automation evidence>
 ```
 
 ## Incident fast path (emergency exception)
@@ -127,9 +113,10 @@ execution.
 the reversible actions in the `incident-command` mitigation table (route remap, revision rollback,
 restart, restage, scale, flag flip). Two things stay on the full gate even at P1:
 
-- **A new artifact.** An incident hotfix is still a release: reviewed SHA, lower-environment
-  evidence, migration safety, and rollback evidence are exactly what stop one incident from becoming
-  two. Rolling *back* to the previously live artifact is covered here; shipping new bytes is not.
+- **A new artifact.** An incident hotfix is still a production deployment: independent review of the
+  exact candidate SHA, lower-environment evidence, migration safety, and rollback evidence are exactly
+  what stop one incident from becoming two. Rolling *back* to the previously live artifact is covered
+  here; shipping new bytes is not.
 - **Any Tier 3 destructive or access-path action** (data deletion, storage/backup, credential or
   identity, DNS, firewall, VPN, proxy, remote access). Tier 3 keeps its proven backup/recovery
   requirement — a backout plan cannot reverse an irreversible mutation, so speed cannot buy it out.
@@ -150,9 +137,8 @@ restart, restage, scale, flag flip). Two things stay on the full gate even at P1
 
 - Readiness evidence and artifact records **for the covered actions only** — a rollback re-uses the
   previously live artifact's existing records. A new artifact is out of scope above and keeps them.
-- Branch-protection evidence (the `gh api` check above). A live `cf` action is not a merge, and a
-  GitHub API call must never sit on the rollback path — a GitHub outage cannot be allowed to block
-  recovery.
+- Production execution-boundary evidence. A GitHub or deployment-control API call must never sit on
+  the rollback path — a control-plane outage cannot be allowed to block recovery.
 - Timing/freeze documentation, Moogsoft suppression records, and the formal change record. This team
   keeps change records in **both BMC Remedy and Jira** *[sourced: operator statement 2026-08-21]*, so
   name the system and the record ID rather than writing "the change record" — a packet that does not

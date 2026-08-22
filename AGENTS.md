@@ -174,8 +174,9 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 
 ## Typical flows
 
-- **Ship a feature:** `sde` → `reviewer` (both lenses) → `merge-gate`; a human release owner runs
-  `release-gate` → `/save-toolkit:pcf-deploy` → `scribe` documents new ops steps.
+- **Ship a feature:** `sde` → `merge-gate` (`reviewer` when requested); a human release owner runs
+  `release-gate` → `production-change-gate` (exact-candidate independent review only for a production
+  deployment of new bytes) → `/save-toolkit:pcf-deploy` → `scribe` documents new ops steps.
 - **Production incident:** `sre` (triage + RCA, `incident-command` loaded for process/comms); a
   human release owner executes mitigation; `sde` fixes root cause; `observability-engineer` closes the
   detection gap; `scribe` writes the postmortem.
@@ -206,16 +207,15 @@ errors and the change quietly does not work.
   stale projection.
 - **Changed a `description:`'s routing content** — a quoted `Triggers:` phrase, a use-when / not-for
   clause, or a named alternative component → find the scenarios that target it
-  (`python evals/run_evals.py --list`; the `-> kind:name` column, since 18 scenario ids do not carry
-  the target's name) and run them through the clean-room runner **after** the change. Run the
-  **before** baseline only for a scenario that comes back red, to attribute the red. Rewording that
-  leaves those elements intact needs no eval. One scenario is minutes per run and one component can
-  carry a dozen, which is why the older any-edit, before-and-after form was deferred more often than
-  run. This after-first shortcut does not replace the incumbent baseline when an accepted fleet
-  failure is what justifies the edit; that case follows the focused-regression rule above. *Prevents:*
-  a routing change (a component that stops firing, or a near-miss that starts) that
-  no structural check can see. Routing evals need a live API and may be deferred with a stated
-  reason — never with an eyeball standing in for the measurement.
+  (`python evals/run_evals.py --list`; use the `-> kind:name` column). For a **skill** target, run the
+  overlapping clean-room scenarios **after** the change; run the before baseline only when one comes
+  back red. Rewording that leaves the routing elements intact needs no eval. For an **agent** target,
+  discovery is optional, model-labelled calibration only: the headless main session may answer
+  inline, so never use its willingness to dispatch as a regression gate. A direct-agent scenario
+  tests behavior after explicit selection; it does not prove description routing. Run an agent
+  discovery case only for a named host/model question and stop at its declared trial count. *Prevents:*
+  paying to chase a model's inline-versus-delegate preference while preserving focused measurement
+  for skill routing and actual agent behavior.
 - **Asserted a new contract** — a validator rule, an exit code, a schema constraint, or any predicate
   a test names → add one focused fixture or test, deliberately break that exact contract in an
   isolated tree, and run the focused test. It must fail for the named behavior; after the contract is

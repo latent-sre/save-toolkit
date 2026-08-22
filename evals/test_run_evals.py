@@ -53,6 +53,16 @@ class ScenarioValidationTests(unittest.TestCase):
         problems = run_evals.validate([self._scenario(mode="discovery")])
         self.assertTrue(any("routing.expect" in p for p in problems))
 
+    def test_agent_discovery_is_calibration_only(self) -> None:
+        scenario = self._scenario(
+            mode="discovery",
+            split="regression",
+            target={"kind": "agent", "name": "sre"},
+            routing={"expect": "fire"},
+        )
+        problems = run_evals.validate([scenario])
+        self.assertTrue(any("agent-target discovery is calibration-only" in p for p in problems))
+
     def test_scenario_id_cannot_escape_artifact_directory(self) -> None:
         problems = run_evals.validate([self._scenario(id="../escape")])
         self.assertTrue(any("safe lowercase slug" in p for p in problems))

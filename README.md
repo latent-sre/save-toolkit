@@ -37,7 +37,8 @@ recommend someone else's tools.
 
 - *"orders is 502-ing in prod since 14:20 UTC — investigate"* → the `sre` agent triages read-only
   and recommends a mitigation for a human to apply.
-- *"is PR #42 ready to merge?"* → the `merge-gate` checklist, consuming the typed reviewer's packet.
+- *"is PR #42 ready to merge?"* → the `merge-gate` checklist, including disposition of any known
+  blocking findings; independent exact-SHA review is reserved for production deployments.
 - *"write a runbook for the checkout deploy"* → the `scribe` agent with the `runbook` skill.
 
 The one manual command is `/save-toolkit:adr` (ADR scaffold).

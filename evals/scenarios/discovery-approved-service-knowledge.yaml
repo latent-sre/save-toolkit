@@ -1,7 +1,7 @@
 schema_version: 1
 id: discovery-approved-service-knowledge
 mode: discovery
-split: regression
+split: calibration
 target:
   kind: agent
   name: scribe

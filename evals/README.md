@@ -64,9 +64,11 @@ unified runner measures two different properties and never blends their scores:
   response is insufficient; the stream trace must contain a completed, non-error invocation. For an
   *agent* target this measures the main session's willingness to dispatch a subagent with no route
   instruction present (the clean room strips `AGENTS.md`), and that is model-dependent: on
-  2026-08-22 Opus 5 dispatched 0/3 and Sonnet 3/3 on the same scenario (`EVAL-002` in the roadmap).
-  Pass `--model` and record it with the result; an agent-target red without a model named is not
-  a routing finding.
+  2026-08-22 Opus 5 dispatched 0/3 while Sonnet emitted the expected dispatch in 3/3 on the same
+  scenario. Agent-target discovery is therefore calibration-only: pass `--model`, record the model
+  and host with the result, and never put it in the regression split. A red means "not dispatched",
+  not "agent misrouted" or "agent broken". See the
+  [accepted EVAL-002 decision](../docs/decisions/2026-08-22-agent-discovery-calibration.md).
 - **Direct contract compliance**: once the component is explicitly pinned, does its response satisfy
   the behavioral contract?
 
@@ -92,7 +94,8 @@ python evals/run_evals.py --run --mode direct --match merge-gate --trials 3
 
 `--validate` is the CI-safe schema, target, and grader check. `--run` needs a Claude-enabled runner
 and starts a fresh non-persistent process for every trial. It supports `--mode`, `--split`, `--match`,
-`--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`.
+`--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`. The discovery regression command
+selects skill targets only; agent-target discovery cases are optional calibration measurements.
 
 Direct skills are pinned with `/save-toolkit:<skill>`; direct agents use
 `--agent save-toolkit:<agent>`. These two pins are not equivalent evidence. `--agent` runs the
@@ -128,9 +131,10 @@ IDs through the scoped evidence field.
 Agent descriptions are routing hints, not a dispatch guarantee. In one-shot headless Claude Code,
 the main model can answer a request inline even when the matching plugin agent is available and its
 description says to use it proactively. Treat agent-discovery scores as an observational host/model
-metric; do not infer that a failed discovery trial means the agent's behavior is broken. Direct agent
-contracts pin the agent with `--agent` and are the behavioral gate. For deterministic interactive use,
-select the plugin agent explicitly rather than depending on autonomous delegation.
+metric, run them only for a named host/model question, and stop at the declared trial count. Do not
+infer that a failed discovery trial means the agent's behavior is broken. Direct agent contracts pin
+the agent with `--agent` and are the behavioral gate. For deterministic interactive use, select the
+plugin agent explicitly rather than depending on autonomous delegation.
 
 The live result states are `PASS`, `FAIL`, and `INCONCLUSIVE`. A timeout, authentication or runner
 failure, malformed trace, or missing final result is `INCONCLUSIVE`, never a fleet failure. Threshold
@@ -227,6 +231,8 @@ author. Add a new regression prompt before tuning, run calibration while iterati
 regression split once before review. A genuine promotion shadow set must be human-owned outside the
 authoring checkout; record only its digest, case count, result, evaluator identity, and evidence ID.
 Record numerator/denominator, CLI/model, plugin commit, and suite digest for every run.
+Agent-target discovery is the deliberate exception: it is always calibration because the main
+session's decision to delegate is a model/host propensity, not a fleet contract.
 
 ## Failure-to-regression loop
 
@@ -246,8 +252,9 @@ merges, releases, deploys, or changes a live system.
 ## Adding scenarios
 
 1. For an accepted failure or explicit new behavior, add the smallest gradeable regression before
-   editing. For an ordinary routing-description edit, reuse and run the overlapping scenarios after
-   the change; pure rewording adds and runs none.
+   editing. For an ordinary skill routing-description edit, reuse and run the overlapping scenarios
+   after the change; pure rewording adds and runs none. Agent-target discovery remains optional,
+   model-labelled calibration and never supplies the regression.
 2. Grade the response outcome rather than incidental tool order. Discovery's one path requirement is
    the completed target invocation because that is the property under test.
 3. Keep graders deterministic where possible. Calibrate any model judge against hand-graded cases.

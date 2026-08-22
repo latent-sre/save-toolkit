@@ -46,13 +46,13 @@ structural gate:
 py -3 scripts/gate_a.py
 ```
 
-Gate A is structural. Before merge, run one independent `reviewer` pass — it carries both the
-correctness lens and the security/agentic-boundary lens — against the pushed candidate SHA, and name
-that SHA in the PR body so a skipped review is visible rather than silent. Add a plan-conformance
-review only when the PR cites a roadmap item or plan. A change that touches authority — `agents/`
-frontmatter, `hooks/`, `scripts/readonly-guard.py`, the release scripts and workflow, the adapter
-generator, or the GitHub rulesets — still gets all three reviews as separate passes. A review of
-mutable working-tree bytes is explicitly provisional. Run behavioral evaluations manually, never in CI, through the clean-room
+Gate A is structural. Independent review is available when the owner wants it, but it is not a
+universal merge prerequisite. When a review exists, fix or explicitly reject its current P0/P1
+findings with evidence. A production deployment of new bytes separately requires independent review
+of the exact candidate SHA at `production-change-gate`; routine merges, non-production releases, and
+later pushes do not trigger automatic re-review. Add a plan-conformance review only when the PR cites
+a roadmap item or plan. A review of mutable working-tree bytes is explicitly provisional. Run
+behavioral evaluations manually, never in CI, through the clean-room
 Claude runner (`evals/run_evals.py`); repository-local outputs must stay under `.eval-runs/`. The
 Codex/Sol conformance runners are parked at tag `pre-trim-2026-08-02` — if they are recovered,
 their same-user credential limits and always-false authority labels in
