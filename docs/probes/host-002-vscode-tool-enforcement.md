@@ -45,9 +45,10 @@ Copilot managed settings.
 
 ## 1. Prepare an evidence run
 
-Use a normal clone, not a linked Git worktree: Gate A's current Codex snapshot test requires the
-repository `.git` path to be a directory and rejects a linked worktree's `.git` indirection. Start
-from a clean checkout at the exact revision under test.
+Use a normal clone at the exact revision under test. The earlier Gate A Codex snapshot test that
+rejected a linked Git worktree's `.git` indirection was removed with Gate A's narrowed scope, so a
+worktree no longer trips a structural check — but the probe's evidence digest and `git archive`
+snapshot below still assume a clean, fully committed tree, which a normal clone keeps unambiguous.
 
 ```powershell
 git status --porcelain

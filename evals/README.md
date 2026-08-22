@@ -7,14 +7,16 @@ look like a menu even when a path is not runnable or authoritative.
 
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
-| **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | `--validate` only | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
+| **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
 | **Codex/Terra ROUTE-001** | **retired 2026-08-22**; historical evidence only | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 | [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
 
-Every active `evals/test_*.py` runs in Gate A, enrolled by file existence rather than a hand-kept
-roster. Parked execution code stays out of the active tree, and frozen evidence remains read-only.
+Active `evals/test_*.py` suites are owner-triggered: run the affected file directly
+(`python evals/test_graders.py`, `python evals/test_run_evals.py`, …) when you change its owning
+harness code. Gate A is structural only and does not run them. Parked execution code stays out of
+the active tree, and frozen evidence remains read-only.
 
 > **Shallow clones:** every "recover from tag `pre-trim-2026-08-02`" instruction in this repository
 > fails with `fatal: unknown revision` unless you fetch tags first

@@ -12,6 +12,17 @@ WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
 
 
 class ValidateWorkflowTests(unittest.TestCase):
+    def test_linux_validate_job_runs_gate_a(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        linux_job, separator, _remainder = workflow.partition("\n  validate-windows:")
+        self.assertTrue(separator, "validate workflow has no dedicated validate-windows job")
+        self.assertIn("runs-on: ubuntu-latest", linux_job, "the Linux validate job lost its runner")
+        self.assertIn(
+            "run: python scripts/gate_a.py",
+            linux_job,
+            "the Linux validate job no longer invokes Gate A",
+        )
+
     def test_linux_and_windows_are_the_only_gate_platforms(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("runs-on: ubuntu-latest", workflow)

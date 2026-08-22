@@ -49,16 +49,29 @@ def _is_test_runner_call(node: ast.AST) -> bool:
     )
 
 
+def _guard_calls_runner(statements: list[ast.stmt]) -> bool:
+    """True when the guard body itself reaches a test-runner call.
+
+    Nested function or class bodies are never executed by running the guard, so a
+    ``unittest.main()`` defined only inside one leaves the script silent; those
+    statements are not descended into.
+    """
+    stack: list[ast.AST] = list(statements)
+    while stack:
+        node = stack.pop()
+        if _is_test_runner_call(node):
+            return True
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        stack.extend(ast.iter_child_nodes(node))
+    return False
+
+
 def _entrypoint_line(tree: ast.Module) -> int | None:
     for node in tree.body:
         if not isinstance(node, ast.If) or not _is_main_guard(node.test):
             continue
-        calls_runner = any(
-            _is_test_runner_call(child)
-            for statement in node.body
-            for child in ast.walk(statement)
-        )
-        if calls_runner:
+        if _guard_calls_runner(node.body):
             return node.lineno
     return None
 
