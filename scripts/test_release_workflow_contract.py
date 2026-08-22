@@ -18,6 +18,26 @@ class ReleaseWorkflowContractTests(unittest.TestCase):
         failures = release_workflow_contract.validate_workflow(WORKFLOW.read_text(encoding="utf-8"))
         self.assertEqual([], failures)
 
+    def test_structural_preflight_does_not_install_eval_dependencies(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        preflight, separator, _remainder = workflow.partition("\n  publish_tag:")
+        self.assertTrue(separator, "release workflow lost the publish-tag job boundary")
+        self.assertNotIn(
+            "requirements-dev.txt",
+            preflight,
+            "the release preflight runs structural Gate A, not the focused eval harness",
+        )
+
+    def test_preflight_still_runs_gate_a(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        preflight, separator, _remainder = workflow.partition("\n  publish_tag:")
+        self.assertTrue(separator, "release workflow lost the publish-tag job boundary")
+        self.assertIn(
+            "run: python scripts/gate_a.py",
+            preflight,
+            "removing the release preflight's structural verification must not pass silently",
+        )
+
     def test_mutations_disarm_the_contract_and_are_detected(self) -> None:
         original = WORKFLOW.read_text(encoding="utf-8")
         mutations = {

@@ -222,9 +222,6 @@ jobs:
             --workflow-sha "$WORKFLOW_SHA" \
             > "$RUNNER_TEMP/release-request.json"
 
-      - name: Install pinned validation dependencies
-        run: python -m pip install -r requirements-dev.txt
-
       - name: Gate A structural verification
         run: python scripts/gate_a.py
 

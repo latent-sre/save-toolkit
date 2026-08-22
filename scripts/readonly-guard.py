@@ -70,7 +70,9 @@ guard's answer from a stand-in interpreter that merely exits 0 — see the comme
 The hook shell string translates them back to the documented exit-0 contract
 (https://code.claude.com/docs/en/hooks) before Claude Code sees anything.
 
-Covered by scripts/test_readonly_guard.py (pure-stdlib, runs offline in CI via gate_a.py).
+Covered by scripts/test_readonly_guard.py and, at the hook boundary,
+scripts/test_hook_wiring.py. Run both directly when the guard or hook changes; Gate A does not run
+component tests.
 """
 import json
 import re

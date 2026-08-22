@@ -162,12 +162,12 @@ draft. Branch protection, required review, and protected workflows remain the en
   record history. The corpus scanner treats the first retained bytes as creation and rejects a
   promoted bootstrap, later rewrites, deletion anywhere in full merged history—including a deletion
   introduced only by a merge result—or non-linear
-  record-changing commits. It rejects shallow repositories; automation that
-  runs Gate A must fetch complete history (`fetch-depth: 0` with `actions/checkout`). Its
+  record-changing commits. It rejects shallow repositories, so any run of the
+  (currently parked) corpus scanner or validator must fetch complete history first
+  (`fetch-depth: 0` with `actions/checkout`). Its
   reconstructed roles prove transition shape only; authenticated protected-workflow identity
-  remains external evidence. The manually disabled **Validate fleet** workflow remains untouched by
-  this work; before it is re-enabled, its checkout step must use `fetch-depth: 0` or ledger replay
-  will fail closed.
+  remains external evidence. This full-history requirement binds the lifecycle scanner only:
+  Gate A is structural, does not run the scanner, and validates a shallow checkout.
 
 ## Closeout and move-left
 
