@@ -32,32 +32,29 @@ has not yet confirmed — confirm it rather than inventing an alternative.
 - **Tags.** `<team>` and `<app>` on every dashboard; `env` is a variable, not a tag. Experiments carry
   the `TEST:` name prefix plus the author's initials as a tag and are deleted when done; tags are
   never copied when a dashboard is duplicated.
-- **Time.** Default window `now-6h` to `now`; timezone `utc` `[unverified — confirm the on-call
-  team's convention]`; auto-refresh `1m` on health dashboards, off on anything with a range over a day.
+- **Time.** Default window `now-6h` to `now`; auto-refresh `1m` on health dashboards, off on anything
+  with a range over a day. **Timezone is deliberately not pinned** `[sourced: owner, 2026-08-22]` —
+  leave `timezone` unset so each dashboard inherits the org default and each viewer sees their own
+  local time. The trade-off to know rather than re-litigate: two people comparing the same spike from
+  different regions are reading different clocks, so quote an absolute UTC time (or paste the URL,
+  which carries the range) when handing evidence to someone else.
 - **Variables, in this order:** `datasource` (type data source, the only way a panel names its
   backend), `env`, `app` (constant on per-app dashboards), `instance`, `route`; all multi-value
   selectors use `allValue: ".+"` and `${var:regex}`.
-- **Default `${datasource}` value:** production metrics `<prod Mimir/Prometheus uid>` `[unverified —
-  read it from `GET /api/datasources` on the production instance]`. On QA
-  (`qa-grafana.agenticsre.dev`, 13.1.4 Enterprise) the two installed sources are
-  **`[verified 2026-08-21]`**:
+- **Data sources.** Panels never name a data source directly — they reference `${datasource}`, and
+  the variable's default carries the environment. Fill this in per instance from
+  `GET /api/datasources` on that instance; do not copy a uid between environments, and do not assume
+  a source's *name* tells you which backend it points at.
 
-  | Name in Grafana | Type | UID | Backend URL |
+  | Environment | Grafana URL | Metrics source name / uid | Logs source name / uid |
   |---|---|---|---|
-  | `prometheus-production-read-only` | `prometheus` | `dfr5gp9z5pzb4a` | `https://qa-prometheus.agenticsre.dev` |
-  | `loki-production-read-only` | `loki` | `efr5j53fgnta8e` | `https://qa-loki.agenticsre.dev` |
+  | Production | `<url>` | `<name>` / `<uid>` | `<name>` / `<uid>` |
+  | Non-production | `<url>` | `<name>` / `<uid>` | `<name>` / `<uid>` |
 
-  **Naming hazard, flagged not fixed:** both QA sources are *named* `…-production-read-only` while
-  pointing at QA backends. A dashboard whose panels select a data source by name reads as
-  production-backed on either instance; only the uid distinguishes them. This is one more reason
-  every panel references `${datasource}` and the repository never hard-codes a uid — and a reason to
-  rename these before anyone builds the habit.
-
-  No Wavefront or Splunk data-source plugin is installed on QA **`[verified 2026-08-21:
-  `GET /api/plugins` lists alertmanager, cloudwatch, azure-monitor, postgres, pyroscope, testdata,
-  graphite, influxdb, jaeger, loki, mssql, mysql, opentsdb, parca, prometheus, stackdriver, tempo —
-  and neither wavefront nor splunk]`**, so WQL/SPL panels cannot be exercised there; the licence
-  facts in the skill body still govern the production instance.
+  All four uids are `[unverified]` — read them from the target rather than from this table until
+  someone fills it in. Wavefront- and Splunk-backed panels name their own data source and are not
+  switched by this variable; whether those Enterprise plugins are licensed on a given instance is a
+  per-instance check (`GET /api/plugins`), not something this file can assert.
 
 ## Alert inventory
 

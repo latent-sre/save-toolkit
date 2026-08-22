@@ -1028,6 +1028,47 @@ fixture-first tests were added (`40d701b`), calibrated against a real community 
 **Next action:** Restore the evidence-label grader and give the skill's loop a required labeled
 closing line, then re-run the scenario and expect 3/3 on behavior rather than on a narrowed grader.
 
+### DASH-002 — decide how one dashboard JSON serves two Grafana instances
+
+**Status:** `decision-needed` (2026-08-22) — raised by the owner while templating the data-source
+inventory: "these are just qa, they are not the real ones… that opens up a new question for later."
+
+**Outcome:** The team has one recorded answer for how a committed dashboard reaches both the
+non-production and production Grafana without editing the JSON per environment, and
+`obs-dashboards` teaches that answer instead of leaving it implicit.
+
+**Source:** The QA verification run. Data-source uids are per-instance
+(`dfr5gp9z5pzb4a` on the QA box) and are minted at data-source creation, so the same committed
+dashboard cannot name a uid and work in both places. The skill's current answer — every panel
+references `${datasource}` — solves the *panel* half, but the variable still has to resolve to
+something per instance, and the skill does not say how. This is the seam where "dashboards as code"
+usually breaks in practice.
+
+**Options, none yet chosen:**
+1. **Pin identical data-source uids across environments** by provisioning the data sources
+   themselves as code with an explicit `uid`. Dashboards then reference a uid that means the same
+   thing everywhere, and the `${datasource}` variable becomes a convenience rather than a
+   portability mechanism. Cleanest, but requires owning data-source provisioning on both instances.
+2. **Bind at import time** — keep `__inputs`/`${DS_*}` in the committed file and let
+   `POST /api/dashboards/import` resolve them per instance (verified working; see
+   [`http-api.md`](../skills/obs-dashboards/references/http-api.md)). Standard for community
+   dashboards, but the committed artifact is then not the artifact that runs.
+3. **Substitute at deploy time** — template the JSON in CI per environment. Most flexible, adds a
+   build step, and the file in the repository is no longer directly loadable.
+4. **A data-source *variable* whose default differs per instance**, set by provisioning rather than
+   by the dashboard. Smallest change from today; leaves a per-instance value outside the dashboard.
+
+**Prerequisites:** None. This is a decision, not an implementation; it needs the owner and whoever
+owns data-source provisioning on the production instance.
+
+**Acceptance:** The chosen option is recorded (an ADR if it constrains provisioning), the
+data-source inventory table in
+[`wavefront-legacy.md`](../skills/obs-dashboards/references/wavefront-legacy.md) is filled in
+accordingly, and `obs-dashboards` states the mechanism in one place rather than implying it.
+
+**Next action:** Ask whether data sources are already provisioned as code on either instance — that
+single fact eliminates or elects option 1 and makes the rest a short conversation.
+
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
 **Status:** `blocked` (2026-08-20) — blocked on ROUTE-001's re-freeze window, not on effort.
