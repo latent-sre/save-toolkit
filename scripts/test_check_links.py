@@ -361,55 +361,6 @@ class LiveDocLinkTests(unittest.TestCase):
             self.assertEqual([], check_links._check_live_doc_links(link))
 
 
-class EvidenceBannerTests(unittest.TestCase):
-    """The evidence-default banner is duplicated 29 times; pin the copies in step.
-
-    A shared reference is architecturally impossible here — check_links forbids a relative link
-    escaping its skill root — so duplication is the design and drift is the risk it carries.
-    """
-
-    def test_live_skills_share_one_banner(self) -> None:
-        self.assertEqual([], check_links._check_evidence_banner(ROOT))
-
-    def test_one_reworded_copy_is_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            for name, tail in (("alpha", "never upgrade it."), ("beta", "never upgrade it."),
-                               ("gamma", "must never upgrade it.")):
-                skill = root / "skills" / name
-                skill.mkdir(parents=True)
-                (skill / "SKILL.md").write_text(
-                    f"---\nname: {name}\n---\n\n"
-                    "> **Evidence default — `[unverified]`.** Handoffs "
-                    f"{tail}\n\nbody\n",
-                    encoding="utf-8",
-                )
-            failures = check_links._check_evidence_banner(root)
-        self.assertTrue(any("gamma" in f and "banner differs" in f for f in failures), failures)
-
-    def test_a_skill_that_drops_the_banner_is_flagged_once_others_carry_it(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            for name, banner in (("alpha", True), ("beta", True), ("naked", False)):
-                skill = root / "skills" / name
-                skill.mkdir(parents=True)
-                text = f"---\nname: {name}\n---\n\n"
-                if banner:
-                    text += "> **Evidence default \u2014 `[unverified]`.** Handoffs never upgrade it.\n\n"
-                (skill / "SKILL.md").write_text(text + "body\n", encoding="utf-8")
-            failures = check_links._check_evidence_banner(root)
-        self.assertTrue(any("naked" in f and "missing" in f for f in failures), failures)
-
-    def test_a_tree_with_no_banners_at_all_is_left_alone(self) -> None:
-        """A minimal fixture is not a fleet that lost its evidence contract."""
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            skill = root / "skills" / "alpha"
-            skill.mkdir(parents=True)
-            (skill / "SKILL.md").write_text("---\nname: alpha\n---\n\nbody\n", encoding="utf-8")
-            self.assertEqual([], check_links._check_evidence_banner(root))
-
-
 class EscapingLinkTests(unittest.TestCase):
     """A link that resolves outside the repository is a defect, not a pass.
 

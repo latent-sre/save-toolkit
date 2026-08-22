@@ -41,66 +41,6 @@ LIVE_DOC_ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "CHA
 LIVE_DOC_DIR_GLOBS = (("docs", "*.md"), ("docs/decisions", "*.md"))
 
 
-EVIDENCE_BANNER_ANCHOR = "**Evidence default"
-
-
-def _evidence_banner(text: str) -> str | None:
-    """The contiguous blockquote containing the shared evidence-default banner, or None."""
-    lines = text.splitlines()
-    for index, line in enumerate(lines):
-        if EVIDENCE_BANNER_ANCHOR in line and line.lstrip().startswith(">"):
-            block = []
-            for candidate in lines[index:]:
-                if not candidate.lstrip().startswith(">"):
-                    break
-                block.append(candidate.rstrip())
-            return "\n".join(block)
-    return None
-
-
-def _check_evidence_banner(root: Path) -> list[str]:
-    """Every skill's evidence-default banner must be byte-identical.
-
-    All 29 currently hash the same, so this changes nothing today -- which is the point. The banner
-    is duplicated 29 times by necessity (check_links forbids a relative link escaping a skill root,
-    so a shared reference is architecturally impossible here), and nothing asserted the copies stay
-    in step. One reworded copy would silently give one lane a different evidence contract from the
-    rest of the fleet, and no other check in this repo would see it.
-    """
-    skill_root = root / "skills"
-    if not skill_root.is_dir():
-        return []
-    banners: dict[str, str] = {}
-    missing: list[str] = []
-    failures: list[str] = []
-    for skill_path in sorted(skill_root.glob("*/SKILL.md")):
-        try:
-            banner = _evidence_banner(skill_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError):
-            continue  # already reported by the reader in check()
-        if banner is None:
-            missing.append(skill_path.relative_to(root).as_posix())
-            continue
-        banners[skill_path.parent.name] = banner
-    # Presence binds only once the banner is established as a convention. A tree where NO skill
-    # carries one is a minimal fixture, not a fleet that lost its evidence contract, and failing
-    # those would make this check a tax on every synthetic test rather than a guard on the real
-    # tree. Where some skills carry it, the rest must.
-    if banners:
-        failures.extend(f"{path}: missing the evidence-default banner" for path in missing)
-    distinct = sorted(set(banners.values()))
-    if len(distinct) > 1:
-        # Name the minority spelling(s): with 29 copies, reporting "they differ" is not actionable.
-        majority = max(distinct, key=lambda text: sum(1 for v in banners.values() if v == text))
-        for name, banner in sorted(banners.items()):
-            if banner != majority:
-                failures.append(
-                    f"skills/{name}/SKILL.md: evidence-default banner differs from the other "
-                    f"{len(banners) - 1} skills; reword all of them or none"
-                )
-    return failures
-
-
 def _check_live_doc_links(root: Path) -> list[str]:
     # Canonicalize the root before comparing anything against it. The containment test below builds
     # its left side with .resolve(), so an UNRESOLVED root makes the two sides disagree about the
@@ -433,7 +373,6 @@ def check(root: Path = ROOT) -> list[str]:
     # has already shipped a review pointing at a file the same round deleted. What is NOT in scope
     # is anchor-only and cross-repo links, which `_check_markdown` already ignores.
     failures.extend(_check_live_doc_links(root))
-    failures.extend(_check_evidence_banner(root))
     command_root = root / "commands"
     if command_root.is_dir():
         for command in sorted(command_root.glob("*.md")):

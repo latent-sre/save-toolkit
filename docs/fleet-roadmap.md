@@ -556,6 +556,173 @@ checkout present; the guard's own suite and Gate A pass; no new dependency (stan
 **Next action:** Add the interpreter-answer probe first — it is the single highest-value check and
 needs no host inventory work.
 
+### DASH-001 — verify the dashboard API shapes against a live Grafana, and close the evidence-label gap
+
+**Status:** `active` (2026-08-22) — **all four acceptance criteria are met and committed**; the item
+leaves this file when the branch merges. Residue is listed under Remaining and none of it blocks.
+
+**Outcome:** Every request shape in `skills/obs-dashboards/references/http-api.md` is labeled
+against a real instance rather than composed from documentation, and the skill drives its own
+evidence convention deterministically instead of about two times in three.
+
+**Source:** This branch's own verification gap, stated at authoring time. The rewrite
+(`b8ff5dc`) gives `observability-engineer` a live dashboard write path, but no call in it has ever
+been executed: the `POST /api/ds/query` verify body, the `GET /render/d-solo/...` visual check, the
+`GET /apis/dashboard.grafana.app/` version discovery, every `jq` recipe, and the Classic skeleton in
+`json-model.md` are constructions. Three facts are explicitly hedged in the file and only a live
+instance settles them: whether the app-platform family is enabled on the deployed 13.1, whether the
+namespace is `default` or `org-N`, and which field the app-platform `PUT` checks when it answers
+`409` (`metadata.resourceVersion` or `spec.version`).
+
+Separately, `evals/scenarios/discovery-obs-dashboards-edit-live.yaml` carried a grader asserting the
+fleet's evidence-label convention. Across six trials on 2026-08-21 it passed four and failed two,
+the second failure with **no label of any kind** in the response — a measured ~33% miss rate on a
+convention the skill declares in its own first four lines. The grader was removed in `e839388` to
+get the scenario green; the run record (`20260821T233201Z-5f18b526`,
+`20260821T234157Z-5e978815`) holds the evidence. Removing a working detector is the wrong half of
+the fix.
+
+**Prerequisites:** A QA Grafana reachable from the authoring host, ideally on the same minor as
+production (13.1.x), and a Viewer-scoped service-account token supplied through a curl config file
+rather than a command line or a transcript. The write half additionally needs an Editor token
+scoped to one throwaway folder. Read-only verification must run first and stand on its own; no
+call touches a production instance under this item.
+
+**Acceptance:** Each request shape in `http-api.md` carries `[verified]` with the instance's actual
+response, or is corrected and re-labeled; a forced version conflict records which field the `409`
+names; the renderer's presence or absence is recorded so the visual-check step states its own
+availability; the evidence-label grader is restored **and** the skill's output contract is
+strengthened so it passes on behavior rather than by deletion, evidenced by a fresh 3/3 run.
+
+**Progress (2026-08-21):** Done. Every call in `http-api.md` was exercised against
+`qa-grafana.agenticsre.dev` (13.1.4 Enterprise) across commits `273d4a3`, `24449c9`, and this one:
+namespace, discovery, `/api/ds/query`, create on both families, the concurrency conflict on both,
+and delete. Five documented behaviors turned out to be wrong or incomplete on 13.1.4 and are
+corrected in the reference — a bad namespace answers `500` not `404`; the legacy conflict answers
+`409` with a misleading "already exists" message rather than `412 version-mismatch`; the
+app-platform `PUT` checks `metadata.resourceVersion`; a create round-trip strips `spec.uid`/
+`spec.version` and injects defaults; and the two API families grant the creator different rights,
+so an app-platform create with a create-only token strands an unverifiable, unremovable dashboard.
+
+**Progress (2026-08-22):** The version model was re-researched from source at tags `v13.1.4` and
+`v13.2.0` after the owner judged the first pass shallow, and it corrected two committed claims plus a
+safety defect: `conversion.failed: false` does not mean lossless (data-loss detection never sets it),
+the stored version is decided by the write path and derived at read time rather than stored, and the
+UI's import page and the `/api/dashboards/import` endpoint land at different versions. Separately,
+all 20 PromQL/LogQL blocks in `obs-metrics` and `obs-logs` were executed against the same QA
+instance's live datasources with a proven detector, and a bundled stdlib hygiene checker plus 27
+fixture-first tests were added (`40d701b`), calibrated against a real community dashboard.
+
+**Acceptance met (2026-08-22):** every request shape in `http-api.md` carries `[verified: QA]` or was
+corrected against the instance; the forced conflict recorded that the app-platform `PUT` checks
+`metadata.resourceVersion` (409) while the legacy path checks `dashboard.version` and also answers
+409 rather than the documented 412; the renderer's absence is recorded so the visual-check step
+states its own availability; and the evidence-label grader is restored **and earned** — the skill now
+carries the evidence line as step 9 of its loop, and the scenario passes **3/3 with that grader
+firing on every trial** (run `20260822T053153Z-e08aa40c`), where two of six trials previously
+produced no label at all.
+
+**Remaining (none blocking):**
+2. **Closed 2026-08-22 with a short-lived administrator token.** Both strays are deleted
+   (`sv-ap-v1` and `test-claude-verify`) and the instance holds only the owner's two dashboards.
+   **A correction belongs here:** `test-claude-verify` was reported cleared by the owner on
+   2026-08-21 — it was not. It had merely vanished from the verification token's listing, because a
+   dashboard created through the app-platform path is invisible to a token holding no permission on
+   it. The admin view showed all three. That is the same "an empty result is not an absence" trap the
+   reference documents, made twice: once by writing through that path, and once by *reporting* from a
+   listing that could not see the result.
+
+   Worth keeping as the worked example rather than only as a chore: this is the failure the
+   reference now warns about, produced by an agent that had already documented it. The rule it
+   proves — never write through the app-platform family with a create-only grant, because you can
+   neither verify nor roll back — is in `http-api.md` under the credentials section.
+3. **Every `[verified: QA]` label is bound to Grafana 13.1.4** and must be re-checked after the 13.2
+   upgrade — in particular the `409` conflict semantics and the new `export_inputs.go` behavior that
+   resolves `${VAR_*}` constants during v0→v1 conversion.
+4. **Resolved by owner decision, 2026-08-22:** the timezone is deliberately unpinned (inherit), and
+   the data-source uids are a per-environment template whose values stay `[unverified]` by design —
+   they are read from each instance, never copied between them. The deeper question this raised is
+   tracked separately as **DASH-002**.
+5. **The load-bearing research gap is closed by reproduction** (`50bf790`): the apistore does *not*
+   strip a client-supplied `status`, so PUT-ing a GET response straight back pins the wrong stored
+   version permanently and destroys the absence signal along with it. Verified on QA. The remaining
+   `[unverified]` sub-claim — that a same-version read runs no converter — is standard apimachinery
+   behaviour and is not load-bearing for any rule in the skill.
+
+**Next action:** Restore the evidence-label grader and give the skill's loop a required labeled
+closing line, then re-run the scenario and expect 3/3 on behavior rather than on a narrowed grader.
+
+### DASH-002 — decide how one dashboard JSON serves two Grafana instances
+
+**Status:** `decision-needed` (2026-08-22) — raised by the owner while templating the data-source
+inventory: "these are just qa, they are not the real ones… that opens up a new question for later."
+**Owner input, 2026-08-22: data sources are NOT provisioned as code on either instance.** That
+removes the cheap form of option 1 and elects option 4 as the recommendation below; one confirmation
+closes the item.
+
+**Outcome:** The team has one recorded answer for how a committed dashboard reaches both the
+non-production and production Grafana without editing the JSON per environment, and
+`obs-dashboards` teaches that answer instead of leaving it implicit.
+
+**Source:** The QA verification run. Data-source uids are per-instance
+(`dfr5gp9z5pzb4a` on the QA box) and are minted at data-source creation, so the same committed
+dashboard cannot name a uid and work in both places. The skill's current answer — every panel
+references `${datasource}` — solves the *panel* half, but the variable still has to resolve to
+something per instance, and the skill does not say how. This is the seam where "dashboards as code"
+usually breaks in practice.
+
+**Options, none yet chosen:**
+1. **Pin identical data-source uids across environments** by provisioning the data sources
+   themselves as code with an explicit `uid`. Dashboards then reference a uid that means the same
+   thing everywhere, and the `${datasource}` variable becomes a convenience rather than a
+   portability mechanism. Cleanest, but requires owning data-source provisioning on both instances.
+2. **Bind at import time** — keep `__inputs`/`${DS_*}` in the committed file and let
+   `POST /api/dashboards/import` resolve them per instance (verified working; see
+   [`http-api.md`](../skills/obs-dashboards/references/http-api.md)). Standard for community
+   dashboards, but the committed artifact is then not the artifact that runs.
+3. **Substitute at deploy time** — template the JSON in CI per environment. Most flexible, adds a
+   build step, and the file in the repository is no longer directly loadable.
+4. **A data-source *variable* whose default differs per instance**, set by provisioning rather than
+   by the dashboard. Smallest change from today; leaves a per-instance value outside the dashboard.
+
+**Prerequisites:** None. This is a decision, not an implementation; it needs the owner and whoever
+owns data-source provisioning on the production instance.
+
+**Acceptance:** The chosen option is recorded (an ADR if it constrains provisioning), the
+data-source inventory table in
+[`wavefront-legacy.md`](../skills/obs-dashboards/references/wavefront-legacy.md) is filled in
+accordingly, and `obs-dashboards` states the mechanism in one place rather than implying it.
+
+**Recommendation (2026-08-22): option 4, a `datasource`-type variable with no pinned `current`.**
+
+Because the sources are hand-made rather than provisioned, option 1 would mean recreating them to
+control their uids — a uid cannot be edited in place — which breaks every dashboard already pointing
+at them. Option 3 costs a build step and means the file in the repository is no longer the file that
+runs. Option 2 leaves the committed artifact different from the deployed one.
+
+Option 4 needs no platform work and no new machinery: a `datasource`-type variable offers whatever
+sources of that type exist on the instance that loads the dashboard, and with `current` left empty it
+resolves to **that instance's default data source**. Checked on QA `[verified 2026-08-22]`:
+`prometheus-production-read-only` carries `isDefault: true`, so an unpinned variable resolves there
+with no per-instance edit. Add a `regex` (for example `/prometheus/`) where an instance holds several
+sources of one type, so a viewer cannot silently pick the wrong backend.
+
+**Correction, 2026-08-22.** The export-hygiene rule was first written here as "exporting from the UI
+populates the variable's `current` with that instance's uid". That claim is **not supported**: the one
+sample available — the community dashboard imported onto QA — carries
+`current = {"text": "default", "value": "default"}`, a portable sentinel rather than a uid. What *is*
+verified is narrower and more useful: **an API write preserves `current` exactly as sent** (`{}`
+stored as `{}`, a uid stored as that uid), so portability is decided by what gets committed, not by
+what the server does to it. The rule for `json-model.md` is therefore "commit an empty or `default`
+`current`, never a uid" — and it is already written there, verified.
+
+Its honest cost: it depends on every instance having a sensible default data source set — configuration
+nobody currently owns as code, which is the same weakness that ruled out option 1, in a cheaper place.
+QA has one (`prometheus-production-read-only`, `isDefault: true`); production is `[unverified]`.
+
+**Next action:** Confirm option 4 (or pick another), then add the blank-`current` rule to
+`json-model.md` and fill the inventory table per instance.
+
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
 **Status:** `ready` (2026-08-22) — retirement of the Codex/Terra evaluator removed the body-digest
@@ -585,6 +752,11 @@ corpus before changing the canonical skill.
 
 **Acceptance:** `gcp-ops` states the guard's real behavior, the focused allow/deny corpus proves it,
 generated projections match, and Gate A passes.
+
+**Banner note, 2026-08-22 — resolved, not deferred.** The owner approved deleting the shared
+evidence-default banner from every skill. `gcp-ops` was initially left out because its bytes were the
+ROUTE-001 canary body; PR #129 retired that campaign and deleted the pin, so the banner was removed
+from `gcp-ops` too and the fleet carries none. Nothing is owed here.
 
 **Next action:** Correct the stale sentence with the focused guard regression, regenerate once, and
 stop; no provider evaluation is attached to this text correction.

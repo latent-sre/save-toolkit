@@ -4,7 +4,8 @@
 
 The command blocks in this file (installs, agent flags, app launches) are service build/deploy-owner
 steps — the `sde` lane or a human runs them; the fleet's read-only guard deliberately denies
-installs and app execution in the guarded observability lanes.
+installs and app execution in the `sre` lane, and `observability-engineer` does not own service
+builds even though its Bash is unguarded.
 
 Concrete commands below are `[sourced]` to opentelemetry.io docs, reviewed 2026-08-07 via indirect
 retrieval of the doc sources; behavior on the exact target runtime remains `[unverified]` until a

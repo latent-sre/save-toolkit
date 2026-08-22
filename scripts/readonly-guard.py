@@ -2,8 +2,11 @@
 """PreToolUse guard — enforce read-only agents at the command level, by ALLOWLIST.
 
 Wired in THIS repo at plugin scope: `hooks/hooks.json` receives every Bash `PreToolUse` event and
-this guard acts only when `agent_type` identifies `sre` or `observability-engineer`. Claude Code silently
-ignores hooks embedded in plugin-shipped agent frontmatter, so the session hook is load-bearing.
+this guard acts only when `agent_type` identifies `sre`. (`observability-engineer` left the roster on
+2026-08-21 — docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md — so it can apply
+Grafana dashboards over HTTP and run config validators itself; it now holds unguarded Bash like
+`sde`.) Claude Code silently ignores hooks embedded in plugin-shipped agent frontmatter, so the
+session hook is load-bearing.
 The guard scopes ITSELF on the payload's agent identity and no-ops for everything else.
 
 Why it cannot simply live on the agent, as it used to: a plugin-shipped agent's `hooks:` frontmatter
@@ -79,10 +82,11 @@ import sys
 # The namespace Claude Code would prepend if this repo were ever installed as a plugin; guarding
 # both forms means the guard cannot be sidestepped by installing the agents a different way.
 PLUGIN_NAME = "save-toolkit"
-# Agents this guard applies to — the read-only-Bash agents. `sde` is deliberately unguarded (its
-# job is running builds and tests for team-authored code); `reviewer` and `researcher` hold no
-# Bash at all, which is a stronger control than any hook.
-GUARDED_AGENT_NAMES = frozenset({"sre", "observability-engineer"})
+# Agents this guard applies to — the read-only-Bash agents. `sde` and `observability-engineer` are
+# deliberately unguarded (building/testing team code, and applying dashboards and validating obs
+# config, are their jobs); `reviewer` and `researcher` hold no Bash at all, which is a stronger
+# control than any hook.
+GUARDED_AGENT_NAMES = frozenset({"sre"})
 GUARDED_AGENTS = frozenset(
     set(GUARDED_AGENT_NAMES) | {f"{PLUGIN_NAME}:{name}" for name in GUARDED_AGENT_NAMES}
 )
@@ -406,12 +410,6 @@ _GCLOUD_READ_PREFIXES = (
 # smuggling shape as command substitution, so its mere presence is disqualifying.
 _GCLOUD_DENY_FLAGS = frozenset({"--impersonate-service-account", "--flags-file"})
 
-# Commands only observability-engineer may run — it validates observability config; sre does not
-# need these, and the smaller each profile is, the better it fails.
-_OBS_ONLY = frozenset({"yamllint"})
-# `promtool check` parses configuration without starting the disk-backed rule-test harness.
-# `promtool test` is deliberately absent: even without --junit it creates a temporary TSDB.
-_PROMTOOL_READ_VERBS = frozenset({"check"})
 
 # The generic tail appended to every denial. The SPECIFIC rule that fired is stated first by
 # explain(); a denial that cannot say why it fired trains the agent (and the human reading the
@@ -726,21 +724,6 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
             "after the command path, no `--impersonate-service-account`/`--flags-file`); "
             "credential-printing and secret-access paths are denied by doctrine, not oversight"
         )
-    if command == "promtool":
-        positionals = _positionals(args)
-        if (
-            agent == "observability-engineer"
-            and bool(positionals)
-            and positionals[0] in _PROMTOOL_READ_VERBS
-        ):
-            return None
-        if agent != "observability-engineer":
-            return "`promtool` is allowed only for the observability-engineer agent"
-        return "`promtool` is allowed only in its `check` family — `promtool query` executes reads against a live server"
-    if command in _OBS_ONLY:
-        if agent == "observability-engineer":
-            return None
-        return f"`{command}` is allowed only for the observability-engineer agent"
     if command == "find":
         if not any(arg.startswith(_FIND_ACTIONS) for arg in args):
             return None
@@ -806,8 +789,8 @@ def _line_reason(line: str, agent: str) -> "str | None":
 def explain(command: str, agent: str = "") -> "str | None":
     """None if `command` is entirely allowed reads; otherwise the specific rule that denies it.
 
-    `agent` is the BARE agent name (namespace already stripped); it gates agent-specific extras
-    (observability-engineer's config validators) and nothing else.
+    `agent` is the BARE agent name (namespace already stripped). No rule is agent-specific since
+    `observability-engineer` left the roster; the seam stays for a future per-agent extra.
     """
     if not command.strip():
         return None  # nothing to run
@@ -883,8 +866,8 @@ def main() -> None:
         # Second canary, same silent-disarm class on a different axis: the PLUGIN can be renamed
         # under us. `agent_type` still arrives, still namespaced, but with a namespace PLUGIN_NAME
         # no longer spells — so the exact-match above misses and the `agent is None` canary below
-        # never fires, because `agent_type` is present. The guard would hand `sre` and
-        # `observability-engineer` unguarded Bash while looking perfectly healthy. A namespaced
+        # never fires, because `agent_type` is present. The guard would hand `sre`
+        # unguarded Bash while looking perfectly healthy. A namespaced
         # payload whose BARE name is guarded is unambiguously one of our agents under a moved
         # namespace, so deny and say which constant to fix.
         #

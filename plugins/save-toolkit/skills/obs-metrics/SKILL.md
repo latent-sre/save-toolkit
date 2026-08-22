@@ -14,11 +14,6 @@ argument-hint: "[service, metric question, or query goal]"
 > **Codex adapter:** Fleet component names are bare in this generated copy.
 > Resolve them from the installed plugin using the host's agent or skill picker.
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Metrics — the investigation shape
 
 Start with the operational question, the population it concerns, and the time window. Do not choose a

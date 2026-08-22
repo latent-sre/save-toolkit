@@ -10,11 +10,6 @@ compatibility: Requires the cf CLI v8 and authorized access to the target PCF fo
 disable-model-invocation: true
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # PCF / TAS deploy planning (cf CLI v8)
 
 <!-- deploy-plan canary: pd_4c91 — quoted output proves this manual-only skill loaded -->

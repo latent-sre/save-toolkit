@@ -9,11 +9,6 @@ description: >-
 argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Alert, correlate, page
 
 Page on user-visible symptoms that require action now. Use an SLI and error budget to distinguish a
@@ -97,10 +92,10 @@ An alert that has never fired is written, not verified. Before handing it off:
   evaluator.
 - **Force the alert's condition and observe it both fire and resolve** — a deliberately failing
   target, a test rule with an always-true expression, or `promtool test rules` to prove the
-  burn-rate arithmetic and the long/short window pair. `promtool check` is agent-runnable **in the
-  `observability-engineer` lane only**. `promtool test` creates a disk-backed temporary TSDB and
-  must run in an isolated scratch sandbox or human lane; an `sre` loading this skill routes even
-  `check` to a human and preserves the exact output. A rule that has only ever evaluated false is
+  burn-rate arithmetic and the long/short window pair. `promtool check` and `promtool test` are
+  agent-runnable **in the `observability-engineer` lane only** (`test` creates a disk-backed
+  temporary TSDB — run it in a scratch directory); an `sre` loading this skill routes both to a
+  human and preserves the exact output. A rule that has only ever evaluated false is
   unverified; so is one never observed resolving after recovery.
 - The notification route delivered to the intended contact point.
 - The runbook link in the alert resolves to a runbook that exists — a dead link at 3 a.m. is a

@@ -1,0 +1,79 @@
+# Getting more from Viewer and Editor access
+
+Use this reference when helping people who consume dashboards — on-call engineers, leads, stakeholders
+with **Viewer** access, and dashboard authors with **Editor** access — get more from Grafana without
+widening anyone's role. Most requests for "can I get edit rights?" are really requests for one of the
+workflows below.
+
+## The role ladder, and the escape hatch
+
+- **Viewer** is the read baseline. **Editor** adds create/manage for dashboards, folders, annotations,
+  library panels, and alerting. **Admin** adds organization management (data sources, teams, org
+  settings). `[sourced: RBAC basic role definitions,
+  grafana.com/docs/grafana-cloud/platform/security-and-account-management/security-and-access/authentication-and-permissions/access-control/rbac-fixed-basic-role-definitions]`
+- **Dashboard and folder permissions are the escape hatch**: a specific user or team can be granted
+  Edit or Admin on one folder or dashboard while staying an org Viewer, and dashboards inherit their
+  folder's grants. Reach for a folder-scoped grant before proposing an org-role bump — "needs to edit
+  the team's dashboards" is not "needs org Editor". Organization admins keep full access regardless.
+  `[sourced: dashboard permissions API and manage-dashboards docs]`
+- **Explore is permission-gated**, not tied to a hard-wired role: it hangs off the `datasources:explore`
+  permission. Where RBAC is licensed (Enterprise/Cloud), grant `fixed:datasources:explorer` to a team
+  of viewers to give them ad-hoc querying without dashboard-edit rights; data-source query permissions
+  still apply. `[sourced: RBAC rollout-strategy scenario docs]` On the deployed edition the available
+  levers are `[unverified]` — confirm the licence with the Grafana administrator (see the licence
+  section in the skill body) before promising Explore to a viewer team.
+- Permission and role changes are live Grafana configuration: they go through the Grafana
+  administrator and the normal approval path, not through an agent.
+
+Sources reviewed 2026-08-21 through the Context7 documentation mirror; behavior on the deployed
+Grafana 13 minor is `[unverified]` until exercised there.
+
+## Viewer workflows — no new grants required
+
+- **Time, variables, and timezone live in the URL.** `?from=now-6h&to=now`, `&var-<name>=<value>`,
+  and `&timezone=utc` reconstruct the exact view; paste the full URL into an incident channel instead
+  of a screenshot, so the reader lands on the same window and scope. In dashboard links, the
+  `${__url_time_range}` variable carries the current range to the target dashboard.
+  `[sourced: dashboard URL variables and global-variables docs]`
+- **Panel inspect answers "what am I looking at".** Inspect shows the underlying query, the returned
+  data, and the panel JSON, and exports the data as CSV — a viewer can pull the numbers behind a graph
+  without Explore access or a data-source login.
+- **Share → internal link** produces a link with the time range locked and can render the panel to
+  PNG for a written update. Prefer the link over the image: the link stays live, the image goes stale
+  the moment it is pasted. `[sourced: share-dashboards-panels docs]`
+- **Kiosk mode and playlists** turn any dashboard set into a status screen: kiosk hides the chrome,
+  a playlist cycles dashboards unattended. Viewers can run playlists; building one is Editor work.
+- **Star the dashboards you actually use.** Starred dashboards filter to the top of search and the
+  home list — the cheap fix for "I can never find the right dashboard".
+- **Propose changes as code.** A viewer who spots a wrong threshold or a missing panel does not need
+  edit rights: dashboards are repository JSON here, so the change is a pull request against the
+  provisioned source (see [provisioning](./provisioning.md)), reviewed like any other change.
+
+## Editor workflows — beyond dragging panels
+
+- **Library panels** publish one reviewed panel for reuse across dashboards; an edit propagates to
+  every consumer. Use them for the shared health/SLO rows this skill's layout mandates, instead of
+  copy-pasted near-duplicates that drift apart.
+- **Annotations** mark deploys, incidents, and config changes on the time axis — the fastest "did the
+  deploy cause this?" evidence. Annotate at the moment of the event, tagged consistently; they can
+  also be written by automation through the annotations HTTP API.
+- **Version history** (dashboard settings → versions) shows who changed what, with diffs, and
+  restores a prior version — triage for "this dashboard looked different yesterday". On a provisioned
+  dashboard the restore is temporary; the durable change is the repository revert.
+- **Snapshots are data egress.** A snapshot embeds the queried data and detaches it from access
+  control; anyone with the link sees the numbers. Prefer an internal share link. If a snapshot is
+  genuinely needed (external party, ephemeral data), scrub it, set an expiry, and treat posting it
+  like attaching a log excerpt — redaction rules apply.
+- **The UI is a preview, not the record.** Draft in the UI, then export and commit per
+  [provisioning](./provisioning.md) and the [HTTP API reference](./http-api.md); a UI-only edit to a
+  provisioned dashboard is overwritten by the next source update. `allowUiUpdates: false` makes this
+  contract visible rather than surprising.
+
+## Anti-patterns
+
+- Granting org Editor because one folder needed editing — use a folder permission.
+- A "temporary" UI-only dashboard that becomes load-bearing without ever entering review.
+- Sharing snapshots when a link would do, or screenshots when a URL with time range would do.
+- Panel-by-panel hand fixes on a provisioned dashboard that silently revert on the next reload.
+
+<!-- terminal-canary: q_odview_7a3d -->

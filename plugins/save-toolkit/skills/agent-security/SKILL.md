@@ -13,11 +13,6 @@ description: >-
 > **Codex adapter:** Fleet component names are bare in this generated copy.
 > Resolve them from the installed plugin using the host's agent or skill picker.
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Agent security (prompt injection & the lethal trifecta)
 
 An LLM **cannot reliably separate trusted instructions from untrusted data** — both arrive as one token
@@ -28,10 +23,11 @@ patch; you contain it. *[sourced: industry consensus; Simon Willison, "The letha
 
 The execution boundary today: `save-toolkit-reviewer` and `save-toolkit-repository-investigator` are local-only and hold no
 Bash, Write, web, or external MCP tools; `save-toolkit-researcher` is external-only and holds no local read, Bash,
-Write, Skill, or Agent tool. `save-toolkit-sre` and `save-toolkit-observability-engineer` run Bash under the fail-closed allowlist guard
-(the repo's `readonly-guard.py`, wired through the plugin-level session hook). `save-toolkit-sde` and
-`save-toolkit-prompt-engineer` retain unguarded Bash for team-authored repository work, so host/network egress
-controls remain load-bearing even though their direct web tools are absent. Verify every claim
+Write, Skill, or Agent tool. `save-toolkit-sre` runs Bash under the fail-closed allowlist guard (the repo's
+`readonly-guard.py`, wired through the plugin-level session hook). `save-toolkit-sde`, `save-toolkit-observability-engineer`,
+and `save-toolkit-prompt-engineer` retain unguarded Bash (team-authored repository work; Grafana dashboard
+applies), so host/network egress controls remain load-bearing even though their direct web tools
+are absent. Verify every claim
 against agent frontmatter and guard tests; generated Codex profiles need outer isolation because
 their TOML cannot deny inherited tools.
 

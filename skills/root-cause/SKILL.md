@@ -9,11 +9,6 @@ description: >-
 argument-hint: "[the bug or unexpected behavior]"
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 Announce at start: "Using root-cause: reproduce → evidence → hypothesis → verify → fix."
 
 Core rule: **find the root cause before attempting any fix.** A fix without a diagnosis is a guess, and guesses compound — each one changes the system you're debugging.

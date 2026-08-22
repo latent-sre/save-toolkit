@@ -509,7 +509,7 @@ DENIED = [
     # normalized to `$NAME` and permitted.
     "echo ${VAR:-fallback}",
     "echo ${PATH/x/y}",
-    # --- observability-only validators are DENIED for sre ------------------------------------------
+    # --- config validators are not on sre's list (observability-engineer, which runs them, is unguarded) --
     "promtool check rules rules.yml",
     "promtool test rules tests/burn_test.yml",
     "alloy validate config.alloy",
@@ -668,53 +668,38 @@ class ReadonlyGuardTest(unittest.TestCase):
         self.assertEqual(decision(proc), "allow")
 
 
-class ObservabilityProfileTest(unittest.TestCase):
-    """observability-engineer = the sre read set PLUS config validators; the extras never leak to sre."""
+class ObservabilityUnguardedTest(unittest.TestCase):
+    """observability-engineer is deliberately UNGUARDED (docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md).
 
-    OBS_ALLOWED = [
+    It applies Grafana dashboards over the HTTP API and runs config validators itself, so the guard
+    must no-op for it under BOTH agent_type spellings — including for commands the guard denies
+    `sre`. The second test is the half that matters: the guard got narrower in WHO it covers, not
+    looser in WHAT it allows.
+    """
+
+    UNGUARDED_SAMPLE = [
         "promtool check rules rules.yml",
-        "promtool check config prometheus.yml",
-        "yamllint alerts.yml",
-        "jq empty grafana/alerts.json",
-        # the shared read set works for the observability engineer too
-        "cf app my-app",
-        "git diff --stat",
-    ]
-    OBS_DENIED = [
-        # The upstream rules harness creates a temporary disk-backed TSDB even without --junit.
         "promtool test rules tests/burn_test.yml",
-        "promtool test rules --run fast-burn tests/burn_test.yml",
-        "promtool tsdb create-blocks-from rules rules.yml",  # only the check verb reads
-        "promtool query instant http://prom:9090 up",         # network query, not a config check
-        # These also write the caller-named JUnit path, independently of the temporary TSDB.
-        "promtool test rules --junit=results.xml tests/burn_test.yml",
-        "promtool test rules --junit results.xml tests/burn_test.yml",
-        # Validation resolves import.http/import.git modules, so an untrusted config can cause
-        # outbound requests (including URLs assembled from environment-backed expressions).
+        "yamllint alerts.yml",
         "alloy validate config.alloy",
-        "alloy validate --config.format=otelcol collector.yaml",
-        "alloy fmt -w config.alloy",                          # --write/-w rewrites the file
-        "alloy run config.alloy",                             # starts the collector
-        "alloy tools wal-stats /var/lib/alloy",
-        "alloy validate --config.extra-args=--x=1 config.alloy",
-        "cf push my-app",
-        "cf env my-app",
-        "python -m yamllint alerts.yml",                      # no interpreters, even for a validator
+        "python skills/obs-alerting/scripts/error_budget.py --slo 99.9",
+        'curl -sS -X POST -H "Authorization: Bearer $GRAFANA_SA_TOKEN" -d @dashboard.json "$GRAFANA_URL/api/dashboards/db"',
+        "git push origin feature/dashboards",
     ]
 
-    def test_observability_allowlist(self) -> None:
+    def test_observability_engineer_is_never_guarded(self) -> None:
         for agent in (OBS_ENGINEER, "observability-engineer"):
-            for command in self.OBS_ALLOWED:
+            for command in self.UNGUARDED_SAMPLE:
                 with self.subTest(agent=agent, command=command):
                     proc = run_guard(bash_call(command, agent_type=agent))
-                    self.assertEqual(decision(proc), "allow", f"falsely denied: {command!r}")
+                    self.assertEqual(decision(proc), "allow", f"guarded an unguarded lane: {command!r}")
 
-    def test_observability_denylist(self) -> None:
-        for agent in (OBS_ENGINEER, "observability-engineer"):
-            for command in self.OBS_DENIED:
+    def test_the_same_commands_stay_denied_for_sre(self) -> None:
+        for agent in (SRE, "sre"):
+            for command in self.UNGUARDED_SAMPLE:
                 with self.subTest(agent=agent, command=command):
                     proc = run_guard(bash_call(command, agent_type=agent))
-                    self.assertEqual(decision(proc), "deny", f"falsely allowed: {command!r}")
+                    self.assertEqual(decision(proc), "deny", f"falsely allowed for sre: {command!r}")
 
 
 class GuardScopingTest(unittest.TestCase):
@@ -734,7 +719,11 @@ class GuardScopingTest(unittest.TestCase):
     def test_other_subagents_are_never_guarded(self) -> None:
         # sde is deliberately unguarded (builds and tests are its job) — and so is any agent
         # outside GUARDED_AGENTS.
-        for agent in ("save-toolkit:sde", "sde", "reviewer", "researcher"):
+        # observability-engineer left the roster on 2026-08-21 so it can apply dashboards itself.
+        for agent in (
+            "save-toolkit:sde", "sde", "reviewer", "researcher",
+            "save-toolkit:observability-engineer", "observability-engineer",
+        ):
             with self.subTest(agent=agent):
                 proc = run_guard(bash_call("git push origin main", agent_type=agent))
                 self.assertEqual(decision(proc), "allow")
@@ -743,7 +732,7 @@ class GuardScopingTest(unittest.TestCase):
         # Project/user-scope installs report a bare agent_type (probed on CLI 2.1.200; the
         # --plugin-dir dev loop reports the NAMESPACED form). The guard must not be sidestepped by
         # installing the agent at a different scope.
-        for agent in ("sre", "observability-engineer"):
+        for agent in ("sre",):
             with self.subTest(agent=agent):
                 proc = run_guard(bash_call("git push origin main", agent_type=agent))
                 self.assertEqual(decision(proc), "deny")
@@ -769,7 +758,7 @@ class GuardScopingTest(unittest.TestCase):
         # every namespace here different from the live PLUGIN_NAME — the live one is guarded
         # through the normal allowlist path, so listing it here would test nothing.
         for namespace in ("sre-agents", "renamed-plugin", "save-toolkit-v2"):
-            for bare in ("sre", "observability-engineer"):
+            for bare in ("sre",):
                 with self.subTest(agent_type=f"{namespace}:{bare}"):
                     proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=f"{namespace}:{bare}"))
                     self.assertEqual(decision(proc), "deny")
@@ -779,7 +768,10 @@ class GuardScopingTest(unittest.TestCase):
         # The fail-closed above must not become a session-wide denylist. `sde` is deliberately
         # unguarded under ANY namespace, and an unrelated plugin's agents are not ours to police
         # unless their bare name collides with a guarded one.
-        for agent in ("save-toolkit:sde", "save-toolkit:sde", "othervendor:reviewer"):
+        for agent in (
+            "save-toolkit:sde", "renamed-plugin:sde", "othervendor:reviewer",
+            "renamed-plugin:observability-engineer",  # unguarded bare name under a moved namespace
+        ):
             with self.subTest(agent_type=agent):
                 proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=agent))
                 self.assertEqual(decision(proc), "allow")
@@ -794,7 +786,7 @@ class GuardScopingTest(unittest.TestCase):
         # (project/user scope). The first canary design searched the envelope only for the
         # namespaced string, so a rename disarmed the guard silently in exactly the scope a
         # hand-installed copy runs in — caught in review, pinned here.
-        for renamed_value in (SRE, "sre", OBS_ENGINEER, "observability-engineer"):
+        for renamed_value in (SRE, "sre"):
             with self.subTest(agent_type=renamed_value):
                 proc = run_guard(
                     json.dumps(

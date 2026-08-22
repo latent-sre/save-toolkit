@@ -366,8 +366,8 @@ class FleetValidatorTests(unittest.TestCase):
             root = self._guard_wiring_root(
                 temporary,
                 lambda t: t.replace(
-                    'frozenset({"sre", "observability-engineer"})',
-                    'frozenset({"sre", "observability-engineer", "sde"})',
+                    'frozenset({"sre"})',
+                    'frozenset({"sre", "sde"})',
                 ),
             )
             failures = validate_fleet.validate_guard_wiring(
@@ -380,7 +380,7 @@ class FleetValidatorTests(unittest.TestCase):
             root = self._guard_wiring_root(
                 temporary,
                 lambda t: t.replace(
-                    'frozenset({"sre", "observability-engineer"})',
+                    'frozenset({"sre"})',
                     'frozenset({"sre", "ghost-agent"})',
                 ),
             )

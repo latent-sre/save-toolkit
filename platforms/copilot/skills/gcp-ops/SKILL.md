@@ -15,11 +15,6 @@ compatibility: Requires the gcloud CLI and viewer access to the target GCP proje
 > **Copilot adapter:** Fleet component names are bare in this generated copy.
 > Resolve them from the installed plugin using the host's agent or skill picker.
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # GCP application-side triage (gcloud, read-only)
 
 The migration's Cloud Run lane. Observe the service and assemble evidence; state-changing commands

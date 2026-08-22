@@ -10,11 +10,6 @@ description: >-
 compatibility: Requires Akamai Control Center access; DataStream 2 queries run in the configured log backend
 ---
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Akamai edge — triage, delivery config, RUM
 
 We are Akamai customers, not Akamai operators: our lane is our properties' configuration, our

@@ -13,11 +13,6 @@ description: >-
 > **Codex adapter:** Fleet component names are bare in this generated copy.
 > Resolve them from the installed plugin using the host's agent or skill picker.
 
-> **Evidence default — `[unverified]`.** Unless a paragraph carries a narrower label, each
-> stack/product-specific command, query, API or CLI behavior, version, licensing statement, and
-> runtime claim in this skill and its bundled files is `[unverified]` for the exact target.
-> A narrower `[sourced]` or `[verified]` label takes precedence; handoffs never upgrade it.
-
 # Stack profile — current facts, not aspirations
 
 Phrased as what is true today. When the ground shifts, this file changes and nothing else does.
@@ -37,7 +32,7 @@ Kubernetes-free.
 | Logs | Splunk (SPL) | Loki (LogQL) |
 | Metrics | Wavefront / Aria Ops for Applications — now Broadcom DX OpenExplore (WQL) | Mimir / Prometheus (PromQL) |
 | Traces | — (new capability) | Tempo (TraceQL) |
-| Dashboards | Grafana 13.x | Grafana 13.x |
+| Dashboards | Grafana 13.1.x self-managed; **13.2 upgrade planned** `[sourced: owner, 2026-08-21]` | same instance |
 | Alerting / correlation | Moogsoft (Dell APEX AIOps, on-prem v9.x); ThousandEyes synthetics | Grafana unified alerting |
 | Pipeline | — | Alloy + OTel collectors |
 | Edge / CDN / WAF / RUM | Akamai (Property Manager delivery, App & API Protector, DataStream 2 logs, mPulse RUM) | — |
