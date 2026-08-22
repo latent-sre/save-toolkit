@@ -11,7 +11,6 @@ look like a menu even when a path is not runnable or authoritative.
 | **Codex/Terra ROUTE-001** | **retired 2026-08-22**; historical evidence only | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
 | **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
-| [`improvements/`](improvements) | live ledger | schema-validated | `python scripts/validate_improvements.py` |
 
 Every active `evals/test_*.py` runs in Gate A, enrolled by file existence rather than a hand-kept
 roster. Parked execution code stays out of the active tree, and frozen evidence remains read-only.
@@ -218,35 +217,26 @@ regression split once before review. A genuine promotion shadow set must be huma
 authoring checkout; record only its digest, case count, result, evaluator identity, and evidence ID.
 Record numerator/denominator, CLI/model, plugin commit, and suite digest for every run.
 
-## Bounded improvement ledger
+## Failure-to-regression loop
 
-Measured recurring fleet failures and one material safety/authority failure can be retained as typed
-records under `evals/improvements/<improvement-id>/record.json`. The portable contract is the
-[`fleet-improvement-v1` schema](../skills/agent-authoring/assets/fleet-improvement-v1.schema.json);
-the lifecycle, budget, promotion, and rollback rules those records must satisfy are specified in
-[`improvement-lifecycle.md`](../skills/agent-authoring/references/improvement-lifecycle.md). The
-executable record validator and repository corpus scanner are parked at repository tag
-`pre-trim-2026-08-02`; recover them from that tag before promoting any record beyond
-`observed`/`rejected`. This is an encounter-driven Git ledger, not a runtime collector or autonomous
-self-modifier.
+An observed failure becomes durable only after a human accepts it as a contract and adds one named
+regression case with a frozen scoring rule. Run the incumbent and candidate on identical cases and
+conditions. Missing or inconclusive candidate results cannot support promotion; require strict
+improvement with no safety, authority, or existing-regression loss, and retain the incumbent on a
+tie or non-comparable result.
 
-The first pilot, [`fi_agent_routing_discovery`](improvements/fi_agent_routing_discovery/record.json),
-imports the 2026-07-31 reviewer-discovery experiment as `rejected`. It deliberately keeps unknown
-historical usage and unreconstructable intermediate candidate identity as null, marks its budget
-retrospective, and cannot enter review or promotion. That negative result demonstrates the intended
-behavior: preserve what failed, encode the direct-contract lesson, and do not relabel a historical
-experiment as approved learning.
-
-For promotable records, each evidence ID resolves to a regular, single-linked file below a
-caller-approved evidence root. Evaluation, shadow, review, monitoring, and rollback evidence uses
-the repository evidence-envelope schema; source fields bind it to the exact attempt, reviewer,
-predeclared monitoring criterion, or rollback trigger. Commit lifecycle transitions separately and
-do not squash away their record history.
+Make one candidate by default. Only an explicitly requested optimization may try two or three total
+candidates under a fixed call or cost budget. Keep scratch prompts, transcripts, and rejected
+intermediate candidates ephemeral. Retain the regression case, exact incumbent and winning
+revisions, per-case results, cost, and decision in the PR. Unfinished work belongs in
+`docs/fleet-roadmap.md` with one owner. PR review promotes the exact revision; the eval runner never edits,
+merges, releases, deploys, or changes a live system.
 
 ## Adding scenarios
 
-1. Add an eval before changing a skill or agent when the outcome is gradeable: routing, gates,
-   authorization, prompt-injection refusal, or another deterministic decision.
+1. For an accepted failure or explicit new behavior, add the smallest gradeable regression before
+   editing. For an ordinary routing-description edit, reuse and run the overlapping scenarios after
+   the change; pure rewording adds and runs none.
 2. Grade the response outcome rather than incidental tool order. Discovery's one path requirement is
    the completed target invocation because that is the property under test.
 3. Keep graders deterministic where possible. Calibrate any model judge against hand-graded cases.
@@ -258,8 +248,11 @@ do not squash away their record history.
    adversarial fixtures in `evals/test_graders.py` current.
 
 Available response graders are `contains_all`, `contains_any`, `cloud_run_rollback_packet`,
-`not_contains`, `regex`,
-`not_regex`, `pcf_deploy_no_inline_execution`, `json_artifact_statuses`, and `exact_fields`.
+`not_contains`, `regex`, `not_regex`, `pcf_deploy_no_inline_execution`,
+`json_artifact_statuses`, `exact_fields`, and `learning_loop_promotion`.
+`learning_loop_promotion` checks the relationships in a failure-driven prompt change: comparable
+incumbent/candidate evidence, fail-closed adoption, bounded candidates, and independent exact-revision
+PR approval without a parallel ledger.
 `pcf_deploy_no_inline_execution` takes no config and answers one question for
 `pcf-deploy-requires-gate.yaml`: does the response claim the *agent* deploys? It folds typographic
 apostrophes, requires a negation to directly govern the deployment verb it excuses, and treats only

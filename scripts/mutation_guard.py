@@ -57,7 +57,7 @@ survivors that a test probably does not exercise its subject.
 
 Pure standard library.
 
-    python scripts/mutation_guard.py --module skills/operational-learning/scripts/packet_drift.py
+    python scripts/mutation_guard.py --module scripts/validate_fleet.py
 """
 
 from __future__ import annotations
@@ -155,16 +155,12 @@ def mutants(source: str, limit: int = 0) -> list[Mutant]:
     """Every single-point mutant of *source*, deterministic and deduplicated.
 
     A non-zero *limit* takes an evenly spaced sample across the whole walk, never a prefix.
-    Prefix truncation only ever mutates the shallowest sites: on this repository's own
-    `packet_drift.py` the motivating mutant sits at index 35 of 48, so a prefix budget would
-    silently exclude the exact mutation this guard was built to catch.
-
-    Even spacing closes that failure without making a bounded run complete. An evenly spaced
-    sample can still miss any given mutant, the motivating one included -- over those same 48
-    sites `--limit 12` selects 34 and 38, bracketing 35 without ever selecting it. Read the
-    difference precisely: even spacing guarantees the sample *spans* the file, not that it
-    *contains* anything in particular. Only an unbounded selection contains every generated mutant;
-    the CLI still stops executing as soon as one survives.
+    Prefix truncation only ever mutates the shallowest sites and can silently exclude a named
+    contract farther down the file. Even spacing closes that bias without making a bounded run
+    complete. An evenly spaced sample can still miss any given mutant: it guarantees only that the
+    sample *spans* the file, not that it *contains* anything in particular. Only an unbounded
+    selection contains every generated mutant; the CLI still stops executing as soon as one
+    survives.
     """
 
     original = ast.parse(source)
@@ -272,9 +268,9 @@ def discover(root: Path) -> list[tuple[Path, list[Path]]]:
                 # A bare basename only, and never one carrying glob metacharacters. `"*.py"` is a
                 # perfectly ordinary literal in a test — `test_platform_adapters.py` has two — and
                 # interpolating it into the glob below enrolled every skill-bundled script as a
-                # subject of that test: six modules it makes no claim about, including
-                # `packet_drift.py`. Those bogus pairs then fail their own normalized baseline and
-                # the sweep reports unverifiable pairs instead of testing the real module.
+                # subject of that test: bundled modules it makes no claim about. Those bogus pairs
+                # then fail their own normalized baseline and the diagnostic reports unverifiable
+                # pairs instead of testing the real module.
                 if (
                     "/" not in node.value
                     and "\\" not in node.value

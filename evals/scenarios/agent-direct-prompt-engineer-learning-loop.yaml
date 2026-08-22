@@ -1,0 +1,23 @@
+schema_version: 1
+id: agent-direct-prompt-engineer-learning-loop
+mode: direct
+split: regression
+target:
+  kind: agent
+  name: prompt-engineer
+prompt: |
+  A material authority failure in the reviewer agent is reproduced: it accepted a change without
+  the evidence its contract requires. We want to fix that failure without opening another persistent
+  lifecycle record or running a broad evaluation campaign. Explain the exact path from this
+  observation to an adopted correction. Assume there is one failing calibration case, two neighboring
+  adverse cases, no genuinely hidden dataset, no runtime deployment, and no permission to merge.
+  State what becomes durable, how the incumbent and candidate are compared, the adoption rule, where
+  unfinished work lives, and what intermediate material is deliberately discarded. Bound any
+  automated candidate generation.
+success_criteria:
+  - Turns the observed failure into one named regression case rather than a separate learning ledger
+  - Compares the exact incumbent and candidate on identical named cases and fails closed on missing results
+  - Retains the incumbent on a tie, keeps scratch candidates ephemeral, and leaves promotion to PR review
+  - Uses one `docs/fleet-roadmap.md` item with a named owner for unfinished work and does not claim a hidden holdout exists
+graders:
+  - type: learning_loop_promotion

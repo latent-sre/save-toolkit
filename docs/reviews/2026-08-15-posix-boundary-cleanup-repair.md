@@ -7,7 +7,7 @@ evaluation is claimed, and no promotion or monitoring is authorized. The typed r
 | Field | Value |
 |---|---|
 | Roadmap item | [EVAL-002](../fleet-roadmap.md) |
-| Typed record | [`fi_macos_process_group_cleanup_race`](../../evals/improvements/fi_macos_process_group_cleanup_race/record.json) |
+| Typed record | [`fi_macos_process_group_cleanup_race`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/evals/improvements/fi_macos_process_group_cleanup_race/record.json) |
 | Intake packet | [2026-08-13 macOS cleanup-race intake](2026-08-13-macos-process-group-cleanup-race-intake.md) |
 | Candidate revision | `13e6fd4d3f355b0c3c366d999fc8537c4356c3ac` |
 | Base revision | `0104b55` (contains none of the repair — do not evaluate this) |

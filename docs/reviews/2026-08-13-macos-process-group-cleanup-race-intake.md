@@ -49,7 +49,7 @@ not a broad exception catch justified only by a flaky runner.
 ## Disposition and bounded next action
 
 The matching typed record is
-[`fi_macos_process_group_cleanup_race`](../../evals/improvements/fi_macos_process_group_cleanup_race/record.json).
+[`fi_macos_process_group_cleanup_race`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/evals/improvements/fi_macos_process_group_cleanup_race/record.json).
 It remains `observed` because the lifecycle's semantic promotion validators are parked and no
 candidate has been prepared.
 

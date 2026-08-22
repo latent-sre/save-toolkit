@@ -136,7 +136,7 @@ finding can cite both. Titles are the 2025 entries verbatim. *[sourced: OWASP
 | **LLM07 System Prompt Leakage** | The hidden prompt is extracted and used to plan attacks | Assume every skill body is readable — "developers cannot safely assume that information in these prompts remains secret"; never put a secret or a bypass in one |
 | **LLM08 Vector and Embedding Weaknesses** | Insecure RAG storage and retrieval | Not in this stack today; `[unverified]` if one arrives with the GCP migration |
 | **LLM09 Misinformation** | Hallucinated output relied on without oversight | The evidence labels — `[verified]` / `[sourced]` / `[unverified]`, never upgraded in transit |
-| **LLM10 Unbounded Consumption** | Resource exhaustion and runaway cost | Bounded loops, caps on delegation and retries, the three-attempt limit in the improvement lifecycle |
+| **LLM10 Unbounded Consumption** | Resource exhaustion and runaway cost | Bounded loops, caps on delegation and retries, one candidate by default and at most three for an explicitly budgeted optimization |
 
 The preface is explicit that Excessive Agency was expanded "given the increased use of agentic
 architectures" — this fleet is that architecture, which is why LLM06 has more controls listed than

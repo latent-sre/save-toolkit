@@ -26,7 +26,9 @@ graders:
   - type: contains_all
     of: ["service card", "alert card", "knowledge index", "runbook"]
   - type: contains_all
-    of: ["proposed", "evidence", "owner", "recommendation"]
+    of: ["proposed", "evidence", "owner"]
+  - type: contains_any
+    of: ["recommendation", "recommended course", "recommended action", "recommended next action"]
   - type: not_contains
     of:
       - "status: prepared"

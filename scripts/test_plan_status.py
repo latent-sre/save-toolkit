@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -281,6 +280,12 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertIn("after-change clean-room runs", rules)
         self.assertNotIn("before and after", pull_request.lower())
         self.assertIn("after-change", pull_request)
+        self.assertIn(
+            "after-first shortcut does not replace the incumbent baseline",
+            normalized_agents.lower(),
+        )
+        self.assertIn("failure-driven edit still needs the incumbent baseline", rules.lower())
+        self.assertIn("fleet-failure-driven edit also trips the next row", pull_request.lower())
         for forbidden in (
             "every description edit shows before/after",
             "scenarios before and after",
@@ -288,6 +293,34 @@ class WorkflowPolicyTests(unittest.TestCase):
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, roadmap)
+
+    def test_failure_driven_learning_loop_stays_bounded(self) -> None:
+        prompt_agent = self._normalized(self._read("agents/prompt-engineer.md")).lower()
+        authoring_skill = self._normalized(self._read("skills/agent-authoring/SKILL.md")).lower()
+        artifact = self._normalized(
+            self._read("skills/agent-authoring/references/artifact.md")
+        ).lower()
+        roster = self._normalized(
+            self._read("skills/agent-authoring/references/roster.md")
+        ).lower()
+        agents = self._normalized(self._read("AGENTS.md")).lower()
+        evals_readme = self._normalized(self._read("evals/README.md")).lower()
+
+        for text in (prompt_agent, authoring_skill, artifact):
+            self.assertNotIn("eval-first, always", text)
+            self.assertNotIn("generate→evaluate→refine", text)
+            self.assertNotIn("generate → evaluate → refine", text)
+        self.assertIn("one candidate by default", prompt_agent)
+        self.assertIn("another candidate", prompt_agent)
+        self.assertIn("explicit new-behavior target", authoring_skill)
+        self.assertIn("ordinary routing-description edit", artifact)
+        self.assertIn("pure rewording needs no live eval", authoring_skill)
+        self.assertIn("pure rewording needs no live eval", artifact)
+        self.assertIn("step 2", authoring_skill)
+        self.assertIn("step 2", artifact)
+        for text in (prompt_agent, artifact, roster, agents, evals_readme):
+            self.assertNotIn("roadmap or issue", text)
+            self.assertNotIn("roadmap/issue", text)
 
     def test_repository_bootstrap_applies_only_to_pr_implementation(self) -> None:
         contributing = self._read("CONTRIBUTING.md")
@@ -315,18 +348,13 @@ class WorkflowPolicyTests(unittest.TestCase):
             self.assertIn("release_workflow_contract.py", text)
             self.assertIn("host_install_probe.py", text)
 
-    def test_closed_mutation_campaigns_keep_owner_dispositions(self) -> None:
+    def test_closed_mutation_campaigns_keep_owner_dispositions_in_history(self) -> None:
         roadmap = self._read("docs/fleet-roadmap.md")
-        linked_record = json.loads(
-            self._read("evals/improvements/fi_mutation_guard_evidence_gaps/record.json")
-        )
         sweep = self._read("docs/reviews/2026-08-15-fleet-mutation-sweep.md")
 
         self.assertNotIn("### MUTATION-001", roadmap)
         self.assertNotIn("### SWEEP-001", roadmap)
         self.assertIn("explicit owner disposition", roadmap)
-        self.assertEqual("rejected", linked_record["status"])
-        self.assertIn("MUTATION-001 is closed", linked_record["disposition_reason"])
         self.assertIn("**Owner disposition (2026-08-21):** `not_applicable`", sweep)
         self.assertIn("owner `latent-sre`", sweep)
 

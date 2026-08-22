@@ -14,8 +14,8 @@ learning-system sub-items that remained.
 
 | Sub-item | Delivered as |
 |---|---|
-| (1) Drift watch over pending packets | [`packet_drift.py`](../../skills/operational-learning/scripts/packet_drift.py) + [`test_packet_drift.py`](../../scripts/test_packet_drift.py) (24 tests) |
-| (2) Forward freshness deadlines | [`knowledge-update-v3.schema.json`](../../skills/operational-learning/assets/knowledge-update-v3.schema.json), validator support, [`migrate_v2_to_v3.py`](../../skills/operational-learning/scripts/migrate_v2_to_v3.py), catalog entry `current` |
+| (1) Drift watch over pending packets | [`packet_drift.py`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/skills/operational-learning/scripts/packet_drift.py) + [`test_packet_drift.py`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/scripts/test_packet_drift.py) (24 tests) |
+| (2) Forward freshness deadlines | [`knowledge-update-v3.schema.json`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/skills/operational-learning/assets/knowledge-update-v3.schema.json), validator support, [`migrate_v2_to_v3.py`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/skills/operational-learning/scripts/migrate_v2_to_v3.py), catalog entry `current` |
 
 **Adaptation note.** The sibling's `ledger_drift.py` scans a committed candidate store and derives a
 baseline with `git log --first-parent`. This fleet deliberately never ported that store, and its
@@ -61,5 +61,5 @@ reporting "no drift" for evidence it never inspected. Four distinct instances we
 - No `transition` verb exists for dispositions, so the action the watch recommends has no mechanism
   in this repository.
 - The verification-integrity gap the first round exposed is tracked separately as
-  [`fi_mutation_untested_assertions`](../../evals/improvements/fi_mutation_untested_assertions/record.json),
+  [`fi_mutation_untested_assertions`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/evals/improvements/fi_mutation_untested_assertions/record.json),
   at `observed`, with its narrative in [the mutation-testing gap report](2026-08-06-mutation-testing-gap.md).
