@@ -179,8 +179,9 @@ shows the payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-23) — the `incident-command` first-router slice merged in PR #142;
-`ops-tooling` is the only second-router candidate under verification. No other candidate is edited.
+**Status:** `active` (2026-08-23) — the `incident-command` first-router slice merged in PR #142 and
+the `ops-tooling` second-router slice merged in PR #143. `agent-security` is the only third-router
+candidate under implementation. No other candidate is edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -258,15 +259,26 @@ template. It also found the non-reproducible byte counts above.
 `[verified]` Follow-up commit `80c7c331b06bb5b593d8663475d0bbaa995e3880` makes the existing
 project-owned versioned contract authoritative and limits the bundled contract template to the first
 HTTP contract when none exists; its own header forbids duplicate contracts and applying its HTTP/RFC
-9457 shape to non-HTTP interfaces. The router now separates procedure lanes from four optional asset
-lanes: missing environment card, missing plan, new Python CLI without a project starter, and a
-drafted/replaced/relaunched builder packet. A bounded fresh-context static regression passed the
-existing-contract, established-CLI, existing-packet-validation, and existing-environment/plan cases
-without loading those assets. This retest did not test host activation, final-response quality, or
-runtime behavior; those remain `[unverified]` for the exact commit.
+9457 shape to non-HTTP interfaces. The router now separates procedure lanes from five optional asset
+lanes: missing environment card, missing plan, new Python CLI without a project starter, first HTTP
+contract when no project-owned versioned contract exists, and a drafted/replaced/relaunched builder
+packet. A bounded fresh-context static regression passed the existing-contract, established-CLI,
+existing-packet-validation, and existing-environment/plan cases without loading those assets. This
+retest did not test host activation, final-response quality, or runtime behavior; those remain
+`[unverified]` for the exact commit.
 
 At `80c7c33`, the `ops-tooling` entrypoint is 6,922 immutable bytes, its six references total 18,709
 bytes, the 30-entrypoint corpus totals 218,109 bytes, and the mechanical candidate set remains seven.
+
+`[verified]` PR #143 merged exact head `2927a2120da0494195e8d901570963a15bdb877a` into `main` as
+`14b7aeae7c22aff3b50800ef262123adb9a48bc3`. A bounded retrospective review of that immutable merge
+found no P0/P1 issue and one merge-safe P2: the paragraph above counted four optional asset lanes
+while naming only four of the five implemented predicates. The corrected count and omitted HTTP
+contract predicate now match the Git object; no skill or projection byte changed in that correction.
+
+`[verified]` The post-merge remeasurement on `14b7aea` keeps 30 entrypoints totaling 218,109 bytes
+and seven candidates. `agent-security` is the largest at 13,629 unconditional bytes with no routed
+references, so it is selected alone for the third bounded router slice.
 
 `[verified]` The exact implementation and remediation each passed direct link and fleet validation,
 strict Claude plugin validation, 112 focused link/adapter/fleet/canary tests (three skips), and
@@ -285,11 +297,11 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Obtain normal owner acceptance of the exact `ops-tooling` branch revision, then
-begin one next confirmed candidate as a separate bounded slice. Do not rerun unchanged
-`incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a future
-comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run
-bounded to its overlapping scenarios.
+**Next action:** Build and review one `agent-security` router slice from exact base `14b7aea`; do not
+edit another candidate. Do not rerun unchanged `incident-command` or `ops-tooling` bytes; use an
+explicit 540-second timeout only if a future comparable `incident-command` run is authorized. Keep
+the already-owed `eng-ladder` after-change run bounded to its overlapping scenarios and separate from
+this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
