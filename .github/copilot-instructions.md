@@ -45,9 +45,10 @@ the highest-value findings in this repo:
 
 Suggestions that violate these are not improvements — please don't raise them:
 
-- **Standard library only** for `scripts/` (validators, tests, guard, generator). No new
-  dependencies, no pytest, no third-party YAML parser. This is deliberate and load-bearing: every
-  host package must validate anywhere Python does.
+- **Third-party dependencies are permitted, pinned in `requirements-dev.txt`** (PyYAML included,
+  the gate path included — owner decision, ADR 2026-08-23). Do not flag a pinned dependency as a
+  violation. Do flag: an unpinned install, or a Gate A-path script gaining a third-party import
+  without the CI install step landing in the same PR.
 - **Never repair a generated copy directly.** Fix `agents/`, `skills/`, or
   `scripts/generate_platform_adapters.py`, then regenerate all hosts so one fix cannot create
   several subtly different fleets.

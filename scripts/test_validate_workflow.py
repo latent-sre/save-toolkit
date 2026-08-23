@@ -51,11 +51,6 @@ class ValidateWorkflowTests(unittest.TestCase):
             "\n  claude-plugin-contract:"
         )
         self.assertTrue(separator, "validate workflow lost the plugin-contract job boundary")
-        self.assertNotIn(
-            "requirements-dev.txt",
-            validate_job,
-            "PyYAML belongs to focused eval work, not every structural CI run",
-        )
 
     def test_windows_gate_runs_on_pull_requests(self) -> None:
         """Windows keeps native path and generated-byte validation on every pull request."""

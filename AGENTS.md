@@ -250,9 +250,17 @@ The full must-follow index (structural, authority, process, docs, stack) lives i
 [`docs/rules.md`](docs/rules.md). The five bullets below are the load-bearing subset every change
 must respect:
 
-- **Standard library only** for everything under `scripts/` — validators, tests, the guard, and the
-  generator. No new dependencies, no pytest, no third-party YAML parser: every host package must
-  validate anywhere Python does.
+- **Third-party dependencies are permitted everywhere, pinned in `requirements-dev.txt`** —
+  PyYAML included, the gate path included (owner decision,
+  [ADR 2026-08-23](docs/decisions/2026-08-23-allow-third-party-dependencies.md); the old
+  stdlib-only mandate is retired). Prefer stdlib when it is equivalent; declare and pin
+  anything else — never a bare `pip install`. The change that first makes a Gate A-path
+  script import a third-party package must, in the same PR, add the
+  `pip install -r requirements-dev.txt` step to both CI validate jobs and update
+  `gate_a.py`'s docstring — otherwise the gate turns into an `ImportError` on every
+  machine that has not installed the deps. Test files keep the executable unittest
+  entrypoint `check_test_layout.py` requires, so every suite stays runnable with bare
+  `python`; pytest is welcome as a runner on top.
 - **Generated adapters are consequences, never sources.** Fix `agents/`, `skills/`, or the generator
   and regenerate; never hand-edit `.github/agents/` or `platforms/copilot/skills/`. The
   byte-for-byte gate erases a direct fix. A hand-edit is not

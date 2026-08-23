@@ -15,7 +15,9 @@ the push boundary contradicted the repository's focused-test and owner-trigger r
 nominally structural check require eval dependencies and Git history.
 
 The remaining checks are read-only, standard-library processes. They do not need a clean tree, a
-full clone, PyYAML, or a machine-wide lock. Every step still runs after a failure so one invocation
+full clone or a machine-wide lock. Today no gate step imports a third-party package; the first
+one that does must ship the CI `pip install -r requirements-dev.txt` steps in the same change
+(see the dependency rule in AGENTS.md Hard rules). Every step still runs after a failure so one invocation
 reports the complete structural defect set.
 
 OUTPUT
