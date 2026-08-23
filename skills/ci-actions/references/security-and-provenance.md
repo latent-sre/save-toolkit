@@ -1,0 +1,85 @@
+# CI security and provenance
+
+Read this reference only when the task designs or changes credential/OIDC handling, action/image
+provenance and re-pinning, event trust, workflow linting, attestations, or immutable releases. The
+authority and safety contract in `SKILL.md` still applies.
+
+## Credentials and identity
+
+This team authenticates CI jobs from GitHub environment secrets, not OIDC
+*[sourced: operator statement 2026-08-21]*. Scope each secret to a protected environment so the
+approval gate and credential release are the same control. Rotate long-lived credentials on a
+schedule and after a runner rebuild; their blast radius lasts until rotation.
+
+`permissions: { id-token: write }` only permits GitHub to mint a short-lived OIDC token. A target
+still needs an OIDC-aware broker that accepts and exchanges that token. CredHub authenticates via
+UAA and does not accept GitHub OIDC JWTs, so GitHub OIDC is not a PCF credential path on this stack.
+Do not add `id-token: write` as decorative hardening. For a GCP target, load `stack-profile` and
+confirm the selected runtime and identity broker before proposing an exchange.
+
+## Dependency provenance and re-pinning
+
+The 2025 `tj-actions/changed-files` compromise showed why mutable action tags are unsafe: compromised
+tags were repointed to credential-stealing code. Pin GitHub Actions to full Git commit SHAs and put
+the reviewed release in a trailing comment, for example:
+
+```yaml
+- uses: actions/checkout@<40-character-sha> # v7.0.1
+```
+
+Some projects do not publish floating major tags; the comment must name the exact reviewed release,
+not an invented major alias. Let dependency automation propose SHA changes, inspect the upstream
+diff, and normally allow a short adoption cooldown. Skip the cooldown when the current SHA has a
+disclosed vulnerability: waiting would retain the known-bad revision.
+
+GitHub Action and container pins are different namespaces:
+
+- `owner/repository@<commit-sha>` resolves a Git commit.
+- `docker://image@sha256:<manifest-digest>` resolves an image manifest in a registry.
+
+A Git commit after `docker://` does not identify a container image and the job will not start.
+
+## Untrusted events and secret boundaries
+
+Never put an attacker-controlled expression directly inside shell source:
+
+```yaml
+env:
+  PR_TITLE: ${{ github.event.pull_request.title }}
+run: printf '%s\n' "$PR_TITLE"
+```
+
+Treat `pull_request_target` as privileged: it runs the base repository's workflow with access to
+repository context and can be triggered by an untrusted fork. Never check out and build the fork in
+that context. Prefer `pull_request` for untrusted contributions, where secrets are withheld. Split a
+secret-dependent check into a later trusted job rather than weakening the fork boundary.
+
+`actions/checkout` v7.0.0 and later refuses fork checkout under `pull_request_target` and
+`workflow_run`; treat an upgrade failure there as evidence of an unsafe workflow design, not a
+reason to bypass the protection. *[sourced: actions/checkout CHANGELOG v7.0.0; reviewed
+2026-08-21]*
+
+Never echo secrets. Pass them only through the narrow job environment that needs them, mask any
+sensitive derived value, and enable repository secret scanning plus push protection.
+
+## Static security checks
+
+Use the repository's trusted, pinned installation of:
+
+- `actionlint` for workflow syntax and expression errors;
+- `zizmor` for risky permissions, injection, and event patterns.
+
+Do not download or execute a candidate-provided linter or workflow merely to review it. A clean
+static result does not establish runtime or deployment behavior.
+
+## Artifact attestations and immutable releases
+
+For releasable artifacts, use pinned `actions/attest-build-provenance` and `actions/attest-sbom`
+steps, then verify the result downstream with `gh attestation verify`. The attestation connects an
+artifact to its source and workflow; it does not replace review of the workflow that produced it.
+
+When immutable GitHub Releases are enabled, published assets cannot be modified or deleted and the
+tag is locked to its commit while the release exists. Build the release as a draft, attach and check
+every asset, then publish. A bad release requires a new release; deleting it does not make the same
+tag reusable. Downstream checks should inspect the API's `immutable: true` value, not merely the
+existence of a tag. *[sourced: GitHub Docs, immutable releases; reviewed 2026-08-21]*
