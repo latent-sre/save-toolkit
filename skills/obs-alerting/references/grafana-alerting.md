@@ -27,9 +27,9 @@ the vulnerability sources were reviewed directly 2026-08-22:
 **CVE-2026-17183 — `[sourced]` (reviewed 2026-08-22).** Grafana Labs' CNA data lists affected OSS
 and Enterprise ranges as `>=8.4.0,<12.3.11`, `>=12.4.0,<12.4.9`, `>=13.0.0,<13.0.7`, and
 `>=13.1.0,<13.1.4`. The fixed patch boundaries inferred from those exclusive upper bounds are
-12.3.11, 12.4.9, 13.0.7, and 13.1.4. The unreviewed GitHub advisory still lists affected and
-patched versions as unknown, so do
-not turn 13.2.0 into a universal security floor. QA is verified at 13.1.4 Enterprise and outside
+12.3.11, 12.4.9, 13.0.7, and 13.1.4. The inspected GitHub page is itself labeled **Unreviewed** by
+GitHub and still lists affected and patched versions as unknown, so it is not used to infer a
+security floor. Do not turn 13.2.0 into a universal floor. QA is verified at 13.1.4 Enterprise and outside
 the CNA ranges; production is known only as 13.1.x, so its exact patch remains `[unverified]`.
 Until production is confirmed at 13.1.4 or later, treat **alert-rule edit rights as datasource read
 rights** — a folder where many people can author rules is a folder where all of them can read every

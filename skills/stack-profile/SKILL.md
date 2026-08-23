@@ -82,10 +82,10 @@ optional. Engine-specific migration, locking, and failover mechanics remain `[un
 target until captured against a real instance. *[sourced: operator statement 2026-08-21]*
 
 ## Incident response
-A formal on-call rotation is in place. `incident-command` owns the ratified P1–P4 entry criteria,
-response roles, and communications cadence; load it whenever severity, roles, or incident
-communications matter. Other skills consume the selected tier without copying its rubric.
-*[sourced: owner ratification 2026-08-22]*
+A formal on-call rotation is in place. *[sourced: operator statement 2026-08-21]*
+`incident-command` owns the current P1–P4 entry criteria, response roles, and communications cadence
+and records their ratification status; load it whenever severity, roles, or incident communications
+matter. Other skills consume the selected tier without copying its rubric.
 
 ## Change management
 Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal
