@@ -146,11 +146,16 @@ class PlatformAdapterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
             self.assertEqual([], adapters._retired_generated_root_failures(root))
-            retired = root / adapters.RETIRED_GENERATED_ROOTS[0]
-            retired.mkdir(parents=True)
-            (retired / "leftover.md").write_text("stale mirror\n", encoding="utf-8")
-            failures = adapters._retired_generated_root_failures(root)
-        self.assertTrue(any("retired generated root" in f for f in failures), failures)
+            for retired_root in adapters.RETIRED_GENERATED_ROOTS:
+                retired = root / retired_root
+                retired.mkdir(parents=True)
+                (retired / "leftover.md").write_text("stale mirror\n", encoding="utf-8")
+                failures = adapters._retired_generated_root_failures(root)
+                with self.subTest(retired_root=retired_root.as_posix()):
+                    self.assertTrue(
+                        any(f.startswith(f"{retired_root.as_posix()}:") for f in failures),
+                        failures,
+                    )
 
     def test_gitattributes_missing_eol_rule_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
