@@ -224,34 +224,55 @@ global runner default remains 300 seconds, and detailed reference-dependent beha
 the discovery evidence layer.
 
 `[verified]` After PR #142 merged, the exact next-slice base
-`17b4ba97aa0b8091a1b3bbff462bfc9bbae0d109` carried 30 entrypoints totaling 227,329 bytes and eight
+`17b4ba97aa0b8091a1b3bbff462bfc9bbae0d109` carried 30 entrypoints totaling 225,614 bytes and eight
 remaining candidates: `agent-security`, `ci-actions`, `database-reliability`, `ops-tooling`,
 `pcf-deploy`, `pcf-ops`, `production-change-gate`, and `stack-profile`. `ops-tooling` was the largest
-at 14,521 unconditional entrypoint bytes versus two references totaling 7,202 bytes.
+at 14,427 unconditional entrypoint bytes versus two references totaling 7,202 bytes.
 
 `[verified]` The second bounded implementation commit
 `3b9559412ef06c1ae3e8a19e82fe23395a183ac0` converts only `ops-tooling`. Its unchanged description
-now opens a 6,509-byte entrypoint that keeps the right-size exit, spawn-degradation behavior,
+now opens a 6,502-byte entrypoint that keeps the right-size exit, spawn-degradation behavior,
 human-only production authority, evidence boundary, self-contained handoff contract, bounded phase
 exits, and conditional `stack-profile` requirement. Six routed references total 17,897 bytes across
 requirements/design, CLI, multi-component, build, review, and verification/handoff lanes. The full
-canonical entrypoint corpus falls to 219,317 bytes and the mechanical candidate set to seven.
+canonical entrypoint corpus falls to 217,689 bytes and the mechanical candidate set to seven.
+
+Those sizes are immutable Git-object measurements, not checkout byte lengths: run
+`git ls-tree -r --format='%(objectsize)%x09%(path)' <sha> -- skills`, sum only
+`skills/<name>/SKILL.md`, and use `git cat-file -s <sha>:skills/ops-tooling/SKILL.md` for the focused
+entrypoint. Apply the same `ls-tree` command to `skills/ops-tooling/references` for the reference
+total. The earlier values came from a line-ending-sensitive working tree and were not reproducible
+from the commits they named.
 
 The owner authorized one fixed five-agent fresh-context artifact exercise before commit. `[verified]`
 Three lanes passed on the first candidate: early exit, independent review, and verification/handoff.
 The requirements/design lane found the missing conditional `stack-profile` dependency and a stale
 host-specific instruction in the environment-card asset; the multi-component build lane found that
-the contract template loaded even when a project-owned contract already existed. One consolidated
-correction addressed those findings before `3b95594`. Per the fixed budget, the agents were not
-rerun. This exercise inspected instruction selection and invariant preservation; it did not test
-host activation, final-response quality, or runtime behavior, which remain `[unverified]` for the
-exact commit.
+the contract template loaded even when a project-owned contract already existed. The pre-commit
+correction added the conditional `stack-profile` route, repaired the host-specific asset text, and
+added a direct template predicate, but the agents were not rerun under the fixed budget. Independent
+review of exact branch revision `270aab16cdc7c2dbd34557d1c395f550058a2634` later showed that the
+multi-component procedure still bypassed that predicate and unconditionally instantiated the
+template. It also found the non-reproducible byte counts above.
 
-`[verified]` The exact implementation passed direct link and fleet validation, strict Claude plugin
-validation, 112 focused link/adapter/fleet/canary tests (three skips), and `git diff --check`; the
-one required regeneration produced 282 adapter files with byte consistency. No description or eval
-scenario changed, no existing scenario targets `ops-tooling`, and no paid routing run was required
-or performed.
+`[verified]` Follow-up commit `80c7c331b06bb5b593d8663475d0bbaa995e3880` makes the existing
+project-owned versioned contract authoritative and limits the bundled contract template to the first
+HTTP contract when none exists; its own header forbids duplicate contracts and applying its HTTP/RFC
+9457 shape to non-HTTP interfaces. The router now separates procedure lanes from four optional asset
+lanes: missing environment card, missing plan, new Python CLI without a project starter, and a
+drafted/replaced/relaunched builder packet. A bounded fresh-context static regression passed the
+existing-contract, established-CLI, existing-packet-validation, and existing-environment/plan cases
+without loading those assets. This retest did not test host activation, final-response quality, or
+runtime behavior; those remain `[unverified]` for the exact commit.
+
+At `80c7c33`, the `ops-tooling` entrypoint is 6,922 immutable bytes, its six references total 18,709
+bytes, the 30-entrypoint corpus totals 218,109 bytes, and the mechanical candidate set remains seven.
+
+`[verified]` The exact implementation and remediation each passed direct link and fleet validation,
+strict Claude plugin validation, 112 focused link/adapter/fleet/canary tests (three skips), and
+`git diff --check`; each canonical edit was regenerated once, producing 282 adapter files with byte
+consistency. No description or eval scenario changed, no existing scenario targets `ops-tooling`,
+and no paid routing run was required or performed.
 
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
