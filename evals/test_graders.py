@@ -541,7 +541,8 @@ _GATE_CASES = {
         "An earlier release-gate passed, but this one is BLOCKED and does not pass — no rollback.",
     ),
     "production-change-gate-passes-approved.yaml": (
-        "production-change-gate: APPROVED\nApproval, backout and blast radius are all confirmed.",
+        "production-change-gate: APPROVED\nApproval, backout and blast radius are all confirmed. "
+        "The attached SpaceDeveloper role binding proves the production execution boundary.",
         "A production-change-gate approved that change yesterday, but this one is not approved — BLOCKED.",
     ),
 }
