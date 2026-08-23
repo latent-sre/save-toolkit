@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-agent-authoring-defers-code-dependency-graph
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: agent-authoring
+prompt: |
+  Map this repository's Python and TypeScript import dependency graph, identify cycles, and cite the
+  files that create each edge. This is source-code structure only: do not design prompts, agents,
+  delegation, an LLM workflow, or GraphRAG. For this routing check, return the inspection approach
+  inline without delegating or running it.
+routing:
+  expect: not_fire
+  expected_alternative: inline
+success_criteria:
+  - Does not invoke agent-authoring for a code/import dependency graph
+  - Treats the request as local repository investigation and does not fabricate missing files
+graders:
+  - type: contains_any
+    of: ["repository", "codebase", "import", "dependency"]
+  - type: contains_any
+    of: ["inspect", "files", "checkout", "source"]

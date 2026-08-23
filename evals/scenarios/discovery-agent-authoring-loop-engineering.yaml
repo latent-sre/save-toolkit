@@ -1,0 +1,29 @@
+schema_version: 1
+id: discovery-agent-authoring-loop-engineering
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: agent-authoring
+prompt: |
+  Design a bounded Loop Engineering contract for improving an LLM-facing artifact. Name the entry
+  and mutable state, independent verifier, hard iteration/candidate/time/cost budgets, success,
+  no-progress and safety/authority stops, promotion authority, and durable evidence. Keep operations
+  knowledge closeout and executable graph cycles outside this contract.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes agent-authoring when Loop Engineering is the distinguishing user request
+  - Names state, verifier, hard budgets, termination, promotion, and durable evidence
+  - Keeps operations knowledge closeout and executable graph cycles as separate capabilities
+graders:
+  - type: contains_all
+    of: ["entry", "verifier", "budget"]
+  - type: contains_any
+    of: ["no-progress", "no progress"]
+  - type: contains_any
+    of: ["safety", "authority stop"]
+  - type: contains_any
+    of: ["promotion", "promote", "adopt"]
+  - type: contains_any
+    of: ["durable evidence", "recorded evidence", "evidence"]

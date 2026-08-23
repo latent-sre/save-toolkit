@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-agent-authoring-workflow-graph
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: agent-authoring
+prompt: |
+  Design the agent roster/delegation graph for change delivery: coordinator, implementation,
+  research, read-only independent review, and human-owned effects. Give the nodes, allowed edges,
+  handoff/join, authority boundaries, and termination. Do not map code dependencies or pick a runtime.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes agent-authoring for an agent roster and delegation graph
+  - Describes nodes, allowed edges, authority boundaries, joins, and termination
+  - Does not turn the request into a code dependency graph or prematurely select a runtime
+graders:
+  - type: contains_all
+    of: ["node", "edge", "authority", "termination"]
+  - type: contains_any
+    of: ["join", "fan-in", "handoff"]
+  - type: not_regex
+    pattern: '(?i)must (?:use|implement with) (?:langgraph|networkx)'

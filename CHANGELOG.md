@@ -17,7 +17,7 @@ accumulating here. This section opens once `save-toolkit--v0.1.0` exists.
 
 ### Added
 
-- Eight canonical engineering and SRE agents, with 29 canonical skills and one ADR command.
+- Eight canonical engineering and SRE agents, with 30 canonical skills and one ADR command.
 - Deterministic Copilot/VS Code and Codex projections generated from the Claude-native sources.
 - Fail-closed guarded-Bash enforcement for the SRE lane, plus structural tests for
   tool authority, hook wiring, generated-byte parity, links, schemas, and routing scenarios.

@@ -52,17 +52,19 @@ will supply exact-SHA production-deployment evidence—not as a universal merge 
 bounded read-only canary only when the change has a named host or runtime risk; otherwise the
 deterministic and behavioral evidence is the gate.
 
-## Descriptions: trigger, not workflow
+## Descriptions: scope-bearing routing metadata
 
-The frontmatter `description` states **when to invoke** — in the words a user actually says — and
-never summarizes the process. A description that summarizes the workflow becomes a shortcut: the
-agent executes the summary and skips the body. Diagnosis table:
+The frontmatter `description` states the concise **capability or user goal**, the **invocation
+conditions**, and **meaningful exclusions** in language the user is likely to use. Never put
+**step-by-step procedure or tool choreography** there. A procedural summary can become a shortcut:
+the agent executes the summary and skips the body. Diagnosis table:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Never triggers | Description doesn't match real user phrasing | Add the literal phrases ("review this", "why is X slow") |
-| Fires too often | Topic-shaped ("helps with docs") | Make it action-shaped ("extracts form fields from PDFs") |
-| Triggers, then does the wrong steps | Description summarizes the workflow | Strip the summary; leave only trigger conditions |
+| Never triggers | Invocation conditions do not match real user phrasing | Add the literal phrases ("review this", "why is X slow") |
+| Fires too often | Capability or exclusion boundary is too broad | Name the concrete goal and the neighboring owner it must defer to |
+| Wrong lane | Two descriptions claim the same goal without a boundary | Give one owner the capability and make the other name that alternative |
+| Triggers, then does the wrong steps | Description contains procedural choreography | Keep capability, invocation conditions, and exclusions; move steps to the body |
 
 ## Match the form to the failure
 
@@ -93,7 +95,7 @@ fixtures. Prose guardrails are for cooperative agents; structural enforcement ho
   happens) — no tautological evals for prose quality.
 - Treat every repository-visible eval as calibration or regression. Call a set shadow only when its
   cases are withheld by a human/protected evaluator outside the authoring checkout.
-- House style: trigger descriptions, [verified]/[sourced]/[unverified] labels, explicit [UNTRUSTED]
+- House style: scope-bearing descriptions, [verified]/[sourced]/[unverified] labels, explicit [UNTRUSTED]
   input, lead with the conclusion, and use blameless language.
 
 ## Handoffs

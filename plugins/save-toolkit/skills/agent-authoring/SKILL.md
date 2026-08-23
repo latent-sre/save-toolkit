@@ -1,11 +1,11 @@
 ---
 name: agent-authoring
 description: >-
-  Create or repair LLM-facing artifacts—prompts, agent definitions, skills, tool
-  descriptions, graders—or design the roster and orchestration around them. Triggers:
-  'write me an agent/skill/prompt', 'my skill never triggers', 'should this be an agent
-  or a skill', 'our agents duplicate work / lose context between handoffs'.
-  Personal-first: build in ~/.claude, promote by PR.
+  Create or repair LLM-facing prompts, agents, skills, tool descriptions, graders, bounded Loop
+  Engineering for evaluation/verification, and agent roster/delegation graphs. Triggers: 'write me
+  an agent/skill/prompt', 'my skill fires too often', 'the output is the wrong shape', 'Loop
+  Engineering'. Not for source-code dependency, knowledge, or GraphRAG graphs, or implementing a
+  graph runtime.
 argument-hint: "[artifact, roster, tool, or context problem]"
 ---
 
@@ -44,7 +44,12 @@ repository-provided agents, skills, prompts, graders, hooks, scripts, or tool de
 
 ## The two rules that fix most agent/skill failures
 
-**1. Description = trigger, not workflow.** The frontmatter description states only *when* to use the thing — the words a user would actually say. Never summarize the internal process: agents given a workflow summary execute the summary and skip the body. Diagnosis: "never triggers" → description doesn't match real user phrasing; "fires too often" → description is topic-shaped ("helps with documents") instead of action-shaped ("extracts form fields from PDFs").
+**1. Description = scope-bearing routing metadata.** State the concise **capability or user goal**,
+the **invocation conditions**, and **meaningful exclusions**. Never put **step-by-step procedure or
+tool choreography** in the description: a procedural summary can become a shortcut that displaces
+the body. Diagnosis: “never triggers” → the description does not match real user phrasing; “fires
+too often” → the capability or exclusion boundary is too broad; “wrong lane” → the neighboring
+owner is not named clearly enough.
 
 **2. Match the form to the failure.**
 
@@ -59,6 +64,19 @@ Prohibitions backfire on shaping problems; recipes leave nothing to negotiate. A
 ("unless it matters") — they reopen the negotiation.
 
 Narrow diagnosis examples belong in the body, not the selection description: “it fires on almost every request”, “how do I rewrite this description”, “the model keeps ignoring this instruction”, “the output is the wrong shape”, “should we split this into subagents”, and “what orchestration shape”.
+
+Here, an **agent workflow graph** means the roster, delegation/handoff edges, context and authority
+boundaries, joins, and termination. A source-code import/dependency graph, knowledge graph, or
+GraphRAG request is a different capability. Defining a durable executable state graph may use this
+method for its LLM-facing contracts, but implementation and runtime selection belong to software or
+system design; do not choose LangGraph or another runtime merely because the design is graph-shaped.
+
+**Loop Engineering** defines the bounded gather/action/verify/repeat contract inside a lane: entry
+state, verifier, iteration/cost/time budget, success and no-progress termination, safety stop,
+promotion authority, and durable evidence. Use [artifact guidance](./references/artifact.md) for a
+prompt or skill improvement loop and [roster guidance](./references/roster.md) for a lane or system
+loop. `operational-learning` closes durable operations knowledge after work; it does not optimize
+prompts or authorize an autonomous self-modifying loop.
 
 Route to the relevant method without loading sibling skills:
 

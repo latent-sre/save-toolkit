@@ -58,6 +58,13 @@ The roster shape is the second design decision. The first is the loop every sing
 the mechanism that lets the agent check its own work instead of asserting it. Design that step
 explicitly:
 
+Every engineered loop names its **entry state**, the state or artifact allowed to change, and its
+**verifier**. Before the first iteration it sets maximum iterations and candidates (where candidates
+exist), an elapsed-time/cost budget, success termination, no-progress termination, a
+safety/authority stop, and who may promote the result. Missing or inconclusive verification never
+becomes success. Persist only the accepted result and the evidence needed to reproduce the decision;
+scratch attempts are not a second learning system.
+
 - **Name the verifier before the work.** A failing test or fixture for `sde`; the two-lens packet
   for `reviewer`; golden-signal recovery evidence for `sre` and `observability-engineer`; one
   focused red-first test for a changed fleet contract, plus Gate A once before push. An agent whose
@@ -84,8 +91,9 @@ anthropic.com/engineering/building-effective-agents — located by title and URL
 - **Judge panel / adversarial verification** — independent attempts scored, or findings that
   survive only if skeptics prompted to *refute* them fail. Kills plausible-but-wrong output;
   worth the cost on high-stakes review.
-- **Loop-until-dry** — for unknown-size discovery, iterate until K consecutive rounds surface
-  nothing new; fixed counts miss the tail.
+- **Loop-until-dry** — for unknown-size discovery, choose K and a hard maximum before starting, then
+  stop after K consecutive rounds surface nothing new or the hard budget is reached. Fixed counts
+  alone miss the tail; an unspecified K creates a runaway loop.
 
 Decompose by **context boundary — what each lane may see — not by job title.** That is why `reviewer`
 reads the local checkout but holds no web, shell, or delegation, and `researcher` holds only the
@@ -126,7 +134,9 @@ not fetched here]*
   drop constraints at every hop. Preserve [verified], [sourced], [unverified], and [UNTRUSTED] labels.
 - **Tools are authority.** The agent's `tools:` list encodes the mandate. Enforce roles at the tool
   layer, not with prose.
-- **Descriptions route; keep them trigger-only** (see [artifact guidance](./artifact.md)).
+- **Descriptions route.** State the concise **capability or user goal**, **invocation conditions**,
+  and **meaningful exclusions**; never put **step-by-step procedure or tool choreography** there
+  (see [artifact guidance](./artifact.md)).
 - **Budget explicitly.** Tokens, latency, and strand count per task; right-size the fan-out: 1 agent
   for a lookup, 2–4 for a comparison or multi-lens review, more only for genuinely decomposable work.
 - **Design the failure path.** Decide up front what happens when a worker returns garbage, nothing,
@@ -186,8 +196,9 @@ above; this is the compact naming reference, including the two shapes that secti
 - **Adversarial verification / finder→verifier** — a finding survives only if independent skeptics
   prompted to *refute* it fail to; pair a finder with a verifier and make evidence (file:line, query)
   a required field so an unrefutable claim cannot survive by default. Kills plausible-but-wrong output.
-- **Loop-until-dry** — for unknown-size discovery, iterate until K consecutive rounds surface nothing
-  new; fixed counts miss the tail.
+- **Loop-until-dry** — for unknown-size discovery, choose K and a hard maximum before starting, then
+  stop at K consecutive empty rounds or the hard budget. The earlier orchestration-shape definition
+  is the governing contract.
 - **Completeness critic** — a final pass that asks "what's missing?"; its answers become the next
   round of work. Guards against a roster that stops at the first plausible-looking result.
 

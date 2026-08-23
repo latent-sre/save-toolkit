@@ -195,44 +195,94 @@ validate its per-criterion evidence envelopes, and record the dated packet. Do n
 `AGENTS.md` limit on inference alone, and do not populate `hooks/copilot-hooks.json` before a probe
 shows the payload can scope to an exact agent identity.
 
-### SKILL-001 — make the oversized skills routers, and their descriptions triggers
+### AUDIT-002 — implement the skill-audit routing contract (Batch 1)
 
-**Status:** `active` (2026-08-20)
+**Status:** `active` (2026-08-23)
 
-**Outcome:** No skill spends a caller's context on content that call did not need. **These eight
-skills** become routers with a conditional "if the question involves X, read Y" table —
-`ops-tooling`, `pcf-ops`, `incident-command`, `operational-learning`, `ci-actions`,
-`agent-security`, `pcf-deploy`, `database-reliability` — and every description is a trigger only, no
-workflow summary restating a table the body already carries.
+**Outcome:** The full 29-skill audit is durable, descriptions carry enough capability and boundary
+information to route without embedding procedure, read-only service assessment cannot invoke
+effect-shaped onboarding, and prompt/Loop/graph routing has positive and near-miss evidence.
 
-**Source:** [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md), which
-records every figure below with the command that produces it. `[verified]` The eight named skills are
-exactly those whose `SKILL.md` is at least 8,000 bytes while their `references/` total is smaller
-than `SKILL.md` itself — the bulk inline and unconditional rather than routed. `ops-tooling` is the
-worst at 14,607 B against 7,202 B of references, and `incident-command`, `agent-security` and
-`pcf-deploy` carry no references at all. `[verified]` Description mass resident in every session is
-12,682 bytes across 29 skills.
+**Source:** The complete
+[`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md).
+Batch 0's five correctness findings are closed on current `main`; this item imports only the approved
+Batch 1 routing work. Batch 2 remains `SKILL-001`. Batch 3 capability candidates are not live work:
+each needs a confirmed operator need and authority boundary before it enters this roadmap.
 
-`[unverified — judgment, not measurement]` That roughly a dozen descriptions carry a workflow
-summary, which [`rules.md`](rules.md) forbids. Whether a clause helps a model decide *whether to
-load* a skill, versus restating what the body already contains, is not mechanically decidable — so
-that judgment motivates this item but deliberately does not appear in its acceptance below.
+**Prerequisites:** Work from current `origin/main`; edit canonical sources only. Preserve
+`service-onboarding` as manual-only and keep its approved effects and evidence-bound `scribe`
+handoff. Treat description changes as routing-code changes under the repository change playbook.
 
-**Prerequisites:** The `obs-logs` conditional table is the pattern to copy. Description edits follow
-the change playbook's after-run rule.
+**Acceptance:** The dated review records the complete audit and research provenance; the live
+authoring rule says capability or user goal plus invocation conditions and meaningful exclusions,
+with no step-by-step procedure or tool choreography in metadata; one focused regression rejects the
+retired trigger-only doctrine across its canonical policy surfaces; a discoverable, read-only
+`service-readiness-audit` is separate from manual `service-onboarding`; scenarios cover readiness
+audit versus onboarding effects, a bounded Loop Engineering repair for “skill fires too often” plus
+“wrong output shape,” a request where Loop Engineering is the distinguishing cue, an agent workflow
+graph, and a code/dependency-graph near miss. The loop contract names its mutable state, verifier,
+hard budgets, success/no-progress/safety termination, promotion authority, and fail-closed treatment
+of missing or inconclusive evidence. Affected live routing scenarios run after the routing edits,
+prior-revision trials are fetched only for a red existing scenario, projections regenerate once,
+focused suites pass, and Gate A is green at the push boundary.
 
-**Acceptance:** **All eight named skills** — not a subset — satisfy the criterion in reverse: each
+**Evidence update (2026-08-23):** Candidate `e00d821de7ccf43d158233734607b8c5b8d74156`
+passes the focused structural suites and the Loop Engineering contract's red-to-green regression.
+Live run `20260823T053852Z-1e677acb` completed the code/dependency-graph near miss 2/2 without an
+`agent-authoring` invocation and observed the intended `agent-authoring` invocation in 2/2 Loop
+Engineering trials. Those positive trials then became inconclusive because the `Skill,Task`-only
+discovery boundary could not read the linked `artifact.md`. The workflow-graph case ran 2/2 and both
+trials timed out without an attempted/completed target invocation or terminal result. The service
+cases were not selected. This is activation evidence for the Loop case, not a body pass; graph and
+service routing remain `[unverified]`.
+
+**Independent review:** The sole pass on `926d0c0cbe8154562f94dc1470537c557acc35b5`
+found three P1s: an unbounded duplicate loop definition, an inaccurate graph-run record, and a Loop
+Engineering case masked by older routing cues. The successor corrects all three and extends the
+focused regression; it does not claim that the inconclusive routing evidence became green.
+
+**Next action:** Put the corrected Batch 1 successor through normal PR review and merge; run Gate A
+once immediately before its push. Keep `AUDIT-002` active after merge until the evaluator boundary
+and remaining graph/service evidence receive an explicit disposition. Do not move conditional
+references back into `SKILL.md` or start another paid prompt-tuning loop to accommodate the discovery
+sandbox. Context compaction, a graph runtime, schemas without a consumer, and new SRE lanes remain
+out of this batch.
+
+### SKILL-001 — make confirmed oversized skills conditional routers
+
+**Status:** `blocked` (2026-08-23) — begins only after `AUDIT-002` Batch 1 is merged.
+
+**Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
+that still meets the oversized-unconditional-body criterion becomes a router with a conditional
+“if the question involves X, read Y” table while retaining its authority and safety invariants.
+
+**Source:** The initial measurement and reproduction command are in the
+[`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md). The later
+[`complete skill audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) found that the old
+eight-skill list had drifted: at its baseline, the nine candidates were `agent-security`,
+`ci-actions`, `database-reliability`, `incident-command`, `ops-tooling`, `pcf-deploy`, `pcf-ops`,
+`production-change-gate`, and `stack-profile`; `operational-learning` no longer belonged in the
+set. Canonical bodies then totaled 231,622 bytes.
+
+That nine-skill inventory is historical evidence, not the implementation baseline. Batch 0 and
+Batch 1 both change relevant entrypoints, so this item must remeasure before editing. Description
+metadata follows the current rule—capability or user goal, invocation conditions, and meaningful
+exclusions, without procedure—rather than the retired “trigger only” doctrine.
+
+**Prerequisites:** `AUDIT-002` is merged. The `obs-logs` conditional table is the existing pattern;
+`incident-command` is converted alone as the first reviewed Batch 2 pattern. Description edits
+follow the routing-content change playbook.
+
+**Acceptance:** A dated remeasurement names the exact current candidates. Each confirmed candidate
 either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
-conditional table whose targets are reachable through `check_links`. Re-running the sweep's command
-must return an empty set. Each reworded description passes the 600-byte cap and the `Triggers:`
-contract, and every routing-content description edit shows an after-change scenario run. A
-previous-revision baseline is required only for a scenario that comes back red. Gate A green.
+conditional table whose targets are reachable through `check_links`; rerunning the recorded command
+returns an empty set. Entrypoints retain all authority/safety invariants. Each changed description
+passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
+previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Convert one monolith as a pattern — `incident-command` is the highest-traffic and
-has zero references — and land it alone so the conversion shape can be reviewed before it is applied
-to the rest. Run the overlapping scenarios after each routing-content edit, fetching the prior
-baseline only for a red scenario. One such run is still owed: the `eng-ladder` description was
-rewritten in #115 (599 → 418 bytes) without an after-change routing run.
+**Next action:** After `AUDIT-002` merges, remeasure first. Then convert `incident-command` alone and
+review that router shape before applying it to any other confirmed candidate. Keep the already-owed
+`eng-ladder` after-change run bounded to its overlapping scenarios.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 
@@ -406,7 +456,7 @@ correction.
 **Status:** `ready` (2026-08-13; progress 2026-08-22) — remaining: the two example-footnote
 compactions. Packaging of the maintenance skills stays separately deferred.
 
-**Outcome:** A user who opens any of the 29 skills reaches actionable content within a few lines: the
+**Outcome:** A user who opens any canonical skill reaches actionable content within a few lines: the
 shared evidence-default banner is gone, worked examples carry provenance as a single footnote instead
 of a paragraph retracting the example, retired learning packet/ledger machinery no longer ships in
 every install, and the packaging question for maintenance skills has a recorded decision.

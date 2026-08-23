@@ -1,11 +1,10 @@
 ---
 name: service-onboarding
 description: >-
-  Onboard a service onto the platform and the observability stack — or audit an existing one against
-  the standard. Invoke explicitly as Copilot `/service-onboarding` or Claude
-  `/service-onboarding`. Triggers: 'onboard this service', 'bring X up to standard',
-  'audit this service'. Works the checklist in order; audit mode reports evidence-cited findings and
-  the top three fixes.
+  Onboard an approved new or changed service into the platform, observability, and operational-
+  knowledge model. Invoke explicitly as Copilot `/service-onboarding` or Claude
+  `/service-onboarding`. Triggers: 'onboard this service', 'register this application',
+  'complete service onboarding'. Not for read-only readiness reviews; use `service-readiness-audit`.
 # Side-effect-shaped: invoke explicitly as `/service-onboarding`; never auto-load.
 disable-model-invocation: true
 ---
@@ -16,19 +15,22 @@ disable-model-invocation: true
 > Resolve them from the installed plugin using the host's agent or skill picker.
 > This skill is explicit-only through Copilot's frontmatter switch.
 
-> **Audit evidence boundary.** Report sanitized commands and only the minimal redacted output excerpt
-> needed to prove each finding; identify every redaction with a typed marker such as
-> `[REDACTED:token]`. Prefer an access-controlled source link over copied telemetry, and include only
-> the smallest excerpt needed when a link cannot carry the review. Never run or request
-> credential-bearing reads such as `cf env`, `cf service-key`, `CF_TRACE`, or credential endpoints.
-> If a prohibited read would be required, record it as not run and state why; do not weaken the finding.
+This is the explicit, effect-shaped onboarding workflow. For a read-only assessment of whether an
+existing service is ready, use `service-readiness-audit`; do not simulate onboarding to answer an
+audit question.
 
-Work through every step in order; when one is skipped, say so explicitly and why — silence reads
-as "done." This checklist grants no permission of its own — a step being on the list is not
-approval to run it. Before any prod-facing step, load its gate from the dependency block below
-(`production-change-gate`) and re-enter it.
+Use only sanitized evidence and the smallest redacted excerpt needed for each decision. Never run or
+request credential-bearing reads such as `cf env`, `cf service-key`, `CF_TRACE`, or credential
+endpoints. If a prohibited read would be required, record it as not run and state why.
+
+Require the approved plan, named service and environment, owner, exact repository revision, and
+authoritative service/alert definitions before starting. Work through every applicable step in
+order; when one is skipped, say so explicitly and why—silence reads as “done.” This checklist grants
+no permission of its own. Before any production-facing step, load `production-change-gate` and
+re-enter it.
 
 ## Required on-demand skill dependencies
+- `stack-profile`
 - `production-change-gate`
 - `obs-pipeline`
 - `obs-dashboards`
@@ -56,18 +58,6 @@ Before each dependent checklist step, load that row's skill; the names below are
    checklist does not author those KB records or treat an active deployment/incident as resolved
    documentation evidence.
 
-**Audit mode** (bringing an existing service up to standard): run the checks below and report like
-a code review of the service — severity-ranked, evidence-cited, **no finding without the command
-output that proves it**. End with the top three fixes — not a list of thirty.
-
-Checks (run what applies; list what you couldn't run and why): route/auth exposure · app hygiene
-(crash counts, instance flapping, memory headroom via `cf app`) · certificate expiry ·
-service-backup existence (**a backup that has never been restored is a hope, not a backup**) ·
-monitoring gaps (steps 3–7 above, absent) · missing/stale service card, alert cards, KB index, or
-runbook disposition · manifest drift vs running config · capacity headroom · platform-deprecation
-notices.
-
-Output: `[P0]`–`[P3]` findings, each with the evidence (command + output) and the one-line fix.
-Also return the knowledge-closeout dispositions as prepared/proposed/blocked/duplicate/
-not-applicable; no new application or alert leaves the checklist without an explicit KB outcome.
-**P0 = exposed without auth, or stateful and unbacked-up.**
+Return the completed/skipped steps, approval and production-gate evidence, verification results,
+remaining gaps with owners, the `scribe` handoff packet, and **what was not done**. Never report an
+onboarding effect as complete without evidence from its authoritative system.

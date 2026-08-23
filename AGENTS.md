@@ -1,6 +1,6 @@
 # Save Toolkit — fleet guide
 
-A multi-host engineering plugin with **8 canonical agents and 29 canonical skills**. Claude Code
+A multi-host engineering plugin with **8 canonical agents and 30 canonical skills**. Claude Code
 loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code and Codex adapters are
 generated and committed from those sources; edit neither projection by hand. Routing is native:
 descriptions select lanes and Claude components are invoked as `save-toolkit:<name>`.
@@ -19,7 +19,7 @@ matters.
 | Path | What it is |
 |---|---|
 | [`agents/`](agents) | The 8 canonical agent definitions. `tools:` frontmatter *is* authority; omitting it inherits every tool. Claude loads these directly |
-| [`skills/`](skills) | The 29 canonical skills and their `references/`/`assets/`/`scripts/` bundles. A `references/` file not linked from its `SKILL.md` ships unreachable |
+| [`skills/`](skills) | The 30 canonical skills and their `references/`/`assets/`/`scripts/` bundles. A `references/` file not linked from its `SKILL.md` ships unreachable |
 | [`commands/adr.md`](commands/adr.md) | The canonical `/save-toolkit:adr` scaffold — the one manual command |
 | [`hooks/hooks.json`](hooks/hooks.json) | The Claude-only session guard wiring. Plugin agents cannot carry `hooks:`, so this file is the *only* place the read-only guard fires; it is load-bearing and scoped to exact `agent_type` values |
 | [`hooks/copilot-hooks.json`](hooks/copilot-hooks.json) | The Copilot hook projection. The Claude hook's scoping field is absent from other hosts' payloads, so guarding is not portable through it |
@@ -86,7 +86,7 @@ To change anything a search turns up in a generated root: edit the canonical sou
 | `observability-engineer` | Steady-state observability: dashboards, alerts, SLOs, error budgets, pipelines | **Unguarded Bash** ([ADR 2026-08-21](docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md)) — runs config validators, reads/exports live Grafana, and applies dashboard create/update over the HTTP API under the dashboard write rule (diff shown first, live model exported as rollback, concurrency token pinned); every other live change stays recommend-only; writes obs-config | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documentation: runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local read/write, but **no Bash, web, or delegation**; terminal | — |
 | `researcher` | Cited public fact-finding from official docs, upstream code, packages, and advisories | **External-only by tool absence** — no local read, Bash, Write, Skill, or Agent | — |
-| `prompt-engineer` | The fleet's own files: agents, skills, descriptions, evals | Local read/write + Bash for repo tooling; no direct web tools | `researcher` |
+| `prompt-engineer` | The fleet's own prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, and roster/delegation graphs | Local read/write + Bash for repo tooling; no direct web tools | `researcher` |
 
 No agent pins a `model:` — the whole fleet inherits the session model (zero sync maintenance; the
 trade-off and the revisit condition are recorded in
@@ -184,6 +184,8 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   human release owner executes mitigation; `sde` fixes root cause; `observability-engineer` closes the
   detection gap; `scribe` writes the postmortem.
 - **Reliability hardening:** `observability-engineer` defines SLOs/alerts and hands missing runbooks to `scribe`.
+- **Service readiness review:** `service-readiness-audit` inspects the existing evidence read-only and
+  reports severity-ranked gaps; it creates no onboarding or knowledge artifacts.
 - **New or changed service/application:** after human approval, `service-onboarding` hands the service
   definition, alert set, and evidence to `scribe`, which prepares the service card, alert cards, index
   links, and explicit runbook dispositions.
