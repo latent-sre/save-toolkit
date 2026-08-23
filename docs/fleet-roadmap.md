@@ -370,6 +370,29 @@ detail in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-
 one is red, run that scenario at the prior revision to attribute it. Then close. Do not close on the
 defer scenario alone.
 
+### GRADER-002 — bind direct-skill trials to current slash-command expansion
+
+**Status:** `ready` (2026-08-22).
+
+**Outcome:** A direct-skill trial proves that the named skill contributed without requiring a legacy
+`Skill` tool event, while an answer produced without the skill still fails closed.
+
+**Source:** `[verified]` on Claude CLI 2.1.240 in runs `20260822T234553Z-3b860051` and
+`20260822T235252Z-a9531e1a`. The runtime listed `save-toolkit:production-change-gate`, the slash
+command produced version-specific skill behavior, and every trace still reported `skills=[]`.
+Consequently both behaviorally approved candidate trials were marked FAIL only by `skill-fired`.
+
+**Prerequisites:** Identify a stable trace or invocation signal for slash-command expansion. Do not
+infer contribution from answer prose alone.
+
+**Acceptance:** Focused red-first fixtures cover the current expansion shape and the legacy tool-event
+shape; the direct production-gate scenario passes 2/2; and the existing inline-answer control remains
+red when no skill contributes.
+
+**Next action:** Capture the smallest current trace around one direct slash command, then either grade
+its expansion signal or make direct mode invoke the skill explicitly. Keep the response-text fallback
+forbidden.
+
 ### DOCTOR-001 — make `fleet_doctor` diagnose the guard, not just the checkout
 
 **Status:** `ready` (2026-08-14)
@@ -406,8 +429,8 @@ needs no host inventory work.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
-**Status:** `ready` (2026-08-22) — retirement of the Codex/Terra evaluator removed the body-digest
-pin that had blocked this independent correction.
+**Status:** `active` (2026-08-22) — the canonical correction and focused guard regression are
+complete on the current candidate; the item leaves this file when that revision merges.
 
 **Outcome:** `skills/gcp-ops/SKILL.md` stops telling agents that a quoted `severity>=ERROR` trips the
 read-only guard, which stopped being true when PR #112 loosened the guard's proven-safe false
@@ -423,13 +446,11 @@ behavior, probe-cited, and `gcp-ops` already routes Logging query-language detai
 rather than owning it. The stale sentence is in the triage-flow skill; the query-construction skill
 an agent is told to load is right.
 
-**Verified 2026-08-20** by probing `scripts/readonly-guard.py` on the #112 branch:
+**Verified 2026-08-22** against the current `scripts/readonly-guard.py` and focused corpus:
 `gcloud logging read 'severity>=ERROR AND resource.type=cloud_run_revision' --freshness=1h` returns
-exit 42 (allow); the same filter unquoted returns exit 43 (deny). On `origin/main`'s guard the quoted
-form returns exit 43, so the sentence is correct on main and becomes stale only once #112 merges.
+exit 42 (allow), the same filter unquoted returns exit 43 (deny), and all 20 focused guard tests pass.
 
-**Prerequisites:** None. Reconfirm the quoted and unquoted filter cases against the focused guard
-corpus before changing the canonical skill.
+**Prerequisites:** Met. The quoted and unquoted cases are explicit focused-corpus fixtures.
 
 **Acceptance:** `gcp-ops` states the guard's real behavior, the focused allow/deny corpus proves it,
 generated projections match, and Gate A passes.
@@ -439,8 +460,8 @@ evidence-default banner from every skill. `gcp-ops` was initially left out becau
 ROUTE-001 canary body; PR #129 retired that campaign and deleted the pin, so the banner was removed
 from `gcp-ops` too and the fleet carries none. Nothing is owed here.
 
-**Next action:** Correct the stale sentence with the focused guard regression, regenerate once, and
-stop; no provider evaluation is attached to this text correction.
+**Next action:** Merge the exact candidate; no provider evaluation is attached to this text
+correction.
 
 **Separate follow-up (2026-08-21):** the OOM bullet still reads
 "exact memory-limit error text `[unverified]`". The text is resolved — *"While handling this request,

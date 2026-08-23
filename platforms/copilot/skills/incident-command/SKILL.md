@@ -29,6 +29,8 @@ becomes clear.
 | **P3 — Medium** | Minor / contained impairment; core journeys work or a workaround exists | On-call owns the lifecycle; no IC required; update stakeholders at start + resolution; abbreviated postmortem |
 | **P4 — Low** | Cosmetic / informational; no user impact | Normal work queue; no incident process |
 
+This is the fleet's ratified severity and cadence contract. *[sourced: owner ratification 2026-08-22]*
+
 ## How to classify
 
 - **Impact × scope × trend.** Multiply *how bad for a user* by *how many users / which journeys*, then
