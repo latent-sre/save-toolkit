@@ -16,8 +16,8 @@ Closed work is retained in the
 [`VERIFY-001 closure`](reviews/2026-08-02-verify-001-closure.md),
 [`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md),
 [`HOST-001 closure`](reviews/2026-08-06-host-001-closure.md), and
-[`ADAPT-001 closure`](reviews/2026-08-06-adapt-001-closure.md). The local Sol evaluator
-decision is recorded separately in
+[`ADAPT-001 closure`](reviews/2026-08-06-adapt-001-closure.md). The superseded local Sol evaluator
+decision is retained in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
 
 `SWEEP-001` and `MUTATION-001` were closed by **explicit owner disposition** rather than by a
@@ -28,6 +28,32 @@ count established a broken contract. A future concrete contract change gets one 
 test; an optional mutation run inspects one named module and ends after one named mutant is killed.
 The disposition does not assert that every survivor was equivalent or harmless. Its diagnostic
 output is the dated [fleet mutation sweep](reviews/2026-08-15-fleet-mutation-sweep.md).
+
+`RELEASE-001` was retired by **explicit owner disposition**: `not_applicable` as live work, owner
+`latent-sre`, 2026-08-23. Its custom publication workflow, request/workflow contracts,
+release-specific tests, and runbook were never activated, had no named consumer, and cost more to
+maintain than the pre-release repository needed. The standalone four-host probe and its focused suite
+were retired with them because no workflow, CI job, or named manual owner called them. The general
+`release-gate` skill, manifest versions, and normal changelog history remain. The historical design
+ADR is [`superseded`](decisions/2026-08-11-immutable-release-promotion.md).
+Reopen release work only when a named consumer requires an immutable selector and rollback-capable
+release. Reopen real-CLI host lifecycle probing only for a named host or packaging change that
+requires that evidence.
+
+`EVAL-001` was retired by **explicit owner disposition**: `not_applicable` as live work, owner
+`latent-sre`, 2026-08-23. Its only named trigger was a release decision, the parked suite no longer
+matches the current plugin identity or roster, and no named Codex consumer requires a paid Sol
+baseline. Tag `pre-trim-2026-08-02` preserves the historical bytes; structural Codex adapter and
+installer validation remains active. Reopen only for a named Codex consumer, a reproduced
+Codex-specific regression, or an explicit model-migration decision with an owner and fixed budget.
+
+`STATE-001` was retired by **explicit owner disposition**: `not_applicable` as live work, owner
+`latent-sre`, 2026-08-23. It described a future durable-execution control plane, but no named
+workflow, implementation, or active dependency exists; current handoffs and learning derive
+ownership and completion from Git, pull requests, tests/evals, and evidence. Reopen only when a named
+workflow must survive process or session loss or competing-worker recovery and replay from
+version-bound artifacts would be unsafe or materially costly; prefer host- or framework-native
+persistence before a repository-local state store.
 
 Items disposed by an accepted decision rather than a closure review:
 [`EVAL-002`](decisions/2026-08-22-agent-discovery-calibration.md) (agent-target discovery is
@@ -93,61 +119,6 @@ not substitutes for the live boundary proof.
 candidate identity and machine-enforceable finding verdict. Do not restore `ship-review`, wrap an
 exit-0 result as approval, or launch a paid/uploading probe until an owner explicitly accepts that
 external data/cost boundary and the remaining guarantees can be proven.
-
-### RELEASE-001 — publish and roll back one immutable release
-
-**Status:** `active` (2026-08-12) — PR
-[#103](https://github.com/latent-sre/save-toolkit/pull/103) merged the repository implementation;
-publication remains blocked and no release effect is authorized.
-
-**Outcome:** One reviewed commit is versioned, tagged, published, installed, verified, and recoverable
-without rebuilding or moving an unprotected ref.
-
-**Source:** The historical distribution plan, rewritten for the accepted multi-platform plugin
-architecture. Main-branch protection closed under
-[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md); host installation proof closed
-under [`HOST-001 closure`](reviews/2026-08-06-host-001-closure.md).
-
-**Prerequisites:** Repository preparation has no live prerequisite. Closure requires an independently
-reviewed merged candidate, explicit owner authorization, immutable releases, the exact protected tag
-ruleset, a human requester, exactly one distinct reviewer user or team on each of two release
-environments, a protected reconciliation key, and the separately controlled publisher App. The host
-closure's accepted limitations (Copilot CLI out of scope, UI-bound VS Code discovery, headless Codex
-discovery, no model evidence) carry forward into this item's host distribution work.
-
-**Acceptance:** Version parity and changelog pass; `claude plugin tag --dry-run` yields the exact
-derived tag; promotion consumes the reviewed current-main/workflow SHA and merged-PR evidence under
-the separated request/review/publish identities; strict install, exact inventory, marketplace and
-plugin removal, standalone-agent cleanup, and authority checks pass from the published tag; a prior
-immutable release is strictly rebound and reinstalled, or first-release uninstall is rehearsed;
-immutability and unknown-outcome/replay behavior are evidenced without moving, deleting, or reusing a
-version tag.
-
-**Implementation (merged, PR #103):** the accepted
-[exact-SHA promotion ADR](decisions/2026-08-11-immutable-release-promotion.md) — one protected
-annotated `save-toolkit--v<version>` tag plus an immutable Release; separated requester,
-environment-reviewer, and publisher-App identities; permanent per-run reservation refs; strict host
-evidence binding the checkout's commit to an exact blob map. Preparation-only evidence, byte
-identities, and review boundaries: the
-[release/routing preparation evidence](reviews/2026-08-11-release-routing-backlog-evidence.md). The
-clean dry-run derives `save-toolkit--v0.1.0`; no tag or Release exists.
-
-**Live blockers:**
-
-- GitHub configuration is absent (state as of 2026-08-12): immutable releases disabled; no
-  release-tag ruleset; no `release-tag` / `release-finalize` environments; no visible publisher App.
-  Creating them and dispatching are owner-approved external effects; the merge grants no publication
-  authority.
-- The host-probe authority claim: a before/after size-and-mtime census cannot prove that no write
-  left the disposable target, so the strict no-user-write criterion is unmet (independent review P1,
-  unresolved). Evidence and limits: the
-  [first-three backlog evidence packet](reviews/2026-08-18-first-three-backlog-evidence.md).
-
-**Next action:** The owner accepts a design that structurally denies the host CLI write access to
-the real user configuration — a separately controlled OS identity or an equivalent sandbox —
-recorded as a decision with cross-host proof; weakening the criterion to metadata-visible residue is
-not a shortcut. Only then, and after the live GitHub controls exist, consider dispatch. Never create
-or move a release ref manually.
 
 ## Repository work
 
@@ -403,8 +374,8 @@ correction.
 
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
-**Status:** `ready` (2026-08-13; progress 2026-08-22) — remaining: the two example-footnote
-compactions. Packaging of the maintenance skills stays separately deferred.
+**Status:** `ready` (2026-08-13; progress 2026-08-23) — remaining: the two example-footnote
+compactions. The maintenance skills remain bundled by owner decision.
 
 **Outcome:** A user who opens any of the 29 skills reaches actionable content within a few lines: the
 shared evidence-default banner is gone, worked examples carry provenance as a single footnote instead
@@ -422,9 +393,10 @@ example footer); `skills/operational-learning/` is 3,714 lines — 27% of toolki
 three schema versions, two migration scripts, and a drift watcher, and `skills/agent-authoring/` is
 1,678 lines, both shipped to every end user.
 
-**Prerequisites:** None blocking. The banner work is done. The
-maintenance-skill packaging split stays deferred until after the first release (the accepted
-packaging ADR governs the surface).
+**Prerequisites:** None blocking. The banner work is done. By owner decision, the maintenance skills
+stay in the shared package: no current measurement shows that their install size or discovery surface
+harms a named consumer. Reopen that packaging decision only with measured consumer impact attributable
+to those bundles.
 
 **Acceptance:** No shared evidence-default banner remains and adapters regenerate byte-clean; the
 two self-retracting examples keep their labels as one-line footnotes; the retired learning packet
@@ -432,65 +404,10 @@ and ledger paths remain absent; Gate A passes; operational closeout still produc
 documentation dispositions and owners without execution authority.
 
 **Next action:** Compact the provenance paragraphs in the `pcf-deploy` and `runbook` worked examples
-to one-line footnotes; leave the separately deferred packaging decision alone.
+to one-line footnotes. Keep the maintenance skills together unless the measured-impact reopen trigger
+fires.
 
 ## Deferred
-
-### EVAL-001 — expand risk-weighted Sol coverage
-
-**Status:** `deferred` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
-manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A and the local Claude runner are the
-beta's current verification surfaces; no active Codex evaluator supplies this item's broader direct
-Sol coverage. Reopen when a Codex/Sol behavioral baseline is actually needed for a release decision;
-the prerequisites and acceptance below are unchanged and still apply at that point.
-
-**Outcome:** The highest-risk skills and every explicitly installed Codex custom agent have direct
-behavioral evidence on `gpt-5.6-sol`, while implicit routing remains an observational metric rather
-than a release gate.
-
-**Source:** The 2026-07-31 Sol reference and six-agent conformance baselines (revoked as release
-evidence and removed from the tree on 2026-08-23; recoverable from git history) plus the measured
-headless agent-discovery limitation.
-
-**Prerequisites:** Clean committed plugin, generated-agent, and harness inputs; independent review of
-that exact commit; and an operator-owned Codex login. Changes originating in an external branch or PR
-must first be reviewed and committed into this repository before live evaluation.
-
-**Acceptance:** Direct lanes cover the trust-separated research roles and risk-weighted release,
-production-change, PCF, agent-security, and observability contracts. Every result distinguishes
-`pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
-historical Claude/Opus baselines.
-
-**Reopen trigger:** A named release decision requires a current Codex/Sol behavioral baseline that
-the active structural and Claude evaluation surfaces cannot provide.
-
-**Next action:** None while deferred. On reopen: recover the runners from tag `pre-trim-2026-08-02`,
-independently review the exact recovered commit, then run both fixed manifests from its clean
-checkout. Retain each sanitized report beside the matching review packet; acceptance of the pair is
-an external human/protected-workflow decision, never a field the runner grants itself. Keep implicit
-routing observational rather than making it a release gate.
-
-### STATE-001 — durable orchestration state
-
-**Status:** `deferred`
-
-**Outcome:** If a real multi-agent workflow needs resumable ownership, add append-only run/task/attempt
-state with versions, leases, cancellation, supersession, revision binding, and evidence-linked
-completion.
-
-**Source:** Fleet authority reviews that distinguish durable coordination state from prompt prose,
-worktrees, and host-native session state.
-
-**Prerequisites:** A named multi-session or multi-worker consumer whose ownership and completion
-cannot be derived safely from Git, pull requests, and evidence artifacts alone.
-
-**Acceptance:** A versioned append-only state contract, migration and rollback plan, lease and
-supersession semantics, evidence-bound completion, and failure tests exist for that named consumer.
-
-**Reopen trigger:** A workflow spans multiple independent workers or sessions and cannot safely derive
-ownership and completion from the pull request, Git commits, and evidence artifacts alone.
-
-**Next action:** None. Do not add a coordinator persona or unused state database first.
 
 ### EFFECT-001 — effect-bound execution broker
 
@@ -514,8 +431,3 @@ boundary and has a separately controlled execution identity.
 
 **Next action:** None. Importing a broker before a legitimate consumer would broaden the apparent
 execution path rather than reduce current authority.
-
-**Current note (2026-08-11):** RELEASE-001 now has a target-specific workflow design, but its live
-effect identity/configuration has not been approved or created, so this trigger is not yet satisfied.
-If the owner authorizes that configuration, reopen EFFECT-001 before the first dispatch and close it
-only with the workflow's effect-binding, expiry, replay, unknown-outcome, and rollback evidence.

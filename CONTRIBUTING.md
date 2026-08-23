@@ -26,6 +26,9 @@ The canonical-vs-generated split and where authority lives are fleet rules — A
 
 ## Work and verification protocol
 
+[`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) is the only live backlog; dated plans and reviews
+are evidence, not independent work queues.
+
 When starting implementation intended for a pull request, inspect `git status` first. Refresh
 `origin/main`, record its SHA, and start from that revision in a clean branch or separate checkout.
 If the current checkout is dirty or belongs to another task, leave it untouched. Read-only
@@ -81,7 +84,7 @@ Runtime probes follow the single probe/schema contract family in
 via `scripts/evidence_envelope.py`, digest-bound sandbox). Prefer those docs over restating the
 shape here.
 
-## Promotion
+## Main branch
 
 `main` is protected by repository ruleset
 [`Protect main`](https://github.com/latent-sre/save-toolkit/rules/17841231): pull requests
@@ -91,18 +94,6 @@ absent; rulesets are authoritative. Historical closure evidence and the later ow
 remove the required check are recorded in:
 [`docs/reviews/2026-08-05-protect-001-closure.md`](docs/reviews/2026-08-05-protect-001-closure.md).
 
-Maintainer / merge authority: `latent-sre`. `agentic-sre-dev` remains read-only. Exact-SHA
-publication uses a configured human requester, exactly one distinct protected-environment reviewer
-user or team, and a separately approved repository-scoped publisher App with Actions read but no
-Actions write; do not broaden the account to ordinary Write as a shortcut or collapse request and
-publication into one credential.
-
-Publication remains **blocked** until `RELEASE-001` in
-[`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) closes. The merged
-[`release.yml`](.github/workflows/release.yml) workflow is the only promotion path, and its presence
-authorizes nothing: the live controls in the
-[immutable-release ADR](docs/decisions/2026-08-11-immutable-release-promotion.md) must exist first
-and a human owner dispatches. Never create a moving `release` ref, a `save-toolkit--v*` tag, or a
-dispatch by hand. A published tag is never moved, deleted, or reused; the permanent
-`save-toolkit--attempt-v*` reservation refs and release run history are replay-control records,
-never cleanup targets. Recovery follows the [release runbook](docs/release-runbook.md).
+Maintainer / merge authority: `latent-sre`. `agentic-sre-dev` remains read-only. This repository
+does not currently define a publication workflow; merging a repository change does not publish an
+artifact.

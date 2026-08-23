@@ -1,9 +1,14 @@
 # ADR: Exact-SHA immutable release promotion
 
 - Date: 2026-08-11
-- Status: Accepted for repository implementation; live activation remains separately blocked
+- Status: Superseded 2026-08-23; repository implementation retired before live activation
 - Decision owners: save-toolkit maintainers
-- Roadmap item: [`RELEASE-001`](../fleet-roadmap.md#release-001--publish-and-roll-back-one-immutable-release)
+- Roadmap item: `RELEASE-001` (retired by [owner disposition](../fleet-roadmap.md))
+
+> **Historical record only.** No release was published under this design. The custom workflow,
+> contracts, release-only tests, and runbook were removed because there was no named consumer for
+> this control plane. Reopen release work only when a named consumer requires an immutable selector
+> and rollback-capable release; do not restore these files solely because this ADR describes them.
 
 ## Context
 
@@ -37,7 +42,7 @@ has an unknown outcome: blindly retrying may repeat an effect or take over anoth
    branch and no rebuilt ZIP. A separate permanent lightweight bookkeeping ref named
    `save-toolkit--attempt-v<version>--run-<github.run_id>` reserves the version before the release
    tag is written; it is not a consumer selector or release artifact.
-2. [`.github/workflows/release.yml`](../../.github/workflows/release.yml) is the only promotion path.
+2. `.github/workflows/release.yml` was the proposed only promotion path.
    It runs only by `workflow_dispatch` on protected `main` and binds the request to the repository,
    exact candidate/main/workflow SHA, version-derived tag, merged PR evidence, actor and triggering
    actor, whole-second UTC expiry, recovery target, immutable `github.run_id` nonce, and the run's
@@ -140,8 +145,8 @@ immutable release exists, recovery is uninstall; the strict candidate probe rehe
 marketplace, and standalone-agent removal. A burned tag without a Release does not end this
 first-release phase. Later releases must name a strictly older annotated tag with a published
 immutable Release; preflight binds its commit and the smoke job separately proves a strict 12/12
-reinstall lifecycle from that tag. Exact commands and stop conditions live in
-[`docs/release-runbook.md`](../release-runbook.md).
+reinstall lifecycle from that tag. Exact commands and stop conditions were recorded in the now
+retired `docs/release-runbook.md`.
 
 Destructive yank is not automated. If an exceptional security incident requires deleting an immutable
 release, the human owner re-enters the production-change gate with the exact GitHub operation and

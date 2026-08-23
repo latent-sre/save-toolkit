@@ -86,6 +86,23 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertNotIn("requires independent review", checklist)
                 self.assertNotIn("reviewed sha", checklist)
 
+    def test_release_gate_uses_distribution_specific_immutability(self) -> None:
+        checklist = _markdown_section(
+            Path("skills/release-gate/SKILL.md"), "## Checklist"
+        ).replace("*", "")
+
+        self.assertIn("when the artifact is distributed as a github release", checklist)
+        self.assertIn("gh api repos/{owner}/{repo}/immutable-releases", checklist)
+        self.assertIn('"enabled": true', checklist)
+        self.assertIn("gh api repos/{owner}/{repo}/rulesets/{ruleset_id}", checklist)
+        self.assertIn("target: tag", checklist)
+        self.assertIn("enforcement: active", checklist)
+        self.assertIn("ref_name.include", checklist)
+        self.assertIn("no matching exclusion", checklist)
+        self.assertIn("`update` and `deletion` rules", checklist)
+        self.assertIn("for any other distribution path", checklist)
+        self.assertIn("do not require github release controls", checklist)
+
     def test_review_consumers_keep_routine_work_out_of_the_prod_review_gate(self) -> None:
         sde_path = ROOT / "agents/sde.md"
         sde_fields, _, _ = validate_fleet.adapters.parse_frontmatter(sde_path)

@@ -32,6 +32,8 @@ item from the live roadmap.
 > remain active, and no record may advance beyond `observed` or `rejected` until the validators are
 > recovered and independently reviewed.
 
-Codex/Sol behavioral evaluation is not an `IMPROVE-001` acceptance condition. It remains tracked
-under `EVAL-001` as an operator-run local measurement whose exact-revision report must be paired with
-separate independent review. The runner is not a baseline or release-authorization mechanism.
+Codex/Sol behavioral evaluation was not an `IMPROVE-001` acceptance condition. At closure it was
+tracked under `EVAL-001` as an operator-run local measurement whose exact-revision report had to be
+paired with separate independent review; the runner was not a baseline or release-authorization
+mechanism. `EVAL-001` was retired by owner disposition on 2026-08-23, with its historical bytes
+preserved at tag `pre-trim-2026-08-02`.

@@ -333,21 +333,6 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertIn("preserve dirty and published branches", rules)
         self.assertNotIn("rebase on `origin/main` before PR", rules)
 
-    def test_release_verification_is_owned_by_the_changed_surface(self) -> None:
-        agents = self._read("AGENTS.md")
-        rules = self._read("docs/rules.md")
-        pull_request = self._read(".github/pull_request_template.md")
-
-        old_blanket = (
-            "run the release-contract and workflow mutation tests plus the host-probe tests"
-        )
-        self.assertNotIn(old_blanket, agents)
-        for text in (agents, rules, pull_request):
-            self.assertIn("metadata-only", text)
-            self.assertIn("release_contract.py", text)
-            self.assertIn("release_workflow_contract.py", text)
-            self.assertIn("host_install_probe.py", text)
-
     def test_closed_mutation_campaigns_keep_owner_dispositions_in_history(self) -> None:
         """A campaign leaves the roadmap only with its owner disposition recorded there.
 

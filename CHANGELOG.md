@@ -1,19 +1,31 @@
 # Changelog
 
-All notable Save Toolkit changes are recorded here. Versions identify immutable GitHub release tags
-named `save-toolkit--v<version>`; a tag is never moved or reused.
+All notable Save Toolkit changes are recorded here. This is pre-release repository history; a version
+entry does not imply that a GitHub Release or immutable consumer selector exists.
 
 ## [Unreleased]
 
-Empty by design: `0.1.0` has not been published, so in-flight work folds into it below rather than
-accumulating here. This section opens once `save-toolkit--v0.1.0` exists.
+### Changed
+
+- Generalized `release-gate` so non-GitHub distributions can prove immutable artifact identity
+  without inheriting GitHub Release controls, while GitHub Releases still require current
+  repository immutability and matching tag-ruleset evidence.
+
+### Removed
+
+- Retired the unpublished repository-specific release workflow, request and workflow contracts,
+  release-only tests, and release runbook; no immutable release channel had been activated.
+- Retired the standalone multi-host lifecycle probe and focused suite because no workflow, CI job,
+  or named manual consumer called them.
+- Retired the stale local Sol evaluation and unimplemented durable-state backlog items, retaining
+  their historical evidence and explicit consumer-driven reopen triggers.
 
 ## [0.1.0] - 2026-08-11
 
-> **Prepared, not yet published.** No `save-toolkit--v0.1.0` tag or GitHub Release exists — the date
-> above is when this entry was prepared, not a ship date. Publication is blocked on `RELEASE-001` in
-> [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md). The heading format is fixed by the release
-> contract (`scripts/test_release_contract.py`), so the status is stated here rather than in it.
+> **Prepared repository baseline, not a published release.** No `save-toolkit--v0.1.0` tag or GitHub
+> Release exists. The date above records when this baseline was prepared; the later retirement of
+> its unpublished release machinery is recorded under `Unreleased` rather than rewriting this
+> historical inventory.
 
 ### Added
 
