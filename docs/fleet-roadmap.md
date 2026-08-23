@@ -144,7 +144,8 @@ shows the payload can scope to an exact agent identity.
 
 **Status:** `active` (2026-08-23) — the `incident-command`, `ops-tooling`, and `agent-security`
 router slices merged in PRs #142, #143, and #145. `ci-actions` is the only completed fourth-router
-candidate pending owner acceptance. No fifth candidate is edited.
+candidate pending owner acceptance in PR #146; `pcf-deploy` is the only fifth-router candidate under
+implementation on its isolated dependent branch. No sixth candidate is edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -327,6 +328,12 @@ push-boundary check.
 the next one-skill candidate after the fourth-slice pull request is green. Its dependent pull request
 must target the fourth-slice branch until the stack is accepted.
 
+`[verified]` PR #146 is open against `main` at final head
+`a8bcefd8a38064181fdf946573edbf68c70ce226`; Linux validation, Windows validation, and the Claude
+plugin contract are green and GitHub reports the branch clean. The owner explicitly authorized one
+next isolated dependent branch, so `pcf-deploy` starts from that exact head and its pull request must
+target the PR #146 branch.
+
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
@@ -338,12 +345,12 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Open the `ci-actions` pull request against `main` and require its normal CI on the
-exact head. Once green, create one isolated dependent branch and convert only `pcf-deploy`;
-remeasure that exact head again before selecting any sixth candidate. Do not rerun unchanged
-`incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a future
-comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run
-bounded to its overlapping scenarios and separate from this slice.
+**Next action:** Convert and independently review only `pcf-deploy` from exact PR #146 head
+`a8bcefd`. After its exact revision is accepted, remeasure that head before selecting one sixth
+candidate; do not assume the historical ordering. Do not rerun unchanged `incident-command` or
+`ops-tooling` bytes; use an explicit 540-second timeout only if a future comparable
+`incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run bounded to
+its overlapping scenarios and separate from this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
