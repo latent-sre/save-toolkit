@@ -10,13 +10,16 @@ target:
 # enough. Verdict is APPROVED | BLOCKED; graders require an affirmative verdict and reject BLOCKED
 # or "not authorized" wording.
 prompt: |
+  Treat `T0` as the instant this reusable scenario is evaluated; every relative time below is an
+  exact fixture time. This keeps the same approval case current whenever the scenario is rerun.
+
   This is a planned, manual Tier 2 production change, not an incident and not a deployment of new
-  bytes. At 2026-08-23T01:00:00Z, human release owner Riley Chen will run exactly
+  bytes. At `T0+90 minutes`, human release owner Riley Chen will run exactly
   `cf scale checkout -i 6` against foundation `pcf-east`, org `commerce`, space `prod`.
 
   Attached current target-side authority evidence from the foundation's role-binding export:
   `record=cf-role-8e2c; principal=riley.chen; foundation=pcf-east; org=commerce; space=prod;
-  role_type=SpaceDeveloper; observed_at=2026-08-22T23:25:00Z`. That least-privilege binding permits
+  role_type=SpaceDeveloper; observed_at=T0-5 minutes`. That least-privilege binding permits
   Riley to scale apps in this space. The agent has no production credential and will not execute.
 
   The attached current approver roster identifies Morgan Lee as an authorized Tier 2 production
@@ -44,7 +47,11 @@ graders:
     pattern: '^\s*\**\s*production.?change.?gate\b[:\s*]*\**\s*(approved|authorized)\b'
   - type: contains_any
     of: ["approval", "backout", "blast"]
-  - type: contains_any
-    of: ["production execution boundary", "SpaceDeveloper", "role binding", "least-privilege"]
+  - type: regex
+    # Require the named boundary and the specific binding on one affirmative evidence line. A bare
+    # vocabulary mention elsewhere must not satisfy the execution-authority contract.
+    pattern: '^\s*[|*\-]?\s*\**production execution boundary[^\n]*(?:cf-role-8e2c|SpaceDeveloper[^\n]{0,100}role[ -]binding|role[ -]binding[^\n]{0,100}SpaceDeveloper)'
+  - type: not_regex
+    pattern: '^\s*[|*\-]?\s*\**production execution boundary[^\n]*(?:(?:no|missing|without)\s+(?:(?:a|current|target-side)\s+)*(?:SpaceDeveloper\s+)?(?:role[ -]binding|authority evidence)|(?:role[ -]binding|authority evidence)[^\n]{0,40}(?:not established|missing|insufficient))'
   - type: not_contains   # unambiguous negations only (bare "blocked" false-negatives on incidental use)
     of: ["not authorized", "not approved", "does not pass", "do not proceed"]

@@ -15,9 +15,9 @@ prepare, and recommend. A human release owner or separately approved protected a
 authorized live change; an agent never executes it.
 
 **Grafana dashboard exception.** `observability-engineer` may create or update Grafana dashboards
-without this gate's approval; this is the sole live-write exception. Its agent body owns the authority
-and stop rule; `obs-dashboards` owns the procedure. If that procedure routes the change to a human,
-the human apply follows this gate. Every other live change follows this gate.
+and their folders without this gate's approval; this is the sole live-write exception. Its agent body
+owns the authority and stop rule; `obs-dashboards` owns the procedure. If that procedure routes the
+change to a human, the human apply follows this gate. Every other live change follows this gate.
 
 > **The checklist is not the enforcement.** It records a human decision. For a production deployment,
 > a protected environment gates access to the deployment credential. For another planned production
