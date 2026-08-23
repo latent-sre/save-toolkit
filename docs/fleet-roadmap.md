@@ -142,9 +142,9 @@ shows the payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-23) — the `incident-command` first-router slice merged in PR #142 and
-the `ops-tooling` second-router slice merged in PR #143. `agent-security` is the only third-router
-candidate under owner acceptance. No other candidate is edited.
+**Status:** `active` (2026-08-23) — the `incident-command`, `ops-tooling`, and `agent-security`
+router slices merged in PRs #142, #143, and #145. `ci-actions` is the only fourth-router candidate
+under implementation. No fifth candidate is edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -281,6 +281,18 @@ skips), and `git diff --check`. The one required regeneration produced 286 adapt
 consistency. Two direct calibration scenarios target `agent-security`, but its description routing
 content is unchanged; no paid routing run was required or performed.
 
+`[verified]` PR #145 merged final head `97008f442f282912e1e682af192811d833a0c8e5` into `main` as
+`a10c8820ad569fcf2ef4f07866ef1836c081e3b1`. Its two review findings corrected the OWASP title and
+an unreachable crosswalk control before merge; Linux validation, Windows validation, and the Claude
+plugin contract passed on that final head. The final entrypoint remains 7,971 immutable bytes and
+its two references total 7,231 bytes. These merge facts do not upgrade the earlier independent
+review from `e583859` to the final head.
+
+`[verified]` The required current-main remeasurement on
+`80cd023b8606f4b94f7a8b508a70e2ed255e44aa` finds 30 entrypoints totaling 212,440 bytes and six
+remaining candidates. `ci-actions` is largest at 12,197 unconditional entrypoint bytes with one
+reference totaling 1,620 bytes, so it is selected alone for the fourth bounded router slice.
+
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
@@ -292,11 +304,12 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Obtain normal owner acceptance of the exact `agent-security` branch revision, then
-remeasure current `main` before selecting one fourth candidate. Do not rerun unchanged
-`incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a future
-comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run
-bounded to its overlapping scenarios and separate from this slice.
+**Next action:** Convert and independently review only `ci-actions` from exact current-main base
+`80cd023`. After its exact revision is accepted, remeasure that head before selecting one fifth
+candidate; do not assume the historical ordering. Do not rerun unchanged `incident-command` or
+`ops-tooling` bytes; use an explicit 540-second timeout only if a future comparable
+`incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run bounded to
+its overlapping scenarios and separate from this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
