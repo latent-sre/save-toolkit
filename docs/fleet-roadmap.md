@@ -20,6 +20,15 @@ Closed work is retained in the
 decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
 
+`SWEEP-001` and `MUTATION-001` were closed by **explicit owner disposition** rather than by a
+closure review: `not_applicable` as live work, owner `latent-sre`, 2026-08-21. The owner declined to
+convert the release-contract, host-probe, grader, and guard survivor counts into work — the release
+contracts were unpublished, the grader transformations exceeded that tool's operator model, and no
+count established a broken contract. A future concrete contract change gets one focused red-first
+test; an optional mutation run inspects one named module and ends after one named mutant is killed.
+The disposition does not assert that every survivor was equivalent or harmless. Its diagnostic
+output is the dated [fleet mutation sweep](reviews/2026-08-15-fleet-mutation-sweep.md).
+
 Items disposed by an accepted decision rather than a closure review:
 [`EVAL-002`](decisions/2026-08-22-agent-discovery-calibration.md) (agent-target discovery is
 calibration, never a regression gate),

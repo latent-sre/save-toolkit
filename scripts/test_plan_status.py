@@ -209,7 +209,7 @@ class SpecPointerAndDecisionStatusTests(unittest.TestCase):
     def test_a_spec_without_a_roadmap_pointer_is_flagged(self) -> None:
         """The pointer was enforced in the plans loop only; a spec could omit it and pass green.
 
-        docs/superpowers/specs/2026-07-13-eval-clean-room-design.md really did, until this landed.
+        A spec in this repository really did, until this landed.
         """
         with tempfile.TemporaryDirectory() as temporary:
             root = _skeleton(Path(temporary))
@@ -349,14 +349,20 @@ class WorkflowPolicyTests(unittest.TestCase):
             self.assertIn("host_install_probe.py", text)
 
     def test_closed_mutation_campaigns_keep_owner_dispositions_in_history(self) -> None:
+        """A campaign leaves the roadmap only with its owner disposition recorded there.
+
+        The disposition used to be asserted against the dated sweep review's prose, which made a
+        historical record load-bearing for this suite: it could not be swept, and could not even be
+        reworded, without a red test. Dispositions belong in the tracker, so that is what this
+        reads; the review is free to be history.
+        """
         roadmap = self._read("docs/fleet-roadmap.md")
-        sweep = self._read("docs/reviews/2026-08-15-fleet-mutation-sweep.md")
 
         self.assertNotIn("### MUTATION-001", roadmap)
         self.assertNotIn("### SWEEP-001", roadmap)
         self.assertIn("explicit owner disposition", roadmap)
-        self.assertIn("**Owner disposition (2026-08-21):** `not_applicable`", sweep)
-        self.assertIn("owner `latent-sre`", sweep)
+        self.assertIn("`not_applicable` as live work, owner `latent-sre`", roadmap)
+        self.assertIn("`SWEEP-001` and `MUTATION-001`", roadmap)
 
 
 if __name__ == "__main__":
