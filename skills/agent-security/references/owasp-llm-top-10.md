@@ -7,9 +7,9 @@ are the 2025 entries verbatim. *[sourced: OWASP
 
 | Entry | What it names | The control in this skill |
 |---|---|---|
-| **LLM01 Prompt Injection** | Crafted input makes the model ignore its instructions | The whole skill; trifecta leg 2, taint marking, the result envelope |
+| **LLM01 Prompt Injection** | Crafted input makes the model ignore its instructions | The whole skill; trifecta leg 2, taint marking, and no trust escalation between agents |
 | **LLM02 Sensitive Information Disclosure** | The model reveals PII, secrets, or proprietary data | Trifecta leg 1; redaction rules in the obs skills; `cf env` and token reads are human-only |
-| **LLM03 Supply Chain Vulnerabilities** | Third-party components, data, or services compromise the system | Skills and MCP servers are dependencies — the source-trust gate, SHA-pinned actions, and MCP rules |
+| **LLM03:2025 Supply Chain** | Third-party components, data, or services compromise the system | Treat tools and delegates as dependencies: `tools:` is authority, verify claimed controls against actual configuration, and fail closed on ambiguity |
 | **LLM04 Data and Model Poisoning** | Training/fine-tuning data manipulated to plant behavior | Out of this fleet's lane — no training here; note it, don't review it |
 | **LLM05 Improper Output Handling** | Model output reaches a downstream system unsanitized | Output is a proposal, never executed from text; `backend-craft`'s validate-at-the-boundary |
 | **LLM06 Excessive Agency** | Autonomy or permissions beyond the task | Rule of Two; tool absence; the allowlist guard; human approval for prod-facing actions |
