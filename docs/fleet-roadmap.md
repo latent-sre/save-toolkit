@@ -179,8 +179,9 @@ shows the payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-23) — the `incident-command` first-router slice merged in PR #142;
-`ops-tooling` is the only second-router candidate under verification. No other candidate is edited.
+**Status:** `active` (2026-08-23) — the `incident-command` first-router slice merged in PR #142 and
+the `ops-tooling` second-router slice merged in PR #143. `agent-security` is the only third-router
+candidate under owner acceptance. No other candidate is edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -258,21 +259,64 @@ template. It also found the non-reproducible byte counts above.
 `[verified]` Follow-up commit `80c7c331b06bb5b593d8663475d0bbaa995e3880` makes the existing
 project-owned versioned contract authoritative and limits the bundled contract template to the first
 HTTP contract when none exists; its own header forbids duplicate contracts and applying its HTTP/RFC
-9457 shape to non-HTTP interfaces. The router now separates procedure lanes from four optional asset
-lanes: missing environment card, missing plan, new Python CLI without a project starter, and a
-drafted/replaced/relaunched builder packet. A bounded fresh-context static regression passed the
-existing-contract, established-CLI, existing-packet-validation, and existing-environment/plan cases
-without loading those assets. This retest did not test host activation, final-response quality, or
-runtime behavior; those remain `[unverified]` for the exact commit.
+9457 shape to non-HTTP interfaces. The router now separates procedure lanes from five optional asset
+lanes: missing environment card, missing plan, new Python CLI without a project starter, first HTTP
+contract when no project-owned versioned contract exists, and a drafted/replaced/relaunched builder
+packet. A bounded fresh-context static regression passed the existing-contract, established-CLI,
+existing-packet-validation, and existing-environment/plan cases without loading those assets. This
+retest did not test host activation, final-response quality, or runtime behavior; those remain
+`[unverified]` for the exact commit.
 
 At `80c7c33`, the `ops-tooling` entrypoint is 6,922 immutable bytes, its six references total 18,709
 bytes, the 30-entrypoint corpus totals 218,109 bytes, and the mechanical candidate set remains seven.
+
+`[verified]` PR #143 merged exact head `2927a2120da0494195e8d901570963a15bdb877a` into `main` as
+`14b7aeae7c22aff3b50800ef262123adb9a48bc3`. A bounded retrospective review of that immutable merge
+found no P0/P1 issue and one merge-safe P2: the paragraph above counted four optional asset lanes
+while naming only four of the five implemented predicates. The corrected count and omitted HTTP
+contract predicate now match the Git object; no skill or projection byte changed in that correction.
+
+`[verified]` The post-merge remeasurement on `14b7aea` keeps 30 entrypoints totaling 218,109 bytes
+and seven candidates. `agent-security` is the largest at 13,629 unconditional bytes with no routed
+references, so it is selected alone for the third bounded router slice.
 
 `[verified]` The exact implementation and remediation each passed direct link and fleet validation,
 strict Claude plugin validation, 112 focused link/adapter/fleet/canary tests (three skips), and
 `git diff --check`; each canonical edit was regenerated once, producing 282 adapter files with byte
 consistency. No description or eval scenario changed, no existing scenario targets `ops-tooling`,
 and no paid routing run was required or performed.
+
+`[verified]` Third bounded implementation commit
+`e5838598c4d8f7ee52e788045c68f6b1033385ab` converts only `agent-security`. Its byte-identical
+description now opens a 7,971-byte entrypoint that keeps the prompt-injection premise,
+lethal-trifecta and Rule-of-Two decision, host-authority verification, cross-agent taint and
+delegation limits, evidence labels, action-boundary validation, active-compromise stop, five-question
+review, output contract, and human-approval handoff. Two explicit references total 7,188 bytes:
+current-fleet/integration/MCP/host controls and the OWASP LLM Top 10 crosswalk. The 30-entrypoint
+corpus falls to 212,451 bytes and the mechanical candidate set to six.
+
+A fixed three-case fresh-context artifact exercise was attempted before commit. `[verified]` The
+thread limit admitted two cases and rejected the OWASP case before execution. The risky
+webhook/secret/MCP/egress case loaded only integration controls and returned the required structural
+containment. The nominal core-only case unnecessarily loaded that reference because its first
+predicate was too broad and also found an overclaim that a read-only reporter could not leak through
+its output. One consolidated correction narrowed the predicate to secrets, external actions, host
+enforcement, or tool-result envelopes and constrained the report channel while keeping its output
+`[UNTRUSTED]`; the agents were not rerun under the one-candidate bound. Exact-candidate conditional
+loading, OWASP response quality, host activation, and runtime behavior therefore remain
+`[unverified]`.
+
+`[verified]` One independent static review of exact commit `e583859` approved the complete immutable
+nine-file canonical-plus-projection diff with no findings and no P0/P1. The reviewer confirmed the
+description identity, always-loaded invariants, explicit reachable predicates, current fleet facts,
+and absence of schema, runtime, capability, or authority expansion. It did not run tests, validators,
+external source refreshes, or host probes.
+
+`[verified]` The exact candidate passed the skill quick validator, direct link/fleet/roadmap/stale-name
+validation, strict Claude plugin validation, 112 focused link/adapter/fleet/canary tests (three
+skips), and `git diff --check`. The one required regeneration produced 286 adapter files with byte
+consistency. Two direct calibration scenarios target `agent-security`, but its description routing
+content is unchanged; no paid routing run was required or performed.
 
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
@@ -285,11 +329,11 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Obtain normal owner acceptance of the exact `ops-tooling` branch revision, then
-begin one next confirmed candidate as a separate bounded slice. Do not rerun unchanged
+**Next action:** Obtain normal owner acceptance of the exact `agent-security` branch revision, then
+remeasure current `main` before selecting one fourth candidate. Do not rerun unchanged
 `incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a future
 comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run
-bounded to its overlapping scenarios.
+bounded to its overlapping scenarios and separate from this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
