@@ -391,6 +391,12 @@ weakened-rule mutation (`plugin_inputs_dirty=true`) incorrectly returned `APPROV
 `20260823T012204Z-1a382e31` and `APPROVED` 2/2 for the complete packet in
 `20260823T012314Z-ec65c221`. Every response grader passed on the restored pair; only `skill-fired`
 remained red because both traces still reported `skills=[]`. *[verified]*
+Post-review hardening on candidate `3a1fe384485911b610326b4cb4ce6a635987bd0d` rejects a negated
+specific binding, a BLOCKED verdict whose actual deficit is unrelated while the binding is present,
+and each individually omitted required checklist acknowledgement (446/446 offline checks). Fresh
+CLI 2.1.241 runs `20260823T021128Z-d180d56d` and `20260823T021249Z-28262e5d` returned
+`APPROVED` 2/2 and `BLOCKED` 2/2 respectively; every response grader passed and only `skill-fired`
+remained red because all four traces still reported `skills=[]`. *[verified]*
 
 **Prerequisites:** Identify a stable trace or invocation signal for slash-command expansion. Do not
 infer contribution from answer prose alone.
