@@ -181,7 +181,7 @@ shows the payload can scope to an exact agent identity.
 
 **Status:** `active` (2026-08-23) — the `incident-command` first-router slice merged in PR #142 and
 the `ops-tooling` second-router slice merged in PR #143. `agent-security` is the only third-router
-candidate under implementation. No other candidate is edited.
+candidate under owner acceptance. No other candidate is edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -286,6 +286,38 @@ strict Claude plugin validation, 112 focused link/adapter/fleet/canary tests (th
 consistency. No description or eval scenario changed, no existing scenario targets `ops-tooling`,
 and no paid routing run was required or performed.
 
+`[verified]` Third bounded implementation commit
+`e5838598c4d8f7ee52e788045c68f6b1033385ab` converts only `agent-security`. Its byte-identical
+description now opens a 7,971-byte entrypoint that keeps the prompt-injection premise,
+lethal-trifecta and Rule-of-Two decision, host-authority verification, cross-agent taint and
+delegation limits, evidence labels, action-boundary validation, active-compromise stop, five-question
+review, output contract, and human-approval handoff. Two explicit references total 7,188 bytes:
+current-fleet/integration/MCP/host controls and the OWASP LLM Top 10 crosswalk. The 30-entrypoint
+corpus falls to 212,451 bytes and the mechanical candidate set to six.
+
+A fixed three-case fresh-context artifact exercise was attempted before commit. `[verified]` The
+thread limit admitted two cases and rejected the OWASP case before execution. The risky
+webhook/secret/MCP/egress case loaded only integration controls and returned the required structural
+containment. The nominal core-only case unnecessarily loaded that reference because its first
+predicate was too broad and also found an overclaim that a read-only reporter could not leak through
+its output. One consolidated correction narrowed the predicate to secrets, external actions, host
+enforcement, or tool-result envelopes and constrained the report channel while keeping its output
+`[UNTRUSTED]`; the agents were not rerun under the one-candidate bound. Exact-candidate conditional
+loading, OWASP response quality, host activation, and runtime behavior therefore remain
+`[unverified]`.
+
+`[verified]` One independent static review of exact commit `e583859` approved the complete immutable
+nine-file canonical-plus-projection diff with no findings and no P0/P1. The reviewer confirmed the
+description identity, always-loaded invariants, explicit reachable predicates, current fleet facts,
+and absence of schema, runtime, capability, or authority expansion. It did not run tests, validators,
+external source refreshes, or host probes.
+
+`[verified]` The exact candidate passed the skill quick validator, direct link/fleet/roadmap/stale-name
+validation, strict Claude plugin validation, 112 focused link/adapter/fleet/canary tests (three
+skips), and `git diff --check`. The one required regeneration produced 286 adapter files with byte
+consistency. Two direct calibration scenarios target `agent-security`, but its description routing
+content is unchanged; no paid routing run was required or performed.
+
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
@@ -297,11 +329,11 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Build and review one `agent-security` router slice from exact base `14b7aea`; do not
-edit another candidate. Do not rerun unchanged `incident-command` or `ops-tooling` bytes; use an
-explicit 540-second timeout only if a future comparable `incident-command` run is authorized. Keep
-the already-owed `eng-ladder` after-change run bounded to its overlapping scenarios and separate from
-this slice.
+**Next action:** Obtain normal owner acceptance of the exact `agent-security` branch revision, then
+remeasure current `main` before selecting one fourth candidate. Do not rerun unchanged
+`incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a future
+comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run
+bounded to its overlapping scenarios and separate from this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
