@@ -179,8 +179,8 @@ shows the payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-23) — the exact current candidate set is remeasured and the
-`incident-command` first-router slice is under verification; no other candidate has been edited.
+**Status:** `active` (2026-08-23) — the `incident-command` first-router slice merged in PR #142;
+`ops-tooling` is the only second-router candidate under verification. No other candidate is edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -223,6 +223,36 @@ the shorter run; it closes the after-change activation check under its own recor
 global runner default remains 300 seconds, and detailed reference-dependent behavior remains outside
 the discovery evidence layer.
 
+`[verified]` After PR #142 merged, the exact next-slice base
+`17b4ba97aa0b8091a1b3bbff462bfc9bbae0d109` carried 30 entrypoints totaling 227,329 bytes and eight
+remaining candidates: `agent-security`, `ci-actions`, `database-reliability`, `ops-tooling`,
+`pcf-deploy`, `pcf-ops`, `production-change-gate`, and `stack-profile`. `ops-tooling` was the largest
+at 14,521 unconditional entrypoint bytes versus two references totaling 7,202 bytes.
+
+`[verified]` The second bounded implementation commit
+`3b9559412ef06c1ae3e8a19e82fe23395a183ac0` converts only `ops-tooling`. Its unchanged description
+now opens a 6,509-byte entrypoint that keeps the right-size exit, spawn-degradation behavior,
+human-only production authority, evidence boundary, self-contained handoff contract, bounded phase
+exits, and conditional `stack-profile` requirement. Six routed references total 17,897 bytes across
+requirements/design, CLI, multi-component, build, review, and verification/handoff lanes. The full
+canonical entrypoint corpus falls to 219,317 bytes and the mechanical candidate set to seven.
+
+The owner authorized one fixed five-agent fresh-context artifact exercise before commit. `[verified]`
+Three lanes passed on the first candidate: early exit, independent review, and verification/handoff.
+The requirements/design lane found the missing conditional `stack-profile` dependency and a stale
+host-specific instruction in the environment-card asset; the multi-component build lane found that
+the contract template loaded even when a project-owned contract already existed. One consolidated
+correction addressed those findings before `3b95594`. Per the fixed budget, the agents were not
+rerun. This exercise inspected instruction selection and invariant preservation; it did not test
+host activation, final-response quality, or runtime behavior, which remain `[unverified]` for the
+exact commit.
+
+`[verified]` The exact implementation passed direct link and fleet validation, strict Claude plugin
+validation, 112 focused link/adapter/fleet/canary tests (three skips), and `git diff --check`; the
+one required regeneration produced 282 adapter files with byte consistency. No description or eval
+scenario changed, no existing scenario targets `ops-tooling`, and no paid routing run was required
+or performed.
+
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
@@ -234,10 +264,11 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Obtain normal owner acceptance of the exact branch revision, then begin one next
-confirmed candidate as a separate bounded slice. Do not rerun unchanged `incident-command` bytes;
-use an explicit 540-second timeout only if a future comparable run is authorized. Keep the
-already-owed `eng-ladder` after-change run bounded to its overlapping scenarios.
+**Next action:** Obtain normal owner acceptance of the exact `ops-tooling` branch revision, then
+begin one next confirmed candidate as a separate bounded slice. Do not rerun unchanged
+`incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a future
+comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run
+bounded to its overlapping scenarios.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
