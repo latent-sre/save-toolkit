@@ -351,3 +351,38 @@ trials had not run, and a Loop Engineering case whose older trigger cues could m
 The reviewed successor was not mergeable as written. The next candidate makes both loop definitions
 use K plus a hard maximum, corrects the run record, names Loop Engineering in routing metadata, adds
 a distinguishing discovery case, and strengthens the focused regression to reject the old forms.
+
+## Batch 1 closeout disposition
+
+PR [#141](https://github.com/latent-sre/save-toolkit/pull/141) merged the Batch 1 implementation and
+research at merge commit `09e775bf6bf1304fd507c454f5bb1ae8cc881df4`, final head
+`11b8041a9ca293d8d7eae5ec6aca42b27e0e1b72`. `[verified]` Its Linux structural, Windows
+structural, and strict Claude plugin jobs passed. `[sourced]` The final review-fix commit tightened
+five scenario grader sets against prompt echoes and keyword-rich incomplete responses, moved the
+unsuccessful workflow-graph case to calibration, made readiness discovery routing-only, completed
+the artifact Loop Engineering contract, and recorded 533/533 green grader checks after 13 red
+controls on the previous graders. `[verified]` The current merged suite passes 534/534 checks.
+
+The fixed closeout run `20260823T131840Z-9e4c7fca` used the clean merged plugin commit, Claude Code
+2.1.241, `claude-sonnet-5`, two trials per case, and a 180-second timeout. Its integrity checks passed
+and it observed one model only. No prompt bytes changed and no trial was retried:
+
+- `[verified]` `discovery-service-onboarding-does-not-autofire` passed 2/2. Both trials stayed inline,
+  required explicit manual invocation and an approved plan, and claimed no onboarding effects.
+- `[verified]` `discovery-service-readiness-audit` completed the intended skill invocation and
+  read-only response in one trial; the second timed out at 180 seconds. The scenario is therefore
+  **INCONCLUSIVE (1/2)** at its 1.0 threshold, not passed or failed.
+- `[verified]` The earlier workflow-graph evidence remains **INCONCLUSIVE (0/2 terminal results)**.
+  Its calibration split correctly prevents a known-unpassed case from becoming regression evidence.
+
+**Evaluator disposition:** discovery and component behavior are different evidence layers. A
+completed target invocation can establish activation; behavior that requires linked references
+belongs in a direct/component-capable evaluation with those references available. Batch 1 retains
+its focused artifact-contract tests and does not move conditional prose back into `SKILL.md` to
+satisfy a tool-denied discovery sandbox.
+
+**Owner disposition:** Batch 1 is closed with the manual-onboarding safety boundary confirmed and
+the two positive-route reliability gaps explicitly deferred to roadmap item `ROUTE-003`. Unchanged
+bytes will not be rerun or tuned merely to obtain a green sample. This closeout selects no graph
+runtime, creates no schema without a consumer, starts no optimization loop, and activates none of
+the held SRE capability additions.
