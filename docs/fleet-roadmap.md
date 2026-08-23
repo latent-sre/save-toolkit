@@ -179,8 +179,8 @@ shows the payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `ready` (2026-08-23) — Batch 1 is merged and its evaluator boundary is dispositioned;
-no Batch 2 edits have started.
+**Status:** `active` (2026-08-23) — the exact current candidate set is remeasured and the
+`incident-command` first-router slice is under verification; no other candidate has been edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -199,6 +199,14 @@ Batch 1 both change relevant entrypoints, so this item must remeasure before edi
 metadata follows the current rule—capability or user goal, invocation conditions, and meaningful
 exclusions, without procedure—rather than the retired “trigger only” doctrine.
 
+`[verified]` The required 2026-08-23 remeasurement on tree `8ea628d` found 30 entrypoints totaling
+232,717 bytes and confirmed the same nine candidates. Exact per-skill bytes and reference totals are
+recorded in the audit's
+[`Batch 2 remeasurement`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md#batch-2-remeasurement-and-first-router-candidate).
+The first candidate reduces `incident-command` from 11,056 unconditional bytes to a 3,903-byte
+entrypoint routing 9,977 reference bytes across three conditional lanes while retaining shared
+authority and safety controls.
+
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
@@ -210,9 +218,10 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** When Batch 2 is explicitly started, remeasure first. Then convert
-`incident-command` alone and review that router shape before applying it to any other confirmed
-candidate. Keep the already-owed `eng-ladder` after-change run bounded to its overlapping scenarios.
+**Next action:** Run the one predeclared after-change `incident-command` discovery scenario against
+the exact candidate revision, then review the router shape and evidence once. Do not edit another
+candidate until that disposition is recorded. Keep the already-owed `eng-ladder` after-change run
+bounded to its overlapping scenarios.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

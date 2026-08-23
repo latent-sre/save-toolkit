@@ -1,0 +1,59 @@
+# Command and communications
+
+Use this reference to establish command roles, maintain the authoritative incident record, prepare
+stakeholder communications, or decide whether to downgrade or close. Technical investigation stays
+with the typed `sre` agent, and every production effect stays with the named human release owner.
+
+## Run the response
+
+Once declared, assign an **incident commander** who runs the process rather than the debugging.
+
+- Keep the response moving toward the fastest safe mitigation; delegate technical RCA to the typed
+  `sre` agent and remediation to a human release owner.
+- Assign Investigation, Operations/remediation, and Communications/timeline owners. For a large P1,
+  split Communications and Timeline/Scribe from the commander. During the live incident the scribe
+  is a named human, not the typed `scribe` documentation agent.
+- Convert every “someone should” into an action with one owner and a visible status.
+- Record facts, hypotheses, decisions, attempts, and results in UTC. Mark uncertainty rather than
+  smoothing it away.
+- Keep the current focus to one sentence so parallel responders know what is being tested or
+  mitigated now.
+
+## One authoritative status block
+
+```text
+Incident: <title>   Severity: <P1|P2|P3|P4>   Status: <investigating|mitigating|monitoring|resolved>
+Impact: <who/what, since when, trend>
+Roles: IC=<>   Investigation=<>   Ops=<>   Comms/Timeline=<>
+Timeline (UTC): <timestamp — observed event or decision> …
+Current focus: <the one thing the response is doing now>
+Mitigation decision: <chosen|pending — rationale and human owner>
+Open actions: <owner — item — status>
+Next update: <HH:MM UTC>
+```
+
+Update this block in place. Do not fork separate severity, timeline, and mitigation records.
+
+## Communications cadence
+
+Use the fixed cadence from the severity rubric even when there is no new result: say “still
+investigating” and name the next update time. Silence reads as loss of control. Keep every update
+plain-language, honest about confidence, and explicit about user impact. For P1, the first external
+update goes out within the hour.
+
+- **Initial:** What is known (symptom and impact), provisional severity, scope, when impact began,
+  “we are investigating,” and the next update time.
+- **Update:** What changed since the previous update, current state (`investigating`, `mitigating`,
+  or `monitoring`), mitigation progress or ETA, and the next update time.
+- **Resolution:** When impact ended, root-cause summary or `[unverified] — under investigation`,
+  what was done, follow-ups with owners, and whether a postmortem will follow.
+
+## Downgrade and resolve
+
+Downgrade only when current impact, scope, and trend fit the lower tier; record why and notify the
+same audience that received the higher classification.
+
+Resolve only after the investigator and typed `observability-engineer` confirm that golden signals
+have returned to baseline and remained there for a sustained window. A single green point is not
+enough for a metastable service. Send the resolution update, then hand the UTC timeline and its
+evidence labels to typed `scribe` for the durable postmortem and operational-learning closeout.

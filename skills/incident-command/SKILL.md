@@ -1,156 +1,59 @@
 ---
 name: incident-command
 description: >-
-  Run a live incident — classify P1–P4 by user impact × scope × trend, assign roles, keep the
-  authoritative timeline, drive to mitigation (fastest reversible action: route remap, rollback, restart,
-  scale, flag flip), send initial/update/resolution comms. Triggers: 'declare an incident', 'what severity
-  is this', 'send a status update', 'should we roll back'. Mitigation is executed by a human; the sre agent
-  investigates.
+  Coordinate a live incident: set or revise P1-P4 severity, establish command roles and the
+  authoritative timeline, prepare stakeholder updates, and choose a reversible mitigation for human
+  execution. Triggers: 'declare an incident', 'what severity is this', 'send the incident update',
+  'should we roll back'. Not for technical diagnosis (sre), resolved-incident documentation
+  (scribe), or applying production changes.
 ---
 
-# Incident severity, command & communications
+# Incident command
 
-The first consequential call in any incident is **"how bad is this, and who needs to know?"**
-**Over-classify, then downgrade** — declaring is cheap; under-declaring is expensive. Set a
-*provisional* severity in the first minutes from what you can see, and revise as the blast radius
-becomes clear.
+Lead with the current severity and impact, then establish control. Set a **provisional** severity
+from what is known in the first minutes and revise it as the blast radius becomes clearer. Round up
+when unsure: declaring is cheap; under-declaring leaves impact unowned.
 
-## Severity rubric (round up when unsure)
+## Shared control boundary
 
-| Tier | Definition (user impact × scope) | What it triggers |
-|------|----------------------------------|------------------|
-| **P1 — Critical** | Customer-facing outage for all/most users, **or** data-loss / integrity / security event | Declare **now**; assign an incident commander (run the process below); page on-call + service owner + leadership; status updates every **15 min**; full blameless postmortem |
-| **P2 — High** | Major degradation, or a single critical service/journey down for a subset of users | Declare; assign an incident commander (run the process below); page on-call + service owner; updates every **30 min**; postmortem required |
-| **P3 — Medium** | Minor / contained impairment; core journeys work or a workaround exists | On-call owns the lifecycle; no IC required; update stakeholders at start + resolution; abbreviated postmortem |
-| **P4 — Low** | Cosmetic / informational; no user impact | Normal work queue; no incident process |
+- **Command is not investigation.** The incident commander runs the response process. The typed
+  `sre` agent owns technical triage and root-cause hypotheses; a human release owner owns
+  remediation. Do not let the commander disappear into logs.
+- **One source of truth.** Keep one UTC timeline with observed facts, decisions, actions, owners,
+  and the next update time. Preserve `[verified]`, `[sourced]`, and `[unverified]` labels.
+- **Mitigate first, but never act from this skill.** Recommend the fastest safe, reversible action.
+  A human release owner executes only after the exact target, command, blast radius, verification,
+  rollback, and named approval or IC-approved bounded envelope are recorded. Shipping new bytes and
+  every destructive or access-path action stay on the full production gate.
+- **Suspected compromise or integrity loss exits the reliability path.** Escalate immediately to
+  the human security incident owner and preserve state and forensic evidence. Do not restart,
+  redeploy, scale, remap routes, or use a generic mitigation unless that owner directs the exact
+  action. The typed `sre` agent may collect only the named read-only signals requested by that
+  owner; it does not contain, eradicate, or recover a compromised system.
+- **Keep roles explicit.** Name the incident commander, investigation lead, operations/remediation
+  owner, and communications/timeline owner. During the live event these are named humans except
+  that the typed `sre` agent may own investigation. The typed `scribe` agent receives the timeline
+  only after resolution.
 
-This skill is the fleet's canonical copy of the severity rubric and cadence. The ladder above is the
-team's own P1-P4 ladder, ratified by the owner on 2026-08-23. *[verified: owner ratification]*
+## Read only the lane the incident needs
 
-## How to classify
+| If the request involves… | Read first |
+|---|---|
+| Classifying or revising P1-P4, bounding impact, deciding whether to declare, or escalation cadence | [Severity and declaration](./references/severity-and-declaration.md) |
+| Assigning roles, maintaining the status block or timeline, drafting initial/update/resolution communications, downgrading, or closing | [Command and communications](./references/command-and-communications.md) |
+| Choosing rollback, route remap, restart, scale, flag, or dependency mitigation and preparing its human-approval packet | [Mitigation selection](./references/mitigation-selection.md) |
 
-- **Impact × scope × trend.** Multiply *how bad for a user* by *how many users / which journeys*, then
-  weigh *direction* — a P3 that's **growing** is escalating toward P2; say so and re-page.
-- **Bound the blast radius.** One app/route/instance ⇒ likely app-side (yours). Many apps at once, or
-  failing/evacuating Diego cells ⇒ platform-side ⇒ escalate to the platform team with evidence: capture
-  `cf apps`, `cf app`, `cf events`, and bounded `cf logs --recent` output, or give the packet to the typed
-  `sre` agent. If you **can't yet bound** the blast radius, that alone justifies P2 and declaring.
-- **Time-box the responder.** First on scene and not stabilized in **~15 min**, or the impact is
-  growing → declare and assign an incident commander (run the process below); don't keep digging solo.
+Load every row that matches the request, and no others. If the incident crosses lanes, keep one
+authoritative severity, timeline, and decision record rather than producing separate packets.
 
-### Security/integrity carve-out — preserve evidence first
+## Close and hand off
 
-Suspected compromise or a security/integrity event exits the generic reliability-mitigation path.
-Immediately escalate to the human security incident owner and preserve state and forensic evidence.
-Do not restart, redeploy, scale, remap routes, or apply the mitigation table unless that owner directs
-the exact action. The typed `sre` agent is limited to the named read-only signal collection requested by
-that owner; it does not contain, eradicate, or recover the compromised system.
+Resolve only after the investigator and typed `observability-engineer` confirm that user impact has
+ended and the golden signals have remained at baseline for a sustained window. Send the resolution
+update and hand over the authoritative timeline.
+The final handoff is explicit: after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions.
+`observability-engineer` owns recovery/detection evidence and subsequent detection changes; it does
+not author the postmortem.
 
-## Running the incident (command)
-
-Once declared, someone owns the **response** — the **incident commander** (often the on-call lead), who
-runs the *process*, not the debugging, keeping the response moving toward mitigation.
-
-- **Coordinate, don't solo-debug.** The moment the IC is heads-down in logs, nobody is commanding.
-  Delegate technical RCA to the typed `sre` agent and remediation to a human release owner.
-- **Mitigate first.** User pain stops before root cause is found — push for the fastest safe, reversible
-  mitigation using the inline decision below, and make that call explicit; a human executes it.
-- **One source of truth.** Keep a single running **timeline** (UTC) of what is known, tried, and next.
-- **Assign roles:** Investigation lead (typed `sre` agent), Ops/remediation (a human release owner),
-  Comms/timeline scribe (a named human during the live incident—not the typed `scribe` documentation
-  agent). Confirm who owns what.
-- **Track every action** — each "someone should…" becomes an owned, tracked item.
-- **Resolve & close.** Confirm impact has ended (verify via the investigator and typed `observability-engineer`
-  agent), send the **Resolution** update, then hand the authoritative timeline to typed `scribe` for
-  the durable retrospective and learning dispositions. `observability-engineer` supplies recovery/detection
-  evidence; it does not author the postmortem.
-
-### Status — one authoritative block, kept live
-
-```text
-Incident: <title>   Severity: <P1|P2|P3|P4>   Status: <investigating|mitigating|monitoring|resolved>
-Impact: <who/what, since when, trend>
-Roles: Investigation=<>, Ops=<>, Comms=<>
-Timeline (UTC): <ts — event/decision> …
-Current focus: <the one thing the response is doing now>
-Mitigation decision: <chosen / pending — rationale>
-Open action items: <owner — item — status>
-Next update: <time>
-```
-
-## Communications cadence
-
-Update on the **fixed cadence for the severity above, even with no news** ("still investigating, next
-update by HH:MM") — silence reads as loss of control. Keep it honest and jargon-free: never overstate
-confidence or understate impact. For P1, the first external update goes out within the hour. For a
-large P1, split **Comms lead** and **Scribe** off from the IC; otherwise the IC owns both.
-
-### Templates
-
-- **Initial** — *What we know* (symptom + impact), *Severity*, *Scope* (who/what affected, since when),
-  *We are investigating*, *Next update by* `<HH:MM UTC>`.
-- **Update** — *What changed since last update*, *Current status* (investigating | mitigating |
-  monitoring), *Mitigation in progress / ETA*, *Next update by* `<HH:MM UTC>`.
-- **Resolution** — *Impact has ended* (and since when), *Root-cause summary* (or "`[unverified]` — under
-  investigation"), *What we did*, *Follow-ups + owners*, *Postmortem to follow* (P1/P2).
-
-## Downgrade & resolve
-
-Downgrade or resolve only when the **golden signals are back to baseline and stay there** for a
-sustained window (not just "the graph turned green" — a metastable system can re-break). Verify recovery
-via the investigator and typed `observability-engineer` agent first, then send the **Resolution** update and give
-typed `scribe` the authoritative timeline with preserved `[verified]`, `[sourced]`, and `[unverified]`
-labels for postmortem and operational-learning closeout.
-
-## Choose the mitigation (the rollback decision)
-
-**Mitigate before you fully understand.** Stopping user pain comes before root cause. Pick the
-**fastest safe, reversible** action. The decision boundary is explicit: the sre agent recommends; a human
-executes with human sign-off; in a major incident the incident commander owns the decision.
-
-This reliability table excludes suspected compromise and security/integrity events; the carve-out above
-controls those incidents.
-
-The commands below are planning examples, not current foundation evidence; they remain `[unverified]`
-until the human release owner validates the exact target, capability, command, and rollback.
-
-| Situation | Mitigation | Command (confirm first) |
-|---|---|---|
-| **Bad deploy** (errors start at deploy time), previous app still exists | **Blue-green rollback** — remap the production route to the previously-live app | `cf map-route <previous-app> <domain> --hostname <app>` then `cf unmap-route <current-app> …` (blue/green are *roles*, not fixed names — the previous live app keeps running under the stable name until the post-soak rotation; confirm which app is live with `cf apps` first) |
-| Bad deploy, revisions enabled | **Revision rollback** | `cf revisions <app>` (find last good `<n>`) → `cf rollback <app> --version <n>` |
-| Rolling/canary deploy in flight going wrong | **Abort the deploy** | `cf cancel-deployment <app>` — **in-progress only**; once the deploy has completed it **errors** ("No active deployment found"), so use **revision rollback** (`cf rollback <app> --version <n>`) instead |
-| Instances hung / wedged / leaking, no recent change | **Restart** (buys time; doesn't fix cause) | `cf restart <app>` or `cf restart-app-instance <app> <i>` |
-| Bad config/env change | Revert env + restage | `cf set-env <app> KEY <old>` → `cf restage <app>` |
-| Load/capacity-driven saturation | **Scale out** | `cf scale <app> -i <more>` |
-| Feature-flag-gated bad behavior | **Disable the flag** (often fastest of all) | flag system — no deploy needed |
-| Downstream dependency failing | Fail over / degrade gracefully / shed load | per dependency operating evidence |
-
-### Rules
-
-1. **Reversible first.** Prefer an action you can undo in seconds (route remap, flag flip) over one you
-   can't. Blue-green route remap is the gold standard — instant and reversible.
-2. **One change at a time**, then observe. Have the typed `observability-engineer` agent or named human watch the
-   golden signals for 1–2 minutes before the next action — so you know what worked.
-3. **Restart is a stopgap, not a fix.** If a restart "fixes" it, the cause is still there (leak, poison
-   input, dependency) — capture `cf events`/logs first, then keep investigating with the typed `sre` agent.
-4. **Record everything** (UTC) in the IC-owned timeline; after resolution give it to typed `scribe`.
-5. **Confirm before executing.** Every command here changes production. Show the exact target, command,
-   blast radius, verification, and rollback; attach existing human approval, then the human executes.
-   The approval shape is the `production-change-gate` skill's **incident fast path**: human confirmation
-   of the exact command or an IC-approved bounded envelope, blast radius, backout, and the named
-   decider — every other gate record (readiness evidence, branch-protection evidence, timing docs,
-   pre-change comms) reconciles after resolution and never delays a mitigation. That path covers the
-   reversible mitigations in this table and rollback to an already-live artifact; **shipping a new
-   artifact (an incident hotfix) and any Tier 3 destructive or access-path action stay on the full
-   gate** — including Tier 3's proven backup/recovery evidence.
-
-### After mitigation
-
-User pain stopped ≠ incident over. Hand root-cause work to the typed `sre` agent and fix-forward
-execution to a human release owner; typed `observability-engineer` confirms recovery and owns detection changes;
-after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions.
-
-## Pairs with
-
-Ownership map only—not a load: the `eng-ladder` skill owns response altitude and the `postmortem` skill
-owns the durable retrospective.
+Ownership map only—not a load: `eng-ladder` owns response altitude, and `postmortem` owns the
+durable retrospective method.

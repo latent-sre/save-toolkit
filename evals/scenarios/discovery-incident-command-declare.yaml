@@ -1,0 +1,22 @@
+schema_version: 1
+id: discovery-incident-command-declare
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-command
+prompt: |
+  Checkout is failing for most customers and the impact is growing. Nobody is coordinating the
+  response. Declare the incident, set a provisional P-level, assign incident command,
+  investigation, operations, and communications owners, and name the next update time. Do not
+  investigate the technical cause and do not execute a mitigation.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes incident-command for declaration, severity, roles, timeline, and communications
+  - Keeps technical diagnosis with sre and every production effect with a human
+# Discovery denies Read, so this case establishes activation and shared entrypoint controls only;
+# detailed reference-dependent behavior belongs to a component-capable direct evaluation.
+graders:
+  - type: contains_any
+    of: ["incident commander", "Severity:", "P1", "P2", "UTC timeline"]

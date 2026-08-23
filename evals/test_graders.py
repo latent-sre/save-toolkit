@@ -1103,10 +1103,15 @@ _ROUTING_BATCH1_CASES = {
 # belongs to a component-capable direct evaluation (evals/README.md: discovery graders must be
 # satisfiable by a tool-less, routed response).
 _ROUTING_ONLY_DISCOVERY_SCENARIOS = _OBS_DISCOVERY_ROUTING_ONLY + (
+    "discovery-incident-command-declare.yaml",
     "discovery-service-readiness-audit.yaml",
 )
 
 _ROUTING_ONLY_SANITY_RESPONSES = {
+    "discovery-incident-command-declare.yaml": (
+        "Declare P1 provisionally. Assign an incident commander and start one UTC timeline; a "
+        "human release owner executes any approved mitigation."
+    ),
     "discovery-service-readiness-audit.yaml": (
         "The readiness audit is read-only: I inspected the available evidence, made no changes, "
         "and created no onboarding artifacts; effects stay with the approved manual onboarding "

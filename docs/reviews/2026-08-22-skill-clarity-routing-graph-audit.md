@@ -386,3 +386,38 @@ the two positive-route reliability gaps explicitly deferred to roadmap item `ROU
 bytes will not be rerun or tuned merely to obtain a green sample. This closeout selects no graph
 runtime, creates no schema without a consumer, starts no optimization loop, and activates none of
 the held SRE capability additions.
+
+## Batch 2 remeasurement and first router candidate
+
+`[verified]` On 2026-08-23, before any Batch 2 canonical edit, the reproduction command from the
+2026-08-17 surface sweep was rerun on tree
+`8ea628dd23958e45680f609950ddf438263e6dd8`. The 30 canonical `SKILL.md` entrypoints totaled
+232,717 bytes. The exact current candidates were:
+
+| Skill | `SKILL.md` bytes | Reference files | Reference bytes |
+|---|---:|---:|---:|
+| `agent-security` | 13,629 | 0 | 0 |
+| `ci-actions` | 12,197 | 1 | 1,620 |
+| `database-reliability` | 9,756 | 1 | 2,081 |
+| `incident-command` | 11,056 | 0 | 0 |
+| `ops-tooling` | 14,427 | 2 | 7,202 |
+| `pcf-deploy` | 10,351 | 0 | 0 |
+| `pcf-ops` | 10,173 | 1 | 1,543 |
+| `production-change-gate` | 10,099 | 0 | 0 |
+| `stack-profile` | 8,673 | 0 | 0 |
+
+The remeasurement confirms the audit's nine-skill set exactly; `operational-learning` remains out.
+This is the implementation baseline, not a claim that every large skill should be split.
+
+The first bounded candidate converts only `incident-command`. Its entrypoint is 3,903 bytes and
+routes severity/declaration, command/communications, and mitigation selection to three explicit
+references totaling 9,977 bytes. The entrypoint retains the security evidence-preservation
+carve-out, human-only production effects, exact approval/rollback packet, typed-agent ownership,
+single UTC timeline, and sustained-recovery close condition. It therefore exits the mechanical
+candidate set without hiding the controls that must apply to every incident-command invocation.
+
+No pre-existing scenario targeted `incident-command`. The candidate adds one discovery regression
+for declaration and command routing. Because discovery denies `Read`, it grades activation and the
+shared entrypoint boundary only; detailed reference-dependent behavior is not presented as verified
+until a component-capable direct evaluation exists. The grader-shape regression failed when a second
+behavior grader was deliberately added (534/536), then passed after restoration (536/536).
