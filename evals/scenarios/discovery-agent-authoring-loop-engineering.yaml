@@ -1,0 +1,37 @@
+schema_version: 1
+id: discovery-agent-authoring-loop-engineering
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: agent-authoring
+prompt: |
+  Design a bounded Loop Engineering contract for improving an LLM-facing artifact. Name the entry
+  and mutable state, independent verifier, hard iteration/candidate/time/cost budgets, success,
+  no-progress and safety/authority stops, promotion authority, and durable evidence. Keep operations
+  knowledge closeout and executable graph cycles outside this contract.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes agent-authoring when Loop Engineering is the distinguishing user request
+  - Names state, verifier, hard budgets, termination, promotion, and durable evidence
+  - Keeps operations knowledge closeout and executable graph cycles as separate capabilities
+graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
+  - type: contains_all
+    of: ["verifier", "budget"]
+  - type: contains_any
+    of: ["maximum iterations", "iteration cap", "iteration limit", "max iterations"]
+  - type: contains_any
+    of: ["cost budget", "token budget", "cost cap", "cost limit", "spend cap", "cost ceiling"]
+  - type: contains_any
+    of: ["no-progress", "no progress"]
+  - type: contains_any
+    of: ["safety stop", "authority stop", "safety/authority"]
+  - type: contains_any
+    of: ["human acceptance", "human approves", "human promotion", "human release owner"]
+  - type: contains_any
+    of: ["durable evidence", "recorded evidence"]
+  - type: not_contains
+    of: ["unbounded iterations", "iterate until correct", "retry until it passes"]

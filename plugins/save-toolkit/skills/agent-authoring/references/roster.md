@@ -6,8 +6,9 @@ Four disciplines shape this fleet, and the sections below are grouped by them: *
 (the verify step inside each lane), **graph engineering** (which lanes exist and what each may see),
 **handoff engineering** (what survives between contexts), and **learning engineering** (where durable
 knowledge lands). Each names a failure mode this fleet has actually hit; none is free-standing
-ceremony. Citations throughout locate a published post by title and URL — they are `[sourced]`, never
-`[verified]`, because none was fetched during this repository's checks.
+ceremony. Vendor and community evidence was refreshed and reconciled in the repository record
+`docs/reviews/2026-08-23-prompt-loop-graph-engineering-research.md`. External claims remain
+`[sourced]`, and workload-specific measurements stay scoped to the workload that produced them.
 
 ## Contents
 
@@ -27,15 +28,16 @@ ceremony. Citations throughout locate a published post by title and URL — they
 
 ## First question: should this be multi-agent at all?
 
-A single agent with good tools beats a committee for most tasks. Reach for multiple agents when: the
-work exceeds one context window; stages need isolation (research vs execution, finder vs verifier);
-independent perspectives reduce error (review panels, adversarial verification); or parallelism buys
-real wall-clock time. If none of those hold, recommend the single-agent design and say why.
+Start with one agent or a deterministic workflow. Add agents when evaluation shows that ownership
+transfer, context or authority isolation, independent verification, parallel breadth, or additional
+context capacity pays for the added coordination. If none of those hold, recommend the simpler
+design and say why.
 
 Multi-agent is an architecture decision with real costs — tokens, latency, and information loss at
-every handoff. Fan-out runs **~15× the tokens of a normal chat** (single agents already run ~4×), so
-weigh that cost when splitting work across agents versus deepening skills on an existing role.
-*[sourced: Anthropic "Building effective agents", "How we built our multi-agent research system"]*
+handoffs. Anthropic measured agents at roughly 4× and its multi-agent **research system** at roughly
+15× the tokens of a chat; those figures are a budgeting signal from that workload, not a universal
+multiplier. *[sourced: Anthropic,
+["How we built our multi-agent research system"](https://www.anthropic.com/engineering/multi-agent-research-system)]*
 
 ## Agent vs. skill
 
@@ -60,49 +62,58 @@ The roster shape is the second design decision. The first is the loop every sing
 the mechanism that lets the agent check its own work instead of asserting it. Design that step
 explicitly:
 
+Every engineered loop names its **entry state**, the state or artifact allowed to change, and its
+**verifier**. Before the first iteration it sets maximum iterations and candidates (where candidates
+exist), an elapsed-time/cost budget, success termination, no-progress termination, a
+safety/authority stop, and who may promote the result. Missing or inconclusive verification never
+becomes success. Persist only the accepted result and the evidence needed to reproduce the decision;
+scratch attempts are not a second learning system.
+
 - **Name the verifier before the work.** A failing test or fixture for `save-toolkit-sde`; the two-lens packet
   for `save-toolkit-reviewer`; golden-signal recovery evidence for `save-toolkit-sre` and `save-toolkit-observability-engineer`; one
   focused red-first test for a changed fleet contract, plus Gate A once before push. An agent whose
   loop has no verifier can only emit `[unverified]` claims, however good the prose.
 - **Gather minimally.** Pull the slice (grep, tail, a pinned file:line), not the corpus —
-  oversized gathering is the loop-level cause of context rot, and it is why workers return short
+  oversized gathering contributes to context rot, and it is why workers return short
   summaries instead of transcripts.
-- **The loop beats the model.** A weaker model in a tight loop with a real verifier outperforms a
-  stronger model asserting once — which is why this fleet invests in verifiers and carries no
-  `model:` pins.
+- **The verifier defines success.** A model upgrade can improve an attempt, but it does not replace
+  external outcome evidence. This fleet carries no `model:` pins for host portability and
+  synchronization policy; it does not claim that a weaker model always beats a stronger one.
 
-*[sourced: Anthropic, "Building agents with the Claude Agent SDK",
-claude.com/blog/building-agents-with-the-claude-agent-sdk; "Building effective agents",
-anthropic.com/engineering/building-effective-agents — located by title and URL, not fetched here]*
+*[sourced: Anthropic,
+["Building effective agents"](https://www.anthropic.com/engineering/building-effective-agents) and
+["Define outcomes"](https://platform.claude.com/docs/en/managed-agents/define-outcomes)]*
 
 ## Orchestration shapes (graph engineering)
 
 - **Orchestrator–workers** — the main session owns plan + synthesis; workers get bounded mandates
-  and isolated context. This is the fleet default.
-- **Pipeline** — items flow through stages independently, no barrier; wall-clock = slowest
-  single-item chain. Default for multi-stage work.
+  and isolated context. This is the fleet default when multi-agent work is justified.
+- **Pipeline** — use for fixed, decomposable stages where items can advance independently without a
+  global barrier; wall-clock is the slowest single-item chain.
 - **Fan-out with barrier** — only when a stage needs ALL prior results at once (dedupe,
   cross-compare, early-exit on zero). Barriers idle the fast workers; justify each one.
 - **Judge panel / adversarial verification** — independent attempts scored, or findings that
   survive only if skeptics prompted to *refute* them fail. Kills plausible-but-wrong output;
   worth the cost on high-stakes review.
-- **Loop-until-dry** — for unknown-size discovery, iterate until K consecutive rounds surface
-  nothing new; fixed counts miss the tail.
+- **Loop-until-dry** — for unknown-size discovery, choose K and a hard maximum before starting, then
+  stop after K consecutive rounds surface nothing new or the hard budget is reached. Fixed counts
+  alone miss the tail; an unspecified K creates a runaway loop.
 
 Decompose by **context boundary — what each lane may see — not by job title.** That is why `save-toolkit-reviewer`
 reads the local checkout but holds no web, shell, or delegation, and `save-toolkit-researcher` holds only the
 public web and no local read. Fan-out costs real tokens (see *When it pays*), so the single-lane
 default stands until breadth, isolation, or adversarial verification pays for the split.
 
-*[sourced: Anthropic, "How we built our multi-agent research system"; "When to use multi-agent
-systems (and when not to)", claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them —
-located by title and URL, not fetched here]*
+*[sourced: Anthropic,
+["How we built our multi-agent research system"](https://www.anthropic.com/engineering/multi-agent-research-system),
+["Building effective agents"](https://www.anthropic.com/engineering/building-effective-agents), and
+[Managed Agents multiagent orchestration](https://platform.claude.com/docs/en/managed-agents/multi-agent)]*
 
 ## Handoffs between contexts (handoff engineering)
 
-The graph's edges carry more risk than its nodes. A worker's context dies when it returns, so the
-packet is the only thing that survives — and an underspecified handoff fails *silently*: the receiver
-produces confident work on the wrong premise. This is the most common multi-agent defect.
+The graph's edges carry more risk than its nodes. Some runtimes retain a worker thread; others start
+each delegation from a new context. The explicit packet is the only portable handoff contract, and
+an underspecified packet can fail silently when the receiver works from the wrong premise.
 
 - **Structured note-taking beats a summary.** The packet convention in each agent body is a fixed
   field set — owner, change, findings with evidence, current state, what was NOT done, success
@@ -116,19 +127,22 @@ produces confident work on the wrong premise. This is the most common multi-agen
 - **State what you did not do.** The omission a sender finds obvious is the gap a receiver fills
   with an assumption.
 
-*[sourced: Anthropic, "Effective context engineering for AI agents",
-anthropic.com/engineering/effective-context-engineering-for-ai-agents — located by title and URL,
-not fetched here]*
+*[sourced: Anthropic,
+["Effective context engineering for AI agents"](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+and [Managed Agents multiagent orchestration](https://platform.claude.com/docs/en/managed-agents/multi-agent)]*
 
 ## Design principles
 
-- **Workers are stateless and context-blind.** Construct exactly the context each needs: intent, current state, success criteria, exact inputs, source trust, open unknowns, and a return schema.
-  Never assume workers inherit the caller's context. Underspecified handoffs are the #1 multi-agent bug.
+- **Never assume inherited context.** Construct exactly the context each worker needs: intent,
+  current state, success criteria, exact inputs, source trust, open unknowns, and a return schema.
+  A runtime may preserve a worker thread while still isolating it from the caller's history.
 - **The final message is the interface.** Specify each agent's return contract; free-text handoffs
   drop constraints at every hop. Preserve [verified], [sourced], [unverified], and [UNTRUSTED] labels.
 - **Tools are authority.** The agent's `tools:` list encodes the mandate. Enforce roles at the tool
   layer, not with prose.
-- **Descriptions route; keep them trigger-only** (see [artifact guidance](./artifact.md)).
+- **Descriptions route.** State the concise **capability or user goal**, **invocation conditions**,
+  and **meaningful exclusions**; never put **step-by-step procedure or tool choreography** there
+  (see [artifact guidance](./artifact.md)).
 - **Budget explicitly.** Tokens, latency, and strand count per task; right-size the fan-out: 1 agent
   for a lookup, 2–4 for a comparison or multi-lens review, more only for genuinely decomposable work.
 - **Design the failure path.** Decide up front what happens when a worker returns garbage, nothing,
@@ -146,9 +160,9 @@ waste · runaway loops with no dry-out condition · missing return contracts.
 A roster delta or design: each agent's lane, trigger description, tool authority, handoff edges,
 context budget, and failure handling. Agents carry no `model:` pins — the whole fleet inherits the
 session model. That removes per-agent synchronization and lineup maintenance, but it also prevents
-cheaply tiering routine agents separately from judgment-heavy agents. Accept the shared tier by
-default. A per-agent `model:` pin is a reviewed roster decision, justified only
-when the cost of a wrong call exceeds that maintenance overhead. Hand single-artifact wording to
+cheaply tiering routine agents separately from judgment-heavy agents. Under the current hard rule a
+per-agent pin is forbidden, not a roster-level exception; changing that policy would require an
+explicit fleet decision and validator change. Hand single-artifact wording to
 [artifact guidance](./artifact.md), approved implementation to the typed `save-toolkit-sde` agent, independent
 findings to the typed `save-toolkit-reviewer` agent, and authorization to the human release owner with existing
 approval evidence naming the exact target, action, and rollback.
@@ -156,17 +170,21 @@ approval evidence naming the exact target, action, and rollback.
 ## When it pays — and when it doesn't
 
 - **Parallelize** genuinely *independent* strands: research across sources, a multi-lens review,
-  sweeping many files/foundations, surfacing a differential of hypotheses. Anthropic's multi-agent
-  research system beat single-agent by a wide margin on parallelizable breadth — *"token usage
-  explains ~80% of the variance"*. *[sourced: Anthropic multi-agent research system]*
-- **Keep sequential** tightly-coupled work — especially **coding**, where each step depends on the
-  last. Fan-out there causes conflicting edits and rework. *[sourced: Anthropic — multi-agent is weak
-  for coding]*
-- **Mind the cost.** Multi-agent fan-out can run **~15× the tokens of a normal chat** (single agents already run ~4×). Spend it only when the outcome clears that bar; **most tasks capture the reliability gains inside one agent** (sectioned tool calls, a couple of review lenses) without the multi-agent premium. *[sourced: Anthropic multi-agent research system]*
+  sweeping many files/foundations, or distinct hypotheses. In Anthropic's BrowseComp analysis,
+  token usage explained about 80% of performance variance; that is evidence about breadth-first
+  research, not a general law of agent quality. *[sourced: Anthropic multi-agent research system]*
+- **Keep tightly coupled work sequential.** Anthropic reports that most coding tasks expose less
+  useful parallelism than research, while its earlier pattern catalog also identifies complex,
+  multi-file coding as a possible orchestrator–workers fit. Resolve that by the task dependency
+  graph and evals, not by declaring all coding single- or multi-agent.
+- **Mind the cost.** Anthropic's roughly 4×/15× figures came from its research system. Measure this
+  fleet's token, latency, and outcome delta before generalizing them to another lane.
 
 ## Right-sizing
 
-- 1 agent for a simple lookup; 2–4 for a comparison or multi-lens review; more only for genuinely complex, decomposable work. Extra agents cost coordination and tokens.
+- Start with 1 agent for a simple lookup and a small fan-out for an independent comparison or
+  multi-lens review; scale only when the task remains genuinely decomposable. Anthropic's research
+  system used 2–4 workers as one workload-specific allocation rule, not a portable constant.
 - Give each strand an **isolated context** and a **bounded mandate**, and have it return a **short
   summary**, not its transcript (see [context guidance](./context.md)).
 - Combine deliberately: a merge pass reconciling the strands beats naive concatenation.
@@ -188,8 +206,9 @@ above; this is the compact naming reference, including the two shapes that secti
 - **Adversarial verification / finder→verifier** — a finding survives only if independent skeptics
   prompted to *refute* it fail to; pair a finder with a verifier and make evidence (file:line, query)
   a required field so an unrefutable claim cannot survive by default. Kills plausible-but-wrong output.
-- **Loop-until-dry** — for unknown-size discovery, iterate until K consecutive rounds surface nothing
-  new; fixed counts miss the tail.
+- **Loop-until-dry** — for unknown-size discovery, choose K and a hard maximum before starting, then
+  stop at K consecutive empty rounds or the hard budget. The earlier orchestration-shape definition
+  is the governing contract.
 - **Completeness critic** — a final pass that asks "what's missing?"; its answers become the next
   round of work. Guards against a roster that stops at the first plausible-looking result.
 
@@ -198,16 +217,15 @@ above; this is the compact naming reference, including the two shapes that secti
 The fleet's durable memory is owned files: an accepted behavior becomes a focused test or eval,
 operational knowledge becomes a reviewable documentation diff, and unfinished work in this
 repository has one owner in `docs/fleet-roadmap.md`. Candidate generation is bounded and scratch
-state is discarded; human acceptance of the exact PR revision promotes
-the exact winning revision, never a background memory write. This is the conservative end of the current platform direction (Agent
-Skills as files; the managed-agent memory-consolidation preview gates every learned change behind
-human approve/reject), so the stance is a choice, not a gap. The failure mode it prevents is
-below: memory poisoning by admission.
+state is discarded; human acceptance of the exact PR revision promotes the exact winning revision,
+never a background memory write. This is deliberately stricter than Anthropic Managed Agents:
+attached memory stores can be written during sessions, while the research-preview Dreams pipeline
+leaves its input unchanged and produces a separate output store that an operator may review, use, or
+discard. Dreams do not gate each ordinary memory write. The stricter fleet stance prevents memory
+poisoning by admission.
 
-*[sourced: Anthropic, "Equipping agents for the real world with Agent Skills",
-anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills. The 2026-05
-"dreaming" memory-consolidation preview is `[unverified]`: primary announcement not reached, detail
-from third-party coverage only]*
+*[sourced: Anthropic, [Managed Agents memory](https://platform.claude.com/docs/en/managed-agents/memory)
+and [Dreams](https://platform.claude.com/docs/en/managed-agents/dreams)]*
 
 ## Wrapper-layer failure taxonomy
 

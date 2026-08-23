@@ -8,8 +8,10 @@ that must remain byte-identical to the canonical source.
 ## Version rules
 
 - A published schema version is immutable. A shape change uses a new version and URI.
-- Schemas use closed objects (`additionalProperties: false`), so adding a field is a breaking shape
-  change.
+- Objects with fixed contract fields are closed (`additionalProperties: false`), so adding a field
+  to one of those objects is a breaking shape change. The evidence envelope deliberately leaves
+  `source`, `environment`, and `isolation` as extensible metadata maps; its semantic validator
+  rejects secret-bearing keys rather than freezing every producer-specific field in JSON Schema.
 - Catalog statuses are `current` (writers emit it), `supported` (readers still accept it),
   `active` (one version with no successor), and `contract-only` (published shape without a
   contract-grade semantic validator).

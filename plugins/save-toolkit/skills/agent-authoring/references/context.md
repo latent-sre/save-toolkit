@@ -31,16 +31,17 @@ least privilege: include what the step needs, nothing it doesn't.
   scratchpad in-context.
 
 ## Operating heuristics (sessions & runtime primitives)
-- **New task → new session.** Don't continue a finished task's window into the next one; stale context
-  distracts more than it helps. *[sourced: Thariq Shihipar, "session management and 1M context"]*
-- **Rewind beats correct.** After a failed attempt, rewind to *before* the error and re-prompt with what
-  you learned — correcting in place leaves the failure in context to mislead later turns. *[sourced: same]*
-- **Degradation is gradual, not a cliff.** Quality erodes well before the limit (often noticeable in the
-  hundreds-of-K range, task-dependent) — manage context proactively, don't wait to hit the wall.
-- **Three runtime primitives, lightest first:** *tool-result clearing* (drop old, re-fetchable
-  `tool_result` blocks — cheap, lossless) → *compaction* (summarize the transcript; in custom configs,
-  instruct it to preserve decisions/figures/state) → *memory* (persist across sessions). *[sourced:
-  Anthropic context engineering cookbook]*
+- **Finished task → prefer a fresh session.** Preserve a session only when continuity is part of the
+  runtime contract; otherwise stale history competes with the next task.
+- **Fork or rewind only when replay is defined.** A checkpoint before a failed path can give a clean
+  retry, but only when the runtime defines replay and effect semantics. Never replay an external
+  side effect by assumption; otherwise correct in place and record the divergence.
+- **Degradation is gradual, not a cliff.** Quality can erode before the advertised context limit and
+  varies by model and task — manage context proactively rather than inventing one token threshold.
+- **Use the lightest safe primitive:** clear old tool results only after retaining their load-bearing
+  facts and only when the source can be read safely again; compact while preserving decisions and
+  open state; use external memory for facts that must survive sessions. None is automatically
+  lossless. *[sourced: Anthropic context engineering guidance]*
 
 ## In this fleet
 Thin agent bodies, on-demand detail, isolated bounded work, and compact evidence packets keep context

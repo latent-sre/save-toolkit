@@ -1,0 +1,34 @@
+schema_version: 1
+id: discovery-agent-authoring-trigger-and-shape
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: agent-authoring
+prompt: |
+  A release-notes skill fires for unrelated documentation requests and returns prose instead of its
+  required JSON. Design the bounded Loop Engineering fix: test activation separately from output
+  shape, allow one candidate, use the same focused cases, and name the adoption and stop conditions.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes agent-authoring for a skill that fires too often and returns the wrong output shape
+  - Separates activation or routing evidence from output-behavior evidence
+  - Defines a bounded loop with a baseline, one candidate, comparable cases, and explicit termination
+graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
+  - type: contains_any
+    of: ["activation", "routing"]
+  - type: contains_any
+    of: ["output shape", "output format", "output contract", "output behavior", "output behaviour"]
+  - type: contains_any
+    of: ["measure", "separately", "distinct"]
+  - type: contains_any
+    of: ["baseline", "reproduce", "regression case", "focused case"]
+  - type: contains_any
+    of: ["one candidate", "candidate budget", "single candidate", "exactly one candidate"]
+  - type: contains_any
+    of: ["human acceptance", "human approves", "human promotion", "adoption authority"]
+  - type: not_contains
+    of: ["unbounded iterations", "iterate until correct", "keep trying candidates"]

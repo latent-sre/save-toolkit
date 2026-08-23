@@ -64,7 +64,7 @@ authoritative?*
 | `cf env`, `cf service-key`, and `CF_TRACE` are denied to agents | [`AGENTS.md`](../AGENTS.md); [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | No python/pytest/npm/make on the guard allowlist | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | Authority is host-specific — a control proven on one host is not proven on another | [`AGENTS.md`](../AGENTS.md) Hard rules |
-| Description is a trigger only, never a workflow summary | [`agent-authoring/SKILL.md`](../skills/agent-authoring/SKILL.md) |
+| A description states the concise capability or user goal, invocation conditions, and meaningful exclusions; never put step-by-step procedure or tool choreography in it | [`agent-authoring/SKILL.md`](../skills/agent-authoring/SKILL.md); [`artifact.md`](../skills/agent-authoring/references/artifact.md) |
 | Never write durable state into the plugin tree (use `${CLAUDE_PLUGIN_DATA}`) | Frontmatter reference |
 
 ## 3. Process / gates
@@ -80,6 +80,7 @@ authoritative?*
 | Handoffs: one owner; SHAs pinned where a downstream decision depends on byte identity (`Change: none` when the packet carries no repository bytes); labels preserved, taint marked, “what I did NOT do” stated | [`AGENTS.md`](../AGENTS.md) |
 | Learning is reviewable repository state with an explicit disposition and owner — never model memory | [`disposition-policy.md`](../skills/operational-learning/references/disposition-policy.md) |
 | Fleet learning: one human-accepted failure → one named regression; incumbent/candidate use identical cases; missing or inconclusive cannot win; strict improvement, tie keeps incumbent; human PR acceptance promotes the exact revision | [`artifact.md`](../skills/agent-authoring/references/artifact.md); [`AGENTS.md`](../AGENTS.md) |
+| Loop Engineering names entry and mutable state, an independent verifier, hard iteration/time/cost/candidate budgets, success/no-progress/safety termination, and promotion authority; missing or inconclusive evidence is never success | [`roster.md`](../skills/agent-authoring/references/roster.md); [`artifact.md`](../skills/agent-authoring/references/artifact.md) |
 | Gate A is structural only; independent review is optional at merge, but known P0/P1 findings need evidence-bound disposition; only a production deployment of new bytes requires independent review of the exact candidate SHA | [`CONTRIBUTING.md`](../CONTRIBUTING.md); [`production-change-gate`](../skills/production-change-gate/SKILL.md) |
 | Deploys are never agent-executed; `pcf-deploy` must not auto-load | [`pcf-deploy/SKILL.md`](../skills/pcf-deploy/SKILL.md) |
 | Without an explicit grant, never commit; inline self-review never counts as an independent gate | [`ops-tooling/SKILL.md`](../skills/ops-tooling/SKILL.md) |

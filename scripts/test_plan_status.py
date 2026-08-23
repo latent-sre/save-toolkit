@@ -322,6 +322,94 @@ class WorkflowPolicyTests(unittest.TestCase):
             self.assertNotIn("roadmap or issue", text)
             self.assertNotIn("roadmap/issue", text)
 
+    def test_description_doctrine_keeps_scope_but_excludes_procedure(self) -> None:
+        surfaces = {
+            "prompt-engineer": self._read("agents/prompt-engineer.md"),
+            "agent-authoring": self._read("skills/agent-authoring/SKILL.md"),
+            "artifact-reference": self._read("skills/agent-authoring/references/artifact.md"),
+            "roster-reference": self._read("skills/agent-authoring/references/roster.md"),
+            "rules": self._read("docs/rules.md"),
+        }
+        required = (
+            "capability or user goal",
+            "invocation conditions",
+            "meaningful exclusions",
+            "step-by-step procedure or tool choreography",
+        )
+        forbidden = (
+            "description = trigger, not workflow",
+            "description is a trigger only",
+            "description is a trigger only, never a workflow summary",
+            "states only *when* to use",
+        )
+        for name, source in surfaces.items():
+            normalized = self._normalized(source).lower()
+            with self.subTest(surface=name):
+                for phrase in required:
+                    self.assertIn(phrase, normalized)
+                for phrase in forbidden:
+                    self.assertNotIn(phrase, normalized)
+
+    def test_loop_engineering_contract_stays_bounded(self) -> None:
+        prompt_agent_source = self._read("agents/prompt-engineer.md")
+        authoring_skill_source = self._read("skills/agent-authoring/SKILL.md")
+        prompt_agent = self._normalized(prompt_agent_source).lower()
+        authoring_skill = self._normalized(authoring_skill_source).lower()
+        roster = self._normalized(
+            self._read("skills/agent-authoring/references/roster.md")
+        ).lower()
+        rules = self._normalized(self._read("docs/rules.md")).lower()
+
+        self.assertIn("bounded loop engineering", prompt_agent)
+        self.assertIn("loop engineering", authoring_skill)
+        for name, frontmatter in (
+            ("prompt-engineer", prompt_agent_source.split("---", 2)[1]),
+            ("agent-authoring", authoring_skill_source.split("---", 2)[1]),
+        ):
+            with self.subTest(routing_metadata=name):
+                self.assertIn("loop engineering", self._normalized(frontmatter).lower())
+        for phrase in (
+            "entry state",
+            "state or artifact allowed to change",
+            "verifier",
+            "maximum iterations and candidates",
+            "elapsed-time/cost budget",
+            "success termination",
+            "no-progress termination",
+            "safety/authority stop",
+            "who may promote",
+            "missing or inconclusive verification never becomes success",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, roster)
+        for phrase in (
+            "loop engineering",
+            "hard iteration/time/cost/candidate budgets",
+            "success/no-progress/safety termination",
+            "promotion authority",
+            "missing or inconclusive evidence is never success",
+        ):
+            with self.subTest(rule=phrase):
+                self.assertIn(phrase, rules)
+        self.assertEqual(2, roster.count("choose k and a hard maximum"))
+        self.assertNotIn("iterate until k consecutive rounds", roster)
+
+        loop_scenario_path = (
+            check_plan_status.ROOT
+            / "evals/scenarios/discovery-agent-authoring-loop-engineering.yaml"
+        )
+        self.assertTrue(
+            loop_scenario_path.is_file(),
+            "Loop Engineering needs a discovery case without older routing cues",
+        )
+        if loop_scenario_path.is_file():
+            loop_scenario = self._normalized(
+                loop_scenario_path.read_text(encoding="utf-8")
+            ).lower()
+            self.assertIn("loop engineering", loop_scenario)
+            self.assertNotIn("fires too often", loop_scenario)
+            self.assertNotIn("wrong output shape", loop_scenario)
+
     def test_repository_bootstrap_applies_only_to_pr_implementation(self) -> None:
         contributing = self._read("CONTRIBUTING.md")
         rules = self._read("docs/rules.md")

@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-service-readiness-audit
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: service-readiness-audit
+prompt: |
+  Audit whether the payments service is ready to enter our operating model. This must be read-only:
+  inspect the repository evidence for ownership, health checks, dashboards, alerts, SLOs, runbooks,
+  dependencies, rollback, and recovery, then report severity-ranked gaps with citations. Do not
+  create cards, alerts, dashboards, tickets, or onboarding artifacts.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes the discoverable read-only readiness audit rather than manual onboarding
+  - Stays read-only and defers any onboarding or live-system effect to the approved manual path
+# Discovery runs expose only `Skill,Task` and deny `Read` (evals/README.md), so this scenario is
+# routing-only: its graders must be satisfiable by a tool-less routed response, and the full
+# behavioral contract (severity-ranked, evidence-cited findings) belongs to a component-capable
+# direct evaluation that supplies authoritative service evidence.
+graders:
+  - type: contains_any
+    of: ["read-only", "no changes", "did not change", "did not create", "without changing"]
