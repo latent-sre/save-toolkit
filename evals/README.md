@@ -9,11 +9,11 @@ look like a menu even when a path is not runnable or authoritative.
 |---|---|---|---|
 | **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. |
 | **Codex/Terra ROUTE-001** | **retired 2026-08-22** ([decision](../docs/decisions/2026-08-11-codex-terra-routing.md)); its last diagnostic is the [Linux canary packet](../docs/reviews/2026-08-20-route001-linux-canary.md) | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
-| **Codex/Sol conformance** | **parked** ([decision](../docs/decisions/2026-08-01-local-sol-conformance.md)); its 2026-07-31 results were **revoked** as release evidence and removed from the tree on 2026-08-23 | n/a | recover runners from tag `pre-trim-2026-08-02` and the revoked results from git history (`git fetch --tags --depth=1000` first on a shallow clone) |
+| **Codex/Sol conformance** | **retired 2026-08-23** ([superseded decision](../docs/decisions/2026-08-01-local-sol-conformance.md)); its 2026-07-31 results were **revoked** as release evidence and removed from the tree | n/a | tag `pre-trim-2026-08-02` preserves historical bytes; recover only after a new accepted decision names the Codex consumer, regression, or model migration plus an owner and fixed budget |
 
 Active `evals/test_*.py` suites are owner-triggered: run the affected file directly
 (`python evals/test_graders.py`, `python evals/test_run_evals.py`, …) when you change its owning
-harness code. Gate A is structural only and does not run them. Parked execution code stays out of
+harness code. Gate A is structural only and does not run them. Retired execution code stays out of
 the active tree, and frozen evidence remains read-only.
 
 ## Claude behavioral evals

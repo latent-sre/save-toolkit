@@ -1,11 +1,18 @@
 # Local Sol conformance for externally reviewed source
 
 - **Date:** 2026-08-01
-- **Status:** accepted; runners parked 2026-08-02 at tag `pre-trim-2026-08-02` (beta trim — this
-  contract governs any recovered use)
+- **Status:** superseded 2026-08-23 by explicit owner disposition; retained as historical recovery
+  rationale only
 - **Scope:** Codex/Sol skill and custom-agent behavioral evaluation
 
-## Decision
+## Superseding disposition
+
+`EVAL-001` is `not_applicable` as live work. Its release-decision trigger was retired, its fixed
+plugin identity and roster no longer match the current fleet, and no named Codex consumer requires a
+paid Sol baseline. The remote tag `pre-trim-2026-08-02` preserves the bytes; it does not make them a
+current or ready-to-run contract. Structural Codex adapter and installer validation remains active.
+
+## Historical decision
 
 Retain the fixed `gpt-5.6-sol` manifests, deterministic trace/oracle graders, usage limits, sanitized
 reports, and typed evidence envelopes. Run them manually against this repository's local checkout
@@ -64,6 +71,11 @@ their files remain unchanged for diagnosis.
 
 ## Reopen trigger
 
-Reconsider a broker only when a named workflow must evaluate genuinely untrusted content with model
-credentials and has an owner, threat model, independent identity, operational budget, and evidence
-that local evaluation plus external exact-revision review cannot satisfy the use case.
+Reopen direct Codex behavioral evaluation only when a named Codex consumer, reproduced Codex-specific
+regression, or explicit model migration requires it and has an owner and fixed budget. Any recovered
+runner and manifest require a fresh design review against the current plugin identity, roster, and
+Codex runtime before use.
+
+Reconsider a broker only if that named workflow must evaluate genuinely untrusted content with model
+credentials and also has a threat model, independent identity, and evidence that local evaluation
+plus external exact-revision review cannot satisfy the use case.

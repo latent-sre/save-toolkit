@@ -16,8 +16,8 @@ Closed work is retained in the
 [`VERIFY-001 closure`](reviews/2026-08-02-verify-001-closure.md),
 [`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md),
 [`HOST-001 closure`](reviews/2026-08-06-host-001-closure.md), and
-[`ADAPT-001 closure`](reviews/2026-08-06-adapt-001-closure.md). The local Sol evaluator
-decision is recorded separately in
+[`ADAPT-001 closure`](reviews/2026-08-06-adapt-001-closure.md). The superseded local Sol evaluator
+decision is retained in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
 
 `SWEEP-001` and `MUTATION-001` were closed by **explicit owner disposition** rather than by a
@@ -39,6 +39,21 @@ ADR is [`superseded`](decisions/2026-08-11-immutable-release-promotion.md).
 Reopen release work only when a named consumer requires an immutable selector and rollback-capable
 release. Reopen real-CLI host lifecycle probing only for a named host or packaging change that
 requires that evidence.
+
+`EVAL-001` was retired by **explicit owner disposition**: `not_applicable` as live work, owner
+`latent-sre`, 2026-08-23. Its only named trigger was a release decision, the parked suite no longer
+matches the current plugin identity or roster, and no named Codex consumer requires a paid Sol
+baseline. Tag `pre-trim-2026-08-02` preserves the historical bytes; structural Codex adapter and
+installer validation remains active. Reopen only for a named Codex consumer, a reproduced
+Codex-specific regression, or an explicit model-migration decision with an owner and fixed budget.
+
+`STATE-001` was retired by **explicit owner disposition**: `not_applicable` as live work, owner
+`latent-sre`, 2026-08-23. It described a future durable-execution control plane, but no named
+workflow, implementation, or active dependency exists; current handoffs and learning derive
+ownership and completion from Git, pull requests, tests/evals, and evidence. Reopen only when a named
+workflow must survive process or session loss or competing-worker recovery and replay from
+version-bound artifacts would be unsafe or materially costly; prefer host- or framework-native
+persistence before a repository-local state store.
 
 Items disposed by an accepted decision rather than a closure review:
 [`EVAL-002`](decisions/2026-08-22-agent-discovery-calibration.md) (agent-target discovery is
@@ -393,62 +408,6 @@ to one-line footnotes. Keep the maintenance skills together unless the measured-
 fires.
 
 ## Deferred
-
-### EVAL-001 — expand risk-weighted Sol coverage
-
-**Status:** `deferred` (2026-08-02) — the Codex/Sol conformance runners, contract tests, and fixed
-manifests are recoverable at tag `pre-trim-2026-08-02`. Gate A and the local Claude runner are the
-beta's current verification surfaces; no active Codex evaluator supplies this item's broader direct
-Sol coverage. Reopen when a Codex/Sol behavioral baseline is actually needed for a release decision;
-the prerequisites and acceptance below are unchanged and still apply at that point.
-
-**Outcome:** The highest-risk skills and every explicitly installed Codex custom agent have direct
-behavioral evidence on `gpt-5.6-sol`, while implicit routing remains an observational metric rather
-than a release gate.
-
-**Source:** The 2026-07-31 Sol reference and six-agent conformance baselines (revoked as release
-evidence and removed from the tree on 2026-08-23; recoverable from git history) plus the measured
-headless agent-discovery limitation.
-
-**Prerequisites:** Clean committed plugin, generated-agent, and harness inputs; independent review of
-that exact commit; and an operator-owned Codex login. Changes originating in an external branch or PR
-must first be reviewed and committed into this repository before live evaluation.
-
-**Acceptance:** Direct lanes cover the trust-separated research roles and risk-weighted release,
-production-change, PCF, agent-security, and observability contracts. Every result distinguishes
-`pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
-historical Claude/Opus baselines.
-
-**Reopen trigger:** A named release decision requires a current Codex/Sol behavioral baseline that
-the active structural and Claude evaluation surfaces cannot provide.
-
-**Next action:** None while deferred. On reopen: recover the runners from tag `pre-trim-2026-08-02`,
-independently review the exact recovered commit, then run both fixed manifests from its clean
-checkout. Retain each sanitized report beside the matching review packet; acceptance of the pair is
-an external human/protected-workflow decision, never a field the runner grants itself. Keep implicit
-routing observational rather than making it a release gate.
-
-### STATE-001 — durable orchestration state
-
-**Status:** `deferred`
-
-**Outcome:** If a real multi-agent workflow needs resumable ownership, add append-only run/task/attempt
-state with versions, leases, cancellation, supersession, revision binding, and evidence-linked
-completion.
-
-**Source:** Fleet authority reviews that distinguish durable coordination state from prompt prose,
-worktrees, and host-native session state.
-
-**Prerequisites:** A named multi-session or multi-worker consumer whose ownership and completion
-cannot be derived safely from Git, pull requests, and evidence artifacts alone.
-
-**Acceptance:** A versioned append-only state contract, migration and rollback plan, lease and
-supersession semantics, evidence-bound completion, and failure tests exist for that named consumer.
-
-**Reopen trigger:** A workflow spans multiple independent workers or sessions and cannot safely derive
-ownership and completion from the pull request, Git commits, and evidence artifacts alone.
-
-**Next action:** None. Do not add a coordinator persona or unused state database first.
 
 ### EFFECT-001 — effect-bound execution broker
 
