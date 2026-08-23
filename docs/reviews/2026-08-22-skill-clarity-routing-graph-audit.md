@@ -29,7 +29,7 @@ current files; it does not rewrite what the audit observed.
 
 ## Method and evidence boundary
 
-The review used four evidence lanes and kept their provenance separate:
+The review used five evidence lanes and kept their provenance separate:
 
 - **Local workspace:** canonical skill bodies, linked resources, schemas, eval scenarios, validators,
   accepted decisions, and the live roadmap. Generated Copilot and plugin projections were treated as
@@ -37,15 +37,20 @@ The review used four evidence lanes and kept their provenance separate:
 - **Context7:** current Anthropic Claude Code documentation. It describes a skill description as a
   concise statement of what the skill does and when it applies, recommends natural-language trigger
   keywords, and recommends moving large detail into directly linked supporting files. See
-  [Claude Code skills](https://code.claude.com/docs/en/skills).
+  [Claude Code skills](https://code.claude.com/docs/en/slash-commands).
+- **Official OpenAI documentation:** descriptions state the workflow and triggering conditions;
+  detailed procedure, format, and safety instructions stay in the body. Supporting resources are
+  linked from `SKILL.md` with explicit load/run conditions. See
+  [Build skills](https://developers.openai.com/plugins/build/skills).
 - **GitHits:** current public OSS implementation and community evidence. OpenAI's plugin evaluator
   warns when a description omits what/when, exceeds the always-loaded budget, or when a large
   `SKILL.md` fails to use linked references for progressive disclosure. See
   [`openai/plugins` evaluator at `11c74d6`](https://github.com/openai/plugins/blob/11c74d6ba24d3a6d48f54a194cd00ef3beea18f9/plugins/plugin-eval/src/evaluators/skill.js#L140-L214).
-  GitHits also surfaced Obra Superpowers' stricter, measured trigger-only rule; that evidence is
-  useful but is one community runtime observation, not a universal specification. See
+  GitHits also surfaced Obra Superpowers' stricter trigger-only rule and its reported before/after
+  observation. The exact pin does not retain the named triggering-test fixture, trial conditions, or
+  result artifact, so this is not a reproducible measured evaluation or a universal specification. See
   [`writing-skills` at `b36e082`](https://github.com/obra/superpowers/blob/b36e0829c6d0140e93cfef2ca599b1b07d4a7797/skills/writing-skills/SKILL.md#L94-L104).
-- **Independent primary research:** the portable Agent Skills specification, current OpenAI Agents
+- **Portable specifications and framework guidance:** the Agent Skills specification, current OpenAI Agents
   SDK orchestration/guardrail/tracing guidance, LangGraph graph/persistence/interrupt guidance, and
   Anthropic's agent architecture guidance. These establish portable concepts; none makes a
   particular runtime mandatory for this repository.
@@ -75,8 +80,9 @@ The repository already followed the modern package model well:
   owning `SKILL.md`.
 - `[verified]` All 29 entrypoints were below 500 lines; the largest was 184 lines.
 - `[verified]` All 77 Markdown references were below 500 lines; the largest was 449 lines.
-- `[verified]` The root [`schemas/`](../../schemas) used JSON Schema 2020-12, closed objects,
-  versioned IDs, an explicit catalog, and the compatibility policy in
+- `[verified]` The root [`schemas/`](../../schemas) used JSON Schema 2020-12, versioned IDs, an
+  explicit catalog, and closed fixed-shape objects. The evidence envelope intentionally retained
+  open `source`, `environment`, and `isolation` metadata maps under the compatibility policy in
   [`schema-compatibility.md`](../schema-compatibility.md).
 - Assets were reusable templates or starter material rather than prose mislabeled as assets.
 
@@ -102,11 +108,13 @@ The old local rule said “trigger only, never workflow.” That was too absolut
 - `[sourced]` The Agent Skills specification requires what the skill does **and** when to use it.
 - `[sourced]` Current Anthropic documentation uses the same capability-plus-use-condition shape and
   recommends specific natural-language keywords to improve triggering.
-- `[sourced]` OpenAI's current plugin evaluator checks for both what and when, while warning against
-  long always-loaded descriptions.
-- `[sourced]` Obra Superpowers reports a measured failure in which a workflow summary in metadata
-  overrode the detailed skill body. That supports excluding procedure, but it does not justify
-  deleting the capability boundary models use to discriminate skills.
+- `[sourced]` OpenAI's official skill guidance and pinned plugin evaluator both require enough
+  workflow/capability and triggering information for selection while keeping detailed procedure out
+  of the description and warning against long always-loaded metadata.
+- `[sourced]` Obra Superpowers reports an observation in which a workflow summary in metadata
+  overrode the detailed skill body. The pinned tree does not retain enough fixture and result
+  evidence to reproduce that comparison. The observation supports excluding procedure, but it does
+  not justify deleting the capability boundary models use to discriminate skills.
 
 The reconciled local rule is:
 
@@ -237,7 +245,7 @@ routing evidence shows a genuinely distinct user surface.
    `codebase-atlas` capability if owner need is confirmed.
 
 The portable method should come before a runtime choice. The deeper
-[`2026-08-23 prompt, Loop, and workflow-graph research refresh`](2026-08-23-prompt-loop-graph-engineering-research.md)
+[`2026-08-23 prompt, Context, Loop, and workflow-graph research refresh`](2026-08-23-prompt-loop-graph-engineering-research.md)
 rechecks that conclusion against current OpenAI and Anthropic primary guidance, Context7 framework
 contracts, and GitHits source and tests at named commits. It distinguishes manager-owned tools from
 handoffs, deterministic from model-selected edges, and checkpointed graph progress from exactly-once
@@ -263,6 +271,11 @@ The audit identified possible gaps in this priority order, subject to owner conf
 5. **GCP cost and quota engineering:** only after the landing runtime and ownership split are
    ratified.
 
+**Owner disposition (2026-08-23): hold the five listed additions; security incident response
+remains rejected below.** None is active roadmap work. Reopen a held candidate only after a renewed
+owner request names the operator need, ownership boundary, authority, and evidence required for
+acceptance.
+
 **Owner disposition:** do not add security incident response. The team does not own containment,
 eradication, credential rotation, or security-event recovery. Preserve the existing narrow contract:
 recognize suspected compromise, preserve evidence, and hand it to the human security incident owner.
@@ -277,7 +290,7 @@ Kubernetes remains outside the team's lane.
 | 0 — correctness | Resolve the five operator-facing contradictions, with finding 4 waiting for authoritative version evidence. | Closed on current `main`; finding 4 closed only after its evidence condition became true. |
 | 1 — routing contract | Adopt the reconciled description doctrine, split readiness audit from effect-shaped onboarding, complete the bounded Loop Engineering contract, and add prompt/loop/graph positive and near-miss cases. | Approved next bounded batch. |
 | 2 — context reduction | Convert `incident-command` as the single reviewed router pattern, then process the remaining confirmed monoliths in bounded commits. | Tracked by `SKILL-001`; remeasure after Batch 1 rather than trust the stale eight-skill inventory. |
-| 3 — capability decisions | Consider the confirmed SRE gaps and a portable executable workflow-graph method. | Deferred until the owner confirms need, scope, and authority; no runtime or lane is preselected. |
+| 3 — capability decisions | Consider the SRE candidates and a portable executable workflow-graph method. | **Held.** No capability, runtime, or lane is active work; reopen only through a renewed owner decision with a concrete consumer and authority boundary. |
 
 For every batch: edit canonical sources only; run focused tests owned by the changed contract; run
 affected live routing scenarios only when routing content changes; regenerate projections once; and

@@ -213,6 +213,9 @@ closeout; it does not activate the deferred executable-graph capability or selec
 Batch 0's five correctness findings are closed on current `main`; this item imports only the approved
 Batch 1 routing work. Batch 2 remains `SKILL-001`. Batch 3 capability candidates are not live work:
 each needs a confirmed operator need and authority boundary before it enters this roadmap.
+The owner placed every non-rejected SRE capability addition on hold on 2026-08-23; security incident
+response remains rejected below. None has an active roadmap item, execution order, or implied
+authorization.
 
 **Prerequisites:** Work from current `origin/main`; edit canonical sources only. Preserve
 `service-onboarding` as manual-only and keep its approved effects and evidence-bound `scribe`
