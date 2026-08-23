@@ -55,7 +55,7 @@ authoritative?*
 | Callers must sanitize researcher prompts (cooperative gate, not DLP) | Same ADR; [`AGENTS.md`](../AGENTS.md) Honest limits |
 | `scribe`: local document write; no Bash, web, or Agent | [`AGENTS.md`](../AGENTS.md) roster |
 | `sre`: guarded Bash; recommends mitigation, never applies it | [`AGENTS.md`](../AGENTS.md) |
-| `observability-engineer`: unguarded Bash + obs-config write; Grafana dashboard create/update is its one live apply (diff shown first, live model exported as rollback, concurrency token pinned — three conditions since 2026-08-22; no committed record exists); every other Tier 2/3 change recommend-only | Agent body; [ADR 2026-08-21](decisions/2026-08-21-observability-engineer-unguarded-bash.md); production-change-gate |
+| `observability-engineer`: unguarded Bash + obs-config write; Grafana dashboard create/update is its one live apply. Three conditions — diff shown first, live model exported as rollback, concurrency token pinned — are necessary but **not sufficient**: the `obs-dashboards` loop must also complete, and a step that cannot be completed converts the write back into a hand-off. No committed copy of a dashboard exists; every other Tier 2/3 change recommend-only | Agent body; [ADR 2026-08-21](decisions/2026-08-21-observability-engineer-unguarded-bash.md); production-change-gate |
 | `sde` / `prompt-engineer`: unguarded Bash — host/network egress controls remain load-bearing | [`AGENTS.md`](../AGENTS.md) Honest limits |
 | Guard is a command filter, not a sandbox; OS least privilege remains load-bearing | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | `Agent(target)` grants enforce on the main thread only; at subagent depth the list is documentary | Frontmatter reference; [`AGENTS.md`](../AGENTS.md) |
@@ -85,7 +85,6 @@ authoritative?*
 | Learning is reviewable repository state with an explicit disposition and owner — never model memory | [`disposition-policy.md`](../skills/operational-learning/references/disposition-policy.md) |
 | Fleet learning: one human-accepted failure → one named regression; incumbent/candidate use identical cases; missing or inconclusive cannot win; strict improvement, tie keeps incumbent; human PR acceptance promotes the exact revision | [`artifact.md`](../skills/agent-authoring/references/artifact.md); [`AGENTS.md`](../AGENTS.md) |
 | Gate A is structural only; independent review is optional at merge, but known P0/P1 findings need evidence-bound disposition; only a production deployment of new bytes requires independent review of the exact candidate SHA | [`CONTRIBUTING.md`](../CONTRIBUTING.md); [`production-change-gate`](../skills/production-change-gate/SKILL.md) |
-| Sol/Codex conformance runners are parked; recovered use still obeys the Sol ADR authority-label rules | [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md) |
 | Deploys are never agent-executed; `pcf-deploy` must not auto-load | [`pcf-deploy/SKILL.md`](../skills/pcf-deploy/SKILL.md) |
 | Without an explicit grant, never commit; inline self-review never counts as an independent gate | [`ops-tooling/SKILL.md`](../skills/ops-tooling/SKILL.md) |
 | Blameless language for incident work; lead with the conclusion | [`AGENTS.md`](../AGENTS.md) |
@@ -105,7 +104,7 @@ authoritative?*
 | Config definitions are authoritative; KB cards summarize and link, they do not fork queries | Disposition policy |
 | Agents never self-mark knowledge as approved/merged/deployed/verified | Disposition policy |
 | Operational artifacts never rewrite fleet definitions; route an accepted fleet failure and proposed named regression to `prompt-engineer` | Disposition policy; [`artifact.md`](../skills/agent-authoring/references/artifact.md) |
-| Leave historical plans/evals under old names as evidence — do not rewrite recorded results | Observability-engineer and language-idiom ADRs |
+| Leave historical plans/evals under old names as evidence — do not rewrite recorded results | [`2026-08-04-observability-engineer-rename.md`](decisions/2026-08-04-observability-engineer-rename.md); [`2026-08-05-language-idiom-rename.md`](decisions/2026-08-05-language-idiom-rename.md) |
 
 ## 5. Stack / runtime
 

@@ -53,11 +53,7 @@ of the exact candidate SHA at `production-change-gate`; routine merges, non-prod
 later pushes do not trigger automatic re-review. Add a plan-conformance review only when the PR cites
 a roadmap item or plan. A review of mutable working-tree bytes is explicitly provisional. Run
 behavioral evaluations manually, never in CI, through the clean-room
-Claude runner (`evals/run_evals.py`); repository-local outputs must stay under `.eval-runs/`. The
-Codex/Sol conformance runners are parked at tag `pre-trim-2026-08-02` — if they are recovered,
-their same-user credential limits and always-false authority labels in
-[`docs/decisions/2026-08-01-local-sol-conformance.md`](docs/decisions/2026-08-01-local-sol-conformance.md)
-still apply.
+Claude runner (`evals/run_evals.py`); repository-local outputs must stay under `.eval-runs/`.
 
 Every result distinguishes `[verified]`, `[sourced]`, and `[unverified]` claims. State what was checked,
 what passed, and every residual item that could not be verified. Never upgrade an evidence label while
@@ -101,20 +97,12 @@ user or team, and a separately approved repository-scoped publisher App with Act
 Actions write; do not broaden the account to ordinary Write as a shortcut or collapse request and
 publication into one credential.
 
-Publication remains **blocked** until RELEASE-001 closes. The merged
-[`release.yml`](.github/workflows/release.yml) workflow is the only allowed promotion path, but
-repository bytes alone do not activate it. A human owner must separately
-approve and configure immutable releases, the protected release-tag ruleset, the two release
-environments, reconciliation key, and least-privileged App described by the
-[`immutable-release ADR`](docs/decisions/2026-08-11-immutable-release-promotion.md). The workflow
-then requires the two distinct protected-environment approvals and a strict remote-tag host smoke
-before finalizing the GitHub Release.
-
-Never create a moving `release` ref, manually create a `save-toolkit--v*` tag, or dispatch a release
-because the workflow merely exists. A published tag is never moved, deleted, or reused; recovery is
-consumer-side selection of the previous immutable tag (or uninstall for the first release). The
-workflow's permanent `save-toolkit--attempt-v*` reservation refs and release workflow-run/job
-history are replay-control records, not cleanup targets; never delete or reuse them. Recovery
-proceeds under the [`release runbook`](docs/release-runbook.md). The live item is `RELEASE-001` in
-[`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); the old branch-based design remains recoverable at
-tag `pre-cleanup-2026-07-15` as historical rationale only.
+Publication remains **blocked** until `RELEASE-001` in
+[`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) closes. The merged
+[`release.yml`](.github/workflows/release.yml) workflow is the only promotion path, and its presence
+authorizes nothing: the live controls in the
+[immutable-release ADR](docs/decisions/2026-08-11-immutable-release-promotion.md) must exist first
+and a human owner dispatches. Never create a moving `release` ref, a `save-toolkit--v*` tag, or a
+dispatch by hand. A published tag is never moved, deleted, or reused; the permanent
+`save-toolkit--attempt-v*` reservation refs and release run history are replay-control records,
+never cleanup targets. Recovery follows the [release runbook](docs/release-runbook.md).

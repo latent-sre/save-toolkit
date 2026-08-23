@@ -31,8 +31,12 @@ the highest-value findings in this repo:
   execute (an interpreter, or a tool with a `--pre`/`--pager`/`-exec`-style flag) is not. Flag any
   allowlist growth that could run a program. The 42 allow / 43 deny / 44 indeterminate exit codes
   are a contract the hook depends on — a change that collapses them disarms the guard silently.
-- **Descriptions drive routing.** A `description:` edit changes which component fires; it owes a
-  before/after run of the overlapping scenario(s) in `evals/scenarios/`, not an eyeball.
+- **Descriptions drive routing.** A routing-content `description:` edit changes which component
+  fires. For a **skill** target it owes an *after-change* run of the overlapping scenario(s) in
+  `evals/scenarios/`, with the previous-revision baseline run only to attribute a red — not an
+  eyeball, and not a reflexive before/after pair. For an **agent** target, discovery is optional,
+  model-labelled calibration: the headless main session may answer inline, so a red there means
+  "not dispatched", never "the agent is broken", and it is not a merge gate.
 - **Generated roots are byte-validated.** `.github/agents/`, `.codex/agents/`,
   `platforms/copilot/skills/`, and `plugins/save-toolkit/skills/` must match the generator byte for
   byte. Any change there must trace to a canonical or generator edit plus a regeneration — never a
