@@ -1,0 +1,28 @@
+# SQL Server migrations
+
+Read only for SQL Server-specific migration mechanics. The compatibility, recovery, authority, and
+output contracts in `../SKILL.md` remain binding. The target edition is `[unverified]` until observed;
+do not plan on an online operation merely because the syntax exists.
+
+## Columns
+
+The cheap path is a **new** column, not tightening an existing nullable column. `ADD col ... NOT NULL
+DEFAULT <constant>` is metadata-only and near-instant on Enterprise edition: the default is written
+to a row when the row is next updated or the index rebuilt. It is not online for `varchar(max)`,
+`xml`, or CLR types, and falls back to an offline rewrite if the addition pushes a row past 8,060
+bytes.
+
+Tightening an existing nullable column to `NOT NULL` still scans. Backfill in bounded batches and
+alter in a quiet window, or use `ALTER COLUMN ... WITH (ONLINE = ON)` only after confirming the
+edition and roughly twice the free space for the hidden replacement column. *[sourced: SQL Server
+`ALTER TABLE` reference; reviewed 2026-08-21]*
+
+## Index and tool behavior
+
+`CREATE INDEX ... WITH (ONLINE = ON)` takes short locks at its boundaries but is Enterprise-only and
+waits for every open transaction on the table before it begins; a long-running report can stall the
+migration. *[sourced: SQL Server `ALTER TABLE` reference; reviewed 2026-08-21]*
+
+Record the exact edition, row-size and LOB facts, table/index size, open-transaction risk, expected
+duration, space, cancellation behavior, verification, and tested recovery strategy. Run the change
+through the repository's migration tooling rather than ad-hoc production SQL.

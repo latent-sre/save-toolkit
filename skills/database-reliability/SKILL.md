@@ -19,126 +19,68 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
 
 > **Safety rule (non-negotiable):** read-only inspection is fine; any **state-changing or prod-facing**
 > action (running a migration, `UPDATE`/`DELETE`, killing a query, failover, scaling) requires an
-> existing human-approved exact change and rollback packet naming the target, commands, blast radius,
-> verification, and actor. If the packet is absent or materially different, stop and hand it to the
-> human release owner.
+> existing human-approved exact change and recovery packet naming the target, commands, blast radius,
+> verification, recovery strategy, and actor. If the packet is absent or materially different, stop
+> and hand it to the human release owner.
 
-## Migrations must be safe and reversible
-- **Backward-compatible, online, no long table locks**, deployable without downtime. Every migration
-  has a written **rollback path**.
-- **Expand → contract** for any schema change the running code depends on:
-  1. **Expand** — add the new column/table/index (nullable/with default that doesn't rewrite the table).
-  2. **Backfill** — populate in batches; avoid one giant locking transaction.
-  3. **Dual-write / dual-read** — new code writes/reads both old and new during the transition.
-  4. **Switch** — flip reads to the new shape once backfill is verified.
-  5. **Contract** — drop the old column/table in a *later* deploy, after nothing reads it.
-- **Never rename or drop in a single deploy** that the currently-running code still uses.
-- **Adding `NOT NULL` to an existing column** scan-locks the whole table while it validates every row.
-  Don't `ALTER COLUMN … SET NOT NULL` directly on a hot, large table. The safe shape depends on the
-  Postgres major:
-  - **18+**: `NOT NULL` is a catalogued, nameable constraint that accepts `NOT VALID` directly —
-    `ALTER TABLE t ADD CONSTRAINT t_col_nn NOT NULL col NOT VALID;` enforces it for new writes at
-    once, then `ALTER TABLE t VALIDATE CONSTRAINT t_col_nn;` scans under `SHARE UPDATE EXCLUSIVE`
-    without blocking writes. No `CHECK` detour, no second `SET NOT NULL` step.
-    *[sourced: PostgreSQL 18 release notes and `ALTER TABLE` reference; GA 2025-09-25; reviewed
-    2026-08-21]*
-  - **≤17**: add `CHECK (col IS NOT NULL) NOT VALID` first (cheap, brief lock), backfill, then
-    `VALIDATE CONSTRAINT`, and only then `SET NOT NULL` — which on these versions skips the scan
-    because a validated check already proves it.
+## Core decision rules
 
-  The deployed major is `[unverified]`; `SHOW server_version;` before choosing.
-- **In MS SQL the cheap path is a *new* column, not a tightened one.** `ADD col … NOT NULL
-  DEFAULT <constant>` is metadata-only and near-instant on **Enterprise edition** — the default is
-  written to a row only when that row is next updated or the index rebuilt. It is not online for `varchar(max)`,
-  `xml`, or CLR types, and it silently falls back to an offline rewrite if the addition pushes the row
-  past 8,060 bytes. Tightening an *existing* nullable column to `NOT NULL` still scans: backfill in
-  batches first, then alter in a quiet window, or use `ALTER COLUMN … WITH (ONLINE = ON)` — also
-  Enterprise, and it needs roughly **twice the space** while the hidden replacement column exists.
-  *[sourced: SQL Server `ALTER TABLE` reference; reviewed 2026-08-21]* The target's edition is
-  `[unverified]`; the docs say online operations are "not available in all editions", so confirm
-  Enterprise before planning on any of them.
-- Assess **lock behavior and duration on production-scale data**, not a tiny dev table, and know
-  which DDL is online for your engine. Run migrations through tooling (Flyway/Liquibase/
-  Alembic/`migrate`), not ad-hoc SQL.
-  - **Postgres**: `CREATE INDEX CONCURRENTLY`; `ADD COLUMN` without a volatile default. On 18+
-    generated columns are **virtual by default** — computed on read — so
-    `ADD COLUMN … GENERATED ALWAYS AS (…)` no longer rewrites the table but moves that cost onto
-    every query; say `STORED` when you meant the old behavior. *[sourced: PostgreSQL 18 release
-    notes; reviewed 2026-08-21]*
-  - **MS SQL**: `CREATE INDEX … WITH (ONLINE = ON)` takes only short locks at start and end, but
-    is Enterprise-only and **waits for every open transaction on the table** before it begins — a
-    long-running report can stall the migration. *[sourced: SQL Server `ALTER TABLE` reference;
-    reviewed 2026-08-21]*
+### Migration safety
 
-  Avoid blocking `ALTER`s on hot tables in either engine.
+- Prefer backward-compatible, online changes with no long table locks, assessed on production-scale
+  data rather than a tiny development table.
+- Every migration needs a tested recovery strategy, not necessarily a reverse script. Choose the
+  path that preserves writes and data: a demonstrably lossless backout, a roll-forward or
+  compensating fix, restore/PITR, or an expand/contract transition. Never offer a destructive
+  reversal merely to make a packet look reversible.
+- Use **expand → contract** when running code depends on the schema: expand with the compatible
+  shape; backfill in bounded batches; dual-write/read while both shapes coexist; switch only after
+  verification; contract in a later deploy after proving nothing reads the old shape.
+- Never rename or drop a shape in the same deploy while currently running code still uses it.
+- Freeze the exact engine, version/edition, topology, table size, traffic pattern, migration-tool
+  transaction mode, and compatibility window before choosing DDL. Treat missing target facts as
+  `[unverified]`, not as permission to assume an online path.
 
-## Performance is a feature
+### Performance, durability, and ownership
 
-> ### ⚠️ "Read the plan" is not always a READ
-> **`EXPLAIN ANALYZE` (Postgres) and the "actual execution plan" (MS SQL) RUN THE STATEMENT.** They are
-> not observation. On a `SELECT` that means load; on an `INSERT`/`UPDATE`/`DELETE`/`MERGE` it means
-> **the data changes**. Postgres is explicit: *"the statement is actually executed when the ANALYZE
-> option is used… other side effects of the statement will happen as usual."* *[sourced: PostgreSQL
-> EXPLAIN documentation]*
->
-> | Engine | Safe (plan only, no execution) | EXECUTES the statement |
-> |---|---|---|
-> | **Postgres** | `EXPLAIN <stmt>` | `EXPLAIN ANALYZE <stmt>` |
-> | **MS SQL** | Estimated plan · `SET SHOWPLAN_XML ON` | Actual plan · `SET STATISTICS XML ON` |
->
-> **Default to the safe column.** Reach for the executing form only on a statement you have confirmed
-> is a `SELECT`, on a non-prod copy or a read replica, with DBA sign-off for prod.
->
-> To get real timings on a **mutating** statement without persisting the change, Postgres documents:
-> ```sql
-> BEGIN;  EXPLAIN ANALYZE <the INSERT/UPDATE/DELETE>;  ROLLBACK;
-> ```
-> Rollback covers ordinary table DML — it does **not** undo sequence/`nextval` consumption, or effects
-> that escape the transaction (FDW/dblink writes, `COPY TO PROGRAM`). Not a blanket safety net.
+- An actual/analyzed plan **executes the statement**. Default to a plan-only form; an executing plan
+  inherits the production-change boundary, and wrapping it in a transaction is not a universal
+  rollback because effects may escape the transaction.
+- Application diagnosis and DBA operations are different lanes. Reading a plan and fixing a query
+  are ours; changing DB parameters or executing against production needs DBA sign-off and the exact
+  human-approved packet.
+- Index for measured query patterns, avoid N+1 access and unbounded result sets, and verify any fix
+  with before/after evidence. Hand query/ORM implementation to `sde` with the plan and contract.
+- Backups must be monitored **and restored in a drill**. An untested backup does not prove recovery,
+  RPO, or RTO. Verify replication and failover rather than assuming them.
+- Use scoped database credentials, never an application admin role. No unbounded `UPDATE`/`DELETE`:
+  require a predicate and row-count sanity check, plus the tested recovery strategy.
+- During a DB-driven incident, preserve `[verified]`, `[sourced]`, and `[unverified]` labels. A human
+  release owner may mitigate only from the current incident packet's exact approved command and
+  target; the agent diagnoses and hands off.
 
-- Reproduce the slow query; read the plan with **plain `EXPLAIN`** (Postgres) or the **estimated**
-  plan / `SET SHOWPLAN_XML ON` (MS SQL) — see the box above before reaching for the executing
-  variants.
-- **Application diagnosis vs DBA operations are different lanes.** Reading a plan and fixing a query is
-  ours. Changing DB parameters or executing plans against prod is DBA work with their
-  sign-off — hand it over rather than reaching for it.
-- **Index for the real query patterns** (composite/covering indexes match `WHERE` + `ORDER BY`); avoid
-  full scans on hot paths, **N+1** query patterns, and **unbounded result sets**. Paginate, and hand the
-  query/ORM implementation to the `sde` agent with the measured plan and contract.
-- Verify the fix with **measured before/after numbers**, not a hunch.
+## Read only the conditional procedure the request needs
 
-## Saturation & incident triage
-When a DB-driven incident hits, check the cheap saturation signals first:
-- **Connections** — pool exhaustion (app waits on a free connection); right-size the pool, find leaks.
-- **Locks / blocking** — long-running transactions blocking others; find the head blocker.
-- **Replication lag** — stale reads / failover risk; hand the SLO and burn-evidence request to the
-  `observability-engineer` agent with the raw windows, thresholds, and measurements.
-- **Disk / IOPS / temp** — space and I/O saturation; runaway sorts/spills.
-- **Recent migrations & deploys** — correlate with "what changed" and hand the incident evidence to
-  the `sre` agent without upgrading a hypothesis.
+| If the request involves… | Read first |
+|---|---|
+| PostgreSQL constraint/index/generated-column migration mechanics or version-dependent DDL | [PostgreSQL migrations](./references/postgres-migrations.md) |
+| SQL Server column/index migration mechanics, edition limits, or row-size/space risks | [SQL Server migrations](./references/sql-server-migrations.md) |
+| Selecting or interpreting plan-only versus actual/analyzed execution plans | [Query-plan safety](./references/query-plan-safety.md) |
+| Pool exhaustion, blocking, replication lag, storage pressure, or recent-change incident triage | [Saturation triage](./references/saturation-triage.md) |
+| A restore rehearsal or a claim about backup recoverability, measured RPO, or measured RTO | [Restore drill](./references/restore-drill.md) |
 
-Mitigate to stop pain first only when the human release owner acts from the current incident packet
-with the exact approved command and target; then diagnose. Preserve `[verified]`, `[sourced]`, and
-`[unverified]` labels through the handoff.
-
-## Durability
-- Backups **exist, are monitored, and — crucially — restores are tested**. An untested backup is a hope,
-  not a recovery plan.
-- Before claiming recovery evidence or an RTO, work the [restore drill](./references/restore-drill.md)
-  against a scratch target and record the measured result in the runbook.
-- Know your **RPO** (data you can lose) and **RTO** (how fast you must be back). Verify replication and
-  failover; don't assume them.
-
-## Least privilege & guardrails
-- Scoped DB credentials; never the admin role from the app.
-- Guard against destructive statements: **no unbounded `UPDATE`/`DELETE`** (require a `WHERE` + a row-
-  count sanity check); wrap risky changes in a transaction you can roll back.
+Load every matching row and no others. Do not infer an engine/version, live authority, or recovery
+claim from the request. The entrypoint rules remain authoritative after a reference is loaded.
 
 ## Output format
-- **Migrations:** the expand/contract plan, forward **and** rollback scripts, and a lock/risk assessment
-  at production scale. Implementation goes to the `sde` agent.
-- **Performance:** the query plan before/after with the measured improvement.
-- Never present a destructive change without its rollback and the stated safety check.
+
+- **Migrations:** compatibility sequence, engine/version assumptions, production-scale lock/risk
+  assessment, forward change, tested recovery strategy, and owner. Include a reverse script only
+  when it is demonstrably lossless; otherwise name the roll-forward, compensating, or restore path.
+  Implementation goes to `sde`.
+- **Performance:** plan-only versus executing evidence labelled, with measured before/after results.
+- **Incidents/recovery:** current evidence, hypothesis labels, human action boundary, and measured
+  recovery gaps. Never present a destructive change without the safety check and recovery strategy.
 
 Ownership map only—not a load: the `language-idiom` skill owns call-site/contract analysis and safe refactoring;
 the `eng-ladder` skill owns principal altitude; the `pcf-ops` skill owns app-side triage. This skill
