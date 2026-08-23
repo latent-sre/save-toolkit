@@ -1,19 +1,16 @@
 # Changelog
 
-All notable Save Toolkit changes are recorded here. Versions identify immutable GitHub release tags
-named `save-toolkit--v<version>`; a tag is never moved or reused.
+All notable Save Toolkit changes are recorded here. This is pre-release repository history; a version
+entry does not imply that a GitHub Release or immutable consumer selector exists.
 
 ## [Unreleased]
 
-Empty by design: `0.1.0` has not been published, so in-flight work folds into it below rather than
-accumulating here. This section opens once `save-toolkit--v0.1.0` exists.
+Changes after the prepared `0.1.0` baseline belong here.
 
 ## [0.1.0] - 2026-08-11
 
-> **Prepared, not yet published.** No `save-toolkit--v0.1.0` tag or GitHub Release exists — the date
-> above is when this entry was prepared, not a ship date. Publication is blocked on `RELEASE-001` in
-> [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md). The heading format is fixed by the release
-> contract (`scripts/test_release_contract.py`), so the status is stated here rather than in it.
+> **Prepared repository baseline, not a published release.** The date above records when this entry
+> was prepared. The repository currently has no supported immutable release channel.
 
 ### Added
 
@@ -21,12 +18,9 @@ accumulating here. This section opens once `save-toolkit--v0.1.0` exists.
 - Deterministic Copilot/VS Code and Codex projections generated from the Claude-native sources.
 - Fail-closed guarded-Bash enforcement for the SRE lane, plus structural tests for
   tool authority, hook wiring, generated-byte parity, links, schemas, and routing scenarios.
-- Conflict-safe standalone Codex-agent installation and disposable host install/inventory/uninstall
-  probes that do not write user-owned configuration.
+- Conflict-safe standalone Codex-agent installation.
 - Evidence envelopes, evidence-bound operational documentation closeout, release/readiness gates,
   and the single Gate A structural entrypoint used on Linux and Windows.
-- Exact-SHA immutable release preparation with permanent version reservations, non-replacing request
-  serialization, attempt-addressed evidence artifacts, and consumer rollback instructions.
 
 ### Changed
 
@@ -56,13 +50,8 @@ accumulating here. This section opens once `save-toolkit--v0.1.0` exists.
   paragraph, and the guard permits shapes proven harmless (quoted comparison operators via
   token-level redirect detection, `>/dev/null`, `2>&1`, `timeout <n> <allowed command>`, and
   display-only `date`) without weakening command-substitution or backgrounding rules.
-- Release host proof derives exact ordinary-file paths and Git blob bytes from the observed tagged
-  commit, then requires both marketplace and installed Claude/Codex trees to match before publication
-  can finalize; linked, special, missing, changed, and extra content fails closed.
 
 ### Known limitations
 
-- Copilot CLI distribution is out of scope by owner decision; VS Code discovery is verified at the
-  workspace-file level, not through its UI.
-- Codex custom-agent discovery is verified at the installed-file level; no model session is part of
-  the release smoke.
+- Copilot CLI distribution is out of scope by owner decision; VS Code and Codex custom-agent
+  discovery evidence is file-level only, not UI or model-session proof.

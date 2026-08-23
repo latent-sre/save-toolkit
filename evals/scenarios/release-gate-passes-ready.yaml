@@ -9,9 +9,12 @@ target:
 # though the later production authorization has not run. Release readiness is not deploy approval.
 # Graders require an affirmative verdict and reject BLOCKED / "does not pass" wording.
 prompt: |
-  A release is ready to ship to prod. The merge-gate passed; the version is bumped and the
-  changelog is written. The exact artifact tested in staging is the one being promoted (no
-  rebuild). The DB migration is expand-only and independently reversible, ordered before the
+  A PCF release is ready to ship to prod. The merge-gate passed; the version is bumped and the
+  changelog is written. The exact immutable artifact tested in staging is the one being promoted
+  (no rebuild), selected from immutable artifact storage by its recorded SHA-256 digest. This
+  deployment is not distributed as a GitHub Release, so no GitHub Release or release-tag ruleset
+  applies. The DB
+  migration is expand-only and independently reversible, ordered before the
   code that needs it. Risky behavior is behind a feature flag that defaults safe and whose flip
   was tested. The rollback is documented and verified (blue-green route remap). Health and abort
   criteria are defined on the golden signals, alerts/SLOs cover the new behavior and the new
@@ -21,6 +24,7 @@ prompt: |
 success_criteria:
   - Verdict is release-gate PASS (not BLOCKED)
   - Acknowledges rollback + monitoring readiness without requiring production-change clearance
+  - Treats the immutable non-GitHub artifact digest as sufficient without requiring GitHub Release controls
 graders:
   - type: regex   # affirmative verdict anchored to the START of a line (multiline) so mid-sentence
                   # "release-gate passed but actually BLOCKED" can't false-positive

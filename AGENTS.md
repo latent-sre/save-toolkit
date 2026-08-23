@@ -26,15 +26,13 @@ matters.
 | [`scripts/readonly-guard.py`](scripts/readonly-guard.py) | The fail-closed allowlist guard for `sre`. Exit codes are a contract: 42 allow, 43 deny, 44 indeterminate — the hook uses them to tell this guard from a stand-in interpreter |
 | [`scripts/readonly-guard-hook.sh`](scripts/readonly-guard-hook.sh) | The standalone copy of the launcher whose one-line form `hooks/hooks.json` carries **inlined** — the JSON does not invoke this file. The focused `test_hook_wiring.py` suite byte-syncs the two |
 | [`scripts/gate_a.py`](scripts/gate_a.py) | The single push-boundary structural entrypoint. It runs live-tree validators, not component tests or evals; read its docstring for the scope boundary |
-| [`.github/workflows/release.yml`](.github/workflows/release.yml) | The only prepared release effect path: exact-main-SHA preflight, protected annotated tag, strict remote-tag host smoke, protected immutable Release, then read-only verification. Its presence does not authorize dispatch |
-| [`scripts/release_contract.py`](scripts/release_contract.py), [`scripts/release_workflow_contract.py`](scripts/release_workflow_contract.py) | Fail-closed release request and workflow-shape contracts. The former binds version/review/SHA/actor/expiry/recovery/nonce; the latter mutation-checks the static authority boundary |
 | [`scripts/generate_platform_adapters.py`](scripts/generate_platform_adapters.py) | The one deterministic generator for all host projections. Run `--write` once before a push that carries canonical edits; a hand-edit to a generated root is drift it will erase |
 | [`scripts/validate_fleet.py`](scripts/validate_fleet.py), [`check_links.py`](scripts/check_links.py), [`check_plan_status.py`](scripts/check_plan_status.py), [`check_stale_names.py`](scripts/check_stale_names.py) | The structural validators Gate A runs: fleet/plugin/adapter contracts, skill link/bundle reachability, single-live-roadmap discipline, and retired-name rejection |
 | [`scripts/install_codex_agents.py`](scripts/install_codex_agents.py) | Installs the generated Codex agents into an explicit scope without clobbering user files |
 | [`schemas/`](schemas) | Portable evidence contracts (the catalog and the evidence envelope); versioned per [`docs/schema-compatibility.md`](docs/schema-compatibility.md) |
 | [`evals/`](evals) | Offline routing/behavioral scenarios and the manual clean-room Claude runner. Routing evals need a live API and never run in CI |
 | [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) | The only live backlog; see [`docs/README.md`](docs/README.md) for the full authority map |
-| [`CHANGELOG.md`](CHANGELOG.md), [`docs/release-runbook.md`](docs/release-runbook.md) | Version-bound release notes and the consumer-side recovery procedure. A released version tag is never moved, deleted, or reused |
+| [`CHANGELOG.md`](CHANGELOG.md) | Pre-release change history. Version entries describe repository state; they do not imply a published artifact |
 | [`docs/decisions/`](docs/decisions), [`docs/reviews/`](docs/reviews), [`docs/superpowers/`](docs/superpowers) | Accepted ADRs; round-closure evidence; round-scoped plans and specs. Only accepted decisions govern |
 | [`.gitattributes`](.gitattributes) | Line-ending and diff handling that keeps the byte-for-byte adapter gate stable across platforms |
 | `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator's portable output set; fix the canonical source or generator and regenerate |
@@ -227,15 +225,6 @@ errors and the change quietly does not work.
   `python scripts/mutation_guard.py --module <one-file.py>`. Stop after one named mutant is killed by
   the regression. A survivor count is not a finding or backlog item. *Prevents:* both a test that
   asserts nothing and a discovery tool turning weak signals into an open-ended work program.
-- **Touched release-related files** → run only the checks owned by the changed surface. A
-  metadata-only `CHANGELOG.md` or manifest-version edit adds no release-specific suite beyond Gate A
-  at the push boundary. A change to `scripts/release_contract.py` runs
-  `python scripts/test_release_contract.py`; a change to `.github/workflows/release.yml` or
-  `scripts/release_workflow_contract.py` runs `python scripts/test_release_workflow_contract.py`; a
-  change to `scripts/host_install_probe.py` runs `python scripts/test_host_install_probe.py`. If a
-  change spans owners, run that union—never the untouched suites by habit. Never dispatch from a
-  feature branch or use a local smoke as published-artifact evidence. *Prevents:* authority logic or
-  probe behavior shipping untested without charging metadata-only work for unrelated suites.
 - **Touched the guard or the hook** (`scripts/readonly-guard.py`, `hooks/hooks.json`) → read their
   docstrings first, then run `python scripts/test_readonly_guard.py` and
   `python scripts/test_hook_wiring.py`, diff the allow/deny corpus, and keep the 42 allow / 43 deny /

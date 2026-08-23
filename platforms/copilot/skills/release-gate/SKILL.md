@@ -25,20 +25,16 @@ For production, this PASS establishes readiness only; authorization belongs to t
       candidate SHA. This skill does not load or execute that sibling gate; missing evidence is a blocking
       item. Independent review is not a release-readiness prerequisite here; a production deployment of
       new bytes checks exact-candidate review later in `production-change-gate`.
-- [ ] **The release tag cannot move and the Release cannot be edited** — two GitHub controls, both
-      checked as *state*, not assumed from the workflow file. A **tag ruleset** on the release tag
-      pattern is what enforces "a released version tag is never moved, deleted, or reused" (rulesets
-      are the only place tag deletion and renaming can be controlled), and an **immutable Release**
-      locks that tag "to a specific commit, cannot be changed, and cannot be deleted while the
-      release exists". `release.yml` requires both to be preconfigured and verifies them — it does
-      not create them; this item confirms the ruleset is **Active** via
-      `gh api repos/{owner}/{repo}/rulesets` and the prior release shows `"immutable": true` —
-      a Disabled ruleset or a mutable Release means the guarantee is a comment, not a control.
-      Whether this repo's tag ruleset exists and is Active is `[unverified]` until that read is
-      attached. *[sourced: GitHub Docs, about rulesets and immutable releases; reviewed 2026-08-21]*
-- [ ] **One identified artifact, promoted** — the version and changelog or release notes identify the
-      candidate, and the exact artifact tested in lower environments is the one shipping; build once and
-      promote rather than rebuilding.
+- [ ] **One immutable artifact, promoted through its actual distribution path** — the version and
+      changelog or release notes identify the candidate, and the exact artifact tested in lower
+      environments is the one shipping; build once and promote rather than rebuilding. When the
+      artifact is distributed as a **GitHub Release**, confirm an **Active tag ruleset** prevents tag
+      movement/deletion and the Release is immutable state, not merely workflow text; inspect the
+      ruleset with `gh api repos/{owner}/{repo}/rulesets` and, when a prior release exists, confirm
+      `"immutable": true`. For any other distribution path, attach the platform's equivalent
+      immutable digest or non-replaceable object/version identity and prove it resolves to the tested
+      bytes; do not require GitHub Release controls. *[sourced: GitHub Docs, about rulesets and
+      immutable releases; reviewed 2026-08-21]*
 - [ ] **Migrations safe** — DB, schema, and configuration migrations are backward-compatible, ordered
       before the code that needs them, and independently reversible.
 - [ ] **Feature flags ready** — risky behavior is flag-gated, defaults safe, and the flag transition is

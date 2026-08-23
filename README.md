@@ -6,9 +6,8 @@ evidence-bound documentation. Claude Code reads the canonical [`agents/`](agents
 [`skills/`](skills) directly; GitHub Copilot/VS Code and Codex receive committed projections from
 one deterministic generator, never edited by hand.
 
-> **Pre-release (0.1.0).** Installs track `main` and may change without notice. Immutable tagged
-> releases arrive when [`RELEASE-001`](docs/fleet-roadmap.md) closes; recovery and rollback then
-> follow the [release runbook](docs/release-runbook.md).
+> **Pre-release (0.1.0).** Installs track `main` and may change without notice. The repository has
+> no supported immutable release channel.
 
 ## Quickstart
 
