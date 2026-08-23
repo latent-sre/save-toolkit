@@ -381,6 +381,9 @@ defer scenario alone.
 `20260822T235252Z-a9531e1a`. The runtime listed `save-toolkit:production-change-gate`, the slash
 command produced version-specific skill behavior, and every trace still reported `skills=[]`.
 Consequently both behaviorally approved candidate trials were marked FAIL only by `skill-fired`.
+Reconfirmed on candidate `e51f9ec62cebc1883e1f9a6cfba3b716f5d2ab1b` in run
+`20260823T005205Z-27dbcbfe`: both trials returned `APPROVED` and passed every response grader; only
+the absent skill-completion event kept the aggregate red. *[verified]*
 
 **Prerequisites:** Identify a stable trace or invocation signal for slash-command expansion. Do not
 infer contribution from answer prose alone.
