@@ -1,7 +1,7 @@
 # Reviewing this repository
 
 Read [`AGENTS.md`](../AGENTS.md) first — it is the fleet contract this repo holds itself to. This
-repo packages one fleet for Claude Code, GitHub Copilot/VS Code, and Codex. The files under
+repo packages one fleet for Claude Code and GitHub Copilot/VS Code. The files under
 `agents/` and `skills/` are not documentation *about* a system; they are the only authored source,
 and Claude Code loads them as-is. Other hosts load generated adapters. A wrong sentence in a
 canonical file is a behavior change; a direct edit to a generated file is source drift that
@@ -37,9 +37,8 @@ the highest-value findings in this repo:
   eyeball, and not a reflexive before/after pair. For an **agent** target, discovery is optional,
   model-labelled calibration: the headless main session may answer inline, so a red there means
   "not dispatched", never "the agent is broken", and it is not a merge gate.
-- **Generated roots are byte-validated.** `.github/agents/`, `.codex/agents/`,
-  `platforms/copilot/skills/`, and `plugins/save-toolkit/skills/` must match the generator byte for
-  byte. Any change there must trace to a canonical or generator edit plus a regeneration — never a
+- **Generated roots are byte-validated.** `.github/agents/` and `platforms/copilot/skills/` must
+  match the generator byte for byte. Any change there must trace to a canonical or generator edit plus a regeneration — never a
   hand-fix.
 
 ## House rules that make some "improvements" wrong here

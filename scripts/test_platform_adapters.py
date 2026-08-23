@@ -31,7 +31,6 @@ class PlatformAdapterTests(unittest.TestCase):
         for relative in (
             Path(".claude-plugin/plugin.json"),
             Path("plugin.json"),
-            Path("plugins/save-toolkit/.codex-plugin/plugin.json"),
             Path("hooks/hooks.json"),
         ):
             target = root / relative
@@ -48,84 +47,6 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_committed_outputs_match_canonical_sources(self) -> None:
         self.assertEqual([], adapters.validate_generated_outputs(ROOT))
-
-    def test_codex_agent_identity_is_namespaced_but_skills_stay_bare(self) -> None:
-        """Codex resolves a custom agent by its `name` field, not its filename.
-
-        Documented at https://learn.chatgpt.com/docs/agent-configuration/subagents:
-        "Codex identifies the custom agent by its `name` field. Matching the filename to the
-        agent name is the simplest convention, but the `name` field is the source of truth."
-
-        So a prefixed FILENAME alone stops an install from overwriting another suite's file
-        but leaves the invocable identity colliding. Sibling-agent references must move with
-        the identity, or a body saying "hand off to researcher" resolves to the OTHER fleet's
-        researcher -- silently crossing this fleet's local/external trust split. Skills are not
-        renamed and must stay bare.
-        """
-        codex = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/prompt-engineer.md"))
-        body = codex["developer_instructions"]
-        self.assertEqual("save-toolkit-prompt-engineer", codex["name"])
-        # Namespaced reference in the canonical description.
-        self.assertIn("save-toolkit-reviewer", codex["description"])
-        # Bare backticked sibling in the body must move with the identity, or it spawns
-        # whichever `reviewer` another installed suite happens to own.
-        self.assertIn("`save-toolkit-reviewer`", body)
-        self.assertNotIn("`reviewer`", body)
-        # Skills are not renamed, and prose must not be rewritten.
-        self.assertIn("agent-authoring", body)
-        self.assertNotIn("save-toolkit-agent-authoring", body)
-        self.assertNotIn("save-toolkit:", body)
-        self.assertIn("prompt engineer", body)
-
-    def test_codex_skill_projection_namespaces_agent_references(self) -> None:
-        """Skills carry sibling references too, and Codex resolves them by bare name.
-
-        The agent-profile rewrite alone left 125 bare backticked references in the Codex
-        skills projection, so a skill saying "route it to `sre`" spawned whichever `sre`
-        another installed suite owned. This asserts over EVERY Codex skill output rather
-        than one file, because a single-file assertion is what let that gap survive.
-        """
-        agent_names = {path.stem for path in (ROOT / "agents").glob("*.md")}
-        offenders = []
-        scanned = 0
-        for path, blob in adapters.expected_outputs(ROOT).items():
-            # Iterate by the generator's own constant, not a hard-coded path tuple: if CODEX_SKILLS
-            # ever moves, a literal tuple would silently match nothing and this test would verify
-            # nothing while staying green.
-            if adapters.CODEX_SKILLS not in path.parents:
-                continue
-            if path.suffix.lower() not in {".md", ".txt"}:
-                continue
-            scanned += 1
-            text = blob.decode("utf-8")
-            offenders.extend(
-                f"{path.as_posix()}: `{name}`" for name in agent_names if f"`{name}`" in text
-            )
-        self.assertTrue(scanned, "no Codex skill files were scanned — the projection path moved")
-        self.assertEqual([], sorted(offenders))
-
-    def test_codex_agent_filenames_carry_a_fleet_prefix(self) -> None:
-        """Codex custom agents share ONE flat global directory with no namespace.
-
-        Claude loads these as `save-toolkit:<name>` and cannot collide. Codex installs bare
-        filenames into `$CODEX_HOME/agents`, where `prompt-engineer.toml`,
-        `repository-investigator.toml` and `researcher.toml` are names other agent suites
-        also use — so an unprefixed projection overwrites user-owned files from another fleet.
-        """
-        emitted = [
-            path
-            for path in adapters.expected_outputs(ROOT)
-            if path.parent == adapters.CODEX_AGENTS
-        ]
-        self.assertTrue(emitted, "no Codex agent adapters were emitted")
-        unprefixed = sorted(
-            path.name for path in emitted if not path.name.startswith("save-toolkit-")
-        )
-        self.assertEqual([], unprefixed, "Codex agent filenames must be fleet-prefixed")
-        # `save-toolkit-` mirrors the Claude namespace. A bare `sre-` prefix would produce
-        # sre-sre.toml and sre-observability-engineer.toml for the two roles already starting with `sre`.
-        self.assertIn(adapters.CODEX_AGENTS / "save-toolkit-sre.toml", emitted)
-        self.assertIn(adapters.CODEX_AGENTS / "save-toolkit-observability-engineer.toml", emitted)
 
     def test_guarded_copilot_agents_do_not_receive_execute(self) -> None:
         for name in sorted(adapters.GUARDED_AGENTS):
@@ -147,33 +68,6 @@ class PlatformAdapterTests(unittest.TestCase):
         ):
             self.assertNotIn("web", self._copilot_tools(name), name)
 
-    def test_codex_sandbox_follows_write_authority(self) -> None:
-        reviewer = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/reviewer.md"))
-        builder = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/sde.md"))
-        scribe = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/scribe.md"))
-        self.assertEqual("read-only", reviewer["sandbox_mode"])
-        self.assertEqual("workspace-write", builder["sandbox_mode"])
-        self.assertEqual("workspace-write", scribe["sandbox_mode"])
-        self.assertIn("Do not execute anything", scribe["developer_instructions"])
-        self.assertIn("Codex custom-agent TOML cannot deny inherited tools", scribe["developer_instructions"])
-        self.assertIn("disable network egress and external MCP tools", scribe["developer_instructions"])
-
-    def test_codex_reviewer_does_not_self_disable_on_inherited_capability_visibility(self) -> None:
-        reviewer = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/reviewer.md"))
-        instructions = reviewer["developer_instructions"]
-        self.assertIn("capability visibility alone is therefore not a fleet failure", instructions)
-        self.assertIn("if this reviewer actually", instructions)
-        self.assertIn("executes or delegates", instructions)
-        self.assertNotIn("if you ever find yourself able to run a shell command", instructions)
-
-    def test_codex_research_boundaries_require_outer_isolation(self) -> None:
-        local = tomllib.loads(
-            adapters.render_codex_agent(ROOT / "agents/repository-investigator.md")
-        )
-        external = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/researcher.md"))
-        self.assertIn("disable network egress", local["developer_instructions"])
-        self.assertIn("do not mount the private repository", external["developer_instructions"])
-
     def test_generated_agent_descriptions_use_host_native_names(self) -> None:
         for source in sorted((ROOT / "agents").glob("*.md")):
             copilot = adapters.render_copilot_agent(source)
@@ -181,29 +75,14 @@ class PlatformAdapterTests(unittest.TestCase):
             description = json.loads(
                 next(line for line in frontmatter.splitlines() if line.startswith("description: "))[13:]
             )
-            codex = tomllib.loads(adapters.render_codex_agent(source))
             self.assertNotIn("save-toolkit:", description, source.name)
-            self.assertNotIn("save-toolkit:", codex["description"], source.name)
         self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/sde.md"))
-        prompt_engineer = tomllib.loads(
-            adapters.render_codex_agent(ROOT / "agents/prompt-engineer.md")
-        )
-        self.assertIn("save-toolkit-reviewer", prompt_engineer["description"])
-
-    def test_codex_rewrite_does_not_corrupt_api_paths(self) -> None:
-        value = adapters.adapt_text("GET /healthz; run `/pcf-deploy`; ref #/components/schemas/X", "codex")
-        self.assertIn("/healthz", value)
-        self.assertIn("#/components/schemas/X", value)
-        self.assertIn("`$pcf-deploy`", value)
 
     def test_manual_skills_get_host_native_invocation_controls(self) -> None:
         for name in sorted(adapters.MANUAL_ONLY):
             copilot = (ROOT / adapters.COPILOT_SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
-            codex = (ROOT / adapters.CODEX_SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
-            policy = ROOT / adapters.CODEX_SKILLS / name / "agents/openai.yaml"
             self.assertIn("disable-model-invocation: true", copilot)
-            self.assertNotIn("disable-model-invocation:", codex)
-            self.assertIn("allow_implicit_invocation: false", policy.read_text(encoding="utf-8"))
+            self.assertIn("explicit-only through Copilot's frontmatter switch", copilot)
 
     def test_platform_manifests_agree(self) -> None:
         self.assertEqual([], adapters.validate_platform_contracts(ROOT))
@@ -212,7 +91,6 @@ class PlatformAdapterTests(unittest.TestCase):
         manifests = (
             Path(".claude-plugin/plugin.json"),
             Path("plugin.json"),
-            Path("plugins/save-toolkit/.codex-plugin/plugin.json"),
         )
         for relative in manifests:
             with self.subTest(path=relative.as_posix()), tempfile.TemporaryDirectory() as temporary:
@@ -253,34 +131,6 @@ class PlatformAdapterTests(unittest.TestCase):
                     failures,
                 )
 
-    def test_codex_manifest_rejects_unsupported_component_paths(self) -> None:
-        for field in ("agents", "hooks"):
-            with self.subTest(field=field), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary).resolve()
-                self._copy_platform_contract_files(root)
-                self.assertEqual([], adapters.validate_platform_contracts(root))
-                target = root / "plugins/save-toolkit/.codex-plugin/plugin.json"
-                manifest = json.loads(target.read_text(encoding="utf-8"))
-                manifest[field] = f"./{field}/"
-                target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
-                failures = adapters.validate_platform_contracts(root)
-                self.assertIn(
-                    f"Codex manifest must not claim unsupported {field!r} component",
-                    failures,
-                )
-
-    def test_codex_skills_path_cannot_be_deduplicated_to_copilot(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_platform_contract_files(root)
-            self.assertEqual([], adapters.validate_platform_contracts(root))
-            target = root / "plugins/save-toolkit/.codex-plugin/plugin.json"
-            manifest = json.loads(target.read_text(encoding="utf-8"))
-            manifest["skills"] = "./platforms/copilot/skills/"
-            target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
-            failures = adapters.validate_platform_contracts(root)
-        self.assertIn("Codex manifest skills must be './skills/'", failures)
-
     def test_byte_drift_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
@@ -296,11 +146,16 @@ class PlatformAdapterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
             self.assertEqual([], adapters._retired_generated_root_failures(root))
-            retired = root / adapters.RETIRED_GENERATED_ROOTS[0]
-            retired.mkdir(parents=True)
-            (retired / "leftover.md").write_text("stale mirror\n", encoding="utf-8")
-            failures = adapters._retired_generated_root_failures(root)
-        self.assertTrue(any("retired generated root" in f for f in failures), failures)
+            for retired_root in adapters.RETIRED_GENERATED_ROOTS:
+                retired = root / retired_root
+                retired.mkdir(parents=True)
+                (retired / "leftover.md").write_text("stale mirror\n", encoding="utf-8")
+                failures = adapters._retired_generated_root_failures(root)
+                with self.subTest(retired_root=retired_root.as_posix()):
+                    self.assertTrue(
+                        any(f.startswith(f"{retired_root.as_posix()}:") for f in failures),
+                        failures,
+                    )
 
     def test_gitattributes_missing_eol_rule_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -383,7 +238,7 @@ class PlatformAdapterTests(unittest.TestCase):
             projected = [
                 blob for path, blob in outputs.items()
                 if path.parts[-len(relative.parts):] == relative.parts
-                and (adapters.COPILOT_SKILLS in path.parents or adapters.CODEX_SKILLS in path.parents)
+                and adapters.COPILOT_SKILLS in path.parents
             ]
             self.assertTrue(projected, "code asset was not projected")
             for blob in projected:
@@ -403,7 +258,7 @@ class PlatformAdapterTests(unittest.TestCase):
             def fail_second_stage(source: str | Path, destination: str | Path) -> None:
                 source_path = Path(source)
                 destination_path = Path(destination)
-                if destination_path == root / adapters.CODEX_AGENTS and "new" in source_path.parts:
+                if destination_path == root / adapters.COPILOT_SKILLS and "new" in source_path.parts:
                     raise OSError("injected stage swap failure")
                 real_replace(source, destination)
 
@@ -466,7 +321,7 @@ class PlatformAdapterTests(unittest.TestCase):
             root = Path(temporary).resolve()
             self._copy_canonical_sources(root)
             adapters.write_generated_outputs(root)
-            generated = root / adapters.GENERATED_ROOTS[2]
+            generated = root / adapters.GENERATED_ROOTS[-1]
             outside = root / "elsewhere"
             outside.mkdir()
             (outside / "extra.md").write_text("# extra\n", encoding="utf-8")
@@ -483,7 +338,7 @@ class PlatformAdapterTests(unittest.TestCase):
     # `json.dumps(..., ensure_ascii=False)` appears at four points that render a description or
     # name into a projection. A mutation sweep flagged every one as unnoticed, correctly: no test
     # asserted anything about non-ASCII. Flipping the flag turns the fleet's em-dashes and arrows
-    # into literal `\u2014` / `\u2192` in Copilot frontmatter and the Codex policy file, where a
+    # into literal `\u2014` / `\u2192` in Copilot frontmatter, where a
     # host renders the escape rather than the character. The byte gate does catch it, but only
     # after a full regenerate; these pin it at the source.
 
@@ -508,11 +363,6 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertNotIn("\\u2014", rendered)
         self.assertNotIn("\\u2192", rendered)
 
-    def test_codex_skill_policy_keeps_non_ascii_unescaped(self) -> None:
-        rendered = adapters._skill_policy("probe-skill", self.NON_ASCII_SAMPLE).decode("utf-8")
-        self.assertIn("em—dash", rendered)
-        self.assertNotIn("\\u2014", rendered)
-
     def test_the_live_projections_contain_no_unicode_escapes(self) -> None:
         """The end-to-end statement: real em-dashes and arrows are in the committed projections.
 
@@ -525,7 +375,7 @@ class PlatformAdapterTests(unittest.TestCase):
             if any(ord(char) > 127 for char in str(adapters.parse_frontmatter(path)[0].get("description", "")))
         )
         self.assertGreater(canonical_non_ascii, 0, "no canonical description carries non-ASCII")
-        for relative in (Path(".github/agents"), Path(".codex/agents")):
+        for relative in (Path(".github/agents"),):
             for path in sorted((ROOT / relative).glob("*")):
                 text = path.read_text(encoding="utf-8")
                 self.assertNotIn("\\u2014", text, path.name)

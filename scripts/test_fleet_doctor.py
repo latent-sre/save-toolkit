@@ -53,7 +53,6 @@ class FleetDoctorTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             home = Path(temporary) / "home"
-            codex_home = Path(temporary) / "codex"
             home.mkdir()
             sentinel = home / "sentinel.txt"
             sentinel.write_text("unchanged\n", encoding="utf-8")
@@ -66,7 +65,6 @@ class FleetDoctorTests(unittest.TestCase):
                 report = fleet_doctor.collect_report(
                     REPO,
                     home=home,
-                    codex_home=codex_home,
                     run=run,
                     which=which,
                     now=datetime(2026, 7, 31, tzinfo=timezone.utc),
@@ -93,7 +91,7 @@ class FleetDoctorTests(unittest.TestCase):
             "save-toolkit@latent-sre  not installed  C:/marketplace/save-toolkit\n",
             "No plugin named save-toolkit is installed.\n",
         )
-        for host in ("claude", "codex"):
+        for host in ("claude",):
             for output in false_positives:
                 with self.subTest(host=host, output=output):
                     self.assertFalse(
@@ -130,13 +128,6 @@ class FleetDoctorTests(unittest.TestCase):
                 self.assertFalse(
                     fleet_doctor._inventory_contains_plugin("copilot", output, "save-toolkit")
                 )
-        self.assertTrue(
-            fleet_doctor._inventory_contains_plugin(
-                "codex",
-                "save-toolkit@latent-sre  installed, enabled  1.0.0  C:/plugins/save-toolkit\n",
-                "save-toolkit",
-            )
-        )
 
     def test_dirty_worktree_is_recorded_as_a_limitation_without_paths(self) -> None:
         def run(argv: tuple[str, ...]) -> fleet_doctor.CommandResult:
@@ -169,52 +160,8 @@ class FleetDoctorTests(unittest.TestCase):
                 ended_at=datetime(2026, 7, 31, tzinfo=timezone.utc),
             )
 
-    def _codex_fixture(self, temporary: str) -> tuple[Path, Path]:
-        base = Path(temporary)
-        root = base / "repo"
-        source = root / ".codex" / "agents"
-        source.mkdir(parents=True)
-        source.joinpath("save-toolkit-sre.toml").write_text('name = "sre"\n', encoding="utf-8")
-        codex_home = base / "codex"
-        (codex_home / "agents").mkdir(parents=True)
-        return root, codex_home
-
     def _no_fleet_plugin_list(self, argv: tuple[str, ...]) -> fleet_doctor.CommandResult:
         return fleet_doctor.CommandResult(0, "other-plugin  installed  1.0.0\n", "")
-
-    def test_absent_fleet_on_available_codex_host_is_skip_not_fail(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root, codex_home = self._codex_fixture(temporary)
-            checks = fleet_doctor._installation_checks(
-                root,
-                codex_home.parent,
-                {"codex": "codex.exe"},
-                self._no_fleet_plugin_list,
-                codex_home=codex_home,
-            )
-        custom = next(check for check in checks if check.check_id == "host.codex.custom-agents")
-        self.assertEqual("skip", custom.status)
-        self.assertIn("no save-toolkit custom agents are installed", custom.summary)
-        self.assertTrue(custom.limitations)
-
-    def test_drifted_codex_install_is_still_fail(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root, codex_home = self._codex_fixture(temporary)
-            stale = codex_home / "agents" / "save-toolkit-retired.toml"
-            stale.write_text(
-                "# Managed by save-toolkit scripts/install_codex_agents.py; do not edit.\n",
-                encoding="utf-8",
-            )
-            checks = fleet_doctor._installation_checks(
-                root,
-                codex_home.parent,
-                {"codex": "codex.exe"},
-                self._no_fleet_plugin_list,
-                codex_home=codex_home,
-            )
-        custom = next(check for check in checks if check.check_id == "host.codex.custom-agents")
-        self.assertEqual("fail", custom.status)
-        self.assertIn("differ from generated fleet roles", custom.summary)
 
     def test_main_exits_one_only_for_failing_checks(self) -> None:
         report = {

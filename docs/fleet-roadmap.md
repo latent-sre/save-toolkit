@@ -8,71 +8,34 @@
 The accepted architecture is
 [`2026-07-31-multi-platform-plugin-packaging.md`](decisions/2026-07-31-multi-platform-plugin-packaging.md):
 one canonical Claude plugin under `agents/`, `skills/`, and `commands/`, with generated host-native
-adapters for Copilot/VS Code and Codex.
+adapters for Copilot/VS Code. Codex was retired as a distribution target on 2026-08-23
+([ADR](decisions/2026-08-23-retire-codex-distribution-target.md)); it remains a supported way to
+work in this repository, reading the root `AGENTS.md` like any other agent.
 
-Closed work is retained in the
-[`SAFE-001 closure`](reviews/2026-08-01-safe-001-closure.md) and
-[`IMPROVE-001 closure`](reviews/2026-08-01-fleet-improvement-closure.md), plus the
-[`VERIFY-001 closure`](reviews/2026-08-02-verify-001-closure.md),
-[`PROTECT-001 closure`](reviews/2026-08-05-protect-001-closure.md),
-[`HOST-001 closure`](reviews/2026-08-06-host-001-closure.md), and
-[`ADAPT-001 closure`](reviews/2026-08-06-adapt-001-closure.md). The superseded local Sol evaluator
-decision is retained in
+## Closed items
+
+One row per closed item. The row is the disposition; the linked document is evidence, never a task
+list. An item with no surviving evidence document closed into a live contract instead, named here.
+
+| Item | Closed | Disposition and evidence |
+|---|---|---|
+| `SAFE-001` | 2026-08-01 | Research trust zones split into local-only and external-only roles, and evidence normalized. Contracts: [`local-external-research-separation`](decisions/2026-07-31-local-external-research-separation.md) and [`schema-compatibility.md`](schema-compatibility.md) |
+| `IMPROVE-001` | 2026-08-01 | Bounded improvement lifecycle. Its executables were parked at tag `pre-trim-2026-08-02` and no record advances past `observed`/`rejected` while they are — [closure](reviews/2026-08-01-fleet-improvement-closure.md) |
+| `VERIFY-001` | 2026-08-02 | Executable verification isolated. Contract: [`verification-sandbox.md`](verification-sandbox.md) |
+| `PROTECT-001` | 2026-08-05 | Repository protection and distinct promotion identity — [closure](reviews/2026-08-05-protect-001-closure.md) |
+| `HOST-001` | 2026-08-06 | Host installation proof — [closure](reviews/2026-08-06-host-001-closure.md) |
+| `ADAPT-001` | 2026-08-06 | Sibling-repo adaptations; its review history records defects Gate A was green over — [closure](reviews/2026-08-06-adapt-001-closure.md) |
+| `SWEEP-001` and `MUTATION-001` | 2026-08-21 | Closed by **explicit owner disposition**, not a closure review: `not_applicable` as live work, owner `latent-sre`. No survivor count established a broken contract; the disposition does not assert every survivor was harmless. Diagnostic: [fleet mutation sweep](reviews/2026-08-15-fleet-mutation-sweep.md) |
+| `EVAL-002` | 2026-08-22 | Agent-target discovery is calibration, never a regression gate — [ADR](decisions/2026-08-22-agent-discovery-calibration.md) |
+| `REVIEW-001` | 2026-08-22 | Independent exact-SHA review is required for a production deployment of new bytes, not for every merge — [ADR](decisions/2026-08-22-production-review-boundary.md) |
+| `NAV-001` | 2026-08-22 | Incident-navigation rejected and archived — [ADR](decisions/2026-08-22-incident-navigation-archive.md) |
+| `RELEASE-001` | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. The custom publication workflow, request/workflow contracts, release-specific tests, runbook, and the standalone four-host probe were never activated and had no named consumer; they were retired rather than maintained. The `release-gate` skill, manifest versions, and changelog history remain. Historical design ADR: [`superseded`](decisions/2026-08-11-immutable-release-promotion.md). Reopen only when a named consumer requires an immutable selector and rollback-capable release |
+| `STATE-001` | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. It described a future durable-execution control plane with no named workflow, implementation, or active dependency; handoffs and learning derive ownership and completion from Git, pull requests, tests/evals, and evidence. Reopen only when a named workflow must survive process or session loss and replay from version-bound artifacts would be unsafe or materially costly |
+| `EVAL-001` | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Its only named trigger was a release decision, the parked suite no longer matches the current plugin identity or roster, and Codex stopped being a distribution target — no fleet component runs on Sol, so the trigger can no longer fire. Tag `pre-trim-2026-08-02` preserves the historical bytes — [ADR](decisions/2026-08-23-retire-codex-distribution-target.md) |
+| `AUDIT-002` (Batch 1) | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Implementation and review corrections merged in PR [#141](https://github.com/latent-sre/save-toolkit/pull/141) at merge commit `09e775b`, final head `11b8041`. Batch 1 selected no graph runtime, added no unconsumed schema, and activated no SRE capability addition; two positive-route reliability gaps moved to deferred `ROUTE-003` rather than triggering retries against unchanged bytes. Evidence: [`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) |
+
+The local Sol evaluator decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
-
-`SWEEP-001` and `MUTATION-001` were closed by **explicit owner disposition** rather than by a
-closure review: `not_applicable` as live work, owner `latent-sre`, 2026-08-21. The owner declined to
-convert the release-contract, host-probe, grader, and guard survivor counts into work — the release
-contracts were unpublished, the grader transformations exceeded that tool's operator model, and no
-count established a broken contract. A future concrete contract change gets one focused red-first
-test; an optional mutation run inspects one named module and ends after one named mutant is killed.
-The disposition does not assert that every survivor was equivalent or harmless. Its diagnostic
-output is the dated [fleet mutation sweep](reviews/2026-08-15-fleet-mutation-sweep.md).
-
-`RELEASE-001` was retired by **explicit owner disposition**: `not_applicable` as live work, owner
-`latent-sre`, 2026-08-23. Its custom publication workflow, request/workflow contracts,
-release-specific tests, and runbook were never activated, had no named consumer, and cost more to
-maintain than the pre-release repository needed. The standalone four-host probe and its focused suite
-were retired with them because no workflow, CI job, or named manual owner called them. The general
-`release-gate` skill, manifest versions, and normal changelog history remain. The historical design
-ADR is [`superseded`](decisions/2026-08-11-immutable-release-promotion.md).
-Reopen release work only when a named consumer requires an immutable selector and rollback-capable
-release. Reopen real-CLI host lifecycle probing only for a named host or packaging change that
-requires that evidence.
-
-`EVAL-001` was retired by **explicit owner disposition**: `not_applicable` as live work, owner
-`latent-sre`, 2026-08-23. Its only named trigger was a release decision, the parked suite no longer
-matches the current plugin identity or roster, and no named Codex consumer requires a paid Sol
-baseline. Tag `pre-trim-2026-08-02` preserves the historical bytes; structural Codex adapter and
-installer validation remains active. Reopen only for a named Codex consumer, a reproduced
-Codex-specific regression, or an explicit model-migration decision with an owner and fixed budget.
-
-`STATE-001` was retired by **explicit owner disposition**: `not_applicable` as live work, owner
-`latent-sre`, 2026-08-23. It described a future durable-execution control plane, but no named
-workflow, implementation, or active dependency exists; current handoffs and learning derive
-ownership and completion from Git, pull requests, tests/evals, and evidence. Reopen only when a named
-workflow must survive process or session loss or competing-worker recovery and replay from
-version-bound artifacts would be unsafe or materially costly; prefer host- or framework-native
-persistence before a repository-local state store.
-
-`AUDIT-002` Batch 1 closed by **explicit owner disposition**, owner `latent-sre`, 2026-08-23. The
-implementation and review corrections merged in PR
-[#141](https://github.com/latent-sre/save-toolkit/pull/141) at merge commit `09e775b`, final head
-`11b8041`; the exact closeout evidence and evaluator disposition live in the
-[`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md).
-On the merged plugin, the manual-onboarding near miss stayed inline 2/2, while read-only readiness
-routed 1/2 with the second trial timing out. Earlier workflow-graph trials timed out 2/2. Those two
-positive-route reliability gaps move to deferred `ROUTE-003` rather than trigger retries or prompt
-tuning against unchanged bytes. Batch 1 selected no graph runtime, added no unconsumed schema, and
-activated no SRE capability addition.
-
-Items disposed by an accepted decision rather than a closure review:
-[`EVAL-002`](decisions/2026-08-22-agent-discovery-calibration.md) (agent-target discovery is
-calibration, never a regression gate),
-[`REVIEW-001`](decisions/2026-08-22-production-review-boundary.md) (independent exact-SHA review is
-required for a production deployment of new bytes, not for every merge), and
-[`NAV-001`](decisions/2026-08-22-incident-navigation-archive.md) (incident-navigation rejected and
-archived).
 
 ## Item contract
 
@@ -478,7 +441,7 @@ codes, and whether the guard file resolves under `CLAUDE_PLUGIN_ROOT` — and it
 installed plugin, not only from a repository checkout.
 
 **Source:** Owner-requested usability review, 2026-08-13. `fleet_doctor` covers git revision,
-worktree state, fleet contracts, plan status, host CLIs, plugin inventory, and Codex agent parity —
+worktree state, fleet contracts, plan status, host CLIs, and plugin inventory —
 none of which is a failure mode users actually hit. The three that are load-bearing are unchecked:
 the hook is the only mechanism that arms the guard (`scripts/readonly-guard.py` docstring), and
 `scripts/readonly-guard-hook.sh` denies **all** Bash session-wide, main loop included, when no

@@ -102,7 +102,7 @@ Route to the relevant method without loading sibling skills:
 Author only the canonical plugin source: agents at `agents/<name>.md`, skills at
 `skills/<name>/SKILL.md`, and the manual `adr` scaffold at `commands/adr.md`. Claude loads those
 files directly. `scripts/generate_platform_adapters.py --write` produces the committed Copilot/
-VS Code and Codex projections; never edit a generated root.
+VS Code projection; never edit a generated root.
 
 ### Agent
 

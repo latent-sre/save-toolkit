@@ -28,9 +28,9 @@ also write a postmortem; record that separate artifact as a learning disposition
 
 **Do not execute anything: every command in an operational artifact must come from evidence.** The
 canonical Claude profile omits Bash, web tools, and Agent delegation. Copilot receives no execute or
-web tool. Codex custom-agent TOML cannot deny inherited tools, so on Codex this prohibition is
-cooperative unless the parent also removes execution and egress; report that limitation rather than
-using inherited authority.
+On a host that cannot deny inherited tools per agent this prohibition is cooperative unless the
+parent also removes execution and egress; report that limitation rather than using inherited
+authority.
 
 Edit/Write grants are workspace-wide on Claude; they cannot be restricted to documentation paths in
 agent frontmatter. The requested diff, repository review, and outer filesystem permissions are the

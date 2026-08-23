@@ -19,6 +19,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   or named manual consumer called them.
 - Retired the stale local Sol evaluation and unimplemented durable-state backlog items, retaining
   their historical evidence and explicit consumer-driven reopen triggers.
+- Retired Codex as a **distribution target**: the generated `.codex/agents/` and
+  `plugins/save-toolkit/` projections and the conflict-safe agent installer are gone
+  ([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)). Codex remains a
+  supported way to *work in* this repository — it reads the root `AGENTS.md` and needs none of
+  those bytes. **Breaking for anyone who installed the Codex agents or skills plugin:** deleting
+  the projections cannot reach copies already written into a Codex home, and the marker-aware
+  installer that owned them is removed here. The ADR's *Migration* section carries the exact
+  cleanup — match the whole first line against the `save-toolkit`/`sre-agents` markers, never a
+  filename or prefix, because a sibling fleet's `sde-agents` marker differs by one character and
+  shares three role names.
 
 ## [0.1.0] - 2026-08-11
 

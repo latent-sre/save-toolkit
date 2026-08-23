@@ -233,7 +233,7 @@ reference; the rendered string is identical, so routing and evals are unaffected
 earlier version of this section claimed they would land literally in the projections and told
 authors to reword instead; that was **wrong** and is corrected here. [probed 2026-08-19, CLI
 2.1.236] The four descriptions that carry escapes (`sre`, `sde`, `scribe`,
-`observability-engineer`) hold 8 escaped-quote pairs each in canonical, Copilot, and Codex form —
-byte-identical across all three, every one decoding cleanly as a double-quoted string — and
+`observability-engineer`) hold 8 escaped-quote pairs each in canonical and Copilot form —
+byte-identical across both, every one decoding cleanly as a double-quoted string — and
 `claude plugin tag --dry-run` completes on this tree, printing the tag it would create rather than
 failing to parse. So quote the scalar and escape what you must; no punctuation reword is owed.

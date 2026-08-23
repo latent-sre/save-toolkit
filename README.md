@@ -3,8 +3,8 @@
 A multi-host engineering plugin: **8 agents and 30 skills** for application engineering and site
 reliability work — build/review/ship lanes, incident command, PCF and GCP triage, observability, and
 evidence-bound documentation. Claude Code reads the canonical [`agents/`](agents) and
-[`skills/`](skills) directly; GitHub Copilot/VS Code and Codex receive committed projections from
-one deterministic generator, never edited by hand.
+[`skills/`](skills) directly; GitHub Copilot/VS Code receives a committed projection from one
+deterministic generator, never edited by hand.
 
 > **Pre-release (0.1.0).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
@@ -23,9 +23,9 @@ claude plugin install save-toolkit@latent-sre
 skill projection. For other workspaces install at user level (`~/.copilot/agents/`,
 `~/.copilot/skills/`); copied agent files arrive without their skills.
 
-**Codex:** `codex plugin marketplace add latent-sre/save-toolkit` and
-`codex plugin add save-toolkit@latent-sre` install the skills; agents are a separate conflict-safe
-install from a checkout: `python scripts/install_codex_agents.py --target <project>/.codex/agents`.
+**Codex:** the fleet is not distributed to Codex. Codex working *in* this repository picks up the
+root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs
+([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)).
 
 **Before first use:** [`skills/stack-profile/SKILL.md`](skills/stack-profile/SKILL.md) declares
 *this* team's stack (PCF, GCP Cloud Run, Wavefront, Splunk, Akamai). Every platform-touching skill

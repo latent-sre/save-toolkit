@@ -13,8 +13,8 @@ runs Bash under the fail-closed allowlist guard (the repo's `readonly-guard.py`,
 plugin-level session hook). `sde`, `observability-engineer`, and `prompt-engineer` retain unguarded
 Bash (team-authored repository work; Grafana dashboard applies), so host/network egress controls
 remain load-bearing even though their direct web tools are absent. Verify every claim against agent
-frontmatter and guard tests; generated Codex profiles need outer isolation because their TOML cannot
-deny inherited tools.
+frontmatter and guard tests; a host that cannot deny inherited tools per agent needs outer isolation
+instead.
 
 ## Integration design
 
