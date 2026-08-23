@@ -3,9 +3,30 @@
 - **Date:** 2026-08-23
 - **Status:** Accepted
 - **Decision owner:** `latent-sre`
-- **Supersedes:** clauses 3, 5, and 6 of
-  [`2026-07-31-multi-platform-plugin-packaging.md`](2026-07-31-multi-platform-plugin-packaging.md),
-  only as they concern Codex. That ADR's Claude and Copilot/VS Code clauses stand unchanged.
+- **Supersedes**, in each case *only as it concerns Codex* — every Claude and Copilot/VS Code clause
+  in these records stands unchanged:
+  - [`2026-07-31-multi-platform-plugin-packaging.md`](2026-07-31-multi-platform-plugin-packaging.md)
+    clauses **3** (Codex named among the generated roots), **5** (Codex agents as standalone TOML
+    with a conflict-safe installer), **6** (the Codex `agents/openai.yaml` invocation policy), and
+    the **installer-collision** term of clause 7 — that installer is deleted here, so its collision
+    behavior is no longer a structural gate. Clause 7's other terms (generated drift, manifest
+    parity, hook wiring, authority, exact MCP grants) remain in force.
+  - [`2026-07-31-local-external-research-separation.md`](2026-07-31-local-external-research-separation.md)
+    clause **5** and its Codex consequence: with no generated Codex profiles, there is no profile to
+    make the outer-isolation claim about. The local/external split itself is untouched and still
+    enforced by tool absence on Claude.
+
+  Deliberately **not** superseded: the rename ADRs
+  ([`2026-08-04`](2026-08-04-observability-engineer-rename.md),
+  [`2026-08-05`](2026-08-05-language-idiom-rename.md),
+  [`2026-08-05-save-toolkit-rename.md`](2026-08-05-save-toolkit-rename.md)) mention Codex only as
+  dated evidence of what those renames touched, and `docs/rules.md` requires leaving such records
+  under their old vocabulary rather than rewriting recorded results.
+  [`2026-08-01-local-sol-conformance.md`](2026-08-01-local-sol-conformance.md) is already
+  superseded, [`2026-08-11-codex-terra-routing.md`](2026-08-11-codex-terra-routing.md) already
+  records its evaluator as retired, and
+  [`2026-08-11-immutable-release-promotion.md`](2026-08-11-immutable-release-promotion.md) governs
+  release machinery that `main` retired independently in `1d9d8f7`.
 
 ## Decision
 
@@ -91,20 +112,51 @@ machine at the time of writing, zero save-toolkit agents were installed.
 Look in the user scope (`$CODEX_HOME/agents`, default `~/.codex/agents`) and in any project scope
 that was passed to `--target` (typically `<project>/.codex/agents`). List before deleting:
 
+PowerShell:
+
 ```powershell
 $markers = @(
   '# Managed by save-toolkit scripts/install_codex_agents.py; do not edit.',
   '# Managed by sre-agents scripts/install_codex_agents.py; do not edit.'
 )
-$dirs = @("$env:CODEX_HOME\agents", "$HOME\.codex\agents", "<project>\.codex\agents")
-$owned = Get-ChildItem $dirs -Filter *.toml -ErrorAction SilentlyContinue |
-  Where-Object { $markers -contains (Get-Content $_.FullName -TotalCount 1) }
-$owned | Select-Object FullName          # review this list first
-$owned | Remove-Item                     # then remove exactly those files
+# Only include the user scope that actually applies. Interpolating an unset $env:CODEX_HOME would
+# yield '\agents', i.e. the root of the current drive -- not something to hand a delete loop.
+$dirs = @()
+if ($env:CODEX_HOME) { $dirs += (Join-Path $env:CODEX_HOME 'agents') }
+else                 { $dirs += (Join-Path $HOME '.codex\agents') }
+$dirs += '<project>\.codex\agents'      # repeat for each --target used; drop if never installed
+$dirs = $dirs | Where-Object { Test-Path -LiteralPath $_ }
+
+$owned = Get-ChildItem -LiteralPath $dirs -Filter *.toml |
+  Where-Object { $markers -contains (Get-Content -LiteralPath $_.FullName -TotalCount 1) }
+$owned | Select-Object -ExpandProperty FullName    # review this list first
+$owned | Remove-Item -LiteralPath { $_.FullName }  # then remove exactly those files
 ```
 
-`-contains` compares whole strings, which is the safety property here; a `-match` or `-like` filter
-would reintroduce the partial-match hazard the warning above describes.
+POSIX shell (the retired installer was cross-platform Python, so a Linux or macOS install is the
+ordinary case, not an edge one):
+
+```sh
+marker_current='# Managed by save-toolkit scripts/install_codex_agents.py; do not edit.'
+marker_legacy='# Managed by sre-agents scripts/install_codex_agents.py; do not edit.'
+
+for dir in "${CODEX_HOME:-$HOME/.codex}/agents" "<project>/.codex/agents"; do
+  [ -d "$dir" ] || continue
+  for f in "$dir"/*.toml; do
+    [ -e "$f" ] || continue
+    first=$(head -n 1 "$f")
+    if [ "$first" = "$marker_current" ] || [ "$first" = "$marker_legacy" ]; then
+      printf '%s\n' "$f"        # review first; then re-run with the next line uncommented
+      # rm -- "$f"
+    fi
+  done
+done
+```
+
+Both forms compare the **whole** first line: PowerShell's `-contains` and the shell's `[ "$first" =
+... ]` are equality, not pattern matching. A `-match`, `-like`, `case`, or `grep` filter would
+reintroduce the partial-match hazard the warning above describes. `-LiteralPath` and `--` keep a
+filename containing `[`, `]`, `*`, or `-` from being treated as a pattern or an option.
 
 If the skills plugin was ever registered, also run:
 

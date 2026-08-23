@@ -187,11 +187,7 @@ def _installed_resource(match: re.Match[str]) -> str:
     return f"the installed `{name}` skill's `{tail.lstrip('/')}` resource"
 
 
-def _canonical_agent_names(root: Path) -> frozenset[str]:
-    return frozenset(path.stem for path in (root / "agents").glob("*.md"))
-
-
-def adapt_text(text: str, host: str, *, agent_names: frozenset[str] = frozenset()) -> str:
+def adapt_text(text: str, host: str) -> str:
     """Remove Claude-only runtime addressing while preserving the authored method."""
 
     if host != "copilot":
@@ -257,11 +253,11 @@ def render_copilot_agent(source: Path) -> str:
 
 
 def _portable_skill(
-    source: Path, host: str, *, agent_names: frozenset[str] = frozenset()
+    source: Path, host: str
 ) -> tuple[bytes, bool]:
     fields, body, raw_lines = parse_frontmatter(source)
     explicit = str(fields.get("name")) in MANUAL_ONLY or fields.get("disable-model-invocation") == "true"
-    portable_frontmatter = adapt_text("\n".join(raw_lines), host, agent_names=agent_names)
+    portable_frontmatter = adapt_text("\n".join(raw_lines), host)
     note = [
         f"> **{host.capitalize()} adapter:** Fleet component names are bare in this generated copy.",
         "> Resolve them from the installed plugin using the host's agent or skill picker.",
@@ -275,7 +271,7 @@ def _portable_skill(
         + f"<!-- {GENERATED_MARKER} -->\n\n"
         + "\n".join(note)
         + "\n\n"
-        + adapt_text(body, host, agent_names=agent_names)
+        + adapt_text(body, host)
     )
     return rendered.encode("utf-8"), explicit
 
@@ -348,7 +344,6 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
             raise ValueError(f"{source}: canonical source must not be a link/reparse point")
         outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = render_copilot_agent(source).encode("utf-8")
 
-    agent_names = _canonical_agent_names(root)
     skill_files = _canonical_skill_files(root)
     if not any(path.name == "SKILL.md" for path in skill_files):
         raise ValueError(f"{root / 'skills'}: no canonical skills found")
@@ -589,7 +584,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.write:
             count = write_generated_outputs(root)
             print(f"Generated {count} adapter file(s).")
-        failures = validate_generated_outputs(root)
+        # Everything validate_platform_support() covers except the contract check already run
+        # above. Without the retired-root check here, this CLI printed PASS over a stale
+        # `.codex/agents/` or `plugins/save-toolkit/` left in an upgraded checkout — host-loadable
+        # content that is `.gitignore`d, so neither git nor this command would have said a word.
+        failures = (
+            validate_generated_outputs(root)
+            + _retired_generated_root_failures(root)
+            + _gitattributes_failures(root)
+        )
     except (OSError, UnicodeError, ValueError) as exc:
         print(exc)
         return 1

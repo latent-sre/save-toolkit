@@ -19,6 +19,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   or named manual consumer called them.
 - Retired the stale local Sol evaluation and unimplemented durable-state backlog items, retaining
   their historical evidence and explicit consumer-driven reopen triggers.
+- Retired Codex as a **distribution target**: the generated `.codex/agents/` and
+  `plugins/save-toolkit/` projections and the conflict-safe agent installer are gone
+  ([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)). Codex remains a
+  supported way to *work in* this repository — it reads the root `AGENTS.md` and needs none of
+  those bytes. **Breaking for anyone who installed the Codex agents or skills plugin:** deleting
+  the projections cannot reach copies already written into a Codex home, and the marker-aware
+  installer that owned them is removed here. The ADR's *Migration* section carries the exact
+  cleanup — match the whole first line against the `save-toolkit`/`sre-agents` markers, never a
+  filename or prefix, because a sibling fleet's `sde-agents` marker differs by one character and
+  shares three role names.
 
 ## [0.1.0] - 2026-08-11
 
@@ -30,18 +40,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 ### Added
 
 - Eight canonical engineering and SRE agents, with 30 canonical skills and one ADR command.
-- A deterministic Copilot/VS Code projection generated from the Claude-native sources. Codex was
-  retired as a distribution target on 2026-08-23 before this version shipped; it remains a
-  supported way to work in the repository, reading the root `AGENTS.md`
-  ([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)).
-  **Breaking for anyone who installed the Codex agents or skills plugin.** Deleting the projections
-  cannot reach copies already written into a Codex home, and the marker-aware installer that owned
-  them is gone. The ADR's *Migration* section carries the exact cleanup — match the whole first line
-  against the `save-toolkit`/`sre-agents` markers, never a filename or prefix, because a sibling
-  fleet's `sde-agents` marker differs by one character and shares three role names.
+- Deterministic Copilot/VS Code and Codex projections generated from the Claude-native sources.
 - Fail-closed guarded-Bash enforcement for the SRE lane, plus structural tests for
   tool authority, hook wiring, generated-byte parity, links, schemas, and routing scenarios.
-- Disposable host install/inventory/uninstall probes that do not write user-owned configuration.
+- Conflict-safe standalone Codex-agent installation and disposable host install/inventory/uninstall
+  probes that do not write user-owned configuration.
 - Evidence envelopes, evidence-bound operational documentation closeout, release/readiness gates,
   and the single Gate A structural entrypoint used on Linux and Windows.
 - Exact-SHA immutable release preparation with permanent version reservations, non-replacing request
@@ -76,10 +79,12 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   token-level redirect detection, `>/dev/null`, `2>&1`, `timeout <n> <allowed command>`, and
   display-only `date`) without weakening command-substitution or backgrounding rules.
 - Release host proof derives exact ordinary-file paths and Git blob bytes from the observed tagged
-  commit, then requires both the marketplace and installed Claude trees to match before publication
+  commit, then requires both marketplace and installed Claude/Codex trees to match before publication
   can finalize; linked, special, missing, changed, and extra content fails closed.
 
 ### Known limitations
 
 - Copilot CLI distribution is out of scope by owner decision; VS Code discovery is verified at the
   workspace-file level, not through its UI.
+- Codex custom-agent discovery is verified at the installed-file level; no model session is part of
+  the release smoke.
