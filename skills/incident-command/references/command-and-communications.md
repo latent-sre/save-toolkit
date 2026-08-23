@@ -46,7 +46,9 @@ update goes out within the hour.
 - **Update:** What changed since the previous update, current state (`investigating`, `mitigating`,
   or `monitoring`), mitigation progress or ETA, and the next update time.
 - **Resolution:** When impact ended, root-cause summary or `[unverified] — under investigation`,
-  what was done, follow-ups with owners, and whether a postmortem will follow.
+  what was done, follow-ups with owners, and the required retrospective commitment: a full
+  blameless postmortem for P1, a postmortem for P2, or an abbreviated postmortem for P3. P4 follows
+  normal work-queue policy.
 
 ## Downgrade and resolve
 

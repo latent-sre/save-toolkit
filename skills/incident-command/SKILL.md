@@ -39,7 +39,7 @@ when unsure: declaring is cheap; under-declaring leaves impact unowned.
 
 | If the request involves… | Read first |
 |---|---|
-| Classifying or revising P1-P4, bounding impact, deciding whether to declare, or escalation cadence | [Severity and declaration](./references/severity-and-declaration.md) |
+| Classifying or revising P1-P4, bounding impact, deciding whether to declare, choosing paging or escalation recipients, or setting escalation cadence | [Severity and declaration](./references/severity-and-declaration.md) |
 | Assigning roles, maintaining the status block or timeline, drafting initial/update/resolution communications, downgrading, or closing | [Command and communications](./references/command-and-communications.md) |
 | Choosing rollback, route remap, restart, scale, flag, or dependency mitigation and preparing its human-approval packet | [Mitigation selection](./references/mitigation-selection.md) |
 
