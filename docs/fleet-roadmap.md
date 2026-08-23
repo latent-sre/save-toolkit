@@ -397,7 +397,7 @@ and each individually omitted required checklist acknowledgement (446/446 offlin
 CLI 2.1.241 runs `20260823T021128Z-d180d56d` and `20260823T021249Z-28262e5d` returned
 `APPROVED` 2/2 and `BLOCKED` 2/2 respectively; every response grader passed and only `skill-fired`
 remained red because all four traces still reported `skills=[]`. *[verified]*
-Exact-head rereview hardening on candidate `3f06dcc05edf8fd69eb9c0556164498387698f07` also rejects
+Plugin-input rereview hardening on candidate `3f06dcc05edf8fd69eb9c0556164498387698f07` also rejects
 direct `does not establish` authority, double-negated missing evidence, and individually negated
 checklist acknowledgements (466/466 offline checks). Run `20260823T023336Z-c0983823` exposed and
 stopped on a Windows CP1252 diagnostic failure before completing; a red-first portability check now
