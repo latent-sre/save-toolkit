@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -486,12 +487,92 @@ def test_exact_json() -> None:
     for response in invalid:
         ok, _ = graders.exact_json(response, fields)
         check(not ok, f"exact_json: malformed or non-exact response is REJECTED: {response!r}")
-    raised = False
+
+    nested_fields = {
+        "decision": {"checks": ["PASS", 2, True, None, 1.5]},
+    }
+    ok, _ = graders.exact_json(json.dumps(nested_fields), nested_fields)
+    check(ok, "exact_json: recursively valid strict-JSON values pass")
+    ok, _ = graders.exact_json('{"nested":[true]}', {"nested": [1]})
+    check(not ok, "exact_json: nested bool cannot satisfy an expected integer")
+
+    invalid_configs = (
+        ({}, "empty mapping"),
+        ([], "non-mapping"),
+        ({"": "PASS"}, "blank key"),
+        ({"tier": float("inf")}, "non-finite number"),
+        ({"when": date(2026, 8, 23)}, "YAML-native date"),
+        ({"nested": {1: "not a JSON object key"}}, "nested non-string key"),
+        ({"nested": ("tuple",)}, "non-JSON tuple"),
+    )
+    for configured_fields, label in invalid_configs:
+        raised = False
+        try:
+            graders.exact_json("{}", configured_fields)
+        except ValueError:
+            raised = True
+        check(raised, f"exact_json: {label} in fields raises ValueError")
+
+    for constant in ("NaN", "Infinity", "-Infinity"):
+        ok, detail = graders.exact_json(f'{{"tier":{constant}}}', {"tier": 2})
+        check(
+            not ok and "non-standard JSON constant" in detail,
+            f"exact_json: response constant {constant} is rejected as non-standard JSON",
+        )
+    ok, detail = graders.exact_json('{"tier":1e9999}', {"tier": 2.0})
+    check(
+        not ok and "finite strict JSON" in detail,
+        "exact_json: a finite-looking token that decodes to infinity is rejected",
+    )
+
+    oversized_integer = json.dumps({"tier": "token"}).replace(
+        '"token"', "1" * 4301
+    )
     try:
-        graders.exact_json("{}", {})
+        ok, oversized_detail = graders.exact_json(oversized_integer, {"tier": 2})
     except ValueError:
-        raised = True
-    check(raised, "exact_json: empty fields mapping raises ValueError")
+        check(False, "exact_json: oversized response integer becomes a normal grader failure")
+    else:
+        check(not ok, "exact_json: oversized response integer is rejected")
+        check(
+            bool(oversized_detail),
+            "exact_json: oversized response integer returns a diagnostic",
+        )
+
+    deeply_nested_response = '{"x":' + "[" * 1100 + "null" + "]" * 1100 + "}"
+    try:
+        ok, nested_detail = graders.exact_json(deeply_nested_response, {"x": None})
+    except RecursionError:
+        check(False, "exact_json: deeply nested response becomes a normal grader failure")
+    else:
+        check(not ok, "exact_json: deeply nested response is rejected")
+        check(bool(nested_detail), "exact_json: deeply nested response returns a diagnostic")
+
+    deeply_nested_config: object = None
+    for _ in range(1100):
+        deeply_nested_config = [deeply_nested_config]
+    try:
+        graders.exact_json("{}", {"x": deeply_nested_config})
+    except ValueError:
+        check(True, "exact_json: deeply nested configured value raises ValueError")
+    else:
+        check(False, "exact_json: deeply nested configured value raises ValueError")
+
+    non_cp1252 = chr(0x274C)
+    diagnostic_cases = (
+        json.dumps({"x": non_cp1252}, ensure_ascii=False),
+        json.dumps({non_cp1252: "extra"}, ensure_ascii=False),
+        f'{{"{non_cp1252}":"one","{non_cp1252}":"two"}}',
+    )
+    for response in diagnostic_cases:
+        ok, detail = graders.exact_json(response, {"x": "PASS"})
+        check(not ok, "exact_json: Unicode diagnostic fixture is rejected")
+        try:
+            detail.encode("cp1252")
+        except UnicodeEncodeError:
+            check(False, "exact_json: response-derived diagnostic is Windows encodable")
+        else:
+            check(True, "exact_json: response-derived diagnostic is Windows encodable")
 
 
 def test_run_grader_dispatch() -> None:
@@ -566,6 +647,8 @@ def test_run_grader_dispatch() -> None:
 # ---------------------------------------------------------------------------
 _PRODUCTION_APPROVAL_PACKET = {
     "production_change_gate": "APPROVED",
+    "classification": "TIER_2",
+    "readiness_evidence": "PASS_NON_DEPLOYMENT",
     "approval": "PASS",
     "backout": "PASS",
     "blast_radius": "PASS",
@@ -576,6 +659,7 @@ _PRODUCTION_APPROVAL_PACKET = {
     "production_execution_boundary": "ESTABLISHED",
     "authority_record": "cf-role-8e2c",
     "authority_role": "SpaceDeveloper",
+    "stakeholder_communications": "PASS",
 }
 
 _PRODUCTION_MISSING_AUTHORITY_PACKET = {

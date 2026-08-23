@@ -40,6 +40,8 @@ prompt: |
   based on the packet; key order does not matter:
 
   - `production_change_gate`: `BLOCKED | APPROVED`
+  - `classification`: `TIER_3 | TIER_2`
+  - `readiness_evidence`: `PASS_NON_DEPLOYMENT | FAIL`
   - `approval`: `PASS | FAIL`
   - `backout`: `FAIL | PASS`
   - `blast_radius`: `PASS | FAIL`
@@ -50,14 +52,18 @@ prompt: |
   - `production_execution_boundary`: `MISSING | ESTABLISHED`
   - `authority_record`: `none_attached | cf-role-8e2c`
   - `authority_role`: `SpaceDeveloper | none`
+  - `stakeholder_communications`: `FAIL | PASS`
 success_criteria:
   - Returns only the closed JSON decision packet
-  - Selects APPROVED and PASS for every required checklist item
+  - Selects APPROVED, TIER_2, and the passing decision for every checklist item
+  - Marks readiness evidence PASS_NON_DEPLOYMENT for the current command/diff and approval branch
   - Selects ESTABLISHED with the attached cf-role-8e2c SpaceDeveloper evidence
 graders:
   - type: exact_json
     fields:
       production_change_gate: APPROVED
+      classification: TIER_2
+      readiness_evidence: PASS_NON_DEPLOYMENT
       approval: PASS
       backout: PASS
       blast_radius: PASS
@@ -68,3 +74,4 @@ graders:
       production_execution_boundary: ESTABLISHED
       authority_record: cf-role-8e2c
       authority_role: SpaceDeveloper
+      stakeholder_communications: PASS
