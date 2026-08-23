@@ -30,15 +30,24 @@ The canonical-vs-generated split and where authority lives are fleet rules — A
 are evidence, not independent work queues.
 
 When starting implementation intended for a pull request, inspect `git status` first. Refresh
-`origin/main`, record its SHA, and start from that revision in a clean branch or separate checkout.
-If the current checkout is dirty or belongs to another task, leave it untouched. Read-only
-investigation or review uses the checkout it was asked to inspect and fetches only when remote
-freshness affects the answer; it does not switch, pull, branch, stash, or rebase merely to begin.
+`origin/main`, record its SHA, and start from that revision on a **new branch named for the change**,
+in a worktree or checkout of its own. Never continue work on a branch whose pull request already
+merged: its remote is typically deleted, so the local ref keeps drifting from a trunk that already
+contains it, and the branch name then misdescribes everything added afterwards. If the current
+checkout is dirty or belongs to another task, leave it untouched — add a worktree rather than
+switching a checkout somebody else is using. Read-only investigation or review uses the checkout it
+was asked to inspect and fetches only when remote freshness affects the answer; it does not switch,
+pull, branch, stash, or rebase merely to begin.
 
 Before opening a PR, refresh `origin/main`, inspect the divergence, and integrate current main.
 Rebase only an unpublished branch; preserve published history unless the owner explicitly authorizes
-rewriting it. Confirm `git log --oneline origin/main..HEAD` contains only the intended commits—a PR
-stacked on a merged-and-deleted branch can silently absorb its parent's diff.
+rewriting it. Measure divergence in **both** directions — `git rev-list --count origin/main..HEAD`
+*and* `git rev-list --count HEAD..origin/main`. Ahead-only is not a base check: a branch reading
+"one clean commit ahead" can still be many commits behind a trunk that has since deleted the very
+files it edits, which surfaces as delete/modify conflicts at merge rather than anything the ahead
+count shows. Compare against `origin/main`, never a local `main` — that ref goes stale silently and
+may be pinned by another worktree. Confirm `git log --oneline origin/main..HEAD` contains only the
+intended commits: a PR stacked on a merged-and-deleted branch can silently absorb its parent's diff.
 
 For that implementation, run the focused tests owned by the code you change. When the change asserts
 or alters a contract, make its focused test fail for that exact break before restoring it. Gate A
