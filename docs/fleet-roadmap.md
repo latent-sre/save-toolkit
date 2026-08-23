@@ -142,10 +142,9 @@ shows the payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-23) — the `incident-command`, `ops-tooling`, and `agent-security`
-router slices merged in PRs #142, #143, and #145. `ci-actions` is the only completed fourth-router
-candidate pending owner acceptance in PR #146; `pcf-deploy` is the only completed fifth-router
-candidate pending owner acceptance on its isolated dependent branch. No sixth candidate is edited.
+**Status:** `active` (2026-08-23) — the first five router slices merged: `incident-command` in PR
+#142, `ops-tooling` in #143, `agent-security` in #145, `ci-actions` in #146, and `pcf-deploy` in
+#147. No sixth candidate is edited; `pcf-ops` is only the next measured candidate.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -323,16 +322,15 @@ one required regeneration produced 144 supported Copilot adapter files; the reti
 content is unchanged, and no paid routing run was required or performed. Gate A remains the single
 push-boundary check.
 
-`[verified]` Remeasurement of exact implementation commit `a5c425d` leaves five candidates.
-`pcf-deploy` is largest at 10,351 unconditional entrypoint bytes with no routed references, so it is
-the next one-skill candidate after the fourth-slice pull request is green. Its dependent pull request
-must target the fourth-slice branch until the stack is accepted.
+`[verified]` Remeasurement of exact implementation commit `a5c425d` left five candidates and selected
+`pcf-deploy`, then the largest at 10,351 unconditional entrypoint bytes with no routed references,
+for the fifth one-skill slice.
 
-`[verified]` PR #146 is open against `main` at final head
-`a8bcefd8a38064181fdf946573edbf68c70ce226`; Linux validation, Windows validation, and the Claude
-plugin contract are green and GitHub reports the branch clean. The owner explicitly authorized one
-next isolated dependent branch, so `pcf-deploy` starts from that exact head and its pull request must
-target the PR #146 branch.
+`[verified]` PR #147 merged exact head `1034bc9a0807974293c667eb2938e2cbbb63acc7` into the PR #146
+branch as `f6eeb59e741a859bbdc9cc42c900fe2e9f297c92` on 2026-08-23. PR #146 then merged that exact final
+head into `main` as `829af56032ab921fdde208ae7c57f4ae329c9293`. Linux validation, Windows
+validation, and the Claude plugin contract passed on `f6eeb59`; both reviewed implementation commits
+are ancestors of the resulting `main`.
 
 `[verified]` Fifth bounded implementation commit
 `af9cb4bf7ba2a04a557160b975dd1b22913ae7bc` converts only `pcf-deploy`. Its byte-identical
@@ -370,10 +368,10 @@ affected routing scenario; no paid routing run was required or performed. Host a
 final-response quality, and deployment runtime behavior remain `[unverified]`. Gate A remains the
 single push-boundary check.
 
-`[verified]` Remeasurement of exact implementation commit `af9cb4b` leaves four candidates.
+`[verified]` Post-merge remeasurement of exact current-main commit `829af56` leaves four candidates.
 `pcf-ops` is largest at 10,173 unconditional entrypoint bytes with 1,543 routed reference bytes. It
-is not started automatically; select it only after the fifth-slice pull request is accepted and a
-fresh measurement confirms the ordering.
+is not started automatically; current-main inspection and an owner-accepted one-skill scope come
+before any edit.
 
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
@@ -386,11 +384,11 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Open the `pcf-deploy` pull request against the PR #146 branch and require its normal
-CI on the exact head. After owner acceptance, remeasure the accepted head before selecting one sixth
-candidate; do not assume the historical ordering or start `pcf-ops` automatically. Do not rerun
-unchanged `incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a
-future comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder`
+**Next action:** Inspect `pcf-ops` on exact current-main commit `829af56` and present one bounded
+router scope, expected files, and focused verification for owner acceptance before editing. Refresh
+the measurement if `main` moves; do not assume the historical ordering or start a broader rewrite.
+Do not rerun unchanged `incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout
+only if a future comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder`
 after-change run bounded to its overlapping scenarios and separate from this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
