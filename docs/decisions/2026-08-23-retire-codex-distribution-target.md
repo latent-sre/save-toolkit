@@ -62,6 +62,57 @@ carried across. We were paying full projection cost for the weakest enforcement 
   not a reason to let a tool reach a real Codex home on the operator's machine.
 - Host-adapter search collapses from three copies of `skills/` to two.
 
+## Migration: this retirement is breaking for anyone who installed
+
+Deleting the repository's projections cannot reach copies already written into a Codex home. The
+conflict-safe installer that owned those copies — and was the only thing that could remove them
+without touching unmanaged roles — is deleted by this change, so cleanup is a documented manual step
+rather than a tool.
+
+Measured before choosing that: no release tag has ever existed (local or remote), so the plugin was
+never published, and the only install path was the previously documented
+`install_codex_agents.py --target <project>/.codex/agents` run from a checkout. On the maintainer
+machine at the time of writing, zero save-toolkit agents were installed.
+
+**A managed file is one whose *entire first line* is exactly one of these:**
+
+```
+# Managed by save-toolkit scripts/install_codex_agents.py; do not edit.
+# Managed by sre-agents scripts/install_codex_agents.py; do not edit.
+```
+
+> **Do not delete by filename, prefix, or partial match.** Codex resolves custom agents from one
+> flat directory shared with every other installed suite. A sibling fleet writes
+> `# Managed by sde-agents scripts/install_codex_agents.py; do not edit.` — `sde`, not `sre`, a
+> **one-character** difference — and its roles include `prompt-engineer`,
+> `repository-investigator`, and `researcher`, which share names with this fleet's. Match the whole
+> line, and leave anything marked `sde-agents` alone.
+
+Look in the user scope (`$CODEX_HOME/agents`, default `~/.codex/agents`) and in any project scope
+that was passed to `--target` (typically `<project>/.codex/agents`). List before deleting:
+
+```powershell
+$markers = @(
+  '# Managed by save-toolkit scripts/install_codex_agents.py; do not edit.',
+  '# Managed by sre-agents scripts/install_codex_agents.py; do not edit.'
+)
+$dirs = @("$env:CODEX_HOME\agents", "$HOME\.codex\agents", "<project>\.codex\agents")
+$owned = Get-ChildItem $dirs -Filter *.toml -ErrorAction SilentlyContinue |
+  Where-Object { $markers -contains (Get-Content $_.FullName -TotalCount 1) }
+$owned | Select-Object FullName          # review this list first
+$owned | Remove-Item                     # then remove exactly those files
+```
+
+`-contains` compares whole strings, which is the safety property here; a `-match` or `-like` filter
+would reintroduce the partial-match hazard the warning above describes.
+
+If the skills plugin was ever registered, also run:
+
+```
+codex plugin remove save-toolkit@latent-sre
+codex plugin marketplace remove latent-sre
+```
+
 ## Alternatives considered
 
 - **Keep generating, stop testing.** Rejected: an unproven projection is worse than none — it looks

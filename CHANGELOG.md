@@ -34,6 +34,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   retired as a distribution target on 2026-08-23 before this version shipped; it remains a
   supported way to work in the repository, reading the root `AGENTS.md`
   ([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)).
+  **Breaking for anyone who installed the Codex agents or skills plugin.** Deleting the projections
+  cannot reach copies already written into a Codex home, and the marker-aware installer that owned
+  them is gone. The ADR's *Migration* section carries the exact cleanup — match the whole first line
+  against the `save-toolkit`/`sre-agents` markers, never a filename or prefix, because a sibling
+  fleet's `sde-agents` marker differs by one character and shares three role names.
 - Fail-closed guarded-Bash enforcement for the SRE lane, plus structural tests for
   tool authority, hook wiring, generated-byte parity, links, schemas, and routing scenarios.
 - Disposable host install/inventory/uninstall probes that do not write user-owned configuration.
