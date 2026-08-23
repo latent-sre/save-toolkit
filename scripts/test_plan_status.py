@@ -272,16 +272,16 @@ class WorkflowPolicyTests(unittest.TestCase):
         roadmap = self._normalized(self._read("docs/fleet-roadmap.md")).lower()
 
         normalized_agents = self._normalized(agents)
-        self.assertIn("run them through the clean-room runner **after** the change", normalized_agents)
+        self.assertIn("run the overlapping clean-room scenarios **after** the change", normalized_agents)
         self.assertIn(
-            "Run the **before** baseline only for a scenario that comes back red",
+            "run the before baseline only when one comes back red",
             normalized_agents,
         )
         self.assertIn("after-change clean-room runs", rules)
         self.assertNotIn("before and after", pull_request.lower())
         self.assertIn("after-change", pull_request)
         self.assertIn(
-            "after-first shortcut does not replace the incumbent baseline",
+            "compares incumbent and candidate on the same cases and conditions",
             normalized_agents.lower(),
         )
         self.assertIn("failure-driven edit still needs the incumbent baseline", rules.lower())

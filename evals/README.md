@@ -7,53 +7,15 @@ look like a menu even when a path is not runnable or authoritative.
 
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
-| **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. Verified on this host 2026-08-20 against `claude-opus-5[1m]` and `claude-sonnet-5`. |
-| **Codex/Terra ROUTE-001** | **retired 2026-08-22**; historical evidence only | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
-| **Codex/Sol conformance** | **parked** — trimmed from the tree | n/a | recover from tag `pre-trim-2026-08-02` |
+| **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. |
+| **Codex/Terra ROUTE-001** | **retired 2026-08-22** ([decision](../docs/decisions/2026-08-11-codex-terra-routing.md)); its last diagnostic is the [Linux canary packet](../docs/reviews/2026-08-20-route001-linux-canary.md) | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
+| **Codex/Sol conformance** | **parked** ([decision](../docs/decisions/2026-08-01-local-sol-conformance.md)); the 2026-07-31 results are retained but **revoked** as release evidence | n/a | recover from tag `pre-trim-2026-08-02` (`git fetch --tags --depth=1000` first on a shallow clone) |
 | [`baselines/`](baselines) | frozen evidence; the Sol entries are **revoked** | no | read-only; never regenerate |
 
 Active `evals/test_*.py` suites are owner-triggered: run the affected file directly
 (`python evals/test_graders.py`, `python evals/test_run_evals.py`, …) when you change its owning
 harness code. Gate A is structural only and does not run them. Parked execution code stays out of
 the active tree, and frozen evidence remains read-only.
-
-> **Shallow clones:** every "recover from tag `pre-trim-2026-08-02`" instruction in this repository
-> fails with `fatal: unknown revision` unless you fetch tags first
-> (`git fetch --tags --depth=1000`). The tag exists on the remote.
-
-## Codex/Terra ROUTE-001 (retired)
-
-The Codex/Terra evaluator, its container preflight, its single canary, and all eight dedicated test
-suites were retired on 2026-08-22. They produced useful bounded diagnostics, but no baseline or
-release evidence, and no current decision needs a provider-specific evaluator. There is no standing
-paid-eval task or runnable Codex/Terra path in this tree.
-
-The last paired diagnostic found target-blind `gcp-ops` description selection at 3/3 and body
-behavior at 1/3. The two body failures isolated a repository contract conflict: the skill requested
-a Bash fence while the scenario allowed exactly one JSON fence. The skill now preserves the caller's
-fence constraints, and `evals/test_graders.py` carries the offline red-first regression. No paid
-rerun was needed to establish that contract.
-
-The dated [Linux canary evidence packet](../docs/reviews/2026-08-20-route001-linux-canary.md) retains
-the exact diagnostic results and artifact digests. The accepted
-[retirement decision](../docs/decisions/2026-08-11-codex-terra-routing.md) records what was removed,
-why it conferred no authority, and the narrow condition for recovery from Git history.
-
-## Codex/Sol conformance (parked)
-
-The Codex/Sol conformance runners, their contract tests, and the fixed `gpt-5.6-sol` manifests are
-**parked at repository tag `pre-trim-2026-08-02`**. Gate A plus the local Claude runner below is the
-active verification surface; live Sol runs were already gated on separate independent review of an
-exact committed revision and never produced a post-revocation baseline. The parked design, its
-same-user credential limits, and the reopen rationale are recorded in
-[`docs/decisions/2026-08-01-local-sol-conformance.md`](../docs/decisions/2026-08-01-local-sol-conformance.md).
-
-The 2026-07-31 Codex/Sol results are retained as historical diagnostics but are **revoked as release
-evidence**: their harness put `auth.json` in a filesystem visible to model-controlled tools and wrote
-parsed model responses into reports. No credential disclosure was observed, but the method could not
-prove that property. The revocation applies to all five `2026-07-31-codex-sol-*` directories under
-[`baselines/`](baselines); each affected README carries the revocation banner, and the JSON results
-remain unchanged so the historical bytes stay inspectable. No current Sol runtime baseline exists.
 
 ## Claude behavioral evals
 
@@ -132,13 +94,8 @@ any-invocation behavior. The grader derives lineage transiently; private trial r
 the canonical completed root skill and agent identities needed to audit the grade, never ancestry
 IDs through the scoped evidence field.
 
-Agent descriptions are routing hints, not a dispatch guarantee. In one-shot headless Claude Code,
-the main model can answer a request inline even when the matching plugin agent is available and its
-description says to use it proactively. Treat agent-discovery scores as an observational host/model
-metric, run them only for a named host/model question, and stop at the declared trial count. Do not
-infer that a failed discovery trial means the agent's behavior is broken. Direct agent contracts pin
-the agent with `--agent` and are the behavioral gate. For deterministic interactive use, select the
-plugin agent explicitly rather than depending on autonomous delegation.
+Direct agent contracts pin the agent with `--agent` and are the behavioral gate. For deterministic
+interactive use, select the plugin agent explicitly rather than depending on autonomous delegation.
 
 The live result states are `PASS`, `FAIL`, and `INCONCLUSIVE`. A timeout, authentication or runner
 failure, malformed trace, or missing final result is `INCONCLUSIVE`, never a fleet failure. Threshold
@@ -235,8 +192,6 @@ author. Add a new regression prompt before tuning, run calibration while iterati
 regression split once before review. A genuine promotion shadow set must be human-owned outside the
 authoring checkout; record only its digest, case count, result, evaluator identity, and evidence ID.
 Record numerator/denominator, CLI/model, plugin commit, and suite digest for every run.
-Agent-target discovery is the deliberate exception: it is always calibration because the main
-session's decision to delegate is a model/host propensity, not a fleet contract.
 
 ## Failure-to-regression loop
 

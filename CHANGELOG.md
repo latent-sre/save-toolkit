@@ -19,12 +19,12 @@ accumulating here. This section opens once `save-toolkit--v0.1.0` exists.
 
 - Eight canonical engineering and SRE agents, with 29 canonical skills and one ADR command.
 - Deterministic Copilot/VS Code and Codex projections generated from the Claude-native sources.
-- Fail-closed guarded-Bash enforcement for the SRE and observability lanes, plus structural tests for
+- Fail-closed guarded-Bash enforcement for the SRE lane, plus structural tests for
   tool authority, hook wiring, generated-byte parity, links, schemas, and routing scenarios.
 - Conflict-safe standalone Codex-agent installation and disposable host install/inventory/uninstall
   probes that do not write user-owned configuration.
 - Evidence envelopes, evidence-bound operational documentation closeout, release/readiness gates,
-  and the single Gate A structural entrypoint used on Linux, macOS, and Windows.
+  and the single Gate A structural entrypoint used on Linux and Windows.
 - Exact-SHA immutable release preparation with permanent version reservations, non-replacing request
   serialization, attempt-addressed evidence artifacts, and consumer rollback instructions.
 

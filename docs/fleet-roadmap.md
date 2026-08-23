@@ -55,21 +55,11 @@ override. A plugin `PreToolUse` hook can deny the override, but the resulting la
 Git-object isolation, and upgrade matrix were a bespoke security broker disproportionate to this
 fleet. That experiment was removed rather than shipped as a fragile control plane.
 
-**Upstream refresh (2026-08-11):** Claude Code 2.1.227 now exposes the documented built-in
-[`claude ultrareview`](https://code.claude.com/docs/en/ultrareview) subcommand. It removes the old
-caller-supplied workflow-body surface, but does not yet satisfy this item: the research-preview
-contract bundles the current working tree or clones a mutable PR target, documents no immutable
-candidate SHA/digest in `bugs.json`, and exits 0 whether findings are present or absent. It also
-uploads code to Anthropic's cloud sandbox and may consume paid usage credits. `--help` was inspected
-without launching, uploading, posting, or spending; an undocumented live observation would not turn
-these missing guarantees into a supported boundary.
-
-**Contract refresh (2026-08-18):** Context7's current official documentation and GitHits' exact
-Claude Code `v2.1.227` repository agree on the public surface: the non-interactive command prints
-findings, offers raw JSON, and distinguishes completion from command failure. Neither source exposes
-an immutable reviewed-subject field or findings-sensitive approval verdict. WF-001 therefore remains
-blocked; the separate provenance and queries are recorded in the
-[`first-three backlog evidence packet`](reviews/2026-08-18-first-three-backlog-evidence.md).
+**Upstream check (2026-08-18):** Claude Code 2.1.227's built-in `claude ultrareview` removes the
+caller-supplied workflow-body surface but exposes no immutable reviewed-subject identity and no
+findings-sensitive verdict — it exits 0 either way, bundles a mutable tree, and uploads to a paid
+cloud sandbox. Still blocked. Sources and queries: the
+[first-three backlog evidence packet](reviews/2026-08-18-first-three-backlog-evidence.md).
 
 **Prerequisites:** A documented direct-dispatch API, or documented permission semantics that bind
 the registered workflow implementation as well as its name. Any alternative architecture needs an
@@ -116,61 +106,31 @@ immutable release is strictly rebound and reinstalled, or first-release uninstal
 immutability and unknown-outcome/replay behavior are evidenced without moving, deleting, or reusing a
 version tag.
 
-**Current implementation:** The accepted
-[`exact-SHA promotion ADR`](decisions/2026-08-11-immutable-release-promotion.md) chooses one protected
-annotated `save-toolkit--v<version>` tag plus an immutable GitHub Release, never a moving branch.
-The prepared workflow, release-contract/mutation tests, changelog, strict remote-tag host-probe mode,
-and [`release runbook`](release-runbook.md) are repository-local evidence only. The workflow separates
-the configured human requester, distinct environment reviewer, Actions-read/no-write publisher App,
-and environment-only HMAC proof. A non-replacing queue, permanent protected per-run version
-reservation, prior-run/job scan, stable workflow-created issuance time, exact artifact IDs, and
-prior-smoke guard make reruns reconciliation-only. The strict host evidence binds the checkout's
-observed commit to an exact `ls-tree` ordinary-file/Git-blob map, then independently requires both
-marketplace and installed Claude/Codex trees to match; identical non-HEAD source/install bytes and a
-moving `HEAD` both fail closed. Claude Code 2.1.227 and Codex CLI 0.147.0 accepted a tag-pinned public
-marketplace source in credential-isolated disposable probes. The release contracts, workflow mutation
-suite, host-probe suite, Gate A, and Claude strict validation pass on the merged candidate tree. The
-final PR head `4870c61f8b6decd6cce9a25a8120e30ad8a3d9bd` merged unchanged as `main` commit
-`0d7a915d84b452be68a4bed462417a685a815728`; its post-merge Validate fleet run
-[`31573152313`](https://github.com/latent-sre/save-toolkit/actions/runs/31573152313) passed on Linux,
-macOS, and Windows plus the Claude plugin contract.
+**Implementation (merged, PR #103):** the accepted
+[exact-SHA promotion ADR](decisions/2026-08-11-immutable-release-promotion.md) — one protected
+annotated `save-toolkit--v<version>` tag plus an immutable Release; separated requester,
+environment-reviewer, and publisher-App identities; permanent per-run reservation refs; strict host
+evidence binding the checkout's commit to an exact blob map. Preparation-only evidence, byte
+identities, and review boundaries: the
+[release/routing preparation evidence](reviews/2026-08-11-release-routing-backlog-evidence.md). The
+clean dry-run derives `save-toolkit--v0.1.0`; no tag or Release exists.
 
-The pre-merge hash-bound review found no P0/P1 in the release state machine; the follow-up host
-edge-case fixtures received no P0-P2 finding. Exact counts, byte identities, review boundaries, and
-authorization limits are bound in the dated preparation-only
-[`release/routing preparation evidence`](reviews/2026-08-11-release-routing-backlog-evidence.md). The
-clean exact-commit tag dry-run derives `save-toolkit--v0.1.0`; no force flag was used and no tag or
-Release was created.
+**Live blockers:**
 
-**Live blockers:** The merge step is complete. The Claude authority-census false pass now has a
-red-first defense-in-depth repair: an unlisted persistent `history.jsonl` write failed before the
-change and is caught after the probe switches from five selected paths to the complete lexical
-user-configuration root. Linked, special, unreadable, or racing trees now become inconclusive, and
-the focused host-probe file is green at 74 tests with 2 platform skips.
+- GitHub configuration is absent (state as of 2026-08-12): immutable releases disabled; no
+  release-tag ruleset; no `release-tag` / `release-finalize` environments; no visible publisher App.
+  Creating them and dispatching are owner-approved external effects; the merge grants no publication
+  authority.
+- The host-probe authority claim: a before/after size-and-mtime census cannot prove that no write
+  left the disposable target, so the strict no-user-write criterion is unmet (independent review P1,
+  unresolved). Evidence and limits: the
+  [first-three backlog evidence packet](reviews/2026-08-18-first-three-backlog-evidence.md).
 
-Independent static review nevertheless requested changes on the load-bearing authority claim. A
-before/after size-and-mtime census cannot observe a file created and deleted between snapshots or a
-same-size modification whose mtime is restored. It proves no residual metadata-visible change, not
-that every write stayed inside the disposable target. The traversal-race finding from that review
-has a red-first local repair, but the P1 contract mismatch remains. This uncommitted preparation over
-`41a20bab` therefore does not satisfy the strict no-user-write criterion. Evidence and limits are in
-the [`first-three backlog evidence packet`](reviews/2026-08-18-first-three-backlog-evidence.md).
-
-Live GitHub configuration remains absent: the 2026-08-12 API state has immutable releases disabled,
-only an unprotected `copilot` environment, no release-tag ruleset, and no `release-tag` or
-`release-finalize` environment. A separately controlled release App was not visible through the
-available read-only repository surfaces. Creating those controls and dispatching the workflow are
-external effects requiring an explicit owner-approved plan and rollback; the merge grants no
-publication authority.
-
-**Next action:** Keep the full-root census as residual-state defense in depth, obtain exact-byte
-re-review before landing it, and do not cite it as release authority. The owner must accept a design
-that structurally denies the host CLI write access to the real user configuration — for example a
-separately controlled OS identity or an equivalent sandbox boundary — before publication can use the
-strict no-user-write criterion. That design needs an accepted decision record and cross-host proof;
-weakening the criterion to metadata-visible residue is not an implementation shortcut. Only after
-that boundary and the missing live GitHub controls exist should the owner consider dispatch. Do not
-create or move a release ref manually.
+**Next action:** The owner accepts a design that structurally denies the host CLI write access to
+the real user configuration — a separately controlled OS identity or an equivalent sandbox —
+recorded as a decision with cross-host proof; weakening the criterion to metadata-visible residue is
+not a shortcut. Only then, and after the live GitHub controls exist, consider dispatch. Never create
+or move a release ref manually.
 
 ## Repository work
 
@@ -184,48 +144,16 @@ performed to manufacture the prerequisite.
 inference, and the fleet knows whether the read-only guard is portable to that host or whether
 policy-delivered Copilot managed settings are the only real control there.
 
-**Source:** A 2026-08-12 scan with two distinct evidence bases, cited separately because they were
-not established the same way.
-
-*Base A — the installed build, read directly.* VS Code 1.133.0, build commit
-`a5b500951314efd502d07465bd138dfbd714a960`, file
-`<install>/<build>/resources/app/out/vs/workbench/workbench.desktop.main.js`. Reproduce by searching
-that bundle for the quoted identifier.
-
-- `[verified]` The tool-set vocabulary the generator emits matches the host enum. Search `_m` :
-  `a.execute="execute",a.edit="edit",a.search="search",a.agent="agent",a.read="read",a.web="web",a.todo="todo"`.
-  `COPILOT_TOOL_ORDER` is a subset, so the projection's names resolve.
-- `[verified]` The Claude→VS Code equivalence table matches `COPILOT_TOOL_MAP`. Search
-  `toolEquivalent` — `Bash`→`execute`, `Grep`→`search/textSearch`, `Glob`→`search/fileSearch`,
-  `Read`→`read/readFile`, `Write`/`Edit`→`edit/*`, `WebFetch`/`WebSearch`→`web`, `Task`→`agent`.
-  The same table maps `Skill`, `LSP`, and `MCPSearch` to `[]`.
-- `[verified]` `disable-model-invocation` is a recognized key, not inert: search
-  `R.disableModelInvocation="disable-model-invocation"`, and the skill-conversion path emits it.
-- `[verified]` Delegation is unscoped. Search `runSubagent` for the tool schema: `agentName` is
-  `"Optional name of a specific agent to invoke. If not provided, uses the current agent."`
-- `[verified]` The hook surface exists. Search `HOOKS_LOCATION_KEY` for
-  `chat.hookFilesLocations`, `chat.useHooks`, `chat.useClaudeHooks`, alongside `mo.hooks`.
-
-*Base B — upstream `microsoft/vscode` @ `0157e11`, read by an external research lane and* **not**
-*independently confirmed here.* Treat as `[sourced]` at one remove; re-derive before relying on a
-line number.
-
-- Omission sets an explicit `false` for the model:
-  `src/vs/workbench/contrib/chat/browser/tools/languageModelToolsService.ts:1611-1621`.
-- Session outranks the agent file, extension agents alone are read-only, and the picker writes the
-  user's change back: `.../browser/widget/input/chatSelectedTools.ts:136-143`, `:188`, `:202-220`.
-- Official VS Code documentation at `microsoft/vscode-docs`
-  `95cc3b3b226823b70306b8b6ef118def6f3c1842` describes tool checkboxes as per-session selection and
-  says a prompt file's `tools:` list outranks a referenced custom agent's list:
-  `learn/foundations/introduction-to-agent-first-development.md:115-125` and
-  `docs/agent-customization/prompt-files.md:174-183`.
-- Upstream `chatWidget.ts:2782-2816,3567-3584` confirms prompt-file metadata can switch the selected
-  agent and tool map. Those lines do not establish the previously claimed chat-deep-link override;
-  that unsupported attribution is removed rather than carried into the probe.
-
-Base A establishes what the host recognizes; Base B establishes the override precedence that makes
-`tools:` a default rather than a boundary. Only the second is load-bearing for the `AGENTS.md` limit,
-and it is the half this item must confirm by observation.
+**Source:** A 2026-08-12 scan on two evidence bases. `[verified]` from the installed VS Code
+1.133.0 bundle (`workbench.desktop.main.js`, build `a5b500951314efd502d07465bd138dfbd714a960`): the
+generator's tool-set vocabulary and its Claude→VS Code equivalence table match the host's enums;
+`disable-model-invocation` is a recognized key; `runSubagent` delegation is unscoped; the hook
+surface (`chat.useClaudeHooks` and friends) exists. `[sourced]` at one remove — upstream
+`microsoft/vscode` @ `0157e11` and `vscode-docs` @ `95cc3b3b`, read by the research lane and not
+confirmed here: omitting a tool sets an explicit `false`; session selection outranks the agent
+file; only extension agents are read-only; the picker writes the user's change back; a prompt
+file's `tools:` outranks a referenced agent's. The second base is what makes `tools:` a default
+rather than a boundary, and it is the half this item must confirm by observation.
 
 **Current environment:** `[verified]` On 2026-08-18, `code --version` reported VS Code 1.127.0,
 commit `4fe60c8b1cdac1c4c174f2fb180d0d758272d713`, x64;
@@ -252,10 +180,7 @@ shows the payload can scope to an exact agent identity.
 
 ### SKILL-001 — make the oversized skills routers, and their descriptions triggers
 
-**Status:** `active` (2026-08-20) — the live-runner dependency is **resolved**: `evals/run_evals.py`
-drives the Claude CLI, which authenticates through the operator's existing login, so no
-`ANTHROPIC_API_KEY` is required. Verified by executing it on this host on 2026-08-19/20 against two
-models. Both halves can now proceed.
+**Status:** `active` (2026-08-20)
 
 **Outcome:** No skill spends a caller's context on content that call did not need. **These eight
 skills** become routers with a conditional "if the question involves X, read Y" table —
@@ -276,12 +201,8 @@ summary, which [`rules.md`](rules.md) forbids. Whether a clause helps a model de
 load* a skill, versus restating what the body already contains, is not mechanically decidable — so
 that judgment motivates this item but deliberately does not appear in its acceptance below.
 
-**An earlier revision of this item said eleven skills.** That number came from a judgment table with
-no stated criterion and does not survive one; `frontend-craft` and `backend-craft` have large cores
-but route more reference bytes than they keep. The sweep records the correction.
-
-**Prerequisites:** The `obs-logs` conditional table is the pattern to copy. Description edits need
-the clean-room runner and a live API, per the change playbook — which is what blocks that half.
+**Prerequisites:** The `obs-logs` conditional table is the pattern to copy. Description edits follow
+the change playbook's after-run rule.
 
 **Acceptance:** **All eight named skills** — not a subset — satisfy the criterion in reverse: each
 either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
@@ -292,27 +213,14 @@ previous-revision baseline is required only for a scenario that comes back red. 
 
 **Next action:** Convert one monolith as a pattern — `incident-command` is the highest-traffic and
 has zero references — and land it alone so the conversion shape can be reviewed before it is applied
-to ten more. The description half is no longer waiting: run the overlapping scenarios after each
-routing-content edit, and fetch the prior baseline only for a red scenario.
-
-**Stated deferral, recorded here because the playbook requires it be stated rather than silent:**
-the `eng-ladder` description was rewritten on 2026-08-17 (merged in #115) from 599 bytes to 418
-**without** an after-change routing run. What that omission cannot prove is whether the trimmed rung
-definitions changed which lane fires for an altitude question. The edit removed a workflow summary
-and added a trigger, so the intended direction is better routing, but intent is not measurement.
-
-**Correction (2026-08-20):** the reason recorded above was "this environment has no live API", and
-that was **wrong** — `run_evals.py` invokes the Claude CLI, which uses the operator's login rather
-than an API key. The runner executed here on 2026-08-19/20 (`claude-opus-5[1m]` and
-`claude-sonnet-5`, live trials, graded results). The `eng-ladder` deferral therefore has no
-remaining blocker: run its overlapping scenarios on the changed description; obtain the prior
-baseline only for any red scenario.
+to the rest. Run the overlapping scenarios after each routing-content edit, fetching the prior
+baseline only for a red scenario. One such run is still owed: the `eng-ladder` description was
+rewritten in #115 (599 → 418 bytes) without an after-change routing run.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 
-**Status:** `active` (2026-08-20) — deliberately **kept open**. The live-runner dependency is
-resolved and the collision is now measured (below), but the "no other overlapping scenario moved"
-half of acceptance is not yet evidenced, so this item does not close on the result it already has.
+**Status:** `active` (2026-08-20) — kept open: the "no other overlapping scenario moved" half of
+acceptance is not yet evidenced.
 
 **Outcome:** One skill owns log-based alert design **in the canonical text**, and the routing suite
 contains a scenario that would fail if the other started firing for it. Both halves are required:
@@ -359,12 +267,6 @@ detail in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-
 - **Acceptance half (2) is partially evidenced.** The scenario exists and passes *routing*. Its
   former literal-grader failures were a separate contract defect, closed in `19aaa52`; they were not
   routing evidence and no longer block this item.
-- **Process deviation, recorded rather than glossed:** the description was edited **before** the
-  before-baseline existed, contrary to this item's prior next action. The baseline was recovered
-  retrospectively by running the scenario against the base commit's bytes in a throwaway worktree,
-  which is the same pre-change state, so the evidence is equivalent — but the order was wrong and
-  the next description edit should follow the stated sequence.
-
 **Next action:** Establish the missing half of acceptance — run the *other* overlapping
 `obs-alerting`/`obs-logs` scenarios against the changed descriptions and show they remain green. If
 one is red, run that scenario at the prior revision to attribute it. Then close. Do not close on the
@@ -406,8 +308,7 @@ needs no host inventory work.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 
-**Status:** `ready` (2026-08-22) — retirement of the Codex/Terra evaluator removed the body-digest
-pin that had blocked this independent correction.
+**Status:** `ready` (2026-08-22)
 
 **Outcome:** `skills/gcp-ops/SKILL.md` stops telling agents that a quoted `severity>=ERROR` trips the
 read-only guard, which stopped being true when PR #112 loosened the guard's proven-safe false
@@ -434,25 +335,13 @@ corpus before changing the canonical skill.
 **Acceptance:** `gcp-ops` states the guard's real behavior, the focused allow/deny corpus proves it,
 generated projections match, and Gate A passes.
 
-**Banner note, 2026-08-22 — resolved, not deferred.** The owner approved deleting the shared
-evidence-default banner from every skill. `gcp-ops` was initially left out because its bytes were the
-ROUTE-001 canary body; PR #129 retired that campaign and deleted the pin, so the banner was removed
-from `gcp-ops` too and the fleet carries none. Nothing is owed here.
-
 **Next action:** Correct the stale sentence with the focused guard regression, regenerate once, and
 stop; no provider evaluation is attached to this text correction.
 
-**Separate follow-up (2026-08-21):** the OOM bullet still reads
-"exact memory-limit error text `[unverified]`". The text is resolved — *"While handling this request,
-the container instance was found to be using too much memory and was terminated."*, an HTTP 500/503
-log line with no exit code, and local-filesystem writes count toward instance memory — and now lives
-in [`references/cf-to-cloud-run.md`](../skills/gcp-ops/references/cf-to-cloud-run.md), which the
-body already routes to. Do not couple that content change to GCPOPS-001 merely because both once
-shared the retired body pin.
-
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
-**Status:** `ready` (2026-08-13)
+**Status:** `ready` (2026-08-13; progress 2026-08-22) — remaining: the two example-footnote
+compactions. Packaging of the maintenance skills stays separately deferred.
 
 **Outcome:** A user who opens any of the 29 skills reaches actionable content within a few lines: the
 shared evidence-default banner is gone, worked examples carry provenance as a single footnote instead
@@ -470,24 +359,9 @@ example footer); `skills/operational-learning/` is 3,714 lines — 27% of toolki
 three schema versions, two migration scripts, and a drift watcher, and `skills/agent-authoring/` is
 1,678 lines, both shipped to every end user.
 
-**Correction (2026-08-13, PR #112 review):** this item was filed claiming six tracked
-`__pycache__/*.pyc` files under `skills/operational-learning/scripts/`. That claim was false and is
-withdrawn — `git ls-files` finds no tracked bytecode at this commit or its parent, and `.gitignore`
-has excluded `__pycache__/` and `*.pyc` throughout. The reviewing agent observed an *untracked*
-directory generated by running the test suite and reported it as committed; the claim was labeled
-`[sourced]` and promoted here without the one-command check that would have refuted it. Recorded
-rather than silently deleted: it is a worked example of the failure the evidence convention exists
-to prevent, and of why an agent's own assertion is never accepted knowledge.
-
-**Prerequisites:** None blocking. The banner work is resolved by the note above. The
+**Prerequisites:** None blocking. The banner work is done. The
 maintenance-skill packaging split stays deferred until after the first release (the accepted
 packaging ADR governs the surface).
-
-**Progress (2026-08-22):** The unpublished operational knowledge-update schemas, examples,
-migrations, validator, and drift watcher, plus the dormant fleet-improvement ledger, were retired in
-favor of focused regressions, ordinary PR evidence, and evidence-bound documentation dispositions.
-The remaining active item is the two example-footnote compactions; packaging stays separately
-deferred.
 
 **Acceptance:** No shared evidence-default banner remains and adapters regenerate byte-clean; the
 two self-retracting examples keep their labels as one-line footnotes; the retired learning packet
@@ -522,12 +396,6 @@ must first be reviewed and committed into this repository before live evaluation
 production-change, PCF, agent-security, and observability contracts. Every result distinguishes
 `pass`, `fail`, and `inconclusive`, preserves exact model/runtime evidence, and never relabels the
 historical Claude/Opus baselines.
-
-**Current evidence:** Tag `pre-trim-2026-08-02` retains the fixed manifests, sanitized local runners,
-contract tests, and their documented same-user credential limitation. The 2026-07-31 live results
-remain retained but revoked and there is no current Sol behavioral baseline. The active ordinary
-suite retains negative routing coverage for trust separation, `scribe` collisions, and the
-operational-learning method's direct-writing boundary.
 
 **Reopen trigger:** A named release decision requires a current Codex/Sol behavioral baseline that
 the active structural and Claude evaluation surfaces cannot provide.

@@ -11,12 +11,11 @@ sources or the generated host adapters.
 |---|---|---|
 | Live tracker | [`fleet-roadmap.md`](fleet-roadmap.md) | The **only** owner of unfinished, blocked, and deferred work. Nothing else adds work to the queue |
 | Decisions (ADRs) | [`decisions/`](decisions) | An **accepted** record governs its decision, names what lost, and states its reopen trigger; a proposed record carries no implementation authority. Never an execution checklist |
-| Round plans and specs | [`superpowers/plans/`](superpowers/plans), [`superpowers/specs/`](superpowers/specs) | Operational only while their round is active. Each carries a top-of-file `Status:` banner marked `implemented`, `superseded`, or `historical`, and points back to `fleet-roadmap.md` — `check_plan_status.py` fails the build otherwise |
+| Round plans and specs | [`superpowers/plans/`](superpowers/plans), [`superpowers/specs/`](superpowers/specs) | Operational only while their round is active, and **empty between rounds** — a finished plan is deleted in the round's closing PR (git history keeps the payload; its outcome lives in `reviews/` or a decision record). A file present here carries a top-of-file `Status:` banner marked `implemented`, `superseded`, or `historical` and points back to `fleet-roadmap.md` — `check_plan_status.py` fails the build otherwise |
 | Roadmap-linked probe instruments | [`probes/`](probes) | Blank, repeatable procedures that are operational only while an active roadmap item links them. They are neither evidence nor a second task list; completed results live in validated evidence envelopes and dated review packets |
 | Closure evidence | [`reviews/`](reviews) | Historical evidence of what a round landed and how it was verified. Never a task list |
 | Live reference contracts | [`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md), [`verification-sandbox.md`](verification-sandbox.md) | Current, governing contracts — not dated snapshots. The rules catalog indexes must-follow constraints with primary sources; schema-compatibility versions the machine-readable contracts in [`../schemas/catalog-v1.json`](../schemas/catalog-v1.json); the verification-sandbox spec governs the digest-bound boundary in [`../scripts/verification_sandbox.py`](../scripts/verification_sandbox.py). All three are linked from root docs and stay current with the fleet they describe |
 | Live operational procedures | [`release-runbook.md`](release-runbook.md) | The consumer-side recovery procedure for a release. Current and governing, not a dated snapshot — [`AGENTS.md`](../AGENTS.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md), and [`rules.md`](rules.md) all cite it as authoritative, so it is listed here rather than left for a reader to classify |
-| Dated evidence | [`RESEARCH.md`](RESEARCH.md) | Point-in-time provenance current as of its dateline. Re-verify before relying on it; it does not add work. The 2026-07-12 fleet audit was removed and remains in git history only |
 
 ## What is live right now
 
@@ -25,13 +24,12 @@ the live reference contracts ([`rules.md`](rules.md), [`schema-compatibility.md`
 [`verification-sandbox.md`](verification-sandbox.md)), and the live operational procedure
 [`release-runbook.md`](release-runbook.md) govern the current fleet.
 `probes/` contains no independent authority: an instrument is live only through the active roadmap
-item that links it. `superpowers/plans/` and `superpowers/specs/` hold **bannered historical** plans
-and specs when no
-round is active (the directories are not literally empty — each file carries a `Status:` banner
-marked `implemented`, `superseded`, or `historical` and points back to the roadmap). Everything
-they and `reviews/` contain is history, not a task list. A historical file may retain a dated
-"open" section as evidence of what was believed then — that section does not re-enter the queue
-unless the roadmap imports it.
+item that links it. `superpowers/plans/` and `superpowers/specs/` are **empty when no round is
+active**; the 2026-07 plans and specs were removed on 2026-08-23 and remain in git history only.
+`reviews/` holds closure evidence that a roadmap item, a decision record, a live doc, or a test
+still cites; a review nothing cites is removed the same way. Everything there is history, not a
+task list. A historical file may retain a dated "open" section as evidence of what was believed
+then — that section does not re-enter the queue unless the roadmap imports it.
 
 ## Rules
 

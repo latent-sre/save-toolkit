@@ -1,8 +1,8 @@
 # Save Toolkit
 
 A multi-host engineering plugin: **8 agents and 29 skills** for application engineering and site
-reliability work — build/review/ship lanes, incident command, PCF and GCP triage, observability as
-code, and evidence-bound documentation. Claude Code reads the canonical [`agents/`](agents) and
+reliability work — build/review/ship lanes, incident command, PCF and GCP triage, observability, and
+evidence-bound documentation. Claude Code reads the canonical [`agents/`](agents) and
 [`skills/`](skills) directly; GitHub Copilot/VS Code and Codex receive committed projections from
 one deterministic generator, never edited by hand.
 
@@ -51,7 +51,7 @@ The one manual command is `/save-toolkit:adr` (ADR scaffold).
 | `reviewer` | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `sde`; terminal |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
 | `sre` | Investigate active production or staging failures (guarded read-only Bash) | Delegates observability follow-up to `observability-engineer`, operational docs to `scribe`, and fact checks to `researcher` |
-| `observability-engineer` | Steady-state observability as code (unguarded Bash; applies Grafana dashboards directly) | Hands docs to `scribe`, active incidents to `sre`, automation to `sde`, and lookups to `researcher` |
+| `observability-engineer` | Steady-state observability (unguarded Bash; applies Grafana dashboards directly) | Hands docs to `scribe`, active incidents to `sre`, automation to `sde`, and lookups to `researcher` |
 | `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
 | `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
 | `prompt-engineer` | The fleet's own files: agents, skills, descriptions, evals | Hands helper code to `sde`, injection review to `reviewer` |
@@ -87,17 +87,11 @@ Gate A proves the fleet is well-formed, never that it is correct — the adversa
 [CONTRIBUTING.md](CONTRIBUTING.md) are separate. Portable contracts are documented in the
 [schema compatibility policy](docs/schema-compatibility.md); active behavioral and routing evals
 live in [`evals/README.md`](evals/README.md). Accepted fleet failures become focused regressions and
-ordinary PR evidence rather than a separate improvement ledger.
-
-## Status
-
-Pre-release `0.1.0`: canonical source, generated adapters, hook wiring, and manifests are
-structurally gated and marketplace-validated. Release publication is prepared but blocked pending
-its external controls; live and deferred work — including that release item — is tracked solely in
-[`docs/fleet-roadmap.md`](docs/fleet-roadmap.md). Must-follow constraints are indexed in
-[`docs/rules.md`](docs/rules.md).
+ordinary PR evidence.
 
 ## Contribute
 
-Start with [AGENTS.md](AGENTS.md) (the fleet guide, loaded into every session) and
-[CONTRIBUTING.md](CONTRIBUTING.md) (authoring, verification, and promotion policy).
+Start with [AGENTS.md](AGENTS.md) (the fleet guide, loaded into every session),
+[CONTRIBUTING.md](CONTRIBUTING.md) (authoring, verification, and promotion policy), and
+[`docs/rules.md`](docs/rules.md) (the must-follow index). Live and deferred work is tracked solely
+in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
