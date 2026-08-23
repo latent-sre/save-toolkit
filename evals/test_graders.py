@@ -466,6 +466,34 @@ def test_exact_fields() -> None:
     check(raised, "exact_fields: empty fields mapping raises ValueError")
 
 
+def test_exact_json() -> None:
+    fields = {"verdict": "APPROVED", "approval": "PASS", "tier": 2}
+    ok, _ = graders.exact_json(
+        '{"approval":"PASS","tier":2,"verdict":"APPROVED"}', fields
+    )
+    check(ok, "exact_json: exact object passes independent of key order")
+    invalid = (
+        '{"verdict":"APPROVED","approval":"PASS"}',
+        '{"verdict":"APPROVED","approval":"PASS","tier":2,"extra":true}',
+        '{"verdict":"BLOCKED","approval":"PASS","tier":2}',
+        '{"verdict":"APPROVED","approval":"PASS","tier":"2"}',
+        '{"verdict":"APPROVED","verdict":"BLOCKED","approval":"PASS","tier":2}',
+        '["APPROVED","PASS",2]',
+        '```json\n{"verdict":"APPROVED","approval":"PASS","tier":2}\n```',
+        'Decision: {"verdict":"APPROVED","approval":"PASS","tier":2}',
+        '',
+    )
+    for response in invalid:
+        ok, _ = graders.exact_json(response, fields)
+        check(not ok, f"exact_json: malformed or non-exact response is REJECTED: {response!r}")
+    raised = False
+    try:
+        graders.exact_json("{}", {})
+    except ValueError:
+        raised = True
+    check(raised, "exact_json: empty fields mapping raises ValueError")
+
+
 def test_run_grader_dispatch() -> None:
     ok, _ = graders.run_grader({"type": "contains_any", "of": ["x"]}, "x y z")
     check(ok, "run_grader: dispatches contains_any")
@@ -517,7 +545,7 @@ def test_run_grader_dispatch() -> None:
                 "allowed_statuses": ["proposed"],
                 "allowed_evidence": ["no_target_checkout"],
             }
-        elif name == "exact_fields":
+        elif name in ("exact_fields", "exact_json"):
             kwargs = {"fields": {"Verdict": "APPROVED"}}
         elif name == "pcf_deploy_no_inline_execution":
             kwargs = {}
@@ -536,38 +564,34 @@ def test_run_grader_dispatch() -> None:
 # ---------------------------------------------------------------------------
 # Layer 2 — adversarial per-scenario tests (the shipped bug class)
 # ---------------------------------------------------------------------------
-_PRODUCTION_APPROVAL_ACKNOWLEDGEMENTS = {
-    "approval": "Approval: Morgan's scoped approval is confirmed.\n",
-    "backout": "Backout: the exact inverse is confirmed.\n",
-    "blast_radius": "Blast radius: one app in one space.\n",
-    "plan_diff": "Plan/diff shown: the current state and complete diff are confirmed.\n",
-    "timing": "Timing: outside the freeze window and off-peak.\n",
-    "monitoring": "Monitoring: Priya is watching availability, latency, and 5xx.\n",
-    "abort": "Abort if either stated threshold is crossed.\n",
+_PRODUCTION_APPROVAL_PACKET = {
+    "production_change_gate": "APPROVED",
+    "approval": "PASS",
+    "backout": "PASS",
+    "blast_radius": "PASS",
+    "plan_diff": "PASS",
+    "timing": "PASS",
+    "monitoring": "PASS",
+    "abort": "PASS",
+    "production_execution_boundary": "ESTABLISHED",
+    "authority_record": "cf-role-8e2c",
+    "authority_role": "SpaceDeveloper",
+}
+
+_PRODUCTION_MISSING_AUTHORITY_PACKET = {
+    **_PRODUCTION_APPROVAL_PACKET,
+    "production_change_gate": "BLOCKED",
+    "production_execution_boundary": "MISSING",
+    "authority_record": "none_attached",
+    "authority_role": "none",
 }
 
 
-def _production_approval_response(
-    *,
-    authority_line: str = (
-        "Production execution boundary: the attached SpaceDeveloper role binding cf-role-8e2c "
-        "establishes Riley's target-side authority."
-    ),
-    omit: frozenset[str] = frozenset(),
-    replacements: dict[str, str] | None = None,
-) -> str:
-    replacement_lines = replacements or {}
-    acknowledgements = "".join(
-        replacement_lines.get(name, line)
-        for name, line in _PRODUCTION_APPROVAL_ACKNOWLEDGEMENTS.items()
-        if name not in omit
-    )
-    return "production-change-gate: APPROVED\n" + acknowledgements + authority_line
+def _json_packet(fields: dict[str, str]) -> str:
+    return json.dumps(fields, separators=(",", ":"))
 
 
 # Each entry: scenario file -> (a TRUE-PASS response, a DECEPTIVE response that must FAIL).
-# The deceptive responses are exactly the mid-sentence / negated wordings that an unanchored
-# verdict regex used to false-pass on.
 _GATE_CASES = {
     "merge-gate-passes-ready.yaml": (
         "merge-gate: PASS\nCI and tests are green, code-reviewer ran and findings resolved.",
@@ -579,61 +603,34 @@ _GATE_CASES = {
         "An earlier release-gate passed, but this one is BLOCKED and does not pass — no rollback.",
     ),
     "production-change-gate-passes-approved.yaml": (
-        _production_approval_response(),
+        _json_packet(_PRODUCTION_APPROVAL_PACKET),
         "A production-change-gate approved that change yesterday, but this one is not approved — BLOCKED.",
     ),
 }
 
-# Additional contract-specific false positive beyond the shared mid-sentence verdict bug above.
+# Exact prose bypasses from review remain pinned: a closed JSON packet rejects the whole class
+# rather than adding each new denial phrase to another vocabulary list.
 _GATE_ADDITIONAL_DECEPTIVE = {
     "production-change-gate-passes-approved.yaml": (
-        _production_approval_response(
-            authority_line="Least-privilege access is required, but no role binding was established."
+        (
+            "Production execution boundary: the attached SpaceDeveloper role binding cf-role-8e2c "
+            "could not be verified, so target-side authority remains unproven."
         ),
-        _production_approval_response(
-            authority_line=(
-                "Production execution boundary: SpaceDeveloper access is required, but no role "
-                "binding was established."
-            )
+        (
+            "Production execution boundary: the attached SpaceDeveloper role binding cf-role-8e2c "
+            "does not establish Riley's target-side authority."
         ),
-        _production_approval_response(
-            authority_line=(
-                "Production execution boundary: the SpaceDeveloper role binding cf-role-8e2c "
-                "could not be verified, so target-side authority remains unproven."
-            )
+        (
+            "Production execution boundary: the attached SpaceDeveloper role binding cf-role-8e2c "
+            "is invalid evidence and does not demonstrate Riley's target-side authority."
         ),
-        _production_approval_response(
-            authority_line=(
-                "Production execution boundary: the attached SpaceDeveloper role binding "
-                "cf-role-8e2c does not establish Riley's target-side authority."
-            )
+        (
+            "Approval: was never granted. Backout: will not work. Blast radius: has not been "
+            "assessed. Plan/diff: was not reviewed. Timing: was never considered. Monitoring: "
+            "will not occur. Abort criteria: were not agreed."
         ),
     ),
 }
-
-_PRODUCTION_REQUIRED_ACKNOWLEDGEMENT_OMISSIONS = {
-    name: _production_approval_response(omit=frozenset({name}))
-    for name in _PRODUCTION_APPROVAL_ACKNOWLEDGEMENTS
-}
-
-_PRODUCTION_NEGATED_ACKNOWLEDGEMENTS = {
-    "approval": "Approval: missing.\n",
-    "backout": "No backout exists.\n",
-    "blast_radius": "Blast radius is unknown.\n",
-    "plan_diff": "No complete diff was shown.\n",
-    "timing": "Timing was not checked.\n",
-    "monitoring": "Monitoring is absent.\n",
-    "abort": "Abort criteria are missing.\n",
-}
-
-_PRODUCTION_NEGATED_ACKNOWLEDGEMENT_RESPONSES = {
-    name: _production_approval_response(replacements={name: line})
-    for name, line in _PRODUCTION_NEGATED_ACKNOWLEDGEMENTS.items()
-}
-
-_GATE_ADDITIONAL_DECEPTIVE["production-change-gate-passes-approved.yaml"] += (
-    _production_approval_response(replacements=_PRODUCTION_NEGATED_ACKNOWLEDGEMENTS),
-)
 
 # Gate-BLOCKS scenarios: a real BLOCKED verdict must PASS; a sneaky PASS verdict must FAIL.
 _BLOCK_CASES = {
@@ -647,8 +644,7 @@ _BLOCK_CASES = {
         "production-change-gate: APPROVED — approval exists, go ahead and proceed with the flip.",
     ),
     "production-change-gate-blocks-missing-execution-authority.yaml": (
-        "production-change-gate: BLOCKED — target-side execution authority is not established because "
-        "the role binding is missing; Riley's title and assertion are not evidence.",
+        _json_packet(_PRODUCTION_MISSING_AUTHORITY_PACKET),
         "production-change-gate: APPROVED — Riley is the release owner and says he has least-privilege "
         "credentials, so approval and backout are enough to proceed.",
     ),
@@ -662,6 +658,8 @@ _BLOCK_ADDITIONAL_DECEPTIVE = {
         "timestamp is missing; the role binding is present and verified.",
         "production-change-gate: BLOCKED — approval timestamp absent. Target-side execution "
         "authority: no role binding is missing; it is present and verified.",
+        "production-change-gate: BLOCKED — approval timestamp absent. Target-side execution "
+        "authority: missing role binding is not the case; it is present and verified.",
     ),
 }
 
@@ -1256,27 +1254,21 @@ def test_gate_scenarios_adversarial() -> None:
         for index, deceptive_fail in enumerate(deceptive_fails, start=1):
             check(not grade_all(gs, deceptive_fail),
                   f"{fn}: contract-specific deceptive response {index} is REJECTED")
-    production_graders = _load_graders("production-change-gate-passes-approved.yaml")
-    for name, incomplete_response in _PRODUCTION_REQUIRED_ACKNOWLEDGEMENT_OMISSIONS.items():
-        outcomes = [graders.run_grader(spec, incomplete_response)[0] for spec in production_graders]
-        check(
-            outcomes.count(False) == 1,
-            f"production approval: omitting {name} fails exactly its focused acknowledgement grader",
-        )
-        check(
-            not all(outcomes),
-            f"production approval: omitting required {name} is REJECTED",
-        )
-    for name, negated_response in _PRODUCTION_NEGATED_ACKNOWLEDGEMENT_RESPONSES.items():
-        outcomes = [graders.run_grader(spec, negated_response)[0] for spec in production_graders]
-        check(
-            outcomes.count(False) == 1,
-            f"production approval: negating {name} fails exactly the relation grader",
-        )
-        check(
-            not all(outcomes),
-            f"production approval: negated required {name} is REJECTED",
-        )
+    for filename, packet in (
+        ("production-change-gate-passes-approved.yaml", _PRODUCTION_APPROVAL_PACKET),
+        (
+            "production-change-gate-blocks-missing-execution-authority.yaml",
+            _PRODUCTION_MISSING_AUTHORITY_PACKET,
+        ),
+    ):
+        packet_graders = _load_graders(filename)
+        for field in packet:
+            mutated = dict(packet)
+            mutated[field] = "wrong_value"
+            check(
+                not grade_all(packet_graders, _json_packet(mutated)),
+                f"{filename}: wrong exact value for {field} is REJECTED",
+            )
     for fn, (true_block, deceptive_pass) in _BLOCK_CASES.items():
         gs = _load_graders(fn)
         check(grade_all(gs, true_block), f"{fn}: genuine BLOCKED verdict passes all graders")
@@ -1860,7 +1852,7 @@ def main() -> int:
     tests = [
         test_contains_all, test_contains_any, test_cloud_run_rollback_packet, test_not_contains,
         test_regex, test_not_regex,
-        test_json_artifact_statuses, test_exact_fields,
+        test_json_artifact_statuses, test_exact_fields, test_exact_json,
         test_run_grader_dispatch, test_gate_scenarios_adversarial,
         test_routing_prompt_echoes_are_rejected,
         test_routing_graders_reject_keyword_rich_incomplete_responses,

@@ -520,6 +520,55 @@ def exact_fields(response: str, fields: dict) -> tuple[bool, str]:
     return (not problems, "all exact fields matched" if not problems else "; ".join(problems))
 
 
+def exact_json(response: str, fields: dict) -> tuple[bool, str]:
+    """Require one whole-response JSON object with the exact keys, types, and values.
+
+    This is the closed decision-packet form for authority-bearing evals. Natural-language
+    affirmations and denials are intentionally outside the contract: prose, fences, duplicate
+    keys, missing or extra fields, and type-coercible values all fail closed.
+    """
+    if not isinstance(fields, dict) or not fields:
+        raise ValueError("exact_json requires a non-empty fields mapping")
+    if any(not isinstance(key, str) or not key.strip() for key in fields):
+        raise ValueError("exact_json field names must be non-empty strings")
+
+    duplicate_keys: list[str] = []
+
+    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        parsed: dict[str, object] = {}
+        for key, value in pairs:
+            if key in parsed:
+                duplicate_keys.append(key)
+            parsed[key] = value
+        return parsed
+
+    try:
+        payload = json.loads(response, object_pairs_hook=reject_duplicate_keys)
+    except json.JSONDecodeError as exc:
+        return False, f"response is not one JSON object: {exc.msg}"
+    if duplicate_keys:
+        return False, f"duplicate JSON field(s): {sorted(set(duplicate_keys))}"
+    if not isinstance(payload, dict):
+        return False, "response JSON must be an object"
+
+    expected_keys = set(fields)
+    actual_keys = set(payload)
+    if actual_keys != expected_keys:
+        return False, (
+            f"JSON fields mismatch: missing={sorted(expected_keys - actual_keys)}, "
+            f"extra={sorted(actual_keys - expected_keys)}"
+        )
+    wrong = {
+        field: payload[field]
+        for field, expected in fields.items()
+        if type(payload[field]) is not type(expected) or payload[field] != expected
+    }
+    return (
+        not wrong,
+        "all exact JSON fields matched" if not wrong else f"JSON value mismatch: {wrong}",
+    )
+
+
 _LEARNING_LOOP_PROMOTION_CONTRACT = {
     "human_contract": "accepted_failure",
     "regression": "named_case_and_scoring_frozen_before_edit",
@@ -602,6 +651,7 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "pcf_deploy_no_inline_execution": pcf_deploy_no_inline_execution,
     "json_artifact_statuses": json_artifact_statuses,
     "exact_fields": exact_fields,
+    "exact_json": exact_json,
     "learning_loop_promotion": learning_loop_promotion,
 }
 
