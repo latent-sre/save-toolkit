@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import io
+import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -18,6 +22,206 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 class FleetDoctorTests(unittest.TestCase):
+    def _write_guard_fixture(self, root: Path) -> None:
+        hooks = root / "hooks"
+        scripts = root / "scripts"
+        hooks.mkdir(parents=True)
+        scripts.mkdir(parents=True)
+        (hooks / "hooks.json").write_bytes((REPO / "hooks" / "hooks.json").read_bytes())
+        (scripts / "readonly-guard.py").write_text("# fixture guard\n", encoding="utf-8")
+
+    def test_guard_interpreter_requires_exact_allow_and_deny_protocol(self) -> None:
+        deny_output = (
+            '{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
+            '"permissionDecision":"deny","permissionDecisionReason":"fixture"}}\n'
+        )
+
+        for label, available, responses, expected_status, expected_calls in (
+            (
+                "guard protocol",
+                {"python3": "C:/tools/python3.exe"},
+                [
+                    fleet_doctor.CommandResult(42, "", ""),
+                    fleet_doctor.CommandResult(43, deny_output, ""),
+                ],
+                "pass",
+                2,
+            ),
+            (
+                "later candidate answers",
+                {
+                    "python3": "C:/tools/python3.exe",
+                    "python": "C:/tools/python.exe",
+                },
+                [
+                    fleet_doctor.CommandResult(0, "", ""),
+                    fleet_doctor.CommandResult(0, "", ""),
+                    fleet_doctor.CommandResult(42, "", ""),
+                    fleet_doctor.CommandResult(43, deny_output, ""),
+                ],
+                "pass",
+                4,
+            ),
+            (
+                "stand-in exits zero",
+                {"python3": "C:/tools/python3.exe"},
+                [
+                    fleet_doctor.CommandResult(0, "", ""),
+                    fleet_doctor.CommandResult(0, "", ""),
+                ],
+                "fail",
+                2,
+            ),
+            ("no candidate", {}, [], "fail", 0),
+        ):
+            observed_payloads: list[str] = []
+
+            def which(command: str) -> str | None:
+                return available.get(command)
+
+            remaining = iter(responses)
+
+            def run(argv: tuple[str, ...], payload: str) -> fleet_doctor.CommandResult:
+                observed_payloads.append(payload)
+                return next(remaining)
+
+            with self.subTest(label=label):
+                check = fleet_doctor._guard_interpreter_check(
+                    REPO / "scripts" / "readonly-guard.py",
+                    which,
+                    run,
+                )
+
+                self.assertEqual(expected_status, check.status)
+                self.assertEqual(expected_calls, len(observed_payloads))
+                if expected_status == "pass":
+                    self.assertNotEqual(observed_payloads[0], observed_payloads[1])
+
+    def test_hook_registration_reports_registered_and_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            plugin_root = Path(temporary) / "plugin"
+            self._write_guard_fixture(plugin_root)
+
+            registered = fleet_doctor._guard_hook_check(plugin_root)
+            (plugin_root / "hooks" / "hooks.json").write_text(
+                json.dumps(
+                    {
+                        "hooks": {
+                            "PreToolUse": [
+                                {
+                                    "matcher": "Bash",
+                                    "hooks": [
+                                        {
+                                            "type": "command",
+                                            "command": (
+                                                "echo ${CLAUDE_PLUGIN_ROOT}/scripts/"
+                                                "readonly-guard.py"
+                                            ),
+                                        }
+                                    ],
+                                }
+                            ]
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            unrelated = fleet_doctor._guard_hook_check(plugin_root)
+            (plugin_root / "hooks" / "hooks.json").unlink()
+            absent = fleet_doctor._guard_hook_check(plugin_root)
+
+        self.assertEqual("pass", registered.status)
+        self.assertEqual("fail", unrelated.status)
+        self.assertEqual("fail", absent.status)
+
+    def test_guard_file_reports_present_and_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            plugin_root = Path(temporary) / "plugin"
+            self._write_guard_fixture(plugin_root)
+
+            present = fleet_doctor._guard_file_check(plugin_root)
+            (plugin_root / "scripts" / "readonly-guard.py").unlink()
+            missing = fleet_doctor._guard_file_check(plugin_root)
+
+        self.assertEqual("pass", present.status)
+        self.assertEqual("fail", missing.status)
+
+    def test_no_checkout_skips_repository_checks_but_reports_guard_health(self) -> None:
+        deny_output = (
+            '{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
+            '"permissionDecision":"deny","permissionDecisionReason":"fixture"}}\n'
+        )
+
+        def which(command: str) -> str | None:
+            if command == "python3":
+                return "C:/tools/python3.exe"
+            return None
+
+        def run_guard(argv: tuple[str, ...], payload: str) -> fleet_doctor.CommandResult:
+            if payload == fleet_doctor.GUARD_ALLOW_PAYLOAD:
+                return fleet_doctor.CommandResult(42, "", "")
+            return fleet_doctor.CommandResult(43, deny_output, "")
+
+        def unexpected_command(argv: tuple[str, ...]) -> fleet_doctor.CommandResult:
+            self.fail(f"outside-checkout report unexpectedly ran {argv!r}")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            plugin_root = Path(temporary) / "installed-plugin"
+            self._write_guard_fixture(plugin_root)
+            with mock.patch.object(
+                fleet_doctor,
+                "_repository_checks",
+                side_effect=AssertionError("repository validators must not run"),
+            ):
+                report = fleet_doctor.collect_report(
+                    plugin_root,
+                    plugin_root=plugin_root,
+                    home=Path(temporary) / "home",
+                    run=unexpected_command,
+                    guard_run=run_guard,
+                    which=which,
+                    now=datetime(2026, 8, 23, tzinfo=timezone.utc),
+                )
+
+        statuses = {item["criterion"]: item["status"] for item in report["evidence"]}
+        self.assertEqual("unknown", report["revision"])
+        self.assertEqual("skip", statuses["repository.git-revision"])
+        self.assertEqual("skip", statuses["repository.worktree-state"])
+        self.assertEqual("skip", statuses["repository.fleet-contracts"])
+        self.assertEqual("skip", statuses["repository.plan-status"])
+        self.assertEqual("pass", statuses["guard.hook-registration"])
+        self.assertEqual("pass", statuses["guard.file"])
+        self.assertEqual("pass", statuses["guard.interpreter-protocol"])
+        self.assertIn("guard.interpreter-protocol", fleet_doctor.render_human(report))
+
+    def test_minimal_installed_plugin_does_not_import_repository_helpers(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            plugin_root = Path(temporary) / "installed-plugin"
+            self._write_guard_fixture(plugin_root)
+            for name in ("fleet_doctor.py", "evidence_envelope.py", "readonly-guard.py"):
+                (plugin_root / "scripts" / name).write_bytes((REPO / "scripts" / name).read_bytes())
+
+            environment = dict(os.environ)
+            environment.pop("PYTHONPATH", None)
+            result = subprocess.run(
+                [sys.executable, str(plugin_root / "scripts" / "fleet_doctor.py"), "--json"],
+                cwd=plugin_root,
+                env=environment,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+                timeout=30,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        report = json.loads(result.stdout)
+        statuses = {item["criterion"]: item["status"] for item in report["evidence"]}
+        self.assertEqual("unknown", report["revision"])
+        self.assertEqual("skip", statuses["repository.fleet-contracts"])
+        self.assertEqual("pass", statuses["guard.interpreter-protocol"])
+
     def test_command_allowlist_rejects_mutating_or_model_commands(self) -> None:
         fleet_doctor._assert_read_only_command(
             ("git", "--no-optional-locks", "-C", str(REPO), "status", "--short")
@@ -34,6 +238,27 @@ class FleetDoctorTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "read-only allowlist"):
                     fleet_doctor._assert_read_only_command(command)
 
+        fleet_doctor._assert_guard_probe_command(
+            ("python3", "-I", "-S", str(REPO / "scripts" / "readonly-guard.py"))
+        )
+        for command in (
+            ("python3", "-S", str(REPO / "scripts" / "readonly-guard.py")),
+            ("node", "-I", "-S", str(REPO / "scripts" / "readonly-guard.py")),
+            ("python3", "-I", "-S", str(REPO / "scripts" / "other.py")),
+            ("python3", "-I", "-S", str(REPO / "other" / "readonly-guard.py")),
+        ):
+            with self.subTest(guard_probe=command):
+                with self.assertRaisesRegex(ValueError, "guard|interpreter"):
+                    fleet_doctor._assert_guard_probe_command(command)
+
+    def test_guard_probe_protocol_matches_hook_launcher(self) -> None:
+        launcher = (REPO / "scripts" / "readonly-guard-hook.sh").read_text(encoding="utf-8")
+        candidates = " ".join(fleet_doctor.GUARD_INTERPRETER_CANDIDATES)
+
+        self.assertIn(f"for C in {candidates}; do", launcher)
+        self.assertIn(f'"$RC" -eq {fleet_doctor.GUARD_ALLOW_EXIT}', launcher)
+        self.assertIn(f'"$RC" -eq {fleet_doctor.GUARD_DENY_EXIT}', launcher)
+
     def test_report_uses_valid_envelopes_and_does_not_touch_home(self) -> None:
         calls: list[tuple[str, ...]] = []
 
@@ -47,6 +272,16 @@ class FleetDoctorTests(unittest.TestCase):
             if tuple(argv[-2:]) == ("plugin", "list"):
                 return fleet_doctor.CommandResult(0, "save-toolkit 1.0.0\n", "")
             return fleet_doctor.CommandResult(0, "test-cli 1.0\n", "")
+
+        def run_guard(argv: tuple[str, ...], payload: str) -> fleet_doctor.CommandResult:
+            if payload == fleet_doctor.GUARD_ALLOW_PAYLOAD:
+                return fleet_doctor.CommandResult(42, "", "")
+            return fleet_doctor.CommandResult(
+                43,
+                '{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
+                '"permissionDecision":"deny"}}\n',
+                "",
+            )
 
         def which(command: str) -> str:
             return str(Path("C:/tools") / f"{command}.exe")
@@ -66,6 +301,7 @@ class FleetDoctorTests(unittest.TestCase):
                     REPO,
                     home=home,
                     run=run,
+                    guard_run=run_guard,
                     which=which,
                     now=datetime(2026, 7, 31, tzinfo=timezone.utc),
                 )

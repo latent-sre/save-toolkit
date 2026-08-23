@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report fleet repository and host health without changing either.
+"""Report fleet repository, guard, and host health without changing them.
 
 The doctor validates in memory and invokes only an exact read-only command allowlist. It never
 generates, installs, fetches, prunes, or starts a model session. Every check is emitted as a validated
@@ -26,18 +26,13 @@ from typing import Callable, Mapping, Sequence
 sys.dont_write_bytecode = True
 
 try:
-    from scripts import (
-        check_plan_status,
-        evidence_envelope,
-        validate_fleet,
-    )
+    from scripts import evidence_envelope
 except ModuleNotFoundError:
-    import check_plan_status  # type: ignore[no-redef]
     import evidence_envelope  # type: ignore[no-redef]
-    import validate_fleet  # type: ignore[no-redef]
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+PLUGIN_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = PLUGIN_ROOT
 STATUSES = ("pass", "fail", "skip", "inconclusive")
 REPORT_FIELDS = {
     "schema_version",
@@ -77,7 +72,25 @@ class Check:
 
 
 CommandRunner = Callable[[Sequence[str]], CommandResult]
+GuardRunner = Callable[[Sequence[str], str], CommandResult]
 Which = Callable[[str], str | None]
+
+GUARD_INTERPRETER_CANDIDATES = ("python3", "python", "py")
+GUARD_ALLOW_EXIT = 42
+GUARD_DENY_EXIT = 43
+GUARD_PROBE_TIMEOUT_SECONDS = 5
+GUARD_ALLOW_PAYLOAD = json.dumps(
+    {"tool_name": "Bash", "tool_input": {"command": "git status --short"}},
+    separators=(",", ":"),
+)
+GUARD_DENY_PAYLOAD = json.dumps(
+    {
+        "tool_name": "Bash",
+        "agent_type": "save-toolkit:sre",
+        "tool_input": {"command": "python -c pass"},
+    },
+    separators=(",", ":"),
+)
 
 
 def _command_name(executable: str) -> str:
@@ -119,6 +132,243 @@ def _run_read_only(argv: Sequence[str]) -> CommandResult:
     except (OSError, subprocess.TimeoutExpired) as exc:
         return CommandResult(127, "", type(exc).__name__)
     return CommandResult(result.returncode, result.stdout, result.stderr)
+
+
+def _assert_guard_probe_command(argv: Sequence[str]) -> None:
+    """Allow only the hook's isolated interpreter shape against the bundled guard."""
+
+    expected_guard = (PLUGIN_ROOT / "scripts" / "readonly-guard.py").resolve()
+    if len(argv) != 4:
+        raise ValueError("fleet doctor refused a malformed guard probe")
+    if _command_name(argv[0]) not in GUARD_INTERPRETER_CANDIDATES:
+        raise ValueError("fleet doctor refused a non-hook interpreter")
+    if tuple(argv[1:3]) != ("-I", "-S") or Path(argv[3]).resolve() != expected_guard:
+        raise ValueError("fleet doctor refused a command outside the guard probe contract")
+
+
+def _run_guard_probe(argv: Sequence[str], payload: str) -> CommandResult:
+    _assert_guard_probe_command(argv)
+    try:
+        result = subprocess.run(
+            list(argv),
+            input=payload,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=GUARD_PROBE_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return CommandResult(127, "", type(exc).__name__)
+    return CommandResult(result.returncode, result.stdout, result.stderr)
+
+
+def _is_guard_deny_output(stdout: str) -> bool:
+    try:
+        payload = json.loads(stdout)
+        output = payload["hookSpecificOutput"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return False
+    return (
+        isinstance(output, dict)
+        and output.get("hookEventName") == "PreToolUse"
+        and output.get("permissionDecision") == "deny"
+    )
+
+
+def _guard_interpreter_check(
+    guard_path: Path,
+    which: Which,
+    run: GuardRunner = _run_guard_probe,
+) -> Check:
+    """Prove one hook-candidate interpreter receives both authenticated guard answers."""
+
+    observations: list[dict[str, object]] = []
+    for candidate in GUARD_INTERPRETER_CANDIDATES:
+        executable = which(candidate)
+        if not executable:
+            continue
+        argv = (executable, "-I", "-S", str(guard_path))
+        allow = run(argv, GUARD_ALLOW_PAYLOAD)
+        deny = run(argv, GUARD_DENY_PAYLOAD)
+        observations.append(
+            {
+                "candidate": candidate,
+                "allow_exit_code": allow.returncode,
+                "deny_exit_code": deny.returncode,
+            }
+        )
+        if (
+            allow.returncode == GUARD_ALLOW_EXIT
+            and not allow.stdout.strip()
+            and deny.returncode == GUARD_DENY_EXIT
+            and _is_guard_deny_output(deny.stdout)
+        ):
+            return Check(
+                "guard.interpreter-protocol",
+                "pass",
+                f"{candidate} returned the guard's exact allow and deny protocol.",
+                {
+                    "candidate": candidate,
+                    "allow_exit_code": allow.returncode,
+                    "deny_exit_code": deny.returncode,
+                    "plugin_root": str(guard_path.parent.parent),
+                },
+            )
+
+    if observations:
+        return Check(
+            "guard.interpreter-protocol",
+            "fail",
+            "No hook-candidate interpreter returned the guard's exact allow and deny protocol.",
+            {
+                "observations": observations,
+                "plugin_root": str(guard_path.parent.parent),
+            },
+            limitations=("Exit 0 is not a guard answer and was not accepted as healthy.",),
+        )
+    return Check(
+        "guard.interpreter-protocol",
+        "fail",
+        "No hook-candidate Python interpreter is available.",
+        {
+            "candidates": list(GUARD_INTERPRETER_CANDIDATES),
+            "plugin_root": str(guard_path.parent.parent),
+        },
+        limitations=("The hook denies all Bash when no candidate can run the guard.",),
+    )
+
+
+def _is_guard_hook_command(command: object) -> bool:
+    if not isinstance(command, str):
+        return False
+    required = (
+        '${CLAUDE_PLUGIN_ROOT}/scripts/readonly-guard.py',
+        f"for C in {' '.join(GUARD_INTERPRETER_CANDIDATES)}; do",
+        '"$C" -I -S "$G"',
+        f'"$RC" -eq {GUARD_ALLOW_EXIT}',
+        f'"$RC" -eq {GUARD_DENY_EXIT}',
+    )
+    return all(fragment in command for fragment in required)
+
+
+def _guard_hook_check(plugin_root: Path) -> Check:
+    """Inspect the current plugin root's PreToolUse registration without firing a hook."""
+
+    hook_path = plugin_root / "hooks" / "hooks.json"
+    if not hook_path.is_file() or hook_path.is_symlink():
+        return Check(
+            "guard.hook-registration",
+            "fail",
+            "The current plugin root has no regular hooks/hooks.json file.",
+            {
+                "registered": False,
+                "configuration": "missing",
+                "plugin_root": str(plugin_root),
+            },
+        )
+    try:
+        document = json.loads(hook_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return Check(
+            "guard.hook-registration",
+            "fail",
+            "The current plugin hook configuration could not be read as JSON.",
+            {
+                "registered": False,
+                "configuration": "invalid",
+                "plugin_root": str(plugin_root),
+            },
+        )
+
+    hooks = document.get("hooks") if isinstance(document, dict) else None
+    pre_tool_use = hooks.get("PreToolUse") if isinstance(hooks, dict) else None
+    registered = False
+    if isinstance(pre_tool_use, list):
+        for registration in pre_tool_use:
+            if not isinstance(registration, dict) or registration.get("matcher") != "Bash":
+                continue
+            commands = registration.get("hooks")
+            if not isinstance(commands, list):
+                continue
+            for command_hook in commands:
+                if not isinstance(command_hook, dict) or command_hook.get("type") != "command":
+                    continue
+                command = command_hook.get("command")
+                if _is_guard_hook_command(command):
+                    registered = True
+                    break
+            if registered:
+                break
+
+    return Check(
+        "guard.hook-registration",
+        "pass" if registered else "fail",
+        (
+            "The current plugin root registers the read-only guard for Bash PreToolUse events."
+            if registered
+            else (
+                "The current plugin root does not register the read-only guard for Bash "
+                "PreToolUse events."
+            )
+        ),
+        {
+            "registered": registered,
+            "configuration": "present",
+            "plugin_root": str(plugin_root),
+        },
+        limitations=(
+            "Static registration was inspected; no live Claude hook event was fired.",
+        ),
+    )
+
+
+def _guard_file_check(plugin_root: Path) -> Check:
+    guard_path = plugin_root / "scripts" / "readonly-guard.py"
+    present = guard_path.is_file() and not guard_path.is_symlink()
+    return Check(
+        "guard.file",
+        "pass" if present else "fail",
+        (
+            "The guard resolves to a regular file under the current plugin root."
+            if present
+            else "The guard does not resolve to a regular file under the current plugin root."
+        ),
+        {
+            "present": present,
+            "relative_path": "scripts/readonly-guard.py",
+            "plugin_root": str(plugin_root),
+        },
+    )
+
+
+def _guard_checks(
+    plugin_root: Path,
+    which: Which,
+    run: GuardRunner,
+) -> list[Check]:
+    hook = _guard_hook_check(plugin_root)
+    guard_file = _guard_file_check(plugin_root)
+    checks = [hook, guard_file]
+    if guard_file.status == "pass":
+        checks.append(
+            _guard_interpreter_check(
+                plugin_root / "scripts" / "readonly-guard.py",
+                which,
+                run,
+            )
+        )
+    else:
+        checks.append(
+            Check(
+                "guard.interpreter-protocol",
+                "skip",
+                "The interpreter protocol could not be probed because the guard file is missing.",
+                limitations=("An unrun probe was not treated as healthy.",),
+            )
+        )
+    return checks
 
 
 def _safe_version(stdout: str) -> tuple[str, tuple[str, ...]]:
@@ -218,7 +468,47 @@ def _git_checks(root: Path, run: CommandRunner) -> tuple[str, list[Check]]:
     return revision, checks
 
 
+def _outside_checkout_checks() -> list[Check]:
+    limitation = ("Repository-only validation was not treated as a passing check.",)
+    return [
+        Check(
+            "repository.git-revision",
+            "skip",
+            "No repository checkout is present; Git revision was not inspected.",
+            {"checkout": False},
+            limitations=limitation,
+        ),
+        Check(
+            "repository.worktree-state",
+            "skip",
+            "No repository checkout is present; worktree state was not inspected.",
+            {"checkout": False},
+            limitations=limitation,
+        ),
+        Check(
+            "repository.fleet-contracts",
+            "skip",
+            "No repository checkout is present; source-tree fleet contracts were not inspected.",
+            {"checkout": False},
+            limitations=limitation,
+        ),
+        Check(
+            "repository.plan-status",
+            "skip",
+            "No repository checkout is present; planning governance was not inspected.",
+            {"checkout": False},
+            limitations=limitation,
+        ),
+    ]
+
+
 def _repository_checks(root: Path) -> list[Check]:
+    try:
+        from scripts import check_plan_status, validate_fleet
+    except ModuleNotFoundError:
+        import check_plan_status  # type: ignore[no-redef]
+        import validate_fleet  # type: ignore[no-redef]
+
     names, fleet_issues = validate_fleet.validate_repo(root)
     checks = [
         Check(
@@ -415,17 +705,25 @@ def validate_report(report: Mapping[str, object]) -> None:
 def collect_report(
     root: Path = REPO_ROOT,
     *,
+    plugin_root: Path = PLUGIN_ROOT,
     home: Path | None = None,
     run: CommandRunner = _run_read_only,
+    guard_run: GuardRunner = _run_guard_probe,
     which: Which = shutil.which,
     now: datetime | None = None,
 ) -> dict[str, object]:
     root = root.resolve()
+    plugin_root = plugin_root.resolve()
     home = (home or Path.home()).resolve()
     started = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     run_id = "doctor-" + started.strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
-    revision, checks = _git_checks(root, run)
-    checks.extend(_repository_checks(root))
+    if (root / ".git").exists():
+        revision, checks = _git_checks(root, run)
+        checks.extend(_repository_checks(root))
+    else:
+        revision = "unknown"
+        checks = _outside_checkout_checks()
+    checks.extend(_guard_checks(plugin_root, which, guard_run))
     cli_checks, executables = _cli_checks(which, run)
     checks.extend(cli_checks)
     checks.extend(_installation_checks(root, home, executables, run))
