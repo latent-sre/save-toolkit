@@ -16,13 +16,19 @@ success_criteria:
   - Separates activation or routing evidence from output-behavior evidence
   - Defines a bounded loop with a baseline, one candidate, comparable cases, and explicit termination
 graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
   - type: contains_any
-    of: ["activation", "routing", "trigger"]
+    of: ["activation", "routing"]
   - type: contains_any
-    of: ["output shape", "JSON", "schema", "format"]
+    of: ["output shape", "output format", "output contract", "output behavior", "output behaviour"]
+  - type: contains_any
+    of: ["measure", "separately", "distinct"]
   - type: contains_any
     of: ["baseline", "reproduce", "regression case", "focused case"]
   - type: contains_any
-    of: ["one candidate", "candidate budget", "single candidate"]
+    of: ["one candidate", "candidate budget", "single candidate", "exactly one candidate"]
   - type: contains_any
-    of: ["stop", "termination", "adopt", "promotion"]
+    of: ["human acceptance", "human approves", "human promotion", "adoption authority"]
+  - type: not_contains
+    of: ["unbounded iterations", "iterate until correct", "keep trying candidates"]

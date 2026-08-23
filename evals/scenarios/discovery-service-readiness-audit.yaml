@@ -14,12 +14,11 @@ routing:
   expect: fire
 success_criteria:
   - Invokes the discoverable read-only readiness audit rather than manual onboarding
-  - Reports evidence-labelled, severity-ranked findings and explicit verification gaps
-  - Makes no onboarding or live-system changes
+  - Stays read-only and defers any onboarding or live-system effect to the approved manual path
+# Discovery runs expose only `Skill,Task` and deny `Read` (evals/README.md), so this scenario is
+# routing-only: its graders must be satisfiable by a tool-less routed response, and the full
+# behavioral contract (severity-ranked, evidence-cited findings) belongs to a component-capable
+# direct evaluation that supplies authoritative service evidence.
 graders:
   - type: contains_any
-    of: ["P0", "P1", "P2", "P3"]
-  - type: contains_any
-    of: ["[verified]", "[sourced]", "[unverified]"]
-  - type: contains_any
-    of: ["read-only", "no changes", "did not change", "did not create"]
+    of: ["read-only", "no changes", "did not change", "did not create", "without changing"]

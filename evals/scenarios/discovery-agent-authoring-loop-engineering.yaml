@@ -17,13 +17,21 @@ success_criteria:
   - Names state, verifier, hard budgets, termination, promotion, and durable evidence
   - Keeps operations knowledge closeout and executable graph cycles as separate capabilities
 graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
   - type: contains_all
-    of: ["entry", "verifier", "budget"]
+    of: ["verifier", "budget"]
+  - type: contains_any
+    of: ["maximum iterations", "iteration cap", "iteration limit", "max iterations"]
+  - type: contains_any
+    of: ["cost budget", "token budget", "cost cap", "cost limit", "spend cap", "cost ceiling"]
   - type: contains_any
     of: ["no-progress", "no progress"]
   - type: contains_any
-    of: ["safety", "authority stop"]
+    of: ["safety stop", "authority stop", "safety/authority"]
   - type: contains_any
-    of: ["promotion", "promote", "adopt"]
+    of: ["human acceptance", "human approves", "human promotion", "human release owner"]
   - type: contains_any
-    of: ["durable evidence", "recorded evidence", "evidence"]
+    of: ["durable evidence", "recorded evidence"]
+  - type: not_contains
+    of: ["unbounded iterations", "iterate until correct", "retry until it passes"]

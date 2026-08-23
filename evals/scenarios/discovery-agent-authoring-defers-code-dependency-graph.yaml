@@ -17,7 +17,13 @@ success_criteria:
   - Does not invoke agent-authoring for a code/import dependency graph
   - Treats the request as local repository investigation and does not fabricate missing files
 graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
   - type: contains_any
-    of: ["repository", "codebase", "import", "dependency"]
+    of: ["local repository investigation", "repository-investigator", "source structure", "source-code structure"]
   - type: contains_any
-    of: ["inspect", "files", "checkout", "source"]
+    of: ["import graph", "dependency graph", "module graph", "call graph"]
+  - type: contains_any
+    of: ["parser", "AST", "static analysis", "import extraction", "statically"]
+  - type: not_regex
+    pattern: '(?i)design (?:a|an|the) (?:agent|delegation|prompt|workflow)'

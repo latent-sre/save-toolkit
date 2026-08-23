@@ -29,6 +29,26 @@ Delegation is not isolation. A clean-context subagent is not a sandbox.
    run the smallest new-behavior or after-change check that applies; run nothing for pure rewording.
    Use fresh context and multiple reps only when live behavioral evidence is required.
 
+## The bounds on the loop
+
+The steps above are one iteration. The loop around them is a bounded Loop Engineering contract —
+before the first iteration, write down every row:
+
+| Contract field | This loop's term |
+|---|---|
+| Entry and mutable state | The named artifact plus its regression cases; nothing else is edited |
+| Independent verifier | The named test/eval an agent did not author; the authoring agent never marks its own candidate passed |
+| Hard iteration budget | One candidate by default; an explicitly approved optimization may evaluate two or three total |
+| Hard time/cost budget | A fixed call or cost budget set with the candidate budget; reaching it stops the loop |
+| Success termination | The named regression passes on identical cases and conditions for incumbent and candidate |
+| No-progress termination | A tie, or a missing or inconclusive candidate result, stops the loop; neither is success |
+| Safety/authority stop | Any safety, authority, or existing-regression regression stops the loop and retains the incumbent |
+| Promotion authority | Human acceptance of the exact candidate PR revision; never the loop itself |
+| Durable evidence | The regression case, incumbent and winning revisions, per-case results, cost, and decision in the PR |
+
+Missing or inconclusive evidence is never success. Persist only the accepted result and its
+decision evidence; scratch attempts are discarded, not a second learning system.
+
 ## Learn from an encountered failure
 
 An observation is evidence, not a contract. A human first decides whether the behavior should be

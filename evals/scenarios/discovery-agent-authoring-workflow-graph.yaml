@@ -1,7 +1,10 @@
 schema_version: 1
 id: discovery-agent-authoring-workflow-graph
 mode: discovery
-split: regression
+# Calibration until a passing candidate result exists: the only measured trials for this exact
+# case timed out without an attempted/completed target invocation, and evals/README.md defines
+# that as unsuccessful routing; the regression split carries no known-failing case.
+split: calibration
 target:
   kind: skill
   name: agent-authoring
@@ -16,9 +19,17 @@ success_criteria:
   - Describes nodes, allowed edges, authority boundaries, joins, and termination
   - Does not turn the request into a code dependency graph or prematurely select a runtime
 graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
   - type: contains_all
-    of: ["node", "edge", "authority", "termination"]
+    of: ["nodes", "edges", "authority", "termination"]
   - type: contains_any
-    of: ["join", "fan-in", "handoff"]
+    of: ["delegation edge", "handoff edge", "delegation edges", "handoff edges"]
+  - type: contains_any
+    of: ["read-only review", "read-only independent review", "review without write"]
+  - type: contains_any
+    of: ["human-owned effects", "human-owned effect", "human applies", "human-executed"]
   - type: not_regex
     pattern: '(?i)must (?:use|implement with) (?:langgraph|networkx)'
+  - type: not_regex
+    pattern: '(?i)\bimports?\b.*\b(?:cycle|cycles)\b|\b(?:cycle|cycles)\b.*\bimports?\b'

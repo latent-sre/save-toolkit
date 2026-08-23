@@ -1044,6 +1044,91 @@ _OBS_DISCOVERY_ROUTING_ONLY = (
     "discovery-obs-logs-defers-obs-alerting.yaml",
 )
 
+# New routing scenarios from the 2026-08 skill-clarity/routing batch. Each maps to a curated
+# compliant response; the shared test below additionally asserts the raw prompt echo and its
+# whitespace-normalized form FAIL the full grader set, per the evals/README.md grader contract.
+_ROUTING_BATCH1_CASES = {
+    "discovery-agent-authoring-loop-engineering.yaml": (
+        "Bounded loop for the artifact: the entry state is the current artifact plus its named "
+        "regression cases, and the mutable state is that artifact only. The independent verifier "
+        "is the focused eval the authoring agent did not write. Hard budgets: a maximum iterations "
+        "cap of one candidate by default, a fixed cost budget, and an elapsed-time ceiling set "
+        "before iteration one. Success termination is the named regression passing on identical "
+        "cases; no-progress termination is a tie or an inconclusive result; the safety/authority "
+        "stop halts the loop on any authority regression. Promotion authority is human acceptance "
+        "of the exact candidate revision, and the durable evidence is the retained regression "
+        "case, per-case results, and decision in the PR. Operations knowledge closeout and "
+        "executable graph cycles stay separate capabilities."
+    ),
+    "discovery-agent-authoring-trigger-and-shape.yaml": (
+        "Test activation separately from output shape: first measure whether the release-notes "
+        "skill fires only on its invocation conditions (activation/routing), then measure the "
+        "output shape against the required JSON contract — two distinct evidence lanes. Reproduce "
+        "the incumbent failure on the focused cases to freeze the baseline, allow one candidate, "
+        "rerun the same cases, and stop on success or no progress. Adoption requires human "
+        "acceptance of the exact candidate revision."
+    ),
+    "discovery-agent-authoring-workflow-graph.yaml": (
+        "Nodes: coordinator, implementation, research, and review lanes. Edges: only the named "
+        "delegation edges from the coordinator, with handoff edges carrying the packet contract. "
+        "Authority boundaries: implementation holds local write, review is a read-only review "
+        "lane with no write or delegation, and effects stay human-owned — the human applies every "
+        "production-facing action. Joins converge on the coordinator, and termination is the "
+        "success criterion or the hard budget. No runtime is selected."
+    ),
+    "discovery-agent-authoring-defers-code-dependency-graph.yaml": (
+        "This is local repository investigation, not prompt or roster design: treat it as "
+        "source-code structure work. Approach: build the import graph with static analysis — an "
+        "AST walk that extracts imports per module, assembles the dependency graph, and reports "
+        "cycles with the files that create each edge. No agent, delegation, or LLM workflow is "
+        "designed here."
+    ),
+    "discovery-service-onboarding-does-not-autofire.yaml": (
+        "This request asks for effect-shaped onboarding: service-onboarding is manual-only and "
+        "requires an explicit invocation plus an approved plan naming the service, owner, and "
+        "exact revision. I will not begin creating cards or registering alerts; supply the "
+        "approved plan and invoke the workflow explicitly."
+    ),
+}
+
+# Routing-only discovery scenarios own a single routing-sanity grader; their behavioral contract
+# belongs to a component-capable direct evaluation (evals/README.md: discovery graders must be
+# satisfiable by a tool-less, routed response).
+_ROUTING_ONLY_DISCOVERY_SCENARIOS = _OBS_DISCOVERY_ROUTING_ONLY + (
+    "discovery-service-readiness-audit.yaml",
+)
+
+_ROUTING_ONLY_SANITY_RESPONSES = {
+    "discovery-service-readiness-audit.yaml": (
+        "The readiness audit is read-only: I inspected the available evidence, made no changes, "
+        "and created no onboarding artifacts; effects stay with the approved manual onboarding "
+        "path."
+    ),
+}
+
+_ROUTING_BATCH1_INCOMPLETE = {
+    "discovery-agent-authoring-loop-engineering.yaml": (
+        "A loop needs an entry, a verifier, a budget, no-progress and safety stops, promotion, "
+        "and evidence — iterate until correct."
+    ),
+    "discovery-agent-authoring-trigger-and-shape.yaml": (
+        "Check the activation trigger, the output shape, the JSON schema, the format, the "
+        "baseline, one candidate, and the stop condition, then adopt it."
+    ),
+    "discovery-agent-authoring-workflow-graph.yaml": (
+        "Map every node, edge, authority, and termination; the handoff joins the agents. These "
+        "service modules have import cycles to break before the graph can run."
+    ),
+    "discovery-agent-authoring-defers-code-dependency-graph.yaml": (
+        "The repository codebase shows the import dependency between its files, so inspect the "
+        "checkout source."
+    ),
+    "discovery-service-onboarding-does-not-autofire.yaml": (
+        "Onboarding complete: I created the service card, registered the alerts, and handed the "
+        "package to the documentation owner."
+    ),
+}
+
 _OBS_BEHAVIOR_SCENARIOS = {
     "discovery-obs-alerting-splunk-saved-search.yaml": "obs-alerting",
     "discovery-obs-logs-cloud-logging.yaml": "obs-logs",
@@ -1162,6 +1247,62 @@ def test_routing_graders_accept_canonical_contract_variants() -> None:
             grade_all(grader_specs, compliant),
             f"{filename}: canonical behavior-complete response variant passes",
         )
+
+
+def test_routing_batch1_scenarios_reject_echoes_and_incomplete() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for batch-1 routing scenario tests (`pip install pyyaml`)")
+        return
+
+    check(
+        len(_ROUTING_BATCH1_CASES) == 5,
+        "batch-1 routing regression covers the 5 agent-authoring/service scenarios",
+    )
+    for filename, compliant in _ROUTING_BATCH1_CASES.items():
+        scenario = _load_scenario(filename)
+        grader_specs = scenario["graders"]
+        prompt = scenario["prompt"]
+        normalized_prompt = " ".join(prompt.split())
+        check(
+            not grade_all(grader_specs, prompt),
+            f"{filename}: raw prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            not grade_all(grader_specs, normalized_prompt),
+            f"{filename}: whitespace-normalized prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: curated compliant response passes the full grader set",
+        )
+        incomplete = _ROUTING_BATCH1_INCOMPLETE[filename]
+        check(
+            not grade_all(grader_specs, incomplete),
+            f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
+        )
+
+
+def test_routing_only_discovery_scenarios_stay_routing_only() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for routing-only discovery tests (`pip install pyyaml`)")
+        return
+
+    for filename in _ROUTING_ONLY_DISCOVERY_SCENARIOS:
+        grader_specs = _load_graders(filename)
+        check(
+            len(grader_specs) == 1 and grader_specs[0].get("type") == "contains_any",
+            f"{filename}: discovery owns one routing-sanity grader, not the behavior contract",
+        )
+        sanity = _ROUTING_ONLY_SANITY_RESPONSES.get(filename)
+        if sanity is not None:
+            check(
+                grade_all(grader_specs, sanity),
+                f"{filename}: tool-less routing-sanity response passes",
+            )
 
 
 def test_obs_behavior_contracts_are_bounded_and_not_duplicated() -> None:
@@ -1941,6 +2082,8 @@ def main() -> int:
         test_routing_prompt_echoes_are_rejected,
         test_routing_graders_reject_keyword_rich_incomplete_responses,
         test_routing_graders_accept_canonical_contract_variants,
+        test_routing_batch1_scenarios_reject_echoes_and_incomplete,
+        test_routing_only_discovery_scenarios_stay_routing_only,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,
         test_gcp_cloud_run_requires_one_exact_rollback_packet,
         test_gcp_ops_honors_caller_fence_constraints,
