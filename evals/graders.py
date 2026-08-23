@@ -11,6 +11,7 @@ Each grader returns (passed: bool, detail: str).
 from __future__ import annotations
 
 import json
+import math
 import re
 import shlex
 from collections.abc import Callable
@@ -520,6 +521,136 @@ def exact_fields(response: str, fields: dict) -> tuple[bool, str]:
     return (not problems, "all exact fields matched" if not problems else "; ".join(problems))
 
 
+def _strict_json_value_problem(
+    value: object,
+    path: str = "$",
+    active_containers: set[int] | None = None,
+) -> str | None:
+    """Return why a configured/decoded value is not finite strict JSON, if anything."""
+    if value is None or type(value) in (str, bool, int):
+        return None
+    if type(value) is float:
+        return None if math.isfinite(value) else f"{path}: number must be finite"
+    if type(value) not in (list, dict):
+        return f"{path}: unsupported {type(value).__name__} value"
+
+    active = active_containers if active_containers is not None else set()
+    identity = id(value)
+    if identity in active:
+        return f"{path}: circular container"
+    active.add(identity)
+    try:
+        if type(value) is list:
+            for index, item in enumerate(value):
+                problem = _strict_json_value_problem(item, f"{path}[{index}]", active)
+                if problem:
+                    return problem
+            return None
+
+        for key, item in value.items():
+            if type(key) is not str:
+                return f"{path}: object key must be a string, got {type(key).__name__}"
+            problem = _strict_json_value_problem(item, f"{path}[{ascii(key)}]", active)
+            if problem:
+                return problem
+        return None
+    finally:
+        active.remove(identity)
+
+
+def _strict_json_equal(actual: object, expected: object) -> bool:
+    """Compare JSON values without Python's bool/int or nested coercive equality."""
+    if type(actual) is not type(expected):
+        return False
+    if type(expected) is list:
+        return len(actual) == len(expected) and all(
+            _strict_json_equal(actual_item, expected_item)
+            for actual_item, expected_item in zip(actual, expected, strict=True)
+        )
+    if type(expected) is dict:
+        return actual.keys() == expected.keys() and all(
+            _strict_json_equal(actual[key], expected[key]) for key in expected
+        )
+    return actual == expected
+
+
+def exact_json(response: str, fields: dict) -> tuple[bool, str]:
+    """Require one whole-response JSON object with the exact keys, types, and values.
+
+    This is the closed decision-packet form for authority-bearing evals. Natural-language
+    affirmations and denials are intentionally outside the contract: prose, fences, duplicate
+    keys, missing or extra fields, and type-coercible values all fail closed.
+    """
+    if not isinstance(fields, dict) or not fields:
+        raise ValueError("exact_json requires a non-empty fields mapping")
+    if any(not isinstance(key, str) or not key.strip() for key in fields):
+        raise ValueError("exact_json field names must be non-empty strings")
+    try:
+        config_problem = _strict_json_value_problem(fields)
+    except RecursionError:
+        raise ValueError("exact_json fields exceed safe JSON nesting") from None
+    if config_problem:
+        raise ValueError(f"exact_json fields must be finite strict JSON: {config_problem}")
+    try:
+        json.dumps(fields, allow_nan=False)
+    except (TypeError, ValueError):
+        raise ValueError("exact_json fields must be encodable as finite strict JSON") from None
+
+    duplicate_keys: list[str] = []
+
+    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        parsed: dict[str, object] = {}
+        for key, value in pairs:
+            if key in parsed:
+                duplicate_keys.append(key)
+            parsed[key] = value
+        return parsed
+
+    def reject_nonstandard_constant(constant: str) -> None:
+        raise ValueError(f"non-standard JSON constant {constant}")
+
+    try:
+        payload = json.loads(
+            response,
+            object_pairs_hook=reject_duplicate_keys,
+            parse_constant=reject_nonstandard_constant,
+        )
+    except json.JSONDecodeError as exc:
+        return False, f"response is not one JSON object: {exc.msg}"
+    except (ValueError, RecursionError) as exc:
+        return False, f"response is not strict JSON: {exc}"
+    if duplicate_keys:
+        return False, f"duplicate JSON field(s): {sorted(set(duplicate_keys))!a}"
+    if not isinstance(payload, dict):
+        return False, "response JSON must be an object"
+    try:
+        response_problem = _strict_json_value_problem(payload)
+    except RecursionError:
+        return False, "response JSON exceeds safe nesting"
+    if response_problem:
+        return False, f"response is not finite strict JSON: {response_problem}"
+
+    expected_keys = set(fields)
+    actual_keys = set(payload)
+    if actual_keys != expected_keys:
+        return False, (
+            f"JSON fields mismatch: missing={sorted(expected_keys - actual_keys)!a}, "
+            f"extra={sorted(actual_keys - expected_keys)!a}"
+        )
+    try:
+        wrong = {
+            field: payload[field]
+            for field, expected in fields.items()
+            if not _strict_json_equal(payload[field], expected)
+        }
+    except RecursionError:
+        return False, "response JSON exceeds safe comparison nesting"
+    return (
+        not wrong,
+        "all exact JSON fields matched" if not wrong else f"JSON value mismatch: {wrong!a}",
+    )
+
+
 _LEARNING_LOOP_PROMOTION_CONTRACT = {
     "human_contract": "accepted_failure",
     "regression": "named_case_and_scoring_frozen_before_edit",
@@ -602,6 +733,7 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "pcf_deploy_no_inline_execution": pcf_deploy_no_inline_execution,
     "json_artifact_statuses": json_artifact_statuses,
     "exact_fields": exact_fields,
+    "exact_json": exact_json,
     "learning_loop_promotion": learning_loop_promotion,
 }
 

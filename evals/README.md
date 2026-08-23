@@ -227,7 +227,7 @@ merges, releases, deploys, or changes a live system.
 
 Available response graders are `contains_all`, `contains_any`, `cloud_run_rollback_packet`,
 `not_contains`, `regex`, `not_regex`, `pcf_deploy_no_inline_execution`,
-`json_artifact_statuses`, `exact_fields`, and `learning_loop_promotion`.
+`json_artifact_statuses`, `exact_fields`, `exact_json`, and `learning_loop_promotion`.
 `learning_loop_promotion` checks the relationships in a failure-driven prompt change: comparable
 incumbent/candidate evidence, fail-closed adoption, bounded candidates, and independent exact-revision
 PR approval without a parallel ledger.
@@ -240,7 +240,11 @@ map of `{label: value}` and requires each `Label: value` line to appear exactly 
 exact value — it tolerates display-only Markdown around the label but rejects a label prefix
 (`Verdict summary:` does not satisfy `Verdict`), a duplicated field, and a value that merely
 contains the expected text; use it for closed structured-packet assertions where `contains_all`
-would false-pass on a superstring. `json_artifact_statuses` parses a JSON object from the response and
+would false-pass on a superstring. `exact_json` takes a `fields` mapping and accepts only one
+whole-response strict JSON object with the exact key set, recursive types, and values. It rejects
+prose and fences, duplicate/missing/extra fields, non-finite values, and unsafe YAML-native config
+values; its failure details remain ASCII-safe for supported Windows consoles. Use it for a closed
+authority or decision packet. `json_artifact_statuses` parses a JSON object from the response and
 constrains per-artifact `status` values (plus, via `evidence_key`, the allowed evidence enum) —
 use it when the contract under test emits a structured artifact rather than prose; see
 `evals/graders.py` and its uses in `discovery-approved-alert-knowledge.yaml` and
