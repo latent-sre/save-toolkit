@@ -205,6 +205,11 @@ effect-shaped onboarding, and prompt/Loop/graph routing has positive and near-mi
 
 **Source:** The complete
 [`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md).
+The supplemental
+[`2026-08-23 prompt, Loop, and workflow-graph research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md)
+records the current OpenAI, Anthropic, Context7, GitHits, and community evidence behind the prompt,
+Loop, and graph contracts and the resulting factual corrections. It is evidence for this Batch 1
+closeout; it does not activate the deferred executable-graph capability or select a runtime.
 Batch 0's five correctness findings are closed on current `main`; this item imports only the approved
 Batch 1 routing work. Batch 2 remains `SKILL-001`. Batch 3 capability candidates are not live work:
 each needs a confirmed operator need and authority boundary before it enters this roadmap.

@@ -56,12 +56,18 @@ owner is not named clearly enough.
 | Observed failure | Right form |
 |---|---|
 | Knows the rule, breaks it under pressure | Hard prohibition + rationalization table + red-flag list |
-| Complies, but output is the wrong shape | Positive recipe: state what the output IS, part by part |
+| Machine-consumed output or tool arguments have the wrong shape | Runtime schema plus validation |
+| Human-facing output has the wrong shape | Positive recipe: state what the output IS, part by part |
 | Omits a required element | Required slot in a template it must fill |
 | Behavior should depend on a condition | Conditional keyed to an observable predicate |
 
-Prohibitions backfire on shaping problems; recipes leave nothing to negotiate. Avoid nuance clauses
-("unless it matters") — they reopen the negotiation.
+For human-facing shaping problems, prohibitions backfire and recipes leave less to negotiate. Avoid
+nuance clauses ("unless it matters") — they reopen the negotiation.
+
+Prompt text is not always the owner. Put machine-consumed structure in a strict output or tool
+schema when the runtime supports one; put deterministic routing, approvals, and effects in code or
+the tool boundary; put context selection in the harness. Edit instructions only after locating the
+first boundary that diverges.
 
 Narrow diagnosis examples belong in the body, not the selection description: “it fires on almost every request”, “how do I rewrite this description”, “the model keeps ignoring this instruction”, “the output is the wrong shape”, “should we split this into subagents”, and “what orchestration shape”.
 

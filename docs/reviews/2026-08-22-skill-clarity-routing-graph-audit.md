@@ -236,17 +236,17 @@ routing evidence shows a genuinely distinct user surface.
    GraphRAG have different inputs, provenance, and success criteria. They belong to a separate
    `codebase-atlas` capability if owner need is confirmed.
 
-The portable method should come before a runtime choice. [OpenAI Agents SDK orchestration](https://openai.github.io/openai-agents-python/multi_agent/)
-distinguishes model-selected handoffs from code-controlled flow; its
-[guardrail guidance](https://openai.github.io/openai-agents-python/guardrails/) makes boundary
-placement material, and [tracing](https://openai.github.io/openai-agents-python/tracing/) supplies
-run lineage. LangGraph's [graph API](https://docs.langchain.com/oss/python/langgraph/graph-api),
-[persistence](https://docs.langchain.com/oss/python/langgraph/persistence), and
-[interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts) demonstrate current
-state/edge/checkpoint/resume concerns. These sources inform a portable contract; they do not make
-LangGraph the required fleet runtime. Anthropic likewise recommends
-[simple, composable patterns](https://www.anthropic.com/engineering/building-effective-agents) and
-adding complexity only when measured outcomes justify it.
+The portable method should come before a runtime choice. The deeper
+[`2026-08-23 prompt, Loop, and workflow-graph research refresh`](2026-08-23-prompt-loop-graph-engineering-research.md)
+rechecks that conclusion against current OpenAI and Anthropic primary guidance, Context7 framework
+contracts, and GitHits source and tests at named commits. It distinguishes manager-owned tools from
+handoffs, deterministic from model-selected edges, and checkpointed graph progress from exactly-once
+external effects. It also records the missing effect journal, reconciliation, `UNKNOWN` outcome,
+resume/replay, approval, taint, observability, and graph-level eval contracts. The evidence supports
+a portable contract first; it does not select LangGraph or any other runtime. Anthropic's still-valid
+guidance likewise favors the simplest composable pattern whose measured outcome justifies its
+complexity, while its current product-specific runtime guidance is treated as implementation
+evidence rather than a universal architecture.
 
 ## SRE capability assessment
 

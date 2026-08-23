@@ -64,7 +64,10 @@ The design's build order is a **dependency graph, not a sequence**: serialize on
 
 If the tool has a web UI, a static mockup (artifact, key screens, light + dark) gets user approval **before any framework code** — the approved mockup is the visual spec and a named gate in the cadence contract.
 
-Agents do not inherit this conversation. Pass each one full context: the Phase 0 requirements, repo layout and conventions, and constraints. What the handoff omits, the agent will improvise.
+Never assume a spawned agent inherits this conversation. Pass the task contract it needs: the Phase
+0 requirements, repository layout and conventions, constraints, exact inputs, and return contract.
+Some runtimes preserve a worker thread and others start fresh; the explicit packet is the portable
+boundary. What the handoff omits becomes an unknown the receiver may fill incorrectly.
 
 ## Phase 2 — Build
 
