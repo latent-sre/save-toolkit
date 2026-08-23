@@ -35,6 +35,32 @@ class ScenarioValidationTests(unittest.TestCase):
         scenario.update(updates)
         return scenario
 
+    def test_a_required_scenario_cannot_be_silently_deleted(self) -> None:
+        """Losing a named routing case must fail, not just shrink the suite.
+
+        This contract used to live in an unarmed prose-sync test. Deleting the scenario left
+        `--validate` reporting OK with one fewer case, which is the silent failure it exists to
+        prevent.
+        """
+        required = run_evals.REQUIRED_SCENARIO_IDS[0]
+        without = self._scenario(mode="discovery", split="regression")
+        problems = run_evals.validate([without], full_suite=True)
+        self.assertTrue(
+            any(f"required scenario {required!r} is missing" in p for p in problems), problems
+        )
+
+        present = self._scenario(id=required, mode="discovery", split="regression")
+        problems = run_evals.validate([present], full_suite=True)
+        self.assertFalse(
+            any("required scenario" in p for p in problems), problems
+        )
+
+    def test_every_required_scenario_id_exists_in_the_committed_suite(self) -> None:
+        ids = {s.get("id") for s in run_evals.load_scenarios()}
+        for required in run_evals.REQUIRED_SCENARIO_IDS:
+            with self.subTest(scenario=required):
+                self.assertIn(required, ids)
+
     def test_mode_and_split_are_required(self) -> None:
         missing_mode = self._scenario()
         del missing_mode["mode"]

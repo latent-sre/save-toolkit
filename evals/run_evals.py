@@ -72,6 +72,13 @@ ALLOWED_SCENARIO_KEYS = set(REQUIRED) | {
     "routing", "trials", "threshold", "_file", "_source_sha256", "_yaml_error",
 }
 ALLOWED_TARGET_KEYS = {"kind", "name"}
+# Scenarios whose ABSENCE is itself a defect, so deleting one fails instead of quietly shrinking
+# the suite. Until 2026-08-23 this was asserted inside an unarmed prose-sync test in
+# scripts/test_plan_status.py; the contract is about the scenario set, so it lives with the
+# scenarios. Add an id here only when losing that case would silently drop a routing contract.
+REQUIRED_SCENARIO_IDS = (
+    "discovery-agent-authoring-loop-engineering",
+)
 ALLOWED_ROUTING_KEYS = {"expect", "scope", "also_acceptable", "expected_alternative"}
 
 
@@ -171,7 +178,7 @@ def _prompt_names_target(prompt: str, target: dict) -> bool:
     return re.search(pattern, prompt, re.IGNORECASE) is not None
 
 
-def validate(scenarios: list[dict]) -> list[str]:
+def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
     problems: list[str] = []
     seen: set[str] = set()
     for scenario in scenarios:
@@ -307,6 +314,13 @@ def validate(scenarios: list[dict]) -> list[str]:
         problems.append("suite: at least one discovery scenario is required")
     if scenarios and not any(s.get("split") == "regression" for s in scenarios):
         problems.append("suite: at least one visible regression scenario is required")
+    # Only meaningful for the whole committed suite: a caller validating one scenario in
+    # isolation is not missing the others.
+    if full_suite:
+        present = {s.get("id") for s in scenarios}
+        for required_id in REQUIRED_SCENARIO_IDS:
+            if required_id not in present:
+                problems.append(f"suite: required scenario {required_id!r} is missing")
     return problems
 
 
@@ -1603,7 +1617,7 @@ def main() -> int:
     if not scenarios:
         print(f"evals: no scenarios found in {SCENARIOS_DIR}")
         return 3
-    problems = validate(scenarios)
+    problems = validate(scenarios, full_suite=True)
     if problems:
         print("EVAL SUITE INVALID:")
         print("\n".join("  - " + problem for problem in problems))
