@@ -144,7 +144,8 @@ shows the payload can scope to an exact agent identity.
 
 **Status:** `active` (2026-08-23) — the `incident-command`, `ops-tooling`, and `agent-security`
 router slices merged in PRs #142, #143, and #145. `ci-actions` is the only completed fourth-router
-candidate pending owner acceptance. No fifth candidate is edited.
+candidate pending owner acceptance in PR #146; `pcf-deploy` is the only completed fifth-router
+candidate pending owner acceptance on its isolated dependent branch. No sixth candidate is edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -327,6 +328,53 @@ push-boundary check.
 the next one-skill candidate after the fourth-slice pull request is green. Its dependent pull request
 must target the fourth-slice branch until the stack is accepted.
 
+`[verified]` PR #146 is open against `main` at final head
+`a8bcefd8a38064181fdf946573edbf68c70ce226`; Linux validation, Windows validation, and the Claude
+plugin contract are green and GitHub reports the branch clean. The owner explicitly authorized one
+next isolated dependent branch, so `pcf-deploy` starts from that exact head and its pull request must
+target the PR #146 branch.
+
+`[verified]` Fifth bounded implementation commit
+`af9cb4bf7ba2a04a557160b975dd1b22913ae7bc` converts only `pcf-deploy`. Its byte-identical
+frontmatter, including the manual-only controls, now opens a 7,854-byte entrypoint that keeps
+agent-never-executes authority, release/change gate stop, exact artifact/target/approved-manifest
+identity and diff, action-boundary revalidation, secret and human-only `cf env` rules, rollback
+non-reversibility, owner maps, common strategy choices, target uncertainty, abort criteria, and the
+evidence handoff. Three explicit references total 8,959 bytes across manifest/blue-green,
+rolling/canary/revisions, and configuration/scaling; the starter manifest is available only when a
+new manifest is required and no project-owned manifest or starter exists. The 30-entrypoint corpus
+falls to 205,028 bytes and the mechanical candidate set to four.
+
+A bounded pre-commit static exercise covered invariant retention and a valid-gate blue-green plan
+with an existing project manifest. `[verified]` The plan loaded only the manifest/blue-green
+reference, kept the starter asset and unrelated procedures unloaded, remained human-run, and named
+phase-specific rollback; target behavior remains `[unverified]`. The invariant review found two
+production-safety ambiguities: approval did not bind immutable manifest identity, and an instruction
+asked for rollback commands even at irreversible boundaries. One correction binds the approved
+manifest revision/hash and diff through action-time revalidation and requires rollback, recovery,
+compensation, or an explicit irreversible declaration. A focused reread passed both corrections.
+
+`[verified]` Independent review approved exact commit `af9cb4bf7ba2a04a557160b975dd1b22913ae7bc`
+with no findings and zero independently found P0/P1s. The candidate passed direct
+link/fleet/roadmap/stale-name validation, strict Claude plugin validation, 102 focused
+link/adapter/fleet/canary tests (three skips), generator byte validation, and `git diff --check`. The
+one required regeneration produced 147 supported Copilot adapter files. The generic Codex
+skill-creator quick validator is not applicable to this existing manual Claude skill: after an
+introduced incompatible prose character was removed, it still rejected the pre-existing,
+repository-required `compatibility` and `disable-model-invocation` keys. The repository validators
+and strict Claude plugin validation are the governing contracts.
+
+Two scenarios target `pcf-deploy`: a negative discovery regression and a direct behavioral
+calibration. Its description and manual-only routing metadata are byte-identical, so neither is an
+affected routing scenario; no paid routing run was required or performed. Host activation,
+final-response quality, and deployment runtime behavior remain `[unverified]`. Gate A remains the
+single push-boundary check.
+
+`[verified]` Remeasurement of exact implementation commit `af9cb4b` leaves four candidates.
+`pcf-ops` is largest at 10,173 unconditional entrypoint bytes with 1,543 routed reference bytes. It
+is not started automatically; select it only after the fifth-slice pull request is accepted and a
+fresh measurement confirms the ordering.
+
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
@@ -338,12 +386,12 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Open the `ci-actions` pull request against `main` and require its normal CI on the
-exact head. Once green, create one isolated dependent branch and convert only `pcf-deploy`;
-remeasure that exact head again before selecting any sixth candidate. Do not rerun unchanged
-`incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a future
-comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run
-bounded to its overlapping scenarios and separate from this slice.
+**Next action:** Open the `pcf-deploy` pull request against the PR #146 branch and require its normal
+CI on the exact head. After owner acceptance, remeasure the accepted head before selecting one sixth
+candidate; do not assume the historical ordering or start `pcf-ops` automatically. Do not rerun
+unchanged `incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a
+future comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder`
+after-change run bounded to its overlapping scenarios and separate from this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
