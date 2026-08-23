@@ -384,13 +384,20 @@ Consequently both behaviorally approved candidate trials were marked FAIL only b
 Reconfirmed on candidate `e51f9ec62cebc1883e1f9a6cfba3b716f5d2ab1b` in run
 `20260823T005205Z-27dbcbfe`: both trials returned `APPROVED` and passed every response grader; only
 the absent skill-completion event kept the aggregate red. *[verified]*
+Review repair on Claude CLI 2.1.241 added the paired missing-authority case. An uncommitted
+weakened-rule mutation (`plugin_inputs_dirty=true`) incorrectly returned `APPROVED` 2/2 in
+`20260823T011640Z-4e6a6eaa`; restored candidate
+`e6f6178d755501bd3aad1ddc40c92e4669ff18c1` returned `BLOCKED` 2/2 for that case in
+`20260823T012204Z-1a382e31` and `APPROVED` 2/2 for the complete packet in
+`20260823T012314Z-ec65c221`. Every response grader passed on the restored pair; only `skill-fired`
+remained red because both traces still reported `skills=[]`. *[verified]*
 
 **Prerequisites:** Identify a stable trace or invocation signal for slash-command expansion. Do not
 infer contribution from answer prose alone.
 
 **Acceptance:** Focused red-first fixtures cover the current expansion shape and the legacy tool-event
-shape; the direct production-gate scenario passes 2/2; and the existing inline-answer control remains
-red when no skill contributes.
+shape; the paired approved and missing-authority production-gate scenarios each pass 2/2; and the
+existing inline-answer control remains red when no skill contributes.
 
 **Next action:** Capture the smallest current trace around one direct slash command, then either grade
 its expansion signal or make direct mode invoke the skill explicitly. Keep the response-text fallback
