@@ -215,6 +215,14 @@ reference-dependent response behavior remains `[unverified]`. The audit records 
 and the disagreement between raw tool-use events and the timeout summary's empty derived invocation
 fields.
 
+The owner then authorized one timeout-calibration run on unchanged model-facing bytes. `[verified]`
+Run `20260823T140515Z-83460c27`, clean commit `ea4cf74`, `claude-sonnet-5`, two trials, and a
+540-second timeout passed 2/2. Trial durations were 263.594 and 40.531 seconds, so the first result
+demonstrates that 180 seconds was an insufficient ceiling. The longer run is not rate-comparable to
+the shorter run; it closes the after-change activation check under its own recorded condition. The
+global runner default remains 300 seconds, and detailed reference-dependent behavior remains outside
+the discovery evidence layer.
+
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
@@ -226,11 +234,10 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Obtain one owner disposition on exact candidate `cbda2b9`: accept the first router
-shape from the structural preservation evidence plus observed 2/2 activation, or hold it until a
-component-capable evaluator can read the conditional references. Do not rerun unchanged discovery
-bytes and do not edit a second candidate before that decision. Keep the already-owed `eng-ladder`
-after-change run bounded to its overlapping scenarios.
+**Next action:** Obtain normal owner acceptance of the exact branch revision, then begin one next
+confirmed candidate as a separate bounded slice. Do not rerun unchanged `incident-command` bytes;
+use an explicit 540-second timeout only if a future comparable run is authorized. Keep the
+already-owed `eng-ladder` after-change run bounded to its overlapping scenarios.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

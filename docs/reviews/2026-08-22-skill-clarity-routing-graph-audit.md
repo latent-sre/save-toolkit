@@ -447,3 +447,32 @@ bytes merely to obtain a terminal sample, and do not apply the router pattern to
 the owner either accepts the exact structural-plus-activation evidence or provides a
 component-capable evaluator that can read conditional references. This is an evaluator-boundary
 hold, not evidence that `incident-command` misrouted.
+
+### Owner-authorized timeout calibration
+
+The owner subsequently authorized one fixed rerun with the timeout tripled from 180 to 540 seconds.
+No prompt, scenario, grader, skill, or projection byte changed. Run
+`20260823T140515Z-83460c27` used clean commit
+`ea4cf74cd6958a9cfa1581c7e11005e7812be33f`; its plugin source digest
+`367a170c99f5720b88c26064a9caa8ab2731f71747dd49e613a5b15f9c3b6f33` matches the earlier
+candidate run, whose only intervening commit changed evidence documentation.
+
+`[verified]` Integrity passed, one requested/resolved model (`claude-sonnet-5`) was observed, and the
+scenario passed **2/2** at its 1.0 threshold. Both trials completed the root
+`save-toolkit:incident-command` invocation and the routing-sanity grader:
+
+- Trial 1 passed in 263.594 seconds and cost $0.6939631. It repeated the missing-reader detour before
+  producing a terminal response; that duration proves the 180-second cutoff was premature.
+- Trial 2 passed in 40.531 seconds and cost $0.105144 without spawning a reader.
+
+The combined recorded cost was $0.7991071. Because timeout is a run-shaping condition, the 540-second
+pass rate is not a before/after behavior comparison with the 180-second run. It is timeout
+calibration on identical model-facing bytes. The result closes after-change activation evidence for
+this slice; it does not upgrade detailed reference-dependent behavior, which discovery still cannot
+read, from `[unverified]`.
+
+**Revised first-slice disposition:** the router shape has green structural evidence and green
+after-change activation evidence. Retain 540 seconds as the explicit condition for any future
+comparison of this scenario; do not raise the runner's global 300-second default or rerun these
+unchanged bytes again. The next Batch 2 candidate may begin after normal owner acceptance of the
+exact branch revision.
