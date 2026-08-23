@@ -18,9 +18,9 @@ committed copy of a dashboard, so the instance and its version history are the o
 **Version facts that change what you do** — deployed 13.1.x, 13.2.0 planned (`stack-profile`):
 dynamic dashboards (schema V2) are GA and on since 13.0; legacy `/api` is deprecated in favour of
 `/apis`, still served but no longer updated; **13.2.0 disables scripted dashboards** (they
-fail with HTTP 410 unless `disableScriptedDashboards=false`; removed in Grafana 14) and is the
-alerting **security floor** (CVE-2026-17183). The 13.1 → 13.2 dashboard surface is otherwise
-unchanged — same version set, `schemaVersion` stays 42, no migration step — but 13.2.0 has an open
+fail with HTTP 410 unless `disableScriptedDashboards=false`; removed in Grafana 14). The 13.1 →
+13.2 dashboard surface is otherwise unchanged — same version set, `schemaVersion` stays 42, no
+migration step — but 13.2.0 has an open
 regression where bundled data-source plugins go missing after upgrade (#130921), so render a panel
 before trusting a dashboard's silence, and export everything first as the rollback.
 *[sourced: whats-new v13.0–13.2; verified against tags v13.1.4 and v13.2.0]*

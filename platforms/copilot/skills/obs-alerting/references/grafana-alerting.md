@@ -16,22 +16,26 @@ groups, notification routing, and runbook metadata under review with the same ri
 
 ## Primary sources
 
-Sources reviewed 2026-07-14, extended 2026-08-07 (indirect retrieval of official pages):
+Grafana documentation was reviewed 2026-07-14 and extended 2026-08-07 through indirect retrieval;
+the vulnerability sources were reviewed directly 2026-08-22:
 
 - `[sourced]` [Configure alert rules](https://grafana.com/docs/grafana/latest/alerting/alerting-rules/)
 - `[sourced]` [Use configuration files to provision alerting resources](https://grafana.com/docs/grafana/latest/alerting/set-up/provision-alerting-resources/file-provisioning/)
 - `[sourced]` [Labels and annotations](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rules/annotation-label/)
 - `[sourced]` [Alert rule evaluation](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rule-evaluation/) and its state/no-data subpages
+- `[sourced]` [Grafana CNA record for CVE-2026-17183](https://cveawg.mitre.org/api/cve/CVE-2026-17183)
+- `[sourced]` [GHSA-f74r-h7qj-c63f](https://github.com/advisories/GHSA-f74r-h7qj-c63f)
 
-**Security floor — `[sourced]` (reviewed 2026-08-21).** Run **13.2.0 or later** for alerting.
-[CVE-2026-17183 / GHSA-f74r-h7qj-c63f](https://github.com/advisories/GHSA-f74r-h7qj-c63f)
-(CVSS 7.1 High, CWE-863 incorrect authorization, published 2026-08-19): *"An authenticated
-organization user who can create or edit alert rules in a folder can query a datasource for which
-they do not have `datasources:query` permission."* Fixed in the 13.2.0 release. Until the deployed
-instance is on it, treat **alert-rule edit rights as datasource read rights** — a folder where
-many people can author rules is a folder where all of them can read every datasource the rules
-can reach. The team's deployed minor is `[unverified]`; confirm it before granting rule-edit
-permissions broadly.
+**CVE-2026-17183 — `[sourced]` (reviewed 2026-08-22).** Grafana Labs' CNA data lists affected OSS
+and Enterprise ranges as `>=8.4.0,<12.3.11`, `>=12.4.0,<12.4.9`, `>=13.0.0,<13.0.7`, and
+`>=13.1.0,<13.1.4`. The fixed patch boundaries inferred from those exclusive upper bounds are
+12.3.11, 12.4.9, 13.0.7, and 13.1.4. The inspected GitHub page is itself labeled **Unreviewed** by
+GitHub and still lists affected and patched versions as unknown, so it is not used to infer a
+security floor. Do not turn 13.2.0 into a universal floor. QA is verified at 13.1.4 Enterprise and outside
+the CNA ranges; production is known only as 13.1.x, so its exact patch remains `[unverified]`.
+Until production is confirmed at 13.1.4 or later, treat **alert-rule edit rights as datasource read
+rights** — a folder where many people can author rules is a folder where all of them can read every
+datasource the rules can reach.
 
 Grafana documents Grafana-managed rules as the recommended option; they can query supported backend
 data sources and are evaluated by Grafana, while data source-managed rules are supported for compatible

@@ -71,11 +71,9 @@ gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.servic
 
 Two shapes matter to this fleet specifically:
 
-- Use **`--freshness`** for the time bound and **`severity=(ERROR OR CRITICAL)`** for the severity
-  floor. A `severity>=ERROR` filter is valid Logging query language *[sourced:
-  docs.cloud.google.com/logging/docs/view/logging-query-language]* but the `>=` trips the
-  read-only guard's structure rule — that deny is by design, not a bug. A filter that genuinely
-  needs comparison operators (timestamps, numeric fields) is a **recommend-for-human** query.
+- Use **`--freshness`** for the time bound and keep the whole Logging filter in one quoted argument.
+  `severity>=ERROR` is valid and guard-safe when quoted; the unquoted spelling is shell redirection
+  and is denied. `severity=(ERROR OR CRITICAL)` remains a guard-safe alternate spelling.
 - The Logging query language details (operators, `log_id()`, `SEARCH()`) belong to the `obs-logs`
   skill's GCP reference — load that for query construction; this skill owns the triage flow.
 

@@ -87,18 +87,10 @@ optional. Engine-specific migration, locking, and failover mechanics remain `[un
 target until captured against a real instance. *[sourced: operator statement 2026-08-21]*
 
 ## Incident response
-A formal on-call rotation is in place, with a four-tier severity ladder:
-
-| Tier | Meaning |
-|---|---|
-| **P1** | Critical |
-| **P2** | High |
-| **P3** | Medium |
-| **P4** | Low |
-
-Use these names directly — `incident-command`, `obs-alerting`, and `postmortem` refer to this
-ladder rather than inventing their own. Entry criteria per tier are **not yet recorded here**;
-capture them when the incident owner confirms them. *[sourced: operator statement 2026-08-21]*
+A formal on-call rotation is in place. *[sourced: operator statement 2026-08-21]*
+`incident-command` owns the current P1–P4 entry criteria, response roles, and communications cadence
+and records their ratification status; load it whenever severity, roles, or incident communications
+matter. Other skills consume the selected tier without copying its rubric.
 
 ## Change management
 Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal
