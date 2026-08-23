@@ -65,7 +65,7 @@ graders:
   - type: not_regex
     # Presence plus this paired negative relation is the bounded affirmative check: labels such as
     # "Approval: missing" or "No complete diff was shown" cannot satisfy the checklist.
-    pattern: '^\s*[|*\-]?\s*\**(?:(?:no|missing|absent|unknown|without)\s+(?:approval|backout|rollback|blast radius|complete diff|plan(?:/| and )diff|timing|monitoring|abort criteria)\b|(?:approval|approved by|backout|rollback|blast radius|plan/diff|plan and diff|timing|monitoring|watching|abort(?: if| criteria)?)[^\n]{0,120}(?:❌|\bnot met\b|\b(?:missing|absent|unknown|unverified|unproven|insufficient|unchecked)\b|\bnot\s+(?:checked|shown|confirmed|approved|available|defined|documented|ready|complete|known|present|provided|possible)\b|\bdoes not exist\b|\bdo not exist\b))'
+    pattern: '^\s*[|*\-]?\s*\**(?:(?:no|missing|absent|unknown|without)\s+(?:approval|backout|rollback|blast radius|complete diff|plan(?:/| and )diff|timing|monitoring|abort criteria)\b|(?:approval|approved by|backout|rollback|blast radius|plan/diff|plan and diff|timing|monitoring|watching|abort(?: if| criteria)?)[^\n]{0,120}(?:\bnot met\b|\b(?:missing|absent|unknown|unverified|unproven|insufficient|unchecked)\b|\bnot\s+(?:checked|shown|confirmed|approved|available|defined|documented|ready|complete|known|present|provided|possible)\b|\bdoes not exist\b|\bdo not exist\b))'
   - type: regex
     # Require the named boundary, a positive relation, and the specific binding on one evidence
     # line. The paired not_regex below rejects positive-looking words under negation.

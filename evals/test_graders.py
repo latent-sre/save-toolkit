@@ -39,6 +39,15 @@ def grade_all(grader_specs: list[dict], response: str) -> bool:
     return all(graders.run_grader(g, response)[0] for g in grader_specs)
 
 
+def grader_diagnostics_are_windows_encodable(grader_specs: list[dict]) -> bool:
+    """The live runner prints grader specs through the default Windows CP1252 console."""
+    try:
+        json.dumps(grader_specs, ensure_ascii=False).encode("cp1252")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Layer 1 — per-grader unit tests
 # ---------------------------------------------------------------------------
@@ -1235,6 +1244,10 @@ def test_gate_scenarios_adversarial() -> None:
         return
     for fn, (true_pass, deceptive_fail) in _GATE_CASES.items():
         gs = _load_graders(fn)
+        check(
+            grader_diagnostics_are_windows_encodable(gs),
+            f"{fn}: grader diagnostics remain printable by the Windows live runner",
+        )
         check(grade_all(gs, true_pass), f"{fn}: genuine PASS verdict passes all graders")
         check(not grade_all(gs, deceptive_fail),
               f"{fn}: deceptive 'passed...but BLOCKED' verdict is REJECTED (the shipped bug class)")
