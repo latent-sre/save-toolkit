@@ -4,7 +4,9 @@ Read this when the tool is a CLI — exit codes, streams, --dry-run, confirm-bef
 
 This file owns CLI shape; language idiom remains the caller’s responsibility — see the `language-idiom` skill.
 
-Starter: [cli_skeleton.py](../assets/cli_skeleton.py).
+When bootstrapping a new Python CLI and the repository has no project-owned starter, use
+[cli_skeleton.py](../assets/cli_skeleton.py). Existing implementations, non-Python CLIs, and later
+contract/testing work do not load or replace themselves with this starter.
 
 ## Framework
 - **Python → Typer** (or Click; `argparse` for zero-dep); follow the repository's Python conventions. **Bash →** use strict mode and explicit argument parsing. **PowerShell →** use advanced functions, approved verbs, and `CmdletBinding`. Match the repo.
@@ -62,5 +64,5 @@ exit codes + dry-run covered by tests.
 Run it four ways and paste the evidence: `--help` (documents the precedence), the happy path with
 `--json | jq .` (clean parse), a deliberate failure (non-zero exit, one-line stderr message), and
 `--dry-run` on something destructive (plan printed, nothing changed — proven by a spy or by checking the
-target afterward). The runnable starter [cli_skeleton.py](../assets/cli_skeleton.py) implements every
-rule above.
+target afterward). If the bundled starter was selected during bootstrap, verify its resulting
+implementation against the same checks; the starter is not evidence that they passed.

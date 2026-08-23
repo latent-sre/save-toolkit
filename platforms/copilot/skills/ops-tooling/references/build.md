@@ -9,8 +9,9 @@ rules when more than one component can build independently.
 ## Assign the builder
 
 Spawn the typed `sde` agent with the requirements, design, exact repository paths and conventions,
-and mission transaction. Shape every prompt with
-[the spawn-prompt template](../assets/spawn-prompt.template.md). Fill every slot or state
+and mission transaction. When drafting the first packet or replacing/relaunching one, shape it with
+[the spawn-prompt template](../assets/spawn-prompt.template.md). When only validating an existing
+packet, check the required slots below without loading the template. Fill every slot or state
 `n/a — <reason>`:
 
 - the checkpoint boundary;

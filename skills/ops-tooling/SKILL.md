@@ -50,17 +50,22 @@ gate.
 
 | If the work involves… | Read first |
 |---|---|
-| Qualifying the tool, gathering requirements, recording the environment/cadence contract, choosing design altitude, or approving a UI mockup | [Requirements and design](./references/requirements-and-design.md); use the [environment-card](./assets/environment-card.md) and [plan](./assets/plan-file.template.md) templates there |
+| Qualifying the tool, gathering requirements, recording the environment/cadence contract, choosing design altitude, or approving a UI mockup | [Requirements and design](./references/requirements-and-design.md) |
+| Creating an environment card because no project-owned runtime-neutral instructions record the required fields | [Environment-card template](./assets/environment-card.md) |
+| Creating a plan because no project-owned plan exists | [Plan template](./assets/plan-file.template.md) |
 | Recommending a runtime, framework/tool, CI path, data store, placement, or infrastructure change | Load `stack-profile` before making the recommendation |
-| A command-line interface, including exit codes, streams, machine output, dry-run, configuration, or CLI testing | [CLI contract](./references/cli.md) and its [starter](./assets/cli_skeleton.py) |
+| A command-line interface, including exit codes, streams, machine output, dry-run, configuration, or CLI testing | [CLI contract](./references/cli.md) |
+| Bootstrapping a new Python CLI when the repository has no project-owned starter | [CLI starter](./assets/cli_skeleton.py) |
 | More than one independently buildable component, an interface contract, parallel ownership, or a walking skeleton | [Multi-component builds](./references/multi-component.md) |
-| Instantiating the first versioned interface contract because no project-owned contract exists yet | [Contract template](./assets/contract.template.md) |
-| Assigning a builder, defining a checkpoint, batching implementation, validating a builder packet, or handling a missed checkpoint | [Build](./references/build.md) and the [spawn-prompt template](./assets/spawn-prompt.template.md) |
+| Instantiating the first HTTP interface contract because no project-owned versioned contract exists yet | [Contract template](./assets/contract.template.md) |
+| Assigning a builder, defining a checkpoint, batching implementation, validating a builder packet, or handling a missed checkpoint | [Build](./references/build.md) |
+| Drafting, replacing, or relaunching a builder packet | [Spawn-prompt template](./assets/spawn-prompt.template.md) |
 | Seeding, evaluating, or reconciling an independent correctness/security review | [Review](./references/review.md) |
 | Running the mission transaction, cleaning up the test environment, reporting evidence, handing over, or preparing deployment/onboarding | [Verification and handoff](./references/verification-and-handoff.md) |
 
-Load every row that matches the current step and no others. A CLI with multiple components may need
-both conditional extensions, but it should not preload later pipeline phases.
+Load every row whose full predicate matches the current step and no others. Existing project-owned
+artifacts suppress their corresponding starter/template rows. A CLI with multiple components may
+need both procedure extensions, but it should not preload optional assets or later pipeline phases.
 
 ## Pipeline state and phase exits
 

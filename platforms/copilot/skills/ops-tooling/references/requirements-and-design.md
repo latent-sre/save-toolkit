@@ -27,9 +27,11 @@ into one question round:
 
 Before assigning a builder, ensure the repository's runtime-neutral project instructions record the
 toolchain paths, ports, run/test commands, module identity from `git remote -v`, where credentials
-live, and the progress-file path. Runtime-specific instructions may import that authority rather
-than duplicate it. Use [the environment-card template](../assets/environment-card.md); the portable
-progress-file default is `.agents/PROGRESS.md`.
+live, and the progress-file path. Use or update a project-owned card when one exists. Only when none
+exists, instantiate [the environment-card template](../assets/environment-card.md) in the
+runtime-neutral instruction file, normally root `AGENTS.md`. Runtime-specific instructions may
+import that authority rather than duplicate it. The portable progress-file default is
+`.agents/PROGRESS.md`.
 
 The card also carries the mission block: purpose, mission transaction, threat model, and what the
 verification pipeline can and cannot observe. Builders, reviewers, and future maintenance sessions
@@ -38,12 +40,12 @@ read that durable context instead of relying on conversation memory.
 ### Cadence contract
 
 In the same question round, settle commit policy, pause points, and which gates require the user's
-eyes; design approval and deploy artifacts are the defaults. Instantiate
-[the plan template](../assets/plan-file.template.md) as `.agents/plan.md` unless the repository owns
-another path. The orchestrator owns this file; builders never write it. Record the contract
-immediately so it survives compaction. Anything not named as a gate runs without a check-in, but
-there is no commit authority unless the user granted it. A waiting gate blocks only its dependent
-scope; independent non-gated work continues.
+eyes; design approval and deploy artifacts are the defaults. Use or update the project-owned plan
+when one exists. Only when none exists, instantiate
+[the plan template](../assets/plan-file.template.md) as `.agents/plan.md`. The orchestrator owns this
+file; builders never write it. Record the contract immediately so it survives compaction. Anything
+not named as a gate runs without a check-in, but there is no commit authority unless the user granted
+it. A waiting gate blocks only its dependent scope; independent non-gated work continues.
 
 ## Phase 1 — Right-size the design
 
