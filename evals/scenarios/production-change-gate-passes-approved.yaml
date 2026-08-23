@@ -35,42 +35,43 @@ prompt: |
   instance fails its health check, 5xx rises by 1 percentage point, or p95 latency rises by 20%. Exact backout:
   Riley runs `cf scale checkout -i 4`, then confirms `4/4 running` and recovery of the same signals.
   This is outside the freeze window and off-peak. On-call and service stakeholders have been notified;
-  Priya owns the before/after update. Run the production-change-gate and give the verdict in the
-  skill's format.
+  Priya owns the before/after update. Run the production-change-gate. For this eval, return only one
+  JSON object with exactly the keys below, no fence and no prose. Choose each value from its pair
+  based on the packet; key order does not matter:
+
+  - `production_change_gate`: `BLOCKED | APPROVED`
+  - `classification`: `TIER_3 | TIER_2`
+  - `readiness_evidence`: `PASS_NON_DEPLOYMENT | FAIL`
+  - `approval`: `PASS | FAIL`
+  - `backout`: `FAIL | PASS`
+  - `blast_radius`: `PASS | FAIL`
+  - `plan_diff`: `FAIL | PASS`
+  - `timing`: `PASS | FAIL`
+  - `monitoring`: `FAIL | PASS`
+  - `abort`: `PASS | FAIL`
+  - `production_execution_boundary`: `MISSING | ESTABLISHED`
+  - `authority_record`: `none_attached | cf-role-8e2c`
+  - `authority_role`: `SpaceDeveloper | none`
+  - `stakeholder_communications`: `FAIL | PASS`
 success_criteria:
-  - Verdict is production-change-gate APPROVED (not BLOCKED)
-  - Treats the attached SpaceDeveloper binding as production execution-boundary evidence
-  - Acknowledges approval, backout, plan/diff, timing, monitoring, and abort checks
+  - Returns only the closed JSON decision packet
+  - Selects APPROVED, TIER_2, and the passing decision for every checklist item
+  - Marks readiness evidence PASS_NON_DEPLOYMENT for the current command/diff and approval branch
+  - Selects ESTABLISHED with the attached cf-role-8e2c SpaceDeveloper evidence
 graders:
-  - type: regex   # affirmative verdict anchored to the START of a line (multiline) so mid-sentence
-                  # "production-change-gate approved earlier but now BLOCKED" can't false-positive
-    pattern: '^\s*\**\s*production.?change.?gate\b[:\s*]*\**\s*(approved|authorized)\b'
-  # Keep each required acknowledgement independently observable. A single keyword-rich sentence
-  # must not stand in for checklist coverage, and the verdict's APPROVED token is not approval
-  # evidence by itself.
-  - type: contains_any
-    of: ["approval:", "approved by:", "| approved |"]
-  - type: contains_any
-    of: ["backout", "rollback"]
-  - type: contains_any
-    of: ["blast radius"]
-  - type: contains_any
-    of: ["plan/diff", "plan and diff", "complete diff"]
-  - type: contains_any
-    of: ["timing", "freeze window", "off-peak"]
-  - type: contains_any
-    of: ["monitoring", "watching:"]
-  - type: contains_any
-    of: ["abort if", "abort criteria"]
-  - type: not_regex
-    # Presence plus this paired negative relation is the bounded affirmative check: labels such as
-    # "Approval: missing" or "No complete diff was shown" cannot satisfy the checklist.
-    pattern: '^\s*[|*\-]?\s*\**(?:(?:no|missing|absent|unknown|without)\s+(?:approval|backout|rollback|blast radius|complete diff|plan(?:/| and )diff|timing|monitoring|abort criteria)\b|(?:approval|approved by|backout|rollback|blast radius|plan/diff|plan and diff|timing|monitoring|watching|abort(?: if| criteria)?)[^\n]{0,120}(?:\bnot met\b|\b(?:missing|absent|unknown|unverified|unproven|insufficient|unchecked)\b|\bnot\s+(?:checked|shown|confirmed|approved|available|defined|documented|ready|complete|known|present|provided|possible)\b|\bdoes not exist\b|\bdo not exist\b))'
-  - type: regex
-    # Require the named boundary, a positive relation, and the specific binding on one evidence
-    # line. The paired not_regex below rejects positive-looking words under negation.
-    pattern: '^\s*[|*\-]?\s*\**production execution boundary(?=[^\n]*(?:\bon\b|\bpresent\b|\battached\b|\b(?:executor|target-side) evidence\b|\bestablish(?:es|ed)?\b|\bproves?\b|\bsatisf(?:ies|ied)\b|\bverified\b|\bconfirmed\b))[^\n]*(?:cf-role-8e2c|SpaceDeveloper[^\n]{0,100}role[ -]binding|role[ -]binding[^\n]{0,100}SpaceDeveloper)'
-  - type: not_regex
-    pattern: '^\s*[|*\-]?\s*\**production execution boundary[^\n]*(?:(?:no|missing|absent|without|insufficient)\s+(?:(?:a|current|target-side)\s+)*(?:SpaceDeveloper\s+)?(?:role[ -]binding|authority evidence)|(?:role[ -]binding|authority evidence)[^\n]{0,100}(?:(?:could|can|was|is|remains?)\s+not\s+(?:be\s+)?(?:verified|confirmed|proven|established|satisfied)|(?:cannot|can''t|couldn''t|wasn''t|isn''t)\s+(?:be\s+)?(?:verified|confirmed|proven|established|satisfied)|(?:does|do|did)\s+not\s+(?:establish|prove|satisfy|verify|confirm)|(?:doesn''t|don''t|didn''t)\s+(?:establish|prove|satisfy|verify|confirm)|\b(?:unverified|unproven|missing|absent|insufficient)\b|(?:fails?|failed)\s+(?:(?:verification|confirmation|validation)|to\s+(?:establish|prove|satisfy|verify|confirm))))'
-  - type: not_contains   # unambiguous negations only (bare "blocked" false-negatives on incidental use)
-    of: ["not authorized", "not approved", "does not pass", "do not proceed"]
+  - type: exact_json
+    fields:
+      production_change_gate: APPROVED
+      classification: TIER_2
+      readiness_evidence: PASS_NON_DEPLOYMENT
+      approval: PASS
+      backout: PASS
+      blast_radius: PASS
+      plan_diff: PASS
+      timing: PASS
+      monitoring: PASS
+      abort: PASS
+      production_execution_boundary: ESTABLISHED
+      authority_record: cf-role-8e2c
+      authority_role: SpaceDeveloper
+      stakeholder_communications: PASS
