@@ -24,10 +24,8 @@ becomes clear.
 | **P3 — Medium** | Minor / contained impairment; core journeys work or a workaround exists | On-call owns the lifecycle; no IC required; update stakeholders at start + resolution; abbreviated postmortem |
 | **P4 — Low** | Cosmetic / informational; no user impact | Normal work queue; no incident process |
 
-This skill is the fleet's canonical copy of the severity rubric and cadence. The adoption plan
-records the verbatim port from the pre-redesign severity skill; separate human ratification of the
-individual thresholds is `[unverified]`, so do not attribute them to owner approval. *[sourced:
-[fleet-redesign plan, Task 23](https://github.com/latent-sre/save-toolkit/blob/4515fdd88d0b6f3530c7bb199b27e60afe4c87d5/docs/superpowers/plans/2026-07-13-copilot-fleet-redesign.md#task-23-incident-command--postmortem)]*
+This skill is the fleet's canonical copy of the severity rubric and cadence. The ladder above is the
+team's own P1-P4 ladder, ratified by the owner on 2026-08-23. *[verified: owner ratification]*
 
 ## How to classify
 
