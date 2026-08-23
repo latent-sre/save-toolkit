@@ -143,8 +143,8 @@ shows the payload can scope to an exact agent identity.
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
 **Status:** `active` (2026-08-23) — the `incident-command`, `ops-tooling`, and `agent-security`
-router slices merged in PRs #142, #143, and #145. `ci-actions` is the only fourth-router candidate
-under implementation. No fifth candidate is edited.
+router slices merged in PRs #142, #143, and #145. `ci-actions` is the only completed fourth-router
+candidate pending owner acceptance. No fifth candidate is edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -293,6 +293,40 @@ review from `e583859` to the final head.
 remaining candidates. `ci-actions` is largest at 12,197 unconditional entrypoint bytes with one
 reference totaling 1,620 bytes, so it is selected alone for the fourth bounded router slice.
 
+`[verified]` Fourth bounded implementation commit
+`a5c425d69eaf5211226db81e42ddc277496dfd62` converts only `ci-actions`. Its byte-identical
+description now opens a 7,282-byte entrypoint that keeps the build-once/promote contract,
+project-owned-workflow precedence, human-only deployment authority, untrusted-input boundary,
+least-privilege permissions, immutable action/image pins, event-injection and fork isolation,
+protected-environment credential rule, non-cancellable production concurrency, layered verification,
+and evidence-bound handoff. Three explicit references total 10,706 bytes across security/provenance,
+execution/runners, and PCF deployment; the starter asset is available only when a new reusable
+workflow is required and no project-owned workflow or starter exists. The 30-entrypoint corpus falls
+to 207,525 bytes and the mechanical candidate set to five.
+
+A bounded pre-commit static exercise covered invariant retention and an existing-workflow fork-cache
+case against canonical blobs that are byte-identical in `a5c425d`. `[verified]` The cache case loaded
+only the security/provenance and execution/runner references, kept the bundled starter unloaded,
+proposed a narrow project-owned-workflow change, and preserved the fork/secret boundary; runtime
+effectiveness remains `[unverified]`. The invariant review found one contradiction: the broad
+credential predicate made the entrypoint's reference-free missing-secret diagnosis unreachable. The
+correction limits the route to credential/OIDC design or changes, and a focused reread passed. This
+was static artifact evidence, not host activation or runtime behavior.
+
+`[verified]` Independent review approved exact commit `a5c425d69eaf5211226db81e42ddc277496dfd62`
+with no findings and zero independently found P0/P1s. The candidate passed the skill quick validator,
+direct link/fleet/roadmap/stale-name validation, strict Claude plugin validation, 102 focused
+link/adapter/fleet/canary tests (three skips), generator byte validation, and `git diff --check`. The
+one required regeneration produced 144 supported Copilot adapter files; the retired
+`plugins/save-toolkit` root remains absent. No scenario targets `ci-actions`, its description routing
+content is unchanged, and no paid routing run was required or performed. Gate A remains the single
+push-boundary check.
+
+`[verified]` Remeasurement of exact implementation commit `a5c425d` leaves five candidates.
+`pcf-deploy` is largest at 10,351 unconditional entrypoint bytes with no routed references, so it is
+the next one-skill candidate after the fourth-slice pull request is green. Its dependent pull request
+must target the fourth-slice branch until the stack is accepted.
+
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
@@ -304,12 +338,12 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Convert and independently review only `ci-actions` from exact current-main base
-`80cd023`. After its exact revision is accepted, remeasure that head before selecting one fifth
-candidate; do not assume the historical ordering. Do not rerun unchanged `incident-command` or
-`ops-tooling` bytes; use an explicit 540-second timeout only if a future comparable
-`incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run bounded to
-its overlapping scenarios and separate from this slice.
+**Next action:** Open the `ci-actions` pull request against `main` and require its normal CI on the
+exact head. Once green, create one isolated dependent branch and convert only `pcf-deploy`;
+remeasure that exact head again before selecting any sixth candidate. Do not rerun unchanged
+`incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout only if a future
+comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder` after-change run
+bounded to its overlapping scenarios and separate from this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
