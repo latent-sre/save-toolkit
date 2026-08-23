@@ -439,8 +439,9 @@ the prerequisites and acceptance below are unchanged and still apply at that poi
 behavioral evidence on `gpt-5.6-sol`, while implicit routing remains an observational metric rather
 than a release gate.
 
-**Source:** Existing Sol reference and six-agent conformance baselines plus the measured headless
-agent-discovery limitation.
+**Source:** The 2026-07-31 Sol reference and six-agent conformance baselines (revoked as release
+evidence and removed from the tree on 2026-08-23; recoverable from git history) plus the measured
+headless agent-discovery limitation.
 
 **Prerequisites:** Clean committed plugin, generated-agent, and harness inputs; independent review of
 that exact commit; and an operator-owned Codex login. Changes originating in an external branch or PR
