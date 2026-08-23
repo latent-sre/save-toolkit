@@ -20,6 +20,14 @@ Closed work is retained in the
 decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
 
+Items disposed by an accepted decision rather than a closure review:
+[`EVAL-002`](decisions/2026-08-22-agent-discovery-calibration.md) (agent-target discovery is
+calibration, never a regression gate),
+[`REVIEW-001`](decisions/2026-08-22-production-review-boundary.md) (independent exact-SHA review is
+required for a production deployment of new bytes, not for every merge), and
+[`NAV-001`](decisions/2026-08-22-incident-navigation-archive.md) (incident-navigation rejected and
+archived).
+
 ## Item contract
 
 Every live item carries:

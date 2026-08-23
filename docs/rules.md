@@ -104,7 +104,7 @@ authoritative?*
 | Config definitions are authoritative; KB cards summarize and link, they do not fork queries | Disposition policy |
 | Agents never self-mark knowledge as approved/merged/deployed/verified | Disposition policy |
 | Operational artifacts never rewrite fleet definitions; route an accepted fleet failure and proposed named regression to `prompt-engineer` | Disposition policy; [`artifact.md`](../skills/agent-authoring/references/artifact.md) |
-| Leave historical plans/evals under old names as evidence — do not rewrite recorded results | Observability-engineer and language-idiom ADRs |
+| Leave historical plans/evals under old names as evidence — do not rewrite recorded results | [`2026-08-04-observability-engineer-rename.md`](decisions/2026-08-04-observability-engineer-rename.md); [`2026-08-05-language-idiom-rename.md`](decisions/2026-08-05-language-idiom-rename.md) |
 
 ## 5. Stack / runtime
 
