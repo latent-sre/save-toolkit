@@ -536,7 +536,8 @@ _GATE_CASES = {
         "The merge-gate passed last week but this PR is actually BLOCKED — it does not pass review.",
     ),
     "release-gate-passes-ready.yaml": (
-        "release-gate: PASS\nRollback is documented and verified; health and monitoring are ready.",
+        "release-gate: PASS\nRollback is documented and verified; health and monitoring are ready. "
+        "Do not deploy until production-change-gate approval.",
         "An earlier release-gate passed, but this one is BLOCKED and does not pass — no rollback.",
     ),
     "production-change-gate-passes-approved.yaml": (
@@ -580,8 +581,8 @@ _GCP_LOGGING_ANSWER = (
     "Cloud Logging query [unverified]: `gcloud logging read "
     "'resource.type=cloud_run_revision AND resource.labels.service_name=checkout AND "
     "severity=(ERROR OR CRITICAL)' --freshness=1h --limit=50 --format=json`. "
-    "Record the absolute UTC window and confirm the payload fields before treating an empty result "
-    "as evidence."
+    "Record the absolute UTC window and confirm `resource.labels.service_name` and top-level "
+    "`severity` are populated before treating an empty result as evidence."
 )
 
 _PROMQL_ANSWER = (
@@ -809,8 +810,9 @@ _ROUTING_PROMPT_ECHO_CASES = {
         "Splunk saved search [unverified]: `cron_schedule = */5 * * * *`, "
         "`dispatch.earliest_time = -5m`, `dispatch.latest_time = now`, `alert.suppress = 1`, "
         "`alert.suppress.period = 30m`, and `alert.suppress.fields = service,alert_type`. Append "
-        "`| lookup instructions_lookup alert_type OUTPUT runbook_url`; force the alert to fire, "
-        "resolve, throttle, and deliver to the named owner."
+        "`| lookup instructions_lookup alert_type OUTPUT runbook_url`. Notification route: "
+        "checkout-primary pager. Force the alert to fire, resolve, throttle, and confirm notification "
+        "delivery."
     ),
     "discovery-obs-logs-defers-obs-alerting.yaml": (
         "Splunk saved search [unverified]: `cron_schedule = */5 * * * *`, "
@@ -865,18 +867,21 @@ _OBS_BEHAVIOR_CASES = {
     "discovery-obs-alerting-splunk-saved-search.yaml": (
         _ROUTING_PROMPT_ECHO_CASES["discovery-obs-alerting-splunk-saved-search.yaml"],
         _ROUTING_PROMPT_ECHO_CASES["discovery-obs-alerting-splunk-saved-search.yaml"].replace(
-            "deliver to the named owner", "review the route configuration"
+            "Notification route: checkout-primary pager", "Notification delivery confirmed"
         ),
     ),
     "discovery-obs-logs-cloud-logging.yaml": (
         _GCP_LOGGING_ANSWER,
-        _GCP_LOGGING_ANSWER.replace("--limit=50 ", ""),
+        _GCP_LOGGING_ANSWER.replace(
+            "confirm `resource.labels.service_name` and top-level `severity` are populated",
+            "confirm stdout",
+        ),
     ),
     "discovery-obs-metrics-cloud-monitoring.yaml": (
         _PROMQL_ANSWER,
         _PROMQL_ANSWER.replace(
             "treat zero traffic as missing evidence",
-            "treat missing denominator data as a healthy result",
+            "a zero denominator means the service is healthy",
         ),
     ),
     "discovery-obs-traces-cloud-trace.yaml": (
@@ -1018,6 +1023,16 @@ def test_obs_behavior_contracts_are_bounded_and_not_duplicated() -> None:
             )
         if filename == "discovery-obs-traces-cloud-trace.yaml":
             check(
+                grade_all(
+                    grader_specs,
+                    compliant.replace(
+                        "without adding nested span durations",
+                        "and do not double-count nested spans",
+                    ),
+                ),
+                f"{filename}: direct double-count warning passes",
+            )
+            check(
                 not grade_all(
                     grader_specs,
                     compliant.replace(
@@ -1033,6 +1048,13 @@ def test_obs_behavior_contracts_are_bounded_and_not_duplicated() -> None:
                     compliant + " Therefore, you should add nested span durations.",
                 ),
                 f"{filename}: a late contradiction cannot hide behind safe wording",
+            )
+            check(
+                not grade_all(
+                    grader_specs,
+                    compliant + " Add nested span durations.",
+                ),
+                f"{filename}: a bare imperative cannot hide behind safe wording",
             )
 
 

@@ -31,4 +31,6 @@ graders:
   - type: regex
     pattern: '--format(?:=|\s+)json\b'
   - type: regex
-    pattern: '\b(?:confirm|validate|check)\b[^\n.]{0,100}\b(?:severity|payload|field|stdout|stderr)\b'
+    pattern: '\b(?:confirm|validate|check)\b[^\n.]{0,100}\b(?:resource\.type|resource\.labels\.service_name|severity|jsonpayload|textpayload)\b'
+  - type: regex
+    pattern: '\b(?:empty|no\s+(?:results?|entries|logs?))\b[^\n.]{0,100}\b(?:evidence|trust|conclu\w*|interpret\w*|mean\w*|treat\w*)\b|\b(?:evidence|trust|conclu\w*|interpret\w*|treat\w*)\b[^\n.]{0,100}\b(?:empty|no\s+(?:results?|entries|logs?))\b'

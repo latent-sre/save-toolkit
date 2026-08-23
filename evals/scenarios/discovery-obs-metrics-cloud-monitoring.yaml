@@ -28,5 +28,7 @@ graders:
     pattern: '\b(?:(?:same|matching|identical)[^\n.]{0,60}(?:request\s+)?population|(?:same|matching)\s+(?:label\s+)?selectors)\b'
   - type: regex
     pattern: '\b(?:zero\s+(?:traffic|denominator)|no\s+traffic|denominator[^\n.]{0,30}(?:is\s+)?zero)\b'
+  - type: not_regex
+    pattern: '\bzero\s+(?:traffic|denominator)\b(?![^\n.]{0,80}\b(?:not|never|doesn(?:\x27|\u2019)t)\b)[^\n.]{0,30}\b(?:means?|indicates?|shows?|proves?|is)\b[^\n.]{0,40}\b(?:healthy|successful|good|passing|safe)\b'
   - type: regex
     pattern: '\b(?:(?:validate|confirm|verify|placeholder|unverified)[^\n.]{0,100}(?:metric|label|identifier|service)|(?:metric|label|identifier|service)[^\n.]{0,100}(?:validate|confirm|verify|placeholder|unverified))\b'

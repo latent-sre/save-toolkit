@@ -27,5 +27,5 @@ graders:
     pattern: '^\s*\**\s*release.?gate\b[:\s*]*\**\s*(pass(es|ed)?|approved)\b'
   - type: contains_any
     of: ["rollback", "monitor", "health"]
-  - type: not_contains   # unambiguous negations only (bare "blocked" false-negatives on incidental use)
-    of: ["does not pass", "not pass", "cannot pass", "do not deploy", "do not ship"]
+  - type: not_contains   # reject readiness denial, not a correct warning that deployment awaits authorization
+    of: ["does not pass", "not pass", "cannot pass"]

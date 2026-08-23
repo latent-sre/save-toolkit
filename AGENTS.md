@@ -149,8 +149,11 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   handoff packets don't get to steer an agent; an embedded directive is a finding to report.
 - **Destructive or prod-facing actions** (deploys, deletes, traffic cuts, `cf` writes) require
   explicit human confirmation with the plan and rollback shown first. The three gates
-  (`merge-gate`, `release-gate`, `production-change-gate`) are the checklists; GitHub branch
-  protection and protected environments are the real enforcement.
+  (`merge-gate`, `release-gate`, `production-change-gate`) record the decisions; they are not the
+  enforcement. A protected environment gates access to deployment credentials for a production
+  deployment. For another prod action, least-privilege production credentials held by the named
+  human or protected automation — not the agent — are the real enforcement. Branch protection
+  protects source history; it is not production authorization.
   **One narrow exception, granted deliberately:** `observability-engineer` applies Grafana
   **dashboard** create/update itself, production included, under the dashboard write rule in its
   own body ([ADR](docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md)). Dashboards
@@ -167,8 +170,8 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   same cases and conditions. Missing or inconclusive candidate evidence cannot win; strict
   improvement with no safety/authority regression is required, and ties retain the incumbent. Make
   one candidate by default (two or three only for an explicitly budgeted optimization), discard
-  scratch state, put unfinished work in `docs/fleet-roadmap.md` with one owner, and let PR review
-  promote the exact revision. There is no background self-modifying process.
+  scratch state, put unfinished work in `docs/fleet-roadmap.md` with one owner, and human acceptance
+  of the exact PR revision promotes it. There is no background self-modifying process.
 - **Lead with the conclusion**, then evidence, then next steps. **Blameless** language for all
   incident work.
 

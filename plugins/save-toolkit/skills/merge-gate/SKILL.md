@@ -26,8 +26,10 @@ everything).
 ## Checklist
 
 - [ ] **Builds & CI green** — compile/lint/format and the full test suite pass in trusted CI. Read the
-      reviewer's packet for the CI run link, execution boundary, and preserved evidence and taint labels.
-      An asserted result remains `[unverified]`; missing or unverified evidence is a **NO**.
+      trusted CI record directly for the run link and exact SHA. When a reviewer packet exists, it may
+      preserve execution-boundary, evidence, and taint labels; missing reviewer packet alone is not a
+      **NO**. An asserted CI result remains `[unverified]`; missing or unverified trusted CI evidence is a
+      **NO**.
 - [ ] **Behavior tested** — new or changed behavior has a regression test that fails without the fix.
       Show current CI output and **record the SHA it ran at**. If that SHA != `HEAD`, apply the same
       staleness test as below: an empty or test-irrelevant diff may be re-confirmed at `HEAD`; otherwise

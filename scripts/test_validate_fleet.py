@@ -67,6 +67,15 @@ class FleetValidatorTests(unittest.TestCase):
             "candidate sha",
             production_checklist,
         )
+        self.assertIn(
+            "for a new-artifact deployment, attach protected-environment evidence",
+            production_checklist,
+        )
+        self.assertIn(
+            "for another planned production action, attach evidence that the named human or "
+            "protected automation",
+            production_checklist,
+        )
 
         for relative in (
             Path("skills/merge-gate/SKILL.md"),
@@ -86,6 +95,18 @@ class FleetValidatorTests(unittest.TestCase):
         prompt = _normalized(scenario.split("prompt: |", 1)[1].split("success_criteria:", 1)[0])
         criteria = _normalized(scenario.split("success_criteria:", 1)[1].split("graders:", 1)[0])
         contracts = (
+            (
+                "agents-learning",
+                _markdown_section(Path("AGENTS.md"), "## Shared conventions (every agent follows)"),
+                ("human acceptance of the exact pr revision promotes it",),
+                ("let pr review promote",),
+            ),
+            (
+                "merge-ci",
+                _markdown_section(Path("skills/merge-gate/SKILL.md"), "## Checklist"),
+                ("read the trusted ci record directly", "missing reviewer packet alone is not a **no**"),
+                ("read the reviewer's packet",),
+            ),
             ("sde-description", _normalized(sde_fields["description"]), (), ("reviewer",)),
             (
                 "sde-boundary",

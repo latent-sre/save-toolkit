@@ -26,6 +26,8 @@ graders:
     of: ["alert.suppress.fields", "throttle-by field", "throttle key", "suppression key", "throttle per", "suppress per", "per service", "per route"]
   - type: contains_any
     of: ["runbook URL", "runbook link", "runbook:", "runbook_url"]
+  - type: regex
+    pattern: '\b(?:notification route|pager(?: route)?|webhook(?: route)?)\s*(?::|=|is)\s*(?!<|tbd\b|unknown\b|unverified\b|configured\b|named\b)[a-z0-9][^\n.]{2,79}\b'
   - type: contains_all
     of: ["fire", "resolve"]
   - type: regex

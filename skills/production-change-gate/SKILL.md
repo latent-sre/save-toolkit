@@ -2,7 +2,7 @@
 name: production-change-gate
 description: >-
   Authorize a production-facing action only after the exact target, command, approval tier, blast radius,
-  verification, rollback, and branch protection are proven. Triggers: 'authorize this production change',
+  verification, rollback, and the production execution boundary are proven. Triggers: 'authorize this production change',
   'can I run this cf command in prod', 'review this rollback plan'. Ownership map only—not a load:
   the `merge-gate` skill decides merge readiness and the `release-gate` skill decides ship readiness; this
   gate authorizes the prod action.
@@ -22,10 +22,11 @@ concurrency token pinned, applied JSON committed in the same task — stand in p
 step, not beside it. Dashboards and their folders only: alert rules, data sources, contact points,
 permissions, and everything in every other lane clear this gate normally.
 
-> **The checklist is not the enforcement.** It records a human decision. The load-bearing control is the
-> production execution boundary: an authorized human release owner or separately approved protected
-> automation. Repository merge rules intentionally require no approval and are not production-review
-> evidence.
+> **The checklist is not the enforcement.** It records a human decision. For a production deployment,
+> a protected environment gates access to the deployment credential. For another planned production
+> action, the load-bearing control is the least-privilege production role or credential held by the named
+> human release owner or protected automation — not by the agent. Branch protection protects source
+> history; it is not a universal production-action boundary.
 
 ## Checklist
 
@@ -65,9 +66,12 @@ The example is `[unverified]`: it is the required approval-request shape, not ev
       approval instead. Rolling back to the immediately previously live artifact re-uses that artifact's
       existing records — never reassemble release evidence to undo a change.
 - [ ] **The production execution boundary is actually ON** *(planned changes; deferred during a declared
-      incident — see the incident fast path)* — verify the named human release owner or separately
-      approved protected automation that will execute this action. Repository approval counts and review
-      threads are not substitutes for that production authority and are not checked here.
+      incident — see the incident fast path)* — for a new-artifact deployment, attach protected-environment
+      evidence showing that approval gates access to the deployment credential for this target. For
+      another planned production action, attach evidence that the named human or protected automation —
+      and not the agent — holds the least-privilege production role or credential needed for the exact
+      action. Naming an executor or promising not to act is not evidence. Repository approval counts and
+      review threads are not substitutes for production authority and are not checked here.
 - [ ] **Approved** — an authorized human explicitly approved this exact target, command or diff, applying
       actor, and time; attach the change record when the process requires one.
 - [ ] **Blast radius understood** — record affected apps, routes, spaces, users or traffic share and the
@@ -75,8 +79,6 @@ The example is `[unverified]`: it is the required approval-request shape, not ev
 - [ ] **Backout plan, reversible** — record an exact rollback or backout plan, verification, and known-good
       recovery evidence. It is owned and executed by the human release owner; prefer rapidly reversible
       actions such as a blue-green route remap or flag flip over irreversible ones.
-- [ ] **Authorized executor** — the human release owner or separately approved protected automation uses
-      least-privilege credentials and does not bypass review or protection.
 - [ ] **Plan/diff shown** — show all commands and the manifest or configuration diff; approval covers no
       undisclosed side effect.
 - [ ] **Timing** — consider peak and freeze periods; document any emergency exception, maintenance window,
@@ -95,7 +97,7 @@ Tier: <0|1|2|3>   Target: <exact target>   Actor: <human or protected automation
 Change: <what, where>   Approved by: <human>   When: <UTC>
 Backout: <exact reversible steps>
 Watching: <who, which signals>   Abort if: <criteria>
-Production execution boundary: <authorized human or protected automation evidence>
+Production execution boundary: <protected environment or least-privilege executor evidence>
 ```
 
 ## Incident fast path (emergency exception)
@@ -132,8 +134,8 @@ restart, restage, scale, flag flip). Two things stay on the full gate even at P1
 
 - Readiness evidence and artifact records **for the covered actions only** — a rollback re-uses the
   previously live artifact's existing records. A new artifact is out of scope above and keeps them.
-- Production execution-boundary evidence. A GitHub or deployment-control API call must never sit on
-  the rollback path — a control-plane outage cannot be allowed to block recovery.
+- Production execution-boundary evidence. A deployment-control or credential/role API call must never
+  sit on the rollback path — a control-plane outage cannot be allowed to block recovery.
 - Timing/freeze documentation, Moogsoft suppression records, and the formal change record. This team
   keeps change records in **both BMC Remedy and Jira** *[sourced: operator statement 2026-08-21]*, so
   name the system and the record ID rather than writing "the change record" — a packet that does not

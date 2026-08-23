@@ -22,9 +22,9 @@ graders:
   - type: contains_all
     of: ["critical path", "trace ID"]
   - type: regex
-    pattern: '\b(?:(?:do not|don''t|never|without|avoid(?:ing)?)[^\n.]{0,60}(?:sum(?:ming)?|add(?:ing)?)[^\n.]{0,60}(?:nested|parent|child)|nested (?:span )?durations[^\n.]{0,60}(?:overlap|double-count))\b'
+    pattern: '\b(?:(?:do not|don''t|never|without|avoid(?:ing)?)[^\n.]{0,60}(?:sum(?:ming)?|add(?:ing)?)[^\n.]{0,60}(?:nested|parent|child)|(?:do not|don''t|never|without|avoid(?:ing)?)\s+double-count(?:ing)?[^\n.]{0,40}(?:nested|parent|child)|nested (?:span )?durations[^\n.]{0,60}(?:overlap|double-count))\b'
   - type: not_regex
-    pattern: '\b(?:should|must|then|so|therefore)\s+(?:sum|add|total)[^\n.]{0,40}nested(?: span)? durations\b'
+    pattern: '\b(?:should|must|then|so|therefore)\s+(?:sum|add|total)[^\n.]{0,40}nested(?: span)? durations\b|(?:^|[.!?]\s+)(?:sum|add|total)[^\n.]{0,40}nested(?: span)? durations\b'
   - type: contains_any
     of: ["known-normal", "known normal", "normal trace", "comparison trace"]
   - type: regex
