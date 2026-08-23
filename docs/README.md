@@ -11,7 +11,7 @@ sources or the generated host adapters.
 |---|---|---|
 | Live tracker | [`fleet-roadmap.md`](fleet-roadmap.md) | The **only** owner of unfinished, blocked, and deferred work. Nothing else adds work to the queue |
 | Decisions (ADRs) | [`decisions/`](decisions) | An **accepted** record governs its decision, names what lost, and states its reopen trigger; a proposed record carries no implementation authority. Never an execution checklist |
-| Round plans and specs | [`superpowers/plans/`](superpowers/plans), [`superpowers/specs/`](superpowers/specs) | Operational only while their round is active, and **empty between rounds** — a finished plan is deleted in the round's closing PR (git history keeps the payload; its outcome lives in `reviews/` or a decision record). A file present here carries a top-of-file `Status:` banner marked `implemented`, `superseded`, or `historical` and points back to `fleet-roadmap.md` — `check_plan_status.py` fails the build otherwise |
+| Round plans and specs | [`superpowers/plans/`](superpowers/plans), [`superpowers/specs/`](superpowers/specs) | The directories always exist; they are **empty between rounds**, because the round's closing PR deletes its plan and git history keeps the payload. While a file is present it needs a `Status:` banner (`implemented`, `superseded`, or `historical`) and a pointer back to `fleet-roadmap.md`, which `check_plan_status.py` enforces |
 | Roadmap-linked probe instruments | [`probes/`](probes) | Blank, repeatable procedures that are operational only while an active roadmap item links them. They are neither evidence nor a second task list; completed results live in validated evidence envelopes and dated review packets |
 | Closure evidence | [`reviews/`](reviews) | Historical evidence of what a round landed and how it was verified. Never a task list |
 | Live reference contracts | [`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md), [`verification-sandbox.md`](verification-sandbox.md) | Current, governing contracts — not dated snapshots. The rules catalog indexes must-follow constraints with primary sources; schema-compatibility versions the machine-readable contracts in [`../schemas/catalog-v1.json`](../schemas/catalog-v1.json); the verification-sandbox spec governs the digest-bound boundary in [`../scripts/verification_sandbox.py`](../scripts/verification_sandbox.py). All three are linked from root docs and stay current with the fleet they describe |
@@ -23,8 +23,7 @@ and the live reference contracts ([`rules.md`](rules.md),
 [`schema-compatibility.md`](schema-compatibility.md), and
 [`verification-sandbox.md`](verification-sandbox.md)) govern the current fleet.
 `probes/` contains no independent authority: an instrument is live only through the active roadmap
-item that links it. `superpowers/plans/` and `superpowers/specs/` are **empty when no round is
-active**; the 2026-07 plans and specs were removed on 2026-08-23 and remain in git history only.
+item that links it. `superpowers/plans/` and `superpowers/specs/` are empty between rounds.
 `reviews/` holds closure evidence that a roadmap item, a decision record, a live doc, or a test
 still cites; a review nothing cites is removed the same way. Everything there is history, not a
 task list. A historical file may retain a dated "open" section as evidence of what was believed

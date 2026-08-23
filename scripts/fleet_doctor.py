@@ -29,13 +29,11 @@ try:
     from scripts import (
         check_plan_status,
         evidence_envelope,
-        install_codex_agents,
         validate_fleet,
     )
 except ModuleNotFoundError:
     import check_plan_status  # type: ignore[no-redef]
     import evidence_envelope  # type: ignore[no-redef]
-    import install_codex_agents  # type: ignore[no-redef]
     import validate_fleet  # type: ignore[no-redef]
 
 
@@ -98,7 +96,7 @@ def _assert_read_only_command(argv: Sequence[str]) -> None:
         and len(tail) >= 5
         and tail[:2] == ("--no-optional-locks", "-C")
         and tuple(tail[3:]) in {("rev-parse", "HEAD"), ("status", "--short")}
-    ) or (name in {"claude", "codex"} and tail in {("--version",), ("plugin", "list")})
+    ) or (name == "claude" and tail in {("--version",), ("plugin", "list")})
     allowed = allowed or (name in {"copilot", "code"} and tail == ("--version",))
     if not allowed:
         raise ValueError(
@@ -147,13 +145,6 @@ def _inventory_contains_plugin(host: str, stdout: str, plugin_name: str) -> bool
             if match and match.group("name") == plugin_name:
                 return True
             continue
-        if host == "codex":
-            columns = re.split(r"\s{2,}", stripped)
-            if len(columns) < 2 or not columns[1].lower().startswith("installed"):
-                continue
-            match = re.fullmatch(plugin_id, columns[0])
-            if match and match.group("name") == plugin_name:
-                return True
         if host == "copilot":
             # Observed Copilot CLI row: "• save-toolkit@latent-sre (v1.0.0)". The bullet and the
             # version annotation are part of the row; the plugin id must still fullmatch.
@@ -275,7 +266,6 @@ def _cli_checks(which: Which, run: CommandRunner) -> tuple[list[Check], dict[str
     executables: dict[str, str] = {}
     for host, command in (
         ("claude", "claude"),
-        ("codex", "codex"),
         ("copilot", "copilot"),
         ("vscode", "code"),
     ):
@@ -357,95 +347,10 @@ def _installation_checks(
     home: Path,
     executables: Mapping[str, str],
     run: CommandRunner,
-    *,
-    codex_home: Path | None = None,
 ) -> list[Check]:
     checks: list[Check] = []
-    for host in ("claude", "codex"):
-        if host in executables:
-            checks.append(_plugin_listing_check(host, executables[host], run))
-
-    if "codex" not in executables:
-        checks.append(
-            Check(
-                "host.codex.custom-agents",
-                "skip",
-                "Codex is unavailable, so custom-agent synchronization was not inspected.",
-            )
-        )
-        return checks
-
-    resolved_codex_home = (
-        codex_home
-        or Path(os.environ.get("CODEX_HOME", home / ".codex")).expanduser()
-    ).resolve()
-    target = resolved_codex_home / "agents"
-    if not target.is_dir():
-        checks.append(
-            Check(
-                "host.codex.custom-agents",
-                "skip",
-                "No Codex custom-agent installation directory exists.",
-                limitations=("The doctor did not create or install the directory.",),
-            )
-        )
-        return checks
-    try:
-        plan = install_codex_agents.build_sync_plan(root / ".codex" / "agents", target)
-    except (OSError, ValueError):
-        checks.append(
-            Check(
-                "host.codex.custom-agents",
-                "inconclusive",
-                "Codex custom-agent synchronization could not be inspected.",
-            )
-        )
-        return checks
-    if plan.conflicts:
-        checks.append(
-            Check(
-                "host.codex.custom-agents",
-                "fail",
-                "Unmanaged Codex custom-agent files conflict with generated fleet roles.",
-                {"conflict_count": len(plan.conflicts)},
-            )
-        )
-    elif plan.out_of_sync:
-        # Settled HOST-001 semantics: `fail` means an *installed* fleet is unhealthy (partial,
-        # stale, or drifted). A host where no managed fleet file exists at all has no installed
-        # fleet to assess; absence is `skip`, matching the plugin-inventory precedent.
-        managed_present = any(write.expected is not None for write in plan.writes) or bool(
-            plan.removals
-        )
-        if not managed_present:
-            checks.append(
-                Check(
-                    "host.codex.custom-agents",
-                    "skip",
-                    "Codex is available but no save-toolkit custom agents are installed.",
-                    {"pending_install_count": len(plan.writes)},
-                    limitations=(
-                        "Absence is not an installation failure; nothing installed was assessed.",
-                    ),
-                )
-            )
-        else:
-            checks.append(
-                Check(
-                    "host.codex.custom-agents",
-                    "fail",
-                    "Installed Codex custom agents differ from generated fleet roles.",
-                    {"update_count": len(plan.writes), "stale_managed_count": len(plan.removals)},
-                )
-            )
-    else:
-        checks.append(
-            Check(
-                "host.codex.custom-agents",
-                "pass",
-                "Installed Codex custom agents match generated fleet roles.",
-            )
-        )
+    if "claude" in executables:
+        checks.append(_plugin_listing_check("claude", executables["claude"], run))
     return checks
 
 
@@ -511,7 +416,6 @@ def collect_report(
     root: Path = REPO_ROOT,
     *,
     home: Path | None = None,
-    codex_home: Path | None = None,
     run: CommandRunner = _run_read_only,
     which: Which = shutil.which,
     now: datetime | None = None,
@@ -524,9 +428,7 @@ def collect_report(
     checks.extend(_repository_checks(root))
     cli_checks, executables = _cli_checks(which, run)
     checks.extend(cli_checks)
-    checks.extend(
-        _installation_checks(root, home, executables, run, codex_home=codex_home)
-    )
+    checks.extend(_installation_checks(root, home, executables, run))
     ended = started if now is not None else datetime.now(timezone.utc)
     envelopes = [
         _to_envelope(

@@ -23,8 +23,8 @@ Write, Skill, or Agent tool. `sre` runs Bash under the fail-closed allowlist gua
 and `prompt-engineer` retain unguarded Bash (team-authored repository work; Grafana dashboard
 applies), so host/network egress controls remain load-bearing even though their direct web tools
 are absent. Verify every claim
-against agent frontmatter and guard tests; generated Codex profiles need outer isolation because
-their TOML cannot deny inherited tools.
+against agent frontmatter and guard tests; a host that cannot deny inherited tools per agent needs
+outer isolation instead.
 
 ## The lethal trifecta
 An agent is exploitable by a single injected prompt when it combines **all three**:

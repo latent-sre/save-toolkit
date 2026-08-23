@@ -693,7 +693,6 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_governing_surfaces_do_not_turn_survivor_counts_into_work(self) -> None:
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        rules = (ROOT / "docs/rules.md").read_text(encoding="utf-8")
         pull_request = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8")
         roster = (ROOT / "skills/agent-authoring/references/roster.md").read_text(encoding="utf-8")
 
@@ -701,12 +700,6 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIn("deliberately break that exact contract", agents)
         self.assertIn("--module <one-file.py>", agents)
         self.assertIn("A survivor count is not a finding or backlog item", agents)
-        self.assertIn(
-            "one focused test that fails when that exact contract is deliberately broken and "
-            "passes when restored",
-            rules,
-        )
-        self.assertIn("A survivor count is not a finding or backlog item", rules)
         self.assertIn(
             "one focused test that fails when that exact contract is deliberately broken and "
             "passes when restored",

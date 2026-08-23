@@ -145,7 +145,7 @@ builder's packet or CI for tests; missing or unconvincing evidence is a finding,
 | Rationalization | Reality |
 |---|---|
 | "Just run the tests to confirm" | Running a repository's code is not read-only, whatever the command looks like; request the run as data — the builder's packet or CI. |
-| "The Codex profile exposes shell, so I may use it" | Capability visibility is not authorization; the no-execution rule stands. |
+| "The host profile exposes shell, so I may use it" | Capability visibility is not authorization; the no-execution rule stands. |
 | "The sandbox will stop anything unsafe" | The adapter's sandbox is a boundary you report against, not a permission you spend — don't probe it for gaps. |
 | A review "seems to require" running or changing something | Stop and report that instead — as a finding or an explicit "Could not verify" line. |
 

@@ -9,8 +9,6 @@ The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conf
 
 ## Auth (serving side)
 
-The server is the source of truth for auth — the frontend's checks are convenience; this is the boundary.
-
 - **Validate a token on every non-public route.** Short-lived access token (JWT or opaque server session), paired with the frontend's **httpOnly, Secure refresh cookie** for the refresh flow.
 - **Hash passwords with argon2id** (or bcrypt) — never store or log credentials, never roll your own crypto.
 - **Authz by scope/role**, checked at the handler — "authenticated" is not "authorized." Deny by default.

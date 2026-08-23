@@ -7,7 +7,7 @@ compatibility wrinkle: Anthropic's own packaging script **rejects** a skill that
 publishing to the portable spec, and a host that merely ignores it silently drops whatever it
 configured.
 
-This matters here because this fleet ships a Claude plugin *and* generates Copilot/VS Code and Codex
+This matters here because this fleet ships a Claude plugin *and* generates Copilot/VS Code
 adapters. The generator is what absorbs the difference; this file is the map of what it has to
 absorb. `claude-code-frontmatter.md` remains the source of truth for what each field *does* — this
 file only records where each one is honored.
@@ -62,10 +62,9 @@ field is a default there.
 The generator does not attempt field-level equivalence, because there is none. It preserves intent in
 each host's own vocabulary and states the difference in the adapter itself:
 
-- A skill marked `disable-model-invocation` keeps that frontmatter for Copilot, while the Codex
-  projection expresses the same policy through its per-skill agent-policy file.
-- Host authority differences (Copilot's omitted `execute`, Codex's `sandbox_mode` and its lack of a
-  per-agent tool allowlist) are stated in every generated adapter rather than papered over. Stating a
+- A skill marked `disable-model-invocation` keeps that frontmatter in the Copilot projection.
+- Host authority differences (Copilot's omitted `execute`, for one) are stated in every generated
+  adapter rather than papered over. Stating a
   difference is not claiming a control: the omitted `execute` narrows a default the user can override
   and the picker can rewrite, so read the VS Code limit in `AGENTS.md` before citing it as authority.
 

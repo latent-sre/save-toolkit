@@ -1,8 +1,8 @@
 # Save Toolkit — fleet guide
 
 A multi-host engineering plugin with **8 canonical agents and 30 canonical skills**. Claude Code
-loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code and Codex adapters are
-generated and committed from those sources; edit neither projection by hand. Routing is native:
+loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code adapters are
+generated and committed from those sources; never edit the projection by hand. Routing is native:
 descriptions select lanes and Claude components are invoked as `save-toolkit:<name>`.
 
 The stack, the stay-in-lane rule, and the platform boundary live in **one** place: the
@@ -28,22 +28,21 @@ matters.
 | [`scripts/gate_a.py`](scripts/gate_a.py) | The single push-boundary structural entrypoint. It runs live-tree validators, not component tests or evals; read its docstring for the scope boundary |
 | [`scripts/generate_platform_adapters.py`](scripts/generate_platform_adapters.py) | The one deterministic generator for all host projections. Run `--write` once before a push that carries canonical edits; a hand-edit to a generated root is drift it will erase |
 | [`scripts/validate_fleet.py`](scripts/validate_fleet.py), [`check_links.py`](scripts/check_links.py), [`check_plan_status.py`](scripts/check_plan_status.py), [`check_stale_names.py`](scripts/check_stale_names.py) | The structural validators Gate A runs: fleet/plugin/adapter contracts, skill link/bundle reachability, single-live-roadmap discipline, and retired-name rejection |
-| [`scripts/install_codex_agents.py`](scripts/install_codex_agents.py) | Installs the generated Codex agents into an explicit scope without clobbering user files |
 | [`schemas/`](schemas) | Portable evidence contracts (the catalog and the evidence envelope); versioned per [`docs/schema-compatibility.md`](docs/schema-compatibility.md) |
 | [`evals/`](evals) | Offline routing/behavioral scenarios and the manual clean-room Claude runner. Routing evals need a live API and never run in CI |
 | [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) | The only live backlog; see [`docs/README.md`](docs/README.md) for the full authority map |
 | [`CHANGELOG.md`](CHANGELOG.md) | Pre-release change history. Version entries describe repository state; they do not imply a published artifact |
-| [`docs/decisions/`](docs/decisions), [`docs/reviews/`](docs/reviews), [`docs/superpowers/`](docs/superpowers) | Accepted ADRs; round-closure evidence; round-scoped plans and specs. Only accepted decisions govern |
+| [`docs/decisions/`](docs/decisions), [`docs/reviews/`](docs/reviews) | Accepted ADRs and round-closure evidence. Only accepted decisions govern; a review is never a task list |
 | [`.gitattributes`](.gitattributes) | Line-ending and diff handling that keeps the byte-for-byte adapter gate stable across platforms |
-| `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, `plugins/save-toolkit/skills/` | **Generated — never edit.** Byte-validated against the generator's portable output set; fix the canonical source or generator and regenerate |
+| `.github/agents/`, `platforms/copilot/skills/` | **Generated — never edit.** Byte-validated against the generator's portable output set; fix the canonical source or generator and regenerate |
 
 ## Searching this repo
 
-`skills/` is committed three times and `agents/` twice — once canonical, then once per host
-projection. Search hits therefore arrive in triplicate, and the canonical copy is **not** the one
-that sorts first.
+`skills/` and `agents/` are each committed twice — once canonical, then once as the Copilot/VS Code
+projection. Search hits therefore arrive in duplicate, and the canonical copy is **not** always the
+one that sorts first.
 
-- [`.ignore`](.ignore) excludes the four generated roots from `rg`, so a plain search returns each
+- [`.ignore`](.ignore) excludes both generated roots from `rg`, so a plain search returns each
   hit once, from the file you can actually edit. Add `--no-ignore` to search projections on purpose.
 - **Nothing mechanically blocks a write to a generated root.** `.ignore` is a search filter, not a
   guard, and no permission rule stands behind it. This is not bureaucracy: editing a projection and
@@ -120,10 +119,8 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   Callers must send only sanitized public questions. The local/external split prevents the researcher
   from fetching checkout bytes itself; it is not a data-loss-prevention broker.
 - Host projections preserve intent without pretending enforcement equivalence: guarded Copilot/
-  VS Code agents receive no `execute` tool; Codex agents request `read-only` or `workspace-write`
-  sandbox mode but parent permissions may override it and custom-agent TOML has no per-agent tool
-  allowlist. Codex local-only/external-only roles therefore require outer network or mount isolation,
-  respectively. These differences are stated in every generated adapter.
+  VS Code agents receive no `execute` tool, which narrows a default rather than enforcing a
+  boundary. That difference is stated in every generated adapter.
 - **A VS Code `tools:` list is a default, not a boundary.** Omitting a tool does disable it for the
   model, but a workspace agent's list loses to session tool selection, to a prompt file's own list,
   and to a chat deep link — and the tools picker writes the user's change back into the `.agent.md`
@@ -255,8 +252,8 @@ must respect:
   generator. No new dependencies, no pytest, no third-party YAML parser: every host package must
   validate anywhere Python does.
 - **Generated adapters are consequences, never sources.** Fix `agents/`, `skills/`, or the generator
-  and regenerate; never hand-edit `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`,
-  or `plugins/save-toolkit/skills/`. The byte-for-byte gate erases a direct fix. A hand-edit is not
+  and regenerate; never hand-edit `.github/agents/` or `platforms/copilot/skills/`. The
+  byte-for-byte gate erases a direct fix. A hand-edit is not
   always deliberate: changing tools in VS Code's picker while a workspace agent is selected rewrites
   that agent's `.agent.md` on disk, so a UI click can fail the drift gate. Check `git status` before
   regenerating.
@@ -265,9 +262,9 @@ must respect:
   real Claude Code field.
 - **No `model:` pins.** The whole fleet inherits the session model on purpose; a pin, even a valid
   one, goes stale silently and is banned.
-- **Authority is host-specific.** Tool absence, the Claude hook guard, Copilot's omitted `execute`,
-  and Codex's `sandbox_mode` do not translate one-to-one. A control proven on one host is not proven
-  on another — the generated adapters state the difference, they do not erase it.
+- **Authority is host-specific.** Tool absence, the Claude hook guard, and Copilot's omitted
+  `execute` do not translate one-to-one. A control proven on one host is not proven on another —
+  the generated adapters state the difference, they do not erase it.
 
 ---
 

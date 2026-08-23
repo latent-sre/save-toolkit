@@ -30,11 +30,13 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 ### Added
 
 - Eight canonical engineering and SRE agents, with 30 canonical skills and one ADR command.
-- Deterministic Copilot/VS Code and Codex projections generated from the Claude-native sources.
+- A deterministic Copilot/VS Code projection generated from the Claude-native sources. Codex was
+  retired as a distribution target on 2026-08-23 before this version shipped; it remains a
+  supported way to work in the repository, reading the root `AGENTS.md`
+  ([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)).
 - Fail-closed guarded-Bash enforcement for the SRE lane, plus structural tests for
   tool authority, hook wiring, generated-byte parity, links, schemas, and routing scenarios.
-- Conflict-safe standalone Codex-agent installation and disposable host install/inventory/uninstall
-  probes that do not write user-owned configuration.
+- Disposable host install/inventory/uninstall probes that do not write user-owned configuration.
 - Evidence envelopes, evidence-bound operational documentation closeout, release/readiness gates,
   and the single Gate A structural entrypoint used on Linux and Windows.
 - Exact-SHA immutable release preparation with permanent version reservations, non-replacing request
@@ -69,12 +71,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   token-level redirect detection, `>/dev/null`, `2>&1`, `timeout <n> <allowed command>`, and
   display-only `date`) without weakening command-substitution or backgrounding rules.
 - Release host proof derives exact ordinary-file paths and Git blob bytes from the observed tagged
-  commit, then requires both marketplace and installed Claude/Codex trees to match before publication
+  commit, then requires both the marketplace and installed Claude trees to match before publication
   can finalize; linked, special, missing, changed, and extra content fails closed.
 
 ### Known limitations
 
 - Copilot CLI distribution is out of scope by owner decision; VS Code discovery is verified at the
   workspace-file level, not through its UI.
-- Codex custom-agent discovery is verified at the installed-file level; no model session is part of
-  the release smoke.

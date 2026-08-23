@@ -267,7 +267,6 @@ class WorkflowPolicyTests(unittest.TestCase):
 
     def test_description_changes_use_after_first_routing_evidence(self) -> None:
         agents = self._read("AGENTS.md")
-        rules = self._read("docs/rules.md")
         pull_request = self._read(".github/pull_request_template.md")
         roadmap = self._normalized(self._read("docs/fleet-roadmap.md")).lower()
 
@@ -277,14 +276,12 @@ class WorkflowPolicyTests(unittest.TestCase):
             "run the before baseline only when one comes back red",
             normalized_agents,
         )
-        self.assertIn("after-change clean-room runs", rules)
         self.assertNotIn("before and after", pull_request.lower())
         self.assertIn("after-change", pull_request)
         self.assertIn(
             "compares incumbent and candidate on the same cases and conditions",
             normalized_agents.lower(),
         )
-        self.assertIn("failure-driven edit still needs the incumbent baseline", rules.lower())
         self.assertIn("fleet-failure-driven edit also trips the next row", pull_request.lower())
         for forbidden in (
             "every description edit shows before/after",
@@ -358,7 +355,6 @@ class WorkflowPolicyTests(unittest.TestCase):
         roster = self._normalized(
             self._read("skills/agent-authoring/references/roster.md")
         ).lower()
-        rules = self._normalized(self._read("docs/rules.md")).lower()
 
         self.assertIn("bounded loop engineering", prompt_agent)
         self.assertIn("loop engineering", authoring_skill)
@@ -382,15 +378,6 @@ class WorkflowPolicyTests(unittest.TestCase):
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, roster)
-        for phrase in (
-            "loop engineering",
-            "hard iteration/time/cost/candidate budgets",
-            "success/no-progress/safety termination",
-            "promotion authority",
-            "missing or inconclusive evidence is never success",
-        ):
-            with self.subTest(rule=phrase):
-                self.assertIn(phrase, rules)
         self.assertEqual(2, roster.count("choose k and a hard maximum"))
         self.assertNotIn("iterate until k consecutive rounds", roster)
 
@@ -412,14 +399,11 @@ class WorkflowPolicyTests(unittest.TestCase):
 
     def test_repository_bootstrap_applies_only_to_pr_implementation(self) -> None:
         contributing = self._read("CONTRIBUTING.md")
-        rules = self._read("docs/rules.md")
         normalized = self._normalized(contributing)
 
         self.assertNotIn("Open every working session", normalized)
         self.assertIn("implementation intended for a pull request", normalized)
         self.assertIn("Read-only investigation or review", normalized)
-        self.assertIn("preserve dirty and published branches", rules)
-        self.assertNotIn("rebase on `origin/main` before PR", rules)
 
     def test_closed_mutation_campaigns_keep_owner_dispositions_in_history(self) -> None:
         """A campaign leaves the roadmap only with its owner disposition recorded there.
