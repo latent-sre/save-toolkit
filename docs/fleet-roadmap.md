@@ -55,6 +55,17 @@ workflow must survive process or session loss or competing-worker recovery and r
 version-bound artifacts would be unsafe or materially costly; prefer host- or framework-native
 persistence before a repository-local state store.
 
+`AUDIT-002` Batch 1 closed by **explicit owner disposition**, owner `latent-sre`, 2026-08-23. The
+implementation and review corrections merged in PR
+[#141](https://github.com/latent-sre/save-toolkit/pull/141) at merge commit `09e775b`, final head
+`11b8041`; the exact closeout evidence and evaluator disposition live in the
+[`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md).
+On the merged plugin, the manual-onboarding near miss stayed inline 2/2, while read-only readiness
+routed 1/2 with the second trial timing out. Earlier workflow-graph trials timed out 2/2. Those two
+positive-route reliability gaps move to deferred `ROUTE-003` rather than trigger retries or prompt
+tuning against unchanged bytes. Batch 1 selected no graph runtime, added no unconsumed schema, and
+activated no SRE capability addition.
+
 Items disposed by an accepted decision rather than a closure review:
 [`EVAL-002`](decisions/2026-08-22-agent-discovery-calibration.md) (agent-target discovery is
 calibration, never a regression gate),
@@ -166,70 +177,10 @@ validate its per-criterion evidence envelopes, and record the dated packet. Do n
 `AGENTS.md` limit on inference alone, and do not populate `hooks/copilot-hooks.json` before a probe
 shows the payload can scope to an exact agent identity.
 
-### AUDIT-002 — implement the skill-audit routing contract (Batch 1)
-
-**Status:** `active` (2026-08-23)
-
-**Outcome:** The full 29-skill audit is durable, descriptions carry enough capability and boundary
-information to route without embedding procedure, read-only service assessment cannot invoke
-effect-shaped onboarding, and prompt/Loop/graph routing has positive and near-miss evidence.
-
-**Source:** The complete
-[`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md).
-The supplemental
-[`2026-08-23 prompt, Loop, and workflow-graph research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md)
-records the current OpenAI, Anthropic, Context7, GitHits, and community evidence behind the prompt,
-Loop, and graph contracts and the resulting factual corrections. It is evidence for this Batch 1
-closeout; it does not activate the deferred executable-graph capability or select a runtime.
-Batch 0's five correctness findings are closed on current `main`; this item imports only the approved
-Batch 1 routing work. Batch 2 remains `SKILL-001`. Batch 3 capability candidates are not live work:
-each needs a confirmed operator need and authority boundary before it enters this roadmap.
-The owner placed every non-rejected SRE capability addition on hold on 2026-08-23; security incident
-response remains rejected below. None has an active roadmap item, execution order, or implied
-authorization.
-
-**Prerequisites:** Work from current `origin/main`; edit canonical sources only. Preserve
-`service-onboarding` as manual-only and keep its approved effects and evidence-bound `scribe`
-handoff. Treat description changes as routing-code changes under the repository change playbook.
-
-**Acceptance:** The dated review records the complete audit and research provenance; the live
-authoring rule says capability or user goal plus invocation conditions and meaningful exclusions,
-with no step-by-step procedure or tool choreography in metadata; one focused regression rejects the
-retired trigger-only doctrine across its canonical policy surfaces; a discoverable, read-only
-`service-readiness-audit` is separate from manual `service-onboarding`; scenarios cover readiness
-audit versus onboarding effects, a bounded Loop Engineering repair for “skill fires too often” plus
-“wrong output shape,” a request where Loop Engineering is the distinguishing cue, an agent workflow
-graph, and a code/dependency-graph near miss. The loop contract names its mutable state, verifier,
-hard budgets, success/no-progress/safety termination, promotion authority, and fail-closed treatment
-of missing or inconclusive evidence. Affected live routing scenarios run after the routing edits,
-prior-revision trials are fetched only for a red existing scenario, projections regenerate once,
-focused suites pass, and Gate A is green at the push boundary.
-
-**Evidence update (2026-08-23):** Candidate `e00d821de7ccf43d158233734607b8c5b8d74156`
-passes the focused structural suites and the Loop Engineering contract's red-to-green regression.
-Live run `20260823T053852Z-1e677acb` completed the code/dependency-graph near miss 2/2 without an
-`agent-authoring` invocation and observed the intended `agent-authoring` invocation in 2/2 Loop
-Engineering trials. Those positive trials then became inconclusive because the `Skill,Task`-only
-discovery boundary could not read the linked `artifact.md`. The workflow-graph case ran 2/2 and both
-trials timed out without an attempted/completed target invocation or terminal result. The service
-cases were not selected. This is activation evidence for the Loop case, not a body pass; graph and
-service routing remain `[unverified]`.
-
-**Independent review:** The sole pass on `926d0c0cbe8154562f94dc1470537c557acc35b5`
-found three P1s: an unbounded duplicate loop definition, an inaccurate graph-run record, and a Loop
-Engineering case masked by older routing cues. The successor corrects all three and extends the
-focused regression; it does not claim that the inconclusive routing evidence became green.
-
-**Next action:** Put the corrected Batch 1 successor through normal PR review and merge; run Gate A
-once immediately before its push. Keep `AUDIT-002` active after merge until the evaluator boundary
-and remaining graph/service evidence receive an explicit disposition. Do not move conditional
-references back into `SKILL.md` or start another paid prompt-tuning loop to accommodate the discovery
-sandbox. Context compaction, a graph runtime, schemas without a consumer, and new SRE lanes remain
-out of this batch.
-
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `blocked` (2026-08-23) — begins only after `AUDIT-002` Batch 1 is merged.
+**Status:** `active` (2026-08-23) — the exact current candidate set is remeasured and the
+`incident-command` first-router slice is under verification; no other candidate has been edited.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -248,9 +199,33 @@ Batch 1 both change relevant entrypoints, so this item must remeasure before edi
 metadata follows the current rule—capability or user goal, invocation conditions, and meaningful
 exclusions, without procedure—rather than the retired “trigger only” doctrine.
 
-**Prerequisites:** `AUDIT-002` is merged. The `obs-logs` conditional table is the existing pattern;
-`incident-command` is converted alone as the first reviewed Batch 2 pattern. Description edits
-follow the routing-content change playbook.
+`[verified]` The required 2026-08-23 remeasurement on tree `8ea628d` found 30 entrypoints totaling
+232,717 bytes and confirmed the same nine candidates. Exact per-skill bytes and reference totals are
+recorded in the audit's
+[`Batch 2 remeasurement`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md#batch-2-remeasurement-and-first-router-candidate).
+The first candidate reduces `incident-command` from 11,056 unconditional bytes to a 3,903-byte
+entrypoint routing 9,977 reference bytes across three conditional lanes while retaining shared
+authority and safety controls.
+
+`[verified]` Candidate `cbda2b9` passed its focused static checks. Fixed run
+`20260823T134724Z-a1b538a1` was overall inconclusive after two 180-second timeouts, but both raw
+traces invoked `save-toolkit:incident-command` before the model became stuck trying to read linked
+references in a discovery harness that denies `Read`. Activation is observed 2/2;
+reference-dependent response behavior remains `[unverified]`. The audit records the exact evidence
+and the disagreement between raw tool-use events and the timeout summary's empty derived invocation
+fields.
+
+The owner then authorized one timeout-calibration run on unchanged model-facing bytes. `[verified]`
+Run `20260823T140515Z-83460c27`, clean commit `ea4cf74`, `claude-sonnet-5`, two trials, and a
+540-second timeout passed 2/2. Trial durations were 263.594 and 40.531 seconds, so the first result
+demonstrates that 180 seconds was an insufficient ceiling. The longer run is not rate-comparable to
+the shorter run; it closes the after-change activation check under its own recorded condition. The
+global runner default remains 300 seconds, and detailed reference-dependent behavior remains outside
+the discovery evidence layer.
+
+**Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
+table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
+pattern. Description edits follow the routing-content change playbook.
 
 **Acceptance:** A dated remeasurement names the exact current candidates. Each confirmed candidate
 either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
@@ -259,9 +234,40 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** After `AUDIT-002` merges, remeasure first. Then convert `incident-command` alone and
-review that router shape before applying it to any other confirmed candidate. Keep the already-owed
-`eng-ladder` after-change run bounded to its overlapping scenarios.
+**Next action:** Obtain normal owner acceptance of the exact branch revision, then begin one next
+confirmed candidate as a separate bounded slice. Do not rerun unchanged `incident-command` bytes;
+use an explicit 540-second timeout only if a future comparable run is authorized. Keep the
+already-owed `eng-ladder` after-change run bounded to its overlapping scenarios.
+
+### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
+
+**Status:** `deferred` (2026-08-23)
+
+**Owner:** `latent-sre`
+
+**Outcome:** The two positive discovery routes left inconclusive by Batch 1 have reproducible,
+model-labelled reliability evidence before either is promoted into a stronger routing claim.
+
+**Source:** Batch 1 run `20260823T053852Z-1e677acb` timed out both workflow-graph trials. Closeout
+run `20260823T131840Z-9e4c7fca` on merged commit `09e775b`, Claude Code 2.1.241,
+`claude-sonnet-5`, two trials, and a 180-second timeout passed read-only service readiness 1/2 and
+timed out the second trial. The exact dispositions are in the
+[`skill clarity and routing audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md).
+
+**Prerequisites:** A material routing, evaluator, host, or model change that can alter the result,
+or explicit owner approval of a fixed no-tuning measurement budget. Use a clean exact plugin
+revision and predeclare model, timeout, trials, threshold, and selected scenarios.
+
+**Acceptance:** The workflow-graph and service-readiness cases each meet their declared threshold
+on the exact candidate under the predeclared conditions, with no overlapping regression loss. A
+failed or inconclusive batch remains evidence; it does not authorize prompt edits or retries without
+a separately accepted fleet failure and candidate budget.
+
+**Reopen trigger:** A material change to either route or its evaluator/runtime boundary, a named
+model-migration question, or explicit owner approval for one fixed-budget reliability measurement.
+
+**Next action:** None while deferred. Do not rerun unchanged bytes merely to turn timeouts green,
+and do not move reference-dependent behavior graders into discovery.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 

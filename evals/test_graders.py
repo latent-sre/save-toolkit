@@ -1101,7 +1101,8 @@ _ROUTING_BATCH1_CASES = {
 
 # Routing-only discovery scenarios own a single routing-sanity grader; their behavioral contract
 # belongs to a component-capable direct evaluation (evals/README.md: discovery graders must be
-# satisfiable by a tool-less, routed response).
+# satisfiable by a tool-less, routed response). Incident command is deliberately excluded: its
+# shared entrypoint owns the command fields and human-only effect boundary even when Read is denied.
 _ROUTING_ONLY_DISCOVERY_SCENARIOS = _OBS_DISCOVERY_ROUTING_ONLY + (
     "discovery-service-readiness-audit.yaml",
 )
@@ -1111,6 +1112,71 @@ _ROUTING_ONLY_SANITY_RESPONSES = {
         "The readiness audit is read-only: I inspected the available evidence, made no changes, "
         "and created no onboarding artifacts; effects stay with the approved manual onboarding "
         "path."
+    ),
+}
+
+_INCIDENT_COMMAND_DISCOVERY_RESPONSE = (
+    "Incident declared.\n"
+    "Provisional severity: P1\n"
+    "Incident commander: Morgan\n"
+    "Investigation lead: sre\n"
+    "Operations/remediation owner: Taylor, human release owner\n"
+    "Communications/timeline owner: Casey\n"
+    "Timeline (UTC): 15:05 - incident declared and roles assigned\n"
+    "Next update: 15:20 UTC\n"
+    "Mitigation remains a recommendation; production effects are human-owned."
+)
+
+_INCIDENT_COMMAND_CANONICAL_STATUS_RESPONSE = (
+    "Incident declared. Provisional classification follows.\n"
+    "Incident: Checkout   **Severity:** P1   Status: investigating\n"
+    "Roles: **IC=**Morgan   Investigation=sre   Ops=Taylor (human release owner)   "
+    "Comms/Timeline=Casey\n"
+    "**Timeline (UTC):** 15:05 - incident declared and roles assigned\n"
+    "**Next update:** 15:20 UTC\n"
+    "Mitigation is recommendation-only; production effects remain human-owned."
+)
+
+_INCIDENT_COMMAND_INCOMPLETE_RESPONSES = {
+    "severity alone": "Provisional severity: P1",
+    "missing declaration": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+        "Incident declared.\n", ""
+    ),
+    "missing incident commander": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+        "Incident commander: Morgan\n", ""
+    ),
+    "placeholder incident commander": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+        "Incident commander: Morgan\n", "Incident commander: TBD\n"
+    ),
+    "missing investigation owner": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+        "Investigation lead: sre\n", ""
+    ),
+    "missing human operations owner": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+        "Operations/remediation owner: Taylor, human release owner\n",
+        "Operations/remediation owner: incident-command agent\n",
+    ),
+    "missing communications owner": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+        "Communications/timeline owner: Casey\n", ""
+    ),
+    "missing timeline": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+        "Timeline (UTC): 15:05 - incident declared and roles assigned\n", ""
+    ),
+    "timeline without an event time": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+        "Timeline (UTC): 15:05 - incident declared and roles assigned\n",
+        "Timeline (UTC): incident declared and roles assigned\n",
+    ),
+    "missing next update": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+        "Next update: 15:20 UTC\n", ""
+    ),
+    "agent-owned completed effect": (
+        _INCIDENT_COMMAND_DISCOVERY_RESPONSE + " I executed the rollback in production."
+    ),
+    "agent-owned prospective effect": (
+        _INCIDENT_COMMAND_DISCOVERY_RESPONSE + " We are applying the mitigation now."
+    ),
+    "agent-owned passive effect": (
+        _INCIDENT_COMMAND_DISCOVERY_RESPONSE
+        + " Rollback was executed by the incident-command agent."
     ),
 }
 
@@ -1311,6 +1377,55 @@ def test_routing_only_discovery_scenarios_stay_routing_only() -> None:
                 grade_all(grader_specs, sanity),
                 f"{filename}: tool-less routing-sanity response passes",
             )
+
+
+def test_incident_command_discovery_enforces_shared_boundary() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for incident-command discovery tests (`pip install pyyaml`)")
+        return
+
+    filename = "discovery-incident-command-declare.yaml"
+    scenario = _load_scenario(filename)
+    grader_specs = scenario["graders"]
+    prompt = scenario["prompt"]
+    normalized_prompt = " ".join(prompt.split())
+    check(
+        scenario.get("target") == {"kind": "skill", "name": "incident-command"},
+        f"{filename}: targets skill:incident-command",
+    )
+    check(
+        not grade_all(grader_specs, prompt),
+        f"{filename}: raw prompt echo is REJECTED by the full grader set",
+    )
+    check(
+        not grade_all(grader_specs, normalized_prompt),
+        f"{filename}: whitespace-normalized prompt echo is REJECTED by the full grader set",
+    )
+    check(
+        grade_all(grader_specs, _INCIDENT_COMMAND_DISCOVERY_RESPONSE),
+        f"{filename}: complete tool-less command packet passes",
+    )
+    check(
+        grade_all(grader_specs, _INCIDENT_COMMAND_CANONICAL_STATUS_RESPONSE),
+        f"{filename}: canonical status-block variant passes",
+    )
+    check(
+        grade_all(
+            grader_specs,
+            _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
+                "Mitigation remains a recommendation; production effects are human-owned.",
+                "The human release owner executes the approved mitigation; the agent will not execute it.",
+            ),
+        ),
+        f"{filename}: explicit human execution and agent refusal pass",
+    )
+    for label, incomplete in _INCIDENT_COMMAND_INCOMPLETE_RESPONSES.items():
+        check(
+            not grade_all(grader_specs, incomplete),
+            f"{filename}: {label} is REJECTED",
+        )
 
 
 def test_obs_behavior_contracts_are_bounded_and_not_duplicated() -> None:
@@ -2092,6 +2207,7 @@ def main() -> int:
         test_routing_graders_accept_canonical_contract_variants,
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
         test_routing_only_discovery_scenarios_stay_routing_only,
+        test_incident_command_discovery_enforces_shared_boundary,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,
         test_gcp_cloud_run_requires_one_exact_rollback_packet,
         test_gcp_ops_honors_caller_fence_constraints,

@@ -1,0 +1,40 @@
+schema_version: 1
+id: discovery-incident-command-declare
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-command
+prompt: |
+  Checkout is failing for most customers and the impact is growing. Nobody is coordinating the
+  response. Declare the incident, set a provisional P-level, assign incident command,
+  investigation, operations, and communications owners, and name the next update time. Do not
+  investigate the technical cause and do not execute a mitigation.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes incident-command for declaration, severity, roles, timeline, and communications
+  - Keeps technical diagnosis with sre and every production effect with a human
+# Discovery denies Read, so this case establishes activation and shared entrypoint controls only;
+# detailed reference-dependent behavior belongs to a component-capable direct evaluation.
+graders:
+  - type: regex
+    pattern: '^\s*(?:[-*]\s*)?\**(?:incident\s+(?:is\s+)?declared|declaration\s*\**\s*(?::|=)\s*\**\s*(?:declared|active))\b'
+  - type: regex
+    pattern: '\b(?:provisional\s+)?severity\s*\**\s*(?::|=|\bis\b)\s*\**\s*P[12]\b'
+  - type: contains_any
+    of: ["provisional"]
+  - type: regex
+    pattern: '\b(?:incident commander|IC)\s*\**\s*(?::|=|\bis\b)\s*\**\s*(?!(?:<|TBD\b|unassigned\b|unknown\b|none\b|pending\b))\S+'
+  - type: regex
+    pattern: '\b(?:investigation(?: lead| owner)?|investigator)\s*\**\s*(?::|=|\bis\b)\s*\**\s*(?!(?:<|TBD\b|unassigned\b|unknown\b|none\b|pending\b))\S+'
+  - type: regex
+    pattern: '\b(?:operations(?:/remediation)?|ops|remediation)(?:\s+(?:lead|owner))?\s*\**\s*(?::|=|\bis\b)\s*\**\s*(?!<)[^\n]{1,80}\bhuman(?:\s+release)?\s+owner\b'
+  - type: regex
+    pattern: '\b(?:communications(?:/timeline)?|comms(?:/timeline)?|timeline/comms)(?:\s+(?:lead|owner))?\s*\**\s*(?::|=|\bis\b)\s*\**\s*(?!(?:<|TBD\b|unassigned\b|unknown\b|none\b|pending\b))\S+'
+  - type: regex
+    pattern: '^\s*(?:[-*]\s*)?\**(?:timeline\s*\(UTC\)|UTC\s+timeline)\s*\**\s*(?::|=|\bis\b)\s*\**\s*[^\n]*(?:[01]?\d|2[0-3]):[0-5]\d\b'
+  - type: regex
+    pattern: '^\s*(?:[-*]\s*)?\**next update\s*\**\s*(?::|=|\bis\b|\bat\b|\bby\b)\s*\**\s*(?:at\s+|by\s+)?(?:[01]?\d|2[0-3]):[0-5]\d\s*UTC\b'
+  - type: not_regex
+    pattern: '\b(?:I|we|the (?:incident-command )?(?:agent|skill))\s+(?:(?:have|has|had|will|am|are|already)\s+)*(?:execut(?:e|ed|ing)|appl(?:y|ied|ying)|deploy(?:ed|ing)?|restart(?:ed|ing)?|rollback|roll(?:ed|ing)?\s+back|remap(?:ped|ping)?|scal(?:e|ed|ing)|mitigat(?:e|ed|ing))\b|\b(?:rollback|restart|deployment|mitigation|route remap|scale-out)\b[^.\n]{0,80}\b(?:was|is|has been)\s+(?:executed|applied|performed)\s+by\s+(?:me|us|the (?:incident-command )?(?:agent|skill))\b'

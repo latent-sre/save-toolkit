@@ -378,8 +378,10 @@ evidence, not a recommendation to adopt Cadence or Temporal. See
 
 - **Now:** retain one prompt lane, apply the accuracy/control-boundary corrections above, and keep
   the Batch 1 evaluator limitation explicit.
-- **Batch 1 closeout:** resolve or disposition the discovery evaluator boundary and remaining graph
-  and service routing evidence without another unbounded paid tuning loop.
+- **Batch 1 closeout:** closed by the explicit evaluator and owner disposition in the
+  [`skill clarity and routing audit`](2026-08-22-skill-clarity-routing-graph-audit.md). The two
+  unchanged-byte positive-route reliability gaps are deferred to `ROUTE-003`; they do not authorize
+  a paid tuning loop.
 - **Batch 2:** remeasure context-heavy entrypoints after Batch 1 merges, then use the reviewed
   router pattern as already planned.
 - **SRE capability additions:** held by owner decision. Do not add service DR, capacity/performance,

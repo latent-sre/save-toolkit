@@ -351,3 +351,128 @@ trials had not run, and a Loop Engineering case whose older trigger cues could m
 The reviewed successor was not mergeable as written. The next candidate makes both loop definitions
 use K plus a hard maximum, corrects the run record, names Loop Engineering in routing metadata, adds
 a distinguishing discovery case, and strengthens the focused regression to reject the old forms.
+
+## Batch 1 closeout disposition
+
+PR [#141](https://github.com/latent-sre/save-toolkit/pull/141) merged the Batch 1 implementation and
+research at merge commit `09e775bf6bf1304fd507c454f5bb1ae8cc881df4`, final head
+`11b8041a9ca293d8d7eae5ec6aca42b27e0e1b72`. `[verified]` Its Linux structural, Windows
+structural, and strict Claude plugin jobs passed. `[sourced]` The final review-fix commit tightened
+five scenario grader sets against prompt echoes and keyword-rich incomplete responses, moved the
+unsuccessful workflow-graph case to calibration, made readiness discovery routing-only, completed
+the artifact Loop Engineering contract, and recorded 533/533 green grader checks after 13 red
+controls on the previous graders. `[verified]` The current merged suite passes 534/534 checks.
+
+The fixed closeout run `20260823T131840Z-9e4c7fca` used the clean merged plugin commit, Claude Code
+2.1.241, `claude-sonnet-5`, two trials per case, and a 180-second timeout. Its integrity checks passed
+and it observed one model only. No prompt bytes changed and no trial was retried:
+
+- `[verified]` `discovery-service-onboarding-does-not-autofire` passed 2/2. Both trials stayed inline,
+  required explicit manual invocation and an approved plan, and claimed no onboarding effects.
+- `[verified]` `discovery-service-readiness-audit` completed the intended skill invocation and
+  read-only response in one trial; the second timed out at 180 seconds. The scenario is therefore
+  **INCONCLUSIVE (1/2)** at its 1.0 threshold, not passed or failed.
+- `[verified]` The earlier workflow-graph evidence remains **INCONCLUSIVE (0/2 terminal results)**.
+  Its calibration split correctly prevents a known-unpassed case from becoming regression evidence.
+
+**Evaluator disposition:** discovery and component behavior are different evidence layers. A
+completed target invocation can establish activation; behavior that requires linked references
+belongs in a direct/component-capable evaluation with those references available. Batch 1 retains
+its focused artifact-contract tests and does not move conditional prose back into `SKILL.md` to
+satisfy a tool-denied discovery sandbox.
+
+**Owner disposition:** Batch 1 is closed with the manual-onboarding safety boundary confirmed and
+the two positive-route reliability gaps explicitly deferred to roadmap item `ROUTE-003`. Unchanged
+bytes will not be rerun or tuned merely to obtain a green sample. This closeout selects no graph
+runtime, creates no schema without a consumer, starts no optimization loop, and activates none of
+the held SRE capability additions.
+
+## Batch 2 remeasurement and first router candidate
+
+`[verified]` On 2026-08-23, before any Batch 2 canonical edit, the reproduction command from the
+2026-08-17 surface sweep was rerun on tree
+`8ea628dd23958e45680f609950ddf438263e6dd8`. The 30 canonical `SKILL.md` entrypoints totaled
+232,717 bytes. The exact current candidates were:
+
+| Skill | `SKILL.md` bytes | Reference files | Reference bytes |
+|---|---:|---:|---:|
+| `agent-security` | 13,629 | 0 | 0 |
+| `ci-actions` | 12,197 | 1 | 1,620 |
+| `database-reliability` | 9,756 | 1 | 2,081 |
+| `incident-command` | 11,056 | 0 | 0 |
+| `ops-tooling` | 14,427 | 2 | 7,202 |
+| `pcf-deploy` | 10,351 | 0 | 0 |
+| `pcf-ops` | 10,173 | 1 | 1,543 |
+| `production-change-gate` | 10,099 | 0 | 0 |
+| `stack-profile` | 8,673 | 0 | 0 |
+
+The remeasurement confirms the audit's nine-skill set exactly; `operational-learning` remains out.
+This is the implementation baseline, not a claim that every large skill should be split.
+
+The first bounded candidate converts only `incident-command`. Its entrypoint is 3,903 bytes and
+routes severity/declaration, command/communications, and mitigation selection to three explicit
+references totaling 9,977 bytes. The entrypoint retains the security evidence-preservation
+carve-out, human-only production effects, exact approval/rollback packet, typed-agent ownership,
+single UTC timeline, and sustained-recovery close condition. It therefore exits the mechanical
+candidate set without hiding the controls that must apply to every incident-command invocation.
+
+No pre-existing scenario targeted `incident-command`. The candidate adds one discovery regression
+for declaration and command routing. Because discovery denies `Read`, it grades activation and the
+shared entrypoint boundary only; detailed reference-dependent behavior is not presented as verified
+until a component-capable direct evaluation exists. The grader-shape regression failed when a second
+behavior grader was deliberately added (534/536), then passed after restoration (536/536).
+
+The exact candidate is `cbda2b9ddd4bc7b0baaf6bf7145526076b9c4bf6`. `[verified]` Fleet and
+projection validation, link validation, roadmap validation plus 24 focused tests, 536/536 grader
+checks, 84-scenario parsing, six canary tests, strict Claude plugin validation, and
+`git diff --check` passed before the candidate was committed. Gate A was not run in the linked worktree; it
+remains a push-boundary check in a normal clone.
+
+The fixed after-change run `20260823T134724Z-a1b538a1` used that clean exact plugin commit, Claude
+Code 2.1.241, requested `claude-sonnet-5`, two trials, and a 180-second timeout. Integrity passed,
+the plugin inputs were clean, and no trial was retried or tuned. The summary verdict is
+**INCONCLUSIVE (0/2 terminal results)** because both trials timed out.
+
+The raw stream provides narrower evidence that the timeout summary cannot: `[verified]` both trials
+invoked `save-toolkit:incident-command` immediately, so after-change activation is observed 2/2.
+Each invocation then selected the severity/declaration and command/communications references. The
+discovery harness denied `Read`; the model re-invoked the already-loaded skill and tried readers
+whose documented file tools resolved to nothing, so neither trial produced a terminal response.
+Accordingly, routing activation is verified, while reference-dependent response behavior remains
+`[unverified]`. The empty `attempted_invocations` fields in the timeout summary disagree with the
+preserved raw `Skill` tool-use events and must not erase that lower-level evidence.
+
+**Batch 2 first-slice disposition:** stop after this one candidate. Do not rerun unchanged discovery
+bytes merely to obtain a terminal sample, and do not apply the router pattern to a second skill until
+the owner either accepts the exact structural-plus-activation evidence or provides a
+component-capable evaluator that can read conditional references. This is an evaluator-boundary
+hold, not evidence that `incident-command` misrouted.
+
+### Owner-authorized timeout calibration
+
+The owner subsequently authorized one fixed rerun with the timeout tripled from 180 to 540 seconds.
+No prompt, scenario, grader, skill, or projection byte changed. Run
+`20260823T140515Z-83460c27` used clean commit
+`ea4cf74cd6958a9cfa1581c7e11005e7812be33f`; its plugin source digest
+`367a170c99f5720b88c26064a9caa8ab2731f71747dd49e613a5b15f9c3b6f33` matches the earlier
+candidate run, whose only intervening commit changed evidence documentation.
+
+`[verified]` Integrity passed, one requested/resolved model (`claude-sonnet-5`) was observed, and the
+scenario passed **2/2** at its 1.0 threshold. Both trials completed the root
+`save-toolkit:incident-command` invocation and the routing-sanity grader:
+
+- Trial 1 passed in 263.594 seconds and cost $0.6939631. It repeated the missing-reader detour before
+  producing a terminal response; that duration proves the 180-second cutoff was premature.
+- Trial 2 passed in 40.531 seconds and cost $0.105144 without spawning a reader.
+
+The combined recorded cost was $0.7991071. Because timeout is a run-shaping condition, the 540-second
+pass rate is not a before/after behavior comparison with the 180-second run. It is timeout
+calibration on identical model-facing bytes. The result closes after-change activation evidence for
+this slice; it does not upgrade detailed reference-dependent behavior, which discovery still cannot
+read, from `[unverified]`.
+
+**Revised first-slice disposition:** the router shape has green structural evidence and green
+after-change activation evidence. Retain 540 seconds as the explicit condition for any future
+comparison of this scenario; do not raise the runner's global 300-second default or rerun these
+unchanged bytes again. The next Batch 2 candidate may begin after normal owner acceptance of the
+exact branch revision.
