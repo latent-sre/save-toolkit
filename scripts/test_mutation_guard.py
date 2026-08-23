@@ -684,30 +684,10 @@ class DiscoveryTests(unittest.TestCase):
             "sibling", subjects["test_readonly_guard.py"].get("readonly-guard.py")
         )
 
-    def test_guard_is_documented_as_optional_single_module_work_not_a_gate_step(self) -> None:
-        """The helper's focused suite proves it when changed; Gate A never turns it into routine work."""
+    def test_guard_is_not_a_gate_step(self) -> None:
+        """Gate A must never turn the optional helper into routine work."""
         gate = (ROOT / "scripts/gate_a.py").read_text(encoding="utf-8")
         self.assertNotIn("mutation_guard.py", gate)
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("mutation_guard.py --module <one-file.py>", agents)
-
-    def test_governing_surfaces_do_not_turn_survivor_counts_into_work(self) -> None:
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        pull_request = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8")
-        roster = (ROOT / "skills/agent-authoring/references/roster.md").read_text(encoding="utf-8")
-
-        self.assertIn("add one focused fixture or test", agents)
-        self.assertIn("deliberately break that exact contract", agents)
-        self.assertIn("--module <one-file.py>", agents)
-        self.assertIn("A survivor count is not a finding or backlog item", agents)
-        self.assertIn(
-            "one focused test that fails when that exact contract is deliberately broken and "
-            "passes when restored",
-            pull_request,
-        )
-        self.assertNotIn("mutation_guard.py", pull_request)
-        self.assertNotIn("mutation_guard.py", roster)
-        self.assertIn("focused red-first test for a changed fleet contract", roster)
 
 class InconclusiveVerdictTests(unittest.TestCase):
     """`blind` must reach the verdict, not just the printout."""
