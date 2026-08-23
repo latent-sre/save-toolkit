@@ -1,7 +1,7 @@
 schema_version: 1
 id: discovery-sde-build-cli-with-tests
 mode: discovery
-split: regression
+split: calibration
 target:
   kind: agent
   name: sde

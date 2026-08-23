@@ -13,6 +13,23 @@ import validate_fleet
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _normalized(text: str) -> str:
+    return re.sub(r"\s+", " ", text.lower()).strip()
+
+
+def _markdown_section(relative: Path, heading: str) -> str:
+    text = (ROOT / relative).read_text(encoding="utf-8")
+    marker = f"{heading}\n"
+    if marker not in text:
+        raise AssertionError(f"{relative.as_posix()}: missing heading {heading!r}")
+    section = text.split(marker, 1)[1]
+    level = len(heading) - len(heading.lstrip("#"))
+    next_heading = re.search(rf"^#{{1,{level}}}\s+", section, re.MULTILINE)
+    if next_heading:
+        section = section[: next_heading.start()]
+    return _normalized(section)
+
+
 class FleetValidatorTests(unittest.TestCase):
     SCRIBE_LOADED_PATHS = (
         Path("agents/scribe.md"),
@@ -38,6 +55,111 @@ class FleetValidatorTests(unittest.TestCase):
         names, failures = validate_fleet.validate_agents(ROOT)
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
+
+    def test_exact_sha_independent_review_is_prod_deployment_only(self) -> None:
+        """Deleting or moving the review boundary must fail this contract."""
+        production_checklist = _markdown_section(
+            Path("skills/production-change-gate/SKILL.md"),
+            "## Checklist",
+        )
+        self.assertIn(
+            "production deployment of a new artifact requires independent review of the exact "
+            "candidate sha",
+            production_checklist,
+        )
+        self.assertIn(
+            "for a new-artifact deployment, attach protected-environment evidence",
+            production_checklist,
+        )
+        self.assertIn(
+            "for another planned production action, attach evidence that the named human or "
+            "protected automation",
+            production_checklist,
+        )
+
+        for relative in (
+            Path("skills/merge-gate/SKILL.md"),
+            Path("skills/release-gate/SKILL.md"),
+        ):
+            checklist = _markdown_section(relative, "## Checklist")
+            with self.subTest(contract=relative.as_posix()):
+                self.assertNotIn("requires independent review", checklist)
+                self.assertNotIn("reviewed sha", checklist)
+
+    def test_review_consumers_keep_routine_work_out_of_the_prod_review_gate(self) -> None:
+        sde_path = ROOT / "agents/sde.md"
+        sde_fields, _, _ = validate_fleet.adapters.parse_frontmatter(sde_path)
+        scenario = (ROOT / "evals/scenarios/release-gate-passes-ready.yaml").read_text(
+            encoding="utf-8"
+        )
+        prompt = _normalized(scenario.split("prompt: |", 1)[1].split("success_criteria:", 1)[0])
+        criteria = _normalized(scenario.split("success_criteria:", 1)[1].split("graders:", 1)[0])
+        contracts = (
+            (
+                "agents-learning",
+                _markdown_section(Path("AGENTS.md"), "## Shared conventions (every agent follows)"),
+                ("human acceptance of the exact pr revision promotes it",),
+                ("let pr review promote",),
+            ),
+            (
+                "merge-ci",
+                _markdown_section(Path("skills/merge-gate/SKILL.md"), "## Checklist"),
+                ("read the trusted ci record directly", "missing reviewer packet alone is not a **no**"),
+                ("read the reviewer's packet",),
+            ),
+            ("sde-description", _normalized(sde_fields["description"]), (), ("reviewer",)),
+            (
+                "sde-boundary",
+                _markdown_section(Path("agents/sde.md"), "## Untrusted input boundary"),
+                (
+                    "routine completion returns the evidence packet to the caller without spawning a review",
+                    "caller requests review",
+                    "security-sensitive",
+                    "production deployment",
+                ),
+                (),
+            ),
+            (
+                "prompt-engineer",
+                _markdown_section(Path("agents/prompt-engineer.md"), "## Method"),
+                ("promotion is the human owner's acceptance of the exact candidate revision",),
+                ("approval on the exact candidate revision by someone other than",),
+            ),
+            (
+                "agent-authoring",
+                _markdown_section(
+                    Path("skills/agent-authoring/references/artifact.md"),
+                    "## Learn from an encountered failure",
+                ),
+                ("human acceptance of the exact candidate revision is promotion",),
+                ("pr approval on the exact candidate revision is promotion",),
+            ),
+            (
+                "reviewer-scope",
+                _markdown_section(Path("agents/reviewer.md"), "## Scope the review first"),
+                ("cannot supply the exact-sha review evidence required for a production deployment",),
+                ("re-review before merge",),
+            ),
+            (
+                "reviewer-output",
+                _markdown_section(Path("agents/reviewer.md"), "## Output format"),
+                ("cannot supply production-change-gate's exact-sha review evidence",),
+                ("cannot satisfy merge-gate",),
+            ),
+            (
+                "release-prompt",
+                prompt,
+                ("production-change-gate has not run", "intentionally later"),
+                ("production-change-gate is cleared",),
+            ),
+            ("release-criteria", criteria, ("without requiring production-change clearance",), ()),
+        )
+        for name, text, required, forbidden in contracts:
+            with self.subTest(contract=name):
+                for phrase in required:
+                    self.assertIn(phrase, text)
+                for phrase in forbidden:
+                    self.assertNotIn(phrase, text)
 
     def test_scribe_is_a_non_executing_document_writer(self) -> None:
         path = ROOT / "agents" / "scribe.md"

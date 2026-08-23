@@ -37,7 +37,8 @@ recommend someone else's tools.
 
 - *"orders is 502-ing in prod since 14:20 UTC — investigate"* → the `sre` agent triages read-only
   and recommends a mitigation for a human to apply.
-- *"is PR #42 ready to merge?"* → the `merge-gate` checklist, consuming the typed reviewer's packet.
+- *"is PR #42 ready to merge?"* → the `merge-gate` checklist, including disposition of any known
+  blocking findings; independent exact-SHA review is reserved for production deployments.
 - *"write a runbook for the checkout deploy"* → the `scribe` agent with the `runbook` skill.
 
 The one manual command is `/save-toolkit:adr` (ADR scaffold).
@@ -46,7 +47,7 @@ The one manual command is `/save-toolkit:adr` (ADR scaffold).
 
 | Agent | Lane | Routing |
 |---|---|---|
-| `sde` | Build, fix, refactor, and test code or operations tooling | Delegates review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
+| `sde` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `reviewer` | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `sde`; terminal |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
 | `sre` | Investigate active production or staging failures (guarded read-only Bash) | Delegates observability follow-up to `observability-engineer`, operational docs to `scribe`, and fact checks to `researcher` |

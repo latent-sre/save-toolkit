@@ -2,7 +2,7 @@
 name: merge-gate
 description: >-
   Quality gate that must pass before a code change merges. Use after code review and testing, before
-  declaring a change done or merging a PR. A pass/fail checklist covering tests, review, security,
+  declaring a change done or merging a PR. A pass/fail checklist covering tests, known findings, security,
   coverage, secrets, compatibility, and docs. Invoke explicitly as Copilot `/merge-gate` or Claude
   `/save-toolkit:merge-gate`. Triggers: "is this ready to merge", "run the merge gate", "can I merge this
   PR". Ownership map only—not a load: merge-gate = ready to merge; release-gate = ready to ship;
@@ -21,22 +21,20 @@ everything).
 ## Checklist
 
 - [ ] **Builds & CI green** — compile/lint/format and the full test suite pass in trusted CI. Read the
-      reviewer's packet for the CI run link, execution boundary, and preserved evidence and taint labels.
-      An asserted result remains `[unverified]`; missing or unverified evidence is a **NO**.
+      trusted CI record directly for the run link and exact SHA. When a reviewer packet exists, it may
+      preserve execution-boundary, evidence, and taint labels; missing reviewer packet alone is not a
+      **NO**. An asserted CI result remains `[unverified]`; missing or unverified trusted CI evidence is a
+      **NO**.
 - [ ] **Behavior tested** — new or changed behavior has a regression test that fails without the fix.
       Show current CI output and **record the SHA it ran at**. If that SHA != `HEAD`, apply the same
       staleness test as below: an empty or test-irrelevant diff may be re-confirmed at `HEAD`; otherwise
       the evidence is stale and the test must re-run.
-- [ ] **Reviewed** — the typed `reviewer` agent supplied its two-lens packet and every P0/P1 finding is
-      resolved, not merely acknowledged. **Record the SHA the review ran against.** If that SHA != `HEAD`,
-      inspect `git diff <review-sha>..HEAD`. If the diff is empty or touches only files outside the
-      reviewed set, re-confirm and record the new SHA. If it touches reviewed code, **the approval is
-      stale**; this item is a **NO** until re-review completes.
-      The gate runner never self-classifies a non-empty diff as outside the reviewed set. A reviewer must
-      inspect the complete diff and either re-review it or explicitly record why every changed path is
-      irrelevant to the prior finding; newly added files are review scope.
+- [ ] **Known findings disposed** — when a review exists, every current P0/P1 finding is fixed or
+      explicitly rejected with evidence, not merely acknowledged. An ordinary merge does not require an
+      independent review or automatic re-review after every push. Exact-candidate independent review is
+      checked later only when new bytes are deployed to production.
 - [ ] **Security** — when auth, input handling, secrets, crypto, file/network access, or dependencies
-      changed, the reviewer's security lens is present and its P0/P1 findings are closed.
+      changed, assess the affected risks and close any known P0/P1 findings.
 - [ ] **No secrets** — no credentials, tokens, or keys appear in code, fixtures, artifacts, or logs.
 - [ ] **Backward compatible** — migrations use expand→contract where a contract changed; perform inline
       compatibility, API-contract, and UI-state checks for affected interfaces.
@@ -58,23 +56,17 @@ everything).
 
 ```text
 merge-gate: PASS | BLOCKED
-Reviewed SHA: <exact PR-head SHA>
+Candidate SHA: <exact PR-head SHA>
 Blocking items: <the NOs, each with what is needed to clear it>
 Waivers (if any): <item — approved by <human> — reason>
 ```
 
 ## Notes
 
-- Back this checklist with required CI and human review in a **ruleset** — this repo's is the
-  `Protect main` ruleset — or in a legacy branch protection rule. Rulesets are the current
-  mechanism and differ in ways that matter to a gate: "multiple rulesets can apply to the same
-  branch at the same time" and "the most restrictive version of the rule applies", so a second
-  ruleset can only tighten, never loosen; bypass is a named list (roles, teams, or GitHub Apps), so
-  *who* can skip the gate is auditable; and a ruleset can be switched from Active to **Disabled
-  without being deleted** — which is the silent failure to check for when a merge that should have
-  been blocked was not. Rulesets and branch protection rules "work alongside each other, and all
-  applicable rules are enforced." *[sourced: GitHub Docs, about rulesets; reviewed 2026-08-21]*
-- **The stale-approval check above is a self-run speed-bump, not the control.** The enforcement is branch
-  protection's **"Dismiss stale pull request approvals when new commits are pushed"** — it invalidates
-  approval mechanically when a later fix lands. Do not rely on the tick-box.
+- This repository's `Protect main` ruleset requires a pull request but intentionally requires zero
+  approvals and no conversation resolution. It does not enforce independent review, and this checklist
+  must not claim that it does.
+- `dismiss_stale_reviews_on_push` has no review to dismiss while the required approval count is zero.
+  Exact-SHA independent review belongs to the production-deployment boundary in
+  `production-change-gate`, not to every merge.
 - "Approved with nits" may merge only when those findings are non-blocking under the rubric and tracked.

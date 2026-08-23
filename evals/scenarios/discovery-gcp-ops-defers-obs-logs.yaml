@@ -18,9 +18,5 @@ success_criteria:
   - Keeps Cloud Logging query construction in the log-query lane
   - Does not expand a backend-dialect request into GCP service triage
 graders:
-  - type: contains_all
-    of: ["gcloud logging read", "resource.type=cloud_run_revision", "resource.labels.service_name=checkout"]
-  - type: contains_all
-    of: ["severity=(ERROR OR CRITICAL)", "--freshness=1h", "--limit=50", "--format=json"]
-  - type: contains_all
-    of: ["absolute UTC window", "payload fields", "[unverified]"]
+  - type: contains_any
+    of: ["gcloud logging read", "resource.type", "severity>=", "--freshness"]

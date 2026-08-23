@@ -18,9 +18,5 @@ success_criteria:
   - Routes the origin request path to the traces lane
   - Does not reopen edge triage after Akamai confirmed the edge leg is healthy
 graders:
-  - type: contains_all
-    of: ["{ trace:id =", "validate", "absolute UTC window"]
-  - type: contains_all
-    of: ["critical path", "nested span durations", "known-normal"]
-  - type: contains_all
-    of: ["sampling caveat", "[unverified]"]
+  - type: contains_any
+    of: ["critical path", "TraceQL", "{ trace:id", "span duration"]

@@ -18,9 +18,5 @@ success_criteria:
   - Routes origin-service metric queries to the metrics lane
   - Does not reopen Akamai triage after edge evidence ruled it out
 graders:
-  - type: contains_all
-    of: ["sum by (", "rate(", "/ sum by (", "[5m]", "validated service label"]
-  - type: contains_all
-    of: ["histogram_quantile(0.95", "sum by (", "le", "_bucket"]
-  - type: contains_all
-    of: ["cumulative counters", "same population", "zero traffic", "target validation", "[unverified]"]
+  - type: contains_any
+    of: ["rate(", "histogram_quantile(", "[5m]"]

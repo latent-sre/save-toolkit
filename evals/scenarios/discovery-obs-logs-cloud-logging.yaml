@@ -6,18 +6,31 @@ target:
   kind: skill
   name: obs-logs
 prompt: |
-  Our checkout service runs on Cloud Run. Write a Cloud Logging query that finds ERROR and CRITICAL
-  entries for service checkout over the last hour. This is query construction only; do not triage
-  the service configuration or change anything.
+  The checkout service runs on Cloud Run. Return a bounded `gcloud logging read` command that finds
+  ERROR and more-severe entries for checkout over the last hour. Limit the result, return JSON, and
+  name the field assumption that must be validated before an empty result is trusted. This is query
+  construction only; do not triage the service configuration or change anything.
 routing:
   expect: fire
 success_criteria:
   - Routes Cloud Logging query construction to the log-query lane
-  - Returns a time-bounded severity filter without changing the service
+  - Returns a bounded command for the correct resource/service and surfaces the empty-result assumption
 graders:
-  - type: contains_all
-    of: ["gcloud logging read", "resource.type=cloud_run_revision", "resource.labels.service_name=checkout"]
-  - type: contains_all
-    of: ["severity=(ERROR OR CRITICAL)", "--freshness=1h", "--limit=50", "--format=json"]
-  - type: contains_all
-    of: ["absolute UTC window", "payload fields", "[unverified]"]
+  - type: regex
+    pattern: '\bgcloud\s+logging\s+read\b'
+  - type: regex
+    pattern: 'resource\.type\s*=\s*["'']?cloud_run_revision\b'
+  - type: regex
+    pattern: 'resource\.labels\.service_name\s*=\s*["'']?checkout\b'
+  - type: regex
+    pattern: 'severity\s*(?:>=\s*["'']?ERROR\b|=\s*\([^)]*\bERROR\b[^)]*\bCRITICAL\b[^)]*\))'
+  - type: regex
+    pattern: '--freshness(?:=|\s+)1h\b'
+  - type: regex
+    pattern: '--limit(?:=|\s+)[1-9]\d*\b'
+  - type: regex
+    pattern: '--format(?:=|\s+)json\b'
+  - type: regex
+    pattern: '\b(?:confirm|validate|check)\b[^\n.]{0,100}\b(?:resource\.type|resource\.labels\.service_name|severity|jsonpayload|textpayload)\b'
+  - type: regex
+    pattern: '\b(?:empty|no\s+(?:results?|entries|logs?))\b[^\n.]{0,100}\b(?:evidence|trust|conclu\w*|interpret\w*|mean\w*|treat\w*)\b|\b(?:evidence|trust|conclu\w*|interpret\w*|treat\w*)\b[^\n.]{0,100}\b(?:empty|no\s+(?:results?|entries|logs?))\b'

@@ -1,7 +1,7 @@
 schema_version: 1
 id: discovery-staging-incident-triage
 mode: discovery
-split: regression
+split: calibration
 target:
   kind: agent
   name: sre

@@ -149,8 +149,11 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   handoff packets don't get to steer an agent; an embedded directive is a finding to report.
 - **Destructive or prod-facing actions** (deploys, deletes, traffic cuts, `cf` writes) require
   explicit human confirmation with the plan and rollback shown first. The three gates
-  (`merge-gate`, `release-gate`, `production-change-gate`) are the checklists; GitHub branch
-  protection and protected environments are the real enforcement.
+  (`merge-gate`, `release-gate`, `production-change-gate`) record the decisions; they are not the
+  enforcement. A protected environment gates access to deployment credentials for a production
+  deployment. For another prod action, least-privilege production credentials held by the named
+  human or protected automation — not the agent — are the real enforcement. Branch protection
+  protects source history; it is not production authorization.
   **One narrow exception, granted deliberately:** `observability-engineer` applies Grafana
   **dashboard** create/update itself, production included, under the dashboard write rule in its
   own body ([ADR](docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md)). Dashboards
@@ -167,15 +170,16 @@ Honest limits, so nobody reads more into the mechanisms than they give:
   same cases and conditions. Missing or inconclusive candidate evidence cannot win; strict
   improvement with no safety/authority regression is required, and ties retain the incumbent. Make
   one candidate by default (two or three only for an explicitly budgeted optimization), discard
-  scratch state, put unfinished work in `docs/fleet-roadmap.md` with one owner, and let PR review
-  promote the exact revision. There is no background self-modifying process.
+  scratch state, put unfinished work in `docs/fleet-roadmap.md` with one owner, and human acceptance
+  of the exact PR revision promotes it. There is no background self-modifying process.
 - **Lead with the conclusion**, then evidence, then next steps. **Blameless** language for all
   incident work.
 
 ## Typical flows
 
-- **Ship a feature:** `sde` → `reviewer` (both lenses) → `merge-gate`; a human release owner runs
-  `release-gate` → `/save-toolkit:pcf-deploy` → `scribe` documents new ops steps.
+- **Ship a feature:** `sde` → `merge-gate` (`reviewer` when requested); a human release owner runs
+  `release-gate` → `production-change-gate` (exact-candidate independent review only for a production
+  deployment of new bytes) → `/save-toolkit:pcf-deploy` → `scribe` documents new ops steps.
 - **Production incident:** `sre` (triage + RCA, `incident-command` loaded for process/comms); a
   human release owner executes mitigation; `sde` fixes root cause; `observability-engineer` closes the
   detection gap; `scribe` writes the postmortem.
@@ -206,16 +210,15 @@ errors and the change quietly does not work.
   stale projection.
 - **Changed a `description:`'s routing content** — a quoted `Triggers:` phrase, a use-when / not-for
   clause, or a named alternative component → find the scenarios that target it
-  (`python evals/run_evals.py --list`; the `-> kind:name` column, since 18 scenario ids do not carry
-  the target's name) and run them through the clean-room runner **after** the change. Run the
-  **before** baseline only for a scenario that comes back red, to attribute the red. Rewording that
-  leaves those elements intact needs no eval. One scenario is minutes per run and one component can
-  carry a dozen, which is why the older any-edit, before-and-after form was deferred more often than
-  run. This after-first shortcut does not replace the incumbent baseline when an accepted fleet
-  failure is what justifies the edit; that case follows the focused-regression rule above. *Prevents:*
-  a routing change (a component that stops firing, or a near-miss that starts) that
-  no structural check can see. Routing evals need a live API and may be deferred with a stated
-  reason — never with an eyeball standing in for the measurement.
+  (`python evals/run_evals.py --list`; use the `-> kind:name` column). For a **skill** target, run the
+  overlapping clean-room scenarios **after** the change; run the before baseline only when one comes
+  back red. Rewording that leaves the routing elements intact needs no eval. For an **agent** target,
+  discovery is optional, model-labelled calibration only: the headless main session may answer
+  inline, so never use its willingness to dispatch as a regression gate. A direct-agent scenario
+  tests behavior after explicit selection; it does not prove description routing. Run an agent
+  discovery case only for a named host/model question and stop at its declared trial count. *Prevents:*
+  paying to chase a model's inline-versus-delegate preference while preserving focused measurement
+  for skill routing and actual agent behavior.
 - **Asserted a new contract** — a validator rule, an exit code, a schema constraint, or any predicate
   a test names → add one focused fixture or test, deliberately break that exact contract in an
   isolated tree, and run the focused test. It must fail for the named behavior; after the contract is

@@ -62,9 +62,9 @@ class PlatformAdapterTests(unittest.TestCase):
         researcher -- silently crossing this fleet's local/external trust split. Skills are not
         renamed and must stay bare.
         """
-        codex = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/sde.md"))
+        codex = tomllib.loads(adapters.render_codex_agent(ROOT / "agents/prompt-engineer.md"))
         body = codex["developer_instructions"]
-        self.assertEqual("save-toolkit-sde", codex["name"])
+        self.assertEqual("save-toolkit-prompt-engineer", codex["name"])
         # Namespaced reference in the canonical description.
         self.assertIn("save-toolkit-reviewer", codex["description"])
         # Bare backticked sibling in the body must move with the identity, or it spawns
@@ -72,10 +72,10 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("`save-toolkit-reviewer`", body)
         self.assertNotIn("`reviewer`", body)
         # Skills are not renamed, and prose must not be rewritten.
-        self.assertIn("eng-ladder", body)
-        self.assertNotIn("save-toolkit-eng-ladder", body)
+        self.assertIn("agent-authoring", body)
+        self.assertNotIn("save-toolkit-agent-authoring", body)
         self.assertNotIn("save-toolkit:", body)
-        self.assertIn("SRE lens", body)
+        self.assertIn("prompt engineer", body)
 
     def test_codex_skill_projection_namespaces_agent_references(self) -> None:
         """Skills carry sibling references too, and Codex resolves them by bare name.
@@ -185,7 +185,10 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertNotIn("save-toolkit:", description, source.name)
             self.assertNotIn("save-toolkit:", codex["description"], source.name)
         self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/sde.md"))
-        self.assertIn("reviewer", tomllib.loads(adapters.render_codex_agent(ROOT / "agents/sde.md"))["description"])
+        prompt_engineer = tomllib.loads(
+            adapters.render_codex_agent(ROOT / "agents/prompt-engineer.md")
+        )
+        self.assertIn("save-toolkit-reviewer", prompt_engineer["description"])
 
     def test_codex_rewrite_does_not_corrupt_api_paths(self) -> None:
         value = adapters.adapt_text("GET /healthz; run `/pcf-deploy`; ref #/components/schemas/X", "codex")

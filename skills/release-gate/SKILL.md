@@ -17,8 +17,9 @@ For production, this PASS establishes readiness only; authorization belongs to t
 ## Checklist
 
 - [ ] **Merge readiness exists** — attach a recorded PASS from the `merge-gate` skill for the exact
-      reviewed SHA. This skill does not load or execute that sibling gate; missing evidence is a blocking
-      item.
+      candidate SHA. This skill does not load or execute that sibling gate; missing evidence is a blocking
+      item. Independent review is not a release-readiness prerequisite here; a production deployment of
+      new bytes checks exact-candidate review later in `production-change-gate`.
 - [ ] **The release tag cannot move and the Release cannot be edited** — two GitHub controls, both
       checked as *state*, not assumed from the workflow file. A **tag ruleset** on the release tag
       pattern is what enforces "a released version tag is never moved, deleted, or reused" (rulesets

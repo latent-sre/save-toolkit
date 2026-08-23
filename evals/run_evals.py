@@ -210,6 +210,16 @@ def validate(scenarios: list[dict]) -> list[str]:
             problems.append(
                 f"{where}: target '{target['kind']}:{target['name']}' is not a known component"
             )
+        if (
+            scenario.get("mode") == "discovery"
+            and scenario.get("split") == "regression"
+            and isinstance(target, dict)
+            and target.get("kind") == "agent"
+        ):
+            problems.append(
+                f"{where}: agent-target discovery is calibration-only; "
+                "main-session dispatch is a model/host propensity, not a regression contract"
+            )
 
         prompt = scenario.get("prompt")
         if not isinstance(prompt, str) or not prompt.strip():
