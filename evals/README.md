@@ -27,8 +27,10 @@ unified runner measures two different properties and never blends their scores:
   instruction present (the clean room strips `AGENTS.md`), and that is model-dependent: on
   2026-08-22 Opus 5 dispatched 0/3 while Sonnet emitted the expected dispatch in 3/3 on the same
   scenario. Agent-target discovery is therefore calibration-only: pass `--model`, record the model
-  and host with the result, and never put it in the regression split. A red means "not dispatched",
-  not "agent misrouted" or "agent broken". See the
+  and host with the result, and never put it in the regression split. Run one only for a named
+  host/model question and stop at its declared trial count — these are paid trials measuring a
+  propensity, not a fleet contract. A red means "not dispatched", not "agent misrouted" or
+  "agent broken". See the
   [accepted EVAL-002 decision](../docs/decisions/2026-08-22-agent-discovery-calibration.md).
   The clean room's `--tools Skill,Task` and `--disallowedTools` reach every subagent the main session
   dispatches, so a routed agent can report but never Read, Write, or run anything. Discovery graders
