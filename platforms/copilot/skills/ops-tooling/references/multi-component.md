@@ -7,9 +7,11 @@ in `../SKILL.md` remains authoritative.
 
 ## Design additions
 
-- Instantiate `../assets/contract.template.md` as a repository artifact with concrete request,
-  response, and error examples. It is versioned and living: an implementation that diverges updates
-  the contract in the same change.
+- Prefer the existing project-owned versioned interface contract and never create a second contract
+  beside it. If none exists, create a project-appropriate contract artifact with concrete request,
+  response, and error examples; for an HTTP API, instantiate
+  [`../assets/contract.template.md`](../assets/contract.template.md). The selected contract is living:
+  an implementation that diverges updates it in the same change.
 - Name one owner for the contract during each batch. Other builders are read-only on it and route
   change requests through the orchestrator, which propagates the new version to every consumer. A
   contract change is a required review-packet slot — it never rides along unremarked.

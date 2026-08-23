@@ -1,5 +1,7 @@
-<!-- Interface contract — instantiate as a repo artifact at Phase 1 for any multi-component build
-     (see references/multi-component.md). Parallel builders cite THIS FILE and its version line,
+<!-- Optional HTTP interface-contract starter. Instantiate it at Phase 1 only when the project has
+     no project-owned versioned interface contract; never replace or duplicate an existing contract,
+     and never force this HTTP/RFC 9457 shape onto a non-HTTP interface. See
+     references/multi-component.md. Parallel builders cite the selected contract and its version,
      never each other's code. It is living: an implementation that diverges updates it in the same
      change; the owner propagates every change to affected builders at once. -->
 
