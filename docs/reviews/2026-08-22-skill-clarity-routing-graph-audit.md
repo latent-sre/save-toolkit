@@ -421,3 +421,29 @@ for declaration and command routing. Because discovery denies `Read`, it grades 
 shared entrypoint boundary only; detailed reference-dependent behavior is not presented as verified
 until a component-capable direct evaluation exists. The grader-shape regression failed when a second
 behavior grader was deliberately added (534/536), then passed after restoration (536/536).
+
+The exact candidate is `cbda2b9ddd4bc7b0baaf6bf7145526076b9c4bf6`. `[verified]` Fleet and
+projection validation, link validation, roadmap validation plus 24 focused tests, 536/536 grader
+checks, 84-scenario parsing, six canary tests, strict Claude plugin validation, and
+`git diff --check` passed before the candidate was committed. Gate A was not run in the linked worktree; it
+remains a push-boundary check in a normal clone.
+
+The fixed after-change run `20260823T134724Z-a1b538a1` used that clean exact plugin commit, Claude
+Code 2.1.241, requested `claude-sonnet-5`, two trials, and a 180-second timeout. Integrity passed,
+the plugin inputs were clean, and no trial was retried or tuned. The summary verdict is
+**INCONCLUSIVE (0/2 terminal results)** because both trials timed out.
+
+The raw stream provides narrower evidence that the timeout summary cannot: `[verified]` both trials
+invoked `save-toolkit:incident-command` immediately, so after-change activation is observed 2/2.
+Each invocation then selected the severity/declaration and command/communications references. The
+discovery harness denied `Read`; the model re-invoked the already-loaded skill and tried readers
+whose documented file tools resolved to nothing, so neither trial produced a terminal response.
+Accordingly, routing activation is verified, while reference-dependent response behavior remains
+`[unverified]`. The empty `attempted_invocations` fields in the timeout summary disagree with the
+preserved raw `Skill` tool-use events and must not erase that lower-level evidence.
+
+**Batch 2 first-slice disposition:** stop after this one candidate. Do not rerun unchanged discovery
+bytes merely to obtain a terminal sample, and do not apply the router pattern to a second skill until
+the owner either accepts the exact structural-plus-activation evidence or provides a
+component-capable evaluator that can read conditional references. This is an evaluator-boundary
+hold, not evidence that `incident-command` misrouted.
