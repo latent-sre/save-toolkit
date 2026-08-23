@@ -92,6 +92,14 @@ class FleetValidatorTests(unittest.TestCase):
         ).replace("*", "")
 
         self.assertIn("when the artifact is distributed as a github release", checklist)
+        self.assertIn("gh api repos/{owner}/{repo}/immutable-releases", checklist)
+        self.assertIn('"enabled": true', checklist)
+        self.assertIn("gh api repos/{owner}/{repo}/rulesets/{ruleset_id}", checklist)
+        self.assertIn("target: tag", checklist)
+        self.assertIn("enforcement: active", checklist)
+        self.assertIn("ref_name.include", checklist)
+        self.assertIn("no matching exclusion", checklist)
+        self.assertIn("`update` and `deletion` rules", checklist)
         self.assertIn("for any other distribution path", checklist)
         self.assertIn("do not require github release controls", checklist)
 

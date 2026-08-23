@@ -28,13 +28,16 @@ For production, this PASS establishes readiness only; authorization belongs to t
 - [ ] **One immutable artifact, promoted through its actual distribution path** — the version and
       changelog or release notes identify the candidate, and the exact artifact tested in lower
       environments is the one shipping; build once and promote rather than rebuilding. When the
-      artifact is distributed as a **GitHub Release**, confirm an **Active tag ruleset** prevents tag
-      movement/deletion and the Release is immutable state, not merely workflow text; inspect the
-      ruleset with `gh api repos/{owner}/{repo}/rulesets` and, when a prior release exists, confirm
-      `"immutable": true`. For any other distribution path, attach the platform's equivalent
-      immutable digest or non-replaceable object/version identity and prove it resolves to the tested
-      bytes; do not require GitHub Release controls. *[sourced: GitHub Docs, about rulesets and
-      immutable releases; reviewed 2026-08-21]*
+      artifact is distributed as a **GitHub Release**, inspect current repository state with
+      `gh api repos/{owner}/{repo}/immutable-releases` and require `"enabled": true`; a prior
+      Release's `"immutable": true` is supporting object evidence, not a substitute for that current
+      setting. List candidate rulesets with `gh api repos/{owner}/{repo}/rulesets`, then fetch the
+      matching rule with `gh api repos/{owner}/{repo}/rulesets/{ruleset_id}`. Require `target: tag`,
+      `enforcement: active`, a `ref_name.include` pattern matching the selected tag, no matching
+      exclusion, and `update` and `deletion` rules. For any other distribution path, attach the
+      platform's equivalent immutable digest or non-replaceable object/version identity and prove it
+      resolves to the tested bytes; do not require GitHub Release controls. *[sourced: GitHub Docs,
+      repository immutable releases and repository rulesets; reviewed 2026-08-23]*
 - [ ] **Migrations safe** — DB, schema, and configuration migrations are backward-compatible, ordered
       before the code that needs them, and independently reversible.
 - [ ] **Feature flags ready** — risky behavior is flag-gated, defaults safe, and the flag transition is

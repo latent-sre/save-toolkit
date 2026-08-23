@@ -683,7 +683,8 @@ _GATE_CASES = {
     ),
     "release-gate-passes-ready.yaml": (
         "release-gate: PASS\nRollback is documented and verified; health and monitoring are ready. "
-        "Do not deploy until production-change-gate approval.",
+        "The SHA-256 digest is sufficient for this non-GitHub artifact; GitHub Release controls "
+        "do not apply. Do not deploy until production-change-gate approval.",
         "An earlier release-gate passed, but this one is BLOCKED and does not pass — no rollback.",
     ),
     "production-change-gate-passes-approved.yaml": (
@@ -695,6 +696,13 @@ _GATE_CASES = {
 # Exact prose bypasses from review remain pinned: a closed JSON packet rejects the whole class
 # rather than adding each new denial phrase to another vocabulary list.
 _GATE_ADDITIONAL_DECEPTIVE = {
+    "release-gate-passes-ready.yaml": (
+        (
+            "release-gate: PASS\nRollback and monitoring are ready. The immutable non-GitHub "
+            "artifact digest is recorded, but GitHub Release controls and a release-tag ruleset "
+            "are still required before readiness can pass."
+        ),
+    ),
     "production-change-gate-passes-approved.yaml": (
         (
             "Production execution boundary: the attached SpaceDeveloper role binding cf-role-8e2c "

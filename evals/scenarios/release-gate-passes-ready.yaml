@@ -31,5 +31,9 @@ graders:
     pattern: '^\s*\**\s*release.?gate\b[:\s*]*\**\s*(pass(es|ed)?|approved)\b'
   - type: contains_any
     of: ["rollback", "monitor", "health"]
+  - type: regex   # require the answer to accept this distribution's digest as the immutable identity
+    pattern: '\b(?:sha-?256|artifact digest|immutable artifact)\b[^\n]{0,120}\b(?:sufficient|satisf(?:y|ies|ied)|meets?)\b'
+  - type: regex   # and explicitly avoid importing GitHub-only controls into the non-GitHub path
+    pattern: '(?:\b(?:github release(?: controls?)?|release-tag ruleset)\b[^\n]{0,80}\b(?:do|does|is|are)\s+not\s+(?:apply|required|needed)\b|\bwithout requiring (?:github release(?: controls?)?|a release-tag ruleset)\b)'
   - type: not_contains   # reject readiness denial, not a correct warning that deployment awaits authorization
     of: ["does not pass", "not pass", "cannot pass"]
