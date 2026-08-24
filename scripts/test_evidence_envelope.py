@@ -38,11 +38,9 @@ class EvidenceEnvelopeTests(unittest.TestCase):
             isolation={"network": "not-used", "source_access": "read-only"},
         )
 
-    def test_valid_envelope_round_trips_canonical_json(self) -> None:
+    def test_valid_envelope_has_a_valid_generated_id(self) -> None:
         envelope = self._valid()
         evidence_envelope.validate_envelope(envelope)
-        rendered = evidence_envelope.canonical_json(envelope)
-        self.assertEqual(rendered, evidence_envelope.canonical_json(envelope))
         self.assertRegex(envelope["evidence_id"], r"^ev_[0-9a-f]{32}$")
 
     def test_cli_rejects_duplicate_json_object_keys(self) -> None:
@@ -154,15 +152,6 @@ class EvidenceEnvelopeTests(unittest.TestCase):
         del missing["limitations"]
         with self.assertRaisesRegex(evidence_envelope.EnvelopeValidationError, "missing evidence fields"):
             evidence_envelope.validate_envelope(missing)
-
-    def test_artifact_record_binds_non_link_file_bytes_and_size(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "result.txt"
-            path.write_bytes(b"evidence\n")
-            record = evidence_envelope.artifact_record(path, display_path="result.txt")
-        self.assertEqual("result.txt", record["path"])
-        self.assertEqual(9, record["size"])
-        self.assertRegex(record["sha256"], r"^[0-9a-f]{64}$")
 
     def test_context_identifiers_are_bounded(self) -> None:
         envelope = self._valid()

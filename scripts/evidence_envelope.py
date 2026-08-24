@@ -12,7 +12,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Mapping, Sequence
 
 
 SCHEMA_VERSION = 1
@@ -89,32 +89,12 @@ def parse_timestamp(value: object, field: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def canonical_json(value: Mapping[str, Any]) -> bytes:
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
-
-
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
-
-
-def artifact_record(path: Path, *, display_path: str | None = None) -> dict[str, object]:
-    if not path.is_file() or path.is_symlink():
-        raise ValueError(f"evidence artifact is not a regular non-link file: {path}")
-    stat = path.stat()
-    return {
-        "path": display_path or str(path),
-        "sha256": sha256_file(path),
-        "size": stat.st_size,
-    }
 
 
 def _default_environment() -> dict[str, str]:

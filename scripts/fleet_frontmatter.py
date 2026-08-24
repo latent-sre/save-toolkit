@@ -95,7 +95,7 @@ def _scalar(
     )
     try:
         return decode_scalar(stripped), style
-    except (json.JSONDecodeError, TypeError) as exc:
+    except (json.JSONDecodeError, TypeError):
         _problem(problems, mode, source, line_number, "invalid quoted scalar")
         return stripped, style
 
