@@ -69,7 +69,9 @@ selection method, then compare a representative slow trace with a normal trace f
 
 Resource attributes identify the emitting service, while span attributes describe the operation. The
 HTTP attribute below follows the current stable OpenTelemetry HTTP convention; confirm what the deployed
-instrumentation actually emits before treating an empty result as meaningful.
+instrumentation actually emits before treating an empty result as meaningful. Current Tempo
+documentation still includes examples using legacy `span.http.status_code`; that is a query example
+for telemetry emitting the old convention, not the current OpenTelemetry contract.
 
 *[sourced: Grafana Tempo query-builder example/attribute scopes and current OTel HTTP semantic
 conventions; unverified for target attributes]*
@@ -114,10 +116,12 @@ Span error status and protocol response status are different evidence. Read
 Current Tempo documents more than the `&&` spanset join used above: structural operators (`>`
 direct child, `>>` descendant, `<<` ancestor, `~` sibling), TraceQL metrics functions
 (`rate`, `count_over_time`, `quantile_over_time`, `compare`, `topk`), `select()`, and `event:` /
-`link:` / `instrumentation:` scopes. All are version- and block-format-gated (some need vParquet5+)
-— confirm the deployed Tempo version before using any of them in a shared query, and label the
-result with that version *[sourced: Tempo TraceQL construct-queries and metrics pages, re-checked
-2026-08-19]*.
+`link:` / `instrumentation:` scopes. TraceQL metrics are GA from Tempo 3.0, but **alerting on a
+TraceQL metrics query remains experimental**, is limited to a 24-hour query window, and is not a
+Grafana Managed Alerts data source. Other operators/scopes remain version- or block-format-gated
+(some need vParquet5+). Confirm the deployed Tempo version before using any of them in a shared
+query, and label the result with that version. *[sourced: Tempo 3.0 release notes; Tempo metrics-query
+limitations; TraceQL construct-query documentation; re-checked 2026-08-24]*
 
 ## Limits and discard reasons — absence causes
 
