@@ -81,25 +81,33 @@ otelcol.receiver.otlp "default" {
   http { endpoint = "127.0.0.1:4318" }
   output {
     traces  = [otelcol.processor.batch.default.input]
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
   }
 }
 
 otelcol.processor.batch "default" {
-  output { traces = [otelcol.exporter.otlp.tempo.input] }
+  output {
+    traces  = [otelcol.exporter.otlp.default.input]
+    metrics = [otelcol.exporter.otlp.default.input]
+    logs    = [otelcol.exporter.otlp.default.input]
+  }
 }
 
-otelcol.exporter.otlp "tempo" {
-  client { endpoint = "<tempo>:4317" }
+otelcol.exporter.otlp "default" {
+  client { endpoint = "<otlp-backend>:4317" }
 }
 ```
 
-The same `otelcol.exporter.otlp` slot can send all three signals to Google's Telemetry API with
-Application Default Credentials:
+To send that same three-signal pipeline to Google's Telemetry API with Application Default
+Credentials, replace the generic `otelcol.exporter.otlp "default"` block above with this block. The
+current Grafana Google-auth example omits the port, while the OTLP exporter contract requires
+`host:port`; this example follows that contract and uses the gRPC TLS port:
 
 ```alloy
-otelcol.exporter.otlp "google" {
+otelcol.exporter.otlp "default" {
   client {
-    endpoint = "telemetry.googleapis.com"
+    endpoint = "telemetry.googleapis.com:443"
     auth     = otelcol.auth.google.gcp.handler
   }
 }

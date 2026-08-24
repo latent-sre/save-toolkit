@@ -71,12 +71,18 @@ def traffic_report_date_disagreement_is_preserved(text: str) -> bool:
     )
 
 
-def alloy_google_auth_is_qualified(text: str) -> bool:
+def alloy_google_otlp_pipeline_is_executable_and_qualified(text: str) -> bool:
     text = compact(text)
     return all(
         (
-            'otelcol.exporter.otlp "google"' in text,
-            'endpoint = "telemetry.googleapis.com"' in text,
+            "traces = [otelcol.processor.batch.default.input]" in text,
+            "metrics = [otelcol.processor.batch.default.input]" in text,
+            "logs = [otelcol.processor.batch.default.input]" in text,
+            "traces = [otelcol.exporter.otlp.default.input]" in text,
+            "metrics = [otelcol.exporter.otlp.default.input]" in text,
+            "logs = [otelcol.exporter.otlp.default.input]" in text,
+            'replace the generic `otelcol.exporter.otlp "default"` block above' in text,
+            'endpoint = "telemetry.googleapis.com:443"' in text,
             "auth = otelcol.auth.google.gcp.handler" in text,
             'otelcol.auth.google "gcp"' in text,
             'project = "<project-id>"' in text,
@@ -84,6 +90,18 @@ def alloy_google_auth_is_qualified(text: str) -> bool:
             "Application Default Credentials" in text,
             "logs ingestion is Pre-GA" in text,
             "current stable v1.18.1" not in text,
+        )
+    )
+
+
+def postmortem_causal_method_is_consistent(scribe: str, skill: str, template: str) -> bool:
+    return all(
+        (
+            "Causal analysis selected to fit the evidence" in scribe,
+            "five whys" not in scribe.lower(),
+            "Five Whys is one option, not a required" in skill,
+            "Method: <Five Whys, fault tree, causal graph, or another method suited to the evidence>"
+            in template,
         )
     )
 
@@ -124,9 +142,37 @@ class PlatformSkillContractTests(unittest.TestCase):
         reference = read("skills/akamai-edge/references/edge-triage.md")
         self.assertTrue(traffic_report_date_disagreement_is_preserved(reference))
 
-    def test_alloy_google_auth_is_executable_and_lifecycle_qualified(self) -> None:
+    def test_alloy_google_otlp_pipeline_is_executable_and_lifecycle_qualified(self) -> None:
         reference = read("skills/obs-pipeline/references/alloy.md")
-        self.assertTrue(alloy_google_auth_is_qualified(reference))
+        self.assertTrue(alloy_google_otlp_pipeline_is_executable_and_qualified(reference))
+
+    def test_scribe_and_postmortem_skill_agree_on_evidence_selected_causal_analysis(self) -> None:
+        scribe = read("agents/scribe.md")
+        skill = read("skills/postmortem/SKILL.md")
+        template = read("skills/postmortem/assets/postmortem-template.md")
+        self.assertTrue(
+            postmortem_causal_method_is_consistent(scribe, skill, template)
+        )
+        five_whys_only_mutant = scribe.replace(
+            "Causal analysis selected to fit the evidence",
+            "Five whys",
+            1,
+        )
+        self.assertFalse(
+            postmortem_causal_method_is_consistent(five_whys_only_mutant, skill, template)
+        )
+        mandatory_five_whys_mutant = scribe.replace(
+            "Causal analysis selected to fit the evidence",
+            "Causal analysis selected to fit the evidence, including mandatory Five Whys",
+            1,
+        )
+        self.assertFalse(
+            postmortem_causal_method_is_consistent(
+                mandatory_five_whys_mutant,
+                skill,
+                template,
+            )
+        )
 
     def test_otel_java_reference_dates_instead_of_freezing_current(self) -> None:
         reference = read("skills/obs-pipeline/references/otel-sdk.md")
@@ -192,13 +238,31 @@ class PlatformSkillContractTests(unittest.TestCase):
                 "flattened report-date disagreement",
             ),
             (
-                alloy_google_auth_is_qualified,
+                alloy_google_otlp_pipeline_is_executable_and_qualified,
                 read("skills/obs-pipeline/references/alloy.md").replace(
                     "auth     = otelcol.auth.google.gcp.handler",
                     "# auth handler omitted",
                     1,
                 ),
                 "missing Alloy auth handler",
+            ),
+            (
+                alloy_google_otlp_pipeline_is_executable_and_qualified,
+                read("skills/obs-pipeline/references/alloy.md").replace(
+                    'endpoint = "telemetry.googleapis.com:443"',
+                    'endpoint = "telemetry.googleapis.com"',
+                    1,
+                ),
+                "missing Alloy Google OTLP port",
+            ),
+            (
+                alloy_google_otlp_pipeline_is_executable_and_qualified,
+                read("skills/obs-pipeline/references/alloy.md").replace(
+                    "metrics = [otelcol.exporter.otlp.default.input]",
+                    "# metrics exporter output omitted",
+                    1,
+                ),
+                "disconnected Alloy metrics output",
             ),
             (
                 otel_java_version_is_dated,
