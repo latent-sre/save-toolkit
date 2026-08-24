@@ -847,7 +847,12 @@ def build_command(
     command = [claude_bin or os.environ.get("CLAUDE_BIN", "claude")]
     if scenario["mode"] == "direct":
         if target["kind"] == "skill":
-            prompt = f"/{qualified_target(target, plugin_root)}\n\n{prompt}"
+            skill = qualified_target(target, plugin_root)
+            prompt = (
+                f"Use the Skill tool to invoke `{skill}` before answering. "
+                "If the Skill call does not complete successfully, do not answer the task.\n\n"
+                f"{prompt}"
+            )
         else:
             command += ["--agent", qualified_target(target, plugin_root)]
     command += [
@@ -1056,12 +1061,12 @@ def grade_routing(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
 def grade_direct_skill_fired(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
     """Prove a direct-SKILL invocation actually completed.
 
-    A direct-skill case only PREPENDS `/save-toolkit:<skill>` to the prompt. If that slash
-    expansion no-ops, the main model can answer inline and the response graders pass on reasoning
-    that the skill never contributed. A direct-AGENT case is different: the `--agent` pin runs the
-    session AS the agent, so the pin itself is the invocation. This check therefore applies to
-    skills only, using the same namespace resolution and completed-component evidence as
-    `grade_routing`.
+    A direct-skill case explicitly asks the model to invoke the named Skill tool. The instruction
+    alone is not proof: the main model can ignore it and answer inline, while init metadata only
+    establishes that a skill was available. A direct-AGENT case is different: the `--agent` pin
+    runs the session AS the agent, so the pin itself is the invocation. This check therefore
+    applies to skills only, using the same namespace resolution and completed-component evidence
+    as `grade_routing`.
     """
     target = scenario["target"]
     expected = f"{_runtime_namespace(parsed)}:{target['name']}"

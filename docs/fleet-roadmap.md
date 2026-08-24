@@ -29,10 +29,12 @@ list. An item with no surviving evidence document closed into a live contract in
 | `EVAL-002` | 2026-08-22 | Agent-target discovery is calibration, never a regression gate — [ADR](decisions/2026-08-22-agent-discovery-calibration.md) |
 | `REVIEW-001` | 2026-08-22 | Independent exact-SHA review is required for a production deployment of new bytes, not for every merge — [ADR](decisions/2026-08-22-production-review-boundary.md) |
 | `NAV-001` | 2026-08-22 | Incident-navigation rejected and archived — [ADR](decisions/2026-08-22-incident-navigation-archive.md) |
+| `GCPOPS-001` | 2026-08-22 | Canonical `gcp-ops` now states that a quoted `severity>=ERROR` filter is guard-safe while the unquoted shell-redirection spelling is denied, and the focused guard corpus locks both outcomes. Correction commit `c989103`, final PR head `f5235c1`, merged in PR [#137](https://github.com/latent-sre/save-toolkit/pull/137) at `e96e741` |
 | `RELEASE-001` | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. The custom publication workflow, request/workflow contracts, release-specific tests, runbook, and the standalone four-host probe were never activated and had no named consumer; they were retired rather than maintained. The `release-gate` skill, manifest versions, and changelog history remain. Historical design ADR: [`superseded`](decisions/2026-08-11-immutable-release-promotion.md). Reopen only when a named consumer requires an immutable selector and rollback-capable release |
 | `STATE-001` | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. It described a future durable-execution control plane with no named workflow, implementation, or active dependency; handoffs and learning derive ownership and completion from Git, pull requests, tests/evals, and evidence. Reopen only when a named workflow must survive process or session loss and replay from version-bound artifacts would be unsafe or materially costly |
 | `EVAL-001` | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Its only named trigger was a release decision, the parked suite no longer matches the current plugin identity or roster, and Codex stopped being a distribution target — no fleet component runs on Sol, so the trigger can no longer fire. Tag `pre-trim-2026-08-02` preserves the historical bytes — [ADR](decisions/2026-08-23-retire-codex-distribution-target.md) |
 | `AUDIT-002` (Batch 1) | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Implementation and review corrections merged in PR [#141](https://github.com/latent-sre/save-toolkit/pull/141) at merge commit `09e775b`, final head `11b8041`. Batch 1 selected no graph runtime, added no unconsumed schema, and activated no SRE capability addition; two positive-route reliability gaps moved to deferred `ROUTE-003` rather than triggering retries against unchanged bytes. Evidence: [`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) |
+| `DOCTOR-001` | 2026-08-23 | Installed-layout `fleet_doctor` now separates checkout and plugin evidence, validates each payload's first authenticated guard answer and independently trusted launcher bytes, and degrades repository-only checks outside a checkout. Final head `505f9b5`, merged in PR [#152](https://github.com/latent-sre/save-toolkit/pull/152) at `e76d38b` |
 
 The local Sol evaluator decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
@@ -478,7 +480,8 @@ defer scenario alone.
 
 ### GRADER-002 — bind direct-skill trials to current slash-command expansion
 
-**Status:** `ready` (2026-08-22).
+**Status:** `active` (2026-08-24) — implementation and matching live evidence are complete on the
+current candidate; the item stays live until that exact revision merges.
 
 **Outcome:** A direct-skill trial proves that the named skill contributed without requiring a legacy
 `Skill` tool event, while an answer produced without the skill still fails closed.
@@ -490,6 +493,7 @@ Consequently both behaviorally approved candidate trials were marked FAIL only b
 Reconfirmed on candidate `e51f9ec62cebc1883e1f9a6cfba3b716f5d2ab1b` in run
 `20260823T005205Z-27dbcbfe`: both trials returned `APPROVED` and passed every response grader; only
 the absent skill-completion event kept the aggregate red. *[verified]*
+
 Review repair on Claude CLI 2.1.241 added the paired missing-authority case. An uncommitted
 weakened-rule mutation (`plugin_inputs_dirty=true`) incorrectly returned `APPROVED` 2/2 in
 `20260823T011640Z-4e6a6eaa`; restored candidate
@@ -497,12 +501,14 @@ weakened-rule mutation (`plugin_inputs_dirty=true`) incorrectly returned `APPROV
 `20260823T012204Z-1a382e31` and `APPROVED` 2/2 for the complete packet in
 `20260823T012314Z-ec65c221`. Every response grader passed on the restored pair; only `skill-fired`
 remained red because both traces still reported `skills=[]`. *[verified]*
+
 Post-review hardening on candidate `3a1fe384485911b610326b4cb4ce6a635987bd0d` rejects a negated
 specific binding, a BLOCKED verdict whose actual deficit is unrelated while the binding is present,
 and each individually omitted required checklist acknowledgement (446/446 offline checks). Fresh
 CLI 2.1.241 runs `20260823T021128Z-d180d56d` and `20260823T021249Z-28262e5d` returned
 `APPROVED` 2/2 and `BLOCKED` 2/2 respectively; every response grader passed and only `skill-fired`
 remained red because all four traces still reported `skills=[]`. *[verified]*
+
 Plugin-input rereview hardening on candidate `3f06dcc05edf8fd69eb9c0556164498387698f07` also rejects
 direct `does not establish` authority, double-negated missing evidence, and individually negated
 checklist acknowledgements (466/466 offline checks). Run `20260823T023336Z-c0983823` exposed and
@@ -512,97 +518,27 @@ keeps grader specs printable. Fresh runs `20260823T024010Z-4eaa212c` and
 grader passed and only `skill-fired` remained red because all four traces reported `skills=[]`.
 *[verified]*
 
-**Prerequisites:** Identify a stable trace or invocation signal for slash-command expansion. Do not
-infer contribution from answer prose alone.
+`[verified]` Implementation commit `ec6e583f0de3b16a789bbd1e0aaec1f2d995b960` makes direct mode
+request the exact `Skill` invocation and still requires its completed tool result; availability-only
+init metadata and inline answers fail closed. The focused regression was red before the prompt fix,
+then 78/78 runner tests and all 84 scenario validations passed. Claude Code 2.1.241 runs
+`20260824T042540Z-4ab1a447` and `20260824T042627Z-32eef19c` passed the approved and
+missing-authority production-gate cases 2/2 each, with all four trials completing
+`save-toolkit:production-change-gate`. The runs froze evaluator changes before their commit and
+therefore record `workspace_dirty=true`, but their eval-suite SHA-256
+`5cebd64a5c076c5c1cf44814809e309b8b969c5b6aec21e9ed161f8ddf9ba91d` exactly matches a fresh
+`eval_suite_digest()` on clean commit `ec6e583`; plugin inputs were clean. This binds the evidence to
+the committed evaluator bytes without inferring contribution from answer prose.
 
-**Acceptance:** Focused red-first fixtures cover the current expansion shape and the legacy tool-event
-shape; the paired approved and missing-authority production-gate scenarios each pass 2/2; and the
-existing inline-answer control remains red when no skill contributes.
+**Prerequisites:** Met on the current candidate. Keep the response-text fallback forbidden.
 
-**Next action:** Capture the smallest current trace around one direct slash command, then either grade
-its expansion signal or make direct mode invoke the skill explicitly. Keep the response-text fallback
-forbidden.
+**Acceptance:** Focused red-first fixtures cover the current explicit-invocation shape and legacy
+tool-event shape; the paired approved and missing-authority production-gate scenarios each pass 2/2;
+the existing inline-answer control remains red when no skill contributes; and the implementation is
+merged.
 
-### DOCTOR-001 — make `fleet_doctor` diagnose the guard, not just the checkout
-
-**Status:** `active` (2026-08-23) — implementation and local acceptance evidence are complete on
-the current candidate; the item leaves this file only after that revision merges.
-
-**Outcome:** A user whose Bash suddenly denies session-wide can run one command and learn why.
-`scripts/fleet_doctor.py` reports whether the `PreToolUse` hook is registered in the installed
-plugin, whether a Python on the hook's candidate list answers with the guard's `42`/`43` exit
-codes, and whether the guard file resolves under `CLAUDE_PLUGIN_ROOT` — and it runs from an
-installed plugin, not only from a repository checkout.
-
-**Source:** Owner-requested usability review, 2026-08-13. `fleet_doctor` covers git revision,
-worktree state, fleet contracts, plan status, host CLIs, and plugin inventory —
-none of which is a failure mode users actually hit. The three that are load-bearing are unchecked:
-the hook is the only mechanism that arms the guard (`scripts/readonly-guard.py` docstring), and
-`scripts/readonly-guard-hook.sh` denies **all** Bash session-wide, main loop included, when no
-interpreter answers 42/43. That is the blast radius of a missing Python or an unset
-`CLAUDE_PLUGIN_ROOT`, and today it presents as "Bash mysteriously stopped working" with no
-diagnostic. `REPO_ROOT = Path(__file__).resolve().parents[1]` plus imports of `validate_fleet` and
-`check_plan_status` also make the tool checkout-only, so the marketplace user who most needs it
-cannot run it.
-
-**Candidate evidence (2026-08-23):** `[verified]` Focused red-first fixtures failed against the
-missing interpreter, guarded-allow, hook-registration, exact-launcher, guard-file, runtime-root,
-source-checkout, and outside-checkout seams before their fixes. The restored focused suite models
-the launcher's first `42`/`43` answer independently for each payload, accepts only an empty-stdout
-`42` from an allowed `save-toolkit:sre` command plus a valid deny-envelope `43`, and rejects exit `0`,
-an absent candidate, and a blanket-denying guarded path. Hook registration requires synchronized
-inline and standalone copies that also match the doctor's independent trusted-launcher digest. A
-missing `CLAUDE_PLUGIN_ROOT` is `inconclusive`; a mismatched value is checked at its configured root
-and cannot fall back to checkout bytes. Guard evidence targets that plugin root and carries a digest
-of its exact hook, launcher, and guard bytes instead of claiming the inspected checkout revision. A
-source checkout is never installed-plugin proof. A minimal installed-layout copy with no `.git`,
-`validate_fleet`, or `check_plan_status`, and with `CLAUDE_PLUGIN_ROOT` bound to that copy, returned
-`skip` for every repository-only check, `pass` for the runtime-root and three guard checks, and a
-successful process exit. The unchanged guard, hook-wiring, and evidence-envelope suites remain green.
-
-**Prerequisites:** Preserve the existing evidence-envelope contract and the rule that a missing CLI
-is `skip`, never `pass`. The interpreter probe must assert the exact 42/43 answer rather than exit
-0 — accepting exit 0 is the stand-in-interpreter hole the exit codes exist to close, and a
-diagnostic that repeats it would certify a disarmed guard as healthy. Repository-dependent checks
-must degrade to `skip` outside a checkout instead of failing the run.
-
-**Acceptance:** Red-first tests cover hook registered/absent, interpreter answering 42/43 versus
-exit 0 versus absent, and guard file present/missing; the tool returns useful output with no
-checkout present; the guard's own suite and Gate A pass; no new dependency (standard library only).
-
-**Next action:** The item remains active until the exact candidate revision is present on `main`;
-that observable state is the completion condition for removing it from the live roadmap.
-
-### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
-
-**Status:** `active` (2026-08-22) — the canonical correction and focused guard regression are
-complete on the current candidate; the item leaves this file when that revision merges.
-
-**Outcome:** `skills/gcp-ops/SKILL.md` stops telling agents that a quoted `severity>=ERROR` trips the
-read-only guard, which stopped being true when PR #112 loosened the guard's proven-safe false
-positives.
-
-**Source:** PR #112. The branch originally corrected this sentence, but the edit was deferred because
-the now-retired ROUTE-001 canary pinned the exact projected `gcp-ops` body. That evaluator dependency
-no longer exists; its historical rationale remains in the accepted
-[`retirement decision`](decisions/2026-08-11-codex-terra-routing.md).
-
-**Interim mitigation (in place):** `skills/obs-logs/references/gcp-logging.md` carries the correct
-behavior, probe-cited, and `gcp-ops` already routes Logging query-language detail to that reference
-rather than owning it. The stale sentence is in the triage-flow skill; the query-construction skill
-an agent is told to load is right.
-
-**Verified 2026-08-22** against the current `scripts/readonly-guard.py` and focused corpus:
-`gcloud logging read 'severity>=ERROR AND resource.type=cloud_run_revision' --freshness=1h` returns
-exit 42 (allow), the same filter unquoted returns exit 43 (deny), and all 20 focused guard tests pass.
-
-**Prerequisites:** Met. The quoted and unquoted cases are explicit focused-corpus fixtures.
-
-**Acceptance:** `gcp-ops` states the guard's real behavior, the focused allow/deny corpus proves it,
-generated projections match, and Gate A passes.
-
-**Next action:** Merge the exact candidate; no provider evaluation is attached to this text
-correction.
+**Next action:** Merge the exact candidate, then move this item to the closed table from refreshed
+`main`. Do not rerun the unchanged digest merely to replace the honest dirty-workspace provenance.
 
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 

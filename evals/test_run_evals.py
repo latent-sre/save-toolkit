@@ -216,7 +216,13 @@ class InvocationPlanTests(unittest.TestCase):
         scenario = {"mode": "direct", "target": {"kind": "skill", "name": "merge-gate"}, "prompt": "Assess it."}
         command = run_evals.build_command(scenario, model="sonnet")
         prompt = command[command.index("-p") + 1]
-        self.assertEqual(prompt, "/save-toolkit:merge-gate\n\nAssess it.")
+        self.assertEqual(
+            prompt,
+            "Use the Skill tool to invoke `save-toolkit:merge-gate` before answering. "
+            "If the Skill call does not complete successfully, do not answer the task.\n\n"
+            "Assess it.",
+        )
+        self.assertFalse(prompt.startswith("/"))
         self.assertEqual(command[command.index("--model") + 1], "sonnet")
 
     def test_direct_agent_uses_agent_flag_without_rewriting_prompt(self) -> None:
@@ -1194,7 +1200,30 @@ class StreamTraceTests(unittest.TestCase):
         self.assertFalse(passed)
         self.assertTrue(any("skill-fired" in detail and "FAIL" in detail for detail in details))
 
+    def test_available_skill_and_slash_command_do_not_prove_direct_skill_fired(self) -> None:
+        # Claude Code 2.1.241 reports both fields after slash-command preprocessing, but neither
+        # identifies which skill contributed to this turn. Availability must therefore fail closed.
+        init = self._init_event()
+        init["skills"] = ["save-toolkit:merge-gate"]
+        init["slash_commands"] = ["save-toolkit:merge-gate"]
+        parsed = run_evals.parse_stream_trace(self._blob([
+            init,
+            self._result_event("MERGE-GATE: BLOCKED"),
+        ]))
+        scenario = {
+            "mode": "direct",
+            "target": {"kind": "skill", "name": "merge-gate"},
+            "graders": [{"type": "contains_any", "of": ["blocked"]}],
+        }
+
+        passed, details = run_evals.grade_trial(scenario, parsed)
+
+        self.assertEqual(parsed.skills, ())
+        self.assertFalse(passed)
+        self.assertTrue(any("skill-fired" in detail and "FAIL" in detail for detail in details))
+
     def test_direct_skill_that_fired_passes(self) -> None:
+        # Preserve the completed Skill tool_use/tool_result event contract across CLI versions.
         scenario = {
             "mode": "direct",
             "target": {"kind": "skill", "name": "merge-gate"},
