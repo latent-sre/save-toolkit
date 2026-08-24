@@ -49,7 +49,7 @@ Organized and uncluttered is the floor, not the ceiling. The bar: at home next t
 
 ## State and data
 
-- **Never import `@mantine/core`** or any styled Mantine component — its CSS reset fights Tailwind's, and that mix is the one incoherent hybrid. Mantine's *hooks* and `@mantine/form` ship no CSS and mix freely; its *components* do not.
+- **React branch only:** never import `@mantine/core` or any styled Mantine component — its CSS reset fights Tailwind's, and that mix is the one incoherent hybrid. Mantine's *hooks* and `@mantine/form` ship no CSS and can mix in React; its *components* do not.
 - Server state lives in TanStack Query (caching, retries, invalidation); UI state stays local. No global store until two distant components genuinely share state.
 - **Typed API client derived from the contract** — use the OpenAPI spec or shared types as the source of truth, with `openapi-typescript`/`orval`; generate against the versioned server contract and fail CI on incompatible schema drift. Regenerate on contract change and let `tsc` catch the breaks; never hand-maintain response shapes in two places.
 - Every async view has designed **loading, error, and empty states**. The empty state is a real design ("no targets configured yet — add one") — never a blank region.

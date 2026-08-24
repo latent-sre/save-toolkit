@@ -151,6 +151,12 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertNotIn("injected", fields)
         self.assertEqual(json.loads(fields["owner"]), "ops\ninjected: true")
 
+    def test_empty_owner_fails_without_writing_a_draft(self) -> None:
+        proc, draft = run_converter(VIEW_HTML, "--owner", "")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(draft, "")
+        self.assertIn("--owner", proc.stderr)
+
     def test_recognized_headings_land_in_template_slots(self) -> None:
         # "When to use this" → Trigger; "Before you start" → Prerequisites; "Steps" → Procedure;
         # Rollback and Escalation map by name. Each mapped section must carry its source content.

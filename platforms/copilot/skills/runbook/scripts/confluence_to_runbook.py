@@ -176,6 +176,13 @@ def service_id(value: str) -> str:
     return value
 
 
+def owner(value: str) -> str:
+    """Reject an explicitly empty owner value; runbook frontmatter requires minLength 1."""
+    if not value:
+        raise argparse.ArgumentTypeError("--owner must be a non-empty string")
+    return value
+
+
 def map_slot(heading: str) -> str | None:
     lowered = heading.lower()
     for slot, keywords in SLOT_KEYWORDS:
@@ -287,7 +294,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-o", "--output", type=Path, required=True, help="draft runbook path to write")
     parser.add_argument("--source-url", default=None, help="original page URL for provenance")
     parser.add_argument("--service-id", required=True, type=service_id)
-    parser.add_argument("--owner", default="<team/role>")
+    parser.add_argument("--owner", default="<team/role>", type=owner)
     args = parser.parse_args(argv)
 
     if not args.source.is_file():
