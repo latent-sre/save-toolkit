@@ -547,13 +547,15 @@ cannot run it.
 
 **Candidate evidence (2026-08-23):** `[verified]` Focused red-first fixtures failed against the
 missing interpreter, guarded-allow, hook-registration, exact-launcher, guard-file, runtime-root,
-source-checkout, and outside-checkout seams before their fixes. The restored focused suite accepts
-only an empty-stdout `42` from an allowed `save-toolkit:sre` command plus a valid deny-envelope `43`,
-rejects exit `0`, an absent candidate, and a blanket-denying guarded path, and requires the installed
-inline hook to equal the normalized standalone launcher rather than contain selected fragments. A
+source-checkout, and outside-checkout seams before their fixes. The restored focused suite models
+the launcher's first `42`/`43` answer independently for each payload, accepts only an empty-stdout
+`42` from an allowed `save-toolkit:sre` command plus a valid deny-envelope `43`, and rejects exit `0`,
+an absent candidate, and a blanket-denying guarded path. Hook registration requires synchronized
+inline and standalone copies that also match the doctor's independent trusted-launcher digest. A
 missing `CLAUDE_PLUGIN_ROOT` is `inconclusive`; a mismatched value is checked at its configured root
-and cannot fall back to checkout bytes. A source checkout is never installed-plugin proof. A minimal
-installed-layout copy with no `.git`,
+and cannot fall back to checkout bytes. Guard evidence targets that plugin root and carries a digest
+of its exact hook, launcher, and guard bytes instead of claiming the inspected checkout revision. A
+source checkout is never installed-plugin proof. A minimal installed-layout copy with no `.git`,
 `validate_fleet`, or `check_plan_status`, and with `CLAUDE_PLUGIN_ROOT` bound to that copy, returned
 `skip` for every repository-only check, `pass` for the runtime-root and three guard checks, and a
 successful process exit. The unchanged guard, hook-wiring, and evidence-envelope suites remain green.
@@ -568,8 +570,8 @@ must degrade to `skip` outside a checkout instead of failing the run.
 exit 0 versus absent, and guard file present/missing; the tool returns useful output with no
 checkout present; the guard's own suite and Gate A pass; no new dependency (standard library only).
 
-**Next action:** Review and merge the exact candidate after CI is green, then remove this item from
-the live roadmap on merged `main`.
+**Next action:** The item remains active until the exact candidate revision is present on `main`;
+that observable state is the completion condition for removing it from the live roadmap.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 

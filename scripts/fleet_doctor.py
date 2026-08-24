@@ -9,6 +9,7 @@ evidence envelope; an unavailable or unprobed host is ``skip`` or ``inconclusive
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -17,7 +18,7 @@ import subprocess
 import sys
 import uuid
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
@@ -65,6 +66,9 @@ class Check:
     command_cwd: str | None = None
     exit_code: int | None = None
     limitations: tuple[str, ...] = ()
+    target_root: str | None = None
+    target_revision: str | None = None
+    tree_digest: str | None = None
 
     def __post_init__(self) -> None:
         if self.status not in STATUSES:
@@ -79,6 +83,7 @@ GUARD_INTERPRETER_CANDIDATES = ("python3", "python", "py")
 GUARD_ALLOW_EXIT = 42
 GUARD_DENY_EXIT = 43
 GUARD_PROBE_TIMEOUT_SECONDS = 5
+TRUSTED_GUARD_HOOK_SHA256 = "d605b157942c8db893c7c06882824bcdaef33748bdbaf57dc2bacde8b19ab0cc"
 GUARD_ALLOW_PAYLOAD = json.dumps(
     {
         "tool_name": "Bash",
@@ -186,61 +191,85 @@ def _guard_interpreter_check(
     which: Which,
     run: GuardRunner = _run_guard_probe,
 ) -> Check:
-    """Prove one hook-candidate interpreter receives both authenticated guard answers."""
+    """Model the launcher's first authenticated answer independently for each payload."""
 
     observations: list[dict[str, object]] = []
+    available = False
+    allow_answer: tuple[str, CommandResult] | None = None
+    deny_answer: tuple[str, CommandResult] | None = None
     for candidate in GUARD_INTERPRETER_CANDIDATES:
         executable = which(candidate)
         if not executable:
             continue
+        available = True
         argv = (executable, "-I", "-S", str(guard_path))
-        allow = run(argv, GUARD_ALLOW_PAYLOAD)
-        deny = run(argv, GUARD_DENY_PAYLOAD)
-        observations.append(
-            {
-                "candidate": candidate,
-                "allow_exit_code": allow.returncode,
-                "deny_exit_code": deny.returncode,
-            }
-        )
-        if (
-            allow.returncode == GUARD_ALLOW_EXIT
-            and not allow.stdout.strip()
-            and deny.returncode == GUARD_DENY_EXIT
-            and _is_guard_deny_output(deny.stdout)
-        ):
-            return Check(
-                "guard.interpreter-protocol",
-                "pass",
-                f"{candidate} returned the guard's exact allow and deny protocol.",
-                {
-                    "candidate": candidate,
-                    "allow_exit_code": allow.returncode,
-                    "deny_exit_code": deny.returncode,
-                    "plugin_root": str(guard_path.parent.parent),
-                },
-            )
+        observation: dict[str, object] = {"candidate": candidate}
+        if allow_answer is None:
+            allow = run(argv, GUARD_ALLOW_PAYLOAD)
+            observation["allow_exit_code"] = allow.returncode
+            if allow.returncode in {GUARD_ALLOW_EXIT, GUARD_DENY_EXIT}:
+                allow_answer = (candidate, allow)
+        if deny_answer is None:
+            deny = run(argv, GUARD_DENY_PAYLOAD)
+            observation["deny_exit_code"] = deny.returncode
+            if deny.returncode in {GUARD_ALLOW_EXIT, GUARD_DENY_EXIT}:
+                deny_answer = (candidate, deny)
+        observations.append(observation)
+        if allow_answer is not None and deny_answer is not None:
+            break
 
-    if observations:
+    if not available:
         return Check(
             "guard.interpreter-protocol",
             "fail",
-            "No hook-candidate interpreter returned the guard's exact allow and deny protocol.",
+            "No hook-candidate Python interpreter is available.",
             {
-                "observations": observations,
+                "candidates": list(GUARD_INTERPRETER_CANDIDATES),
                 "plugin_root": str(guard_path.parent.parent),
             },
-            limitations=("Exit 0 is not a guard answer and was not accepted as healthy.",),
+            limitations=("The hook denies all Bash when no candidate can run the guard.",),
         )
+
+    allow_ok = (
+        allow_answer is not None
+        and allow_answer[1].returncode == GUARD_ALLOW_EXIT
+        and not allow_answer[1].stdout.strip()
+    )
+    deny_ok = (
+        deny_answer is not None
+        and deny_answer[1].returncode == GUARD_DENY_EXIT
+        and _is_guard_deny_output(deny_answer[1].stdout)
+    )
+    details: dict[str, object] = {
+        "allow_answer": (
+            None
+            if allow_answer is None
+            else {"candidate": allow_answer[0], "exit_code": allow_answer[1].returncode}
+        ),
+        "deny_answer": (
+            None
+            if deny_answer is None
+            else {"candidate": deny_answer[0], "exit_code": deny_answer[1].returncode}
+        ),
+        "observations": observations,
+        "plugin_root": str(guard_path.parent.parent),
+    }
+    if allow_ok and deny_ok:
+        return Check(
+            "guard.interpreter-protocol",
+            "pass",
+            "The launcher candidate walk returned the guard's exact allow and deny protocol.",
+            details,
+        )
+
     return Check(
         "guard.interpreter-protocol",
         "fail",
-        "No hook-candidate Python interpreter is available.",
-        {
-            "candidates": list(GUARD_INTERPRETER_CANDIDATES),
-            "plugin_root": str(guard_path.parent.parent),
-        },
-        limitations=("The hook denies all Bash when no candidate can run the guard.",),
+        "The launcher candidate walk did not return the guard's exact allow and deny protocol.",
+        details,
+        limitations=(
+            "Each payload stops at its first 42 or 43; other exit codes continue the candidate walk.",
+        ),
     )
 
 
@@ -266,6 +295,30 @@ def _expected_guard_hook_command(plugin_root: Path) -> str | None:
         separator = " " if command.endswith(" do") else "; "
         command = f"{command}{separator}{line}"
     return command
+
+
+def _guard_bundle_tree_digest(plugin_root: Path) -> str:
+    """Bind guard evidence to the exact installed files without following links."""
+
+    digest = hashlib.sha256()
+    for relative in (
+        Path("hooks/hooks.json"),
+        Path("scripts/readonly-guard-hook.sh"),
+        Path("scripts/readonly-guard.py"),
+    ):
+        digest.update(relative.as_posix().encode("utf-8") + b"\0")
+        path = plugin_root / relative
+        if not path.is_file() or path.is_symlink():
+            digest.update(b"missing\0")
+            continue
+        try:
+            payload = path.read_bytes()
+        except OSError:
+            digest.update(b"unreadable\0")
+            continue
+        digest.update(len(payload).to_bytes(8, "big"))
+        digest.update(payload)
+    return digest.hexdigest()
 
 
 def _guard_hook_check(plugin_root: Path) -> Check:
@@ -313,6 +366,8 @@ def _guard_hook_check(plugin_root: Path) -> Check:
     hooks = document.get("hooks") if isinstance(document, dict) else None
     pre_tool_use = hooks.get("PreToolUse") if isinstance(hooks, dict) else None
     registered = False
+    copies_synchronized = False
+    trusted_contract = False
     if isinstance(pre_tool_use, list):
         for registration in pre_tool_use:
             if not isinstance(registration, dict) or registration.get("matcher") != "Bash":
@@ -324,7 +379,14 @@ def _guard_hook_check(plugin_root: Path) -> Check:
                 if not isinstance(command_hook, dict) or command_hook.get("type") != "command":
                     continue
                 command = command_hook.get("command")
-                if command == expected_command:
+                if not isinstance(command, str):
+                    continue
+                command_digest = hashlib.sha256(command.encode("utf-8")).hexdigest()
+                synchronized = command == expected_command
+                trusted = command_digest == TRUSTED_GUARD_HOOK_SHA256
+                copies_synchronized = copies_synchronized or synchronized
+                trusted_contract = trusted_contract or trusted
+                if synchronized and trusted:
                     registered = True
                     break
             if registered:
@@ -344,6 +406,8 @@ def _guard_hook_check(plugin_root: Path) -> Check:
         {
             "registered": registered,
             "configuration": "present",
+            "copies_synchronized": copies_synchronized,
+            "trusted_contract": trusted_contract,
             "plugin_root": str(plugin_root),
         },
         limitations=(
@@ -490,7 +554,16 @@ def _guard_checks(
                 limitations=("An unrun probe was not treated as healthy.",),
             )
         )
-    return checks
+    tree_digest = _guard_bundle_tree_digest(plugin_root)
+    return [
+        replace(
+            check,
+            target_root=str(plugin_root),
+            target_revision="unknown",
+            tree_digest=tree_digest,
+        )
+        for check in checks
+    ]
 
 
 def _safe_version(stdout: str) -> tuple[str, tuple[str, ...]]:
@@ -778,8 +851,11 @@ def _to_envelope(
     return evidence_envelope.new_envelope(
         producer="fleet_doctor",
         role="fleet-health",
-        target_root=str(root),
-        target_revision=revision,
+        target_root=check.target_root if check.target_root is not None else str(root),
+        target_revision=(
+            check.target_revision if check.target_revision is not None else revision
+        ),
+        tree_digest=check.tree_digest,
         criterion=check.check_id,
         status=check.status,
         started_at=started_at,
