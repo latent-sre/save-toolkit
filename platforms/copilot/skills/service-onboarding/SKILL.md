@@ -23,7 +23,7 @@ Use only sanitized evidence and the smallest redacted excerpt needed for each de
 request credential-bearing reads such as `cf env`, `cf service-key`, `CF_TRACE`, or credential
 endpoints. If a prohibited read would be required, record it as not run and state why.
 
-Require the approved plan, named service and environment, owner, exact repository revision, and
+Require the approved plan, named service and environment, owner, exact repository commit ID, and
 authoritative service/alert definitions before starting. Work through every applicable step in
 order; when one is skipped, say so explicitly and why—silence reads as “done.” This checklist grants
 no permission of its own. Before any production-facing step, load `production-change-gate` and
@@ -38,22 +38,33 @@ re-enter it.
 - `ci-actions`
 - `runbook`
 
-Before each dependent checklist step, load that row's skill; the names below are executable load requirements, not decorative cross-references.
+Before each dependent checklist step, load that row's skill; the names below are executable load
+requirements, not decorative cross-references. Load `stack-profile` before step 1 so runtime and
+destination choices come from the approved platform boundary rather than this checklist.
 
-1. **Manifest & health** — version-controlled `manifest.yml`; http health-check endpoint; ≥2 instances.
-2. **Instrument** — OTel SDK wired (metrics + traces + structured logs); RED metrics named per
-   convention; cardinality reviewed. [load `obs-pipeline` before this step]
-3. **Ship telemetry** — Alloy/collector config routes logs → Loki (and Splunk where required),
-   metrics → Mimir, traces → Tempo. Prove arrival with one query per signal, quoted.
+1. **Deploy spec & health** — a runtime-appropriate, version-controlled deployment specification:
+   `manifest.yml` for PCF, or pinned service configuration or infrastructure as code for Cloud Run.
+   Define a workload-appropriate health, readiness, or success check. For a user-serving workload,
+   record the justified availability and instance target. Configure minimum instances only when the
+   approved SLO, latency, or availability plan requires them; otherwise preserve the runtime's
+   scale-to-zero policy where supported.
+2. **Instrument** — OTel SDK wired for the applicable metrics, traces, and structured logs; RED
+   metrics for a request-based service or workload-appropriate success/failure signals otherwise;
+   cardinality reviewed. [load `obs-pipeline` before this step]
+3. **Ship telemetry** — collector configuration routes each applicable signal to destinations
+   selected by `stack-profile` and `obs-pipeline`, including migration-scoped Google backends when
+   selected. Prove arrival with one quoted query per signal.
 4. **Dashboard** — the service page in Grafana: top-level health → drill-down (load `obs-dashboards`).
-5. **Alerts** — burn-rate alert on the SLI + one saturation alert; each linked to a runbook
-   (load `obs-alerting`). No runbook, no alert.
+5. **Alerts** — for a request-based service, add a burn-rate alert on the SLI; for a scheduled or
+   asynchronous workload, add a freshness, completion, or failure alert. Add a saturation alert when
+   the workload has a meaningful saturation signal. Link each alert to a runbook (load
+   `obs-alerting`). No runbook, no alert.
 6. **SLO** — SLI formula + target + window recorded where the team keeps them.
 7. **CI/CD** — build + deploy via Actions (`ci-actions`); promotion gates on.
 8. **Runbook** — check/restart/recover doc exists (`runbook`); on-call knows where it is.
 9. **Knowledge closeout** — after the service and alerts are approved, emit an **evidence-bound
    handoff** to `scribe` for the service card, alert cards, operations index, and any missing/stale
-   runbook. Include exact repository revision, authoritative definitions, owners, links, retained
+   runbook. Include the exact repository commit ID, authoritative definitions, owners, links, retained
    evidence labels/trust, the trusted approval record, and one recommended course of action. This
    checklist does not author those KB records or treat an active deployment/incident as resolved
    documentation evidence.

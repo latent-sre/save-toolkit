@@ -88,17 +88,26 @@ Two completeness caveats that change conclusions:
 - **Latency profile trade-off**: "low latency" streams deliver *less complete* data within ~5
   minutes; "log completeness" delivery is fuller within ~60 minutes. **Absence of log lines in the
   first minutes is not absence of traffic.**
-- **Delivery drops are real**: on 429/5xx the stream retries up to 10 times within 5 minutes; on
-  destination connection problems it retries 3 times, then the data is lost — there is no backup
-  copy, so lines can silently disappear *[sourced: …/docs/faq, re-checked 2026-08-19]*.
+- **Delivery drops are real**: Akamai's documentation disagrees about 429/5xx retries. The FAQ says
+  up to 10 attempts within 5 minutes; the troubleshooting page says log data may be lost after 3
+  unsuccessful retries. The FAQ separately says destination connection problems are lost after 3
+  failed retries. The exact retry budget is therefore `[unverified]` for a given failure mode, but
+  the operational conclusion is firm: there is no backup copy, so alert on upload failures and
+  never treat missing lines as proof of missing traffic *[sourced: …/docs/faq;
+  …/docs/troubleshooting, re-checked 2026-08-24]*.
 
 ## Offload and error reports (Control Center → Reporting)
 
-The **Traffic report** (discontinued **2025-11-06**; its replacement is **Traffic by Hostname**)
-showed hits/volume/offload split into edge, midgress, and origin traffic, filtered by response
-type (Error vs Success), class (2XX…), and individual code — the fast way to see "did origin
-errors rise while edge stayed flat" *[sourced: techdocs.akamai.com/reporting/docs/traffic-rpts,
-re-checked 2026-08-19]*. The offload arithmetic `(edge − origin) / edge × 100` is a working
+The legacy **Traffic report** is discontinued; use **Traffic by Hostname** in the Control Center.
+Akamai's planning changelog says the change was effective **2025-11-05**, while the current Traffic
+report page records **2025-11-06**. The exact effective day is `[unverified]`; that disagreement does
+not change the replacement. The retired report showed hits/volume/offload split into edge, midgress,
+and origin traffic, filtered by response type (Error vs Success), class (2XX…), and individual code
+— the fast way to see "did origin errors rise while edge stayed flat" *[sourced:
+techdocs.akamai.com/reporting/changelog/
+apr-24-2025-traffic-and-todays-traffic-reports-decommission;
+techdocs.akamai.com/reporting/docs/traffic-rpts, re-checked 2026-08-24]*. The offload arithmetic
+`(edge − origin) / edge × 100` is a working
 definition, not a quoted formula — the API defines `offloadedHitsPercentage` in prose. The
 Reporting API v2 exposes the data as `delivery/traffic/current`; the CP-code filter is
 **optional** — omitted, the report covers all available CP codes *[sourced:

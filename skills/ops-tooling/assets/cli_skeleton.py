@@ -57,15 +57,14 @@ def scale(
     as_json: bool = typer.Option(False, "--json", help="Emit the result as JSON on stdout."),
 ) -> None:
     """Scale an app. Secrets come from env (e.g. CF_TOKEN), never a flag."""
-    if not os.getenv("CF_TOKEN"):
-        log.error("CF_TOKEN not set in the environment")
-        raise typer.Exit(Exit.USAGE)
-
     plan = decide(app_name, instances)
 
     if dry_run:
         _emit(plan, as_json, dry_run=True)        # dry-run calls NOTHING (prove it in a test)
         raise typer.Exit(Exit.OK)
+    if not os.getenv("CF_TOKEN"):
+        log.error("CF_TOKEN not set in the environment")
+        raise typer.Exit(Exit.USAGE)
     if not yes and not typer.confirm(f"Scale {plan.app_name} to {plan.target_instances}?"):
         raise typer.Exit(Exit.OK)
 

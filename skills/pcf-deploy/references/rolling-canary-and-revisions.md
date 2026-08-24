@@ -15,9 +15,10 @@ cf cancel-deployment checkout
 
 A canary can advance through `--instance-steps 5,10,20`, where values are successive percentages of
 the web process instances. Deployment pauses at each step for `cf continue-deployment` or
-`cf cancel-deployment`; continuing after the final step completes the rolling deployment. After the
-first canary step, each later step removes one pre-deployment instance, and the deployment holds one
-extra instance above target until completion. Confirm quota for that extra capacity.
+`cf cancel-deployment`; continuing after the final step completes the rolling deployment. For each
+additional canary instance created after the first, one pre-deployment instance is removed; a step
+that adds several canary instances can therefore remove several old instances. The deployment holds
+one extra instance above target until completion. Confirm quota for that extra capacity.
 
 `--max-in-flight N` limits how many new instances start simultaneously for rolling and canary work,
 including each canary step. The default is 1. Raising it shortens a large rollout but widens the
@@ -26,11 +27,11 @@ blast radius; retain 1 unless the approved packet explicitly accepts a larger bo
 
 ## Version and target gates
 
-`--strategy canary` arrived in cf CLI v8.10.0. The scaling step flags, including
-`--instance-steps`, arrived in v8.16.0. The foundation's CAPI must also support the requested
-deployment behavior, so the CLI version alone is insufficient. The human owner records the exact
-CLI and CAPI versions and bounded non-production result; `cf push --help` on the deployed CLI is the
-local check that the intended flags exist. *[sourced: cf CLI release notes; reviewed 2026-08-21]*
+Canary deployment requires cf CLI v8.8.0 or later and CAPI v3.173.0 or later.
+`--instance-steps` additionally requires CAPI v3.189.0 or later and a CLI whose `cf push --help`
+exposes the flag. The human owner records the exact CLI and CAPI versions and a bounded
+non-production result; CLI version alone is insufficient. *[sourced: Cloud Foundry deployment
+documentation and cf CLI source; reviewed 2026-08-24]*
 
 If either version or target behavior is unknown, keep the strategy `[unverified]` and do not include
 unsupported flags in an approved production plan.

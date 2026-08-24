@@ -57,11 +57,14 @@ personal skill with a fleet skill's name silently shadows it; check there first 
 
 Core fields: `name`, `description` (the trigger), `argument-hint`. Behavior switches:
 
-- `disable-model-invocation: true` — for side-effect skills (deploy, onboard): user-only via
-  `/plugin:name`, description removed from the model's context, not preloadable via an agent's `skills:`.
-  Binding at project scope; **ignored for plugin-shipped skills** (anthropics/claude-code#22345;
-  last verified against CLI 2.1.212, 2026-07-17). Set it for intent either way, but in a plugin
-  make the skill's own content defer authority rather than trusting the flag.
+- `disable-model-invocation: true` — for side-effect skills (deploy, onboard): the documented
+  contract is user-only invocation via `/plugin:name`, with the description removed from the
+  model's context and the skill unavailable for agent `skills:` preloading. A historical upstream
+  report (anthropics/claude-code#22345, CLI 2.1.29) and this fleet's 2026-07-17 probe on 2.1.212
+  observed the field ignored for plugin-shipped skills. Current official docs now show the field on
+  plugin skills, but this fleet has not run a current plugin-specific visibility canary; enforcement
+  on the installed CLI remains `[unverified]`. Set it for intent, and make the skill body defer
+  authority rather than trusting the flag.
 - `user-invocable: false` — background-knowledge skills, hidden from the `/` menu.
 - `allowed-tools` **grants** (pre-approves, no permission prompt) while the skill is active — it
   does **not** restrict availability. Takes bare tool names or permission-rule specifiers

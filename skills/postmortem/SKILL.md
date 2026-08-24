@@ -13,6 +13,11 @@ description: >-
 Start from the [postmortem template](./assets/postmortem-template.md). Fill every slot or mark it
 `n/a — why`; preserve evidence sources rather than reconstructing the timeline from memory.
 
+Use the causal-analysis method that fits the evidence. Five Whys is one option, not a required
+five-line quota; a branching incident may need a fault tree, causal graph, or another method that
+preserves multiple contributing paths. Name the method and do not force uncertain facts into a
+single linear story.
+
 The goal is **learning, not blame**: find the systemic reasons a competent team still hit this, and fix
 them so the failure class can't recur. Describe systems and decisions, never people.
 
