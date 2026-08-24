@@ -142,9 +142,11 @@ shows the payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-23) — the first five router slices merged: `incident-command` in PR
-#142, `ops-tooling` in #143, `agent-security` in #145, `ci-actions` in #146, and `pcf-deploy` in
-#147. No sixth candidate is edited; `pcf-ops` is only the next measured candidate.
+**Status:** `active` (2026-08-23) — eight router slices merged: `incident-command` in PR #142,
+`ops-tooling` in #143, `agent-security` in #145, `ci-actions` in #146, `pcf-deploy` in #147,
+`pcf-ops` in #149, `production-change-gate` in #150, and `database-reliability` in #151. The ninth
+candidate, `stack-profile`, is implemented on an unmerged exact commit; this item stays active until
+the accepted revision lands on `main` and the closeout is recorded.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
 that still meets the oversized-unconditional-body criterion becomes a router with a conditional
@@ -373,6 +375,37 @@ single push-boundary check.
 is not started automatically; current-main inspection and an owner-accepted one-skill scope come
 before any edit.
 
+`[verified]` After PRs #149–#152 merged, the required remeasurement of exact current-main commit
+`e76d38b0b204def542f535564ab74652e2349a84` found 30 canonical entrypoints totaling 195,009
+immutable Git-object bytes. `stack-profile` was the sole remaining skill meeting this item's
+criterion: an 8,673-byte entrypoint and zero reference bytes. The three newly merged routers no
+longer met it, and no historical candidate ordering was reused.
+
+`[verified]` Ninth bounded implementation commit
+`0a9688015ac53ce2b219efaaafaa1b8a6d00f4d3` converts only `stack-profile`. Its byte-identical
+description now opens a 5,569-byte entrypoint that keeps the current PCF/GCP runtime truth, pending
+landing-runtime decision, no-self-managed-Kubernetes rule, three-state evidence contract, incident/
+change/documentation ownership, stay-in-lane and platform boundaries, and no-model-pin rule. Three
+explicit references total 5,361 bytes across observability inventory and lifecycle, application/CI/
+runner/data-store facts, and the current Copilot picker order. The 30-entrypoint corpus falls to
+191,905 bytes and the mechanical candidate set is empty.
+
+A fixed five-agent fresh-context artifact exercise covered the shared runtime boundary, each of the
+three conditional lanes, and a two-lane combined request. `[verified]` Every case read exactly the
+matching reference set: zero for the runtime-only question, one each for observability,
+application/data, and Copilot models, and observability plus application/data for the combined case.
+The combined case initially invented an unsupported `[inference]` evidence state; one correction
+made the entrypoint explicitly retain the fleet's three-state contract, and the same fifth agent's
+focused retest used `[unverified]` for the inference with no routing or conclusion regression. These
+are static fresh-context artifact results, not host activation or runtime-behavior evidence.
+
+`[verified]` The exact candidate passed direct link/fleet/roadmap/stale-name validation, read-only
+adapter verification, 113 focused link/adapter/fleet/frontmatter/canary tests (three skips), strict
+Claude plugin validation, and `git diff --check`. The one required regeneration produced 158 adapter
+files with byte consistency. The existing `discovery-runtime-boundary` scenario targets
+`stack-profile`, but its description routing content is byte-identical; no affected routing scenario
+or paid live run was required or performed. Gate A remains the single push-boundary check.
+
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
@@ -384,12 +417,13 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Inspect `pcf-ops` on exact current-main commit `829af56` and present one bounded
-router scope, expected files, and focused verification for owner acceptance before editing. Refresh
-the measurement if `main` moves; do not assume the historical ordering or start a broader rewrite.
-Do not rerun unchanged `incident-command` or `ops-tooling` bytes; use an explicit 540-second timeout
-only if a future comparable `incident-command` run is authorized. Keep the already-owed `eng-ladder`
-after-change run bounded to its overlapping scenarios and separate from this slice.
+**Next action:** Review exact implementation commit `0a9688015ac53ce2b219efaaafaa1b8a6d00f4d3`,
+address or explicitly disposition its current findings, run Gate A once at the push boundary, and
+merge the accepted revision. Then remeasure that exact `main`, remove `SKILL-001` from the live
+roadmap if the candidate set remains empty, and retain this history as evidence. Do not activate
+Batch 3, select a graph runtime, or revive held capability candidates as part of the closeout. Keep
+the already-owed `eng-ladder` after-change run bounded to its overlapping scenarios and separate
+from this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
