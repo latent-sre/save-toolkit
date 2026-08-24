@@ -375,20 +375,23 @@ single push-boundary check.
 is not started automatically; current-main inspection and an owner-accepted one-skill scope come
 before any edit.
 
-`[verified]` After PRs #149–#152 merged, the required remeasurement of exact current-main commit
-`e76d38b0b204def542f535564ab74652e2349a84` found 30 canonical entrypoints totaling 195,009
+`[verified]` After PRs #149–#153 merged, the required remeasurement of exact current-main commit
+`2294832ab0d4edc1199766530f4bea37367db197` found 30 canonical entrypoints totaling 195,009
 immutable Git-object bytes. `stack-profile` was the sole remaining skill meeting this item's
 criterion: an 8,673-byte entrypoint and zero reference bytes. The three newly merged routers no
 longer met it, and no historical candidate ordering was reused.
 
-`[verified]` Ninth bounded implementation commit
-`0a9688015ac53ce2b219efaaafaa1b8a6d00f4d3` converts only `stack-profile`. Its byte-identical
-description now opens a 5,569-byte entrypoint that keeps the current PCF/GCP runtime truth, pending
-landing-runtime decision, no-self-managed-Kubernetes rule, three-state evidence contract, incident/
-change/documentation ownership, stay-in-lane and platform boundaries, and no-model-pin rule. Three
-explicit references total 5,361 bytes across observability inventory and lifecycle, application/CI/
-runner/data-store facts, and the current Copilot picker order. The 30-entrypoint corpus falls to
-191,905 bytes and the mechanical candidate set is empty.
+`[verified]` Exact post-review implementation commit
+`1cdecbd2a25b4fa2578e217f48e901169b43025d` converts only `stack-profile`. Its 425-character
+description retains every trigger, use condition, and named alternative while replacing the false
+single-file maintenance promise with the canonical skill-bundle boundary. It opens a 6,412-byte
+entrypoint that keeps the current PCF/GCP runtime truth, pending landing-runtime decision,
+no-self-managed-Kubernetes rule, three-state evidence contract, additive/no-retirement observability
+decision, incident/change/documentation ownership, stay-in-lane and platform boundaries, and the
+default-inherit/generation-alias/full-model-ID rules accepted in PR #153. Three explicit references
+total 5,421 bytes across observability inventory and lifecycle, application/CI/runner/data-store
+facts, and the current Copilot picker order. The 30-entrypoint corpus falls to 192,748 bytes and the
+mechanical candidate set is empty.
 
 A fixed five-agent fresh-context artifact exercise covered the shared runtime boundary, each of the
 three conditional lanes, and a two-lane combined request. `[verified]` Every case read exactly the
@@ -399,12 +402,24 @@ made the entrypoint explicitly retain the fleet's three-state contract, and the 
 focused retest used `[unverified]` for the inference with no routing or conclusion regression. These
 are static fresh-context artifact results, not host activation or runtime-behavior evidence.
 
+One independent read-only review of the pre-fix exact candidate found a P1 behavior-preservation
+gap: the advertised broad `"what's our stack"` request matched no conditional row and could load
+zero references. The current-main conformance pass also found the superseded blanket model-pin rule,
+the false single-file promise, and an observability reference that claimed its missing parent owned
+the additive-stack rule. `[verified]` The correction adds an explicit broad row, reconciles the
+accepted alias-versus-full-ID policy, names the canonical bundle/projection boundary, and returns the
+additive/no-retirement decision to the entrypoint. Two clean-context regressions then showed the
+literal broad request loading all three and omitting no requested stack category, and the model case
+permitting a cost/latency-justified `sonnet` alias while rejecting a full ID and refusing to treat the
+Copilot picker order as Claude-agent authorization. No automated review loop was started.
+
 `[verified]` The exact candidate passed direct link/fleet/roadmap/stale-name validation, read-only
-adapter verification, 113 focused link/adapter/fleet/frontmatter/canary tests (three skips), strict
-Claude plugin validation, and `git diff --check`. The one required regeneration produced 158 adapter
-files with byte consistency. The existing `discovery-runtime-boundary` scenario targets
-`stack-profile`, but its description routing content is byte-identical; no affected routing scenario
-or paid live run was required or performed. Gate A remains the single push-boundary check.
+adapter verification, 115 focused link/adapter/fleet/frontmatter/canary tests (three skips), strict
+Claude plugin validation, and `git diff --check`. The review-fix canonical pass regenerated 158
+adapter files with byte consistency. The existing `discovery-runtime-boundary` scenario targets
+`stack-profile`, but its description's routing elements are unchanged; only the inaccurate
+maintenance sentence changed. No affected routing scenario or paid live run was required or
+performed. Gate A remains the single push-boundary check.
 
 **Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
@@ -417,13 +432,11 @@ returns an empty set. Entrypoints retain all authority/safety invariants. Each c
 passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
 previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Review exact implementation commit `0a9688015ac53ce2b219efaaafaa1b8a6d00f4d3`,
-address or explicitly disposition its current findings, run Gate A once at the push boundary, and
-merge the accepted revision. Then remeasure that exact `main`, remove `SKILL-001` from the live
-roadmap if the candidate set remains empty, and retain this history as evidence. Do not activate
-Batch 3, select a graph runtime, or revive held capability candidates as part of the closeout. Keep
-the already-owed `eng-ladder` after-change run bounded to its overlapping scenarios and separate
-from this slice.
+**Next action:** Run Gate A once at the push boundary, publish the branch, and merge the accepted
+revision. Then remeasure that exact `main`, remove `SKILL-001` from the live roadmap if the candidate
+set remains empty, and retain this history as evidence. Do not activate Batch 3, select a graph
+runtime, or revive held capability candidates as part of the closeout. Keep the already-owed
+`eng-ladder` after-change run bounded to its overlapping scenarios and separate from this slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
