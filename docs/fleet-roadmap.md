@@ -525,7 +525,8 @@ forbidden.
 
 ### DOCTOR-001 — make `fleet_doctor` diagnose the guard, not just the checkout
 
-**Status:** `ready` (2026-08-14)
+**Status:** `active` (2026-08-23) — implementation and local acceptance evidence are complete on
+the current candidate; the item leaves this file only after that revision merges.
 
 **Outcome:** A user whose Bash suddenly denies session-wide can run one command and learn why.
 `scripts/fleet_doctor.py` reports whether the `PreToolUse` hook is registered in the installed
@@ -544,6 +545,21 @@ diagnostic. `REPO_ROOT = Path(__file__).resolve().parents[1]` plus imports of `v
 `check_plan_status` also make the tool checkout-only, so the marketplace user who most needs it
 cannot run it.
 
+**Candidate evidence (2026-08-23):** `[verified]` Focused red-first fixtures failed against the
+missing interpreter, guarded-allow, hook-registration, exact-launcher, guard-file, runtime-root,
+source-checkout, and outside-checkout seams before their fixes. The restored focused suite models
+the launcher's first `42`/`43` answer independently for each payload, accepts only an empty-stdout
+`42` from an allowed `save-toolkit:sre` command plus a valid deny-envelope `43`, and rejects exit `0`,
+an absent candidate, and a blanket-denying guarded path. Hook registration requires synchronized
+inline and standalone copies that also match the doctor's independent trusted-launcher digest. A
+missing `CLAUDE_PLUGIN_ROOT` is `inconclusive`; a mismatched value is checked at its configured root
+and cannot fall back to checkout bytes. Guard evidence targets that plugin root and carries a digest
+of its exact hook, launcher, and guard bytes instead of claiming the inspected checkout revision. A
+source checkout is never installed-plugin proof. A minimal installed-layout copy with no `.git`,
+`validate_fleet`, or `check_plan_status`, and with `CLAUDE_PLUGIN_ROOT` bound to that copy, returned
+`skip` for every repository-only check, `pass` for the runtime-root and three guard checks, and a
+successful process exit. The unchanged guard, hook-wiring, and evidence-envelope suites remain green.
+
 **Prerequisites:** Preserve the existing evidence-envelope contract and the rule that a missing CLI
 is `skip`, never `pass`. The interpreter probe must assert the exact 42/43 answer rather than exit
 0 — accepting exit 0 is the stand-in-interpreter hole the exit codes exist to close, and a
@@ -554,8 +570,8 @@ must degrade to `skip` outside a checkout instead of failing the run.
 exit 0 versus absent, and guard file present/missing; the tool returns useful output with no
 checkout present; the guard's own suite and Gate A pass; no new dependency (standard library only).
 
-**Next action:** Add the interpreter-answer probe first — it is the single highest-value check and
-needs no host inventory work.
+**Next action:** The item remains active until the exact candidate revision is present on `main`;
+that observable state is the completion condition for removing it from the live roadmap.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 

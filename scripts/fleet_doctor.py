@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report fleet repository and host health without changing either.
+"""Report fleet repository, guard, and host health without changing them.
 
 The doctor validates in memory and invokes only an exact read-only command allowlist. It never
 generates, installs, fetches, prunes, or starts a model session. Every check is emitted as a validated
@@ -9,6 +9,7 @@ evidence envelope; an unavailable or unprobed host is ``skip`` or ``inconclusive
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -17,7 +18,7 @@ import subprocess
 import sys
 import uuid
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
@@ -26,18 +27,13 @@ from typing import Callable, Mapping, Sequence
 sys.dont_write_bytecode = True
 
 try:
-    from scripts import (
-        check_plan_status,
-        evidence_envelope,
-        validate_fleet,
-    )
+    from scripts import evidence_envelope
 except ModuleNotFoundError:
-    import check_plan_status  # type: ignore[no-redef]
     import evidence_envelope  # type: ignore[no-redef]
-    import validate_fleet  # type: ignore[no-redef]
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+PLUGIN_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = PLUGIN_ROOT
 STATUSES = ("pass", "fail", "skip", "inconclusive")
 REPORT_FIELDS = {
     "schema_version",
@@ -70,6 +66,9 @@ class Check:
     command_cwd: str | None = None
     exit_code: int | None = None
     limitations: tuple[str, ...] = ()
+    target_root: str | None = None
+    target_revision: str | None = None
+    tree_digest: str | None = None
 
     def __post_init__(self) -> None:
         if self.status not in STATUSES:
@@ -77,7 +76,30 @@ class Check:
 
 
 CommandRunner = Callable[[Sequence[str]], CommandResult]
+GuardRunner = Callable[[Sequence[str], str], CommandResult]
 Which = Callable[[str], str | None]
+
+GUARD_INTERPRETER_CANDIDATES = ("python3", "python", "py")
+GUARD_ALLOW_EXIT = 42
+GUARD_DENY_EXIT = 43
+GUARD_PROBE_TIMEOUT_SECONDS = 5
+TRUSTED_GUARD_HOOK_SHA256 = "d605b157942c8db893c7c06882824bcdaef33748bdbaf57dc2bacde8b19ab0cc"
+GUARD_ALLOW_PAYLOAD = json.dumps(
+    {
+        "tool_name": "Bash",
+        "agent_type": "save-toolkit:sre",
+        "tool_input": {"command": "git status --short"},
+    },
+    separators=(",", ":"),
+)
+GUARD_DENY_PAYLOAD = json.dumps(
+    {
+        "tool_name": "Bash",
+        "agent_type": "save-toolkit:sre",
+        "tool_input": {"command": "python -c pass"},
+    },
+    separators=(",", ":"),
+)
 
 
 def _command_name(executable: str) -> str:
@@ -119,6 +141,429 @@ def _run_read_only(argv: Sequence[str]) -> CommandResult:
     except (OSError, subprocess.TimeoutExpired) as exc:
         return CommandResult(127, "", type(exc).__name__)
     return CommandResult(result.returncode, result.stdout, result.stderr)
+
+
+def _assert_guard_probe_command(argv: Sequence[str]) -> None:
+    """Allow only the hook's isolated interpreter shape against the bundled guard."""
+
+    expected_guard = (PLUGIN_ROOT / "scripts" / "readonly-guard.py").resolve()
+    if len(argv) != 4:
+        raise ValueError("fleet doctor refused a malformed guard probe")
+    if _command_name(argv[0]) not in GUARD_INTERPRETER_CANDIDATES:
+        raise ValueError("fleet doctor refused a non-hook interpreter")
+    if tuple(argv[1:3]) != ("-I", "-S") or Path(argv[3]).resolve() != expected_guard:
+        raise ValueError("fleet doctor refused a command outside the guard probe contract")
+
+
+def _run_guard_probe(argv: Sequence[str], payload: str) -> CommandResult:
+    _assert_guard_probe_command(argv)
+    try:
+        result = subprocess.run(
+            list(argv),
+            input=payload,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=GUARD_PROBE_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return CommandResult(127, "", type(exc).__name__)
+    return CommandResult(result.returncode, result.stdout, result.stderr)
+
+
+def _is_guard_deny_output(stdout: str) -> bool:
+    try:
+        payload = json.loads(stdout)
+        output = payload["hookSpecificOutput"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return False
+    return (
+        isinstance(output, dict)
+        and output.get("hookEventName") == "PreToolUse"
+        and output.get("permissionDecision") == "deny"
+    )
+
+
+def _guard_interpreter_check(
+    guard_path: Path,
+    which: Which,
+    run: GuardRunner = _run_guard_probe,
+) -> Check:
+    """Model the launcher's first authenticated answer independently for each payload."""
+
+    observations: list[dict[str, object]] = []
+    available = False
+    allow_answer: tuple[str, CommandResult] | None = None
+    deny_answer: tuple[str, CommandResult] | None = None
+    for candidate in GUARD_INTERPRETER_CANDIDATES:
+        executable = which(candidate)
+        if not executable:
+            continue
+        available = True
+        argv = (executable, "-I", "-S", str(guard_path))
+        observation: dict[str, object] = {"candidate": candidate}
+        if allow_answer is None:
+            allow = run(argv, GUARD_ALLOW_PAYLOAD)
+            observation["allow_exit_code"] = allow.returncode
+            if allow.returncode in {GUARD_ALLOW_EXIT, GUARD_DENY_EXIT}:
+                allow_answer = (candidate, allow)
+        if deny_answer is None:
+            deny = run(argv, GUARD_DENY_PAYLOAD)
+            observation["deny_exit_code"] = deny.returncode
+            if deny.returncode in {GUARD_ALLOW_EXIT, GUARD_DENY_EXIT}:
+                deny_answer = (candidate, deny)
+        observations.append(observation)
+        if allow_answer is not None and deny_answer is not None:
+            break
+
+    if not available:
+        return Check(
+            "guard.interpreter-protocol",
+            "fail",
+            "No hook-candidate Python interpreter is available.",
+            {
+                "candidates": list(GUARD_INTERPRETER_CANDIDATES),
+                "plugin_root": str(guard_path.parent.parent),
+            },
+            limitations=("The hook denies all Bash when no candidate can run the guard.",),
+        )
+
+    allow_ok = (
+        allow_answer is not None
+        and allow_answer[1].returncode == GUARD_ALLOW_EXIT
+        and not allow_answer[1].stdout.strip()
+    )
+    deny_ok = (
+        deny_answer is not None
+        and deny_answer[1].returncode == GUARD_DENY_EXIT
+        and _is_guard_deny_output(deny_answer[1].stdout)
+    )
+    details: dict[str, object] = {
+        "allow_answer": (
+            None
+            if allow_answer is None
+            else {"candidate": allow_answer[0], "exit_code": allow_answer[1].returncode}
+        ),
+        "deny_answer": (
+            None
+            if deny_answer is None
+            else {"candidate": deny_answer[0], "exit_code": deny_answer[1].returncode}
+        ),
+        "observations": observations,
+        "plugin_root": str(guard_path.parent.parent),
+    }
+    if allow_ok and deny_ok:
+        return Check(
+            "guard.interpreter-protocol",
+            "pass",
+            "The launcher candidate walk returned the guard's exact allow and deny protocol.",
+            details,
+        )
+
+    return Check(
+        "guard.interpreter-protocol",
+        "fail",
+        "The launcher candidate walk did not return the guard's exact allow and deny protocol.",
+        details,
+        limitations=(
+            "Each payload stops at its first 42 or 43; other exit codes continue the candidate walk.",
+        ),
+    )
+
+
+def _expected_guard_hook_command(plugin_root: Path) -> str | None:
+    """Rebuild the installed standalone launcher into its exact inlined command."""
+
+    launcher_path = plugin_root / "scripts" / "readonly-guard-hook.sh"
+    if not launcher_path.is_file() or launcher_path.is_symlink():
+        return None
+    try:
+        script_lines = [
+            line.strip()
+            for line in launcher_path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+    except (OSError, UnicodeError):
+        return None
+    if not script_lines:
+        return None
+
+    command = script_lines[0]
+    for line in script_lines[1:]:
+        separator = " " if command.endswith(" do") else "; "
+        command = f"{command}{separator}{line}"
+    return command
+
+
+def _guard_bundle_tree_digest(plugin_root: Path) -> str:
+    """Bind guard evidence to the exact installed files without following links."""
+
+    digest = hashlib.sha256()
+    for relative in (
+        Path("hooks/hooks.json"),
+        Path("scripts/readonly-guard-hook.sh"),
+        Path("scripts/readonly-guard.py"),
+    ):
+        digest.update(relative.as_posix().encode("utf-8") + b"\0")
+        path = plugin_root / relative
+        if not path.is_file() or path.is_symlink():
+            digest.update(b"missing\0")
+            continue
+        try:
+            payload = path.read_bytes()
+        except OSError:
+            digest.update(b"unreadable\0")
+            continue
+        digest.update(len(payload).to_bytes(8, "big"))
+        digest.update(payload)
+    return digest.hexdigest()
+
+
+def _guard_hook_check(plugin_root: Path) -> Check:
+    """Inspect the current plugin root's PreToolUse registration without firing a hook."""
+
+    hook_path = plugin_root / "hooks" / "hooks.json"
+    if not hook_path.is_file() or hook_path.is_symlink():
+        return Check(
+            "guard.hook-registration",
+            "fail",
+            "The current plugin root has no regular hooks/hooks.json file.",
+            {
+                "registered": False,
+                "configuration": "missing",
+                "plugin_root": str(plugin_root),
+            },
+        )
+    try:
+        document = json.loads(hook_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return Check(
+            "guard.hook-registration",
+            "fail",
+            "The current plugin hook configuration could not be read as JSON.",
+            {
+                "registered": False,
+                "configuration": "invalid",
+                "plugin_root": str(plugin_root),
+            },
+        )
+
+    expected_command = _expected_guard_hook_command(plugin_root)
+    if expected_command is None:
+        return Check(
+            "guard.hook-registration",
+            "fail",
+            "The current plugin root has no readable regular standalone guard launcher.",
+            {
+                "registered": False,
+                "configuration": "launcher-missing-or-invalid",
+                "plugin_root": str(plugin_root),
+            },
+        )
+
+    hooks = document.get("hooks") if isinstance(document, dict) else None
+    pre_tool_use = hooks.get("PreToolUse") if isinstance(hooks, dict) else None
+    registered = False
+    copies_synchronized = False
+    trusted_contract = False
+    if isinstance(pre_tool_use, list):
+        for registration in pre_tool_use:
+            if not isinstance(registration, dict) or registration.get("matcher") != "Bash":
+                continue
+            commands = registration.get("hooks")
+            if not isinstance(commands, list):
+                continue
+            for command_hook in commands:
+                if not isinstance(command_hook, dict) or command_hook.get("type") != "command":
+                    continue
+                command = command_hook.get("command")
+                if not isinstance(command, str):
+                    continue
+                command_digest = hashlib.sha256(command.encode("utf-8")).hexdigest()
+                synchronized = command == expected_command
+                trusted = command_digest == TRUSTED_GUARD_HOOK_SHA256
+                copies_synchronized = copies_synchronized or synchronized
+                trusted_contract = trusted_contract or trusted
+                if synchronized and trusted:
+                    registered = True
+                    break
+            if registered:
+                break
+
+    return Check(
+        "guard.hook-registration",
+        "pass" if registered else "fail",
+        (
+            "The current plugin root registers the read-only guard for Bash PreToolUse events."
+            if registered
+            else (
+                "The current plugin root does not register the read-only guard for Bash "
+                "PreToolUse events."
+            )
+        ),
+        {
+            "registered": registered,
+            "configuration": "present",
+            "copies_synchronized": copies_synchronized,
+            "trusted_contract": trusted_contract,
+            "plugin_root": str(plugin_root),
+        },
+        limitations=(
+            "Static registration was inspected; no live Claude hook event was fired.",
+        ),
+    )
+
+
+def _guard_file_check(plugin_root: Path) -> Check:
+    guard_path = plugin_root / "scripts" / "readonly-guard.py"
+    present = guard_path.is_file() and not guard_path.is_symlink()
+    return Check(
+        "guard.file",
+        "pass" if present else "fail",
+        (
+            "The guard resolves to a regular file under the current plugin root."
+            if present
+            else "The guard does not resolve to a regular file under the current plugin root."
+        ),
+        {
+            "present": present,
+            "relative_path": "scripts/readonly-guard.py",
+            "plugin_root": str(plugin_root),
+        },
+    )
+
+
+def _select_plugin_root(
+    explicit_root: Path | None,
+    environment: Mapping[str, str],
+) -> tuple[Path, str]:
+    if explicit_root is not None:
+        return explicit_root.resolve(), "explicit"
+    configured = environment.get("CLAUDE_PLUGIN_ROOT", "").strip()
+    if configured:
+        return Path(configured).resolve(), "CLAUDE_PLUGIN_ROOT"
+    return PLUGIN_ROOT.resolve(), "script"
+
+
+def _plugin_root_check(plugin_root: Path, source: str) -> Check:
+    script_root = PLUGIN_ROOT.resolve()
+    if source == "CLAUDE_PLUGIN_ROOT":
+        matches_script = plugin_root == script_root
+        checkout = (plugin_root / ".git").exists()
+        status = "fail" if not matches_script else ("inconclusive" if checkout else "pass")
+        if not matches_script:
+            summary = "CLAUDE_PLUGIN_ROOT does not resolve to the current doctor's plugin root."
+            limitations = (
+                "The interpreter protocol was not executed from a mismatched plugin root.",
+            )
+        elif checkout:
+            summary = (
+                "CLAUDE_PLUGIN_ROOT resolves to the current source checkout; installed-plugin "
+                "provenance was not established."
+            )
+            limitations = (
+                "Runtime root resolution was observed, but these are source-checkout bytes.",
+            )
+        else:
+            summary = "CLAUDE_PLUGIN_ROOT resolves to the current doctor's installed-style root."
+            limitations = ()
+        return Check(
+            "guard.plugin-root",
+            status,
+            summary,
+            {
+                "source": source,
+                "plugin_root": str(plugin_root),
+                "script_root": str(script_root),
+                "matches_script_root": matches_script,
+                "checkout": checkout,
+            },
+            limitations=limitations,
+        )
+
+    checkout = (plugin_root / ".git").exists()
+    if source == "explicit":
+        summary = (
+            "An explicit plugin root was selected; Claude hook runtime resolution was not observed."
+        )
+    elif checkout:
+        summary = (
+            "CLAUDE_PLUGIN_ROOT is unset; guard checks describe source-checkout bytes, not "
+            "installed-plugin health."
+        )
+    else:
+        summary = (
+            "CLAUDE_PLUGIN_ROOT is unset; the doctor is running from an installed-style layout, "
+            "but hook runtime resolution was not observed."
+        )
+    return Check(
+        "guard.plugin-root",
+        "inconclusive",
+        summary,
+        {
+            "source": source,
+            "plugin_root": str(plugin_root),
+            "script_root": str(script_root),
+            "checkout": checkout,
+        },
+        limitations=("Run the doctor where Claude supplies CLAUDE_PLUGIN_ROOT for runtime proof.",),
+    )
+
+
+def _guard_checks(
+    plugin_root: Path,
+    plugin_root_source: str,
+    which: Which,
+    run: GuardRunner,
+) -> list[Check]:
+    root_check = _plugin_root_check(plugin_root, plugin_root_source)
+    hook = _guard_hook_check(plugin_root)
+    guard_file = _guard_file_check(plugin_root)
+    checks = [root_check, hook, guard_file]
+    trusted_probe_root = plugin_root == PLUGIN_ROOT.resolve() or run is not _run_guard_probe
+    if guard_file.status == "pass" and trusted_probe_root:
+        checks.append(
+            _guard_interpreter_check(
+                plugin_root / "scripts" / "readonly-guard.py",
+                which,
+                run,
+            )
+        )
+    elif guard_file.status == "pass":
+        checks.append(
+            Check(
+                "guard.interpreter-protocol",
+                "skip",
+                "The interpreter protocol was not probed from a plugin root that differs from "
+                "the current doctor.",
+                {
+                    "plugin_root": str(plugin_root),
+                    "script_root": str(PLUGIN_ROOT.resolve()),
+                },
+                limitations=("An untrusted external Python file was not executed.",),
+            )
+        )
+    else:
+        checks.append(
+            Check(
+                "guard.interpreter-protocol",
+                "skip",
+                "The interpreter protocol could not be probed because the guard file is missing.",
+                limitations=("An unrun probe was not treated as healthy.",),
+            )
+        )
+    tree_digest = _guard_bundle_tree_digest(plugin_root)
+    return [
+        replace(
+            check,
+            target_root=str(plugin_root),
+            target_revision="unknown",
+            tree_digest=tree_digest,
+        )
+        for check in checks
+    ]
 
 
 def _safe_version(stdout: str) -> tuple[str, tuple[str, ...]]:
@@ -218,7 +663,47 @@ def _git_checks(root: Path, run: CommandRunner) -> tuple[str, list[Check]]:
     return revision, checks
 
 
+def _outside_checkout_checks() -> list[Check]:
+    limitation = ("Repository-only validation was not treated as a passing check.",)
+    return [
+        Check(
+            "repository.git-revision",
+            "skip",
+            "No repository checkout is present; Git revision was not inspected.",
+            {"checkout": False},
+            limitations=limitation,
+        ),
+        Check(
+            "repository.worktree-state",
+            "skip",
+            "No repository checkout is present; worktree state was not inspected.",
+            {"checkout": False},
+            limitations=limitation,
+        ),
+        Check(
+            "repository.fleet-contracts",
+            "skip",
+            "No repository checkout is present; source-tree fleet contracts were not inspected.",
+            {"checkout": False},
+            limitations=limitation,
+        ),
+        Check(
+            "repository.plan-status",
+            "skip",
+            "No repository checkout is present; planning governance was not inspected.",
+            {"checkout": False},
+            limitations=limitation,
+        ),
+    ]
+
+
 def _repository_checks(root: Path) -> list[Check]:
+    try:
+        from scripts import check_plan_status, validate_fleet
+    except ModuleNotFoundError:
+        import check_plan_status  # type: ignore[no-redef]
+        import validate_fleet  # type: ignore[no-redef]
+
     names, fleet_issues = validate_fleet.validate_repo(root)
     checks = [
         Check(
@@ -366,8 +851,11 @@ def _to_envelope(
     return evidence_envelope.new_envelope(
         producer="fleet_doctor",
         role="fleet-health",
-        target_root=str(root),
-        target_revision=revision,
+        target_root=check.target_root if check.target_root is not None else str(root),
+        target_revision=(
+            check.target_revision if check.target_revision is not None else revision
+        ),
+        tree_digest=check.tree_digest,
         criterion=check.check_id,
         status=check.status,
         started_at=started_at,
@@ -415,17 +903,27 @@ def validate_report(report: Mapping[str, object]) -> None:
 def collect_report(
     root: Path = REPO_ROOT,
     *,
+    plugin_root: Path | None = None,
+    environment: Mapping[str, str] | None = None,
     home: Path | None = None,
     run: CommandRunner = _run_read_only,
+    guard_run: GuardRunner = _run_guard_probe,
     which: Which = shutil.which,
     now: datetime | None = None,
 ) -> dict[str, object]:
     root = root.resolve()
+    environment = os.environ if environment is None else environment
+    plugin_root, plugin_root_source = _select_plugin_root(plugin_root, environment)
     home = (home or Path.home()).resolve()
     started = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     run_id = "doctor-" + started.strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
-    revision, checks = _git_checks(root, run)
-    checks.extend(_repository_checks(root))
+    if (root / ".git").exists():
+        revision, checks = _git_checks(root, run)
+        checks.extend(_repository_checks(root))
+    else:
+        revision = "unknown"
+        checks = _outside_checkout_checks()
+    checks.extend(_guard_checks(plugin_root, plugin_root_source, which, guard_run))
     cli_checks, executables = _cli_checks(which, run)
     checks.extend(cli_checks)
     checks.extend(_installation_checks(root, home, executables, run))
