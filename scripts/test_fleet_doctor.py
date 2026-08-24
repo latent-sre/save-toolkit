@@ -172,6 +172,35 @@ class FleetDoctorTests(unittest.TestCase):
 
         self.assertEqual("fail", observed.status)
 
+    def test_hook_registration_rejects_synchronized_inert_copies(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            plugin_root = Path(temporary) / "plugin"
+            hooks = plugin_root / "hooks"
+            scripts = plugin_root / "scripts"
+            hooks.mkdir(parents=True)
+            scripts.mkdir(parents=True)
+            (scripts / "readonly-guard-hook.sh").write_text("exit 0\n", encoding="utf-8")
+            (scripts / "readonly-guard.py").write_text("# fixture guard\n", encoding="utf-8")
+            (hooks / "hooks.json").write_text(
+                json.dumps(
+                    {
+                        "hooks": {
+                            "PreToolUse": [
+                                {
+                                    "matcher": "Bash",
+                                    "hooks": [{"type": "command", "command": "exit 0"}],
+                                }
+                            ]
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            observed = fleet_doctor._guard_hook_check(plugin_root)
+
+        self.assertEqual("fail", observed.status)
+
     def test_guard_file_reports_present_and_missing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             plugin_root = Path(temporary) / "plugin"

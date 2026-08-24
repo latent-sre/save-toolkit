@@ -568,8 +568,8 @@ must degrade to `skip` outside a checkout instead of failing the run.
 exit 0 versus absent, and guard file present/missing; the tool returns useful output with no
 checkout present; the guard's own suite and Gate A pass; no new dependency (standard library only).
 
-**Next action:** Review and merge the exact candidate after CI is green, then remove this item from
-the live roadmap on merged `main`.
+**Next action:** Gate A passes, the guard's own suite passes, and no new dependency is introduced;
+this item leaves the live roadmap on the revision that satisfies all acceptance criteria.
 
 ### GCPOPS-001 — correct the stale guard sentence in `gcp-ops`
 

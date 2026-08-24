@@ -244,10 +244,14 @@ def _guard_interpreter_check(
     )
 
 
-def _expected_guard_hook_command(plugin_root: Path) -> str | None:
-    """Rebuild the installed standalone launcher into its exact inlined command."""
+def _expected_guard_hook_command() -> str | None:
+    """Rebuild the canonical standalone launcher into its exact inlined command.
 
-    launcher_path = plugin_root / "scripts" / "readonly-guard-hook.sh"
+    Always reads from the doctor's own canonical source so that synchronized-inert installed
+    copies cannot satisfy this contract independently of the canonical launcher bytes.
+    """
+
+    launcher_path = REPO_ROOT / "scripts" / "readonly-guard-hook.sh"
     if not launcher_path.is_file() or launcher_path.is_symlink():
         return None
     try:
@@ -297,7 +301,7 @@ def _guard_hook_check(plugin_root: Path) -> Check:
             },
         )
 
-    expected_command = _expected_guard_hook_command(plugin_root)
+    expected_command = _expected_guard_hook_command()
     if expected_command is None:
         return Check(
             "guard.hook-registration",
