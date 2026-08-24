@@ -2,9 +2,10 @@
 
 # Application and data stack
 
-Read when the request needs a service language, framework, CI authentication design, runner/host
-assumption, or data-store choice. The parent `SKILL.md` owns the current-runtime and platform
-boundaries. These facts do not authorize a migration or make a target-specific version known.
+Read when the request needs a service language, framework, CI platform, tooling, or authentication
+design, runner/host assumption, or data-store choice. The parent `SKILL.md` owns the current-runtime
+and platform boundaries. These facts do not authorize a migration or make a target-specific version
+known.
 
 ## Languages and CI
 

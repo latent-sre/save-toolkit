@@ -3,9 +3,9 @@
 # Observability stack
 
 Read when the request involves an observability backend, signal, query language, vendor lifecycle,
-or GCP observability choice. The parent `SKILL.md` owns the current-runtime truth, additive-stack
-rule, stay-in-lane boundary, decision status, and evidence labels; this inventory settles none of
-those rules by itself.
+GCP observability choice, or an edge, CDN, WAF, or RUM product. The parent `SKILL.md` owns the
+current-runtime truth, additive-stack rule, stay-in-lane boundary, decision status, and evidence
+labels; this inventory settles none of those rules by itself.
 
 ## Two stacks, coexisting (churn is an axiom, not an event)
 
