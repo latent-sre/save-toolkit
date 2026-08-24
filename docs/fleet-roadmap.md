@@ -35,6 +35,7 @@ list. An item with no surviving evidence document closed into a live contract in
 | `EVAL-001` | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Its only named trigger was a release decision, the parked suite no longer matches the current plugin identity or roster, and Codex stopped being a distribution target — no fleet component runs on Sol, so the trigger can no longer fire. Tag `pre-trim-2026-08-02` preserves the historical bytes — [ADR](decisions/2026-08-23-retire-codex-distribution-target.md) |
 | `AUDIT-002` (Batch 1) | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Implementation and review corrections merged in PR [#141](https://github.com/latent-sre/save-toolkit/pull/141) at merge commit `09e775b`, final head `11b8041`. Batch 1 selected no graph runtime, added no unconsumed schema, and activated no SRE capability addition; two positive-route reliability gaps moved to deferred `ROUTE-003` rather than triggering retries against unchanged bytes. Evidence: [`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) |
 | `DOCTOR-001` | 2026-08-23 | Installed-layout `fleet_doctor` now separates checkout and plugin evidence, validates each payload's first authenticated guard answer and independently trusted launcher bytes, and degrades repository-only checks outside a checkout. Final head `505f9b5`, merged in PR [#152](https://github.com/latent-sre/save-toolkit/pull/152) at `e76d38b` |
+| `GRADER-002` | 2026-08-24 | Direct-skill trials explicitly request the exact `Skill` invocation and still require its completed tool result; availability-only metadata and inline answers fail closed. Implementation commit `ec6e583`, paired approved/missing-authority evidence matched the committed evaluator digest, merged in PR [#155](https://github.com/latent-sre/save-toolkit/pull/155) at `24e62b0` |
 
 The local Sol evaluator decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
@@ -100,8 +101,9 @@ external data/cost boundary and the remaining guarantees can be proven.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `blocked` (2026-08-18) — the current Windows host has VS Code but no installed
-extensions, so it has no Copilot tools surface to observe. No profile installation or mutation was
+**Status:** `blocked` (2026-08-24) — the current Windows host has VS Code and extensions, but its
+installed set contains neither `github.copilot` nor `github.copilot-chat`; no approved authenticated
+GitHub Copilot tools surface is available to observe. No profile installation or mutation was
 performed to manufacture the prerequisite.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
@@ -119,10 +121,11 @@ file; only extension agents are read-only; the picker writes the user's change b
 file's `tools:` outranks a referenced agent's. The second base is what makes `tools:` a default
 rather than a boundary, and it is the half this item must confirm by observation.
 
-**Current environment:** `[verified]` On 2026-08-18, `code --version` reported VS Code 1.127.0,
-commit `4fe60c8b1cdac1c4c174f2fb180d0d758272d713`, x64;
-`code --list-extensions --show-versions` returned no extensions. This establishes only that the
-probe cannot start here, not any tool-enforcement behavior.
+**Current environment:** `[verified]` On 2026-08-24, `code --version` reported VS Code 1.134.0,
+commit `110a328ea54b42367b803ec53ee0bf52ef26b419`, x64. The installed extension list contains
+development, operations, Claude, and OpenAI tooling, but neither GitHub Copilot extension named
+above. This establishes only that the approved probe cannot start here, not any tool-enforcement
+behavior.
 
 **Prerequisites:** Use an installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
@@ -478,10 +481,11 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 ### SKILLS-003 — add a portable executable workflow-graph engineering skill
 
-**Status:** `ready` (2026-08-24) — renewed owner direction activates only the executable
-workflow/state-graph capability from Batch 3. The proposed SRE capability additions remain held;
-this item selects no graph runtime, creates no execution service, and does not activate
-`codebase-atlas`.
+**Status:** `ready` (2026-08-24) — roadmap activation merged in PR
+[#157](https://github.com/latent-sre/save-toolkit/pull/157) at `a8f98ce`. Renewed owner direction
+activates only the executable workflow/state-graph capability from Batch 3. The proposed SRE
+capability additions remain held; this item selects no graph runtime, creates no execution service,
+and does not activate `codebase-atlas`.
 
 **Owner:** `prompt-engineer` owns the canonical design method and its routing/evaluation contract.
 `sde` owns any later implementation in team-authored code, but this item grants no implementation,
@@ -656,14 +660,13 @@ perform a fleet-wide prompt rewrite, add a second prompt-engineering or Loop Eng
 change agent authority, introduce a runtime dependency, or bundle `codebase-atlas` into the same
 pull request.
 
-**Prerequisites:** Start implementation on a fresh branch from refreshed `origin/main` after this
-roadmap activation merges. Reinspect the exact `prompt-engineer`, `agent-authoring`, routing-scenario,
-generator, and manifest/catalog surfaces before naming the final file set. If another open change
-overlaps those surfaces, do not stack dependent edits. Define the positive, neighboring-owner, and
-near-miss cases before drafting the skill. Current framework details are consulted through Context7
-only when a version-specific contract is needed; GitHits supplies separately labelled pinned
-upstream source/test/adoption evidence. Existing dated research is a source, not permission to
-resume any other checklist.
+**Prerequisites:** Start implementation on a fresh branch from refreshed `origin/main`. Reinspect the
+exact `prompt-engineer`, `agent-authoring`, routing-scenario, generator, and manifest/catalog
+surfaces before naming the final file set. If another open change overlaps those surfaces, do not
+stack dependent edits. Define the positive, neighboring-owner, and near-miss cases before drafting
+the skill. Current framework details are consulted through Context7 only when a version-specific
+contract is needed; GitHits supplies separately labelled pinned upstream source/test/adoption
+evidence. Existing dated research is a source, not permission to resume any other checklist.
 
 **Acceptance:** All of the following are required:
 
@@ -718,9 +721,9 @@ and review evidence without conflating their claims, then move `SKILLS-003` to t
 runtime, schema, executable validator, `codebase-atlas`, or SRE capability remains separate future
 work and does not keep this skill-capability item open.
 
-**Next action:** Merge this roadmap activation. Then, from refreshed `origin/main`, inventory the
-exact owning surfaces, freeze the routing matrix and five bounded artifact cases, and implement only
-`workflow-graph-engineering` as the first reviewed Batch 3 slice.
+**Next action:** From refreshed `origin/main`, inventory the exact owning surfaces, freeze the
+routing matrix and five bounded artifact cases, and implement only `workflow-graph-engineering` as
+the first reviewed Batch 3 slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
@@ -806,68 +809,6 @@ detail in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-
 `obs-alerting`/`obs-logs` scenarios against the changed descriptions and show they remain green. If
 one is red, run that scenario at the prior revision to attribute it. Then close. Do not close on the
 defer scenario alone.
-
-### GRADER-002 — bind direct-skill trials to current slash-command expansion
-
-**Status:** `active` (2026-08-24) — implementation and matching live evidence are complete on the
-current candidate; the item stays live until that exact revision merges.
-
-**Outcome:** A direct-skill trial proves that the named skill contributed without requiring a legacy
-`Skill` tool event, while an answer produced without the skill still fails closed.
-
-**Source:** `[verified]` on Claude CLI 2.1.240 in runs `20260822T234553Z-3b860051` and
-`20260822T235252Z-a9531e1a`. The runtime listed `save-toolkit:production-change-gate`, the slash
-command produced version-specific skill behavior, and every trace still reported `skills=[]`.
-Consequently both behaviorally approved candidate trials were marked FAIL only by `skill-fired`.
-Reconfirmed on candidate `e51f9ec62cebc1883e1f9a6cfba3b716f5d2ab1b` in run
-`20260823T005205Z-27dbcbfe`: both trials returned `APPROVED` and passed every response grader; only
-the absent skill-completion event kept the aggregate red. *[verified]*
-
-Review repair on Claude CLI 2.1.241 added the paired missing-authority case. An uncommitted
-weakened-rule mutation (`plugin_inputs_dirty=true`) incorrectly returned `APPROVED` 2/2 in
-`20260823T011640Z-4e6a6eaa`; restored candidate
-`e6f6178d755501bd3aad1ddc40c92e4669ff18c1` returned `BLOCKED` 2/2 for that case in
-`20260823T012204Z-1a382e31` and `APPROVED` 2/2 for the complete packet in
-`20260823T012314Z-ec65c221`. Every response grader passed on the restored pair; only `skill-fired`
-remained red because both traces still reported `skills=[]`. *[verified]*
-
-Post-review hardening on candidate `3a1fe384485911b610326b4cb4ce6a635987bd0d` rejects a negated
-specific binding, a BLOCKED verdict whose actual deficit is unrelated while the binding is present,
-and each individually omitted required checklist acknowledgement (446/446 offline checks). Fresh
-CLI 2.1.241 runs `20260823T021128Z-d180d56d` and `20260823T021249Z-28262e5d` returned
-`APPROVED` 2/2 and `BLOCKED` 2/2 respectively; every response grader passed and only `skill-fired`
-remained red because all four traces still reported `skills=[]`. *[verified]*
-
-Plugin-input rereview hardening on candidate `3f06dcc05edf8fd69eb9c0556164498387698f07` also rejects
-direct `does not establish` authority, double-negated missing evidence, and individually negated
-checklist acknowledgements (466/466 offline checks). Run `20260823T023336Z-c0983823` exposed and
-stopped on a Windows CP1252 diagnostic failure before completing; a red-first portability check now
-keeps grader specs printable. Fresh runs `20260823T024010Z-4eaa212c` and
-`20260823T024148Z-cfe1ecb5` returned `APPROVED` 2/2 and `BLOCKED` 2/2 respectively; every response
-grader passed and only `skill-fired` remained red because all four traces reported `skills=[]`.
-*[verified]*
-
-`[verified]` Implementation commit `ec6e583f0de3b16a789bbd1e0aaec1f2d995b960` makes direct mode
-request the exact `Skill` invocation and still requires its completed tool result; availability-only
-init metadata and inline answers fail closed. The focused regression was red before the prompt fix,
-then 78/78 runner tests and all 84 scenario validations passed. Claude Code 2.1.241 runs
-`20260824T042540Z-4ab1a447` and `20260824T042627Z-32eef19c` passed the approved and
-missing-authority production-gate cases 2/2 each, with all four trials completing
-`save-toolkit:production-change-gate`. The runs froze evaluator changes before their commit and
-therefore record `workspace_dirty=true`, but their eval-suite SHA-256
-`5cebd64a5c076c5c1cf44814809e309b8b969c5b6aec21e9ed161f8ddf9ba91d` exactly matches a fresh
-`eval_suite_digest()` on clean commit `ec6e583`; plugin inputs were clean. This binds the evidence to
-the committed evaluator bytes without inferring contribution from answer prose.
-
-**Prerequisites:** Met on the current candidate. Keep the response-text fallback forbidden.
-
-**Acceptance:** Focused red-first fixtures cover the current explicit-invocation shape and legacy
-tool-event shape; the paired approved and missing-authority production-gate scenarios each pass 2/2;
-the existing inline-answer control remains red when no skill contributes; and the implementation is
-merged.
-
-**Next action:** Merge the exact candidate, then move this item to the closed table from refreshed
-`main`. Do not rerun the unchanged digest merely to replace the honest dirty-workspace provenance.
 
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
