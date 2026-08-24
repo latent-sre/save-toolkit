@@ -123,11 +123,13 @@ Honest limits, so nobody reads more into the mechanisms than they give:
 - Host projections preserve intent without pretending enforcement equivalence: guarded Copilot/
   VS Code agents receive no `execute` tool, which narrows a default rather than enforcing a
   boundary. That difference is stated in every generated adapter.
-- **A VS Code `tools:` list is a default, not a boundary.** Omitting a tool does disable it for the
-  model, but a workspace agent's list loses to session tool selection, to a prompt file's own list,
-  and to a chat deep link — and the tools picker writes the user's change back into the `.agent.md`
-  file. Only extension-contributed agents are read-only. So the omitted `execute` on `sre` states
-  intent and narrows the default; it is not the Claude guard's
+- **A VS Code `tools:` list is a default, not a boundary.** `[verified]` On VS Code 1.134.0, every
+  tested omitted built-in tool remained offered but disabled; enabling `execute` in the built-in
+  Agent picker was explicitly global, survived a switch to `sre`, and dirtied the open generated
+  `.agent.md` editor buffer while the on-disk file stayed unchanged. `[sourced]` Prompt-file tools
+  and chat deep links are additional precedence paths not re-probed in that run. Only
+  extension-contributed agents are read-only. So the omitted `execute` on `sre` states intent and
+  narrows the default; it is not the Claude guard's
   equivalent and must never be described as one. Real enforcement on that host is policy-delivered
   Copilot managed settings (`permissions.deny` with `Shell()`/`Read()`/`Edit()`/`Domain()` selectors,
   `ChatAgentMode`, the network-domain policies), which a repository cannot grant itself.
@@ -267,10 +269,10 @@ must respect:
   `python`; pytest is welcome as a runner on top.
 - **Generated adapters are consequences, never sources.** Fix `agents/`, `skills/`, or the generator
   and regenerate; never hand-edit `.github/agents/` or `platforms/copilot/skills/`. The
-  byte-for-byte gate erases a direct fix. A hand-edit is not
-  always deliberate: changing tools in VS Code's picker while a workspace agent is selected rewrites
-  that agent's `.agent.md` on disk, so a UI click can fail the drift gate. Check `git status` before
-  regenerating.
+  byte-for-byte gate erases a direct fix. A hand-edit is not always deliberate: changing tools in
+  VS Code's picker can dirty the open workspace agent's generated `.agent.md` editor buffer without
+  changing the on-disk file. Saving that buffer creates drift; `git status` misses it until then.
+  Check both the editor's dirty state and `git status` before regenerating.
 - **Plugin agents silently ignore `hooks:`, `mcpServers:`, and `permissionMode:`**, and an unknown
   frontmatter key drops without error. A guard belongs in `hooks/hooks.json`; every new key must be a
   real Claude Code field.

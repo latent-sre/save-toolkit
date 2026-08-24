@@ -15,16 +15,18 @@ file instead of stashing unrelated work, and requires byte-level before/after ch
 
 ## What this probe can establish
 
-The installed build cited by HOST-002 is VS Code 1.133.0 at commit
-`a5b500951314efd502d07465bd138dfbd714a960`. A run against another build is still useful, but every
-claim must name the build actually observed.
+HOST-002 originally cited VS Code 1.133.0 at commit
+`a5b500951314efd502d07465bd138dfbd714a960`. The first completed run used VS Code 1.134.0 at commit
+`110a328ea54b42367b803ec53ee0bf52ef26b419`; its dated packet is
+[`2026-08-24-host-002-vscode-tool-enforcement.md`](../reviews/2026-08-24-host-002-vscode-tool-enforcement.md).
+Every later run must still name the build actually observed.
 
 The six generated roles whose VS Code posture materially depends on omitted tools are:
 
 | Role | Generated tools | Boundary being probed |
 |---|---|---|
 | `sre` | `read`, `search`, `agent` | no `execute`, `edit`, or `web`; primary HOST-002 subject |
-| `observability-engineer` | `read`, `search`, `edit`, `agent` | no `execute` or `web`; second guarded role |
+| `observability-engineer` | `read`, `search`, `edit`, `execute`, `agent` | no `web`; `execute` is intentional under the dashboard write rule |
 | `reviewer` | `read`, `search` | no `execute`, `edit`, `web`, or `agent` |
 | `repository-investigator` | `read`, `search` | no `execute`, `edit`, `web`, or `agent` |
 | `scribe` | `read`, `search`, `edit` | no `execute`, `web`, or `agent` |
@@ -150,7 +152,8 @@ choose one tool already declared and visible (`read` or `search`). Toggle it awa
 state, observe persistence, then toggle it back to its initial state. Do not edit the generated file
 by hand and do not use `git stash`.
 
-Before the first toggle and after each toggle, record:
+Before the first toggle, open `.github/agents/sre.agent.md` in the editor and confirm its tab is not
+dirty. Before the first toggle and after each toggle, record:
 
 ```powershell
 python scripts/evidence_envelope.py digest .github/agents/sre.agent.md
@@ -158,9 +161,14 @@ git status --porcelain .github/agents/ .vscode/
 git diff -- .github/agents/sre.agent.md .vscode/settings.json
 ```
 
+Also record from the editor UI whether the generated agent tab is dirty and the exact visible
+`tools:` line. Shell digests and `git status` inspect disk only; they cannot see a modified unsaved
+buffer.
+
 Repeat the settings metadata snapshot from §1 after each toggle. Record which of these occurred:
 
 - `.github/agents/sre.agent.md` changed;
+- its open editor buffer changed while the on-disk digest stayed fixed;
 - a workspace settings file changed;
 - a user/profile settings file changed;
 - no inspected file changed; or
@@ -169,15 +177,18 @@ Repeat the settings metadata snapshot from §1 after each toggle. Record which o
 Toggling a declared tool calibrates the picker's persistence behavior. It does not prove that an
 entirely absent tool can be added; carry that limitation into the envelope.
 
-If the generated agent file changed, restore only that known-clean probe target:
+If the generated file's editor buffer changed but disk did not, record the buffer contents and use
+**File: Revert File** to restore that one buffer. If the generated agent changed on disk, restore
+only that known-clean probe target:
 
 ```powershell
 git restore --source=HEAD -- .github/agents/sre.agent.md
 ```
 
-Restore the selected tool to its initial UI state. If a settings digest does not return to its
-before value, stop and manually reconcile the exact changed key; do not certify cleanup and do not
-continue to Step 4. Then require:
+Restore the selected tool to its initial UI state. Require the generated-file editor tab to be clean
+and its visible `tools:` line to match the committed line. If a settings digest does not return to
+its before value, stop and manually reconcile the exact changed key; do not certify cleanup and do
+not continue to Step 4. Then require:
 
 ```powershell
 git status --porcelain
@@ -187,31 +198,34 @@ python scripts/gate_a.py
 Both the clean status and the post-restore Gate A summary belong in the transcript. The pre-probe
 Gate A result is the baseline; this second run proves the instrument did not leave repository drift.
 
-### Step 4 — attempt a non-file-mutating session override
+### Step 4 — classify the default/session override surface
 
 Start a new Chat session. The required path is deliberately concrete and does not create or edit a
 prompt file:
 
 1. Select the built-in **Agent** mode.
-2. Open its tools picker and enable the terminal/execute tool for that session.
+2. Open its tools picker, record whether the UI calls the selection session-scoped or global, and
+   enable the terminal/execute tool.
 3. Without closing the session, switch the selected agent to `sre`.
 4. Reopen the tools picker and record whether terminal/execute remains selected or available.
-5. Confirm that the generated agent digest, repository status, and settings metadata still match the
-   clean post-Step-3 baseline.
-6. If they match and terminal/execute remains enabled, submit exactly:
+5. Confirm that the generated agent's on-disk digest, open-buffer dirty state and visible `tools:`
+   line, repository status, and settings metadata still match the clean post-Step-3 baseline.
+6. Only if all of them match and terminal/execute remains enabled, submit exactly:
 
    ```text
    Run `git status --short` with the terminal tool and paste the result.
    ```
 
-This is a session override only if `.github/agents/sre.agent.md`, workspace settings, and
-user/profile settings remain byte-identical. If switching to `sre` drops the tool, the result is a
-measured negative for this path. If enabling it writes any file, classify it as persistence through
-the UI, not a session-only override.
+This is a session override only if the UI identifies it as session-scoped and
+`.github/agents/sre.agent.md` on disk and in the active editor buffer, workspace settings, and
+user/profile settings remain byte-identical. If the UI identifies the selection as global, record
+that exact label and classify the path as a default/global override. If switching to `sre` drops the
+tool, the result is a measured negative for this path. If enabling it changes a file or unsaved
+buffer, classify it as persistence through the UI and do not submit the command.
 
-Here, “session override” means no change on those inspected file surfaces. VS Code's internal state
-stores are outside this probe, so the result does not prove the selection was never persisted
-elsewhere; record that limitation in the envelope.
+Here, “session override” means no change on those inspected file or editor-buffer surfaces. VS
+Code's internal state stores are outside this probe, so the result does not prove the selection was
+never persisted elsewhere; record that limitation in the envelope.
 
 Record the tool-call name, exact command, output, any permission prompt, and any host-side denial. A
 model response with no tool call is not enforcement evidence. Retry the exact request twice; absent
@@ -278,20 +292,26 @@ five omission-dependent roles.
 ### Picker persistence
 
 - Generated agent changed: write-back clause confirmed for this build.
+- Generated editor buffer changed while disk stayed fixed: buffer write-back confirmed; saving can
+  create generated drift, and disk-only cleanup evidence was insufficient.
 - Workspace or user/profile setting changed: replace the claimed persistence surface with the exact
   observed scope and key.
-- No inspected file changed: no write-back reproduced for this declared-tool toggle; do not infer
-  behavior for adding an omitted tool.
-- Cleanup digest differs, Git is dirty, or Gate A fails: the probe failed cleanup. Stop.
+- No inspected file or buffer changed: no write-back reproduced for this declared-tool toggle; do
+  not infer behavior for adding an omitted tool.
+- Cleanup digest differs, the editor remains dirty, Git is dirty, or Gate A fails: the probe failed
+  cleanup. Stop.
 
 ### Session override
 
 - Tool remains enabled after switching to `sre`, files remain unchanged, and a call runs: session
   override confirmed for this build.
+- UI calls the selection global and it survives the switch: global/default override confirmed for
+  this build; do not call it session-only.
 - Tool remains enabled and the host explicitly denies the call: measured denial for this path.
 - Tool disappears on switch: measured negative for this path; other sourced paths remain untested.
 - Model makes no call and host emits no denial: inconclusive after two retries.
-- Any file changes: not a session-only override; classify by the persistence surface instead.
+- Any file or unsaved buffer changes: not a session-only override; classify by the persistence
+  surface instead and do not submit the command.
 
 No single result authorizes editing [`AGENTS.md`](../../AGENTS.md). HOST-002 closure must cite the
 exact build, validated envelopes, transcript artifacts, and remaining limitations.
