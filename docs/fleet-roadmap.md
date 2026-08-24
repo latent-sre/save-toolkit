@@ -572,15 +572,18 @@ contract; do not silently synthesize a seventh discipline or broaden an owner.
 
 | Concern | Required output |
 |---|---|
-| Identity and boundary | Graph ID/version, purpose, owner, caller, trust boundary, start condition, and exact prompt/agent/tool/schema/config revisions when they exist |
+| Identity and boundary | Graph ID/version, purpose, owner, caller, trust boundary, start condition, and exact agent, prompt, tool, schema, configuration, grader, model, and runtime identities/revisions when they exist; an unavailable identity stays explicit, while a supplied identity is never omitted |
 | Typed data | Input, internal state, context, node input/output, edge payload, reducer state, checkpoint, and final-output contracts; unresolved types remain explicit rather than inferred |
 | Nodes | Deterministic compute, model call, tool/effect, approval, reducer/join, verifier, and terminal classes with preconditions, authority, timeout, retry owner, and success/failure results |
 | Edges | Deterministic, conditional, model-selected handoff, fan-out, fan-in, interrupt, retry, compensation, and terminal edges; every model-selected edge names its allowed destination set and deterministic guardrails |
 | Concurrency and joins | Writer cardinality, reducer identity and algebra, ordering guarantees, conflict handling, join quorum, partial-worker failure, late-result policy, and fan-out budget |
-| Failure and retry | Failure classes, one retry owner, attempt/time budget, backoff, replay-safety decision, timeout ownership, poison-work/manual-repair path, and fail-closed handling of missing or inconclusive evidence |
-| External effects | Caller/operation/target/tenant/payload-bound idempotency intent, attempt identity, effect journal or receipt, read-after-write reconciliation, explicit `UNKNOWN`, safe compensation limits, and a prohibition on automatic replay while outcome is unknown |
+| Scheduling and admission | Queue ownership and capacity, priority and fairness, tenant quota, concurrency cap, backpressure and load-shed behavior, worker lease/heartbeat/liveness, stale-worker handling, poison-work quarantine/manual repair, and the evidence required to admit work |
+| Failure and retry | Failure classes, one retry owner, attempt/time budget, backoff, replay-safety classification, authority for an unsafe replay, timeout ownership, and fail-closed handling of missing or inconclusive evidence |
+| Replay and compatibility | Recovery model that distinguishes checkpoint resume from deterministic event-history replay, code/build version, history and state-schema compatibility boundary, replay or shadow verification, fork semantics, migration, and repair policy |
+| Durability | Run/thread/checkpoint identity, state and checkpoint schema version, durability mode, checkpoint boundary, last known recovery point, resume semantics, retention, restore, and evidence of persisted state |
+| External effects | Deterministic caller/operation/target/tenant/payload-bound idempotency-key construction, attempt identity, mismatched-intent rejection, result/tombstone retention, effect journal or receipt, atomic receipt/mutation coupling when the target supports it, read-after-write reconciliation, explicit `UNKNOWN`, safe compensation limits, and a prohibition on automatic replay while outcome is unknown |
 | Human control | Approval immediately before the effect path, bound to approver identity, exact action and target, immutable candidate/config identity, expiry, rejection, timeout, and resumed state |
-| Durability and lifecycle | Run/thread/checkpoint identity, durability boundary, retention, pause/resume, cancel, supersede, restart, replay/fork, late-worker quarantine, cleanup deadline, and compatibility or migration policy |
+| Lifecycle and cancellation | Pause/resume, cooperative-cancel signal and safe observation point, durable-cancel persistence and new-dispatch prevention, in-flight effect handling, late-worker/result quarantine, supersession, restart behavior, replay/fork relationship, and cleanup deadline |
 | Termination | Success, no-progress, maximum turns/iterations/time/tokens/cost, cancellation, safety stop, unreachable-exit detection, and terminal evidence requirements |
 | Security and context | Actor and credential scope, least authority per node, untrusted-input treatment, provenance/freshness, taint propagation across every edge and handoff, redaction, and retention |
 | Observability and evaluation | Run/node/edge/attempt/retry/replay lineage; tool, handoff, guardrail, approval, checkpoint, and effect events; node, edge, path, outcome, recovery, consistency, temporal, and budget evaluations |
@@ -594,11 +597,15 @@ reference must be linked from it. Canonical sources are edited once and generate
 regenerated once before the push-boundary gate; projections are never hand-edited.
 
 **Required artifact shape:** Every completed design contains, in order: (1) scope, consumer, owner,
-authority, assumptions, and unresolved decisions; (2) typed input/state/output contract; (3) node
-table; (4) edge and routing table; (5) fan-out/fan-in and state-merge contract; (6) failure, retry,
-effect, `UNKNOWN`, reconciliation, and compensation matrix; (7) approval and lifecycle controls;
-(8) termination budgets; (9) context provenance, taint, and security boundaries; (10) trace and
-graph-level evaluation plan; and (11) runtime-selection criteria explicitly marked deferred unless
+authority, assumptions, and unresolved decisions; (2) graph, actor, build, prompt, tool, schema,
+configuration, grader, model, and runtime identities when supplied; (3) typed input/state/output
+contract; (4) node table; (5) edge and routing table; (6) scheduling, admission, fairness,
+backpressure, load-shedding, and worker-liveness contract; (7) fan-out/fan-in and state-merge
+contract; (8) failure, retry, timeout, and replay-safety matrix; (9) idempotency-key, effect,
+receipt, retention, `UNKNOWN`, reconciliation, and compensation matrix; (10) approval, durability,
+resume, cancellation, supersession, restart, replay/fork, and compatibility controls; (11)
+termination budgets; (12) context provenance, taint, and security boundaries; (13) trace and
+graph-level evaluation plan; and (14) runtime-selection criteria explicitly marked deferred unless
 a separately approved consumer decision supplies them. The artifact labels `[verified]`,
 `[sourced]`, and `[unverified]` per claim and never presents design completeness as runtime proof.
 
@@ -608,9 +615,13 @@ approve effects. Delegation and a separate context window are not isolation. App
 a decision but do not create credentials or enforcement; the effect boundary must enforce the
 approved identity and arguments. Checkpoints record known progress but do not prove exactly-once
 external effects. Cancellation cannot roll back a completed remote effect. Compensation is claimed
-only for a domain operation shown to be reversible. An interrupted dispatch remains `UNKNOWN` until
-reconciliation or target-native idempotency resolves it. No generated design authorizes production
-access or execution.
+only for a domain operation shown to be reversible. Each effect design defines the idempotency key
+from the caller, operation, target, tenant, and canonical intent/payload; reuse with different
+intent is rejected before dispatch. A successful result or tombstone remains available through the
+full retry and ambiguity window. When supported, receipt creation and the remote mutation are
+coupled atomically; otherwise reconciliation is mandatory. An interrupted dispatch remains
+`UNKNOWN` until reconciliation or target-native idempotency resolves it, and it is never replayed
+automatically while unknown. No generated design authorizes production access or execution.
 
 **Implementation boundary:** Implement one new canonical skill in one reviewed commit. The expected
 canonical surfaces are `skills/workflow-graph-engineering/`, the minimum `prompt-engineer` routing
@@ -642,17 +653,31 @@ resume any other checklist.
    skill; a request to implement a concrete runtime remains with `sde`; and runtime selection needs
    a separate owner decision under `stack-profile`. Only scenarios affected by changed routing
    content are run.
-3. **Artifact behavior:** One fixed five-agent fresh-context exercise covers: a deterministic graph;
-   a model-selected handoff with authority and taint; fan-out/fan-in with partial failure; an
-   approval-gated external effect with idempotency, `UNKNOWN`, and reconciliation; and a durable
-   cyclic graph with resume, cancellation, supersession, explicit budgets, tracing, and graph-level
-   evals. Each result satisfies the required artifact shape without choosing a runtime or claiming
+3. **Artifact behavior:** One fixed five-agent fresh-context exercise uses exactly one trial for each
+   predeclared case: a deterministic graph with queue admission, fairness, backpressure,
+   load-shedding, and worker liveness; a model-selected handoff with authority and taint;
+   fan-out/fan-in with partial failure; an approval-gated external effect with semantic idempotency,
+   mismatched-intent rejection, retention, `UNKNOWN`, and reconciliation; and a durable cyclic graph
+   that distinguishes checkpoint resume from deterministic event-history replay and cooperative
+   from durable cancellation while covering in-flight/late workers, supersession, explicit budgets,
+   tracing, and graph-level evals. Before any call, the exercise records the exact candidate full
+   SHA and clean tree, canonical/plugin input digest, host and CLI version, runtime and model
+   identity, effective tool permissions, the five immutable prompts, grader identities and
+   thresholds, per-call timeout, and maximum call/cost budget. Raw prompts, outputs, grader results,
+   timing, errors, and spend evidence are retained. Changing a case, grader, threshold, or candidate
+   creates a new candidate that requires owner approval rather than silently extending this pass.
+   Each result satisfies the required artifact shape without choosing a runtime or claiming
    execution evidence. This is one bounded candidate/evaluation pass, not an optimizer loop.
-4. **Safety controls:** Focused checks reject automatic replay of an unknown effect, approval that
-   is not bound to the exact action/state, unbounded cycles, missing terminal states, taint dropped
-   at a handoff, and checkpoint-equals-exactly-once claims. If a deterministic validator or other
-   machine contract is introduced despite the current boundary, its exact consumer must be named
-   and one focused red-to-green regression must prove each new enforced predicate.
+4. **Safety controls:** Focused checks reject automatic replay of an unknown effect; acceptance of a
+   reused idempotency key with mismatched intent; result/tombstone retention shorter than the retry
+   or ambiguity window; approval not bound to the exact action/state; admission without declared
+   queue capacity, fairness, backpressure/load-shed, and worker-liveness behavior; cancellation that
+   omits cooperative versus durable semantics or in-flight/late-worker disposition; checkpoint
+   resume presented as deterministic event-history replay; unbounded cycles; missing terminal
+   states; taint dropped at a handoff; and checkpoint-equals-exactly-once claims. If a deterministic
+   validator or other machine contract is introduced despite the current boundary, its exact
+   consumer must be named and one focused red-to-green regression must prove each new enforced
+   predicate.
 5. **Evidence separation:** Activation/routing, artifact/output quality, and runtime behavior are
    reported independently. Runtime execution, durability, provider behavior, effect safety, and
    production readiness remain `[unverified]` unless separately exercised on an approved exact
