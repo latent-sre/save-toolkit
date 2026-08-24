@@ -68,7 +68,7 @@ The 30 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
 - **The fleet itself** — `agent-authoring`, `agent-security`
 
 The roster's tool postures, enforcement model, and design disciplines are in
-[AGENTS.md](AGENTS.md); the repository layout and its consequences are that file's **Map**.
+[AGENTS.md](AGENTS.md); the repository layout and its consequences are under **Start here**.
 
 ## Validate
 

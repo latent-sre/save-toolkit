@@ -18,7 +18,7 @@ authoritative?*
 | On Windows use `python` / `py -3`, never bare `python3` (Store stub) | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring and `preflight()`; restated in [`AGENTS.md`](../AGENTS.md) |
 | Third-party deps allowed, pinned in `requirements-dev.txt`; the first Gate A-path import of one ships the CI install steps in the same PR. **`scripts/readonly-guard.py` is exempt and stays stdlib-only** — the hook runs it `python -I -S` with no site packages, so an import error there denies all guarded Bash | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-third-party-dependencies.md) |
 | Canonical authored source is `agents/`, `skills/`, and `commands/` only | [`2026-07-31-multi-platform-plugin-packaging.md`](decisions/2026-07-31-multi-platform-plugin-packaging.md) |
-| Before a push that carries canonical edits, run `generate_platform_adapters.py --write` once (not per edit) and commit projections with source | [`AGENTS.md`](../AGENTS.md) Change playbooks; [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Before a push that carries canonical edits, run `generate_platform_adapters.py --write` once (not per edit) and commit projections with source | [`CONTRIBUTING.md`](../CONTRIBUTING.md) Change-specific evidence |
 | Never hand-edit generated roots: `.github/agents/`, `platforms/copilot/skills/` | [`AGENTS.md`](../AGENTS.md) Hard rules |
 | The `plugin.json` manifests are per-host selectors, not duplication — each must exist, share the identity fields, and keep host-specific component paths; never dedupe or drop one | `validate_platform_contracts` in `generate_platform_adapters.py`, run by `validate_fleet.py` |
 | Byte-for-byte adapter drift fails the gate | Packaging ADR; `validate_fleet.py` |
@@ -29,13 +29,13 @@ authoritative?*
 | Agent `tools:` must be explicit (omission inherits every tool; validator rejects omission) | `validate_fleet.py`; frontmatter reference |
 | Agent `description` ≤ 1024 UTF-8 bytes; kebab-case name matches filename | `validate_fleet.py`; frontmatter reference |
 | A generated Copilot `.agent.md` Markdown prompt body must stay within the documented 30,000-character per-profile maximum | `render_copilot_agent` in `generate_platform_adapters.py`; [`skill-portability.md`](../skills/agent-authoring/references/skill-portability.md) |
-| Skill `references/` files must be linked from `SKILL.md` or they ship unreachable | [`AGENTS.md`](../AGENTS.md) Map; [`check_links.py`](../scripts/check_links.py) |
+| Skill `references/` files must be linked from `SKILL.md` or they ship unreachable | [`AGENTS.md`](../AGENTS.md) Start here; [`check_links.py`](../scripts/check_links.py) |
 | Single live backlog is [`fleet-roadmap.md`](fleet-roadmap.md); never resume unchecked historical checklists | [`AGENTS.md`](../AGENTS.md); [`README.md`](README.md) in this directory |
 | Plans/specs need a historical `Status:` banner and a pointer back to the roadmap | [`README.md`](README.md); [`check_plan_status.py`](../scripts/check_plan_status.py) |
 | Retired names are rejected under live `agents/`/`skills/`/`commands/` trees | [`check_stale_names.py`](../scripts/check_stale_names.py) |
 | Routing/behavioral evals are manual clean-room only — never in CI; outputs under `.eval-runs/` | [`AGENTS.md`](../AGENTS.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| A newly asserted contract needs one focused test that goes red when that contract is deliberately broken and green when restored; mutation tooling is optional, single-module, and a survivor count is not work | [`AGENTS.md`](../AGENTS.md) Change playbooks |
-| Description edits that change routing content need after-change clean-room runs of the scenarios targeting the component; pure rewording needs none | [`AGENTS.md`](../AGENTS.md) Change playbooks |
+| A newly asserted contract needs one focused test that goes red when that contract is deliberately broken and green when restored; mutation tooling is optional, single-module, and a survivor count is not work | [`CONTRIBUTING.md`](../CONTRIBUTING.md) Change-specific evidence |
+| Description edits that change routing content need after-change clean-room runs of the scenarios targeting the component; pure rewording needs none | [`CONTRIBUTING.md`](../CONTRIBUTING.md) Change-specific evidence |
 | Personal-first: prototype under `~/.claude`, promote by PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | PR implementation starts from refreshed `origin/main` on a new branch named for the change, never a branch whose PR already merged; measure divergence both directions against `origin/main`, never a local `main`; preserve dirty and published branches | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Probe and schema contracts: published schemas are immutable; runtime probes use evidence envelopes (`skip`/`inconclusive`, never fake `pass`); the verification sandbox is digest-bound and networkless, and probe success grants no production authority | [`schema-compatibility.md`](schema-compatibility.md); [`verification-sandbox.md`](verification-sandbox.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
@@ -44,16 +44,16 @@ authoritative?*
 
 | Rule | Primary source |
 |---|---|
-| Enforcement order: (1) tool absence, (2) Bash allowlist for `sre` | [`AGENTS.md`](../AGENTS.md) Enforcement |
+| Enforcement order: (1) tool absence, (2) Bash allowlist for `sre` | [`AGENTS.md`](../AGENTS.md) Enforcement boundaries |
 | `reviewer`: local read-only — no Bash, Write, web, or external MCP | [`AGENTS.md`](../AGENTS.md) roster |
 | `repository-investigator`: only `Read`/`Grep`/`Glob` | [`2026-07-31-local-external-research-separation.md`](decisions/2026-07-31-local-external-research-separation.md) |
 | `researcher`: external-only — no local read, Bash, Write, Skill, or Agent | Same ADR |
 | No direct `WebSearch`/`WebFetch` on other local roles; sanitized handoff to `researcher` | Same ADR |
-| Callers must sanitize researcher prompts (cooperative gate, not DLP) | Same ADR; [`AGENTS.md`](../AGENTS.md) Honest limits |
+| Callers must sanitize researcher prompts (cooperative gate, not DLP) | Same ADR; [`AGENTS.md`](../AGENTS.md) Enforcement boundaries |
 | `scribe`: local document write; no Bash, web, or Agent | [`AGENTS.md`](../AGENTS.md) roster |
 | `sre`: guarded Bash; recommends mitigation, never applies it | [`AGENTS.md`](../AGENTS.md) |
 | `observability-engineer`: unguarded Bash + obs-config write; Grafana dashboard create/update is its one live apply, and its three conditions are necessary but **not sufficient** — every other Tier 2/3 change is recommend-only | Agent body; [ADR 2026-08-21](decisions/2026-08-21-observability-engineer-unguarded-bash.md); production-change-gate |
-| `sde` / `prompt-engineer`: unguarded Bash — host/network egress controls remain load-bearing | [`AGENTS.md`](../AGENTS.md) Honest limits |
+| `sde` / `prompt-engineer`: unguarded Bash — host/network egress controls remain load-bearing | [`AGENTS.md`](../AGENTS.md) Enforcement boundaries |
 | Guard is a command filter, not a sandbox; OS least privilege remains load-bearing | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | `Agent(target)` grants enforce on the main thread only; at subagent depth the list is documentary | Frontmatter reference; [`AGENTS.md`](../AGENTS.md) |
 | `model:` on an agent must be a generation alias (`haiku`/`sonnet`/`opus`/`fable`/`inherit`), never a full ID; default is to inherit the session model | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-model-aliases.md); `validate_fleet.py` |
