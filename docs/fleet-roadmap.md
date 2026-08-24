@@ -99,6 +99,113 @@ external data/cost boundary and the remaining guarantees can be proven.
 
 ## Repository work
 
+### CONTEXT-001 — establish a generalized SRE operational-context contract
+
+**Status:** `decision-needed` (2026-08-24)
+
+**Owner:** `latent-sre` owns the architecture decision and acceptance of the exact pilot revision.
+`prompt-engineer` owns consumer context-requirement semantics for agents/skills; `sde` owns any
+later resolver, validator, or onboarding-tool implementation. Team owners remain accountable for
+their context values and operational documents. No owner may approve its own unreviewed evidence.
+
+**Outcome:** Reusable skills and agents resolve one explicit team, service, environment, and—when
+needed—deployment from schema-valid team configuration, then receive only the smallest context
+projection they declare. Onboarding a team supplies values, relationships, repository mappings,
+platform identities, operational references, and runbooks without forking the underlying skills.
+Missing or ambiguous context fails clearly; production is never an implicit target; valid context
+does not grant credentials, approval, or effect authority.
+
+**Concrete consumer:** The first consumer is the read-only `service-readiness-audit`. One unchanged
+consumer contract must work across differently shaped services and platforms before any
+effect-capable skill adopts the resolver. The pilot may model PCF and GCP/Cloud Run mappings already
+present in the fleet, but it does not decide the pending landing runtime, introduce self-managed
+Kubernetes, or rewrite platform procedures.
+
+**Source:** Owner direction on 2026-08-24 requested the smallest useful standardized operational
+context contract, a central-repository assessment, and 24 architecture deliverables before
+implementation. The dated
+[`generalized SRE team and application context framework`](reviews/2026-08-24-sre-context-framework-architecture.md)
+records the current-repository assessment; separate Context7, GitHits, and official-standard
+research; alternatives; proposed entity and requirement schemas; resolution, identity, provenance,
+validation, safety, examples, exclusions, and the staged plan. It recommends a central Git authoring
+repository first while keeping the logical contract source- and transport-independent.
+
+**Decision required:** Accept or revise these load-bearing choices before implementation:
+
+1. `Service` is the deployable/operable unit; optional `System` represents a composite application.
+2. `Environment` is a logical safety/policy profile; a separate `Deployment` binds a service to its
+   PCF, Cloud Run, Kubernetes, endpoint, deployment, and observability identities.
+3. The first source is a separate central Git repository, while the resolver contract permits
+   approved federated sources later without changing skills.
+4. Skills own versioned context-requirement sidecars; team data owns values; an undocumented skill
+   frontmatter key is not introduced.
+5. V1 removes duplication through typed references and has no general inheritance or deep merge.
+6. Runbooks may live centrally or with their owning service repository; the registry indexes both
+   and never copies executable automation definitions.
+7. A file/CLI resolver is phase one. Backstage, commercial catalogs, federation, generated
+   discovery, and MCP are later adapters or decisions, not prerequisites.
+8. Git stores curated facts and references only. Live state remains in its authoritative system,
+   and platform-generated identifiers carry qualified names and freshness/provenance.
+
+**Prerequisites:** An accepted decision record names the schema/contract owner, context-data owner,
+resolver owner, pilot teams/services, source repository and permissions, supported platform shapes,
+and the alpha compatibility window. Reinspect the exact consumer skill, generator/package behavior,
+dependency policy, and current schema catalog before naming implementation files. Any third-party
+validator or YAML parser is pinned in `requirements-dev.txt` and follows the CI/Gate A dependency
+rule. No central repository, schema, resolver, MCP server, skill rewrite, or live discovery job is
+created solely from this roadmap entry.
+
+**Acceptance:** All conditions are required and retain separate evidence labels:
+
+1. **Architecture:** The accepted ADR disposes every decision above and retains the proposal's 24
+   deliverables, rejected alternatives, static/live boundary, secrets boundary, rollout, rollback,
+   and explicit non-goals. A design review is not runtime proof.
+2. **Source contracts:** Immutable versioned JSON Schema 2020-12 contracts exist for the minimum
+   Team, Service, optional System, Environment, Deployment, Repository, Integration/Resource,
+   Runbook metadata, consumer requirement, and resolved-bundle shapes. Known objects fail closed;
+   formats and YAML
+   duplicate keys are tested with the selected validator rather than assumed.
+3. **Semantic resolver:** Exact source/revision and canonical selectors produce deterministic,
+   byte-bounded output with source provenance. Duplicate IDs/aliases, broken or kind-wrong refs,
+   forbidden cycles, zero/multiple deployments, missing required paths, implicit production,
+   secret-bearing fields, traversal, and nondeterministic output have named red-first regressions.
+4. **Identity and repositories:** Catalog IDs, display names, typed/scoped aliases, platform IDs,
+   telemetry mappings, and runtime instance IDs remain distinct. Repositories are first-class and
+   every service relationship states one or more provisional roles plus why the repository matters;
+   `other` never becomes an untyped escape hatch.
+5. **Two-team portability pilot:** At least two teams, multiple services, multiple repositories,
+   production and non-production environments, and at least two platform shapes validate without a
+   team-specific schema or skill branch. The same `service-readiness-audit` requirement contract
+   resolves representative selections and refuses missing/ambiguous selections.
+6. **Context behavior:** Required and alternative JSON Pointer paths fail closed; optional absence
+   remains explicit; the resolver expands only requested references within declared depth/byte
+   budgets. A fresh-context exercise demonstrates deterministic lookup and preserved canonical
+   facts, provenance, target classification, and omissions; it does not claim production
+   correctness from structural green.
+7. **Truth and safety:** The repository contains no secret or copied live state. Qualified platform
+   mappings and external locators name their authority and validation evidence where freshness is
+   material. An effect-capable path separately proves that context cannot default to production,
+   approve an action, supply a credential, or bypass the existing production/effect gate.
+8. **Onboarding and operations:** A new team can add team/service/environment/deployment,
+   repository, integration/observability, Jira/Confluence, and runbook references and receive clear
+   validation output without editing a generalized skill. Ownership, schema migration, stale-link
+   diagnostics, source-repository recovery, and resolver troubleshooting are documented.
+9. **Integrated verification:** Focused schema/resolver/consumer regressions, affected offline
+   routing or behavior checks, adapter generation where canonical skill bytes change, strict plugin
+   validation, `git diff --check`, Gate A at the push boundary, and independent exact-revision
+   correctness/security plus roadmap-plan conformance review all pass. Each result states what it
+   proves and what remains unverified.
+
+**Closure:** Merge the accepted pilot and its exact evidence, record the supported alpha contract
+and next migration boundary, then move `CONTEXT-001` to the closed table. Fleet-wide adoption,
+federation, Backstage/MCP adapters, automatic discovery, live reconciliation, or a general overlay
+language are separately justified work and do not silently expand this item.
+
+**Next action:** Review the linked proposal once and accept or revise the eight architecture
+choices. If accepted, record the ADR and authorize only stages 1–3: contract skeleton, one-team
+read-only pilot, and second-team portability proof. Do not create the central repository or rewrite
+skills before that decision.
+
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
 **Status:** `active` (2026-08-24) — a disposable authenticated VS Code 1.134.0 profile measured the
