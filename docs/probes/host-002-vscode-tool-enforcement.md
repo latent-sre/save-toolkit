@@ -231,6 +231,8 @@ Record the tool-call name, exact command, output, any permission prompt, and any
 model response with no tool call is not enforcement evidence. Retry the exact request twice; absent
 an observed host denial, record `inconclusive` rather than “blocked.” If the built-in Agent picker
 does not expose terminal/execute, record `inconclusive`; do not silently substitute a file edit.
+If a file or editor-buffer mutation prevents the command, the configuration/write-back observation
+can still be recorded, but the invocation-authority criterion is `inconclusive`.
 
 Prompt-file precedence is a separately sourced path and is outside this observation. Do not claim a
 chat-deep-link result unless a distinct path was actually tested and fully recorded.
@@ -306,12 +308,12 @@ five omission-dependent roles.
 - Tool remains enabled after switching to `sre`, files remain unchanged, and a call runs: session
   override confirmed for this build.
 - UI calls the selection global and it survives the switch: global/default override confirmed for
-  this build; do not call it session-only.
+  the configuration layer on this build; do not call it session-only or infer invocation authority.
 - Tool remains enabled and the host explicitly denies the call: measured denial for this path.
 - Tool disappears on switch: measured negative for this path; other sourced paths remain untested.
 - Model makes no call and host emits no denial: inconclusive after two retries.
 - Any file or unsaved buffer changes: not a session-only override; classify by the persistence
-  surface instead and do not submit the command.
+  surface instead, do not submit the command, and mark invocation authority `inconclusive`.
 
 No single result authorizes editing [`AGENTS.md`](../../AGENTS.md). HOST-002 closure must cite the
 exact build, validated envelopes, transcript artifacts, and remaining limitations.
@@ -376,13 +378,17 @@ actual checkout path and observed exit code:
 }
 ```
 
-Validation success, artifact digests, and each envelope path belong in the transcript. An unchecked
-box, blank field, or prose verdict is not a substitute for a validated envelope.
+Validation success, artifact digests, and each envelope path belong in the transcript. Before
+closure, retain the non-secret transcript and envelopes in an approved durable reviewable location;
+an operator-local path and digest alone are not closure evidence. An unchecked box, blank field, or
+prose verdict is not a substitute for a validated envelope.
 
 ## 5. Close the local session safely
 
-Restore every tool to its initial UI state. Repeat the settings metadata snapshot and compare every
-before/after presence flag, digest, size, and timestamp. Then require:
+Restore every tool to its initial UI state. Reopen `.github/agents/sre.agent.md`; if its editor tab
+is dirty, record the buffer and use **File: Revert File**. Confirm that the tab is clean and its
+visible `tools:` line matches the committed line. Repeat the settings metadata snapshot and compare
+every before/after presence flag, digest, size, and timestamp. Then require:
 
 ```powershell
 git status --porcelain
@@ -392,6 +398,8 @@ python scripts/gate_a.py
 The run is not clean if any of these are true:
 
 - Git status is non-empty;
+- the generated-agent editor tab remains dirty or its visible `tools:` line differs from the
+  committed line;
 - final Gate A does not pass;
 - a user/profile/workspace settings digest differs from baseline without an explained and reviewed
   concurrent edit; or

@@ -48,8 +48,10 @@ directly: *"The scope of an AGENTS.md file is the entire directory tree rooted a
 contains it… The contents of the AGENTS.md file at the root of the repo… are included with the
 developer message"* (`codex-rs/core/gpt_5_1_prompt.md:17-27` at `rust-v0.148.0`; the same spec
 appears in `gpt_5_2_prompt.md`). This repository's root `AGENTS.md` therefore loads automatically in
-every Codex session here, carrying the Change playbooks, the gate commands, and the Windows
-`python`-not-`python3` rule. Nothing needs to be added for that to keep working.
+every Codex session here, carrying the unconditional fleet rules and the Windows
+`python`-not-`python3` rule. Change-specific verification lives in
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md), **Change-specific evidence**. Nothing needs to be added
+for that to keep working.
 
 ## Why
 

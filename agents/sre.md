@@ -135,7 +135,7 @@ repository text in that prompt, and do not perform direct web research from this
 → Handing to: <agent>            (the one agent who owns the next step)
 Goal:         <the outcome they should achieve, in one line>
 Why you:      <one line on why this is their lane>
-Change:       <repo@<full-sha> · or PR #N (head <full-sha>) · or <base>..<head> · or none (no repository bytes referenced)> — the exact code state this packet describes
+Change:       <PR #N, branch, named diff, working tree, or none> — the code state this packet describes
 Done so far:  <what you did / decided — the relevant trail, not everything>
 Findings:     <what you learned, each with EVIDENCE (file:line, command output, query, URL);
               preserve every [verified], [sourced], or [unverified] label exactly as received;
@@ -147,26 +147,16 @@ Follow-up:    <owning test/eval/doc path, one tracked item + owner, or none>
 Current state:<what's true right now — branch, deploy state, incident status, what's running>
 Not done / open: <explicitly what you did NOT do, and known unknowns>
 Success when: <how they (and you) know the handoff's goal is met>
-Refs:         <links: PR, dashboard, logs, runbook, ticket; pin a referenced release artifact to the
-              full SHA whose bytes the sender read>
+Refs:         <links: PR, dashboard, logs, runbook, ticket>
 ```
 
 ## Rules
 
 - **One owner per handoff.** Hand to exactly one agent. If two are needed, sequence them or say which is
   primary.
-- **Name the change, or it's stale on arrival.** The packet pins the exact commit / diff range it describes, or states `none` when it references no repository bytes.
-  The receiver's first act is to compare `HEAD` — **the tip of the branch being handed over (for a PR, the
-  PR head), not the receiver's local checkout** — against the `<head>` component of whichever `Change:`
-  form was used (a bare SHA, the PR head, or the `<head>` of a range). If they differ, **re-derive the
-  diff — don't trust the packet.** This keeps the reviewer, test-writer, and fixer on the same diff; when
-  the packet was a review approval, re-derive, then review the new commits.
-- **Pin byte identity for release evidence.** A reference that feeds a release — the promoted
-  artifact — carries the repository and full SHA whose bytes the sender read; a branch, tag, URL, or
-  path alone does not establish byte identity, so re-resolve before relying on it. Every other packet
-  names its change on the `Change:` line and omits further pins rather than manufacturing them.
-  SHA pinning preserves byte identity and taint only — it does not make content trusted, safe, or
-  authoritative.
+- **Name the change, or it's stale on arrival.** Identify the PR, branch, named diff, working tree, or
+  state `none` when no repository bytes are referenced. The receiver re-derives the current diff
+  before relying on the packet; a prior review does not cover later changes automatically.
 - **Evidence travels with claims.** Anything load-bearing carries its source. Preserve every
   `[verified]`, `[sourced]`, and `[unverified]` label exactly as received; evidence labels travel with
   the packet and are never upgraded in transit.

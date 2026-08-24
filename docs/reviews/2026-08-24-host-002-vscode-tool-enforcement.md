@@ -1,13 +1,15 @@
 # HOST-002 VS Code tool-enforcement observation
 
-**Conclusion:** `[verified]` On VS Code 1.134.0, generated workspace-agent `tools:` lists narrow the
-default but do not form an enforcement boundary. Every tested omitted built-in tool remained in the
-picker as disabled, and a global default-Agent selection re-enabled `execute` after switching to
-`sre`. The picker dirtied the open generated-agent editor buffer while the on-disk file and Git
-status remained unchanged. No command was run after that non-file-mutating precondition failed.
+**Conclusion:** `[verified]` On VS Code 1.134.0, every tested omitted built-in tool remained in the
+picker as disabled, and a global default-Agent selection displayed `execute` as enabled after
+switching to `sre`. The picker dirtied the open generated-agent editor buffer while the on-disk file
+and Git status remained unchanged. `[unverified]` No command or host denial ran after that
+non-file-mutating precondition failed, so this run does not establish `sre` invocation authority or
+host enforcement.
 
-This confirms the existing `AGENTS.md` warning and sharpens its persistence language. It does not
-establish a hook boundary, a managed-policy result, or host-side denial of an execute call.
+This supports the existing `AGENTS.md` warning at the configuration layer and sharpens its
+persistence language. It does not establish an authority boundary, hook boundary, managed-policy
+result, or host-side denial of an execute call.
 
 ## Exact evidence base
 
@@ -22,15 +24,18 @@ establish a hook boundary, a managed-policy result, or host-side denial of an ex
   separate local OS observation.
 - Transcript SHA-256: `d991c5c98f39cb60fec55c83c8c032aaf1e9b2886f12b71d45c7d6f472d0e112`,
   14351 bytes.
-- Evidence archive: `F:\repos\HOST-002-evidence-20260824.zip`, SHA-256
-  `31dc110ad0c1d05bb1362f772893977181e74964f57f1f44a993f92115376277`, 2182308 bytes.
-- All eight required JSON records validated with `scripts/evidence_envelope.py`; every artifact path,
-  byte size, and SHA-256 was then read back and matched.
+- Operator-local evidence archive: `F:\repos\HOST-002-evidence-20260824.zip`, SHA-256
+  `31dc110ad0c1d05bb1362f772893977181e74964f57f1f44a993f92115376277`, 2182308 bytes. It was
+  intentionally not added to Git or the PR and is not durable review evidence.
+- `[verified]` The operator validated all eight JSON records with `scripts/evidence_envelope.py` and
+  matched every local artifact path, byte size, and SHA-256. Reviewers cannot independently repeat
+  that binding from the PR until the non-secret records are retained in a durable reviewable place.
 
 The run used a disposable VS Code user-data and extension directory. After rollback, the window was
 closed and that exact temporary authenticated profile was deleted. The evidence archive contains
 only the transcript, eight envelopes, baseline metadata, and cited screenshots; it excludes profile
-state, credentials, raw logs, the target snapshot, and unrelated automation screenshots.
+state, credentials, raw logs, the target snapshot, and unrelated automation screenshots. Its local
+hash is provenance for a future durable attachment, not HOST-002 closure evidence.
 
 ## Picker inventory
 
@@ -61,8 +66,8 @@ missing or unexpected custom role. This is packaging evidence, not authority enf
    `tools: [execute, read, agent, vscodeGeneral/usages, search]`; its on-disk SHA-256 remained
    `ed1bc2c68c3359b3e81f03ac7bb914300dea0980bfbf394455c11533bbffea24` and Git remained clean.
 6. `[verified]` The command-observation precondition failed at that point, so no prompt or terminal
-   command was submitted. The result is a global/buffer-mutating override, not a session-only path
-   and not evidence of command denial.
+   command was submitted. The result is a global/buffer-mutating configuration path, not a
+   session-only path and not evidence of invocation authority or command denial.
 
 The procedure now requires the editor's dirty state and visible `tools:` line at every toggle, and
 requires **File: Revert File** for a dirty unsaved generated buffer. Disk-only checks remain, but no
@@ -73,9 +78,10 @@ longer stand in for editor-buffer cleanliness.
 | HOST-002 question | Evidence-bound answer |
 |---|---|
 | Does the picker offer `execute` to `sre`? | `[verified]` Yes, offered-off at the generated default. |
-| Does the tested override reinstate it? | `[verified]` Yes. The UI calls the selection global, and it survives switching to `sre`; it is not session-only. |
+| Does the tested override display it as enabled after switching? | `[verified]` Yes. The UI calls the selection global, and its checked state survives switching to `sre`; it is not session-only. |
 | Does the picker mutate `.github/agents/sre.agent.md` on disk? | `[verified]` Not during this run. It mutated the open editor buffer while disk and Git stayed unchanged. Saving that buffer was deliberately avoided. |
-| Does omission enforce the authority boundary? | `[verified]` No for the tested picker path: the omission is an overridable default. |
+| Can `sre` invoke `execute`, or does the host deny it? | `[unverified]` No tool call or host denial was observed. Configuration state cannot answer this authority question. |
+| Are the raw evidence records durably reviewable? | `[unverified]` No. The ZIP remains operator-local and was not added to this PR. |
 | Is the Copilot hook portable with exact-agent scoping? | `[unverified]` Not tested; no hook was wired. |
 
 `[sourced]` Current VS Code documentation describes isolated user-data and extensions directories
@@ -91,6 +97,8 @@ supported the disposable profile; they are not authority evidence. See the offic
   was clean; Gate A passed all 6 structural steps.
 - `[unverified]` Prompt-file precedence, chat deep links, extension-contributed read-only agents,
   Copilot managed settings, hook payload identity, and other VS Code/Copilot builds were not tested.
+- `[unverified]` The local transcript/envelopes are not durable review evidence and cannot close the
+  roadmap item until retained in an approved reviewable location.
 - Optional skill inventory and named handoff observations were not run.
 - What this run did **not** do: edit a generated adapter by hand, save picker-produced drift, invoke
   a terminal tool, wire a hook, change a production system, push a branch, or publish evidence.
