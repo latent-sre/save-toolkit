@@ -25,6 +25,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from types import ModuleType
 
@@ -587,7 +588,7 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
         for _, event in (*root_inits, *root_results):
             if event.get("session_id") != canonical_session:
                 _fail_stream("continuation epoch is missing the canonical session ID", diagnostics)
-        for (previous_index, _), (init_index, _) in zip(root_inits, root_inits[1:]):
+        for (previous_index, _), (init_index, _) in pairwise(root_inits):
             completed_notification = any(
                 event.get("type") == "system"
                 and event.get("subtype") == "task_notification"
@@ -1322,10 +1323,8 @@ def _private_write(path: Path, content: str) -> Path:
             with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
                 handle.write(content)
         except BaseException:
-            try:
+            with contextlib.suppress(OSError):
                 os.close(fd)
-            except OSError:
-                pass
             raise
         if os.name == "nt":
             _set_windows_private_acl(path, directory=False)

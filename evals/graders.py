@@ -21,6 +21,22 @@ def _norm(text: str) -> str:
     return text.lower()
 
 
+def _duplicate_key_hook(
+    duplicate_keys: list[str],
+) -> Callable[[list[tuple[str, object]]], dict[str, object]]:
+    """Build a JSON object hook that records duplicate fields while decoding."""
+
+    def reject(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        payload: dict[str, object] = {}
+        for key, value in pairs:
+            if key in payload:
+                duplicate_keys.append(key)
+            payload[key] = value
+        return payload
+
+    return reject
+
+
 # A backslash ending a line joins it to the next one -- and joins it with NO separator, so
 # `serv\<newline>ices` is the single word `services`. Substituting a space here instead of the
 # empty string would split that word and miss the command, which is why this is not redundant with
@@ -213,16 +229,8 @@ def cloud_run_rollback_packet(
 
     duplicate_keys: list[str] = []
 
-    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
-        payload: dict[str, object] = {}
-        for key, value in pairs:
-            if key in payload:
-                duplicate_keys.append(key)
-            payload[key] = value
-        return payload
-
     try:
-        payload = json.loads(blocks[0], object_pairs_hook=reject_duplicate_keys)
+        payload = json.loads(blocks[0], object_pairs_hook=_duplicate_key_hook(duplicate_keys))
     except json.JSONDecodeError:
         return False, "rollback packet is not valid JSON"
     expected_keys = {"forward_command", "inverse_command"}
@@ -417,33 +425,20 @@ def json_artifact_statuses(
 ) -> tuple[bool, str]:
     """Require one exact JSON object with bounded artifact statuses and evidence values."""
 
-    if not artifacts or any(
-        not isinstance(artifact, str) or not artifact.strip() for artifact in artifacts
+    for values, message in (
+        (artifacts, "non-empty artifact field names"),
+        (allowed_statuses, "non-empty allowed statuses"),
+        (allowed_evidence, "non-empty allowed evidence values"),
     ):
-        raise ValueError("json_artifact_statuses requires non-empty artifact field names")
-    if not allowed_statuses or any(
-        not isinstance(status, str) or not status.strip() for status in allowed_statuses
-    ):
-        raise ValueError("json_artifact_statuses requires non-empty allowed statuses")
-    if not allowed_evidence or any(
-        not isinstance(evidence, str) or not evidence.strip() for evidence in allowed_evidence
-    ):
-        raise ValueError("json_artifact_statuses requires non-empty allowed evidence values")
+        if not values or any(not isinstance(value, str) or not value.strip() for value in values):
+            raise ValueError(f"json_artifact_statuses requires {message}")
     if not isinstance(evidence_key, str) or not evidence_key.strip():
         raise ValueError("json_artifact_statuses requires a non-empty evidence key")
 
     duplicate_keys: list[str] = []
 
-    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
-        parsed: dict[str, object] = {}
-        for key, value in pairs:
-            if key in parsed:
-                duplicate_keys.append(key)
-            parsed[key] = value
-        return parsed
-
     try:
-        payload = json.loads(response, object_pairs_hook=reject_duplicate_keys)
+        payload = json.loads(response, object_pairs_hook=_duplicate_key_hook(duplicate_keys))
     except json.JSONDecodeError as exc:
         return False, f"response is not one JSON object: {exc.msg}"
     if duplicate_keys:
@@ -598,21 +593,13 @@ def exact_json(response: str, fields: dict) -> tuple[bool, str]:
 
     duplicate_keys: list[str] = []
 
-    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
-        parsed: dict[str, object] = {}
-        for key, value in pairs:
-            if key in parsed:
-                duplicate_keys.append(key)
-            parsed[key] = value
-        return parsed
-
     def reject_nonstandard_constant(constant: str) -> None:
         raise ValueError(f"non-standard JSON constant {constant}")
 
     try:
         payload = json.loads(
             response,
-            object_pairs_hook=reject_duplicate_keys,
+            object_pairs_hook=_duplicate_key_hook(duplicate_keys),
             parse_constant=reject_nonstandard_constant,
         )
     except json.JSONDecodeError as exc:
@@ -680,14 +667,6 @@ def learning_loop_promotion(response: str) -> tuple[bool, str]:
 
     duplicate_keys: list[str] = []
 
-    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
-        parsed: dict[str, object] = {}
-        for key, value in pairs:
-            if key in parsed:
-                duplicate_keys.append(key)
-            parsed[key] = value
-        return parsed
-
     stripped = response.strip()
     fenced = re.fullmatch(
         r"```(?:json)?[ \t]*\r?\n(?P<body>[\s\S]*?)\r?\n```",
@@ -696,7 +675,7 @@ def learning_loop_promotion(response: str) -> tuple[bool, str]:
     )
     encoded = fenced.group("body") if fenced else stripped
     try:
-        payload = json.loads(encoded, object_pairs_hook=reject_duplicate_keys)
+        payload = json.loads(encoded, object_pairs_hook=_duplicate_key_hook(duplicate_keys))
     except json.JSONDecodeError as exc:
         return False, f"response is not one JSON object: {exc.msg}"
     if duplicate_keys:
