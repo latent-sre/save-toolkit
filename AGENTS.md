@@ -62,9 +62,13 @@ Do not overstate either control:
 - `Agent(target)` constrains main-thread delegation only. At subagent depth it is documentary; see
   [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md).
 - The researcher handoff is cooperative, not DLP. Send only sanitized public questions.
-- Copilot's omitted `execute` narrows a default; it does not equal the Claude guard. Session tools,
-  prompt files, and chat deep links can override workspace-agent defaults, and the picker can rewrite
-  `.agent.md`. Real enforcement on that host comes from policy-delivered managed settings.
+- Copilot's omitted `execute` narrows a default; it does not equal the Claude guard. `[verified]` On
+  VS Code 1.134.0, omitted built-in tools remained offered-off, and a picker selection explicitly
+  labelled global survived a switch to `sre` while dirtying the open generated `.agent.md` buffer.
+  No tool call or host denial ran, so invocation authority remains `[unverified]`; prompt-file
+  precedence is `[sourced]`, while a chat-deep-link override is `[unverified]`. See the
+  [`HOST-002` packet](docs/reviews/2026-08-24-host-002-vscode-tool-enforcement.md). Real enforcement
+  on that host comes from policy-delivered managed settings.
 - Agents never receive credential-bearing `cf env`, `cf service-key`, `CF_TRACE`, gcloud token/ADC,
   Secret Manager access, or KMS decrypt output. A human supplies only a sanitized excerpt.
 
@@ -119,8 +123,9 @@ resume an unchecked historical checklist solely because its boxes remain open.
   both CI validate jobs and update `gate_a.py`'s docstring in the same change. Tests retain a bare
   `python` unittest entrypoint.
 - Generated adapters are consequences, never sources. Edit canonical `agents/`, `skills/`,
-  `commands/`, or the generator; check `git status`; regenerate once. A VS Code tools-picker change
-  can rewrite `.agent.md` and create drift.
+  `commands/`, or the generator; regenerate once. A VS Code tools-picker change can dirty the open
+  generated `.agent.md` buffer without changing disk; saving creates drift, and `git status` cannot
+  detect it beforehand. Check both the editor dirty state and `git status` before regenerating.
 - Plugin agents silently ignore `hooks:`, `mcpServers:`, `permissionMode:`, and unknown frontmatter
   keys. The guard belongs in `hooks/hooks.json`; every new key must be a documented Claude field.
 - Agent `model:` accepts only `haiku`, `sonnet`, `opus`, `fable`, or `inherit`; full model IDs are

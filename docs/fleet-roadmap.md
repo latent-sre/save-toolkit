@@ -101,10 +101,10 @@ external data/cost boundary and the remaining guarantees can be proven.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `blocked` (2026-08-24) — the current Windows host has VS Code and extensions, but its
-installed set contains neither `github.copilot` nor `github.copilot-chat`; no approved authenticated
-GitHub Copilot tools surface is available to observe. No profile installation or mutation was
-performed to manufacture the prerequisite.
+**Status:** `active` (2026-08-24) — a disposable authenticated VS Code 1.134.0 profile measured the
+picker's configuration and buffer-write behavior, but no `execute` call or host denial ran and the
+raw transcript/envelopes remain operator-local. Invocation authority and durable review evidence
+therefore remain open acceptance gaps.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
 inference, and the fleet knows whether the read-only guard is portable to that host or whether
@@ -118,8 +118,8 @@ surface (`chat.useClaudeHooks` and friends) exists. `[sourced]` at one remove �
 `microsoft/vscode` @ `0157e11` and `vscode-docs` @ `95cc3b3b`, read by the research lane and not
 confirmed here: omitting a tool sets an explicit `false`; session selection outranks the agent
 file; only extension agents are read-only; the picker writes the user's change back; a prompt
-file's `tools:` outranks a referenced agent's. The second base is what makes `tools:` a default
-rather than a boundary, and it is the half this item must confirm by observation.
+file's `tools:` outranks a referenced agent's. Those sources predict configuration precedence; they
+do not establish invocation authority on the current host.
 
 **Current environment:** `[verified]` On 2026-08-24, `code --version` reported VS Code 1.134.0,
 commit `110a328ea54b42367b803ec53ee0bf52ef26b419`, x64. The installed extension list contains
@@ -127,23 +127,36 @@ development, operations, Claude, and OpenAI tooling, but neither GitHub Copilot 
 above. This establishes only that the approved probe cannot start here, not any tool-enforcement
 behavior.
 
+**Measured evidence (2026-08-24):** `[verified]` The
+[`HOST-002 VS Code tool-enforcement packet`](reviews/2026-08-24-host-002-vscode-tool-enforcement.md)
+records VS Code 1.134.0 at commit `110a328ea54b42367b803ec53ee0bf52ef26b419` with built-in Copilot
+Chat 0.62.0. Every tested omitted built-in tool remained offered but disabled. `sre` offered
+`execute` off by default; enabling it in the built-in Agent picker was explicitly global, survived
+the switch to `sre`, and dirtied the open generated-agent editor buffer without changing its
+on-disk digest. This proves a configuration/write-back path only. No command was submitted after
+that clean-file precondition failed, so whether `sre` can invoke `execute` or the host denies it is
+`[unverified]`. The buffer, picker defaults, file digests, Git status, and Gate A 6/6 were restored.
+The transcript and envelopes are bound by local hashes but are not yet in a durable reviewable
+location, so they cannot close HOST-002. Hook identity/portability remains unverified and no hook
+was wired.
+
 **Prerequisites:** Use an installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
 observational: it changes no live system, and it neither authorizes nor implies a Copilot hook
 implementation.
 
-**Acceptance:** A dated review packet records, from an observed session, whether the tools picker
-offers `execute` to `sre`; whether a session-level override reinstates it; and whether using the
-picker mutates `.github/agents/sre.agent.md` on disk. It states the VS Code build tested, keeps
-`[verified]`/`[sourced]` labels honest, and either confirms the `AGENTS.md` VS Code limit or replaces
-it with the measured behavior. Any hook-portability finding is recorded as evidence only; wiring a
-Copilot hook is separate work needing its own review.
+**Acceptance:** A dated packet and durable, non-secret transcript/envelopes record whether the tools
+picker offers `execute` to `sre`; whether an override changes the configuration; whether the active
+generated buffer or on-disk file changes; and whether a safe invocation runs or receives an explicit
+host denial. It states the exact build and keeps configuration evidence separate from invocation
+authority. An operator-local artifact and hash are not closure evidence. Any hook-portability
+finding is evidence only; wiring a Copilot hook is separate work needing its own review.
 
-**Next action:** Provision the missing Copilot surface in an approved disposable profile, then run
-the linked [`HOST-002 VS Code tool-enforcement probe`](probes/host-002-vscode-tool-enforcement.md),
-validate its per-criterion evidence envelopes, and record the dated packet. Do not weaken the
-`AGENTS.md` limit on inference alone, and do not populate `hooks/copilot-hooks.json` before a probe
-shows the payload can scope to an exact agent identity.
+**Next action:** Run the corrected probe in a new disposable profile. Keep the generated editor
+buffer clean, then observe the safe `git status --short` call or an explicit host denial and retain
+the non-secret transcript/envelopes in an approved durable review location without adding the
+operator-local ZIP. Do not populate `hooks/copilot-hooks.json` before a separate probe shows that
+its payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
