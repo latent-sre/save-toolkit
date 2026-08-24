@@ -105,10 +105,10 @@ generated host contract:
 | Agent | Prompt-body characters | Headroom to 30,000 |
 |---|---:|---:|
 | `sde` | 21,584 | 8,416 |
-| `reviewer` | 19,420 | 10,580 |
+| `reviewer` | 19,428 | 10,572 |
 | `observability-engineer` | 17,596 | 12,404 |
 | `sre` | 17,309 | 12,691 |
-| `scribe` | 14,659 | 15,341 |
+| `scribe` | 14,667 | 15,333 |
 | `prompt-engineer` | 9,140 | 20,860 |
 | `researcher` | 7,511 | 22,489 |
 | `repository-investigator` | 3,491 | 26,509 |
@@ -121,8 +121,9 @@ not reject a future over-limit prompt.
 1. `[verified]` `agents/scribe.md` contained the malformed sentence “Copilot receives no execute or
    On a host...”, omitting “web tool.” The candidate restores the intended host boundary sentence.
 2. `[verified]` `scribe` and `reviewer` handoff templates claimed `[trusted] code/CI you ran` even
-   though both roles intentionally lack execution. The candidate changes this to trusted-base code
-   read or authenticated CI evidence; it does not widen tools or authority.
+   though both roles intentionally lack execution. The candidate limits `[trusted]` to trusted-base
+   code read and keeps CI output `[UNTRUSTED]` even when its provenance is authenticated; it does not
+   widen tools or authority.
 3. `[verified]` A focused over-limit fixture failed before the generator guard because no exception
    was raised, then passed after the guard rejected a generated prompt above 30,000 characters.
 

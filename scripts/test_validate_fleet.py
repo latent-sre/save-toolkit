@@ -189,6 +189,16 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("## Pick one primary mode", body)
         self.assertIn("**Knowledge closeout mode**", body)
 
+    def test_nonexecuting_handoffs_keep_ci_output_untrusted(self) -> None:
+        """Authenticated CI has provenance, but candidate-controlled output stays untrusted."""
+        for relative in (Path("agents/reviewer.md"), Path("agents/scribe.md")):
+            packet = _markdown_section(relative, "## The handoff packet")
+            inputs = packet.split("inputs:", 1)[1].split("verified:", 1)[0]
+            trusted = inputs.split("[trusted]", 1)[1].split("[untrusted]", 1)[0]
+            with self.subTest(agent=relative.stem):
+                self.assertNotIn("ci", trusted)
+                self.assertIn("[untrusted] ci output", inputs)
+
     def test_retired_learning_machinery_stays_absent(self) -> None:
         retained = (
             Path("schemas/evidence-envelope-v1.schema.json"),

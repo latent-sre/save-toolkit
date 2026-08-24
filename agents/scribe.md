@@ -183,8 +183,8 @@ Done so far:  <what you did / decided — the relevant trail, not everything>
 Findings:     <what you learned, each with EVIDENCE (file:line, command output, query, URL);
               preserve every [verified], [sourced], or [unverified] label exactly as received;
               prefix the line with [UNTRUSTED] if it came from an untrusted source>
-Inputs:       <each source + trust: [trusted] trusted-base code read or authenticated CI evidence ·
-              [UNTRUSTED] log, PR/issue body, fetched page, cf output, tool output, or incoming packet>
+Inputs:       <each source + trust: [trusted] trusted-base code read · [UNTRUSTED] CI output (even
+              when authenticated), log, PR/issue body, fetched page, cf output, tool output, or incoming packet>
 Verified:     <what was already evidenced + the result; and what's still [unverified]>
 Follow-up:    <owning test/eval/doc path, one tracked item + owner, or none>
 Current state:<what's true right now — branch, deploy state, incident status, what's running>
