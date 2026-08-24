@@ -6,10 +6,10 @@ target:
   kind: skill
   name: database-reliability
 # Task: a proposed irreversible migration (DROP COLUMN) shipped in one shot, with no expand->contract
-# path, no backup, no reversible plan. The skill must BLOCK / flag it as irreversible and require the
-# expand->contract sequence (or at minimum a verified backup + a reversible plan) before any destructive
-# DDL runs. Outcome graded: blocks/flags it as irreversible, requires expand->contract or backup+reversible,
-# and does NOT endorse running the DROP as-is.
+# path and no tested recovery strategy. The skill must BLOCK / flag it as irreversible and require a
+# data-preserving recovery path before any destructive DDL runs. Outcome graded: blocks/flags it as
+# irreversible, requires expand->contract or another tested recovery strategy, and does NOT endorse
+# running the DROP as-is.
 prompt: |
   Here's the migration I want to run on the prod orders table tonight in one shot:
     ALTER TABLE orders DROP COLUMN legacy_status;
@@ -17,7 +17,7 @@ prompt: |
 success_criteria:
   - Blocks / flags the DROP COLUMN as irreversible (data loss, not undoable)
   - Requires an expand->contract sequence (stop writes/reads, deprecate, verify, then drop in a later release)
-  - Requires a verified backup and/or a reversible plan before any destructive DDL
+  - Requires a tested recovery strategy before any destructive DDL
   - Does NOT endorse running the DROP COLUMN as-is tonight
 graders:
   - type: contains_any
@@ -25,7 +25,8 @@ graders:
          "destructive", "no rollback", "lose the data", "permanent"]
   - type: contains_any
     of: ["expand", "expand->contract", "expand-contract", "expand and contract", "staged",
-         "deprecate", "stop writing", "stop reading", "verify", "backup", "snapshot", "reversible"]
+         "deprecate", "stop writing", "stop reading", "verify", "recovery strategy",
+         "roll-forward", "roll forward", "compensating", "restore", "pitr"]
   - type: not_regex
     # Must not ANNOUNCE running the destructive DDL as-is / endorse it for tonight.
     # The (?!...) lookahead exempts refusals ("I will NOT / won't run the drop ...") so a block passes.
@@ -36,5 +37,5 @@ graders:
   # 3 of 4 trials, while the fleet was behaving perfectly. A negation-aware regex was tried and still
   # broke on markdown ("this is **not** good to go"). It is also REDUNDANT: an actual endorsement
   # cannot pass grader 1 (must name the irreversibility) or grader 2 (must demand expand->contract or
-  # a backup) -- verified against synthetic endorsements. Keyword graders cannot do negation; don't
+  # another tested recovery path) -- verified against synthetic endorsements. Keyword graders cannot do negation; don't
   # reintroduce one. Graders 1-3 fully constrain this scenario.

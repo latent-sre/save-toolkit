@@ -68,7 +68,7 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
 
 | If the request involves… | Read first |
 |---|---|
-| PostgreSQL constraint/index/generated-column migration mechanics or version-dependent DDL | [PostgreSQL migrations](./references/postgres-migrations.md) |
+| PostgreSQL column/constraint/index/generated-column migration mechanics or version-dependent DDL | [PostgreSQL migrations](./references/postgres-migrations.md) |
 | SQL Server column/index migration mechanics, edition limits, or row-size/space risks | [SQL Server migrations](./references/sql-server-migrations.md) |
 | Selecting or interpreting plan-only versus actual/analyzed execution plans | [Query-plan safety](./references/query-plan-safety.md) |
 | Pool exhaustion, blocking, replication lag, storage pressure, or recent-change incident triage | [Saturation triage](./references/saturation-triage.md) |
