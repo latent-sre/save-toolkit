@@ -64,14 +64,16 @@ and starts a fresh non-persistent process for every trial. It supports `--mode`,
 `--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`. The discovery regression command
 selects skill targets only; agent-target discovery cases are optional calibration measurements.
 
-Direct skills are pinned with `/save-toolkit:<skill>`; direct agents use
+Direct skills are requested with an explicit instruction to invoke the exact
+`save-toolkit:<skill>` through the `Skill` tool; direct agents use
 `--agent save-toolkit:<agent>`. These two pins are not equivalent evidence. `--agent` runs the
 session AS the agent, so the pin itself is the invocation and the direct-agent contract is graded on
-its response alone. A direct-skill pin only prepends `/save-toolkit:<skill>` to the prompt: if that
-slash expansion no-ops, the main model can answer inline and the response graders pass on reasoning
-the skill never contributed. So a direct-skill trial additionally asserts the pinned skill actually
-completed — the same completed-`tool_use`/`tool_result` evidence and namespace resolution the
-discovery routing grader uses — and fails with a `skill-fired` FAIL if it did not.
+its response alone. A direct-skill instruction can be ignored while the main model answers inline,
+so the instruction itself is not proof. A direct-skill trial additionally asserts that the named
+skill actually completed — the same completed-`tool_use`/`tool_result` evidence and namespace
+resolution the discovery routing grader uses — and fails with a `skill-fired` FAIL if it did not.
+Init metadata that lists available skills or slash commands does not identify which skill
+contributed to the turn and is never credited as an invocation.
 Discovery passes the scenario prompt byte-for-byte: no slash command,
 agent flag, English hint, or target rewrite. The runner requests `stream-json` and credits a component
 only when a `tool_use.id` has a matching, non-error `tool_result.tool_use_id`. Attempted, denied,

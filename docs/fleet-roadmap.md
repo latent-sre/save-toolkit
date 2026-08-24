@@ -35,6 +35,7 @@ list. An item with no surviving evidence document closed into a live contract in
 | `EVAL-001` | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Its only named trigger was a release decision, the parked suite no longer matches the current plugin identity or roster, and Codex stopped being a distribution target — no fleet component runs on Sol, so the trigger can no longer fire. Tag `pre-trim-2026-08-02` preserves the historical bytes — [ADR](decisions/2026-08-23-retire-codex-distribution-target.md) |
 | `AUDIT-002` (Batch 1) | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Implementation and review corrections merged in PR [#141](https://github.com/latent-sre/save-toolkit/pull/141) at merge commit `09e775b`, final head `11b8041`. Batch 1 selected no graph runtime, added no unconsumed schema, and activated no SRE capability addition; two positive-route reliability gaps moved to deferred `ROUTE-003` rather than triggering retries against unchanged bytes. Evidence: [`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) |
 | `DOCTOR-001` | 2026-08-23 | Installed-layout `fleet_doctor` now separates checkout and plugin evidence, validates each payload's first authenticated guard answer and independently trusted launcher bytes, and degrades repository-only checks outside a checkout. Final head `505f9b5`, merged in PR [#152](https://github.com/latent-sre/save-toolkit/pull/152) at `e76d38b` |
+| `GRADER-002` | 2026-08-23 | Direct-skill trials now request the exact `Skill` invocation and still require its completed tool result; availability-only init metadata and inline answers fail closed. Red-first command coverage failed before the fix, then 78/78 runner tests and all 84 scenario validations passed. On Claude Code 2.1.241 with `claude-opus-5`, runs `20260824T042540Z-4ab1a447` and `20260824T042627Z-32eef19c` passed the approved and missing-authority production gate cases 2/2 each, with all four trials completing `save-toolkit:production-change-gate`; both bind eval-suite SHA-256 `5cebd64a5c076c5c1cf44814809e309b8b969c5b6aec21e9ed161f8ddf9ba91d` |
 
 The local Sol evaluator decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
@@ -477,53 +478,6 @@ detail in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-
 `obs-alerting`/`obs-logs` scenarios against the changed descriptions and show they remain green. If
 one is red, run that scenario at the prior revision to attribute it. Then close. Do not close on the
 defer scenario alone.
-
-### GRADER-002 — bind direct-skill trials to current slash-command expansion
-
-**Status:** `ready` (2026-08-22).
-
-**Outcome:** A direct-skill trial proves that the named skill contributed without requiring a legacy
-`Skill` tool event, while an answer produced without the skill still fails closed.
-
-**Source:** `[verified]` on Claude CLI 2.1.240 in runs `20260822T234553Z-3b860051` and
-`20260822T235252Z-a9531e1a`. The runtime listed `save-toolkit:production-change-gate`, the slash
-command produced version-specific skill behavior, and every trace still reported `skills=[]`.
-Consequently both behaviorally approved candidate trials were marked FAIL only by `skill-fired`.
-Reconfirmed on candidate `e51f9ec62cebc1883e1f9a6cfba3b716f5d2ab1b` in run
-`20260823T005205Z-27dbcbfe`: both trials returned `APPROVED` and passed every response grader; only
-the absent skill-completion event kept the aggregate red. *[verified]*
-Review repair on Claude CLI 2.1.241 added the paired missing-authority case. An uncommitted
-weakened-rule mutation (`plugin_inputs_dirty=true`) incorrectly returned `APPROVED` 2/2 in
-`20260823T011640Z-4e6a6eaa`; restored candidate
-`e6f6178d755501bd3aad1ddc40c92e4669ff18c1` returned `BLOCKED` 2/2 for that case in
-`20260823T012204Z-1a382e31` and `APPROVED` 2/2 for the complete packet in
-`20260823T012314Z-ec65c221`. Every response grader passed on the restored pair; only `skill-fired`
-remained red because both traces still reported `skills=[]`. *[verified]*
-Post-review hardening on candidate `3a1fe384485911b610326b4cb4ce6a635987bd0d` rejects a negated
-specific binding, a BLOCKED verdict whose actual deficit is unrelated while the binding is present,
-and each individually omitted required checklist acknowledgement (446/446 offline checks). Fresh
-CLI 2.1.241 runs `20260823T021128Z-d180d56d` and `20260823T021249Z-28262e5d` returned
-`APPROVED` 2/2 and `BLOCKED` 2/2 respectively; every response grader passed and only `skill-fired`
-remained red because all four traces still reported `skills=[]`. *[verified]*
-Plugin-input rereview hardening on candidate `3f06dcc05edf8fd69eb9c0556164498387698f07` also rejects
-direct `does not establish` authority, double-negated missing evidence, and individually negated
-checklist acknowledgements (466/466 offline checks). Run `20260823T023336Z-c0983823` exposed and
-stopped on a Windows CP1252 diagnostic failure before completing; a red-first portability check now
-keeps grader specs printable. Fresh runs `20260823T024010Z-4eaa212c` and
-`20260823T024148Z-cfe1ecb5` returned `APPROVED` 2/2 and `BLOCKED` 2/2 respectively; every response
-grader passed and only `skill-fired` remained red because all four traces reported `skills=[]`.
-*[verified]*
-
-**Prerequisites:** Identify a stable trace or invocation signal for slash-command expansion. Do not
-infer contribution from answer prose alone.
-
-**Acceptance:** Focused red-first fixtures cover the current expansion shape and the legacy tool-event
-shape; the paired approved and missing-authority production-gate scenarios each pass 2/2; and the
-existing inline-answer control remains red when no skill contributes.
-
-**Next action:** Capture the smallest current trace around one direct slash command, then either grade
-its expansion signal or make direct mode invoke the skill explicitly. Keep the response-text fallback
-forbidden.
 
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
