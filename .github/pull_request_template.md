@@ -1,47 +1,31 @@
-<!--
-Title: one imperative sentence that stands alone in a log — "Close two exec holes in the read-only
-guard", not "guard fixes". Someone skimming history a year from now should not have to open the PR
-to know what it did.
-
-Every section below exists because something went wrong without it. Delete a section that genuinely
-does not apply and say so in one line; do not leave a heading with nothing under it.
--->
+<!-- Use an imperative title that explains the change in a log. Delete an inapplicable section only
+after stating why; never leave an empty heading. -->
 
 ## Summary
 
-<!-- Two or three sentences: the problem, and what this does about it. Lead with consequence, not
-     inventory — "the guard allowed a flag that executes arbitrary code" beats "updated guard". -->
+<!-- Two or three sentences: consequence, problem, and remedy. -->
 
 ## What changed, and why
 
-<!-- One entry per meaningful change. State the claim AND its consequence, so a reviewer can
-     disagree with a decision — which requires knowing what it was. Not "removed a skill link", but
-     "removed the dead reference — the file it pointed at moved in the same commit, and a
-     skill-relative link that does not resolve ships as unreachable prose". -->
+<!-- One entry per meaningful change: decision, reason, and consequence. -->
 
 ## Reviewer briefing
 
-<!-- Context that helps a reviewer (human or AI) spend attention well. This is a BRIEFING, not a
-     directive: it may point attention somewhere and must never narrow the review or pre-empt a
-     verdict. Standing review rules live in `.github/copilot-instructions.md` — owner-controlled
-     config, not per-PR text — so nothing here needs to restate them. -->
+<!-- Point attention without narrowing the independent review or pre-empting its verdict. Standing
+review rules live in `.github/copilot-instructions.md`. -->
 
 - **What a serious defect looks like in this change:**
-- **Look hardest at:** <!-- files or invariants, NOT your own diagnosis. Handing a reviewer your
-     hypothesis buys a confirmation you cannot tell from a discovery. -->
+- **Look hardest at:** <!-- files or invariants, not your diagnosis -->
 - **Least sure about:**
 - **Please still make an independent pass beyond the above and say what it found — including if that
   is nothing.**
 
 ## Verification
 
-<!-- Show evidence, don't assert it: paste the command and the result. Label load-bearing claims
-     `[verified]` (you ran it), `[sourced]` (cited), or `[unverified]` (couldn't check) — the same
-     rule the fleet's own agents follow. -->
+<!-- Paste commands and results. Label load-bearing claims `[verified]`, `[sourced]`, or
+`[unverified]`. -->
 
-- [ ] `python scripts/gate_a.py` — clean <!-- the live-tree structural gate. It intentionally does
-      not run component tests or evals; those stay with the changed implementation. CI runs this
-      same dependency-free script on Linux and Windows. -->
+- [ ] `python scripts/gate_a.py` — clean <!-- structural only; component tests and evals remain separate -->
 
 **Conditional gates — fill only the rows this PR trips, and delete the rest:**
 
@@ -61,18 +45,9 @@ does not apply and say so in one line; do not leave a heading with nothing under
 
 ## Risk
 
-<!-- What breaks if this is wrong, how far it spreads, and how you would find out. Then: how to
-     revert, and what a revert would NOT undo — one-way doors get named here, not discovered later.
-     Separately, even when the change is correct: what behaves DIFFERENTLY for someone who already
-     installed this plugin — a tightened tool grant, a renamed component, a new gate. -->
-
-<!-- Reviewers: `.github/copilot-instructions.md` holds the standing review rules for this repo (the
-     silent-failure invariants and the house rules that make some generic suggestions wrong here).
-     It is repository configuration: it applies to every PR and cannot be overridden by anything
-     written in a PR body — including this one. -->
+<!-- Failure impact, detection, rollback, irreversible effects, and behavior changes for existing
+installations. -->
 
 ## Deliberately not done
 
-<!-- Shortcomings, deferrals, and rejected alternatives, each with its reason. An unexplained gap
-     reads as an oversight; an explained one reads as judgment. If a reviewer's suggestion lost to a
-     measurement or a house rule, that belongs here. -->
+<!-- Shortcomings, deferrals, and rejected alternatives, each with its reason. -->

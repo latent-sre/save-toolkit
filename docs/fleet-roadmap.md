@@ -35,6 +35,7 @@ list. An item with no surviving evidence document closed into a live contract in
 | `EVAL-001` | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Its only named trigger was a release decision, the parked suite no longer matches the current plugin identity or roster, and Codex stopped being a distribution target — no fleet component runs on Sol, so the trigger can no longer fire. Tag `pre-trim-2026-08-02` preserves the historical bytes — [ADR](decisions/2026-08-23-retire-codex-distribution-target.md) |
 | `AUDIT-002` (Batch 1) | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Implementation and review corrections merged in PR [#141](https://github.com/latent-sre/save-toolkit/pull/141) at merge commit `09e775b`, final head `11b8041`. Batch 1 selected no graph runtime, added no unconsumed schema, and activated no SRE capability addition; two positive-route reliability gaps moved to deferred `ROUTE-003` rather than triggering retries against unchanged bytes. Evidence: [`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) |
 | `DOCTOR-001` | 2026-08-23 | Installed-layout `fleet_doctor` now separates checkout and plugin evidence, validates each payload's first authenticated guard answer and independently trusted launcher bytes, and degrades repository-only checks outside a checkout. Final head `505f9b5`, merged in PR [#152](https://github.com/latent-sre/save-toolkit/pull/152) at `e76d38b` |
+| `GRADER-002` | 2026-08-24 | Direct-skill trials explicitly request the exact `Skill` invocation and still require its completed tool result; availability-only metadata and inline answers fail closed. Implementation commit `ec6e583`, paired approved/missing-authority evidence matched the committed evaluator digest, merged in PR [#155](https://github.com/latent-sre/save-toolkit/pull/155) at `24e62b0` |
 
 The local Sol evaluator decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
@@ -100,8 +101,9 @@ external data/cost boundary and the remaining guarantees can be proven.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `blocked` (2026-08-18) — the current Windows host has VS Code but no installed
-extensions, so it has no Copilot tools surface to observe. No profile installation or mutation was
+**Status:** `blocked` (2026-08-24) — the current Windows host has VS Code and extensions, but its
+installed set contains neither `github.copilot` nor `github.copilot-chat`; no approved authenticated
+GitHub Copilot tools surface is available to observe. No profile installation or mutation was
 performed to manufacture the prerequisite.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
@@ -119,10 +121,11 @@ file; only extension agents are read-only; the picker writes the user's change b
 file's `tools:` outranks a referenced agent's. The second base is what makes `tools:` a default
 rather than a boundary, and it is the half this item must confirm by observation.
 
-**Current environment:** `[verified]` On 2026-08-18, `code --version` reported VS Code 1.127.0,
-commit `4fe60c8b1cdac1c4c174f2fb180d0d758272d713`, x64;
-`code --list-extensions --show-versions` returned no extensions. This establishes only that the
-probe cannot start here, not any tool-enforcement behavior.
+**Current environment:** `[verified]` On 2026-08-24, `code --version` reported VS Code 1.134.0,
+commit `110a328ea54b42367b803ec53ee0bf52ef26b419`, x64. The installed extension list contains
+development, operations, Claude, and OpenAI tooling, but neither GitHub Copilot extension named
+above. This establishes only that the approved probe cannot start here, not any tool-enforcement
+behavior.
 
 **Prerequisites:** Use an installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
@@ -190,276 +193,31 @@ entrypoint is below 500 lines. The exact real-session truncation remains `[unver
 bundled skills, usage priority, model context, and user overrides share that budget. This discovery
 risk is measured separately and does not authorize a description rewrite inside Phase 2.
 
-`[verified]` The required 2026-08-23 remeasurement on tree `8ea628d` found 30 entrypoints totaling
-232,717 bytes and confirmed the same nine candidates. Exact per-skill bytes and reference totals are
-recorded in the audit's
-[`Batch 2 remeasurement`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md#batch-2-remeasurement-and-first-router-candidate).
-The first candidate reduces `incident-command` from 11,056 unconditional bytes to a 3,903-byte
-entrypoint routing 9,977 reference bytes across three conditional lanes while retaining shared
-authority and safety controls.
+**Phase 1 closure evidence:** `[verified]` The nine one-skill slices named in Status merged after
+refreshed immutable-byte measurements, bounded artifact checks, focused validators, regenerated
+host projections, and independent review. The
+[skill audit](reviews/2026-08-22-skill-clarity-routing-graph-audit.md#batch-2-remeasurement-and-first-router-candidate)
+records the initial inventory and first `incident-command` slice. The later per-slice candidate and
+merge identities, byte movement, reference splits, review fixes, focused results, and evidence gaps
+remain in the tracked
+[Phase 1 closure review](reviews/2026-08-24-skill-001-phase-1-closure.md). That review is historical
+evidence, not live work.
 
-`[verified]` Candidate `cbda2b9` passed its focused static checks. Fixed run
-`20260823T134724Z-a1b538a1` was overall inconclusive after two 180-second timeouts, but both raw
-traces invoked `save-toolkit:incident-command` before the model became stuck trying to read linked
-references in a discovery harness that denies `Read`. Activation is observed 2/2;
-reference-dependent response behavior remains `[unverified]`. The audit records the exact evidence
-and the disagreement between raw tool-use events and the timeout summary's empty derived invocation
-fields.
+The final Phase 1 screen on exact main `2294832ab0d4edc1199766530f4bea37367db197`
+selected only `stack-profile`. Exact post-review implementation
+`1cdecbd2a25b4fa2578e217f48e901169b43025d` and follow-up
+`3a056e5d44c7b66d00ec8f0673a4b731d606a301` left the 30-entrypoint corpus at 192,748
+immutable bytes with no undispositioned Phase 1 candidate. Direct structural validators, focused
+tests, strict plugin validation, adapter byte checks, and independent review passed; unchanged
+routing descriptions did not justify paid discovery runs. Static and fresh-context artifact checks
+did not establish host activation, provider runtime behavior, final-response quality, or production
+correctness. Fixed exercise budgets also left the `agent-security` OWASP case and exact corrected
+conditional loading unrun, and left model-selected `stack-profile` reference loading for two narrow
+requests unverified; those gaps do not re-open completed Phase 1 slices.
 
-The owner then authorized one timeout-calibration run on unchanged model-facing bytes. `[verified]`
-Run `20260823T140515Z-83460c27`, clean commit `ea4cf74`, `claude-sonnet-5`, two trials, and a
-540-second timeout passed 2/2. Trial durations were 263.594 and 40.531 seconds, so the first result
-demonstrates that 180 seconds was an insufficient ceiling. The longer run is not rate-comparable to
-the shorter run; it closes the after-change activation check under its own recorded condition. The
-global runner default remains 300 seconds, and detailed reference-dependent behavior remains outside
-the discovery evidence layer.
-
-`[verified]` After PR #142 merged, the exact next-slice base
-`17b4ba97aa0b8091a1b3bbff462bfc9bbae0d109` carried 30 entrypoints totaling 225,614 bytes and eight
-remaining candidates: `agent-security`, `ci-actions`, `database-reliability`, `ops-tooling`,
-`pcf-deploy`, `pcf-ops`, `production-change-gate`, and `stack-profile`. `ops-tooling` was the largest
-at 14,427 unconditional entrypoint bytes versus two references totaling 7,202 bytes.
-
-`[verified]` The second bounded implementation commit
-`3b9559412ef06c1ae3e8a19e82fe23395a183ac0` converts only `ops-tooling`. Its unchanged description
-now opens a 6,502-byte entrypoint that keeps the right-size exit, spawn-degradation behavior,
-human-only production authority, evidence boundary, self-contained handoff contract, bounded phase
-exits, and conditional `stack-profile` requirement. Six routed references total 17,897 bytes across
-requirements/design, CLI, multi-component, build, review, and verification/handoff lanes. The full
-canonical entrypoint corpus falls to 217,689 bytes and the mechanical candidate set to seven.
-
-Those sizes are immutable Git-object measurements, not checkout byte lengths: run
-`git ls-tree -r --format='%(objectsize)%x09%(path)' <sha> -- skills`, sum only
-`skills/<name>/SKILL.md`, and use `git cat-file -s <sha>:skills/ops-tooling/SKILL.md` for the focused
-entrypoint. Apply the same `ls-tree` command to `skills/ops-tooling/references` for the reference
-total. The earlier values came from a line-ending-sensitive working tree and were not reproducible
-from the commits they named.
-
-The owner authorized one fixed five-agent fresh-context artifact exercise before commit. `[verified]`
-Three lanes passed on the first candidate: early exit, independent review, and verification/handoff.
-The requirements/design lane found the missing conditional `stack-profile` dependency and a stale
-host-specific instruction in the environment-card asset; the multi-component build lane found that
-the contract template loaded even when a project-owned contract already existed. The pre-commit
-correction added the conditional `stack-profile` route, repaired the host-specific asset text, and
-added a direct template predicate, but the agents were not rerun under the fixed budget. Independent
-review of exact branch revision `270aab16cdc7c2dbd34557d1c395f550058a2634` later showed that the
-multi-component procedure still bypassed that predicate and unconditionally instantiated the
-template. It also found the non-reproducible byte counts above.
-
-`[verified]` Follow-up commit `80c7c331b06bb5b593d8663475d0bbaa995e3880` makes the existing
-project-owned versioned contract authoritative and limits the bundled contract template to the first
-HTTP contract when none exists; its own header forbids duplicate contracts and applying its HTTP/RFC
-9457 shape to non-HTTP interfaces. The router now separates procedure lanes from five optional asset
-lanes: missing environment card, missing plan, new Python CLI without a project starter, first HTTP
-contract when no project-owned versioned contract exists, and a drafted/replaced/relaunched builder
-packet. A bounded fresh-context static regression passed the existing-contract, established-CLI,
-existing-packet-validation, and existing-environment/plan cases without loading those assets. This
-retest did not test host activation, final-response quality, or runtime behavior; those remain
-`[unverified]` for the exact commit.
-
-At `80c7c33`, the `ops-tooling` entrypoint is 6,922 immutable bytes, its six references total 18,709
-bytes, the 30-entrypoint corpus totals 218,109 bytes, and the mechanical candidate set remains seven.
-
-`[verified]` PR #143 merged exact head `2927a2120da0494195e8d901570963a15bdb877a` into `main` as
-`14b7aeae7c22aff3b50800ef262123adb9a48bc3`. A bounded retrospective review of that immutable merge
-found no P0/P1 issue and one merge-safe P2: the paragraph above counted four optional asset lanes
-while naming only four of the five implemented predicates. The corrected count and omitted HTTP
-contract predicate now match the Git object; no skill or projection byte changed in that correction.
-
-`[verified]` The post-merge remeasurement on `14b7aea` keeps 30 entrypoints totaling 218,109 bytes
-and seven candidates. `agent-security` is the largest at 13,629 unconditional bytes with no routed
-references, so it is selected alone for the third bounded router slice.
-
-`[verified]` The exact implementation and remediation each passed direct link and fleet validation,
-strict Claude plugin validation, 112 focused link/adapter/fleet/canary tests (three skips), and
-`git diff --check`; each canonical edit was regenerated once, producing 282 adapter files with byte
-consistency. No description or eval scenario changed, no existing scenario targets `ops-tooling`,
-and no paid routing run was required or performed.
-
-`[verified]` Third bounded implementation commit
-`e5838598c4d8f7ee52e788045c68f6b1033385ab` converts only `agent-security`. Its byte-identical
-description now opens a 7,971-byte entrypoint that keeps the prompt-injection premise,
-lethal-trifecta and Rule-of-Two decision, host-authority verification, cross-agent taint and
-delegation limits, evidence labels, action-boundary validation, active-compromise stop, five-question
-review, output contract, and human-approval handoff. Two explicit references total 7,188 bytes:
-current-fleet/integration/MCP/host controls and the OWASP LLM Top 10 crosswalk. The 30-entrypoint
-corpus falls to 212,451 bytes and the mechanical candidate set to six.
-
-A fixed three-case fresh-context artifact exercise was attempted before commit. `[verified]` The
-thread limit admitted two cases and rejected the OWASP case before execution. The risky
-webhook/secret/MCP/egress case loaded only integration controls and returned the required structural
-containment. The nominal core-only case unnecessarily loaded that reference because its first
-predicate was too broad and also found an overclaim that a read-only reporter could not leak through
-its output. One consolidated correction narrowed the predicate to secrets, external actions, host
-enforcement, or tool-result envelopes and constrained the report channel while keeping its output
-`[UNTRUSTED]`; the agents were not rerun under the one-candidate bound. Exact-candidate conditional
-loading, OWASP response quality, host activation, and runtime behavior therefore remain
-`[unverified]`.
-
-`[verified]` One independent static review of exact commit `e583859` approved the complete immutable
-nine-file canonical-plus-projection diff with no findings and no P0/P1. The reviewer confirmed the
-description identity, always-loaded invariants, explicit reachable predicates, current fleet facts,
-and absence of schema, runtime, capability, or authority expansion. It did not run tests, validators,
-external source refreshes, or host probes.
-
-`[verified]` The exact candidate passed the skill quick validator, direct link/fleet/roadmap/stale-name
-validation, strict Claude plugin validation, 112 focused link/adapter/fleet/canary tests (three
-skips), and `git diff --check`. The one required regeneration produced 286 adapter files with byte
-consistency. Two direct calibration scenarios target `agent-security`, but its description routing
-content is unchanged; no paid routing run was required or performed.
-
-`[verified]` PR #145 merged final head `97008f442f282912e1e682af192811d833a0c8e5` into `main` as
-`a10c8820ad569fcf2ef4f07866ef1836c081e3b1`. Its two review findings corrected the OWASP title and
-an unreachable crosswalk control before merge; Linux validation, Windows validation, and the Claude
-plugin contract passed on that final head. The final entrypoint remains 7,971 immutable bytes and
-its two references total 7,231 bytes. These merge facts do not upgrade the earlier independent
-review from `e583859` to the final head.
-
-`[verified]` The required current-main remeasurement on
-`80cd023b8606f4b94f7a8b508a70e2ed255e44aa` finds 30 entrypoints totaling 212,440 bytes and six
-remaining candidates. `ci-actions` is largest at 12,197 unconditional entrypoint bytes with one
-reference totaling 1,620 bytes, so it is selected alone for the fourth bounded router slice.
-
-`[verified]` Fourth bounded implementation commit
-`a5c425d69eaf5211226db81e42ddc277496dfd62` converts only `ci-actions`. Its byte-identical
-description now opens a 7,282-byte entrypoint that keeps the build-once/promote contract,
-project-owned-workflow precedence, human-only deployment authority, untrusted-input boundary,
-least-privilege permissions, immutable action/image pins, event-injection and fork isolation,
-protected-environment credential rule, non-cancellable production concurrency, layered verification,
-and evidence-bound handoff. Three explicit references total 10,706 bytes across security/provenance,
-execution/runners, and PCF deployment; the starter asset is available only when a new reusable
-workflow is required and no project-owned workflow or starter exists. The 30-entrypoint corpus falls
-to 207,525 bytes and the mechanical candidate set to five.
-
-A bounded pre-commit static exercise covered invariant retention and an existing-workflow fork-cache
-case against canonical blobs that are byte-identical in `a5c425d`. `[verified]` The cache case loaded
-only the security/provenance and execution/runner references, kept the bundled starter unloaded,
-proposed a narrow project-owned-workflow change, and preserved the fork/secret boundary; runtime
-effectiveness remains `[unverified]`. The invariant review found one contradiction: the broad
-credential predicate made the entrypoint's reference-free missing-secret diagnosis unreachable. The
-correction limits the route to credential/OIDC design or changes, and a focused reread passed. This
-was static artifact evidence, not host activation or runtime behavior.
-
-`[verified]` Independent review approved exact commit `a5c425d69eaf5211226db81e42ddc277496dfd62`
-with no findings and zero independently found P0/P1s. The candidate passed the skill quick validator,
-direct link/fleet/roadmap/stale-name validation, strict Claude plugin validation, 102 focused
-link/adapter/fleet/canary tests (three skips), generator byte validation, and `git diff --check`. The
-one required regeneration produced 144 supported Copilot adapter files; the retired
-`plugins/save-toolkit` root remains absent. No scenario targets `ci-actions`, its description routing
-content is unchanged, and no paid routing run was required or performed. Gate A remains the single
-push-boundary check.
-
-`[verified]` Remeasurement of exact implementation commit `a5c425d` left five candidates and selected
-`pcf-deploy`, then the largest at 10,351 unconditional entrypoint bytes with no routed references,
-for the fifth one-skill slice.
-
-`[verified]` PR #147 merged exact head `1034bc9a0807974293c667eb2938e2cbbb63acc7` into the PR #146
-branch as `f6eeb59e741a859bbdc9cc42c900fe2e9f297c92` on 2026-08-23. PR #146 then merged that exact final
-head into `main` as `829af56032ab921fdde208ae7c57f4ae329c9293`. Linux validation, Windows
-validation, and the Claude plugin contract passed on `f6eeb59`; both reviewed implementation commits
-are ancestors of the resulting `main`.
-
-`[verified]` Fifth bounded implementation commit
-`af9cb4bf7ba2a04a557160b975dd1b22913ae7bc` converts only `pcf-deploy`. Its byte-identical
-frontmatter, including the manual-only controls, now opens a 7,854-byte entrypoint that keeps
-agent-never-executes authority, release/change gate stop, exact artifact/target/approved-manifest
-identity and diff, action-boundary revalidation, secret and human-only `cf env` rules, rollback
-non-reversibility, owner maps, common strategy choices, target uncertainty, abort criteria, and the
-evidence handoff. Three explicit references total 8,959 bytes across manifest/blue-green,
-rolling/canary/revisions, and configuration/scaling; the starter manifest is available only when a
-new manifest is required and no project-owned manifest or starter exists. The 30-entrypoint corpus
-falls to 205,028 bytes and the mechanical candidate set to four.
-
-A bounded pre-commit static exercise covered invariant retention and a valid-gate blue-green plan
-with an existing project manifest. `[verified]` The plan loaded only the manifest/blue-green
-reference, kept the starter asset and unrelated procedures unloaded, remained human-run, and named
-phase-specific rollback; target behavior remains `[unverified]`. The invariant review found two
-production-safety ambiguities: approval did not bind immutable manifest identity, and an instruction
-asked for rollback commands even at irreversible boundaries. One correction binds the approved
-manifest revision/hash and diff through action-time revalidation and requires rollback, recovery,
-compensation, or an explicit irreversible declaration. A focused reread passed both corrections.
-
-`[verified]` Independent review approved exact commit `af9cb4bf7ba2a04a557160b975dd1b22913ae7bc`
-with no findings and zero independently found P0/P1s. The candidate passed direct
-link/fleet/roadmap/stale-name validation, strict Claude plugin validation, 102 focused
-link/adapter/fleet/canary tests (three skips), generator byte validation, and `git diff --check`. The
-one required regeneration produced 147 supported Copilot adapter files. The generic Codex
-skill-creator quick validator is not applicable to this existing manual Claude skill: after an
-introduced incompatible prose character was removed, it still rejected the pre-existing,
-repository-required `compatibility` and `disable-model-invocation` keys. The repository validators
-and strict Claude plugin validation are the governing contracts.
-
-Two scenarios target `pcf-deploy`: a negative discovery regression and a direct behavioral
-calibration. Its description and manual-only routing metadata are byte-identical, so neither is an
-affected routing scenario; no paid routing run was required or performed. Host activation,
-final-response quality, and deployment runtime behavior remain `[unverified]`. Gate A remains the
-single push-boundary check.
-
-`[verified]` Post-merge remeasurement of exact current-main commit `829af56` leaves four candidates.
-`pcf-ops` is largest at 10,173 unconditional entrypoint bytes with 1,543 routed reference bytes. It
-is not started automatically; current-main inspection and an owner-accepted one-skill scope come
-before any edit.
-
-`[verified]` After PRs #149–#153 merged, the required remeasurement of exact current-main commit
-`2294832ab0d4edc1199766530f4bea37367db197` found 30 canonical entrypoints totaling 195,009
-immutable Git-object bytes. `stack-profile` was the sole remaining skill meeting this item's
-criterion: an 8,673-byte entrypoint and zero reference bytes. The three newly merged routers no
-longer met it, and no historical candidate ordering was reused.
-
-`[verified]` Exact post-review implementation commit
-`1cdecbd2a25b4fa2578e217f48e901169b43025d` converts only `stack-profile`. Its 425-character
-description retains every trigger, use condition, and named alternative while replacing the false
-single-file maintenance promise with the canonical skill-bundle boundary. It opens a 6,412-byte
-entrypoint that keeps the current PCF/GCP runtime truth, pending landing-runtime decision,
-no-self-managed-Kubernetes rule, three-state evidence contract, additive/no-retirement observability
-decision, incident/change/documentation ownership, stay-in-lane and platform boundaries, and the
-default-inherit/generation-alias/full-model-ID rules accepted in PR #153. Three explicit references
-total 5,421 bytes across observability inventory and lifecycle, application/CI/runner/data-store
-facts, and the current Copilot picker order. The 30-entrypoint corpus falls to 192,748 bytes and the
-mechanical candidate set is empty.
-
-A fixed five-agent fresh-context artifact exercise covered the shared runtime boundary, each of the
-three conditional lanes, and a two-lane combined request. `[verified]` Every case read exactly the
-matching reference set: zero for the runtime-only question, one each for observability,
-application/data, and Copilot models, and observability plus application/data for the combined case.
-The combined case initially invented an unsupported `[inference]` evidence state; one correction
-made the entrypoint explicitly retain the fleet's three-state contract, and the same fifth agent's
-focused retest used `[unverified]` for the inference with no routing or conclusion regression. These
-are static fresh-context artifact results, not host activation or runtime-behavior evidence.
-
-One independent read-only review of the pre-fix exact candidate found a P1 behavior-preservation
-gap: the advertised broad `"what's our stack"` request matched no conditional row and could load
-zero references. The current-main conformance pass also found the superseded blanket model-pin rule,
-the false single-file promise, and an observability reference that claimed its missing parent owned
-the additive-stack rule. `[verified]` The correction adds an explicit broad row, reconciles the
-accepted alias-versus-full-ID policy, names the canonical bundle/projection boundary, and returns the
-additive/no-retirement decision to the entrypoint. Two clean-context regressions then showed the
-literal broad request loading all three and omitting no requested stack category, and the model case
-permitting a cost/latency-justified `sonnet` alias while rejecting a full ID and refusing to treat the
-Copilot picker order as Claude-agent authorization. No automated review loop was started.
-
-A subsequent PR review of exact published head `8f2b62c` found two remaining context-selection gaps:
-a narrow edge/CDN/WAF/RUM request and a general CI-platform/tooling request could omit the reference
-that owns the requested inventory, and the setup instructions still pointed only to the entrypoint.
-`[verified]` Fix commit `3a056e5d44c7b66d00ec8f0673a4b731d606a301` adds those predicates to
-the router and matching reference lead-ins and points setup at the canonical skill bundle. The
-description remains byte-identical. Direct link/fleet/roadmap/stale-name validation, 115 focused
-link/adapter/fleet/frontmatter/canary tests (three skips), strict Claude plugin validation, and
-`git diff --check` passed after the one required regeneration. Model-selected reference loading for
-the two new narrow requests remains `[unverified]`; no discovery scenario targets this internal
-reference-selection boundary, so no paid routing run was added.
-
-`[verified]` The exact candidate passed direct link/fleet/roadmap/stale-name validation, read-only
-adapter verification, 115 focused link/adapter/fleet/frontmatter/canary tests (three skips), strict
-Claude plugin validation, and `git diff --check`. The review-fix canonical pass regenerated 158
-adapter files with byte consistency. The existing `discovery-runtime-boundary` scenario targets
-`stack-profile`, but its description's routing elements are unchanged; only the inaccurate
-maintenance sentence changed. No affected routing scenario or paid live run was required or
-performed. Gate A remains the single push-boundary check.
-
-**Prerequisites:** The Batch 1 routing contract is merged and closed. The `obs-logs` conditional
-table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
-pattern. Description edits follow the routing-content change playbook.
+**Prerequisites:** All Phase 1 slices are closed. Phase 2 starts from refreshed exact `origin/main`,
+excludes the completed nine skills, and processes one screened entrypoint only after its
+evidence/recommendation checkpoint. Description edits follow the routing-content change playbook.
 
 **Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 5,000
 immutable bytes. Each receives one committed disposition: a confirmed router either drops below the
@@ -478,10 +236,11 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 ### SKILLS-003 — add a portable executable workflow-graph engineering skill
 
-**Status:** `ready` (2026-08-24) — renewed owner direction activates only the executable
-workflow/state-graph capability from Batch 3. The proposed SRE capability additions remain held;
-this item selects no graph runtime, creates no execution service, and does not activate
-`codebase-atlas`.
+**Status:** `ready` (2026-08-24) — roadmap activation merged in PR
+[#157](https://github.com/latent-sre/save-toolkit/pull/157) at `a8f98ce`. Renewed owner direction
+activates only the executable workflow/state-graph capability from Batch 3. The proposed SRE
+capability additions remain held; this item selects no graph runtime, creates no execution service,
+and does not activate `codebase-atlas`.
 
 **Owner:** `prompt-engineer` owns the canonical design method and its routing/evaluation contract.
 `sde` owns any later implementation in team-authored code, but this item grants no implementation,
@@ -513,67 +272,32 @@ runtime or schema selection. Owner direction on 2026-08-24 supplies the activati
 the repository's agent/skill framework, keep SRE additions deferred, and do not add a universal
 runtime.
 
-**Required discipline taxonomy audit:** Before changing a canonical agent, skill, description, or
-scenario, derive the working taxonomy from the exact current `agents/` and `skills/` sources rather
-than from this roadmap, a dated review, an installed projection, or model memory. Record a compact
-table in the pull-request evidence with each discipline's canonical name, owner, authoritative
-path, inputs, output/return contract, state and authority boundary, verifier, neighboring owner, and
-any overlap or contradiction. At minimum audit these six user-facing terms:
+**Implementation audit and discipline boundaries:** Derive the working taxonomy from the exact
+current `agents/` and `skills/` bytes. In pull-request evidence, record each discipline's canonical
+name, owner, path, input, output, state/authority boundary, verifier, neighboring owner, and any
+overlap or contradiction:
 
-| User-facing discipline | Current canonical owner and boundary to verify |
+| Requested term | Canonical boundary to verify |
 |---|---|
-| Prompt engineering | `prompt-engineer` plus the artifact tier of `agent-authoring`: routing metadata, instructions, human-facing output shape, tool/grader descriptions, and evidence-matched minimal prompt changes; schemas, runtime controls, and evaluator defects remain with their actual owning layer |
-| Context engineering | `agent-authoring/references/context.md`: what is selected, ordered, trusted, refreshed, compacted, retained, preloaded, or retrieved just in time; context isolation is not tool, filesystem, credential, or authority isolation |
-| Handoff engineering | `agent-authoring/references/roster.md` plus the packet convention in canonical agent bodies: the final message is a stateless receiver's interface, with one owner, exact change/state, evidence labels and taint preserved, success criteria, open unknowns, and explicit non-actions |
-| Loop engineering | `agent-authoring`, `references/artifact.md`, and `references/roster.md`: entry and mutable state, one verifier, hard iteration/time/cost/tool budgets, success/no-progress/safety termination, durable evidence, and human promotion authority |
-| Graph engineering | `agent-authoring/references/delegation-graph.md` owns the roster/delegation capability graph; `SKILLS-003` adds the distinct portable executable workflow/state-graph method; neither is a source-code/knowledge graph or proof of runtime enforcement |
-| Self-learning | Treat this requested term as a taxonomy question, not an authorization. Current canonical sources call the durable fleet discipline **learning engineering**, while `operational-learning` owns evidence-bound operational dispositions. Verify that mapping, preserve any disagreement explicitly, and do not introduce autonomous self-modification, background memory promotion, or an unbounded optimizer |
+| Prompt engineering | `prompt-engineer` and `agent-authoring` own LLM-facing routing, instructions, output shape, and bounded prompt changes; schemas, runtime controls, and evaluator defects stay with their owning layer |
+| Context engineering | `agent-authoring/references/context.md` owns selection, order, trust, freshness, compaction, retention, preload, and retrieval; context isolation is not authority isolation |
+| Handoff engineering | `agent-authoring/references/roster.md` and canonical packet conventions require a stateless receiver interface with one owner, exact state, evidence/taint, success criteria, unknowns, and non-actions |
+| Loop engineering | `agent-authoring`, `artifact.md`, and `roster.md` own mutable state, one verifier, fixed budgets and stops, durable evidence, and human promotion |
+| Graph engineering | `delegation-graph.md` keeps the roster/capability graph; this item adds a distinct portable executable workflow/state-graph method, not a code/knowledge graph or runtime proof |
+| Self-learning | Map the requested term to current **learning engineering** and `operational-learning`; never introduce autonomous self-modification, background promotion, or an unbounded optimizer |
 
-The audit starts with canonical bytes at the implementation base. Generated projections may confirm
-host rendering but never establish ownership. Dated research may explain a current contract only
-after the canonical source is identified. If two current canonical sources disagree, retain the
-disagreement as a finding and repair it only when it is directly necessary for this one-skill
-contract; do not silently synthesize a seventh discipline or broaden an owner.
+Generated projections may confirm rendering but never establish ownership. Dated research is evidence,
+not current authority. Preserve canonical disagreements as findings rather than inventing a new
+discipline. Make one minimal candidate, keep universal authority/safety and the minimum usable
+output contract always loaded, and route conditional depth behind explicit predicates. Freeze cases,
+verifier, budgets, and stop conditions before editing; keep handoffs self-contained and one writer in
+the isolated worktree; preserve tool authority, approval edges, terminal lanes, and host-specific
+controls. Human acceptance of the exact revision is the only promotion step.
 
-**Cross-discipline implementation rules:**
-
-- **Apply Prompt Engineering.** Make the smallest candidate change. Prefer positive output shapes
-  and predicate-keyed instructions. When a new ordering or precedence rule loses to an earlier
-  sentence in the same artifact, do not append another lower-priority rule: reword the incumbent
-  claim already occupying that semantic position, then measure the residual behavior. Diagnose the
-  first failing layer before changing prose, and keep one candidate unless the owner explicitly
-  approves a larger fixed budget.
-- **Apply Context Engineering.** Keep universal mandate, authority, safety, common decision rules,
-  and the minimum usable output contract in the always-loaded body. Put conditional depth behind
-  explicit reachable predicates, remove actual duplication instead of merely relocating it, and do
-  not force an agent to fetch multiple references before it can safely begin. Account separately
-  for canonical authored context, host-preloaded context, generated projection context, and
-  host-specific additions or omissions; identical text in two of those surfaces is not automatically
-  two independent sources of truth.
-- **Apply Handoff Engineering.** Any contract moved behind a reference or across a node/agent edge
-  remains sufficient for a receiver with no inherited conversation. Its packet names intent,
-  exact inputs/state or revision, allowed scope, source trust and taint, success criteria, return
-  shape, open unknowns, one next owner, and what was not done. No sender or receiver upgrades an
-  evidence label or treats packet prose as authority.
-- **Apply Loop Engineering.** Freeze the success cases and verifier before editing, retain one
-  writer and one candidate by default, and predeclare iteration, elapsed-time, call/cost, and tool
-  budgets. Stop on success, no progress, inconclusive evidence, budget exhaustion, safety or
-  authority regression, or owner interruption. Only human acceptance of the exact revision
-  promotes it; a loop never promotes itself.
-- **Apply Graph Engineering.** Maintain one writer in the isolated implementation worktree.
-  Preserve declared tool authority, approval edges, handoff ownership, terminal lanes, and
-  host-specific controls while changing graph-facing text. Compare the capability graph, portable
-  workflow contract, generated host render, and actual runtime evidence as separate artifacts; do
-  not report capability-graph or workflow-contract output as runtime enforcement.
-- **Apply learning engineering to every discovery.** For this implementation audit, disposition
-  each discovery as `worked` (necessary and resolved in this one-skill scope), `already owned`
-  (the current roadmap or canonical component already owns it), `proposed to roadmap` (material,
-  unowned, and intentionally deferred for operator selection), or `dropped with reason`
-  (unsupported, duplicate, immaterial, or outside the accepted boundary). These working
-  dispositions do not replace `operational-learning`'s canonical `prepared`, `proposed`, `blocked`,
-  `duplicate`, and `not_applicable` states when the discovery is operational knowledge. Check the
-  live roadmap for an existing owner before proposing anything new, do not implement unrelated
-  audit findings in this branch, and return evidence-bound proposals for later operator selection.
+Disposition every implementation discovery as `worked`, `already owned`, `proposed to roadmap`,
+or `dropped with reason`. These do not replace `operational-learning`'s canonical operational
+states. Check the live roadmap before proposing work and never implement unrelated audit findings in
+this branch.
 
 **Capability boundaries:**
 
@@ -656,14 +380,13 @@ perform a fleet-wide prompt rewrite, add a second prompt-engineering or Loop Eng
 change agent authority, introduce a runtime dependency, or bundle `codebase-atlas` into the same
 pull request.
 
-**Prerequisites:** Start implementation on a fresh branch from refreshed `origin/main` after this
-roadmap activation merges. Reinspect the exact `prompt-engineer`, `agent-authoring`, routing-scenario,
-generator, and manifest/catalog surfaces before naming the final file set. If another open change
-overlaps those surfaces, do not stack dependent edits. Define the positive, neighboring-owner, and
-near-miss cases before drafting the skill. Current framework details are consulted through Context7
-only when a version-specific contract is needed; GitHits supplies separately labelled pinned
-upstream source/test/adoption evidence. Existing dated research is a source, not permission to
-resume any other checklist.
+**Prerequisites:** Start implementation on a fresh branch from refreshed `origin/main`. Reinspect the
+exact `prompt-engineer`, `agent-authoring`, routing-scenario, generator, and manifest/catalog
+surfaces before naming the final file set. If another open change overlaps those surfaces, do not
+stack dependent edits. Define the positive, neighboring-owner, and near-miss cases before drafting
+the skill. Current framework details are consulted through Context7 only when a version-specific
+contract is needed; GitHits supplies separately labelled pinned upstream source/test/adoption
+evidence. Existing dated research is a source, not permission to resume any other checklist.
 
 **Acceptance:** All of the following are required:
 
@@ -718,9 +441,9 @@ and review evidence without conflating their claims, then move `SKILLS-003` to t
 runtime, schema, executable validator, `codebase-atlas`, or SRE capability remains separate future
 work and does not keep this skill-capability item open.
 
-**Next action:** Merge this roadmap activation. Then, from refreshed `origin/main`, inventory the
-exact owning surfaces, freeze the routing matrix and five bounded artifact cases, and implement only
-`workflow-graph-engineering` as the first reviewed Batch 3 slice.
+**Next action:** From refreshed `origin/main`, inventory the exact owning surfaces, freeze the
+routing matrix and five bounded artifact cases, and implement only `workflow-graph-engineering` as
+the first reviewed Batch 3 slice.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
@@ -761,113 +484,31 @@ acceptance is not yet evidenced.
 contains a scenario that would fail if the other started firing for it. Both halves are required:
 the descriptions must state the boundary, and a scenario must be able to detect a regression.
 
-**Source:** [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md).
-`[sourced]` `obs-logs` advertises the trigger `'build a log alert'`
-while `obs-alerting` claims Splunk saved-search alerts, and `obs-logs`'s ownership map disclaims
-only `obs-metrics` and `obs-dashboards` — not `obs-alerting`. The pre-change 66-scenario suite
-contained `discovery-obs-alerting-splunk-saved-search.yaml` expecting `obs-alerting` to fire, and
-**no** scenario asserting `obs-logs` defers to it. The collision was therefore unmeasured rather
-than known to be harmless.
+**Source:** The
+[skills surface sweep](reviews/2026-08-17-skills-surface-sweep.md) found that `obs-logs`
+advertised `'build a log alert'` without disclaiming `obs-alerting`, while the suite had no
+near-miss scenario that could detect the collision. The prepared
+`discovery-obs-logs-defers-obs-alerting` case made it measurable and passed structural validation
+with all grader checks.
 
-**Current preparation (2026-08-18):** `discovery-obs-logs-defers-obs-alerting.yaml` now presents the
-overlapping user phrase to `obs-logs` as a zero-tolerance near-miss and requires `obs-alerting` as the
-alternative. The 67-scenario structural suite and all 345 grader checks pass. This makes the
-collision measurable; no live routing result exists, and neither canonical description has changed.
+`[verified]` In PR [#122](https://github.com/latent-sre/save-toolkit/pull/122), the exact base
+routed the new case 1/2; after the ownership-map fix it routed 2/2 on both recorded models.
+Canonical `obs-logs` now names `obs-alerting` explicitly. The literal-grader defect was separately
+fixed in `19aaa52`; it was not routing evidence. The
+[round packet](reviews/2026-08-19-obs-skill-hardening-round.md) retains prompts, revisions, and raw
+results. The complete declared set of overlapping scenarios has not yet been evidenced on the
+changed descriptions.
 
-**Prerequisites:** None structural. Verification needs the live runner.
+**Prerequisites:** None structural. The remaining verification needs the live runner.
 
-**Acceptance:** Both, and neither alone. (1) The canonical text disambiguates: `obs-logs` no longer
-advertises a trigger that `obs-alerting` owns, **or** its ownership map names `obs-alerting`
-explicitly. (2) A `discovery-obs-logs-defers-obs-alerting` scenario exists and passes after the edit,
-and the other overlapping scenarios remain green. A prior-revision baseline is needed only for a
-scenario that is red.
+**Acceptance:** Both conditions are required: (1) canonical text disambiguates ownership by removing
+the conflicting trigger or naming `obs-alerting`; and (2) the deferral scenario and every other
+overlapping scenario pass after the edit. Run a prior-revision baseline only for a red scenario.
 
-A passing scenario on its own does **not** close this item. If the scenario already passes against
-today's descriptions, that is evidence the collision is currently latent — not that it is resolved —
-and closing on it would leave `obs-logs` still advertising `'build a log alert'` with the ownership
-map still silent about `obs-alerting`.
-
-**Measured evidence (2026-08-20).** The scenario ran for the first time, on branch
-`fix/obs-skill-hardening` (PR [#122](https://github.com/latent-sre/save-toolkit/pull/122)); full
-detail in [`the obs-skill hardening round packet`](reviews/2026-08-19-obs-skill-hardening-round.md).
-
-- **The collision was real, not latent.** `discovery-obs-logs-defers-obs-alerting` at base
-  `e31d04e06d3d` routed **1/2** — one trial kept log-based alert design inside `obs-logs` instead of
-  deferring. After the ownership-map edit it routes **2/2** on `claude-opus-5[1m]` and **2/2** on
-  `claude-sonnet-5`. This is the outcome this item warned might be ambiguous; it is not.
-- **Acceptance half (1) is satisfied in canonical text:** `obs-logs`'s ownership map now names
-  `obs-alerting` explicitly. The `'build a log alert'` trigger is retained deliberately — the
-  disjunctive acceptance allows either remedy, and the trigger is how a user actually phrases the
-  request.
-- **Acceptance half (2) is partially evidenced.** The scenario exists and passes *routing*. Its
-  former literal-grader failures were a separate contract defect, closed in `19aaa52`; they were not
-  routing evidence and no longer block this item.
 **Next action:** Establish the missing half of acceptance — run the *other* overlapping
 `obs-alerting`/`obs-logs` scenarios against the changed descriptions and show they remain green. If
 one is red, run that scenario at the prior revision to attribute it. Then close. Do not close on the
 defer scenario alone.
-
-### GRADER-002 — bind direct-skill trials to current slash-command expansion
-
-**Status:** `active` (2026-08-24) — implementation and matching live evidence are complete on the
-current candidate; the item stays live until that exact revision merges.
-
-**Outcome:** A direct-skill trial proves that the named skill contributed without requiring a legacy
-`Skill` tool event, while an answer produced without the skill still fails closed.
-
-**Source:** `[verified]` on Claude CLI 2.1.240 in runs `20260822T234553Z-3b860051` and
-`20260822T235252Z-a9531e1a`. The runtime listed `save-toolkit:production-change-gate`, the slash
-command produced version-specific skill behavior, and every trace still reported `skills=[]`.
-Consequently both behaviorally approved candidate trials were marked FAIL only by `skill-fired`.
-Reconfirmed on candidate `e51f9ec62cebc1883e1f9a6cfba3b716f5d2ab1b` in run
-`20260823T005205Z-27dbcbfe`: both trials returned `APPROVED` and passed every response grader; only
-the absent skill-completion event kept the aggregate red. *[verified]*
-
-Review repair on Claude CLI 2.1.241 added the paired missing-authority case. An uncommitted
-weakened-rule mutation (`plugin_inputs_dirty=true`) incorrectly returned `APPROVED` 2/2 in
-`20260823T011640Z-4e6a6eaa`; restored candidate
-`e6f6178d755501bd3aad1ddc40c92e4669ff18c1` returned `BLOCKED` 2/2 for that case in
-`20260823T012204Z-1a382e31` and `APPROVED` 2/2 for the complete packet in
-`20260823T012314Z-ec65c221`. Every response grader passed on the restored pair; only `skill-fired`
-remained red because both traces still reported `skills=[]`. *[verified]*
-
-Post-review hardening on candidate `3a1fe384485911b610326b4cb4ce6a635987bd0d` rejects a negated
-specific binding, a BLOCKED verdict whose actual deficit is unrelated while the binding is present,
-and each individually omitted required checklist acknowledgement (446/446 offline checks). Fresh
-CLI 2.1.241 runs `20260823T021128Z-d180d56d` and `20260823T021249Z-28262e5d` returned
-`APPROVED` 2/2 and `BLOCKED` 2/2 respectively; every response grader passed and only `skill-fired`
-remained red because all four traces still reported `skills=[]`. *[verified]*
-
-Plugin-input rereview hardening on candidate `3f06dcc05edf8fd69eb9c0556164498387698f07` also rejects
-direct `does not establish` authority, double-negated missing evidence, and individually negated
-checklist acknowledgements (466/466 offline checks). Run `20260823T023336Z-c0983823` exposed and
-stopped on a Windows CP1252 diagnostic failure before completing; a red-first portability check now
-keeps grader specs printable. Fresh runs `20260823T024010Z-4eaa212c` and
-`20260823T024148Z-cfe1ecb5` returned `APPROVED` 2/2 and `BLOCKED` 2/2 respectively; every response
-grader passed and only `skill-fired` remained red because all four traces reported `skills=[]`.
-*[verified]*
-
-`[verified]` Implementation commit `ec6e583f0de3b16a789bbd1e0aaec1f2d995b960` makes direct mode
-request the exact `Skill` invocation and still requires its completed tool result; availability-only
-init metadata and inline answers fail closed. The focused regression was red before the prompt fix,
-then 78/78 runner tests and all 84 scenario validations passed. Claude Code 2.1.241 runs
-`20260824T042540Z-4ab1a447` and `20260824T042627Z-32eef19c` passed the approved and
-missing-authority production-gate cases 2/2 each, with all four trials completing
-`save-toolkit:production-change-gate`. The runs froze evaluator changes before their commit and
-therefore record `workspace_dirty=true`, but their eval-suite SHA-256
-`5cebd64a5c076c5c1cf44814809e309b8b969c5b6aec21e9ed161f8ddf9ba91d` exactly matches a fresh
-`eval_suite_digest()` on clean commit `ec6e583`; plugin inputs were clean. This binds the evidence to
-the committed evaluator bytes without inferring contribution from answer prose.
-
-**Prerequisites:** Met on the current candidate. Keep the response-text fallback forbidden.
-
-**Acceptance:** Focused red-first fixtures cover the current explicit-invocation shape and legacy
-tool-event shape; the paired approved and missing-authority production-gate scenarios each pass 2/2;
-the existing inline-answer control remains red when no skill contributes; and the implementation is
-merged.
-
-**Next action:** Merge the exact candidate, then move this item to the closed table from refreshed
-`main`. Do not rerun the unchanged digest merely to replace the honest dirty-workspace provenance.
 
 ### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
 
@@ -879,16 +520,11 @@ shared evidence-default banner is gone, worked examples carry provenance as a si
 of a paragraph retracting the example, retired learning packet/ledger machinery no longer ships in
 every install, and the packaging question for maintenance skills has a recorded decision.
 
-**Source:** Owner-requested usability review, 2026-08-13 (evidence recorded inline here; measured
-against this repository at the review session's checkout). Findings, each `[sourced]` to that
-review: the identical 4-line evidence-default banner opens 29/29 `SKILL.md` files; first actionable
-content starts at line 16–19 (mean 16.7), and `skills/service-onboarding/SKILL.md` stacks two
-banners so content starts at line 25 of 72; provenance boilerplate totals ~249 lines (8.2% of the
-SKILL.md corpus) with 155 `[unverified]` markers across bundles; two worked examples retract
-themselves (`skills/pcf-deploy/SKILL.md` manifest-name interaction; `skills/runbook/SKILL.md`
-example footer); `skills/operational-learning/` is 3,714 lines — 27% of toolkit bytes — including
-three schema versions, two migration scripts, and a drift watcher, and `skills/agent-authoring/` is
-1,678 lines, both shipped to every end user.
+**Source:** The 2026-08-13 owner review measured the same four-line banner on all 29 then-current
+entrypoints, about 249 lines of provenance boilerplate, and two worked examples that retracted
+themselves: the `pcf-deploy` manifest interaction and `runbook` footer. The banner and retired
+learning packet/ledger paths were removed. The owner retained the maintenance bundles because no
+named consumer impact had been measured; only the two footnote compactions remain.
 
 **Prerequisites:** None blocking. The banner work is done. By owner decision, the maintenance skills
 stay in the shared package: no current measurement shows that their install size or discovery surface
