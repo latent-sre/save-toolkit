@@ -1,0 +1,42 @@
+# Application and data stack
+
+Read when the request needs a service language, framework, CI authentication design, runner/host
+assumption, or data-store choice. The parent `SKILL.md` owns the current-runtime and platform
+boundaries. These facts do not authorize a migration or make a target-specific version known.
+
+## Languages and CI
+
+Services are built in **Java/JVM, Python, JavaScript/TypeScript, and Go**. Bash and PowerShell are
+glue and automation, not service languages. GitHub + GitHub Actions; Bamboo is legacy.
+*[sourced: operator statement 2026-08-21]*
+
+**CI jobs authenticate from GitHub environment secrets**, not GitHub OIDC. This settles the hedge
+the `ci-actions` skill carries: do not design around a GitHub-OIDC→CredHub exchange — CredHub
+authenticates via UAA and no turnkey integration exists. *[sourced: operator statement 2026-08-21]*
+
+## Frameworks
+
+- **Backend:** **Spring Boot** on the JVM (matching the `java_buildpack_offline` in the PCF manifest
+  example); **FastAPI** on Python.
+- **Frontend:** **both React and Vue** are in use — neither reference in `frontend-craft` is
+  surplus.
+
+*[sourced: operator statement 2026-08-21]*
+
+## Hosts and runners
+
+On-prem hosts and self-hosted Actions runners are **RHEL 9+**. GitHub-hosted Linux runners are
+Ubuntu. Both classes are in active use, so portable shell
+must run on both: the effective **bash floor is 5.1**, past every pre-4.4 workaround.
+*[sourced: operator statement 2026-08-21; confirm exact minor versions on the target]*
+
+## Data stores
+
+**PostgreSQL and SQL Server** are the operated engines, **all on-prem today**. Some applications
+embed **SQLite**; treat it as something to be aware of, not an engine the team operates — the one
+rule worth carrying is that a SQLite file behind a multi-instance app on PCF's ephemeral disk is
+not shared and not durable. MySQL exists but is minor; **MariaDB and Oracle are not used**.
+A managed cloud database is a possible future addition alongside the GCP migration, but
+nothing is running there now: treat cloud-database guidance as not-yet-applicable rather than
+optional. Engine-specific migration, locking, and failover mechanics remain `[unverified]` per
+target until captured against a real instance. *[sourced: operator statement 2026-08-21]*
