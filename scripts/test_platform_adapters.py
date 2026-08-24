@@ -77,6 +77,22 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertNotIn("save-toolkit:", description, source.name)
         self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/sde.md"))
 
+    def test_copilot_agent_prompt_over_30000_characters_is_rejected(self) -> None:
+        agent = (
+            "---\n"
+            "name: probe-agent\n"
+            "description: Probe the generated Copilot prompt-size boundary.\n"
+            "tools: Read, Grep, Glob\n"
+            "---\n\n"
+            + ("x" * 30_001)
+            + "\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "probe-agent.md"
+            source.write_text(agent, encoding="utf-8", newline="\n")
+            with self.assertRaisesRegex(ValueError, "30,000-character maximum"):
+                adapters.render_copilot_agent(source)
+
     def test_manual_skills_get_host_native_invocation_controls(self) -> None:
         for name in sorted(adapters.MANUAL_ONLY):
             copilot = (ROOT / adapters.COPILOT_SKILLS / name / "SKILL.md").read_text(encoding="utf-8")

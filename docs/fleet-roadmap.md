@@ -144,15 +144,16 @@ shows the payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-23) — eight router slices merged: `incident-command` in PR #142,
-`ops-tooling` in #143, `agent-security` in #145, `ci-actions` in #146, `pcf-deploy` in #147,
-`pcf-ops` in #149, `production-change-gate` in #150, and `database-reliability` in #151. The ninth
-candidate, `stack-profile`, is implemented on an unmerged exact commit; this item stays active until
-the accepted revision lands on `main` and the closeout is recorded.
+**Status:** `active` (2026-08-24) — all nine Phase 1 router slices are merged: `incident-command` in
+PR #142, `ops-tooling` in #143, `agent-security` in #145, `ci-actions` in #146, `pcf-deploy` in #147,
+`pcf-ops` in #149, `production-change-gate` in #150, `database-reliability` in #151, and
+`stack-profile` in #154. The owner authorized a Phase 2 immutable-byte screen at 5,000 bytes while
+excluding those completed nine; Phase 1 is evidence, not a candidate pool to rerun.
 
-**Outcome:** No skill spends a caller's context on detail the call did not need. Every entrypoint
-that still meets the oversized-unconditional-body criterion becomes a router with a conditional
-“if the question involves X, read Y” table while retaining its authority and safety invariants.
+**Outcome:** No skill spends a caller's context on detail the call did not need. Each screened
+entrypoint receives one evidence/recommendation checkpoint. A confirmed conditional body becomes a
+router with an “if the question involves X, read Y” table while retaining its authority and safety
+invariants; a cohesive body is retained explicitly rather than split to satisfy a byte target.
 
 **Source:** The initial measurement and reproduction command are in the
 [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md). The later
@@ -166,6 +167,28 @@ That nine-skill inventory is historical evidence, not the implementation baselin
 Batch 1 both change relevant entrypoints, so this item must remeasure before editing. Description
 metadata follows the current rule—capability or user goal, invocation conditions, and meaningful
 exclusions, without procedure—rather than the retired “trigger only” doctrine.
+
+The [`2026-08-24 host context-budget audit`](reviews/2026-08-24-host-context-budget-audit.md)
+separates the host contracts that prompted Phase 2. Claude's default 8,000-character value budgets
+the aggregate discovery listing on a 200k context; its 5,000-token-per-skill and 25,000-token-total
+values govern post-compaction invoked content. Copilot's 30,000-character value applies to one
+generated custom-agent prompt, not to a skill. None is the repository's 5,000-byte screen, and moving
+body detail into references does not reduce discovery metadata unless a description changes.
+
+`[verified]` The owner-approved Phase 2 remeasurement on exact current-main base
+`b9b274f237caf8ce6068812e151f8543f608c7e7` finds 12 non-Phase-1 entrypoints at or above 5,000
+immutable bytes, totaling 95,068 bytes: `frontend-craft` 13,827; `backend-craft` 10,814;
+`obs-dashboards` 10,724; `agent-authoring` 9,420; `obs-alerting` 7,656; `runbook` 7,385; `gcp-ops`
+7,384; `operational-learning` 6,078; `eng-ladder` 5,873; `obs-pipeline` 5,835; `root-cause` 5,048;
+and `obs-traces` 5,024. The audit records reference-byte totals and the initial recommendation for
+each. Selection means inspect, not rewrite; size alone is not a finding.
+
+`[verified]` The same base carries 28 model-invocable skills whose names, descriptions, and line
+separators total 13,239 characters in the fleet's Claude namespace, 5,239 above the installed
+CLI 2.1.241 default fallback. No individual description reaches 1,536 characters and every
+entrypoint is below 500 lines. The exact real-session truncation remains `[unverified]` because
+bundled skills, usage priority, model context, and user overrides share that budget. This discovery
+risk is measured separately and does not authorize a description rewrite inside Phase 2.
 
 `[verified]` The required 2026-08-23 remeasurement on tree `8ea628d` found 30 entrypoints totaling
 232,717 bytes and confirmed the same nine candidates. Exact per-skill bytes and reference totals are
@@ -438,18 +461,20 @@ performed. Gate A remains the single push-boundary check.
 table is the existing pattern; `incident-command` is converted alone as the first reviewed Batch 2
 pattern. Description edits follow the routing-content change playbook.
 
-**Acceptance:** A dated remeasurement names the exact current candidates. Each confirmed candidate
-either drops below 8,000 bytes or routes more reference bytes than it retains, and each carries a
-conditional table whose targets are reachable through `check_links`; rerunning the recorded command
-returns an empty set. Entrypoints retain all authority/safety invariants. Each changed description
-passes the 600-byte and `Triggers:` contracts and has an after-change overlapping scenario run; a
-previous-revision baseline is required only for an existing scenario that returns red. Gate A green.
+**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 5,000
+immutable bytes. Each receives one committed disposition: a confirmed router either drops below the
+screen or routes more reference bytes than it retains, with every target reachable through
+`check_links`; a retained entrypoint records why no clean conditional boundary exists. Rerunning the
+recorded measurement returns no **undispositioned** candidate. Entrypoints retain all authority and
+safety invariants. Each changed description passes the 600-byte and `Triggers:` contracts and has an
+after-change overlapping scenario run; a previous-revision baseline is required only for an existing
+scenario that returns red. Gate A green.
 
-**Next action:** Run Gate A once at the push boundary, publish the branch, and merge the accepted
-revision. Then remeasure that exact `main`, remove `SKILL-001` from the live roadmap if the candidate
-set remains empty, and retain this history as evidence. Do not activate Batch 3, select a graph
-runtime, or revive held capability candidates as part of the closeout. Keep the already-owed
-`eng-ladder` after-change run bounded to its overlapping scenarios and separate from this slice.
+**Next action:** Inspect `frontend-craft` alone on the exact Phase 2 base because it is the largest
+selected entrypoint and already owns substantial routable reference depth. Present its retained
+invariants, proposed conditional boundaries, expected byte movement, and recommendation before
+changing its bytes. Do not start a second skill, requeue a completed Phase 1 skill, rewrite discovery
+descriptions, or combine the already-owed `eng-ladder` after-change run with this checkpoint.
 
 ### SKILLS-003 — add a portable executable workflow-graph engineering skill
 

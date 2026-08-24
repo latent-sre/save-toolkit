@@ -18,6 +18,7 @@ file only records where each one is honored.
 
 - The portable six
 - Claude-only fields
+- Host size limits are not interchangeable
 - What this means for the generated adapters
 - Checking a skill before publishing to the portable spec
 
@@ -58,6 +59,26 @@ skill expresses through a field the target host ignores is authority that vanish
 published, and it vanishes *silently*. A field the host happens to honor is a convenience, never a
 control you may cite — VS Code's own tool list is user-overridable, so even a recognized restricting
 field is a default there.
+
+## Host size limits are not interchangeable
+
+[doc-checked 2026-08-24] GitHub's
+[custom-agent reference](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
+limits the Markdown prompt below one `.agent.md` file's YAML frontmatter to **30,000 characters**.
+That is a per-profile custom-agent limit, not an aggregate fleet budget and not an Agent Skill body
+limit. This repository measures the fully generated Copilot prompt, including its host contract,
+because that is what the host receives.
+
+The portable [Agent Skills specification](https://agentskills.io/specification) instead caps one
+skill's `description` at **1,024 characters** and recommends that an activated `SKILL.md` remain
+under **5,000 tokens** and **500 lines**, with resources loaded on demand. The token and line values
+are authoring recommendations, not hard body validators, and they are not equivalent to this
+repository's conservative 5,000-byte candidate screen.
+
+Public VS Code source currently exposes no matching body-length check, and GitHub does not define
+whether “character” means Unicode code points, grapheme clusters, or UTF-16 code units. The official
+30,000-character contract therefore governs; report the exact counting semantics `[unverified]`
+rather than inferring them from one client implementation.
 
 ## What this means for the generated adapters
 

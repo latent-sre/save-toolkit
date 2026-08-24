@@ -28,6 +28,7 @@ authoritative?*
 | Allowlist (not denylist), fail-closed; unparseable Bash → deny | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | Agent `tools:` must be explicit (omission inherits every tool; validator rejects omission) | `validate_fleet.py`; frontmatter reference |
 | Agent `description` ≤ 1024 UTF-8 bytes; kebab-case name matches filename | `validate_fleet.py`; frontmatter reference |
+| A generated Copilot `.agent.md` Markdown prompt body must stay within the documented 30,000-character per-profile maximum | `render_copilot_agent` in `generate_platform_adapters.py`; [`skill-portability.md`](../skills/agent-authoring/references/skill-portability.md) |
 | Skill `references/` files must be linked from `SKILL.md` or they ship unreachable | [`AGENTS.md`](../AGENTS.md) Map; [`check_links.py`](../scripts/check_links.py) |
 | Single live backlog is [`fleet-roadmap.md`](fleet-roadmap.md); never resume unchecked historical checklists | [`AGENTS.md`](../AGENTS.md); [`README.md`](README.md) in this directory |
 | Plans/specs need a historical `Status:` banner and a pointer back to the roadmap | [`README.md`](README.md); [`check_plan_status.py`](../scripts/check_plan_status.py) |
