@@ -1,0 +1,11 @@
+# Copilot models
+
+Read only when selecting or recording the team's current Copilot model and fallbacks. The parent
+`SKILL.md` owns the default-inherit, generation-alias, and full-model-ID rules. This Copilot host
+inventory neither selects nor justifies a Claude agent alias.
+
+Selection rule: primary = the strongest Claude model in the team's Copilot picker at ship time;
+middle fallback = the next approved Claude model; final fallback = the org's default non-Claude model.
+
+Recorded ordered list: Claude Sonnet 5 (copilot) → Claude Opus 4.8 (copilot) → GPT-5.4 (copilot).
+[unverified — confirmed for the team license tier in Phase 5; re-record the complete ordered list when it changes]
