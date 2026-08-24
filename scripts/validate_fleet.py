@@ -16,7 +16,13 @@ except ModuleNotFoundError:
 ROOT = Path(__file__).resolve().parents[1]
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TOOL_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_.*-]*)(?:\((.*)\))?$")
-KNOWN_AGENT_FIELDS = {"name", "description", "tools"}
+KNOWN_AGENT_FIELDS = {"name", "description", "tools", "model"}
+# `model:` accepts a generation ALIAS only. An alias tracks the current model of its tier and
+# cannot rot; a full ID (claude-opus-4-1-20250805) silently pins a model past its usefulness,
+# which is the staleness the old blanket ban existed to prevent. Keeping the ban only on the
+# part that actually goes stale is what lets routine lanes be tiered down cheaply.
+# `inherit` is the default and is accepted explicitly so a lane can document the choice.
+MODEL_ALIASES = {"haiku", "sonnet", "opus", "fable", "inherit"}
 PLUGIN_INERT_AGENT_FIELDS = {"hooks", "mcpServers", "permissionMode"}
 BUILTIN_TOOLS = {
     "Agent", "Bash", "Edit", "Glob", "Grep", "NotebookEdit", "Read", "Skill", "ToolSearch",
@@ -204,6 +210,12 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
         unknown = sorted(set(fields) - KNOWN_AGENT_FIELDS)
         if unknown:
             failures.append(f"{path}: unknown or unsupported plugin agent field(s): {', '.join(unknown)}")
+        model = fields.get("model")
+        if "model" in fields and (not isinstance(model, str) or model not in MODEL_ALIASES):
+            failures.append(
+                f"{path}: model must be one of {', '.join(sorted(MODEL_ALIASES))} — "
+                "a full model ID goes stale silently"
+            )
         inert = sorted(set(fields) & PLUGIN_INERT_AGENT_FIELDS)
         if inert:
             failures.append(f"{path}: plugin-inert authority field(s) are forbidden: {', '.join(inert)}")

@@ -558,6 +558,27 @@ class FleetValidatorTests(unittest.TestCase):
             _, failures = validate_fleet.validate_agents(root)
         return failures
 
+    def test_model_alias_is_accepted(self) -> None:
+        """An alias must produce NO failure at all, not merely avoid one message.
+
+        Asserting only the absence of "model must be one of" left the test green when
+        `model` was dropped from KNOWN_AGENT_FIELDS -- the validator then rejects the pin as
+        an unknown field, a different message, and the acceptance contract silently stopped
+        being tested.
+        """
+        failures = self._agents_with_mutation(
+            "sre.md", "name: sre\n", "name: sre\nmodel: sonnet\n"
+        )
+        self.assertEqual([], failures)
+
+    def test_full_model_id_is_rejected(self) -> None:
+        # The staleness the old blanket ban existed to prevent: a dated ID keeps pointing at
+        # a model long after the fleet has moved on, and nothing errors.
+        failures = self._agents_with_mutation(
+            "sre.md", "name: sre\n", "name: sre\nmodel: claude-opus-4-1-20250805\n"
+        )
+        self.assertIn("model must be one of", "\n".join(failures))
+
     def test_scoped_grant_on_non_agent_tool_is_rejected(self) -> None:
         # `Bash(git diff:*)` reads like a narrowed shell and grants an open one — the runtime
         # ignores the scope. Only Agent(...) scoping is real.

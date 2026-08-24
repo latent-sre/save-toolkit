@@ -1,11 +1,15 @@
-# Dev/CI-only dependencies. The fleet's runtime validators are pure stdlib; only the
-# behavioral eval harness (evals/run_evals.py) needs a YAML parser
-# to load scenario files. Install it only for eval-harness implementation or manual eval work;
-# the structural Gate A does not need it.
+# The repository's third-party dependencies — the one place they are declared and pinned
+# (owner decision, docs/decisions/2026-08-23-allow-third-party-dependencies.md).
 #
-#   python3 -m pip install -r requirements-dev.txt
+#   python -m pip install -r requirements-dev.txt
 #
-# Note: the generator, its contract tests, and the guard tests have NO third-party deps — run them directly.
-# Pinned to an exact version for reproducibility — install via `-r requirements-dev.txt`, never a
-# bare `pip install pyyaml`.
+# Today only the behavioral eval harness (evals/run_evals.py) imports any of these; Gate A
+# still runs on a bare Python. The change that first makes a gate-path script import a
+# third-party package adds the install step to both CI validate jobs in the same PR.
+#
+# NOTHING here is importable from scripts/readonly-guard.py. The session hook runs the guard
+# as `python -I -S`, which ignores the user environment and skips site initialisation, and an
+# installed plugin never pip-installs anything. An ImportError there denies every guarded
+# Bash command. The guard is standard-library-only, permanently.
+# Always pin exact versions; never a bare `pip install <name>`.
 pyyaml==6.0.3

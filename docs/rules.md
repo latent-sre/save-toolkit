@@ -16,7 +16,7 @@ authoritative?*
 |---|---|
 | Gate A (`scripts/gate_a.py`) runs once before a push, never per edit; structural only, and it runs no component tests or evals | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring; [`AGENTS.md`](../AGENTS.md) |
 | On Windows use `python` / `py -3`, never bare `python3` (Store stub) | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring and `preflight()`; restated in [`AGENTS.md`](../AGENTS.md) |
-| stdlib only under `scripts/` — no new deps, no pytest, no third-party YAML for validators/tests/guard/generator | [`AGENTS.md`](../AGENTS.md) Hard rules |
+| Third-party deps allowed, pinned in `requirements-dev.txt`; the first Gate A-path import of one ships the CI install steps in the same PR. **`scripts/readonly-guard.py` is exempt and stays stdlib-only** — the hook runs it `python -I -S` with no site packages, so an import error there denies all guarded Bash | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-third-party-dependencies.md) |
 | Canonical authored source is `agents/`, `skills/`, and `commands/` only | [`2026-07-31-multi-platform-plugin-packaging.md`](decisions/2026-07-31-multi-platform-plugin-packaging.md) |
 | Before a push that carries canonical edits, run `generate_platform_adapters.py --write` once (not per edit) and commit projections with source | [`AGENTS.md`](../AGENTS.md) Change playbooks; [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Never hand-edit generated roots: `.github/agents/`, `platforms/copilot/skills/` | [`AGENTS.md`](../AGENTS.md) Hard rules |
@@ -55,7 +55,7 @@ authoritative?*
 | `sde` / `prompt-engineer`: unguarded Bash — host/network egress controls remain load-bearing | [`AGENTS.md`](../AGENTS.md) Honest limits |
 | Guard is a command filter, not a sandbox; OS least privilege remains load-bearing | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | `Agent(target)` grants enforce on the main thread only; at subagent depth the list is documentary | Frontmatter reference; [`AGENTS.md`](../AGENTS.md) |
-| No `model:` pins on agents — fleet inherits the session model | [`AGENTS.md`](../AGENTS.md) Hard rules |
+| `model:` on an agent must be a generation alias (`haiku`/`sonnet`/`opus`/`fable`/`inherit`), never a full ID; default is to inherit the session model | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-model-aliases.md); `validate_fleet.py` |
 | Copilot model ordered list lives only in `stack-profile`, never in agent files | [`stack-profile/SKILL.md`](../skills/stack-profile/SKILL.md) |
 | Never set `memory` on read-only / external-only agents (auto-enables write tools) | Frontmatter reference |
 | Exact MCP grants only (no silent server-wide wildcards) | Frontmatter reference; packaging ADR |

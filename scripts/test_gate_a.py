@@ -32,7 +32,7 @@ class StructuralScopeTests(unittest.TestCase):
         self.assertNotIn(
             "evals/run_evals.py",
             commands,
-            "the eval harness and its PyYAML dependency are focused implementation work",
+            "behavioral evals are focused implementation work, never a push-boundary step",
         )
 
 

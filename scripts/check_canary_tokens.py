@@ -15,7 +15,7 @@ is already universal (`REQUIRED_GLOBS`). Mandating presence fleet-wide would fai
 files that never adopted it — a churn decision for a human, not something a validator should force.
 When another bundle adopts the convention, add its glob here and the requirement starts applying.
 
-Standard library only, like every script in this directory.
+Standard library only — this script needs nothing more.
 """
 
 from __future__ import annotations

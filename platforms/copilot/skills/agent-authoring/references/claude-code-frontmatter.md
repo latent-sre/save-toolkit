@@ -37,7 +37,7 @@ Authority lives in frontmatter, not in prose — the fields that carry it:
 | `permissionMode` | `default \| acceptEdits \| auto \| dontAsk \| bypassPermissions \| plan \| manual`. Real at project scope but unused in this fleet; ignored for plugin-shipped agents. |
 | `hooks` | Agent-scoped lifecycle hooks are real at project/user scope and **inert in a plugin** (probed). This fleet ships `hooks/hooks.json` session-wide and self-scopes to exact guarded `agent_type` values. Canonical agent frontmatter containing `hooks` fails validation. |
 | `skills` | Preloads full skill content at startup — prefer this over putting `Skill` in `tools` when the agent needs the skill every run. Don't list a `disable-model-invocation: true` skill here. |
-| `model` | Aliases `haiku \| sonnet \| opus \| fable \| inherit`, or a full ID; defaults to `inherit`. This fleet pins nothing — the whole roster inherits the session model (a deliberate, documented decision; see AGENTS.md). |
+| `model` | Aliases `haiku \| sonnet \| opus \| fable \| inherit`, or a full ID; defaults to `inherit`. This fleet accepts the **aliases only** — `validate_fleet.py` rejects a full ID because a dated pin goes stale silently. No agent pins one today; tiering a routine lane down is allowed when its cost profile justifies it (see AGENTS.md). |
 | `memory` | `user \| project \| local`. **Setting it auto-enables Read, Write, and Edit** — never add it to a constrained agent (`reviewer`, `repository-investigator`, `researcher`); it would silently widen the mandate and give the external-only researcher local access. |
 
 Also: `maxTurns` (int), `background` (bool), `effort` (`low|medium|high|xhigh|max`), `isolation`

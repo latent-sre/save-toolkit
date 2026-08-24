@@ -45,14 +45,18 @@ the highest-value findings in this repo:
 
 Suggestions that violate these are not improvements — please don't raise them:
 
-- **Standard library only** for `scripts/` (validators, tests, guard, generator). No new
-  dependencies, no pytest, no third-party YAML parser. This is deliberate and load-bearing: every
-  host package must validate anywhere Python does.
+- **Third-party dependencies are permitted, pinned in `requirements-dev.txt`** (PyYAML included,
+  the gate path included — owner decision, ADR 2026-08-23). Do not flag a pinned dependency as a
+  violation. Do flag: an unpinned install, or a Gate A-path script gaining a third-party import
+  without the CI install step landing in the same PR.
 - **Never repair a generated copy directly.** Fix `agents/`, `skills/`, or
   `scripts/generate_platform_adapters.py`, then regenerate all hosts so one fix cannot create
   several subtly different fleets.
-- **No `model:` pins.** The whole fleet inherits the session model on purpose — zero sync
-  maintenance. Adding a pin, even a valid one, is a defect here, not a hardening.
+- **`model:` must be a generation alias, never a full ID.** The fleet inherits the session model
+  by default; an alias pin on a cost- or latency-sensitive lane is allowed and validated. Do not
+  flag an alias as a violation. A full ID — `claude-opus-4-1-20250805` and the like — is still a
+  defect: it silently outlives the model it names, which is the staleness the rule preserves
+  protection against.
 - **Evidence-label stems are pinned verbatim** — `[verified]`, `[sourced]`, `[unverified]`.
   Rewording them for style breaks the drift they exist to catch; leave the stems alone.
 - **Prose density is intentional.** Every line in an always-loaded body (an agent file, or a
