@@ -413,6 +413,17 @@ literal broad request loading all three and omitting no requested stack category
 permitting a cost/latency-justified `sonnet` alias while rejecting a full ID and refusing to treat the
 Copilot picker order as Claude-agent authorization. No automated review loop was started.
 
+A subsequent PR review of exact published head `8f2b62c` found two remaining context-selection gaps:
+a narrow edge/CDN/WAF/RUM request and a general CI-platform/tooling request could omit the reference
+that owns the requested inventory, and the setup instructions still pointed only to the entrypoint.
+`[verified]` Fix commit `3a056e5d44c7b66d00ec8f0673a4b731d606a301` adds those predicates to
+the router and matching reference lead-ins and points setup at the canonical skill bundle. The
+description remains byte-identical. Direct link/fleet/roadmap/stale-name validation, 115 focused
+link/adapter/fleet/frontmatter/canary tests (three skips), strict Claude plugin validation, and
+`git diff --check` passed after the one required regeneration. Model-selected reference loading for
+the two new narrow requests remains `[unverified]`; no discovery scenario targets this internal
+reference-selection boundary, so no paid routing run was added.
+
 `[verified]` The exact candidate passed direct link/fleet/roadmap/stale-name validation, read-only
 adapter verification, 115 focused link/adapter/fleet/frontmatter/canary tests (three skips), strict
 Claude plugin validation, and `git diff --check`. The review-fix canonical pass regenerated 158
