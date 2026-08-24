@@ -2,7 +2,7 @@
 
 Date: 2026-08-24  
 Scope: `obs-pipeline`, `akamai-edge`, `gcp-ops`, `pcf-ops`, `stack-profile`  
-Baseline commit ID: `271fa1b`  
+Baseline commit ID: `79916945d7108309567275c40906d47ecd6d6b74`
 Method: Baseline → Inspect → Research → Change → Validate → Compare
 
 ## Executive conclusion

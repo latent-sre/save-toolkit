@@ -2,7 +2,7 @@
 
 Date: 2026-08-24  
 Scope: `obs-alerting`, `obs-dashboards`, `obs-logs`, `obs-metrics`, `obs-traces`  
-Baseline commit ID: `90a836d`  
+Baseline commit ID: `bf09109bb4dd321fbf4b9a0eed055d6510d93c6e`
 Method: Baseline → Inspect → Research → Change → Validate → Compare
 
 ## Executive conclusion

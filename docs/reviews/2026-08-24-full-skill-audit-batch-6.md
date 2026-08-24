@@ -5,7 +5,7 @@ Date: 2026-08-24
 Scope: `merge-gate`, `release-gate`, `production-change-gate`, `pcf-deploy`,
 `service-onboarding`
 
-Baseline commit ID: `89efd7f`
+Baseline commit ID: `2eff57c95089da2d38f4d2be5a3738f599b3daff`
 
 Method: Baseline → Inspect → Research → Change → Validate → Compare
 
@@ -768,8 +768,16 @@ None.
 - `[verified]` Final fresh-context re-review found no remaining Critical, High, or Medium finding and
   marked Batch 6 commit-ready. It independently observed focused 9/9, fleet-validator 42/42,
   test-layout/link/diff checks green, and all 16 named mutants rejected.
-- `[pending]` One-time adapter regeneration, Gate A, strict plugin validation, integration of current
-  `origin/main`, push, and PR publication follow this batch commit.
+- `[verified]` After all six batches, the generator wrote 158 adapters and changed the 37 Copilot
+  projections implied by canonical edits. The adapter suite passes 28 tests with two expected skips;
+  generator self-check and direct fleet validation pass.
+- `[verified]` The unpublished branch rebased cleanly onto current `origin/main` with zero commits
+  behind. All 24 `scripts/test_*.py` files pass through their required
+  standalone entrypoints. The mutation-guard inventory now explicitly classifies the three new
+  cross-skill prose-contract suites as non-module tests rather than tractable blind files.
+- `[verified]` `claude plugin validate . --strict` passes after integration.
+- `[pending]` The one final-tree Gate A run, push, and PR publication follow this post-integration
+  validation commit.
 - `[unverified]` No PCF foundation, GitHub repository setting, protected environment, release artifact,
   production target, approval system, telemetry backend, or service was accessed or changed.
 

@@ -4,7 +4,7 @@
 > skills on the revision named below. Recommendations not implemented here require a new owner
 > decision before they become work.
 
-**Audit baseline:** `87d3d8cdd80ac9caeef5c4ee2d8021c1f596e243`
+**Audit baseline commit ID:** `f8dfa04aadddea748def77145764e283635fb8cc`
 **Batch scope:** `backend-craft`, `frontend-craft`, `ci-actions`, `database-reliability`, and
 `ops-tooling`
 **Audit date:** 2026-08-24

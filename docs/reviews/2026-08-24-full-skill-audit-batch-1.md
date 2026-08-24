@@ -4,7 +4,7 @@
 > skills on the revision named below. Recommendations not implemented here require a new owner
 > decision before they become work.
 
-**Audit baseline:** `b9b274f237caf8ce6068812e151f8543f608c7e7`
+**Audit baseline commit ID:** `50eff87e982455ce23d4dcb683d675159e0af706`
 **Batch scope:** `agent-authoring`, `agent-security`, `eng-ladder`, `language-idiom`, and
 `operational-learning`
 **Audit date:** 2026-08-24

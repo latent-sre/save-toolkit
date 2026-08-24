@@ -4,7 +4,7 @@
 > skills on the revision named below. Recommendations not implemented here require a new owner
 > decision before they become work.
 
-**Audit baseline:** `92f425dcf279071f6e06d18936e24b3f526cbf6f`
+**Audit baseline commit ID:** `c319a6b999c53ba4dd9a728d756b69349c6f984d`
 **Batch scope:** `root-cause`, `incident-command`, `postmortem`, `runbook`, and
 `service-readiness-audit`
 **Audit date:** 2026-08-24
