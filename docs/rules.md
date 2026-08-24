@@ -109,9 +109,9 @@ Load [`stack-profile`](../skills/stack-profile/SKILL.md) before recommending any
 
 | Rule | Primary source |
 |---|---|
-| Runtime is on-prem + PCF/TAS; `cf` CLI v8 (CAPI V3) | `stack-profile` |
-| No Kubernetes; do not suggest Kubernetes, cloud-managed services, or infra-layer fixes | `stack-profile` Stay in lane |
-| GCP under evaluation for late 2026 is not a target today | `stack-profile` |
+| Runtime today is on-prem + PCF/TAS; `cf` CLI v8 (CAPI V3) | `stack-profile` |
+| GCP migration is approved and in progress; the landing runtime is decision-pending | `stack-profile` Runtime |
+| No self-managed Kubernetes; migration-scoped GCP managed services are in lane, but do not propose GKE while the runtime decision is pending or operate infra-layer systems | `stack-profile` Stay in lane |
 | Do not operate BOSH / Ops Manager / Diego / Gorouter / CredHub/UAA / foundation upgrades — escalate with evidence | `stack-profile` Platform boundary |
 | Languages: Python, Bash, PowerShell first; Go/TS only where already used | `stack-profile` |
 | CI is GitHub + GitHub Actions | `stack-profile` |

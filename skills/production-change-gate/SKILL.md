@@ -38,12 +38,13 @@ change to a human, the human apply follows this gate. Every other live change fo
       action; the agent never executes it. Approval does not grant the agent live-change authority.
 
 - [ ] **Readiness evidence present** — a production deployment of a new artifact requires independent
-      review of the exact candidate SHA. Attach that review, green checks, the exact release artifact,
-      and the named production approver; missing or stale review blocks the deployment. Consume those
-      records as existing evidence rather than loading another gate. For a non-deployment action, mark
-      artifact and code-review fields not applicable and attach the current command or diff plus named
-      approval instead. Rolling back to the immediately previously live artifact re-uses that artifact's
-      existing records — never reassemble release evidence to undo a change.
+      review of the exact candidate commit ID. Attach that review, green checks, the exact release
+      artifact, and the named production approver; missing or stale review blocks the deployment.
+      Consume those records as existing evidence rather than loading another gate. For a
+      non-deployment action, mark artifact and code-review fields not applicable and attach the current
+      command or diff plus named approval instead. Rolling back to the immediately previously live
+      artifact re-uses that artifact's existing records — never reassemble release evidence to undo a
+      change.
 - [ ] **The production execution boundary is actually ON** *(planned changes; deferred during a declared
       incident — see the incident fast path)* — for a new-artifact deployment, attach protected-environment
       evidence showing that approval gates access to the deployment credential for this target. For
@@ -74,6 +75,9 @@ change to a human, the human apply follows this gate. Every other live change fo
 production-change-gate: APPROVED | BLOCKED
 Tier: <0|1|2|3>   Target: <exact target>   Actor: <human or protected automation>
 Change: <what, where>   Approved by: <human>   When: <UTC>
+Candidate commit ID: <exact source commit ID | not applicable>
+Artifact identity: <immutable digest or non-replaceable object/version identity | not applicable>
+Release-readiness record: <release-gate evidence for this candidate/target | not applicable>
 Backout: <exact reversible steps>
 Watching: <who, which signals>   Abort if: <criteria>
 Production execution boundary: <protected environment or least-privilege executor evidence>

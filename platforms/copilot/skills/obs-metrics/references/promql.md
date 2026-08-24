@@ -149,17 +149,19 @@ prometheus/prometheus CHANGELOG; unverified for the deployed Prometheus/Mimir ve
 
   A recording rule that pre-aggregates away the label an alert later needs is a quiet way to make
   the alert unwritable — check consumers before choosing `level`.
-- **Native histograms are a stable feature** (v3.8+; the old feature flag is a no-op from v3.9 —
+- **Native histograms are stable but optional** (v3.8+; the old feature flag is a no-op from v3.9 —
   scraping is enabled via `scrape_native_histograms`). Whether the deployed
   Prometheus/Alloy/Mimir chain has them on is `[unverified]` per target; a `histogram_quantile`
   over a native histogram doesn't use `_bucket`/`le`, so the classic p95 shape above silently
   matches nothing against a native-only metric — check which representation the target scrapes
   before declaring "no data".
-- **Newer PromQL surface is version-gated**: duration expressions inside range selectors
-  (v3.13+) and the experimental extended range selectors (`promql-extended-range-selectors`,
-  anchored/smoothed variants that change `rate()` extrapolation when enabled) exist upstream —
-  keep them out of shared rules until the deployed Prometheus/Mimir version and flags are
-  confirmed. *[sourced: prometheus/prometheus CHANGELOG 3.7.0-3.14.0]*
+- **Newer PromQL surface is version-gated**: duration arithmetic began in v3.4; later duration
+  helpers remained experimental/flag-gated through v3.13 and are enabled by default from v3.14.
+  Extended range selectors (`promql-extended-range-selectors`; anchored/smoothed variants that
+  change `rate()` extrapolation when enabled) began in v3.7 and remain experimental in v3.14. Keep
+  both out of shared rules until the deployed Prometheus/Mimir version and flags are confirmed.
+  *[sourced: prometheus/prometheus CHANGELOG 3.4.0, 3.7.0, and 3.12.0–3.14.0; v3.13/v3.14
+  feature-flag registration]*
 - **remote_write tuning knobs that matter** (`queue_config`): `capacity` (default 10000),
   `max_shards` (50), `max_samples_per_send` (2000), `batch_send_deadline` (5s); guidance:
   capacity ≈ 3–10× max_samples_per_send, and remote write adds roughly 25% memory overhead.

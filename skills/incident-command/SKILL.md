@@ -30,10 +30,11 @@ when unsure: declaring is cheap; under-declaring leaves impact unowned.
   redeploy, scale, remap routes, or use a generic mitigation unless that owner directs the exact
   action. The typed `sre` agent may collect only the named read-only signals requested by that
   owner; it does not contain, eradicate, or recover a compromised system.
-- **Keep roles explicit.** Name the incident commander, investigation lead, operations/remediation
-  owner, and communications/timeline owner. During the live event these are named humans except
-  that the typed `sre` agent may own investigation. The typed `scribe` agent receives the timeline
-  only after resolution.
+- **Keep roles explicit without inventing people.** Bind supplied human names to incident command,
+  operations/remediation, and communications/timeline; the typed `sre` agent may own investigation.
+  If the packet does not name responders, assign the accountable pager/team role, mark named-human
+  assignment pending, and ask the human commander to bind it in the live record. The typed `scribe`
+  agent receives the timeline only after resolution.
 
 ## Read only the lane the incident needs
 

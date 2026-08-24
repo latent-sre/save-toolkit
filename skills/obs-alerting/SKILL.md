@@ -91,8 +91,9 @@ An alert that has never fired is written, not verified. Before handing it off:
   sources, `promtool check rules` / `promtool check config`) so a bad file never reaches the
   evaluator.
 - **Force the alert's condition and observe it both fire and resolve** — a deliberately failing
-  target, a test rule with an always-true expression, or `promtool test rules` to prove the
-  burn-rate arithmetic and the long/short window pair. `promtool check` and `promtool test` are
+  safe target, a controlled non-production rule with an always-true expression routed only to a
+  test contact point, or `promtool test rules` to prove the burn-rate arithmetic and the long/short
+  window pair. Never force a production receiver. `promtool check` and `promtool test` are
   agent-runnable **in the `observability-engineer` lane only** (`test` creates a disk-backed
   temporary TSDB — run it in a scratch directory); an `sre` loading this skill routes both to a
   human and preserves the exact output. A rule that has only ever evaluated false is

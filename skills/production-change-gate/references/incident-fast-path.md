@@ -16,9 +16,9 @@ the `incident-command` mitigation table (route remap, revision rollback, restart
 flip). Two things stay on the full gate even at P1:
 
 - **A new artifact.** An incident hotfix is still a production deployment: independent review of the
-  exact candidate SHA, lower-environment evidence, migration safety, and rollback evidence are exactly
-  what stop one incident from becoming two. Rolling *back* to the previously live artifact is covered;
-  shipping new bytes is not.
+  exact candidate commit ID, lower-environment evidence, migration safety, and rollback evidence are
+  exactly what stop one incident from becoming two. Rolling *back* to the previously live artifact is
+  covered; shipping new bytes is not.
 - **Any Tier 3 destructive or access-path action** (data deletion, storage/backup, credential or
   identity, DNS, firewall, VPN, proxy, remote access). Tier 3 keeps its proven backup/recovery
   requirement — a backout plan cannot reverse an irreversible mutation, so speed cannot buy it out.
@@ -49,7 +49,7 @@ These never delay a covered mitigation:
 - Pre-change stakeholder notification — the incident comms cadence covers stakeholders, and the IC
   roles satisfy monitoring and comms.
 
-The fast path narrows paperwork, never authority: Tier 2/3 execution remains owned by a human release
-owner or separately approved protected automation, and the security/integrity carve-out in
-`incident-command` exits this path entirely. After resolution, reconcile every deferred record and
-give the timeline to the typed `scribe` agent.
+The fast path narrows paperwork, never authority: covered Tier 2 execution remains owned by a human
+release owner or separately approved protected automation. Tier 3 remains on the full gate, and the
+security/integrity carve-out in `incident-command` exits this path entirely. After resolution,
+reconcile every deferred record and give the timeline to the typed `scribe` agent.

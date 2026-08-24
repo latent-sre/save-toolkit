@@ -81,22 +81,48 @@ otelcol.receiver.otlp "default" {
   http { endpoint = "127.0.0.1:4318" }
   output {
     traces  = [otelcol.processor.batch.default.input]
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
   }
 }
 
 otelcol.processor.batch "default" {
-  output { traces = [otelcol.exporter.otlp.tempo.input] }
+  output {
+    traces  = [otelcol.exporter.otlp.default.input]
+    metrics = [otelcol.exporter.otlp.default.input]
+    logs    = [otelcol.exporter.otlp.default.input]
+  }
 }
 
-otelcol.exporter.otlp "tempo" {
-  client { endpoint = "<tempo>:4317" }
+otelcol.exporter.otlp "default" {
+  client { endpoint = "<otlp-backend>:4317" }
 }
 ```
 
-The same `otelcol.exporter.otlp` slot pointed at `https://telemetry.googleapis.com` (with
-Application Default Credentials) is the documented path into Cloud Trace as GCP workloads land —
-see the `obs-traces` skill's Cloud Trace reference; the exporter auth block for it remains
-`[unverified]` here.
+To send that same three-signal pipeline to Google's Telemetry API with Application Default
+Credentials, replace the generic `otelcol.exporter.otlp "default"` block above with this block. The
+current Grafana Google-auth example omits the port, while the OTLP exporter contract requires
+`host:port`; this example follows that contract and uses the gRPC TLS port:
+
+```alloy
+otelcol.exporter.otlp "default" {
+  client {
+    endpoint = "telemetry.googleapis.com:443"
+    auth     = otelcol.auth.google.gcp.handler
+  }
+}
+
+otelcol.auth.google "gcp" {
+  project = "<project-id>"
+}
+```
+
+`otelcol.auth.google` is **public preview** and requires Alloy to start with
+`--stability.level=public-preview` (or a lower stability level). Google says logs ingestion is Pre-GA
+for this OTLP API. The component uses and refreshes Application Default Credentials, but the exact
+project, permissions, deployment flag, and canary result remain `[unverified]` for the target
+environment. *[sourced: grafana.com/docs/alloy/latest/reference/components/otelcol/
+otelcol.auth.google; docs.cloud.google.com/stackdriver/docs/otlp-logs/overview; reviewed 2026-08-24]*
 
 ## Discipline that stays regardless of syntax
 
@@ -119,7 +145,22 @@ see the `obs-traces` skill's Cloud Trace reference; the exporter auth block for 
   `import.http` and `import.git`, so an untrusted config can initiate outbound requests (including
   a URL assembled from environment-backed expressions). Ask a human or use an isolated,
   networkless runner; `alloy fmt -w`, `alloy run`, and `alloy tools` also stay denied.
-  *[sourced: reference/cli, re-checked 2026-08-19; current stable v1.18.1]*
+  *[sourced: reference/cli, reviewed against Alloy v1.18.1 on 2026-08-19]*
+- **Docker is the local fallback when the Alloy binary is unavailable.** Assemble the exact
+  self-contained config being reviewed, replace `<pinned-version>` with the deployed Alloy version
+  (never `latest` for retained evidence), and validate it without network access:
+
+  ```powershell
+  Get-Content -LiteralPath .\config.alloy -Raw | docker run --rm --network none -i grafana/alloy:<pinned-version> validate --stability.level=public-preview /dev/stdin
+  ```
+
+  Omit `--stability.level=public-preview` only when the exact config has no public-preview
+  components. Do not pass credentials, mount the Docker socket, or relax network isolation merely
+  to make an imported config pass; route trusted imports to a controlled runner instead. Record the
+  image reference, `alloy --version`, command, exit status, and diagnostics. This is static
+  validation: it checks syntax, component availability, references, and types, but does not prove
+  DNS, TCP, TLS, authentication, or telemetry delivery. *[sourced: reference/cli/validate;
+  set-up/install/docker; locally verified with Alloy v1.18.1 on 2026-08-24]*
 - **Live debugging** (per-component data stream in the UI) is disabled by default "to avoid
   accidentally displaying sensitive telemetry data"; enable deliberately, in non-prod first:
 

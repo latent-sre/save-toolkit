@@ -13,9 +13,16 @@ security:
 paths:
   /healthz:
     get:
-      summary: Liveness/readiness probe for PCF.
+      summary: Liveness probe; process-local and independent of external systems.
       security: []        # health is unauthenticated.
       responses: { "200": { description: OK } }
+  /readyz:
+    get:
+      summary: Readiness probe; whether this instance should receive new traffic.
+      security: []        # readiness is unauthenticated.
+      responses:
+        "200": { description: Ready }
+        "503": { description: Not ready to receive traffic }
   /incidents:
     get:
       summary: List incidents (cursor-paginated).

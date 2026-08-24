@@ -49,7 +49,10 @@ Organized and uncluttered is the floor, not the ceiling. The bar: at home next t
 
 ## State and data
 
-- **Never import `@mantine/core`** or any styled Mantine component — its CSS reset fights Tailwind's, and that mix is the one incoherent hybrid. Mantine's *hooks* and `@mantine/form` ship no CSS and mix freely; its *components* do not.
+- **React targets only:** Never import `@mantine/core` or any styled Mantine component — its CSS
+  reset fights Tailwind's, and that mix is the one incoherent hybrid. `@mantine/hooks` and
+  `@mantine/form` are React packages; within a React target they ship no CSS and can mix with
+  Tailwind. Do not recommend Mantine packages for Vue or another non-React target.
 - Server state lives in TanStack Query (caching, retries, invalidation); UI state stays local. No global store until two distant components genuinely share state.
 - **Typed API client derived from the contract** — use the OpenAPI spec or shared types as the source of truth, with `openapi-typescript`/`orval`; generate against the versioned server contract and fail CI on incompatible schema drift. Regenerate on contract change and let `tsc` catch the breaks; never hand-maintain response shapes in two places.
 - Every async view has designed **loading, error, and empty states**. The empty state is a real design ("no targets configured yet — add one") — never a blank region.
@@ -89,7 +92,7 @@ Semantic HTML first; every input labeled; keyboard reachable with visible focus;
 
 ## Testing & quality gate
 
-- **Vitest + React Testing Library + MSW component/contract tests** — test behavior the user can observe (validation, conditional rendering, error/empty states), not implementation details, and mock the API at the network layer. Write the failing regression first.
+- **Vitest + the target repository's established component-testing layer + MSW component/contract tests** — test behavior the user can observe (validation, conditional rendering, error/empty states), not implementation details, and mock the API at the network layer. For the React greenfield stack, use React Testing Library; a Vue target keeps its established Vue component-testing layer. Write the failing regression first.
 - **Playwright critical-path test** for each end-to-end flow whose breakage would page someone. Write the failing regression first, then prove the fixed path in a real browser.
 - Before "done": it typechecks, lints, unit + E2E tests pass, the dev server runs, and the primary flow was exercised in a **real browser render**, including a keyboard-only pass — evidence in the review packet. A UI that compiles but was never rendered is written, not verified.
 
@@ -104,7 +107,7 @@ packet.
 | a greenfield/unbranded visual language | [design language](./references/design-language.md) |
 | dialogs, drawers, menus, tabs, custom widgets, or async announcements | [interaction accessibility](./references/interaction-a11y.md) |
 | labels, actions, errors, empty states, or toasts | [interface copy](./references/ux-writing.md) |
-| choosing a stack for a greenfield UI | [stack](./references/stack.md) |
+| choosing a stack for a greenfield UI | Load `stack-profile` first, then [stack](./references/stack.md) |
 | a table, list, or grid of records | [data views](./references/data-views.md) |
 | a chart, graph, or metric visualization | [data visualization](./references/data-viz.md) |
 | a form or any user input to submit | [forms](./references/forms.md) |

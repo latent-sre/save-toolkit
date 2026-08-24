@@ -85,7 +85,10 @@ These are the system-wide principles. The client-side mechanics for *calling oth
 ## Operability
 
 - Structured logs with a request ID on every entry — one request must be traceable end to end.
-- `/healthz` (process up) and `/readyz` (dependencies reachable) — distinct, because they answer different questions.
+- `/healthz` answers only whether the process is alive; never make it depend on an external system.
+  `/readyz` answers whether this instance should receive new traffic. Do not mirror every shared
+  dependency into readiness: include one only when its loss makes this instance unable to serve and
+  withdrawing the instance improves behavior rather than removing every replica at once.
 - RED metrics (rate, errors, duration) on the request path.
 - Config from environment, validated at startup — fail fast and loud on bad config, never limp.
 - Graceful shutdown: stop accepting, drain in-flight requests, finish or re-queue the running job, stop the scheduler, close live streams — then exit.
@@ -123,7 +126,7 @@ review packet.
 | If the task involves… | Read first |
 |---|---|
 | endpoint/resource/status/list design or a published API change | [API surface design](./references/api-design.md) |
-| choosing a stack for a greenfield service | [stack](./references/stack.md) |
+| choosing a stack for a greenfield service | Load `stack-profile` first, then [stack](./references/stack.md) |
 | building in Python + FastAPI (the greenfield default) | [FastAPI mechanics](./references/fastapi.md) |
 | building in Java + Spring Boot (the JVM default) | [Spring Boot mechanics](./references/spring-boot.md) |
 | calling any upstream or third-party API | [consuming-apis](./references/consuming-apis.md) |

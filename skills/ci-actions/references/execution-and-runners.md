@@ -36,7 +36,7 @@ Cancel superseded branch validation, but never a production deployment:
 
 ```yaml
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 ```
 

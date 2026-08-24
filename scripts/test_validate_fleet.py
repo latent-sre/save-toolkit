@@ -56,7 +56,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
-    def test_exact_sha_independent_review_is_prod_deployment_only(self) -> None:
+    def test_exact_commit_id_independent_review_is_prod_deployment_only(self) -> None:
         """Deleting or moving the review boundary must fail this contract."""
         production_checklist = _markdown_section(
             Path("skills/production-change-gate/SKILL.md"),
@@ -64,7 +64,7 @@ class FleetValidatorTests(unittest.TestCase):
         )
         self.assertIn(
             "production deployment of a new artifact requires independent review of the exact "
-            "candidate sha",
+            "candidate commit id",
             production_checklist,
         )
         self.assertIn(
@@ -84,7 +84,7 @@ class FleetValidatorTests(unittest.TestCase):
             checklist = _markdown_section(relative, "## Checklist")
             with self.subTest(contract=relative.as_posix()):
                 self.assertNotIn("requires independent review", checklist)
-                self.assertNotIn("reviewed sha", checklist)
+                self.assertNotIn("reviewed commit id", checklist)
 
     def test_release_gate_uses_distribution_specific_immutability(self) -> None:
         checklist = _markdown_section(

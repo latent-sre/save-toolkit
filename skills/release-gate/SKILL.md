@@ -17,9 +17,9 @@ For production, this PASS establishes readiness only; authorization belongs to t
 ## Checklist
 
 - [ ] **Merge readiness exists** — attach a recorded PASS from the `merge-gate` skill for the exact
-      candidate SHA. This skill does not load or execute that sibling gate; missing evidence is a blocking
-      item. Independent review is not a release-readiness prerequisite here; a production deployment of
-      new bytes checks exact-candidate review later in `production-change-gate`.
+      candidate commit ID. This skill does not load or execute that sibling gate; missing evidence is a
+      blocking item. Independent review is not a release-readiness prerequisite here; a production
+      deployment of new bytes checks exact-candidate review later in `production-change-gate`.
 - [ ] **One immutable artifact, promoted through its actual distribution path** — the version and
       changelog or release notes identify the candidate, and the exact artifact tested in lower
       environments is the one shipping; build once and promote rather than rebuilding. When the
@@ -49,7 +49,8 @@ For production, this PASS establishes readiness only; authorization belongs to t
 
 ```text
 release-gate: PASS | BLOCKED
-Candidate SHA/artifact: <immutable identity>
+Candidate commit ID: <exact source commit ID>
+Artifact identity: <immutable digest or non-replaceable object/version identity>
 Target: <org/space/environment>   Strategy: <blue-green|rolling|canary|flag>
 Rollback: <exact steps and evidence>
 Blocking items: <the NOs>

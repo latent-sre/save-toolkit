@@ -46,8 +46,16 @@ output for a human to run.
 ## The revision model — "what changed?" is one command
 
 Every deploy to a Cloud Run service creates an immutable **revision** (image + env + limits +
-concurrency); by default traffic routes to the latest healthy revision *[sourced:
-docs.cloud.google.com/run/docs/resource-model]*. So the PCF `cf events` question becomes:
+concurrency). A new deployment receives traffic by default only while the service still tracks the
+latest revision: an existing traffic split or previous-revision assignment persists across later
+deployments, and `--no-traffic` keeps the new revision unrouted until traffic is explicitly assigned.
+For a staged rollout, a human can assign a percentage with
+`gcloud run services update-traffic <service> --to-revisions <revision>=<percentage>`.
+`gcloud run services update-traffic <service> --to-latest` instead sends 100% to the latest revision
+and makes later deployments serve the latest revision automatically
+*[sourced: docs.cloud.google.com/run/docs/resource-model;
+docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration]*. So the PCF `cf events`
+question becomes:
 
 ```bash
 gcloud run revisions list --service <service>
@@ -96,9 +104,10 @@ docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration]*:
 gcloud run services update-traffic <service> --to-revisions <previous-revision>=100
 ```
 
-Tier 2, human release owner, with the exact revision names, verification (error rate on the
-service dashboard), and the equally exact inverse command. Traffic changes are not instantaneous —
-in-flight requests may land on either revision during the transition.
+Tier 2, human release owner, with the exact revision names, verification (error rate on the service
+dashboard), and a command that restores the intended prior traffic allocation or `--to-latest`
+tracking policy. Traffic changes are not instantaneous — in-flight requests may land on either
+revision during the transition.
 
 ## Credential-bearing reads are human-only
 

@@ -62,7 +62,8 @@ them.
 
 Lead with the readiness conclusion, then:
 
-1. the top three fixes in priority order;
+1. up to three validated fixes in priority order; if there are fewer, return fewer and never pad the
+   list to reach three;
 2. severity-ranked findings, each with evidence label and citation/output, impact, one-line fix, and
    owner;
 3. checks that passed, without expanding them into prose;

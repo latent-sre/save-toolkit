@@ -80,14 +80,23 @@ So an unpinned read on a 13.1 instance already returns the V2 shape, and a `jq` 
 `spec.panels[]` silently returns nothing. This is not a 13.2 concern; it is true today.
 
 ```bash
-# Common header block for every call below. Bash arrays: on PowerShell or a POSIX `sh`, pass the two
-# -H flags literally, or drive the API from `python -c` with urllib. `command -v curl jq` first —
-# neither is guaranteed (see the jq trap below).
+# Common transport/header block for every call below. On PowerShell or a POSIX `sh`, pass the three
+# curl flags and two -H flags literally, or drive the API from `python -c` with urllib.
+# `command -v curl jq` first — neither is guaranteed (see the jq trap below).
+set -o pipefail
+CURL=(curl --fail-with-body --show-error --silent)
 H=(-H "Authorization: Bearer $GRAFANA_SA_TOKEN" -H "Content-Type: application/json")
 NS=default        # confirm on the target
 APIVER=           # deliberately EMPTY. Set it from the probe below — never by hand, and never to a
                   # remembered value. It must equal the version the dashboard is STORED at.
 ```
+
+Every HTTP example below uses `${CURL[@]}` so a 4xx/5xx response is non-zero while its diagnostic
+body remains visible; `pipefail` preserves that failure through jq/Python pipelines. Each
+multi-step write recipe chains every body-building prerequisite through the write with `&&`; keep
+that chain intact so a failed builder cannot submit an empty or stale file. A response body that
+happens to be valid JSON is not evidence that the request succeeded. *[sourced: curl
+`--fail-with-body`; Bash pipelines]*
 
 **Three things must name the same version: the URL path, the body's `apiVersion`, and the schema the
 `spec` is actually written in.** Any mismatch is silent. Writing a Classic `spec` at `$APIVER=v1`
@@ -100,8 +109,8 @@ whatever V2 expressed that V1 cannot, and the response still reads `200`.
 # PROBE ONLY — this read exists to learn the stored version, and its body is NOT the model you edit.
 # v0alpha1 never migrates and never validates, so it is the one read that cannot rewrite the answer.
 PROBE="$GRAFANA_URL/apis/dashboard.grafana.app/v0alpha1/namespaces/$NS/dashboards/<uid>"
-STORED=$(curl -sS "${H[@]}" "$PROBE" | python -c "import json,sys; d=json.load(sys.stdin); c=(d.get('status') or {}).get('conversion') or {}; print((c.get('storedVersion') or d.get('apiVersion','')).rsplit('/',1)[-1])")
-APIVER=$STORED
+STORED=$("${CURL[@]}" "${H[@]}" "$PROBE" | python -c "import json,sys; d=json.load(sys.stdin); c=(d.get('status') or {}).get('conversion') or {}; print((c.get('storedVersion') or d.get('apiVersion','')).rsplit('/',1)[-1])") &&
+APIVER=$STORED &&
 echo "stored at: $APIVER"     # e.g. v2 — a bare version, never a group-qualified string
 ```
 
@@ -123,37 +132,37 @@ reference means. `[verified: QA]`
 
 ```bash
 # 1. Reachable, and which version and edition? (no auth needed)
-curl -sS "$GRAFANA_URL/api/health"
+"${CURL[@]}" "$GRAFANA_URL/api/health"
 #    -> {"database":"ok","version":"13.1.4","commit":"...","enterpriseCommit":"..."}
 #    An `enterpriseCommit` field means an Enterprise build — the precondition for the Wavefront and
 #    Splunk plugins. Absent means OSS, and those plugins cannot be licensed here at all.
 
 # 2. What can this token actually do? Do this BEFORE trusting any empty result.
-curl -sS "${H[@]}" "$GRAFANA_URL/api/access-control/user/permissions"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/access-control/user/permissions"
 #    Look for dashboards:read / :write / :create / :delete and their SCOPES. A grant scoped to
 #    `folders:uid:general` is not org-wide, and a missing `dashboards:read` makes every search lie.
 
 # 3. Which org, therefore which namespace?
-curl -sS "${H[@]}" "$GRAFANA_URL/api/org"          # id 1 -> namespace `default`
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/org"          # id 1 -> namespace `default`
 
 # 4. Which dashboard API versions are served, and which is preferred?
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/"
 #    -> 13.1.4 serves v0alpha1, v1, v1beta1, v2alpha1, v2beta1, v2 with preferredVersion v2.
 #    Pin a version on every subsequent read; the preferred one is NOT the Classic shape.
 
 # 5. Which data sources exist, with their uids and types?
-curl -sS "${H[@]}" "$GRAFANA_URL/api/datasources"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/datasources"
 #    Take uid AND type from here. Never copy a uid from another instance or from a dashboard file.
 
 # 6. Is an image renderer deployed? (decides whether a visual check is even possible)
-curl -sS "${H[@]}" "$GRAFANA_URL/api/frontend/settings"   # -> .rendererAvailable
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/frontend/settings"   # -> .rendererAvailable
 
 # 7. Which dashboard-relevant feature toggles are on?
 #    Same response as 6: .featureToggles — dashboardNewLayouts, provisioning, and friends.
 #    (`provisioning` relates to Git Sync, which this team does not use — note it, do not act on it.)
 
 # 8. What is actually here, and is the answer trustworthy?
-curl -sS "${H[@]}" "$GRAFANA_URL/api/search?type=dash-db&limit=100"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/search?type=dash-db&limit=100"
 #    Cross-check the count against step 2. An empty list from a token without `dashboards:read`
 #    is byte-identical to an empty instance.
 ```
@@ -168,7 +177,7 @@ Without a committed copy there is nothing to diff against, but one signal still 
 that matters before you overwrite someone's work:
 
 ```bash
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" \
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" \
   | jq -r '.metadata.annotations["grafana.app/saved-from-ui"] // "last written through the API"'
 #    -> "Grafana v13.1.4 (afdab62868)" when the last write came from the browser [verified: QA]
 ```
@@ -180,13 +189,13 @@ the save messages before replacing it. `GET /api/dashboards/uid/<uid>/versions` 
 
 ```bash
 # Dashboards by title / tag / folder (legacy search; honors the caller's permissions)
-curl -sS "${H[@]}" "$GRAFANA_URL/api/search?query=checkout&type=dash-db&tag=prod&limit=100"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/search?query=checkout&type=dash-db&tag=prod&limit=100"
 # Folders (uid, title, parent)
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/folder.grafana.app/v1/namespaces/$NS/folders"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/apis/folder.grafana.app/v1/namespaces/$NS/folders"
 # Data sources — take `uid` and `type` from here; a misspelled uid renders "Datasource not found"
-curl -sS "${H[@]}" "$GRAFANA_URL/api/datasources" | jq '.[] | {name, type, uid, isDefault}'
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/datasources" | jq '.[] | {name, type, uid, isDefault}'
 # Does the app-platform family answer at all, and which versions? (empty/404 → use the legacy family)
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/"
 ```
 
 Label values and metric names come from the data source, not from memory: query the metrics
@@ -197,14 +206,14 @@ backend (`obs-metrics`) or read an existing panel's `targets[].expr` before writ
 ```bash
 # App platform, pinned to the PROBED stored version; {apiVersion, kind,
 # metadata{name, annotations, resourceVersion, generation}, spec, status}
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" > live.json
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" > live.json &&
 # ASSERT the round trip before trusting live.json: what came back must be stored at what you asked for.
 python -c "import json,sys; d=json.load(open('live.json')); c=(d.get('status') or {}).get('conversion') or {}; s=(c.get('storedVersion') or d.get('apiVersion','')).rsplit('/',1)[-1]; print('stored=%s asked=%s' % (s, '$APIVER')); sys.exit(s != '$APIVER')"
 # Non-zero here means you do not know what you are editing. Do not diff and do not write.
 # Legacy: {dashboard, meta{folderUid, provisioned, version, ...}}
-curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>" > live-legacy.json
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>" > live-legacy.json
 # Full listing, paginated until no metadata.continue
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards?limit=200"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards?limit=200"
 ```
 
 **`jq` is not guaranteed to exist.** On the Windows host used for the 2026-08-21 run it was absent,
@@ -245,8 +254,8 @@ jq -n --slurpfile spec dashboard.json --arg av "dashboard.grafana.app/$APIVER" '
   metadata: {name: $spec[0].uid,
              annotations: {"grafana.app/folder": "<existing folder uid>",
                            "grafana.app/message": "<ticket or change reference>"}},
-  spec: $spec[0]}' > create.json
-curl -sS "${H[@]}" -X POST --data @create.json \
+  spec: $spec[0]}' > create.json &&
+"${CURL[@]}" "${H[@]}" -X POST --data @create.json \
   "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards"
 #   201 created · 400 invalid body · 401/403 auth · 409 "dashboard with the same uid already exists"
 # [verified: QA] 201 returns the stored object: metadata.name = your uid, metadata.uid = a separate
@@ -255,8 +264,8 @@ curl -sS "${H[@]}" -X POST --data @create.json \
 
 # Legacy fallback: one endpoint creates and updates
 jq -n --slurpfile d dashboard.json '{dashboard: ($d[0] | .id = null), folderUid: "<existing folder uid>",
-  message: "<ticket or change reference>", overwrite: false}' > create-legacy.json
-curl -sS "${H[@]}" -X POST --data @create-legacy.json "$GRAFANA_URL/api/dashboards/db"
+  message: "<ticket or change reference>", overwrite: false}' > create-legacy.json &&
+"${CURL[@]}" "${H[@]}" -X POST --data @create-legacy.json "$GRAFANA_URL/api/dashboards/db"
 #   200 · 400 · 401/403 · 409 when the uid is taken [verified: QA 13.1.4] (412 name-exists is the
 #       older documented shape and was not observed there)
 # [verified: QA] a fresh-uid create answers HTTP 200 with exactly:
@@ -280,9 +289,10 @@ to a real data source. This is the same path the UI dialog uses.
 
 ```bash
 # Fetch a published dashboard (id from grafana.com/dashboards)
-curl -sS "https://grafana.com/api/dashboards/<id>/revisions/latest/download" > community.json
+"${CURL[@]}" "https://grafana.com/api/dashboards/<id>/revisions/latest/download" > community.json
 # Import it, binding every __inputs entry to a data source that exists here
-curl -sS "${H[@]}" -X POST "$GRAFANA_URL/api/dashboards/import" --data @import.json
+jq empty import.json &&
+"${CURL[@]}" "${H[@]}" -X POST "$GRAFANA_URL/api/dashboards/import" --data @import.json
 #   import.json = {"dashboard": <the model>, "overwrite": false, "folderUid": "<uid>",
 #                  "inputs": [{"name":"DS_PROMETHEUS","type":"datasource",
 #                              "pluginId":"prometheus","value":"<your ds uid>"}]}
@@ -310,8 +320,8 @@ diff -u live.spec.json new.spec.json
 # 2. build the update from the live object so metadata (resourceVersion, labels) round-trips intact
 jq --slurpfile spec dashboard.json \
    '.spec = $spec[0] | .metadata.annotations["grafana.app/message"] = "<ticket or change reference>" | del(.status)' \
-   live.json > update.json
-curl -sS "${H[@]}" -X PUT --data @update.json \
+   live.json > update.json &&
+"${CURL[@]}" "${H[@]}" -X PUT --data @update.json \
   "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>"
 #   200 updated · 400 · 401/403 · 409 → someone saved first: re-read, re-diff, retry. The body reads
 #       "Operation cannot be fulfilled ... the object has been modified" [verified: QA] — match on the
@@ -319,8 +329,8 @@ curl -sS "${H[@]}" -X PUT --data @update.json \
 
 # Legacy fallback: pin the version you read, keep overwrite:false
 jq -n --slurpfile d dashboard.json --argjson v "$(jq .dashboard.version live-legacy.json)" \
-  '{dashboard: ($d[0] | .version = $v), folderUid: "<folder uid>", message: "<ticket or change reference>", overwrite: false}' > update-legacy.json
-curl -sS "${H[@]}" -X POST --data @update-legacy.json "$GRAFANA_URL/api/dashboards/db"
+  '{dashboard: ($d[0] | .version = $v), folderUid: "<folder uid>", message: "<ticket or change reference>", overwrite: false}' > update-legacy.json &&
+"${CURL[@]}" "${H[@]}" -X POST --data @update-legacy.json "$GRAFANA_URL/api/dashboards/db"
 #   409 {"message":"Dashboard already exists. Use overwrite flag to update."} on 13.1.4 [verified: QA]
 #       — the SAME body for a stale version and for a taken uid; re-read and compare the version
 #   412 {status:"version-mismatch"} — the v12.4.1 documented shape, not observed on 13.1.4
@@ -362,7 +372,7 @@ silently discards a concurrent edit and is never the fix for a 409/412.
 2. **Prove the queries return data.** Run each new or changed target through the query API with the
    dashboard's default range and a real variable value:
    ```bash
-   curl -sS "${H[@]}" -X POST "$GRAFANA_URL/api/ds/query" --data '{"from":"now-1h","to":"now",
+   "${CURL[@]}" "${H[@]}" -X POST "$GRAFANA_URL/api/ds/query" --data '{"from":"now-1h","to":"now",
      "queries":[{"refId":"A","datasource":{"type":"prometheus","uid":"<ds uid>"},"expr":"<expr with variables substituted>","intervalMs":60000,"maxDataPoints":500}]}' \
      | jq '.results.A.status, (.results.A.frames | length)'
    ```
@@ -378,7 +388,7 @@ silently discards a concurrent edit and is never the fix for a 409/412.
 3. **Look at it — but check the renderer exists first.** Grafana 13 requires the image renderer as a
    separate service, and it is frequently absent:
    ```bash
-   curl -sS "${H[@]}" "$GRAFANA_URL/api/frontend/settings" | jq .rendererAvailable
+   "${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/frontend/settings" | jq .rendererAvailable
    ```
    **`[verified: QA]`** this returns `false` on the QA instance — so on that host the visual check is
    **unavailable** and `/render/...` will not produce an image. When it returns `true`:
@@ -393,10 +403,10 @@ silently discards a concurrent edit and is never the fix for a 409/412.
 
 ```bash
 # App platform resource history (GA versions only)
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards?labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards?labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>"
 # Legacy: who/when/message per version, and the full model at one version
-curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>/versions?limit=20"
-curl -sS "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>/versions/<version>"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>/versions?limit=20"
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/api/dashboards/uid/<uid>/versions/<version>"
 ```
 
 **Rolling back is not "re-apply the export".** The model you exported before the write carries the
@@ -406,12 +416,12 @@ onto the current object:
 
 ```bash
 # 1. read the live object again — this is the only source of a usable token
-curl -sS "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" > now.json
+"${CURL[@]}" "${H[@]}" "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>" > now.json &&
 # 2. put the SAVED spec into the CURRENT envelope, and drop status (see json-model.md)
 python -c "import json,sys; live=json.load(open('now.json')); saved=json.load(open('live.json')); \
-  live['spec']=saved['spec']; live.pop('status',None); json.dump(live,open('rollback.json','w'))"
+  live['spec']=saved['spec']; live.pop('status',None); json.dump(live,open('rollback.json','w'))" &&
 # 3. apply it like any other update
-curl -sS "${H[@]}" -X PUT --data @rollback.json \
+"${CURL[@]}" "${H[@]}" -X PUT --data @rollback.json \
   "$GRAFANA_URL/apis/dashboard.grafana.app/$APIVER/namespaces/$NS/dashboards/<uid>"
 ```
 

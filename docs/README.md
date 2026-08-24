@@ -29,6 +29,22 @@ still cites; a review nothing cites is removed the same way. Everything there is
 task list. A historical file may retain a dated "open" section as evidence of what was believed
 then — that section does not re-enter the queue unless the roadmap imports it.
 
+### Retained full-skill audit evidence
+
+The 2026-08-24 repository-wide skill audit is retained as closure evidence for the review and
+remediation of the canonical 30-skill corpus. Its six scoped packets preserve the local inspection,
+public-source, and verification evidence behind that result:
+
+- [`2026-08-24-full-skill-audit-batch-1.md`](reviews/2026-08-24-full-skill-audit-batch-1.md)
+- [`2026-08-24-full-skill-audit-batch-2.md`](reviews/2026-08-24-full-skill-audit-batch-2.md)
+- [`2026-08-24-full-skill-audit-batch-3.md`](reviews/2026-08-24-full-skill-audit-batch-3.md)
+- [`2026-08-24-full-skill-audit-batch-4.md`](reviews/2026-08-24-full-skill-audit-batch-4.md)
+- [`2026-08-24-full-skill-audit-batch-5.md`](reviews/2026-08-24-full-skill-audit-batch-5.md)
+- [`2026-08-24-full-skill-audit-batch-6.md`](reviews/2026-08-24-full-skill-audit-batch-6.md)
+
+These packets remain historical evidence, not an independent backlog; only `fleet-roadmap.md` can
+import unfinished work from them.
+
 ## Rules
 
 1. **The roadmap is the single live tracker.** A review or decision record owns detailed rationale;

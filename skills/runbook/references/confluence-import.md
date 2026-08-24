@@ -14,13 +14,24 @@ human-run command, shown so the human knows exactly what to run.
 Three export paths, best first for Markdown conversion:
 
 1. **Single page via REST API v2** — request `view` (rendered HTML), the representation that
-   converts cleanly (see "Convert HTML, not storage format" below), and keep the token out of the
-   command line so it never lands in shell history or process listings:
+   converts cleanly (see "Convert HTML, not storage format" below). Supply only the account email
+   to `--user`; curl then prompts for the API token, keeping the token out of the command line:
 
    ```bash
-   curl -u "user@example.com:$CONFLUENCE_API_TOKEN" \
-     "https://<site>.atlassian.net/wiki/api/v2/pages/<page-id>?body-format=view"
+   curl --fail-with-body --user "user@example.com" --output page.json \
+     "https://<site>.atlassian.net/wiki/api/v2/pages/<page-id>?body-format=view" &&
+   jq --exit-status --raw-output '.body.view.value' page.json > page.html
    ```
+
+   Paste the API token at curl's password prompt. Never append `:<token>` to `--user`: curl warns
+   that secrets supplied in command-line arguments can be visible briefly even where it tries to
+   hide them. *[sourced: curl.se/docs/manpage.html#-u; Atlassian Cloud Confluence basic-auth docs]*
+   The v2 endpoint returns a JSON page envelope, not a bare HTML response. `--fail-with-body`
+   propagates HTTP errors, `&&` prevents extraction after a failed request, and jq's
+   `--exit-status` makes a missing/null `body.view.value` fail instead of looking successful. Do
+   not continue to Pandoc unless the compound command exits zero. *[sourced:
+   curl.se/docs/manpage.html#--fail-with-body;
+   developer.atlassian.com/cloud/confluence/rest/v2/api-group-page; jqlang.org/manual/]*
 
    `body-format` also accepts `storage` (the XHTML-based source — useful only when auditing the
    original macros) and `atlas_doc_format` (ADF JSON). *[sourced:
@@ -43,8 +54,9 @@ from the format definition; check the diff]`. Prefer `view` HTML or the space HT
 pandoc page.html -f html -t gfm -o page.md
 ```
 
-`[unverified — pandoc invocation shape; the official manual was not reachable when this reference
-was written. Diff the output against the rendered page before trusting it.]`
+The `-f`/`--from`, `-t`/`--to`, `gfm`, and `-o` forms are documented by the current Pandoc manual
+*[sourced: pandoc.org/demo/example33/2.2-specifying-formats.html; pandoc.org/getting-started.html]*.
+Diff the output against the rendered page before trusting the conversion.
 
 ## The converter does the mechanical part
 

@@ -18,11 +18,15 @@ Status alone under-determines the cause. The documented shapes include:
 `handlers/lookup.go` and `proxy/round_tripper/error_handler.go`]*
 
 - **502 Bad Gateway** — Gorouter reached a backend but the response or connection failed: the app
-  crashed mid-request, exceeded the router timeout, or hit the **keep-alive race**. If the app's
-  keep-alive idle timeout is **< 90s**, it can close a connection just as Gorouter reuses it. Set the
-  app server's keep-alive idle timeout **> 90s**; the Gorouter side is a hardcoded 90s, not an
-  operator-tunable knob (for example, set Tomcat's `server.tomcat.keep-alive-timeout`). This is
-  usually app-side.
+  crashed mid-request, exceeded the router timeout, or hit the **keep-alive race**. Upstream
+  Gorouter's backend-connection idle timeout is hardcoded at 90 seconds. If the app's keep-alive
+  idle timeout is **< 90s**, it can close a connection just as Gorouter reuses it; set the app
+  server's keep-alive idle timeout **> 90s** (for example, Tomcat's
+  `server.tomcat.keep-alive-timeout`). This is the router-to-app connection pool, not a universal
+  Gorouter keepalive; the frontend idle timeout is separate and platform-configurable. The
+  application setting is usually app-side, while any Gorouter setting remains a platform-team
+  concern. *[sourced: gorouter `proxy/proxy.go` backend transport and `router/router.go` frontend
+  server]*
 - A 502 can also be **platform-side**: clock skew between Gorouter and a Diego cell makes the cell's
   TLS certificate look not-yet-valid (`x509: certificate ... is not yet valid`), surfaced as
   `ExpiredOrNotYetValidCertFailure`. Escalate that NTP/time-sync evidence to the platform team rather

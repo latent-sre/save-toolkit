@@ -89,8 +89,8 @@ supplies the required trigger, procedure, verification, rollback, and escalation
 ## Postmortem mode
 
 Use only after the incident is resolved. The `postmortem` skill supplies Summary, Impact, Timeline,
-Root cause and contributing factors, Detection, Response, Five whys, Action items, and Lessons. Do not
-force Procedure or Rollback headings into a postmortem.
+Root cause and contributing factors, Detection, Response, Causal analysis selected to fit the evidence,
+Action items, and Lessons. Do not force Procedure or Rollback headings into a postmortem.
 
 1. Gather the authoritative UTC timeline, technical findings from `sre`, impact/SLO data, mitigation
    records, and relevant change history. `incident-command` owns the live-incident timeline.
