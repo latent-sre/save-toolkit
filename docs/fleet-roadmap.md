@@ -101,12 +101,13 @@ external data/cost boundary and the remaining guarantees can be proven.
 
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
 
-**Status:** `decision-needed` (2026-08-24)
+**Status:** `active` (2026-08-24)
 
-**Owner:** `latent-sre` owns the architecture decision and acceptance of the exact pilot revision.
+**Owner:** `latent-sre` owns the architecture decision and acceptance of the exact generic-alpha revision.
 `prompt-engineer` owns consumer context-requirement semantics for agents/skills; `sde` owns any
-later resolver, validator, or onboarding-tool implementation. Team owners remain accountable for
-their context values and operational documents. No owner may approve its own unreviewed evidence.
+later resolver, validator, or onboarding-tool implementation. A team owner becomes accountable for
+values and operational documents only when that team separately opts into onboarding. No owner may
+approve its own unreviewed evidence.
 
 **Outcome:** Reusable skills and agents resolve one explicit team, service, environment, and—when
 needed—deployment from schema-valid team configuration, then receive only the smallest context
@@ -116,10 +117,11 @@ Missing or ambiguous context fails clearly; production is never an implicit targ
 does not grant credentials, approval, or effect authority.
 
 **Concrete consumer:** The first consumer is the read-only `service-readiness-audit`. One unchanged
-consumer contract must work across differently shaped services and platforms before any
-effect-capable skill adopts the resolver. The pilot may model PCF and GCP/Cloud Run mappings already
-present in the fleet, but it does not decide the pending landing runtime, introduce self-managed
-Kubernetes, or rewrite platform procedures.
+consumer contract must work across differently shaped synthetic teams, services, environments, and
+platform representations before any real team onboards or effect-capable skill adopts the resolver.
+Fixtures may model PCF and GCP/Cloud Run shapes already represented in the fleet, but they do not
+decide the pending landing runtime, introduce self-managed Kubernetes, or rewrite platform
+procedures.
 
 **Source:** Owner direction on 2026-08-24 requested the smallest useful standardized operational
 context contract, a central-repository assessment, and 24 architecture deliverables before
@@ -147,13 +149,19 @@ repository first while keeping the logical contract source- and transport-indepe
 8. Git stores curated facts and references only. Live state remains in its authoritative system,
    and platform-generated identifiers carry qualified names and freshness/provenance.
 
-**Prerequisites:** An accepted decision record names the schema/contract owner, context-data owner,
-resolver owner, pilot teams/services, source repository and permissions, supported platform shapes,
-and the alpha compatibility window. Reinspect the exact consumer skill, generator/package behavior,
-dependency policy, and current schema catalog before naming implementation files. Any third-party
-validator or YAML parser is pinned in `requirements-dev.txt` and follows the CI/Gate A dependency
-rule. No central repository, schema, resolver, MCP server, skill rewrite, or live discovery job is
-created solely from this roadmap entry.
+The
+[`source-independent SRE operational-context contract`](decisions/2026-08-24-sre-operational-context-contract.md)
+now records the accepted generic contract, consequences, rejected alternatives, failure modes,
+rollback, and staged scope. Owner approval on 2026-08-24 authorizes stages 1–3 only; it does not
+authorize real-team onboarding or effect-capable adoption.
+
+**Prerequisites:** An accepted decision record names the schema/contract owner, resolver owner,
+source repository and permissions, generic fixture policy, representational platform shapes, and the
+alpha compatibility window. No real team or service values are prerequisites. Reinspect the exact
+consumer skill, generator/package behavior, dependency policy, and current schema catalog before
+naming implementation files. Any third-party validator or YAML parser is pinned in
+`requirements-dev.txt` and follows the CI/Gate A dependency rule. No central repository, schema,
+resolver, MCP server, skill rewrite, or live discovery job is created solely from this roadmap entry.
 
 **Acceptance:** All conditions are required and retain separate evidence labels:
 
@@ -173,10 +181,12 @@ created solely from this roadmap entry.
    telemetry mappings, and runtime instance IDs remain distinct. Repositories are first-class and
    every service relationship states one or more provisional roles plus why the repository matters;
    `other` never becomes an untyped escape hatch.
-5. **Two-team portability pilot:** At least two teams, multiple services, multiple repositories,
-   production and non-production environments, and at least two platform shapes validate without a
-   team-specific schema or skill branch. The same `service-readiness-audit` requirement contract
-   resolves representative selections and refuses missing/ambiguous selections.
+5. **Generic portability proof:** At least two explicitly synthetic team fixtures, multiple services,
+   multiple repositories, production-classified and non-production environments, and at least two
+   platform representations validate without a team-specific schema or skill branch. The same
+   `service-readiness-audit` requirement contract resolves representative selections and refuses
+   missing/ambiguous selections. Fixture sources require explicit opt-in, use reserved example
+   locators, preserve a non-operational marker, and prohibit action selection.
 6. **Context behavior:** Required and alternative JSON Pointer paths fail closed; optional absence
    remains explicit; the resolver expands only requested references within declared depth/byte
    budgets. A fresh-context exercise demonstrates deterministic lookup and preserved canonical
@@ -186,25 +196,27 @@ created solely from this roadmap entry.
    mappings and external locators name their authority and validation evidence where freshness is
    material. An effect-capable path separately proves that context cannot default to production,
    approve an action, supply a credential, or bypass the existing production/effect gate.
-8. **Onboarding and operations:** A new team can add team/service/environment/deployment,
-   repository, integration/observability, Jira/Confluence, and runbook references and receive clear
-   validation output without editing a generalized skill. Ownership, schema migration, stale-link
-   diagnostics, source-repository recovery, and resolver troubleshooting are documented.
+8. **Onboarding and operations:** Synthetic acceptance proves that a new team can add
+   team/service/environment/deployment, repository, integration/observability, Jira/Confluence, and
+   runbook references and receive clear validation output without editing a generalized skill. Real
+   onboarding is a later team-owned adoption step using the identical contracts. Ownership, schema
+   migration, stale-link diagnostics, source-repository recovery, and resolver troubleshooting are
+   documented.
 9. **Integrated verification:** Focused schema/resolver/consumer regressions, affected offline
    routing or behavior checks, adapter generation where canonical skill bytes change, strict plugin
    validation, `git diff --check`, Gate A at the push boundary, and independent exact-revision
    correctness/security plus roadmap-plan conformance review all pass. Each result states what it
    proves and what remains unverified.
 
-**Closure:** Merge the accepted pilot and its exact evidence, record the supported alpha contract
-and next migration boundary, then move `CONTEXT-001` to the closed table. Fleet-wide adoption,
-federation, Backstage/MCP adapters, automatic discovery, live reconciliation, or a general overlay
-language are separately justified work and do not silently expand this item.
+**Closure:** Merge the accepted generic alpha and its exact synthetic evidence, record the supported
+alpha contract and next migration boundary, then move `CONTEXT-001` to the closed table. Fleet-wide
+adoption, federation, Backstage/MCP adapters, automatic discovery, live reconciliation, or a general
+overlay language are separately justified work and do not silently expand this item.
 
-**Next action:** Review the linked proposal once and accept or revise the eight architecture
-choices. If accepted, record the ADR and authorize only stages 1–3: contract skeleton, one-team
-read-only pilot, and second-team portability proof. Do not create the central repository or rewrite
-skills before that decision.
+**Next action:** Create the approved private `latent-sre/sre-context` repository and implement stages
+1–3: contract skeleton, first synthetic-tenant read-only proof, and second synthetic-tenant
+portability proof. No team-specific values are required. Do not onboard a real team or rewrite fleet
+skills beyond the accepted generic consumer contract in this stage.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 

@@ -65,8 +65,10 @@ The recommended boundaries are:
    approve, credential, or execute an action. Production is never an implicit default.
 
 Do not begin with Backstage, a database, a Kubernetes CRD, a general inheritance engine, or an MCP
-server. A file/CLI contract with one pilot team is the smallest reversible proof. Backstage export,
-federated sources, and an MCP resource facade remain compatible later adapters.
+server. A file/CLI contract with two explicitly synthetic tenant fixtures is the smallest reversible
+generic proof. Backstage export, federated sources, and an MCP resource facade remain compatible
+later adapters. Real team values are onboarding inputs after the contract proves portable, not
+architecture prerequisites.
 
 ## Evidence method
 
@@ -93,10 +95,10 @@ than a resolvable context model.
 
 | Existing surface | What is already correct | Missing boundary | Consequence for `CONTEXT-001` |
 |---|---|---|---|
-| [`stack-profile`](../../skills/stack-profile/SKILL.md) | One canonical source for the current stack, documentation home, change systems, and app/platform boundary | It describes one team's facts and is loaded globally; it cannot select among teams, services, or deployments | Split reusable platform interpretation from team values; keep the current profile as pilot input or an adapter during migration |
+| [`stack-profile`](../../skills/stack-profile/SKILL.md) | One canonical source for the current stack, documentation home, change systems, and app/platform boundary | It describes one team's facts and is loaded globally; it cannot select among teams, services, or deployments | Split reusable platform interpretation from team values; use synthetic platform representations for contract proof and consider a profile adapter only during a separately approved real-team migration |
 | [`pcf-ops` foundation inventory](../../skills/pcf-ops/references/foundations.md) and [`gcp-ops` project inventory](../../skills/gcp-ops/references/projects.md) | They tell agents not to guess platform targets and exclude secrets | Values live in Markdown tables with different shapes and no shared identity, cross-reference, or validator | Replace value lookup with typed deployment bindings; retain platform-specific skills and procedures |
 | [`service-onboarding`](../../skills/service-onboarding/SKILL.md) | Requires a named service/environment, owner, revision, and authoritative definitions | The caller must assemble every value manually; onboarding does not register a schema-valid context entity | Make validated context creation an early onboarding output, without letting the context contract authorize onboarding effects |
-| [`service-readiness-audit`](../../skills/service-readiness-audit/SKILL.md) | Defines a strong read-only evidence inventory | It has no deterministic way to discover the selected service's repository, deployment, dashboards, SLOs, dependencies, or runbooks | Use it as the first read-only consumer pilot |
+| [`service-readiness-audit`](../../skills/service-readiness-audit/SKILL.md) | Defines a strong read-only evidence inventory | It has no deterministic way to discover the selected service's repository, deployment, dashboards, SLOs, dependencies, or runbooks | Use its unchanged requirement contract for the first synthetic read-only portability proof |
 | [`operational-learning`](../../skills/operational-learning/SKILL.md) and [service-card template](../../skills/operational-learning/assets/service-card-template.md) | Stable `service_id`, ownership, criticality, dependencies, recovery, observability, and provenance already exist | The cards are Markdown templates, not registered service entities; repository/runtime values are copied into prose | Preserve the human card, but generate or validate its links from the same service identity rather than creating a second configuration truth |
 | [Runbook schema](../../schemas/runbook-frontmatter-v1.schema.json) and [template](../../skills/runbook/assets/runbook-template.md) | Stable runbook/service IDs, lifecycle, review/verification separation, and immutable schema policy are established | Environment applicability and reusable-runbook context requirements are not modeled; only runbook frontmatter has a schema | Reference the existing contract and version it deliberately if a real consumer requires new fields; never mutate v1 in place |
 | [Context-engineering reference](../../skills/agent-authoring/references/context.md) | Progressive disclosure, provenance, freshness, trust, and small context are explicit | It governs token selection, not operational entity identity or resolution | The resolver implements these principles; it does not replace the reference |
@@ -233,10 +235,11 @@ schema + semantic validator -----> deterministic entity index
 
 ### Central repository recommendation
 
-Use one `sre-context` repository for the first two teams. Protect `main`, require the validator in
-CI, use `CODEOWNERS` at team directories and schema/tooling roots, and keep review ownership local to
-the team that owns the values. The repository is authoritative only for **catalog-owned** facts. A
-repository record can be authoritative for its purpose mapping; PCF remains authoritative for a
+Use one `sre-context` repository for the generic alpha and the first separately approved operational
+onboarding. Protect `main`, require the validator in CI, and assign owners to schema and tooling
+roots. When a real team onboards, add `CODEOWNERS` for its directory and keep review ownership local
+to the team that owns the values. The repository is authoritative only for **catalog-owned** facts.
+A repository record can be authoritative for its purpose mapping; PCF remains authoritative for a
 current app GUID; Grafana remains authoritative for a dashboard's current content; Jira remains
 authoritative for tickets.
 
@@ -515,7 +518,8 @@ repositoryUses:
 Use a small provisional role vocabulary: `source`, `delivery`, `infrastructure`, `configuration`,
 `operations`, `automation`, `data`, `test`, and `documentation`. Multiple roles are legal. `other`
 requires a non-empty purpose. Do not infer purpose from a repository name, and do not call this list
-an industry taxonomy until the two-team pilot demonstrates that its distinctions are useful.
+an industry taxonomy until the two-fixture portability proof and later onboarding evidence show that
+its distinctions are useful.
 
 ### Integration and operational-resource model
 
@@ -702,7 +706,8 @@ These are the complete v1 composition rules:
    implicit array merge.
 6. Missing required data is an error. Null, absent, empty, and inherited are not interchangeable.
 
-If measured pilot duplication still requires overlays, design a separately versioned v2 resolver
+If measured synthetic-proof and later-onboarding duplication still requires overlays, design a
+separately versioned v2 resolver
 contract. At minimum it must specify scalar replacement, map behavior, collection merge keys,
 explicit deletion, maximum depth, cycle handling, precedence, provenance per effective field, and
 red tests for order changes. JSON Schema `default`, `allOf`, and `$ref` do not define instance merge
@@ -781,10 +786,12 @@ make a valid Git commit unparsable.
 
 ### Versioning and migration
 
-- Start at `sre-context/v1alpha1` while the pilot can still make breaking changes through reviewed
-  migrations. Do not claim compatibility during alpha.
-- Promote to `v1` only after at least two teams and two consumer skills use the same resolved
-  contract without team-specific branches.
+- Start at `sre-context/v1alpha1` while synthetic portability fixtures can still drive breaking
+  changes through reviewed migrations. Do not claim compatibility during alpha.
+- Prove generic alpha portability with at least two synthetic tenant fixtures and multiple consumer
+  contracts using the same resolver without tenant-specific branches.
+- Promote to operational `v1` only after that generic proof and at least one separately approved
+  real-team onboarding uses the same contract without a schema fork or team-specific skill branch.
 - A published schema URI is immutable. Breaking shape or meaning changes use a new version and a
   migration; changing only `apiVersion` without transforming fields is invalid.
 - Writers emit one current version. Readers support the current version and, only during a declared
@@ -814,125 +821,131 @@ make a valid Git commit unparsable.
 - The resolver is read-only in phase one. Any automatic discovery/update workflow is separate,
   least-privileged work with a reviewed source-to-generated contract.
 
-## 13. Worked multi-team example
+## 13. Worked synthetic-fixture example
+
+Every identity and locator below is a synthetic, non-operational fixture. Its source manifest must
+declare `mode: fixture` and `nonOperational: true`; hostnames use reserved example domains; the
+resolver may load it only with `--allow-fixtures`; and resolved output must retain both the fixture
+provenance and `target.actionSelection: prohibited`. The names do not assert that these teams exist,
+and the Cloud Run-shaped representation does not select Cloud Run for this fleet.
 
 The example is intentionally small and omits unchanged envelope fields.
 
 ```yaml
-# teams/payments/team.yaml
+# fixtures/tenant-alpha/team.yaml
 apiVersion: sre-context/v1alpha1
 kind: Team
-metadata: {id: payments, name: Payments SRE, lifecycle: active}
+metadata: {id: tenant-alpha, name: Fixture Team Alpha, lifecycle: active}
 spec:
-  description: Operates payment transaction services.
-  environmentRefs: [environment:payments/development, environment:payments/production]
+  description: Operates example transaction services.
+  environmentRefs: [environment:tenant-alpha/development, environment:tenant-alpha/production]
   integrationRefs:
-    - integration:payments/jira
-    - integration:payments/grafana
+    - integration:tenant-alpha/jira
+    - integration:tenant-alpha/grafana
 
 ---
-# teams/payments/services/checkout-api.yaml
+# fixtures/tenant-alpha/services/checkout-api.yaml
 apiVersion: sre-context/v1alpha1
 kind: Service
-metadata: {id: checkout-api, name: Checkout API, namespace: payments, ownerRef: team:payments, lifecycle: active}
+metadata: {id: checkout-api, name: Checkout API, namespace: tenant-alpha, ownerRef: team:tenant-alpha, lifecycle: active}
 spec:
   type: service
   description: Authorizes and creates checkout transactions.
   criticality: critical
   repositoryUses:
-    - repositoryRef: repository:payments/checkout-service
+    - repositoryRef: repository:tenant-alpha/checkout-service
       roles: [source, test]
       purpose: Checkout implementation and component tests
-    - repositoryRef: repository:payments/payments-delivery
+    - repositoryRef: repository:tenant-alpha/transaction-delivery
       roles: [delivery, configuration]
       purpose: Promotion workflows and deployment manifests
   deploymentRefs:
-    - deployment:payments/checkout-development
-    - deployment:payments/checkout-production
-  telemetryIdentity: {serviceName: checkout-api, serviceNamespace: payments}
+    - deployment:tenant-alpha/checkout-development
+    - deployment:tenant-alpha/checkout-production
+  telemetryIdentity: {serviceName: checkout-api, serviceNamespace: tenant-alpha}
 
 ---
-# teams/payments/services/settlement-worker.yaml
+# fixtures/tenant-alpha/services/settlement-worker.yaml
 apiVersion: sre-context/v1alpha1
 kind: Service
-metadata: {id: settlement-worker, name: Settlement Worker, namespace: payments, ownerRef: team:payments, lifecycle: active}
+metadata: {id: settlement-worker, name: Settlement Worker, namespace: tenant-alpha, ownerRef: team:tenant-alpha, lifecycle: active}
 spec:
   type: worker
   description: Settles completed payment batches.
   criticality: high
   repositoryUses:
-    - repositoryRef: repository:payments/settlement
+    - repositoryRef: repository:tenant-alpha/settlement
       roles: [source, data]
       purpose: Worker code and settlement database migrations
-  deploymentRefs: [deployment:payments/settlement-production]
+  deploymentRefs: [deployment:tenant-alpha/settlement-production]
 
 ---
-# teams/identity/team.yaml
+# fixtures/tenant-beta/team.yaml
 apiVersion: sre-context/v1alpha1
 kind: Team
-metadata: {id: identity, name: Identity SRE, lifecycle: active}
+metadata: {id: tenant-beta, name: Fixture Team Beta, lifecycle: active}
 spec:
-  description: Operates workforce and customer authentication services.
-  environmentRefs: [environment:identity/test, environment:identity/production]
-  integrationRefs: [integration:identity/jira, integration:identity/grafana]
+  description: Operates example authentication services.
+  environmentRefs: [environment:tenant-beta/test, environment:tenant-beta/production]
+  integrationRefs: [integration:tenant-beta/jira, integration:tenant-beta/grafana]
 
 ---
-# teams/identity/services/authentication-api.yaml
+# fixtures/tenant-beta/services/authentication-api.yaml
 apiVersion: sre-context/v1alpha1
 kind: Service
-metadata: {id: authentication-api, name: Authentication API, namespace: identity, ownerRef: team:identity, lifecycle: active}
+metadata: {id: authentication-api, name: Authentication API, namespace: tenant-beta, ownerRef: team:tenant-beta, lifecycle: active}
 spec:
   type: service
   description: Issues and validates customer authentication sessions.
   criticality: critical
   repositoryUses:
-    - repositoryRef: repository:identity/authentication
+    - repositoryRef: repository:tenant-beta/authentication
       roles: [source, test, documentation]
       purpose: Authentication implementation, contract tests, and protocol documentation
   deploymentRefs:
-    - deployment:identity/authentication-test-cloud-run
-    - deployment:identity/authentication-production-cloud-run
-  telemetryIdentity: {serviceName: authentication-api, serviceNamespace: identity}
+    - deployment:tenant-beta/authentication-test-cloud-run
+    - deployment:tenant-beta/authentication-production-cloud-run
+  telemetryIdentity: {serviceName: authentication-api, serviceNamespace: tenant-beta}
 ```
 
 Representative deployments remain separate:
 
 ```yaml
-# Payments PCF production
+# Fixture team alpha PCF production
 apiVersion: sre-context/v1alpha1
 kind: Deployment
-metadata: {id: checkout-production, name: Checkout production, namespace: payments, ownerRef: team:payments, lifecycle: active}
+metadata: {id: checkout-production, name: Checkout production, namespace: tenant-alpha, ownerRef: team:tenant-alpha, lifecycle: active}
 spec:
-  serviceRef: service:payments/checkout-api
-  environmentRef: environment:payments/production
+  serviceRef: service:tenant-alpha/checkout-api
+  environmentRef: environment:tenant-alpha/production
   platform:
     type: cloudfoundry
     cloudfoundry:
       foundationRef: platform:shared/pcf-prod-east
-      organization: payments
+      organization: fixture-team-alpha
       space: production
       applicationName: checkout-api
       applicationGuid: abc123
   endpoints: [{id: public, kind: https, fqdn: checkout.example.com, purpose: customer-api}]
-  observabilityRefs: [resource:payments/checkout-prod-dashboard]
+  observabilityRefs: [resource:tenant-alpha/checkout-prod-dashboard]
 
 ---
-# Identity Cloud Run production
+# Fixture team beta Cloud Run production
 apiVersion: sre-context/v1alpha1
 kind: Deployment
-metadata: {id: authentication-production-cloud-run, name: Authentication production, namespace: identity, ownerRef: team:identity, lifecycle: active}
+metadata: {id: authentication-production-cloud-run, name: Authentication production, namespace: tenant-beta, ownerRef: team:tenant-beta, lifecycle: active}
 spec:
-  serviceRef: service:identity/authentication-api
-  environmentRef: environment:identity/production
+  serviceRef: service:tenant-beta/authentication-api
+  environmentRef: environment:tenant-beta/production
   platform:
     type: gcp
     gcp:
-      projectRef: platform:identity/auth-production-project
+      projectRef: platform:shared/gcp-fixture-project
       region: us-central1
       cloudRun:
         serviceName: authentication-api
   endpoints: [{id: public, kind: https, fqdn: auth.example.com, purpose: authentication-api}]
-  observabilityRefs: [resource:identity/auth-prod-dashboard]
+  observabilityRefs: [resource:tenant-beta/auth-prod-dashboard]
 ```
 
 The service-readiness consumer receives only the selected effective context, repository uses,
@@ -959,7 +972,7 @@ After the alpha schemas and resolver exist, onboarding a team should be a review
 8. Add or reference Runbooks and operational knowledge. Fill only metadata the resolver/index uses;
    leave executable automation in its authoritative system.
 9. Run offline structural and semantic validation, then separately run approved network/drift checks.
-   Resolve every error and explicitly disposition warnings that affect the pilot consumer.
+   Resolve every error and explicitly disposition warnings that affect the selected consumer.
 10. Resolve representative read-only contexts for each Service/Environment, review the exact bundle
     and provenance, and merge through the team's ownership rules. Generalized skills remain unchanged
     unless their consumer-owned requirement contract genuinely needs a new portable field.
@@ -1011,14 +1024,14 @@ Only add a field when an operational decision consumes it. The following concept
 
 | Stage | Scope | Evidence and exit | Rollback / stop condition |
 |---|---|---|---|
-| 0. Owner decision and ADR | Accept/revise the entity graph, central-first/federatable source boundary, `Service`/`System` terminology, no-general-inheritance rule, and security boundary | Accepted ADR names contract owner, context-data owner, resolver owner, pilot, and non-goals | Stop with this proposal; no schemas or skill edits if the owner rejects the boundary |
+| 0. Owner decision and ADR | Accept/revise the entity graph, central-first/federatable source boundary, `Service`/`System` terminology, no-general-inheritance rule, generic fixture policy, and security boundary | Accepted ADR names contract owner, resolver owner, synthetic-alpha scope, and non-goals; no team-specific values are required | Stop with this proposal; no schemas or skill edits if the owner rejects the boundary |
 | 1. Contract skeleton | Create `sre-context` with source schemas, catalog, validator/indexer skeleton, fixtures, and contributor rules; no live discovery and no MCP | Red-first tests reject duplicate YAML keys, unknown fields, duplicate IDs/aliases, broken refs, ambiguous deployments, implicit production, secret-bearing fields, and nondeterministic output | Delete/revert the new unpublished repository/branch; no existing skill depends on it |
-| 2. One-team read-only pilot | Model one team, two services, two environments, repositories, runbook refs, integrations, and deployments; add one `service-readiness-audit` requirement sidecar and explicit resolver invocation | Same skill works for both services without team branches; missing data fails clearly; resolved bundle stays within budget; local source and live evidence remain distinct | Remove the optional pilot invocation and sidecar; existing manual caller-supplied workflow remains |
-| 3. Second-team portability proof | Add a second team with a different platform/integration mix; run the same resolver and read-only consumer contract | No schema fork, team-specific skill edit, implicit fallback, or alias ambiguity; migration fixtures cover any alpha changes | If the same contract cannot represent both without a generic bag, revise alpha schema before v1 rather than adding exceptions |
+| 2. First synthetic-tenant read-only proof | Model one fixture tenant with two services, two environments, repositories, runbook refs, integrations, and deployments; add one `service-readiness-audit` requirement sidecar and explicit resolver invocation | Same skill works for both services without tenant branches; fixture opt-in and non-operational/action-prohibited markers survive resolution; missing data fails clearly; resolved bundle stays within budget | Remove the optional fixture invocation and sidecar; existing manual caller-supplied workflow remains |
+| 3. Second synthetic-tenant portability proof | Add a fixture tenant with a different platform representation, repository mix, and integrations; run the same resolver and read-only consumer contract | No schema fork, tenant-specific skill edit, implicit fallback, alias ambiguity, non-example locator, or lost fixture taint; migration fixtures cover alpha changes | If the contract cannot represent both without a generic bag, revise alpha before operational onboarding rather than adding exceptions |
 | 4. Selected fleet adoption | Add consumer-owned requirements to the smallest related read-only skills first, then approved effect-capable skills with exact selection handoff | Positive, missing-context, wrong-team, ambiguous-alias, stale-platform, and production-selection cases pass; existing component tests/evals remain green | Each consumer change is independently removable; do not big-bang rewrite every skill |
 | 5. Onboarding and drift evidence | Make context creation/validation a bounded service-onboarding step; add optional authenticated link/platform validation with provenance | Ten-step onboarding can produce a valid context packet; network failure remains distinct from invalid config; generated facts cannot be hand-edited | Keep offline source validation; disable optional probes without invalidating the catalog |
 | 6. Optional adapters | Evaluate Backstage import/export, federated sources, and a read-only MCP list/read/templates facade | Exact source revisions, URI authorization, pagination, projection budgets, and adapter parity tests pass; no adapter becomes a second model | CLI/file resolver remains canonical; remove the adapter if operational burden exceeds measured value |
-| 7. v1 promotion | Freeze only after two teams and multiple consumers demonstrate portability | Immutable schemas/catalog, migration policy, support window, threat model, owner/runbook, and independent exact-revision review accepted | Remain alpha; do not promise compatibility based on structural green alone |
+| 7. v1 promotion | Freeze only after the two-fixture generic proof, multiple consumers, and one separately approved real-team onboarding demonstrate portability without a fork or branch | Immutable schemas/catalog, migration policy, support window, threat model, owner/runbook, and independent exact-revision review accepted | Remain alpha; do not promise compatibility based on structural or synthetic evidence alone |
 
 Do not create the largest possible schema in stage one. The first vertical slice is successful only
 when one unchanged read-only skill can resolve two different services from configuration and fails
@@ -1030,18 +1043,19 @@ closed when a required fact or exact environment is missing.
 |---|---|---|
 | Central versus federated source | One central Git repo first; source-independent resolver contract | Team count, permission boundaries, and expected change volume |
 | Canonical operational noun | `Service` for deployable/operable unit; optional `System` for composite application | Owner acceptance and mapping of current service cards |
-| Runbook location | Index both central and service-repository runbooks; do not force migration | Pilot review/permission ergonomics |
-| Inheritance | References only in v1 | Measure residual duplication after two teams |
+| Runbook location | Index both central and service-repository runbooks; do not force migration | Synthetic proof plus later onboarding ergonomics |
+| Inheritance | References only in v1 | Measure residual duplication after two fixtures; confirm during later onboarding |
 | Resolver implementation language/library | Defer until repository/toolchain constraints and JSON Schema/YAML validator behavior are tested | Windows behavior, duplicate-key rejection, 2020-12/format support, dependency policy |
 | Consumer contract location | Sidecar with the skill, schema defined by the context contract | Generator/package behavior and host loading test |
 | MCP | Optional read-only adapter after CLI contract | Stable host support, URI authorization, context-size behavior |
-| Provenance granularity | Document-level by default; field-group only for platform/resource authority/freshness | Pilot staleness cases |
+| Provenance granularity | Document-level by default; field-group only for platform/resource authority/freshness | Fixture staleness cases, then later operational validation |
 | Organization entity | Omit until a real cross-org consumer exists | Organization count and shared-policy need |
 
-**Recommendation:** accept the architecture direction and authorize stages 1–3 as one bounded alpha
-pilot, but keep stage 4 fleet adoption behind the pilot evidence and a separate exact-scope owner
-decision. The proposed central repository is the right initial operating shape; it is not the
-logical architecture, a runtime control plane, or the authority for every referenced system.
+**Recommendation:** accept the architecture direction and authorize stages 1–3 as one bounded,
+synthetic generic alpha. Keep real-team onboarding and stage 4 fleet adoption behind that evidence
+and a separate exact-scope owner decision. The proposed central repository is the right initial
+operating shape; it is not the logical architecture, a runtime control plane, or the authority for
+every referenced system.
 
 ## 19. Requested-deliverable coverage
 
