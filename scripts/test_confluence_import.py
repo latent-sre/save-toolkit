@@ -142,6 +142,14 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertEqual(draft, "")
         self.assertIn("service-id", proc.stderr)
 
+    def test_empty_owner_fails_without_writing_a_draft(self) -> None:
+        for owner in ("", "   "):
+            with self.subTest(owner=owner):
+                proc, draft = run_converter(VIEW_HTML, "--owner", owner)
+                self.assertNotEqual(proc.returncode, 0)
+                self.assertEqual(draft, "")
+                self.assertIn("owner", proc.stderr)
+
     def test_owner_is_serialized_as_one_yaml_scalar(self) -> None:
         proc, draft = run_converter(VIEW_HTML, "--owner", "ops\ninjected: true")
         self.assertEqual(proc.returncode, 0, proc.stderr)
@@ -150,12 +158,6 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertEqual(sorted(fields), sorted(schema["properties"]))
         self.assertNotIn("injected", fields)
         self.assertEqual(json.loads(fields["owner"]), "ops\ninjected: true")
-
-    def test_empty_owner_fails_without_writing_a_draft(self) -> None:
-        proc, draft = run_converter(VIEW_HTML, "--owner", "")
-        self.assertNotEqual(proc.returncode, 0)
-        self.assertEqual(draft, "")
-        self.assertIn("--owner", proc.stderr)
 
     def test_recognized_headings_land_in_template_slots(self) -> None:
         # "When to use this" → Trigger; "Before you start" → Prerequisites; "Steps" → Procedure;

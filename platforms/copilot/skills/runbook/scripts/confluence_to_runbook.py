@@ -177,9 +177,11 @@ def service_id(value: str) -> str:
 
 
 def owner(value: str) -> str:
-    """Reject an explicitly empty owner value; runbook frontmatter requires minLength 1."""
-    if not value:
-        raise argparse.ArgumentTypeError("--owner must be a non-empty string")
+    """Reject owner values that cannot satisfy the frontmatter schema."""
+    if not value.strip():
+        raise argparse.ArgumentTypeError(
+            "owner must contain at least one non-whitespace character"
+        )
     return value
 
 

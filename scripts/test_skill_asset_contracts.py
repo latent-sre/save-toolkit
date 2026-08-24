@@ -24,6 +24,12 @@ def _indented_block(text: str, header: str) -> str:
     return "\n".join(block)
 
 
+def _fenced_block_after(text: str, marker: str, language: str) -> str:
+    """Return the first fenced block of `language` following `marker`."""
+    section = text.split(marker, 1)[1]
+    return section.split(f"```{language}", 1)[1].split("```", 1)[0]
+
+
 class SkillAssetContractTests(unittest.TestCase):
     def test_backend_openapi_starter_separates_liveness_and_readiness(self) -> None:
         starter = (ROOT / "skills/backend-craft/assets/openapi.starter.yaml").read_text(
@@ -46,6 +52,27 @@ class SkillAssetContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         concurrency = _indented_block(starter, "concurrency:")
+        group_lines = [
+            line.strip()
+            for line in concurrency.splitlines()
+            if line.lstrip().startswith("group:")
+        ]
+
+        self.assertEqual(
+            group_lines,
+            ["group: ${{ github.workflow }}-${{ github.ref }}"],
+        )
+
+    def test_ci_concurrency_reference_is_scoped_to_the_workflow(self) -> None:
+        reference = (
+            ROOT / "skills/ci-actions/references/execution-and-runners.md"
+        ).read_text(encoding="utf-8")
+        example = _fenced_block_after(
+            reference,
+            "## Concurrency and artifact promotion",
+            "yaml",
+        )
+        concurrency = _indented_block(example.strip("\n"), "concurrency:")
         group_lines = [
             line.strip()
             for line in concurrency.splitlines()

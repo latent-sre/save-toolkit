@@ -45,6 +45,33 @@ def cloud_run_traffic_is_conditional(text: str) -> bool:
     )
 
 
+def cloud_run_rollback_restores_policy_without_inverse_claim(text: str) -> bool:
+    start = text.index("## Mitigation you recommend (never run): traffic rollback")
+    section = compact(text[start : text.index("## Credential-bearing reads", start)])
+    return all(
+        (
+            "restores the intended prior traffic allocation or `--to-latest` tracking policy"
+            in section,
+            "Traffic changes are not instantaneous" in section,
+            "in-flight requests may land on either revision" in section,
+            "equally exact inverse command" not in section,
+        )
+    )
+
+
+def frontend_mantine_guidance_is_react_scoped(text: str) -> bool:
+    start = text.index("## State and data")
+    section = compact(text[start : text.index("## Routing & URL state", start)])
+    return all(
+        (
+            "**React targets only:**" in section,
+            "`@mantine/hooks` and `@mantine/form` are React packages" in section,
+            "Do not recommend Mantine packages for Vue or another non-React target" in section,
+            "Mantine's *hooks* and `@mantine/form` ship no CSS and mix freely" not in section,
+        )
+    )
+
+
 def datastream_disagreement_is_preserved(text: str) -> bool:
     start = text.index("**Delivery drops are real**")
     section = compact(text[start : text.index("## Offload", start)])
@@ -90,6 +117,23 @@ def alloy_google_otlp_pipeline_is_executable_and_qualified(text: str) -> bool:
             "Application Default Credentials" in text,
             "logs ingestion is Pre-GA" in text,
             "current stable v1.18.1" not in text,
+        )
+    )
+
+
+def gcp_trace_endpoint_matches_alloy_transport(trace: str, alloy: str) -> bool:
+    trace = compact(trace)
+    alloy = compact(alloy)
+    return all(
+        (
+            "for Alloy's gRPC `otelcol.exporter.otlp`, use `telemetry.googleapis.com:443`"
+            in trace,
+            "an OTLP/HTTP exporter instead uses the root URL `https://telemetry.googleapis.com`"
+            in trace,
+            "Alloy component and authentication shapes stay delegated to the `obs-pipeline` skill"
+            in trace,
+            'endpoint = "telemetry.googleapis.com:443"' in alloy,
+            "endpoint: https://telemetry.googleapis.com" not in trace,
         )
     )
 
@@ -169,6 +213,20 @@ class PlatformSkillContractTests(unittest.TestCase):
         skill = read("skills/gcp-ops/SKILL.md")
         self.assertTrue(cloud_run_traffic_is_conditional(skill))
 
+    def test_cloud_run_rollback_restores_policy_without_claiming_an_exact_inverse(self) -> None:
+        self.assertTrue(
+            cloud_run_rollback_restores_policy_without_inverse_claim(
+                read("skills/gcp-ops/SKILL.md")
+            )
+        )
+
+    def test_frontend_mantine_guidance_is_scoped_to_react_targets(self) -> None:
+        self.assertTrue(
+            frontend_mantine_guidance_is_react_scoped(
+                read("skills/frontend-craft/SKILL.md")
+            )
+        )
+
     def test_datastream_retry_disagreement_is_not_flattened(self) -> None:
         reference = read("skills/akamai-edge/references/edge-triage.md")
         self.assertTrue(datastream_disagreement_is_preserved(reference))
@@ -180,6 +238,21 @@ class PlatformSkillContractTests(unittest.TestCase):
     def test_alloy_google_otlp_pipeline_is_executable_and_lifecycle_qualified(self) -> None:
         reference = read("skills/obs-pipeline/references/alloy.md")
         self.assertTrue(alloy_google_otlp_pipeline_is_executable_and_qualified(reference))
+
+    def test_gcp_trace_reference_uses_the_alloy_grpc_endpoint_shape(self) -> None:
+        trace = read("skills/obs-traces/references/gcp-trace.md")
+        alloy = read("skills/obs-pipeline/references/alloy.md")
+        self.assertTrue(
+            gcp_trace_endpoint_matches_alloy_transport(trace, alloy)
+        )
+        alloy_grpc_url_mutant = trace.replace(
+            "telemetry.googleapis.com:443",
+            "https://telemetry.googleapis.com",
+            1,
+        )
+        self.assertFalse(
+            gcp_trace_endpoint_matches_alloy_transport(alloy_grpc_url_mutant, alloy)
+        )
 
     def test_alloy_docker_validation_recipe_is_isolated_and_evidence_bounded(self) -> None:
         reference = read("skills/obs-pipeline/references/alloy.md")
@@ -253,6 +326,24 @@ class PlatformSkillContractTests(unittest.TestCase):
                     1,
                 ),
                 "missing staged traffic branch",
+            ),
+            (
+                cloud_run_rollback_restores_policy_without_inverse_claim,
+                read("skills/gcp-ops/SKILL.md").replace(
+                    "restores the intended prior traffic allocation or `--to-latest`\ntracking policy",
+                    "is an equally exact inverse command",
+                    1,
+                ),
+                "Cloud Run rollback overclaims exact reversal",
+            ),
+            (
+                frontend_mantine_guidance_is_react_scoped,
+                read("skills/frontend-craft/SKILL.md").replace(
+                    "**React targets only:**",
+                    "**Any frontend:**",
+                    1,
+                ),
+                "React-only Mantine guidance leaks into Vue",
             ),
             (
                 datastream_disagreement_is_preserved,

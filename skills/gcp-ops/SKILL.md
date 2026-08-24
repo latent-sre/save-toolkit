@@ -104,9 +104,10 @@ docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration]*:
 gcloud run services update-traffic <service> --to-revisions <previous-revision>=100
 ```
 
-Tier 2, human release owner, with the exact revision names, verification (error rate on the
-service dashboard), and the command that restores the intended traffic allocation/policy. Traffic changes are not instantaneous —
-in-flight requests may land on either revision during the transition.
+Tier 2, human release owner, with the exact revision names, verification (error rate on the service
+dashboard), and a command that restores the intended prior traffic allocation or `--to-latest`
+tracking policy. Traffic changes are not instantaneous — in-flight requests may land on either
+revision during the transition.
 
 ## Credential-bearing reads are human-only
 

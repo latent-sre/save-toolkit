@@ -21,11 +21,13 @@ skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.go
 - **Trace sinks are deprecated as of 2026-02-18** *[sourced: Cloud Trace release notes]* — do not
   design an export around them; Observability Analytics queries traces with SQL (GA) for the
   analytical path.
-- Collector wiring: OTLP exporter → collector/Alloy → `endpoint: telemetry.googleapis.com:443`
-  with Application Default Credentials; the writing principal needs `roles/telemetry.writer` plus
-  the Service Usage Consumer role and a quota project *[sourced:
-  docs.cloud.google.com/stackdriver/docs/otlp/overview]*. The Alloy component shapes live in the
-  `obs-pipeline` skill's Alloy reference.
+- Collector wiring is transport-specific: for Alloy's gRPC `otelcol.exporter.otlp`, use
+  `telemetry.googleapis.com:443`; an OTLP/HTTP exporter instead uses the root URL
+  `https://telemetry.googleapis.com`. Use Application Default Credentials; the writing principal
+  needs `roles/telemetry.writer` plus the Service Usage Consumer role and a quota project. The Alloy
+  component and authentication shapes stay delegated to the `obs-pipeline` skill's Alloy reference.
+  *[sourced: docs.cloud.google.com/stackdriver/docs/otlp/overview;
+  docs.cloud.google.com/stackdriver/docs/otlp-logs/migrate-to-otlp; reviewed 2026-08-24]*
 
 ## Reading traces during the migration
 
