@@ -546,13 +546,17 @@ diagnostic. `REPO_ROOT = Path(__file__).resolve().parents[1]` plus imports of `v
 cannot run it.
 
 **Candidate evidence (2026-08-23):** `[verified]` Focused red-first fixtures failed against the
-missing interpreter, hook-registration, guard-file, and outside-checkout seams before the
-implementation. The restored focused suite accepts only an empty-stdout `42` allow plus a valid
-deny-envelope `43`, rejects exit `0` and an absent candidate, distinguishes a registered guard hook
-from an absent or unrelated command, and distinguishes a regular guard file from a missing one. A
-minimal installed-layout copy with no `.git`, `validate_fleet`, or `check_plan_status` returned
-`skip` for every repository-only check, `pass` for all three guard checks, and a successful process
-exit. The unchanged guard, hook-wiring, and evidence-envelope suites remain green.
+missing interpreter, guarded-allow, hook-registration, exact-launcher, guard-file, runtime-root,
+source-checkout, and outside-checkout seams before their fixes. The restored focused suite accepts
+only an empty-stdout `42` from an allowed `save-toolkit:sre` command plus a valid deny-envelope `43`,
+rejects exit `0`, an absent candidate, and a blanket-denying guarded path, and requires the installed
+inline hook to equal the normalized standalone launcher rather than contain selected fragments. A
+missing `CLAUDE_PLUGIN_ROOT` is `inconclusive`; a mismatched value is checked at its configured root
+and cannot fall back to checkout bytes. A source checkout is never installed-plugin proof. A minimal
+installed-layout copy with no `.git`,
+`validate_fleet`, or `check_plan_status`, and with `CLAUDE_PLUGIN_ROOT` bound to that copy, returned
+`skip` for every repository-only check, `pass` for the runtime-root and three guard checks, and a
+successful process exit. The unchanged guard, hook-wiring, and evidence-envelope suites remain green.
 
 **Prerequisites:** Preserve the existing evidence-envelope contract and the rule that a missing CLI
 is `skip`, never `pass`. The interpreter probe must assert the exact 42/43 answer rather than exit

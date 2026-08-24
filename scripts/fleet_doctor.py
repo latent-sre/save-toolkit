@@ -80,7 +80,11 @@ GUARD_ALLOW_EXIT = 42
 GUARD_DENY_EXIT = 43
 GUARD_PROBE_TIMEOUT_SECONDS = 5
 GUARD_ALLOW_PAYLOAD = json.dumps(
-    {"tool_name": "Bash", "tool_input": {"command": "git status --short"}},
+    {
+        "tool_name": "Bash",
+        "agent_type": "save-toolkit:sre",
+        "tool_input": {"command": "git status --short"},
+    },
     separators=(",", ":"),
 )
 GUARD_DENY_PAYLOAD = json.dumps(
@@ -240,17 +244,28 @@ def _guard_interpreter_check(
     )
 
 
-def _is_guard_hook_command(command: object) -> bool:
-    if not isinstance(command, str):
-        return False
-    required = (
-        '${CLAUDE_PLUGIN_ROOT}/scripts/readonly-guard.py',
-        f"for C in {' '.join(GUARD_INTERPRETER_CANDIDATES)}; do",
-        '"$C" -I -S "$G"',
-        f'"$RC" -eq {GUARD_ALLOW_EXIT}',
-        f'"$RC" -eq {GUARD_DENY_EXIT}',
-    )
-    return all(fragment in command for fragment in required)
+def _expected_guard_hook_command(plugin_root: Path) -> str | None:
+    """Rebuild the installed standalone launcher into its exact inlined command."""
+
+    launcher_path = plugin_root / "scripts" / "readonly-guard-hook.sh"
+    if not launcher_path.is_file() or launcher_path.is_symlink():
+        return None
+    try:
+        script_lines = [
+            line.strip()
+            for line in launcher_path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+    except (OSError, UnicodeError):
+        return None
+    if not script_lines:
+        return None
+
+    command = script_lines[0]
+    for line in script_lines[1:]:
+        separator = " " if command.endswith(" do") else "; "
+        command = f"{command}{separator}{line}"
+    return command
 
 
 def _guard_hook_check(plugin_root: Path) -> Check:
@@ -282,6 +297,19 @@ def _guard_hook_check(plugin_root: Path) -> Check:
             },
         )
 
+    expected_command = _expected_guard_hook_command(plugin_root)
+    if expected_command is None:
+        return Check(
+            "guard.hook-registration",
+            "fail",
+            "The current plugin root has no readable regular standalone guard launcher.",
+            {
+                "registered": False,
+                "configuration": "launcher-missing-or-invalid",
+                "plugin_root": str(plugin_root),
+            },
+        )
+
     hooks = document.get("hooks") if isinstance(document, dict) else None
     pre_tool_use = hooks.get("PreToolUse") if isinstance(hooks, dict) else None
     registered = False
@@ -296,7 +324,7 @@ def _guard_hook_check(plugin_root: Path) -> Check:
                 if not isinstance(command_hook, dict) or command_hook.get("type") != "command":
                     continue
                 command = command_hook.get("command")
-                if _is_guard_hook_command(command):
+                if command == expected_command:
                     registered = True
                     break
             if registered:
@@ -343,20 +371,114 @@ def _guard_file_check(plugin_root: Path) -> Check:
     )
 
 
+def _select_plugin_root(
+    explicit_root: Path | None,
+    environment: Mapping[str, str],
+) -> tuple[Path, str]:
+    if explicit_root is not None:
+        return explicit_root.resolve(), "explicit"
+    configured = environment.get("CLAUDE_PLUGIN_ROOT", "").strip()
+    if configured:
+        return Path(configured).resolve(), "CLAUDE_PLUGIN_ROOT"
+    return PLUGIN_ROOT.resolve(), "script"
+
+
+def _plugin_root_check(plugin_root: Path, source: str) -> Check:
+    script_root = PLUGIN_ROOT.resolve()
+    if source == "CLAUDE_PLUGIN_ROOT":
+        matches_script = plugin_root == script_root
+        checkout = (plugin_root / ".git").exists()
+        status = "fail" if not matches_script else ("inconclusive" if checkout else "pass")
+        if not matches_script:
+            summary = "CLAUDE_PLUGIN_ROOT does not resolve to the current doctor's plugin root."
+            limitations = (
+                "The interpreter protocol was not executed from a mismatched plugin root.",
+            )
+        elif checkout:
+            summary = (
+                "CLAUDE_PLUGIN_ROOT resolves to the current source checkout; installed-plugin "
+                "provenance was not established."
+            )
+            limitations = (
+                "Runtime root resolution was observed, but these are source-checkout bytes.",
+            )
+        else:
+            summary = "CLAUDE_PLUGIN_ROOT resolves to the current doctor's installed-style root."
+            limitations = ()
+        return Check(
+            "guard.plugin-root",
+            status,
+            summary,
+            {
+                "source": source,
+                "plugin_root": str(plugin_root),
+                "script_root": str(script_root),
+                "matches_script_root": matches_script,
+                "checkout": checkout,
+            },
+            limitations=limitations,
+        )
+
+    checkout = (plugin_root / ".git").exists()
+    if source == "explicit":
+        summary = (
+            "An explicit plugin root was selected; Claude hook runtime resolution was not observed."
+        )
+    elif checkout:
+        summary = (
+            "CLAUDE_PLUGIN_ROOT is unset; guard checks describe source-checkout bytes, not "
+            "installed-plugin health."
+        )
+    else:
+        summary = (
+            "CLAUDE_PLUGIN_ROOT is unset; the doctor is running from an installed-style layout, "
+            "but hook runtime resolution was not observed."
+        )
+    return Check(
+        "guard.plugin-root",
+        "inconclusive",
+        summary,
+        {
+            "source": source,
+            "plugin_root": str(plugin_root),
+            "script_root": str(script_root),
+            "checkout": checkout,
+        },
+        limitations=("Run the doctor where Claude supplies CLAUDE_PLUGIN_ROOT for runtime proof.",),
+    )
+
+
 def _guard_checks(
     plugin_root: Path,
+    plugin_root_source: str,
     which: Which,
     run: GuardRunner,
 ) -> list[Check]:
+    root_check = _plugin_root_check(plugin_root, plugin_root_source)
     hook = _guard_hook_check(plugin_root)
     guard_file = _guard_file_check(plugin_root)
-    checks = [hook, guard_file]
-    if guard_file.status == "pass":
+    checks = [root_check, hook, guard_file]
+    trusted_probe_root = plugin_root == PLUGIN_ROOT.resolve() or run is not _run_guard_probe
+    if guard_file.status == "pass" and trusted_probe_root:
         checks.append(
             _guard_interpreter_check(
                 plugin_root / "scripts" / "readonly-guard.py",
                 which,
                 run,
+            )
+        )
+    elif guard_file.status == "pass":
+        checks.append(
+            Check(
+                "guard.interpreter-protocol",
+                "skip",
+                "The interpreter protocol was not probed from a plugin root that differs from "
+                "the current doctor.",
+                {
+                    "plugin_root": str(plugin_root),
+                    "script_root": str(PLUGIN_ROOT.resolve()),
+                },
+                limitations=("An untrusted external Python file was not executed.",),
             )
         )
     else:
@@ -705,7 +827,8 @@ def validate_report(report: Mapping[str, object]) -> None:
 def collect_report(
     root: Path = REPO_ROOT,
     *,
-    plugin_root: Path = PLUGIN_ROOT,
+    plugin_root: Path | None = None,
+    environment: Mapping[str, str] | None = None,
     home: Path | None = None,
     run: CommandRunner = _run_read_only,
     guard_run: GuardRunner = _run_guard_probe,
@@ -713,7 +836,8 @@ def collect_report(
     now: datetime | None = None,
 ) -> dict[str, object]:
     root = root.resolve()
-    plugin_root = plugin_root.resolve()
+    environment = os.environ if environment is None else environment
+    plugin_root, plugin_root_source = _select_plugin_root(plugin_root, environment)
     home = (home or Path.home()).resolve()
     started = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     run_id = "doctor-" + started.strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
@@ -723,7 +847,7 @@ def collect_report(
     else:
         revision = "unknown"
         checks = _outside_checkout_checks()
-    checks.extend(_guard_checks(plugin_root, which, guard_run))
+    checks.extend(_guard_checks(plugin_root, plugin_root_source, which, guard_run))
     cli_checks, executables = _cli_checks(which, run)
     checks.extend(cli_checks)
     checks.extend(_installation_checks(root, home, executables, run))
