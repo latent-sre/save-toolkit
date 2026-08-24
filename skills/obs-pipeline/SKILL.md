@@ -23,9 +23,10 @@ app → SDK/agent → collector/Alloy → backend
 | Traces | spans with propagated W3C trace context | OTLP receiver → sampling/batch → route | Tempo |
 
 GCP backends are landing with the migration: the documented ingest is OTLP to the Telemetry API
-(`telemetry.googleapis.com` — all three signals) through the same otelcol exporter slot; the
-[Alloy pipeline](./references/alloy.md) reference shows the shape. Exact auth/config for the
-target project remains `[unverified]` until a canary run proves the route.
+(`telemetry.googleapis.com` — all three signals, though logs ingestion is Pre-GA) through the same
+otelcol exporter slot. The [Alloy pipeline](./references/alloy.md) reference shows the
+public-preview Google-auth component and required stability flag. Exact target project/config and
+route behavior remain `[unverified]` until a canary run proves them.
 
 ## Where a missing signal gets lost
 
