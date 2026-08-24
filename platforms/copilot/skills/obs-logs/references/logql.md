@@ -52,8 +52,8 @@ Use a line filter for literal or regular-expression text. Use `json` or `logfmt`
 depends on a structured field, then apply a label filter to the parsed value; `pattern` also exists
 for fixed-shape lines. Newer Loki adds pattern-match line filters `|>` / `!>` and the probabilistic
 `approx_topk(k, ...)` (instant queries only, no grouping) — version-gated; confirm the deployed
-Loki (upstream current: 3.7.x) before using either in a shared rule *[sourced: LogQL query
-reference, re-checked 2026-08-19]*.
+Loki version before using either in a shared rule *[sourced: LogQL query reference, re-checked
+2026-08-24]*.
 
 *[sourced: Grafana Loki LogQL line-filter and parser documentation; unverified for target log shape]*
 

@@ -16,7 +16,8 @@ action.
 > **Blast radius**: no restart of existing instances (`-i` only adds); ~40s until new instances pass
 > health checks. No config or code changes.
 > **Verification**: `cf app checkout` shows `6/6 running`; 502 rate in the dashboard drops within 5 min.
-> **Rollback**: `cf scale checkout -i 4` — the exact inverse, no state carried.
+> **Rollback**: `cf scale checkout -i 4` — this restores the desired instance count; it does not
+> reverse in-flight requests, external effects, or transient rebalancing.
 >
 > This is Tier 2 (reversible live change), so a human release owner needs explicit approval for this
 > specific apply and then executes it; I do not apply live changes.

@@ -26,14 +26,14 @@ everything).
 ## Checklist
 
 - [ ] **Builds & CI green** — compile/lint/format and the full test suite pass in trusted CI. Read the
-      trusted CI record directly for the run link and exact SHA. When a reviewer packet exists, it may
-      preserve execution-boundary, evidence, and taint labels; missing reviewer packet alone is not a
-      **NO**. An asserted CI result remains `[unverified]`; missing or unverified trusted CI evidence is a
-      **NO**.
+      trusted CI record directly for the run link and exact commit ID. When a reviewer packet exists,
+      it may preserve execution-boundary, evidence, and taint labels; missing reviewer packet alone is
+      not a **NO**. An asserted CI result remains `[unverified]`; missing or unverified trusted CI
+      evidence is a **NO**.
 - [ ] **Behavior tested** — new or changed behavior has a regression test that fails without the fix.
-      Show current CI output and **record the SHA it ran at**. If that SHA != `HEAD`, apply the same
-      staleness test as below: an empty or test-irrelevant diff may be re-confirmed at `HEAD`; otherwise
-      the evidence is stale and the test must re-run.
+      Show current CI output and **record the commit ID it ran at**. If that commit ID != `HEAD`, apply
+      the same staleness test as below: an empty or test-irrelevant diff may be re-confirmed at `HEAD`;
+      otherwise the evidence is stale and the test must re-run.
 - [ ] **Known findings disposed** — when a review exists, every current P0/P1 finding is fixed or
       explicitly rejected with evidence, not merely acknowledged. An ordinary merge does not require an
       independent review or automatic re-review after every push. Exact-candidate independent review is
@@ -46,8 +46,9 @@ everything).
 - [ ] **Web GUI, if touched** — keyboard and WCAG behavior is checked or explicitly waived; bundles hold
       no secrets and browser storage does not hold bearer tokens.
 - [ ] **Scoped & clean** — smallest correct change; no dead code, debug leftovers, or unrelated churn.
-      A reviewer may request a split **solely** for size (defect detection drops past ~400 LOC) — an
-      oversized change is a blocking finding, not a nit.
+      Request a split when size or mixed concerns materially prevent reliable review. Preserve the
+      smallest independently safe change rather than splitting an atomic change mechanically; if safety
+      cannot be established, state what split or additional evidence clears the block.
 - [ ] **Docs/ops updated** — if behavior or operations changed, update the docs and make a typed `observability-engineer`
       agent handoff for affected operational guidance, or explicitly record why none is needed.
 
@@ -56,12 +57,13 @@ everything).
 ### Severity rubric (what blocks)
 
 - **P0/P1 findings** (correctness, security, data loss): block merge — no exceptions.
-- **P2**: block only if the change touches the same lines; otherwise a follow-up issue, linked.
+- **P2**: block when introduced or worsened by the candidate, or when the finding materially overlaps
+  changed behavior. An unrelated pre-existing P2 is a linked follow-up, not a candidate blocker.
 - **P3 / style**: never blocks; note it.
 
 ```text
 merge-gate: PASS | BLOCKED
-Candidate SHA: <exact PR-head SHA>
+Candidate commit ID: <exact PR-head commit ID>
 Blocking items: <the NOs, each with what is needed to clear it>
 Waivers (if any): <item — approved by <human> — reason>
 ```
@@ -72,6 +74,6 @@ Waivers (if any): <item — approved by <human> — reason>
   approvals and no conversation resolution. It does not enforce independent review, and this checklist
   must not claim that it does.
 - `dismiss_stale_reviews_on_push` has no review to dismiss while the required approval count is zero.
-  Exact-SHA independent review belongs to the production-deployment boundary in
+  Exact-commit-ID independent review belongs to the production-deployment boundary in
   `production-change-gate`, not to every merge.
 - "Approved with nits" may merge only when those findings are non-blocking under the rubric and tracked.

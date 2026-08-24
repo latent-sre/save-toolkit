@@ -39,11 +39,12 @@ canary run proves it.
    exceeding your requirements"; "a Java monitoring agent already used because the OpenTelemetry
    Java agent might not work with the other agent"; or wanting OTel configured from
    `application.yml` (including declarative YAML) rather than env vars. It supports Spring Boot
-   2.6+ and 3.1+ per the docs, and upstream carries a Spring Boot 4 test suite; current release
-   is 2.31.x. The two are alternatives — do not load both. On PCF the Java buildpack can inject
-   the agent for you, so check what the buildpack already does before adding the starter.
+   2.6+ and 3.1+ per the docs, and upstream carries a Spring Boot 4 test suite; this guidance was
+   reviewed against 2.31.1 on 2026-08-24. The two are alternatives — do not load both. On PCF the
+   Java buildpack can inject the agent for you, so check what the buildpack already does before
+   adding the starter.
    *[sourced: opentelemetry.io zero-code Java Spring Boot starter pages;
-   opentelemetry-java-instrumentation repo; reviewed 2026-08-21]* Which path the team's services
+   opentelemetry-java-instrumentation repo]* Which path the team's services
    use today is `[unverified]` — read the build file and the buildpack config.
 3. **Resource attributes** — set `service.name`, `service.version`, and **`deployment.environment.name`**
    (OTel semantic conventions) so signals are filterable per app/space.

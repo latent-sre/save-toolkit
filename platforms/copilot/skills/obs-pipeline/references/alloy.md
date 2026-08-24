@@ -93,10 +93,28 @@ otelcol.exporter.otlp "tempo" {
 }
 ```
 
-The same `otelcol.exporter.otlp` slot pointed at `https://telemetry.googleapis.com` (with
-Application Default Credentials) is the documented path into Cloud Trace as GCP workloads land —
-see the `obs-traces` skill's Cloud Trace reference; the exporter auth block for it remains
-`[unverified]` here.
+The same `otelcol.exporter.otlp` slot can send all three signals to Google's Telemetry API with
+Application Default Credentials:
+
+```alloy
+otelcol.exporter.otlp "google" {
+  client {
+    endpoint = "telemetry.googleapis.com"
+    auth     = otelcol.auth.google.gcp.handler
+  }
+}
+
+otelcol.auth.google "gcp" {
+  project = "<project-id>"
+}
+```
+
+`otelcol.auth.google` is **public preview** and requires Alloy to start with
+`--stability.level=public-preview` (or a lower stability level). Google says logs ingestion is Pre-GA
+for this OTLP API. The component uses and refreshes Application Default Credentials, but the exact
+project, permissions, deployment flag, and canary result remain `[unverified]` for the target
+environment. *[sourced: grafana.com/docs/alloy/latest/reference/components/otelcol/
+otelcol.auth.google; docs.cloud.google.com/stackdriver/docs/otlp-logs/overview; reviewed 2026-08-24]*
 
 ## Discipline that stays regardless of syntax
 
@@ -119,7 +137,7 @@ see the `obs-traces` skill's Cloud Trace reference; the exporter auth block for 
   `import.http` and `import.git`, so an untrusted config can initiate outbound requests (including
   a URL assembled from environment-backed expressions). Ask a human or use an isolated,
   networkless runner; `alloy fmt -w`, `alloy run`, and `alloy tools` also stay denied.
-  *[sourced: reference/cli, re-checked 2026-08-19; current stable v1.18.1]*
+  *[sourced: reference/cli, reviewed against Alloy v1.18.1 on 2026-08-19]*
 - **Live debugging** (per-component data stream in the UI) is disabled by default "to avoid
   accidentally displaying sensitive telemetry data"; enable deliberately, in non-prod first:
 

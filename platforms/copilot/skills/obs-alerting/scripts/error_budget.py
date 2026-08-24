@@ -43,6 +43,12 @@ def _budget_state(remaining: float, budget: float) -> str:
     return "ok"
 
 
+def _display_remaining(remaining: float, budget: float) -> float:
+    """Clamp floating-point zero so exhausted budgets never print as ``-0.0``."""
+    tolerance = max(abs(budget) * 1e-12, 1e-12)
+    return 0.0 if abs(remaining) <= tolerance else remaining
+
+
 def _finite(parser, name, value, *, minimum=None, exclusive_min=None, maximum=None):
     """Reject NaN/inf and enforce a numeric argument's range."""
     if value is None:
@@ -150,6 +156,7 @@ def main(argv=None) -> int:
         remaining = budget_minutes - args.bad_minutes
         percent = args.bad_minutes / budget_minutes * 100
         state = _budget_state(remaining, budget_minutes)
+        remaining = _display_remaining(remaining, budget_minutes)
         print(
             f"  [time-based SLI] over {args.window_days:g}d the budget is "
             f"{fmt_minutes(budget_minutes)}"
@@ -165,6 +172,7 @@ def main(argv=None) -> int:
         remaining = budget_events - args.bad_events
         percent = args.bad_events / budget_events * 100 if budget_events else float("inf")
         state = _budget_state(remaining, budget_events)
+        remaining = _display_remaining(remaining, budget_events)
         observed = (1 - args.bad_events / args.total_events) * 100
         print(
             f"  [request-based SLI] {fmt_count(args.total_events)} requests  ->  "
