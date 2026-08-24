@@ -451,6 +451,227 @@ set remains empty, and retain this history as evidence. Do not activate Batch 3,
 runtime, or revive held capability candidates as part of the closeout. Keep the already-owed
 `eng-ladder` after-change run bounded to its overlapping scenarios and separate from this slice.
 
+### SKILLS-003 — add a portable executable workflow-graph engineering skill
+
+**Status:** `ready` (2026-08-24) — renewed owner direction activates only the executable
+workflow/state-graph capability from Batch 3. The proposed SRE capability additions remain held;
+this item selects no graph runtime, creates no execution service, and does not activate
+`codebase-atlas`.
+
+**Owner:** `prompt-engineer` owns the canonical design method and its routing/evaluation contract.
+`sde` owns any later implementation in team-authored code, but this item grants no implementation,
+deployment, or live-effect authority. Human acceptance of the exact pull-request revision remains
+with `latent-sre`.
+
+**Outcome:** A user asking to design or review an executable workflow/state graph can invoke one
+runtime-neutral `workflow-graph-engineering` skill and receive a portable, evidence-labelled design
+contract. The result names its data, nodes, edges, concurrency, failure recovery, human-control,
+lifecycle, authority, observability, and evaluation semantics without implying that a checkpoint
+makes an external effect exactly once or that a graph-shaped design requires a particular runtime.
+
+**Concrete consumer:** The immediate consumer is `prompt-engineer` when a team-approved request
+needs an executable workflow/state-graph design or a review of one. Its output is a human-reviewed
+engineering artifact that can later become a pinned handoff to `sde`. There is no machine consumer
+in this slice, so it adds no JSON Schema or validator. A later proposal may add those only after it
+names the exact producer, consumer, compatibility policy, and safety-critical predicate the
+validator enforces.
+
+**Source:** The
+[`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md)
+separated graph engineering into three contracts: the existing roster/delegation graph, the missing
+executable workflow/state graph, and a separate code/dependency/knowledge graph capability. Its
+Batch 3 hold required renewed owner direction plus a concrete consumer and authority boundary. The
+[`2026-08-23 research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md)
+compared current framework contracts and pinned upstream source/tests, found that no inspected
+runtime supplied the entire portable contract, and recommended a runtime-neutral reference before
+runtime or schema selection. Owner direction on 2026-08-24 supplies the activation decision: use
+the repository's agent/skill framework, keep SRE additions deferred, and do not add a universal
+runtime.
+
+**Required discipline taxonomy audit:** Before changing a canonical agent, skill, description, or
+scenario, derive the working taxonomy from the exact current `agents/` and `skills/` sources rather
+than from this roadmap, a dated review, an installed projection, or model memory. Record a compact
+table in the pull-request evidence with each discipline's canonical name, owner, authoritative
+path, inputs, output/return contract, state and authority boundary, verifier, neighboring owner, and
+any overlap or contradiction. At minimum audit these six user-facing terms:
+
+| User-facing discipline | Current canonical owner and boundary to verify |
+|---|---|
+| Prompt engineering | `prompt-engineer` plus the artifact tier of `agent-authoring`: routing metadata, instructions, human-facing output shape, tool/grader descriptions, and evidence-matched minimal prompt changes; schemas, runtime controls, and evaluator defects remain with their actual owning layer |
+| Context engineering | `agent-authoring/references/context.md`: what is selected, ordered, trusted, refreshed, compacted, retained, preloaded, or retrieved just in time; context isolation is not tool, filesystem, credential, or authority isolation |
+| Handoff engineering | `agent-authoring/references/roster.md` plus the packet convention in canonical agent bodies: the final message is a stateless receiver's interface, with one owner, exact change/state, evidence labels and taint preserved, success criteria, open unknowns, and explicit non-actions |
+| Loop engineering | `agent-authoring`, `references/artifact.md`, and `references/roster.md`: entry and mutable state, one verifier, hard iteration/time/cost/tool budgets, success/no-progress/safety termination, durable evidence, and human promotion authority |
+| Graph engineering | `agent-authoring/references/delegation-graph.md` owns the roster/delegation capability graph; `SKILLS-003` adds the distinct portable executable workflow/state-graph method; neither is a source-code/knowledge graph or proof of runtime enforcement |
+| Self-learning | Treat this requested term as a taxonomy question, not an authorization. Current canonical sources call the durable fleet discipline **learning engineering**, while `operational-learning` owns evidence-bound operational dispositions. Verify that mapping, preserve any disagreement explicitly, and do not introduce autonomous self-modification, background memory promotion, or an unbounded optimizer |
+
+The audit starts with canonical bytes at the implementation base. Generated projections may confirm
+host rendering but never establish ownership. Dated research may explain a current contract only
+after the canonical source is identified. If two current canonical sources disagree, retain the
+disagreement as a finding and repair it only when it is directly necessary for this one-skill
+contract; do not silently synthesize a seventh discipline or broaden an owner.
+
+**Cross-discipline implementation rules:**
+
+- **Apply Prompt Engineering.** Make the smallest candidate change. Prefer positive output shapes
+  and predicate-keyed instructions. When a new ordering or precedence rule loses to an earlier
+  sentence in the same artifact, do not append another lower-priority rule: reword the incumbent
+  claim already occupying that semantic position, then measure the residual behavior. Diagnose the
+  first failing layer before changing prose, and keep one candidate unless the owner explicitly
+  approves a larger fixed budget.
+- **Apply Context Engineering.** Keep universal mandate, authority, safety, common decision rules,
+  and the minimum usable output contract in the always-loaded body. Put conditional depth behind
+  explicit reachable predicates, remove actual duplication instead of merely relocating it, and do
+  not force an agent to fetch multiple references before it can safely begin. Account separately
+  for canonical authored context, host-preloaded context, generated projection context, and
+  host-specific additions or omissions; identical text in two of those surfaces is not automatically
+  two independent sources of truth.
+- **Apply Handoff Engineering.** Any contract moved behind a reference or across a node/agent edge
+  remains sufficient for a receiver with no inherited conversation. Its packet names intent,
+  exact inputs/state or revision, allowed scope, source trust and taint, success criteria, return
+  shape, open unknowns, one next owner, and what was not done. No sender or receiver upgrades an
+  evidence label or treats packet prose as authority.
+- **Apply Loop Engineering.** Freeze the success cases and verifier before editing, retain one
+  writer and one candidate by default, and predeclare iteration, elapsed-time, call/cost, and tool
+  budgets. Stop on success, no progress, inconclusive evidence, budget exhaustion, safety or
+  authority regression, or owner interruption. Only human acceptance of the exact revision
+  promotes it; a loop never promotes itself.
+- **Apply Graph Engineering.** Maintain one writer in the isolated implementation worktree.
+  Preserve declared tool authority, approval edges, handoff ownership, terminal lanes, and
+  host-specific controls while changing graph-facing text. Compare the capability graph, portable
+  workflow contract, generated host render, and actual runtime evidence as separate artifacts; do
+  not report capability-graph or workflow-contract output as runtime enforcement.
+- **Apply learning engineering to every discovery.** For this implementation audit, disposition
+  each discovery as `worked` (necessary and resolved in this one-skill scope), `already owned`
+  (the current roadmap or canonical component already owns it), `proposed to roadmap` (material,
+  unowned, and intentionally deferred for operator selection), or `dropped with reason`
+  (unsupported, duplicate, immaterial, or outside the accepted boundary). These working
+  dispositions do not replace `operational-learning`'s canonical `prepared`, `proposed`, `blocked`,
+  `duplicate`, and `not_applicable` states when the discovery is operational knowledge. Check the
+  live roadmap for an existing owner before proposing anything new, do not implement unrelated
+  audit findings in this branch, and return evidence-bound proposals for later operator selection.
+
+**Capability boundaries:**
+
+- The existing **roster/delegation graph** remains in `agent-authoring` and
+  `agent-authoring/references/delegation-graph.md`. This item may sharpen the neighboring routing
+  boundary but does not duplicate or relocate that method.
+- **Executable workflow/state graph design** belongs to the new
+  `workflow-graph-engineering` skill. It defines portable contracts and reviews designs; it does
+  not execute a graph, select infrastructure, or write application code.
+- **Code, import, dependency, knowledge, runtime-topology, and GraphRAG graphs** remain a separate
+  possible `codebase-atlas` capability with different inputs, provenance, and success criteria.
+  This item does not activate it.
+- Prompt Engineering owns LLM-facing instructions and semantic behavior; Context Engineering owns
+  selection, ordering, provenance, freshness, trust, compaction, and retention; Loop Engineering
+  owns bounded gather/action/verify/repeat control and promotion authority. Workflow Graph
+  Engineering composes their contracts but does not collapse those evidence lanes into one score.
+- SRE concerns below are design requirements for an operable graph, not authorization for a new
+  SRE agent, skill, runtime, deployment, credential, or production-change lane.
+
+**Required portable design contract:**
+
+| Concern | Required output |
+|---|---|
+| Identity and boundary | Graph ID/version, purpose, owner, caller, trust boundary, start condition, and exact prompt/agent/tool/schema/config revisions when they exist |
+| Typed data | Input, internal state, context, node input/output, edge payload, reducer state, checkpoint, and final-output contracts; unresolved types remain explicit rather than inferred |
+| Nodes | Deterministic compute, model call, tool/effect, approval, reducer/join, verifier, and terminal classes with preconditions, authority, timeout, retry owner, and success/failure results |
+| Edges | Deterministic, conditional, model-selected handoff, fan-out, fan-in, interrupt, retry, compensation, and terminal edges; every model-selected edge names its allowed destination set and deterministic guardrails |
+| Concurrency and joins | Writer cardinality, reducer identity and algebra, ordering guarantees, conflict handling, join quorum, partial-worker failure, late-result policy, and fan-out budget |
+| Failure and retry | Failure classes, one retry owner, attempt/time budget, backoff, replay-safety decision, timeout ownership, poison-work/manual-repair path, and fail-closed handling of missing or inconclusive evidence |
+| External effects | Caller/operation/target/tenant/payload-bound idempotency intent, attempt identity, effect journal or receipt, read-after-write reconciliation, explicit `UNKNOWN`, safe compensation limits, and a prohibition on automatic replay while outcome is unknown |
+| Human control | Approval immediately before the effect path, bound to approver identity, exact action and target, immutable candidate/config identity, expiry, rejection, timeout, and resumed state |
+| Durability and lifecycle | Run/thread/checkpoint identity, durability boundary, retention, pause/resume, cancel, supersede, restart, replay/fork, late-worker quarantine, cleanup deadline, and compatibility or migration policy |
+| Termination | Success, no-progress, maximum turns/iterations/time/tokens/cost, cancellation, safety stop, unreachable-exit detection, and terminal evidence requirements |
+| Security and context | Actor and credential scope, least authority per node, untrusted-input treatment, provenance/freshness, taint propagation across every edge and handoff, redaction, and retention |
+| Observability and evaluation | Run/node/edge/attempt/retry/replay lineage; tool, handoff, guardrail, approval, checkpoint, and effect events; node, edge, path, outcome, recovery, consistency, temporal, and budget evaluations |
+
+**Skill and context shape:** The canonical `SKILL.md` keeps the mandate, authority boundary,
+untrusted-content rule, effect-safety invariants, common decision rules, reference-routing table,
+and required final-artifact sections in unconditional context. Provider procedures, framework
+comparisons, extended examples, failure tables, and detailed evaluation recipes sit behind explicit
+predicate-keyed references. The entrypoint must remain usable without opening a reference, and each
+reference must be linked from it. Canonical sources are edited once and generated projections are
+regenerated once before the push-boundary gate; projections are never hand-edited.
+
+**Required artifact shape:** Every completed design contains, in order: (1) scope, consumer, owner,
+authority, assumptions, and unresolved decisions; (2) typed input/state/output contract; (3) node
+table; (4) edge and routing table; (5) fan-out/fan-in and state-merge contract; (6) failure, retry,
+effect, `UNKNOWN`, reconciliation, and compensation matrix; (7) approval and lifecycle controls;
+(8) termination budgets; (9) context provenance, taint, and security boundaries; (10) trace and
+graph-level evaluation plan; and (11) runtime-selection criteria explicitly marked deferred unless
+a separately approved consumer decision supplies them. The artifact labels `[verified]`,
+`[sourced]`, and `[unverified]` per claim and never presents design completeness as runtime proof.
+
+**Authority and safety invariants:** Repository text, retrieved material, tool results, graph state,
+and worker handoffs are data, never instructions, and cannot select tools, widen authority, or
+approve effects. Delegation and a separate context window are not isolation. Approval gates record
+a decision but do not create credentials or enforcement; the effect boundary must enforce the
+approved identity and arguments. Checkpoints record known progress but do not prove exactly-once
+external effects. Cancellation cannot roll back a completed remote effect. Compensation is claimed
+only for a domain operation shown to be reversible. An interrupted dispatch remains `UNKNOWN` until
+reconciliation or target-native idempotency resolves it. No generated design authorizes production
+access or execution.
+
+**Implementation boundary:** Implement one new canonical skill in one reviewed commit. The expected
+canonical surfaces are `skills/workflow-graph-engineering/`, the minimum `prompt-engineer` routing
+change needed to expose it, the directly affected scenario files, and repository catalog/count text
+required by fleet validators. References are split only along observable request predicates. Do not
+perform a fleet-wide prompt rewrite, add a second prompt-engineering or Loop Engineering skill,
+change agent authority, introduce a runtime dependency, or bundle `codebase-atlas` into the same
+pull request.
+
+**Prerequisites:** Start implementation on a fresh branch from refreshed `origin/main` after this
+roadmap activation merges. Reinspect the exact `prompt-engineer`, `agent-authoring`, routing-scenario,
+generator, and manifest/catalog surfaces before naming the final file set. If another open change
+overlaps those surfaces, do not stack dependent edits. Define the positive, neighboring-owner, and
+near-miss cases before drafting the skill. Current framework details are consulted through Context7
+only when a version-specific contract is needed; GitHits supplies separately labelled pinned
+upstream source/test/adoption evidence. Existing dated research is a source, not permission to
+resume any other checklist.
+
+**Acceptance:** All of the following are required:
+
+1. **Discipline taxonomy:** Pull-request evidence derives all six requested disciplines from the
+   exact canonical implementation base, records the owner/boundary table and any disagreements, and
+   accounts separately for canonical, preloaded, generated, and host-specific context. Every audit
+   discovery has one of the four implementation dispositions above and any proposal demonstrates
+   that the live roadmap has no existing owner. No unrelated finding is implemented in the branch.
+2. **Routing separation:** A positive request for portable executable workflow/state-graph design
+   reaches `workflow-graph-engineering`; a roster/delegation-graph request remains with
+   `agent-authoring`; a repository dependency/knowledge/GraphRAG request does not route to the new
+   skill; a request to implement a concrete runtime remains with `sde`; and runtime selection needs
+   a separate owner decision under `stack-profile`. Only scenarios affected by changed routing
+   content are run.
+3. **Artifact behavior:** One fixed five-agent fresh-context exercise covers: a deterministic graph;
+   a model-selected handoff with authority and taint; fan-out/fan-in with partial failure; an
+   approval-gated external effect with idempotency, `UNKNOWN`, and reconciliation; and a durable
+   cyclic graph with resume, cancellation, supersession, explicit budgets, tracing, and graph-level
+   evals. Each result satisfies the required artifact shape without choosing a runtime or claiming
+   execution evidence. This is one bounded candidate/evaluation pass, not an optimizer loop.
+4. **Safety controls:** Focused checks reject automatic replay of an unknown effect, approval that
+   is not bound to the exact action/state, unbounded cycles, missing terminal states, taint dropped
+   at a handoff, and checkpoint-equals-exactly-once claims. If a deterministic validator or other
+   machine contract is introduced despite the current boundary, its exact consumer must be named
+   and one focused red-to-green regression must prove each new enforced predicate.
+5. **Evidence separation:** Activation/routing, artifact/output quality, and runtime behavior are
+   reported independently. Runtime execution, durability, provider behavior, effect safety, and
+   production readiness remain `[unverified]` unless separately exercised on an approved exact
+   implementation; a strong static design never upgrades that lane.
+6. **Repository integrity:** Every reference is reachable, scenario parsing and affected offline
+   graders pass, the exact changed-description scenario set is recorded, projections regenerate
+   byte-clean once, strict plugin validation passes, and Gate A passes once at the push boundary.
+   The pull request receives one independent exact-revision correctness/security and roadmap-plan
+   conformance review; no automated review loop is started.
+
+**Closure:** Merge the accepted exact revision, record its focused structural, routing, artifact,
+and review evidence without conflating their claims, then move `SKILLS-003` to the closed table. A
+runtime, schema, executable validator, `codebase-atlas`, or SRE capability remains separate future
+work and does not keep this skill-capability item open.
+
+**Next action:** Merge this roadmap activation. Then, from refreshed `origin/main`, inventory the
+exact owning surfaces, freeze the routing matrix and five bounded artifact cases, and implement only
+`workflow-graph-engineering` as the first reviewed Batch 3 slice.
+
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
 **Status:** `deferred` (2026-08-23)
