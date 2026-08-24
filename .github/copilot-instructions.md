@@ -51,7 +51,9 @@ Suggestions that violate these are not improvements — please don't raise them:
 - **Never repair a generated copy directly.** Fix `agents/`, `skills/`, or
   `scripts/generate_platform_adapters.py`, then regenerate all hosts so one fix cannot create
   several subtly different fleets.
-- **No `model:` pins.** The whole fleet inherits the session model on purpose — zero sync
+- **`model:` must be a generation alias, never a full ID.** The fleet inherits the session model
+  by default; an alias pin on a cost- or latency-sensitive lane is allowed and validated. Do not
+  flag an alias as a violation. Original rationale, still in force for full IDs — zero sync
   maintenance. Adding a pin, even a valid one, is a defect here, not a hardening.
 - **Evidence-label stems are pinned verbatim** — `[verified]`, `[sourced]`, `[unverified]`.
   Rewording them for style breaks the drift they exist to catch; leave the stems alone.

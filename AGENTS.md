@@ -85,8 +85,10 @@ To change anything a search turns up in a generated root: edit the canonical sou
 | `researcher` | Cited public fact-finding from official docs, upstream code, packages, and advisories | **External-only by tool absence** — no local read, Bash, Write, Skill, or Agent | — |
 | `prompt-engineer` | The fleet's own prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, and roster/delegation graphs | Local read/write + Bash for repo tooling; no direct web tools | `researcher` |
 
-No agent pins a `model:` — the whole fleet inherits the session model (zero sync maintenance; the
-trade-off and the revisit condition are recorded in
+No agent pins a `model:` today — the whole fleet inherits the session model. A per-agent
+**generation alias** (`haiku`/`sonnet`/`opus`/`fable`/`inherit`) is permitted when a lane's cost
+or latency profile justifies tiering it; a full model ID is rejected by `validate_fleet.py`
+because that is the form that goes stale. The trade-off is recorded in
 [`agent-authoring/references/roster.md`](skills/agent-authoring/references/roster.md)).
 
 ## Enforcement: two mechanisms, in preference order
@@ -260,8 +262,11 @@ must respect:
 - **Plugin agents silently ignore `hooks:`, `mcpServers:`, and `permissionMode:`**, and an unknown
   frontmatter key drops without error. A guard belongs in `hooks/hooks.json`; every new key must be a
   real Claude Code field.
-- **No `model:` pins.** The whole fleet inherits the session model on purpose; a pin, even a valid
-  one, goes stale silently and is banned.
+- **`model:` accepts a generation alias, never a full ID.** The fleet inherits the session model
+  by default. Pin `haiku`/`sonnet`/`opus`/`fable`/`inherit` on a lane whose cost or latency
+  profile justifies it; `validate_fleet.py` rejects a dated ID such as
+  `claude-opus-4-1-20250805`, which is the form that silently outlives its usefulness
+  ([ADR 2026-08-23](docs/decisions/2026-08-23-allow-model-aliases.md)).
 - **Authority is host-specific.** Tool absence, the Claude hook guard, and Copilot's omitted
   `execute` do not translate one-to-one. A control proven on one host is not proven on another —
   the generated adapters state the difference, they do not erase it.

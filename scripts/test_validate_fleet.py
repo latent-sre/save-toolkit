@@ -558,6 +558,22 @@ class FleetValidatorTests(unittest.TestCase):
             _, failures = validate_fleet.validate_agents(root)
         return failures
 
+    def test_model_alias_is_accepted(self) -> None:
+        # A generation alias tracks its tier and cannot rot, so tiering a routine lane down
+        # is allowed. `sre.md` gets `model: sonnet` inserted after its name line.
+        failures = self._agents_with_mutation(
+            "sre.md", "name: sre\n", "name: sre\nmodel: sonnet\n"
+        )
+        self.assertNotIn("model must be one of", "\n".join(failures))
+
+    def test_full_model_id_is_rejected(self) -> None:
+        # The staleness the old blanket ban existed to prevent: a dated ID keeps pointing at
+        # a model long after the fleet has moved on, and nothing errors.
+        failures = self._agents_with_mutation(
+            "sre.md", "name: sre\n", "name: sre\nmodel: claude-opus-4-1-20250805\n"
+        )
+        self.assertIn("model must be one of", "\n".join(failures))
+
     def test_scoped_grant_on_non_agent_tool_is_rejected(self) -> None:
         # `Bash(git diff:*)` reads like a narrowed shell and grants an open one — the runtime
         # ignores the scope. Only Agent(...) scoping is real.

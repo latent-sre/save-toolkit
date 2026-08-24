@@ -75,7 +75,7 @@ scratch attempts are not a second learning system.
   oversized gathering contributes to context rot, and it is why workers return short
   summaries instead of transcripts.
 - **The verifier defines success.** A model upgrade can improve an attempt, but it does not replace
-  external outcome evidence. This fleet carries no `model:` pins for host portability and
+  external outcome evidence. This fleet carries no `model:` pins today, for host portability and
   synchronization policy; it does not claim that a weaker model always beats a stronger one.
 
 *[sourced: Anthropic,
@@ -156,11 +156,14 @@ waste · runaway loops with no dry-out condition · missing return contracts.
 ## Deliverable
 
 A roster delta or design: each agent's lane, trigger description, tool authority, handoff edges,
-context budget, and failure handling. Agents carry no `model:` pins — the whole fleet inherits the
-session model. That removes per-agent synchronization and lineup maintenance, but it also prevents
-cheaply tiering routine agents separately from judgment-heavy agents. Under the current hard rule a
-per-agent pin is forbidden, not a roster-level exception; changing that policy would require an
-explicit fleet decision and validator change. Hand single-artifact wording to
+context budget, and failure handling. Agents inherit the session model by default, and none pins
+one today. A **generation alias** (`haiku`/`sonnet`/`opus`/`fable`/`inherit`) is permitted where a
+lane's cost or latency profile justifies tiering; a full model ID is rejected by
+`validate_fleet.py` because that is the form that rots. Tier *down* a lane whose work is
+high-volume and mechanical, and leave judgment-heavy lanes — review, root cause, authority
+decisions — inheriting. A pin is a claim about a lane's difficulty: state why in the same change,
+and drop it when the reason stops holding. Generated host adapters carry no model concept, so a
+pin is Claude-only and the projection simply omits it. Hand single-artifact wording to
 [artifact guidance](./artifact.md), approved implementation to the typed `sde` agent, independent
 findings to the typed `reviewer` agent, and authorization to the human release owner with existing
 approval evidence naming the exact target, action, and rollback.

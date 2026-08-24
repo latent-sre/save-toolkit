@@ -55,7 +55,7 @@ authoritative?*
 | `sde` / `prompt-engineer`: unguarded Bash — host/network egress controls remain load-bearing | [`AGENTS.md`](../AGENTS.md) Honest limits |
 | Guard is a command filter, not a sandbox; OS least privilege remains load-bearing | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | `Agent(target)` grants enforce on the main thread only; at subagent depth the list is documentary | Frontmatter reference; [`AGENTS.md`](../AGENTS.md) |
-| No `model:` pins on agents — fleet inherits the session model | [`AGENTS.md`](../AGENTS.md) Hard rules |
+| `model:` on an agent must be a generation alias (`haiku`/`sonnet`/`opus`/`fable`/`inherit`), never a full ID; default is to inherit the session model | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-model-aliases.md); `validate_fleet.py` |
 | Copilot model ordered list lives only in `stack-profile`, never in agent files | [`stack-profile/SKILL.md`](../skills/stack-profile/SKILL.md) |
 | Never set `memory` on read-only / external-only agents (auto-enables write tools) | Frontmatter reference |
 | Exact MCP grants only (no silent server-wide wildcards) | Frontmatter reference; packaging ADR |
