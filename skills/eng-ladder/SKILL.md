@@ -11,8 +11,9 @@ argument-hint: "[task, diff, file, or design doc]"
 
 ## The ladder
 
-Pick the rung the work actually sits at, then **read exactly one tier file** — the tiers are
-alternatives, not a sequence, and reading two spends context on ceremony the task did not earn.
+Pick the rung the work actually sits at, then read only that tier file. Do not preload neighboring
+tiers as a checklist. Load a different tier only when observed scope changes the altitude or the
+selected tier's escalation rule requires it.
 
 | | Builder | Principal | Distinguished |
 |---|---|---|---|
@@ -24,7 +25,8 @@ alternatives, not a sequence, and reading two spends context on ceremony the tas
 
 ## The SRE track — altitude for an alert or incident
 
-Same idea, detection-side. Match response depth to the situation and read exactly one tier file:
+Same idea, detection-side. Match response depth to the situation and load only the starting tier;
+move tiers only when the evidence crosses the selected tier's escalation boundary:
 
 - **Responder** — safe first response: golden signals, read-only checks, work the runbook,
   decide severity, escalate → [responder](./references/responder.md) (signals primer:

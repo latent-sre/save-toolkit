@@ -19,7 +19,9 @@ hold in every language:
 - **Read the neighbors before writing.** Two files near what you're changing tell you more about what
   will be accepted than any style guide.
 
-Load **only** the file for the language you're touching.
+Load exactly one language reference for the language being changed. Also load the tests-first
+process for new behavior or a bug fix, and the safe-refactoring process for a behavior-preserving
+reshape. Do not preload other language references or an inapplicable process.
 
 - **Python** — typing, `ruff`/`uv`, `pytest`, exceptions, subprocess/HTTP safety, secrets-safe logging.
   → [`references/python.md`](./references/python.md)
