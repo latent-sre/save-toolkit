@@ -814,11 +814,6 @@ def explain(command: str, agent: str = "") -> "str | None":
     return None
 
 
-def is_allowed(command: str, agent: str = "") -> bool:
-    """True only if every segment of every line of `command` is a known read-only command."""
-    return explain(command, agent) is None
-
-
 def main() -> None:
     try:
         # Read raw bytes and decode with utf-8-sig so a leading BOM (which some Windows shells

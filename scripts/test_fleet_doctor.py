@@ -33,6 +33,32 @@ class FleetDoctorTests(unittest.TestCase):
         )
         (scripts / "readonly-guard.py").write_text("# fixture guard\n", encoding="utf-8")
 
+    def test_import_preserves_bytecode_setting(self) -> None:
+        for initial in (False, True):
+            with self.subTest(initial=initial):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        (
+                            "import sys; "
+                            f"sys.dont_write_bytecode = {initial!r}; "
+                            "import fleet_doctor; "
+                            "print(sys.dont_write_bytecode)"
+                        ),
+                    ],
+                    cwd=REPO / "scripts",
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    check=False,
+                    timeout=30,
+                )
+
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual(str(initial), result.stdout.strip())
+
     def test_guard_interpreter_requires_exact_allow_and_deny_protocol(self) -> None:
         deny_output = (
             '{"hookSpecificOutput":{"hookEventName":"PreToolUse",'
@@ -560,9 +586,6 @@ class FleetDoctorTests(unittest.TestCase):
                 started_at=datetime(2026, 7, 31, tzinfo=timezone.utc),
                 ended_at=datetime(2026, 7, 31, tzinfo=timezone.utc),
             )
-
-    def _no_fleet_plugin_list(self, argv: tuple[str, ...]) -> fleet_doctor.CommandResult:
-        return fleet_doctor.CommandResult(0, "other-plugin  installed  1.0.0\n", "")
 
     def test_main_exits_one_only_for_failing_checks(self) -> None:
         report = {

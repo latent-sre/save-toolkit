@@ -85,6 +85,16 @@ class FrontmatterParserTests(unittest.TestCase):
         self.assertEqual("it's", frontmatter.decode_scalar("'it''s'"))
         self.assertEqual("plain", frontmatter.decode_scalar("plain"))
 
+    def test_tool_specs_share_one_nested_argument_aware_splitter(self) -> None:
+        self.assertEqual(
+            ["Read", "Agent(reviewer, researcher)", "Grep"],
+            frontmatter.split_tool_specs("Read, Agent(reviewer, researcher), Grep"),
+        )
+        self.assertEqual(
+            ["Read", "Grep"], frontmatter.split_tool_specs(["Read", "", "Grep"])
+        )
+        self.assertEqual([], frontmatter.split_tool_specs(None))
+
     def test_invalid_double_quote_raises_or_is_collected(self) -> None:
         text = '---\nname: "unterminated\nnext: kept\n---\n'
         with self.assertRaisesRegex(frontmatter.FrontmatterError, "invalid quoted scalar"):

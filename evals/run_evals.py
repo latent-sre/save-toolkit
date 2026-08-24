@@ -25,6 +25,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from types import ModuleType
 
@@ -587,7 +588,7 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
         for _, event in (*root_inits, *root_results):
             if event.get("session_id") != canonical_session:
                 _fail_stream("continuation epoch is missing the canonical session ID", diagnostics)
-        for (previous_index, _), (init_index, _) in zip(root_inits, root_inits[1:]):
+        for (previous_index, _), (init_index, _) in pairwise(root_inits):
             completed_notification = any(
                 event.get("type") == "system"
                 and event.get("subtype") == "task_notification"
@@ -713,32 +714,6 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
     )
 
 
-def _split_tool_specs(raw: object) -> list[str]:
-    if isinstance(raw, list):
-        return [item.strip() for item in raw if isinstance(item, str) and item.strip()]
-    if not isinstance(raw, str):
-        return []
-    specs: list[str] = []
-    current: list[str] = []
-    depth = 0
-    for char in raw:
-        if char == "(":
-            depth += 1
-        elif char == ")" and depth:
-            depth -= 1
-        if char == "," and depth == 0:
-            spec = "".join(current).strip()
-            if spec:
-                specs.append(spec)
-            current = []
-        else:
-            current.append(char)
-    spec = "".join(current).strip()
-    if spec:
-        specs.append(spec)
-    return specs
-
-
 def _require_matching_frontmatter_parser(plugin_root: Path) -> None:
     """Treat the measured parser as data and reject grammar drift from the trusted harness."""
     measured_path = plugin_root / "scripts/fleet_frontmatter.py"
@@ -790,7 +765,10 @@ def expected_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[st
             raise ValueError("frontmatter must contain an explicit tools field")
     except (OSError, UnicodeError, ValueError) as exc:
         raise clean_room.RunnerFailed(f"cannot derive direct-agent tool boundary from {path}: {exc}") from exc
-    bases = {spec.split("(", 1)[0].strip() for spec in _split_tool_specs(fields.get("tools"))}
+    bases = {
+        spec.split("(", 1)[0].strip()
+        for spec in frontmatter_parser.split_tool_specs(fields.get("tools"))
+    }
     effective = []
     if "Skill" in bases:
         effective.append("Skill")
@@ -1345,10 +1323,8 @@ def _private_write(path: Path, content: str) -> Path:
             with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
                 handle.write(content)
         except BaseException:
-            try:
+            with contextlib.suppress(OSError):
                 os.close(fd)
-            except OSError:
-                pass
             raise
         if os.name == "nt":
             _set_windows_private_acl(path, directory=False)

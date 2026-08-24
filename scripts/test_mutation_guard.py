@@ -789,9 +789,9 @@ class ImportDiscoveryTests(unittest.TestCase):
                 )
 
     def test_the_live_tree_has_no_tractable_blind_files(self) -> None:
-        """The three remaining have .sh/.json/.yml subjects; there is no Python to mutate."""
+        """The two remaining have .sh/.json subjects; there is no Python to mutate."""
         self.assertEqual(
-            {"test_hook_wiring.py", "test_runbook_schema.py", "test_validate_workflow.py"},
+            {"test_hook_wiring.py", "test_runbook_schema.py"},
             {path.name for path in mutation_guard.unresolved(ROOT)},
         )
 

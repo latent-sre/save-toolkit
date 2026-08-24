@@ -27,7 +27,6 @@ ERROR, never a routing outcome.
 from __future__ import annotations
 
 import contextlib
-import json
 import os
 import shutil
 import stat
@@ -182,45 +181,6 @@ def is_auth_failure(text: str, returncode: int | None = None) -> bool:
     if returncode == 0:
         return False
     return any(m in (text or "") for m in AUTH_MARKERS)
-
-
-def find_result_event(blob: str) -> dict | None:
-    """The stream-json transcript's structured `{"type": "result", ...}` event, or None if the run
-    never reached one (e.g. killed mid-stream by a client-side timeout).
-
-    This is the ONLY reliable "did this trial complete" signal for a stream-json trace. Text
-    elsewhere in the transcript -- including `tool_result` content, i.e. a FILE THE AGENT ITSELF
-    READ or a command's output -- is not a signal about the harness's own health and must never be
-    substring-scanned for one: this branch planted the literal string "Not logged in" in ~30 places
-    across evals/ and docs/, so an agent scenario that greps this repo and then times out would
-    otherwise abort the whole suite on a healthy run. Scanning only this one well-known top-level
-    event, emitted once by the CLI itself at the very end, closes that off entirely.
-    """
-    evt = None
-    for line in blob.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            parsed = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(parsed, dict) and parsed.get("type") == "result":
-            evt = parsed  # keep the last one; the stream should carry exactly one
-    return evt
-
-
-def is_error_event(blob: str) -> bool:
-    """True iff the transcript's structured result event says the run did not complete
-    (`is_error: true`). `subtype` lies -- a not-logged-in run reports subtype="success" while
-    is_error is true -- so this is the only field to trust.
-
-    No result event at all (a killed/timed-out process) is NOT an error by this check alone; there
-    is no structured signal either way, and callers combine this with the returncode / whether
-    anything was invoked.
-    """
-    evt = find_result_event(blob)
-    return bool(evt and evt.get("is_error"))
 
 
 @contextlib.contextmanager

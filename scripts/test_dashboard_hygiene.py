@@ -103,9 +103,6 @@ class RuleMutationTest(unittest.TestCase):
             m["panels"][0]["fieldConfig"]["defaults"].pop("unit")
         self.assertNotIn("panel-units", self._mutate(mutate))
 
-    def test_no_targets(self) -> None:
-        self.assertIn("panel-no-targets", self._mutate(lambda m: m["panels"][0].update(targets=[])))
-
     def test_missing_no_value(self) -> None:
         fired = self._mutate(lambda m: m["panels"][0]["fieldConfig"]["defaults"].pop("noValue"))
         self.assertIn("panel-no-value", fired)

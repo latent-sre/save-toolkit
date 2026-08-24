@@ -24,12 +24,16 @@ from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
 # Importing repository helpers must not create scripts/__pycache__ in a clean checkout.
+_previous_dont_write_bytecode = sys.dont_write_bytecode
 sys.dont_write_bytecode = True
-
 try:
-    from scripts import evidence_envelope
-except ModuleNotFoundError:
-    import evidence_envelope  # type: ignore[no-redef]
+    try:
+        from scripts import evidence_envelope
+    except ModuleNotFoundError:
+        import evidence_envelope  # type: ignore[no-redef]
+finally:
+    sys.dont_write_bytecode = _previous_dont_write_bytecode
+del _previous_dont_write_bytecode
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
