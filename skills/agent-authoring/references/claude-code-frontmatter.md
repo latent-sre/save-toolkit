@@ -149,8 +149,9 @@ on every Bash call and scopes itself in Python, so the same rename trips a canar
 [doc-checked 2026-08-05, platform skill-authoring best practices] Rules with an objective pass/fail,
 so they can be audited rather than argued:
 
-- **SKILL.md body under 500 lines** — the line-based companion to the 5k-token budget. Split into
-  bundle files when approaching it.
+- **SKILL.md body under 500 lines** — the documented authoring recommendation. Split into bundle
+  files when approaching it; the separate 5,000-token recommendation comes from the portable Agent
+  Skills specification, not from Claude's discovery-listing budget.
 - **A reference file over 100 lines opens with a `## Contents` list.** Claude may *partially* read a
   long file (previewing with `head`-style reads); without a contents list at the top it cannot see
   what the rest of the file holds, so material below the preview window is effectively invisible.
@@ -172,6 +173,32 @@ so they can be audited rather than argued:
   an "old patterns" heading, or date-stamp the fact the way this file does.
 - **Build evaluations before writing extensive instructions** — measure the gap without the skill
   first, so the content answers a real failure instead of an imagined one.
+
+### Skill discovery and invoked-content budgets are different contracts
+
+[doc-checked 2026-08-24 against the current
+Claude skill documentation](https://code.claude.com/docs/en/skills), and [verified] against the
+installed Claude Code 2.1.241 binary:
+
+- **Discovery metadata is aggregate.** Claude loads model-invocable skill names and descriptions
+  into one listing budgeted at 1% of the model context. The installed implementation uses four
+  characters per token and a 200,000-token fallback, so the default fallback is 8,000 characters;
+  this is not an 8,000-character limit on one `SKILL.md`. Over budget, names remain available while
+  lower-priority descriptions are shortened or removed. `skillListingBudgetFraction` and
+  `SLASH_COMMAND_TOOL_CHAR_BUDGET` change the aggregate budget.
+- **Routing metadata has its own cap.** `description` plus `when_to_use` is capped at 1,536
+  characters by default through `skillListingMaxDescChars`. This fleet keeps routing in
+  `description`, but splitting it across both fields would not buy more listing space.
+- **Invoked bodies have a lifecycle budget.** A rendered skill body enters the conversation as one
+  message and persists. Reinvoking identical content adds only an already-loaded note; changed
+  content appends the full body again. After compaction, Claude reattaches the newest invocation of
+  each skill, up to 5,000 tokens per skill and 25,000 tokens total, newest first. Older skills can be
+  dropped when the total is exhausted.
+
+Consequently, moving conditional detail out of `SKILL.md` reduces invoked context but does not
+reduce discovery-listing cost unless the frontmatter description also changes. Treat a body-size
+screen, discovery-listing measurement, and description-routing edit as three separate decisions and
+apply the matching verification rule to each.
 
 ### Why a skill may not link outside its own folder
 
