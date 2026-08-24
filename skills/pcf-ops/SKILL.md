@@ -80,7 +80,8 @@ configured log backend.
 ## Read only the detail the symptom needs
 
 A human or approved network capture point supplies route headers; agents do not turn an untrusted
-route into an egress request. Load every row whose predicate matches the request, and no others.
+route into an egress request. Load every row whose predicate matches the current request or any
+evidence gathered so far in this triage, and no others.
 
 | If the request involves… | Read first |
 |---|---|
