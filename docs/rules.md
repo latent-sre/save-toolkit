@@ -16,7 +16,7 @@ authoritative?*
 |---|---|
 | Gate A (`scripts/gate_a.py`) runs once before a push, never per edit; structural only, and it runs no component tests or evals | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring; [`AGENTS.md`](../AGENTS.md) |
 | On Windows use `python` / `py -3`, never bare `python3` (Store stub) | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring and `preflight()`; restated in [`AGENTS.md`](../AGENTS.md) |
-| Third-party deps allowed everywhere, pinned in `requirements-dev.txt`; the first Gate A-path import of one ships the CI install steps in the same PR | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-third-party-dependencies.md) |
+| Third-party deps allowed, pinned in `requirements-dev.txt`; the first Gate A-path import of one ships the CI install steps in the same PR. **`scripts/readonly-guard.py` is exempt and stays stdlib-only** — the hook runs it `python -I -S` with no site packages, so an import error there denies all guarded Bash | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-third-party-dependencies.md) |
 | Canonical authored source is `agents/`, `skills/`, and `commands/` only | [`2026-07-31-multi-platform-plugin-packaging.md`](decisions/2026-07-31-multi-platform-plugin-packaging.md) |
 | Before a push that carries canonical edits, run `generate_platform_adapters.py --write` once (not per edit) and commit projections with source | [`AGENTS.md`](../AGENTS.md) Change playbooks; [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Never hand-edit generated roots: `.github/agents/`, `platforms/copilot/skills/` | [`AGENTS.md`](../AGENTS.md) Hard rules |

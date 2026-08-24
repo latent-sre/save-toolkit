@@ -250,8 +250,12 @@ The full must-follow index (structural, authority, process, docs, stack) lives i
 [`docs/rules.md`](docs/rules.md). The five bullets below are the load-bearing subset every change
 must respect:
 
-- **Third-party dependencies are permitted everywhere, pinned in `requirements-dev.txt`** —
-  PyYAML included, the gate path included (owner decision,
+- **Third-party dependencies are permitted, pinned in `requirements-dev.txt`** — PyYAML
+  included, the gate path included, with **one exception: `scripts/readonly-guard.py` stays
+  standard-library-only.** The session hook runs it as `python -I -S`, which excludes the user
+  environment and skips `site`, and an installed plugin never runs `pip install`. A third-party
+  import there raises before the guard can return 42/43, the launcher falls through to its
+  blanket deny, and every guarded Bash command dies. (owner decision,
   [ADR 2026-08-23](docs/decisions/2026-08-23-allow-third-party-dependencies.md); the old
   stdlib-only mandate is retired). Prefer stdlib when it is equivalent; declare and pin
   anything else — never a bare `pip install`. The change that first makes a Gate A-path

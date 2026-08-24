@@ -559,12 +559,17 @@ class FleetValidatorTests(unittest.TestCase):
         return failures
 
     def test_model_alias_is_accepted(self) -> None:
-        # A generation alias tracks its tier and cannot rot, so tiering a routine lane down
-        # is allowed. `sre.md` gets `model: sonnet` inserted after its name line.
+        """An alias must produce NO failure at all, not merely avoid one message.
+
+        Asserting only the absence of "model must be one of" left the test green when
+        `model` was dropped from KNOWN_AGENT_FIELDS -- the validator then rejects the pin as
+        an unknown field, a different message, and the acceptance contract silently stopped
+        being tested.
+        """
         failures = self._agents_with_mutation(
             "sre.md", "name: sre\n", "name: sre\nmodel: sonnet\n"
         )
-        self.assertNotIn("model must be one of", "\n".join(failures))
+        self.assertEqual([], failures)
 
     def test_full_model_id_is_rejected(self) -> None:
         # The staleness the old blanket ban existed to prevent: a dated ID keeps pointing at

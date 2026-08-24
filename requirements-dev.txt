@@ -6,5 +6,10 @@
 # Today only the behavioral eval harness (evals/run_evals.py) imports any of these; Gate A
 # still runs on a bare Python. The change that first makes a gate-path script import a
 # third-party package adds the install step to both CI validate jobs in the same PR.
+#
+# NOTHING here is importable from scripts/readonly-guard.py. The session hook runs the guard
+# as `python -I -S`, which ignores the user environment and skips site initialisation, and an
+# installed plugin never pip-installs anything. An ImportError there denies every guarded
+# Bash command. The guard is standard-library-only, permanently.
 # Always pin exact versions; never a bare `pip install <name>`.
 pyyaml==6.0.3
