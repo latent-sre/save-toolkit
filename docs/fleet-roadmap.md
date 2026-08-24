@@ -173,8 +173,10 @@ resolver, MCP server, skill rewrite, or live discovery job is created solely fro
    Runbook metadata, consumer requirement, and resolved-bundle shapes. Known objects fail closed;
    formats and YAML
    duplicate keys are tested with the selected validator rather than assumed.
-3. **Semantic resolver:** Exact source/revision and canonical selectors produce deterministic,
-   byte-bounded output with source provenance. Duplicate IDs/aliases, broken or kind-wrong refs,
+3. **Semantic resolver:** An explicit source root and canonical selectors produce deterministic,
+   byte-bounded output with fixture taint and qualified resource provenance. Fixture output carries
+   no exact source revision or byte digest; a separately trusted execution boundary owns source
+   identity when a later consumer requires it. Duplicate IDs/aliases, broken or kind-wrong refs,
    forbidden cycles, zero/multiple deployments, missing required paths, implicit production,
    secret-bearing fields, traversal, and nondeterministic output have named red-first regressions.
 4. **Identity and repositories:** Catalog IDs, display names, typed/scoped aliases, platform IDs,
@@ -190,8 +192,8 @@ resolver, MCP server, skill rewrite, or live discovery job is created solely fro
 6. **Context behavior:** Required and alternative JSON Pointer paths fail closed; optional absence
    remains explicit; the resolver expands only requested references within declared depth/byte
    budgets. A fresh-context exercise demonstrates deterministic lookup and preserved canonical
-   facts, provenance, target classification, and omissions; it does not claim production
-   correctness from structural green.
+   facts, qualified resource provenance, target classification, and omissions; it does not claim
+   exact source identity or production correctness from structural green.
 7. **Truth and safety:** The repository contains no secret or copied live state. Qualified platform
    mappings and external locators name their authority and validation evidence where freshness is
    material. An effect-capable path separately proves that context cannot default to production,

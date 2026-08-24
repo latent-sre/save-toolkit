@@ -72,8 +72,10 @@ decisions.
    of the contract.** The initial repository will be `latent-sre/sre-context`. Its `main` branch is
    protected, validation is required in CI, team owners review their team subtrees through
    `CODEOWNERS`, and contract or resolver owners review schemas and tooling. Resolver input is an
-   approved source root plus an exact Git revision. Future federation may add approved pinned
-   sources without changing consumer requirements. The repository is private because internal
+   approved source root. A resolved fixture bundle does not claim an exact revision or byte digest;
+   source identity may be attached only by a separately trusted execution boundary when a consumer
+   requires it. Future federation may add approved pinned sources without changing consumer
+   requirements. The repository is private because internal
    service topology, FQDNs, repository mappings, and operational locators need not be public even
    though secrets and copied live state are forbidden.
 4. **Separate consumer requirements from context values.** A generalized skill owns a versioned
@@ -99,17 +101,20 @@ decisions.
    Confluence locations, runbooks, and architecture references. Alerts, incidents, deployments,
    tickets, health, metrics, logs, and traces remain in their live authoritative systems. Context
    tells the consumer where and how to retrieve them.
-9. **Qualify provenance only where it changes operational trust.** Every resolved bundle identifies
-   the source repository and revision. Platform-generated IDs and freshness-sensitive resource
-   mappings also identify their authoritative system, management mode, and last validation evidence.
+9. **Qualify provenance only where it changes operational trust.** Fixture resolution preserves its
+   non-operational source taint but emits no exact source identity. When source identity materially
+   changes trust, a separately trusted execution boundary may attach it outside the entity and
+   resolved-context contracts. Platform-generated IDs and freshness-sensitive resource mappings
+   still identify their authoritative system, management mode, and last validation evidence.
    Field-by-field provenance is not required for ordinary manually curated catalog facts.
 10. **Use a deterministic file/CLI resolver for the alpha.** `sde` owns the initial implementation
     under `latent-sre/sre-context/tooling/`, co-located with the source schemas and semantic fixtures.
     It validates structural and semantic contracts, rejects duplicate IDs or aliases and
     broken/kind-wrong/cyclic references, resolves an explicit `team + service + environment`
     selector, requires a deployment selector when that coordinate is ambiguous, enforces depth and
-    byte budgets, and emits canonical JSON plus provenance. It performs no network discovery by
-    default. Language and validator-library selection remain an implementation experiment subject
+    byte budgets, and emits canonical JSON with fixture taint and requested qualified resource
+    provenance, but no exact source identity. It performs no network discovery by default. Language
+    and validator-library selection remain an implementation experiment subject
     to the pinned-dependency and bare-Gate-A rules. Backstage, commercial catalogs, MCP, generated
     discovery, and a long-running database/API are later adapters or decisions.
 11. **Keep context separate from authority and secrets.** The resolver rejects secret-bearing fields
@@ -195,8 +200,8 @@ owner becomes relevant only when that team separately authorizes onboarding.
   branch.
 - Explicit selection, qualified identity, closed schemas, and fail-closed semantic validation reduce
   the chance that an agent guesses the wrong service or production target.
-- Progressive projection limits context size and makes provenance inspectable without loading the
-  full registry.
+- Progressive projection limits context size and makes requested facts and qualified resource
+  provenance inspectable without loading the full registry.
 - A Git authoring source is easy to review, diff, recover, and prototype while keeping the contract
   portable to future catalog or MCP adapters.
 - Existing service cards, runbooks, platform skills, and production gates remain useful rather than
@@ -219,17 +224,19 @@ owner becomes relevant only when that team separately authorizes onboarding.
 
 - **Ambiguous or missing selection:** fail before a consumer runs and report the exact unresolved
   selector or requirement path; never fall back to production or the first matching deployment.
-- **Bad source revision:** reject the source before indexing. Operators pin the last known-valid
-  revision while the owning team repairs the new revision through review.
+- **Bad source contents:** reject the source before indexing. Operators may recover the last
+  known-valid repository revision through Git controls, but fixture resolution does not claim that
+  revision as output provenance.
 - **Stale external reference:** preserve the declared locator and provenance, report validation age
   or lookup failure, and query the authoritative system only through an existing read-only tool path.
 - **Resolver regression:** consumers retain their existing explicit caller-handoff path during the
   alpha. Disable the context adapter and return to the last supported resolver/source pair.
 - **Schema migration failure:** readers continue accepting the prior supported URI until every
   synthetic fixture source and consumer has migrated; no accepted schema is edited in place.
-- **Repository outage:** use a previously verified local checkout at its recorded revision for
-  read-only work. Effect-capable work remains blocked unless its independent production gate can
-  establish the target and authority.
+- **Repository outage:** use a previously reviewed local checkout for read-only work. Any exact
+  source identity comes from the operator's trusted retrieval process, not the resolved fixture
+  bundle. Effect-capable work remains blocked unless its independent production gate can establish
+  the target and authority.
 
 Before the first consumer adoption, rollback is simply removal of the unaccepted or failed
 synthetic-alpha branch/repository: no generalized skill behavior has changed. After adoption, each

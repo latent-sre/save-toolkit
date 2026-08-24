@@ -5,6 +5,11 @@
 > [`fleet-roadmap.md`](../fleet-roadmap.md). This record proposes a contract and staged experiment;
 > it does not create the context repository, add a runtime dependency, rewrite fleet skills, or
 > authorize a production-facing action.
+>
+> **Superseded detail:** recommendations below that place an exact source revision or digest in the
+> resolved fixture bundle were not adopted. The accepted
+> [`operational-context ADR`](../decisions/2026-08-24-sre-operational-context-contract.md) leaves
+> exact source identity to a separately trusted execution boundary.
 
 **Research baseline:** `50eff87e982455ce23d4dcb683d675159e0af706`
 
