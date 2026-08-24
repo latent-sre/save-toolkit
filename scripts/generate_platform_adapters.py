@@ -146,32 +146,13 @@ def _mark_generated(text: str, suffix: str) -> str:
 
 
 _yaml_scalar = fleet_frontmatter.decode_scalar
+_split_tool_specs = fleet_frontmatter.split_tool_specs
 
 
 def parse_frontmatter(path: Path) -> tuple[dict[str, object], str, list[str]]:
     """Compatibility wrapper over the one shared strict parser."""
     parsed = fleet_frontmatter.parse_file(path, mode="strict")
     return parsed.fields, parsed.body, list(parsed.raw_lines)
-
-
-def _split_tool_specs(raw: object) -> list[str]:
-    if isinstance(raw, list):
-        return [str(item).strip() for item in raw if str(item).strip()]
-    text = str(raw or "")
-    result: list[str] = []
-    start = 0
-    depth = 0
-    for index, char in enumerate(text):
-        if char == "(":
-            depth += 1
-        elif char == ")":
-            depth = max(0, depth - 1)
-        elif char == "," and depth == 0:
-            result.append(text[start:index].strip())
-            start = index + 1
-    if text[start:].strip():
-        result.append(text[start:].strip())
-    return result
 
 
 def _tool_base(spec: str) -> str:

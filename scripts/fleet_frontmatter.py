@@ -39,6 +39,28 @@ def decode_scalar(raw: str) -> str:
     return raw
 
 
+def split_tool_specs(raw: object) -> list[str]:
+    """Split tool grants while keeping commas inside ``Tool(...)`` arguments."""
+    if isinstance(raw, list):
+        return [item.strip() for item in raw if isinstance(item, str) and item.strip()]
+    if not isinstance(raw, str):
+        return []
+    result: list[str] = []
+    start = depth = 0
+    for index, char in enumerate(raw):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth = max(0, depth - 1)
+        elif char == "," and depth == 0:
+            if spec := raw[start:index].strip():
+                result.append(spec)
+            start = index + 1
+    if spec := raw[start:].strip():
+        result.append(spec)
+    return result
+
+
 def _source_name(source: str | Path) -> str:
     return source.as_posix() if isinstance(source, Path) else str(source)
 

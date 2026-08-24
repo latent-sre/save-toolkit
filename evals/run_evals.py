@@ -713,32 +713,6 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
     )
 
 
-def _split_tool_specs(raw: object) -> list[str]:
-    if isinstance(raw, list):
-        return [item.strip() for item in raw if isinstance(item, str) and item.strip()]
-    if not isinstance(raw, str):
-        return []
-    specs: list[str] = []
-    current: list[str] = []
-    depth = 0
-    for char in raw:
-        if char == "(":
-            depth += 1
-        elif char == ")" and depth:
-            depth -= 1
-        if char == "," and depth == 0:
-            spec = "".join(current).strip()
-            if spec:
-                specs.append(spec)
-            current = []
-        else:
-            current.append(char)
-    spec = "".join(current).strip()
-    if spec:
-        specs.append(spec)
-    return specs
-
-
 def _require_matching_frontmatter_parser(plugin_root: Path) -> None:
     """Treat the measured parser as data and reject grammar drift from the trusted harness."""
     measured_path = plugin_root / "scripts/fleet_frontmatter.py"
@@ -790,7 +764,10 @@ def expected_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[st
             raise ValueError("frontmatter must contain an explicit tools field")
     except (OSError, UnicodeError, ValueError) as exc:
         raise clean_room.RunnerFailed(f"cannot derive direct-agent tool boundary from {path}: {exc}") from exc
-    bases = {spec.split("(", 1)[0].strip() for spec in _split_tool_specs(fields.get("tools"))}
+    bases = {
+        spec.split("(", 1)[0].strip()
+        for spec in frontmatter_parser.split_tool_specs(fields.get("tools"))
+    }
     effective = []
     if "Skill" in bases:
         effective.append("Skill")
