@@ -89,7 +89,7 @@ Semantic HTML first; every input labeled; keyboard reachable with visible focus;
 
 ## Testing & quality gate
 
-- **Vitest + React Testing Library + MSW component/contract tests** — test behavior the user can observe (validation, conditional rendering, error/empty states), not implementation details, and mock the API at the network layer. Write the failing regression first.
+- **Vitest + the target repository's established component-testing layer + MSW component/contract tests** — test behavior the user can observe (validation, conditional rendering, error/empty states), not implementation details, and mock the API at the network layer. For the React greenfield stack, use React Testing Library; a Vue target keeps its established Vue component-testing layer. Write the failing regression first.
 - **Playwright critical-path test** for each end-to-end flow whose breakage would page someone. Write the failing regression first, then prove the fixed path in a real browser.
 - Before "done": it typechecks, lints, unit + E2E tests pass, the dev server runs, and the primary flow was exercised in a **real browser render**, including a keyboard-only pass — evidence in the review packet. A UI that compiles but was never rendered is written, not verified.
 
@@ -104,7 +104,7 @@ packet.
 | a greenfield/unbranded visual language | [design language](./references/design-language.md) |
 | dialogs, drawers, menus, tabs, custom widgets, or async announcements | [interaction accessibility](./references/interaction-a11y.md) |
 | labels, actions, errors, empty states, or toasts | [interface copy](./references/ux-writing.md) |
-| choosing a stack for a greenfield UI | [stack](./references/stack.md) |
+| choosing a stack for a greenfield UI | Load `stack-profile` first, then [stack](./references/stack.md) |
 | a table, list, or grid of records | [data views](./references/data-views.md) |
 | a chart, graph, or metric visualization | [data visualization](./references/data-viz.md) |
 | a form or any user input to submit | [forms](./references/forms.md) |
