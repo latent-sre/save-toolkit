@@ -37,24 +37,6 @@ change to a human, the human apply follows this gate. Every other live change fo
       A human release owner or separately approved protected automation performs every Tier 2/3 live
       action; the agent never executes it. Approval does not grant the agent live-change authority.
 
-### Worked example — a Tier 2 request (the shape, compressed)
-
-> **Requesting approval for a human release owner to apply a Tier 2 change.**
->
-> **Target**: `checkout` app, `prod` space, foundation `pcf-east`.
-> **Change**: scale from 4 → 6 instances to absorb the 502 burst while the root cause is investigated.
-> **Exact command**: `cf scale checkout -i 6`
-> **Blast radius**: no restart of existing instances (`-i` only adds); ~40s until new instances pass
-> health checks. No config or code changes.
-> **Verification**: `cf app checkout` shows `6/6 running`; 502 rate in the dashboard drops within 5 min.
-> **Rollback**: `cf scale checkout -i 4` — the exact inverse, no state carried.
->
-> This is Tier 2 (reversible live change), so a human release owner needs explicit approval for this
-> specific apply and then executes it; I do not apply live changes.
-> Meanwhile I'll continue the Tier 0 investigation of what changed, which needs no approval.
-
-The example is `[unverified]`: it is the required approval-request shape, not evidence from a foundation.
-
 - [ ] **Readiness evidence present** — a production deployment of a new artifact requires independent
       review of the exact candidate SHA. Attach that review, green checks, the exact release artifact,
       and the named production approver; missing or stale review blocks the deployment. Consume those
@@ -97,50 +79,18 @@ Watching: <who, which signals>   Abort if: <criteria>
 Production execution boundary: <protected environment or least-privilege executor evidence>
 ```
 
-## Incident fast path (emergency exception)
+## Read only the conditional material the decision needs
 
-During a declared incident, gate latency is itself harm: every minute of ceremony on the mitigation
-path is user pain. The gate shrinks to its load-bearing core — the items below and nothing else block
-execution.
+A declared incident may use the bounded fast path only for reversible Tier 0–2 mitigation or rollback
+to an already-live artifact. A new artifact and every Tier 3 destructive or access-path action stay
+on the full checklist even at P1. The fast path never transfers execution to an agent.
 
-**What this path covers:** Tier 0–2 operational mitigation and rollback to an already-live artifact —
-the reversible actions in the `incident-command` mitigation table (route remap, revision rollback,
-restart, restage, scale, flag flip). Two things stay on the full gate even at P1:
+| If the request involves… | Read first |
+|---|---|
+| The caller explicitly asks for a worked example/template, or is preparing a Tier 2/3 approval-request packet | [Tier 2 approval example](./references/tier-2-approval-example.md) |
+| A declared incident needing reversible Tier 0–2 mitigation, an IC-approved bounded envelope, rollback to an already-live artifact, or post-incident reconciliation | [Incident fast path](./references/incident-fast-path.md) |
 
-- **A new artifact.** An incident hotfix is still a production deployment: independent review of the
-  exact candidate SHA, lower-environment evidence, migration safety, and rollback evidence are exactly
-  what stop one incident from becoming two. Rolling *back* to the previously live artifact is covered
-  here; shipping new bytes is not.
-- **Any Tier 3 destructive or access-path action** (data deletion, storage/backup, credential or
-  identity, DNS, firewall, VPN, proxy, remote access). Tier 3 keeps its proven backup/recovery
-  requirement — a backout plan cannot reverse an irreversible mutation, so speed cannot buy it out.
-
-**Never skipped, even at P1:**
-
-- **Classification**, one line — and it still gates: a Tier 3 action leaves this path for the full
-  checklist above, and the tier decides who executes.
-- **Explicit human confirmation** of the exact command, **or of a bounded envelope** the incident
-  commander approves once (e.g. "scale `checkout` up to 10 instances", "remap the prod route between
-  `checkout-blue` and `checkout-green` as needed"). Only action outside the envelope re-enters
-  approval — an iterative mitigation does not re-run the gate per attempt.
-- **Blast radius and verification**, a sentence each.
-- **A backout plan** — prefer the reversible mitigations in the `incident-command` skill's table.
-- **Who made the call**, recorded in the incident timeline (UTC).
-
-**Deferred to post-incident reconciliation — these never delay a mitigation:**
-
-- Readiness evidence and artifact records **for the covered actions only** — a rollback re-uses the
-  previously live artifact's existing records. A new artifact is out of scope above and keeps them.
-- Production execution-boundary evidence. A deployment-control or credential/role API call must never
-  sit on the rollback path — a control-plane outage cannot be allowed to block recovery.
-- Timing/freeze documentation, Moogsoft suppression records, and the formal change record. This team
-  keeps change records in **both BMC Remedy and Jira** *[sourced: operator statement 2026-08-21]*, so
-  name the system and the record ID rather than writing "the change record" — a packet that does not
-  say which system it means cannot be checked by the person approving it.
-- Pre-change stakeholder notification — the incident comms cadence covers stakeholders, and the IC
-  roles satisfy the monitoring and comms items.
-
-The fast path narrows the paperwork, never the authority boundary: Tier 2/3 execution remains owned by
-a human release owner or separately approved protected automation, and the security/integrity carve-out
-in `incident-command` still exits this path entirely. After resolution, reconcile every deferred record
-and give the timeline to the typed `scribe` agent.
+Load every row that matches, and no others. Urgency without a declared incident does not activate the
+fast path. Evaluating an already-prepared real change packet does not activate the example row; using
+the example to prepare its approval-request shape does. The parent checklist remains authoritative
+wherever the reference says the full gate applies.
