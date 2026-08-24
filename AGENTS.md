@@ -28,6 +28,19 @@ Use plain `rg` for authored source; [`.ignore`](.ignore) excludes generated proj
 `python3` Store stub. Run focused owner tests while editing; run `python scripts/gate_a.py` once
 before a push. Gate A is structural and never substitutes for component tests, evals, or review.
 
+## Docker-backed local verification
+
+Docker-backed local verification is allowed and recommended when the acting lane already has Bash
+or execute authority and an official image exercises the real tool or runtime more faithfully than
+a substitute or missing host binary. This permission covers disposable local test containers; it
+does not grant production-change authority or widen any lane's tools.
+
+Pin an exact image version and record the resolved image reference plus tool version. Use `--rm`,
+`--network none` by default, and a read-only bind mount or stdin for the exact artifact under test;
+never mount the Docker socket or forward credentials. Record the command, exit status, and material
+diagnostics. Match the conclusion to the boundary exercised: static validation does not prove
+runtime connectivity, authentication, telemetry delivery, persistence, or recovery.
+
 ## The roster
 
 | Agent | Lane | Tools posture | Delegates to |

@@ -144,6 +144,21 @@ otelcol.auth.google; docs.cloud.google.com/stackdriver/docs/otlp-logs/overview; 
   a URL assembled from environment-backed expressions). Ask a human or use an isolated,
   networkless runner; `alloy fmt -w`, `alloy run`, and `alloy tools` also stay denied.
   *[sourced: reference/cli, reviewed against Alloy v1.18.1 on 2026-08-19]*
+- **Docker is the local fallback when the Alloy binary is unavailable.** Assemble the exact
+  self-contained config being reviewed, replace `<pinned-version>` with the deployed Alloy version
+  (never `latest` for retained evidence), and validate it without network access:
+
+  ```powershell
+  Get-Content -LiteralPath .\config.alloy -Raw | docker run --rm --network none -i grafana/alloy:<pinned-version> validate --stability.level=public-preview /dev/stdin
+  ```
+
+  Omit `--stability.level=public-preview` only when the exact config has no public-preview
+  components. Do not pass credentials, mount the Docker socket, or relax network isolation merely
+  to make an imported config pass; route trusted imports to a controlled runner instead. Record the
+  image reference, `alloy --version`, command, exit status, and diagnostics. This is static
+  validation: it checks syntax, component availability, references, and types, but does not prove
+  DNS, TCP, TLS, authentication, or telemetry delivery. *[sourced: reference/cli/validate;
+  set-up/install/docker; locally verified with Alloy v1.18.1 on 2026-08-24]*
 - **Live debugging** (per-component data stream in the UI) is disabled by default "to avoid
   accidentally displaying sensitive telemetry data"; enable deliberately, in non-prod first:
 

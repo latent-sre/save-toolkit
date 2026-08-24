@@ -94,6 +94,41 @@ def alloy_google_otlp_pipeline_is_executable_and_qualified(text: str) -> bool:
     )
 
 
+def alloy_docker_validation_is_bounded(text: str) -> bool:
+    start = text.index("## Debugging a running Alloy")
+    section = compact(text[start : text.index("## Backpressure", start)])
+    return all(
+        (
+            "Docker is the local fallback when the Alloy binary is unavailable" in section,
+            "docker run --rm --network none -i grafana/alloy:<pinned-version>" in section,
+            "validate --stability.level=public-preview /dev/stdin" in section,
+            "Record the image reference, `alloy --version`, command, exit status, and diagnostics"
+            in section,
+            "static validation" in section,
+            "does not prove DNS, TCP, TLS, authentication, or telemetry delivery" in section,
+            "Docker socket" in section,
+        )
+    )
+
+
+def docker_verification_policy_is_bounded(text: str) -> bool:
+    text = compact(text)
+    return all(
+        (
+            "Docker-backed local verification is allowed and recommended" in text,
+            "already has Bash or execute authority" in text,
+            "official image exercises the real tool or runtime" in text,
+            "Pin an exact image version" in text,
+            "`--rm`" in text,
+            "`--network none` by default" in text,
+            "read-only bind mount or stdin" in text,
+            "never mount the Docker socket or forward credentials" in text,
+            "does not grant production-change authority" in text,
+            "static validation does not prove runtime connectivity" in text,
+        )
+    )
+
+
 def postmortem_causal_method_is_consistent(scribe: str, skill: str, template: str) -> bool:
     return all(
         (
@@ -145,6 +180,13 @@ class PlatformSkillContractTests(unittest.TestCase):
     def test_alloy_google_otlp_pipeline_is_executable_and_lifecycle_qualified(self) -> None:
         reference = read("skills/obs-pipeline/references/alloy.md")
         self.assertTrue(alloy_google_otlp_pipeline_is_executable_and_qualified(reference))
+
+    def test_alloy_docker_validation_recipe_is_isolated_and_evidence_bounded(self) -> None:
+        reference = read("skills/obs-pipeline/references/alloy.md")
+        self.assertTrue(alloy_docker_validation_is_bounded(reference))
+
+    def test_general_docker_verification_policy_preserves_authority_and_evidence_boundaries(self) -> None:
+        self.assertTrue(docker_verification_policy_is_bounded(read("AGENTS.md")))
 
     def test_scribe_and_postmortem_skill_agree_on_evidence_selected_causal_analysis(self) -> None:
         scribe = read("agents/scribe.md")
@@ -263,6 +305,38 @@ class PlatformSkillContractTests(unittest.TestCase):
                     1,
                 ),
                 "disconnected Alloy metrics output",
+            ),
+            (
+                alloy_docker_validation_is_bounded,
+                read("skills/obs-pipeline/references/alloy.md").replace(
+                    "--network none",
+                    "--network bridge",
+                    1,
+                ),
+                "network-enabled Alloy validation container",
+            ),
+            (
+                alloy_docker_validation_is_bounded,
+                read("skills/obs-pipeline/references/alloy.md").replace(
+                    "does not prove\n  DNS, TCP, TLS, authentication, or telemetry delivery",
+                    "proves the exporter works end to end",
+                    1,
+                ),
+                "overstated Alloy static-validation evidence",
+            ),
+            (
+                docker_verification_policy_is_bounded,
+                read("AGENTS.md").replace("`--network none` by default", "the default network", 1),
+                "network-enabled general Docker verification",
+            ),
+            (
+                docker_verification_policy_is_bounded,
+                read("AGENTS.md").replace(
+                    "already has Bash\nor execute authority",
+                    "can request execution after selecting Docker",
+                    1,
+                ),
+                "Docker prose widens lane authority",
             ),
             (
                 otel_java_version_is_dated,
