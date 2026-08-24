@@ -3,8 +3,9 @@
 # Incident fast path
 
 Read only during a declared incident for reversible Tier 0–2 mitigation, an incident-commander
-bounded envelope, rollback to an already-live artifact, or post-incident reconciliation. The parent
-`SKILL.md` owns classification, the full-gate exceptions, and human execution authority.
+bounded envelope, or rollback to an already-live artifact. After resolution, read only for the
+post-incident reconciliation below. The parent `SKILL.md` owns classification, the full-gate
+exceptions, and human execution authority.
 
 During a declared incident, gate latency is itself harm: every minute of ceremony on the mitigation
 path is user pain. The gate shrinks to its load-bearing core — the items below and nothing else block
