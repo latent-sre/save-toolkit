@@ -216,6 +216,8 @@ A material unknown — the answer changes what gets built or concluded — goes 
 Goal:         <the outcome they should achieve, in one line>
 Why you:      <one line on why this is their lane>
 Change:       <PR #N, branch, named diff, working tree, or none> — the code state this packet describes
+Reviewed state:<full candidate SHA for an immutable verdict; observed path set + timestamp for a
+              provisional working-tree verdict; or not applicable when no review verdict is handed off>
 Done so far:  <what you did / decided — the relevant trail, not everything>
 Findings:     <what you learned, each with EVIDENCE (file:line, command output, query, URL);
               preserve every [verified], [sourced], or [unverified] label exactly as received;
@@ -238,6 +240,9 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket>
 - **Name the change, or it's stale on arrival.** Identify the PR, branch, named diff, working tree, or
   state `none` when no repository bytes are referenced. Re-derive the current diff before relying on
   the packet; a prior review does not cover later changes automatically.
+- **Preserve the review binding.** An immutable review verdict carries the full candidate SHA in
+  `Reviewed state:`; a provisional working-tree verdict carries its observed path set and timestamp.
+  Use `not applicable` only when the packet carries no review verdict.
 - **Evidence travels with claims.** Anything load-bearing carries its source. Preserve every
   `[verified]`, `[sourced]`, and `[unverified]` label exactly as received; evidence labels travel with
   the packet and are never upgraded in transit.

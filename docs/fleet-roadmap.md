@@ -198,10 +198,10 @@ refreshed immutable-byte measurements, bounded artifact checks, focused validato
 host projections, and independent review. The
 [skill audit](reviews/2026-08-22-skill-clarity-routing-graph-audit.md#batch-2-remeasurement-and-first-router-candidate)
 records the initial inventory and first `incident-command` slice. The later per-slice candidate and
-merge SHAs, byte movement, reference splits, review fixes, focused results, and evidence gaps remain
-in the immutable pre-compaction Git blob
-`df7091059ba0781d81fb9f2f7b1b71d2711a3649:docs/fleet-roadmap.md`; read it with `git show` rather
-than treating its historical status text as live work.
+merge identities, byte movement, reference splits, review fixes, focused results, and evidence gaps
+remain in the tracked
+[Phase 1 closure review](reviews/2026-08-24-skill-001-phase-1-closure.md). That review is historical
+evidence, not live work.
 
 The final Phase 1 screen on exact main `2294832ab0d4edc1199766530f4bea37367db197`
 selected only `stack-profile`. Exact post-review implementation
