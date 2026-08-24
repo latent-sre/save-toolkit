@@ -77,7 +77,7 @@ authoritative?*
 | Gate checklists record decisions, not enforcement; production authority comes from least-privilege credentials held by a human or protected automation, never from branch protection | Gate skills; [`AGENTS.md`](../AGENTS.md) |
 | Agents prepare and recommend Tier 2/3; a human executes — **except** `observability-engineer` applying Grafana dashboards under its dashboard write rule | [`production-change-gate/SKILL.md`](../skills/production-change-gate/SKILL.md); [ADR](decisions/2026-08-21-observability-engineer-unguarded-bash.md) |
 | Gate checklists are evidence, not the boundary | Gate skill notes |
-| Handoffs: one owner, SHAs pinned where a downstream decision depends on byte identity, labels preserved, taint marked, “what I did NOT do” stated | [`AGENTS.md`](../AGENTS.md) |
+| Handoffs: one owner, exact change and state, labels preserved, taint marked, and “what I did NOT do” stated | [`AGENTS.md`](../AGENTS.md) |
 | Learning is reviewable repository state with an explicit disposition and owner — never model memory | [`disposition-policy.md`](../skills/operational-learning/references/disposition-policy.md) |
 | Fleet learning: one human-accepted failure → one named regression on identical cases; inconclusive cannot win; a tie keeps the incumbent | [`artifact.md`](../skills/agent-authoring/references/artifact.md); [`AGENTS.md`](../AGENTS.md) |
 | Loop Engineering names entry and mutable state, an independent verifier, hard budgets, termination conditions, and promotion authority; inconclusive evidence is never success | [`roster.md`](../skills/agent-authoring/references/roster.md); [`artifact.md`](../skills/agent-authoring/references/artifact.md) |

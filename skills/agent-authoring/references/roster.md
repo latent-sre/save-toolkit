@@ -118,10 +118,9 @@ an underspecified packet can fail silently when the receiver works from the wron
   criteria — because free-form prose drops whichever field the sender did not think mattered.
 - **Labels survive the trip.** `[verified]`, `[sourced]`, `[unverified]`, and `[UNTRUSTED]` are
   copied exactly and never upgraded in transit. A receiver that re-labels has manufactured evidence.
-- **Name the change or it is stale on arrival.** The `Change:` line pins the commit or range the
-  packet describes, and the receiver's first act is to compare it against the current head. That one
-  field carries byte identity for review and merge work — which is why the full-SHA pin on *other*
-  references is scoped to release evidence rather than demanded of every link.
+- **Name the change or it is stale on arrival.** The `Change:` line identifies the PR, branch, named
+  diff, or working tree the packet describes. The receiver re-derives the current diff before relying
+  on it; a prior review does not cover later changes automatically.
 - **State what you did not do.** The omission a sender finds obvious is the gap a receiver fills
   with an assumption.
 

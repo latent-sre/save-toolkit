@@ -39,7 +39,7 @@ an error. Fix canonical source or the generator, inspect `git status`, then rege
 are evidence, not independent work queues.
 
 When starting implementation intended for a pull request, inspect `git status` first. Refresh
-`origin/main`, record its SHA, and start from that revision on a **new branch named for the change**,
+`origin/main` and start from it on a **new branch named for the change**,
 in a worktree or checkout of its own. Never continue work on a branch whose pull request already
 merged: its remote is typically deleted, so the local ref keeps drifting from a trunk that already
 contains it, and the branch name then misdescribes everything added afterwards. If the current

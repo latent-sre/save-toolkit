@@ -82,8 +82,8 @@ Do not overstate either control:
 - **One narrow exception:** `observability-engineer` may create or update Grafana dashboards under
   its agent-body dashboard write rule. Dashboards and folders only; every other live change remains
   recommend-only. See the [accepted ADR](docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md).
-- **Handoffs are interfaces:** one owner, exact change and state, full SHA where byte identity
-  matters, evidence labels and taint preserved, unknowns named, and non-actions stated.
+- **Handoffs are interfaces:** one owner, exact change and state, evidence labels and taint
+  preserved, unknowns named, and non-actions stated.
 - **Learning is repository state, not model memory.** Every durable operational discovery gets a
   `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable` disposition with evidence and
   an owner; an agent never approves its own assertion.
