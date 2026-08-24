@@ -40,11 +40,14 @@ last_reviewed: null
 - Contributing factors:
 - Diagnosis evidence:
 
-## Five whys
+## Causal analysis
+
+Method: <Five Whys, fault tree, causal graph, or another method suited to the evidence>
 
 1. <Why did the user-visible symptom occur?>
 2. <Why did the preceding condition exist?>
-3. <Continue to the systemic control/architecture/process cause; do not stop at a person.>
+3. <Continue to the systemic control/architecture/process cause; branch when the evidence does and
+   do not stop at a person. Add or replace rows to match the named method.>
 
 ## Detection and response
 

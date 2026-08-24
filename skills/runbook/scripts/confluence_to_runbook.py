@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import re
 import sys
 from html.parser import HTMLParser
@@ -62,6 +63,7 @@ SLOT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 UNVERIFIED_MARK = "*Imported command — [unverified] until rehearsed on the target.*"
+SERVICE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 class _Extractor(HTMLParser):
@@ -164,6 +166,15 @@ def slugify(title: str) -> str:
     return slug or "imported-runbook"
 
 
+def service_id(value: str) -> str:
+    """Accept only the stable slug shape required by runbook-frontmatter-v1."""
+    if not SERVICE_ID_RE.fullmatch(value):
+        raise argparse.ArgumentTypeError(
+            "service-id must match ^[a-z0-9][a-z0-9-]*$"
+        )
+    return value
+
+
 def map_slot(heading: str) -> str | None:
     lowered = heading.lower()
     for slot, keywords in SLOT_KEYWORDS:
@@ -213,10 +224,10 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         "---",
         "schema_version: 1",
         f"runbook_id: {slugify(title)}",
-        f"service_id: {service_id}",
+        f"service_id: {json.dumps(service_id, ensure_ascii=False)}",
         "status: draft",
         "alert_names: []",
-        f"owner: {owner}",
+        f"owner: {json.dumps(owner, ensure_ascii=False)}",
         "severity: <P1|P2|P3|P4 / page | ticket>",
         "source_revision: <repository@full-sha or reviewed release identifier>",
         "last_reviewed: null",
@@ -264,7 +275,7 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         f"- Source page title: “{title}”",
     ]
     if source_url:
-        lines.append(f"- Source page URL: {source_url}")
+        lines.append(f"- Source page URL: {json.dumps(source_url, ensure_ascii=False)}")
     lines += [f"- Converted: {today}"] + [f"- Conversion losses: {loss}" for loss in losses] + [""]
     return "\n".join(lines), "\n".join(report)
 
@@ -274,7 +285,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("source", type=Path, help="exported Confluence page (view/export HTML preferred)")
     parser.add_argument("-o", "--output", type=Path, required=True, help="draft runbook path to write")
     parser.add_argument("--source-url", default=None, help="original page URL for provenance")
-    parser.add_argument("--service-id", default="<stable-service-slug>")
+    parser.add_argument("--service-id", required=True, type=service_id)
     parser.add_argument("--owner", default="<team/role>")
     args = parser.parse_args(argv)
 

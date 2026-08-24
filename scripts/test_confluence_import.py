@@ -31,6 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONVERTER = ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"
 SCHEMA_PATH = ROOT / "schemas" / "runbook-frontmatter-v1.schema.json"
+IMPORT_REFERENCE = ROOT / "skills" / "runbook" / "references" / "confluence-import.md"
 
 VIEW_HTML = """<html><head><title>Restart the checkout worker</title></head><body>
 <h1>Restart the checkout worker</h1>
@@ -69,7 +70,16 @@ def run_converter(html: str, *args: str) -> tuple[subprocess.CompletedProcess, s
         out = Path(tmp) / "draft.md"
         src.write_text(html, encoding="utf-8")
         proc = subprocess.run(
-            [sys.executable, str(CONVERTER), str(src), "-o", str(out), *args],
+            [
+                sys.executable,
+                str(CONVERTER),
+                str(src),
+                "-o",
+                str(out),
+                "--service-id",
+                "checkout-worker",
+                *args,
+            ],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -120,6 +130,26 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertEqual(fields["last_verified"], "null")
         self.assertEqual(fields["verification_evidence"], "[]")
         self.assertEqual(fields["runbook_id"], "restart-the-checkout-worker")
+        self.assertEqual(json.loads(fields["service_id"]), "checkout-worker")
+
+    def test_invalid_service_id_fails_without_writing_a_draft(self) -> None:
+        proc, draft = run_converter(
+            VIEW_HTML,
+            "--service-id",
+            "checkout\ninjected: true",
+        )
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(draft, "")
+        self.assertIn("service-id", proc.stderr)
+
+    def test_owner_is_serialized_as_one_yaml_scalar(self) -> None:
+        proc, draft = run_converter(VIEW_HTML, "--owner", "ops\ninjected: true")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        fields = frontmatter_fields(draft)
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(sorted(fields), sorted(schema["properties"]))
+        self.assertNotIn("injected", fields)
+        self.assertEqual(json.loads(fields["owner"]), "ops\ninjected: true")
 
     def test_recognized_headings_land_in_template_slots(self) -> None:
         # "When to use this" → Trigger; "Before you start" → Prerequisites; "Steps" → Procedure;
@@ -194,15 +224,36 @@ class ConfluenceImportTest(unittest.TestCase):
             missing = Path(tmp) / "nonexistent" / "page.html"
             out = Path(tmp) / "draft.md"
             proc = subprocess.run(
-                [sys.executable, str(CONVERTER), str(missing), "-o", str(out)],
+                [
+                    sys.executable,
+                    str(CONVERTER),
+                    str(missing),
+                    "-o",
+                    str(out),
+                    "--service-id",
+                    "checkout-worker",
+                ],
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
                 env=child_env(),
                 timeout=30,
             )
-            self.assertNotEqual(proc.returncode, 0)
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("cannot read", proc.stderr)
             self.assertFalse(out.exists(), "no draft may be written on failure")
+
+
+class ConfluenceImportReferenceTest(unittest.TestCase):
+    def test_export_example_prompts_for_token_instead_of_putting_it_in_argv(self) -> None:
+        reference = IMPORT_REFERENCE.read_text(encoding="utf-8")
+        self.assertNotIn("$CONFLUENCE_API_TOKEN", reference)
+        self.assertIn('--user "user@example.com"', reference)
+        self.assertIn("prompts for the API token", reference)
+        self.assertIn("--fail-with-body", reference)
+        self.assertIn("--exit-status --raw-output", reference)
+        self.assertIn(".body.view.value", reference)
+        self.assertIn("> page.html", reference)
 
 
 if __name__ == "__main__":
