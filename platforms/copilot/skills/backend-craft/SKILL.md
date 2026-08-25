@@ -23,7 +23,8 @@ This skill is general-purpose — any backend or API, not just ops tooling — h
 ## Contract first
 
 - The API contract (OpenAPI or equivalent) is written/generated before the frontend consumes anything; it is the single source of truth for shapes — and it is **living**: if your implementation diverges, update the contract in the same change. A stale contract is worse than none; parallel builders trust it.
-- Starter contract: [openapi.starter.yaml](./assets/openapi.starter.yaml) — problem+json, cursor pagination, bearer auth.
+- Starter contract: [openapi.starter.yaml](./assets/openapi.starter.yaml) — problem+json with
+  `request_id`, cursor pagination, bearer auth, idempotency key, and a `429` carrying `Retry-After`.
 - **One RFC 9457 error shape everywhere** — a client should never parse two error formats.
   Use top-level problem details, never a nested error envelope. The worked shape is in the
   **Errors — RFC 9457 problem+json** section below.
@@ -101,9 +102,9 @@ These are the system-wide principles. The client-side mechanics for *calling oth
 ## Security
 
 - Secrets from env or a secret store — never in code, images, or logs.
-- Explicit CORS allowlist (never `*` with credentials); rate limiting on anything exposed (token bucket; on limit return `429` + `Retry-After`, and publish the budget in `X-RateLimit-Limit`/`-Remaining`/`-Reset` so well-behaved clients can self-throttle).
+- Explicit CORS allowlist — never `*` with credentials.
+- **Rate-limit per principal and route** (token bucket) on anything exposed: return `429` + `Retry-After` and publish the budget in `X-RateLimit-Limit`/`-Remaining`/`-Reset` so well-behaved clients self-throttle instead of retrying blind.
 - Require `Idempotency-Key` for unsafe retries of non-idempotent writes; bind the stored result to the caller and request fingerprint.
-- **Rate-limit** per principal and route, set request/time limits, and return `429` with `Retry-After`.
 - Never log secrets, tokens, or full request/response bodies.
 - **Bound what you accept**: request-body size caps, server-side request timeouts, and bounded query params (max page size, max array length). Inbound requests can do unbounded damage exactly like unbounded outbound calls — input *validation* itself lives under Resiliency.
 

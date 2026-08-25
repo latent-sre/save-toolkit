@@ -4,7 +4,7 @@ Read this when building in Java + Spring Boot — the JVM default named in [stac
 are the stack-specific mechanics behind the language-neutral rules; in another stack, satisfy the
 same rules with that stack's idioms.
 
-The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conflict, SKILL.md wins.
+The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
 Upstream is at Spring Boot 4.1.x *[sourced: Maven Central `org.springframework.boot:spring-boot`
 4.1.1, checked 2026-08-21]*. The version a given repository

@@ -1,5 +1,6 @@
 # Starter OpenAPI 3.1 for an ops API — copy and adapt. Embodies the backend contract starter rules:
-# problem+json errors, cursor pagination, bearer auth, idempotency key, health endpoint.
+# problem+json errors (with request_id), cursor pagination, bearer auth, idempotency key,
+# rate-limit response with Retry-After, and split liveness/readiness endpoints.
 # Validate/lint in CI (e.g. `redocly lint` or `spectral lint`) and generate the typed
 # client for the UI consumer contract from this file.
 openapi: 3.1.0
@@ -37,6 +38,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/IncidentPage" }
         "401": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
     post:
       summary: Create an incident (idempotent via Idempotency-Key).
       parameters:
@@ -50,12 +52,23 @@ paths:
         "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } } }
         "409": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }   # OIDC/OAuth2 via corp SSO/UAA.
   responses:
     Problem:
       description: RFC 9457 problem+json. `type`/codes are part of the contract.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    RateLimited:
+      description: Rate limited. Retry-After is required so a well-behaved client can self-throttle.
+      headers:
+        Retry-After: { required: true, schema: { type: integer }, description: Seconds to wait. }
+        X-RateLimit-Limit: { schema: { type: integer } }
+        X-RateLimit-Remaining: { schema: { type: integer } }
+        X-RateLimit-Reset: { schema: { type: integer }, description: Unix seconds when the window resets. }
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
@@ -68,6 +81,7 @@ components:
         status: { type: integer }
         detail: { type: string }
         instance: { type: string }
+        request_id: { type: string, description: Correlates this response with the request log line. }
         errors:             # your extension for field-level validation
           type: array
           items: { type: object, properties: { field: { type: string }, message: { type: string } } }

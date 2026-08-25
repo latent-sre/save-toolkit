@@ -2,9 +2,7 @@
 
 Read this when the task involves a queue, a scheduled or recurring job, or an inbound webhook.
 
-The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conflict, SKILL.md wins.
-
-## Background work & scheduling
+The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
 - **In-process** (FastAPI BackgroundTasks / a goroutine) only for short, fire-and-forget, loss-tolerant work. Anything that must not be lost goes to a **real queue** — ARQ or TaskIQ for async-native FastAPI, Celery when you need its ecosystem/scale.
 - **Scheduled jobs** (polling an upstream, a nightly sync) via a scheduler (APScheduler / cron) with one owner — not a `sleep` loop; make each run **idempotent** so an overlap or replay is safe.

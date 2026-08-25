@@ -27,6 +27,25 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Audited `backend-craft` against the four-theme design rule and repaired what the audit found.
+  **Correctness:** `consuming-apis` cited a product name one rename stale against `stack-profile`
+  (Wavefront/Aria Operations for Applications, now Broadcom DX OpenExplore) and omitted Moogsoft's
+  current vendor, under a heading that told the reader to cite current names — the per-integration
+  section now carries an ownership pointer making `stack-profile` the single place a rename lands;
+  its blanket "reflect a hard-down critical dependency in `/readyz`" contradicted SKILL.md's
+  qualified readiness rule and now defers to it; and seven references pointed at
+  `skills/backend-craft/SKILL.md`, a path that does not resolve once the skill ships in a plugin,
+  now `../SKILL.md` as elsewhere in the fleet. **Context:** `api-design` restated SKILL.md's method
+  semantics, status codes, and pagination default nearly verbatim, charging for them twice whenever
+  it loaded, and now owns only what SKILL.md leaves open; `consuming-apis` carried two overlapping
+  sections covering the same five topics and an ops-tooling voice inside a general-purpose skill;
+  five references repeated their own H1 as a section heading; `auth` had one bullet list split by a
+  stray blank line; SKILL.md stated the `429`/`Retry-After` rule twice within one section.
+  **Loop:** the OpenAPI starter had drifted from the contract SKILL.md asserts — no `request_id`
+  extension and no rate-limit response at all — so it now carries both, pinned to SKILL.md by a
+  focused regression proven red before green; `fastapi` gained the Pydantic v2 / SQLAlchemy 2.0
+  version caveat `spring-boot` already carried. Two routing scenarios now cover the skill's two
+  trigger arms, which had no eval coverage among the previous 94.
 - Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
   implementation, testing, and operations-tooling lane. This is a breaking address change from
   `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are

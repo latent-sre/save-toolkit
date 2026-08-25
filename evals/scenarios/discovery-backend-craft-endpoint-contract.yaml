@@ -1,0 +1,34 @@
+schema_version: 1
+id: discovery-backend-craft-endpoint-contract
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: backend-craft
+# Routing: a plain "add an endpoint" request must fire backend-craft on its own — the prompt names
+# no skill. Behaviour: the load-bearing contract rules must reach the code, not just the prose.
+# The listing is unbounded and the detail view fans out to an upstream, so the pagination, error
+# shape, outbound-timeout, and failure-matrix rules are all in scope for this one request.
+prompt: |
+  Add two endpoints to our existing incidents service: a listing of incidents filtered by status,
+  and a detail view that also returns the current on-call owner, which we have to fetch from the
+  paging vendor's HTTP API. Write the routes, the request/response models, and the tests.
+routing:
+  expect: fire
+success_criteria:
+  - Fires backend-craft for an unlabelled endpoint-building request
+  - Paginates the listing rather than returning an unbounded collection
+  - Returns one RFC 9457 problem+json error shape instead of an ad-hoc error envelope
+  - Bounds the outbound call to the paging vendor with an explicit timeout
+  - Tests failure paths, not only the happy path
+graders:
+  - type: contains_any
+    of: ["next_cursor", "cursor", "limit + 1", "pagination"]
+  - type: contains_any
+    of: ["problem+json", "rfc 9457", "problemdetail", "problem details"]
+  - type: contains_any
+    of: ["timeout", "read timeout", "connect timeout"]
+  - type: contains_any
+    of: ["response_model", "responsemodel", "response model", "schemas/", "pydantic"]
+  - type: contains_any
+    of: ["401", "403", "422", "failure matrix"]

@@ -1,0 +1,37 @@
+schema_version: 1
+id: discovery-backend-craft-upstream-client
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: backend-craft
+# Routing: the description's second trigger arm — "write a client for Y" — must fire backend-craft
+# without the prompt naming it. Behaviour: consuming-apis owns the client-side mechanics, so a
+# generated client has to carry the four things a naive one omits — a timeout, bounded retry with
+# jitter, a breaker rather than infinite hammering, and a cached token refreshed before expiry.
+prompt: |
+  We need a client for our metrics vendor's HTTP API so a nightly job can pull query results. It
+  hands out a short-lived API token, rate-limits per token, and pages its responses. Write the
+  client and its tests.
+routing:
+  expect: fire
+success_criteria:
+  - Fires backend-craft for an unlabelled upstream-client request
+  - Sets an explicit timeout rather than inheriting an unbounded default
+  - Retries with backoff and jitter and honours the vendor's 429 with Retry-After
+  - Fails fast on a persistently down upstream instead of retrying forever
+  - Caches the token and refreshes it before expiry rather than re-authenticating per call
+  - Follows pagination to completion under a cap
+graders:
+  - type: contains_any
+    of: ["timeout", "read timeout", "connect timeout"]
+  - type: contains_any
+    of: ["jitter", "backoff", "exponential"]
+  - type: contains_any
+    of: ["retry-after", "429"]
+  - type: contains_any
+    of: ["circuit breaker", "breaker", "half-open", "fail fast"]
+  - type: contains_any
+    of: ["refresh before expiry", "cache the token", "token cache", "cached token", "expires_at", "expiry"]
+  - type: contains_any
+    of: ["next_cursor", "pagination", "next link", "next page", "cursor"]

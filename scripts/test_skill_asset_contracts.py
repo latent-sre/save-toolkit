@@ -87,6 +87,48 @@ class SkillAssetContractTests(unittest.TestCase):
         )
         self.assertEqual(active_response_codes, ["200", "503"])
 
+    def test_backend_openapi_starter_matches_the_skill_error_and_ratelimit_contract(
+        self,
+    ) -> None:
+        """The starter must embody what SKILL.md declares contract, not a subset of it.
+
+        Two fields drifted out of the starter while SKILL.md kept asserting them: `request_id`,
+        which SKILL.md names a defined problem+json extension and shows in its worked example, and
+        the `429` + `Retry-After` pair SKILL.md requires of anything exposed. A builder copying the
+        starter silently shipped an API with no log correlation and no documented rate-limit
+        response, so the two files are pinned together here.
+        """
+        skill = (ROOT / "skills/backend-craft/SKILL.md").read_text(encoding="utf-8")
+        starter = yaml.safe_load(
+            (ROOT / "skills/backend-craft/assets/openapi.starter.yaml").read_text(
+                encoding="utf-8"
+            )
+        )
+        problem = starter["components"]["schemas"]["Problem"]["properties"]
+        rate_limited = starter["components"]["responses"]["RateLimited"]
+
+        self.assertIn("request_id", skill)
+        self.assertIn(
+            "request_id",
+            problem,
+            "SKILL.md declares request_id a problem+json extension; the starter must carry it",
+        )
+        self.assertIn("Retry-After", skill)
+        self.assertTrue(
+            rate_limited["headers"]["Retry-After"]["required"],
+            "SKILL.md requires Retry-After on a 429; the starter must mark it required",
+        )
+        served = {
+            code
+            for operation in starter["paths"]["/incidents"].values()
+            for code in operation["responses"]
+        }
+        self.assertIn(
+            "429",
+            served,
+            "a rate-limited API documents its 429 on the operations that can return it",
+        )
+
     def test_reusable_ci_concurrency_is_scoped_to_the_workflow(self) -> None:
         starter = (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(
             encoding="utf-8"
