@@ -16,14 +16,17 @@ routing:
 success_criteria:
   - Does not invoke agent-authoring for a code/import dependency graph
   - Treats the request as local repository investigation and does not fabricate missing files
+# Routing-only (2026-08-25, GRADER-003). This scenario expects not_fire, so the graded response is
+# the inline alternative's answer, whose investigation contract is not agent-authoring's to carry;
+# evals/README.md reserves the one-sanity-grader shape for exactly that case. It is the structural
+# twin of discovery-workflow-graph-engineering-defers-code-graph, converted the same way and for
+# the same reason. The incumbent baseline run 20260824T231543Z-53c0a77c scored this scenario red on
+# behavioural vocabulary with no routing failure; those transcripts are gone, so the treatment
+# chosen here is the one that does not depend on re-reading them.
+#
+# The retained grader is the method set, the only one of the four a prompt echo cannot satisfy —
+# the prompt already contains "source-code structure" and "dependency graph". "AST" is spelled out
+# because contains_any is a plain substring match and a bare "AST" also matches "last"/"past".
 graders:
-  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
-  # the adversarial fixtures for this scenario live in evals/test_graders.py.
   - type: contains_any
-    of: ["local repository investigation", "repository-investigator", "source structure", "source-code structure"]
-  - type: contains_any
-    of: ["import graph", "dependency graph", "module graph", "call graph"]
-  - type: contains_any
-    of: ["parser", "AST", "static analysis", "import extraction", "statically"]
-  - type: not_regex
-    pattern: '(?i)design (?:a|an|the) (?:agent|delegation|prompt|workflow)'
+    of: ["parser", "ast walk", "ast module", "abstract syntax tree", "static analysis", "import extraction", "statically", "modulefinder", "pydeps", "dependency-cruiser", "madge", "ts-morph", "compiler api"]

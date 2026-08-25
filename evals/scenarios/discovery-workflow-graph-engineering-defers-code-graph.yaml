@@ -26,4 +26,7 @@ success_criteria:
 # already contains "source-code structure" and "dependency graph".
 graders:
   - type: contains_any
-    of: ["parser", "AST", "static analysis", "import extraction", "statically", "go list", "dependency-cruiser", "madge", "compiler api"]
+    # "AST" alone is not usable here: contains_any is a plain case-insensitive substring match,
+    # so a bare "AST" token also matches "last", "past", and "broadcast" — trivially true in almost
+    # any transcript. The unambiguous forms below carry the same intent.
+    of: ["parser", "ast walk", "ast module", "abstract syntax tree", "static analysis", "import extraction", "statically", "go list", "dependency-cruiser", "madge", "compiler api"]

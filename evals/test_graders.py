@@ -1159,8 +1159,20 @@ _WGE_DISCOVERY_ROUTING_ONLY = (
     "discovery-workflow-graph-engineering-defers-runtime-selection.yaml",
 )
 
-_ROUTING_ONLY_DISCOVERY_SCENARIOS = _OBS_DISCOVERY_ROUTING_ONLY + _WGE_DISCOVERY_ROUTING_ONLY + (
-    "discovery-service-readiness-audit.yaml",
+# GRADER-003: the agent-authoring near miss is the structural twin of the workflow-graph one above
+# — not_fire, inline alternative, same source-structure prompt — and gets the same treatment. The
+# three agent-authoring POSITIVES are deliberately not here: their behavioral contracts are real
+# and have no direct-mode scenario to move to, so trimming them would delete the only coverage that
+# exists. See GRADER-003 in docs/fleet-roadmap.md.
+_BATCH1_DISCOVERY_ROUTING_ONLY = (
+    "discovery-agent-authoring-defers-code-dependency-graph.yaml",
+)
+
+_ROUTING_ONLY_DISCOVERY_SCENARIOS = (
+    _OBS_DISCOVERY_ROUTING_ONLY
+    + _WGE_DISCOVERY_ROUTING_ONLY
+    + _BATCH1_DISCOVERY_ROUTING_ONLY
+    + ("discovery-service-readiness-audit.yaml",)
 )
 
 _ROUTING_ONLY_SANITY_RESPONSES = {
@@ -1183,6 +1195,11 @@ _ROUTING_ONLY_SANITY_RESPONSES = {
     "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml": (
         "The design is accepted, so this is a build task: routed to sde, which owns "
         "services/fulfilment/graph.py and its retry and cancel tests."
+    ),
+    "discovery-agent-authoring-defers-code-dependency-graph.yaml": (
+        "This is local repository investigation of source structure, not prompt or roster design: "
+        "extract imports per module with static analysis, assemble the graph, and report cycles "
+        "with the files that create each edge."
     ),
     "discovery-workflow-graph-engineering-defers-runtime-selection.yaml": (
         "Choosing an engine is a separate owner decision under stack-profile, so no runtime is "
@@ -1469,9 +1486,21 @@ def test_routing_batch1_scenarios_reject_echoes_and_incomplete() -> None:
         len(_ROUTING_BATCH1_CASES) == 5,
         "batch-1 routing regression covers the 5 agent-authoring/service scenarios",
     )
+    check(
+        set(_BATCH1_DISCOVERY_ROUTING_ONLY) < set(_ROUTING_BATCH1_CASES),
+        "the batch-1 routing-only near miss is a proper subset of the batch-1 scenarios",
+    )
     for filename, compliant in _ROUTING_BATCH1_CASES.items():
         scenario = _load_scenario(filename)
         grader_specs = scenario["graders"]
+        if filename in _BATCH1_DISCOVERY_ROUTING_ONLY:
+            # Routing-only: one sanity grader, so echo and incomplete rejection are given up by
+            # design. test_routing_only_discovery_scenarios_stay_routing_only owns its shape.
+            check(
+                grade_all(grader_specs, compliant),
+                f"{filename}: curated compliant response passes its routing-sanity grader",
+            )
+            continue
         prompt = scenario["prompt"]
         normalized_prompt = " ".join(prompt.split())
         check(
