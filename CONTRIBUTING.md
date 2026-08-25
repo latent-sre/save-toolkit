@@ -44,14 +44,32 @@ an error. Fix canonical source or the generator, inspect `git status`, then rege
 are evidence, not independent work queues.
 
 When starting implementation intended for a pull request, inspect `git status` first. Refresh
-`origin/main` and start from it on a **new branch named for the change**,
-in a worktree or checkout of its own. Never continue work on a branch whose pull request already
-merged: its remote is typically deleted, so the local ref keeps drifting from a trunk that already
-contains it, and the branch name then misdescribes everything added afterwards. If the current
-checkout is dirty or belongs to another task, leave it untouched — add a worktree rather than
-switching a checkout somebody else is using. Read-only investigation or review uses the checkout it
-was asked to inspect and fetches only when remote freshness affects the answer; it does not switch,
-pull, branch, stash, or rebase merely to begin.
+`origin/main` and start from it on a **new branch named for the body of work**, in a worktree or
+checkout of its own. Never continue work on a branch whose pull request already merged: its remote
+is typically deleted, so the local ref keeps drifting from a trunk that already contains it, and the
+branch name then misdescribes everything added afterwards. If the current checkout is dirty or
+belongs to another task, leave it untouched — add a worktree rather than switching a checkout
+somebody else is using. Read-only investigation or review uses the checkout it was asked to inspect
+and fetches only when remote freshness affects the answer; it does not switch, pull, branch, stash,
+or rebase merely to begin.
+
+**One branch may carry several changes.** The branch is the review unit; the commits are the
+readable history. Related work — a new skill, the routing that exposes it, the roadmap item that
+tracks it, and the docs fix it turned up — belongs on one branch as separate, scoped commits, each
+with its own message and evidence. Split onto a second branch only when the work is genuinely
+independent: a different owner, a different review timeline, or something that must be able to
+merge or revert without the rest. A roadmap item may impose a tighter rule on itself (`SKILLS-003`
+requires one skill in one reviewed commit); an item's own constraint wins inside its scope.
+
+Splitting related work is not free, and the cost is a silent one. Two branches that both edit the
+catalog text — the agent and skill counts in [`AGENTS.md`](AGENTS.md) and [`README.md`](README.md),
+the `README` area lists, [`CHANGELOG.md`](CHANGELOG.md), or
+[`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) — each look correct alone and are wrong together:
+two branches that each move a count from 30 to 31 leave a merged tree of 32 claiming 31, and two
+roadmap items inserted at the same anchor conflict on the second merge, long after the reviewer who
+would have caught it has moved on. When related work must span branches anyway, stack them —
+rebase the second onto the first so every commit's text matches the tree it ships — rather than
+running them in parallel and discovering the collision at merge.
 
 Before opening a PR, refresh `origin/main`, inspect the divergence, and integrate current main.
 Rebase only an unpublished branch; preserve published history unless the owner explicitly authorizes
