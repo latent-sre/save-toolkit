@@ -633,7 +633,14 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 ### SKILLS-003 — add a portable executable workflow-graph engineering skill
 
-**Status:** `active` (updated 2026-08-25) — the skill is **merged**: commit `f1afd57` on
+**Status:** `active` (updated 2026-08-25) — acceptance 3 ran on `claude-opus-5` against the merged
+revision and **3 of 5 cases passed every predeclared assertion (18/18) under independent grading**;
+the other two completed and produced full designs but their transcripts were not persisted, so they
+could not be graded and their raw outputs are not retained. **Acceptance 3 is therefore not met** —
+it requires five cases with retained outputs. Evidence: the
+[frozen pre-call record](reviews/2026-08-25-skills-003-acceptance-3-precall-record.md) and the
+[result](reviews/2026-08-25-skills-003-acceptance-3-result.md). The skill is **merged**: commit
+`f1afd57` on
 `origin/main` via PR [#162](https://github.com/latent-sre/save-toolkit/pull/162), bundled with
 `incident-drill` and the graph-program documents rather than shipped as its own SKILLS-003 pull
 request. Acceptance 1, 2, and 4 are met; 5 and 6 are partial. The
@@ -846,15 +853,47 @@ and review evidence without conflating their claims, then move `SKILLS-003` to t
 runtime, schema, executable validator, `codebase-atlas`, or SRE capability remains separate future
 work and does not keep this skill-capability item open.
 
-**Next action:** Run the frozen five-case artifact exercise (acceptance 3) against the merged
-`f1afd57`, recording every pre-call field the item requires before the first call: clean tree and
-exact full SHA, canonical/plugin input digest, host and CLI version, runtime and model identity,
-effective tool permissions, the five immutable prompts, grader identities and thresholds, per-call
-timeout, and maximum call/cost budget. Pin and record `--model`; the development pass ran on
-`claude-fable-5`, so a different tier is a different baseline and is never averaged with it. This
-is a paid multi-agent run — get owner go-ahead before launching it. Then request one independent
-review bound to this slice's revision rather than to PR #162's bundled head. Do not re-open the routing measurement to turn the `runtime-selection`
-calibration seam green, and do not add a runtime, schema, validator, or `codebase-atlas` here.
+**Next action:** `latent-sre` decides whether 3-of-5 at 18/18 closes acceptance 3, or whether cases
+3 and 4 must be re-run. Re-running them is a **new candidate** requiring owner approval, not an
+extension of this pass — and the evidence pipeline should be fixed first, since a re-run into the
+same harness would likely lose the transcripts again (`EVIDENCE-001`). Then request one independent
+review bound to this slice's revision rather than to PR #162's bundled head. Do not average this
+Opus result with the development pass's 47/47 on `claude-fable-5` — different tier, different
+baseline. Do not re-open the routing measurement, and do not add a runtime, schema, validator, or
+`codebase-atlas` here.
+
+### EVIDENCE-001 — stop losing measurement evidence by default
+
+**Status:** `ready` (2026-08-25)
+
+**Owner:** `prompt-engineer` owns the eval and acceptance evidence paths; `latent-sre` accepts the
+exact revision.
+
+**Outcome:** Evidence from a paid measurement survives the session that produced it, without
+depending on someone remembering to copy it into a committed document.
+
+**Source:** Three losses in one line of work, all `[verified]`: the `GRADER-003` incumbent baseline
+batch `20260824T231543Z-53c0a77c` vanished with a removed worktree; `.eval-runs/` is gitignored, so
+all three verification batches would have been lost had their findings not been hand-copied into
+[the batch record](reviews/2026-08-25-grader-003-verification-batch.md); and the acceptance 3
+harness persisted three of five agent transcripts, leaving two completed cases ungradable
+([result](reviews/2026-08-25-skills-003-acceptance-3-result.md)). Each loss cost either a re-run or
+a permanent gap in an acceptance record. The common cause is that measurement output lands
+somewhere ephemeral by default and survives only by an unenforced human habit.
+
+**Prerequisites:** None. This is repository tooling, not a fleet-authority change.
+
+**Acceptance:** A paid measurement's evidence is committed by construction, not by convention.
+Minimally: a documented capture step that extracts the durable summary from a batch or exercise
+into `docs/reviews/` before the ephemeral store can be reclaimed; a check that a roadmap item citing
+a batch ID can resolve it to committed evidence; and a stated retention boundary saying what is
+deliberately *not* kept — raw transcripts are large and may carry untrusted content, so the
+requirement is the summary, the identities, and the verbatim phrasings a future reader would
+otherwise have to re-run to recover. Do not solve this by committing raw transcripts wholesale.
+
+**Next action:** Inventory where each measurement type currently writes — `.eval-runs/`, agent task
+output files, session scratchpads — and which of those the repository can reach at the moment a run
+finishes. Propose the capture step against that inventory before writing any tooling.
 
 ### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
