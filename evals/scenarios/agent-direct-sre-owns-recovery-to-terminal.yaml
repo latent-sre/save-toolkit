@@ -34,7 +34,7 @@ graders:
       (?i)(?:(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,80}(?:\b(?:after|once)\b[^.\n]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)|(?:\b(?:after|once)\b[^.\n]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)[^.\n]{0,80}(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b))
   - type: regex
     pattern: >-
-      (?i)\b(?:production\s+unchanged|no\s+further\s+production\s+change|no\s+production\s+change\s+was\s+made\s+or\s+recommended|nothing\s+executed|changed\s+nothing)\b
+      (?i)\b(?:production\s+unchanged|no\s+(?:further\s+)?(?:production|prod)\s+(?:change|action)|nothing\s+executed|changed\s+nothing)\b
   - type: not_contains
     of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
   - type: not_regex
