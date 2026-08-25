@@ -56,6 +56,23 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
+    def test_always_loaded_guide_keeps_conditional_authority_complete(self) -> None:
+        guide = _normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        self.assertIn(
+            "load it before recommending or changing supported runtime, tooling, or "
+            "infrastructure choices",
+            guide,
+        )
+        self.assertIn(
+            "[complete agent-body dashboard-write rule]"
+            "(agents/observability-engineer.md#change-authority)",
+            guide,
+        )
+        self.assertIn(
+            "if any required step cannot be completed, hand off without applying",
+            guide,
+        )
+
     def test_exact_commit_id_independent_review_is_prod_deployment_only(self) -> None:
         """Deleting or moving the review boundary must fail this contract."""
         production_checklist = _markdown_section(

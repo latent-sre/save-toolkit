@@ -4,9 +4,9 @@ Canonical fleet sources are this repository's agents, skills, commands, and guar
 adapters are consequences. Descriptions route lanes; Claude invokes `save-toolkit:<name>`.
 
 The stack, stay-in-lane rule, and platform boundary live in
-[`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load it before changing
-supported runtime, tooling, or infrastructure choices. The Skill-less `reviewer` receives those
-facts by trusted-base handoff, labels gaps `[unverified]`, and never loads candidate skills.
+[`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load it before recommending or
+changing supported runtime, tooling, or infrastructure choices. The Skill-less `reviewer` receives
+those facts by trusted-base handoff, labels gaps `[unverified]`, and never loads candidate skills.
 
 ## Start here
 
@@ -87,8 +87,9 @@ Limits:
   within their lane. Production-facing or materially irreversible actions are prepared for human
   execution with the plan and rollback shown.
 - **One narrow exception:** the invoked `observability-engineer` may write only Grafana dashboards
-  and folders: show the diff, export the live rollback, and pin the concurrency token. Other live
-  changes remain recommend-only.
+  and folders under its [complete agent-body dashboard-write
+  rule](agents/observability-engineer.md#change-authority). If any required step cannot be
+  completed, hand off without applying. Other live changes remain recommend-only.
 - **Handoffs are interfaces:** one owner, exact change and state, preserved labels and taint, named
   unknowns, and stated non-actions.
 - **Learning is repository state, not model memory.** Only an invoked operational closeout may turn
