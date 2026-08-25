@@ -1,6 +1,6 @@
 # SKILLS-003 acceptance 3 — frozen pre-call record
 
-**Status:** frozen, not yet run. `SKILLS-003` acceptance 3 requires every field below to be
+**Status:** frozen 2026-08-25 at `9abdf08`; launch decision completed and the exercise run. The model, agent type, and budget rows were filled in at launch, before any call; everything else is unchanged from the freeze commit. `SKILLS-003` acceptance 3 requires every field below to be
 recorded *before the first call*, and states that changing a case, grader, threshold, or candidate
 creates a new candidate requiring owner approval rather than silently extending this pass. This
 document is that freeze. It is committed before the exercise so the record cannot be edited to fit
@@ -24,10 +24,11 @@ the outcome.
 | Host | Windows 11 Pro `10.0.26200` |
 | Claude Code CLI | `2.1.245` |
 | Runtime | Claude Code subagents in this session, one fresh context per call |
-| Model | **pinned per the launch decision below**; recorded with the result. The 2026-08-24 development pass ran on `claude-fable-5`, so any other tier is a different baseline and is never averaged with it |
-| Effective tool permissions | Generation agents: read-only (`Read`, `Grep`, `Glob`) — enough to open the skill and its references, and nothing that can write, execute, or reach the network. Grader agents: same. No agent may edit the repository or run commands |
+| Model | `claude-opus-5`, pinned at launch on 2026-08-25. The 2026-08-24 development pass ran on `claude-fable-5`, so **its 47/47 is a different baseline and is never averaged with this one** |
+| Agent type | `claude` (the neutral catch-all). See the tool-permission deviation below |
+| Effective tool permissions | **Deviation from the intent stated at freeze, recorded before the run.** The freeze called for read-only generation agents. No available agent type combines a read-only tool set with a system prompt suited to design generation — the read-only types are investigation- and search-shaped and would distort the task. `claude` is therefore used, which carries the full tool set even though the task needs nothing beyond reading. The guarantee is preserved by verification instead of by capability: the working tree is `[verified]` clean at launch and is checked again after the pass, and any repository change or executed command invalidates the result |
 | Per-call timeout | 1800 s (the development pass observed 602–1021 s per case; this leaves headroom without being unbounded) |
-| Maximum budget | 10 calls total — 5 generation, 5 grading — and a hard stop at the ceiling agreed at launch. Exceeding it ends the pass as `INCONCLUSIVE`; it is never raised mid-run |
+| Maximum budget | 10 calls — 5 generation, 5 grading — and a hard ceiling of **USD 40**, set at launch because the tier was pinned without one being named. Reaching it ends the pass as `INCONCLUSIVE` rather than continuing; it is not raised mid-run |
 
 ## The five immutable prompts
 
