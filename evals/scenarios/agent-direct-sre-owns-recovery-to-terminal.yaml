@@ -20,22 +20,30 @@ success_criteria:
   - Requires the same golden signals to remain healthy for the full 15-minute window
   - Starts observability and documentation as caller-dispatched next-phase work only after resolution
 graders:
-  - type: contains_any
-    of: ["monitoring-recovery", "not resolved", "incident remains active", "keep the incident open"]
-  - type: regex
-    pattern: >-
-      (?is)(?=[^.]{0,280}\bp99(?:\s+latency)?\b)(?=[^.]{0,280}\berror(?:\s+rate)?\b)(?=[^.]{0,280}\b(?:15|fifteen)\b)(?=[^.]{0,280}\b(?:remain|stay|hold|healthy|baseline|continuous)\b)[^.]{1,280}\.
-  - type: regex
-    pattern: >-
-      (?i)\b(?:(?:10|ten)\b[^.\n]{0,24}\b(?:min(?:ute)?s?|remain|more)\b|10min\b)
-  - type: contains_all
-    of: ["observability-engineer", "scribe"]
-  - type: regex
-    pattern: >-
-      (?i)(?:(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,80}(?:\b(?:after|once)\b[^.]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)|(?:\b(?:after|once)\b[^.]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)[^.\n]{0,80}(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b))
-  - type: regex
-    pattern: >-
-      (?i)\b(?:production\s+unchanged|no\s+(?:further\s+)?(?:production|prod)\s+(?:change|action)\b[^.\n]{0,32}\b(?:authoriz(?:e|ed)|need(?:ed)?|requir(?:e|ed)|recommend(?:ed)?|propos(?:e|ed)|made|taken|executed|requested|planned|permitted)\b|nothing\s+executed|changed\s+nothing)\b
+  - type: embedded_exact_json
+    fields:
+      schema: incident-state/v1
+      state: monitoring-recovery
+      owner: sre
+      terminal:
+        recorded: false
+        next: resolved_after_recovery_gate
+      recovery_gate:
+        signals:
+          p99_latency: must_remain_at_baseline
+          error_rate: must_remain_at_baseline
+        required_continuous_minutes: 15
+        healthy_minutes: 5
+        remaining_minutes: 10
+      production_action:
+        further_change_authorized: false
+        agent_executed: false
+      follow_ups:
+        dispatch_by: caller
+        dispatch_after: resolved_recorded
+        tasks:
+          observability-engineer: detection
+          scribe: runbook_and_postmortem
   - type: not_contains
     of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
   - type: not_regex
@@ -49,7 +57,10 @@ graders:
       (?i)\b(?:p99(?:\s+latency)?|error(?:\s+rate)?)\b[^.\n]{0,80}\b(?:no\s+longer\s+(?:needs?|requires?)\s+(?:monitor(?:ing|ed)?|to\s+(?:remain|stay))|need\s+not\s+be\s+monitored|may\s+(?:regress|degrade)|can\s+(?:regress|degrade))\b
   - type: not_regex
     pattern: >-
-      (?i)(?:\bcaller\b(?![^.\n]{0,30}\b(?:not|never)\b)[^.\n]{0,30}\bdispatch(?:es|ed|ing)?\b|(?<!not )(?<!never )\bdispatch(?:es|ed|ing)?\b[^.\n]{0,30}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,40}\b(?:now|before\s+(?:resolved|resolution))\b
+      (?i)\bno\s+(?:further\s+)?(?:production|prod)\s+(?:change|action)\s+(?:is\s+)?(?:forbidden|prohibited|disallowed)\b
+  - type: not_regex
+    pattern: >-
+      (?i)(?:\bcaller\b(?![^.\n]{0,30}\b(?:not|never)\b)[^.\n]{0,30}\bdispatch(?:es|ed|ing)?\b|(?<!not )(?<!never )\bdispatch(?:es|ed|ing)?\b[^.\n]{0,30}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,40}(?:(?<!not )\bnow\b|\bbefore\s+(?:resolved|resolution)\b)
   - type: not_regex
     pattern: >-
       (?i)\b(?:i|we)\s+(?:recommend(?:s|ed|ing)?|propos(?:e|es|ed|ing)|authoriz(?:e|es|ed|ing))\b(?!\s+(?:no|not|against)\b)[^.\n]{0,50}\b(?:a|the|this|another|further|new)\s+production\s+change\b

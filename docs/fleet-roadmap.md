@@ -359,8 +359,10 @@ Resolve any current review finding or failed check on that revision. F7, F11, N4
 
 ### INCIDENT-001 — keep active-incident ownership in SRE through terminal recovery
 
-**Status:** `active` (2026-08-25) — implementation is in progress on
-`work/four-theme-incident-ownership` from refreshed `origin/main`.
+**Status:** `active` (2026-08-25) — the ownership contract merged in PR #164. A focused
+structured-state follow-up is in progress on `work/incident-structured-state` from refreshed
+`origin/main`; it replaces distributed positive lexical checks with one typed relationship record
+while retaining adversarial prose checks.
 
 **Owner:** `prompt-engineer` owns the fleet prompt, context, loop, and graph contract; `latent-sre`
 accepts the exact revision. Human incident command and release owners retain their existing live
@@ -389,11 +391,13 @@ before the candidate.
 live SRE delegates; (4) the same two-trial direct-SRE case, model, timeout, prompt, and graders fail
 the incumbent and pass the one candidate; (5) affected offline tests, generated projections, strict
 fleet validation, and Gate A pass, with main-thread-only `Agent(target)` enforcement reported as the
-host boundary.
+host boundary; (6) `monitoring-recovery` responses retain operator prose and include exactly one
+`incident-state/v1` JSON record that closes the state, owner, recovery window, production authority,
+and post-terminal caller-dispatch relationships without accepting a competing fenced JSON object.
 
-**Next action:** Complete the one candidate, regenerate projections once, run focused offline and
-behavioral verification, inspect the integrated diff, and stop before commit or push without a new
-owner request.
+**Next action:** Require the prior accepted responses to fail only on the missing typed record, the
+exact two-trial candidate to pass at 2/2 under the same model and timeout, all affected offline and
+structural checks to pass, and `latent-sre` to accept the exact PR head before promotion.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
