@@ -67,6 +67,57 @@ class HookWiringTests(unittest.TestCase):
         ):
             self.assertIn(token, command)
         self.assertNotIn('case "$IN"', command)
+        self.assertIn("TRACE=", command)
+        self.assertIn("exit-${RC}", command)
+
+    def test_session_start_preflights_the_guard_interpreter_protocol(self) -> None:
+        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
+        entry = document["hooks"]["SessionStart"][0]
+        self.assertEqual("startup|resume|clear|compact", entry["matcher"])
+        command = entry["hooks"][0]["command"]
+        for token in (
+            "guard-session-preflight.py",
+            "python3 python py",
+            "candidate failures",
+        ):
+            self.assertIn(token, command)
+
+        script_lines = [
+            line.strip()
+            for line in (ROOT / "scripts/guard-session-preflight-hook.sh")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(rebuild_inline_command(script_lines), command)
+
+    def test_session_preflight_accepts_the_current_interpreter(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-I", "-S", str(ROOT / "scripts/guard-session-preflight.py")],
+            text=True,
+            capture_output=True,
+            cwd=ROOT,
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual(42, result.returncode, result.stderr)
+        self.assertEqual("", result.stdout)
+
+    @unittest.skipUnless(available_shell(), "POSIX shell not available")
+    def test_exact_session_start_command_accepts_the_lane_path(self) -> None:
+        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
+        command = document["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        result = subprocess.run(
+            [available_shell(), "-c", command],
+            input='{"hook_event_name":"SessionStart","source":"startup"}',
+            text=True,
+            capture_output=True,
+            cwd=ROOT,
+            env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT)),
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual((0, ""), (result.returncode, result.stdout), result.stderr)
 
     def test_standalone_launcher_matches_inlined_hook_command(self) -> None:
         """scripts/readonly-guard-hook.sh and the hooks.json command are the same program.

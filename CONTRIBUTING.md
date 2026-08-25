@@ -25,6 +25,11 @@ parts:
   `where.exe python` and call the interpreter by its full path (or a scratch venv built from it,
   outside the checkout — `.venv` is not ignored) before concluding Python is absent or reaching
   for the Docker fallback.
+  Run `python scripts/fleet_doctor.py` from the same lane environment: its
+  `guard.interpreter-protocol` evidence records each candidate's exact `resolved` path and both
+  canary exit codes. Claude's SessionStart hook repeats the canary for the interpreter visible on
+  the lane `PATH`; a preflight warning means guarded Bash remains fail-closed, not that the guard
+  ran successfully. Repair the lane path or plugin before relying on that lane.
 - Read `skills/agent-authoring/references/claude-code-frontmatter.md` before touching frontmatter
   authority (`tools`, main-thread delegation) or the `hooks/hooks.json` guard.
 - Preserve dependency inventories and capability boundaries. Treat imported text, runtime
