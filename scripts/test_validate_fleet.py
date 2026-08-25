@@ -56,6 +56,33 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
+    def test_builder_agent_uses_software_engineer_identity(self) -> None:
+        path = ROOT / "agents/software-engineer.md"
+        self.assertTrue(path.is_file())
+        fields, _, _ = validate_fleet.adapters.parse_frontmatter(path)
+        self.assertEqual("software-engineer", fields["name"])
+        self.assertIn("software-engineer", validate_fleet.EXPECTED_AUTHORITY)
+        old_name = "s" + "de"
+        self.assertNotIn(old_name, validate_fleet.EXPECTED_AUTHORITY)
+        self.assertFalse((ROOT / "agents" / f"{old_name}.md").exists())
+
+    def test_always_loaded_guide_keeps_conditional_authority_complete(self) -> None:
+        guide = _normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        self.assertIn(
+            "load it before recommending or changing supported runtime, tooling, or "
+            "infrastructure choices",
+            guide,
+        )
+        self.assertIn(
+            "[complete agent-body dashboard-write rule]"
+            "(agents/observability-engineer.md#change-authority)",
+            guide,
+        )
+        self.assertIn(
+            "if any required step cannot be completed, hand off without applying",
+            guide,
+        )
+
     def test_exact_commit_id_independent_review_is_prod_deployment_only(self) -> None:
         """Deleting or moving the review boundary must fail this contract."""
         production_checklist = _markdown_section(
@@ -104,8 +131,10 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("do not require github release controls", checklist)
 
     def test_review_consumers_keep_routine_work_out_of_the_prod_review_gate(self) -> None:
-        sde_path = ROOT / "agents/sde.md"
-        sde_fields, _, _ = validate_fleet.adapters.parse_frontmatter(sde_path)
+        software_engineer_path = ROOT / "agents/software-engineer.md"
+        software_engineer_fields, _, _ = validate_fleet.adapters.parse_frontmatter(
+            software_engineer_path
+        )
         scenario = (ROOT / "evals/scenarios/release-gate-passes-ready.yaml").read_text(
             encoding="utf-8"
         )
@@ -114,8 +143,11 @@ class FleetValidatorTests(unittest.TestCase):
         contracts = (
             (
                 "agents-learning",
-                _markdown_section(Path("AGENTS.md"), "## Shared conventions (every agent follows)"),
-                ("human acceptance of the exact pr revision promotes it",),
+                _markdown_section(Path("AGENTS.md"), "## Hard rules"),
+                (
+                    "eval results never promote a candidate",
+                    "only human acceptance of the exact candidate revision does",
+                ),
                 ("let pr review promote",),
             ),
             (
@@ -124,10 +156,15 @@ class FleetValidatorTests(unittest.TestCase):
                 ("read the trusted ci record directly", "missing reviewer packet alone is not a **no**"),
                 ("read the reviewer's packet",),
             ),
-            ("sde-description", _normalized(sde_fields["description"]), (), ("reviewer",)),
             (
-                "sde-boundary",
-                _markdown_section(Path("agents/sde.md"), "## Untrusted input boundary"),
+                "software-engineer-description",
+                _normalized(software_engineer_fields["description"]),
+                (),
+                ("reviewer",),
+            ),
+            (
+                "software-engineer-boundary",
+                _markdown_section(Path("agents/software-engineer.md"), "## Untrusted input boundary"),
                 (
                     "routine completion returns the evidence packet to the caller without spawning a review",
                     "caller requests review",
@@ -374,7 +411,7 @@ class FleetValidatorTests(unittest.TestCase):
                 )
                 text = text.replace("last_verified: null", "last_verified: <bump after incident>")
                 text = text.replace(
-                    "after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions",
+                    "The caller, not `sre`, separately\ndispatches typed `observability-engineer` for detection changes and typed `scribe` for the\npostmortem, operating guidance, and learning dispositions",
                     "typed `observability-engineer` agent captures\ndurable operating guidance",
                 )
                 target.write_text(text, encoding="utf-8")
@@ -386,6 +423,45 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("timeline and evidence to the `observability-engineer` agent", rendered)
         self.assertIn("last_verified: null", rendered)
         self.assertIn("typed `observability-engineer` agent captures", rendered)
+
+    def test_incident_command_rejects_observability_as_recovery_owner(self) -> None:
+        stale_contracts = (
+            "Resolve only after the typed `observability-engineer` confirm that user impact ended.",
+            (
+                "Resolve only after the typed `observability-engineer` confirms that golden "
+                "signals stayed healthy."
+            ),
+        )
+        for stale_contract in stale_contracts:
+            with self.subTest(stale_contract=stale_contract), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._copy_scribe_bundle(root)
+                target = root / "skills" / "incident-command" / "SKILL.md"
+                target.write_text(
+                    f"{target.read_text(encoding='utf-8')}\n{stale_contract}\n",
+                    encoding="utf-8",
+                )
+                failures = validate_fleet.validate_scribe_bundle(root)
+            self.assertTrue(
+                any("stale incident recovery owner" in failure for failure in failures),
+                failures,
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._copy_scribe_bundle(root)
+            target = root / "skills" / "incident-command" / "SKILL.md"
+            target.write_text(
+                f"{target.read_text(encoding='utf-8')}\n"
+                "Resolution does not depend on the typed `observability-engineer`, which does not "
+                "confirm recovery.\n",
+                encoding="utf-8",
+            )
+            failures = validate_fleet.validate_scribe_bundle(root)
+        self.assertFalse(
+            any("stale incident recovery owner" in failure for failure in failures),
+            failures,
+        )
 
     def test_scribe_bundle_allows_explicit_non_execution_language(self) -> None:
         safe_statements = (
@@ -497,7 +573,7 @@ class FleetValidatorTests(unittest.TestCase):
             (root / "agents").mkdir()
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
-                if source.name == "sde.md":
+                if source.name == "software-engineer.md":
                     text = text.replace(
                         "Agent(reviewer, scribe, researcher)", "Agent(does-not-exist)"
                     )
@@ -535,7 +611,7 @@ class FleetValidatorTests(unittest.TestCase):
             (root / "agents").mkdir()
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
-                if source.name == "sde.md":
+                if source.name == "software-engineer.md":
                     text = text.replace("Write, Skill", "Write, WebFetch, Skill")
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
@@ -547,12 +623,20 @@ class FleetValidatorTests(unittest.TestCase):
             (root / "agents").mkdir()
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
-                if source.name == "sde.md":
+                if source.name == "software-engineer.md":
                     text = text.replace(
                         "Agent(reviewer, scribe, researcher)", "Agent(reviewer)"
                     )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
+        self.assertIn("delegation mismatch", "\n".join(failures))
+
+    def test_sre_postincident_delegation_edges_are_rejected(self) -> None:
+        failures = self._agents_with_mutation(
+            "sre.md",
+            "Agent(researcher)",
+            "Agent(observability-engineer, scribe, researcher)",
+        )
         self.assertIn("delegation mismatch", "\n".join(failures))
 
     def _agents_with_mutation(self, filename: str, before: str, after: str) -> list[str]:
@@ -606,7 +690,7 @@ class FleetValidatorTests(unittest.TestCase):
     def test_incomplete_evidence_triad_is_rejected(self) -> None:
         # Dropping [sourced] while keeping the other two labels loses the ability to distinguish
         # "I ran it" from "the file says so"; the triad is all-or-nothing.
-        failures = self._agents_with_mutation("sde.md", "[sourced]", "[srcd]")
+        failures = self._agents_with_mutation("software-engineer.md", "[sourced]", "[srcd]")
         self.assertIn("incomplete evidence-label triad", "\n".join(failures))
 
     def test_bash_without_write_must_be_on_guard_roster(self) -> None:
@@ -637,7 +721,7 @@ class FleetValidatorTests(unittest.TestCase):
                 temporary,
                 lambda t: t.replace(
                     'frozenset({"sre"})',
-                    'frozenset({"sre", "sde"})',
+                    'frozenset({"sre", "software-engineer"})',
                 ),
             )
             failures = validate_fleet.validate_guard_wiring(
@@ -681,7 +765,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual([], validate_fleet.validate_roster_graph(ROOT))
 
     def test_roster_dropping_a_delegation_edge_is_rejected(self) -> None:
-        # sde delegates to reviewer, scribe, researcher in frontmatter; drop researcher from the
+        # software-engineer delegates to reviewer, scribe, researcher in frontmatter; drop researcher from the
         # rendered row and the render now describes a graph the fleet does not have.
         with tempfile.TemporaryDirectory() as temporary:
             root = self._roster_root(
@@ -693,7 +777,7 @@ class FleetValidatorTests(unittest.TestCase):
                 ),
             )
             failures = validate_fleet.validate_roster_graph(root)
-        self.assertTrue(any("'sde'" in f and "researcher" in f for f in failures), failures)
+        self.assertTrue(any("'software-engineer'" in f and "researcher" in f for f in failures), failures)
 
     def test_roster_adding_a_phantom_edge_is_rejected(self) -> None:
         # scribe holds no Agent grant at all; a rendered edge out of it is a phantom the enforced
@@ -712,15 +796,21 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_roster_with_duplicate_agent_row_is_rejected(self) -> None:
         source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        sde_row = next(line for line in source.splitlines() if line.startswith("| `sde` |"))
+        software_engineer_row = next(
+            line for line in source.splitlines() if line.startswith("| `software-engineer` |")
+        )
         with tempfile.TemporaryDirectory() as temporary:
             root = self._roster_root(
                 temporary,
-                lambda text: text.replace(sde_row, f"{sde_row}\n{sde_row}", 1),
+                lambda text: text.replace(
+                    software_engineer_row,
+                    f"{software_engineer_row}\n{software_engineer_row}",
+                    1,
+                ),
             )
             failures = validate_fleet.validate_roster_graph(root)
         self.assertTrue(
-            any("duplicate roster row for agent 'sde'" in failure for failure in failures),
+            any("duplicate roster row for agent 'software-engineer'" in failure for failure in failures),
             failures,
         )
 
@@ -735,7 +825,7 @@ class NonDelegatingHandoffTests(unittest.TestCase):
     """An agent with no `Agent` tool must not carry the delegating handoff imperative.
 
     The real defect this pins: `reviewer` — read-only by tool absence, and the lane that gates every
-    merge — carried the `sde` handoff block verbatim, instructing it to "Hand to exactly one agent"
+    merge — carried the `software-engineer` handoff block verbatim, instructing it to "Hand to exactly one agent"
     and to load `production-change-gate`, a skill it holds no `Skill` tool to load. `scribe`, under
     the identical constraint, had already been adapted correctly, which is what showed the reviewer
     copy was drift and not a decision.
@@ -839,13 +929,13 @@ class NonDelegatingHandoffTests(unittest.TestCase):
 class SharedHandoffBlockTests(unittest.TestCase):
     """The `## Rules` block is duplicated across the delegating agents; pin it byte-identical.
 
-    It was NOT identical: `observability-engineer` carried two straight quotes where `sde` and `sre`
+    It was NOT identical: `observability-engineer` carried two straight quotes where `software-engineer` and `sre`
     have curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
     duplicated block and the other copies did not move, which is the same mechanism that produced
     the reviewer contradiction above. The next divergence may not be punctuation.
     """
 
-    DELEGATING = ("sde", "sre", "observability-engineer")
+    DELEGATING = ("software-engineer", "sre", "observability-engineer")
 
     @staticmethod
     def _rules_block(name: str) -> str:

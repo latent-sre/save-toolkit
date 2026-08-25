@@ -53,6 +53,12 @@ before trusting a dashboard's silence, and export everything first as the rollba
    the app-platform path) **and a save message naming the ticket or change reference**, because the
    message travels inside the write body and cannot be added afterwards
    ([http-api](./references/http-api.md)). A conflict re-reads; it never forces.
+   Classify this write as **idempotent-by-target** only for the same dashboard UID and the
+   byte-identical desired model. A timeout, dropped response, or caller crash after dispatch makes
+   the execution outcome **UNKNOWN**. **Before any redispatch**, reconcile with a fresh readback and
+   version history: matching desired bytes and save message mean executed; unchanged prior bytes
+   with no matching history mean not executed; a conflict or incomplete read remains UNKNOWN and
+   stops for a named owner. Never infer failure from a missing response or retry while UNKNOWN.
 7. **Verify**: read it back, prove each changed query returns data on a real window, look at a
    rendered panel when a renderer exists — "Do not claim the dashboard was visually reviewed when it
    was not."
@@ -133,7 +139,8 @@ Read only the reference needed for the task:
 ## Handoff
 
 A finished dashboard task reports: the dashboard uid, folder, and instance; the schema written; the
-diff applied and the version/generation after the write; the evidence that queries returned data and
+diff applied and the version/generation after the write; the execution outcome and, when it was
+UNKNOWN, the readback-plus-version-history reconciliation and named owner; the evidence that queries returned data and
 whether a visual check was made; the save message recorded against the change; data-source and licence
 checks; and the step-9 evidence line, whose `[unverified]` items are required rather than optional —
 "nothing outstanding" is a claim about the instance you would have had to check to make. If the work uncovers active user impact or an

@@ -5,7 +5,7 @@ description: >-
   or configuration is defined, trace call sites and data flow, explain how this repository works,
   compare local files, or verify private or uncommitted implementation. It returns cited file:line
   evidence and does not modify anything. Not for reviewing a change or giving a merge verdict (use
-  save-toolkit:reviewer), implementing a fix (use save-toolkit:sde), investigating a live incident (use
+  save-toolkit:reviewer), implementing a fix (use save-toolkit:software-engineer), investigating a live incident (use
   save-toolkit:sre), or researching external docs, upstream code, packages, or versions (use
   save-toolkit:researcher).
 tools: Read, Grep, Glob
@@ -50,11 +50,14 @@ Keep private repository evidence local.
 ## Output contract
 
 ```
+Run/attempt: <caller-supplied run ID / attempt ID, or unavailable>
+Model: <requested alias and resolved model identity, or [unverified] unavailable>
 Question: <local question and scope>
 Target: <repository root@full revision; note included uncommitted state>
+Inputs/source trust: <each local source as [trusted] or [UNTRUSTED]; missing means [UNTRUSTED]>
 Answer: <conclusion first>
 Evidence:
-  - [sourced] <claim> — <file:line>
+  - [UNTRUSTED][sourced] <claim derived from an untrusted source> — <file:line>
 Conflicts and gaps: <contradictory local evidence or none>
 Could not verify: <anything unavailable or [unverified]>
 External research needed: <sanitized public question, or "none">
@@ -75,3 +78,12 @@ delegate or contact the external lane yourself.
   from static source evidence.
 - Tool absence is the canonical Claude boundary. A host that cannot deny inherited tools per
   agent requires an outer environment with network egress and external MCP tools disabled.
+- Missing or unlabeled trust defaults to `[UNTRUSTED]`, and no hop upgrades it; preserve every
+  conclusion derived from such content with claim-level `[UNTRUSTED]`.
+- Preserve the caller-supplied run identity unchanged across retries and increment the attempt; use
+  `unavailable` rather than inventing either identifier. Record the requested model and resolved
+  model identity; if the runtime does not expose it, mark `[unverified] unavailable`, and the run
+  cannot close a model-dependent decision.
+- A tool absent from the runtime surface is unavailable/not granted, not guard-denied. Say
+  guard-denied only after an attempted invocation returns a guard denial; name the tool and observed
+  denial reason.

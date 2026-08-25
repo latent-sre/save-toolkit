@@ -13,10 +13,10 @@ argument-hint: "[what the tool should do]"
 ## Entry gate
 
 Right-size before beginning. A scoped change with an obvious owner and an existing pattern to copy
-is not pipeline work: hand it directly to `sde` and stop. Use this pipeline for a net-new tool,
+is not pipeline work: hand it directly to `software-engineer` and stop. Use this pipeline for a net-new tool,
 multiple components, real blast radius, or a gate the user or human release owner must hold.
 
-This pipeline assumes a spawn-capable context because build and review use the typed `sde` and
+This pipeline assumes a spawn-capable context because build and review use the typed `software-engineer` and
 `reviewer` agents. If agents cannot be spawned, state that limit and work the requirements, design,
 build, and available checks inline. An inline self-review is never independent. For safety-critical
 work, the independent-review gate is **blocked**, verification is **inconclusive**, deployment stays

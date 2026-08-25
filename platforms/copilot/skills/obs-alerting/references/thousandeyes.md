@@ -116,7 +116,7 @@ If this bar is not met, label the network path a leading hypothesis and keep app
 
 `[sourced]` The current API guide documents `/v7/tests` and `/v7/agents` management/read paths; verify
 the account role, endpoint, schema, and target in the current developer reference before use. Keep only
-account-group labels and repository paths here—no API tokens. Hand approved automation to the `sde`
+account-group labels and repository paths here—no API tokens. Hand approved automation to the `software-engineer`
 agent and a human release owner; creation, update, or deletion of tests is a controlled external change,
 not permission granted by this reference.
 

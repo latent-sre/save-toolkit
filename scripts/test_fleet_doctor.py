@@ -31,6 +31,12 @@ class FleetDoctorTests(unittest.TestCase):
         (scripts / "readonly-guard-hook.sh").write_bytes(
             (REPO / "scripts" / "readonly-guard-hook.sh").read_bytes()
         )
+        (scripts / "guard-session-preflight-hook.sh").write_bytes(
+            (REPO / "scripts" / "guard-session-preflight-hook.sh").read_bytes()
+        )
+        (scripts / "guard-session-preflight.py").write_bytes(
+            (REPO / "scripts" / "guard-session-preflight.py").read_bytes()
+        )
         (scripts / "readonly-guard.py").write_text("# fixture guard\n", encoding="utf-8")
 
     def test_import_preserves_bytecode_setting(self) -> None:
@@ -123,6 +129,9 @@ class FleetDoctorTests(unittest.TestCase):
 
                 self.assertEqual(expected_status, check.status)
                 self.assertEqual(expected_calls, len(observed_payloads))
+                if available:
+                    first = check.details["observations"][0]
+                    self.assertEqual(next(iter(available.values())), first["resolved"])
                 if expected_status == "pass":
                     self.assertNotEqual(observed_payloads[0], observed_payloads[1])
 

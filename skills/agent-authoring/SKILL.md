@@ -66,12 +66,19 @@ first boundary that diverges.
 
 Narrow diagnosis examples belong in the body, not the selection description: “it fires on almost every request”, “how do I rewrite this description”, “the model keeps ignoring this instruction”, “the output is the wrong shape”, “should we split this into subagents”, and “what orchestration shape”.
 
+Use the fleet's four-theme decision rule for every artifact or roster change: **Prompt Engineering**
+selects and guides the current owner; **Context Engineering** equips that owner with the smallest
+trusted state; **Loop Engineering** governs its work, verification, budgets, and termination; and
+**Graph Engineering** governs ownership transitions. A skill deepens the current node. Add or invoke
+another agent only when ownership, authority, isolation, independent verification, or justified
+parallel breadth must change.
+
 Here, an **agent workflow graph** means the roster, delegation/handoff edges, context and authority
 boundaries, joins, and termination. A source-code import/dependency graph, knowledge graph, or
 GraphRAG request is a different capability. A durable **executable workflow/state graph** — typed
 state, node and edge classes, effects, checkpoints, cancellation, termination — is
 `workflow-graph-engineering`'s contract; this method still owns the LLM-facing prompts and the
-roster such a graph runs on. Implementation belongs to `sde` and runtime selection to a
+roster such a graph runs on. Implementation belongs to `software-engineer` and runtime selection to a
 `stack-profile` decision; do not choose LangGraph or another runtime merely because the design is
 graph-shaped.
 
@@ -141,7 +148,7 @@ or a routing split the current agents cannot own cleanly. Record the justificati
 
 - Send an independent evaluation or review finding to the typed `reviewer` agent with the exact
   artifact, success criteria, evidence, source trust, and unresolved labels.
-- Send an approved implementation or generator change to the typed `sde` agent with the failing
+- Send an approved implementation or generator change to the typed `software-engineer` agent with the failing
   fixture and minimal required scope.
 - Any authority-changing, production-facing, destructive, or external action stays with the
   human release owner and requires existing approval evidence naming the exact target, action,

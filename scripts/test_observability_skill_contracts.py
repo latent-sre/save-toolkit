@@ -116,6 +116,24 @@ class ObservabilitySkillContractTests(unittest.TestCase):
             reference,
         )
 
+    def test_dashboard_write_unknown_outcome_is_reconciled_before_redispatch(self) -> None:
+        skill = read("skills/obs-dashboards/SKILL.md")
+        agent = read("agents/observability-engineer.md")
+        reference = read("skills/obs-dashboards/references/http-api.md")
+        for surface, text in (("skill", skill), ("agent", agent), ("reference", reference)):
+            with self.subTest(surface=surface):
+                self.assertIn("idempotent-by-target", text)
+                self.assertIn("UNKNOWN", text)
+                self.assertIn("readback", text.lower())
+                self.assertIn("version history", text.lower())
+                self.assertIn("before any redispatch", text.lower())
+
+        for token in ("idempotent-by-target", "UNKNOWN", "Before any redispatch"):
+            with self.subTest(mutant=token):
+                mutant = skill.replace(token, "removed-contract")
+                self.assertNotEqual(skill, mutant)
+                self.assertNotIn(token, mutant)
+
     def test_promql_reference_uses_the_actual_duration_feature_boundaries(self) -> None:
         reference = read("skills/obs-metrics/references/promql.md")
         self.assertNotIn("duration expressions inside range selectors\n  (v3.13+)", reference)

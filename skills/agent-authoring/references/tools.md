@@ -51,6 +51,6 @@ containment from prose.
 Any production-facing, destructive, authority-changing, or external action requires existing human release-owner approval. The approval evidence must identify the exact target, action, and rollback. The human release owner or separately approved protected automation executes it; an agent prepares bounded input and reports evidence only.
 
 ## Handoffs
-- Send implementation to the typed `sde` agent with the tool contract and failing fixtures.
+- Send implementation to the typed `software-engineer` agent with the tool contract and failing fixtures.
 - Send independent contract or security findings to the typed `reviewer` agent with evidence and taint.
 - Send authorization only to the human release owner with the existing approval evidence.

@@ -45,5 +45,5 @@ If it turns out to have one provable proximate cause in one service, hand back t
 - The goal isn't just recovery — it's that this *class* of failure is detected sooner and hurts less next time.
 
 ## Hand off
-- Resilience code changes → the `sde` agent at principal altitude.
+- Resilience code changes → the `software-engineer` agent at principal altitude.
 - Detection / SLOs, prevention items, and capture → the `observability-engineer` agent.

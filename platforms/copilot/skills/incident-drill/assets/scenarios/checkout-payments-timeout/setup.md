@@ -2,8 +2,10 @@
 
 # Scenario setup — build the drill working directory
 
-Once per drill, in a scratch directory outside any real repository. Nothing here touches the fleet
-checkout except reading it as a plugin source.
+Once per drill, in a scratch directory outside any real repository. Run the entire drill inside a
+disposable OS identity/runtime that contains no credentials except Claude authentication and has
+constrained outbound access. The harness flag confirms this precondition; it does not create it.
+Nothing here touches the fleet checkout except reading it as a plugin source.
 
 ## 1. Scaffold
 
@@ -36,7 +38,8 @@ cd "$DRILL/service" && "$DRILL/.venv/bin/python" -m pytest -q      # expect 5 pa
 ```
 
 If you scaffolded before creating the venv, re-run the scaffold with `--python` pointing at it, or
-substitute the path in `prompts/08-sde-fix.md` and `prompts/13-sde-fix-round.md` by hand.
+substitute the path in `prompts/08-software-engineer-fix.md` and
+`prompts/13-software-engineer-fix-round.md` by hand.
 
 ## 3. Preflight lane
 
@@ -44,6 +47,8 @@ substitute the path in `prompts/08-sde-fix.md` and `prompts/13-sde-fix-round.md`
 cd "$DRILL"
 printf 'What does GET /healthz return in this service and which file and line define it? Cite file:line.\n' > /tmp/smoke.md
 python <skill>/scripts/run_lane.py --step 00 --lane smoke \
+    --run-id graph-001-checkout-20260825 --attempt-id attempt-1 \
+    --credential-free-runtime \
     --agent repository-investigator --prompt-file /tmp/smoke.md \
     --allowed-tools "Read,Grep,Glob" --plugin-dir <fleet-checkout> --cwd ./service --timeout 300
 ```
@@ -54,12 +59,15 @@ fix that first (`--python-dir`), or the drill measures your environment instead 
 
 ## 4. Run conditions to freeze before the first real lane
 
-Fleet checkout and revision (clean or dirty), CLI version, model, per-lane tool grants, timeout,
-and a spend ceiling. Write them into the timeline's premise paragraph now, not afterwards.
+Run ID, fleet checkout and revision (clean or dirty), CLI version, requested and resolved model,
+per-lane tool grants, timeout, spend ceiling, and the disposable credential-free runtime plus its
+egress boundary. Use the same run ID for every lane; increment the attempt ID on a bounded retry.
+Write them into the timeline's premise paragraph now, not afterwards.
 
 ## Teardown
 
-Delete the drill directory. Nothing in it is durable except what you copy into the retro packet:
+Destroy the disposable runtime, not just the drill directory. Nothing in it is durable except what
+you copy into the retro packet:
 the timeline, the observation log, the lane table from `drill_report.py`, and the retro itself.
 
 Reference-read token: q_idset_9a13

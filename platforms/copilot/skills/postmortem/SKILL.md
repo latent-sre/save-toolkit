@@ -50,8 +50,11 @@ Two claims that need evidence, not silence:
   Track them in the template's Action items table so none is lost.
 - Every action names the **artifact** it becomes — a runbook line, an alert, a drill, a validator
   rule — plus a **proof-of-done** check. An action with no artifact will not happen.
+- Every action names its **instrumentation prerequisite**: the signal, exporter, instrumented code,
+  or pipeline/config change its proof depends on. Use `none` only when the proof is independent of
+  missing telemetry; otherwise the dependent action remains blocked until this prerequisite lands.
 - Each item is **owned, dated, tracked** — an un-owned action item is a wish. Use typed handoffs:
-  resilience/code → typed `sde` agent; detection/SLO → typed `observability-engineer` agent; investigation follow-up →
+  resilience/code → typed `software-engineer` agent; detection/SLO → typed `observability-engineer` agent; investigation follow-up →
   typed `sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `scribe`
   agent.
 - Be honest about what you don't know; mark unconfirmed causes `[unverified]` and state how to confirm them.

@@ -1316,6 +1316,8 @@ class ArtifactTests(unittest.TestCase):
         self.assertIn("scripts/fleet_frontmatter.py", run_evals.PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/readonly-guard.py", run_evals.PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/readonly-guard-hook.sh", run_evals.PLUGIN_INPUT_PATHS)
+        self.assertIn("scripts/guard-session-preflight.py", run_evals.OPTIONAL_PLUGIN_INPUT_PATHS)
+        self.assertIn("scripts/guard-session-preflight-hook.sh", run_evals.OPTIONAL_PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/fleet_frontmatter.py", run_evals.EVAL_SUPPORT_INPUT_PATHS)
 
     def test_required_command_failure_does_not_look_clean(self) -> None:

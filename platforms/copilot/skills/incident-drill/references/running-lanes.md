@@ -19,10 +19,12 @@ for fleet findings.
 ## One lane, one session
 
 Each hop is one `claude -p` process against the fleet checkout loaded with `--plugin-dir`, with
-`--no-session-persistence`, a strict empty MCP config, an explicit `--allowedTools`, and a pinned
-`--model`. [`run_lane.py`](../scripts/run_lane.py) wraps that and saves four files per lane:
-the result text, raw stdout, stderr, and a metadata record with cost, turns, duration, and exit
-code.
+`--no-session-persistence`, a strict empty MCP config, an explicit identical `--tools` availability
+set and `--allowedTools` permission set, empty user/project/local setting sources, and a pinned
+`--model`. [`run_lane.py`](../scripts/run_lane.py) wraps that and saves four files per immutable
+attempt under `<runs-dir>/<run-id>/<step>-<lane>/<attempt-id>/`: the result text, raw stdout,
+stderr, and a metadata record with cost, turns, duration, and exit code. Reusing an attempt ID is
+rejected instead of overwriting earlier evidence.
 
 Why real agents rather than subagents given an agent's markdown: a drill's whole claim is about
 **authority** — that a lane could not do the thing it was not allowed to do. A general-purpose
@@ -30,10 +32,20 @@ subagent role-playing `sre` has none of the real grants or hooks, so its restrai
 
 A skill-driven hop (incident command, the gates) runs with no `--agent`: it is a main session that
 invokes the skill through the `Skill` tool, which is how a human actually reaches those methods.
+The explicit `--tools` boundary is therefore load-bearing for these hops; `--allowedTools` alone
+would auto-approve a tool without proving other built-ins were unavailable.
+
+The launcher runs from a neutral temporary Git root and exposes the real synthetic service through
+`--add-dir`. It supplies the service root as trusted harness context, resolves relative work there,
+and disables user/project/local setting sources. The environment also omits the opt-in that would
+load `CLAUDE.md` from an additional directory, so fixture instruction/settings files remain test
+data rather than session configuration. This preserves the service's files and Git history without
+trusting its project guidance.
 
 ## Tool grants per lane
 
-Grant the lane's real posture, not more. Starting points that matched the fleet's own definitions:
+Grant the lane's real posture, not more. `run_lane.py` normalizes this list once, rejects an empty
+set, and applies it to both availability and permission. Starting points that matched the fleet's own definitions:
 
 | Lane | `--agent` | `--allowedTools` |
 |---|---|---|
@@ -41,12 +53,28 @@ Grant the lane's real posture, not more. Starting points that matched the fleet'
 | incident command, gates | *(none)* | `Read,Grep,Glob,Skill` |
 | recovery sign-off, alert design | `observability-engineer` | `Read,Grep,Glob,Skill` (add `Write,Edit` for prepare-only artifacts) |
 | documentation | `scribe` | `Read,Grep,Glob,Write,Edit,Skill` |
-| build | `sde` | `Read,Grep,Glob,Edit,Write,Bash,Skill` |
+| build | `software-engineer` | `Read,Grep,Glob,Edit,Write,Bash,Skill` |
 | review | `reviewer` | `Read,Grep,Glob` |
 
 Withholding a tool is legitimate scenario design (a lane that cannot reach live telemetry must say
-so), but **say which tools you withheld** in the observation log, because a lane may report a
-missing tool as a denial and you will otherwise record a fleet finding that is really your setup.
+so), but **say which tools you withheld** in the observation log. A withheld tool is unavailable;
+only an offered tool whose invocation returns a hook denial is guard-denied.
+
+## Environment and authentication
+
+The lane child receives an allowlisted OS/TLS/proxy environment plus the one Claude authentication
+mechanism needed to run. The launcher copies login credentials into a temporary credentials-only
+config directory, or retains direct `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`; it refuses
+Bedrock, Vertex, and Foundry modes because their broader provider credential environments cannot be
+inferred safely. GitHub, cloud, PCF, repository-specific, arbitrary `CLAUDE_CODE_*`, and other host
+variables do not cross the process boundary.
+
+This is credential minimization, not a sandbox. Before invoking the launcher, create a disposable
+OS identity/runtime that holds no credentials except the Claude authentication needed for the drill
+and constrain its outbound access. Pass `--credential-free-runtime` to attest that this external
+precondition holds; the flag does not enforce it. A Bash-capable lane can use inherited binaries,
+OS credential stores, readable files, and every network path allowed to that identity. Use only
+synthetic service trees and never put hostile third-party code in a drill.
 
 ## The guard's interpreter, and why it can disable Bash fleet-wide
 
@@ -77,18 +105,21 @@ history in the first place.
 
 ## Long lanes and timeouts
 
-A design or review lane can run ten to fifteen minutes. Dispatch it detached from any foreground
-tool ceiling, give `--timeout` real headroom, and expect to wait. When a lane is killed mid-task it
-may have already written files while returning no packet: check the working tree before assuming
-nothing happened, and re-dispatch with a resume notice that tells the lane its own prior edits are
-input to verify, not trusted work.
+A design or review lane can run ten to fifteen minutes. Give `--timeout` real headroom and expect to
+wait. On timeout the launcher records `outcome: UNKNOWN`, `failure_class: TIMEOUT`, and
+`descendant_termination: UNVERIFIED`: the direct CLI process timed out, but the harness does not
+claim that every descendant stopped. The lane may have already written files while returning no
+packet, so preserve the attempt record and inspect the synthetic tree before assuming nothing
+happened.
 
-Record the kill. "A worker returned nothing" is one of the failure paths a fleet is supposed to
-have a rule for, and a drill that silently reruns has thrown away its finding.
+Destroy the disposable runtime before any bounded retry, then increment the attempt ID and carry a
+resume notice that treats prior edits as input to verify, not trusted work. Never silently rerun or
+describe a timeout as a confirmed kill.
 
 ## What to record per lane
 
-`run_lane.py` records cost, turns, duration, exit code, model, tools, and plugin directory
+`run_lane.py` requires a caller-supplied run ID and attempt ID and records them with cost, turns,
+duration, exit code, requested/resolved model, enforced tools, service root, and plugin directory
 automatically; [`drill_report.py`](../scripts/drill_report.py) turns the set into the retro's table
 and flags lanes that returned nothing. Add by hand, in the observation log: what the lane refused,
 what it labelled `[unverified]`, what it asked for that you had not thought to provide, and any

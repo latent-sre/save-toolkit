@@ -2,28 +2,30 @@
 
 # Roster altitude — design the agent system, not one artifact
 
-Four disciplines shape this fleet, and the sections below are grouped by them: **loop engineering**
-(the verify step inside each lane), **graph engineering** (which lanes exist and what each may see),
-**handoff engineering** (what survives between contexts), and **learning engineering** (where durable
-knowledge lands). Each names a failure mode this fleet has actually hit; none is free-standing
-ceremony. Vendor and community evidence was refreshed and reconciled in the repository record
+Four disciplines shape this fleet: **Prompt Engineering** (selection, guidance, and output
+contracts), **Context Engineering** (the smallest relevant, trusted state), **Loop Engineering**
+(work, verification, budgets, and termination), and **Graph Engineering** (ownership and authority
+transitions). Handoffs are the context payload on a graph edge; durable learning is accepted loop
+output, not a fifth discipline. Each theme names a failure mode this fleet has actually hit; none is
+free-standing ceremony. Vendor and community evidence was refreshed and reconciled in the repository record
 `docs/reviews/2026-08-23-prompt-loop-graph-engineering-research.md`. External claims remain
 `[sourced]`, and workload-specific measurements stay scoped to the workload that produced them.
 
 ## Contents
 
 - First question: should this be multi-agent at all?
+- Four-theme decision rule
 - Agent vs. skill (this fleet's decision rule)
 - The loop inside each lane (loop engineering)
 - Orchestration shapes (graph engineering)
-- Handoffs between contexts (handoff engineering)
+- Handoffs between contexts (context + graph engineering)
 - Design principles
 - Failure modes to diagnose
 - Deliverable
 - When it pays — and when it doesn't
 - Right-sizing
 - Multi-agent pattern catalog (design vocabulary)
-- Learning as repository state (learning engineering)
+- Learning as repository state (loop engineering)
 - Wrapper-layer failure taxonomy
 
 ## First question: should this be multi-agent at all?
@@ -38,6 +40,21 @@ handoffs. Anthropic measured agents at roughly 4× and its multi-agent **researc
 15× the tokens of a chat; those figures are a budgeting signal from that workload, not a universal
 multiplier. *[sourced: Anthropic,
 ["How we built our multi-agent research system"](https://www.anthropic.com/engineering/multi-agent-research-system)]*
+
+## Four-theme decision rule
+
+| Theme | Owns the decision |
+|---|---|
+| Prompt Engineering | Which owner is selected, its instructions, and the response/tool shape it must produce |
+| Context Engineering | What that owner sees, in what order, with which provenance, freshness, trust, compaction, and retention |
+| Loop Engineering | Entry and mutable state, action/verification cycle, budgets, stops, terminal evidence, and promotion authority |
+| Graph Engineering | Which node owns the work, which ownership transitions exist, and what authority and payload cross each edge |
+
+Apply all four to the same work unit. **Skills deepen a node; agents change ownership.** Keep work in
+one agent and load a skill when the owner and authority remain correct. Add or traverse an agent edge
+only when ownership, authority isolation, independent verification, parallel breadth, or additional
+context capacity justifies the transition. A graph edge never substitutes for a missing verifier,
+and a larger prompt never substitutes for a required authority boundary.
 
 ## Agent vs. skill
 
@@ -69,7 +86,7 @@ safety/authority stop, and who may promote the result. Missing or inconclusive v
 becomes success. Persist only the accepted result and the evidence needed to reproduce the decision;
 scratch attempts are not a second learning system.
 
-- **Name the verifier before the work.** A failing test or fixture for `sde`; the two-lens packet
+- **Name the verifier before the work.** A failing test or fixture for `software-engineer`; the two-lens packet
   for `reviewer`; golden-signal recovery evidence for `sre` and `observability-engineer`; one
   focused red-first test for a changed fleet contract, plus Gate A once before push. An agent whose
   loop has no verifier can only emit `[unverified]` claims, however good the prose.
@@ -109,7 +126,7 @@ default stands until breadth, isolation, or adversarial verification pays for th
 ["Building effective agents"](https://www.anthropic.com/engineering/building-effective-agents), and
 [Managed Agents multiagent orchestration](https://platform.claude.com/docs/en/managed-agents/multi-agent)]*
 
-## Handoffs between contexts (handoff engineering)
+## Handoffs between contexts (context + graph engineering)
 
 The graph's edges carry more risk than its nodes. Some runtimes retain a worker thread; others start
 each delegation from a new context. The explicit packet is the only portable handoff contract, and
@@ -125,6 +142,14 @@ an underspecified packet can fail silently when the receiver works from the wron
   on it; a prior review does not cover later changes automatically.
 - **State what you did not do.** The omission a sender finds obvious is the gap a receiver fills
   with an assumption.
+- **Carry execution lineage.** Every packet includes `Run/attempt:` and `Model:` with the requested
+  and resolved model identity. Preserve the run identity across a workflow and increment the
+  attempt for every dispatch, retry, resume, or replacement. A missing resolved identity cannot
+  close a model-dependent decision.
+- **Make delegate failure state explicit.** An empty, malformed, partial, timed-out, or killed return
+  is a failed attempt rather than success. Record it, dispatch no dependent work, and return control
+  to the caller as `BLOCKED` or `INCONCLUSIVE`; a human may choose a replacement or a retry inside
+  the declared budget. No background scheduler, lease, stale-worker detector, or heartbeat is implied.
 
 *[sourced: Anthropic,
 ["Effective context engineering for AI agents"](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
@@ -165,7 +190,7 @@ high-volume and mechanical, and leave judgment-heavy lanes — review, root caus
 decisions — inheriting. A pin is a claim about a lane's difficulty: state why in the same change,
 and drop it when the reason stops holding. Generated host adapters carry no model concept, so a
 pin is Claude-only and the projection simply omits it. Hand single-artifact wording to
-[artifact guidance](./artifact.md), approved implementation to the typed `sde` agent, independent
+[artifact guidance](./artifact.md), approved implementation to the typed `software-engineer` agent, independent
 findings to the typed `reviewer` agent, and authorization to the human release owner with existing
 approval evidence naming the exact target, action, and rollback.
 
@@ -220,7 +245,7 @@ above; this is the compact naming reference, including the two shapes that secti
 - **Completeness critic** — a final pass that asks "what's missing?"; its answers become the next
   round of work. Guards against a roster that stops at the first plausible-looking result.
 
-## Learning as repository state (learning engineering)
+## Learning as repository state (loop engineering)
 
 The fleet's durable memory is owned files: an accepted behavior becomes a focused test or eval,
 operational knowledge becomes a reviewable documentation diff, and unfinished work in this
