@@ -2302,6 +2302,13 @@ def test_direct_agent_contract_graders() -> None:
         "observability-engineer and scribe tasks. No production action is required or authorized; "
         "no further prod change is recommended."
     )
+    recovery_candidate_wrapped_terminal_record = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
+        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks. "
+        "Follow-ups: none dispatched while active. To be dispatched by the caller only after\n"
+        "the `resolved` terminal is recorded. No production action is required or authorized."
+    )
     recovery_contradictory_dispatch = (
         "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
         "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
@@ -2364,6 +2371,10 @@ def test_direct_agent_contract_graders() -> None:
     check(
         grade_all(recovery_graders, recovery_candidate_production_action),
         "direct SRE recovery: exact-candidate production-action and prod wording pass",
+    )
+    check(
+        grade_all(recovery_graders, recovery_candidate_wrapped_terminal_record),
+        "direct SRE recovery: wrapped post-terminal caller dispatch passes",
     )
     check(
         not grade_all(recovery_graders, recovery_contradictory_dispatch),
