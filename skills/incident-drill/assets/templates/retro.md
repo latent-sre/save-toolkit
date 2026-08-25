@@ -1,0 +1,54 @@
+# <date> incident drill — retro (<scenario>, fleet lanes run live)
+
+**Conclusion:** `[verified]` <what the fleet did, in one sentence, with the lane count, wall clock,
+and spend>. <One sentence on whether authority held.> <One sentence on what the drill found.>
+`[unverified]` Nothing here is a real system; the incident, telemetry, and platform outputs were
+synthetic fixtures supplied as sanitized excerpts.
+
+## Setup
+
+- Fleet: <checkout, branch, base revision, clean or dirty>, loaded with `claude -p --plugin-dir`,
+  so plugin hooks were live. Model `<model>`, CLI `<version>`, one fresh non-persistent session per
+  lane, prompt as inbound packet, result saved as outbound packet.
+- Service and scenario: <one line, plus where the ground truth is recorded>.
+- Human: <who played which roles, and that every gate came to them with command, blast radius,
+  verification, and rollback>.
+
+## What the fleet did, per lane
+
+<paste `drill_report.py runs/`, then a short outcome per row>
+
+## What went well
+
+- <Authority edges, label preservation, honest degradation, right-sizing, defects the review
+  caught — each with the step that shows it.>
+
+## What did not go well
+
+### Fleet findings (owner-bound)
+
+| # | Finding | Observed at | Relation to prior review | Proposed owner |
+|---|---|---|---|---|
+| | | | | |
+
+Number findings that confirm an existing review row with that row's ID; number genuinely new ones
+separately (N1, N2 …). A finding needs the step that produced it and an owner who could fix it.
+
+### Coordinator findings
+
+<Your own defects — packets, tooling, fixtures. Keeping them separate is what stops a drill from
+blaming the fleet for the harness.>
+
+## Dispositions proposed for the human owner
+
+- <`worked` / `already owned` / `proposed to roadmap` / `dropped with reason` per finding, with the
+  smallest change that would close it. The owner accepts or rejects; the drill decides nothing.>
+
+## Artifacts
+
+<Where the timeline, observation log, lane outputs, packets, evidence, and any produced documents
+live, and which of them are ephemeral.>
+
+## What this drill did NOT do
+
+<Real systems untouched, controls not exercised, lanes not on the path, releases not made.>

@@ -1,6 +1,6 @@
 # Save Toolkit
 
-A multi-host engineering plugin: **8 agents and 31 skills** for application engineering and site
+A multi-host engineering plugin: **8 agents and 32 skills** for application engineering and site
 reliability work — build/review/ship lanes, incident command, PCF and GCP triage, observability, and
 evidence-bound documentation. Claude Code reads the canonical [`agents/`](agents) and
 [`skills/`](skills) directly; GitHub Copilot/VS Code receives a committed projection from one
@@ -55,13 +55,14 @@ The one manual command is `/save-toolkit:adr` (ADR scaffold).
 | `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
 | `prompt-engineer` | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Hands helper code to `sde`, injection review to `reviewer` |
 
-The 31 skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
+The 32 skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
 - **Engineering craft** — `language-idiom`, `backend-craft`, `frontend-craft`, `ops-tooling`,
   `ci-actions`, `database-reliability`, `eng-ladder`
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `merge-gate`, `release-gate`, `production-change-gate`
 - **Incident and operations** — `root-cause`, `incident-command`, `postmortem`, `runbook`,
+  `incident-drill` (explicit-only game day against the fleet itself),
   `operational-learning`, `service-readiness-audit`, `service-onboarding`
 - **Observability** — `obs-logs`, `obs-metrics`, `obs-traces`, `obs-dashboards`, `obs-alerting`,
   `obs-pipeline`

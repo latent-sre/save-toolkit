@@ -1,0 +1,112 @@
+# Running fleet lanes as a drill harness
+
+Read this before dispatching the first lane, and again when a lane behaves strangely. It covers how
+a lane is invoked, what each one needs, and the harness failures that will otherwise be mistaken
+for fleet findings.
+
+## Contents
+
+- One lane, one session
+- Tool grants per lane
+- The guard's interpreter, and why it can disable Bash fleet-wide
+- Packet size and prompt delivery
+- Long lanes and timeouts
+- What to record per lane
+- Harness failure or fleet finding?
+
+## One lane, one session
+
+Each hop is one `claude -p` process against the fleet checkout loaded with `--plugin-dir`, with
+`--no-session-persistence`, a strict empty MCP config, an explicit `--allowedTools`, and a pinned
+`--model`. [`run_lane.py`](../scripts/run_lane.py) wraps that and saves four files per lane:
+the result text, raw stdout, stderr, and a metadata record with cost, turns, duration, and exit
+code.
+
+Why real agents rather than subagents given an agent's markdown: a drill's whole claim is about
+**authority** — that a lane could not do the thing it was not allowed to do. A general-purpose
+subagent role-playing `sre` has none of the real grants or hooks, so its restraint proves nothing.
+
+A skill-driven hop (incident command, the gates) runs with no `--agent`: it is a main session that
+invokes the skill through the `Skill` tool, which is how a human actually reaches those methods.
+
+## Tool grants per lane
+
+Grant the lane's real posture, not more. Starting points that matched the fleet's own definitions:
+
+| Lane | `--agent` | `--allowedTools` |
+|---|---|---|
+| triage / investigation | `save-toolkit:sre` | `Read,Grep,Glob,Bash,Skill,Agent` |
+| incident command, gates | *(none)* | `Read,Grep,Glob,Skill` |
+| recovery sign-off, alert design | `save-toolkit:observability-engineer` | `Read,Grep,Glob,Skill` (add `Write,Edit` for prepare-only artifacts) |
+| documentation | `save-toolkit:scribe` | `Read,Grep,Glob,Write,Edit,Skill` |
+| build | `save-toolkit:sde` | `Read,Grep,Glob,Edit,Write,Bash,Skill` |
+| review | `save-toolkit:reviewer` | `Read,Grep,Glob` |
+
+Withholding a tool is legitimate scenario design (a lane that cannot reach live telemetry must say
+so), but **say which tools you withheld** in the observation log, because a lane may report a
+missing tool as a denial and you will otherwise record a fleet finding that is really your setup.
+
+## The guard's interpreter, and why it can disable Bash fleet-wide
+
+The plugin's read-only guard is wired as a `PreToolUse` hook matching `Bash` for **every** plugin
+agent. The shim tries `python3`, `python`, then `py` from PATH; if none answers with the guard's
+exit codes it denies Bash — for guarded and unguarded lanes alike, fail-closed by design.
+
+On Windows those bare names commonly resolve to the Microsoft Store stub, which answers nothing.
+The symptom is a builder lane that cannot run its own tests and reports "the read-only guard is
+broken". `run_lane.py` prepends a real interpreter's directory to PATH for this reason
+(`--python-dir`, `DRILL_PYTHON_DIR`, else the running interpreter's directory). Run the preflight
+smoke lane before dispatching anything that needs Bash.
+
+Do drill the guard deliberately once per run: ask a read-only lane for one allowed read and one
+mutation, and record the verbatim denial. That is cheap, and it is the only way the drill produces
+`[verified]` evidence about the control rather than assuming it.
+
+## Packet size and prompt delivery
+
+Packets grow as the graph deepens, because each hop appends its predecessors. Pass the prompt on
+**stdin**, never as a command-line argument: Windows caps a command line near 32K characters and a
+review packet carrying a diff plus a prior review passes that easily (`WinError 206`, and the lane
+never starts). `run_lane.py` does this.
+
+If a packet exceeds what a lane can usefully read, that is a signal about the graph, not just the
+harness — note it, because it is the same missing-lineage problem that makes hops re-attach their
+history in the first place.
+
+## Long lanes and timeouts
+
+A design or review lane can run ten to fifteen minutes. Dispatch it detached from any foreground
+tool ceiling, give `--timeout` real headroom, and expect to wait. When a lane is killed mid-task it
+may have already written files while returning no packet: check the working tree before assuming
+nothing happened, and re-dispatch with a resume notice that tells the lane its own prior edits are
+input to verify, not trusted work.
+
+Record the kill. "A worker returned nothing" is one of the failure paths a fleet is supposed to
+have a rule for, and a drill that silently reruns has thrown away its finding.
+
+## What to record per lane
+
+`run_lane.py` records cost, turns, duration, exit code, model, tools, and plugin directory
+automatically; [`drill_report.py`](../scripts/drill_report.py) turns the set into the retro's table
+and flags lanes that returned nothing. Add by hand, in the observation log: what the lane refused,
+what it labelled `[unverified]`, what it asked for that you had not thought to provide, and any
+place its output contradicted a prior lane.
+
+## Harness failure or fleet finding?
+
+Ask: *if the fleet ran on a well-configured host with a competent coordinator, would this still
+happen?*
+
+| Symptom | Usually |
+|---|---|
+| Bash denied for every lane, including unguarded ones | harness (interpreter) — but the fail-closed blast radius is a real finding |
+| A lane reports a tool as "denied" that you never granted | harness, plus a real reporting-clarity finding |
+| A lane loses state a prior lane established | **fleet + coordinator** — packets must carry, and nothing enforces it |
+| A lane invents a value it could not know | fleet finding, serious |
+| A lane refuses and explains what it could not verify | working as intended; record it as evidence |
+| A lane's cost is dominated by reading | coordinator (packet omitted what it must rediscover) |
+
+Keep the two lists separate in the retro. A drill that blames the fleet for its harness produces
+roadmap items nobody can close.
+
+Reference-read token: q_idlane_7f31

@@ -1,6 +1,6 @@
 # Save Toolkit — fleet guide
 
-A multi-host engineering plugin with **8 canonical agents and 31 canonical skills**. Claude Code
+A multi-host engineering plugin with **8 canonical agents and 32 canonical skills**. Claude Code
 loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code adapters are
 generated and committed from those sources; never edit the projection by hand. Routing is native:
 descriptions select lanes and Claude components are invoked as `save-toolkit:<name>`.

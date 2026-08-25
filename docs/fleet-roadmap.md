@@ -99,6 +99,35 @@ external data/cost boundary and the remaining guarantees can be proven.
 
 ## Repository work
 
+### DRILL-001 — apply the `incident-drill` evaluation backlog
+
+**Status:** `ready` (2026-08-25)
+
+**Owner:** `prompt-engineer` owns the skill text, references, and templates; `sde` owns the
+bundled scripts. Human acceptance of the exact revision remains with `latent-sre`.
+
+**Outcome:** The `incident-drill` skill's authoring path stops producing scenarios that leak their
+own ground truth or that cannot be dispatched end to end, and its retro lands somewhere teardown
+cannot delete. The fifteen-item backlog and the evidence behind each item are in the
+[iteration-1 evaluation](reviews/2026-08-25-incident-drill-skill-evaluation.md).
+
+**Source:** A three-case evaluation on 2026-08-25 measured the skill against a no-skill baseline.
+The setup path scored 10/10 verified against the produced directory, and the retro method scored
+10/10 against 8/10 — but scenario authoring scored **8/10 against a 10/10 baseline**, losing on
+ground-truth leakage into downstream packets and on a lane chain half-marked "do not dispatch".
+
+**Prerequisites:** None. The skill ships as evaluated; this item changes it.
+
+**Acceptance:** Backlog items 1–8 applied (the two authoring failures, the undocumented pack
+format, the retro's destination, the drill card, the separate ground-truth file, the Windows
+path-length guard, and the tool-grant cross-check); the two non-discriminating authoring
+assertions replaced; a rerun of the same three cases showing the authoring case no longer leaks
+ground truth and produces a runnable chain, with the cost delta recorded; Gate A, links, canary,
+`test_check_links.py`, and strict plugin validation green; projections regenerated once.
+
+**Next action:** Apply items 1–3 first — they are the ones that made the authoring case lose — then
+rerun that case before touching the rest.
+
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
 **Status:** `active` (2026-08-24) — a disposable authenticated VS Code 1.134.0 profile measured the
