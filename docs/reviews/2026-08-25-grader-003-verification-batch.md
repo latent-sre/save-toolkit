@@ -203,3 +203,37 @@ made after this batch (the widened Mermaid arrow, the `go list` word boundary, t
 inflection) are pure widenings applied to scenarios that already passed, so they cannot have turned
 a pass into a fail — but they are `[unverified]` in the sense that no batch has exercised the
 widened forms.
+
+## Fifth batch — the direct contracts, measured
+
+`[verified]` Batch `20260825T225402Z-8ff050e2`, candidate `b8dea04` (clean tree), `--mode direct`,
+same conditions otherwise. Integrity PASS. Cost USD 2.70.
+
+| Contract | Trials | Skill fired | Verdict |
+|---|---|---|---|
+| `agent-authoring-loop-contract` | 3/3 | 3/3 | **PASS** — promoted to `regression` |
+| `agent-authoring-trigger-and-shape-contract` | 3/3 | 3/3 | **PASS** — promoted to `regression` |
+| `agent-authoring-roster-graph-contract` | 2/3 | 3/3 | stays `calibration` |
+
+**8/9 trials.** The skill fired 3/3 on every contract, so invocation is clean and no red is a
+routing failure. Two contracts earned a measured pass and left `calibration`; the third did not,
+and is recorded as measured rather than promoted.
+
+**The one red is the fourteenth traced, and the fourteenth with the behaviour present.** Trial 3
+wrote `- **V**: read-only lane by design — this is the independent-review boundary`, which is
+exactly the contract. The `read-only … review` proximity grader allowed 40 characters between the
+two terms; the gap was **42**. It missed by two characters.
+
+The window is now 80. That is safe for a reason worth stating rather than assuming: this grader is
+**not** this scenario's echo-rejector — the arrow grader is — and the prompt already matched this
+grader at 40, so widening costs no echo rejection. `[verified]` the full set still rejects the
+prompt echo after the change.
+
+`[unverified]` No batch has exercised the widened window, so the roster contract has not earned
+promotion and stays `calibration`. Same for the other post-batch widenings (the Mermaid arrow forms,
+the `go list` boundary, the `scoring` inflection): each is a pure widening applied to a scenario
+that already passed, so none can have turned a pass into a fail, but none has been measured.
+
+**Running totals across five batches.** Discovery trials `0/12 → 4/12 → 9/12 → 8/12 → 12/12`;
+routing `[verified]` **48/48** with no misroute in any trial of any batch; **fourteen reds traced,
+zero behavioural defects**. Total measured spend on this item: USD 20.79.

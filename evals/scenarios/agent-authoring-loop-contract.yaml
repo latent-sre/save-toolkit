@@ -7,7 +7,10 @@ mode: direct
 # discovery response is tool-less and prose-shaped, and an 7-grader conjunction over 3 trials had a
 # measured ceiling near 0.53 regardless of grader quality. Direct mode pins the component and lets
 # it emit a determinate artifact, which is where a contract this specific belongs.
-split: calibration
+# Promoted to regression after a measured pass: batch 20260825T225402Z-8ff050e2, Sonnet,
+# 3 trials, 600 s -- 3/3 with the skill firing 3/3 (evals/README.md: a positive enters
+# regression only after a measured pass).
+split: regression
 target:
   kind: skill
   name: agent-authoring

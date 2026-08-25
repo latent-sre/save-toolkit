@@ -1047,13 +1047,30 @@ a contract. Both failure modes were proven red for their named reason and restor
 `test_graders` 726/726, `--validate` OK at 97 scenarios (30 direct), Gate A 6/6, generator
 byte-clean, `claude plugin validate . --strict` PASS.
 
-**Next action:** One live batch to measure the new shape —
-`python evals/run_evals.py --run --mode discovery --match agent-authoring --trials 3` at a pinned
-model, plus a first `--mode direct --match agent-authoring` run to give the three new contracts a
-measured pass so they can leave `calibration`. It is paid; get owner go-ahead. Do not edit a
-discovery prompt: it is the routing stimulus and the 36/36 routing evidence depends on it staying
-byte-identical. Do not re-inflate a discovery positive — the pairing test will reject it, and the
-ceiling that motivated the trim has not moved.
+**Measured (2026-08-25).** Two batches under the standing conditions. Discovery
+`20260825T214004Z-ab8dff39` on `ce0278a`: **4/4 scenarios, 12/12 trials, routing 12/12**, USD 3.44 —
+the trimmed shape passes cleanly on unseen trials, which the old shape never did in three attempts.
+Direct `20260825T225402Z-8ff050e2` on `b8dea04`: **8/9 trials**, skill fired 3/3 on every contract,
+USD 2.70; `agent-authoring-loop-contract` and `agent-authoring-trigger-and-shape-contract` earned
+measured passes and moved to `regression`, and `agent-authoring-roster-graph-contract` stays
+`calibration` at 2/3. Its single red is the fourteenth traced on this item and the fourteenth with
+the behaviour present: a `read-only … review` proximity grader allowed 40 characters and the answer
+put 42 between them. Discovery trials across five batches: `0/12 → 4/12 → 9/12 → 8/12 → 12/12`;
+routing `[verified]` **48/48**; **fourteen reds traced, zero behavioural defects**.
+
+**Stated rather than implied:** the threshold relaxation made **no observable difference**. Every
+discovery scenario passed 3/3, so the 2-of-3 bar absorbed nothing and `threshold: 1.0` would have
+given the same result. Option 2 is verifiably in force — the bar computes to 2 of 3 against
+`run_evals.py:1113` — and was simply not exercised. `[unverified]` the post-batch widenings (the
+80-char proximity window, the Mermaid arrow forms, the `go list` boundary, the `scoring`
+inflection) have not been measured; each is a pure widening on a scenario that already passed, so
+none can have turned a pass into a fail.
+
+**Next action:** `latent-sre` accepts or rejects the exact PR #170 head. If accepted, close the
+GRADER-003 instrument and shape work and leave one follow-up: a batch that exercises the widened
+graders, which would let `agent-authoring-roster-graph-contract` earn `regression`. Do not widen a
+grader further without reading the transcript that failed it, and do not edit a discovery prompt —
+it is the routing stimulus and the 48/48 routing evidence depends on it staying byte-identical.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
