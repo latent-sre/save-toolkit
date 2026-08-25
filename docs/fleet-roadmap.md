@@ -99,6 +99,206 @@ external data/cost boundary and the remaining guarantees can be proven.
 
 ## Repository work
 
+### DRILL-001 — apply the `incident-drill` evaluation backlog
+
+**Status:** `ready` (2026-08-25)
+
+**Owner:** `prompt-engineer` owns the skill text, references, and templates; `sde` owns the
+bundled scripts. Human acceptance of the exact revision remains with `latent-sre`.
+
+**Outcome:** The `incident-drill` skill's authoring path stops producing scenarios that leak their
+own ground truth or that cannot be dispatched end to end, and its retro lands somewhere teardown
+cannot delete. The fifteen-item backlog and the evidence behind each item are in the
+[iteration-1 evaluation](reviews/2026-08-25-incident-drill-skill-evaluation.md).
+
+**Source:** A three-case evaluation on 2026-08-25 measured the skill against a no-skill baseline.
+The setup path scored 10/10 verified against the produced directory, and the retro method scored
+10/10 against 8/10 — but scenario authoring scored **8/10 against a 10/10 baseline**, losing on
+ground-truth leakage into downstream packets and on a lane chain half-marked "do not dispatch".
+
+**Prerequisites:** None. The skill ships as evaluated; this item changes it.
+
+**Acceptance:** Backlog items 1–8 applied (the two authoring failures, the undocumented pack
+format, the retro's destination, the drill card, the separate ground-truth file, the Windows
+path-length guard, and the tool-grant cross-check); the two non-discriminating authoring
+assertions replaced; a rerun of the same three cases showing the authoring case no longer leaks
+ground truth and produces a runnable chain, with the cost delta recorded; Gate A, links, canary,
+`test_check_links.py`, and strict plugin validation green; projections regenerated once.
+
+**Next action:** Apply items 1–3 first — they are the ones that made the authoring case lose — then
+rerun that case before touching the rest.
+### GRAPH-001 — engineer the fleet itself as an executable workflow graph
+
+**Status:** `active` (2026-08-24) — the draft contract and review landed as
+[`2026-08-24-graph-001-fleet-workflow-graph-contract.md`](reviews/2026-08-24-graph-001-fleet-workflow-graph-contract.md):
+verdict **request changes**, eleven findings, each dispositioned below for owner acceptance. The
+draft ran against the uncommitted `SKILLS-003` candidate, so every finding is a proposal until the
+review is re-run on the merged method revision.
+
+**Owner:** `prompt-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
+the exact revision. Each accepted finding is implemented by the owner of the surface it names
+(`sde` for validators and harness code, `prompt-engineer` for agent and skill text), never by this
+item directly.
+
+**Outcome:** The fleet's agents and skills are described once as an executable workflow/state
+graph in the `workflow-graph-engineering` fourteen-section shape: agents and gate skills as
+nodes with stated authority; `Agent(...)` grants as deterministic edges (already validated by
+`validate_fleet.py`); description-driven skill and agent selection as model-selected edges with
+an explicit allowed destination set and guardrails; handoff packets as edge payloads that carry
+evidence and taint labels; gate skills and the dashboard write rule as approval nodes bound to an
+approver, exact action, and candidate identity; the human executor as the effect boundary with an
+explicit `UNKNOWN` outcome; terminal lanes and delegation chains with termination evidence and
+budgets; and discovery/direct evals mapped to edge and node evaluations. Rows the fleet cannot
+fill are recorded as "not stated" findings, each dispositioned to an owner or a roadmap item.
+
+**Source:** Owner direction on 2026-08-24 ("our skills and agents to be graph engineering",
+staged: apply the contract to the fleet first, then widen the capability). Method:
+`workflow-graph-engineering` from `SKILLS-003`. Prior art that must not be duplicated: the
+validated roster/delegation graph in
+[`delegation-graph.md`](../skills/agent-authoring/references/delegation-graph.md) and the handoff
+packet conventions in [`roster.md`](../skills/agent-authoring/references/roster.md).
+
+**Boundaries:** No workflow runtime or exact-dispatch mechanism is selected or restored —
+`WF-001` stays blocked and is recorded as the deferred runtime decision in section 14. No agent
+gains tools, delegation edges, or effect authority through this item. The contract references the
+roster table for edges and never becomes a fourth copy of the edge list. A finding becomes fleet
+text or a validator only through its owner's separate change with focused evidence.
+
+**Draft review findings and proposed dispositions (2026-08-24):** each row is a proposal for
+`latent-sre`; an accepted row becomes its own change by the named owner with focused evidence, and
+a rejected row is recorded with the reason. No row is implemented by this item.
+
+| # | Finding (packet section) | Owner | Proposed disposition |
+|---|---|---|---|
+| F1 | Tier 2/3 approvals and IC envelopes carry no expiry and no resumed-state re-check before the human acts (§10, §9) | `prompt-engineer` gate text via `reviewer` | `proposed to roadmap` — widen `EFFECT-001` to the human-executed path or open a gate-text item; not owned today |
+| F2 | The human-executor effect boundary has no return edge: no `executed` / `not executed` / `UNKNOWN` outcome, receipt, or reconciliation owner (§9, §5 E5) | same as F1 | `proposed to roadmap` — adjacent to `EFFECT-001`'s unknown-outcome state but outside its reopen trigger |
+| F3 | No model is pinned while a routing edge is measurably model-dependent (§2, §5 E1, §13) | `prompt-engineer` (policy); `ROUTE-003` (measurement) | measurement `already owned` by `ROUTE-003`; policy `proposed to roadmap` as `decision-needed` — pin generation aliases for routing-critical lanes or require the resolved model in run evidence |
+| F4 | `prompt-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `prompt-engineer` | `proposed to roadmap` — add the sentence (no authority change) or add the grant in all three places; not both implicit |
+| F5 | The `sde` → `reviewer` → caller → `sde` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `prompt-engineer` | `proposed to roadmap` — apply `roster.md`'s loop rule to the fleet's own cycles |
+| F6 | `[UNTRUSTED]` taint is carried on five lanes and absent from `prompt-engineer`, `researcher`, and `repository-investigator` output contracts (§12, §3) | `prompt-engineer` | `proposed to roadmap` — add the source-trust field and packet convention to the three lanes |
+| F7 | `disable-model-invocation` is the only deterministic guardrail on the two effect-shaped skills and is `[unverified]` on the installed CLI (§5 E3) | `HOST-002` | `already owned` — the 2026-08-24 batch-1 audit and `HOST-002` record the missing plugin-specific visibility canary; no new item |
+| F8 | The Grafana dashboard write has no `UNKNOWN` state or named replay-safety class, although a byte-identical re-apply is idempotent and a stale token fails loudly (§9, §8) | `observability-engineer` / `obs-dashboards` text | `proposed to roadmap` — procedure edit naming `idempotent-by-target`, `UNKNOWN`, and step 7's read-back as reconciliation; authority unchanged per the accepted ADR |
+| F9 | No per-lane failure path for a delegate that returns nothing, garbage, or half its contract; no liveness rule (§8, §6) | `prompt-engineer` | `proposed to roadmap` — state the path or mark scheduling/liveness not applicable for a human-triggered, single-tenant fleet |
+| F10 | Live runs carry no run/attempt lineage; only the eval manifest does (§10, §13) | `prompt-engineer` (packet convention) | `proposed to roadmap` — one run/attempt field on the packet, or state live-run tracing out of scope in the contract |
+| F11 | The handoff packet has no schema, and the reviewed tree was dirty (§2, §3) | `SKILLS-003` | schema `already owned` (deliberately deferred by `SKILLS-003`); dirty-tree binding `worked` (recorded in §2) |
+
+**Live traversal (2026-08-25):** a synthetic P3→P1 incident was worked end to end through the
+real lanes — see the
+[incident drill retro](reviews/2026-08-25-graph-001-incident-drill-retro.md) (15 lane runs, USD
+7.40 on Sonnet, every gate approved by the human owner). It confirmed F1, F2, F5, F6, F9, and F10
+in practice, upgraded the `sre` Bash guard (E3) to `[verified]` on CLI 2.1.241, and added four
+findings:
+
+| # | Finding | Owner | Proposed disposition |
+|---|---|---|---|
+| N1 | The plugin guard denies all Bash for every agent when no PATH interpreter answers with its exit codes; on this Windows host the bare names resolve to the Store stub, so unguarded lanes lost shell authority silently | guard shim, `fleet_doctor`, CONTRIBUTING | `proposed to roadmap` — name the resolved interpreters in the failure message; run the interpreter check on a lane's path (Gate A or SessionStart); document the PATH requirement |
+| N2 | Lanes cannot tell a tool they do not hold from a guard denial and report the wrong cause | `prompt-engineer` (agent guardrails) | `proposed to roadmap` — one sentence per body |
+| N3 | Cross-lane prerequisites (an alert that needs a gauge the service does not export) are not modelled in handoff or action-item templates | `postmortem`, `incident-command` templates | `proposed to roadmap` — an instrumentation-prerequisite field |
+| N4 | Lane cost is dominated by rediscovery when packets carry pointers instead of excerpts | packet convention (F10) | `dropped with reason` — coordinator practice, folded into F10 |
+
+**Prerequisites:** `SKILLS-003` merged, so the method has an exact revision to cite. The first
+review ran against the `SKILLS-003` candidate branch as a draft, labelled `[unverified]` until
+re-run on the merged revision.
+
+**Acceptance:** (1) A dated packet under `docs/reviews/` carries the fourteen-section contract for
+the fleet with file-and-line citations and labels, plus ranked review findings; (2) every finding
+has a disposition (`worked`, `already owned`, `proposed to roadmap`, `dropped with reason`) and,
+where proposed, a roadmap item with an owner; (3) any live control that lands (agent text,
+validator, scenario) ships in its own change with the focused red-to-green evidence
+`CONTRIBUTING.md` requires; (4) `WF-001` remains unchanged unless separately accepted.
+
+**Next action:** `latent-sre` accepts or rejects each finding row; accepted rows open their own
+changes under the named owners. After `SKILLS-003` merges, re-run the review on the exact merged
+revision and replace the draft packet's `[unverified]` binding.
+
+### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
+
+**Status:** `decision-needed` (2026-08-24)
+
+**Owner:** `sde` owns implementation; `prompt-engineer` owns the skill text that carries
+runtime-specific references; `stack-profile`'s decision owner names the runtime.
+
+**Outcome:** `sde` can implement an accepted `workflow-graph-engineering` design contract against
+a named runtime — checkpointer and interrupt patterns, reducer and fan-out primitives, idempotent
+effect handlers, cancellation, replay or shadow verification — with pinned upstream references
+and the design's evaluation plan (recovery, temporal, consistency, budget) executed as tests.
+
+**Source:** Owner direction on 2026-08-24 (stage 2). The
+[`2026-08-23 research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md)
+records that no inspected runtime supplies the whole portable contract, which is why selection
+follows the design and a concrete consumer rather than preceding them.
+
+**Decision required:** the first consumer graph (a team-approved workflow, not the fleet itself
+while `WF-001` is blocked), the runtime candidates admissible under `stack-profile`'s landing
+runtime decision, and whether references live in a new skill or under an existing `sde`-loaded
+craft skill.
+
+**Prerequisites:** `SKILLS-003` merged; a named consumer graph with an accepted design contract;
+a `stack-profile` runtime decision with an owner; `researcher`/GitHits evidence pinned to exact
+upstream revisions.
+
+**Acceptance:** One synthetic consumer graph implemented from its contract, passing the contract's
+recovery, temporal, consistency, and budget evaluations under independent verification bound to
+the exact revision; no production deployment authority is created.
+
+**Next action:** Owner names the consumer and the admissible runtimes; then scope the reference
+set and open the implementation slice.
+
+### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
+
+**Status:** `decision-needed` (2026-08-24)
+
+**Owner:** `observability-engineer` for indicators, dashboards, and alert design;
+`scribe`/`runbook` for operating documents; `sre` remains the live-incident lane. No new agent.
+
+**Outcome:** The owning observability and operations skills carry graph-specific material
+(run/node/edge/attempt lineage, per-failure-plane indicators, queue and worker health, `UNKNOWN`
+effect backlog, approval wait, checkpoint age, replay canaries, and the runbook branches per
+failure class) as references inside their existing skills rather than a new SRE capability.
+
+**Source:** Owner direction on 2026-08-24 (stage 2). Requirements are enumerated in section 8 of
+the [`2026-08-23 research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md).
+The 2026-08-23 owner disposition that held the five SRE capability additions is unchanged; this
+item is an operating reference for graphs, not one of those additions.
+
+**Decision required:** confirm that this direction is the renewed owner request the hold requires
+for graph operations specifically, and name the first graph the team will operate.
+
+**Prerequisites:** `GRAPH-002`'s consumer exists or a team-operated graph is named; otherwise the
+references would describe a system nobody runs.
+
+**Acceptance:** References added under the owning skills with a discovery near-miss keeping a live
+graph outage with `sre`; one synthetic runbook and alert set reviewed against the research
+requirements; no new agent, tool, or credential.
+
+**Next action:** Owner confirms scope and names the first operated graph.
+
+### GRAPH-004 — `codebase-atlas`: code, dependency, knowledge, and GraphRAG graphs
+
+**Status:** `decision-needed` (2026-08-24)
+
+**Owner:** to be named; `repository-investigator` is the nearest lane for local source structure.
+
+**Outcome:** A separate capability with its own inputs, provenance, and success criteria for
+import/dependency graphs, runtime topology, knowledge graphs, and GraphRAG — kept distinct from
+`workflow-graph-engineering` (executable graphs) and `agent-authoring` (roster graphs), both of
+which already carry near-miss scenarios that keep these requests out.
+
+**Source:** Owner direction on 2026-08-24 (stage 2). The
+[`2026-08-22 audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) split graph
+engineering into three contracts and deferred this one pending confirmed owner need.
+
+**Decision required:** the operator need (which questions the atlas must answer), whether output
+is a static analysis artifact or a retrieval index, the provenance and freshness contract, and
+the consumer.
+
+**Prerequisites:** none technical; a named need and owner.
+
+**Acceptance:** to be defined with the decision; at minimum a positive discovery scenario, the
+two existing near-miss scenarios remaining green, and no overlap with `workflow-graph-engineering`.
+
+**Next action:** Owner names the need; until then no implementation.
+
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
 **Status:** `active` (2026-08-24) — a disposable authenticated VS Code 1.134.0 profile measured the
@@ -249,7 +449,11 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 ### SKILLS-003 — add a portable executable workflow-graph engineering skill
 
-**Status:** `ready` (2026-08-24) — roadmap activation merged in PR
+**Status:** `active` (2026-08-24) — first candidate implemented on
+`work/skills-003-workflow-graph-engineering` with its
+[implementation evidence packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md);
+live routing trials, the frozen acceptance exercise, independent review, and human acceptance of
+the exact revision remain open. Roadmap activation merged in PR
 [#157](https://github.com/latent-sre/save-toolkit/pull/157) at `a8f98ce`. Renewed owner direction
 activates only the executable workflow/state-graph capability from Batch 3. The proposed SRE
 capability additions remain held; this item selects no graph runtime, creates no execution service,

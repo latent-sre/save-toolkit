@@ -37,7 +37,8 @@ authoritative?*
 | A newly asserted contract needs one focused test that goes red when that contract is deliberately broken and green when restored; mutation tooling is optional, single-module, and a survivor count is not work | [`CONTRIBUTING.md`](../CONTRIBUTING.md) Change-specific evidence |
 | Description edits that change routing content need after-change clean-room runs of the scenarios targeting the component; pure rewording needs none | [`CONTRIBUTING.md`](../CONTRIBUTING.md) Change-specific evidence |
 | Personal-first: prototype under `~/.claude`, promote by PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| PR implementation starts from refreshed `origin/main` on a new branch named for the change, never a branch whose PR already merged; measure divergence both directions against `origin/main`, never a local `main`; preserve dirty and published branches | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| PR implementation starts from refreshed `origin/main` on a new branch named for the body of work, never a branch whose PR already merged; measure divergence both directions against `origin/main`, never a local `main`; preserve dirty and published branches | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| One branch may carry several related changes as separate commits; split only for independent work, and stack rather than parallelize when both sides touch catalog text (counts, `README` lists, `CHANGELOG`, roadmap) | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | Probe and schema contracts: published schemas are immutable; runtime probes use evidence envelopes (`skip`/`inconclusive`, never fake `pass`); the verification sandbox is digest-bound and networkless, and probe success grants no production authority | [`schema-compatibility.md`](schema-compatibility.md); [`verification-sandbox.md`](verification-sandbox.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 
 ## 2. Agent authority / tooling

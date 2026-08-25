@@ -1,0 +1,39 @@
+schema_version: 1
+id: discovery-workflow-graph-engineering-defers-runtime-implementation
+mode: discovery
+# Calibration: the expected alternative is an agent, and agent-target discovery is model-dependent
+# calibration only (evals/README.md, EVAL-002). A red here is "not dispatched", not "misrouted".
+split: calibration
+target:
+  kind: skill
+  name: workflow-graph-engineering
+prompt: |
+  Implement the already-approved fulfilment workflow graph in this repo: write
+  services/fulfilment/graph.py against the design contract in docs/design/fulfilment-graph.md, wire
+  the checkpoint store the contract names, and add pytest coverage for the retry and cancel paths.
+  The design is done and accepted; this is a code change, not a design question, a review, or a
+  runtime selection.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: sde
+  # Root scope: this contract is about which lane OWNS the request. A routed sde may legitimately
+  # load workflow-graph-engineering to read the accepted contract while implementing it; the
+  # forbidden target must stay absent from the ROOT session and sde must be dispatched there.
+  # Measured 2026-08-24 on Sonnet (3 trials): root dispatched sde 3/3 and loaded the skill 0/3;
+  # the nested sde loaded it 2/3.
+  scope: root
+success_criteria:
+  - Does not invoke workflow-graph-engineering to implement an accepted design
+  - Delegates to the build lane and names the artifact and its tests
+  - States explicitly what was verified, or that nothing was — the disclosure AGENTS.md requires of every result
+graders:
+  # Discovery measures selection, not execution: a routed, tool-less sde can only report. The third
+  # grader is the fleet's evidence-disclosure contract reused from discovery-sde-build-cli-with-tests.
+  - type: contains_any
+    of: ["graph.py", "fulfilment", "fulfillment"]
+  - type: contains_any
+    of: ["pytest", "test_", "tests"]
+  - type: regex
+    pattern: '\[verified\]|\[unverified\]|not verified|unverified|(?:could ?n.t|cannot|can.t|unable to|did not|didn.t|never|nothing (?:was |got )?|not (?:been )?)[^.\n]{0,40}?\b(?:verif|run\b|ran\b|built|creat|execut|tested|happen|produced|written|performed)|\bno\b[^.\n]{0,30}?\b(?:command|test|pytest|output|file|script)s?\b[^.\n]{0,25}?\b(?:run|ran|executed|produced|created|written|exists?|to show)|\bno (?:pytest|test) run\b'

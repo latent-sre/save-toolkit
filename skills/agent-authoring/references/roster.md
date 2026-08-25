@@ -188,6 +188,12 @@ approval evidence naming the exact target, action, and rollback.
 - Give each strand an **isolated context** and a **bounded mandate**, and have it return a **short
   summary**, not its transcript (see [context guidance](./context.md)).
 - Combine deliberately: a merge pass reconciling the strands beats naive concatenation.
+- **Set the tier per strand.** A spawned agent inherits the session model unless the call names
+  one, so on an expensive session tier a fan-out silently prices bulk work at the top rate. Name the
+  generation alias for every strand — `sonnet` for mechanical executors, graders, and routing
+  trials, `opus` for judgment-heavy review — and reserve the session's top tier for work the human
+  has explicitly priced. Before launching more than a handful of strands, state the tier and the
+  rough token cost in the plan; a fork inherits the session model and cannot be tiered down.
 
 ## Multi-agent pattern catalog (design vocabulary)
 

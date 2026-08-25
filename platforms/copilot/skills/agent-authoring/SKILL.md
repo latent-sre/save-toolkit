@@ -4,8 +4,8 @@ description: >-
   Create or repair LLM-facing prompts, agents, skills, tool descriptions, graders, bounded Loop
   Engineering for evaluation/verification, and agent roster/delegation graphs. Triggers: 'write me
   an agent/skill/prompt', 'my skill fires too often', 'the output is the wrong shape', 'Loop
-  Engineering'. Not for source-code dependency, knowledge, or GraphRAG graphs, or implementing a
-  graph runtime.
+  Engineering'. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph
+  runtime, or an executable workflow/state-graph contract (workflow-graph-engineering).
 argument-hint: "[artifact, roster, tool, or context problem]"
 ---
 
@@ -73,9 +73,12 @@ Narrow diagnosis examples belong in the body, not the selection description: “
 
 Here, an **agent workflow graph** means the roster, delegation/handoff edges, context and authority
 boundaries, joins, and termination. A source-code import/dependency graph, knowledge graph, or
-GraphRAG request is a different capability. Defining a durable executable state graph may use this
-method for its LLM-facing contracts, but implementation and runtime selection belong to software or
-system design; do not choose LangGraph or another runtime merely because the design is graph-shaped.
+GraphRAG request is a different capability. A durable **executable workflow/state graph** — typed
+state, node and edge classes, effects, checkpoints, cancellation, termination — is
+`workflow-graph-engineering`'s contract; this method still owns the LLM-facing prompts and the
+roster such a graph runs on. Implementation belongs to `sde` and runtime selection to a
+`stack-profile` decision; do not choose LangGraph or another runtime merely because the design is
+graph-shaped.
 
 **Loop Engineering** defines the bounded gather/action/verify/repeat contract inside a lane: entry
 state, verifier, iteration/cost/time budget, success and no-progress termination, safety stop,
