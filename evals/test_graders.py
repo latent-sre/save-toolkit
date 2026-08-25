@@ -1145,7 +1145,21 @@ _ROUTING_BATCH1_CASES = {
 # belongs to a component-capable direct evaluation (evals/README.md: discovery graders must be
 # satisfiable by a tool-less, routed response). Incident command is deliberately excluded: its
 # shared entrypoint owns the command fields and human-only effect boundary even when Read is denied.
-_ROUTING_ONLY_DISCOVERY_SCENARIOS = _OBS_DISCOVERY_ROUTING_ONLY + (
+# The four `workflow-graph-engineering` near misses (SKILLS-003). Each expects `not_fire`, so the
+# graded response comes from the ALTERNATIVE lane — agent-authoring, an inline investigation, a
+# routed `sde`, or stack-profile — whose behavioral contract is not this skill's to grade.
+# Converted to routing-only on 2026-08-25 after two measured Sonnet runs
+# (20260824T205218Z-0b59db4b and 20260824T220919Z-d783ef1e, 3 trials each): routing was correct on
+# 12/12 trials in run 2 while the wider behavioral sets went red on the alternative lane's
+# vocabulary. The positive scenario keeps its full behavioral set; see _ROUTING_WGE_CASES.
+_WGE_DISCOVERY_ROUTING_ONLY = (
+    "discovery-workflow-graph-engineering-defers-roster-graph.yaml",
+    "discovery-workflow-graph-engineering-defers-code-graph.yaml",
+    "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml",
+    "discovery-workflow-graph-engineering-defers-runtime-selection.yaml",
+)
+
+_ROUTING_ONLY_DISCOVERY_SCENARIOS = _OBS_DISCOVERY_ROUTING_ONLY + _WGE_DISCOVERY_ROUTING_ONLY + (
     "discovery-service-readiness-audit.yaml",
 )
 
@@ -1154,6 +1168,25 @@ _ROUTING_ONLY_SANITY_RESPONSES = {
         "The readiness audit is read-only: I inspected the available evidence, made no changes, "
         "and created no onboarding artifacts; effects stay with the approved manual onboarding "
         "path."
+    ),
+    # Tool-less routed answers, in the vocabulary the measured transcripts actually used.
+    "discovery-workflow-graph-engineering-defers-roster-graph.yaml": (
+        "This is the roster, so it belongs to agent-authoring: each lane is a node, the "
+        "coordinator delegates to implementation and research, review is a terminal node with no "
+        "agent grant, and effects stay human-owned."
+    ),
+    "discovery-workflow-graph-engineering-defers-code-graph.yaml": (
+        "This is source-code structure, not workflow design: walk the AST with static analysis to "
+        "extract imports per package, assemble the graph, and report cycles with the files that "
+        "create each edge."
+    ),
+    "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml": (
+        "The design is accepted, so this is a build task: routed to sde, which owns "
+        "services/fulfilment/graph.py and its retry and cancel tests."
+    ),
+    "discovery-workflow-graph-engineering-defers-runtime-selection.yaml": (
+        "Choosing an engine is a separate owner decision under stack-profile, so no runtime is "
+        "selected here; it is deferred to a decision record against a concrete consumer."
     ),
 }
 
@@ -1247,9 +1280,13 @@ _ROUTING_BATCH1_INCOMPLETE = {
 
 # Routing scenarios added with the `workflow-graph-engineering` skill (SKILLS-003): one positive
 # executable-graph request and four near misses (roster graph, code/GraphRAG graph, runtime
-# implementation, runtime selection). The shared test below asserts the raw prompt echo and its
-# whitespace-normalized form FAIL the full grader set, the curated compliant response passes, and a
-# keyword-rich but behaviorally incomplete response is rejected.
+# implementation, runtime selection). Every curated response below must pass its scenario's
+# graders.
+#
+# Only the positive owns a behavioral grader set, so only it carries the echo and incomplete
+# adversarial fixtures. The four near misses became routing-only on 2026-08-25 and are registered
+# in _WGE_DISCOVERY_ROUTING_ONLY above; giving up behavioral rejection on them is the deliberate
+# cost of not grading the alternative lane's answer against this skill's contract.
 _ROUTING_WGE_CASES = {
     "discovery-workflow-graph-engineering-approval-effect.yaml": (
         "Graph: alert -> draft remediation -> approval -> restart effect -> ticket effect -> "
@@ -1298,22 +1335,6 @@ _ROUTING_WGE_INCOMPLETE = {
         "Idempotency key on each effect, reconcile on failure, unknown handled, retention set, "
         "approver recorded, mismatch rejected; the checkpoint guarantees the restart runs exactly "
         "once."
-    ),
-    "discovery-workflow-graph-engineering-defers-roster-graph.yaml": (
-        "Nodes, edges, authority, termination, and delegation edges with a read-only review lane; "
-        "each worker node persists at its checkpoint boundary and effects use an idempotency key."
-    ),
-    "discovery-workflow-graph-engineering-defers-code-graph.yaml": (
-        "The dependency graph of the monorepo source-code structure shows which packages import "
-        "which; inspect the checkout."
-    ),
-    "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml": (
-        "Implemented services/fulfilment/graph.py with pytest coverage for retry and cancel; "
-        "everything passes."
-    ),
-    "discovery-workflow-graph-engineering-defers-runtime-selection.yaml": (
-        "Standardize on Temporal for durable agent pipelines; it handles retries and replay, and "
-        "the platform boundary is fine."
     ),
 }
 
@@ -1484,8 +1505,13 @@ def test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete() -> None
         "workflow-graph routing regression covers the 5 SKILLS-003 scenarios",
     )
     check(
-        set(_ROUTING_WGE_INCOMPLETE) == set(_ROUTING_WGE_CASES),
-        "every workflow-graph scenario has a keyword-rich incomplete fixture",
+        set(_WGE_DISCOVERY_ROUTING_ONLY) < set(_ROUTING_WGE_CASES),
+        "the routing-only near misses are a proper subset of the workflow-graph scenarios",
+    )
+    behavioral = set(_ROUTING_WGE_CASES) - set(_WGE_DISCOVERY_ROUTING_ONLY)
+    check(
+        set(_ROUTING_WGE_INCOMPLETE) == behavioral,
+        "exactly the behavioral workflow-graph scenarios carry an incomplete fixture",
     )
     for filename, compliant in _ROUTING_WGE_CASES.items():
         scenario = _load_scenario(filename)
@@ -1498,6 +1524,12 @@ def test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete() -> None
             grader_diagnostics_are_windows_encodable(grader_specs),
             f"{filename}: grader diagnostics stay Windows-console encodable",
         )
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: curated compliant response passes its grader set",
+        )
+        if filename not in behavioral:
+            continue
         prompt = scenario["prompt"]
         normalized_prompt = " ".join(prompt.split())
         check(
@@ -1507,10 +1539,6 @@ def test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete() -> None
         check(
             not grade_all(grader_specs, normalized_prompt),
             f"{filename}: whitespace-normalized prompt echo is REJECTED by the full grader set",
-        )
-        check(
-            grade_all(grader_specs, compliant),
-            f"{filename}: curated compliant response passes the full grader set",
         )
         check(
             not grade_all(grader_specs, _ROUTING_WGE_INCOMPLETE[filename]),

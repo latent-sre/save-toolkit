@@ -16,18 +16,14 @@ routing:
 success_criteria:
   - Does not invoke workflow-graph-engineering for a code/import dependency or GraphRAG graph
   - Treats the request as local source-structure investigation and does not fabricate missing files
+# Routing-only (2026-08-25). The response graded here is the inline alternative's answer, whose
+# investigation contract is not this skill's to grade; evals/README.md reserves the
+# one-sanity-grader shape for exactly that case. Measured on Sonnet, 3 trials, runs
+# 20260824T205218Z-0b59db4b and 20260824T220919Z-d783ef1e: routing stayed inline 3/3 on both
+# candidates while the wider behavioral set went red on transcript vocabulary ("source-code
+# dependency analysis", "Nodes = packages"). The retained sanity grader is the static-analysis set
+# derived from those transcripts, and it is the one a prompt echo cannot satisfy — the prompt
+# already contains "source-code structure" and "dependency graph".
 graders:
-  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
-  # the adversarial fixtures for this scenario live in evals/test_graders.py.
-  # Vocabulary widened 2026-08-24 against three Sonnet transcripts that all routed correctly
-  # (inline, 3/3) but phrased the answer as "source-code dependency analysis", "Nodes = packages /
-  # Edges = {from, to, ...}", and "go list / go/parser / dependency-cruiser" rather than the
-  # narrower terms first graded. The AST/parser grader is what a prompt echo cannot satisfy.
-  - type: contains_any
-    of: ["local repository investigation", "repository-investigator", "source structure", "source-code structure", "source-code dependency", "source-code analysis"]
-  - type: contains_any
-    of: ["import graph", "dependency graph", "module graph", "call graph", "package graph", "import edges", "nodes =", "edges ="]
   - type: contains_any
     of: ["parser", "AST", "static analysis", "import extraction", "statically", "go list", "dependency-cruiser", "madge", "compiler api"]
-  - type: not_regex
-    pattern: '(?i)design (?:a|an|the) (?:agent|delegation|prompt|workflow|state) graph'
