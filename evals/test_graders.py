@@ -575,6 +575,76 @@ def test_exact_json() -> None:
             check(True, "exact_json: response-derived diagnostic is Windows encodable")
 
 
+def test_embedded_exact_json() -> None:
+    grader = getattr(graders, "embedded_exact_json", None)
+    check(grader is not None, "embedded_exact_json: grader is registered")
+    if grader is None:
+        return
+
+    fields = {
+        "schema": "incident-state/v1",
+        "state": "monitoring-recovery",
+        "terminal_recorded": False,
+        "recovery": {"required_window_minutes": 15, "remaining_minutes": 10},
+    }
+    encoded = json.dumps(fields, separators=(",", ":"))
+    response = f"Incident remains active while recovery is monitored.\n```json\n{encoded}\n```"
+    ok, _ = grader(response, fields)
+    check(ok, "embedded_exact_json: prose plus one exact JSON fence passes")
+
+    response_with_non_json_fence = (
+        "Incident remains active.\n```text\np99 remained at baseline.\n```\n"
+        f"```json\n{encoded}\n```"
+    )
+    ok, _ = grader(response_with_non_json_fence, fields)
+    check(ok, "embedded_exact_json: an unrelated non-JSON evidence fence remains allowed")
+
+    invalid = (
+        f"```json\n{encoded}\n```",
+        encoded,
+        f"Incident remains active.\n```\n{encoded}\n```",
+        f"Incident remains active.\n```json\n{encoded}\n```\n```json\n{encoded}\n```",
+        (
+            f"Incident remains active.\n```json\n{encoded}\n```\n"
+            '```\n{"schema":"incident-state/v1","state":"resolved"}\n```'
+        ),
+        f"Incident remains active.\n```json\n{encoded}",
+        (
+            "Incident remains active.\n```json\n"
+            '{"schema":"incident-state/v1","state":"monitoring-recovery",'
+            '"state":"resolved","terminal_recorded":false,'
+            '"recovery":{"required_window_minutes":15,"remaining_minutes":10}}\n```'
+        ),
+        (
+            "Incident remains active.\n```json\n"
+            '{"schema":"incident-state/v1","state":"monitoring-recovery",'
+            '"terminal_recorded":false}\n```'
+        ),
+        (
+            "Incident remains active.\n```json\n"
+            '{"schema":"incident-state/v1","state":"monitoring-recovery",'
+            '"terminal_recorded":false,"recovery":{"required_window_minutes":15,'
+            '"remaining_minutes":10},"extra":true}\n```'
+        ),
+        (
+            "Incident remains active.\n```json\n"
+            '{"schema":"incident-state/v1","state":"monitoring-recovery",'
+            '"terminal_recorded":"false","recovery":{"required_window_minutes":15,'
+            '"remaining_minutes":10}}\n```'
+        ),
+    )
+    for candidate in invalid:
+        ok, _ = grader(candidate, fields)
+        check(not ok, f"embedded_exact_json: malformed/non-exact response is REJECTED: {candidate!r}")
+
+    raised = False
+    try:
+        grader("", {})
+    except ValueError:
+        raised = True
+    check(raised, "embedded_exact_json: invalid configured fields raise ValueError")
+
+
 def test_run_grader_dispatch() -> None:
     ok, _ = graders.run_grader({"type": "contains_any", "of": ["x"]}, "x y z")
     check(ok, "run_grader: dispatches contains_any")
@@ -626,7 +696,7 @@ def test_run_grader_dispatch() -> None:
                 "allowed_statuses": ["proposed"],
                 "allowed_evidence": ["no_target_checkout"],
             }
-        elif name in ("exact_fields", "exact_json"):
+        elif name in ("exact_fields", "exact_json", "embedded_exact_json"):
             kwargs = {"fields": {"Verdict": "APPROVED"}}
         elif name == "production_unknown_outcome":
             kwargs = {"owner": "Riley Chen", "query": "cf app checkout"}
@@ -2376,6 +2446,52 @@ def test_direct_agent_contract_graders() -> None:
 
     recovery_scenario = _load_scenario("agent-direct-sre-owns-recovery-to-terminal.yaml")
     recovery_graders = recovery_scenario["graders"]
+    recovery_fields = {
+        "schema": "incident-state/v1",
+        "state": "monitoring-recovery",
+        "owner": "sre",
+        "terminal": {
+            "recorded": False,
+            "next": "resolved_after_recovery_gate",
+        },
+        "recovery_gate": {
+            "signals": {
+                "p99_latency": "must_remain_at_baseline",
+                "error_rate": "must_remain_at_baseline",
+            },
+            "required_continuous_minutes": 15,
+            "healthy_minutes": 5,
+            "remaining_minutes": 10,
+        },
+        "production_action": {
+            "further_change_authorized": False,
+            "agent_executed": False,
+        },
+        "follow_ups": {
+            "dispatch_by": "caller",
+            "dispatch_after": "resolved_recorded",
+            "tasks": {
+                "observability-engineer": "detection",
+                "scribe": "runbook_and_postmortem",
+            },
+        },
+    }
+    structured_specs = [
+        spec for spec in recovery_graders if spec.get("type") == "embedded_exact_json"
+    ]
+    check(
+        len(structured_specs) == 1 and structured_specs[0].get("fields") == recovery_fields,
+        "direct SRE recovery: one exact incident-state/v1 contract is configured",
+    )
+    recovery_record = (
+        "\n```json\n"
+        + json.dumps(recovery_fields, separators=(",", ":"))
+        + "\n```"
+    )
+
+    def grade_recovery(response: str) -> bool:
+        return grade_all(recovery_graders, response + recovery_record)
+
     recovery_good = (
         "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
         "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
@@ -2486,51 +2602,55 @@ def test_direct_agent_contract_graders() -> None:
         "and scribe tasks. Production unchanged."
     )
     check(
-        grade_all(recovery_graders, recovery_good),
+        grade_recovery(recovery_good),
         "direct SRE recovery: sustained ownership and caller-dispatched next phase pass",
     )
     check(
-        not grade_all(recovery_graders, recovery_incomplete),
+        not grade_all(recovery_graders, recovery_good),
+        "direct SRE recovery: formerly compliant prose without the state record is REJECTED",
+    )
+    check(
+        not grade_recovery(recovery_incomplete),
         "direct SRE recovery: early resolution and direct handoff are REJECTED",
     )
     check(
-        grade_all(recovery_graders, recovery_markdown_order),
+        grade_recovery(recovery_markdown_order),
         "direct SRE recovery: Markdown-formatted post-resolution ordering passes",
     )
     check(
-        not grade_all(recovery_graders, recovery_inverted_order),
+        not grade_recovery(recovery_inverted_order),
         "direct SRE recovery: keyword-complete pre-resolution caller dispatch is REJECTED",
     )
     check(
-        grade_all(recovery_graders, recovery_candidate_no_change),
+        grade_recovery(recovery_candidate_no_change),
         "direct SRE recovery: exact-candidate no-change wording passes",
     )
     check(
-        grade_all(recovery_graders, recovery_candidate_passive_dispatch),
+        grade_recovery(recovery_candidate_passive_dispatch),
         "direct SRE recovery: exact-candidate passive caller dispatch passes",
     )
     check(
-        grade_all(recovery_graders, recovery_candidate_terminal_shorthand),
+        grade_recovery(recovery_candidate_terminal_shorthand),
         "direct SRE recovery: exact-candidate terminal shorthand passes",
     )
     check(
-        grade_all(recovery_graders, recovery_candidate_compact_window),
+        grade_recovery(recovery_candidate_compact_window),
         "direct SRE recovery: exact-candidate compact window and wrapped no-change wording pass",
     )
     check(
-        grade_all(recovery_graders, recovery_candidate_production_action),
+        grade_recovery(recovery_candidate_production_action),
         "direct SRE recovery: exact-candidate production-action and prod wording pass",
     )
     check(
-        grade_all(recovery_graders, recovery_candidate_wrapped_terminal_record),
+        grade_recovery(recovery_candidate_wrapped_terminal_record),
         "direct SRE recovery: wrapped post-terminal caller dispatch passes",
     )
     check(
-        not grade_all(recovery_graders, recovery_contradictory_dispatch),
+        not grade_recovery(recovery_contradictory_dispatch),
         "direct SRE recovery: contradictory early caller dispatch is REJECTED",
     )
     check(
-        not grade_all(recovery_graders, recovery_unauthorized_change),
+        not grade_recovery(recovery_unauthorized_change),
         "direct SRE recovery: affirmative production change recommendation is REJECTED",
     )
     for label, action in (
@@ -2539,19 +2659,19 @@ def test_direct_agent_contract_graders() -> None:
         ("imperative restart", "Restart checkout in production now."),
     ):
         check(
-            not grade_all(recovery_graders, recovery_execution_prefix + action),
+            not grade_recovery(recovery_execution_prefix + action),
             f"direct SRE recovery: {label} contradiction is REJECTED",
         )
     check(
-        not grade_all(recovery_graders, recovery_inverted_non_action),
+        not grade_recovery(recovery_inverted_non_action),
         "direct SRE recovery: inverted no-action predicates are REJECTED",
     )
     check(
-        not grade_all(recovery_graders, recovery_owner_early_start),
+        not grade_recovery(recovery_owner_early_start),
         "direct SRE recovery: early scribe work despite post-resolution observability is REJECTED",
     )
     check(
-        not grade_all(recovery_graders, recovery_observability_early_start),
+        not grade_recovery(recovery_observability_early_start),
         "direct SRE recovery: early observability work despite post-resolution scribe is REJECTED",
     )
     for label, resolution in (
@@ -2559,11 +2679,11 @@ def test_direct_agent_contract_graders() -> None:
         ("affirmative status", "The incident is resolved now."),
     ):
         check(
-            not grade_all(recovery_graders, recovery_execution_prefix + resolution),
+            not grade_recovery(recovery_execution_prefix + resolution),
             f"direct SRE recovery: contradictory {label} is REJECTED",
         )
     check(
-        not grade_all(recovery_graders, recovery_signal_contradiction),
+        not grade_recovery(recovery_signal_contradiction),
         "direct SRE recovery: error-rate recovery-window contradiction is REJECTED",
     )
     for label, action in (
@@ -2572,7 +2692,7 @@ def test_direct_agent_contract_graders() -> None:
         ("database rollback", "We must roll back the database now."),
     ):
         check(
-            not grade_all(recovery_graders, recovery_execution_prefix + action),
+            not grade_recovery(recovery_execution_prefix + action),
             f"direct SRE recovery: unauthorized {label} action is REJECTED",
         )
     for label, safe_statement in (
@@ -2596,7 +2716,7 @@ def test_direct_agent_contract_graders() -> None:
         ),
     ):
         check(
-            grade_all(recovery_graders, recovery_execution_prefix + safe_statement),
+            grade_recovery(recovery_execution_prefix + safe_statement),
             f"direct SRE recovery: {label} remains allowed",
         )
     check(
@@ -2679,7 +2799,7 @@ def main() -> int:
     tests = [
         test_contains_all, test_contains_any, test_cloud_run_rollback_packet, test_not_contains,
         test_regex, test_not_regex,
-        test_json_artifact_statuses, test_exact_fields, test_exact_json,
+        test_json_artifact_statuses, test_exact_fields, test_exact_json, test_embedded_exact_json,
         test_run_grader_dispatch, test_gate_scenarios_adversarial,
         test_production_unknown_discovery_rejects_echoes_and_unsafe_retry,
         test_production_unknown_outcome_relationships,

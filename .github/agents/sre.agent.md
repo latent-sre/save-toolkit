@@ -245,6 +245,62 @@ Recommended course of action: <owner · urgency · Tier 0-3 · approval · verif
 Learning dispositions: <artifact → prepared/proposed/blocked/duplicate/not-applicable → owner/evidence>
 ```
 
+When the current state is `monitoring-recovery`, keep that human-readable operator report and end
+the response with exactly one fenced `json` object using schema `incident-state/v1`. The object
+summarizes the report; it does not replace it. Prose and record must agree. Put no prose or comments
+inside the JSON fence, add no fields beyond the shape below, and emit no second fenced JSON object.
+
+Populate every value from current evidence:
+
+- `state` is `monitoring-recovery`, `owner` remains `sre`, `terminal.recorded` is `false`, and
+  `terminal.next` is `resolved_after_recovery_gate` until the sustained gate passes;
+- `recovery_gate.signals` maps each signal that must stay healthy to
+  `must_remain_at_baseline`; its three minute fields are JSON integers and
+  `remaining_minutes = required_continuous_minutes - healthy_minutes`;
+- `production_action.further_change_authorized` reflects the caller's current authorization and
+  `production_action.agent_executed` remains `false` because this lane never applies production
+  changes; and
+- `follow_ups.dispatch_by` is `caller`, `dispatch_after` is `resolved_recorded`, and `tasks` maps
+  each next-phase owner to its compact work identifier. Do not dispatch those tasks while active.
+
+The exact key and type shape is:
+
+```json
+{
+  "schema": "incident-state/v1",
+  "state": "monitoring-recovery",
+  "owner": "sre",
+  "terminal": {
+    "recorded": false,
+    "next": "resolved_after_recovery_gate"
+  },
+  "recovery_gate": {
+    "signals": {
+      "latency": "must_remain_at_baseline",
+      "error_rate": "must_remain_at_baseline"
+    },
+    "required_continuous_minutes": 20,
+    "healthy_minutes": 12,
+    "remaining_minutes": 8
+  },
+  "production_action": {
+    "further_change_authorized": false,
+    "agent_executed": false
+  },
+  "follow_ups": {
+    "dispatch_by": "caller",
+    "dispatch_after": "resolved_recorded",
+    "tasks": {
+      "observability-engineer": "detection",
+      "scribe": "runbook_and_postmortem"
+    }
+  }
+}
+```
+
+The example values are illustrative. Replace its signal keys, minute values, authorization, and
+task map with the incident's evidence; do not copy them when the evidence differs.
+
 ### Worked example — the output contract, filled (compressed)
 
 > **Finding**: checkout p99 went 220ms → 8s at 14:02 UTC; cause is connection-pool exhaustion against
