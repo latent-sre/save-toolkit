@@ -28,8 +28,9 @@ success_criteria:
 # derived from those transcripts, and it is the one a prompt echo cannot satisfy — the prompt
 # already contains "source-code structure" and "dependency graph".
 graders:
-  - type: contains_any
-    # "AST" alone is not usable here: contains_any is a plain case-insensitive substring match,
-    # so a bare "AST" token also matches "last", "past", and "broadcast" — trivially true in almost
-    # any transcript. The unambiguous forms below carry the same intent.
-    of: ["parser", "ast walk", "ast module", "abstract syntax tree", "static analysis", "import extraction", "statically", "go list ", "dependency-cruiser", "madge", "compiler api"]
+    # Regex with word boundaries, matching the declared structural twin
+    # (discovery-agent-authoring-defers-code-dependency-graph). contains_any is a bare substring
+    # test: "go list " needed a trailing space to avoid "ago listed", which then missed `go list`
+    # in backticks and "go list." -- a likelier miss than the false positive it removed.
+  - type: regex
+    pattern: '(?i)\bparser?s?\b|\bparsing\b|\bast walk\b|\bast module\b|\babstract syntax tree\b|\bstatic(?:ally)?\s+analy\w+\b|\bimport extraction\b|\bstatically\b|\bgo list\b|\bdependency-cruiser\b|\bmadge\b|\bcompiler api\b' 

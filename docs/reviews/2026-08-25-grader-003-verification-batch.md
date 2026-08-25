@@ -172,3 +172,34 @@ grader edit was made after this batch.
 
 The regression split stays red until one is chosen. That is an honest red: it reflects a contract
 the suite cannot satisfy, not a fleet defect.
+
+## Fourth batch — the new shape, measured
+
+`[verified]` Batch `20260825T214004Z-ab8dff39`, candidate `ce0278a` (clean tree), same conditions
+as every prior batch: CLI 2.1.245, `--model sonnet` resolved `claude-sonnet-5`, `--timeout 600`,
+3 trials. Integrity PASS. Cost USD 3.44.
+
+| Scenario | Split | Threshold | Bar | Trials | Routing | Verdict |
+|---|---|---|---|---|---|---|
+| `defers-code-dependency-graph` | regression | 1.0 | 3/3 | 3/3 | 3/3 | **PASS** |
+| `loop-engineering` | regression | 0.66 | 2/3 | 3/3 | 3/3 | **PASS** |
+| `trigger-and-shape` | regression | 0.66 | 2/3 | 3/3 | 3/3 | **PASS** |
+| `workflow-graph` | calibration | 0.66 | 2/3 | 3/3 | 3/3 | **PASS** |
+
+**4/4 scenarios, 12/12 trials.** Across five measurements under identical conditions the trial
+series is **0/12 → 4/12 → 9/12 → 8/12 → 12/12**, and routing is now `[verified]` **48/48** across
+every revision with no misroute in any trial of any batch.
+
+**What this does and does not show.** It shows the trimmed discovery shape passes cleanly on unseen
+trials, which the previous shape never did in three attempts. It does **not** show that the
+threshold relaxation helped: every scenario passed 3/3, so the 2-of-3 bar absorbed nothing and the
+same result would have been reached at threshold 1.0. Option 2 is verifiably in force — the bar
+computes to 2 of 3, confirmed against `run_evals.py:1113` — and it was simply not exercised here.
+Claiming otherwise would repeat the error this item was opened to fix.
+
+`[unverified]` The three direct contracts are still unmeasured; they remain `calibration` until a
+`--mode direct --match agent-authoring` batch gives them a measured pass. The grader corrections
+made after this batch (the widened Mermaid arrow, the `go list` word boundary, the `scoring`
+inflection) are pure widenings applied to scenarios that already passed, so they cannot have turned
+a pass into a fail — but they are `[unverified]` in the sense that no batch has exercised the
+widened forms.

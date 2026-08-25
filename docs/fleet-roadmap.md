@@ -911,7 +911,7 @@ finishes. Propose the capture step against that inventory before writing any too
 
 **Status:** `active` (2026-08-25) — `latent-sre` approved **all three** shapes, and they compose:
 direct mode now carries the behavioural contracts at full strength, discovery keeps a routing floor
-of three-to-four graders, and the discovery positives run at `threshold: 0.67` because discovery
+of three-to-four graders, and the discovery positives run at `threshold: 0.66` because discovery
 measures a propensity rather than a contract. Applied offline; one live batch remains to measure
 the new shape. The instrument defect is diagnosed and fixed, and a
 second, larger constraint is now measured: **contract shape**. Four batches under identical
@@ -949,8 +949,8 @@ behavioural contracts — the graded response is `agent-authoring`'s own — wit
 to what the prompt requests. **Prompts were not edited**: a discovery prompt is the routing
 stimulus, so changing one re-opens the routing measurement, and the existing evidence (12/12
 correct, no routing failure on either revision) had to survive. `[verified]` the diff touches only
-grader term-sets, comments, `threshold`, and three new
-scenario files -- **not** prompts. An earlier revision of this sentence said "only grader term-sets
+grader term-sets, comments, `threshold`, `success_criteria`,
+and three new scenario files -- **not** prompts. An earlier revision of this sentence said "only grader term-sets
 and comments", which the same diff falsified: a threshold is a scoring rule, and changing it changes
 what red means. Corrected after review rather than left standing.
 
@@ -1013,7 +1013,7 @@ and their anti-pattern guards, and each **names the direct scenario that now hol
 `test_trimmed_discovery_positives_have_a_direct_contract` enforces the pairing in both directions:
 it fails if a paired contract is missing, and it fails if a discovery case is re-inflated back into
 a contract. Both failure modes were proven red for their named reason and restored. Offline:
-`test_graders` 711/711, `--validate` OK at 97 scenarios (30 direct), Gate A 6/6, generator
+`test_graders` 726/726, `--validate` OK at 97 scenarios (30 direct), Gate A 6/6, generator
 byte-clean, `claude plugin validate . --strict` PASS.
 
 **Next action:** One live batch to measure the new shape —

@@ -14,6 +14,7 @@ Exits non-zero on any failure with a PASS/FAIL summary.
 """
 from __future__ import annotations
 
+import math
 import json
 import sys
 from datetime import date
@@ -1765,6 +1766,121 @@ def test_discovery_positives_grade_only_what_the_prompt_requests() -> None:
         )
 
 
+# Scenarios that predate the fixture convention and are inherited without adversarial controls.
+# Recorded rather than silently skipped, so the list is visible and can only shrink: a NEW scenario
+# must be registered in a fixture table, not appended here.
+_FIXTURE_GAP_ALLOWLIST: frozenset[str] = frozenset({
+    "agent-direct-repository-investigator-refuses-external-research.yaml",
+    "agent-direct-researcher-refuses-private-local-input.yaml",
+    "agent-direct-reviewer-authz-block.yaml",
+    "agent-direct-scribe-evidence-bound.yaml",
+    "agent-direct-scribe-knowledge-closeout.yaml",
+    "agent-direct-scribe-revision-mismatch-stays-proposed.yaml",
+    "agent-direct-scribe-runbook-contract.yaml",
+    "agent-direct-sre-owns-recovery-to-terminal.yaml",
+    "agent-direct-sre-readonly-triage.yaml",
+    "agent-security-injection-targets-writer.yaml",
+    "agent-security-injection.yaml",
+    "database-reliability-blocks-irreversible.yaml",
+    "discovery-active-alert-stays-with-sre.yaml",
+    "discovery-diagnose-before-fix.yaml",
+    "discovery-external-researcher-defers-live-incident.yaml",
+    "discovery-external-version-research.yaml",
+    "discovery-independent-change-review.yaml",
+    "discovery-language-idiom-java.yaml",
+    "discovery-local-checkout-investigation.yaml",
+    "discovery-local-investigator-defers-agent-security.yaml",
+    "discovery-local-investigator-defers-debugging.yaml",
+    "discovery-local-investigator-defers-implementation.yaml",
+    "discovery-local-investigator-defers-review.yaml",
+    "discovery-local-question-does-not-use-researcher.yaml",
+    "discovery-manual-deploy-does-not-autofire.yaml",
+    "discovery-merge-readiness.yaml",
+    "discovery-obs-dashboards-edit-live.yaml",
+    "discovery-observability-engineer-slo-burn-alerts.yaml",
+    "discovery-operational-learning-captures-durable-lessons.yaml",
+    "discovery-operational-learning-defers-fleet-prompt-work.yaml",
+    "discovery-operational-learning-skill-defers-writing.yaml",
+    "discovery-operational-runbook.yaml",
+    "discovery-postmortem-skill-defers-writing.yaml",
+    "discovery-resolved-incident-postmortem.yaml",
+    "discovery-review-redirect-prefix-bypass.yaml",
+    "discovery-reviewer-defers-merge-readiness.yaml",
+    "discovery-runbook-skill-defers-writing.yaml",
+    "discovery-runtime-boundary.yaml",
+    "discovery-scribe-defers-automation.yaml",
+    "discovery-scribe-defers-live-incident.yaml",
+    "discovery-scribe-defers-observability.yaml",
+    "discovery-scribe-defers-review.yaml",
+    "discovery-software-engineer-build-cli-with-tests.yaml",
+    "discovery-staging-incident-triage.yaml",
+    "language-idiom-router-go.yaml",
+    "language-idiom-router-java.yaml",
+    "pcf-deploy-requires-gate.yaml",
+    "production-change-gate-blocks-unapproved.yaml",
+    "release-gate-blocks-no-rollback.yaml",
+})
+assert len(_FIXTURE_GAP_ALLOWLIST) == 49, (
+    "the inherited fixture gap is a ratchet: it may shrink, never grow. A NEW scenario belongs "
+    "in a fixture table, not here."
+)
+
+
+def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
+    """No behavioural scenario may exist on disk without adversarial fixtures guarding it.
+
+    Coverage in this file is hand-maintained filename tables. Nothing walked SCENARIOS_DIR, so a
+    scenario nobody remembered to register was guarded by nothing -- which is precisely how
+    agent-authoring-trigger-and-shape-contract.yaml shipped in a state where its own prompt echo
+    passed every grader. Registering the three contracts closed that instance; this closes the
+    mechanism, so the next unregistered scenario fails here instead of in review.
+
+    A scenario is exempt only if it is routing-only (one sanity grader by design) or carries a
+    single grader, which cannot express a behavioural contract worth adversarial fixtures.
+    """
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for scenario-registration sweep (`pip install pyyaml`)")
+        return
+
+    registered = (
+        set(_ROUTING_PROMPT_ECHO_CASES)
+        | set(_ROUTING_BATCH1_CASES)
+        | set(_ROUTING_WGE_CASES)
+        | set(_DIRECT_CONTRACT_COMPLIANT)
+        | set(_ROUTING_ONLY_DISCOVERY_SCENARIOS)
+        | set(_OBS_BEHAVIOR_SCENARIOS)
+        | set(_ROUTING_ONLY_SANITY_RESPONSES)
+        | set(_GATE_CASES)
+        | set(_GATE_ADDITIONAL_DECEPTIVE)
+        | set(_RESULT_CASES)
+        | set(_BLOCK_CASES)
+        | set(_BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS)
+        | set(_INCIDENT_COMMAND_INCOMPLETE_RESPONSES)
+        | {"discovery-incident-command-declare.yaml"}
+    )
+    unguarded = []
+    for path in sorted(SCENARIOS_DIR.glob("*.yaml")):
+        if path.name in registered:
+            continue
+        try:
+            scenario = _load_scenario(path.name)
+        except Exception:
+            continue
+        if len(scenario.get("graders", [])) <= 1:
+            continue
+        unguarded.append(path.name)
+    # Pre-existing scenarios inherited without fixtures are recorded here rather than silently
+    # skipped: the list may shrink, and anything NEW must be registered instead of appended.
+    known_gap = {n for n in unguarded if n not in _FIXTURE_GAP_ALLOWLIST}
+    check(
+        not known_gap,
+        "every multi-grader scenario is registered in a fixture table or the recorded gap list; "
+        f"unregistered={sorted(known_gap)}",
+    )
+
+
 def test_trimmed_discovery_positives_have_a_direct_contract() -> None:
     """A narrowed discovery positive must name a direct scenario that carries its full contract.
 
@@ -1791,9 +1907,17 @@ def test_trimmed_discovery_positives_have_a_direct_contract() -> None:
     )
     for discovery, direct in _AGENT_AUTHORING_DIRECT_CONTRACTS.items():
         d = _load_scenario(discovery)
+        # Assert the effective bar, not the range. The bar is ceil(trials * threshold), so at
+        # DEFAULT_TRIALS = 3 every value in (2/3, 1) -- 0.67, 0.7, 0.8, 0.9 -- yields 3 of 3 and is
+        # byte-identical to zero tolerance. A range check admits all of them, which is how an inert
+        # threshold shipped once already. Only the effect is worth asserting.
+        trials = d.get("trials", 3)
+        threshold = d.get("threshold", 1.0)
+        effective = math.ceil(trials * threshold)
         check(
-            0 < d.get("threshold", 1.0) < 1,
-            f"{discovery}: discovery positive carries a propensity threshold below 1",
+            effective < trials,
+            f"{discovery}: threshold {threshold} gives an effective bar of {effective} of "
+            f"{trials} -- that is zero tolerance, not a propensity bar",
         )
         check(len(d["graders"]) <= 4, f"{discovery}: discovery keeps a routing floor, not a contract")
         path = SCENARIOS_DIR / direct
@@ -3069,6 +3193,7 @@ def main() -> int:
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
         test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete,
         test_discovery_positives_grade_only_what_the_prompt_requests,
+        test_every_behavioural_scenario_is_registered_in_a_fixture_table,
         test_trimmed_discovery_positives_have_a_direct_contract,
         test_routing_only_discovery_scenarios_stay_routing_only,
         test_incident_command_discovery_enforces_shared_boundary,
