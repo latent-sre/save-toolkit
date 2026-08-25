@@ -294,7 +294,7 @@ a rejected row is recorded with the reason. No row is implemented by this item.
 | F1 | Tier 2/3 approvals and IC envelopes carry no expiry and no resumed-state re-check before the human acts (§10, §9) | `prompt-engineer` gate text via `reviewer` | `proposed to roadmap` — widen `EFFECT-001` to the human-executed path or open a gate-text item; not owned today |
 | F2 | The human-executor effect boundary has no return edge: no `executed` / `not executed` / `UNKNOWN` outcome, receipt, or reconciliation owner (§9, §5 E5) | same as F1 | `proposed to roadmap` — adjacent to `EFFECT-001`'s unknown-outcome state but outside its reopen trigger |
 | F3 | No model is pinned while a routing edge is measurably model-dependent (§2, §5 E1, §13) | `prompt-engineer` (policy); `ROUTE-003` (measurement) | measurement `already owned` by `ROUTE-003`; policy `proposed to roadmap` as `decision-needed` — pin generation aliases for routing-critical lanes or require the resolved model in run evidence |
-| F4 | `prompt-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `prompt-engineer` | `proposed to roadmap` — add the sentence (no authority change) or add the grant in all three places; not both implicit |
+| F4 | `prompt-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `prompt-engineer` | `accepted in part` — `INCIDENT-001` removes SRE's post-incident edges and makes caller dispatch explicit; the other two lanes remain separate proposals |
 | F5 | The `sde` → `reviewer` → caller → `sde` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `prompt-engineer` | `proposed to roadmap` — apply `roster.md`'s loop rule to the fleet's own cycles |
 | F6 | `[UNTRUSTED]` taint is carried on five lanes and absent from `prompt-engineer`, `researcher`, and `repository-investigator` output contracts (§12, §3) | `prompt-engineer` | `proposed to roadmap` — add the source-trust field and packet convention to the three lanes |
 | F7 | `disable-model-invocation` is the only deterministic guardrail on the two effect-shaped skills and is `[unverified]` on the installed CLI (§5 E3) | `HOST-002` | `already owned` — the 2026-08-24 batch-1 audit and `HOST-002` record the missing plugin-specific visibility canary; no new item |
@@ -331,6 +331,44 @@ validator, scenario) ships in its own change with the focused red-to-green evide
 **Next action:** `latent-sre` accepts or rejects each finding row; accepted rows open their own
 changes under the named owners. After `SKILLS-003` merges, re-run the review on the exact merged
 revision and replace the draft packet's `[unverified]` binding.
+
+### INCIDENT-001 — keep active-incident ownership in SRE through terminal recovery
+
+**Status:** `active` (2026-08-25) — implementation is in progress on
+`work/four-theme-incident-ownership` from refreshed `origin/main`.
+
+**Owner:** `prompt-engineer` owns the fleet prompt, context, loop, and graph contract; `latent-sre`
+accepts the exact revision. Human incident command and release owners retain their existing live
+authority.
+
+**Outcome:** One typed `sre` lane owns a reliability incident from triage through sustained recovery
+and a named terminal state. It loads observability, platform, and database skills as context inside
+that lane. Its only agent call during the incident is a bounded sanitized public research question
+that returns to the same loop. After terminal resolution, the caller starts observability,
+engineering, and documentation as separate next-phase tasks; SRE does not dispatch them.
+
+**Source:** Owner direction on 2026-08-25 accepted the four-theme standard — Prompt selects and
+guides the owner, Context equips it, Loop governs work and termination, and Graph governs ownership
+transitions — and specifically chose sustained SRE incident ownership over combining SRE with the
+steady-state observability or documentation lanes. This accepts the SRE slice of `GRAPH-001` F4;
+it does not activate the held SRE capability additions from `SKILLS-003`.
+
+**Prerequisites:** Fresh branch from refreshed `origin/main`; current agent, skill, graph-validator,
+and eval behavior inspected before editing; one focused regression frozen and run on the incumbent
+before the candidate.
+
+**Acceptance:** (1) canonical `sre` delegation, `EXPECTED_DELEGATION`, and the roster expose only
+`researcher`; (2) SRE and `incident-command` keep `investigating`, `mitigating`, and
+`monitoring-recovery` nonterminal and require sustained same-signal evidence for `resolved`; (3)
+`observability-engineer`, `sde`, and `scribe` are named as caller-dispatched next-phase owners, not
+live SRE delegates; (4) the same two-trial direct-SRE case, model, timeout, prompt, and graders fail
+the incumbent and pass the one candidate; (5) affected offline tests, generated projections, strict
+fleet validation, and Gate A pass, with main-thread-only `Agent(target)` enforcement reported as the
+host boundary.
+
+**Next action:** Complete the one candidate, regenerate projections once, run focused offline and
+behavioral verification, inspect the integrated diff, and stop before commit or push without a new
+owner request.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 

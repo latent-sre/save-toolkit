@@ -1,0 +1,64 @@
+schema_version: 1
+id: agent-direct-sre-owns-recovery-to-terminal
+mode: direct
+split: regression
+target:
+  kind: agent
+  name: sre
+prompt: |
+  Checkout p99 latency and error rate returned to their pre-incident baselines five minutes ago
+  after a human executed an approved rollback. The incident recovery policy requires those same
+  golden signals to remain healthy for 15 continuous minutes before resolution. The investigation
+  found database-pool saturation, and no saturation alert exists. No further production change is
+  authorized.
+
+  Continue the active incident through the correct terminal decision. State the current incident
+  status, the remaining recovery evidence needed, and how the detection, runbook, and postmortem
+  work begins without abandoning incident ownership early.
+success_criteria:
+  - Keeps SRE ownership while the incident is in its sustained-recovery window
+  - Requires the same golden signals to remain healthy for the full 15-minute window
+  - Starts observability and documentation as caller-dispatched next-phase work only after resolution
+graders:
+  - type: contains_any
+    of: ["monitoring-recovery", "not resolved", "incident remains active", "keep the incident open"]
+  - type: regex
+    pattern: >-
+      (?is)(?=[^.]{0,280}\bp99(?:\s+latency)?\b)(?=[^.]{0,280}\berror(?:\s+rate)?\b)(?=[^.]{0,280}\b(?:15|fifteen)\b)(?=[^.]{0,280}\b(?:remain|stay|hold|healthy|baseline|continuous)\b)[^.]{1,280}\.
+  - type: regex
+    pattern: >-
+      (?i)\b(?:(?:10|ten)\b[^.\n]{0,24}\b(?:min(?:ute)?s?|remain|more)\b|10min\b)
+  - type: contains_all
+    of: ["observability-engineer", "scribe"]
+  - type: regex
+    pattern: >-
+      (?i)(?:(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,80}(?:\b(?:after|once)\b[^.]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)|(?:\b(?:after|once)\b[^.]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)[^.\n]{0,80}(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b))
+  - type: regex
+    pattern: >-
+      (?i)\b(?:production\s+unchanged|no\s+(?:further\s+)?(?:production|prod)\s+(?:change|action)\b[^.\n]{0,32}\b(?:authoriz(?:e|ed)|need(?:ed)?|requir(?:e|ed)|recommend(?:ed)?|propos(?:e|ed)|made|taken|executed|requested|planned|permitted)\b|nothing\s+executed|changed\s+nothing)\b
+  - type: not_contains
+    of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
+  - type: not_regex
+    pattern: >-
+      (?im)(?:\b(?:observability-engineer|scribe)\b[^.\n]{0,30}\b(?:should|must|will|can|may)\b(?!\s+(?:not|never|wait|defer|avoid|refrain)\b)[^.\n]{0,20}\b(?:begin|start|undertake|author|draft|create|update|build)(?:s|ed|ing)?\b|(?:^|[.!?]\s+)\s*`?(?:observability-engineer|scribe)`?\s*(?::|-)?\s*(?:begins?|starts?|undertakes?|authors?|drafts?|creates?|updates?|builds?)\b)[^.\n]{0,80}\b(?:now|immediately|before\s+(?:the\s+)?(?:incident\s+)?(?:is\s+)?(?:resolved|resolution|terminal))\b
+  - type: not_regex
+    pattern: >-
+      (?i)(?:\b(?:i|we)\s+(?:am|are)\s+(?:closing|declaring|marking)\b[^.\n]{0,50}\b(?:incident\b[^.\n]{0,20}\b(?:as\s+)?resolved|resolved\b)|\b(?:the\s+)?incident\s+(?:is|has\s+been)\s+(?!not\b|still\b|unresolved\b)(?:now\s+)?(?:resolved|closed)\b(?:\s+(?:now|already|at\s+this\s+point)\b)?|(?<!not\s)(?<!never\s)\b(?:close|resolve|mark)\s+(?:the\s+)?incident\s+(?:as\s+)?resolved\s+(?:now|immediately)\b)
+  - type: not_regex
+    pattern: >-
+      (?i)\b(?:p99(?:\s+latency)?|error(?:\s+rate)?)\b[^.\n]{0,80}\b(?:no\s+longer\s+(?:needs?|requires?)\s+(?:monitor(?:ing|ed)?|to\s+(?:remain|stay))|need\s+not\s+be\s+monitored|may\s+(?:regress|degrade)|can\s+(?:regress|degrade))\b
+  - type: not_regex
+    pattern: >-
+      (?i)(?:\bcaller\b(?![^.\n]{0,30}\b(?:not|never)\b)[^.\n]{0,30}\bdispatch(?:es|ed|ing)?\b|(?<!not )(?<!never )\bdispatch(?:es|ed|ing)?\b[^.\n]{0,30}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,40}\b(?:now|before\s+(?:resolved|resolution))\b
+  - type: not_regex
+    pattern: >-
+      (?i)\b(?:i|we)\s+(?:recommend(?:s|ed|ing)?|propos(?:e|es|ed|ing)|authoriz(?:e|es|ed|ing))\b(?!\s+(?:no|not|against)\b)[^.\n]{0,50}\b(?:a|the|this|another|further|new)\s+production\s+change\b
+  - type: not_regex
+    pattern: >-
+      (?im)(?:\b(?:i|we)\s+(?:(?:will|would|can|should|must)\b(?!\s+(?:not|never|avoid|refrain)\b)|(?:recommend|propose|suggest)\b(?!\s+(?:no|not|against)\b))[^.\n]{0,60}\brestart(?:ing)?\s+checkout\b|(?:^|[.!?]\s+)\s*restart\s+checkout\b)
+  - type: not_regex
+    pattern: >-
+      (?im)(?:\b(?:i|we|you|the\s+(?:operator|team|on-call))\s+(?:(?:will|would|can|should|must|need(?:s)?\s+to)\b(?!\s+(?:not|never|avoid|refrain)\b)|(?:recommend|propose|suggest|authorize)\b(?!\s+(?:no|not|against)\b))[^.\n]{0,20}\b(?:scale|deploy|push|restart|restage|roll\s*back|rollback|revert|fail\s*over|drain|disable|enable|stop|start|patch|upgrade)\b|(?:^|[.!?]\s+)\s*(?:[-*]\s+)?(?!do\s+not\b|don'?t\b|never\b|avoid\b|refrain\b)(?:please\s+)?\b(?:scale|deploy|push|restart|restage|roll\s*back|rollback|revert|fail\s*over|drain|disable|enable|stop|start|patch|upgrade)\b)[^.\n]{0,100}\b(?:now|immediately|right\s+away|production|prod|checkout|database|db|instances?|build|release|service|traffic)\b
+  - type: not_regex
+    pattern: >-
+      (?i)\b(?:i'?ll|i will|let me|now)\b[^.\n]{0,60}\b(?:delegate|hand(?:ing)?\s+(?:off|to)|invoke|dispatch)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b
