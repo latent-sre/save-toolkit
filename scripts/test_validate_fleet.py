@@ -114,8 +114,11 @@ class FleetValidatorTests(unittest.TestCase):
         contracts = (
             (
                 "agents-learning",
-                _markdown_section(Path("AGENTS.md"), "## Shared conventions (every agent follows)"),
-                ("human acceptance of the exact pr revision promotes it",),
+                _markdown_section(Path("AGENTS.md"), "## Hard rules"),
+                (
+                    "eval results never promote a candidate",
+                    "only human acceptance of the exact candidate revision does",
+                ),
                 ("let pr review promote",),
             ),
             (
