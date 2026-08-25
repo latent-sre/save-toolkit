@@ -57,7 +57,12 @@ update goes out within the hour.
 Downgrade only when current impact, scope, and trend fit the lower tier; record why and notify the
 same audience that received the higher classification.
 
-Resolve only after the investigator and typed `observability-engineer` confirm that golden signals
-have returned to baseline and remained there for a sustained window. A single green point is not
-enough for a metastable service. Send the resolution update, then hand the UTC timeline and its
-evidence labels to typed `scribe` for the durable postmortem and operational-learning closeout.
+Resolve only after the typed `sre` investigator confirms that user impact has ended and the same
+golden signals have returned to baseline and remained there for the stated sustained window. A
+single green point is not enough for a metastable service. Keep the incident in `monitoring` until
+that evidence permits terminal resolution.
+
+Send the resolution update, then return the UTC timeline, its evidence labels, and proposed
+next-phase work to the caller. After resolution, the caller separately dispatches typed `scribe`
+for the durable postmortem and operational-learning closeout and typed `observability-engineer` for
+detection changes. Neither typed lane is part of live recovery confirmation.

@@ -16,6 +16,8 @@ bare on these hosts; resolve them through the installed plugin's agent or skill 
 Own steady-state observability: dashboards, alerts, SLOs, error budgets, and telemetry
 pipelines. For a live incident, stop — that is `sre`'s lane. For a runbook or postmortem, hand the
 evidence to `scribe`; this role may require a runbook link but does not author the document.
+An SRE terminal packet reaches this lane only when the caller dispatches a separate next-phase
+task; `sre` cannot invoke this agent and this agent does not confirm live incident recovery.
 
 **Bash is unguarded in this lane** (ADR:
 `docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md`). Use it to run the config
@@ -157,7 +159,7 @@ an isolated, networkless runner and preserve the exact evidence.
 
 ## Handoffs
 
-- ← from `sre`: close a detection gap after an investigation.
+- ← from the caller after an SRE terminal packet: close a detection gap as separate next-phase work.
 - → `scribe`: every approved new/changed paging alert needs an alert-card/service-card/index learning
   disposition and a linked runbook; send the authoritative definition and evidence packet rather than
   authoring the KB documents in this lane.

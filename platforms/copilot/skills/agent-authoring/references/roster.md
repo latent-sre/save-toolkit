@@ -2,28 +2,30 @@
 
 # Roster altitude — design the agent system, not one artifact
 
-Four disciplines shape this fleet, and the sections below are grouped by them: **loop engineering**
-(the verify step inside each lane), **graph engineering** (which lanes exist and what each may see),
-**handoff engineering** (what survives between contexts), and **learning engineering** (where durable
-knowledge lands). Each names a failure mode this fleet has actually hit; none is free-standing
-ceremony. Vendor and community evidence was refreshed and reconciled in the repository record
+Four disciplines shape this fleet: **Prompt Engineering** (selection, guidance, and output
+contracts), **Context Engineering** (the smallest relevant, trusted state), **Loop Engineering**
+(work, verification, budgets, and termination), and **Graph Engineering** (ownership and authority
+transitions). Handoffs are the context payload on a graph edge; durable learning is accepted loop
+output, not a fifth discipline. Each theme names a failure mode this fleet has actually hit; none is
+free-standing ceremony. Vendor and community evidence was refreshed and reconciled in the repository record
 `docs/reviews/2026-08-23-prompt-loop-graph-engineering-research.md`. External claims remain
 `[sourced]`, and workload-specific measurements stay scoped to the workload that produced them.
 
 ## Contents
 
 - First question: should this be multi-agent at all?
+- Four-theme decision rule
 - Agent vs. skill (this fleet's decision rule)
 - The loop inside each lane (loop engineering)
 - Orchestration shapes (graph engineering)
-- Handoffs between contexts (handoff engineering)
+- Handoffs between contexts (context + graph engineering)
 - Design principles
 - Failure modes to diagnose
 - Deliverable
 - When it pays — and when it doesn't
 - Right-sizing
 - Multi-agent pattern catalog (design vocabulary)
-- Learning as repository state (learning engineering)
+- Learning as repository state (loop engineering)
 - Wrapper-layer failure taxonomy
 
 ## First question: should this be multi-agent at all?
@@ -38,6 +40,21 @@ handoffs. Anthropic measured agents at roughly 4× and its multi-agent **researc
 15× the tokens of a chat; those figures are a budgeting signal from that workload, not a universal
 multiplier. *[sourced: Anthropic,
 ["How we built our multi-agent research system"](https://www.anthropic.com/engineering/multi-agent-research-system)]*
+
+## Four-theme decision rule
+
+| Theme | Owns the decision |
+|---|---|
+| Prompt Engineering | Which owner is selected, its instructions, and the response/tool shape it must produce |
+| Context Engineering | What that owner sees, in what order, with which provenance, freshness, trust, compaction, and retention |
+| Loop Engineering | Entry and mutable state, action/verification cycle, budgets, stops, terminal evidence, and promotion authority |
+| Graph Engineering | Which node owns the work, which ownership transitions exist, and what authority and payload cross each edge |
+
+Apply all four to the same work unit. **Skills deepen a node; agents change ownership.** Keep work in
+one agent and load a skill when the owner and authority remain correct. Add or traverse an agent edge
+only when ownership, authority isolation, independent verification, parallel breadth, or additional
+context capacity justifies the transition. A graph edge never substitutes for a missing verifier,
+and a larger prompt never substitutes for a required authority boundary.
 
 ## Agent vs. skill
 
@@ -109,7 +126,7 @@ default stands until breadth, isolation, or adversarial verification pays for th
 ["Building effective agents"](https://www.anthropic.com/engineering/building-effective-agents), and
 [Managed Agents multiagent orchestration](https://platform.claude.com/docs/en/managed-agents/multi-agent)]*
 
-## Handoffs between contexts (handoff engineering)
+## Handoffs between contexts (context + graph engineering)
 
 The graph's edges carry more risk than its nodes. Some runtimes retain a worker thread; others start
 each delegation from a new context. The explicit packet is the only portable handoff contract, and
@@ -228,7 +245,7 @@ above; this is the compact naming reference, including the two shapes that secti
 - **Completeness critic** — a final pass that asks "what's missing?"; its answers become the next
   round of work. Guards against a roster that stops at the first plausible-looking result.
 
-## Learning as repository state (learning engineering)
+## Learning as repository state (loop engineering)
 
 The fleet's durable memory is owned files: an accepted behavior becomes a focused test or eval,
 operational knowledge becomes a reviewable documentation diff, and unfinished work in this

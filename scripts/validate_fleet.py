@@ -114,6 +114,19 @@ SCRIBE_PRESSURE_TABLE_ROW_RE = re.compile(
 )
 SCRIBE_CLAUSE_SPLIT_RE = re.compile(r"(?:[.!?;]\s+|\n+)")
 SCRIBE_MARKDOWN_LEAD_RE = re.compile(r"^\s*(?:(?:[-+*>#]+|\d+[.)])\s*)+")
+OBSERVABILITY_RECOVERY_OWNER_RE = re.compile(
+    r"(?is)(?:"
+    r"\b(?:resolve(?:d|s)?|resolution)\b[^.;\n]{0,120}"
+    r"\b(?:typed\s+)?`?observability-engineer`?\b[^.;\n]{0,40}"
+    r"\b(?<!not\s)(?<!never\s)(?:confirm(?:s|ed|ing)?|verif(?:y|ies|ied|ying))\b"
+    r"[^.;\n]{0,80}\b(?:user\s+impact|golden\s+signals?|recovery|health(?:y|iness)?)\b"
+    r"|"
+    r"\b(?:resolve(?:d|s)?|resolution)\b[^.;\n]{0,120}"
+    r"\b(?:user\s+impact|golden\s+signals?|recovery|health(?:y|iness)?)\b"
+    r"[^.;\n]{0,80}\b(?<!not\s)(?<!never\s)(?:confirm(?:s|ed|ing)?|verif(?:y|ies|ied|ying))\b"
+    r"[^.;\n]{0,40}\bby\s+(?:the\s+typed\s+)?`?observability-engineer`?\b"
+    r")"
+)
 SCRIBE_LOADED_SOURCES = (
     Path("agents/scribe.md"),
     Path("skills/runbook/SKILL.md"),
@@ -167,7 +180,7 @@ EXPECTED_DELEGATION = {
     "repository-investigator": set(),
     "researcher": set(),
     "sde": {"reviewer", "scribe", "researcher"},
-    "sre": {"observability-engineer", "scribe", "researcher"},
+    "sre": {"researcher"},
     "observability-engineer": {"scribe", "researcher"},
     "scribe": set(),
     "prompt-engineer": {"researcher"},
@@ -415,7 +428,7 @@ def validate_scribe_bundle(root: Path) -> list[str]:
         },
         Path("skills/incident-command/SKILL.md"): {
             "required": (
-                "after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions",
+                "The caller, not `sre`, separately\ndispatches typed `observability-engineer` for detection changes and typed `scribe` for the\npostmortem, operating guidance, and learning dispositions",
             ),
             "forbidden": (
                 "hand the timeline to the typed `observability-engineer` agent for the durable",
@@ -465,6 +478,12 @@ def validate_scribe_bundle(root: Path) -> list[str]:
         for forbidden in contract["forbidden"]:
             if forbidden in text:
                 failures.append(f"{path}: stale scribe bundle contract: {forbidden!r}")
+        if relative == Path("skills/incident-command/SKILL.md"):
+            recovery_owner = OBSERVABILITY_RECOVERY_OWNER_RE.search(text)
+            if recovery_owner is not None:
+                failures.append(
+                    f"{path}: stale incident recovery owner: {recovery_owner.group(0)!r}"
+                )
         directive = _find_scribe_execution_directive(text)
         if directive is not None:
             label, excerpt = directive

@@ -47,14 +47,18 @@ when unsure: declaring is cheap; under-declaring leaves impact unowned.
 Load every row that matches the request, and no others. If the incident crosses lanes, keep one
 authoritative severity, timeline, and decision record rather than producing separate packets.
 
-## Close and hand off
+## Close and return
 
-Resolve only after the investigator and typed `observability-engineer` confirm that user impact has
-ended and the golden signals have remained at baseline for a sustained window. Send the resolution
-update and hand over the authoritative timeline.
-The final handoff is explicit: after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions.
-`observability-engineer` owns recovery/detection evidence and subsequent detection changes; it does
-not author the postmortem.
+Resolve only after the typed `sre` investigator confirms that user impact has ended and the same
+golden signals have remained at baseline for the stated sustained window. Until then the incident
+remains active in `monitoring-recovery`; a green point, a proposed follow-up, or a completed research
+call is not a terminal state.
+
+After terminal resolution, `sre` sends the resolution update and returns the authoritative timeline,
+evidence labels, and proposed next-phase work to the caller. The caller, not `sre`, separately
+dispatches typed `observability-engineer` for detection changes and typed `scribe` for the
+postmortem, operating guidance, and learning dispositions. Neither next-phase lane confirms live
+incident recovery or starts work while the SRE loop is active.
 
 Ownership map only—not a load: `eng-ladder` owns response altitude, and `postmortem` owns the
 durable retrospective method.

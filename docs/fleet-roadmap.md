@@ -357,6 +357,44 @@ generated adapters matched canonical sources, `git diff --check` was clean, and 
 Resolve any current review finding or failed check on that revision. F7, F11, N4, GRAPH-002, and
 `WF-001` are out of scope for this item.
 
+### INCIDENT-001 — keep active-incident ownership in SRE through terminal recovery
+
+**Status:** `active` (2026-08-25) — implementation is in progress on
+`work/four-theme-incident-ownership` from refreshed `origin/main`.
+
+**Owner:** `prompt-engineer` owns the fleet prompt, context, loop, and graph contract; `latent-sre`
+accepts the exact revision. Human incident command and release owners retain their existing live
+authority.
+
+**Outcome:** One typed `sre` lane owns a reliability incident from triage through sustained recovery
+and a named terminal state. It loads observability, platform, and database skills as context inside
+that lane. Its only agent call during the incident is a bounded sanitized public research question
+that returns to the same loop. After terminal resolution, the caller starts observability,
+engineering, and documentation as separate next-phase tasks; SRE does not dispatch them.
+
+**Source:** Owner direction on 2026-08-25 accepted the four-theme standard — Prompt selects and
+guides the owner, Context equips it, Loop governs work and termination, and Graph governs ownership
+transitions — and specifically chose sustained SRE incident ownership over combining SRE with the
+steady-state observability or documentation lanes. This accepts the SRE slice of `GRAPH-001` F4;
+it does not activate the held SRE capability additions from `SKILLS-003`.
+
+**Prerequisites:** Fresh branch from refreshed `origin/main`; current agent, skill, graph-validator,
+and eval behavior inspected before editing; one focused regression frozen and run on the incumbent
+before the candidate.
+
+**Acceptance:** (1) canonical `sre` delegation, `EXPECTED_DELEGATION`, and the roster expose only
+`researcher`; (2) SRE and `incident-command` keep `investigating`, `mitigating`, and
+`monitoring-recovery` nonterminal and require sustained same-signal evidence for `resolved`; (3)
+`observability-engineer`, `sde`, and `scribe` are named as caller-dispatched next-phase owners, not
+live SRE delegates; (4) the same two-trial direct-SRE case, model, timeout, prompt, and graders fail
+the incumbent and pass the one candidate; (5) affected offline tests, generated projections, strict
+fleet validation, and Gate A pass, with main-thread-only `Agent(target)` enforcement reported as the
+host boundary.
+
+**Next action:** Complete the one candidate, regenerate projections once, run focused offline and
+behavioral verification, inspect the integrated diff, and stop before commit or push without a new
+owner request.
+
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
 **Status:** `decision-needed` (2026-08-24)
