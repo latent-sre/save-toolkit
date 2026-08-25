@@ -6,7 +6,7 @@ description: >-
   metadata, vulnerabilities, changelogs, version differences, or error-code meanings. It returns a
   concise cited answer and flags uncertainty. Not for current, private, or uncommitted repository
   behavior (use save-toolkit:repository-investigator), change review (use save-toolkit:reviewer),
-  implementation (use save-toolkit:sde), or live-incident triage (use save-toolkit:sre).
+  implementation (use save-toolkit:software-engineer), or live-incident triage (use save-toolkit:sre).
 tools:
   - WebSearch
   - WebFetch

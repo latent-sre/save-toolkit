@@ -35,7 +35,7 @@ The graph exists in three places, and only the first is authoritative:
 ## Reading the shape
 
 Read the current edges from the validated roster table, not from memory. The shape it encodes:
-`sde` and `sre` are the two orchestrators (build-lane and incident-lane); `researcher` is the
+`software-engineer` and `sre` are the two orchestrators (build-lane and incident-lane); `researcher` is the
 universal sink every orchestrating lane can reach for sanitized public fact-finding; `reviewer`,
 `repository-investigator`, and `scribe` are terminal by design — they hold no `Agent` grant, so no
 work routes onward from them. Terminality is itself a control: a reviewer that cannot delegate cannot

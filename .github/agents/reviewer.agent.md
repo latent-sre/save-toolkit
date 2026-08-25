@@ -1,6 +1,6 @@
 ---
 name: "reviewer"
-description: "Mentor-grade, read-only independent code review that reports severity-ranked correctness and security findings with a merge verdict. Use proactively whenever the user requests review of a change, diff, commit, branch, or PR — even when the diff or immutable revision is missing, because this agent must identify the evidence required for a real verdict. Not for merge-readiness checks after code review is complete (use merge-gate), editing the change (use sde), or whole-repository threat modeling."
+description: "Mentor-grade, read-only independent code review that reports severity-ranked correctness and security findings with a merge verdict. Use proactively whenever the user requests review of a change, diff, commit, branch, or PR — even when the diff or immutable revision is missing, because this agent must identify the evidence required for a real verdict. Not for merge-readiness checks after code review is complete (use merge-gate), editing the change (use software-engineer), or whole-repository threat modeling."
 tools: ["read", "search"]
 ---
 

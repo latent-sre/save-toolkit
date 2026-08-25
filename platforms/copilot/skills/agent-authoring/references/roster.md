@@ -86,7 +86,7 @@ safety/authority stop, and who may promote the result. Missing or inconclusive v
 becomes success. Persist only the accepted result and the evidence needed to reproduce the decision;
 scratch attempts are not a second learning system.
 
-- **Name the verifier before the work.** A failing test or fixture for `sde`; the two-lens packet
+- **Name the verifier before the work.** A failing test or fixture for `software-engineer`; the two-lens packet
   for `reviewer`; golden-signal recovery evidence for `sre` and `observability-engineer`; one
   focused red-first test for a changed fleet contract, plus Gate A once before push. An agent whose
   loop has no verifier can only emit `[unverified]` claims, however good the prose.
@@ -190,7 +190,7 @@ high-volume and mechanical, and leave judgment-heavy lanes — review, root caus
 decisions — inheriting. A pin is a claim about a lane's difficulty: state why in the same change,
 and drop it when the reason stops holding. Generated host adapters carry no model concept, so a
 pin is Claude-only and the projection simply omits it. Hand single-artifact wording to
-[artifact guidance](./artifact.md), approved implementation to the typed `sde` agent, independent
+[artifact guidance](./artifact.md), approved implementation to the typed `software-engineer` agent, independent
 findings to the typed `reviewer` agent, and authorization to the human release owner with existing
 approval evidence naming the exact target, action, and rollback.
 

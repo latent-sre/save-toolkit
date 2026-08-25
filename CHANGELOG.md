@@ -27,6 +27,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
+  implementation, testing, and operations-tooling lane. This is a breaking address change from
+  `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are
+  unchanged ([ADR](docs/decisions/2026-08-25-software-engineer-rename.md)).
 - Generalized `release-gate` so non-GitHub distributions can prove immutable artifact identity
   without inheriting GitHub Release controls, while GitHub Releases still require current
   repository immutability and matching tag-ruleset evidence.

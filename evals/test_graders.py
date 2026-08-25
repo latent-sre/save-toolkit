@@ -1349,7 +1349,7 @@ _ROUTING_WGE_CASES = {
         "create each edge. No LLM workflow, state graph, or agent is designed here."
     ),
     "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml": (
-        "Routed to sde: the build lane owns services/fulfilment/graph.py and its pytest coverage "
+        "Routed to software-engineer: the build lane owns services/fulfilment/graph.py and its pytest coverage "
         "for the retry and cancel paths against the accepted contract. Nothing was run in this "
         "session: no file was written and no pytest command was executed, so the implementation "
         "is [unverified] until the build lane executes it."

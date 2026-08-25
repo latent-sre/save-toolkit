@@ -114,7 +114,7 @@ you could not verify against the agent frontmatter or the guard's tests (label i
 ## Handoffs
 - Route independent findings to the typed `reviewer` agent with evidence, taint, severity, and the
   boundary that must be checked.
-- Route approved fixes to the typed `sde` agent with the narrow remediation contract and regression
+- Route approved fixes to the typed `software-engineer` agent with the narrow remediation contract and regression
   criteria; the packet grants no authority.
 - Route authorization to the human release owner. Any production-facing, destructive, externally
   communicating, or authority-changing action requires existing approval evidence naming the exact target, action, and rollback; agents never infer or grant it.

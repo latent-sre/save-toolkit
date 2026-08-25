@@ -123,7 +123,7 @@ Record UTC start/end times and raw UI text for every step. A blank field is unre
 Open the Chat agent picker and record the exact displayed label for:
 
 `observability-engineer`, `prompt-engineer`, `repository-investigator`, `researcher`, `reviewer`,
-`scribe`, `sde`, and `sre`.
+`scribe`, `software-engineer`, and `sre`.
 
 Also record the exact UI path to the picker, missing expected agents, and unexpected agents. This is
 a packaging observation; it does not establish tool enforcement.
@@ -250,7 +250,7 @@ packaging/registration result, not a tool-enforcement result.
 
 ### Step 6 — observe named handoff resolution (optional)
 
-Select `sde` and submit exactly:
+Select `software-engineer` and submit exactly:
 
 ```text
 Have scripts/check_links.py reviewed for correctness and security, and report the findings.
@@ -263,9 +263,9 @@ agent ran.
 | Call arguments and attribution | Disposition |
 |---|---|
 | `agentName=reviewer`; response attributed to `reviewer` | named handoff resolved on this build |
-| `agentName=reviewer`; response attributed to `sde` or another role | mismatch; record both values and classify the routing criterion `fail` |
+| `agentName=reviewer`; response attributed to `software-engineer` or another role | mismatch; record both values and classify the routing criterion `fail` |
 | `agentName` names a role other than `reviewer` | wrong target; classify the routing criterion `fail` |
-| `agentName` absent; response attributed to `sde` | unscoped-delegation risk reproduced; `fail` for named-handoff resolution |
+| `agentName` absent; response attributed to `software-engineer` | unscoped-delegation risk reproduced; `fail` for named-handoff resolution |
 | `agentName` absent; response attributed to `reviewer` or another role | arguments and attribution disagree; `inconclusive` without further host evidence |
 | response attribution blank or unavailable | `inconclusive`; the run cannot bind result to role |
 | no subagent call | retry once with an explicit named-reviewer request, then `inconclusive` |

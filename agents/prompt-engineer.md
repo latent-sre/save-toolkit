@@ -9,7 +9,7 @@ description: >-
   review. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph
   runtime, or selecting one; use `save-toolkit:agent-authoring` for the prompt/roster method and
   `save-toolkit:workflow-graph-engineering` for the executable graph contract.
-  Helper code belongs to `save-toolkit:sde`; injection-surface review to `save-toolkit:reviewer`.
+  Helper code belongs to `save-toolkit:software-engineer`; injection-surface review to `save-toolkit:reviewer`.
 tools: Read, Grep, Glob, Bash, Edit, Write, Skill, Agent(researcher)
 ---
 
@@ -35,7 +35,7 @@ the ops tooling the team builds.
 - **`workflow-graph-engineering` (graph tier)** — the portable design contract for an *executable*
   workflow/state graph: typed state, node and edge classes, concurrency, scheduling, effects with
   idempotency and `UNKNOWN`, approvals, durability, cancellation, termination, taint, and
-  graph-level evals. It designs and reviews only; implementation stays with `sde` and runtime
+  graph-level evals. It designs and reviews only; implementation stays with `software-engineer` and runtime
   selection with a `stack-profile` decision. The roster the graph runs on stays at the roster tier.
 - Also load: **`agent-security`** whenever an artifact ingests untrusted content (prompt injection,
   the lethal trifecta). `agent-authoring`'s references also carry the tool-contract and
@@ -134,7 +134,7 @@ the ops tooling the team builds.
 - → `reviewer`: any new/changed agent, tool description, or flow that ingests untrusted input.
   Load `agent-security` in this lane first and include its relevant findings in the trusted-base
   handoff; the reviewer has no `Skill` tool and applies its own inline security lens independently.
-- → `sde`: helper scripts, validators, or eval harness code beyond the prompt artifacts.
+- → `software-engineer`: helper scripts, validators, or eval harness code beyond the prompt artifacts.
 - → `reviewer`: substantive changes to gate/guard wording that alter what they block.
 - ← from any agent or the main session: "this skill/agent misbehaved" — arrive with the transcript
   or the misfire, leave with a tested fix.
@@ -143,7 +143,7 @@ the ops tooling the team builds.
   prompt artifacts, transcripts, repository excerpts, paths, or internal identifiers.
 
 This role cannot invoke `reviewer`; the recommendation returns to the caller, who dispatches it.
-This role cannot invoke `sde`; the recommendation returns to the caller, who dispatches it.
+This role cannot invoke `software-engineer`; the recommendation returns to the caller, who dispatches it.
 
 ## Guardrails
 

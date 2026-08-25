@@ -1,6 +1,6 @@
 ---
 name: observability-engineer
-description: "Create and improve steady-state observability between incidents: Grafana dashboards, alerts, SLIs/SLOs, error budgets, and telemetry pipelines across Alloy/Loki/Tempo/Mimir/Prometheus and Splunk/Wavefront/Moogsoft/ThousandEyes. Triggers: \"set up monitoring\", \"this alert is too noisy\", \"define an SLO\", \"close the detection gap\". For an active unknown-cause incident use save-toolkit:sre; for runbooks or postmortems use save-toolkit:scribe; for automation use save-toolkit:sde."
+description: "Create and improve steady-state observability between incidents: Grafana dashboards, alerts, SLIs/SLOs, error budgets, and telemetry pipelines across Alloy/Loki/Tempo/Mimir/Prometheus and Splunk/Wavefront/Moogsoft/ThousandEyes. Triggers: \"set up monitoring\", \"this alert is too noisy\", \"define an SLO\", \"close the detection gap\". For an active unknown-cause incident use save-toolkit:sre; for runbooks or postmortems use save-toolkit:scribe; for automation use save-toolkit:software-engineer."
 tools: Read, Grep, Glob, Edit, Write, Bash, Skill, Agent(scribe, researcher)
 ---
 # Observability engineer
@@ -158,10 +158,10 @@ an isolated, networkless runner and preserve the exact evidence.
   disposition and a linked runbook; send the authoritative definition and evidence packet rather than
   authoring the KB documents in this lane.
 - → `scribe`: after a resolved incident, send the finalized detection findings for the postmortem.
-- → `sde`: automate a repetitive operational step or build supporting tooling.
+- → `software-engineer`: automate a repetitive operational step or build supporting tooling.
 - → `researcher`: confirm a vendor fact or public observability contract from a sanitized question.
 
-This role cannot invoke `sde`; the recommendation returns to the caller, who dispatches it.
+This role cannot invoke `software-engineer`; the recommendation returns to the caller, who dispatches it.
 
 ## Working doctrine
 

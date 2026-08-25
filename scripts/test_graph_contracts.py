@@ -38,9 +38,9 @@ class GraphContractTests(unittest.TestCase):
 
     def test_documented_ungranted_handoffs_return_to_the_caller(self) -> None:
         expected = {
-            "prompt-engineer.md": ("reviewer", "sde"),
-            "observability-engineer.md": ("sde",),
-            "sre.md": ("sde",),
+            "prompt-engineer.md": ("reviewer", "software-engineer"),
+            "observability-engineer.md": ("software-engineer",),
+            "sre.md": ("software-engineer",),
         }
         for filename, lanes in expected.items():
             text = _compact((ROOT / "agents" / filename).read_text(encoding="utf-8"))
@@ -51,8 +51,8 @@ class GraphContractTests(unittest.TestCase):
                         text,
                     )
 
-    def test_sde_review_cycle_is_bounded_and_terminal(self) -> None:
-        text = _compact((ROOT / "agents/sde.md").read_text(encoding="utf-8"))
+    def test_software_engineer_review_cycle_is_bounded_and_terminal(self) -> None:
+        text = _compact((ROOT / "agents/software-engineer.md").read_text(encoding="utf-8"))
         for token in (
             "numeric maximum review/fix rounds",
             "elapsed-time or cost budget",
@@ -75,7 +75,7 @@ class GraphContractTests(unittest.TestCase):
                 self.assertIn("claim-level `[UNTRUSTED]`", text)
 
     def test_delegate_failure_path_is_explicit_and_has_no_scheduler_claim(self) -> None:
-        for filename in ("sde.md", "sre.md", "observability-engineer.md", "prompt-engineer.md"):
+        for filename in ("software-engineer.md", "sre.md", "observability-engineer.md", "prompt-engineer.md"):
             text = _compact((ROOT / "agents" / filename).read_text(encoding="utf-8"))
             with self.subTest(agent=filename):
                 self.assertIn("empty, malformed, partial, timed-out, or killed delegate return", text)

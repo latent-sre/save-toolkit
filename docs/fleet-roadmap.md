@@ -104,7 +104,7 @@ external data/cost boundary and the remaining guarantees can be proven.
 **Status:** `active` (2026-08-24)
 
 **Owner:** `latent-sre` owns the architecture decision and acceptance of the exact generic-alpha revision.
-`prompt-engineer` owns consumer context-requirement semantics for agents/skills; `sde` owns any
+`prompt-engineer` owns consumer context-requirement semantics for agents/skills; `software-engineer` owns any
 later resolver, validator, or onboarding-tool implementation. A team owner becomes accountable for
 values and operational documents only when that team separately opts into onboarding. No owner may
 approve its own unreviewed evidence.
@@ -224,7 +224,7 @@ skills beyond the accepted generic consumer contract in this stage.
 
 **Status:** `ready` (2026-08-25)
 
-**Owner:** `prompt-engineer` owns the skill text, references, and templates; `sde` owns the
+**Owner:** `prompt-engineer` owns the skill text, references, and templates; `software-engineer` owns the
 bundled scripts. Human acceptance of the exact revision remains with `latent-sre`.
 
 **Outcome:** The `incident-drill` skill's authoring path stops producing scenarios that leak their
@@ -260,7 +260,7 @@ existing owners.
 
 **Owner:** `prompt-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
 the exact revision. Each accepted finding is implemented by the owner of the surface it names
-(`sde` for validators and harness code, `prompt-engineer` for agent and skill text), never by this
+(`software-engineer` for validators and harness code, `prompt-engineer` for agent and skill text), never by this
 item directly.
 
 **Outcome:** The fleet's agents and skills are described once as an executable workflow/state
@@ -297,7 +297,7 @@ a rejected row is recorded with the reason. No row is implemented by this item.
 | F2 | The human-executor effect boundary has no return edge: no `executed` / `not executed` / `UNKNOWN` outcome, receipt, or reconciliation owner (§9, §5 E5) | same as F1 | `worked` in candidate — result/receipt/reconciliation block added; direct stayed 2/2 and discovery improved 0/2 → 2/2 |
 | F3 | No model is pinned while a routing edge is measurably model-dependent (§2, §5 E1, §13) | `prompt-engineer` (policy); `ROUTE-003` (measurement) | measurement `already owned` by `ROUTE-003`; policy `worked` in candidate — every packet carries requested/resolved model evidence and cannot close a model-dependent decision when resolution is absent; no alias pin added |
 | F4 | `prompt-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `prompt-engineer` | `worked` in candidate — all three state they cannot invoke the lane and return dispatch to the caller; authority unchanged |
-| F5 | The `sde` → `reviewer` → caller → `sde` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `prompt-engineer` | `worked` in candidate — numeric round and elapsed/cost budgets plus success, no-progress, stale, exhausted, and safety terminals added |
+| F5 | The `software-engineer` → `reviewer` → caller → `software-engineer` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `prompt-engineer` | `worked` in candidate — numeric round and elapsed/cost budgets plus success, no-progress, stale, exhausted, and safety terminals added |
 | F6 | `[UNTRUSTED]` taint is carried on five lanes and absent from `prompt-engineer`, `researcher`, and `repository-investigator` output contracts (§12, §3) | `prompt-engineer` | `worked` in candidate — source-trust fields and claim-level default taint added to the three lanes |
 | F7 | `disable-model-invocation` is the only deterministic guardrail on the two effect-shaped skills and is `[unverified]` on the installed CLI (§5 E3) | `HOST-002` | `already owned` — the 2026-08-24 batch-1 audit and `HOST-002` record the missing plugin-specific visibility canary; no new item |
 | F8 | The Grafana dashboard write has no `UNKNOWN` state or named replay-safety class, although a byte-identical re-apply is idempotent and a stale token fails loudly (§9, §8) | `observability-engineer` / `obs-dashboards` text | `worked` in candidate — `idempotent-by-target`, UNKNOWN, readback-plus-version-history reconciliation, and redispatch block added; authority unchanged; direct behavior 2/2 |
@@ -387,7 +387,7 @@ before the candidate.
 **Acceptance:** (1) canonical `sre` delegation, `EXPECTED_DELEGATION`, and the roster expose only
 `researcher`; (2) SRE and `incident-command` keep `investigating`, `mitigating`, and
 `monitoring-recovery` nonterminal and require sustained same-signal evidence for `resolved`; (3)
-`observability-engineer`, `sde`, and `scribe` are named as caller-dispatched next-phase owners, not
+`observability-engineer`, `software-engineer`, and `scribe` are named as caller-dispatched next-phase owners, not
 live SRE delegates; (4) the same two-trial direct-SRE case, model, timeout, prompt, and graders fail
 the incumbent and pass the one candidate; (5) affected offline tests, generated projections, strict
 fleet validation, and Gate A pass, with main-thread-only `Agent(target)` enforcement reported as the
@@ -403,10 +403,10 @@ structural checks to pass, and `latent-sre` to accept the exact PR head before p
 
 **Status:** `decision-needed` (2026-08-24)
 
-**Owner:** `sde` owns implementation; `prompt-engineer` owns the skill text that carries
+**Owner:** `software-engineer` owns implementation; `prompt-engineer` owns the skill text that carries
 runtime-specific references; `stack-profile`'s decision owner names the runtime.
 
-**Outcome:** `sde` can implement an accepted `workflow-graph-engineering` design contract against
+**Outcome:** `software-engineer` can implement an accepted `workflow-graph-engineering` design contract against
 a named runtime — checkpointer and interrupt patterns, reducer and fan-out primitives, idempotent
 effect handlers, cancellation, replay or shadow verification — with pinned upstream references
 and the design's evaluation plan (recovery, temporal, consistency, budget) executed as tests.
@@ -418,7 +418,7 @@ follows the design and a concrete consumer rather than preceding them.
 
 **Decision required:** the first consumer graph (a team-approved workflow, not the fleet itself
 while `WF-001` is blocked), the runtime candidates admissible under `stack-profile`'s landing
-runtime decision, and whether references live in a new skill or under an existing `sde`-loaded
+runtime decision, and whether references live in a new skill or under an existing `software-engineer`-loaded
 craft skill.
 
 **Prerequisites:** `SKILLS-003` merged; a named consumer graph with an accepted design contract;
@@ -648,7 +648,7 @@ capability additions remain held; this item selects no graph runtime, creates no
 and does not activate `codebase-atlas`.
 
 **Owner:** `prompt-engineer` owns the canonical design method and its routing/evaluation contract.
-`sde` owns any later implementation in team-authored code, but this item grants no implementation,
+`software-engineer` owns any later implementation in team-authored code, but this item grants no implementation,
 deployment, or live-effect authority. Human acceptance of the exact pull-request revision remains
 with `latent-sre`.
 
@@ -660,7 +660,7 @@ makes an external effect exactly once or that a graph-shaped design requires a p
 
 **Concrete consumer:** The immediate consumer is `prompt-engineer` when a team-approved request
 needs an executable workflow/state-graph design or a review of one. Its output is a human-reviewed
-engineering artifact that can later become a pinned handoff to `sde`. There is no machine consumer
+engineering artifact that can later become a pinned handoff to `software-engineer`. There is no machine consumer
 in this slice, so it adds no JSON Schema or validator. A later proposal may add those only after it
 names the exact producer, consumer, compatibility policy, and safety-critical predicate the
 validator enforces.
@@ -803,7 +803,7 @@ evidence. Existing dated research is a source, not permission to resume any othe
 2. **Routing separation:** A positive request for portable executable workflow/state-graph design
    reaches `workflow-graph-engineering`; a roster/delegation-graph request remains with
    `agent-authoring`; a repository dependency/knowledge/GraphRAG request does not route to the new
-   skill; a request to implement a concrete runtime remains with `sde`; and runtime selection needs
+   skill; a request to implement a concrete runtime remains with `software-engineer`; and runtime selection needs
    a separate owner decision under `stack-profile`. Only scenarios affected by changed routing
    content are run.
 3. **Artifact behavior:** One fixed five-agent fresh-context exercise uses exactly one trial for each

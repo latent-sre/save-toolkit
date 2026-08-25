@@ -1,7 +1,7 @@
 # OTel SDK instrumentation method
 
 The command blocks in this file (installs, agent flags, app launches) are service build/deploy-owner
-steps — the `sde` lane or a human runs them; the fleet's read-only guard deliberately denies
+steps — the `software-engineer` lane or a human runs them; the fleet's read-only guard deliberately denies
 installs and app execution in the `sre` lane, and `observability-engineer` does not own service
 builds even though its Bash is unguarded.
 
