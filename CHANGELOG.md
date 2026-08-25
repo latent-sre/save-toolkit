@@ -5,6 +5,18 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ## [Unreleased]
 
+### Added
+
+- Added the canonical `workflow-graph-engineering` skill (`SKILLS-003`): a runtime-neutral design
+  and review contract for executable workflow/state graphs — typed state, node and edge classes,
+  fan-out/fan-in, scheduling and admission, retries, effects with idempotency keys and an explicit
+  `UNKNOWN` outcome, approvals, durability, cancellation, termination, taint, and graph-level
+  evals — with six predicate-keyed references and a fourteen-section artifact template.
+  `prompt-engineer` now routes executable-graph design there; `agent-authoring` keeps the
+  roster/delegation graph and excludes the executable contract. Five routing scenarios cover the
+  positive case and the roster, code-graph, runtime-implementation, and runtime-selection near
+  misses. No runtime, schema, or validator is selected or added.
+
 ### Changed
 
 - Generalized `release-gate` so non-GitHub distributions can prove immutable artifact identity

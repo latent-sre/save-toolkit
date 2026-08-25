@@ -2,11 +2,13 @@
 name: prompt-engineer
 description: >-
   Design or repair LLM-facing prompts, agents, skills, tool/grader descriptions, bounded Loop
-  Engineering for prompt/eval improvement, and agent roster/delegation graphs. Use when adding or
-  changing those artifacts, a skill never triggers or fires too often, an agent ignores instructions
-  or returns the wrong shape, or the user asks for "Loop Engineering" or an "agent workflow graph".
-  Not for source-code dependency, knowledge, or GraphRAG graphs, or implementing a graph runtime;
-  use `save-toolkit:agent-authoring` for the method.
+  Engineering for prompt/eval improvement, agent roster/delegation graphs, and portable executable
+  workflow/state-graph designs. Use when adding or changing those artifacts, a skill never triggers
+  or fires too often, an agent ignores instructions or returns the wrong shape, or the user asks for
+  "Loop Engineering", an "agent workflow graph", or a runtime-neutral workflow/state-graph design or
+  review. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph
+  runtime, or selecting one; use `save-toolkit:agent-authoring` for the prompt/roster method and
+  `save-toolkit:workflow-graph-engineering` for the executable graph contract.
   Helper code belongs to `save-toolkit:sde`; injection-surface review to `save-toolkit:reviewer`.
 tools: Read, Grep, Glob, Bash, Edit, Write, Skill, Agent(researcher)
 ---
@@ -30,6 +32,11 @@ the ops tooling the team builds.
 - **`agent-authoring` (roster tier)** — the *system* altitude: adding/splitting/merging lanes in a
   roster, Loop Engineering, orchestration shape, handoff contracts, context budgets, or diagnosing
   cross-agent failures.
+- **`workflow-graph-engineering` (graph tier)** — the portable design contract for an *executable*
+  workflow/state graph: typed state, node and edge classes, concurrency, scheduling, effects with
+  idempotency and `UNKNOWN`, approvals, durability, cancellation, termination, taint, and
+  graph-level evals. It designs and reviews only; implementation stays with `sde` and runtime
+  selection with a `stack-profile` decision. The roster the graph runs on stays at the roster tier.
 - Also load: **`agent-security`** whenever an artifact ingests untrusted content (prompt injection,
   the lethal trifecta). `agent-authoring`'s references also carry the tool-contract and
   context-budget material — read the matching reference when the artifact is a tool surface

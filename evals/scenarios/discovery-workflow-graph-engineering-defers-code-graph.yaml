@@ -1,0 +1,33 @@
+schema_version: 1
+id: discovery-workflow-graph-engineering-defers-code-graph
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: workflow-graph-engineering
+prompt: |
+  Map the module dependency graph for our Go and TypeScript monorepo and build a GraphRAG index over
+  it: which packages import which, where the cycles are, and which files create each edge. This is
+  source-code structure, not an LLM pipeline, an agent workflow, or a state machine to design. For
+  this routing check, return the inspection approach inline without delegating or running it.
+routing:
+  expect: not_fire
+  expected_alternative: inline
+success_criteria:
+  - Does not invoke workflow-graph-engineering for a code/import dependency or GraphRAG graph
+  - Treats the request as local source-structure investigation and does not fabricate missing files
+graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
+  # Vocabulary widened 2026-08-24 against three Sonnet transcripts that all routed correctly
+  # (inline, 3/3) but phrased the answer as "source-code dependency analysis", "Nodes = packages /
+  # Edges = {from, to, ...}", and "go list / go/parser / dependency-cruiser" rather than the
+  # narrower terms first graded. The AST/parser grader is what a prompt echo cannot satisfy.
+  - type: contains_any
+    of: ["local repository investigation", "repository-investigator", "source structure", "source-code structure", "source-code dependency", "source-code analysis"]
+  - type: contains_any
+    of: ["import graph", "dependency graph", "module graph", "call graph", "package graph", "import edges", "nodes =", "edges ="]
+  - type: contains_any
+    of: ["parser", "AST", "static analysis", "import extraction", "statically", "go list", "dependency-cruiser", "madge", "compiler api"]
+  - type: not_regex
+    pattern: '(?i)design (?:a|an|the) (?:agent|delegation|prompt|workflow|state) graph'

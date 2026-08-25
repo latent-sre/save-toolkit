@@ -1,0 +1,32 @@
+schema_version: 1
+id: discovery-workflow-graph-engineering-defers-runtime-selection
+mode: discovery
+# Calibration until measured: this is the routing seam between "review this LangGraph design"
+# (fires) and "which engine should we standardize on" (stack-profile decision, does not fire).
+split: calibration
+target:
+  kind: skill
+  name: workflow-graph-engineering
+prompt: |
+  Which durable workflow engine should this team standardize on for its agent pipelines — Temporal,
+  LangGraph, or Google Cloud Workflows? Base the answer on what the team actually runs today and who
+  owns the platform boundary. We are not designing a particular graph yet; this is the runtime
+  decision.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: stack-profile
+success_criteria:
+  - Does not invoke workflow-graph-engineering for a runtime-selection question
+  - Loads the team's current stack definition and platform boundary before answering
+  - Treats the engine choice as a separate owner decision rather than selecting one
+graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
+  - type: contains_any
+    of: ["pcf", "tanzu", "cloud foundry"]
+  - type: contains_any
+    of: ["platform team", "platform boundary", "we own", "application team"]
+  - type: contains_any
+    of: ["decision record", "owner decision", "deferred", "pending", "not selected", "no engine is selected", "no runtime is selected"]

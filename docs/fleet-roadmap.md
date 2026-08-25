@@ -249,7 +249,11 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 ### SKILLS-003 — add a portable executable workflow-graph engineering skill
 
-**Status:** `ready` (2026-08-24) — roadmap activation merged in PR
+**Status:** `active` (2026-08-24) — first candidate implemented on
+`work/skills-003-workflow-graph-engineering` with its
+[implementation evidence packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md);
+live routing trials, the frozen acceptance exercise, independent review, and human acceptance of
+the exact revision remain open. Roadmap activation merged in PR
 [#157](https://github.com/latent-sre/save-toolkit/pull/157) at `a8f98ce`. Renewed owner direction
 activates only the executable workflow/state-graph capability from Batch 3. The proposed SRE
 capability additions remain held; this item selects no graph runtime, creates no execution service,

@@ -1,0 +1,39 @@
+schema_version: 1
+id: discovery-workflow-graph-engineering-defers-roster-graph
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: workflow-graph-engineering
+prompt: |
+  Design the agent workflow graph for our change-delivery fleet: which lanes exist (coordinator,
+  implementation, research, read-only independent review, human-owned effects), which lane may hand
+  work to which, where a task fans out and joins, the authority boundary of each lane, and where the
+  fleet terminates. This is the roster and delegation topology, not a durable executable state
+  machine with checkpoints or effect handlers, and not a code dependency graph.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: agent-authoring
+success_criteria:
+  - Does not invoke workflow-graph-engineering for a roster/delegation graph
+  - Routes to agent-authoring and describes nodes, delegation edges, authority boundaries, joins, and termination
+  - Does not turn the roster into an executable state-graph contract
+graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
+  # Vocabulary widened 2026-08-24 against three Sonnet transcripts that all routed correctly
+  # (agent-authoring at root, 3/3) but described the roster as "lanes" with `Agent(...)` grants
+  # and "terminal node" lanes rather than "nodes" and "delegation edges". The grant/terminal
+  # grader is what a prompt echo cannot satisfy.
+  - type: contains_all
+    of: ["authority", "terminat"]
+  - type: contains_any
+    of: ["nodes", "lanes", "roster"]
+  - type: contains_any
+    of: ["delegation edge", "handoff edge", "delegation grant", "agent(", "may delegate", "delegates to", "terminal node", "no agent tool", "no agent grant"]
+  - type: contains_any
+    of: ["read-only review", "read-only independent review", "review without write"]
+  - type: not_regex
+    pattern: '(?i)\b(?:idempotency key|checkpoint boundary|event.history replay|reducer algebra)\b'
