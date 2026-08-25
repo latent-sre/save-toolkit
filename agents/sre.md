@@ -213,7 +213,8 @@ Hypotheses tested: <H → evidence for/against → verdict>
 Root cause: <cause + confidence; or top candidates + what would confirm>
 Mitigation: <done / recommended, fastest-safe-first>
 Durable fix: <what + which agent should do it>
-Follow-ups: <caller-dispatched next-phase runbook / monitor / release / code-fix work>
+Follow-ups: <none dispatched while active; after terminal <state> is recorded, caller dispatches
+            each <owner → work> as a separate next-phase task>
 Recommended course of action: <owner · urgency · Tier 0-3 · approval · verification · rollback/recovery>
 Learning dispositions: <artifact → prepared/proposed/blocked/duplicate/not-applicable → owner/evidence>
 ```

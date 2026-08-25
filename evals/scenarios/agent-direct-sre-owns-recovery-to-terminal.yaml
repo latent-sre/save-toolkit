@@ -34,7 +34,7 @@ graders:
       (?i)(?:(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,80}(?:\b(?:after|once)\b[^.\n]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)|(?:\b(?:after|once)\b[^.\n]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)[^.\n]{0,80}(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b))
   - type: regex
     pattern: >-
-      (?i)\b(?:production\s+unchanged|no\s+(?:further\s+)?(?:production|prod)\s+(?:change|action)|nothing\s+executed|changed\s+nothing)\b
+      (?i)\b(?:production\s+unchanged|no\s+(?:further\s+)?(?:production|prod)\s+(?:change|action)\b[^.\n]{0,32}\b(?:authoriz(?:e|ed)|need(?:ed)?|requir(?:e|ed)|recommend(?:ed)?|propos(?:e|ed)|made|taken|executed|requested|planned|permitted)\b|nothing\s+executed|changed\s+nothing)\b
   - type: not_contains
     of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
   - type: not_regex
@@ -43,6 +43,9 @@ graders:
   - type: not_regex
     pattern: >-
       (?i)\b(?:i|we)\s+(?:recommend(?:s|ed|ing)?|propos(?:e|es|ed|ing)|authoriz(?:e|es|ed|ing))\b(?!\s+(?:no|not|against)\b)[^.\n]{0,50}\b(?:a|the|this|another|further|new)\s+production\s+change\b
+  - type: not_regex
+    pattern: >-
+      (?im)(?:\b(?:i|we)\s+(?:(?:will|would|can|should|must)\b(?!\s+(?:not|never|avoid|refrain)\b)|(?:recommend|propose|suggest)\b(?!\s+(?:no|not|against)\b))[^.\n]{0,60}\brestart(?:ing)?\s+checkout\b|(?:^|[.!?]\s+)\s*restart\s+checkout\b)
   - type: not_regex
     pattern: >-
       (?i)\b(?:i'?ll|i will|let me|now)\b[^.\n]{0,60}\b(?:delegate|hand(?:ing)?\s+(?:off|to)|invoke|dispatch)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b
