@@ -18,7 +18,11 @@ success_criteria:
   - Treats the request as local repository investigation and does not fabricate missing files
 # Routing-only (2026-08-25, GRADER-003). This scenario expects not_fire, so the graded response is
 # the inline alternative's answer, whose investigation contract is not agent-authoring's to carry;
-# evals/README.md reserves the one-sanity-grader shape for exactly that case. It is the structural
+# the one-sanity-grader shape follows the existing _ROUTING_ONLY_DISCOVERY_SCENARIOS
+# precedent in evals/test_graders.py (the obs near misses, service-readiness-audit). It is
+# NOT a rule in evals/README.md -- that file says the opposite for negative scenarios
+# (:194, the expected alternative and response graders must also pass), so the shape rests
+# on precedent and the reasoning below, not on a citation. It is the structural
 # twin of discovery-workflow-graph-engineering-defers-code-graph, converted the same way and for
 # the same reason. The incumbent baseline run 20260824T231543Z-53c0a77c scored this scenario red on
 # behavioural vocabulary with no routing failure; those transcripts are gone, so the treatment

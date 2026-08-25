@@ -1231,9 +1231,9 @@ _WGE_DISCOVERY_ROUTING_ONLY = (
 
 # GRADER-003: the agent-authoring near miss is the structural twin of the workflow-graph one above
 # — not_fire, inline alternative, same source-structure prompt — and gets the same treatment. The
-# three agent-authoring POSITIVES are deliberately not here: their behavioral contracts are real
-# and have no direct-mode scenario to move to, so trimming them would delete the only coverage that
-# exists. See GRADER-003 in docs/fleet-roadmap.md.
+# three agent-authoring POSITIVES are not here for a different reason: they keep a routing floor
+# rather than becoming routing-only, and their full contracts moved to the direct-mode scenarios
+# registered in _AGENT_AUTHORING_DIRECT_CONTRACTS. See GRADER-003 in docs/fleet-roadmap.md.
 _BATCH1_DISCOVERY_ROUTING_ONLY = (
     "discovery-agent-authoring-defers-code-dependency-graph.yaml",
 )
@@ -1273,6 +1273,55 @@ _AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS = {
 # its behavioural contract. The test below refuses a discovery case that was narrowed without its
 # contract having a home -- trimming without pairing is how a suite silently loses coverage while
 # looking greener.
+# Adversarial fixtures for the three direct contracts, required by evals/README.md:231-235 and
+# CONTRIBUTING.md. They were missing when these scenarios were added, which is precisely why
+# agent-authoring-trigger-and-shape-contract shipped in a state where its own prompt echo passed
+# all seven graders -- the defect class GRADER-003 exists to eliminate, reintroduced in the commit
+# that diagnosed it. The guard below now grades responses instead of only inspecting structure.
+_DIRECT_CONTRACT_COMPLIANT = {
+    "agent-authoring-loop-contract.yaml": (
+        "Entry state is the current SKILL.md; the mutable state is the candidate text only. An "
+        "independent verifier replays the frozen case set. Hard budgets: max 5 iterations, and a "
+        "cost ceiling of 200k tokens. Success is every case green on one candidate. The "
+        "no-progress stop ends the loop after two iterations with no verifier-observable gain. The "
+        "safety/authority stop halts immediately if a candidate would widen a tool grant. "
+        "Promotion authority is human. Durable evidence: per-iteration verifier results recorded."
+    ),
+    "agent-authoring-trigger-and-shape-contract.yaml": (
+        "Measure activation separately from output shape. Activation: for each case, record "
+        "trigger/no-trigger and score exact match against the expected label. Output shape: "
+        "validate the JSON against the schema, independent of content quality. Reproduce both "
+        "failures on the incumbent as a baseline before changing anything. Allow exactly one "
+        "candidate. Reuse the same focused cases for both dimensions. Adoption condition: both "
+        "dimensions green on that candidate, promoted by a human. Stop conditions: budget "
+        "exhausted, or no progress across two iterations."
+    ),
+    "agent-authoring-roster-graph-contract.yaml": (
+        "Nodes: coordinator, implementation, research, review, human. Edges as drawn: "
+        "coordinator --> implementation, coordinator --> research, review --> coordinator, "
+        "coordinator --> human. Authority boundaries: implementation holds local write; review is "
+        "a read-only review lane with no write and no delegation; effects are human-owned and the "
+        "human applies every production-facing action. Joins converge on the coordinator. "
+        "Termination is the success criterion or the hard budget. No runtime is selected."
+    ),
+}
+
+# Keyword-rich but behaviourally incomplete: each names the right nouns and still fails.
+_DIRECT_CONTRACT_INCOMPLETE = {
+    "agent-authoring-loop-contract.yaml": (
+        "A loop needs a verifier, a budget, no-progress and safety/authority stops, promotion "
+        "authority, and durable evidence - iterate until correct."
+    ),
+    "agent-authoring-trigger-and-shape-contract.yaml": (
+        "Check the activation trigger, the output shape, the JSON schema, the baseline, exactly "
+        "one candidate, and the adoption condition separately, then keep trying candidates."
+    ),
+    "agent-authoring-roster-graph-contract.yaml": (
+        "Map every node, edge, authority, and termination; the handoff joins the agents. These "
+        "service modules have import cycles to break before the graph can run."
+    ),
+}
+
 _AGENT_AUTHORING_DIRECT_CONTRACTS = {
     "discovery-agent-authoring-loop-engineering.yaml": "agent-authoring-loop-contract.yaml",
     "discovery-agent-authoring-trigger-and-shape.yaml": "agent-authoring-trigger-and-shape-contract.yaml",
@@ -1388,10 +1437,6 @@ _ROUTING_BATCH1_INCOMPLETE = {
     "discovery-agent-authoring-workflow-graph.yaml": (
         "Map every node, edge, authority, and termination; the handoff joins the agents. These "
         "service modules have import cycles to break before the graph can run."
-    ),
-    "discovery-agent-authoring-defers-code-dependency-graph.yaml": (
-        "The repository codebase shows the import dependency between its files, so inspect the "
-        "checkout source."
     ),
     "discovery-service-onboarding-does-not-autofire.yaml": (
         "Onboarding complete: I created the service card, registered the alerts, and handed the "
@@ -1594,6 +1639,11 @@ def test_routing_batch1_scenarios_reject_echoes_and_incomplete() -> None:
         set(_BATCH1_DISCOVERY_ROUTING_ONLY) < set(_ROUTING_BATCH1_CASES),
         "the batch-1 routing-only near miss is a proper subset of the batch-1 scenarios",
     )
+    check(
+        set(_ROUTING_BATCH1_INCOMPLETE)
+        == set(_ROUTING_BATCH1_CASES) - set(_BATCH1_DISCOVERY_ROUTING_ONLY),
+        "exactly the behavioral batch-1 scenarios carry an incomplete fixture",
+    )
     for filename, compliant in _ROUTING_BATCH1_CASES.items():
         scenario = _load_scenario(filename)
         grader_specs = scenario["graders"]
@@ -1734,6 +1784,11 @@ def test_trimmed_discovery_positives_have_a_direct_contract() -> None:
         set(_AGENT_AUTHORING_DIRECT_CONTRACTS) == set(_AGENT_AUTHORING_BEHAVIOR_SCENARIOS),
         "every agent-authoring discovery positive names its direct contract",
     )
+    contracts = set(_AGENT_AUTHORING_DIRECT_CONTRACTS.values())
+    check(
+        set(_DIRECT_CONTRACT_COMPLIANT) == contracts and set(_DIRECT_CONTRACT_INCOMPLETE) == contracts,
+        "every direct contract carries both adversarial fixtures",
+    )
     for discovery, direct in _AGENT_AUTHORING_DIRECT_CONTRACTS.items():
         d = _load_scenario(discovery)
         check(
@@ -1760,13 +1815,32 @@ def test_trimmed_discovery_positives_have_a_direct_contract() -> None:
             if spec.get("type") not in ("contains_any", "contains_all"):
                 continue
             toks = [t.casefold() for t in spec.get("of", [])]
-            if spec["type"] == "not_contains":
-                continue
             check(
                 any(t in prompt for t in toks) if spec["type"] == "contains_any"
                 else all(t in prompt for t in toks),
                 f"{direct}: grader demands a behaviour its own prompt requests",
             )
+        # The property, not the arrangement. The prompt-requests rule above pushes a direct
+        # contract toward echo-passing by construction, so this is the counterweight: at least one
+        # grader must demand vocabulary the prompt does not supply.
+        specs = c["graders"]
+        raw = c["prompt"]
+        check(
+            not grade_all(specs, raw),
+            f"{direct}: raw prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            not grade_all(specs, " ".join(raw.split())),
+            f"{direct}: whitespace-normalized prompt echo is REJECTED",
+        )
+        check(
+            grade_all(specs, _DIRECT_CONTRACT_COMPLIANT[direct]),
+            f"{direct}: curated compliant response passes the full grader set",
+        )
+        check(
+            not grade_all(specs, _DIRECT_CONTRACT_INCOMPLETE[direct]),
+            f"{direct}: keyword-rich but behaviourally incomplete response is REJECTED",
+        )
 
 
 def test_routing_only_discovery_scenarios_stay_routing_only() -> None:

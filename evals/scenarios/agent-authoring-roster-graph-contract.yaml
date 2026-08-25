@@ -22,7 +22,7 @@ graders:
   - type: regex
     pattern: '(?is)(?=.*\bnodes?\b)(?=.*\bedges?\b)(?=.*\bauthorit(?:y|ies)\b)(?=.*\b(?:terminat|terminal)\w*\b)'
   - type: regex
-    pattern: '(?i)\b\w[\w\-]*\s*(?:\u2192|->|=>)\s*\w[\w\-]*'
+    pattern: '(?i)\b\w[\w\-]*\s*(?:\u2192|-{1,3}>|={1,2}>)\s*\w[\w\-]*'
   - type: regex
     pattern: '(?i)\bread[\s\-]?only\b[^.\n]{0,40}\breview\w*\b|\breview\w*\b[^.\n]{0,40}\bread[\s\-]?only\b'
   - type: regex

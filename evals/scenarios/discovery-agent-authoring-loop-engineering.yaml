@@ -2,7 +2,10 @@ schema_version: 1
 id: discovery-agent-authoring-loop-engineering
 mode: discovery
 split: regression
-threshold: 0.67
+# 0.66, not 0.67: the bar is ceil(trials * threshold), and at DEFAULT_TRIALS = 3
+# ceil(3 * 0.67) == 3 -- byte-identical to threshold 1.0. ceil(3 * 0.66) == 2 is the
+# intended 2-of-3 propensity bar.
+threshold: 0.66
 target:
   kind: skill
   name: agent-authoring
@@ -23,7 +26,7 @@ graders:
   # here is the routing floor: one grader proving the request reached this lane, one the prompt
   # echo fails, and the anti-pattern guard. Four batches measured the old 8-grader conjunction at
   # a ~0.53 ceiling over 3 trials regardless of grader quality, so the shape was the defect, not
-  # the words. threshold is below 1 because discovery measures a propensity (evals/README.md), not
+  # the words. threshold is below 1 because discovery here measures a propensity, not
   # a contract.
   # Full contract: evals/scenarios/agent-authoring-loop-contract.yaml
   # Identity: a loop contract names a verifier and a budget.

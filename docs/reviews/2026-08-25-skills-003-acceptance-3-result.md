@@ -5,8 +5,11 @@ fresh-context graders and passed **every** assertion — 18 of 18. `[verified]` 
 cases completed and produced full designs, but the harness did not persist their transcripts, so
 they could not be graded at full fidelity and their raw outputs are not retained.
 
-**Acceptance 3 is therefore NOT met.** It requires five cases with raw outputs retained; this pass
-delivers three. The shortfall is an evidence-pipeline failure, not a result about the skill — but
+**Acceptance 3 was not met as written** — it requires five cases with raw outputs retained; this
+pass delivers three. `latent-sre` **accepted that result on 2026-08-25** (roadmap commit `46192cc`):
+3-of-5 at 18/18 closes acceptance 3, cases 3 and 4 are not re-run, and the retention gap stands as a
+recorded limitation owned by `EVIDENCE-001`. The paragraphs below describe the pass as executed and
+are deliberately unchanged; the disposition is the owner's, not a re-grading of the evidence. The shortfall is an evidence-pipeline failure, not a result about the skill — but
 the item's own rule is that changing a case or candidate creates a new candidate rather than
 silently extending a pass, and quietly re-running the two lost cases and keeping the second result
 would be exactly that. The gap is reported rather than closed.
@@ -24,7 +27,9 @@ committed at `9abdf08` before the first call, with the launch decision completed
 | Model | `claude-opus-5` (the 2026-08-24 development pass ran on `claude-fable-5`; its 47/47 is a **different baseline** and is not averaged with this one) |
 | Trials | Exactly one per case, as frozen |
 | Tree after the run | `[verified]` clean — no agent wrote a file or ran a command |
+| Grader identity | Agent type `claude` (the neutral catch-all), model `claude-opus-5`, one fresh context per case, seeing only that case's response and its six predeclared assertions |
 | Budget | 10 calls planned, 8 made (5 generation + 3 grading); USD 40 ceiling not reached |
+| Spend | `[unverified]` in currency. The agent harness reported per-call **tokens** (generation ~309,690; grading ~205,000) and duration, but no USD figure — unlike the eval batches, which report cost to the cent. Acceptance 3 requires "spend evidence", so this leg is short, and it is an `EVIDENCE-001` data point rather than an oversight to paper over |
 
 ## Generation
 
@@ -90,6 +95,12 @@ fixed here.
 `[verified]` Artifact quality at one revision, on one model, at one trial per case, for three of
 five cases: the skill produces the required contract without choosing a runtime or claiming
 execution evidence, and it holds the effect-safety invariants under adversarial grading.
+
+`[unverified]` The three graded transcripts are **not in the repository** either — they live in
+the ephemeral task store, so the 18/18 rests on the summary in this document rather than on a
+reproducible artifact. That is the same defect as the two lost cases, differing only in degree, and
+it is why `EVIDENCE-001` names the summary, the identities, and the verbatim phrasings as the
+things that must survive.
 
 `[unverified]` Runtime behaviour, durability, provider behaviour, effect safety, and production
 readiness — nothing was executed, by construction. A strong artifact result never upgrades that

@@ -19,10 +19,12 @@ routing:
 success_criteria:
   - Does not invoke workflow-graph-engineering for a roster/delegation graph
   - Routes to agent-authoring, the roster/delegation-graph owner
-  - Does not turn the roster into an executable state-graph contract
 # Routing-only (2026-08-25). The response graded here comes from the ALTERNATIVE lane, and
-# agent-authoring's behavioral contract is not this skill's to grade; evals/README.md reserves the
-# one-sanity-grader shape for exactly that case. Measured on Sonnet, 3 trials, runs
+# agent-authoring's behavioral contract is not this skill's to grade; the one-sanity-grader shape follows the
+# existing _ROUTING_ONLY_DISCOVERY_SCENARIOS precedent in evals/test_graders.py, not a rule in
+# evals/README.md -- that file says the opposite for negative scenarios (:194, the expected
+# alternative and response graders must also pass), so this shape rests on precedent and the
+# reasoning below. Measured on Sonnet, 3 trials, runs
 # 20260824T205218Z-0b59db4b and 20260824T220919Z-d783ef1e: routing was correct 3/3 on both
 # candidates while the wider behavioral set went red on transcript vocabulary ("lanes",
 # `Agent(...)` grants, "terminal node"). The retained sanity grader is the delegation-grant set

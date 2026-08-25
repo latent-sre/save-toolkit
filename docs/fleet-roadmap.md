@@ -649,12 +649,18 @@ Evidence: the
 `f1afd57` on
 `origin/main` via PR [#162](https://github.com/latent-sre/save-toolkit/pull/162), bundled with
 `incident-drill` and the graph-program documents rather than shipped as its own SKILLS-003 pull
-request. Acceptance 1, 2, and 4 are met; 5 and 6 are partial. The
+request. Acceptance 4 is met. Acceptance 1 and 2 are met with stated caveats: the `runtime-selection`
+seam in acceptance 2 over-triggered at root 1/3 in both runs, which the packet calls an unchanged
+calibration measurement rather than a pass; and acceptance 1's "no unrelated finding is implemented
+in the branch" is reconciled by `CONTRIBUTING.md`'s one-branch rule — `GRADER-003` shares this
+item's owners and roadmap surface, so it is stacked here rather than split. Acceptance 5 and 6 are
+partial. The
 [implementation evidence packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md)
 carries the measurements and a 2026-08-25 addendum recording the merge, the resolved base-freshness
 question, the applied routing-only correction, and a passing `claude plugin validate . --strict`.
-What keeps this item open is acceptance 3 — the frozen five-case exercise on the committed SHA —
-and one independent exact-revision review. Roadmap activation merged in PR
+What keeps this item open is one independent exact-revision review. Acceptance 3 is closed by the
+owner acceptance recorded above; an earlier revision of this paragraph said both, which was the
+ledger contradicting itself in the one item whose deliverable is accurate bookkeeping. Roadmap activation merged in PR
 [#157](https://github.com/latent-sre/save-toolkit/pull/157) at `a8f98ce`. Renewed owner direction
 activates only the executable workflow/state-graph capability from Batch 3. The proposed SRE
 capability additions remain held; this item selects no graph runtime, creates no execution service,
@@ -911,7 +917,7 @@ the new shape. The instrument defect is diagnosed and fixed, and a
 second, larger constraint is now measured: **contract shape**. Four batches under identical
 conditions gave 0/12, 4/12, 9/12, 8/12; `trigger-and-shape` went 3/3 then 1/3 **with no change made
 to it**, so the 9/12 was a lucky sample rather than progress. Routing is `[verified]` 36/36 across
-every revision with no misroute anywhere. Twelve reds traced, zero behavioural defects. Evidence:
+every revision with no misroute anywhere. Thirteen reds traced, zero behavioural defects. Evidence:
 [the verification batches](reviews/2026-08-25-grader-003-verification-batch.md).
 
 **Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
@@ -943,7 +949,10 @@ behavioural contracts — the graded response is `agent-authoring`'s own — wit
 to what the prompt requests. **Prompts were not edited**: a discovery prompt is the routing
 stimulus, so changing one re-opens the routing measurement, and the existing evidence (12/12
 correct, no routing failure on either revision) had to survive. `[verified]` the diff touches only
-grader term-sets and comments.
+grader term-sets, comments, `threshold`, and three new
+scenario files -- **not** prompts. An earlier revision of this sentence said "only grader term-sets
+and comments", which the same diff falsified: a threshold is a scoring rule, and changing it changes
+what red means. Corrected after review rather than left standing.
 
 **Guard against recurrence.** `test_discovery_positives_grade_only_what_the_prompt_requests`
 requires each positive to declare, in `_AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS`, the prompt terms
@@ -961,8 +970,9 @@ and is absent from every `.eval-runs` directory here — and the treatment chose
 because the mismatch is visible in each scenario against its own prompt. Any *further* grader
 widening does need a transcript first.
 
-**Measured results.** Three candidate batches plus the incumbent baseline, identical conditions
-throughout (Sonnet, 3 trials, 600 s, threshold 1.0):
+**Measured results.** Three candidate batches plus the incumbent baseline. Same model, trials,
+timeout, and threshold throughout (Sonnet, 3 trials, 600 s, threshold 1.0); the CLI differed —
+2.1.241 for the incumbent baseline, 2.1.245 for the three candidates:
 
 | Batch | Candidate | Trials green | Routing | Cost |
 |---|---|---|---|---|
@@ -972,14 +982,15 @@ throughout (Sonnet, 3 trials, 600 s, threshold 1.0):
 | `20260825T192519Z-4b6fe947` | `16a236d` | 8/12 | 12/12 | USD 3.88 |
 
 **Finding 1 — the instrument (fixed).** `contains_any` is a plain substring test and cannot express
-these contracts. Twelve reds were traced to their transcripts across three batches and **not one was
+these contracts. Thirteen reds were traced to their transcripts across three batches and **not one was
 a behavioural defect**: they were defeated by a markdown label, a hyphen, word order, a word
 boundary, an unadmitted method, a numeric bound, and a singular. Eight graders moved to bounded
 `regex`; `workflow-graph`'s delegation-edge behaviour now grades structurally, because a correct
 answer's words there are the prompt's own words and no token can both match the answer and reject
 the echo.
 
-**Finding 2 — the contract shape (open, and the reason this item is now `decision-needed`).** These
+**Finding 2 — the contract shape.** This is what moved the item to `decision-needed`; the owner
+has since chosen all three shapes, so the item is `active` again. These
 scenarios are conjunctions: every positive grader must pass in all three trials. `loop-engineering`
 has 7 positive graders, so 21 grader-trials — even at 97% per grader-trial its chance of a clean
 sweep is 0.53. `trigger-and-shape` is 0.58. The one scenario that reached 3/3,

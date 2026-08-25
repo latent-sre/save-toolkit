@@ -17,8 +17,11 @@ success_criteria:
   - Does not invoke workflow-graph-engineering for a code/import dependency or GraphRAG graph
   - Treats the request as local source-structure investigation and does not fabricate missing files
 # Routing-only (2026-08-25). The response graded here is the inline alternative's answer, whose
-# investigation contract is not this skill's to grade; evals/README.md reserves the
-# one-sanity-grader shape for exactly that case. Measured on Sonnet, 3 trials, runs
+# investigation contract is not this skill's to grade; the one-sanity-grader shape follows the
+# existing _ROUTING_ONLY_DISCOVERY_SCENARIOS precedent in evals/test_graders.py, not a rule in
+# evals/README.md -- that file says the opposite for negative scenarios (:194, the expected
+# alternative and response graders must also pass), so this shape rests on precedent and the
+# reasoning below. Measured on Sonnet, 3 trials, runs
 # 20260824T205218Z-0b59db4b and 20260824T220919Z-d783ef1e: routing stayed inline 3/3 on both
 # candidates while the wider behavioral set went red on transcript vocabulary ("source-code
 # dependency analysis", "Nodes = packages"). The retained sanity grader is the static-analysis set
@@ -29,4 +32,4 @@ graders:
     # "AST" alone is not usable here: contains_any is a plain case-insensitive substring match,
     # so a bare "AST" token also matches "last", "past", and "broadcast" — trivially true in almost
     # any transcript. The unambiguous forms below carry the same intent.
-    of: ["parser", "ast walk", "ast module", "abstract syntax tree", "static analysis", "import extraction", "statically", "go list", "dependency-cruiser", "madge", "compiler api"]
+    of: ["parser", "ast walk", "ast module", "abstract syntax tree", "static analysis", "import extraction", "statically", "go list ", "dependency-cruiser", "madge", "compiler api"]

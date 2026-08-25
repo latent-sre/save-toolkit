@@ -3,7 +3,8 @@
 **Conclusion:** `[verified]` Routing is correct in **12/12 trials** across all four scenarios, on
 both the incumbent baseline and this candidate. `[verified]` Behavioural graders remain red: **0/4
 scenarios** pass at threshold 1.0, though trial-level passes moved from **0/12 to 4/12**.
-`[verified]` Every one of the six failing grader instances examined has the graded behaviour
+`[verified]` Every one of the **seven** failing grader instances in this batch has the graded
+behaviour
 **present and correct in the response** — none is a behavioural defect. The remaining reds are
 string-matching artefacts, and the instrument is the cause: `contains_any` is a plain case-
 insensitive substring test, which cannot express these contracts. Further word-list widening is the
@@ -155,7 +156,7 @@ it is short, not because its grader is better written. No amount of vocabulary w
 scenario whose ceiling is set by the length of its conjunction.
 
 `[verified]` The instrument diagnosis from batch 1 still holds and the regex conversion was worth
-making: twelve reds have now been traced across three batches and not one was a behavioural defect.
+making: thirteen reds have now been traced across three batches and not one was a behavioural defect.
 But instrument quality was never the whole constraint. **Contract shape is**, and no further
 grader edit was made after this batch.
 
