@@ -723,9 +723,10 @@ _JSON_FENCE_RE = re.compile(
     r"(?ims)^```json[ \t]*\r?\n(?P<body>.*?)\r?\n```[ \t]*\r?$"
 )
 _ANY_FENCE_RE = re.compile(
-    r"(?ims)^```(?P<info>[^\r\n]*)\r?\n(?P<body>.*?)\r?\n```[ \t]*\r?$"
+    r"(?ims)^(?P<fence>```|~~~)(?P<info>[^\r\n]*)\r?\n"
+    r"(?P<body>.*?)\r?\n(?P=fence)[ \t]*\r?$"
 )
-_FENCE_MARKER_RE = re.compile(r"(?m)^```[^\r\n]*\r?$")
+_FENCE_MARKER_RE = re.compile(r"(?m)^(?:```|~~~)[^\r\n]*\r?$")
 
 
 def embedded_exact_json(response: str, fields: dict) -> tuple[bool, str]:
@@ -733,8 +734,9 @@ def embedded_exact_json(response: str, fields: dict) -> tuple[bool, str]:
 
     The JSON block is the machine-consumed relationship contract; prose remains available for a
     human operator. The block uses the same recursive exact-key, exact-type, and exact-value
-    comparison as ``exact_json``. Duplicate or malformed JSON records fail closed; unrelated
-    fenced operator evidence remains allowed.
+    comparison as ``exact_json``. The required backtick JSON block is the final response content
+    except for whitespace. Duplicate or malformed JSON records fail closed, including competing
+    objects in backtick or tilde fences; unrelated fenced operator evidence remains allowed.
     """
     _validate_exact_json_fields(fields, "embedded_exact_json")
     openings = list(_JSON_FENCE_OPEN_RE.finditer(response))
@@ -743,6 +745,9 @@ def embedded_exact_json(response: str, fields: dict) -> tuple[bool, str]:
         return False, "expected exactly one closed JSON fence"
 
     block = blocks[0]
+    if response[block.end() :].strip():
+        return False, "JSON fence must be the final response content"
+
     all_fences = list(_ANY_FENCE_RE.finditer(response))
     if len(_FENCE_MARKER_RE.findall(response)) != 2 * len(all_fences):
         return False, "response contains a malformed fenced block"

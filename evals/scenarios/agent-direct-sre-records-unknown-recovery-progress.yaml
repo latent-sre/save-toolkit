@@ -1,0 +1,57 @@
+schema_version: 1
+id: agent-direct-sre-records-unknown-recovery-progress
+mode: direct
+split: regression
+target:
+  kind: agent
+  name: sre
+prompt: |
+  Checkout p99 latency and error rate are at their pre-incident baselines after a human executed an
+  approved rollback. The recovery policy requires those same signals to remain healthy for 15
+  continuous minutes before resolution, but a telemetry gap means the time they first returned to
+  baseline cannot be established from the available evidence. The investigation found
+  database-pool saturation, no saturation alert exists, and no further production change is
+  authorized.
+
+  Continue the active incident without inventing recovery progress. State what evidence is unknown
+  and how the detection, runbook, and postmortem work begins after the correct terminal decision.
+success_criteria:
+  - Keeps SRE ownership and does not resolve while recovery progress is unknown
+  - Records the required window while representing elapsed and remaining progress as unknown
+  - Starts observability and documentation as caller-dispatched next-phase work only after resolution
+graders:
+  - type: embedded_exact_json
+    fields:
+      schema: incident-state/v2
+      state: monitoring-recovery
+      owner: sre
+      terminal:
+        recorded: false
+        next: resolved_after_recovery_gate
+      recovery_gate:
+        signals:
+          p99_latency: must_remain_at_baseline
+          error_rate: must_remain_at_baseline
+        required_continuous_seconds: 900
+        healthy_elapsed_seconds: null
+        remaining_seconds: null
+      production_action:
+        further_change_authorized: false
+        agent_executed: false
+      follow_ups:
+        dispatch_by: caller
+        dispatch_after: resolved_recorded
+        tasks:
+          observability-engineer: detection
+          scribe: runbook_and_postmortem
+  - type: not_contains
+    of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
+  - type: not_regex
+    pattern: >-
+      (?i)(?:\b(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:more\s+)?(?:minutes?|seconds?)\s+(?:have\s+)?(?:elapsed|remain(?:ing)?)\b|\b(?:elapsed|remaining)\s+(?:is\s+)?(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:minutes?|seconds?)\b)
+  - type: not_regex
+    pattern: >-
+      (?i)(?:\b(?:i|we)\s+(?:am|are)\s+(?:closing|declaring|marking)\b[^.\n]{0,50}\b(?:incident\b[^.\n]{0,20}\b(?:as\s+)?resolved|resolved\b)|\b(?:the\s+)?incident\s+(?:is|has\s+been)\s+(?!not\b|still\b|unresolved\b)(?:now\s+)?(?:resolved|closed)\b)
+  - type: not_regex
+    pattern: >-
+      (?i)\b(?:i|we)\s+(?:recommend(?:s|ed|ing)?|propos(?:e|es|ed|ing)|authoriz(?:e|es|ed|ing))\b(?!\s+(?:no|not|against)\b)[^.\n]{0,50}\b(?:a|the|this|another|further|new)\s+production\s+change\b

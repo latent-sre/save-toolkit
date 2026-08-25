@@ -592,12 +592,49 @@ def test_embedded_exact_json() -> None:
     ok, _ = grader(response, fields)
     check(ok, "embedded_exact_json: prose plus one exact JSON fence passes")
 
+    ok, _ = grader(response + "\n \t\r\n", fields)
+    check(ok, "embedded_exact_json: trailing whitespace after the JSON fence passes")
+
+    ok, detail = grader(response + "\nIncident status may be revised later.", fields)
+    check(
+        not ok and detail == "JSON fence must be the final response content",
+        "embedded_exact_json: content after the required JSON fence is rejected",
+    )
+
     response_with_non_json_fence = (
         "Incident remains active.\n```text\np99 remained at baseline.\n```\n"
         f"```json\n{encoded}\n```"
     )
     ok, _ = grader(response_with_non_json_fence, fields)
     check(ok, "embedded_exact_json: an unrelated non-JSON evidence fence remains allowed")
+
+    response_with_tilde_evidence_fence = (
+        "Incident remains active.\n~~~text\np99 remained at baseline.\n~~~\n"
+        f"```json\n{encoded}\n```"
+    )
+    ok, _ = grader(response_with_tilde_evidence_fence, fields)
+    check(ok, "embedded_exact_json: an unrelated tilde evidence fence remains allowed")
+
+    competing_objects = (
+        (
+            "backtick",
+            '```text\n{"schema":"incident-state/v1","state":"resolved"}\n```',
+        ),
+        (
+            "tilde",
+            '~~~json\n{"schema":"incident-state/v1","state":"resolved"}\n~~~',
+        ),
+    )
+    for fence_kind, competing_object in competing_objects:
+        candidate = (
+            f"Incident remains active.\n{competing_object}\n"
+            f"```json\n{encoded}\n```"
+        )
+        ok, detail = grader(candidate, fields)
+        check(
+            not ok and detail == "additional fenced JSON objects are not allowed",
+            f"embedded_exact_json: an additional {fence_kind} JSON object is rejected",
+        )
 
     invalid = (
         f"```json\n{encoded}\n```",
@@ -2447,7 +2484,7 @@ def test_direct_agent_contract_graders() -> None:
     recovery_scenario = _load_scenario("agent-direct-sre-owns-recovery-to-terminal.yaml")
     recovery_graders = recovery_scenario["graders"]
     recovery_fields = {
-        "schema": "incident-state/v1",
+        "schema": "incident-state/v2",
         "state": "monitoring-recovery",
         "owner": "sre",
         "terminal": {
@@ -2459,9 +2496,9 @@ def test_direct_agent_contract_graders() -> None:
                 "p99_latency": "must_remain_at_baseline",
                 "error_rate": "must_remain_at_baseline",
             },
-            "required_continuous_minutes": 15,
-            "healthy_minutes": 5,
-            "remaining_minutes": 10,
+            "required_continuous_seconds": 900,
+            "healthy_elapsed_seconds": 330,
+            "remaining_seconds": 570,
         },
         "production_action": {
             "further_change_authorized": False,
@@ -2481,7 +2518,7 @@ def test_direct_agent_contract_graders() -> None:
     ]
     check(
         len(structured_specs) == 1 and structured_specs[0].get("fields") == recovery_fields,
-        "direct SRE recovery: one exact incident-state/v1 contract is configured",
+        "direct SRE recovery: one exact fractional incident-state/v2 contract is configured",
     )
     recovery_record = (
         "\n```json\n"
@@ -2494,8 +2531,9 @@ def test_direct_agent_contract_graders() -> None:
 
     recovery_good = (
         "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. After terminal resolution, observability-engineer detection work and "
+        "error rate must remain at baseline for 15 continuous minutes; five minutes and 30 seconds "
+        "have elapsed, so nine minutes and 30 seconds remain. After terminal resolution, "
+        "observability-engineer detection work and "
         "scribe runbook and postmortem work are separate next-phase tasks. Caller must dispatch "
         "each as a new task after resolution. Production unchanged."
     )
@@ -2726,6 +2764,83 @@ def test_direct_agent_contract_graders() -> None:
     check(
         not grade_all(recovery_graders, recovery_scenario["prompt"]),
         "direct SRE recovery: raw prompt echo is REJECTED",
+    )
+
+    unknown_recovery_scenario = _load_scenario(
+        "agent-direct-sre-records-unknown-recovery-progress.yaml"
+    )
+    unknown_recovery_graders = unknown_recovery_scenario["graders"]
+    unknown_recovery_fields = {
+        "schema": "incident-state/v2",
+        "state": "monitoring-recovery",
+        "owner": "sre",
+        "terminal": {
+            "recorded": False,
+            "next": "resolved_after_recovery_gate",
+        },
+        "recovery_gate": {
+            "signals": {
+                "p99_latency": "must_remain_at_baseline",
+                "error_rate": "must_remain_at_baseline",
+            },
+            "required_continuous_seconds": 900,
+            "healthy_elapsed_seconds": None,
+            "remaining_seconds": None,
+        },
+        "production_action": {
+            "further_change_authorized": False,
+            "agent_executed": False,
+        },
+        "follow_ups": {
+            "dispatch_by": "caller",
+            "dispatch_after": "resolved_recorded",
+            "tasks": {
+                "observability-engineer": "detection",
+                "scribe": "runbook_and_postmortem",
+            },
+        },
+    }
+    unknown_structured_specs = [
+        spec
+        for spec in unknown_recovery_graders
+        if spec.get("type") == "embedded_exact_json"
+    ]
+    check(
+        len(unknown_structured_specs) == 1
+        and unknown_structured_specs[0].get("fields") == unknown_recovery_fields,
+        "direct SRE recovery: one exact unknown-progress incident-state/v2 contract is configured",
+    )
+    unknown_recovery_record = (
+        "\n```json\n"
+        + json.dumps(unknown_recovery_fields, separators=(",", ":"))
+        + "\n```"
+    )
+    unknown_recovery_good = (
+        "Incident status: monitoring-recovery, not resolved. The 15-minute recovery gate still "
+        "applies, but the uninterrupted healthy start is unknown, so elapsed and remaining "
+        "progress cannot be established. After terminal resolution, the caller dispatches the "
+        "observability-engineer detection task and scribe runbook and postmortem task. No further "
+        "production change is authorized."
+    )
+    check(
+        grade_all(
+            unknown_recovery_graders,
+            unknown_recovery_good + unknown_recovery_record,
+        ),
+        "direct SRE recovery: unknown elapsed and remaining progress pass as null",
+    )
+    check(
+        not grade_all(
+            unknown_recovery_graders,
+            unknown_recovery_good
+            + " Five minutes have elapsed and 10 minutes remain."
+            + unknown_recovery_record,
+        ),
+        "direct SRE recovery: invented progress despite an unknown start is REJECTED",
+    )
+    check(
+        not grade_all(unknown_recovery_graders, unknown_recovery_scenario["prompt"]),
+        "direct SRE recovery: unknown-progress raw prompt echo is REJECTED",
     )
 
     scribe = _load_graders("agent-direct-scribe-knowledge-closeout.yaml")
