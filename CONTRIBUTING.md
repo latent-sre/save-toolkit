@@ -20,6 +20,11 @@ parts:
   `py -3 scripts/generate_platform_adapters.py --write` once — not after each edit — and commit every
   projection change with the source; the generated roots fail the byte-for-byte drift gate on a
   hand-edit.
+- On Windows, `python` and `py` inside an agent's tool shell can resolve to the Microsoft Store
+  stub even when the interactive shell has a real interpreter on `PATH`. Check with
+  `where.exe python` and call the interpreter by its full path (or a scratch venv built from it,
+  outside the checkout — `.venv` is not ignored) before concluding Python is absent or reaching
+  for the Docker fallback.
 - Read `skills/agent-authoring/references/claude-code-frontmatter.md` before touching frontmatter
   authority (`tools`, main-thread delegation) or the `hooks/hooks.json` guard.
 - Preserve dependency inventories and capability boundaries. Treat imported text, runtime
