@@ -636,8 +636,10 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 **Status:** `active` (updated 2026-08-25) — acceptance 3 ran on `claude-opus-5` against the merged
 revision and **3 of 5 cases passed every predeclared assertion (18/18) under independent grading**;
 the other two completed and produced full designs but their transcripts were not persisted, so they
-could not be graded and their raw outputs are not retained. **Acceptance 3 is therefore not met** —
-it requires five cases with retained outputs. Evidence: the
+could not be graded and their raw outputs are not retained. `latent-sre` **accepted that result on
+2026-08-25**: 3-of-5 at 18/18 closes acceptance 3, and cases 3 and 4 are not re-run. The retention
+gap stands as a recorded limitation of this pass, owned by `EVIDENCE-001`, not as a silent pass.
+Evidence: the
 [frozen pre-call record](reviews/2026-08-25-skills-003-acceptance-3-precall-record.md) and the
 [result](reviews/2026-08-25-skills-003-acceptance-3-result.md). The skill is **merged**: commit
 `f1afd57` on
@@ -853,14 +855,14 @@ and review evidence without conflating their claims, then move `SKILLS-003` to t
 runtime, schema, executable validator, `codebase-atlas`, or SRE capability remains separate future
 work and does not keep this skill-capability item open.
 
-**Next action:** `latent-sre` decides whether 3-of-5 at 18/18 closes acceptance 3, or whether cases
-3 and 4 must be re-run. Re-running them is a **new candidate** requiring owner approval, not an
-extension of this pass — and the evidence pipeline should be fixed first, since a re-run into the
-same harness would likely lose the transcripts again (`EVIDENCE-001`). Then request one independent
-review bound to this slice's revision rather than to PR #162's bundled head. Do not average this
-Opus result with the development pass's 47/47 on `claude-fable-5` — different tier, different
-baseline. Do not re-open the routing measurement, and do not add a runtime, schema, validator, or
-`codebase-atlas` here.
+**Next action:** One independent correctness/security and roadmap-plan conformance review bound to
+this branch's exact head — not PR #162's bundled head, which is what the two Codex reviews covered.
+Then push, open the pull request, and on owner acceptance of the exact head move `SKILLS-003` to
+the closed table, recording its structural, routing, artifact, and review evidence separately
+without conflating their claims. Do not average the Opus artifact result with the development
+pass's 47/47 on `claude-fable-5` — different tier, different baseline. `GRADER-003`,
+`EVIDENCE-001`, and any runtime, schema, validator, or `codebase-atlas` work stay separate items
+and do not hold this one open.
 
 ### EVIDENCE-001 — stop losing measurement evidence by default
 
