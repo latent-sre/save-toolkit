@@ -1175,6 +1175,36 @@ _ROUTING_ONLY_DISCOVERY_SCENARIOS = (
     + ("discovery-service-readiness-audit.yaml",)
 )
 
+# GRADER-003: the three agent-authoring POSITIVES. Unlike the near misses above these keep their
+# behavioral contracts — the graded response is agent-authoring's own — but they are held to the
+# invariant the incumbent baseline showed they were breaking: a discovery scenario may only grade a
+# behavior its prompt actually asks for. The prompts are the routing stimulus and are deliberately
+# NOT edited, so the existing routing evidence (12/12 correct, no routing failure on either
+# revision) still stands; the graders moved to what was requested instead.
+_AGENT_AUTHORING_BEHAVIOR_SCENARIOS = (
+    "discovery-agent-authoring-loop-engineering.yaml",
+    "discovery-agent-authoring-trigger-and-shape.yaml",
+    "discovery-agent-authoring-workflow-graph.yaml",
+)
+
+# The behavior each scenario's prompt actually requests, in the prompt's own words. A grader may
+# only exist because one of these does; when a grader outgrows this list, the prompt is what has to
+# change, and changing the prompt re-opens the routing measurement.
+_AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS = {
+    "discovery-agent-authoring-loop-engineering.yaml": (
+        "verifier", "budget", "iteration", "no-progress", "safety/authority",
+        "promotion authority", "durable evidence",
+    ),
+    "discovery-agent-authoring-trigger-and-shape.yaml": (
+        "activation", "output shape", "separately", "focused cases", "one candidate", "adoption",
+        "stop condition",
+    ),
+    "discovery-agent-authoring-workflow-graph.yaml": (
+        "nodes", "edges", "handoff", "authority boundaries", "termination",
+        "read-only independent review", "human-owned effects",
+    ),
+}
+
 _ROUTING_ONLY_SANITY_RESPONSES = {
     "discovery-service-readiness-audit.yaml": (
         "The readiness audit is read-only: I inspected the available evidence, made no changes, "
@@ -1572,6 +1602,42 @@ def test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete() -> None
         check(
             not grade_all(grader_specs, _ROUTING_WGE_INCOMPLETE[filename]),
             f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
+        )
+
+
+def test_discovery_positives_grade_only_what_the_prompt_requests() -> None:
+    """A discovery positive may not demand a behavior its own prompt never asked for.
+
+    This is the defect the SKILLS-003 incumbent baseline surfaced: 0/4 agent-authoring scenarios
+    and 0/12 trials red with no routing failure in any trial, because graders demanded vocabulary
+    (`delegation edge`, `human acceptance`, `cost budget`) the prompts never requested.
+
+    The requirement is deliberately NOT derived from the grader tokens. A grader should demand
+    artifact-level vocabulary the prompt does not contain — that is what keeps a prompt echo from
+    passing — so "every grader token appears in the prompt" is the wrong test and would force the
+    graders to accept the echo. Instead each scenario declares the prompt terms that carry its
+    graded behaviors, the same shape as _OBS_BEHAVIOR_PROMPT_TERMS. Echo and incomplete rejection
+    for these three is owned by test_routing_batch1_scenarios_reject_echoes_and_incomplete.
+    """
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for discovery-positive prompt tests (`pip install pyyaml`)")
+        return
+
+    check(
+        set(_AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS) == set(_AGENT_AUTHORING_BEHAVIOR_SCENARIOS),
+        "every agent-authoring behavior scenario declares the prompt terms it grades",
+    )
+    for filename in _AGENT_AUTHORING_BEHAVIOR_SCENARIOS:
+        scenario = _load_scenario(filename)
+        check(scenario.get("routing", {}).get("expect") == "fire", f"{filename}: is a positive")
+        check(len(scenario["graders"]) > 1, f"{filename}: owns a focused behavior contract")
+        prompt = " ".join(scenario["prompt"].split()).casefold()
+        missing = [t for t in _AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS[filename] if t not in prompt]
+        check(
+            not missing,
+            f"{filename}: prompt requests every graded behavior; missing={missing}",
         )
 
 
@@ -2745,6 +2811,7 @@ def main() -> int:
         test_routing_graders_accept_canonical_contract_variants,
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
         test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete,
+        test_discovery_positives_grade_only_what_the_prompt_requests,
         test_routing_only_discovery_scenarios_stay_routing_only,
         test_incident_command_discovery_enforces_shared_boundary,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,

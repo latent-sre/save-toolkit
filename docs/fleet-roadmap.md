@@ -858,69 +858,66 @@ calibration seam green, and do not add a runtime, schema, validator, or `codebas
 
 ### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
-**Status:** `active` (2026-08-25) — one of four scenarios is done; the remaining three need an owner
-scope call, below.
+**Status:** `active` (2026-08-25) — all four scenarios treated offline; one live verification run
+remains.
 
-**Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision and
-owns the scope call on new direct scenarios. No agent approves its own grader change.
+**Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
 
 **Outcome:** The four `agent-authoring` discovery scenarios grade what a correctly routed response
-actually contains, so a red in that regression set means a routing or behaviour defect rather than
-evaluator vocabulary.
+actually contains, so a red in that set means a routing or behaviour defect rather than evaluator
+vocabulary.
 
 **Source:** The `SKILLS-003` implementation packet dispositioned this `proposed to roadmap` and it
-was never filed; this item closes that gap. Its incumbent baseline run `20260824T231543Z-53c0a77c`,
-taken on `origin/main` bytes with no candidate present (Sonnet, 3 trials, 600 s), scored **0/4
-scenarios and 0/12 trials with no routing failure in any trial** — every red a behavioural
-`contains_any` on vocabulary the real transcripts did not use (`delegation edge`, `human
-acceptance`, `cost budget`, `import graph`). A description edit cannot change response content, so
-this is an incumbent evaluator defect that the SKILLS-003 change neither caused nor fixed.
-Evidence: [the SKILLS-003 packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md).
+was never filed. Its incumbent baseline run `20260824T231543Z-53c0a77c`, taken on `origin/main`
+bytes with no candidate present (Sonnet, 3 trials, 600 s), scored **0/4 scenarios and 0/12 trials
+with no routing failure in any trial** — every red a behavioural `contains_any` on vocabulary the
+real transcripts did not use. A description edit cannot change response content, so this is an
+incumbent evaluator defect that the SKILLS-003 change neither caused nor fixed. Evidence:
+[the SKILLS-003 packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md).
 
-**Finding (2026-08-25): the four scenarios are not the same shape, and the packet's one-line
-proposal does not fit three of them.** `[verified]` by reading the four scenario files:
+**What the defect actually was.** `[verified]` by reading each scenario against its own prompt: in
+every case the grader demanded vocabulary the prompt never requested. `loop-engineering` asked for
+"hard iteration/candidate/time/cost budgets" and "promotion authority" while grading for
+`maximum iterations` and `human acceptance`; `trigger-and-shape` asked to "name the adoption and
+stop conditions" while grading only for `adoption authority`; `workflow-graph` asked for "allowed
+edges" and "handoff/join" while grading for `delegation edge`. These are exactly the terms the
+baseline recorded as red. No transcript was needed to see it, which is why the lost batch stopped
+mattering.
 
-| Scenario | Routing | Graders | Treatment |
-|---|---|---|---|
-| `defers-code-dependency-graph` | `not_fire`, inline | 4 | **Done** — routing-only. Structural twin of `discovery-workflow-graph-engineering-defers-code-graph`; the graded response is the alternative lane's, so the one-sanity-grader rule applies directly and no transcript is needed to choose it |
-| `loop-engineering` | `fire` | 8 | Open — see below |
-| `trigger-and-shape` | `fire` | 7 | Open — see below |
-| `workflow-graph` | `fire`, calibration | 6 | Open — see below |
+**Treatment applied.** One `not_fire` near miss (`defers-code-dependency-graph`) became
+routing-only, the structural twin of the workflow-graph case. The three positives keep their
+behavioural contracts — the graded response is `agent-authoring`'s own — with their graders moved
+to what the prompt requests. **Prompts were not edited**: a discovery prompt is the routing
+stimulus, so changing one re-opens the routing measurement, and the existing evidence (12/12
+correct, no routing failure on either revision) had to survive. `[verified]` the diff touches only
+grader term-sets and comments.
 
-The three positives are not near misses: the graded response *is* `agent-authoring`'s, so their
-behavioural contracts are legitimately theirs. But eight `contains_any` graders on a discovery
-trial, where the routed skill is tool-less, is the over-specification `evals/README.md` warns
-about — and `[verified]` **no direct-mode `agent-authoring` scenario exists** (27 direct scenarios,
-none targeting it). So neither treatment the packet proposed is safe for them: routing-only would
-delete the only coverage these contracts have anywhere, and re-deriving vocabulary needs
-transcripts that `[verified]` no longer exist — the batch ran in the since-removed
-`.worktrees/graph-program` and is absent from every `.eval-runs` directory in the repository.
+**Guard against recurrence.** `test_discovery_positives_grade_only_what_the_prompt_requests`
+requires each positive to declare, in `_AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS`, the prompt terms
+carrying its graded behaviours — the `_OBS_BEHAVIOR_PROMPT_TERMS` shape. It is deliberately *not*
+derived from grader tokens: a grader should demand artifact-level vocabulary the prompt does not
+contain, because that is what keeps a prompt echo from passing. Two findings came out of building
+it, both `[verified]`: bare `"AST"` matched `last`/`past`/`broadcast` under substring matching and
+is now spelled out; and in two scenarios a single grader was silently the only one rejecting the
+prompt echo, so widening it with the prompt's own wording let the echo pass the whole set. Both are
+recorded in the scenario comments.
 
-**Decision needed:** whether to pair each of the three positives with a new direct-mode scenario
-that carries its behavioural contract, then reduce its discovery case to a routing-sanity grader —
-the `_OBS_BEHAVIOR_SCENARIOS` pattern already used in `evals/test_graders.py`. That adds three
-scenarios to the suite, so it is a scope call rather than bookkeeping. The alternative is a fresh
-paid incumbent run to recover transcripts and re-derive vocabulary in place.
+**Prerequisites:** None outstanding. The two the packet implied are resolved: the baseline
+transcripts are `[verified]` gone — that batch ran in the since-removed `.worktrees/graph-program`
+and is absent from every `.eval-runs` directory here — and the treatment chosen does not need them,
+because the mismatch is visible in each scenario against its own prompt. Any *further* grader
+widening does need a transcript first.
 
-**Prerequisites:** For the three positives, either the owner scope call above, or a fresh incumbent
-run at a pinned model to replace the lost transcripts. Do not widen a grader without reading the
+**Acceptance:** Offline work is complete: `test_graders` 665/665, `--validate` OK at 94 scenarios,
+Gate A 6/6, generator byte-clean, `claude plugin validate . --strict` PASS, and the new invariant
+proven red for its named reason and restored. What remains is one live run —
+`python evals/run_evals.py --run --mode discovery --match agent-authoring --trials 3` at a pinned
+model — with numerator and denominator recorded. A scenario still red for a reason other than
+vocabulary is a separate finding, not a licence to widen further.
+
+**Next action:** Run that single verification batch at a pinned `--model` and record the result.
+It is a paid run; get owner go-ahead first. Do not widen any grader further before reading the
 transcript that failed it.
-
-**Acceptance:** Each remaining scenario receives one treatment, recorded with its reason: paired
-direct scenario plus routing-sanity discovery, or behavioural vocabulary re-derived from real
-transcripts with the prompt echo and a keyword-rich incomplete fixture still proven to fail. Then
-run the affected scenarios live at a pinned model and trial count and record numerator and
-denominator; a scenario still red for a reason other than vocabulary is a separate finding, not a
-licence to widen further. Offline grader tests, `evals/run_evals.py --validate`, and Gate A pass.
-
-**Also fixed here:** `[verified]` `contains_any` is a plain case-insensitive substring match, so the
-bare `"AST"` token in both code-graph scenarios also matched `last`, `past`, and `broadcast` —
-trivially true in almost any transcript. Both are now spelled out (`ast walk`, `ast module`,
-`abstract syntax tree`), demonstrated red-to-green against unrelated text.
-
-**Next action:** `latent-sre` makes the scope call above. Until then, do not touch the three
-positive scenarios' graders — trimming them without a paired direct scenario silently deletes
-coverage, which is the failure mode this item exists to prevent.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

@@ -22,15 +22,21 @@ graders:
   - type: contains_all
     of: ["verifier", "budget"]
   - type: contains_any
-    of: ["maximum iterations", "iteration cap", "iteration limit", "max iterations"]
+    # The prompt requests "hard iteration/candidate/time/cost budgets", so an iteration BUDGET
+    # satisfies the request; the first four phrasings did not accept it. Singular stems also
+    # match their plurals under contains_any substring matching.
+    of: ["maximum iteration", "iteration cap", "iteration limit", "max iteration", "iteration budget", "iteration bound", "iterations:"]
   - type: contains_any
-    of: ["cost budget", "token budget", "cost cap", "cost limit", "spend cap", "cost ceiling"]
+    # The prompt asks for "time/cost budgets" as one phrase; accept it written either way.
+    of: ["cost budget", "token budget", "cost cap", "cost limit", "spend cap", "cost ceiling", "time/cost", "cost/time", "cost bound"]
   - type: contains_any
     of: ["no-progress", "no progress"]
   - type: contains_any
     of: ["safety stop", "authority stop", "safety/authority"]
   - type: contains_any
-    of: ["human acceptance", "human approves", "human promotion", "human release owner"]
+    # The prompt asks for "promotion authority" and none of the first four phrasings accepted
+    # that exact term — one of the reds the SKILLS-003 incumbent baseline recorded.
+    of: ["human acceptance", "human approves", "human promotion", "human release owner", "promotion authority"]
   - type: contains_any
     of: ["durable evidence", "recorded evidence"]
   - type: not_contains
