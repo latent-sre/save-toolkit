@@ -57,6 +57,35 @@ class LinkCheckerTests(Fixture):
         self.write("skills/probe-skill/assets/template.txt", "template\n")
         self.assertEqual([], check_links.check(self.root))
 
+    def test_a_reference_naming_its_own_skill_by_repo_rooted_path_is_flagged(self):
+        """The pointer that reads correct and resolves nowhere.
+
+        `skills/<name>/SKILL.md` inside that skill's own references/ resolves neither from the
+        reference's directory nor in platforms/copilot/skills/, where the bundle sits under a
+        different prefix. Eight of backend-craft's nine references carried it through every green
+        gate because CODE_PATH_RE only covers bundle-internal prefixes.
+        """
+        self.skill("# Probe\n\nRead [notes](./references/notes.md).\n")
+        self.write(
+            "skills/probe-skill/references/notes.md",
+            "# Notes\n\nThe universal rules live in `skills/probe-skill/SKILL.md`.\n",
+        )
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any("points at its own skill by repo-rooted path" in f for f in failures),
+            failures,
+        )
+
+    def test_the_relative_self_pointer_and_a_sibling_reference_are_both_allowed(self):
+        """`../SKILL.md` is the fix, and naming a *different* skill is not this defect."""
+        self.skill("# Probe\n\nRead [notes](./references/notes.md).\n")
+        self.write(
+            "skills/probe-skill/references/notes.md",
+            "# Notes\n\nRules live in `../SKILL.md`; ownership sits with "
+            "`skills/other-skill/SKILL.md`.\n",
+        )
+        self.assertEqual([], check_links.check(self.root))
+
     def test_top_level_frontmatter_comment_is_allowed(self):
         frontmatter = CLEAN_FRONTMATTER.replace(
             'argument-hint: "[the probe]"',

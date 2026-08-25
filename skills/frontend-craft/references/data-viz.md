@@ -2,7 +2,7 @@
 
 Read this when the view charts, graphs, or plots anything.
 
-The universal frontend rules live in `skills/frontend-craft/SKILL.md`. On any conflict, SKILL.md wins.
+The universal frontend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
 ## Data visualization
 

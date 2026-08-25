@@ -22,6 +22,13 @@ LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 CODE_PATH_RE = re.compile(
     r"`((?:references|assets|scripts)/[A-Za-z0-9._/-]+)`"
 )
+# A reference naming its OWN parent skill by repo-rooted path (`skills/backend-craft/SKILL.md`
+# inside skills/backend-craft/references/). It reads correct and is wrong everywhere it is read:
+# not from the reference's own directory, and not in platforms/copilot/skills/, where the skill
+# lives under a different prefix entirely. `../SKILL.md` is the form that resolves in both trees.
+# CODE_PATH_RE never caught it because that pattern only covers bundle-internal prefixes, so eight
+# of backend-craft's nine references carried a dead pointer through every green gate.
+SELF_SKILL_PATH_RE = re.compile(r"`skills/(?P<name>[a-z0-9-]+)/SKILL\.md`")
 # Documents whose links must RESOLVE, checked for nothing else.
 #
 # Scope is the live authority set per docs/README.md -- the root guides, the rules index, the
@@ -230,6 +237,25 @@ def _relative_target(raw: str) -> str | None:
     return target.split("#", 1)[0].split("?", 1)[0]
 
 
+def _check_self_skill_pointer(path: Path, text: str, skill_name: str) -> list[str]:
+    """Reject a reference pointing at its own SKILL.md by repo-rooted path.
+
+    Only the self-pointer is rejected, and only inside that skill's own bundle. A reference may
+    legitimately name a *sibling* skill's file to describe ownership, and drill scenario assets
+    quote paths from systems that are not this repository at all -- neither is a broken pointer.
+    """
+    failures = []
+    for match in SELF_SKILL_PATH_RE.finditer(_strip_fences(text)):
+        if match.group("name") != skill_name:
+            continue
+        failures.append(
+            f"{path.as_posix()}: reference points at its own skill by repo-rooted path "
+            f"'{match.group(0).strip('`')}'; use '../SKILL.md', which resolves in the canonical "
+            "tree and in platforms/copilot/skills/"
+        )
+    return failures
+
+
 def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
     failures = []
     visible = _strip_fences(text)
@@ -365,11 +391,17 @@ def check(root: Path = ROOT) -> list[str]:
             if references.is_dir():
                 for reference in sorted(references.rglob("*.md")):
                     try:
+                        reference_text = reference.read_text(encoding="utf-8")
                         failures.extend(
                             _check_markdown(
                                 reference,
-                                reference.read_text(encoding="utf-8"),
+                                reference_text,
                                 skill_path.parent,
+                            )
+                        )
+                        failures.extend(
+                            _check_self_skill_pointer(
+                                reference, reference_text, skill_path.parent.name
                             )
                         )
                     except (OSError, UnicodeError) as exc:

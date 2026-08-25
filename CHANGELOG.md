@@ -45,7 +45,12 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   extension and no rate-limit response at all — so it now carries both, pinned to SKILL.md by a
   focused regression proven red before green; `fastapi` gained the Pydantic v2 / SQLAlchemy 2.0
   version caveat `spring-boot` already carried. Two routing scenarios now cover the skill's two
-  trigger arms, which had no eval coverage among the previous 94.
+  trigger arms, which had no eval coverage among the previous 94. **Hosts:** the repo-rooted
+  path was broken in the Copilot projection too, where the bundle sits under a different
+  prefix entirely, so `check_links.py` now rejects a reference naming its own `SKILL.md` by
+  repo-rooted path — the pattern `CODE_PATH_RE` never covered. Arming it surfaced the same
+  defect in seven `frontend-craft` references, fixed here; a focused regression proves the
+  self-pointer red and both `../SKILL.md` and a sibling-skill mention green.
 - Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
   implementation, testing, and operations-tooling lane. This is a breaking address change from
   `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are
