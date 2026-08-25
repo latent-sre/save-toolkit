@@ -5,6 +5,7 @@ mode: discovery
 # case timed out without an attempted/completed target invocation, and evals/README.md defines
 # that as unsuccessful routing; the regression split carries no known-failing case.
 split: calibration
+threshold: 0.67
 target:
   kind: skill
   name: agent-authoring
@@ -19,33 +20,23 @@ success_criteria:
   - Describes nodes, allowed edges, authority boundaries, joins, and termination
   - Does not turn the request into a code dependency graph or prematurely select a runtime
 graders:
-  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
-  # the adversarial fixtures for this scenario live in evals/test_graders.py.
-    # Batch 20260825T183911Z-ea5961ab trial 1 headed its roster table "| Node | Role |" -
-    # singular, so a contains_all on the literal "nodes" missed it: the same instrument defect
-    # as the converted graders, in a grader the first pass did not reach. The lookaheads assert
-    # all four terms independently, in any number, inflection, and order. All four are kept
-    # deliberately - authority and termination have no other grader in this scenario, so
-    # narrowing this to the node/edge pair would have silently dropped them.
+  # GRADER-003, options 1 and 2. The full behavioural contract moved to the direct-mode scenario
+  # named below, where the component is pinned and can emit a determinate artifact. What stays
+  # here is the routing floor: one grader proving the request reached this lane, one the prompt
+  # echo fails, and the anti-pattern guard. Four batches measured the old 8-grader conjunction at
+  # a ~0.53 ceiling over 3 trials regardless of grader quality, so the shape was the defect, not
+  # the words. threshold is below 1 because discovery measures a propensity (evals/README.md), not
+  # a contract.
+  # Full contract: evals/scenarios/agent-authoring-roster-graph-contract.yaml
+  # Identity: a roster graph names nodes, edges, authority, and termination.
   - type: regex
     pattern: '(?is)(?=.*\bnodes?\b)(?=.*\bedges?\b)(?=.*\bauthorit(?:y|ies)\b)(?=.*\b(?:terminat|terminal)\w*\b)'
-    # Grade the edge list structurally rather than by vocabulary: a real delegation-graph answer
-    # DRAWS its edges ("Coordinator -> Review", "Human -> Coordinator"). The prompt asks for
-    # "allowed edges" in prose and contains no arrow, so this also keeps the prompt echo failing
-    # here - which matters, because the words a good answer uses for this behaviour ARE the
-    # prompt's own words, so no vocabulary token can both match the answer and reject the echo.
+  # Echo-rejector: a real answer DRAWS its edges; the prompt contains no arrow.
   - type: regex
     pattern: '(?i)\b\w[\w\-]*\s*(?:\u2192|->|=>)\s*\w[\w\-]*'
-    # Regex: measured answers wrote "**Review (read-only, independent)**" and "Independent,
-    # read-only evaluation" - the same behaviour in the other word order.
-  - type: regex
-    pattern: '(?i)\bread[\s\-]?only\b[^.\n]{0,40}\breview\w*\b|\breview\w*\b[^.\n]{0,40}\bread[\s\-]?only\b'
-    # Regex: the measured answer wrote "**Human (effects owner)** | Executes any
-    # authority-changing, production-facing, destructive, or external action | Sole holder of
-    # effect authority" - a better answer than the phrasing it was graded against.
-  - type: regex
-    pattern: '(?i)\bhuman\b[^.\n]{0,60}\beffects?\b|\beffects?\b[^.\n]{0,40}\bhuman\b'
+  # Anti-pattern: no runtime selected.
   - type: not_regex
     pattern: '(?i)must (?:use|implement with) (?:langgraph|networkx)'
+  # Anti-pattern: not a code-dependency graph.
   - type: not_regex
     pattern: '(?i)\bimports?\b.*\b(?:cycle|cycles)\b|\b(?:cycle|cycles)\b.*\bimports?\b'

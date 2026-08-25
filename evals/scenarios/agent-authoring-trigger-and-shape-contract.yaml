@@ -1,0 +1,36 @@
+schema_version: 1
+id: agent-authoring-trigger-and-shape-contract
+mode: direct
+# Calibration until measured. GRADER-003 moved this contract here from
+# discovery-agent-authoring-trigger-and-shape for the reason recorded in that scenario: activation
+# and output shape are separate measurements, and proving a response separates them is a contract
+# test, not a routing test.
+split: calibration
+target:
+  kind: skill
+  name: agent-authoring
+prompt: |
+  A release-notes skill fires for unrelated documentation requests and returns prose instead of its
+  required JSON. Design the bounded Loop Engineering fix: measure activation separately from output
+  shape, reproduce both failures against a baseline before changing anything, allow exactly one
+  candidate, reuse the same focused cases for both dimensions, and name the adoption condition and
+  the stop conditions.
+success_criteria:
+  - Measures activation separately from output shape, against the same focused cases
+  - Reproduces a baseline before changing anything and allows exactly one candidate
+  - Names the adoption condition and the stop conditions without unbounded iteration
+graders:
+  - type: contains_any
+    of: ["activation", "routing"]
+  - type: regex
+    pattern: '(?i)\boutput[\s\-_]?(?:shape|format|contract|schema|behaviou?r)\b'
+  - type: regex
+    pattern: '(?i)\b(?:separate|separately|independent|independently|distinct|apart|in isolation|decoupl)\w*\b'
+  - type: contains_any
+    of: ["baseline", "reproduce", "regression case", "focused case", "focused set", "test corpus", "fixed corpus"]
+  - type: contains_any
+    of: ["one candidate", "candidate budget", "single candidate", "exactly one candidate"]
+  - type: contains_any
+    of: ["human acceptance", "human approves", "human promotion", "adoption authority", "adoption condition", "adoption criteria", "adoption gate", "adopted when"]
+  - type: not_contains
+    of: ["unbounded iterations", "iterate until correct", "keep trying candidates"]

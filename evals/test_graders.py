@@ -1261,18 +1261,22 @@ _AGENT_AUTHORING_BEHAVIOR_SCENARIOS = (
 # only exist because one of these does; when a grader outgrows this list, the prompt is what has to
 # change, and changing the prompt re-opens the routing measurement.
 _AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS = {
-    "discovery-agent-authoring-loop-engineering.yaml": (
-        "verifier", "budget", "iteration", "no-progress", "safety/authority",
-        "promotion authority", "durable evidence",
-    ),
-    "discovery-agent-authoring-trigger-and-shape.yaml": (
-        "activation", "output shape", "separately", "focused cases", "one candidate", "adoption",
-        "stop condition",
-    ),
-    "discovery-agent-authoring-workflow-graph.yaml": (
-        "nodes", "edges", "handoff", "authority boundaries", "termination",
-        "read-only independent review", "human-owned effects",
-    ),
+    # Trimmed by GRADER-003 to the behaviours discovery still grades. The rest moved to the direct
+    # contracts in _AGENT_AUTHORING_DIRECT_CONTRACTS; listing a term here that no grader checks
+    # would make this invariant a decoration.
+    "discovery-agent-authoring-loop-engineering.yaml": ("verifier", "budget", "iteration"),
+    "discovery-agent-authoring-trigger-and-shape.yaml": ("activation", "adoption"),
+    "discovery-agent-authoring-workflow-graph.yaml": ("nodes", "edges", "authority boundaries", "termination"),
+}
+
+# GRADER-003 option 3: each trimmed discovery positive names the direct scenario that now carries
+# its behavioural contract. The test below refuses a discovery case that was narrowed without its
+# contract having a home -- trimming without pairing is how a suite silently loses coverage while
+# looking greener.
+_AGENT_AUTHORING_DIRECT_CONTRACTS = {
+    "discovery-agent-authoring-loop-engineering.yaml": "agent-authoring-loop-contract.yaml",
+    "discovery-agent-authoring-trigger-and-shape.yaml": "agent-authoring-trigger-and-shape-contract.yaml",
+    "discovery-agent-authoring-workflow-graph.yaml": "agent-authoring-roster-graph-contract.yaml",
 }
 
 _ROUTING_ONLY_SANITY_RESPONSES = {
@@ -1709,6 +1713,60 @@ def test_discovery_positives_grade_only_what_the_prompt_requests() -> None:
             not missing,
             f"{filename}: prompt requests every graded behavior; missing={missing}",
         )
+
+
+def test_trimmed_discovery_positives_have_a_direct_contract() -> None:
+    """A narrowed discovery positive must name a direct scenario that carries its full contract.
+
+    GRADER-003 measured the reason for narrowing: a 7-to-8 grader conjunction over three trials at
+    threshold 1.0 has a ceiling near 0.53 even with faithful graders, so the discovery cases were
+    reduced to a routing floor. That is only safe because the behaviour moved somewhere it can be
+    graded properly. Without this test, a future trim could delete assertions and leave nothing
+    behind, which reads as a greener suite and is actually lost coverage.
+    """
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for direct-contract pairing tests (`pip install pyyaml`)")
+        return
+
+    check(
+        set(_AGENT_AUTHORING_DIRECT_CONTRACTS) == set(_AGENT_AUTHORING_BEHAVIOR_SCENARIOS),
+        "every agent-authoring discovery positive names its direct contract",
+    )
+    for discovery, direct in _AGENT_AUTHORING_DIRECT_CONTRACTS.items():
+        d = _load_scenario(discovery)
+        check(
+            0 < d.get("threshold", 1.0) < 1,
+            f"{discovery}: discovery positive carries a propensity threshold below 1",
+        )
+        check(len(d["graders"]) <= 4, f"{discovery}: discovery keeps a routing floor, not a contract")
+        path = SCENARIOS_DIR / direct
+        check(path.exists(), f"{direct}: the paired direct contract exists")
+        if not path.exists():
+            continue
+        c = _load_scenario(direct)
+        check(c.get("mode") == "direct", f"{direct}: is a direct-mode contract")
+        check(
+            c.get("target") == {"kind": "skill", "name": "agent-authoring"},
+            f"{direct}: targets skill:agent-authoring",
+        )
+        check(
+            len(c["graders"]) > len(d["graders"]),
+            f"{direct}: carries more of the contract than the discovery floor it replaced",
+        )
+        prompt = " ".join(c["prompt"].split()).casefold()
+        for spec in c["graders"]:
+            if spec.get("type") not in ("contains_any", "contains_all"):
+                continue
+            toks = [t.casefold() for t in spec.get("of", [])]
+            if spec["type"] == "not_contains":
+                continue
+            check(
+                any(t in prompt for t in toks) if spec["type"] == "contains_any"
+                else all(t in prompt for t in toks),
+                f"{direct}: grader demands a behaviour its own prompt requests",
+            )
 
 
 def test_routing_only_discovery_scenarios_stay_routing_only() -> None:
@@ -2937,6 +2995,7 @@ def main() -> int:
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
         test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete,
         test_discovery_positives_grade_only_what_the_prompt_requests,
+        test_trimmed_discovery_positives_have_a_direct_contract,
         test_routing_only_discovery_scenarios_stay_routing_only,
         test_incident_command_discovery_enforces_shared_boundary,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,

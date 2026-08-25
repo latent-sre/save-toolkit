@@ -903,7 +903,11 @@ finishes. Propose the capture step against that inventory before writing any too
 
 ### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
-**Status:** `decision-needed` (2026-08-25) — the instrument defect is diagnosed and fixed, and a
+**Status:** `active` (2026-08-25) — `latent-sre` approved **all three** shapes, and they compose:
+direct mode now carries the behavioural contracts at full strength, discovery keeps a routing floor
+of three-to-four graders, and the discovery positives run at `threshold: 0.67` because discovery
+measures a propensity rather than a contract. Applied offline; one live batch remains to measure
+the new shape. The instrument defect is diagnosed and fixed, and a
 second, larger constraint is now measured: **contract shape**. Four batches under identical
 conditions gave 0/12, 4/12, 9/12, 8/12; `trigger-and-shape` went 3/3 then 1/3 **with no change made
 to it**, so the 9/12 was a lucky sample rather than progress. Routing is `[verified]` 36/36 across
@@ -990,14 +994,24 @@ reason, and every batch recorded with transcripts summarised in a committed docu
 gitignored `.eval-runs/`. The regression split stays red until the contract shape is decided — an
 honest red reflecting a contract the suite cannot satisfy, not a fleet defect.
 
-**Next action:** `latent-sre` chooses one of three shapes for the discovery positives, none of
-which is another grader edit: (1) shorten each conjunction to two or three load-bearing graders;
-(2) drop the threshold below 1.0 for these scenarios, treating discovery as the propensity
-measurement `evals/README.md` already calls it; or (3) move the behavioural contracts to direct
-mode, where the component has tools and can emit a determinate artifact. Do not fund another batch
-against the current shape — three have now measured the same ceiling. Do not edit a discovery
-prompt: it is the routing stimulus and the 36/36 routing evidence depends on it staying
-byte-identical.
+**Applied (2026-08-25).** Three direct-mode contracts were added —
+`agent-authoring-loop-contract`, `agent-authoring-trigger-and-shape-contract`, and
+`agent-authoring-roster-graph-contract` — each `calibration` until a measured pass, per
+`evals/README.md`. The three discovery positives keep only an identity grader, an echo-rejector,
+and their anti-pattern guards, and each **names the direct scenario that now holds its contract**.
+`test_trimmed_discovery_positives_have_a_direct_contract` enforces the pairing in both directions:
+it fails if a paired contract is missing, and it fails if a discovery case is re-inflated back into
+a contract. Both failure modes were proven red for their named reason and restored. Offline:
+`test_graders` 711/711, `--validate` OK at 97 scenarios (30 direct), Gate A 6/6, generator
+byte-clean, `claude plugin validate . --strict` PASS.
+
+**Next action:** One live batch to measure the new shape —
+`python evals/run_evals.py --run --mode discovery --match agent-authoring --trials 3` at a pinned
+model, plus a first `--mode direct --match agent-authoring` run to give the three new contracts a
+measured pass so they can leave `calibration`. It is paid; get owner go-ahead. Do not edit a
+discovery prompt: it is the routing stimulus and the 36/36 routing evidence depends on it staying
+byte-identical. Do not re-inflate a discovery positive — the pairing test will reject it, and the
+ceiling that motivated the trim has not moved.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

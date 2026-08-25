@@ -2,6 +2,7 @@ schema_version: 1
 id: discovery-agent-authoring-loop-engineering
 mode: discovery
 split: regression
+threshold: 0.67
 target:
   kind: skill
   name: agent-authoring
@@ -17,35 +18,20 @@ success_criteria:
   - Names state, verifier, hard budgets, termination, promotion, and durable evidence
   - Keeps operations knowledge closeout and executable graph cycles as separate capabilities
 graders:
-  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
-  # the adversarial fixtures for this scenario live in evals/test_graders.py.
+  # GRADER-003, options 1 and 2. The full behavioural contract moved to the direct-mode scenario
+  # named below, where the component is pinned and can emit a determinate artifact. What stays
+  # here is the routing floor: one grader proving the request reached this lane, one the prompt
+  # echo fails, and the anti-pattern guard. Four batches measured the old 8-grader conjunction at
+  # a ~0.53 ceiling over 3 trials regardless of grader quality, so the shape was the defect, not
+  # the words. threshold is below 1 because discovery measures a propensity (evals/README.md), not
+  # a contract.
+  # Full contract: evals/scenarios/agent-authoring-loop-contract.yaml
+  # Identity: a loop contract names a verifier and a budget.
   - type: contains_all
     of: ["verifier", "budget"]
-    # Regex: measured answers write "**Iterations:** a fixed max number of edit-verify cycles"
-    # and "**Iterations:** fixed integer cap", putting a markdown label between the two words a
-    # contains_any token needs adjacent. "budget" and "bound" are deliberately absent from the
-    # noun set so the prompt's own "iteration/candidate/time/cost budgets" cannot satisfy it -
-    # this grader is what keeps the prompt echo failing for this scenario. Verified 3/3.
-    # Batch 20260825T183911Z-ea5961ab trial 2 wrote the bound as a table row -
-    # "| Iterations | e.g., <= 5 propose-verify passes |" - stating the cap as a NUMBER, which is
-    # more concrete than any noun the pattern accepted. Comparators and digits now count too.
-    # "budget"/"bound" stay excluded so the prompt echo still fails this grader.
+  # Echo-rejector: the prompt asks for 'iteration/candidate/time/cost budgets' and satisfies none of these.
   - type: regex
-    pattern: '(?i)\biterations?\b[^.\n]{0,60}(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264|\u2264)\s*\d|\b\d+\s*(?:propose|improve|edit|verify|pass|cycle|round))|(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d)[^.\n]{0,40}\biterations?\b'
-    # Regex for the same reason: all three measured answers stated the bound as "**Cost:** a
-    # token/call ceiling", "**Cost:** token/dollar ceiling", "**Cost:** a cap on verifier
-    # reruns" - correct behaviour no adjacent-word token can see. Verified 3/3, echo rejected.
-  - type: regex
-    pattern: '(?i)\b(?:cost|token|spend|dollar)s?\b[^.\n]{0,60}\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b|\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b[^.\n]{0,40}\b(?:cost|token|spend|dollar)s?\b'
-  - type: contains_any
-    of: ["no-progress", "no progress"]
-  - type: contains_any
-    of: ["safety stop", "authority stop", "safety/authority"]
-  - type: contains_any
-    # The prompt asks for "promotion authority" and none of the first four phrasings accepted
-    # that exact term — one of the reds the SKILLS-003 incumbent baseline recorded.
-    of: ["human acceptance", "human approves", "human promotion", "human release owner", "promotion authority"]
-  - type: contains_any
-    of: ["durable evidence", "recorded evidence"]
+    pattern: '(?i)\biterations?\b[^.\n]{0,60}(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d|\b\d+\s*(?:propose|improve|edit|verify|pass|cycle|round))|(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d)[^.\n]{0,40}\biterations?\b'
+  # Anti-pattern guard.
   - type: not_contains
     of: ["unbounded iterations", "iterate until correct", "retry until it passes"]
