@@ -299,7 +299,7 @@ a rejected row is recorded with the reason. No row is implemented by this item.
 | F4 | `prompt-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `prompt-engineer` | `worked` in candidate — all three state they cannot invoke the lane and return dispatch to the caller; authority unchanged |
 | F5 | The `software-engineer` → `reviewer` → caller → `software-engineer` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `prompt-engineer` | `worked` in candidate — numeric round and elapsed/cost budgets plus success, no-progress, stale, exhausted, and safety terminals added |
 | F6 | `[UNTRUSTED]` taint is carried on five lanes and absent from `prompt-engineer`, `researcher`, and `repository-investigator` output contracts (§12, §3) | `prompt-engineer` | `worked` in candidate — source-trust fields and claim-level default taint added to the three lanes |
-| F7 | `disable-model-invocation` is the only deterministic guardrail on the two effect-shaped skills and is `[unverified]` on the installed CLI (§5 E3) | `HOST-002` | `already owned` — the 2026-08-24 batch-1 audit and `HOST-002` record the missing plugin-specific visibility canary; no new item |
+| F7 | `disable-model-invocation` is the deterministic invocation guard on the manual-only skills and was `[unverified]` on the installed CLI (§5 E3) | `HOST-002` | `verified 2026-08-25` — a paired harmless plugin canary on Claude Code 2.1.243 hid the guarded skill from model invocation while preserving explicit invocation; see the dated packet |
 | F8 | The Grafana dashboard write has no `UNKNOWN` state or named replay-safety class, although a byte-identical re-apply is idempotent and a stale token fails loudly (§9, §8) | `observability-engineer` / `obs-dashboards` text | `worked` in candidate — `idempotent-by-target`, UNKNOWN, readback-plus-version-history reconciliation, and redispatch block added; authority unchanged; direct behavior 2/2 |
 | F9 | No per-lane failure path for a delegate that returns nothing, garbage, or half its contract; no liveness rule (§8, §6) | `prompt-engineer` | `worked` in candidate — malformed/empty/partial/timeout/kill is a failed attempt with no dependent dispatch; no scheduler/lease/heartbeat is claimed |
 | F10 | Live runs carry no run/attempt lineage; only the eval manifest does (§10, §13) | `prompt-engineer` (packet convention) | `worked` in candidate — every lane carries run/attempt and requested/resolved model fields and preserves/increments lineage |
@@ -489,10 +489,12 @@ two existing near-miss scenarios remaining green, and no overlap with `workflow-
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `active` (2026-08-24) — a disposable authenticated VS Code 1.134.0 profile measured the
-picker's configuration and buffer-write behavior, but no `execute` call or host denial ran and the
-raw transcript/envelopes remain operator-local. Invocation authority and durable review evidence
-therefore remain open acceptance gaps.
+**Status:** `active` (2026-08-25) — F7's installed-Claude-CLI visibility gap is now `[verified]` on
+2.1.243 by a paired harmless plugin canary. The separate VS Code boundary remains open: two
+disposable authenticated VS Code 1.134.0 profiles measured different outcomes for the same
+default-Agent-to-`sre` override path, and neither reached an `execute` call or host denial. The
+prior non-secret transcripts and nine validated envelopes are durable at `abb02cf`. Installed and
+upstream source now identify an exact-agent hook path, but its runtime behavior is not yet probed.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
 inference, and the fleet knows whether the read-only guard is portable to that host or whether
@@ -524,9 +526,36 @@ the switch to `sre`, and dirtied the open generated-agent editor buffer without 
 on-disk digest. This proves a configuration/write-back path only. No command was submitted after
 that clean-file precondition failed, so whether `sre` can invoke `execute` or the host denies it is
 `[unverified]`. The buffer, picker defaults, file digests, Git status, and Gate A 6/6 were restored.
-The transcript and envelopes are bound by local hashes but are not yet in a durable reviewable
-location, so they cannot close HOST-002. Hook identity/portability remains unverified and no hook
-was wired.
+At that revision the transcript and envelopes were bound by local hashes but remained
+operator-local, so they could not close HOST-002. Hook identity/portability remains unverified and
+no hook was wired.
+
+**Corrected reprobe (2026-08-25):** `[verified]` The built-in Agent picker already showed its global
+`execute` selection enabled at `52 Selected`, but switching to `sre` restored the custom agent's
+`14 Selected` set with `execute` offered-off. The generated editor buffer, disk digest, Git status,
+and inspected settings state stayed clean. The probe therefore recorded a measured negative for
+that override path and did not submit the command. This disagrees with the prior same-build
+configuration result and leaves invocation authority `[unverified]`; repeating the same picker
+sequence would not resolve the criterion. The sanitized prior transcript/envelopes and the corrected
+reprobe record are prepared under [`docs/reviews/evidence/host-002`](reviews/evidence/host-002).
+
+**F7 Claude CLI canary (2026-08-25):** `[verified]` The
+[`disable-model-invocation` packet](reviews/2026-08-25-host-002-disable-model-invocation-cli.md)
+records a paired disposable plugin run on Claude Code 2.1.243. The unguarded control invoked its
+Skill and loaded a body-only marker. Adding only `disable-model-invocation: true` produced no Skill
+call and `NOT_VISIBLE`, while explicit `/plugin:skill` invocation returned the marker. This closes
+F7 for that installed CLI build without weakening the manual-only skills' body-level authority
+checks. It does not establish VS Code invocation authority or Copilot hook identity.
+
+**Hook scoping investigation (2026-08-25):** `[verified static]` VS Code 1.134.0 loads the shared
+hook set, finds the enabled custom agent whose name matches the selected mode, and merges that
+agent's `hooks` before sending the request to Copilot Chat. Its plugin-wide `PreToolUse` input
+contains the hook event, session, transcript, tool name, tool input, and tool-use ID, but no
+top-level custom-agent identity. Current official documentation likewise supports `hooks:` on a
+custom `.agent.md`. The viable candidate is therefore a generated `sre`-scoped hook, not a
+self-scoping entry in `hooks/copilot-hooks.json`. This is source evidence only: no real fleet hook
+is wired until the distinct disposable canary records a custom-agent denial and an unaffected
+built-in-Agent control.
 
 **Prerequisites:** Use an installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
@@ -538,13 +567,15 @@ picker offers `execute` to `sre`; whether an override changes the configuration;
 generated buffer or on-disk file changes; and whether a safe invocation runs or receives an explicit
 host denial. It states the exact build and keeps configuration evidence separate from invocation
 authority. An operator-local artifact and hash are not closure evidence. Any hook-portability
-finding is evidence only; wiring a Copilot hook is separate work needing its own review.
+finding is evidence only; wiring a Copilot hook is separate work needing its own review. Exact-agent
+scope may be established by a hook attached to the selected custom agent; the global hook payload
+does not need to invent an identity field it does not carry.
 
-**Next action:** Run the corrected probe in a new disposable profile. Keep the generated editor
-buffer clean, then observe the safe `git status --short` call or an explicit host denial and retain
-the non-secret transcript/envelopes in an approved durable review location without adding the
-operator-local ZIP. Do not populate `hooks/copilot-hooks.json` before a separate probe shows that
-its payload can scope to an exact agent identity.
+**Next action:** Run the probe's distinct agent-scoped hook canary in a disposable VS Code profile:
+the custom canary must deny a harmless terminal request with its fixed marker, while the built-in
+Agent control remains unaffected. Keep invocation authority open until a real tool call or host
+denial is observed. Do not run a third identical picker retry, substitute a prompt-file override,
+or populate `hooks/copilot-hooks.json`.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
