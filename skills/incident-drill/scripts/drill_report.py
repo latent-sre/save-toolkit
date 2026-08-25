@@ -23,7 +23,7 @@ import sys
 
 def load(runs_dir: pathlib.Path) -> list[dict]:
     rows = []
-    for meta_path in sorted(runs_dir.glob("*.meta.json")):
+    for meta_path in sorted(runs_dir.rglob("*.meta.json")):
         try:
             row = json.loads(meta_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
