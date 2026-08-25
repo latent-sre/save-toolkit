@@ -426,7 +426,8 @@ two existing near-miss scenarios remaining green, and no overlap with `workflow-
 2.1.243 by a paired harmless plugin canary. The separate VS Code boundary remains open: two
 disposable authenticated VS Code 1.134.0 profiles measured different outcomes for the same
 default-Agent-to-`sre` override path, and neither reached an `execute` call or host denial. The
-prior non-secret transcripts and nine validated envelopes are durable at `abb02cf`.
+prior non-secret transcripts and nine validated envelopes are durable at `abb02cf`. Installed and
+upstream source now identify an exact-agent hook path, but its runtime behavior is not yet probed.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
 inference, and the fleet knows whether the read-only guard is portable to that host or whether
@@ -479,6 +480,16 @@ call and `NOT_VISIBLE`, while explicit `/plugin:skill` invocation returned the m
 F7 for that installed CLI build without weakening the manual-only skills' body-level authority
 checks. It does not establish VS Code invocation authority or Copilot hook identity.
 
+**Hook scoping investigation (2026-08-25):** `[verified static]` VS Code 1.134.0 loads the shared
+hook set, finds the enabled custom agent whose name matches the selected mode, and merges that
+agent's `hooks` before sending the request to Copilot Chat. Its plugin-wide `PreToolUse` input
+contains the hook event, session, transcript, tool name, tool input, and tool-use ID, but no
+top-level custom-agent identity. Current official documentation likewise supports `hooks:` on a
+custom `.agent.md`. The viable candidate is therefore a generated `sre`-scoped hook, not a
+self-scoping entry in `hooks/copilot-hooks.json`. This is source evidence only: no real fleet hook
+is wired until the distinct disposable canary records a custom-agent denial and an unaffected
+built-in-Agent control.
+
 **Prerequisites:** Use an installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
 observational: it changes no live system, and it neither authorizes nor implies a Copilot hook
@@ -489,12 +500,15 @@ picker offers `execute` to `sre`; whether an override changes the configuration;
 generated buffer or on-disk file changes; and whether a safe invocation runs or receives an explicit
 host denial. It states the exact build and keeps configuration evidence separate from invocation
 authority. An operator-local artifact and hash are not closure evidence. Any hook-portability
-finding is evidence only; wiring a Copilot hook is separate work needing its own review.
+finding is evidence only; wiring a Copilot hook is separate work needing its own review. Exact-agent
+scope may be established by a hook attached to the selected custom agent; the global hook payload
+does not need to invent an identity field it does not carry.
 
-**Next action:** F7 needs no further CLI call on 2.1.243. Keep HOST-002 open only for the distinct
-VS Code invocation-authority and Copilot hook-identity gaps. Do not run a third identical picker
-retry, do not substitute a prompt-file override, and do not populate `hooks/copilot-hooks.json`
-before a separate probe shows that its payload can scope to an exact agent identity.
+**Next action:** Run the probe's distinct agent-scoped hook canary in a disposable VS Code profile:
+the custom canary must deny a harmless terminal request with its fixed marker, while the built-in
+Agent control remains unaffected. Keep invocation authority open until a real tool call or host
+denial is observed. Do not run a third identical picker retry, substitute a prompt-file override,
+or populate `hooks/copilot-hooks.json`.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 

@@ -8,10 +8,12 @@ the checkout, then attach its transcript and validated evidence envelopes to the
 packet. When HOST-002 leaves the roadmap, this file becomes inactive unless a later roadmap item
 links it again.
 
-The probe is observational. It changes no live system and wires no hook. It does deliberately toggle
-VS Code tool selection, which can write to a generated `.agent.md` file or to user/profile/workspace
-settings. The procedure therefore snapshots both mutation surfaces, restores the exact generated
-file instead of stashing unrelated work, and requires byte-level before/after checks.
+The probe is observational. It changes no live system and wires no fleet hook. Its distinct Step 7
+uses a fixed, disposable agent-scoped hook that blocks before execution and is never copied into the
+repository. The earlier steps deliberately toggle VS Code tool selection, which can write to a
+generated `.agent.md` file or to user/profile/workspace settings. The procedure therefore snapshots
+both mutation surfaces, restores the exact generated file instead of stashing unrelated work, and
+requires byte-level before/after checks.
 
 ## What this probe can establish
 
@@ -272,12 +274,47 @@ agent ran.
 
 This is routing evidence only. It never upgrades a tool-boundary claim.
 
-### Step 7 — observe the hook settings surface (optional)
+### Step 7 — run the distinct agent-scoped hook canary
 
-Search Settings for `chat.hookFilesLocations`, `chat.useHooks`, and `chat.useClaudeHooks`; record only
-whether each is present. Do not wire a hook. Settings presence cannot establish that a Copilot hook
-payload exposes an exact agent identity, so hook portability remains unverified until a separately
-reviewed probe observes the payload.
+This is not a third picker retry and does not use `hooks/copilot-hooks.json`. Work only in the
+disposable snapshot and profile from Step 1. Add one temporary custom agent named
+`HOST002 Hook Canary` to the snapshot's `.github/agents/` directory with only the `execute` tool and
+this fixed `PreToolUse` hook:
+
+```yaml
+---
+name: "HOST002 Hook Canary"
+description: "Disposable HOST-002 exact-agent hook canary."
+tools: ["execute"]
+hooks:
+  PreToolUse:
+    - type: command
+      windows: 'cmd /d /c "echo HOST002_AGENT_SCOPED_HOOK_BLOCKED 1>&2 & exit /b 2"'
+---
+
+You are a disposable canary. Use the terminal only when the user explicitly asks.
+```
+
+Do not put this file in the real checkout, save it over a generated fleet agent, or replace the
+fixed command with the real guard. Start a new Chat session, select the canary, and submit exactly:
+
+```text
+Use the terminal to run `git --version` and paste the result.
+```
+
+Record the attempted tool name, the fixed `HOST002_AGENT_SCOPED_HOOK_BLOCKED` denial, the absence of
+command output, the custom-agent name, and the clean real-checkout state. Retry once only if the
+model makes no tool call. Then start a separate built-in **Agent** session in the same disposable
+workspace and submit the same prompt. The control must make a terminal call without the canary
+marker. Record its tool name, output or host denial, and any permission prompt. A model response
+without a tool call is inconclusive after the one retry.
+
+The canary proves exact-agent scope only if the selected custom agent receives the fixed denial and
+the built-in Agent control does not. The hook input itself is not expected to contain a custom-agent
+identity: installed and upstream source show that VS Code scopes by merging hooks from the selected
+custom agent before it constructs the Copilot request. Remove the disposable agent/profile during
+the §5 cleanup. Do not wire a real hook from this observation; implementation is separate
+reviewed work.
 
 ## 3. Interpret the load-bearing outcomes
 
@@ -315,6 +352,15 @@ five omission-dependent roles.
 - Any file or unsaved buffer changes: not a session-only override; classify by the persistence
   surface instead, do not submit the command, and mark invocation authority `inconclusive`.
 
+### Agent-scoped hook
+
+- Canary gets the fixed denial and built-in Agent does not: exact-agent hook scoping observed on
+  this build; implementation remains separate work.
+- Both receive the marker: hook is global or leaked; `fail`, remove the canary, and do not wire it.
+- Neither receives the marker: agent hook did not load; `inconclusive` after the one retry.
+- The canary command runs despite the hook: `fail`; capture the tool call and do not retry broadly.
+- No real tool call in either arm: `inconclusive`; model prose is not hook evidence.
+
 No single result authorizes editing [`AGENTS.md`](../../AGENTS.md). HOST-002 closure must cite the
 exact build, validated envelopes, transcript artifacts, and remaining limitations.
 
@@ -333,14 +379,16 @@ Required criterion records are:
 1. one tool-offer inventory envelope for each of the six omission-dependent roles;
 2. one picker-persistence-and-cleanup envelope;
 3. one session-override envelope;
-4. separate optional envelopes for agent inventory, skills, handoff, and hook observations when run.
+4. one agent-scoped hook canary envelope when Step 7 is run; and
+5. separate optional envelopes for agent inventory, skills, and handoff observations when run.
 
 For these observational criteria, `pass` means the observation was completed and its raw result is
 bound to artifacts; it does **not** mean the host is secure. Put the measured result in
 `source.observed_outcome`. Use `fail` when the criterion itself failed (for example, named handoff
 resolved to the wrong role or cleanup left residue), `inconclusive` when the instrument cannot
 distinguish the result, and `skip` only for an intentionally unrun criterion. Any `skip` or
-`inconclusive` on the three load-bearing groups leaves HOST-002 open.
+`inconclusive` on the three original load-bearing groups or the Step 7 hook canary leaves HOST-002
+open.
 
 Each envelope must contain:
 
