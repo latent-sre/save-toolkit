@@ -5,10 +5,11 @@ mode: direct
 # discovery-agent-authoring-trigger-and-shape for the reason recorded in that scenario: activation
 # and output shape are separate measurements, and proving a response separates them is a contract
 # test, not a routing test.
-# Promoted to regression after a measured pass: batch 20260825T225402Z-8ff050e2, Sonnet,
-# 3 trials, 600 s -- 3/3 with the skill firing 3/3 (evals/README.md: a positive enters
-# regression only after a measured pass).
-split: regression
+# Measured 3/3 (skill fired 3/3) in batch 20260825T225402Z-8ff050e2, and deliberately NOT
+# promoted on that alone. This branch measured discovery-agent-authoring-trigger-and-shape at
+# 3/3 and then 1/3 with no change made to it, so one clean trial is a sample, not a property.
+# Promotion waits for a second independent batch.
+split: calibration
 target:
   kind: skill
   name: agent-authoring
