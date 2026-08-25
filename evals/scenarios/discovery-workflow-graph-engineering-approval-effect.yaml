@@ -1,0 +1,44 @@
+schema_version: 1
+id: discovery-workflow-graph-engineering-approval-effect
+mode: discovery
+# Promoted to regression on 2026-08-24 after a measured pass on the candidate: Sonnet, 3 trials,
+# 600 s timeout, run 20260824T205218Z-0b59db4b — 3/3 fired workflow-graph-engineering and passed
+# every behavioral grader (evals/README.md: a positive enters regression only after a measured pass).
+split: regression
+target:
+  kind: skill
+  name: workflow-graph-engineering
+prompt: |
+  Design the executable workflow graph for an on-call automation: an agent drafts a Cloud Run
+  revision restart, a human approves it in Slack, then the graph restarts the revision and files a
+  Jira ticket. A retry once ran the restart twice and filed two tickets, and a crash mid-call left
+  nobody sure whether the restart happened. Be precise about idempotency for both effects, what
+  happens if one approval is reused for another revision, how long completed effects are remembered,
+  the state for "we don't know if it ran", and how the graph resolves it. Do not choose a runtime.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes workflow-graph-engineering for an executable workflow/state-graph design
+  - Names the idempotency key, mismatched-intent rejection, retention, an explicit UNKNOWN state, and reconciliation
+  - Binds the approval to the exact revision and never presents a checkpoint as exactly-once proof
+graders:
+  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
+  # the adversarial fixtures for this scenario live in evals/test_graders.py.
+  - type: contains_all
+    of: ["idempotency key", "reconcil"]
+  - type: contains_any
+    of: ["unknown"]
+  - type: contains_any
+    of: ["tombstone", "retention", "retained"]
+  - type: contains_any
+    of: ["approver", "candidate identity", "revision identity", "bound to the revision", "bound to the exact"]
+  - type: contains_any
+    of: ["mismatch", "different intent", "rejected before dispatch"]
+  - type: not_regex
+    # A checkpoint offered as exactly-once proof. Negation is bound to the verb via lookbehinds so
+    # "a checkpoint does not prove ... exactly once" (compliant) passes while "the checkpoint
+    # guarantees the restart runs exactly once" fails.
+    pattern: '(?i)checkpoint(?:s|ing)?\b[^.\n]{0,60}?(?<!not )(?<!never )(?<!n''t )(?<!cannot )\b(?:guarantee|ensure|make|prove)s?\b[^.\n]{0,40}\bexactly.once'
+  - type: not_regex
+    # Selecting a runtime inside the design. "do not choose LangGraph" is exempt via the lookbehinds.
+    pattern: '(?i)(?<!not )(?<!never )(?<!n''t )\b(?:recommend(?:ed|s)?|should|let''?s|go with|adopt|standardi[sz]e on|pick|choose|select|use) (?:us(?:e|ing) |adopt(?:ing)? |choos(?:e|ing) |pick(?:ing)? |select(?:ing)? |on )?(?:langgraph|temporal|autogen|prefect|airflow|step functions|cadence|dapr)\b'

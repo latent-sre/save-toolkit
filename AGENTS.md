@@ -1,6 +1,6 @@
 # Save Toolkit — fleet guide
 
-A multi-host engineering plugin with **8 canonical agents and 30 canonical skills**. Claude Code
+A multi-host engineering plugin with **8 canonical agents and 32 canonical skills**. Claude Code
 loads [`agents/`](agents) and [`skills/`](skills) directly. Copilot/VS Code adapters are
 generated and committed from those sources; never edit the projection by hand. Routing is native:
 descriptions select lanes and Claude components are invoked as `save-toolkit:<name>`.
@@ -52,7 +52,7 @@ runtime connectivity, authentication, telemetry delivery, persistence, or recove
 | `observability-engineer` | Steady-state observability: dashboards, alerts, SLOs, error budgets, pipelines | **Unguarded Bash** ([ADR 2026-08-21](docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md)) — runs config validators, reads/exports live Grafana, and applies dashboard create/update over the HTTP API under the dashboard write rule (diff shown first, live model exported as rollback, concurrency token pinned); every other live change stays recommend-only; writes obs-config | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documentation: runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local read/write, but **no Bash, web, or delegation**; terminal | — |
 | `researcher` | Cited public fact-finding from official docs, upstream code, packages, and advisories | **External-only by tool absence** — no local read, Bash, Write, Skill, or Agent | — |
-| `prompt-engineer` | The fleet's own prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, and roster/delegation graphs | Local read/write + Bash for repo tooling; no direct web tools | `researcher` |
+| `prompt-engineer` | The fleet's own prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Local read/write + Bash for repo tooling; no direct web tools | `researcher` |
 
 No agent pins a `model:` today — the whole fleet inherits the session model. A per-agent
 **generation alias** (`haiku`/`sonnet`/`opus`/`fable`/`inherit`) is permitted when a lane's cost

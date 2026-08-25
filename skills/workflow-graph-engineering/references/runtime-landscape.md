@@ -1,0 +1,68 @@
+# Runtime landscape
+
+Read this when the request names a framework or runtime, or asks which one to use. The answer this
+skill gives is the same every time: **no inspected runtime supplies the whole portable contract**,
+so the contract is written first and a runtime is measured against it. Selecting one is a separate
+owner decision taken under `stack-profile`, against a concrete consumer, effect model, migration
+need, and operating boundary. This file supplies the questions to ask a runtime and the dated
+evidence behind the "none supplies all of it" claim; it does not rank or recommend.
+
+## Contents
+
+- Questions to ask any runtime
+- What inspected runtimes established
+- Recording a deferred selection
+
+## Questions to ask any runtime
+
+Map each contract concern to the question whose answer decides fit. Record answers with a version
+or commit and a label; an unanswered question is `[unverified]`, not "probably fine".
+
+| Concern | Ask the runtime |
+|---|---|
+| Typed data | Are input, state, node I/O, and output typed and validated at the boundary, or by convention? |
+| Edges | Are edge conditions serializable and inspectable, or opaque callables? Can a model-selected edge be constrained to a destination set? |
+| Concurrency | Are concurrent writes merged through a declared reducer? What ordering does fan-in guarantee? What happens to a late branch? |
+| Scheduling | Is there a task queue with capacity, priority, tenant quota, backpressure, and shed behaviour — or is admission the caller's problem? |
+| Retry ownership | Which layer retries which failure class, and can that be limited to one layer? |
+| Recovery model | Checkpoint resume or deterministic event-history replay? Where is the checkpoint boundary relative to an effect? |
+| Compatibility | How is a running workflow migrated across a code change? Is there a replay or version check? |
+| External effects | Does the runtime supply idempotency keys, receipts, or reconciliation — or is that entirely the application's? (Usually the latter.) |
+| Human control | Does an interrupt persist approval state with identity and expiry, and resume from exactly the pre-effect point? |
+| Cancellation | Cooperative, durable, or both? What happens to in-flight activities? |
+| Termination | Is there a runtime turn or iteration cap, and what evidence does a budget stop write? |
+| Observability | Are attempt, retry, and replay identities on spans? Are handoffs, approvals, and effects events? |
+| Authority | Is worker isolation a tool/history scope only, while credentials and filesystem remain shared? |
+
+## What inspected runtimes established
+
+Recorded from a dated research refresh; each row is `[sourced]` at the named revision and was not
+re-run by this skill. Product and beta behaviour changes, so re-verify before citing as current.
+*[sourced: framework and engine repositories at the pinned revisions below, reviewed 2026-08-23]*
+
+| Runtime and revision | Established | Boundary |
+|---|---|---|
+| [OpenAI Agents SDK at `2334679`](https://github.com/openai/openai-agents-python/tree/233467994fac7e7dbd868931573cc9a4302c0a16) | Manager versus handoff orchestration, model- versus code-selected flow, `max_turns`, boundary-scoped guardrails, approval interruption with serialized resume, parented tracing | Orchestration primitives, not a durable graph runtime; input guardrails cover the first agent and output guardrails the final agent |
+| [LangGraph at `f09cfe8`](https://github.com/langchain-ai/langgraph/tree/f09cfe8ffc1eeffd68f4b628ed69c30f7cad229f) | Typed state/input/output, reducer-defined merges, dynamic fan-out, interrupts, checkpoints, thread IDs, replay, resume, bounded retry | Checkpoints do not make external effects exactly once |
+| [AutoGen GraphFlow at `027ecf0`](https://github.com/microsoft/autogen/tree/027ecf0a379bcc1d09956d46d12d44a3ad9cee14) | Sequential and conditional edges, parallel fan-out, `all`/`any` joins, cycles, exits, saved manager state, resume | Experimental; callable edge conditions are not serializable; a conditional cycle edge does not prove its exit is reachable |
+| [Pydantic AI v2.33.0 at `1d7eb69`](https://github.com/pydantic/pydantic-ai/tree/1d7eb695cc17c5bed46d32749ed02092819fc3a1) | Typed node-return edges, explicit `End`, fork/cycle analysis, validated tool and output surfaces, durable-engine guidance on determinism and idempotency | Pydantic Graph v2 has no graph snapshot persistence; cancellation cannot roll back synchronous effects and recovery can repeat handlers |
+| [Temporal Python SDK at `3a464f9`](https://github.com/temporalio/sdk-python/tree/3a464f9b56bad49926f03aa7b421209dbaa784f8) | Deterministic workflow replay, event histories, durable timers and signals, activity retry, workflow-version compatibility checks | A durable workflow engine, not a graph authoring model; nondeterministic calls belong in activities that still need idempotent effect handling |
+| [Anthropic Managed Agents multiagent orchestration](https://platform.claude.com/docs/en/managed-agents/multiagent-orchestration) | Versioned agent definitions, snapshotted rosters, persistent context-isolated workers, one-level delegation, shared session budgets, interrupts, event streams | Beta and product-specific; not authority isolation — agents share a sandbox, filesystem, and session credentials even though tools and histories are agent-scoped |
+
+The disagreement between these — graph frameworks checkpoint application state, durable engines
+replay deterministic histories, orchestration SDKs supply neither durability nor effect safety —
+is the evidence for writing the portable contract first. A production report on a durable workflow
+engine illustrates why replay compatibility, worker health, backlogs, hot shards, and persistence
+pressure are operating concerns; it is evidence, not a recommendation to adopt that engine.
+*[sourced: Uber Engineering, [Announcing Cadence 1.0](https://www.uber.com/us/en/blog/announcing-cadence/),
+reviewed 2026-08-23]*
+
+## Recording a deferred selection
+
+Section 14 of the artifact lists the criteria a selection would have to satisfy — the answers the
+consumer needs to the questions above, the effect model, the migration need, the operating owner,
+and the platform boundary — and marks the selection **deferred** with the owner decision it waits
+on. When a separately approved consumer decision already names a runtime, record that identity in
+section 2 and evaluate the design against it; do not re-open the selection inside the design.
+
+Reference-read token: q_wgrun_4f8d

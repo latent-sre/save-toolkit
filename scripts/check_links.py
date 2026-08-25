@@ -90,7 +90,13 @@ ALLOWED_KEYS = {
     "disable-model-invocation",
     "compatibility",
 }
-MANUAL_ONLY = {"pcf-deploy", "service-onboarding"}
+# Skills that must carry `disable-model-invocation: true`, and the only ones allowed to. Each is
+# explicit-only because autonomous invocation would be an effect or a cost the caller did not ask
+# for: `pcf-deploy` and `service-onboarding` coordinate approved production effects, and
+# `incident-drill` spawns many model sessions against a synthetic incident (real spend, real files)
+# and must never start because a conversation mentioned an outage. Adding a name here is a decision:
+# state why the skill cannot be model-invoked, and keep the message below in sync.
+MANUAL_ONLY = {"incident-drill", "pcf-deploy", "service-onboarding"}
 YAML_NON_STRING = re.compile(
     r"^(?:"
     r"~|null|true|false|yes|no|on|off|"
@@ -199,7 +205,7 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
         if raw_manual_only != "true":
             failures.append(f"{where}: disable-model-invocation must be boolean true")
         failures.append(
-            f"{where}: only pcf-deploy and service-onboarding may disable model invocation"
+            f"{where}: only {', '.join(sorted(MANUAL_ONLY))} may disable model invocation"
         )
     return body, failures
 

@@ -1203,6 +1203,78 @@ _ROUTING_BATCH1_INCOMPLETE = {
     ),
 }
 
+# Routing scenarios added with the `workflow-graph-engineering` skill (SKILLS-003): one positive
+# executable-graph request and four near misses (roster graph, code/GraphRAG graph, runtime
+# implementation, runtime selection). The shared test below asserts the raw prompt echo and its
+# whitespace-normalized form FAIL the full grader set, the curated compliant response passes, and a
+# keyword-rich but behaviorally incomplete response is rejected.
+_ROUTING_WGE_CASES = {
+    "discovery-workflow-graph-engineering-approval-effect.yaml": (
+        "Graph: alert -> draft remediation -> approval -> restart effect -> ticket effect -> "
+        "terminal. The approval record binds the approver identity, the exact revision, an "
+        "immutable candidate identity, and an expiry; a resumed run re-checks that binding, so an "
+        "approval reused for a different revision fails the candidate-identity check and is "
+        "rejected. Each effect carries an idempotency key derived from caller, operation, target, "
+        "tenant, and the canonical intent; reuse of a key with a mismatched intent is rejected "
+        "before dispatch. Results and tombstones are retained for the full retry window plus the "
+        "ambiguity window. A crash mid-call leaves the effect in a persisted UNKNOWN state that is "
+        "never replayed automatically; a read-after-write reconciliation query against Cloud Run "
+        "and Jira resolves it, owned by the on-call operator. A checkpoint records progress and "
+        "does not prove either effect ran exactly once. Runtime selection is deferred [unverified]."
+    ),
+    "discovery-workflow-graph-engineering-defers-roster-graph.yaml": (
+        "Nodes: coordinator, implementation, research, and review lanes. Edges: only the named "
+        "delegation edges from the coordinator, with handoff edges carrying the packet contract. "
+        "Authority boundaries: implementation holds local write, review is a read-only review "
+        "lane with no write or delegation, and effects stay human-owned. Joins converge on the "
+        "coordinator, and termination is the success criterion or the hard budget. This is the "
+        "roster, not an executable state graph; no runtime is selected."
+    ),
+    "discovery-workflow-graph-engineering-defers-code-graph.yaml": (
+        "This is local repository investigation of source-code structure, not workflow or agent "
+        "design: build the import graph with static analysis - an AST walk that extracts imports "
+        "per package, assembles the dependency graph, reports cycles, and lists the files that "
+        "create each edge. No LLM workflow, state graph, or agent is designed here."
+    ),
+    "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml": (
+        "Routed to sde: the build lane owns services/fulfilment/graph.py and its pytest coverage "
+        "for the retry and cancel paths against the accepted contract. Nothing was run in this "
+        "session: no file was written and no pytest command was executed, so the implementation "
+        "is [unverified] until the build lane executes it."
+    ),
+    "discovery-workflow-graph-engineering-defers-runtime-selection.yaml": (
+        "Per stack-profile, the current runtime is PCF/TAS with a GCP migration approved and the "
+        "landing runtime still pending; the platform team owns the platform boundary and the "
+        "application team owns its services. No workflow engine is selected here: Temporal, "
+        "LangGraph, and Cloud Workflows each need a decision record against a concrete consumer "
+        "and effect model, so the selection is deferred to that owner decision [unverified]."
+    ),
+}
+
+_ROUTING_WGE_INCOMPLETE = {
+    "discovery-workflow-graph-engineering-approval-effect.yaml": (
+        "Idempotency key on each effect, reconcile on failure, unknown handled, retention set, "
+        "approver recorded, mismatch rejected; the checkpoint guarantees the restart runs exactly "
+        "once."
+    ),
+    "discovery-workflow-graph-engineering-defers-roster-graph.yaml": (
+        "Nodes, edges, authority, termination, and delegation edges with a read-only review lane; "
+        "each worker node persists at its checkpoint boundary and effects use an idempotency key."
+    ),
+    "discovery-workflow-graph-engineering-defers-code-graph.yaml": (
+        "The dependency graph of the monorepo source-code structure shows which packages import "
+        "which; inspect the checkout."
+    ),
+    "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml": (
+        "Implemented services/fulfilment/graph.py with pytest coverage for retry and cancel; "
+        "everything passes."
+    ),
+    "discovery-workflow-graph-engineering-defers-runtime-selection.yaml": (
+        "Standardize on Temporal for durable agent pipelines; it handles retries and replay, and "
+        "the platform boundary is fine."
+    ),
+}
+
 _OBS_BEHAVIOR_SCENARIOS = {
     "discovery-obs-alerting-splunk-saved-search.yaml": "obs-alerting",
     "discovery-obs-logs-cloud-logging.yaml": "obs-logs",
@@ -1354,6 +1426,52 @@ def test_routing_batch1_scenarios_reject_echoes_and_incomplete() -> None:
         incomplete = _ROUTING_BATCH1_INCOMPLETE[filename]
         check(
             not grade_all(grader_specs, incomplete),
+            f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
+        )
+
+
+def test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for workflow-graph routing scenario tests (`pip install pyyaml`)")
+        return
+
+    check(
+        len(_ROUTING_WGE_CASES) == 5,
+        "workflow-graph routing regression covers the 5 SKILLS-003 scenarios",
+    )
+    check(
+        set(_ROUTING_WGE_INCOMPLETE) == set(_ROUTING_WGE_CASES),
+        "every workflow-graph scenario has a keyword-rich incomplete fixture",
+    )
+    for filename, compliant in _ROUTING_WGE_CASES.items():
+        scenario = _load_scenario(filename)
+        check(
+            scenario.get("target") == {"kind": "skill", "name": "workflow-graph-engineering"},
+            f"{filename}: targets skill:workflow-graph-engineering",
+        )
+        grader_specs = scenario["graders"]
+        check(
+            grader_diagnostics_are_windows_encodable(grader_specs),
+            f"{filename}: grader diagnostics stay Windows-console encodable",
+        )
+        prompt = scenario["prompt"]
+        normalized_prompt = " ".join(prompt.split())
+        check(
+            not grade_all(grader_specs, prompt),
+            f"{filename}: raw prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            not grade_all(grader_specs, normalized_prompt),
+            f"{filename}: whitespace-normalized prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: curated compliant response passes the full grader set",
+        )
+        check(
+            not grade_all(grader_specs, _ROUTING_WGE_INCOMPLETE[filename]),
             f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
         )
 
@@ -2206,6 +2324,7 @@ def main() -> int:
         test_routing_graders_reject_keyword_rich_incomplete_responses,
         test_routing_graders_accept_canonical_contract_variants,
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
+        test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete,
         test_routing_only_discovery_scenarios_stay_routing_only,
         test_incident_command_discovery_enforces_shared_boundary,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,

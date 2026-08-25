@@ -64,6 +64,13 @@ and starts a fresh non-persistent process for every trial. It supports `--mode`,
 `--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`. The discovery regression command
 selects skill targets only; agent-target discovery cases are optional calibration measurements.
 
+Pin `--model` on every `--run`. The fleet's measurement default is the `sonnet` alias unless the
+roadmap item or scenario names another tier: it is the tier the existing routing evidence was
+taken on, so new numbers stay comparable, and it keeps paid trials off the most expensive tier. A
+run on a different tier is a different baseline — record it in the evidence and never average it
+with a Sonnet run. A session's own model is not a default for the harness; the runner records the
+resolved model per trial so the choice is auditable either way.
+
 Direct skills are requested with an explicit instruction to invoke the exact
 `save-toolkit:<skill>` through the `Skill` tool; direct agents use
 `--agent save-toolkit:<agent>`. These two pins are not equivalent evidence. `--agent` runs the
