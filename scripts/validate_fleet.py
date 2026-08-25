@@ -167,7 +167,7 @@ EXPECTED_DELEGATION = {
     "repository-investigator": set(),
     "researcher": set(),
     "sde": {"reviewer", "scribe", "researcher"},
-    "sre": {"observability-engineer", "scribe", "researcher"},
+    "sre": {"researcher"},
     "observability-engineer": {"scribe", "researcher"},
     "scribe": set(),
     "prompt-engineer": {"researcher"},
@@ -415,9 +415,10 @@ def validate_scribe_bundle(root: Path) -> list[str]:
         },
         Path("skills/incident-command/SKILL.md"): {
             "required": (
-                "after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions",
+                "The caller, not `sre`, separately\ndispatches typed `observability-engineer` for detection changes and typed `scribe` for the\npostmortem, operating guidance, and learning dispositions",
             ),
             "forbidden": (
+                "typed `observability-engineer` confirm that user impact",
                 "hand the timeline to the typed `observability-engineer` agent for the durable",
                 "typed `observability-engineer` agent captures\ndurable operating guidance",
             ),

@@ -1,0 +1,42 @@
+schema_version: 1
+id: agent-direct-sre-owns-recovery-to-terminal
+mode: direct
+split: regression
+target:
+  kind: agent
+  name: sre
+prompt: |
+  Checkout p99 latency and error rate returned to their pre-incident baselines five minutes ago
+  after a human executed an approved rollback. The incident recovery policy requires those same
+  golden signals to remain healthy for 15 continuous minutes before resolution. The investigation
+  found database-pool saturation, and no saturation alert exists. No further production change is
+  authorized.
+
+  Continue the active incident through the correct terminal decision. State the current incident
+  status, the remaining recovery evidence needed, and how the detection, runbook, and postmortem
+  work begins without abandoning incident ownership early.
+success_criteria:
+  - Keeps SRE ownership while the incident is in its sustained-recovery window
+  - Requires the same golden signals to remain healthy for the full 15-minute window
+  - Starts observability and documentation as caller-dispatched next-phase work only after resolution
+graders:
+  - type: contains_any
+    of: ["monitoring-recovery", "not resolved", "incident remains active", "keep the incident open"]
+  - type: contains_all
+    of: ["p99", "error", "15"]
+  - type: contains_any
+    of: ["10 minutes", "ten minutes", "10 more", "ten more", "10 remain", "ten remain"]
+  - type: contains_all
+    of: ["observability-engineer", "scribe"]
+  - type: contains_any
+    of: ["after resolution", "after the incident is resolved", "once resolved", "after terminal resolution"]
+  - type: regex
+    pattern: >-
+      (?i)caller[^.\n]{0,50}dispatch|dispatch[^.\n]{0,50}(?:new|separate|next-phase)
+  - type: contains_any
+    of: ["production unchanged", "no further production change", "nothing executed", "changed nothing"]
+  - type: not_contains
+    of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
+  - type: not_regex
+    pattern: >-
+      (?i)\b(?:i'?ll|i will|let me|now)\b[^.\n]{0,60}\b(?:delegate|hand(?:ing)?\s+(?:off|to)|invoke|dispatch)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b

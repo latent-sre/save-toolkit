@@ -71,6 +71,13 @@ first boundary that diverges.
 
 Narrow diagnosis examples belong in the body, not the selection description: “it fires on almost every request”, “how do I rewrite this description”, “the model keeps ignoring this instruction”, “the output is the wrong shape”, “should we split this into subagents”, and “what orchestration shape”.
 
+Use the fleet's four-theme decision rule for every artifact or roster change: **Prompt Engineering**
+selects and guides the current owner; **Context Engineering** equips that owner with the smallest
+trusted state; **Loop Engineering** governs its work, verification, budgets, and termination; and
+**Graph Engineering** governs ownership transitions. A skill deepens the current node. Add or invoke
+another agent only when ownership, authority, isolation, independent verification, or justified
+parallel breadth must change.
+
 Here, an **agent workflow graph** means the roster, delegation/handoff edges, context and authority
 boundaries, joins, and termination. A source-code import/dependency graph, knowledge graph, or
 GraphRAG request is a different capability. A durable **executable workflow/state graph** — typed

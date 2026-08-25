@@ -48,7 +48,7 @@ runtime connectivity, authentication, telemetry delivery, persistence, or recove
 | `sde` | Build, fix, refactor code and ops tooling; absorbs test-writing | Local read/write + **unguarded Bash** for **team-authored** code; no direct web tools | `reviewer`, `scribe`, `researcher` |
 | `reviewer` | Correctness + security review of a change, two lenses in one pass | **Local read-only by tool absence** — only Read/Grep/Glob; no Skill, Bash, Write, web, external MCP, or delegation | — |
 | `repository-investigator` | Answer bounded questions from the current private or uncommitted checkout | **Local read-only by tool absence** — only `Read`/`Grep`/`Glob`; terminal | — |
-| `sre` | Investigate production/staging failures: triage, severity, hypothesis-driven root cause | **Guarded Bash** — read-only `cf`/`gcloud`/`git`/`gh` triage under the allowlist; recommends mitigation, never applies it | `observability-engineer`, `scribe`, `researcher` |
+| `sre` | Investigate production/staging failures through sustained recovery and a named terminal state | **Guarded Bash** — read-only `cf`/`gcloud`/`git`/`gh` triage under the allowlist; recommends mitigation, never applies it | `researcher` |
 | `observability-engineer` | Steady-state observability: dashboards, alerts, SLOs, error budgets, pipelines | **Unguarded Bash** ([ADR 2026-08-21](docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md)) — runs config validators, reads/exports live Grafana, and applies dashboard create/update over the HTTP API under the dashboard write rule (diff shown first, live model exported as rollback, concurrency token pinned); every other live change stays recommend-only; writes obs-config | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documentation: runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local read/write, but **no Bash, web, or delegation**; terminal | — |
 | `researcher` | Cited public fact-finding from official docs, upstream code, packages, and advisories | **External-only by tool absence** — no local read, Bash, Write, Skill, or Agent | — |
@@ -87,6 +87,10 @@ Do not overstate either control:
 
 ## Shared conventions (every agent follows)
 
+- **Four-theme design rule.** Prompt Engineering selects and guides the current owner; Context
+  Engineering equips that owner with the smallest trusted state; Loop Engineering governs work,
+  verification, budgets, and termination; Graph Engineering governs ownership transitions. Skills
+  deepen a node; an agent edge changes ownership.
 - **Evidence over assertion.** Label load-bearing claims `[verified]` when independently run or
   observed, `[sourced]` when backed by a cited file, URL, or query, and `[unverified]` when not
   checked or not established. Never upgrade a label in transit, and state what could not be verified.

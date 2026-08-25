@@ -374,7 +374,7 @@ class FleetValidatorTests(unittest.TestCase):
                 )
                 text = text.replace("last_verified: null", "last_verified: <bump after incident>")
                 text = text.replace(
-                    "after resolution typed `scribe` captures the postmortem, operating guidance, and learning dispositions",
+                    "The caller, not `sre`, separately\ndispatches typed `observability-engineer` for detection changes and typed `scribe` for the\npostmortem, operating guidance, and learning dispositions",
                     "typed `observability-engineer` agent captures\ndurable operating guidance",
                 )
                 target.write_text(text, encoding="utf-8")
@@ -386,6 +386,23 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("timeline and evidence to the `observability-engineer` agent", rendered)
         self.assertIn("last_verified: null", rendered)
         self.assertIn("typed `observability-engineer` agent captures", rendered)
+
+    def test_incident_command_rejects_observability_as_recovery_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._copy_scribe_bundle(root)
+            target = root / "skills" / "incident-command" / "SKILL.md"
+            target.write_text(
+                f"{target.read_text(encoding='utf-8')}\n"
+                "Resolve only after the typed `observability-engineer` confirm that user impact ended.\n",
+                encoding="utf-8",
+            )
+            failures = validate_fleet.validate_scribe_bundle(root)
+        self.assertTrue(
+            any("stale scribe bundle contract" in failure and "confirm that user impact" in failure
+                for failure in failures),
+            failures,
+        )
 
     def test_scribe_bundle_allows_explicit_non_execution_language(self) -> None:
         safe_statements = (
@@ -553,6 +570,14 @@ class FleetValidatorTests(unittest.TestCase):
                     )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
+        self.assertIn("delegation mismatch", "\n".join(failures))
+
+    def test_sre_postincident_delegation_edges_are_rejected(self) -> None:
+        failures = self._agents_with_mutation(
+            "sre.md",
+            "Agent(researcher)",
+            "Agent(observability-engineer, scribe, researcher)",
+        )
         self.assertIn("delegation mismatch", "\n".join(failures))
 
     def _agents_with_mutation(self, filename: str, before: str, after: str) -> list[str]:

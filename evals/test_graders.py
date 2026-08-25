@@ -2243,6 +2243,33 @@ def test_direct_agent_contract_graders() -> None:
     )
     check(not grade_all(sre, sre_retired_format), "direct SRE: retired SEV2 format is REJECTED")
 
+    recovery_scenario = _load_scenario("agent-direct-sre-owns-recovery-to-terminal.yaml")
+    recovery_graders = recovery_scenario["graders"]
+    recovery_good = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
+        "10 minutes remain. After terminal resolution, observability-engineer detection work and "
+        "scribe runbook and postmortem work are separate next-phase tasks. Caller must dispatch "
+        "each as a new task after resolution. Production unchanged."
+    )
+    recovery_incomplete = (
+        "Incident terminal state: resolved. p99 latency and error rate are healthy after 15 minutes. "
+        "I will now hand off to observability-engineer and scribe for the detection alert, runbook, "
+        "and postmortem. Caller dispatch complete. Production unchanged."
+    )
+    check(
+        grade_all(recovery_graders, recovery_good),
+        "direct SRE recovery: sustained ownership and caller-dispatched next phase pass",
+    )
+    check(
+        not grade_all(recovery_graders, recovery_incomplete),
+        "direct SRE recovery: early resolution and direct handoff are REJECTED",
+    )
+    check(
+        not grade_all(recovery_graders, recovery_scenario["prompt"]),
+        "direct SRE recovery: raw prompt echo is REJECTED",
+    )
+
     scribe = _load_graders("agent-direct-scribe-knowledge-closeout.yaml")
     scribe_good = (
         "Catalog at OPS-991 remains owned by the Catalog Team. CatalogHighErrorRate evidence e1 "
