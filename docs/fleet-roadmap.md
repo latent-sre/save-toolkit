@@ -858,8 +858,11 @@ calibration seam green, and do not add a runtime, schema, validator, or `codebas
 
 ### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
-**Status:** `active` (2026-08-25) — all four scenarios treated offline; one live verification run
-remains.
+**Status:** `active` (2026-08-25) — offline treatment applied and verified live. Routing is
+`[verified]` correct in 12/12 trials; behavioural graders are still red (0/4 scenarios, though
+trial passes moved 0/12 to 4/12) for a reason that is **not** vocabulary, so the item stays open on
+a named instrument defect rather than on more widening. Evidence:
+[the verification batch](reviews/2026-08-25-grader-003-verification-batch.md).
 
 **Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
 
@@ -908,16 +911,36 @@ and is absent from every `.eval-runs` directory here — and the treatment chose
 because the mismatch is visible in each scenario against its own prompt. Any *further* grader
 widening does need a transcript first.
 
-**Acceptance:** Offline work is complete: `test_graders` 665/665, `--validate` OK at 94 scenarios,
-Gate A 6/6, generator byte-clean, `claude plugin validate . --strict` PASS, and the new invariant
-proven red for its named reason and restored. What remains is one live run —
-`python evals/run_evals.py --run --mode discovery --match agent-authoring --trials 3` at a pinned
-model — with numerator and denominator recorded. A scenario still red for a reason other than
-vocabulary is a separate finding, not a licence to widen further.
+**Measured result (batch `20260825T174112Z-498600c4`, Sonnet, 3 trials, 600 s, USD 3.54,
+candidate `90bd33e`, clean tree):** routing `[verified]` 3/3 on every scenario — 12/12 overall, no
+misroute on either revision. Behavioural: `defers-code-dependency-graph` 2/3,
+`trigger-and-shape` 1/3, `workflow-graph` 1/3, `loop-engineering` 0/3, so 0/4 scenarios at
+threshold 1.0 against a 0/12 baseline. `[verified]` All six failing grader instances were traced to
+their transcripts and **every graded behaviour was present and correct**; one response
+(`Human (effects owner) | Sole holder of effect authority`) is better than the phrasing it was
+graded against. The reds are string-matching artefacts: label separation (`**Cost:** … ceiling`),
+hyphenation (`Output-shape`), word order (`Review (read-only, independent)`), and word boundary
+(`parse each file's AST`, lost when bare `AST` was removed to stop it matching `last`).
 
-**Next action:** Run that single verification batch at a pinned `--model` and record the result.
-It is a paid run; get owner go-ahead first. Do not widen any grader further before reading the
-transcript that failed it.
+**The finding that keeps this open.** A `contains_any` discovery grader cannot at once grade only
+what its prompt requests, reject a prompt echo, and match a correct answer's natural phrasing —
+`workflow-graph` collides on exactly the words its prompt uses. `[sourced]` The instrument must
+change: `regex` with word boundaries and a small proximity window expresses all three, because an
+echo lacks the structure and not merely the words. This is the "reason other than vocabulary" the
+prior acceptance reserved, so no grader was widened after the run.
+
+**Acceptance:** Offline treatment is complete and verified: `test_graders` 665/665, `--validate` OK
+at 94 scenarios, Gate A 6/6, generator byte-clean, `claude plugin validate . --strict` PASS, the
+prompt-alignment invariant proven red for its named reason, and the live batch above recorded with
+its transcripts summarised in a committed document rather than in gitignored `.eval-runs/`. What
+remains: convert the affected graders from `contains_any` word lists to bounded `regex`, then one
+more batch under identical conditions showing the regression scenarios green for a behavioural
+reason. `[unverified]` that conversion's effect until measured.
+
+**Next action:** Owner decides whether to fund the regex conversion plus one more batch (~USD 4 at
+these conditions). Until then, do not widen any word list further — the run proved widening is not
+what is wrong. Do not edit a discovery prompt: it is the routing stimulus and the 12/12 evidence
+depends on it staying byte-identical.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

@@ -1,0 +1,77 @@
+# GRADER-003 verification batch — `agent-authoring` discovery
+
+**Conclusion:** `[verified]` Routing is correct in **12/12 trials** across all four scenarios, on
+both the incumbent baseline and this candidate. `[verified]` Behavioural graders remain red: **0/4
+scenarios** pass at threshold 1.0, though trial-level passes moved from **0/12 to 4/12**.
+`[verified]` Every one of the six failing grader instances examined has the graded behaviour
+**present and correct in the response** — none is a behavioural defect. The remaining reds are
+string-matching artefacts, and the instrument is the cause: `contains_any` is a plain case-
+insensitive substring test, which cannot express these contracts. Further word-list widening is the
+treadmill `GRADER-003` warned about and was not done.
+
+This document exists because `.eval-runs/` is gitignored. The `GRADER-003` baseline was lost that
+way; the verbatim phrasings below are the part worth keeping.
+
+## Run identity
+
+- Batch `20260825T174112Z-498600c4`; candidate `90bd33e9d75cad29838296928a9b1998be2a8546`, clean tree.
+- Claude Code CLI `2.1.245`; `--model sonnet`, resolved `claude-sonnet-5` on every trial;
+  `--timeout 600`; 3 trials; threshold 1.0. Integrity check PASS. Cost USD 3.54.
+- Conditions deliberately match the incumbent baseline `20260824T231543Z-53c0a77c` (Sonnet, 3
+  trials, 600 s) so the numbers are comparable.
+- Discovery clean room: only `Skill` and `Task` offered; `Read`, `Bash`, `Write`, `Grep`, and the
+  rest denied — so every response is a tool-less routed answer, as `evals/README.md` requires.
+
+## Result
+
+| Scenario | Split | Trials passed | Routing | Baseline |
+|---|---|---|---|---|
+| `defers-code-dependency-graph` | regression | 2/3 | `[verified]` 3/3 | 0/3 |
+| `loop-engineering` | regression | 0/3 | `[verified]` 3/3 | 0/3 |
+| `trigger-and-shape` | regression | 1/3 | `[verified]` 3/3 | 0/3 |
+| `workflow-graph` | calibration | 1/3 | `[verified]` 3/3 | 0/3 |
+
+Routing separation held in every trial on both revisions. No trial misrouted, and no scenario is
+red for a routing reason.
+
+## Why each red fired — the response's own words
+
+Every row below is a grader that failed while the behaviour it grades was present.
+
+| Scenario / grader | What the response actually said | Why the match failed |
+|---|---|---|
+| `loop-engineering` cost budget (3/3) | `**Cost:** a token/call ceiling`; `**Cost:** token/dollar ceiling`; `**Cost:** a cap on verifier reruns` | **Label separation.** The tokens require `cost` and `ceiling`/`cap` adjacent; the response puts a markdown label between them |
+| `trigger-and-shape` measure/separately (t2) | `Binary pass/fail, independent of content quality` | **Synonym.** "independent" for "separately"/"distinct" |
+| `trigger-and-shape` output shape (t3) | `**Output-shape** check — schema only`; `an output-shape pass` | **Hyphenation.** `output-shape` is not the substring `output shape` |
+| `workflow-graph` read-only review (t1, t2) | `**Review (read-only, independent)**`; `Independent, read-only evaluation of the candidate` | **Word order.** Tokens expect `read-only review`; the response inverts it |
+| `workflow-graph` delegation edge (t2) | `## Allowed edges`; `**No edges:** … any node → effect execution`; `## Handoff / join` | **Self-inflicted.** `allowed edge` and `handoff` were *removed* from this grader to keep the prompt echo failing — see the tension below |
+| `workflow-graph` human-owned effects (t2) | `**Human (effects owner)** \| Executes any authority-changing, production-facing, destructive, or external action \| Sole holder of effect authority` | **Word order.** Tokens expect `human-owned effect`; this answer is arguably better than the phrasing graded for |
+| `defers-code-dependency-graph` static analysis (1 trial) | `parse each file with \`ast\``; `parse each file's AST` | **Word boundary.** Bare `AST` was replaced with spelled-out forms to stop it matching `last`/`past`/`broadcast`; that removed the form the model actually writes |
+
+## The structural finding
+
+A discovery scenario graded with `contains_any` cannot simultaneously:
+
+1. grade only behaviours its prompt requests (`GRADER-003`'s new invariant),
+2. reject a whitespace-normalized prompt echo, and
+3. match the natural phrasing of a correct answer.
+
+`workflow-graph` shows the collision directly: the words a good answer uses — "allowed edges",
+"handoff" — are the prompt's words, so accepting them lets the echo pass the whole scenario, and
+refusing them fails a correct answer. The `AST` row shows the same squeeze on a single token, in
+both directions.
+
+`[sourced]` The instrument is what has to change. A `regex` grader with word boundaries and a small
+proximity window expresses all three at once — `\bcost\b[^.\n]{0,40}\b(ceiling|cap|limit|budget)\b`
+accepts `**Cost:** token/dollar ceiling` while still failing an echo, because an echo lacks the
+*structure*, not merely the words. `\bast\b` accepts `parse each file's AST` and rejects `last`.
+
+`[unverified]` That conversion is not made here and its effect is not measured. It needs its own
+candidate and one more batch under the same conditions.
+
+## What was not done
+
+No grader was widened after this run — every red was traced to its transcript first, as
+`GRADER-003` requires, and the trace is what produced the finding above. No prompt was edited: a
+discovery prompt is the routing stimulus, and the 12/12 routing evidence depends on it staying
+byte-identical. No second batch, no threshold change, and no scenario moved between splits.
