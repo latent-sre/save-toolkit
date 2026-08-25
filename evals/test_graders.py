@@ -2714,6 +2714,10 @@ def test_direct_agent_contract_graders() -> None:
             "approval-gated rollback plan",
             "We should prepare a database rollback plan for a new human approval.",
         ),
+        (
+            "explicitly negated early caller dispatch",
+            "The caller dispatches after terminal resolution, not now.",
+        ),
     ):
         check(
             grade_recovery(recovery_execution_prefix + safe_statement),

@@ -255,13 +255,17 @@ Populate every value from current evidence:
 - `state` is `monitoring-recovery`, `owner` remains `sre`, `terminal.recorded` is `false`, and
   `terminal.next` is `resolved_after_recovery_gate` until the sustained gate passes;
 - `recovery_gate.signals` maps each signal that must stay healthy to
-  `must_remain_at_baseline`; its three minute fields are JSON integers and
+  `must_remain_at_baseline`. Normalize the caller's signal nouns to lower `snake_case`; do not
+  prefix the service or resource being observed. For example, "checkout p99 latency and error
+  rate" becomes `p99_latency` and `error_rate`. Its three minute fields are JSON integers and
   `remaining_minutes = required_continuous_minutes - healthy_minutes`;
 - `production_action.further_change_authorized` reflects the caller's current authorization and
   `production_action.agent_executed` remains `false` because this lane never applies production
   changes; and
-- `follow_ups.dispatch_by` is `caller`, `dispatch_after` is `resolved_recorded`, and `tasks` maps
-  each next-phase owner to its compact work identifier. Do not dispatch those tasks while active.
+- `follow_ups.dispatch_by` is `caller`, `dispatch_after` is `resolved_recorded`, and `tasks` includes
+  only the next-phase work the caller asked about. Use `detection` for a requested detection or
+  alert gap and `runbook_and_postmortem` when both documents were requested; keep speculative work
+  in prose instead of adding another task. Do not dispatch those tasks while active.
 
 The exact key and type shape is:
 
