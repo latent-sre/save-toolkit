@@ -28,5 +28,10 @@ success_criteria:
 # the prompt already contains "source-code structure" and "dependency graph". "AST" is spelled out
 # because contains_any is a plain substring match and a bare "AST" also matches "last"/"past".
 graders:
-  - type: contains_any
-    of: ["parser", "ast walk", "ast module", "abstract syntax tree", "static analysis", "import extraction", "statically", "modulefinder", "pydeps", "dependency-cruiser", "madge", "ts-morph", "compiler api"]
+    # Regex with word boundaries, not a word list. Measured answers write "parse each file with
+    # `ast`" and "parse each file's AST"; the spelled-out phrases missed both, while a bare
+    # "AST" substring token matched last/past/broadcast. Word boundaries express what neither
+    # could. Verified against all three transcripts of batch 20260825T174112Z-498600c4, prompt
+    # echo still rejected.
+  - type: regex
+    pattern: '(?i)\bast\b|\babstract syntax tree\b|\bstatic(?:ally)?\s+analy\w+\b|\bparser?s?\b|\bparsing\b|\bcompiler api\b|\bmodulefinder\b|\bpydeps\b|\bts-morph\b'

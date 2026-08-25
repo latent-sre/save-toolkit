@@ -21,14 +21,18 @@ graders:
   # the adversarial fixtures for this scenario live in evals/test_graders.py.
   - type: contains_all
     of: ["verifier", "budget"]
-  - type: contains_any
-    # The prompt requests "hard iteration/candidate/time/cost budgets", so an iteration BUDGET
-    # satisfies the request; the first four phrasings did not accept it. Singular stems also
-    # match their plurals under contains_any substring matching.
-    of: ["maximum iteration", "iteration cap", "iteration limit", "max iteration", "iteration budget", "iteration bound", "iterations:"]
-  - type: contains_any
-    # The prompt asks for "time/cost budgets" as one phrase; accept it written either way.
-    of: ["cost budget", "token budget", "cost cap", "cost limit", "spend cap", "cost ceiling", "time/cost", "cost/time", "cost bound"]
+    # Regex: measured answers write "**Iterations:** a fixed max number of edit-verify cycles"
+    # and "**Iterations:** fixed integer cap", putting a markdown label between the two words a
+    # contains_any token needs adjacent. "budget" and "bound" are deliberately absent from the
+    # noun set so the prompt's own "iteration/candidate/time/cost budgets" cannot satisfy it -
+    # this grader is what keeps the prompt echo failing for this scenario. Verified 3/3.
+  - type: regex
+    pattern: '(?i)\biterations?\b[^.\n]{0,60}\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b[^.\n]{0,40}\biterations?\b'
+    # Regex for the same reason: all three measured answers stated the bound as "**Cost:** a
+    # token/call ceiling", "**Cost:** token/dollar ceiling", "**Cost:** a cap on verifier
+    # reruns" - correct behaviour no adjacent-word token can see. Verified 3/3, echo rejected.
+  - type: regex
+    pattern: '(?i)\b(?:cost|token|spend|dollar)s?\b[^.\n]{0,60}\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b|\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b[^.\n]{0,40}\b(?:cost|token|spend|dollar)s?\b'
   - type: contains_any
     of: ["no-progress", "no progress"]
   - type: contains_any

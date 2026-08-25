@@ -1119,12 +1119,12 @@ _ROUTING_BATCH1_CASES = {
         "acceptance of the exact candidate revision."
     ),
     "discovery-agent-authoring-workflow-graph.yaml": (
-        "Nodes: coordinator, implementation, research, and review lanes. Edges: only the named "
-        "delegation edges from the coordinator, with handoff edges carrying the packet contract. "
-        "Authority boundaries: implementation holds local write, review is a read-only review "
-        "lane with no write or delegation, and effects stay human-owned — the human applies every "
-        "production-facing action. Joins converge on the coordinator, and termination is the "
-        "success criterion or the hard budget. No runtime is selected."
+        "Nodes: coordinator, implementation, research, and review lanes. Edges, as drawn: "
+        "coordinator -> implementation, coordinator -> research, coordinator -> review, "
+        "review -> coordinator. Authority boundaries: implementation holds local write, review is "
+        "a read-only review lane with no write or delegation, and effects stay human-owned — the "
+        "human applies every production-facing action. Joins converge on the coordinator, and "
+        "termination is the success criterion or the hard budget. No runtime is selected."
     ),
     "discovery-agent-authoring-defers-code-dependency-graph.yaml": (
         "This is local repository investigation, not prompt or roster design: treat it as "
@@ -1651,7 +1651,8 @@ def test_routing_only_discovery_scenarios_stay_routing_only() -> None:
     for filename in _ROUTING_ONLY_DISCOVERY_SCENARIOS:
         grader_specs = _load_graders(filename)
         check(
-            len(grader_specs) == 1 and grader_specs[0].get("type") == "contains_any",
+            len(grader_specs) == 1
+            and grader_specs[0].get("type") in ("contains_any", "regex"),
             f"{filename}: discovery owns one routing-sanity grader, not the behavior contract",
         )
         sanity = _ROUTING_ONLY_SANITY_RESPONSES.get(filename)

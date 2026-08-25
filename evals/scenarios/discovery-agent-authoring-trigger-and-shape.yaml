@@ -20,10 +20,15 @@ graders:
   # the adversarial fixtures for this scenario live in evals/test_graders.py.
   - type: contains_any
     of: ["activation", "routing"]
-  - type: contains_any
-    of: ["output shape", "output format", "output contract", "output behavior", "output behaviour"]
-  - type: contains_any
-    of: ["measure", "separately", "distinct"]
+    # Regex: a measured answer wrote "**Output-shape** check" and "an output-shape pass"; the
+    # hyphen alone defeated the substring token. Echo rejection for this scenario is carried by
+    # the adoption grader below, whose terms the prompt does not contain.
+  - type: regex
+    pattern: '(?i)\boutput[\s\-_]?(?:shape|format|contract|schema|behaviou?r)\b'
+    # Regex: a measured answer wrote "Binary pass/fail, independent of content quality" - the
+    # behaviour, graded apart from output shape, stated with a synonym the word list missed.
+  - type: regex
+    pattern: '(?i)\b(?:separate|separately|independent|independently|distinct|apart|in isolation|decoupl)\w*\b'
   - type: contains_any
     of: ["baseline", "reproduce", "regression case", "focused case"]
   - type: contains_any
