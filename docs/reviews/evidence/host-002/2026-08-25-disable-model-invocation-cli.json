@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "evidence_id": "ev_19f6a0083522482987949574933c0852",
+  "producer": {
+    "name": "Codex",
+    "role": "HOST-002 local Claude CLI probe operator"
+  },
+  "context": {
+    "run_id": "host-002-f7-20260825-130506",
+    "task_id": "HOST-002",
+    "attempt_id": "f7-cli-attempt-1"
+  },
+  "target": {
+    "root": "F:\\repos\\sre-agents-host-002",
+    "revision": "abb02cfd2a38f50c13e8f1e14de77d0cc65c0864",
+    "tree_digest": "3749334a1f24b8c388664eb60048fe090d522622d76b23b658c33ac5870d37da"
+  },
+  "criterion": "On the installed Claude CLI, a plugin skill with disable-model-invocation true is hidden from model-triggered invocation while remaining explicitly invocable by the user.",
+  "status": "pass",
+  "started_at": "2026-08-25T13:05:06Z",
+  "ended_at": "2026-08-25T13:09:24Z",
+  "command": null,
+  "source": {
+    "kind": "paired_local_cli_model_observation",
+    "step": "F7 harmless plugin visibility canary",
+    "claude_code_version": "2.1.243",
+    "resolved_model": "claude-haiku-4-5-20251001",
+    "observed_outcome": "The unguarded control called Skill(host002-canary:visibility-canary) and received the body-only marker. The otherwise identical guarded plugin made no Skill call and returned NOT_VISIBLE. Explicit /host002-canary:visibility-canary invocation returned the marker."
+  },
+  "environment": {
+    "os": "Microsoft Windows 11 Pro build 26200",
+    "architecture": "x64",
+    "tool_set": [
+      "Skill"
+    ],
+    "mcp_servers": []
+  },
+  "isolation": {
+    "workspace": "clean committed checkout snapshot plus disposable external plugin directories and empty workspace",
+    "network": "Anthropic model API through the already-authenticated local Claude CLI",
+    "live_systems_touched": "none beyond model inference"
+  },
+  "artifacts": [
+    {
+      "path": "docs/reviews/evidence/host-002/2026-08-25-disable-model-invocation-cli-transcript.md",
+      "sha256": "77f798da825a9ca65239aca2cc281ea848dbd239aa29914c298c8ce1e4f42831",
+      "size": 4755
+    }
+  ],
+  "limitations": [
+    "The verdict is build-specific to Claude Code 2.1.243 and does not erase older counter-evidence or establish other hosts.",
+    "The canary verifies plugin-skill invocation visibility, not the manual-only skills' body-level approval and effect boundaries.",
+    "The paired unguarded control hit an operator-selected post-dispatch budget after the Skill call and body injection, so its final response did not complete."
+  ]
+}
