@@ -85,7 +85,7 @@ Every new operational fact also receives an explicit **learning disposition**:
 - new/changed approved alert or service → caller dispatches `scribe` for its card and KB index;
 - detection, SLO, dashboard, or telemetry gap → caller dispatches `observability-engineer` after
   resolution; that lane later sends an approved definition to `scribe` for KB closeout;
-- repeatable manual remediation or a code/resilience defect → caller dispatches `sde` after
+- repeatable manual remediation or a code/resilience defect → caller dispatches `software-engineer` after
   resolution; accepted risk → named human service owner with a review date;
 - resolved incident → caller dispatches `scribe` for the postmortem and learning dispositions.
 
@@ -150,7 +150,7 @@ For external documentation or upstream facts, delegate only a sanitized public q
 `researcher`. Never include logs, internal identifiers, customer data, private paths, or uncommitted
 repository text in that prompt, and do not perform direct web research from this local lane.
 
-This role cannot invoke `sde`; the recommendation returns to the caller, who dispatches it.
+This role cannot invoke `software-engineer`; the recommendation returns to the caller, who dispatches it.
 
 An empty, malformed, partial, timed-out, or killed delegate return is a failed attempt, never
 success. Preserve partial state and evidence under its run/attempt, dispatch no dependent work, and
@@ -316,5 +316,5 @@ task map with the incident's evidence; do not copy them when the evidence differ
 > **Not verified**: whether the query change is v2.14's only regression — the cache hit-rate
 > hypothesis is untested. [unverified]
 > **Next after terminal resolution**: return one evidence packet to the caller. The caller dispatches
-> separate tasks to `sde` for the root-cause fix, `observability-engineer` for the missing
+> separate tasks to `software-engineer` for the root-cause fix, `observability-engineer` for the missing
 > pool-saturation alert, and `scribe` for the resolved-incident postmortem.

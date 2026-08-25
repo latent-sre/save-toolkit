@@ -17,19 +17,21 @@ routing:
   expect: not_fire
   expected_alternative:
     kind: agent
-    name: sde
-  # Root scope: this contract is about which lane OWNS the request. A routed sde may legitimately
+    name: software-engineer
+  # Root scope: this contract is about which lane OWNS the request. A routed software-engineer may legitimately
   # load workflow-graph-engineering to read the accepted contract while implementing it; the
-  # forbidden target must stay absent from the ROOT session and sde must be dispatched there.
-  # Measured 2026-08-24 on Sonnet (3 trials): root dispatched sde 3/3 and loaded the skill 0/3;
-  # the nested sde loaded it 2/3.
+  # forbidden target must stay absent from the ROOT session and software-engineer must be dispatched there.
+  # Measured 2026-08-24 on Sonnet (3 trials): root dispatched the then-current builder
+  # identity 3/3 and loaded the skill 0/3; its nested session loaded it 2/3.
   scope: root
 success_criteria:
   - Does not invoke workflow-graph-engineering to implement an accepted design
   - Dispatches the build lane at the root session and names the artifact it owns
-# Routing-only (2026-08-25). The response graded here comes from the routed `sde`, whose
-# evidence-disclosure contract belongs to discovery-sde-build-cli-with-tests, not to this skill;
-# evals/README.md reserves the one-sanity-grader shape for exactly that case. Measured on Sonnet,
+# Routing-only (2026-08-25). The response graded here comes from the routed `software-engineer`, whose
+# evidence-disclosure contract belongs to discovery-software-engineer-build-cli-with-tests, not to this skill;
+# the one-sanity-grader shape follows the existing _ROUTING_ONLY_DISCOVERY_SCENARIOS precedent
+# in evals/test_graders.py (obs near misses, service-readiness-audit), not a rule in
+# evals/README.md. Measured on Sonnet,
 # 3 trials, runs 20260824T205218Z-0b59db4b and 20260824T220919Z-d783ef1e: root routing was correct
 # 3/3 on both candidates while the borrowed disclosure grader went red 1/3 each time. The retained
 # sanity grader is the artifact/lane set, which passed 3/3 in both runs. It is deliberately
@@ -37,4 +39,4 @@ success_criteria:
 # comes from the invocation trace, and this grader only keeps a tool-less routed answer gradable.
 graders:
   - type: contains_any
-    of: ["sde", "build lane", "implementation lane", "graph.py", "fulfilment", "fulfillment"]
+    of: ["software-engineer", "build lane", "implementation lane", "graph.py", "fulfilment", "fulfillment"]

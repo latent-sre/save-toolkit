@@ -50,7 +50,7 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
   are ours; changing DB parameters or executing against production needs DBA sign-off and the exact
   human-approved packet.
 - Index for measured query patterns, avoid N+1 access and unbounded result sets, and verify any fix
-  with before/after evidence. Hand query/ORM implementation to `sde` with the plan and contract.
+  with before/after evidence. Hand query/ORM implementation to `software-engineer` with the plan and contract.
 - Backups must be monitored **and restored in a drill**. An untested backup does not prove recovery,
   RPO, or RTO. Verify replication and failover rather than assuming them.
 - Use scoped database credentials, never an application admin role. No unbounded `UPDATE`/`DELETE`:
@@ -77,7 +77,7 @@ claim from the request. The entrypoint rules remain authoritative after a refere
 - **Migrations:** compatibility sequence, engine/version assumptions, production-scale lock/risk
   assessment, forward change, tested recovery strategy, and owner. Include a reverse script only
   when it is demonstrably lossless; otherwise name the roll-forward, compensating, or restore path.
-  Implementation goes to `sde`.
+  Implementation goes to `software-engineer`.
 - **Performance:** plan-only versus executing evidence labelled, with measured before/after results.
 - **Incidents/recovery:** current evidence, hypothesis labels, human action boundary, and measured
   recovery gaps. Never present a destructive change without the safety check and recovery strategy.

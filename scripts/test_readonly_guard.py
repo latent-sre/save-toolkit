@@ -717,11 +717,11 @@ class GuardScopingTest(unittest.TestCase):
         self.assertEqual(decision(proc), "allow")
 
     def test_other_subagents_are_never_guarded(self) -> None:
-        # sde is deliberately unguarded (builds and tests are its job) — and so is any agent
+        # software-engineer is deliberately unguarded (builds and tests are its job) — and so is any agent
         # outside GUARDED_AGENTS.
         # observability-engineer left the roster on 2026-08-21 so it can apply dashboards itself.
         for agent in (
-            "save-toolkit:sde", "sde", "reviewer", "researcher",
+            "save-toolkit:software-engineer", "software-engineer", "reviewer", "researcher",
             "save-toolkit:observability-engineer", "observability-engineer",
         ):
             with self.subTest(agent=agent):
@@ -765,11 +765,11 @@ class GuardScopingTest(unittest.TestCase):
                     self.assertIn("unrecognized plugin namespace", proc.stdout.decode("utf-8"))
 
     def test_renamed_plugin_namespace_does_not_capture_unguarded_or_foreign_agents(self) -> None:
-        # The fail-closed above must not become a session-wide denylist. `sde` is deliberately
+        # The fail-closed above must not become a session-wide denylist. `software-engineer` is deliberately
         # unguarded under ANY namespace, and an unrelated plugin's agents are not ours to police
         # unless their bare name collides with a guarded one.
         for agent in (
-            "save-toolkit:sde", "renamed-plugin:sde", "othervendor:reviewer",
+            "save-toolkit:software-engineer", "renamed-plugin:software-engineer", "othervendor:reviewer",
             "renamed-plugin:observability-engineer",  # unguarded bare name under a moved namespace
         ):
             with self.subTest(agent_type=agent):

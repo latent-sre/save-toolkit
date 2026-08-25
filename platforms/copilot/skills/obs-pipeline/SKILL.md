@@ -91,5 +91,5 @@ claim. Separate observed counter values from interpretations. Minimize copied te
 credentials, tokens, secrets, personal data, and sensitive attribute values before any payload
 excerpt enters the packet; prefer an access-controlled link plus the smallest necessary excerpt.
 Hand pipeline-config changes to the `observability-engineer` agent and app-side instrumentation
-changes to the `sde` agent; if the missing signal is part of an active unknown-cause incident,
+changes to the `software-engineer` agent; if the missing signal is part of an active unknown-cause incident,
 hand the time-bounded evidence to the `sre` agent.

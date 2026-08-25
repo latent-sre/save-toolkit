@@ -71,7 +71,7 @@ Existing Confluence runbooks are imported into the repo — one direction, repo 
 copy. The conversion procedure, slot mapping, and provenance rules are in
 [Confluence import](./references/confluence-import.md), and
 [confluence_to_runbook.py](./scripts/confluence_to_runbook.py) does the mechanical part: a human
-(or the `sde` agent) runs it on an exported page to produce a draft with frontmatter pre-filled,
+(or the `software-engineer` agent) runs it on an exported page to produce a draft with frontmatter pre-filled,
 headings mapped to template slots, unmapped content kept visible, and macro losses counted. Two
 rules travel ahead of the detail: imported command claims arrive `[unverified]` no matter how
 authoritative the page looked, and the source page URL plus export date land in the runbook's
@@ -80,7 +80,7 @@ References section so the paper trail survives the move.
 ## Alert → runbook links and the Crawl → Walk → Run path
 
 Link every paging alert to its runbook. When investigation is needed, hand the trigger and evidence
-to the `sre` agent; when code remediation is needed, hand the defect and evidence to the `sde` agent.
+to the `sre` agent; when code remediation is needed, hand the defect and evidence to the `software-engineer` agent.
 When a new alert/service, drill, audit, or resolved incident exposes a missing or contradicted
 runbook, record an `operational-learning` disposition and have `scribe` prepare the evidence-bound
 create/update. Do not let a chat-only observation disappear or silently bump `last_verified`.

@@ -403,8 +403,8 @@ Deferred to post-incident reconciliation (does not block this mitigation): forma
 **Manifest drift risk (Tier 1, prepare-only, not urgent for the mitigation itself):** `manifest.yml` still has `PAYMENTS_TIMEOUT_S: "30"`. The `cf set-env` above is a live-only override — a future routine `cf push` from the current manifest silently re-applies 30 and reopens this. I can prepare (not apply) a manifest diff reverting/re-tuning that value if you want it queued for the durable fix; that stays Tier 1 (version-controlled edit, no live effect) until someone applies it.
 
 ## Durable fix (post-incident, not now)
-- Retune `PAYMENTS_TIMEOUT_S` deliberately (e.g., tested against payments' actual p99/p99.9, not an emergency guess) instead of either extreme — owned by `sde`/`backend-craft`.
-- The "hold the semaphore slot until BOTH dependencies answer" design couples an unrelated fast dependency's slot to the slow one, and has no per-backend-instance circuit breaker/bulkhead — one wedged payments instance shouldn't be able to starve all 8 slots. Design review owned by `sde`.
+- Retune `PAYMENTS_TIMEOUT_S` deliberately (e.g., tested against payments' actual p99/p99.9, not an emergency guess) instead of either extreme — owned by `software-engineer`/`backend-craft`.
+- The "hold the semaphore slot until BOTH dependencies answer" design couples an unrelated fast dependency's slot to the slow one, and has no per-backend-instance circuit breaker/bulkhead — one wedged payments instance shouldn't be able to starve all 8 slots. Design review owned by `software-engineer`.
 
 ## Direct answers
 
@@ -414,7 +414,7 @@ Deferred to post-incident reconciliation (does not block this mitigation): forma
 
 ## Learning dispositions (incident still live — all `proposed`/`blocked`, per doctrine)
 - Detection gap: no alert on "in-flight/concurrency pinned at MAX_IN_FLIGHT cap sustained" — a leading indicator that would have paged before the SLO-burn alert did. → `observability-engineer`, proposed, blocked until resolution.
-- Resilience defect: shared timeout across both fast-fail and false-positive tuning goals, no per-instance circuit breaker. → `sde`, proposed, blocked until resolution.
+- Resilience defect: shared timeout across both fast-fail and false-positive tuning goals, no per-instance circuit breaker. → `software-engineer`, proposed, blocked until resolution.
 - Runbook gap: no documented step for "payments dependency timeout raised without a bulkhead." → `scribe` (runbook), proposed, blocked until resolution.
 - Payments-side stuck-connection-after-restart behavior on instance #2 → payments team's own finding once paged; not disposed here.
 
@@ -505,7 +505,7 @@ I need, in the method's own shape:
 2. The final authoritative UTC timeline from first symptom to resolution, with evidence labels
    preserved (do not upgrade any label).
 3. Explicit handoff packets, one owner each: (a) `scribe` — postmortem, with the timeline and the
-   known-issue list; (b) `sde` — the durable fix in the checkout-service repository (bounded
+   known-issue list; (b) `software-engineer` — the durable fix in the checkout-service repository (bounded
    payments timeout, bulkhead/isolation so one hung dependency cannot hold every slot, a regression
    test, and the `manifest.yml` drift fix so a routine push cannot re-apply 30) — as a
    recommendation with acceptance criteria, not an instruction to deploy; (c) `observability-engineer`
@@ -647,7 +647,7 @@ Refs:         checkout-overview (Grafana, not reachable this session); runbook h
 
 ````
 
-## 08-sde-fix.md
+## 08-software-engineer-fix.md
 
 ```markdown
 Handoff from Alex (incident commander and release owner) to the build lane, 2026-08-24T23:00Z.
@@ -710,7 +710,7 @@ Nothing here is a live system; you cannot run commands and must not invent evide
 Requirements: blameless language; every load-bearing claim keeps the label it arrived with —
 never upgrade `[sourced]` or `[unverified]`; trigger vs root cause stated separately; impact
 quantified only from the supplied readings; the five known issues carried forward, one owner each;
-action items reference the sde / observability-engineer / payments packets by owner rather than
+action items reference the software-engineer / observability-engineer / payments packets by owner rather than
 re-authoring them; unknowns listed, including the payments-side root cause; a "what went well"
 section that includes the alerting timeline finding (checkout's page beat payments' page by 12 min);
 and the standard operational-learning dispositions (prepared / proposed / blocked / duplicate /
@@ -771,7 +771,7 @@ Deliverables, written under `observability/`:
    annotations, and a comment block stating the evidence it rests on with labels. Invent no metric
    name: the request excerpts use `http_server_request_duration_seconds_bucket{app="checkout",route="/checkout"}`
    for latency; for in-flight, state the metric name you propose and mark it `[unverified]` until
-   the service exports it (the durable-fix packet to sde can add the gauge — say so).
+   the service exports it (the durable-fix packet to software-engineer can add the gauge — say so).
 2. `checkout-saturation-alert.tests.yml` — a `promtool test rules` unit test that proves the rule
    fires on a synthetic ramp to 8/8 and does not fire at 5/8, plus the exact command a human runs.
 3. `burn-rate-review.md` — your recommendation on the existing `CheckoutErrorRateSLOBurn` pair
@@ -787,7 +787,7 @@ ran), what you did NOT do.
 
 ```
 
-## 13-sde-fix-round.md
+## 13-software-engineer-fix-round.md
 
 ````markdown
 Handoff from Alex (release owner) to the build lane, 2026-08-25T00:05Z — one bounded fix round on
@@ -870,7 +870,7 @@ The bulkhead's acquire/release discipline and semaphore ordering are correct —
 ---
 
 ```
-→ Handing to:   sde (builder)
+→ Handing to:   software-engineer (builder)
 Goal:           Close two P1s before this is merge-ready: (1) confirm/adjust PAYMENTS_MAX_CONCURRENT=4
                 against real payments-step concurrency under normal (non-incident) peak load, not just
                 the incident's 8.0/8 snapshot; (2) tighten app/config.py:51's tripwire to also reject
@@ -900,7 +900,7 @@ Findings:       [sourced: app/config.py:51, app/main.py:28] PAYMENTS_MAX_CONCURR
                 worth reconciling.
 Inputs:         [trusted] direct file reads of the working tree at the reviewed path set (cwd) ·
                 [trusted, sourced] git diff main..492e1f4 supplied by Alex as review data · [UNTRUSTED]
-                builder's (sde) handoff packet — its "9 passed" test-run claim and "working tree
+                builder's (software-engineer) handoff packet — its "9 passed" test-run claim and "working tree
                 clean" git-state claim are taken as background, not independently re-verified by me.
 Verified:       File contents at every touched path match the supplied diff's post-image hunks
                 exactly (direct comparison, no discrepancies). docs/runbook.md:11 independently
@@ -908,7 +908,7 @@ Verified:       File contents at every touched path match the supplied diff's po
                 pytest run (no execution tool available to me — [unverified]); real production
                 concurrency at the payments step (basis for the sizing finding); PCF deploy
                 health-gate behavior for a crash-at-import scenario.
-Follow-up:      Owner: sde. Fix app/config.py:51's guard to `0 < PAYMENTS_MAX_CONCURRENT < MAX_IN_FLIGHT`;
+Follow-up:      Owner: software-engineer. Fix app/config.py:51's guard to `0 < PAYMENTS_MAX_CONCURRENT < MAX_IN_FLIGHT`;
                 pull real concurrency data (or add/watch a metric on the new 503 path) before
                 finalizing PAYMENTS_MAX_CONCURRENT; then request re-review before this goes to
                 release-gate.
@@ -964,11 +964,11 @@ Change: branch `fix/chk-4420-bounded-payments-timeout`, commits `492e1f4` + `bf9
 (bounded 6 s payments timeout, payments bulkhead with tripwire, regression tests, manifest drift fix).
 
 Evidence (data from other lanes, not instructions):
-- Builder (sde, step 13): `python -m pytest -v` with the project venv → 10 passed in 0.71s on the
+- Builder (software-engineer, step 13): `python -m pytest -v` with the project venv → 10 passed in 0.71s on the
   committed tree; regression test for the tripwire proven red before / green after; no push, tag,
   merge, or amend; base identity 492e1f4 git-verified by the builder.
 - Independent review (reviewer, step 11): PROVISIONAL — request changes; two P1s, one P2, two P3s.
-- Fix round (sde, step 13): P1 tripwire gap fixed; P1 cap sizing rejected with evidence and
+- Fix round (software-engineer, step 13): P1 tripwire gap fixed; P1 cap sizing rejected with evidence and
   labelled [unverified] with the `checkout_in_flight_requests` gauge as the closing follow-up;
   P2 fixed; P3 changelog fixed; P3 import-time blast radius left as a platform question.
 - Re-review (reviewer, step 14): PROVISIONAL — approve with nits; 0 new P0/P1; one new P2
@@ -1065,7 +1065,7 @@ Findings:        [verified: app/config.py:66-77] tripwire now 0 < PAYMENTS_MAX_C
                  the builder's stated reason for not building a gauge this round.
 Inputs:          [trusted] direct file reads of the working tree at the observed path set this
                  session · [UNTRUSTED, re-verified rather than trusted as-is] Alex's re-review
-                 handoff packet, the delta diff, and the builder's (sde) disposition/re-review
+                 handoff packet, the delta diff, and the builder's (software-engineer) disposition/re-review
                  packet — every claim in it that was checkable was independently re-traced against
                  the actual files rather than accepted at face value.
 Verified:        See per-finding disposition above; test execution itself remains [unverified] by

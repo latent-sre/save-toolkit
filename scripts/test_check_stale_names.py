@@ -51,6 +51,13 @@ class StaleNamesTest(unittest.TestCase):
             failures,
         )
 
+    def test_retired_builder_agent_name_is_caught(self) -> None:
+        old_name = "s" + "de"
+        self.assertIn(old_name, check_stale_names.STALE)
+        self._write("skills/probe/SKILL.md", f"Route implementation to `{old_name}`.\n")
+        failures = check_stale_names.check(self.root)
+        self.assertTrue(any(old_name in failure for failure in failures), failures)
+
     def test_clean_prose_is_silent(self) -> None:
         self._write("skills/probe/SKILL.md", "Route it to the reviewer agent.\n")
         self.assertEqual([], check_stale_names.check(self.root))
@@ -90,7 +97,7 @@ class StaleNamesTest(unittest.TestCase):
 class EvalScenarioScopeTests(unittest.TestCase):
     """Scenario prompts are sent to the model verbatim, so a retired name there teaches it.
 
-    Two live scenarios did: "You are sde-engineer" (canonical: `sde`) and a reference to
+    Two live scenarios did: "You are sde-engineer" (canonical: `software-engineer`) and a reference to
     `code-reviewer` (canonical: `reviewer`). Both passed their graders, because the graders do not
     key on the agent name — the suite was quietly training the fleet's old vocabulary.
     """

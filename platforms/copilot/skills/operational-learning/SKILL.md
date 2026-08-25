@@ -24,7 +24,7 @@ none approves its own promotion into the knowledge base.
 This is a documentation-only method. `scribe` may read the workspace and prepare documentation
 changes, but it never executes, browses, queries a live target, delegates, or marks its own output
 approved, merged, or verified. Active incidents stay with `sre`; alert, SLO, and dashboard design
-stays with `observability-engineer`; code or automation stays with `sde`.
+stays with `observability-engineer`; code or automation stays with `software-engineer`.
 
 ## Load only what the closeout needs
 

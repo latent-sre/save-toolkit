@@ -154,7 +154,7 @@ EXPECTED_AUTHORITY = {
         "required": EXTERNAL_EVIDENCE_TOOLS,
         "forbidden": {"Read", "Grep", "Glob", "Bash", "Agent", "Skill", *WRITE_TOOLS},
     },
-    "sde": {
+    "software-engineer": {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
@@ -179,7 +179,7 @@ EXPECTED_DELEGATION = {
     "reviewer": set(),
     "repository-investigator": set(),
     "researcher": set(),
-    "sde": {"reviewer", "scribe", "researcher"},
+    "software-engineer": {"reviewer", "scribe", "researcher"},
     "sre": {"researcher"},
     "observability-engineer": {"scribe", "researcher"},
     "scribe": set(),
@@ -273,7 +273,7 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
         # An agent with no `Agent` tool cannot dispatch anyone, so the shared handoff block's
         # imperative form is a false instruction in that lane. This is not hypothetical tidying:
         # `reviewer` — local read-only by tool absence, and the lane that gates every merge —
-        # carried the `sde` block verbatim, telling it to "Hand to exactly one agent" and to load
+        # carried the `software-engineer` block verbatim, telling it to "Hand to exactly one agent" and to load
         # `production-change-gate`, a skill it holds no `Skill` tool to load. `scribe`, under the
         # identical constraint, had been adapted correctly ("Recommend exactly one next owner. This
         # role cannot invoke that owner."), which is what proves the reviewer copy was drift rather

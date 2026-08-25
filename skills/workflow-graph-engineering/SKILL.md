@@ -6,7 +6,7 @@ description: >-
   termination, taint, and graph-level evals, without choosing a runtime. Triggers: 'design the
   workflow graph', 'review this LangGraph/Temporal design', 'is this checkpoint exactly-once'. Not
   for agent roster/delegation graphs (agent-authoring), code or knowledge graphs, writing the code
-  that implements a graph (sde), or choosing or standardizing on a workflow engine (stack-profile).
+  that implements a graph (software-engineer), or choosing or standardizing on a workflow engine (stack-profile).
 argument-hint: "[design|review] <graph purpose, or path to the design under review>"
 ---
 
@@ -22,7 +22,7 @@ comes first and a runtime is selected later against it, not the other way round.
 
 - This skill designs and reviews. It does not execute a graph, select infrastructure or a runtime,
   write application code, create credentials, or authorize production access. Implementation is
-  `sde`'s lane; runtime selection is a separate owner decision under `stack-profile`.
+  `software-engineer`'s lane; runtime selection is a separate owner decision under `stack-profile`.
 - An **agent roster or delegation graph** (which lanes exist, who may hand to whom) stays with
   `agent-authoring`. A **code, import, dependency, knowledge, or GraphRAG graph** is a different
   capability with different inputs and is not this skill.

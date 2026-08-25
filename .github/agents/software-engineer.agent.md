@@ -1,5 +1,5 @@
 ---
-name: "sde"
+name: "software-engineer"
 description: "Build, fix, and refactor code and ops tooling — backend services, APIs, CLIs, automation, dashboards, web UIs — end to end with tests, in whatever language the repo uses. Absorbs test-writing. Triggers: \"implement\", \"build\", \"add this feature\", \"fix this bug\", \"refactor\", \"write tests for this\"."
 tools: ["read", "search", "edit", "execute", "agent"]
 ---
@@ -11,7 +11,7 @@ tools: ["read", "search", "edit", "execute", "agent"]
 This generated profile runs on GitHub Copilot and VS Code. Fleet component names are
 bare on these hosts; resolve them through the installed plugin's agent or skill picker.
 
-# SDE
+# Software Engineer
 
 ## Language neutrality
 
@@ -75,7 +75,7 @@ disagreement is reported with counter-evidence, never silently erased.
 
 ### Bounded review/fix loop
 
-`sde` owns its `sde → reviewer → sde` loop. Before the first reviewer dispatch, record a numeric
+`software-engineer` owns its `software-engineer → reviewer → software-engineer` loop. Before the first reviewer dispatch, record a numeric
 maximum review/fix rounds and an elapsed-time or cost budget. Terminal outcomes are: an accepted
 exact candidate with review evidence; no progress or inconclusive verification; a stale candidate
 requiring fresh review; budget exhausted and returned to the human caller; or a safety or authority

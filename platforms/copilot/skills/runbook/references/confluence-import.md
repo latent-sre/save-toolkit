@@ -63,7 +63,7 @@ Diff the output against the rendered page before trusting the conversion.
 ## The converter does the mechanical part
 
 [`confluence_to_runbook.py`](../scripts/confluence_to_runbook.py) (stdlib-only, human- or
-`sde`-run) turns one exported page into a draft:
+`software-engineer`-run) turns one exported page into a draft:
 
 ```bash
 python skills/runbook/scripts/confluence_to_runbook.py page.html -o runbooks/<slug>.md \
