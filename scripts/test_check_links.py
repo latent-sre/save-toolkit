@@ -173,7 +173,41 @@ class LinkCheckerTests(Fixture):
             + "\n# Probe\n",
         )
         self.assertTrue(
-            any("only pcf-deploy and service-onboarding" in item for item in check_links.check(self.root))
+            any("may disable model invocation" in item for item in check_links.check(self.root))
+        )
+        # The message must name the current roster, not a stale pair: a reader who trips this needs
+        # to know which skills the exception actually covers.
+        self.assertTrue(
+            any(
+                all(name in item for name in check_links.MANUAL_ONLY)
+                for item in check_links.check(self.root)
+            )
+        )
+
+    def test_incident_drill_is_manual_only(self):
+        """`incident-drill` spawns paid model sessions; it must never be model-invocable.
+
+        Pinned as its own case because the cost of a regression here is a drill that starts because
+        a conversation mentioned an outage.
+        """
+        self.assertIn("incident-drill", check_links.MANUAL_ONLY)
+        frontmatter = CLEAN_FRONTMATTER.replace(
+            "name: probe-skill", "name: incident-drill"
+        ).replace(
+            'argument-hint: "[the probe]"',
+            'argument-hint: "[the probe]"\ndisable-model-invocation: true',
+        )
+        self.write("skills/incident-drill/SKILL.md", frontmatter + "\n# Drill probe\n")
+        self.assertEqual([], check_links.check(self.root))
+
+        without = Path(self._tmp.name) / "drill-without"
+        self.root = without
+        self.write(
+            "skills/incident-drill/SKILL.md",
+            frontmatter.replace("disable-model-invocation: true\n", "") + "\n# Drill probe\n",
+        )
+        self.assertTrue(
+            any("manual-only skill must contain frontmatter" in item for item in check_links.check(self.root))
         )
 
     def test_code_span_pointer_is_rejected(self):

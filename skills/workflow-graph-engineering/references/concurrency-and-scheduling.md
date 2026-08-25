@@ -1,0 +1,92 @@
+# Concurrency and scheduling
+
+Read this when the graph fans out, joins, runs workers in parallel, consumes a work queue, or serves
+more than one tenant. Parallelism is where state merges silently and where the slowest, stalest, or
+noisiest participant decides the outcome unless the design says otherwise.
+
+## Contents
+
+- Fan-out contract
+- Fan-in, reducers, and state merge
+- Ordering and conflicts
+- Scheduling and admission
+- Worker liveness and poison work
+- Failure modes this section exists to catch
+
+## Fan-out contract
+
+Section 7 of the artifact names, for every fan-out edge:
+
+| Field | What it must say |
+|---|---|
+| Fan-out budget | Maximum branches per fan-out and per run; dynamic fan-out still has a ceiling |
+| Branch identity | How each branch is identified so its result, retry, and late arrival can be attributed |
+| Per-branch budget | Timeout, attempt budget, and cost cap for one branch, separate from the run's |
+| Partial-failure policy | `all` (any failure fails the join), `any`, `quorum K-of-N`, or `best-effort with minimum` — and what the join emits in each case |
+| Late-result policy | Accepted until the join closes, then quarantined with a record, or discarded with a record; never silently merged after the join |
+| Duplicate-result policy | A branch retried after lease expiry can report twice; the reducer must be idempotent per branch identity or the join must dedupe |
+
+## Fan-in, reducers, and state merge
+
+A join is a reducer with a quorum. The design names:
+
+- **Writer cardinality** per state key: exactly one writer, or many writers through a named reducer.
+  A key with many writers and no reducer is a last-write-wins race.
+- **Reducer identity and algebra.** Append, set-union, max, sum, and merge-by-key are
+  order-insensitive when the operation is commutative, associative, and (for retries) idempotent.
+  Anything else needs an ordering guarantee, and the design says where that ordering comes from.
+- **Join quorum** and what the join does when quorum is reached while branches are still running:
+  cancel them cooperatively, let them finish and quarantine, or wait.
+- **State schema version** of the reduced state, so a worker on an older build cannot write a shape
+  the reducer no longer understands.
+- **Conflict handling** for concurrent writes to the same key under a non-idempotent reducer:
+  reject, version-check, or serialize through one writer.
+
+## Ordering and conflicts
+
+State the ordering guarantee the design actually has — none, per-branch, per-key, or total — and
+every place the graph relies on a stronger one. A reducer that is order-insensitive removes the
+dependency; a reducer that is not must run behind a single writer or a versioned compare-and-set.
+
+## Scheduling and admission
+
+Work enters through a queue the design owns. Section 6 of the artifact names:
+
+| Concern | Required statement |
+|---|---|
+| Queue ownership and capacity | Who owns the queue, its bounded capacity, and what happens at capacity |
+| Priority and fairness | Priority classes and the fairness rule between tenants or callers; a single hot tenant must not starve the rest |
+| Tenant quota | Per-tenant concurrency and rate limits, and the response when exceeded |
+| Concurrency cap | Global and per-node-class worker caps |
+| Backpressure | The signal an overloaded stage sends upstream and how the producer honours it |
+| Load shedding | What is rejected first, how the caller learns it was shed, and that shed work is recorded, not lost silently |
+| Admission evidence | What must be true before work is admitted — a valid approval, a within-budget run, a live tenant — and the evidence the scheduler checks |
+
+Admission without declared capacity, fairness, backpressure, and shed behaviour is not a design; it
+is a queue that will discover those policies during the first incident.
+
+## Worker liveness and poison work
+
+- **Lease and heartbeat.** A worker holds a lease with a heartbeat interval and a liveness timeout.
+  The design states both values and the ratio between them.
+- **Stale-worker handling.** On lease expiry the task is requeued with an incremented attempt; any
+  effect the stale worker may have dispatched becomes `UNKNOWN` until reconciled (see the effects
+  reference). A stale worker that later reports is a late result and follows the late-result
+  policy.
+- **Poison work.** After the attempt budget the item is quarantined, not retried forever. The
+  quarantine names a manual-repair owner and what evidence they need to release or discard it.
+- **Schedule-to-start latency** and **oldest-item age** are the two indicators that show a queue
+  falling behind before throughput alone does.
+
+## Failure modes this section exists to catch
+
+| Defect | Symptom in the design | Correction |
+|---|---|---|
+| Unbounded fan-out | "One branch per search result" with no ceiling | Add the fan-out budget and shed policy |
+| Join starvation | Quorum `all` with no per-branch timeout | Per-branch budget plus partial-failure policy |
+| Non-deterministic reducer | Concatenating branch outputs in arrival order and calling it stable | Order-insensitive algebra or a single writer |
+| Double execution after lease expiry | Stale worker and replacement both dispatch the effect | Attempt identity, effect key, and `UNKNOWN` on lease expiry |
+| Hot tenant | One caller's burst delays every other tenant | Per-tenant quota and fairness rule |
+| Silent shed | Overload drops work with no record | Record every shed decision and surface it to the caller |
+
+Reference-read token: q_wgconc_5d19
