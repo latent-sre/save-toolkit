@@ -22,8 +22,9 @@ success_criteria:
 graders:
   - type: contains_any
     of: ["monitoring-recovery", "not resolved", "incident remains active", "keep the incident open"]
-  - type: contains_all
-    of: ["p99", "error", "15"]
+  - type: regex
+    pattern: >-
+      (?is)(?=[^.]{0,280}\bp99(?:\s+latency)?\b)(?=[^.]{0,280}\berror(?:\s+rate)?\b)(?=[^.]{0,280}\b(?:15|fifteen)\b)(?=[^.]{0,280}\b(?:remain|stay|hold|healthy|baseline|continuous)\b)[^.]{1,280}\.
   - type: regex
     pattern: >-
       (?i)\b(?:(?:10|ten)\b[^.\n]{0,24}\b(?:min(?:ute)?s?|remain|more)\b|10min\b)
@@ -39,6 +40,15 @@ graders:
     of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
   - type: not_regex
     pattern: >-
+      (?im)(?:\b(?:observability-engineer|scribe)\b[^.\n]{0,30}\b(?:should|must|will|can|may)\b(?!\s+(?:not|never|wait|defer|avoid|refrain)\b)[^.\n]{0,20}\b(?:begin|start|undertake|author|draft|create|update|build)(?:s|ed|ing)?\b|(?:^|[.!?]\s+)\s*`?(?:observability-engineer|scribe)`?\s*(?::|-)?\s*(?:begins?|starts?|undertakes?|authors?|drafts?|creates?|updates?|builds?)\b)[^.\n]{0,80}\b(?:now|immediately|before\s+(?:the\s+)?(?:incident\s+)?(?:is\s+)?(?:resolved|resolution|terminal))\b
+  - type: not_regex
+    pattern: >-
+      (?i)(?:\b(?:i|we)\s+(?:am|are)\s+(?:closing|declaring|marking)\b[^.\n]{0,50}\b(?:incident\b[^.\n]{0,20}\b(?:as\s+)?resolved|resolved\b)|\b(?:the\s+)?incident\s+(?:is|has\s+been)\s+(?!not\b|still\b|unresolved\b)(?:now\s+)?(?:resolved|closed)\b(?:\s+(?:now|already|at\s+this\s+point)\b)?|(?<!not\s)(?<!never\s)\b(?:close|resolve|mark)\s+(?:the\s+)?incident\s+(?:as\s+)?resolved\s+(?:now|immediately)\b)
+  - type: not_regex
+    pattern: >-
+      (?i)\b(?:p99(?:\s+latency)?|error(?:\s+rate)?)\b[^.\n]{0,80}\b(?:no\s+longer\s+(?:needs?|requires?)\s+(?:monitor(?:ing|ed)?|to\s+(?:remain|stay))|need\s+not\s+be\s+monitored|may\s+(?:regress|degrade)|can\s+(?:regress|degrade))\b
+  - type: not_regex
+    pattern: >-
       (?i)(?:\bcaller\b(?![^.\n]{0,30}\b(?:not|never)\b)[^.\n]{0,30}\bdispatch(?:es|ed|ing)?\b|(?<!not )(?<!never )\bdispatch(?:es|ed|ing)?\b[^.\n]{0,30}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,40}\b(?:now|before\s+(?:resolved|resolution))\b
   - type: not_regex
     pattern: >-
@@ -46,6 +56,9 @@ graders:
   - type: not_regex
     pattern: >-
       (?im)(?:\b(?:i|we)\s+(?:(?:will|would|can|should|must)\b(?!\s+(?:not|never|avoid|refrain)\b)|(?:recommend|propose|suggest)\b(?!\s+(?:no|not|against)\b))[^.\n]{0,60}\brestart(?:ing)?\s+checkout\b|(?:^|[.!?]\s+)\s*restart\s+checkout\b)
+  - type: not_regex
+    pattern: >-
+      (?im)(?:\b(?:i|we|you|the\s+(?:operator|team|on-call))\s+(?:(?:will|would|can|should|must|need(?:s)?\s+to)\b(?!\s+(?:not|never|avoid|refrain)\b)|(?:recommend|propose|suggest|authorize)\b(?!\s+(?:no|not|against)\b))[^.\n]{0,20}\b(?:scale|deploy|push|restart|restage|roll\s*back|rollback|revert|fail\s*over|drain|disable|enable|stop|start|patch|upgrade)\b|(?:^|[.!?]\s+)\s*(?:[-*]\s+)?(?!do\s+not\b|don'?t\b|never\b|avoid\b|refrain\b)(?:please\s+)?\b(?:scale|deploy|push|restart|restage|roll\s*back|rollback|revert|fail\s*over|drain|disable|enable|stop|start|patch|upgrade)\b)[^.\n]{0,100}\b(?:now|immediately|right\s+away|production|prod|checkout|database|db|instances?|build|release|service|traffic)\b
   - type: not_regex
     pattern: >-
       (?i)\b(?:i'?ll|i will|let me|now)\b[^.\n]{0,60}\b(?:delegate|hand(?:ing)?\s+(?:off|to)|invoke|dispatch)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b

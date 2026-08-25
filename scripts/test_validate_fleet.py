@@ -388,19 +388,41 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("typed `observability-engineer` agent captures", rendered)
 
     def test_incident_command_rejects_observability_as_recovery_owner(self) -> None:
+        stale_contracts = (
+            "Resolve only after the typed `observability-engineer` confirm that user impact ended.",
+            (
+                "Resolve only after the typed `observability-engineer` confirms that golden "
+                "signals stayed healthy."
+            ),
+        )
+        for stale_contract in stale_contracts:
+            with self.subTest(stale_contract=stale_contract), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._copy_scribe_bundle(root)
+                target = root / "skills" / "incident-command" / "SKILL.md"
+                target.write_text(
+                    f"{target.read_text(encoding='utf-8')}\n{stale_contract}\n",
+                    encoding="utf-8",
+                )
+                failures = validate_fleet.validate_scribe_bundle(root)
+            self.assertTrue(
+                any("stale incident recovery owner" in failure for failure in failures),
+                failures,
+            )
+
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             self._copy_scribe_bundle(root)
             target = root / "skills" / "incident-command" / "SKILL.md"
             target.write_text(
                 f"{target.read_text(encoding='utf-8')}\n"
-                "Resolve only after the typed `observability-engineer` confirm that user impact ended.\n",
+                "Resolution does not depend on the typed `observability-engineer`, which does not "
+                "confirm recovery.\n",
                 encoding="utf-8",
             )
             failures = validate_fleet.validate_scribe_bundle(root)
-        self.assertTrue(
-            any("stale scribe bundle contract" in failure and "confirm that user impact" in failure
-                for failure in failures),
+        self.assertFalse(
+            any("stale incident recovery owner" in failure for failure in failures),
             failures,
         )
 
