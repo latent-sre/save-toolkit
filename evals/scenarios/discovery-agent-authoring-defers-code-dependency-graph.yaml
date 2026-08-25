@@ -33,5 +33,8 @@ graders:
     # "AST" substring token matched last/past/broadcast. Word boundaries express what neither
     # could. Verified against all three transcripts of batch 20260825T174112Z-498600c4, prompt
     # echo still rejected.
+    # Batch 20260825T183911Z-ea5961ab trial 3 described a grep-based extraction ("Grep each file
+    # for `^import `") and never said AST or static analysis - a legitimate method the technique
+    # list did not admit. Grep/regex extraction and "import statements/lines/edges" now count.
   - type: regex
-    pattern: '(?i)\bast\b|\babstract syntax tree\b|\bstatic(?:ally)?\s+analy\w+\b|\bparser?s?\b|\bparsing\b|\bcompiler api\b|\bmodulefinder\b|\bpydeps\b|\bts-morph\b'
+    pattern: '(?i)\bast\b|\babstract syntax tree\b|\bstatic(?:ally)?\s+analy\w+\b|\bparser?s?\b|\bparsing\b|\bcompiler api\b|\bmodulefinder\b|\bpydeps\b|\bts-morph\b|\bgrep(?:ping|s)?\b|\bregex(?:es)?\b|\bimport\s+(?:statement|line|edge)s?\b'

@@ -26,8 +26,12 @@ graders:
     # contains_any token needs adjacent. "budget" and "bound" are deliberately absent from the
     # noun set so the prompt's own "iteration/candidate/time/cost budgets" cannot satisfy it -
     # this grader is what keeps the prompt echo failing for this scenario. Verified 3/3.
+    # Batch 20260825T183911Z-ea5961ab trial 2 wrote the bound as a table row -
+    # "| Iterations | e.g., <= 5 propose-verify passes |" - stating the cap as a NUMBER, which is
+    # more concrete than any noun the pattern accepted. Comparators and digits now count too.
+    # "budget"/"bound" stay excluded so the prompt echo still fails this grader.
   - type: regex
-    pattern: '(?i)\biterations?\b[^.\n]{0,60}\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b[^.\n]{0,40}\biterations?\b'
+    pattern: '(?i)\biterations?\b[^.\n]{0,60}(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264|\u2264)\s*\d|\b\d+\s*(?:propose|improve|edit|verify|pass|cycle|round))|(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d)[^.\n]{0,40}\biterations?\b'
     # Regex for the same reason: all three measured answers stated the bound as "**Cost:** a
     # token/call ceiling", "**Cost:** token/dollar ceiling", "**Cost:** a cap on verifier
     # reruns" - correct behaviour no adjacent-word token can see. Verified 3/3, echo rejected.

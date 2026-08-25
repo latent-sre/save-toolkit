@@ -75,3 +75,39 @@ No grader was widened after this run — every red was traced to its transcript 
 `GRADER-003` requires, and the trace is what produced the finding above. No prompt was edited: a
 discovery prompt is the routing stimulus, and the 12/12 routing evidence depends on it staying
 byte-identical. No second batch, no threshold change, and no scenario moved between splits.
+
+## Second batch — after the regex conversion
+
+`[verified]` Batch `20260825T183911Z-ea5961ab`, candidate `95a017a` (clean tree), identical
+conditions: CLI 2.1.245, `--model sonnet` resolved `claude-sonnet-5`, `--timeout 600`, 3 trials,
+threshold 1.0, integrity PASS, cost USD 3.23.
+
+| Scenario | Split | Trials | Routing | Batch 1 | Baseline |
+|---|---|---|---|---|---|
+| `trigger-and-shape` | regression | **3/3** | 3/3 | 1/3 | 0/3 |
+| `defers-code-dependency-graph` | regression | 2/3 | 3/3 | 2/3 | 0/3 |
+| `loop-engineering` | regression | 2/3 | 3/3 | 0/3 | 0/3 |
+| `workflow-graph` | calibration | 2/3 | 3/3 | 1/3 | 0/3 |
+
+Trial-level: **9/12**, against 4/12 before the conversion and 0/12 on the incumbent. Routing
+remains `[verified]` 12/12 with no misroute in any trial of any batch.
+
+`[verified]` All three remaining reds were traced to their transcripts, and all three are again the
+behaviour being present in a form the grader did not admit — none is a behavioural defect:
+
+| Scenario | What the response wrote | Gap |
+|---|---|---|
+| `defers-code-dependency-graph` t3 | ``Grep each file for `^import ` `` | A grep-based extraction, never naming AST or static analysis — a legitimate method the technique list did not admit |
+| `loop-engineering` t2 | `\| Iterations \| e.g., <= 5 propose-verify passes \|` | The cap stated as a **number**, more concrete than any noun in the pattern |
+| `workflow-graph` t1 | `\| Node \| Role \| Tools/authority \|` | Singular. A `contains_all` on the literal `nodes` missed it — a grader the first conversion never reached |
+
+Each was generalized along the axis it exposed rather than by adding tokens: method family
+(grep/regex extraction counts), numeric bounds (comparators and digits count), and number and
+inflection (lookaheads, which also preserved the `authority` and `termination` assertions that a
+narrower node/edge pattern would have silently dropped).
+
+`[verified]` Against all 24 retained transcripts from both batches, every scenario is 6/6 on every
+positive grader, and each keeps at least one grader the whitespace-normalized prompt echo fails.
+`[unverified]` This is retrodiction over the transcripts the patterns were derived from. The trend
+across three measurements — 0/12, 4/12, 9/12 — supports the instrument diagnosis, but only a third
+batch on unseen trials would show these three scenarios green for a behavioural reason.

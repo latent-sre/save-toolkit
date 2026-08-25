@@ -858,11 +858,11 @@ calibration seam green, and do not add a runtime, schema, validator, or `codebas
 
 ### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
-**Status:** `active` (2026-08-25) — offline treatment applied and verified live. Routing is
-`[verified]` correct in 12/12 trials; behavioural graders are still red (0/4 scenarios, though
-trial passes moved 0/12 to 4/12) for a reason that is **not** vocabulary, so the item stays open on
-a named instrument defect rather than on more widening. Evidence:
-[the verification batch](reviews/2026-08-25-grader-003-verification-batch.md).
+**Status:** `active` (2026-08-25) — the instrument defect is diagnosed and fixed; one confirming
+batch remains. Across three measurements under identical conditions, trial passes went
+**0/12 → 4/12 → 9/12** and `trigger-and-shape` reached 3/3, while routing stayed `[verified]`
+12/12 with no misroute in any trial of any batch. Evidence:
+[the verification batches](reviews/2026-08-25-grader-003-verification-batch.md).
 
 **Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
 
@@ -911,36 +911,44 @@ and is absent from every `.eval-runs` directory here — and the treatment chose
 because the mismatch is visible in each scenario against its own prompt. Any *further* grader
 widening does need a transcript first.
 
-**Measured result (batch `20260825T174112Z-498600c4`, Sonnet, 3 trials, 600 s, USD 3.54,
-candidate `90bd33e`, clean tree):** routing `[verified]` 3/3 on every scenario — 12/12 overall, no
-misroute on either revision. Behavioural: `defers-code-dependency-graph` 2/3,
-`trigger-and-shape` 1/3, `workflow-graph` 1/3, `loop-engineering` 0/3, so 0/4 scenarios at
-threshold 1.0 against a 0/12 baseline. `[verified]` All six failing grader instances were traced to
-their transcripts and **every graded behaviour was present and correct**; one response
-(`Human (effects owner) | Sole holder of effect authority`) is better than the phrasing it was
-graded against. The reds are string-matching artefacts: label separation (`**Cost:** … ceiling`),
-hyphenation (`Output-shape`), word order (`Review (read-only, independent)`), and word boundary
-(`parse each file's AST`, lost when bare `AST` was removed to stop it matching `last`).
+**Measured results.** Two batches, identical conditions (Sonnet, 3 trials, 600 s, threshold 1.0),
+against the incumbent baseline `20260824T231543Z-53c0a77c`:
 
-**The finding that keeps this open.** A `contains_any` discovery grader cannot at once grade only
-what its prompt requests, reject a prompt echo, and match a correct answer's natural phrasing —
-`workflow-graph` collides on exactly the words its prompt uses. `[sourced]` The instrument must
-change: `regex` with word boundaries and a small proximity window expresses all three, because an
-echo lacks the structure and not merely the words. This is the "reason other than vocabulary" the
-prior acceptance reserved, so no grader was widened after the run.
+| Batch | Candidate | Trials green | Routing | Cost |
+|---|---|---|---|---|
+| `20260824T231543Z-53c0a77c` (incumbent) | `origin/main` bytes | 0/12 | 12/12 | — |
+| `20260825T174112Z-498600c4` | `90bd33e` | 4/12 | 12/12 | USD 3.54 |
+| `20260825T183911Z-ea5961ab` | `95a017a` | **9/12** | 12/12 | USD 3.23 |
 
-**Acceptance:** Offline treatment is complete and verified: `test_graders` 665/665, `--validate` OK
-at 94 scenarios, Gate A 6/6, generator byte-clean, `claude plugin validate . --strict` PASS, the
-prompt-alignment invariant proven red for its named reason, and the live batch above recorded with
-its transcripts summarised in a committed document rather than in gitignored `.eval-runs/`. What
-remains: convert the affected graders from `contains_any` word lists to bounded `regex`, then one
-more batch under identical conditions showing the regression scenarios green for a behavioural
-reason. `[unverified]` that conversion's effect until measured.
+**The diagnosis, now supported by three measurements.** `contains_any` is a plain substring test and
+cannot express these contracts. Every red in both batches was traced to its transcript first, and in
+all nine cases the graded behaviour was **present and correct** — defeated by a markdown label
+(`**Cost:** … ceiling`), a hyphen (`Output-shape`), word order (`Review (read-only, independent)`),
+a word boundary (`parse each file's AST`), an unadmitted method (grep-based import extraction), a
+numeric bound (`Iterations | <= 5 passes`), and a singular (`| Node | Role |`). One response —
+`Human (effects owner) | Sole holder of effect authority` — was better than the phrasing it failed.
 
-**Next action:** Owner decides whether to fund the regex conversion plus one more batch (~USD 4 at
-these conditions). Until then, do not widen any word list further — the run proved widening is not
-what is wrong. Do not edit a discovery prompt: it is the routing stimulus and the 12/12 evidence
-depends on it staying byte-identical.
+Eight graders moved to bounded `regex` in `95a017a`, and the three reds that batch surfaced were
+generalized along the axis each exposed rather than by adding tokens. `workflow-graph` carries the
+load-bearing case: its delegation-edge behaviour cannot be graded by vocabulary at all, because a
+correct answer's words are the prompt's own words, so any token matching the answer also admits the
+echo. It now grades the edge list structurally, requiring the answer to draw its edges.
+
+**Acceptance:** Offline work is complete and twice verified live: `test_graders` 665/665,
+`--validate` OK at 94 scenarios, Gate A 6/6, generator byte-clean,
+`claude plugin validate . --strict` PASS, the prompt-alignment invariant proven red for its named
+reason, and both batches recorded with their transcripts summarised in a committed document rather
+than in gitignored `.eval-runs/`. `[verified]` all 24 retained transcripts pass every positive
+grader in their scenario, and every scenario keeps a grader the prompt echo fails. `[unverified]`
+that is retrodiction over the transcripts the patterns came from; only a third batch on unseen
+trials can show the three remaining scenarios green for a behavioural reason.
+
+**Next action:** Owner decides whether to fund one confirming batch (~USD 3.3 at these conditions)
+on unseen trials. If it lands green, close the item; if a scenario is red again, trace it before
+touching anything — three batches have produced no behavioural defect, so a red that is genuinely
+behavioural would be new information and a widening would not be the answer. Do not edit a
+discovery prompt: it is the routing stimulus and the 12/12 routing evidence depends on it staying
+byte-identical.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

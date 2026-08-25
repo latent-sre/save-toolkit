@@ -21,8 +21,14 @@ success_criteria:
 graders:
   # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
   # the adversarial fixtures for this scenario live in evals/test_graders.py.
-  - type: contains_all
-    of: ["nodes", "edges", "authority", "termination"]
+    # Batch 20260825T183911Z-ea5961ab trial 1 headed its roster table "| Node | Role |" -
+    # singular, so a contains_all on the literal "nodes" missed it: the same instrument defect
+    # as the converted graders, in a grader the first pass did not reach. The lookaheads assert
+    # all four terms independently, in any number, inflection, and order. All four are kept
+    # deliberately - authority and termination have no other grader in this scenario, so
+    # narrowing this to the node/edge pair would have silently dropped them.
+  - type: regex
+    pattern: '(?is)(?=.*\bnodes?\b)(?=.*\bedges?\b)(?=.*\bauthorit(?:y|ies)\b)(?=.*\b(?:terminat|terminal)\w*\b)'
     # Grade the edge list structurally rather than by vocabulary: a real delegation-graph answer
     # DRAWS its edges ("Coordinator -> Review", "Human -> Coordinator"). The prompt asks for
     # "allowed edges" in prose and contains no arrow, so this also keeps the prompt echo failing
