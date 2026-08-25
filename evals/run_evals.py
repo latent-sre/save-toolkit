@@ -66,6 +66,12 @@ PLUGIN_INPUT_PATHS = (
     "scripts/fleet_frontmatter.py",
     "scripts/readonly-guard.py", "scripts/readonly-guard-hook.sh",
 )
+# Runtime files introduced after the baseline revision remain measured when present, while their
+# absence is itself a valid property of an older plugin image in a fixed incumbent/candidate run.
+OPTIONAL_PLUGIN_INPUT_PATHS = (
+    "scripts/guard-session-preflight.py",
+    "scripts/guard-session-preflight-hook.sh",
+)
 REQUIRED = (
     "schema_version", "id", "mode", "split", "target", "prompt", "success_criteria", "graders",
 )
@@ -1397,7 +1403,13 @@ def _files_under(*relative_roots: str, root: Path = ROOT) -> list[Path]:
 
 
 def plugin_digest(root: Path = ROOT) -> str:
-    return _sha256_paths(_files_under(*PLUGIN_INPUT_PATHS, root=root), base=root)
+    files = _files_under(*PLUGIN_INPUT_PATHS, root=root)
+    files.extend(
+        path
+        for relative in OPTIONAL_PLUGIN_INPUT_PATHS
+        if (path := root / relative).is_file() and not _is_reparse_point(path)
+    )
+    return _sha256_paths(files, base=root)
 
 
 def eval_suite_digest(root: Path = EVAL_ROOT) -> str:
@@ -1470,6 +1482,15 @@ def frozen_plugin_snapshot():
             destination = tmp / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
+        for relative in OPTIONAL_PLUGIN_INPUT_PATHS:
+            source = ROOT / relative
+            if not source.exists():
+                continue
+            if not source.is_file() or _is_reparse_point(source):
+                raise clean_room.RunnerFailed(f"refusing invalid optional measured input: {source}")
+            destination = tmp / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
         after = plugin_digest(ROOT)
         snapshot = plugin_digest(tmp)
         if before != after or snapshot != before:
@@ -1524,6 +1545,7 @@ def collect_provenance(
     plugin_status = required_command_text([
         "git", "status", "--porcelain=v1", "--untracked-files=all", "--",
         *PLUGIN_INPUT_PATHS,
+        *OPTIONAL_PLUGIN_INPUT_PATHS,
     ])
     snapshot_digest = plugin_digest(plugin_root)
     workspace_digest = plugin_digest(ROOT)

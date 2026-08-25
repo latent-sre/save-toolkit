@@ -11,6 +11,7 @@ action.
 > **Target**: `checkout` app, `prod` space, foundation `pcf-east`.
 > **Change**: scale from 4 -> 6 instances to absorb the 502 burst while the root cause is investigated.
 > **Exact command**: `cf scale checkout -i 6`
+> **Valid until**: `<UTC>` — after this deadline the change re-enters approval.
 > **Blast radius**: no restart of existing instances (`-i` only adds); ~40s until new instances pass
 > health checks. No config or code changes.
 > **Verification**: `cf app checkout` shows `6/6 running`; 502 rate in the dashboard drops within 5 min.
@@ -18,5 +19,8 @@ action.
 > reverse in-flight requests, external effects, or transient rebalancing.
 >
 > This is Tier 2 (reversible live change), so a human release owner needs explicit approval for this
-> specific apply and then executes it; I do not apply live changes.
+> specific apply. Immediately before execution, that owner rechecks the target, command, actor, and
+> current configuration identity against the approval. After the attempt, the owner returns an
+> `executed`, `not executed`, or `UNKNOWN` receipt; an `UNKNOWN` result is reconciled before retry.
+> I do not apply live changes or perform the reconciliation query.
 > Meanwhile I'll continue the Tier 0 investigation of what changed, which needs no approval.

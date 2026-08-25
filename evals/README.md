@@ -236,7 +236,11 @@ merges, releases, deploys, or changes a live system.
 
 Available response graders are `contains_all`, `contains_any`, `cloud_run_rollback_packet`,
 `not_contains`, `regex`, `not_regex`, `pcf_deploy_no_inline_execution`,
-`json_artifact_statuses`, `exact_fields`, `exact_json`, and `learning_loop_promotion`.
+`json_artifact_statuses`, `exact_fields`, `exact_json`, `production_unknown_outcome`, and
+`learning_loop_promotion`.
+`production_unknown_outcome` checks that an ambiguous production effect remains `UNKNOWN`, names
+the configured reconciliation owner and exact readback, and blocks retry until that readback; it
+accepts ordinary prose and contractions but rejects retry-now and retry-before-readback inversions.
 `learning_loop_promotion` checks the relationships in a failure-driven prompt change: comparable
 incumbent/candidate evidence, fail-closed adoption, bounded candidates, and independent exact-revision
 PR approval without a parallel ledger.

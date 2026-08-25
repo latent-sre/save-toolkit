@@ -67,10 +67,10 @@ Method: <Five Whys, fault tree, causal graph, or another method suited to the ev
 
 ## Action items
 
-| Action | Type | Owner | Due | Tracking link | Durable artifact / proof of done |
-|---|---|---|---|---|---|
-|  | mitigative |  |  |  |  |
-|  | preventative |  |  |  |  |
+| Action | Type | Owner | Due | Tracking link | Instrumentation prerequisite | Durable artifact / proof of done |
+|---|---|---|---|---|---|---|
+|  | mitigative |  |  |  | none |  |
+|  | preventative |  |  |  |  |  |
 
 ## Runbook and observability updates
 

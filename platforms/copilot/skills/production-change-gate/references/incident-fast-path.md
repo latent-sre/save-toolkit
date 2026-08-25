@@ -31,15 +31,23 @@ flip). Two things stay on the full gate even at P1:
   checklist, and the tier decides who executes.
 - **Explicit human confirmation** of the exact command, **or of a bounded envelope** the incident
   commander approves once (for example, "scale `checkout` up to 10 instances" or "remap the prod
-  route between `checkout-blue` and `checkout-green` as needed"). Only action outside the envelope
-  re-enters approval; an iterative mitigation does not re-run the gate per attempt.
+  route between `checkout-blue` and `checkout-green` as needed"). Record its `Valid until` UTC or
+  explicit incident-lifecycle end. Before each attempt, the human confirms the envelope is current
+  and rechecks the current target and candidate/configuration identity. Only action outside the
+  envelope re-enters approval; an iterative mitigation does not re-run the gate per attempt. An
+  expired envelope or state mismatch re-enters approval.
 - **Blast radius and verification**, a sentence each.
 - **A backout plan** — prefer the reversible mitigations in the `incident-command` skill's table.
 - **Who made the call**, recorded in the incident timeline (UTC).
+- **Effect result**, recorded by the human executor after every attempt as `executed`, `not executed`,
+  or `UNKNOWN`. An ambiguous dispatch carries a named reconciliation owner and read-after-write query
+  and is never retried or re-issued until resolved.
 
 ## Deferred to post-incident reconciliation
 
-These never delay a covered mitigation:
+Effect-outcome reconciliation is never deferred: an `UNKNOWN` dispatch is an active incident state,
+not paperwork, and remains visible until the named owner resolves it or explicitly carries it as
+`UNKNOWN`. These administrative records never delay a covered mitigation:
 
 - Readiness evidence and artifact records **for the covered actions only** — a rollback reuses the
   previously live artifact's existing records. A new artifact is out of scope and keeps them.
