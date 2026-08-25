@@ -202,18 +202,36 @@ def neutral_workspace():
 
     temporary = pathlib.Path(tempfile.mkdtemp(prefix="save-toolkit-drill-lane-"))
     try:
+        resolved = temporary.resolve()
+        # Scrub inherited Git environment variables so GIT_DIR/GIT_WORK_TREE cannot redirect
+        # initialization into an ancestor repository.
+        git_env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         init = subprocess.run(
-            ["git", "init", "--quiet", str(temporary)],
+            ["git", "init", "--quiet", str(resolved)],
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             check=False,
             timeout=30,
+            env=git_env,
         )
         if init.returncode != 0:
             raise SystemExit(f"cannot create neutral drill workspace: {init.stderr.strip()[:300]}")
-        yield temporary.resolve()
+        # Verify that the workspace is its own git root; an ancestor GIT_DIR could still redirect.
+        top = subprocess.run(
+            ["git", "-C", str(resolved), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=10,
+            env=git_env,
+        )
+        if top.returncode != 0 or pathlib.Path(top.stdout.strip()).resolve() != resolved:
+            raise SystemExit("neutral workspace is not its own git root; ancestor instructions may leak")
+        yield resolved
     finally:
         shutil.rmtree(
             temporary,

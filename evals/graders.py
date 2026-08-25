@@ -579,7 +579,6 @@ def production_unknown_outcome(
         rf"\b(?:do not|don't|must not|cannot|can't|should not|not allowed to)\s+{retry}\b",
         rf"\b{retry}\s+is\s+(?:blocked|not allowed)\b",
         r"\bblocked[_ -]pending[_ -]reconciliation\b",
-        rf"\bpending reconciliation\b.*\b{retry}\b",
         rf"\bbefore (?:any |a )?{retry}\b",
         rf"\b(?:only after|once|after)\b.*\b(?:reconcile|reconciliation|readback)\b.*\b(?:may |can )?{retry}\b",
     )

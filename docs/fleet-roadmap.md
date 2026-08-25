@@ -354,8 +354,8 @@ doctor, platform, evaluator, and validator suites passed; the eval suite validat
 generated adapters matched canonical sources, `git diff --check` was clean, and Gate A passed 6/6.
 
 **Next action:** `latent-sre` reviews and accepts the exact PR #165 head revision before promotion.
-Resolve any current review finding or failed check on that revision. Do not reopen F7, F11, N4,
-GRAPH-002, or `WF-001` through this item.
+Resolve any current review finding or failed check on that revision. F7, F11, N4, GRAPH-002, and
+`WF-001` are out of scope for this item.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
