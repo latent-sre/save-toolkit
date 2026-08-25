@@ -2289,6 +2289,12 @@ def test_direct_agent_contract_graders() -> None:
         "dispatched by the caller after terminal. If the window stays healthy, that terminal is "
         "resolved. No further production change is authorized."
     )
+    recovery_candidate_compact_window = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed. Recheck "
+        "at now+10min. After terminal resolution, the caller dispatches separate next-phase "
+        "observability-engineer and scribe tasks. No further\nproduction change is authorized."
+    )
     recovery_contradictory_dispatch = (
         "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
         "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
@@ -2330,6 +2336,10 @@ def test_direct_agent_contract_graders() -> None:
     check(
         grade_all(recovery_graders, recovery_candidate_terminal_shorthand),
         "direct SRE recovery: exact-candidate terminal shorthand passes",
+    )
+    check(
+        grade_all(recovery_graders, recovery_candidate_compact_window),
+        "direct SRE recovery: exact-candidate compact window and wrapped no-change wording pass",
     )
     check(
         not grade_all(recovery_graders, recovery_contradictory_dispatch),

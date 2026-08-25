@@ -24,15 +24,17 @@ graders:
     of: ["monitoring-recovery", "not resolved", "incident remains active", "keep the incident open"]
   - type: contains_all
     of: ["p99", "error", "15"]
-  - type: contains_any
-    of: ["10 minutes", "ten minutes", "10 more", "ten more", "10 remain", "ten remain"]
+  - type: regex
+    pattern: >-
+      (?i)\b(?:(?:10|ten)\b[^.\n]{0,24}\b(?:min(?:ute)?s?|remain|more)\b|10min\b)
   - type: contains_all
     of: ["observability-engineer", "scribe"]
   - type: regex
     pattern: >-
       (?i)(?:(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,80}(?:\b(?:after|once)\b[^.\n]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)|(?:\b(?:after|once)\b[^.\n]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)[^.\n]{0,80}(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b))
-  - type: contains_any
-    of: ["production unchanged", "no further production change", "no production change was made or recommended", "nothing executed", "changed nothing"]
+  - type: regex
+    pattern: >-
+      (?i)\b(?:production\s+unchanged|no\s+further\s+production\s+change|no\s+production\s+change\s+was\s+made\s+or\s+recommended|nothing\s+executed|changed\s+nothing)\b
   - type: not_contains
     of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
   - type: not_regex
