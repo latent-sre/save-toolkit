@@ -28,7 +28,7 @@ Roles: IC=<>   Investigation=<>   Ops=<>   Comms/Timeline=<>
 Timeline (UTC): <timestamp — observed event or decision> …
 Current focus: <the one thing the response is doing now>
 Mitigation decision: <chosen|pending — rationale and human owner>
-Open actions: <owner — item — status>
+Open actions: <owner — item — Instrumentation prerequisite: signal/exporter/config or none — ready|blocked — status>
 Next update: <HH:MM UTC>
 ```
 

@@ -56,6 +56,59 @@ def production_verdict_preserves_source_and_artifact(text: str) -> bool:
     )
 
 
+def production_approval_is_time_and_state_bound(text: str) -> bool:
+    checklist = between(text, "## Checklist", "## Verdict")
+    verdict = between(text, "## Verdict", "## Execution result")
+    return all(
+        (
+            "Valid until: <UTC | not applicable for Tier 0/1>" in verdict,
+            "Immediately before execution" in checklist,
+            "approval has not expired" in checklist,
+            "candidate, artifact, or configuration identity" in checklist,
+            "BLOCKED and re-enters this gate" in checklist,
+        )
+    )
+
+
+def production_execution_has_a_return_edge(text: str) -> bool:
+    result = between(text, "## Execution result", "## Read only the conditional material")
+    return all(
+        (
+            "Execution outcome: <executed | not executed | UNKNOWN>" in result,
+            "Receipt/operation ID: <durable receipt or operation ID | unavailable>" in result,
+            "Reconciliation: <owner + read-after-write query | not applicable>" in result,
+            "Do not infer `not executed` from a missing response" in result,
+            "must not be retried or re-issued" in result,
+            "human executor or protected automation returns" in result,
+        )
+    )
+
+
+def incident_envelope_is_time_and_state_bound(text: str) -> bool:
+    core = between(text, "## Never skipped, even at P1", "## Deferred to post-incident reconciliation")
+    return all(
+        (
+            "Valid until" in core,
+            "current target and candidate/configuration identity" in core,
+            "expired envelope" in core,
+            "re-enters approval" in core,
+        )
+    )
+
+
+def incident_effect_has_a_return_edge(text: str) -> bool:
+    core = between(text, "## Never skipped, even at P1", "## Deferred to post-incident reconciliation")
+    deferred = compact(text.split("## Deferred to post-incident reconciliation", 1)[1])
+    return all(
+        (
+            "`executed`, `not executed`, or `UNKNOWN`" in core,
+            "named reconciliation owner and read-after-write query" in core,
+            "never retried or re-issued" in core,
+            "Effect-outcome reconciliation is never deferred" in deferred,
+        )
+    )
+
+
 def merge_p2_scope_tracks_candidate_behavior(text: str) -> bool:
     text = between(text, "### Severity rubric (what blocks)", "```text")
     return all(
@@ -194,6 +247,18 @@ class ReleaseSkillContractTests(unittest.TestCase):
             )
         )
 
+    def test_production_approvals_expire_and_recheck_resumed_state(self) -> None:
+        production = read("skills/production-change-gate/SKILL.md")
+        incident = read("skills/production-change-gate/references/incident-fast-path.md")
+        self.assertTrue(production_approval_is_time_and_state_bound(production))
+        self.assertTrue(incident_envelope_is_time_and_state_bound(incident))
+
+    def test_human_execution_returns_an_owned_result(self) -> None:
+        production = read("skills/production-change-gate/SKILL.md")
+        incident = read("skills/production-change-gate/references/incident-fast-path.md")
+        self.assertTrue(production_execution_has_a_return_edge(production))
+        self.assertTrue(incident_effect_has_a_return_edge(incident))
+
     def test_merge_p2_scope_tracks_candidate_behavior(self) -> None:
         self.assertTrue(
             merge_p2_scope_tracks_candidate_behavior(read("skills/merge-gate/SKILL.md"))
@@ -279,6 +344,22 @@ class ReleaseSkillContractTests(unittest.TestCase):
                 "production verdict swaps source identity label",
             ),
             (
+                production_approval_is_time_and_state_bound,
+                production.replace(
+                    "Valid until: <UTC | not applicable for Tier 0/1>", "", 1
+                ),
+                "production approval loses its expiry",
+            ),
+            (
+                production_execution_has_a_return_edge,
+                production.replace(
+                    "Execution outcome: <executed | not executed | UNKNOWN>",
+                    "Execution outcome: <complete>",
+                    1,
+                ),
+                "production effect result loses its unknown outcome",
+            ),
+            (
                 merge_p2_scope_tracks_candidate_behavior,
                 merge.replace("introduced or worsened by the candidate", "found during review", 1),
                 "candidate causality removed",
@@ -360,6 +441,16 @@ class ReleaseSkillContractTests(unittest.TestCase):
                 incident_fast_path_keeps_tier_three_out,
                 incident + "\nTier 3 also uses this fast path.\n",
                 "later tier three contradiction",
+            ),
+            (
+                incident_envelope_is_time_and_state_bound,
+                incident.replace("Valid until", "Recorded at", 1),
+                "incident envelope loses its expiry",
+            ),
+            (
+                incident_effect_has_a_return_edge,
+                incident.replace("or `UNKNOWN`.", "or `complete`.", 1),
+                "incident effect result loses its unknown outcome",
             ),
         )
         for oracle, mutant, name in cases:

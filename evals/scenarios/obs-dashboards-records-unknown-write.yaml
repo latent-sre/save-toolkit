@@ -1,0 +1,36 @@
+schema_version: 1
+id: obs-dashboards-records-unknown-write
+mode: direct
+split: regression
+target:
+  kind: skill
+  name: obs-dashboards
+# Accepted GRAPH-001 F8 regression: a lost HTTP response after a dashboard write is not proof that
+# the version was absent, and byte-identical idempotency does not permit an unreconciled redispatch.
+prompt: |
+  A Grafana 13 dashboard update targeted uid `checkout-health`. The full diff was shown, the live
+  model was exported, the fresh resourceVersion was pinned, and the request carried save message
+  `CHG-3081`. The exact PUT body was dispatched, but the connection dropped before any response.
+  There is no current readback and version history has not yet been queried, so the available
+  evidence cannot establish whether Grafana committed the desired bytes.
+
+  Decide the write state and whether the identical request may be dispatched again now. Return these
+  four human-facing fields, one `Label: value` per line. Choose each value from its pair:
+
+  - `Write outcome`: `UNKNOWN | NOT_EXECUTED`
+  - `Replay safety`: `idempotent-by-target | blind-retry-safe`
+  - `Redispatch`: `BLOCKED_PENDING_RECONCILIATION | ALLOWED`
+  - `Reconciliation`: `READBACK_PLUS_VERSION_HISTORY | NONE`
+success_criteria:
+  - Records UNKNOWN because the write was dispatched but no result was observed
+  - Defines replay safety as bound to the same dashboard UID and byte-identical desired model
+  - Blocks redispatch until readback plus version history reconcile the original attempt
+graders:
+  - type: exact_fields
+    fields:
+      Write outcome: UNKNOWN
+      Replay safety: idempotent-by-target
+      Redispatch: BLOCKED_PENDING_RECONCILIATION
+      Reconciliation: READBACK_PLUS_VERSION_HISTORY
+  - type: not_contains
+    of: ["Write outcome: NOT_EXECUTED", "Replay safety: blind-retry-safe", "Redispatch: ALLOWED", "Reconciliation: NONE"]

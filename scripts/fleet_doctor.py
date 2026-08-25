@@ -87,7 +87,8 @@ GUARD_INTERPRETER_CANDIDATES = ("python3", "python", "py")
 GUARD_ALLOW_EXIT = 42
 GUARD_DENY_EXIT = 43
 GUARD_PROBE_TIMEOUT_SECONDS = 5
-TRUSTED_GUARD_HOOK_SHA256 = "d605b157942c8db893c7c06882824bcdaef33748bdbaf57dc2bacde8b19ab0cc"
+TRUSTED_GUARD_HOOK_SHA256 = "bda0b531c84ebb689736fbc184d8b77816301094022f1a281e4c4362d892316a"
+TRUSTED_SESSION_HOOK_SHA256 = "0c6c1f8c789a0f5bb8fe24c6abe5229ed255de678a2938e6b861247018046183"
 GUARD_ALLOW_PAYLOAD = json.dumps(
     {
         "tool_name": "Bash",
@@ -199,25 +200,25 @@ def _guard_interpreter_check(
 
     observations: list[dict[str, object]] = []
     available = False
-    allow_answer: tuple[str, CommandResult] | None = None
-    deny_answer: tuple[str, CommandResult] | None = None
+    allow_answer: tuple[str, str, CommandResult] | None = None
+    deny_answer: tuple[str, str, CommandResult] | None = None
     for candidate in GUARD_INTERPRETER_CANDIDATES:
         executable = which(candidate)
         if not executable:
             continue
         available = True
         argv = (executable, "-I", "-S", str(guard_path))
-        observation: dict[str, object] = {"candidate": candidate}
+        observation: dict[str, object] = {"candidate": candidate, "resolved": executable}
         if allow_answer is None:
             allow = run(argv, GUARD_ALLOW_PAYLOAD)
             observation["allow_exit_code"] = allow.returncode
             if allow.returncode in {GUARD_ALLOW_EXIT, GUARD_DENY_EXIT}:
-                allow_answer = (candidate, allow)
+                allow_answer = (candidate, executable, allow)
         if deny_answer is None:
             deny = run(argv, GUARD_DENY_PAYLOAD)
             observation["deny_exit_code"] = deny.returncode
             if deny.returncode in {GUARD_ALLOW_EXIT, GUARD_DENY_EXIT}:
-                deny_answer = (candidate, deny)
+                deny_answer = (candidate, executable, deny)
         observations.append(observation)
         if allow_answer is not None and deny_answer is not None:
             break
@@ -236,24 +237,32 @@ def _guard_interpreter_check(
 
     allow_ok = (
         allow_answer is not None
-        and allow_answer[1].returncode == GUARD_ALLOW_EXIT
-        and not allow_answer[1].stdout.strip()
+        and allow_answer[2].returncode == GUARD_ALLOW_EXIT
+        and not allow_answer[2].stdout.strip()
     )
     deny_ok = (
         deny_answer is not None
-        and deny_answer[1].returncode == GUARD_DENY_EXIT
-        and _is_guard_deny_output(deny_answer[1].stdout)
+        and deny_answer[2].returncode == GUARD_DENY_EXIT
+        and _is_guard_deny_output(deny_answer[2].stdout)
     )
     details: dict[str, object] = {
         "allow_answer": (
             None
             if allow_answer is None
-            else {"candidate": allow_answer[0], "exit_code": allow_answer[1].returncode}
+            else {
+                "candidate": allow_answer[0],
+                "resolved": allow_answer[1],
+                "exit_code": allow_answer[2].returncode,
+            }
         ),
         "deny_answer": (
             None
             if deny_answer is None
-            else {"candidate": deny_answer[0], "exit_code": deny_answer[1].returncode}
+            else {
+                "candidate": deny_answer[0],
+                "resolved": deny_answer[1],
+                "exit_code": deny_answer[2].returncode,
+            }
         ),
         "observations": observations,
         "plugin_root": str(guard_path.parent.parent),
@@ -277,10 +286,10 @@ def _guard_interpreter_check(
     )
 
 
-def _expected_guard_hook_command(plugin_root: Path) -> str | None:
+def _expected_launcher_command(plugin_root: Path, filename: str) -> str | None:
     """Rebuild the installed standalone launcher into its exact inlined command."""
 
-    launcher_path = plugin_root / "scripts" / "readonly-guard-hook.sh"
+    launcher_path = plugin_root / "scripts" / filename
     if not launcher_path.is_file() or launcher_path.is_symlink():
         return None
     try:
@@ -301,12 +310,18 @@ def _expected_guard_hook_command(plugin_root: Path) -> str | None:
     return command
 
 
+def _expected_guard_hook_command(plugin_root: Path) -> str | None:
+    return _expected_launcher_command(plugin_root, "readonly-guard-hook.sh")
+
+
 def _guard_bundle_tree_digest(plugin_root: Path) -> str:
     """Bind guard evidence to the exact installed files without following links."""
 
     digest = hashlib.sha256()
     for relative in (
         Path("hooks/hooks.json"),
+        Path("scripts/guard-session-preflight-hook.sh"),
+        Path("scripts/guard-session-preflight.py"),
         Path("scripts/readonly-guard-hook.sh"),
         Path("scripts/readonly-guard.py"),
     ):
@@ -355,11 +370,16 @@ def _guard_hook_check(plugin_root: Path) -> Check:
         )
 
     expected_command = _expected_guard_hook_command(plugin_root)
-    if expected_command is None:
+    expected_session_command = _expected_launcher_command(
+        plugin_root, "guard-session-preflight-hook.sh"
+    )
+    preflight_path = plugin_root / "scripts" / "guard-session-preflight.py"
+    preflight_present = preflight_path.is_file() and not preflight_path.is_symlink()
+    if expected_command is None or expected_session_command is None or not preflight_present:
         return Check(
             "guard.hook-registration",
             "fail",
-            "The current plugin root has no readable regular standalone guard launcher.",
+            "The current plugin root has an incomplete guard or session-preflight launcher bundle.",
             {
                 "registered": False,
                 "configuration": "launcher-missing-or-invalid",
@@ -369,6 +389,7 @@ def _guard_hook_check(plugin_root: Path) -> Check:
 
     hooks = document.get("hooks") if isinstance(document, dict) else None
     pre_tool_use = hooks.get("PreToolUse") if isinstance(hooks, dict) else None
+    session_start = hooks.get("SessionStart") if isinstance(hooks, dict) else None
     registered = False
     copies_synchronized = False
     trusted_contract = False
@@ -396,22 +417,58 @@ def _guard_hook_check(plugin_root: Path) -> Check:
             if registered:
                 break
 
+    session_registered = False
+    session_copies_synchronized = False
+    session_trusted_contract = False
+    if isinstance(session_start, list):
+        for registration in session_start:
+            if (
+                not isinstance(registration, dict)
+                or registration.get("matcher") != "startup|resume|clear|compact"
+            ):
+                continue
+            commands = registration.get("hooks")
+            if not isinstance(commands, list):
+                continue
+            for command_hook in commands:
+                if not isinstance(command_hook, dict) or command_hook.get("type") != "command":
+                    continue
+                command = command_hook.get("command")
+                if not isinstance(command, str):
+                    continue
+                command_digest = hashlib.sha256(command.encode("utf-8")).hexdigest()
+                synchronized = command == expected_session_command
+                trusted = command_digest == TRUSTED_SESSION_HOOK_SHA256
+                session_copies_synchronized = session_copies_synchronized or synchronized
+                session_trusted_contract = session_trusted_contract or trusted
+                if synchronized and trusted:
+                    session_registered = True
+                    break
+            if session_registered:
+                break
+
+    complete = registered and session_registered
+
     return Check(
         "guard.hook-registration",
-        "pass" if registered else "fail",
+        "pass" if complete else "fail",
         (
-            "The current plugin root registers the read-only guard for Bash PreToolUse events."
-            if registered
+            "The current plugin root registers the read-only guard and its SessionStart preflight."
+            if complete
             else (
-                "The current plugin root does not register the read-only guard for Bash "
-                "PreToolUse events."
+                "The current plugin root does not register the complete read-only guard and "
+                "SessionStart preflight contract."
             )
         ),
         {
-            "registered": registered,
+            "registered": complete,
+            "pre_tool_use_registered": registered,
+            "session_start_registered": session_registered,
             "configuration": "present",
             "copies_synchronized": copies_synchronized,
             "trusted_contract": trusted_contract,
+            "session_copies_synchronized": session_copies_synchronized,
+            "session_trusted_contract": session_trusted_contract,
             "plugin_root": str(plugin_root),
         },
         limitations=(

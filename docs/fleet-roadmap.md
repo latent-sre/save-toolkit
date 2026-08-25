@@ -250,11 +250,13 @@ ground truth and produces a runnable chain, with the cost delta recorded; Gate A
 rerun that case before touching the rest.
 ### GRAPH-001 — engineer the fleet itself as an executable workflow graph
 
-**Status:** `active` (2026-08-24) — the draft contract and review landed as
+**Status:** `active` (updated 2026-08-25) — the draft contract and review landed as
 [`2026-08-24-graph-001-fleet-workflow-graph-contract.md`](reviews/2026-08-24-graph-001-fleet-workflow-graph-contract.md):
-verdict **request changes**, eleven findings, each dispositioned below for owner acceptance. The
-draft ran against the uncommitted `SKILLS-003` candidate, so every finding is a proposal until the
-review is re-run on the merged method revision.
+verdict **request changes**, eleven findings, each dispositioned below. Accepted fixes are published
+for exact-revision review in [PR #165](https://github.com/latent-sre/save-toolkit/pull/165).
+Focused checks, the narrow security-boundary review, generated adapter checks, and Gate A are green;
+the candidate remains unpromoted until owner acceptance of the PR head. F7 and F11 retain their
+existing owners.
 
 **Owner:** `prompt-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
 the exact revision. Each accepted finding is implemented by the owner of the surface it names
@@ -291,16 +293,16 @@ a rejected row is recorded with the reason. No row is implemented by this item.
 
 | # | Finding (packet section) | Owner | Proposed disposition |
 |---|---|---|---|
-| F1 | Tier 2/3 approvals and IC envelopes carry no expiry and no resumed-state re-check before the human acts (§10, §9) | `prompt-engineer` gate text via `reviewer` | `proposed to roadmap` — widen `EFFECT-001` to the human-executed path or open a gate-text item; not owned today |
-| F2 | The human-executor effect boundary has no return edge: no `executed` / `not executed` / `UNKNOWN` outcome, receipt, or reconciliation owner (§9, §5 E5) | same as F1 | `proposed to roadmap` — adjacent to `EFFECT-001`'s unknown-outcome state but outside its reopen trigger |
-| F3 | No model is pinned while a routing edge is measurably model-dependent (§2, §5 E1, §13) | `prompt-engineer` (policy); `ROUTE-003` (measurement) | measurement `already owned` by `ROUTE-003`; policy `proposed to roadmap` as `decision-needed` — pin generation aliases for routing-critical lanes or require the resolved model in run evidence |
-| F4 | `prompt-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `prompt-engineer` | `accepted in part` — `INCIDENT-001` removes SRE's post-incident edges and makes caller dispatch explicit; the other two lanes remain separate proposals |
-| F5 | The `sde` → `reviewer` → caller → `sde` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `prompt-engineer` | `proposed to roadmap` — apply `roster.md`'s loop rule to the fleet's own cycles |
-| F6 | `[UNTRUSTED]` taint is carried on five lanes and absent from `prompt-engineer`, `researcher`, and `repository-investigator` output contracts (§12, §3) | `prompt-engineer` | `proposed to roadmap` — add the source-trust field and packet convention to the three lanes |
+| F1 | Tier 2/3 approvals and IC envelopes carry no expiry and no resumed-state re-check before the human acts (§10, §9) | `prompt-engineer` gate text via `reviewer` | `worked` in candidate — expiry plus execution-time binding added; focused contracts green and the final fixed comparison improved 1/2 → 2/2 |
+| F2 | The human-executor effect boundary has no return edge: no `executed` / `not executed` / `UNKNOWN` outcome, receipt, or reconciliation owner (§9, §5 E5) | same as F1 | `worked` in candidate — result/receipt/reconciliation block added; direct stayed 2/2 and discovery improved 0/2 → 2/2 |
+| F3 | No model is pinned while a routing edge is measurably model-dependent (§2, §5 E1, §13) | `prompt-engineer` (policy); `ROUTE-003` (measurement) | measurement `already owned` by `ROUTE-003`; policy `worked` in candidate — every packet carries requested/resolved model evidence and cannot close a model-dependent decision when resolution is absent; no alias pin added |
+| F4 | `prompt-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `prompt-engineer` | `worked` in candidate — all three state they cannot invoke the lane and return dispatch to the caller; authority unchanged |
+| F5 | The `sde` → `reviewer` → caller → `sde` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `prompt-engineer` | `worked` in candidate — numeric round and elapsed/cost budgets plus success, no-progress, stale, exhausted, and safety terminals added |
+| F6 | `[UNTRUSTED]` taint is carried on five lanes and absent from `prompt-engineer`, `researcher`, and `repository-investigator` output contracts (§12, §3) | `prompt-engineer` | `worked` in candidate — source-trust fields and claim-level default taint added to the three lanes |
 | F7 | `disable-model-invocation` is the only deterministic guardrail on the two effect-shaped skills and is `[unverified]` on the installed CLI (§5 E3) | `HOST-002` | `already owned` — the 2026-08-24 batch-1 audit and `HOST-002` record the missing plugin-specific visibility canary; no new item |
-| F8 | The Grafana dashboard write has no `UNKNOWN` state or named replay-safety class, although a byte-identical re-apply is idempotent and a stale token fails loudly (§9, §8) | `observability-engineer` / `obs-dashboards` text | `proposed to roadmap` — procedure edit naming `idempotent-by-target`, `UNKNOWN`, and step 7's read-back as reconciliation; authority unchanged per the accepted ADR |
-| F9 | No per-lane failure path for a delegate that returns nothing, garbage, or half its contract; no liveness rule (§8, §6) | `prompt-engineer` | `proposed to roadmap` — state the path or mark scheduling/liveness not applicable for a human-triggered, single-tenant fleet |
-| F10 | Live runs carry no run/attempt lineage; only the eval manifest does (§10, §13) | `prompt-engineer` (packet convention) | `proposed to roadmap` — one run/attempt field on the packet, or state live-run tracing out of scope in the contract |
+| F8 | The Grafana dashboard write has no `UNKNOWN` state or named replay-safety class, although a byte-identical re-apply is idempotent and a stale token fails loudly (§9, §8) | `observability-engineer` / `obs-dashboards` text | `worked` in candidate — `idempotent-by-target`, UNKNOWN, readback-plus-version-history reconciliation, and redispatch block added; authority unchanged; direct behavior 2/2 |
+| F9 | No per-lane failure path for a delegate that returns nothing, garbage, or half its contract; no liveness rule (§8, §6) | `prompt-engineer` | `worked` in candidate — malformed/empty/partial/timeout/kill is a failed attempt with no dependent dispatch; no scheduler/lease/heartbeat is claimed |
+| F10 | Live runs carry no run/attempt lineage; only the eval manifest does (§10, §13) | `prompt-engineer` (packet convention) | `worked` in candidate — every lane carries run/attempt and requested/resolved model fields and preserves/increments lineage |
 | F11 | The handoff packet has no schema, and the reviewed tree was dirty (§2, §3) | `SKILLS-003` | schema `already owned` (deliberately deferred by `SKILLS-003`); dirty-tree binding `worked` (recorded in §2) |
 
 **Live traversal (2026-08-25):** a synthetic P3→P1 incident was worked end to end through the
@@ -312,9 +314,9 @@ findings:
 
 | # | Finding | Owner | Proposed disposition |
 |---|---|---|---|
-| N1 | The plugin guard denies all Bash for every agent when no PATH interpreter answers with its exit codes; on this Windows host the bare names resolve to the Store stub, so unguarded lanes lost shell authority silently | guard shim, `fleet_doctor`, CONTRIBUTING | `proposed to roadmap` — name the resolved interpreters in the failure message; run the interpreter check on a lane's path (Gate A or SessionStart); document the PATH requirement |
-| N2 | Lanes cannot tell a tool they do not hold from a guard denial and report the wrong cause | `prompt-engineer` (agent guardrails) | `proposed to roadmap` — one sentence per body |
-| N3 | Cross-lane prerequisites (an alert that needs a gauge the service does not export) are not modelled in handoff or action-item templates | `postmortem`, `incident-command` templates | `proposed to roadmap` — an instrumentation-prerequisite field |
+| N1 | The plugin guard denies all Bash for every agent when no PATH interpreter answers with its exit codes; on this Windows host the bare names resolve to the Store stub, so unguarded lanes lost shell authority silently | guard shim, `fleet_doctor`, CONTRIBUTING | `worked` in candidate — candidate results surface in the fail-closed launcher, doctor evidence records exact resolved paths, and the SessionStart canary plus PATH guidance make the dependency visible |
+| N2 | Lanes cannot tell a tool they do not hold from a guard denial and report the wrong cause | `prompt-engineer` (agent guardrails) | `worked` in candidate — every body separates absent/not-granted from an observed guard denial and records the denial reason only after invocation |
+| N3 | Cross-lane prerequisites (an alert that needs a gauge the service does not export) are not modelled in handoff or action-item templates | `postmortem`, `incident-command` templates | `worked` in candidate — both action templates carry an instrumentation-prerequisite field and ready/blocked state |
 | N4 | Lane cost is dominated by rediscovery when packets carry pointers instead of excerpts | packet convention (F10) | `dropped with reason` — coordinator practice, folded into F10 |
 
 **Prerequisites:** `SKILLS-003` merged, so the method has an exact revision to cite. The first
@@ -328,9 +330,32 @@ where proposed, a roadmap item with an owner; (3) any live control that lands (a
 validator, scenario) ships in its own change with the focused red-to-green evidence
 `CONTRIBUTING.md` requires; (4) `WF-001` remains unchanged unless separately accepted.
 
-**Next action:** `latent-sre` accepts or rejects each finding row; accepted rows open their own
-changes under the named owners. After `SKILLS-003` merges, re-run the review on the exact merged
-revision and replace the draft packet's `[unverified]` binding.
+**Accepted-fix candidate evidence (2026-08-25):** `[verified]` the final fixed comparison used Claude
+Code 2.1.243, resolved `claude-sonnet-5`, two trials per case, a 180-second timeout, a 2/2 threshold,
+one eval-suite digest `8ccb9ab57a8c88637a6fe3f27fcd04aa2b8b1c663bc11b1018e7343c28c62c72`,
+and complete frozen plugin images. F1 improved 1/2 → 2/2 (`20260825T042850Z-ef996217` incumbent;
+`20260825T042850Z-579ce812` candidate). F2 direct remained 2/2 → 2/2
+(`20260825T042948Z-1aa009ad`; `20260825T042948Z-c1e4ecc6`), while discovery improved 0/2 → 2/2
+(`20260825T043048Z-09d2fc1b`; `20260825T043048Z-55e95939`). F8 direct passed 2/2 on the candidate
+(`20260825T043233Z-cf438c41`). Earlier NO-GO and intermediate reruns remain historical but are not
+promotion evidence: their human-facing format grader, fixture identity, or frozen plugin surface was
+shown to be mismatched and corrected with adversarial deterministic regressions (627/627 green).
+
+**Harness review (2026-08-25):** `[verified]` the security-fix method's one fresh read-only
+bypass/regression review was limited to the incident-drill boundary. Its confirmed in-scope defects
+are addressed in the candidate: attempt evidence uses collision-rejecting run/step/attempt paths,
+both usage examples include required lineage, and timeouts record `UNKNOWN` with descendant
+termination `UNVERIFIED`. The launcher is still not a sandbox; live drill use is blocked unless the
+caller provides and attests to a disposable credential-free OS identity/runtime with constrained
+egress, and that runtime must be destroyed before retry after timeout.
+
+**Verification (2026-08-25):** `[verified]` focused harness, graph, release, observability, guard,
+doctor, platform, evaluator, and validator suites passed; the eval suite validated 93 scenarios,
+generated adapters matched canonical sources, `git diff --check` was clean, and Gate A passed 6/6.
+
+**Next action:** `latent-sre` reviews and accepts the exact PR #165 head revision before promotion.
+Resolve any current review finding or failed check on that revision. F7, F11, N4, GRAPH-002, and
+`WF-001` are out of scope for this item.
 
 ### INCIDENT-001 — keep active-incident ownership in SRE through terminal recovery
 

@@ -9,10 +9,11 @@ approx_wall_clock_min: 90
 
 # Scenario: checkout payments-timeout saturation
 
-Everything here is synthetic. No real system, credential, dashboard, or ticket is involved, and no
-lane may reach one. The `cf` and Grafana material in `evidence/` is written as **sanitized excerpts
-supplied by the on-call human**, which is exactly how the fleet's read-only lanes receive live
-evidence in practice.
+Every scenario target here is synthetic. No lane may reach a real system, service credential,
+dashboard, or ticket. The launcher itself still needs Claude authentication and must run under the
+disposable credential-free runtime and constrained-egress precondition in the skill. The `cf` and
+Grafana material in `evidence/` is written as **sanitized excerpts supplied by the on-call human**,
+which is exactly how the fleet's read-only lanes receive live evidence in practice.
 
 ## The system under drill
 

@@ -150,12 +150,28 @@ For external documentation or upstream facts, delegate only a sanitized public q
 `researcher`. Never include logs, internal identifiers, customer data, private paths, or uncommitted
 repository text in that prompt, and do not perform direct web research from this local lane.
 
+This role cannot invoke `sde`; the recommendation returns to the caller, who dispatches it.
+
+An empty, malformed, partial, timed-out, or killed delegate return is a failed attempt, never
+success. Preserve partial state and evidence under its run/attempt, dispatch no dependent work, and
+retry only when effect safety and the predeclared loop budget permit; otherwise return `BLOCKED` or
+`INCONCLUSIVE` to the caller. This human-triggered fleet claims no lease, stale-worker scheduler, or heartbeat.
+
+Preserve the caller-supplied run identity unchanged across retries and increment the attempt; use
+`unavailable` rather than inventing either identifier. Record the requested model and resolved model
+identity; if the runtime does not expose it, mark `[unverified] unavailable`, and the run cannot close
+a model-dependent decision. A tool absent from the runtime surface is unavailable/not granted, not
+guard-denied. Say guard-denied only after an attempted invocation returns a guard denial; name the
+tool and observed denial reason.
+
 ## The handoff packet
 
 ```
 → Handing to: <agent>            (the one agent who owns the next step)
 Goal:         <the outcome they should achieve, in one line>
 Why you:      <one line on why this is their lane>
+Run/attempt:  <caller-supplied run ID / attempt ID, or unavailable>
+Model:        <requested alias and resolved model identity, or [unverified] unavailable>
 Change:       <PR #N, branch, named diff, working tree, or none> — the code state this packet describes
 Done so far:  <what you did / decided — the relevant trail, not everything>
 Findings:     <what you learned, each with EVIDENCE (file:line, command output, query, URL);

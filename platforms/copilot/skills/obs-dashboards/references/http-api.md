@@ -359,6 +359,14 @@ Two traps in that table:
 One useful bit of leniency: **re-applying byte-identical content is idempotent** — the version
 counter does not move and no conflict is raised, so re-sending a model you have already applied is inert rather than a new version. `[verified: QA]`
 
+That makes the operation **idempotent-by-target** only when both the dashboard UID and the desired
+model bytes are unchanged. It does not make a blind retry safe. A timeout, dropped response, or
+caller crash after dispatch leaves the execution outcome **UNKNOWN**. **Before any redispatch**,
+perform a fresh readback and inspect version history for the save message: matching desired bytes
+and message mean executed; unchanged prior bytes with no matching history mean not executed; a
+conflict, permission failure, or incomplete observation remains UNKNOWN. Stop, retain the original
+attempt identity, and assign a named reconciliation owner while the outcome is UNKNOWN.
+
 Two guard rails: a **file-provisioned** dashboard refuses API saves, and no retry changes that —
 the owning tool's source is the only way in, and it is not this team's repository; and **`overwrite: true` is the failure this reference exists to prevent** — it
 silently discards a concurrent edit and is never the fix for a 409/412.

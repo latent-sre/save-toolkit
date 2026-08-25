@@ -140,6 +140,14 @@ an underspecified packet can fail silently when the receiver works from the wron
   on it; a prior review does not cover later changes automatically.
 - **State what you did not do.** The omission a sender finds obvious is the gap a receiver fills
   with an assumption.
+- **Carry execution lineage.** Every packet includes `Run/attempt:` and `Model:` with the requested
+  and resolved model identity. Preserve the run identity across a workflow and increment the
+  attempt for every dispatch, retry, resume, or replacement. A missing resolved identity cannot
+  close a model-dependent decision.
+- **Make delegate failure state explicit.** An empty, malformed, partial, timed-out, or killed return
+  is a failed attempt rather than success. Record it, dispatch no dependent work, and return control
+  to the caller as `BLOCKED` or `INCONCLUSIVE`; a human may choose a replacement or a retry inside
+  the declared budget. No background scheduler, lease, stale-worker detector, or heartbeat is implied.
 
 *[sourced: Anthropic,
 ["Effective context engineering for AI agents"](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)

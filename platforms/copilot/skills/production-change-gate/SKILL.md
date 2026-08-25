@@ -17,7 +17,8 @@ description: >-
 
 Any action that touches production must clear this gate **before execution**. The agent may classify,
 prepare, and recommend. A human release owner or separately approved protected automation executes an
-authorized live change; an agent never executes it.
+authorized live change; an agent never executes it. After an execution attempt, that executor returns
+the outcome and receipt to the caller so an ambiguous effect cannot silently become another attempt.
 
 **Grafana dashboard exception.** `observability-engineer` may create or update Grafana dashboards
 and their folders without this gate's approval; this is the sole live-write exception. Its agent body
@@ -58,7 +59,12 @@ change to a human, the human apply follows this gate. Every other live change fo
       action. Naming an executor or promising not to act is not evidence. Repository approval counts and
       review threads are not substitutes for production authority and are not checked here.
 - [ ] **Approved** — an authorized human explicitly approved this exact target, command or diff, applying
-      actor, and time; attach the change record when the process requires one.
+      actor, time, and a `Valid until` UTC deadline; attach the change record when the process requires
+      one.
+- [ ] **Execution-time binding remains current** — Immediately before execution, the human executor or
+      protected automation confirms the approval has not expired and compares the current target,
+      exact action, applying actor, and candidate, artifact, or configuration identity with the
+      approved record. An expired approval or any mismatch is BLOCKED and re-enters this gate.
 - [ ] **Blast radius understood** — record affected apps, routes, spaces, users or traffic share and the
       worst credible failure.
 - [ ] **Backout plan, reversible** — record an exact rollback or backout plan, verification, and known-good
@@ -80,12 +86,37 @@ change to a human, the human apply follows this gate. Every other live change fo
 production-change-gate: APPROVED | BLOCKED
 Tier: <0|1|2|3>   Target: <exact target>   Actor: <human or protected automation>
 Change: <what, where>   Approved by: <human>   When: <UTC>
+Valid until: <UTC | not applicable for Tier 0/1>
 Candidate commit ID: <exact source commit ID | not applicable>
 Artifact identity: <immutable digest or non-replaceable object/version identity | not applicable>
 Release-readiness record: <release-gate evidence for this candidate/target | not applicable>
+Execution-time binding: <rechecked current target/action/actor/candidate-config identity at UTC>
 Backout: <exact reversible steps>
 Watching: <who, which signals>   Abort if: <criteria>
 Production execution boundary: <protected environment or least-privilege executor evidence>
+```
+
+## Execution result
+
+Approval records a decision, not whether the effect happened. After every Tier 2/3 attempt, the
+human executor or protected automation returns the result below to the caller. The agent records the
+supplied evidence; it never invents a receipt, executes a verification query, or upgrades an
+ambiguous result.
+
+Do not infer `not executed` from a missing response. If dispatch may have occurred and no durable
+result is available, record `UNKNOWN`. A change in `UNKNOWN` must not be retried or re-issued until
+the named reconciliation owner runs the read-after-write query and resolves it. If reconciliation
+cannot resolve it, terminate with `UNKNOWN` visible rather than claiming success or failure.
+
+```text
+production-change-result:
+Execution outcome: <executed | not executed | UNKNOWN>
+Actor/time: <human or protected automation + UTC | unavailable>
+Target/action: <exact target + action>
+Candidate/config identity: <immutable identity | not applicable>
+Receipt/operation ID: <durable receipt or operation ID | unavailable>
+Verification: <observed result | unavailable>
+Reconciliation: <owner + read-after-write query | not applicable>
 ```
 
 ## Read only the conditional material the decision needs
