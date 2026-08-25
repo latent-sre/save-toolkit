@@ -6,6 +6,7 @@ description: >-
   'review this agent blast radius', 'prompt injection', 'my agent reads webhooks or
   logs'. Report structural controls separately from prose and label any unprobed runtime
   boundary unverified.
+argument-hint: "[the agent, skill, tool, or flow to review]"
 ---
 
 # Agent security (prompt injection & the lethal trifecta)

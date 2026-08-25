@@ -51,6 +51,20 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   repo-rooted path — the pattern `CODE_PATH_RE` never covered. Arming it surfaced the same
   defect in seven `frontend-craft` references, fixed here; a focused regression proves the
   self-pointer red and both `../SKILL.md` and a sibling-skill mention green.
+- Assessed merging `agent-authoring` and `agent-security`; kept them separate and recorded why. The
+  bundles share no distinctive vocabulary (trifecta, prompt injection, Rule of Two, tool absence all
+  appear zero times in `agent-authoring`), `artifact.md` already declares `agent-security` the owner
+  of the independent threat review, and `prompt-engineer` composes them on a predicate rather than
+  needing one file. Merging would push the always-loaded body to roughly 4.5k tokens against a 5k
+  budget, and collapse eight routing scenarios including three deferral contracts.
+- Refreshed `ci-actions` on `actions/checkout` fork-checkout refusal: the behavior shipped in v7.0.0
+  on 2026-06-18 and was **backported to every supported major on 2026-07-16**, so the reference's
+  "v7.0.0 and later" framing no longer described a pinned v5 or v6 workflow that had started failing
+  without moving — the skill's own "why is this workflow failing" trigger. Added the exact refusal
+  conditions and the `allow-unsafe-pr-checkout` opt-out, framed as an unsafe design to review rather
+  than a fix. Added the two routing scenarios `ci-actions` lacked, one of them the pwn-request
+  request that a helpful assistant would otherwise fulfil, and gave `agent-security` and `ci-actions`
+  the `argument-hint` the rest of the fleet carries.
 - Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
   implementation, testing, and operations-tooling lane. This is a breaking address change from
   `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are
