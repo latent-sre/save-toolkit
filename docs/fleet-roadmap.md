@@ -422,10 +422,11 @@ two existing near-miss scenarios remaining green, and no overlap with `workflow-
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `active` (2026-08-24) — a disposable authenticated VS Code 1.134.0 profile measured the
-picker's configuration and buffer-write behavior, but no `execute` call or host denial ran and the
-raw transcript/envelopes remain operator-local. Invocation authority and durable review evidence
-therefore remain open acceptance gaps.
+**Status:** `active` (2026-08-25) — two disposable authenticated VS Code 1.134.0 profiles measured
+different outcomes for the same default-Agent-to-`sre` override path. Neither reached an `execute`
+call or host denial, so invocation authority remains open. The non-secret transcripts and nine
+validated envelopes are prepared in the repository; they become durable review evidence only when
+the exact revision is committed in the repository.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
 inference, and the fleet knows whether the read-only guard is portable to that host or whether
@@ -457,9 +458,18 @@ the switch to `sre`, and dirtied the open generated-agent editor buffer without 
 on-disk digest. This proves a configuration/write-back path only. No command was submitted after
 that clean-file precondition failed, so whether `sre` can invoke `execute` or the host denies it is
 `[unverified]`. The buffer, picker defaults, file digests, Git status, and Gate A 6/6 were restored.
-The transcript and envelopes are bound by local hashes but are not yet in a durable reviewable
-location, so they cannot close HOST-002. Hook identity/portability remains unverified and no hook
-was wired.
+At that revision the transcript and envelopes were bound by local hashes but remained
+operator-local, so they could not close HOST-002. Hook identity/portability remains unverified and
+no hook was wired.
+
+**Corrected reprobe (2026-08-25):** `[verified]` The built-in Agent picker already showed its global
+`execute` selection enabled at `52 Selected`, but switching to `sre` restored the custom agent's
+`14 Selected` set with `execute` offered-off. The generated editor buffer, disk digest, Git status,
+and inspected settings state stayed clean. The probe therefore recorded a measured negative for
+that override path and did not submit the command. This disagrees with the prior same-build
+configuration result and leaves invocation authority `[unverified]`; repeating the same picker
+sequence would not resolve the criterion. The sanitized prior transcript/envelopes and the corrected
+reprobe record are prepared under [`docs/reviews/evidence/host-002`](reviews/evidence/host-002).
 
 **Prerequisites:** Use an installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
@@ -473,11 +483,11 @@ host denial. It states the exact build and keeps configuration evidence separate
 authority. An operator-local artifact and hash are not closure evidence. Any hook-portability
 finding is evidence only; wiring a Copilot hook is separate work needing its own review.
 
-**Next action:** Run the corrected probe in a new disposable profile. Keep the generated editor
-buffer clean, then observe the safe `git status --short` call or an explicit host denial and retain
-the non-secret transcript/envelopes in an approved durable review location without adding the
-operator-local ZIP. Do not populate `hooks/copilot-hooks.json` before a separate probe shows that
-its payload can scope to an exact agent identity.
+**Next action:** Commit the prepared non-secret evidence, then use a narrowly scoped, harmless plugin
+visibility canary on the installed Claude CLI to test F7's
+`disable-model-invocation` contract directly. Do not run a third identical VS Code picker retry, do
+not substitute a prompt-file override, and do not populate `hooks/copilot-hooks.json` before a
+separate probe shows that its payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 

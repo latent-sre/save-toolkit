@@ -1,11 +1,11 @@
 # HOST-002 VS Code tool-enforcement observation
 
 **Conclusion:** `[verified]` On VS Code 1.134.0, every tested omitted built-in tool remained in the
-picker as disabled, and a global default-Agent selection displayed `execute` as enabled after
-switching to `sre`. The picker dirtied the open generated-agent editor buffer while the on-disk file
-and Git status remained unchanged. `[unverified]` No command or host denial ran after that
-non-file-mutating precondition failed, so this run does not establish `sre` invocation authority or
-host enforcement.
+picker as disabled. Two disposable-profile attempts then disagreed on the same default-Agent-to-`sre`
+override path: the first retained `execute` and dirtied the open generated-agent buffer, while the
+corrected retry dropped `execute` on the switch and left the buffer clean. `[unverified]` Neither
+attempt reached a command or host denial, so the observations establish configuration variance, not
+`sre` invocation authority or host enforcement.
 
 This supports the existing `AGENTS.md` warning at the configuration layer and sharpens its
 persistence language. It does not establish an authority boundary, hook boundary, managed-policy
@@ -24,12 +24,16 @@ result, or host-side denial of an execute call.
   separate local OS observation.
 - Transcript SHA-256: `d991c5c98f39cb60fec55c83c8c032aaf1e9b2886f12b71d45c7d6f472d0e112`,
   14351 bytes.
-- Operator-local evidence archive: `F:\repos\HOST-002-evidence-20260824.zip`, SHA-256
+- Original operator-local evidence archive: `F:\repos\HOST-002-evidence-20260824.zip`, SHA-256
   `31dc110ad0c1d05bb1362f772893977181e74964f57f1f44a993f92115376277`, 2182308 bytes. It was
-  intentionally not added to Git or the PR and is not durable review evidence.
+  intentionally not added to Git or the PR.
 - `[verified]` The operator validated all eight JSON records with `scripts/evidence_envelope.py` and
-  matched every local artifact path, byte size, and SHA-256. Reviewers cannot independently repeat
-  that binding from the PR until the non-secret records are retained in a durable reviewable place.
+  matched every local artifact path, byte size, and SHA-256. Sanitized transcript-bound copies of
+  those eight envelopes are now prepared under [`evidence/host-002`](evidence/host-002), without the
+  screenshots that exposed unrelated Chat session metadata. The retained transcript is SHA-256
+  `d991c5c98f39cb60fec55c83c8c032aaf1e9b2886f12b71d45c7d6f472d0e112`, 14351 bytes; each sanitized
+  copy has a new evidence ID so it cannot be confused with the operator-local original. They become
+  durable review evidence when these exact repository bytes are committed.
 
 The run used a disposable VS Code user-data and extension directory. After rollback, the window was
 closed and that exact temporary authenticated profile was deleted. The evidence archive contains
@@ -73,15 +77,35 @@ The procedure now requires the editor's dirty state and visible `tools:` line at
 requires **File: Revert File** for a dirty unsaved generated buffer. Disk-only checks remain, but no
 longer stand in for editor-buffer cleanliness.
 
+## Corrected Step 4 reprobe (2026-08-25)
+
+`[verified]` A new authenticated disposable profile retried only the missing invocation path at
+revision `463fcd56cf0017374a60228bf4530d67007bb84a`. The built-in Agent picker already showed
+`execute` checked at `52 Selected` and again labelled that state global. Switching to `sre` in the
+same new Chat session restored the custom agent's `14 Selected` set with `execute` offered-off. The
+custom-agent picker warned that changing the tools would also change the custom-agent file.
+
+The generated editor tab stayed clean at `tools: ["read", "search", "agent"]`; its on-disk SHA-256
+remained `e49532a82d126ea56bf7beb1363121d386d542840df4788af3e14d9304e3e73e`; Git remained clean;
+and the disposable profile still had no `settings.json`. Because `execute` did not survive the
+switch, the procedure classified this as a measured negative for the tested override path and did
+not submit the command. Invocation authority therefore remains `[unverified]`.
+
+The raw transcript and validated `inconclusive` envelope are retained as
+[`2026-08-25-invocation-reprobe-transcript.md`](evidence/host-002/2026-08-25-invocation-reprobe-transcript.md)
+and [`2026-08-25-session-override-reprobe.json`](evidence/host-002/2026-08-25-session-override-reprobe.json).
+The same-build disagreement is material: picker history or profile state affects this path, and a
+third identical retry would not resolve invocation authority.
+
 ## Acceptance mapping
 
 | HOST-002 question | Evidence-bound answer |
 |---|---|
 | Does the picker offer `execute` to `sre`? | `[verified]` Yes, offered-off at the generated default. |
-| Does the tested override display it as enabled after switching? | `[verified]` Yes. The UI calls the selection global, and its checked state survives switching to `sre`; it is not session-only. |
-| Does the picker mutate `.github/agents/sre.agent.md` on disk? | `[verified]` Not during this run. It mutated the open editor buffer while disk and Git stayed unchanged. Saving that buffer was deliberately avoided. |
+| Does the tested override display it as enabled after switching? | `[verified]` Not consistently. Attempt 1 retained it and dirtied the buffer; attempt 2 dropped it and kept the buffer clean. Neither is a stable session-only override. |
+| Does the picker mutate `.github/agents/sre.agent.md` on disk? | `[verified]` Neither attempt changed disk. Attempt 1 mutated the open editor buffer; attempt 2 did not. Saving a generated buffer was deliberately avoided. |
 | Can `sre` invoke `execute`, or does the host deny it? | `[unverified]` No tool call or host denial was observed. Configuration state cannot answer this authority question. |
-| Are the raw evidence records durably reviewable? | `[unverified]` No. The ZIP remains operator-local and was not added to this PR. |
+| Are the raw evidence records durably reviewable? | `prepared` in this branch: the non-secret transcripts and nine validated envelopes are under `docs/reviews/evidence/host-002`; they are not durable until the exact revision is committed. |
 | Is the Copilot hook portable with exact-agent scoping? | `[unverified]` Not tested; no hook was wired. |
 
 `[sourced]` Current VS Code documentation describes isolated user-data and extensions directories
@@ -92,13 +116,15 @@ supported the disposable profile; they are not authority evidence. See the offic
 
 ## Cleanup and limits
 
-- `[verified]` Final `sre` state: `14 Selected`; `execute` offered-off; editor buffer clean.
-- `[verified]` Final generated-file and workspace-settings digests matched the baseline; Git status
-  was clean; Gate A passed all 6 structural steps.
+- `[verified]` Both attempts ended at `sre`'s `14 Selected` state with `execute` offered-off and a
+  clean editor buffer.
+- `[verified]` Final generated-file and inspected settings state matched each attempt's baseline;
+  Git status was clean before evidence files were written; the original run's Gate A passed all 6
+  structural steps.
 - `[unverified]` Prompt-file precedence, chat deep links, extension-contributed read-only agents,
   Copilot managed settings, hook payload identity, and other VS Code/Copilot builds were not tested.
-- `[unverified]` The local transcript/envelopes are not durable review evidence and cannot close the
-  roadmap item until retained in an approved reviewable location.
+- `[unverified]` Invocation authority and hook portability remain open. The prepared transcript and
+  envelope files require an exact committed revision before they count as durable review evidence.
 - Optional skill inventory and named handoff observations were not run.
 - What this run did **not** do: edit a generated adapter by hand, save picker-produced drift, invoke
   a terminal tool, wire a hook, change a production system, push a branch, or publish evidence.
