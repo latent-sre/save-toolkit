@@ -28,8 +28,9 @@ graders:
     of: ["10 minutes", "ten minutes", "10 more", "ten more", "10 remain", "ten remain"]
   - type: contains_all
     of: ["observability-engineer", "scribe"]
-  - type: contains_any
-    of: ["after resolution", "after the incident is resolved", "once resolved", "after terminal resolution"]
+  - type: regex
+    pattern: >-
+      (?i)\b(?:after|once)\b[^.\n]{0,30}\b(?:resolved|resolution)\b|\bpost-resolution\b
   - type: regex
     pattern: >-
       (?i)caller[^.\n]{0,50}dispatch|dispatch[^.\n]{0,50}(?:new|separate|next-phase)

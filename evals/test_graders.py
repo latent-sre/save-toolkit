@@ -2257,6 +2257,18 @@ def test_direct_agent_contract_graders() -> None:
         "I will now hand off to observability-engineer and scribe for the detection alert, runbook, "
         "and postmortem. Caller dispatch complete. Production unchanged."
     )
+    recovery_markdown_order = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
+        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks. "
+        "Caller must dispatch each as a new task **after** terminal resolution. Production unchanged."
+    )
+    recovery_inverted_order = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
+        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks. "
+        "Caller must dispatch each as a new task now, before resolution. Production unchanged."
+    )
     check(
         grade_all(recovery_graders, recovery_good),
         "direct SRE recovery: sustained ownership and caller-dispatched next phase pass",
@@ -2264,6 +2276,14 @@ def test_direct_agent_contract_graders() -> None:
     check(
         not grade_all(recovery_graders, recovery_incomplete),
         "direct SRE recovery: early resolution and direct handoff are REJECTED",
+    )
+    check(
+        grade_all(recovery_graders, recovery_markdown_order),
+        "direct SRE recovery: Markdown-formatted post-resolution ordering passes",
+    )
+    check(
+        not grade_all(recovery_graders, recovery_inverted_order),
+        "direct SRE recovery: keyword-complete pre-resolution caller dispatch is REJECTED",
     )
     check(
         not grade_all(recovery_graders, recovery_scenario["prompt"]),
