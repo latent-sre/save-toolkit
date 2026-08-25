@@ -47,7 +47,7 @@ the host you actually ship to rather than assuming this column.
 | Field | Fleet use | Off-Claude behavior |
 |---|---|---|
 | `argument-hint` | Most skills | Not in the portable spec; dropped there. Recognized by VS Code |
-| `disable-model-invocation` | `pcf-deploy`, `service-onboarding` | Dropped from the portable spec, so the side-effect gate does **not** travel there. VS Code honors it (default `false`), which is what makes the Copilot copies explicit-only |
+| `disable-model-invocation` | `incident-drill`, `pcf-deploy`, `service-onboarding` | Dropped from the portable spec, so the side-effect gate does **not** travel there. VS Code honors it (default `false`), which is what makes the Copilot copies explicit-only |
 | `user-invocable` | not used | Dropped from the portable spec; recognized by VS Code (default `true`) |
 | `disallowed-tools` | not used | Dropped from the portable spec. VS Code has a `disallowedTools` key — note the different spelling — whose runtime effect this fleet has not confirmed |
 | `context`, `agent`, `background` | not used | Dropped; `context: fork` exists in VS Code behind an experimental setting |

@@ -297,7 +297,7 @@ a rejected row is recorded with the reason. No row is implemented by this item.
 | F4 | `prompt-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `prompt-engineer` | `proposed to roadmap` — add the sentence (no authority change) or add the grant in all three places; not both implicit |
 | F5 | The `sde` → `reviewer` → caller → `sde` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `prompt-engineer` | `proposed to roadmap` — apply `roster.md`'s loop rule to the fleet's own cycles |
 | F6 | `[UNTRUSTED]` taint is carried on five lanes and absent from `prompt-engineer`, `researcher`, and `repository-investigator` output contracts (§12, §3) | `prompt-engineer` | `proposed to roadmap` — add the source-trust field and packet convention to the three lanes |
-| F7 | `disable-model-invocation` is the only deterministic guardrail on the two effect-shaped skills and is `[unverified]` on the installed CLI (§5 E3) | `HOST-002` | `already owned` — the 2026-08-24 batch-1 audit and `HOST-002` record the missing plugin-specific visibility canary; no new item |
+| F7 | `disable-model-invocation` is the deterministic invocation guard on the manual-only skills and was `[unverified]` on the installed CLI (§5 E3) | `HOST-002` | `verified 2026-08-25` — a paired harmless plugin canary on Claude Code 2.1.243 hid the guarded skill from model invocation while preserving explicit invocation; see the dated packet |
 | F8 | The Grafana dashboard write has no `UNKNOWN` state or named replay-safety class, although a byte-identical re-apply is idempotent and a stale token fails loudly (§9, §8) | `observability-engineer` / `obs-dashboards` text | `proposed to roadmap` — procedure edit naming `idempotent-by-target`, `UNKNOWN`, and step 7's read-back as reconciliation; authority unchanged per the accepted ADR |
 | F9 | No per-lane failure path for a delegate that returns nothing, garbage, or half its contract; no liveness rule (§8, §6) | `prompt-engineer` | `proposed to roadmap` — state the path or mark scheduling/liveness not applicable for a human-triggered, single-tenant fleet |
 | F10 | Live runs carry no run/attempt lineage; only the eval manifest does (§10, §13) | `prompt-engineer` (packet convention) | `proposed to roadmap` — one run/attempt field on the packet, or state live-run tracing out of scope in the contract |
@@ -422,11 +422,11 @@ two existing near-miss scenarios remaining green, and no overlap with `workflow-
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `active` (2026-08-25) — two disposable authenticated VS Code 1.134.0 profiles measured
-different outcomes for the same default-Agent-to-`sre` override path. Neither reached an `execute`
-call or host denial, so invocation authority remains open. The non-secret transcripts and nine
-validated envelopes are prepared in the repository; they become durable review evidence only when
-the exact revision is committed in the repository.
+**Status:** `active` (2026-08-25) — F7's installed-Claude-CLI visibility gap is now `[verified]` on
+2.1.243 by a paired harmless plugin canary. The separate VS Code boundary remains open: two
+disposable authenticated VS Code 1.134.0 profiles measured different outcomes for the same
+default-Agent-to-`sre` override path, and neither reached an `execute` call or host denial. The
+prior non-secret transcripts and nine validated envelopes are durable at `abb02cf`.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
 inference, and the fleet knows whether the read-only guard is portable to that host or whether
@@ -471,6 +471,14 @@ configuration result and leaves invocation authority `[unverified]`; repeating t
 sequence would not resolve the criterion. The sanitized prior transcript/envelopes and the corrected
 reprobe record are prepared under [`docs/reviews/evidence/host-002`](reviews/evidence/host-002).
 
+**F7 Claude CLI canary (2026-08-25):** `[verified]` The
+[`disable-model-invocation` packet](reviews/2026-08-25-host-002-disable-model-invocation-cli.md)
+records a paired disposable plugin run on Claude Code 2.1.243. The unguarded control invoked its
+Skill and loaded a body-only marker. Adding only `disable-model-invocation: true` produced no Skill
+call and `NOT_VISIBLE`, while explicit `/plugin:skill` invocation returned the marker. This closes
+F7 for that installed CLI build without weakening the manual-only skills' body-level authority
+checks. It does not establish VS Code invocation authority or Copilot hook identity.
+
 **Prerequisites:** Use an installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
 observational: it changes no live system, and it neither authorizes nor implies a Copilot hook
@@ -483,11 +491,10 @@ host denial. It states the exact build and keeps configuration evidence separate
 authority. An operator-local artifact and hash are not closure evidence. Any hook-portability
 finding is evidence only; wiring a Copilot hook is separate work needing its own review.
 
-**Next action:** Commit the prepared non-secret evidence, then use a narrowly scoped, harmless plugin
-visibility canary on the installed Claude CLI to test F7's
-`disable-model-invocation` contract directly. Do not run a third identical VS Code picker retry, do
-not substitute a prompt-file override, and do not populate `hooks/copilot-hooks.json` before a
-separate probe shows that its payload can scope to an exact agent identity.
+**Next action:** F7 needs no further CLI call on 2.1.243. Keep HOST-002 open only for the distinct
+VS Code invocation-authority and Copilot hook-identity gaps. Do not run a third identical picker
+retry, do not substitute a prompt-file override, and do not populate `hooks/copilot-hooks.json`
+before a separate probe shows that its payload can scope to an exact agent identity.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 

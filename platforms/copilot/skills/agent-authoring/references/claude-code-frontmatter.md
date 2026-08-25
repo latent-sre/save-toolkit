@@ -61,10 +61,12 @@ Core fields: `name`, `description` (the trigger), `argument-hint`. Behavior swit
   contract is user-only invocation via `/plugin:name`, with the description removed from the
   model's context and the skill unavailable for agent `skills:` preloading. A historical upstream
   report (anthropics/claude-code#22345, CLI 2.1.29) and this fleet's 2026-07-17 probe on 2.1.212
-  observed the field ignored for plugin-shipped skills. Current official docs now show the field on
-  plugin skills, but this fleet has not run a current plugin-specific visibility canary; enforcement
-  on the installed CLI remains `[unverified]`. Set it for intent, and make the skill body defer
-  authority rather than trusting the flag.
+  observed the field ignored for plugin-shipped skills. `[verified 2026-08-25, CLI 2.1.243]` A
+  paired disposable-plugin canary now matches the current official contract: the unguarded control
+  invoked its Skill and loaded a body-only marker; adding only this field produced no Skill call and
+  `NOT_VISIBLE`; explicit `/plugin:name` invocation still returned the marker. Treat that as
+  build-specific evidence, and keep the skill body deferring authority rather than trusting the flag
+  alone.
 - `user-invocable: false` — background-knowledge skills, hidden from the `/` menu.
 - `allowed-tools` **grants** (pre-approves, no permission prompt) while the skill is active — it
   does **not** restrict availability. Takes bare tool names or permission-rule specifiers
