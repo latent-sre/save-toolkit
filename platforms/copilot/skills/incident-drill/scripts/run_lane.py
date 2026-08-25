@@ -106,7 +106,27 @@ def main(argv: list[str] | None = None) -> int:
             argv_claude, cwd=args.cwd, capture_output=True, text=True, encoding="utf-8",
             errors="replace", env=env, timeout=args.timeout, input=prompt,
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        base = args.runs_dir / f"{args.step}-{args.lane}"
+        base.with_suffix(".stdout.json").write_text(exc.stdout or "", encoding="utf-8")
+        base.with_suffix(".stderr.txt").write_text(exc.stderr or "", encoding="utf-8")
+        meta = {
+            "step": args.step,
+            "lane": args.lane,
+            "agent": args.agent,
+            "model_requested": args.model,
+            "allowed_tools": args.allowed_tools,
+            "plugin_dir": str(plugin_dir),
+            "exit_code": None,
+            "duration_s": round(time.time() - started, 1),
+            "total_cost_usd": None,
+            "num_turns": None,
+            "is_error": True,
+            "session_id": None,
+            "outcome": "TIMEOUT",
+            "timeout_s": args.timeout,
+        }
+        base.with_suffix(".meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({"step": args.step, "lane": args.lane, "outcome": "TIMEOUT", "timeout_s": args.timeout}))
         return 124
 

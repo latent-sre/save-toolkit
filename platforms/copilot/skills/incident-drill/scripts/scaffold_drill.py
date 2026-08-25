@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -34,7 +35,8 @@ def parse_pack(path: pathlib.Path) -> dict[str, str]:
     """Return {relative path: payload} for one packed document.
 
     Fence-aware: a ``## `` line inside a fenced payload is content, not a new section, and payloads
-    are fenced with a run longer than anything they contain.
+    are fenced with a run longer than anything they contain. Every section header must be followed by
+    a fenced payload; a bare section (no opening fence before the next header or EOF) is an error.
     """
     sections: dict[str, str] = {}
     current: str | None = None
@@ -44,6 +46,8 @@ def parse_pack(path: pathlib.Path) -> dict[str, str]:
         if ticks is None:
             match = SECTION.match(line)
             if match:
+                if current is not None:
+                    raise SystemExit(f"{path.name}: section {current!r} has no fenced payload")
                 current = match.group("path")
                 continue
             fence = FENCE.match(line)
@@ -59,12 +63,17 @@ def parse_pack(path: pathlib.Path) -> dict[str, str]:
             buffer.append(line)
     if ticks is not None:
         raise SystemExit(f"{path.name}: unterminated fence in section {current!r}")
+    if current is not None:
+        raise SystemExit(f"{path.name}: section {current!r} has no fenced payload")
     return sections
 
 
 def write_files(files: dict[str, str], root: pathlib.Path) -> int:
+    resolved_root = root.resolve()
     for relative, payload in files.items():
-        target = root / relative
+        target = (root / relative).resolve()
+        if not str(target).startswith(str(resolved_root) + os.sep) and target != resolved_root:
+            raise SystemExit(f"path traversal rejected: {relative!r} escapes the drill root")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(payload, encoding="utf-8")
     return len(files)
