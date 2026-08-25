@@ -858,10 +858,11 @@ calibration seam green, and do not add a runtime, schema, validator, or `codebas
 
 ### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
-**Status:** `active` (2026-08-25) — the instrument defect is diagnosed and fixed; one confirming
-batch remains. Across three measurements under identical conditions, trial passes went
-**0/12 → 4/12 → 9/12** and `trigger-and-shape` reached 3/3, while routing stayed `[verified]`
-12/12 with no misroute in any trial of any batch. Evidence:
+**Status:** `decision-needed` (2026-08-25) — the instrument defect is diagnosed and fixed, and a
+second, larger constraint is now measured: **contract shape**. Four batches under identical
+conditions gave 0/12, 4/12, 9/12, 8/12; `trigger-and-shape` went 3/3 then 1/3 **with no change made
+to it**, so the 9/12 was a lucky sample rather than progress. Routing is `[verified]` 36/36 across
+every revision with no misroute anywhere. Twelve reds traced, zero behavioural defects. Evidence:
 [the verification batches](reviews/2026-08-25-grader-003-verification-batch.md).
 
 **Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
@@ -911,43 +912,46 @@ and is absent from every `.eval-runs` directory here — and the treatment chose
 because the mismatch is visible in each scenario against its own prompt. Any *further* grader
 widening does need a transcript first.
 
-**Measured results.** Two batches, identical conditions (Sonnet, 3 trials, 600 s, threshold 1.0),
-against the incumbent baseline `20260824T231543Z-53c0a77c`:
+**Measured results.** Three candidate batches plus the incumbent baseline, identical conditions
+throughout (Sonnet, 3 trials, 600 s, threshold 1.0):
 
 | Batch | Candidate | Trials green | Routing | Cost |
 |---|---|---|---|---|
 | `20260824T231543Z-53c0a77c` (incumbent) | `origin/main` bytes | 0/12 | 12/12 | — |
 | `20260825T174112Z-498600c4` | `90bd33e` | 4/12 | 12/12 | USD 3.54 |
-| `20260825T183911Z-ea5961ab` | `95a017a` | **9/12** | 12/12 | USD 3.23 |
+| `20260825T183911Z-ea5961ab` | `95a017a` | 9/12 | 12/12 | USD 3.23 |
+| `20260825T192519Z-4b6fe947` | `16a236d` | 8/12 | 12/12 | USD 3.88 |
 
-**The diagnosis, now supported by three measurements.** `contains_any` is a plain substring test and
-cannot express these contracts. Every red in both batches was traced to its transcript first, and in
-all nine cases the graded behaviour was **present and correct** — defeated by a markdown label
-(`**Cost:** … ceiling`), a hyphen (`Output-shape`), word order (`Review (read-only, independent)`),
-a word boundary (`parse each file's AST`), an unadmitted method (grep-based import extraction), a
-numeric bound (`Iterations | <= 5 passes`), and a singular (`| Node | Role |`). One response —
-`Human (effects owner) | Sole holder of effect authority` — was better than the phrasing it failed.
+**Finding 1 — the instrument (fixed).** `contains_any` is a plain substring test and cannot express
+these contracts. Twelve reds were traced to their transcripts across three batches and **not one was
+a behavioural defect**: they were defeated by a markdown label, a hyphen, word order, a word
+boundary, an unadmitted method, a numeric bound, and a singular. Eight graders moved to bounded
+`regex`; `workflow-graph`'s delegation-edge behaviour now grades structurally, because a correct
+answer's words there are the prompt's own words and no token can both match the answer and reject
+the echo.
 
-Eight graders moved to bounded `regex` in `95a017a`, and the three reds that batch surfaced were
-generalized along the axis each exposed rather than by adding tokens. `workflow-graph` carries the
-load-bearing case: its delegation-edge behaviour cannot be graded by vocabulary at all, because a
-correct answer's words are the prompt's own words, so any token matching the answer also admits the
-echo. It now grades the edge list structurally, requiring the answer to draw its edges.
+**Finding 2 — the contract shape (open, and the reason this item is now `decision-needed`).** These
+scenarios are conjunctions: every positive grader must pass in all three trials. `loop-engineering`
+has 7 positive graders, so 21 grader-trials — even at 97% per grader-trial its chance of a clean
+sweep is 0.53. `trigger-and-shape` is 0.58. The one scenario that reached 3/3,
+`defers-code-dependency-graph`, has a single grader. The ceiling is set by conjunction length, not
+by grader quality, which is why the third batch went down rather than up. No further grader edit was
+made after that batch: widening cannot fix this.
 
-**Acceptance:** Offline work is complete and twice verified live: `test_graders` 665/665,
+**Acceptance:** Instrument work is complete and three times measured: `test_graders` 665/665,
 `--validate` OK at 94 scenarios, Gate A 6/6, generator byte-clean,
 `claude plugin validate . --strict` PASS, the prompt-alignment invariant proven red for its named
-reason, and both batches recorded with their transcripts summarised in a committed document rather
-than in gitignored `.eval-runs/`. `[verified]` all 24 retained transcripts pass every positive
-grader in their scenario, and every scenario keeps a grader the prompt echo fails. `[unverified]`
-that is retrodiction over the transcripts the patterns came from; only a third batch on unseen
-trials can show the three remaining scenarios green for a behavioural reason.
+reason, and every batch recorded with transcripts summarised in a committed document rather than in
+gitignored `.eval-runs/`. The regression split stays red until the contract shape is decided — an
+honest red reflecting a contract the suite cannot satisfy, not a fleet defect.
 
-**Next action:** Owner decides whether to fund one confirming batch (~USD 3.3 at these conditions)
-on unseen trials. If it lands green, close the item; if a scenario is red again, trace it before
-touching anything — three batches have produced no behavioural defect, so a red that is genuinely
-behavioural would be new information and a widening would not be the answer. Do not edit a
-discovery prompt: it is the routing stimulus and the 12/12 routing evidence depends on it staying
+**Next action:** `latent-sre` chooses one of three shapes for the discovery positives, none of
+which is another grader edit: (1) shorten each conjunction to two or three load-bearing graders;
+(2) drop the threshold below 1.0 for these scenarios, treating discovery as the propensity
+measurement `evals/README.md` already calls it; or (3) move the behavioural contracts to direct
+mode, where the component has tools and can emit a determinate artifact. Do not fund another batch
+against the current shape — three have now measured the same ceiling. Do not edit a discovery
+prompt: it is the routing stimulus and the 36/36 routing evidence depends on it staying
 byte-identical.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability

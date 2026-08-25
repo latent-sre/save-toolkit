@@ -111,3 +111,63 @@ positive grader, and each keeps at least one grader the whitespace-normalized pr
 `[unverified]` This is retrodiction over the transcripts the patterns were derived from. The trend
 across three measurements — 0/12, 4/12, 9/12 — supports the instrument diagnosis, but only a third
 batch on unseen trials would show these three scenarios green for a behavioural reason.
+
+## Third batch — and the finding that stops the widening
+
+`[verified]` Batch `20260825T192519Z-4b6fe947`, candidate `16a236d` (clean tree), same conditions,
+integrity PASS, cost USD 3.88.
+
+| Scenario | Split | Batch 3 | Batch 2 | Batch 1 | Baseline |
+|---|---|---|---|---|---|
+| `defers-code-dependency-graph` | regression | **3/3** | 2/3 | 2/3 | 0/3 |
+| `loop-engineering` | regression | 2/3 | 2/3 | 0/3 | 0/3 |
+| `trigger-and-shape` | regression | 1/3 | **3/3** | 1/3 | 0/3 |
+| `workflow-graph` | calibration | 2/3 | 2/3 | 1/3 | 0/3 |
+
+Trial-level **8/12**, against 9/12 in batch 2. Routing is `[verified]` 12/12 for the third
+consecutive batch — 36/36 trials across every revision, with no misroute anywhere.
+
+**The trend is not monotonic, and that is the result.** `trigger-and-shape` went 3/3 then 1/3 with
+**no change made to it between the two batches**, failing a grader this work never touched. Its 3/3
+was not a fixed defect; it was a sample. The same applies in reverse to the 9/12: batch 2 was
+luckier than batch 3, not better than it.
+
+`[verified]` The three new reds are the same class yet again — behaviour present, form unadmitted:
+`| Cost | ~$2 / 200k tokens total |` (the cost bound as a literal dollar amount, exactly the
+numeric form that was generalized for *iterations* and not for cost); "Fixed test corpus" and
+"Test cases (one focused set...)" for a grader wanting `focused case`; and a roster whose review
+lane is "Independent Review ... Sees only the final artifact", where read-only is implied by scope
+rather than stated next to the word review.
+
+**Why widening cannot converge here.** These scenarios are conjunctions: every positive grader must
+pass in every one of three trials at threshold 1.0.
+
+| Scenario | Positive graders | Grader-trials at 3 trials | P(clean sweep) at 97% each | at 99% each |
+|---|---|---|---|---|
+| `loop-engineering` | 7 | 21 | 0.53 | 0.81 |
+| `trigger-and-shape` | 6 | 18 | 0.58 | 0.83 |
+| `workflow-graph` | 4 | 12 | 0.69 | 0.89 |
+| `defers-code-dependency-graph` | 1 | 3 | 0.91 | 0.97 |
+
+Even graders that are individually 97% faithful leave `loop-engineering` a coin flip. The
+routing-only scenario, with one grader, is the one that reached 3/3 — and it is reliable *because*
+it is short, not because its grader is better written. No amount of vocabulary work moves a
+scenario whose ceiling is set by the length of its conjunction.
+
+`[verified]` The instrument diagnosis from batch 1 still holds and the regex conversion was worth
+making: twelve reds have now been traced across three batches and not one was a behavioural defect.
+But instrument quality was never the whole constraint. **Contract shape is**, and no further
+grader edit was made after this batch.
+
+**Options, for an owner decision — none taken here:**
+
+1. **Shorten the conjunctions.** Keep two or three load-bearing graders per discovery positive and
+   retire the rest. Cheapest, and it directly raises the ceiling.
+2. **Drop the threshold below 1.0** for these scenarios, making 2/3 the pass bar and accepting that
+   discovery measures a propensity, as `evals/README.md` already says of agent-target discovery.
+3. **Move the behavioural contracts to direct mode**, where the component has tools and can emit a
+   determinate artifact instead of prose — the option `GRADER-003` considered and set aside when no
+   direct `agent-authoring` scenario existed. Most work; also the most durable.
+
+The regression split stays red until one is chosen. That is an honest red: it reflects a contract
+the suite cannot satisfy, not a fleet defect.
