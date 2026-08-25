@@ -211,13 +211,17 @@ same conditions otherwise. Integrity PASS. Cost USD 2.70.
 
 | Contract | Trials | Skill fired | Verdict |
 |---|---|---|---|
-| `agent-authoring-loop-contract` | 3/3 | 3/3 | **PASS** — promoted to `regression` |
-| `agent-authoring-trigger-and-shape-contract` | 3/3 | 3/3 | **PASS** — promoted to `regression` |
+| `agent-authoring-loop-contract` | 3/3 | 3/3 | **PASS** — recorded, not promoted |
+| `agent-authoring-trigger-and-shape-contract` | 3/3 | 3/3 | **PASS** — recorded, not promoted |
 | `agent-authoring-roster-graph-contract` | 2/3 | 3/3 | stays `calibration` |
 
 **8/9 trials.** The skill fired 3/3 on every contract, so invocation is clean and no red is a
-routing failure. Two contracts earned a measured pass and left `calibration`; the third did not,
-and is recorded as measured rather than promoted.
+routing failure. Two contracts measured 3/3 and one measured 2/3. **None was promoted.** All three
+stay `calibration`: a single clean batch is a sample, not a property — this branch watched
+`discovery-agent-authoring-trigger-and-shape` go 3/3 then 1/3 with no change made to it — and under
+`AGENTS.md` an eval result never promotes a candidate; only human acceptance of the exact revision
+does. An earlier revision of this section said "promoted to `regression`", which the tree
+contradicted after `7c88f57` reverted it.
 
 **The one red is the fourteenth traced, and the fourteenth with the behaviour present.** Trial 3
 wrote `- **V**: read-only lane by design — this is the independent-review boundary`, which is
@@ -229,10 +233,18 @@ The window is now 80. That is safe for a reason worth stating rather than assumi
 grader at 40, so widening costs no echo rejection. `[verified]` the full set still rejects the
 prompt echo after the change.
 
-`[unverified]` No batch has exercised the widened window, so the roster contract has not earned
-promotion and stays `calibration`. Same for the other post-batch widenings (the Mermaid arrow forms,
-the `go list` boundary, the `scoring` inflection): each is a pure widening applied to a scenario
-that already passed, so none can have turned a pass into a fail, but none has been measured.
+`[unverified]` No batch has exercised the widened window. The other post-batch grader changes are
+`[unverified]` too, and two of them are **not** pure widenings, so the earlier blanket claim that
+"none can have turned a pass into a fail" was wrong and is withdrawn:
+
+- The Mermaid arrow forms and the `scoring` inflection **are** pure widenings on scenarios that
+  already passed.
+- The `go list` change converted `contains_any` to `regex`, which added `` anchors to *every*
+  alternative — `parser`, `ast walk`, `madge` and the rest all **narrowed**. Its scenario,
+  `discovery-workflow-graph-engineering-defers-code-graph`, was in neither measured batch, so it
+  never "already passed" under any recorded run.
+- The `defer`/`pending` widening in `defers-runtime-selection` was omitted from both enumerations
+  entirely.
 
 **Running totals across five batches.** Discovery trials `0/12 → 4/12 → 9/12 → 8/12 → 12/12`;
 routing `[verified]` **48/48** with no misroute in any trial of any batch; **fourteen reds traced,

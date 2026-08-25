@@ -28,9 +28,14 @@ success_criteria:
 # derived from those transcripts, and it is the one a prompt echo cannot satisfy — the prompt
 # already contains "source-code structure" and "dependency graph".
 graders:
-    # Regex with word boundaries, matching the declared structural twin
+    # Regex with word boundaries, now GENUINELY matching the declared structural twin. An earlier
+    # revision claimed parity while lacking seven of the twin's alternatives -- including grep,
+    # regex, and 'import statement/line/edge', which the twin added because batch
+    # 20260825T183911Z-ea5961ab trial 3 answered with a grep-based extraction and went red for a
+    # method the list did not admit. This scenario is split: regression with a SINGLE grader, so
+    # that same answer shape would have failed a gating case.
     # (discovery-agent-authoring-defers-code-dependency-graph). contains_any is a bare substring
     # test: "go list " needed a trailing space to avoid "ago listed", which then missed `go list`
     # in backticks and "go list." -- a likelier miss than the false positive it removed.
   - type: regex
-    pattern: '(?i)\bparser?s?\b|\bparsing\b|\bast walk\b|\bast module\b|\babstract syntax tree\b|\bstatic(?:ally)?\s+analy\w+\b|\bimport extraction\b|\bstatically\b|\bgo list\b|\bdependency-cruiser\b|\bmadge\b|\bcompiler api\b' 
+    pattern: '(?i)\bast\b|\bast walk\b|\bast module\b|\babstract syntax tree\b|\bparser?s?\b|\bparsing\b|\bstatic(?:ally)?\s+analy\w+\b|\bstatically\b|\bimport extraction\b|\bimport\s+(?:statement|line|edge)s?\b|\bgrep(?:ping|s)?\b|\bregex(?:es)?\b|\bgo list\b|\bmodulefinder\b|\bpydeps\b|\bts-morph\b|\bdependency-cruiser\b|\bmadge\b|\bcompiler api\b'

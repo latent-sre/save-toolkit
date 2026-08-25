@@ -943,12 +943,12 @@ finishes. Propose the capture step against that inventory before writing any too
 **Status:** `active` (2026-08-25) — `latent-sre` approved **all three** shapes, and they compose:
 direct mode now carries the behavioural contracts at full strength, discovery keeps a routing floor
 of three-to-four graders, and the discovery positives run at `threshold: 0.66` because discovery
-measures a propensity rather than a contract. Applied offline; one live batch remains to measure
-the new shape. The instrument defect is diagnosed and fixed, and a
-second, larger constraint is now measured: **contract shape**. Four batches under identical
-conditions gave 0/12, 4/12, 9/12, 8/12; `trigger-and-shape` went 3/3 then 1/3 **with no change made
-to it**, so the 9/12 was a lucky sample rather than progress. Routing is `[verified]` 36/36 across
-every revision with no misroute anywhere. Thirteen reds traced, zero behavioural defects. Evidence:
+measures a propensity rather than a contract. Applied and **measured**: see the two batches below. The instrument defect is diagnosed and fixed, and a
+second, larger constraint was then measured: **contract shape**. Five discovery batches under
+identical conditions gave 0/12, 4/12, 9/12, 8/12, **12/12**; `trigger-and-shape` went 3/3 then 1/3
+**with no change made to it**, so the 9/12 was a lucky sample rather than progress, and the closing
+12/12 is the new shape. Routing is `[verified]` **48/48** across every revision with no misroute
+anywhere. **Fourteen** reds traced, zero behavioural defects. Evidence:
 [the verification batches](reviews/2026-08-25-grader-003-verification-batch.md).
 
 **Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
@@ -1013,7 +1013,7 @@ timeout, and threshold throughout (Sonnet, 3 trials, 600 s, threshold 1.0); the 
 | `20260825T192519Z-4b6fe947` | `16a236d` | 8/12 | 12/12 | USD 3.88 |
 
 **Finding 1 — the instrument (fixed).** `contains_any` is a plain substring test and cannot express
-these contracts. Thirteen reds were traced to their transcripts across three batches and **not one was
+these contracts. Fourteen reds were traced to their transcripts across five batches and **not one was
 a behavioural defect**: they were defeated by a markdown label, a hyphen, word order, a word
 boundary, an unadmitted method, a numeric bound, and a singular. Eight graders moved to bounded
 `regex`; `workflow-graph`'s delegation-edge behaviour now grades structurally, because a correct
@@ -1051,9 +1051,10 @@ byte-clean, `claude plugin validate . --strict` PASS.
 `20260825T214004Z-ab8dff39` on `ce0278a`: **4/4 scenarios, 12/12 trials, routing 12/12**, USD 3.44 —
 the trimmed shape passes cleanly on unseen trials, which the old shape never did in three attempts.
 Direct `20260825T225402Z-8ff050e2` on `b8dea04`: **8/9 trials**, skill fired 3/3 on every contract,
-USD 2.70; `agent-authoring-loop-contract` and `agent-authoring-trigger-and-shape-contract` earned
-measured passes and moved to `regression`, and `agent-authoring-roster-graph-contract` stays
-`calibration` at 2/3. Its single red is the fourteenth traced on this item and the fourteenth with
+USD 2.70; `agent-authoring-loop-contract` and `agent-authoring-trigger-and-shape-contract` measured 3/3 and
+`agent-authoring-roster-graph-contract` measured 2/3. **All three stay `calibration`** — one clean
+batch is a sample, and `AGENTS.md` reserves promotion to human acceptance of the exact revision, not
+to an eval result. Its single red is the fourteenth traced on this item and the fourteenth with
 the behaviour present: a `read-only … review` proximity grader allowed 40 characters and the answer
 put 42 between them. Discovery trials across five batches: `0/12 → 4/12 → 9/12 → 8/12 → 12/12`;
 routing `[verified]` **48/48**; **fourteen reds traced, zero behavioural defects**.

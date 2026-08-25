@@ -1769,6 +1769,9 @@ def test_discovery_positives_grade_only_what_the_prompt_requests() -> None:
 # Scenarios that predate the fixture convention and are inherited without adversarial controls.
 # Recorded rather than silently skipped, so the list is visible and can only shrink: a NEW scenario
 # must be registered in a fixture table, not appended here.
+# Mirrors evals/run_evals.py DEFAULT_TRIALS. A scenario that declares its own `trials` uses that.
+_DEFAULT_TRIALS = 3
+
 _FIXTURE_GAP_ALLOWLIST: frozenset[str] = frozenset({
     "agent-direct-repository-investigator-refuses-external-research.yaml",
     "agent-direct-researcher-refuses-private-local-input.yaml",
@@ -1820,9 +1823,11 @@ _FIXTURE_GAP_ALLOWLIST: frozenset[str] = frozenset({
     "production-change-gate-blocks-unapproved.yaml",
     "release-gate-blocks-no-rollback.yaml",
 })
-assert len(_FIXTURE_GAP_ALLOWLIST) == 49, (
-    "the inherited fixture gap is a ratchet: it may shrink, never grow. A NEW scenario belongs "
-    "in a fixture table, not here."
+assert len(_FIXTURE_GAP_ALLOWLIST) <= 49, (
+    "the inherited fixture gap may shrink, never grow. A NEW scenario belongs in a fixture table, "
+    "not here. This is a diff-visibility device rather than a true ratchet -- the bound is one "
+    "character from admitting growth, and a module-level assert is skipped under python -O -- so "
+    "the real control is that the sweep below fails for anything unregistered."
 )
 
 
@@ -1857,10 +1862,18 @@ def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
         | set(_RESULT_CASES)
         | set(_BLOCK_CASES)
         | set(_BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS)
-        | set(_INCIDENT_COMMAND_INCOMPLETE_RESPONSES)
+        # _INCIDENT_COMMAND_INCOMPLETE_RESPONSES is keyed by prose label, not filename, so it is
+        # deliberately not unioned here -- the scenario it guards is named directly instead. The
+        # key-validation check above is what surfaced that; it caught 13 junk keys on its first run.
         | {"discovery-incident-command-declare.yaml"}
     )
-    unguarded = []
+    on_disk = {path.name for path in SCENARIOS_DIR.glob("*.yaml")}
+    check(
+        registered <= on_disk,
+        "every fixture-table key names a scenario that exists; stale or non-filename keys make the "
+        f"sweep credit coverage that is not there: {sorted(registered - on_disk)}",
+    )
+    unregistered = []
     for path in sorted(SCENARIOS_DIR.glob("*.yaml")):
         if path.name in registered:
             continue
@@ -1870,14 +1883,14 @@ def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
             continue
         if len(scenario.get("graders", [])) <= 1:
             continue
-        unguarded.append(path.name)
+        unregistered.append(path.name)
     # Pre-existing scenarios inherited without fixtures are recorded here rather than silently
     # skipped: the list may shrink, and anything NEW must be registered instead of appended.
-    known_gap = {n for n in unguarded if n not in _FIXTURE_GAP_ALLOWLIST}
+    unrecorded = {n for n in unregistered if n not in _FIXTURE_GAP_ALLOWLIST}
     check(
-        not known_gap,
+        not unrecorded,
         "every multi-grader scenario is registered in a fixture table or the recorded gap list; "
-        f"unregistered={sorted(known_gap)}",
+        f"unregistered={sorted(unrecorded)}",
     )
 
 
@@ -1911,7 +1924,7 @@ def test_trimmed_discovery_positives_have_a_direct_contract() -> None:
         # DEFAULT_TRIALS = 3 every value in (2/3, 1) -- 0.67, 0.7, 0.8, 0.9 -- yields 3 of 3 and is
         # byte-identical to zero tolerance. A range check admits all of them, which is how an inert
         # threshold shipped once already. Only the effect is worth asserting.
-        trials = d.get("trials", 3)
+        trials = d.get("trials", _DEFAULT_TRIALS)
         threshold = d.get("threshold", 1.0)
         effective = math.ceil(trials * threshold)
         check(

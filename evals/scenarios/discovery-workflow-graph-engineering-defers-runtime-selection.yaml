@@ -36,4 +36,4 @@ graders:
     # is now the only grader in this scenario, so "Temporal is right depending on your effect
     # model" -- exactly the answer this case exists to reject -- would have passed.
   - type: regex
-    pattern: '(?i)\bdecision record\b|\bowner decision\b|\bdefer(?:s|red|ral)?\b|\bpending\b|\bnot selected\b|\bno (?:engine|runtime) is selected\b' 
+    pattern: '(?i)\bdecision record\b|\bowner decision\b|\bdefer(?:s|red|ring|ral|rals)?\b|\bpending\b|\bnot selected\b|\bno (?:engine|runtime) is selected\b' 
