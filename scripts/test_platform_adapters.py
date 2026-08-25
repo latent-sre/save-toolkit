@@ -52,7 +52,7 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertNotIn("execute", self._copilot_tools(name), name)
 
     def test_builder_copilot_agent_keeps_edit_and_execute(self) -> None:
-        tools = self._copilot_tools("sde")
+        tools = self._copilot_tools("software-engineer")
         self.assertIn("edit", tools)
         self.assertIn("execute", tools)
 
@@ -75,7 +75,7 @@ class PlatformAdapterTests(unittest.TestCase):
                 next(line for line in frontmatter.splitlines() if line.startswith("description: "))[13:]
             )
             self.assertNotIn("save-toolkit:", description, source.name)
-        self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/sde.md"))
+        self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/software-engineer.md"))
 
     def test_copilot_agent_prompt_over_30000_characters_is_rejected(self) -> None:
         agent = (
@@ -152,7 +152,7 @@ class PlatformAdapterTests(unittest.TestCase):
             self._copy_canonical_sources(root)
             for relative in adapters.GENERATED_ROOTS:
                 shutil.copytree(ROOT / relative, root / relative)
-            target = root / adapters.COPILOT_AGENTS / "sde.agent.md"
+            target = root / adapters.COPILOT_AGENTS / "software-engineer.agent.md"
             target.write_text(target.read_text(encoding="utf-8") + "\nmanual edit\n", encoding="utf-8")
             failures = adapters.validate_generated_outputs(root)
         self.assertTrue(any("generated output drift" in failure for failure in failures))

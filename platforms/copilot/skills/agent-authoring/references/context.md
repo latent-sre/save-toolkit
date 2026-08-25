@@ -70,5 +70,5 @@ Match the symptom to the cause before reaching for a bigger model or a longer pr
 
 ## Handoffs
 - Send independent findings to the typed `reviewer` agent with evidence and unresolved labels.
-- Send approved implementation changes to the typed `sde` agent with exact scope and fixtures.
+- Send approved implementation changes to the typed `software-engineer` agent with exact scope and fixtures.
 - Any production-facing, destructive, authority-changing, or external action stays with the human release owner and requires existing approval evidence naming the exact target, action, and rollback.

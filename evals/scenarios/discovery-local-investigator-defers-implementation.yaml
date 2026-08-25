@@ -12,12 +12,12 @@ routing:
   expect: not_fire
   expected_alternative:
     kind: agent
-    name: sde
+    name: software-engineer
 success_criteria:
   - Keeps implementation and test execution out of the read-only repository-investigation lane
-  - Delegates to sde
+  - Delegates to software-engineer
 graders:
   - type: contains_any
-    of: ["sde", "builder", "implementation"]
+    of: ["software-engineer", "builder", "implementation"]
   - type: contains_any
     of: ["test", "regression", "suite"]

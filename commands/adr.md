@@ -1,5 +1,5 @@
 ---
-description: "Scaffold a self-contained Nygard Architecture Decision Record under docs/decisions. Invoke manually with sde selected. Triggers: 'create an ADR', 'scaffold an architecture decision record'."
+description: "Scaffold a self-contained Nygard Architecture Decision Record under docs/decisions. Invoke manually with software-engineer selected. Triggers: 'create an ADR', 'scaffold an architecture decision record'."
 argument-hint: "<decision> [probe: <token>]"
 disable-model-invocation: true
 ---
@@ -7,8 +7,8 @@ disable-model-invocation: true
 
 Before parsing arguments, deriving a filename, or taking any write-capable step, inspect the current selected agent and its effective tool scope.
 
-1. Continue only when the selected agent is exactly `sde` and its effective tool scope already includes edit/write.
-2. If either condition is false or cannot be established, create nothing, make no mutation, and respond: "Please select `sde` with its existing edit/write scope, then invoke this command again."
+1. Continue only when the selected agent is exactly `software-engineer` and its effective tool scope already includes edit/write.
+2. If either condition is false or cannot be established, create nothing, make no mutation, and respond: "Please select `software-engineer` with its existing edit/write scope, then invoke this command again."
 3. Do not request, grant, add, or widen tools through command metadata or during this workflow.
 
 ## Accepted argument grammar

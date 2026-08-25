@@ -49,7 +49,7 @@ it. A waiting gate blocks only its dependent scope; independent non-gated work c
 
 Load `eng-ladder`, then use the altitude it selects or return a material fork to the caller:
 
-- **Single component, low blast radius:** design inline at SDE level with a few sentences of plan
+- **Single component, low blast radius:** design inline at builder level with a few sentences of plan
   and explicit assumptions.
 - **Multiple services, a data migration, or a hard-to-reverse choice:** use the principal reference
   for a short design and surface each one-way door before implementation.

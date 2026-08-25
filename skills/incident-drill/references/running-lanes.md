@@ -51,7 +51,7 @@ set, and applies it to both availability and permission. Starting points that ma
 | incident command, gates | *(none)* | `Read,Grep,Glob,Skill` |
 | recovery sign-off, alert design | `save-toolkit:observability-engineer` | `Read,Grep,Glob,Skill` (add `Write,Edit` for prepare-only artifacts) |
 | documentation | `save-toolkit:scribe` | `Read,Grep,Glob,Write,Edit,Skill` |
-| build | `save-toolkit:sde` | `Read,Grep,Glob,Edit,Write,Bash,Skill` |
+| build | `save-toolkit:software-engineer` | `Read,Grep,Glob,Edit,Write,Bash,Skill` |
 | review | `save-toolkit:reviewer` | `Read,Grep,Glob` |
 
 Withholding a tool is legitimate scenario design (a lane that cannot reach live telemetry must say

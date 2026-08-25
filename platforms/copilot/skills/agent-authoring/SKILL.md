@@ -83,7 +83,7 @@ boundaries, joins, and termination. A source-code import/dependency graph, knowl
 GraphRAG request is a different capability. A durable **executable workflow/state graph** — typed
 state, node and edge classes, effects, checkpoints, cancellation, termination — is
 `workflow-graph-engineering`'s contract; this method still owns the LLM-facing prompts and the
-roster such a graph runs on. Implementation belongs to `sde` and runtime selection to a
+roster such a graph runs on. Implementation belongs to `software-engineer` and runtime selection to a
 `stack-profile` decision; do not choose LangGraph or another runtime merely because the design is
 graph-shaped.
 
@@ -153,7 +153,7 @@ or a routing split the current agents cannot own cleanly. Record the justificati
 
 - Send an independent evaluation or review finding to the typed `reviewer` agent with the exact
   artifact, success criteria, evidence, source trust, and unresolved labels.
-- Send an approved implementation or generator change to the typed `sde` agent with the failing
+- Send an approved implementation or generator change to the typed `software-engineer` agent with the failing
   fixture and minimal required scope.
 - Any authority-changing, production-facing, destructive, or external action stays with the
   human release owner and requires existing approval evidence naming the exact target, action,

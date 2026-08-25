@@ -46,7 +46,7 @@ class IncidentDrillHarnessTests(unittest.TestCase):
             service_root=Path("C:/drill/service"),
             model="sonnet",
             tools=tools,
-            agent="save-toolkit:sde",
+            agent="save-toolkit:software-engineer",
         )
 
         self.assertEqual("Read,Bash,Skill", command[command.index("--tools") + 1])
@@ -148,7 +148,7 @@ class IncidentDrillHarnessTests(unittest.TestCase):
                         "--attempt-id", "attempt-2",
                         "--step", "01",
                         "--lane", "builder",
-                        "--agent", "save-toolkit:sde",
+                        "--agent", "save-toolkit:software-engineer",
                         "--prompt-file", str(prompt),
                         "--allowed-tools", "Read,Bash",
                         "--plugin-dir", str(plugin),

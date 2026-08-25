@@ -187,7 +187,7 @@ index=<app_index> (request_id="<validated_and_spl_escaped_id>" OR trace_id="<val
 
 Tracing one id is the rare case a broad search is justified — use `index=*` only when the request may
 touch services you can't enumerate, and keep the window tight. If logs lack a correlation id, that's a
-finding — recommend adding one through the `sde` agent.
+finding — recommend adding one through the `software-engineer` agent.
 
 ## Compare before vs after a deploy
 

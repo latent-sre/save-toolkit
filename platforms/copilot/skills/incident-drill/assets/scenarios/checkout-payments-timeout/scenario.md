@@ -2,7 +2,7 @@
 scenario: checkout-payments-timeout
 title: Checkout saturates when a raised dependency timeout meets one hung upstream instance
 severity_arc: P3 (on-call's first read) → P2 (triage) → P1 (burn alert) → resolved
-lanes: sre, incident-command, production-change-gate, observability-engineer, scribe, sde, reviewer, merge-gate
+lanes: sre, incident-command, production-change-gate, observability-engineer, scribe, software-engineer, reviewer, merge-gate
 approx_cost_usd: 7.40
 approx_wall_clock_min: 90
 ---
@@ -86,12 +86,12 @@ your own before dispatch.
 | `04-ic-revise-and-gate.md` | `incident-command` + `production-change-gate` | append 02 and 03 |
 | `06-obs-verify.md` | `observability-engineer` | recovery sign-off; append the receipt |
 | `07-ic-resolve.md` | `incident-command` | resolution and four handoffs; append 05 and 06 |
-| `08-sde-fix.md` | `sde` | durable fix on a branch; substitute `{{PYTHON}}` |
+| `08-software-engineer-fix.md` | `software-engineer` | durable fix on a branch; substitute `{{PYTHON}}` |
 | `09-sre-guard-probe.md` | `sre` | optional: proves the Bash guard allows reads and denies mutations |
 | `10-scribe-postmortem.md` | `scribe` | append 07 and the receipt |
 | `11-reviewer.md` | `reviewer` | trusted-base packet: paste the exact diff |
 | `12-obs-alert-proposal.md` | `observability-engineer` | prepare-only alert, tests, dashboard diff |
-| `13-sde-fix-round.md` | `sde` | one bounded fix round on the review findings |
+| `13-software-engineer-fix-round.md` | `software-engineer` | one bounded fix round on the review findings |
 | `14-reviewer-rereview.md` | `reviewer` | append the delta diff and dispositions |
 | `15-merge-gate.md` | `merge-gate` | merge readiness on the exact candidate |
 

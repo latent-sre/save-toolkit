@@ -46,7 +46,7 @@ prove runtime connectivity, authentication, telemetry delivery, persistence, or 
 
 | Agent | Lane | Tools posture | Delegates to |
 |---|---|---|---|
-| `sde` | Code and operations tooling | Local read/write + **unguarded Bash** for **team-authored** code; no web | `reviewer`, `scribe`, `researcher` |
+| `software-engineer` | Code and operations tooling | Local read/write + **unguarded Bash** for **team-authored** code; no web | `reviewer`, `scribe`, `researcher` |
 | `reviewer` | Correctness and security review | **Local read-only by tool absence** — Read/Grep/Glob only; no Skill, Bash, Write, web, MCP, or delegation | — |
 | `repository-investigator` | Bounded checkout questions | **Local read-only by tool absence** — `Read`/`Grep`/`Glob` only; terminal | — |
 | `sre` | Own human-executed mitigation through verified recovery | **Guarded Bash** — read-only `cf`/`gcloud`/`git`/`gh`; recommends mitigation, never applies it | `researcher` |

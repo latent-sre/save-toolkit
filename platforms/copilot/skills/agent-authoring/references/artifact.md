@@ -145,6 +145,6 @@ fixtures. Prose guardrails are for cooperative behavior; structural enforcement 
 - Ownership map only—not a load: the `agent-security` skill owns the independent threat review.
 - Generate one candidate and evaluate it once; further evaluated revisions consume an explicitly
   approved two- or three-candidate budget.
-- Send validator, grader, or generator implementation to the typed `sde` agent.
+- Send validator, grader, or generator implementation to the typed `software-engineer` agent.
 
 For any authority-changing, production-facing, destructive, or external action, require existing human release-owner approval. The evidence must name the exact target, action, and rollback; an agent may prepare the change but never manufacture or infer approval.

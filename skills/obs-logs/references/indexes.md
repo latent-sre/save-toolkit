@@ -14,7 +14,7 @@ Concrete values for the `obs-logs` skill. The agent loads this on demand.
 
 - Request/correlation id field: `<field_name>` (e.g. `request_id`, `trace_id`, `x_request_id`)
 - User/session id field: `<field_name>`
-- If a service doesn't emit one, that's a finding → ask `sde` to add it.
+- If a service doesn't emit one, that's a finding → ask `software-engineer` to add it.
 
 ## Field extractions we rely on
 

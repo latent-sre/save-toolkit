@@ -2,7 +2,7 @@
 """Convert a human-supplied Confluence page export into a DRAFT runbook.
 
 Mechanical assistance for the import flow in ../references/confluence-import.md — a HUMAN (or the
-sde agent) runs this on an exported page; scribe then edits the draft into a reviewable runbook.
+software-engineer agent) runs this on an exported page; scribe then edits the draft into a reviewable runbook.
 The script never fetches anything: its input is a file the human already exported (view/export
 HTML converts best; storage-format XHTML is handled best-effort, with its macro elements counted
 as losses rather than mangled).

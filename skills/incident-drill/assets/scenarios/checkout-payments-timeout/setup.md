@@ -36,7 +36,8 @@ cd "$DRILL/service" && "$DRILL/.venv/bin/python" -m pytest -q      # expect 5 pa
 ```
 
 If you scaffolded before creating the venv, re-run the scaffold with `--python` pointing at it, or
-substitute the path in `prompts/08-sde-fix.md` and `prompts/13-sde-fix-round.md` by hand.
+substitute the path in `prompts/08-software-engineer-fix.md` and
+`prompts/13-software-engineer-fix-round.md` by hand.
 
 ## 3. Preflight lane
 

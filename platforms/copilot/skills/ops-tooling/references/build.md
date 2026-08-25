@@ -8,7 +8,7 @@ rules when more than one component can build independently.
 
 ## Assign the builder
 
-Spawn the typed `sde` agent with the requirements, design, exact repository paths and conventions,
+Spawn the typed `software-engineer` agent with the requirements, design, exact repository paths and conventions,
 and mission transaction. When drafting the first packet or replacing/relaunching one, shape it with
 [the spawn-prompt template](../assets/spawn-prompt.template.md). When only validating an existing
 packet, check the required slots below without loading the template. Fill every slot or state
@@ -34,7 +34,7 @@ verification and review as a gate; lower-blast-radius independent slices build i
 once at the batch boundary.
 
 Launch every independent builder in a batch together with disjoint file ownership. Each cites the
-contract artifact rather than another builder's partial code. Tell `sde` which layer it owns; that
+contract artifact rather than another builder's partial code. Tell `software-engineer` which layer it owns; that
 agent resolves its own implementation skills. Safety-critical code and all reviews stay at full
 effort. Prefer updating a running builder's scope over stopping it. If a builder stops early,
 inventory the partial writes and have its successor verify and finish them instead of starting over.

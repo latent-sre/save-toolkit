@@ -17,7 +17,7 @@ STALE = (
     # `scribe` is canonical again. `sre-steward` was renamed because `sre` is a strict prefix of
     # it, which makes substring-matching tooling (eval graders, adapter name rewriting) confuse
     # the incident lane with the steady-state lane.
-    "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
+    "sde", "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
     "test-engineer", "sre-monitor", "runbook-author",
     "observer", "sre-steward",
     # The plugin itself was renamed `sre-agents` -> `save-toolkit`, which is what finally removed

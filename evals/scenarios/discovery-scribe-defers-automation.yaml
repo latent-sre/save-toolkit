@@ -12,12 +12,12 @@ routing:
   expect: not_fire
   expected_alternative:
     kind: agent
-    name: sde
+    name: software-engineer
 success_criteria:
   - Keeps implementation and test execution out of the documentation lane
-  - Delegates the automation work to sde
+  - Delegates the automation work to software-engineer
 graders:
   - type: contains_any
-    of: ["sde", "implementation", "automation", "builder"]
+    of: ["software-engineer", "implementation", "automation", "builder"]
   - type: contains_any
     of: ["idempotent", "dry-run", "test", "regression"]

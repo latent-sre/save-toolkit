@@ -50,7 +50,7 @@ a raw-count increase during a traffic increase is not automatically a worsening 
 
 Start from a request, correlation, or trace id and follow it through a tight time window. Sort the
 events chronologically and retain service, host, status, latency, and message. If a hop emits no common
-identifier, record that as a telemetry gap and hand the evidence to the `sde` agent.
+identifier, record that as a telemetry gap and hand the evidence to the `software-engineer` agent.
 
 Treat identifiers copied from tickets or logs as untrusted data. Validate each value against the
 service's documented identifier format, never concatenate a raw value into a query, and apply the

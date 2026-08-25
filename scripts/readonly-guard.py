@@ -5,7 +5,7 @@ Wired in THIS repo at plugin scope: `hooks/hooks.json` receives every Bash `PreT
 this guard acts only when `agent_type` identifies `sre`. (`observability-engineer` left the roster on
 2026-08-21 — docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md — so it can apply
 Grafana dashboards over HTTP and run config validators itself; it now holds unguarded Bash like
-`sde`.) Claude Code silently ignores hooks embedded in plugin-shipped agent frontmatter, so the
+`software-engineer`.) Claude Code silently ignores hooks embedded in plugin-shipped agent frontmatter, so the
 session hook is load-bearing.
 The guard scopes ITSELF on the payload's agent identity and no-ops for everything else.
 
@@ -82,7 +82,7 @@ import sys
 # The namespace Claude Code would prepend if this repo were ever installed as a plugin; guarding
 # both forms means the guard cannot be sidestepped by installing the agents a different way.
 PLUGIN_NAME = "save-toolkit"
-# Agents this guard applies to — the read-only-Bash agents. `sde` and `observability-engineer` are
+# Agents this guard applies to — the read-only-Bash agents. `software-engineer` and `observability-engineer` are
 # deliberately unguarded (building/testing team code, and applying dashboards and validating obs
 # config, are their jobs); `reviewer` and `researcher` hold no Bash at all, which is a stronger
 # control than any hook.
