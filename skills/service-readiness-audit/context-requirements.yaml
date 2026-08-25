@@ -1,0 +1,21 @@
+apiVersion: sre-context/requirements/v1alpha1
+kind: ContextRequirements
+metadata:
+  id: service-readiness-audit
+spec:
+  required:
+    - /target/team/id
+    - /target/service/id
+    - /target/environment/id
+    - /target/deployment
+    - /resources/repositories
+  optional:
+    - /resources/runbooks
+    - /resources/observability
+  alternatives:
+    - id: health-authority
+      anyOf:
+        - /resources/health
+        - /resources/slo
+  maxDepth: 6
+  maxBytes: 65536

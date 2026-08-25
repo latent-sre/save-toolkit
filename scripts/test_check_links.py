@@ -235,6 +235,26 @@ class LinkCheckerTests(Fixture):
         failures = check_links.check(self.root)
         self.assertTrue(any("not linked directly" in item for item in failures))
 
+    def test_root_sidecar_must_be_directly_linked(self):
+        self.skill()
+        self.write(
+            "skills/probe-skill/context-requirements.yaml",
+            "apiVersion: example/v1\nkind: ContextRequirements\n",
+        )
+
+        failures = check_links.check(self.root)
+
+        self.assertTrue(
+            any(
+                item.endswith(
+                    "skills/probe-skill/SKILL.md: bundled file not linked directly from "
+                    "SKILL.md body: context-requirements.yaml"
+                )
+                for item in failures
+            ),
+            failures,
+        )
+
     def test_external_link_label_cannot_spoof_a_direct_bundle_link(self):
         self.skill(
             "# Probe\n\nRead "

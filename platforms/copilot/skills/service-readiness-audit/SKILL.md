@@ -30,6 +30,15 @@ Assess and report; change nothing. This skill is discoverable because its contra
 - If the user asks for onboarding effects, stop the audit path and explain that
   `/service-onboarding` requires explicit invocation and an approved plan.
 
+## Optional resolved context
+
+When a compatible generic resolver implementing `sre-context-resolver/v1alpha1.0` is available, a
+caller may resolve [this skill's context requirements](./context-requirements.yaml) for an explicit
+team, service, and environment selection. The resolved bundle is evidence-routing input only: its
+validity does not establish readiness, authorize an effect, or permit an implicit environment
+selection. Caller-supplied evidence remains supported when the resolver is unavailable; record
+missing context as a verification gap rather than guessing it.
+
 ## Evidence to inspect
 
 Inspect only what applies and name what could not be verified:

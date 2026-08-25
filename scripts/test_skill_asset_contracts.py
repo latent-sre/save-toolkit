@@ -7,6 +7,8 @@ from pathlib import Path
 import re
 import unittest
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -31,6 +33,44 @@ def _fenced_block_after(text: str, marker: str, language: str) -> str:
 
 
 class SkillAssetContractTests(unittest.TestCase):
+    def test_service_readiness_context_requirements_match_resolver_contract(self) -> None:
+        sidecar_path = ROOT / "skills/service-readiness-audit/context-requirements.yaml"
+        document = yaml.safe_load(sidecar_path.read_text(encoding="utf-8"))
+
+        # The sre-context requirements schema remains authoritative. This assertion pins only the
+        # generic paths and budgets selected by this consumer for resolver v1alpha1.0.
+        self.assertEqual(
+            document,
+            {
+                "apiVersion": "sre-context/requirements/v1alpha1",
+                "kind": "ContextRequirements",
+                "metadata": {"id": "service-readiness-audit"},
+                "spec": {
+                    "required": [
+                        "/target/team/id",
+                        "/target/service/id",
+                        "/target/environment/id",
+                        "/target/deployment",
+                        "/resources/repositories",
+                    ],
+                    "optional": [
+                        "/resources/runbooks",
+                        "/resources/observability",
+                    ],
+                    "alternatives": [
+                        {
+                            "id": "health-authority",
+                            "anyOf": ["/resources/health", "/resources/slo"],
+                        }
+                    ],
+                    "maxDepth": 6,
+                    "maxBytes": 65536,
+                },
+            },
+            "service-readiness-audit requirements must stay generic and match "
+            "sre-context-resolver/v1alpha1.0",
+        )
+
     def test_backend_openapi_starter_separates_liveness_and_readiness(self) -> None:
         starter = (ROOT / "skills/backend-craft/assets/openapi.starter.yaml").read_text(
             encoding="utf-8"

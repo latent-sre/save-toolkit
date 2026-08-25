@@ -260,6 +260,9 @@ def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
 
 
 def _bundle_files(skill_root: Path):
+    for path in sorted(skill_root.iterdir()):
+        if path.is_file() and path.name != "SKILL.md":
+            yield path
     for kind in ("references", "assets", "scripts"):
         base = skill_root / kind
         if not base.is_dir():
