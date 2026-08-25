@@ -252,10 +252,11 @@ rerun that case before touching the rest.
 
 **Status:** `active` (updated 2026-08-25) — the draft contract and review landed as
 [`2026-08-24-graph-001-fleet-workflow-graph-contract.md`](reviews/2026-08-24-graph-001-fleet-workflow-graph-contract.md):
-verdict **request changes**, eleven findings, each dispositioned below. Accepted fixes are prepared
-in an uncommitted isolated candidate. Focused checks, the narrow security-boundary review, generated
-adapter checks, and Gate A are green; the candidate remains unpromoted until owner acceptance of
-exact bytes. F7 and F11 retain their existing owners.
+verdict **request changes**, eleven findings, each dispositioned below. Accepted fixes are published
+for exact-revision review in [PR #165](https://github.com/latent-sre/save-toolkit/pull/165).
+Focused checks, the narrow security-boundary review, generated adapter checks, and Gate A are green;
+the candidate remains unpromoted until owner acceptance of the PR head. F7 and F11 retain their
+existing owners.
 
 **Owner:** `prompt-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
 the exact revision. Each accepted finding is implemented by the owner of the surface it names
@@ -352,7 +353,8 @@ egress, and that runtime must be destroyed before retry after timeout.
 doctor, platform, evaluator, and validator suites passed; the eval suite validated 93 scenarios,
 generated adapters matched canonical sources, `git diff --check` was clean, and Gate A passed 6/6.
 
-**Next action:** the owner accepts the exact revision before promotion. Do not reopen F7, F11, N4,
+**Next action:** `latent-sre` reviews and accepts the exact PR #165 head revision before promotion.
+Resolve any current review finding or failed check on that revision. Do not reopen F7, F11, N4,
 GRAPH-002, or `WF-001` through this item.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
