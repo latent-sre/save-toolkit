@@ -633,11 +633,15 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 ### SKILLS-003 — add a portable executable workflow-graph engineering skill
 
-**Status:** `active` (2026-08-24) — first candidate implemented on
-`work/skills-003-workflow-graph-engineering` with its
-[implementation evidence packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md);
-live routing trials, the frozen acceptance exercise, independent review, and human acceptance of
-the exact revision remain open. Roadmap activation merged in PR
+**Status:** `active` (updated 2026-08-25) — the skill is **merged**: commit `f1afd57` on
+`origin/main` via PR [#162](https://github.com/latent-sre/save-toolkit/pull/162), bundled with
+`incident-drill` and the graph-program documents rather than shipped as its own SKILLS-003 pull
+request. Acceptance 1, 2, and 4 are met; 5 and 6 are partial. The
+[implementation evidence packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md)
+carries the measurements and a 2026-08-25 addendum recording the merge, the resolved base-freshness
+question, the applied routing-only correction, and a passing `claude plugin validate . --strict`.
+What keeps this item open is acceptance 3 — the frozen five-case exercise on the committed SHA —
+and one independent exact-revision review. Roadmap activation merged in PR
 [#157](https://github.com/latent-sre/save-toolkit/pull/157) at `a8f98ce`. Renewed owner direction
 activates only the executable workflow/state-graph capability from Batch 3. The proposed SRE
 capability additions remain held; this item selects no graph runtime, creates no execution service,
@@ -842,9 +846,53 @@ and review evidence without conflating their claims, then move `SKILLS-003` to t
 runtime, schema, executable validator, `codebase-atlas`, or SRE capability remains separate future
 work and does not keep this skill-capability item open.
 
-**Next action:** From refreshed `origin/main`, inventory the exact owning surfaces, freeze the
-routing matrix and five bounded artifact cases, and implement only `workflow-graph-engineering` as
-the first reviewed Batch 3 slice.
+**Next action:** Run the frozen five-case artifact exercise (acceptance 3) against the merged
+`f1afd57`, recording every pre-call field the item requires before the first call: clean tree and
+exact full SHA, canonical/plugin input digest, host and CLI version, runtime and model identity,
+effective tool permissions, the five immutable prompts, grader identities and thresholds, per-call
+timeout, and maximum call/cost budget. Pin and record `--model`; the development pass ran on
+`claude-fable-5`, so a different tier is a different baseline and is never averaged with it. This
+is a paid multi-agent run — get owner go-ahead before launching it. Then request one independent
+review bound to this slice's revision rather than to PR #162's bundled head. Do not re-open the routing measurement to turn the `runtime-selection`
+calibration seam green, and do not add a runtime, schema, validator, or `codebase-atlas` here.
+
+### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
+
+**Status:** `ready` (2026-08-25)
+
+**Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision. No
+agent approves its own grader change.
+
+**Outcome:** The four `agent-authoring` discovery scenarios grade what a correctly routed response
+actually contains, so a red in that regression set means a routing or behaviour defect rather than
+evaluator vocabulary.
+
+**Source:** The `SKILLS-003` implementation packet dispositioned this `proposed to roadmap` and it
+was never filed; this item closes that gap. Its incumbent baseline run `20260824T231543Z-53c0a77c`,
+taken on `origin/main` bytes with no candidate present (Sonnet, 3 trials, 600 s), scored **0/4
+scenarios and 0/12 trials with no routing failure in any trial** — every red a behavioural
+`contains_any` on vocabulary the real transcripts did not use (`delegation edge`, `human
+acceptance`, `cost budget`, `import graph`). A description edit cannot change response content, so
+this is an incumbent evaluator defect that the SKILLS-003 change neither caused nor fixed.
+Evidence: [the SKILLS-003 packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md).
+
+**Prerequisites:** The transcripts from run `20260824T231543Z-53c0a77c`, or a fresh incumbent run
+to replace them — that batch was written to an ephemeral session scratchpad and may no longer
+exist. Do not widen a grader without reading the transcript that failed it.
+
+**Acceptance:** Each of the four scenarios receives either (1) the routing-only shape, under the
+`evals/README.md` rule that discovery graders must be satisfiable by a tool-less routed response,
+or (2) behavioural vocabulary re-derived from real transcripts, with the prompt echo and a
+keyword-rich incomplete fixture still proven to fail. Record which treatment each scenario got and
+why. Then run the affected scenarios live at a pinned model and trial count and record numerator
+and denominator; a scenario still red for a reason other than vocabulary is a separate finding, not
+a licence to widen further. Offline grader tests, `evals/run_evals.py --validate`, and Gate A pass.
+
+**Next action:** Read the four scenarios against the baseline transcripts — obtaining them first if
+the scratchpad batch is gone — and decide routing-only versus re-derived vocabulary per scenario
+before editing any grader. The four `workflow-graph-engineering` near misses are the worked
+precedent: one `contains_any` sanity grader each, registered in
+`_ROUTING_ONLY_DISCOVERY_SCENARIOS`.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
