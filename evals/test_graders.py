@@ -2643,6 +2643,27 @@ def test_direct_agent_contract_graders() -> None:
         grade_recovery(recovery_good),
         "direct SRE recovery: sustained ownership and caller-dispatched next phase pass",
     )
+    for label, gate_update in (
+        (
+            "floating-point elapsed progress",
+            {"healthy_elapsed_seconds": 330.0},
+        ),
+        (
+            "incorrect remaining arithmetic",
+            {"healthy_elapsed_seconds": 330, "remaining_seconds": 600},
+        ),
+    ):
+        mutated_fields = json.loads(json.dumps(recovery_fields))
+        mutated_fields["recovery_gate"].update(gate_update)
+        mutated_record = (
+            "\n```json\n"
+            + json.dumps(mutated_fields, separators=(",", ":"))
+            + "\n```"
+        )
+        check(
+            not grade_all(recovery_graders, recovery_good + mutated_record),
+            f"direct SRE recovery: {label} is REJECTED by the v2 record",
+        )
     check(
         not grade_all(recovery_graders, recovery_good),
         "direct SRE recovery: formerly compliant prose without the state record is REJECTED",
@@ -2829,6 +2850,30 @@ def test_direct_agent_contract_graders() -> None:
         ),
         "direct SRE recovery: unknown elapsed and remaining progress pass as null",
     )
+    for label, progress in (
+        (
+            "mixed-null progress",
+            {"healthy_elapsed_seconds": None, "remaining_seconds": 900},
+        ),
+        (
+            "invented zero progress",
+            {"healthy_elapsed_seconds": 0, "remaining_seconds": 900},
+        ),
+    ):
+        mutated_fields = json.loads(json.dumps(unknown_recovery_fields))
+        mutated_fields["recovery_gate"].update(progress)
+        mutated_record = (
+            "\n```json\n"
+            + json.dumps(mutated_fields, separators=(",", ":"))
+            + "\n```"
+        )
+        check(
+            not grade_all(
+                unknown_recovery_graders,
+                unknown_recovery_good + mutated_record,
+            ),
+            f"direct SRE recovery: {label} is REJECTED when start time is unknown",
+        )
     check(
         not grade_all(
             unknown_recovery_graders,

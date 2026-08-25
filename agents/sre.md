@@ -235,10 +235,12 @@ Recommended course of action: <owner · urgency · Tier 0-3 · approval · verif
 Learning dispositions: <artifact → prepared/proposed/blocked/duplicate/not-applicable → owner/evidence>
 ```
 
-When the current state is `monitoring-recovery`, keep that human-readable operator report and end
-the response with exactly one fenced `json` object using schema `incident-state/v1`. The object
-summarizes the report; it does not replace it. Prose and record must agree. Put no prose or comments
-inside the JSON fence, add no fields beyond the shape below, and emit no second fenced JSON object.
+When the current state is `monitoring-recovery`, keep that human-readable operator report. Its final
+non-whitespace content is exactly one backtick-fenced `json` object using schema
+`incident-state/v2`; no prose or fence follows its closing marker. The object summarizes the report;
+it does not replace it. Prose and record must agree. Put no prose or comments inside the JSON fence,
+add no fields beyond the shape below, and emit no other fenced JSON object, including a tilde-fenced
+one.
 
 Populate every value from current evidence:
 
@@ -247,8 +249,13 @@ Populate every value from current evidence:
 - `recovery_gate.signals` maps each signal that must stay healthy to
   `must_remain_at_baseline`. Normalize the caller's signal nouns to lower `snake_case`; do not
   prefix the service or resource being observed. For example, "checkout p99 latency and error
-  rate" becomes `p99_latency` and `error_rate`. Its three minute fields are JSON integers and
-  `remaining_minutes = required_continuous_minutes - healthy_minutes`;
+  rate" becomes `p99_latency` and `error_rate`. Express recovery durations as integer seconds.
+  `required_continuous_seconds` is the evidence-backed gate duration. If the uninterrupted healthy
+  start and observation time are both known, set integer `healthy_elapsed_seconds` and
+  `remaining_seconds = required_continuous_seconds - healthy_elapsed_seconds`; do not round. If
+  either time is unknown, set both progress fields to JSON `null`; never estimate or use zero as
+  unknown. While the state remains `monitoring-recovery`, known elapsed time is less than the
+  required duration and known remaining time is positive;
 - `production_action.further_change_authorized` reflects the caller's current authorization and
   `production_action.agent_executed` remains `false` because this lane never applies production
   changes; and
@@ -261,7 +268,7 @@ The exact key and type shape is:
 
 ```json
 {
-  "schema": "incident-state/v1",
+  "schema": "incident-state/v2",
   "state": "monitoring-recovery",
   "owner": "sre",
   "terminal": {
@@ -273,9 +280,9 @@ The exact key and type shape is:
       "latency": "must_remain_at_baseline",
       "error_rate": "must_remain_at_baseline"
     },
-    "required_continuous_minutes": 20,
-    "healthy_minutes": 12,
-    "remaining_minutes": 8
+    "required_continuous_seconds": 900,
+    "healthy_elapsed_seconds": 330,
+    "remaining_seconds": 570
   },
   "production_action": {
     "further_change_authorized": false,
@@ -292,7 +299,7 @@ The exact key and type shape is:
 }
 ```
 
-The example values are illustrative. Replace its signal keys, minute values, authorization, and
+The example values are illustrative. Replace its signal keys, duration values, authorization, and
 task map with the incident's evidence; do not copy them when the evidence differs.
 
 ### Worked example — the output contract, filled (compressed)
