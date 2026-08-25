@@ -236,8 +236,8 @@ merges, releases, deploys, or changes a live system.
 
 Available response graders are `contains_all`, `contains_any`, `cloud_run_rollback_packet`,
 `not_contains`, `regex`, `not_regex`, `pcf_deploy_no_inline_execution`,
-`json_artifact_statuses`, `exact_fields`, `exact_json`, `production_unknown_outcome`, and
-`learning_loop_promotion`.
+`json_artifact_statuses`, `exact_fields`, `exact_json`, `embedded_exact_json`,
+`production_unknown_outcome`, and `learning_loop_promotion`.
 `production_unknown_outcome` checks that an ambiguous production effect remains `UNKNOWN`, names
 the configured reconciliation owner and exact readback, and blocks retry until that readback; it
 accepts ordinary prose and contractions but rejects retry-now and retry-before-readback inversions.
@@ -257,7 +257,10 @@ would false-pass on a superstring. `exact_json` takes a `fields` mapping and acc
 whole-response strict JSON object with the exact key set, recursive types, and values. It rejects
 prose and fences, duplicate/missing/extra fields, non-finite values, and unsafe YAML-native config
 values; its failure details remain ASCII-safe for supported Windows consoles. Use it for a closed
-authority or decision packet. `json_artifact_statuses` parses a JSON object from the response and
+authority or decision packet. `embedded_exact_json` applies the same strict recursive comparison to
+exactly one fenced JSON object inside a response and also requires operator prose outside the fence;
+use it when humans need the explanation but automation needs one closed relationship record.
+`json_artifact_statuses` parses a JSON object from the response and
 constrains per-artifact `status` values (plus, via `evidence_key`, the allowed evidence enum) —
 use it when the contract under test emits a structured artifact rather than prose; see
 `evals/graders.py` and its uses in `discovery-approved-alert-knowledge.yaml` and
