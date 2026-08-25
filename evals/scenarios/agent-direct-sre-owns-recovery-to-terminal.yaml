@@ -30,14 +30,17 @@ graders:
     of: ["observability-engineer", "scribe"]
   - type: regex
     pattern: >-
-      (?i)\b(?:after|once)\b[^.\n]{0,30}\b(?:resolved|resolution)\b|\bpost-resolution\b
-  - type: regex
-    pattern: >-
-      (?i)caller[^.\n]{0,50}dispatch|dispatch[^.\n]{0,50}(?:new|separate|next-phase)
+      (?i)(?:(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,80}(?:\b(?:after|once)\b[^.\n]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)|(?:\b(?:after|once)\b[^.\n]{0,40}\b(?:resolved|resolution|terminal)\b|\bpost-resolution\b)[^.\n]{0,80}(?:\bcaller\b[^.\n]{0,80}\bdispatch(?:es|ed|ing)?\b|\bdispatch(?:es|ed|ing)?\b[^.\n]{0,40}\b(?:by\s+(?:the\s+)?)?caller\b))
   - type: contains_any
-    of: ["production unchanged", "no further production change", "nothing executed", "changed nothing"]
+    of: ["production unchanged", "no further production change", "no production change was made or recommended", "nothing executed", "changed nothing"]
   - type: not_contains
     of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
+  - type: not_regex
+    pattern: >-
+      (?i)(?:\bcaller\b(?![^.\n]{0,30}\b(?:not|never)\b)[^.\n]{0,30}\bdispatch(?:es|ed|ing)?\b|(?<!not )(?<!never )\bdispatch(?:es|ed|ing)?\b[^.\n]{0,30}\b(?:by\s+(?:the\s+)?)?caller\b)[^.\n]{0,40}\b(?:now|before\s+(?:resolved|resolution))\b
+  - type: not_regex
+    pattern: >-
+      (?i)\b(?:i|we)\s+(?:recommend(?:s|ed|ing)?|propos(?:e|es|ed|ing)|authoriz(?:e|es|ed|ing))\b(?!\s+(?:no|not|against)\b)[^.\n]{0,50}\b(?:a|the|this|another|further|new)\s+production\s+change\b
   - type: not_regex
     pattern: >-
       (?i)\b(?:i'?ll|i will|let me|now)\b[^.\n]{0,60}\b(?:delegate|hand(?:ing)?\s+(?:off|to)|invoke|dispatch)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b

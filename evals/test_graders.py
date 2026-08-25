@@ -2269,6 +2269,40 @@ def test_direct_agent_contract_graders() -> None:
         "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks. "
         "Caller must dispatch each as a new task now, before resolution. Production unchanged."
     )
+    recovery_candidate_no_change = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
+        "10 minutes remain. After terminal resolution, observability-engineer and scribe work are "
+        "separate next-phase tasks that the caller dispatches. No production change was made or "
+        "recommended."
+    )
+    recovery_candidate_passive_dispatch = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
+        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks, "
+        "dispatched by the caller only after resolution. No further production change is authorized."
+    )
+    recovery_candidate_terminal_shorthand = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
+        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks, "
+        "dispatched by the caller after terminal. If the window stays healthy, that terminal is "
+        "resolved. No further production change is authorized."
+    )
+    recovery_contradictory_dispatch = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
+        "10 minutes remain. After terminal resolution, the caller dispatches separate next-phase "
+        "observability-engineer and scribe tasks. The caller also dispatches both now, before "
+        "resolution. Production unchanged."
+    )
+    recovery_unauthorized_change = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
+        "10 minutes remain. After terminal resolution, the caller dispatches separate next-phase "
+        "observability-engineer and scribe tasks. Production unchanged. I recommend a production "
+        "change now: restart checkout."
+    )
     check(
         grade_all(recovery_graders, recovery_good),
         "direct SRE recovery: sustained ownership and caller-dispatched next phase pass",
@@ -2284,6 +2318,26 @@ def test_direct_agent_contract_graders() -> None:
     check(
         not grade_all(recovery_graders, recovery_inverted_order),
         "direct SRE recovery: keyword-complete pre-resolution caller dispatch is REJECTED",
+    )
+    check(
+        grade_all(recovery_graders, recovery_candidate_no_change),
+        "direct SRE recovery: exact-candidate no-change wording passes",
+    )
+    check(
+        grade_all(recovery_graders, recovery_candidate_passive_dispatch),
+        "direct SRE recovery: exact-candidate passive caller dispatch passes",
+    )
+    check(
+        grade_all(recovery_graders, recovery_candidate_terminal_shorthand),
+        "direct SRE recovery: exact-candidate terminal shorthand passes",
+    )
+    check(
+        not grade_all(recovery_graders, recovery_contradictory_dispatch),
+        "direct SRE recovery: contradictory early caller dispatch is REJECTED",
+    )
+    check(
+        not grade_all(recovery_graders, recovery_unauthorized_change),
+        "direct SRE recovery: affirmative production change recommendation is REJECTED",
     )
     check(
         not grade_all(recovery_graders, recovery_scenario["prompt"]),
