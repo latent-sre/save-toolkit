@@ -372,12 +372,20 @@ class StaleNameCheckerTests(Fixture):
         self.write("skills/probe/SKILL.md", "Hand this to code-reviewer now.\n")
         self.assertTrue(check_stale_names.check(self.root))
 
-    def test_path_and_md_suffix_are_exempt(self):
+    def test_path_and_md_suffix_are_exempt_when_the_file_is_really_there(self):
+        # The exemption is earned by the file existing, not by the name being retired -- otherwise
+        # `agents/prompt-engineer.md` would be exempt too. See
+        # test_check_stale_names.test_a_retired_name_with_no_live_file_is_caught_in_path_and_md_form.
+        self.write("skills/probe/references/safe-refactor.md", "# Safe refactor\n")
         self.write(
             "skills/probe/SKILL.md",
             "[safe](references/safe-refactor.md) and safe-refactor.md remain paths.\n",
         )
         self.assertEqual([], check_stale_names.check(self.root))
+
+    def test_a_retired_name_with_no_such_file_is_not_exempt_as_a_path(self):
+        self.write("skills/probe/SKILL.md", "[lane](../agents/prompt-engineer.md) owns this.\n")
+        self.assertTrue(check_stale_names.check(self.root))
 
     def test_canonical_command_description_is_scanned(self):
         self._fleet(command_description="Ask code-reviewer to approve this")

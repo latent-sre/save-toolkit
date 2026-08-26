@@ -7,8 +7,8 @@ alert_names: [checkout-p95-burn-fast]
 owner: payments-oncall
 severity: P2 / page
 source_revision: checkout@4f2b9c1e8a7d6350fa1c2b9e4d7a8c3f5e6b1902
-last_reviewed: 2026-02-18
-last_verified: 2026-02-11
+last_reviewed: "2026-02-18"
+last_verified: "2026-02-11"
 verification_evidence: [drill-2026-02-11-checkout-restart]
 version: 4
 ---
@@ -47,8 +47,13 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
 
 1. **Is this real user pain, or a probe artifact?** Open the SLO dashboard, panel "p95 by route".
    - Elevated on `/checkout/submit` only → real; continue.
-   - Elevated across every route *including* `/healthz` → the probe path is slow, not the app.
-     This is not the right runbook; go to `platform-router-latency`.
+   - Elevated across every route *including* `/healthz` → **not yet diagnostic.** A slow health
+     route is equally consistent with router latency and with whole-app saturation (CPU, event-loop
+     or GC pauses, connection-pool exhaustion). Corroborate before routing: if the router's own
+     latency panel on `platform-router-latency`'s dashboard is also elevated for other apps in the
+     `payments` org, it is the platform — go to `platform-router-latency`. If the router looks
+     healthy and only `checkout` is slow across all routes, it is this app saturating: continue to
+     triage step 2 and treat it as whole-app, not single-instance.
 
 2. **Are all instances serving?**
    ```bash
@@ -77,15 +82,31 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    ```bash
    cf restart-app-instance checkout <idx>
    ```
-   `<idx>` is the row number from step 3's table, zero-based. This restarts **one** instance; the
-   other five keep serving, so there is no capacity gap.
+   `<idx>` is the row number from step 3's table, zero-based. This restarts **one** instance, so
+   capacity drops to 5/6 until it returns (~90 s) and the remaining five absorb its share of the
+   load. That is survivable only because triage step 3 established the other five are healthy;
+   confirm from that same table that none is above ~70% CPU before you restart. If they are all
+   loaded, this is whole-app saturation — skip to step 2 rather than removing an instance from a
+   pool that is already struggling.
    Expected: the command returns `OK` within ~5 s, and `cf app checkout` shows that index
    `starting` then `running` within 90 s.
    - Still `starting` after 3 min → it is not coming back cleanly. Go to step 4.
    - Returns to `running` but p95 does not improve within 10 min → the instance was a symptom, not
-     the cause. **Do not restart it again.** Go to step 2.
+     the cause. **Do not restart it again.** Go to step 2.  ← the vendor check, before any scaling.
 
-2. ⚠️ **Scale out.** (Tier 2 — needs approval naming the target instance count.)
+2. **Check the downstream payment vendor first.** This is read-only and takes seconds, and it
+   gates step 3: scaling checkout against a slow vendor only queues more work at the same
+   bottleneck, so rule the vendor out *before* changing the instance count.
+   ```bash
+   cf logs checkout --recent | grep -c 'vendor_timeout'
+   ```
+   Expected: a count. Zero or single digits over the last few minutes is normal background.
+   - Dozens or more → the vendor is the cause. **Do not scale.** Stop here and switch to
+     `payments-vendor-degraded`.
+   - Background levels → the latency is ours. Go to step 3.
+
+3. ⚠️ **Scale out.** (Tier 2 — needs approval naming the target instance count. Do not run this
+   until step 2 returned background levels.)
    ```bash
    cf scale checkout -i 9
    ```
@@ -93,15 +114,6 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    instance reaching `running` — not before, so do not judge this early.
    Scaling is a stopgap that buys time; it does not fix a leak or a slow dependency. File the
    follow-up before you leave the incident.
-
-3. **Check the downstream payment vendor** — if p95 is still high after step 2, the latency is
-   probably not ours.
-   ```bash
-   cf logs checkout --recent | grep -c 'vendor_timeout'
-   ```
-   Expected: a count. Zero or single digits over the last few minutes is normal background.
-   Dozens or more means the vendor is the cause — stop here and switch to
-   `payments-vendor-degraded`; scaling checkout against a slow vendor only queues more work.
 
 4. **Instances are crashing (from triage step 2 or step 1).** Do not restart. Capture the evidence
    first, because a restart destroys it:

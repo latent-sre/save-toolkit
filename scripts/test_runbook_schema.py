@@ -120,6 +120,37 @@ class RunbookSchemaTest(unittest.TestCase):
         self.assertEqual(entry["uri"], self.schema["$id"])
         self.assertEqual(entry["generated_projections"], [])
 
+    def test_date_valued_frontmatter_is_quoted_in_the_template_and_the_example(self) -> None:
+        """`last_reviewed: 2026-02-18` is a date object to a YAML parser, not a string.
+
+        The schema types both fields `["string", "null"]`, so an unquoted ISO date decodes to
+        `datetime.date` and fails the very contract the exemplar exists to demonstrate -- and
+        teaches every copied runbook the wrong representation. The template escaped this only
+        because it ships `null`. Checked on the raw line rather than through a parser because
+        this suite is pure stdlib, and because the defect IS the representation: a parser would
+        hide it by decoding successfully.
+        """
+
+        allowed = re.compile(r"^(?:null|\"[^\"]*\"|'[^']*')$")
+        iso = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+        for path in (TEMPLATE_PATH, EXAMPLE_PATH):
+            lines = path.read_text(encoding="utf-8").splitlines()
+            closing = lines.index("---", 1)
+            for line in lines[1:closing]:
+                key, _, raw = line.partition(":")
+                if key.strip() not in ("last_reviewed", "last_verified"):
+                    continue
+                value = raw.strip()
+                with self.subTest(path=path.name, key=key.strip()):
+                    self.assertRegex(
+                        value,
+                        allowed,
+                        f"{path.name}: {key.strip()} must be null or a quoted string; "
+                        f"{value!r} decodes as a date, which the schema does not allow",
+                    )
+                    if value != "null":
+                        self.assertRegex(value.strip("\"'"), iso, "date must be YYYY-MM-DD")
+
 
 if __name__ == "__main__":
     unittest.main()

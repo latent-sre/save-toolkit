@@ -27,7 +27,8 @@ carries every required slot. The blank template shows the slots; it cannot show 
 well looks like, so read the [worked exemplar](./assets/runbook-example.md) before writing your
 first one, or when a draft has every section and still feels thin. It is a complete, matured
 runbook — decision branches that route *away* from the wrong action, expected output that separates
-partly-worked from failed, and an incident history showing how three real incidents changed it.
+partly-worked from failed, and an illustrative incident history showing the shape a runbook takes
+once incidents have revised it. Its service, dates, and evidence ids are invented and bind nothing.
 
 Rules:
 - Every command copy-pasteable as written — real paths and real names. A `<placeholder>` is allowed only for truly variable values, and then say where to find the value.

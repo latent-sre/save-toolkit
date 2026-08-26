@@ -62,10 +62,13 @@ to the fork, when `ref` matches `refs/pull/<n>/head` or `/merge`, or when `ref` 
 PR's head or merge SHA.
 
 **This is not a v7-only behavior any more.** It shipped in v7.0.0 on 2026-06-18 and was backported
-to every supported major on 2026-07-16, so a workflow pinned to v5 or v6 enforces it too. That
-matters for the "why did this start failing" case: a pin that did not move can still have changed
-behavior, so read the failure as the protection engaging rather than hunting for a regression in
-your own YAML. The opt-out input `allow-unsafe-pr-checkout: true` exists — treat finding one in a
+to every supported major on 2026-07-16, so a workflow resolving to v5 or v6 enforces it too. That
+matters for the "why did this start failing" case, but only for workflows on a *floating* major
+tag such as `@v5`: the tag is mutable, so unchanged YAML can resolve to newly backported code. A
+full commit SHA pin, which this file requires above, cannot change behavior until someone moves
+it — there the backport arrives with the re-pin, not on its own. So on a floating tag, read the
+failure as the protection engaging rather than hunting for a regression in your own YAML; on a
+SHA pin, look at the commit that moved it. The opt-out input `allow-unsafe-pr-checkout: true` exists — treat finding one in a
 diff as an unsafe design to review, not a fix to reach for, and treat an upgrade failure the same
 way. *[sourced: GitHub Changelog, ["Safer pull_request_target defaults for GitHub Actions
 checkout"](https://github.blog/changelog/2026-06-18-safer-pull_request_target-defaults-for-github-actions-checkout/),
