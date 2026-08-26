@@ -6,20 +6,133 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
+import validate_fleet
+
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS = tuple(sorted((ROOT / "agents").glob("*.md")))
+SRE_HANDOFF = ROOT / "skills/incident-investigation/references/incident-handoff.md"
 
 
 def _compact(text: str) -> str:
     return " ".join(text.split())
 
 
+def _agent_contract_text(path: Path) -> str:
+    """Return always-loaded agent text plus any predicate-loaded contract under test."""
+
+    text = path.read_text(encoding="utf-8")
+    if path.name == "sre.md":
+        contract = validate_fleet._resolve_handoff_contract(ROOT, path.stem, text)
+        if contract is not None and contract != text:
+            text += "\n" + contract
+    return _compact(text)
+
+
 class GraphContractTests(unittest.TestCase):
+    def test_sre_and_engineering_ladders_are_separate_context_routers(self) -> None:
+        sre_agent = _compact((ROOT / "agents/sre.md").read_text(encoding="utf-8"))
+        engineering = _compact((ROOT / "skills/eng-ladder/SKILL.md").read_text(encoding="utf-8"))
+        incident_command = _compact(
+            (ROOT / "skills/incident-command/SKILL.md").read_text(encoding="utf-8")
+        )
+        sre_ladder_path = ROOT / "skills/incident-investigation/SKILL.md"
+
+        self.assertTrue(sre_ladder_path.is_file(), "the incident-investigation router must exist")
+        sre_ladder = _compact(sre_ladder_path.read_text(encoding="utf-8"))
+
+        self.assertIn("`incident-investigation`", sre_agent)
+        self.assertNotIn("`eng-ladder`", sre_agent)
+        self.assertNotIn("The SRE track", engineering)
+        self.assertNotIn("responder", engineering.lower())
+        self.assertIn("`incident-investigation` owns investigation-depth selection", incident_command)
+        for retired_reference in (
+            "responder.md",
+            "investigator.md",
+            "elite.md",
+            "golden-signals.md",
+        ):
+            with self.subTest(retired_reference=retired_reference):
+                self.assertFalse(
+                    (ROOT / "skills/eng-ladder/references" / retired_reference).exists(),
+                    "incident-mode references must not return to the engineering ladder",
+                )
+        for name in (
+            "first-response.md",
+            "hypothesis-investigation.md",
+            "systemic-failure.md",
+            "signal-characterization.md",
+            "recovery-lifecycle.md",
+            "incident-handoff.md",
+        ):
+            with self.subTest(reference=name):
+                self.assertIn(f"references/{name}", sre_ladder)
+                self.assertTrue((ROOT / "skills/incident-investigation/references" / name).is_file())
+
+    def test_sre_support_span_closeout_and_heavy_context_are_predicate_keyed(self) -> None:
+        sre_agent = _compact((ROOT / "agents/sre.md").read_text(encoding="utf-8"))
+        sre_ladder = _compact((ROOT / "skills/incident-investigation/SKILL.md").read_text(encoding="utf-8"))
+        fleet_guide = _compact((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        triage_scenario = (
+            ROOT / "evals/scenarios/agent-direct-sre-readonly-triage.yaml"
+        ).read_text(
+            encoding="utf-8"
+        )
+        drill_packets = (
+            ROOT
+            / "skills/incident-drill/assets/scenarios/checkout-payments-timeout/packets.md"
+        ).read_text(encoding="utf-8")
+
+        for token in (
+            "Bounded assist is the default",
+            "Stop after the requested evidence slice",
+            "Enter sustained response only when",
+            "explicitly assigns lifecycle support",
+            "human SRE or incident commander remains the operational owner",
+            "Do not classify those candidates as learning dispositions",
+            "a terminal incident state is recorded",
+            "explicitly asks for operational closeout",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, sre_agent)
+
+        self.assertIn("recovery-lifecycle.md", sre_ladder)
+        self.assertIn("incident-handoff.md", sre_ladder)
+        self.assertIn(
+            "Bounded incident assistance; owns the technical record through recovery only when assigned",
+            fleet_guide,
+        )
+        self.assertNotIn("Every new operational fact", sre_agent)
+        self.assertNotIn("Learning dispositions:", sre_agent)
+        self.assertNotIn("incident-state/v2", sre_agent)
+        self.assertNotIn("→ Handing to:", sre_agent)
+        self.assertNotIn(
+            "Names the recommendation owner, urgency, approval, verification, rollback, and learning dispositions",
+            triage_scenario,
+        )
+        self.assertIn(
+            r'pattern: "(?im)^\\s*learning dispositions?\\s*:"', triage_scenario
+        )
+        self.assertIn('of: ["incident-state/v2", "→ handing to:"]', triage_scenario)
+        self.assertNotIn("Learning dispositions (incident still live", drill_packets)
+        self.assertIn(
+            "Durable discovery candidates (incident still live — evidence only, not dispositions)",
+            drill_packets,
+        )
+
+        recovery = _compact(
+            (ROOT / "skills/incident-investigation/references/recovery-lifecycle.md").read_text(
+                encoding="utf-8"
+            )
+        )
+        handoff = _compact(SRE_HANDOFF.read_text(encoding="utf-8"))
+        self.assertIn("incident-state/v2", recovery)
+        self.assertIn("→ Handing to:", handoff)
+
     def test_all_agent_outputs_carry_lineage_and_resolved_model_evidence(self) -> None:
         self.assertEqual(8, len(AGENTS))
         for path in AGENTS:
-            text = _compact(path.read_text(encoding="utf-8"))
+            text = _agent_contract_text(path)
             with self.subTest(agent=path.stem):
                 self.assertIn("Run/attempt:", text)
                 self.assertIn("Model:", text)
@@ -76,7 +189,7 @@ class GraphContractTests(unittest.TestCase):
 
     def test_delegate_failure_path_is_explicit_and_has_no_scheduler_claim(self) -> None:
         for filename in ("software-engineer.md", "sre.md", "observability-engineer.md", "agent-engineer.md"):
-            text = _compact((ROOT / "agents" / filename).read_text(encoding="utf-8"))
+            text = _agent_contract_text(ROOT / "agents" / filename)
             with self.subTest(agent=filename):
                 self.assertIn("empty, malformed, partial, timed-out, or killed delegate return", text)
                 self.assertIn("failed attempt, never success", text)

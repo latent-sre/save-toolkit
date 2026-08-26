@@ -476,6 +476,60 @@ model-migration question, or explicit owner approval for one fixed-budget reliab
 **Next action:** None while deferred. Do not rerun unchanged bytes merely to turn timeouts green, and
 do not move reference-dependent behavior graders into discovery.
 
+### HOST-003 — restore direct-mode `sre` measurements under the CLI tool-inventory drift
+
+**Status:** `decision-needed` (2026-08-26)
+
+**Outcome:** `evals/run_evals.py --run` can grade a `mode: direct` / `kind: agent` scenario that
+pins `save-toolkit:sre` again, without weakening the fail-closed runtime boundary.
+
+**Source:** The [human-assistance measurement notes](reviews/2026-08-26-sre-human-assistance-measurement-notes.md)
+record that Claude Code CLI 2.1.243–2.1.246 lists an `--agent`-pinned agent's frontmatter
+`Grep`/`Glob` in the tool inventory while denying them at call time, so `enforce_runtime_boundary`
+refuses every such trial as INCONCLUSIVE. Reproduced on a clean `main` archive; not a fleet result.
+
+**Reference reachability (2026-08-26):** The same clean room denies `Read`, so no trial has ever
+read an `incident-investigation` reference — 5 of 126 recorded trials tried and were denied. Since
+`1fb4727` the `incident-state/v2` record lives only in `recovery-lifecycle.md`, so the two sustained-
+recovery regression scenarios cannot pass in the harness even once the inventory drift is fixed. The
+owner decides among: (a) allow reads of the plugin snapshot path only (the CLI accepts path-scoped
+tool specifiers), which also makes reference loading measurable via the bundle's canary tokens;
+(b) keep the tool-less clean room and record sustained response as unmeasurable; or (c) move the
+schema back into the agent body, reversing part of the step-5 trim.
+
+**Prerequisites:** None structural. The owner decides between accepting the pinned agent's declared
+`Grep`/`Glob` in `expected_runtime_tools` (with a red/green test that still rejects any tool the
+frontmatter does not declare) and finding a CLI flag that masks them. Editing agent frontmatter to
+dodge the check is not an option.
+
+**Acceptance:** A direct `sre` scenario grades PASS/FAIL rather than INCONCLUSIVE on the current
+CLI; a focused test goes red when an undeclared tool appears in the inventory; the boundary
+documentation in `evals/README.md` states the accepted rule.
+
+**Next action:** Owner chooses the rule; `software-engineer` implements it with the focused test.
+
+### GRADER-004 — make `incident_recovery_authority` negation-aware
+
+**Status:** `decision-needed` (2026-08-26)
+
+**Outcome:** The two regression recovery scenarios stop failing on correct denials, so a red there
+means a behavior regression rather than grader fragility.
+
+**Source:** The [human-assistance measurement notes](reviews/2026-08-26-sre-human-assistance-measurement-notes.md)
+quote the flagged text on `main` and candidate alike: "Rollback/recovery: N/A — recovery already
+executed", "noted here for the caller's later dispatch, not opened as a task now", and "it shouldn't
+be: dispatching `observability-engineer` or `scribe` while the incident is still in
+`monitoring-recovery`". `main` does not clear the scenarios at threshold 1.0 under those conditions.
+
+**Prerequisites:** None structural. Follow the established fixture convention in `evals/test_graders.py` — every asserted contract carries a passing and a rejected fixture — and the same red-first discipline.
+
+**Acceptance:** Each quoted denial is a passing fixture; each affirmative form of the same sentence
+is a rejected fixture; the existing affirmative rejections still hold; the two regression scenarios
+are re-measured on the accepted candidate revision.
+
+**Next action:** Owner accepts the item; `agent-engineer` extends `_claim_is_negated` and the fixture
+tables in `evals/test_graders.py`.
+
 ## Deferred
 
 ### EFFECT-001 — effect-bound execution broker

@@ -649,8 +649,26 @@ class FleetValidatorTests(unittest.TestCase):
                 if source.name == filename:
                     text = text.replace(before, after)
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            for relative in validate_fleet.CONDITIONAL_HANDOFF_CONTRACTS.values():
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text((ROOT / relative).read_text(encoding="utf-8"), encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
         return failures
+
+    def test_sre_conditional_handoff_requires_an_explicit_pointer(self) -> None:
+        failures = self._agents_with_mutation(
+            "sre.md", "incident-handoff reference", "conditional handoff details"
+        )
+        self.assertIn("missing handoff contract", "\n".join(failures))
+
+    def test_sre_conditional_handoff_rejects_a_negated_pointer(self) -> None:
+        failures = self._agents_with_mutation(
+            "sre.md",
+            "read `incident-investigation`'s incident-handoff reference before forming the packet",
+            "do not read `incident-investigation`'s incident-handoff reference before forming the packet",
+        )
+        self.assertIn("missing handoff contract", "\n".join(failures))
 
     def test_model_alias_is_accepted(self) -> None:
         """An alias must produce NO failure at all, not merely avoid one message.
@@ -927,7 +945,7 @@ class NonDelegatingHandoffTests(unittest.TestCase):
 
 
 class SharedHandoffBlockTests(unittest.TestCase):
-    """The `## Rules` block is duplicated across the delegating agents; pin it byte-identical.
+    """The delegating agents' inline or predicate-loaded rules stay byte-identical.
 
     It was NOT identical: `observability-engineer` carried two straight quotes where `software-engineer` and `sre`
     have curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
@@ -939,7 +957,10 @@ class SharedHandoffBlockTests(unittest.TestCase):
 
     @staticmethod
     def _rules_block(name: str) -> str:
-        text = (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
+        relative = validate_fleet.CONDITIONAL_HANDOFF_CONTRACTS.get(
+            name, Path("agents") / f"{name}.md"
+        )
+        text = (ROOT / relative).read_text(encoding="utf-8")
         match = re.search(r"^## Rules\n(.*?)(?=\n## |\Z)", text, re.S | re.M)
         assert match is not None, f"{name}: no '## Rules' section"
         return match.group(1)

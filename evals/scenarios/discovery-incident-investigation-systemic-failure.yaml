@@ -1,0 +1,30 @@
+schema_version: 1
+id: discovery-incident-investigation-systemic-failure
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+prompt: |
+  I am the SRE helping with an active checkout incident. Checkout, payments, and auth are all
+  degrading through a shared request path; retry volume and queue saturation keep rising even
+  though the original traffic spike has ended. Help me select the investigation depth and state
+  what must remain in the incident record. Do not apply a mitigation.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes the SRE investigation-depth router
+  - Selects systemic-failure work from evidence rather than from a person's seniority
+  - Preserves the severity, blast-radius, timeline, hypotheses, and mitigation spine
+  - Keeps mitigation human-executed
+graders:
+  - type: contains_any
+    of: ["systemic failure", "systemic-failure"]
+  - type: contains_all
+    of: ["severity", "blast radius", "timeline", "hypotheses", "mitigation"]
+  - type: contains_any
+    of: ["evidence", "retry", "saturation", "shared"]
+  - type: contains_any
+    of: ["human execution", "human-executed", "human release owner", "do not apply"]
+  - type: not_contains
+    of: ["elite engineer", "elite sre", "i applied", "i restarted", "i deployed"]

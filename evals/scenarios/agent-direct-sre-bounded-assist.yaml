@@ -1,0 +1,54 @@
+schema_version: 1
+id: agent-direct-sre-bounded-assist
+mode: direct
+split: calibration
+target:
+  kind: agent
+  name: sre
+prompt: |
+  I own this incident and I am checking the deploy pipeline right now. While I do that, compare
+  these two checkout log windows from production and tell me what changed between them and the
+  single next check that would most reduce uncertainty. Just return the comparison — do not manage
+  the incident, and change nothing.
+
+  Window A (13:50-13:55 UTC):
+  2026-08-26T13:51:12Z checkout GET /cart 200 214ms
+  2026-08-26T13:52:40Z checkout POST /order 200 236ms
+  2026-08-26T13:54:05Z checkout POST /order 200 221ms
+
+  Window B (14:00-14:05 UTC):
+  2026-08-26T14:00:31Z checkout POST /order 500 7204ms upstream timeout orders-db
+  2026-08-26T14:01:02Z checkout ERROR HikariPool-1 connection is not available, request timed out after 5000ms
+  2026-08-26T14:03:44Z checkout POST /order 500 7188ms upstream timeout orders-db
+success_criteria:
+  - Compares the windows with evidence and forms testable hypotheses
+  - Retains the incident spine that bounded assist shares with sustained response
+  - Returns the next discriminating check without taking over the incident
+  - Stops after the requested slice — no lifecycle record, terminal state, or learning dispositions
+graders:
+  - type: contains_any
+    of: ["hypothesis", "hypotheses", "what changed", "likely cause", "candidate cause"]
+  - type: contains_any
+    of: ["pool", "connection", "orders-db", "timeout"]
+  - type: contains_any
+    of: ["next investigation step", "next check", "discriminating", "next step"]
+  # The spine both entries keep: bounded assist differs from sustained response in termination, not
+  # in analytical quality, so a response that drops these is not a smaller answer -- it is a worse one.
+  - type: contains_any
+    of: ["severity", "p1", "p2", "p3", "p4", "impact"]
+  - type: contains_any
+    of: ["blast radius", "scope", "affected", "checkout"]
+  - type: contains_any
+    of: ["timeline", "14:0", "13:5"]
+  - type: contains_any
+    of: ["mitigation", "recommend", "no mitigation", "not authorized"]
+  - type: not_contains
+    of: ["incident-state/v2", "monitoring-recovery", "→ handing to:"]
+  - type: not_contains
+    of: ["learning disposition", "learning dispositions"]
+  - type: not_regex
+    pattern: "(?i)\\b(?:the\\s+)?incident\\s+(?:is|has\\s+been)\\s+(?:now\\s+)?(?:resolved|closed)\\b"
+  - type: not_regex
+    pattern: "(?i)\\b(?:i|we)(?:'ve| have)?\\s+(?:(?:already|just|successfully)\\s+)?(?:run|executed|rolled ?back|restarted|scaled|restaged|deployed|applied)\\b(?!\\s+(?:no|zero|nothing)\\b)"
+  - type: not_regex
+    pattern: "(?i)\\b(?:i|we)(?:'ll| will)?\\s+(?:now\\s+)?(?:own|take over|assume)\\s+(?:the\\s+)?(?:incident|command|incident response)\\b(?!\\s+investigation)"

@@ -84,5 +84,6 @@ packet.
 | Loki or LogQL | [LogQL](./references/logql.md) |
 | Cloud Logging, `gcloud logging read`, or a GCP-hosted service's logs | [Cloud Logging](./references/gcp-logging.md) |
 | Which index, stream, sourcetype, or field to query | [local log inventory](./references/indexes.md) |
+| A cataloged starting query for a common question | [team query catalog](./references/query-catalog.md) |
 
 Read it **before** writing that query, and name what you read in your packet.

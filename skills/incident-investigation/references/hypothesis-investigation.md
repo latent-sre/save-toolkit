@@ -1,0 +1,57 @@
+# Hypothesis investigation — prove the cause
+
+Use this mode when the symptom is confirmed, first response is no longer enough, and the next work
+is to distinguish candidate causes with evidence. Stabilize user impact first when a safe human-
+executed mitigation is available; do not turn a plausible story into root cause.
+
+## Use this mode when
+
+- First response has stabilized the situation or cannot do so, and the cause is still unknown.
+- Recent changes must be correlated with the incident timeline.
+- Competing causes can be separated by predictions and observations.
+- The observed scope is still one service or otherwise bounded; systemic breadth is not yet proven.
+
+Return to [first response](./first-response.md) if the symptom matches a documented procedure and no
+causal investigation is needed. Move to [systemic failure](./systemic-failure.md) only when evidence
+shows a distributed or self-sustaining mechanism.
+
+## Where the loop lives
+
+The loop itself is the `sre` agent's Method — characterize, build the UTC timeline, write the
+differential with a prediction per candidate, test to eliminate, five whys past the trigger, and
+conclude at the evidence level — with `root-cause` owning the causal-testing discipline. This
+reference does not restate it. Ownership map only—not a load: the `stack-profile` observability
+reference names which backend serves each signal today, and `obs-logs`, `obs-metrics`,
+`obs-traces`, and `obs-alerting` own the queries; do not assume a vendor from this file. When a
+common question already has a cataloged starting query, `obs-logs`' team query catalog holds it
+with the result shape a healthy service produces — start from that entry rather than composing a
+new query, and carry its verification state forward rather than upgrading it.
+
+## Common application-operations failure modes
+
+- **Bad deploy or config:** errors begin at the change time; compare release, revision, instance,
+  and configuration evidence.
+- **Memory or quota saturation:** correlate `cf events` with memory evidence. Diego may append
+  `(out of memory)` to status 137 when Garden reports OOM, while bare status 137 also has non-OOM
+  causes and can still represent OOM on some containerd foundations. Do not infer the cause from
+  the exit code alone. *[sourced: cloudfoundry/executor `run_step.go`; garden-runc-release issue
+  #112]*
+- **Slow or failing dependency:** upstream latency and timeout errors rise together; confirm the
+  affected path.
+- **Connection or thread-pool exhaustion:** saturation leads latency, then errors.
+- **Certificate, credential, or secret expiry:** failures begin sharply at an expiry boundary.
+
+## Return to the incident record
+
+Preserve severity, blast radius, the UTC timeline, every tested hypothesis with evidence for and
+against, the current cause/confidence, and mitigation performed by a human or recommended for human
+execution. Durable code, detection, and documentation work remains proposed next-phase work until
+the active incident reaches its terminal recovery state.
+
+Ownership map only—not a load: mitigation goes to the human release owner; durable code changes go
+to `software-engineer`; later signal and alert work goes to `observability-engineer`; a proven
+systemic or distributed mechanism changes this skill's mode to systemic failure.
+
+```text
+q_iihi_5b2d
+```

@@ -1,0 +1,70 @@
+---
+name: incident-investigation
+description: >-
+  Help an SRE choose the investigation depth for an active alert or incident, especially when
+  deciding whether to continue first response, begin hypothesis-driven investigation, or examine a
+  systemic multi-service failure. Triggers: 'what incident mode is this', 'is first response still
+  enough', 'does this need systemic analysis'. Not for engineering seniority or design rigor
+  (eng-ladder), incident command or communications (incident-command), or resolved-incident
+  documentation.
+---
+
+# Incident investigation
+
+Select an **incident work mode**, not a person's title or seniority.
+
+**Whoever loaded this skill still owns the work.** A skill load deepens the current lane; it never
+transfers ownership and never confers another lane's tool posture. When the typed `sre` agent loads
+this, `sre` owns the current bounded technical task and owns the technical record through verified
+recovery only when the caller explicitly assigns that lifecycle. When any other context loads it, that
+context remains the owner, holds only its own tools, and must delegate to `sre` if the guarded
+read-only investigation posture is actually required — do not emit a record that names `sre` as owner
+when no delegation occurred. Either way the human SRE or incident commander stays the operational
+owner. This skill changes investigation depth and support span only; it grants no tools, production
+authority, command role, or permission to apply a mitigation.
+
+## Select the support span
+
+- **Bounded assist is the default.** Return the requested evidence slice, preserve the incident
+  spine, name unknowns, and stop at the caller's stated condition.
+- **Sustained response is explicit.** Select it only when the caller assigns lifecycle support, asks
+  `sre` to continue through recovery, or supplies an active `monitoring-recovery` record and asks to
+  continue it. Then read [recovery lifecycle](./references/recovery-lifecycle.md) and remain on the
+  technical record through its supported terminal.
+- **Handoff context is conditional.** When calling `researcher`, handling a failed delegate return,
+  or changing ownership, read [incident handoff](./references/incident-handoff.md). Do not load it
+  for a bounded answer returned directly to the same human owner.
+
+## Select from current evidence
+
+Start with the least-deep mode supported by the evidence. Read only that mode's reference, then
+change modes when an observed predicate below becomes true. Do not preload neighboring modes as a
+checklist.
+
+| Evidence now | Mode and reference |
+|---|---|
+| A new alert or report is untriaged, impact is not bounded, or a documented procedure may apply | **First response** — read [first-response](./references/first-response.md) |
+| The symptom is confirmed and the next task is to distinguish candidate causes with evidence | **Hypothesis investigation** — read [hypothesis-investigation](./references/hypothesis-investigation.md) |
+| Evidence shows multi-service or shared-dependency scope, a cascade, retry storm, saturation collapse, feedback loop, or metastability | **Systemic failure** — read [systemic-failure](./references/systemic-failure.md) |
+
+Signal characterization is a companion, not a higher mode. When exact start time, blast radius,
+trend, or the baseline golden signals are missing, also read
+[signal-characterization](./references/signal-characterization.md). Do not load it merely to repeat
+signal definitions already established in the incident record.
+
+## Preserve the incident spine
+
+At every mode, keep these fields current and evidence-labelled; use `[unverified]` instead of
+inventing a value:
+
+- severity and user impact;
+- blast radius and trend;
+- UTC timeline;
+- hypotheses with evidence for and against;
+- mitigation already performed by a human or recommended for human execution.
+
+The mode changes what evidence to seek, not who acts. Severity, roles, communications, and the
+authoritative command timeline belong to `incident-command`; causal testing uses `root-cause`;
+production effects remain human-executed under the existing gate. A resolved incident exits this
+ladder before postmortem or operational closeout begins. Possible durable discoveries remain
+unclassified evidence until the caller separately invokes the owning closeout lane.

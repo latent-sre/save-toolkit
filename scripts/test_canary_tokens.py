@@ -31,6 +31,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
                 "skills/obs-metrics/references/promql.md": "body\n\nq_ompr_0001\n",
                 "skills/obs-logs/references/logql.md": "body\n\nq_ollq_0002\n",
                 "skills/akamai-edge/references/edge.md": "body\n\nq_akedge_0003\n",
+                "skills/incident-investigation/references/first-response.md": "body\n\nq_iifr_0004\n",
                 # a bundle outside REQUIRED_GLOBS may carry no token at all
                 "skills/backend-craft/references/api.md": "no token here\n",
             })
@@ -43,6 +44,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
                 "skills/obs-metrics/references/promql.md": "q_dup_0001\n",
                 "skills/obs-metrics/references/wql.md": "q_dup_0001\n",
                 "skills/akamai-edge/references/edge.md": "q_akedge_0003\n",
+                "skills/incident-investigation/references/first-response.md": "q_iifr_0004\n",
             })
             failures = check_canary_tokens.check(root)
             self.assertEqual(len(failures), 1, failures)
@@ -56,6 +58,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
             _tree(root, {
                 "skills/obs-traces/references/traceql.md": "body with no token\n",
                 "skills/akamai-edge/references/edge.md": "q_akedge_0003\n",
+                "skills/incident-investigation/references/first-response.md": "q_iifr_0004\n",
             })
             failures = check_canary_tokens.check(root)
             self.assertEqual(len(failures), 1, failures)
@@ -80,6 +83,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
                 # the required-bundle file counts as carrying none.
                 "skills/obs-logs/references/logql.md": "q_ab and Q_UPPER_0001\n",
                 "skills/akamai-edge/references/edge.md": "q_akedge_0003\n",
+                "skills/incident-investigation/references/first-response.md": "q_iifr_0004\n",
             })
             failures = check_canary_tokens.check(root)
             self.assertTrue(any("logql.md" in f and "carries none" in f for f in failures), failures)

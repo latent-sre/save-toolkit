@@ -1,0 +1,62 @@
+# Systemic failure — analyze distributed mechanisms and shared fate
+
+Use this mode when evidence shows the incident is broader than one tidy proximate cause. Reason in
+systems, feedback loops, and failure domains while the typed `sre` lane continues to assist the
+human incident team. This mode does not confer seniority or production authority.
+
+## Use this mode when
+
+- Multiple services or a shared dependency are affected.
+- Evidence shows a cascade, retry storm, saturation collapse, feedback loop, correlated failure, or
+  metastability.
+- Recovery requires breaking a self-sustaining mechanism, not merely removing the original trigger.
+- The investigation must identify contributing conditions and containment gaps across boundaries.
+
+If evidence instead supports one bounded cause in one service, return to
+[hypothesis investigation](./hypothesis-investigation.md).
+
+## Reason about the system
+
+- **Failure domains and shared fate.** Identify the smallest failure unit, what shares fate with it,
+  and where one failure crosses a boundary.
+- **Cascading timeouts.** A slow dependency blocks caller resources until callers also appear down.
+- **Retry storms or thundering herd.** Retries amplify load because backoff, jitter, or circuit
+  breaking is missing or ineffective.
+- **Saturation collapse.** A queue, pool, connection, thread, CPU, or memory limit reaches a latency
+  knee and then fails.
+- **Poison message or stuck queue.** One item blocks a partition while backlog grows.
+- **Control-loop feedback.** Autoscaling, health checks, load balancing, or remediation reacts in a
+  way that increases impact.
+- **Correlated failure.** A shared database, auth service, DNS path, cell, zone, or control plane
+  affects otherwise separate services.
+- **Metastability.** The system stays degraded after the trigger disappears. Identify the load or
+  feedback that a human must safely shed to restore a stable state.
+
+## Produce
+
+1. The systemic mechanism, contributing factors, and evidence strength—never just the trigger.
+2. The fastest safe mitigation for human execution, including how it breaks the mechanism and how
+   recovery will be verified.
+3. Resilience proposals such as bounded timeouts, retries with backoff and jitter, circuit breakers,
+   bulkheads, backpressure, load shedding, idempotency, graceful degradation, or dependency
+   isolation, selected only when the evidence supports them.
+4. A specific detection strategy for later `observability-engineer` work and a blameless account of
+   why detection, diagnosis, mitigation, or containment was difficult for later closeout. Name the
+   earlier-warning signal—such as dependency-latency burn, saturation, or retry rate—rather than
+   saying only that monitoring should improve.
+
+## Operate with humility
+
+- Distinguish a proven mechanism from a coherent but unverified narrative.
+- Prefer reversible, operable mitigations the human team can execute under pressure.
+- Preserve severity, blast radius, timeline, hypotheses, and mitigation in the incident record even
+  when the mechanism spans many components.
+- Resilience code changes return to the caller for `software-engineer`; engineering altitude for a
+  multi-component design is then selected with `eng-ladder`.
+- Detection, SLO, prevention, and evidence-capture proposals return to the caller for later
+  `observability-engineer` work; the durable retrospective method belongs to `postmortem` after
+  terminal recovery.
+
+```text
+q_iisf_7c3e
+```

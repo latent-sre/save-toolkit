@@ -36,6 +36,9 @@ STALE = (
     "splunk-triage", "grafana-dashboards", "moogsoft-correlation",
     "thousandeyes-network", "slo-error-budget", "instrument-service",
     "api-design", "ops-stack-integration", "spa-architecture", "ops-cli",
+    # `sre-ladder` was briefly restored on 2026-08-26 as the incident-mode router, then renamed
+    # `incident-investigation` the same day: the router selects evidence-driven work modes, not
+    # rungs, and `sre` as a prefix keeps colliding with substring tooling. It stays retired.
     "sde-ladder", "sre-ladder", "tdd-workflow", "safe-refactor",
     "debug-rca", "self-improve-loop", "context-engineering", "tool-design",
     "handoff-protocol", "route-request", "adr-template", "runbook-template",
