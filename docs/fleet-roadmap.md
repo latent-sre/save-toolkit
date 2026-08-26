@@ -1071,6 +1071,13 @@ given the same result. Option 2 is verifiably in force — the bar computes to 2
 inflection) have not been measured; each is a pure widening on a scenario that already passed, so
 none can have turned a pass into a fail.
 
+**Measured (2026-08-26).** Batch `20260826T000538Z-2b8d7cc5` closed the last gap: the two graders
+rewritten on this branch but never measured — `defers-code-graph` (sole grader, `split: regression`,
+so it gates) and `defers-runtime-selection` — both returned **3/3**, and all three regression
+scenarios in that suite passed 3/3. 14 of 15 trials passed; the fifteenth was a clean 600 s harness
+timeout that produced no response, so the batch verdict is `INCONCLUSIVE` rather than PASS.
+**No grader on this branch is reasoning-only any more.** Routing is `[verified]` 62/62 conclusive.
+
 **Next action:** `latent-sre` accepts or rejects the exact PR #170 head. If accepted, close the
 GRADER-003 instrument and shape work and leave one follow-up: a batch that exercises the widened
 graders, which would let `agent-authoring-roster-graph-contract` earn `regression`. Do not widen a

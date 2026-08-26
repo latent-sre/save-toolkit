@@ -284,3 +284,47 @@ measurements recorded.
 Running totals: discovery `0/12 → 4/12 → 9/12 → 8/12 → 12/12`; direct 8/9 then 8/9; routing
 `[verified]` 48/48 with no misroute in any trial of any batch; **fifteen reds traced, zero
 behavioural defects**.
+
+## Seventh batch — the last unmeasured graders
+
+`[verified]` Batch `20260826T000538Z-2b8d7cc5`, candidate `33e3e8c`, `--mode discovery
+--match workflow-graph-engineering`, same conditions. Integrity PASS. Cost USD 6.11.
+
+| Scenario | Split | Trials | Routing |
+|---|---|---|---|
+| `approval-effect` | regression | 3/3 | 3/3 |
+| **`defers-code-graph`** | regression | **3/3** | 3/3 |
+| `defers-roster-graph` | regression | 3/3 | 3/3 |
+| `defers-runtime-implementation` | calibration | 2/3 + 1 inconclusive | 2/2 conclusive |
+| **`defers-runtime-selection`** | calibration | **3/3** | 3/3 |
+
+**14 of 15 trials passed; the fifteenth produced nothing at all.** It ran to 600.06 s against a
+600 s ceiling with `exit_code: null`, `result_count: 0`, `resolved_model: null`, and zero attempted
+invocations — a clean harness timeout on a calibration scenario. The runner classified it
+`INCONCLUSIVE` rather than FAIL, which is correct: there is no response to grade and no routing
+decision to judge. **The batch verdict is therefore `INCONCLUSIVE`, not PASS**, and that is reported
+as-is rather than rounded up to "14/15 green".
+
+**What this batch was for.** Two graders on this branch had been rewritten and never measured, and
+both are the *sole* grader on their scenario:
+
+- **`defers-code-graph`** — `split: regression`, so it gates. Its regex was rewritten twice by me
+  (the `"go list "` trailing-space change I wrongly described as word-bounding, then genuine parity
+  with its twin after review found it was missing `grep`, `regex`, and `import
+  statement/line/edge`). **3/3 confirms the rewrite.** Had it been wrong, a gating scenario would
+  have broken for everyone.
+- **`defers-runtime-selection`** — the `defer`/`pending` inflection widening. **3/3.**
+
+Both are now `[verified]` rather than reasoned. **No grader on this branch remains
+reasoning-only.**
+
+Also of note: the `runtime-selection` seam that over-triggered at root 1/3 in two earlier batches
+came back 3/3 here. That is one more data point on a calibration measurement, not a fix — nothing
+about that seam was changed.
+
+**No sixteenth red.** Every grader that ran, passed, so the fifteen-for-fifteen
+behaviour-present-anyway record stands unchanged rather than extended.
+
+Running totals: discovery `0/12 → 4/12 → 9/12 → 8/12 → 12/12`, plus this batch's 14/14 conclusive;
+direct 8/9 twice; routing `[verified]` **62/62 conclusive** with no misroute in any trial of any
+batch; **fifteen reds traced, zero behavioural defects**; seven batches, USD 30.02.
