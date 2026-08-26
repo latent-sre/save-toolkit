@@ -120,6 +120,16 @@ def _safe_component(value: str, flag: str) -> str:
     return value
 
 
+def _timeout_text(value: str | bytes | None) -> str:
+    """Normalize TimeoutExpired partial pipes under text and byte-producing runtimes."""
+
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
 def reserve_attempt_output(
     runs_dir: pathlib.Path,
     run_id: str,
@@ -334,8 +344,8 @@ def main(argv: list[str] | None = None) -> int:
                 errors="replace", env=env, timeout=args.timeout, input=prompt,
             )
     except subprocess.TimeoutExpired as exc:
-        base.with_suffix(".stdout.json").write_text(exc.stdout or "", encoding="utf-8")
-        base.with_suffix(".stderr.txt").write_text(exc.stderr or "", encoding="utf-8")
+        base.with_suffix(".stdout.json").write_text(_timeout_text(exc.stdout), encoding="utf-8")
+        base.with_suffix(".stderr.txt").write_text(_timeout_text(exc.stderr), encoding="utf-8")
         meta = {
             "run_id": args.run_id,
             "attempt_id": args.attempt_id,
@@ -370,6 +380,36 @@ def main(argv: list[str] | None = None) -> int:
             "timeout_s": args.timeout,
         }))
         return 124
+    except (SystemExit, OSError, subprocess.SubprocessError) as exc:
+        message = str(exc) or type(exc).__name__
+        base.with_suffix(".stdout.json").write_text("", encoding="utf-8")
+        base.with_suffix(".stderr.txt").write_text(message + "\n", encoding="utf-8")
+        meta = {
+            "run_id": args.run_id,
+            "attempt_id": args.attempt_id,
+            "step": args.step,
+            "lane": args.lane,
+            "agent": args.agent,
+            "model_requested": args.model,
+            "models_resolved": [],
+            "available_tools": list(tools),
+            "allowed_tools": list(tools),
+            "plugin_dir": str(plugin_dir),
+            "service_root": str(service_root),
+            "exit_code": None,
+            "launcher_exit_code": 1,
+            "duration_s": round(time.time() - started, 1),
+            "total_cost_usd": None,
+            "num_turns": None,
+            "is_error": True,
+            "session_id": None,
+            "outcome": "FAILED",
+            "failure_class": "SETUP_OR_LAUNCH",
+            "caller_attested_credential_free_runtime": True,
+        }
+        base.with_suffix(".meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+        print(f"incident-drill lane setup or launch failed: {message}", file=sys.stderr)
+        return 1
 
     base.with_suffix(".stdout.json").write_text(proc.stdout, encoding="utf-8")
     base.with_suffix(".stderr.txt").write_text(proc.stderr, encoding="utf-8")
@@ -378,7 +418,8 @@ def main(argv: list[str] | None = None) -> int:
     except json.JSONDecodeError:
         payload = {}
     result = payload.get("result") if isinstance(payload, dict) else None
-    if isinstance(result, str):
+    result_present = isinstance(result, str) and bool(result.strip())
+    if result_present:
         base.with_suffix(".md").write_text(result, encoding="utf-8")
 
     meta = {
@@ -398,9 +439,18 @@ def main(argv: list[str] | None = None) -> int:
         "duration_s": round(time.time() - started, 1),
         "total_cost_usd": payload.get("total_cost_usd") if isinstance(payload, dict) else None,
         "num_turns": payload.get("num_turns") if isinstance(payload, dict) else None,
-        "is_error": payload.get("is_error") if isinstance(payload, dict) else None,
+        "is_error": (
+            True if proc.returncode == 0 and not result_present
+            else payload.get("is_error") if isinstance(payload, dict) else None
+        ),
         "session_id": payload.get("session_id") if isinstance(payload, dict) else None,
     }
+    if proc.returncode == 0 and not result_present:
+        meta.update({
+            "launcher_exit_code": 1,
+            "outcome": "FAILED",
+            "failure_class": "EMPTY_RESULT",
+        })
     base.with_suffix(".meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
 
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -410,7 +460,7 @@ def main(argv: list[str] | None = None) -> int:
     if proc.returncode != 0:
         print("----- stderr (tail) -----")
         print(proc.stderr[-1500:])
-    return proc.returncode
+    return proc.returncode if proc.returncode != 0 or result_present else 1
 
 
 if __name__ == "__main__":

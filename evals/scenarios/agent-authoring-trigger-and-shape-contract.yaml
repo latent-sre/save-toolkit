@@ -30,7 +30,7 @@ graders:
   - type: contains_any
     of: ["activation", "routing"]
   - type: regex
-    pattern: '(?i)\boutput[\s\-_]?(?:shape|format|contract|schema|behaviou?r)\b'
+    pattern: '(?i)\boutput[\s\-_]?(?:shape|format|contract|schema|behaviou?r)\b|\bjson[\s\-_]?(?:shape|contract|schema)(?:\s+(?:compliance|assertions?))?\b|\brequired\s+json\s+schema\b'
   - type: regex
     pattern: '(?i)\b(?:separate|separately|independent|independently|distinct|apart|in isolation|decoupl)\w*\b'
   - type: contains_any
@@ -41,8 +41,10 @@ graders:
     # traced red on this item, fifteenth with the behaviour present.
   - type: regex
     pattern: '(?i)\bone candidate\b|\bcandidate budget\b|\bsingle[-\s]candidate\b|\bcandidates?\b[^.\n]{0,24}\bexactly one\b|\bexactly one\b[^.\n]{0,24}\bcandidates?\b|\bno second candidate\b' 
-  - type: contains_any
-    of: ["human acceptance", "human approves", "human promotion", "adoption authority", "adoption condition", "adoption criteria", "adoption gate", "adopted when"]
+  - type: regex
+    pattern: '(?i)\b(?:human\s+acceptance|human\s+approves|human\s+promotion|adoption\s+(?:authority|condition|criteria|gate)|adopted\s+when|adopt\s+only\s+if)\b'
+  - type: regex
+    pattern: '(?i)\b(?:stop|halt|end|terminate)\w*\b[^.\n]{0,100}\b(?:when|if|after|on|budget(?:\s+is)?\s+exhausted|no[\s-]progress|safety|authority)\b|\b(?:budget(?:\s+is)?\s+exhausted|no[\s-]progress|safety|authority)\b[^.\n]{0,100}\b(?:stop|halt|end|terminate)\w*\b'
   # Echo-rejector, required by evals/README.md:231. Every grader above is satisfied by this
   # scenario's own prompt, so without this one a prompt echo scored PASS. The vocabulary is
   # anchored on "Binary pass/fail", which IS in the committed batch record
@@ -51,6 +53,6 @@ graders:
   # themselves are gone (EVIDENCE-001). Inflections are covered deliberately: an earlier draft used
   # \bscored?\b, which missed "scoring" -- the form evals/README.md itself uses.
   - type: regex
-    pattern: '(?i)\bpass\s*(?:/|or)\s*fail\b|\bexact match\b|\bscor(?:e|es|ed|ing|er)\b|\bincumbent\b|\btrue positives?\b'
+    pattern: '(?i)\bpass\s*(?:/|or)\s*fail\b|\bexact match\b|\bscor(?:e|es|ed|ing|er)\b|\bincumbent\b|\btrue positives?\b|\bprecision\b[^.\n]{0,40}\brecall\b|\bassertions?\b|\bvalid\s+required\s+json\b|\brequired\s+json\b[^.\n]{0,24}\bvalid\b'
   - type: not_contains
     of: ["unbounded iterations", "iterate until correct", "keep trying candidates"]

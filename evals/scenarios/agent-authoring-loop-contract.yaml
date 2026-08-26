@@ -32,15 +32,23 @@ graders:
   - type: contains_all
     of: ["verifier", "budget"]
   - type: regex
-    pattern: '(?i)\biterations?\b[^.\n]{0,60}(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d|\b\d+\s*(?:propose|improve|edit|verify|pass|cycle|round))|(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d)[^.\n]{0,40}\biterations?\b'
+    pattern: '(?is)\bentry(?:\s+state)?\s*:\s*\S.{0,240}\bmutable\s+state\b|\bentry\s+state\b.{0,240}\bmutable\s+state\b|\bmutable\s+state\b.{0,240}\bentry(?:\s+state)?\s*:'
   - type: regex
-    pattern: '(?i)\b(?:cost|token|spend|dollar)s?\b[^.\n]{0,60}\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b|\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b[^.\n]{0,40}\b(?:cost|token|spend|dollar)s?\b'
+    pattern: '(?i)\bindependent\b[\s-]{0,20}\bverifier\b|\bverifier\b[^.\n]{0,80}\bindependent\b'
+  - type: regex
+    pattern: '(?i)\biterations?\b[^.\n]{0,60}(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d|\b\d+\s*(?:propose|improve|edit|verify|pass|cycle|round))|(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d|\bat\s+most\s+\d+)[^.\n]{0,40}\biterations?\b'
+  - type: regex
+    pattern: '(?i)\b(?:candidate\s+(?:budget|cap|limit)|(?:allow|maximum|max|at most|exactly)\s+(?:one|two|three|\d+)\s+candidate(?:s|\s+revisions?)?|(?:one|two|three|\d+)\s+candidate\s+revisions?)\b'
+  - type: regex
+    pattern: '(?i)\b(?:cost|token|spend|dollar)s?\b[^.\n]{0,60}\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b|\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b[^.\n]{0,40}\b(?:cost|token|spend|dollar)s?\b|\bbudgets?\b[^.\n]{0,120}\b\d+\s*(?:minutes?|hours?)\b|\$\s*\d+(?:\.\d+)?\s+(?:execution\s+)?budget\b'
+  - type: regex
+    pattern: '(?i)\bsuccess\s+(?:is|means|requires?|condition|criterion)\b[^.\n]*|\b(?:success(?:\s+(?:condition|criterion))?)\s*(?::|-)\s*\S'
   - type: contains_any
     of: ["no-progress", "no progress"]
-  - type: contains_any
-    of: ["safety stop", "authority stop", "safety/authority"]
-  - type: contains_any
-    of: ["human acceptance", "human approves", "human promotion", "human release owner", "promotion authority"]
+  - type: regex
+    pattern: '(?i)\b(?:safety|authority)\s+stop\b|\b(?:stop|halt)\w*\b[^.\n]{0,100}\b(?:missing\s+authority|unsafe\s+effects?)\b'
+  - type: regex
+    pattern: '(?i)\b(?:human(?:\s+acceptance)?|release[\s-]owner)\b[^.\n]{0,80}\bpromotion\b|\bpromotion(?:\s+authority)?\b[^.\n]{0,80}\b(?:human|release[\s-]owner)\b'
   - type: contains_any
     of: ["durable evidence", "recorded evidence"]
   - type: not_contains
