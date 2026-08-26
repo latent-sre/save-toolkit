@@ -276,37 +276,87 @@ and accepts or rejects it before merge. F7, F11, N4, `GRAPH-002`, and `WF-001` r
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
-**Status:** `decision-needed` (2026-08-24)
+**Status:** `ready` (2026-08-26). The consumer, runtime, and sandbox boundary are accepted; no
+implementation has started.
 
 **Owner:** `software-engineer` owns implementation; `agent-engineer` owns the skill text that
 carries runtime-specific references; `stack-profile`'s decision owner names the runtime.
 
-**Outcome:** `software-engineer` can implement an accepted `workflow-graph-engineering` design
-contract against a named runtime — checkpointer and interrupt patterns, reducer and fan-out
-primitives, idempotent effect handlers, cancellation, replay or shadow verification — with pinned
-upstream references and the design's evaluation plan (recovery, temporal, consistency, budget)
-executed as tests.
+**Outcome:** `software-engineer` can implement the accepted
+`checkout-payments-timeout-drill/v1` workflow contract against LangGraph inside a hardened,
+disposable Docker Compose lab named `graph-sandbox/v1`. The lab runs the synthetic checkout,
+payments, and inventory applications alongside the graph runner and proves checkpointer and
+interrupt behavior, reducers and fan-out, idempotent effect handling, cancellation, recovery, and
+budget enforcement without creating production deployment authority.
 
 **Source:** Owner direction on 2026-08-24 (stage 2). The
 [`2026-08-23 research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md)
 records that no inspected runtime supplies the whole portable contract, which is why selection
-follows the design and a concrete consumer rather than preceding them.
+follows the design and a concrete consumer rather than preceding them. Owner direction on
+2026-08-26 accepted the consumer-specific Docker Compose sandbox and offline-first delivery in the
+[`GRAPH-002 runtime decision`](decisions/2026-08-26-graph-002-docker-sandbox-runtime.md).
 
-**Decision required:** the first consumer graph (a team-approved workflow, not the fleet itself while
-`WF-001` is blocked), the runtime candidates admissible under `stack-profile`'s landing runtime
-decision, and whether references live in a new skill or under an existing `software-engineer`-loaded
-craft skill.
+**Accepted boundary:** The consumer is `checkout-payments-timeout-drill/v1`, not the fleet itself.
+The allowed runtime is Python 3.12 with exactly pinned `langgraph==1.0.8` and
+`langgraph-checkpoint-sqlite==3.1.1`, executed only inside `graph-sandbox/v1`; direct host execution
+is prohibited. The default profile has deterministic model fixtures and an internal-only network.
+A later bounded Terra profile requires separate approval of its trial count, spend ceiling,
+ephemeral credential path, and externally enforced endpoint-restricted egress; Compose alone is not
+that egress control. Runtime-specific guidance stays conditional and does not make LangGraph a
+universal fleet runtime.
 
-**Prerequisites:** The `workflow-graph-engineering` method merged at `f1afd57` (closed 2026-08-26; see the closed table) — satisfied; a named consumer graph with an accepted design contract;
-a `stack-profile` runtime decision with an owner; `researcher`/GitHits evidence pinned to exact
-upstream revisions.
+**Prerequisites:** The `workflow-graph-engineering` method merged at `f1afd57` (closed 2026-08-26;
+see the closed table) — satisfied. The named consumer and sandbox decision are accepted. Before the
+first container executes, the implementation must: (1) start from current `origin/main`; (2) confirm
+a reachable Linux Docker daemon; (3) pin every base image by version and digest; (4) add the exact
+Python dependencies to `requirements-dev.txt` without importing them from Gate A or the isolated
+read-only guard; (5) turn the consumer behavior into a versioned typed workflow contract; and (6)
+write the sandbox preflight predicate and its red-first negative fixtures. Live model credentials or
+paid calls are not prerequisites for the offline stages.
 
-**Acceptance:** One synthetic consumer graph implemented from its contract, passing the contract's
-recovery, temporal, consistency, and budget evaluations under independent verification bound to the
-exact revision; no production deployment authority is created.
+**Implementation plan:** Deliver independently reviewable offline slices in this order:
 
-**Next action:** Owner names the consumer and the admissible runtimes; then scope the reference set
-and open the implementation slice.
+1. **Sandbox contract and preflight:** define the allowed Compose model and reject root users,
+   privileged mode, added capabilities, writable root filesystems, published ports, external
+   networks, Docker-socket or credential mounts, missing image digests, missing resource limits, and
+   an unavailable daemon.
+2. **Running synthetic topology:** containerize the existing checkout fixture; add deterministic
+   payments and inventory simulators plus health checks; add an optional bounded load-generator
+   profile. No host ports or general egress are required.
+3. **Executable graph:** implement typed state, stable run/thread/attempt identities, reducer and
+   fan-out behavior, approval interrupts, SQLite checkpoints, attempt/time/spend budgets,
+   cancellation, and evidence-envelope output.
+4. **Failure and recovery:** exercise application failure, payment latency, runner termination and
+   resume, checkpoint failure, duplicate effect prevention, crash-after-dispatch `UNKNOWN`, budget
+   exhaustion, and cancellation acknowledgement. Retrying a LangGraph node never substitutes for
+   consumer-owned idempotency or reconciliation.
+5. **Exact-revision verification:** run the focused unit, contract, integration, recovery, and
+   negative sandbox suites; validate the final Compose model; record image digests, commands, exit
+   status, environment, and what each result does not prove; obtain independent review and
+   verification of the exact commit. Only then may an owner approve a separately bounded Terra
+   behavioral run.
+
+**Acceptance:** All conditions are required. (1) The sandbox preflight fails for each forbidden
+privilege, mount, network, port, credential, writable-root, unpinned-image, and missing-limit case and
+passes the reviewed Compose model. (2) The healthy running topology completes one checkout through
+the real synthetic payments and inventory HTTP boundaries. (3) Restarting `graph-runner` against the
+same run-scoped checkpoint resumes the correct thread without reapplying committed nodes. (4) Effect
+tests prove idempotent duplicate handling and preserve `UNKNOWN` after ambiguous dispatch rather than
+claiming exactly-once execution. (5) Recovery, temporal ordering, reducer/fan-out consistency,
+approval, cancellation, and attempt/time/spend budget cases pass deterministically offline. (6) The
+evidence bundle binds the graph contract, exact revision, image digests, run/node/edge/task/attempt/
+replay/checkpoint/effect identities, commands, exit statuses, and environment; teardown never holds
+the only evidence copy. (7) Independent exact-revision verification passes. (8) No production
+system, credential, deployment target, dashboard, alert route, or authority is introduced.
+
+**Rollback:** Before merge, delete the implementation branch. After the offline lab lands, disable or
+remove its explicit entrypoint and return `incident-drill` to the current manual file-and-lane
+procedure; export sanitized evidence first, then remove only the run-scoped containers, network, and
+volumes. No production data migration exists.
+
+**Next action:** Start Docker Desktop or another approved Linux Docker daemon, then open the first
+implementation branch for slice 1: the versioned consumer contract, Compose model, sandbox preflight,
+and red-first negative fixtures. Do not add live Terra egress or credentials in that slice.
 
 ### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
 
