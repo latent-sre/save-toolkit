@@ -53,6 +53,45 @@ jobs:
       - name: Gate A -- mechanical audit
         run: python scripts/gate_a.py
 
+  component-tests:
+    # Gate A is deliberately structural and does not run test_*.py, on the reasoning that component
+    # tests belong with the implementation that changed them. That holds for authoring, but it left
+    # CI running no test file at all -- and three were failing on main with nobody notified. This is
+    # that gate.
+    #
+    # Cost, measured 2026-08-26: 30 tests in ~48 s wall, sequential. Three files dominate
+    # (evals/test_run_evals.py ~15 s, scripts/test_mutation_guard.py ~13 s,
+    # scripts/test_readonly_guard.py ~8 s), so parallelising would buy little and would make a
+    # failure harder to attribute. The pip install adds a few seconds.
+    #
+    # Limitation, stated rather than discovered later: this runs on ubuntu only. Windows behaviour
+    # of these tests is unverified in CI; validate-windows still covers the structural gate there.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      # PyYAML is required, not optional: evals/test_graders.py is layered, and without the
+      # dependency its layer-2 scenario checks SKIP while the run still reports green. Running
+      # these tests without it is worse than not running them.
+      - name: Install pinned dev dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      # Run the runner's own behavioural tests DIRECTLY first. Invoked through the runner they
+      # see COMPONENT_TEST_CHILD=1 and skip their recursion-unsafe cases, so the runner would be
+      # the only thing in CI whose guard never actually fires -- the exact defect class this job
+      # exists to catch.
+      - name: Component-test runner self-tests
+        run: python scripts/test_run_component_tests.py
+
+      - name: Component tests
+        run: python scripts/run_component_tests.py
+
   claude-plugin-contract:
     # The repository validator enforces fleet-specific authority and projection rules. Claude's
     # own strict validator independently checks manifest, component discovery, frontmatter, and
