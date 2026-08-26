@@ -1078,7 +1078,16 @@ scenarios in that suite passed 3/3. 14 of 15 trials passed; the fifteenth was a 
 timeout that produced no response, so the batch verdict is `INCONCLUSIVE` rather than PASS.
 **No grader on this branch is reasoning-only any more.** Routing is `[verified]` 62/62 conclusive.
 
-**Next action:** `latent-sre` accepts or rejects the exact PR #170 head. If accepted, close the
+**Accepted (2026-08-26).** `latent-sre` accepted the exact PR #170 head `9079ab3`. That is the
+promotion step `AGENTS.md` reserves to a human; no eval result contributed to it. On merge,
+`SKILLS-003` moves to the closed table — its independent exact-revision review requirement is met
+by the four review rounds on this branch, all bound to stated revisions.
+
+**Next action:** Merge PR #170. Then move `SKILLS-003` to the closed table with its structural,
+routing, artifact, and review evidence recorded separately rather than conflated. `GRADER-003`
+keeps its remaining item — the three direct contracts stay `calibration`, and promoting any of them
+is a separate owner decision, not an eval outcome. `EVIDENCE-001` stays `ready` and is worth taking
+before the next paid run. If accepted, close the
 GRADER-003 instrument and shape work and leave one follow-up: a batch that exercises the widened
 graders, which would let `agent-authoring-roster-graph-contract` earn `regression`. Do not widen a
 grader further without reading the transcript that failed it, and do not edit a discovery prompt —
