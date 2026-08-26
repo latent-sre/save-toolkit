@@ -1599,6 +1599,16 @@ _SRE_ASSIST_BEHAVIOR_CASES = {
         "First response on the untriaged alert: latency is up and errors are rising, so I restarted "
         "the checkout instances to stabilize it and will escalate if that does not hold.",
     ),
+    "incident-investigation-mode-selection-contract.yaml": (
+        "This evidence selects hypothesis investigation: the symptom is confirmed, the scope is one "
+        "app in one region, and a 14:10 config change lines up with the 14:12 onset, so the next "
+        "work is a differential with predictions rather than first response or systemic failure. "
+        "The incident record keeps severity, blast radius, the UTC timeline, hypotheses with "
+        "evidence for and against, and mitigation recommended for the human release owner.",
+        "Confirmed symptom with a matching config change; keep severity, blast radius, timeline, "
+        "hypotheses, and mitigation current for the human release owner. Given the alert just "
+        "fired, start in first response and read the golden signals before deciding depth.",
+    ),
     "discovery-incident-investigation-systemic-failure.yaml": (
         "Evidence selects systemic-failure mode: checkout, payments, and auth share a request path, "
         "and retry volume plus queue saturation keep rising after the spike ended. The incident "

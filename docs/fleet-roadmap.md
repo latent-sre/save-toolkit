@@ -762,6 +762,15 @@ record that Claude Code CLI 2.1.243–2.1.246 lists an `--agent`-pinned agent's 
 `Grep`/`Glob` in the tool inventory while denying them at call time, so `enforce_runtime_boundary`
 refuses every such trial as INCONCLUSIVE. Reproduced on a clean `main` archive; not a fleet result.
 
+**Reference reachability (2026-08-26):** The same clean room denies `Read`, so no trial has ever
+read an `incident-investigation` reference — 5 of 126 recorded trials tried and were denied. Since
+`1fb4727` the `incident-state/v2` record lives only in `recovery-lifecycle.md`, so the two sustained-
+recovery regression scenarios cannot pass in the harness even once the inventory drift is fixed. The
+owner decides among: (a) allow reads of the plugin snapshot path only (the CLI accepts path-scoped
+tool specifiers), which also makes reference loading measurable via the bundle's canary tokens;
+(b) keep the tool-less clean room and record sustained response as unmeasurable; or (c) move the
+schema back into the agent body, reversing part of the step-5 trim.
+
 **Prerequisites:** None structural. The owner decides between accepting the pinned agent's declared
 `Grep`/`Glob` in `expected_runtime_tools` (with a red/green test that still rejects any tool the
 frontmatter does not declare) and finding a CLI flag that masks them. Editing agent frontmatter to
