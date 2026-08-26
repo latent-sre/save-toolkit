@@ -224,6 +224,34 @@ class GraphContractTests(unittest.TestCase):
         self.assertIn("Instrumentation prerequisite", incident_status)
         self.assertIn("ready|blocked", incident_status)
 
+    def test_no_incident_terminal_is_enumerated_and_propose_only(self) -> None:
+        lifecycle = _compact(
+            (
+                ROOT / "skills/incident-investigation/references/recovery-lifecycle.md"
+            ).read_text(encoding="utf-8")
+        )
+        sre_ladder = _compact(
+            (ROOT / "skills/incident-investigation/SKILL.md").read_text(encoding="utf-8")
+        )
+        first_response = _compact(
+            (
+                ROOT / "skills/incident-investigation/references/first-response.md"
+            ).read_text(encoding="utf-8")
+        )
+        for terminal in ("`resolved`", "`escalated-security`", "`no-incident`"):
+            with self.subTest(terminal=terminal):
+                self.assertIn(terminal, lifecycle)
+        self.assertIn("never records it unprompted", lifecycle)
+        for token in (
+            "no-incident",
+            "a human confirms it",
+            "recovered on its own",
+            "signals are arriving",
+        ):
+            with self.subTest(router_token=token):
+                self.assertIn(token, sre_ladder)
+        self.assertIn("no-incident", first_response)
+
 
 if __name__ == "__main__":
     unittest.main()

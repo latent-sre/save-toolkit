@@ -606,6 +606,41 @@ are re-measured on the accepted candidate revision.
 **Next action:** Owner accepts the item; `agent-engineer` extends `_claim_is_negated` and the fixture
 tables in `evals/test_graders.py`.
 
+### EVAL-004 — measure the incident guidance added on 2026-08-26
+
+**Status:** `ready` (2026-08-26)
+
+**Outcome:** Every behavior claim added to `incident-command` and `incident-investigation` on
+2026-08-26 has a discriminating scenario, so a later edit that removes the behavior turns a
+scenario red instead of passing silently.
+
+**Source:** Seven guidance changes shipped with structural verification only. `incident-command`
+carries them on `work/incident-command-evidence-and-command`; the `incident-investigation` set was
+uncommitted at the time this item was written. No claim below has been measured against a model.
+
+| Claim to measure | Where |
+|---|---|
+| A mitigation packet names the perishable evidence captured or knowingly forgone | `mitigation-selection.md` rules 2 and 6 |
+| A restart recommendation does not silently discard the state that would explain the hang | `mitigation-selection.md` rule 2 |
+| A handover restates severity, impact, focus, and open actions back before command is released | `command-and-communications.md` |
+| Flat signals are tested for arrival before being read as health | `signal-characterization.md` pattern 5 |
+| `no-incident` is proposed, never recorded, and is blocked by stale telemetry or self-recovery | `incident-investigation/SKILL.md`, `first-response.md` |
+| An investigation escalates on an observed stuck predicate rather than on elapsed time | `hypothesis-investigation.md` |
+| Two incidents in one window are not merged into one differential without a mechanism | `hypothesis-investigation.md` |
+
+**Prerequisites:** None structural. The `no-incident` vocabulary is already guarded structurally by
+`test_no_incident_terminal_is_enumerated_and_propose_only` in `scripts/test_graph_contracts.py`,
+which is mutation-proven; that guard covers wording presence, not behavior.
+
+**Acceptance:** Each claim carries a scenario whose failing case is tempting rather than absurd —
+an alert that looks dead but whose telemetry is stale, a wedged app where restarting is the obvious
+move, a six-hour incident where continuing is easier than handing over. Graders discriminate by
+adjacency, not bare substring presence. Each scenario is measured red on a revision without the
+guidance before it is accepted green with it.
+
+**Next action:** Write the scenarios as one batch and measure them in a single run; report which
+claims survive and tighten the wording of any that do not.
+
 ## Deferred
 
 ### EFFECT-001 — effect-bound execution broker

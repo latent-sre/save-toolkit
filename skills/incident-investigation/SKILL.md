@@ -52,6 +52,24 @@ trend, or the baseline golden signals are missing, also read
 [signal-characterization](./references/signal-characterization.md). Do not load it merely to repeat
 signal definitions already established in the incident record.
 
+## The ladder has a bottom
+
+Not every page is an incident. When the symptom does not reproduce, no user impact is evidenced,
+and the golden signals are at baseline, the supported outcome is a proposed `no-incident` finding
+rather than a deeper mode. Record the evidence for it; a human confirms it, and this lane never
+records that terminal on its own.
+
+Two conditions block the finding:
+
+- **Baseline that is really absence.** Confirm the signals are arriving before reading flat as
+  healthy; see [signal-characterization](./references/signal-characterization.md), pattern 5.
+- **A symptom that recovered on its own.** Self-recovery removes the trigger, not the mechanism,
+  and it is how metastability, restart loops, and saturation leaks stay invisible until they do
+  not recover. Route it to hypothesis investigation at lower urgency instead of closing it.
+
+Keep this outcome cheap to reach. Raising an alarm must stay cheap, and it only does when closing
+one that came to nothing carries no blame.
+
 ## Preserve the incident spine
 
 At every mode, keep these fields current and evidence-labelled; use `[unverified]` instead of

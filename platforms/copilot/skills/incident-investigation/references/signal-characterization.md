@@ -45,7 +45,10 @@ A matching timestamp makes a change a priority hypothesis, not a proven cause.
 4. **Errors rise while traffic and latency stay flat:** investigate logic, deploy, or configuration
    rather than assuming load.
 5. **Internal signals stay flat while users report impact:** inspect the external path, region, DNS,
-   routing, and synthetic-probe or health-endpoint evidence.
+   routing, and synthetic-probe or health-endpoint evidence. Also test whether the signals are
+   arriving at all: a dead exporter, a stalled scrape, or a no-data panel reads exactly like health.
+   Ownership map only—not a load: `obs-metrics` and `obs-logs` own staleness and no-data semantics
+   for their backends, and `obs-alerting` owns the no-data alert state.
 
 Return the exact start time, blast radius, and trend—worsening, stable, or recovering—with evidence
 labels. Those fields determine whether first response can continue or hypothesis investigation has
