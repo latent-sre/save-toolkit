@@ -836,28 +836,31 @@ _REMAINING_PREFIX_RE = re.compile(
     rf"(?P<duration>{_DURATION_TEXT})\b"
 )
 _LEFT_DURATION_RE = re.compile(
-    rf"(?i)\b(?P<duration>{_DURATION_TEXT})\s+(?:is|are)\s+left\b"
+    rf"(?i)\b(?P<duration>{_DURATION_TEXT})\s+(?:(?:is|are)\s+)?left\b"
 )
 _NOW_PLUS_RE = re.compile(rf"(?i)\bnow\s*\+\s*(?P<duration>{_DURATION_TEXT})\b")
 _RECOVERY_PROGRESS_CONTEXT_RE = re.compile(
     r"(?i)\b(?:recovery(?:\s+(?:evidence|gate|monitoring|progress|window|interval|period|clock))?"
-    r"|healthy\s+(?:elapsed|progress|window|interval|period))\b"
+    r"|healthy\s+(?:elapsed|progress|window|interval|period)"
+    r"|(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?)[^.\n]{0,80}(?:healthy|baseline)"
+    r"|(?:healthy|baseline)[^.\n]{0,80}(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?))\b"
 )
 _APPROXIMATE_RECOVERY_DURATION_RE = re.compile(
     rf"(?i)\b{_DURATION_NUMBER_TEXT}\s*-\s*ish\s*(?:minutes?|mins?|m|seconds?|secs?|s)\b"
 )
 _FRACTIONAL_RECOVERY_PROGRESS_RE = re.compile(
     r"(?i)\b(?P<fraction>half)\s+of\s+(?:the\s+)?recovery\s+"
-    r"(?:window|gate|interval|period)\s+(?:has\s+|have\s+)?(?P<kind>elapsed|remain(?:s|ing)?)\b"
+    r"(?:window|gate|interval|period)\s+(?:has\s+|have\s+)?"
+    r"(?P<kind>elapsed|passed|remain(?:s|ing)?)\b"
 )
 _HEALTHY_AGO_RE = re.compile(
     rf"(?i)(?:\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?)\b"
-    rf"[^.\n]{{0,80}}?\b(?:returned?|recovered?|became|have\s+been|has\s+been)\b"
+    rf"[^.\n]{{0,80}}?\b(?:returned?|recovered?|became|(?:are|is|were|was)\s+back|have\s+been|has\s+been)\b"
     rf"[^.\n]{{0,40}}?\b(?:healthy|baseline)\b[^.\n]{{0,40}}?"
     rf"\b(?P<duration>{_DURATION_TEXT})\s+ago\b|"
     rf"\b(?P<duration_before>{_DURATION_TEXT})\s+ago\b[^.\n]{{0,40}}?"
     rf"\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?)\b[^.\n]{{0,80}}?"
-    rf"\b(?:returned?|recovered?|became|have\s+been|has\s+been)\b"
+    rf"\b(?:returned?|recovered?|became|(?:are|is|were|was)\s+back|have\s+been|has\s+been)\b"
     rf"[^.\n]{{0,40}}?\b(?:healthy|baseline)\b)"
 )
 
@@ -881,9 +884,13 @@ def _duration_seconds(raw: str) -> float:
 
 
 def _recovery_progress_context(response: str, start: int, end: int) -> bool:
-    """Return whether a duration claim belongs to the recovery gate's progress sentence."""
+    """Return whether a claim belongs to the current or immediately preceding recovery clause."""
     sentence_start = max(
         response.rfind(separator, 0, start) for separator in (".", "!", "?", "\n")
+    ) + 1
+    context_start = max(
+        response.rfind(separator, 0, max(0, sentence_start - 1))
+        for separator in (".", "!", "?", "\n")
     ) + 1
     sentence_ends = [
         position
@@ -891,7 +898,7 @@ def _recovery_progress_context(response: str, start: int, end: int) -> bool:
         if (position := response.find(separator, end)) != -1
     ]
     sentence_end = min(sentence_ends, default=len(response))
-    return _RECOVERY_PROGRESS_CONTEXT_RE.search(response[sentence_start:sentence_end]) is not None
+    return _RECOVERY_PROGRESS_CONTEXT_RE.search(response[context_start:sentence_end]) is not None
 
 
 def recovery_progress_consistency(
@@ -954,7 +961,11 @@ def recovery_progress_consistency(
     total_seconds = elapsed_seconds + remaining_seconds
     for match in _FRACTIONAL_RECOVERY_PROGRESS_RE.finditer(response):
         checked += 1
-        expected = elapsed_seconds if match.group("kind").lower() == "elapsed" else remaining_seconds
+        expected = (
+            elapsed_seconds
+            if match.group("kind").lower() in {"elapsed", "passed"}
+            else remaining_seconds
+        )
         observed = total_seconds / 2
         if observed != expected:
             return False, f"fractional recovery prose value {observed:g}s != {expected}s"

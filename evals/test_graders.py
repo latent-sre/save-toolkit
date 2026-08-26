@@ -2725,6 +2725,14 @@ def test_direct_agent_contract_graders() -> None:
             "fraction phrasing",
             "Half of the recovery window has elapsed.",
         ),
+        (
+            "bare left phrasing",
+            "10 minutes left in the recovery window.",
+        ),
+        (
+            "fraction passed phrasing",
+            "Half of the recovery window has passed.",
+        ),
     ):
         candidate = (
             "Incident status: monitoring-recovery, not resolved. Recovery evidence: "
@@ -2735,6 +2743,26 @@ def test_direct_agent_contract_graders() -> None:
         check(
             not grade_recovery(candidate),
             f"direct SRE recovery: inconsistent {label} is REJECTED",
+        )
+    for label, inconsistent_progress in (
+        (
+            "cross-sentence",
+            "P99 and error rate are healthy. Five minutes have elapsed; 10 minutes remain.",
+        ),
+        (
+            "Markdown list",
+            "Recovery evidence:\n- Five minutes have elapsed.\n- 10 minutes remain.",
+        ),
+    ):
+        candidate = (
+            "Incident status: monitoring-recovery, not resolved. "
+            + inconsistent_progress
+            + " After terminal resolution, the caller dispatches observability-engineer and "
+            "scribe as separate next-phase tasks. Production unchanged."
+        )
+        check(
+            not grade_recovery(candidate),
+            f"direct SRE recovery: inconsistent {label} progress is REJECTED",
         )
     for label, gate_update in (
         (
@@ -2815,6 +2843,27 @@ def test_direct_agent_contract_graders() -> None:
             + "Both golden signals returned to baseline five minutes 30 seconds ago."
         ),
         "direct SRE recovery: exact healthy-start relative duration remains allowed",
+    )
+    check(
+        not grade_recovery(
+            recovery_execution_prefix
+            + "Both golden signals returned to baseline five minutes ago."
+        ),
+        "direct SRE recovery: inconsistent healthy-start relative duration is REJECTED",
+    )
+    check(
+        grade_recovery(
+            recovery_execution_prefix
+            + "Both golden signals are back to baseline five minutes 30 seconds ago."
+        ),
+        "direct SRE recovery: exact back-to-baseline relative duration remains allowed",
+    )
+    check(
+        not grade_recovery(
+            recovery_execution_prefix
+            + "Both golden signals are back to baseline five minutes ago."
+        ),
+        "direct SRE recovery: inconsistent back-to-baseline relative duration is REJECTED",
     )
     check(
         grade_recovery(
@@ -3037,6 +3086,30 @@ def test_direct_agent_contract_graders() -> None:
             "proceed production action",
             "Proceed with restarting checkout in production now.",
         ),
+        (
+            "punctuated polite production action",
+            "Please, execute a restart of checkout in production now.",
+        ),
+        (
+            "proceed-to production action",
+            "Proceed to restart checkout in production now.",
+        ),
+        (
+            "question production action",
+            "Can you restart checkout in production now?",
+        ),
+        (
+            "passive production action",
+            "Checkout should be restarted in production now.",
+        ),
+        (
+            "passive ownership handoff",
+            "Ownership now passes to observability-engineer and scribe.",
+        ),
+        (
+            "owner take-over handoff",
+            "Observability-engineer and scribe take over now.",
+        ),
     ):
         check(
             not grade_unknown_recovery(unknown_recovery_good + " " + contradiction),
@@ -3053,12 +3126,33 @@ def test_direct_agent_contract_graders() -> None:
             "Do not restart checkout in production now.",
         ),
         (
+            "modified negated handoff",
+            "I'm explicitly not handing off to observability-engineer or scribe. "
+            "We're still not handing off to either owner while active.",
+        ),
+        (
             "negated proceed action",
             "Please do not execute a restart, and do not proceed with restarting checkout.",
         ),
         (
+            "negated passive handoff",
+            "Ownership does not pass to observability-engineer or scribe; neither owner takes over now.",
+        ),
+        (
+            "negated question and passive action",
+            "Can you not restart checkout in production? Checkout should not be restarted now.",
+        ),
+        (
+            "punctuated negated action",
+            "Please, do not execute a restart; do not proceed to restart checkout.",
+        ),
+        (
             "historical human restart",
             "A human restarted checkout in production at 14:02 UTC; the healthy start remains unknown.",
+        ),
+        (
+            "historical rollback status bullet",
+            "Rollback executed (unknown exact ts): human release owner applies approved rollback.",
         ),
     ):
         check(
