@@ -71,7 +71,8 @@ Load only the rows matched by the change:
 | Explicit operational closeout after an incident, drill, audit, or approved service/alert change | Apply [`disposition-policy.md`](skills/operational-learning/references/disposition-policy.md). A human-accepted fleet failure instead becomes one focused regression under [`artifact.md`](skills/agent-authoring/references/artifact.md). |
 
 Routing and behavioral evaluations are manual clean-room runs, never CI jobs. Use
-`evals/run_evals.py`; keep repository-local output under `.eval-runs/`.
+`evals/run_evals.py`; keep raw repository-local output under `.eval-runs/`. The runner automatically
+extracts its bounded durable summary to `docs/reviews/`; never commit the raw traces wholesale.
 
 Before pushing, ensure the live-tree structural gate passes:
 

@@ -32,8 +32,12 @@ from types import ModuleType
 EVAL_ROOT = Path(__file__).resolve().parent
 EVAL_BUNDLE_ROOT = EVAL_ROOT.parent
 TRUSTED_FRONTMATTER_PATH = EVAL_BUNDLE_ROOT / "scripts/fleet_frontmatter.py"
+SCRIPTS_ROOT = EVAL_BUNDLE_ROOT / "scripts"
+if str(SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
 
 import clean_room
+import capture_measurement_evidence
 import graders
 
 try:
@@ -46,7 +50,10 @@ ROOT = Path(os.environ.get("FLEET_ROOT") or EVAL_BUNDLE_ROOT).resolve()
 SCENARIOS_DIR = EVAL_ROOT / "scenarios"
 EVAL_SNAPSHOT_ROOT_ENV = "FLEET_EVAL_SNAPSHOT_ROOT"
 EVAL_INPUT_PATHS = ("run_evals.py", "graders.py", "clean_room.py", "scenarios")
-EVAL_SUPPORT_INPUT_PATHS = ("scripts/fleet_frontmatter.py",)
+EVAL_SUPPORT_INPUT_PATHS = (
+    "scripts/fleet_frontmatter.py",
+    "scripts/capture_measurement_evidence.py",
+)
 SCHEMA_VERSION = 1
 MODES = {"direct", "discovery"}
 SPLITS = {"calibration", "regression"}
@@ -54,6 +61,7 @@ TARGET_KINDS = {"skill", "agent"}
 ROUTING_EXPECTATIONS = {"fire", "not_fire"}
 DEFAULT_TRIALS = 3
 DEFAULT_THRESHOLD = 1.0
+RESPONSE_EXCERPT_CHARS = 600
 ALLOWED_BUILTIN_TOOLS = ("Skill", "Task")
 DENIED_TOOLS = (
     "Bash,Edit,Write,NotebookEdit,Read,Glob,Grep,WebFetch,WebSearch,ToolSearch,"
@@ -1369,6 +1377,34 @@ class ArtifactWriter:
         return self._write_json(self.root / "summary.json", {**summary, "provenance": self.provenance})
 
 
+def bounded_response_excerpt(response: str) -> str:
+    """Keep diagnostic wording without turning the durable record into a raw transcript."""
+
+    if len(response) <= RESPONSE_EXCERPT_CHARS:
+        return response
+    return response[:RESPONSE_EXCERPT_CHARS] + "… [truncated]"
+
+
+def persist_summary_and_evidence(
+    writer: ArtifactWriter,
+    summary: dict,
+    reviews_root: Path | None = None,
+) -> tuple[Path, Path]:
+    """Seal the private summary and require its bounded durable review record."""
+
+    summary_path = writer.write_summary(summary)
+    try:
+        evidence_path = capture_measurement_evidence.capture_eval_summary(
+            summary_path,
+            reviews_root or ROOT / "docs" / "reviews",
+        )
+    except (capture_measurement_evidence.CaptureError, FileExistsError, OSError) as exc:
+        raise clean_room.RunnerFailed(
+            f"private summary was written but durable evidence capture failed: {exc}"
+        ) from exc
+    return summary_path, evidence_path
+
+
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -1726,6 +1762,7 @@ def main() -> int:
                             },
                             "stream_diagnostics": execution.parsed.stream_diagnostics.to_summary(),
                             "details": details,
+                            "response_excerpt": bounded_response_excerpt(execution.parsed.response),
                             "argv": list(execution.command),
                         }
                     except (InconclusiveTrial, clean_room.AuthUnavailable) as exc:
@@ -1789,7 +1826,7 @@ def main() -> int:
                 )
             if integrity_errors:
                 overall = "INCONCLUSIVE"
-            summary_path = writer.write_summary({
+            summary_path, evidence_path = persist_summary_and_evidence(writer, {
                 "schema_version": 1,
                 "verdict": overall,
                 "selected": {"mode": args.mode, "split": args.split, "match": args.match},
@@ -1803,7 +1840,10 @@ def main() -> int:
             })
             if integrity_errors:
                 print("\nINCONCLUSIVE integrity check: " + "; ".join(integrity_errors))
-            print(f"\n{overall}: {verdicts.count('PASS')}/{len(verdicts)} scenarios passed; summary: {summary_path}")
+            print(
+                f"\n{overall}: {verdicts.count('PASS')}/{len(verdicts)} scenarios passed; "
+                f"summary: {summary_path}; durable evidence: {evidence_path}"
+            )
             return {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2}[overall]
     except clean_room.AuthUnavailable as exc:
         print(f"run_evals: {exc}", file=sys.stderr)

@@ -24,7 +24,7 @@ success_criteria:
   - Does not turn the roster into a code-dependency graph or select a runtime
 graders:
   - type: regex
-    pattern: '(?is)(?=.*\bnodes?\b)(?=.*\bedges?\b)(?=.*\bauthorit(?:y|ies)\b)(?=.*\b(?:terminat|terminal)\w*\b)'
+    pattern: '(?is)(?=.*\bnodes?\b)(?=.*\bedges?\b)(?=.*\b(?:authorit(?:y|ies)|owns?|ownership)\b)(?=.*\b(?:terminat|terminal)\w*\b)'
   - type: regex
     pattern: '(?i)\b\w[\w\-]*\s*(?:\u2192|-{1,3}>|={1,2}>|-\.->)\s*(?:\|[^|\n]{0,40}\|\s*)?\w[\w\-]*'
   # Window widened 40 -> 80 after batch 20260825T225402Z-8ff050e2 trial 3, which wrote
@@ -36,6 +36,14 @@ graders:
     pattern: '(?i)\bread[\s\-]?only\b[^.\n]{0,80}\breview\w*\b|\breview\w*\b[^.\n]{0,80}\bread[\s\-]?only\b'
   - type: regex
     pattern: '(?i)\bhuman\b[^.\n]{0,60}\beffects?\b|\beffects?\b[^.\n]{0,40}\bhuman\b'
+  - type: regex
+    pattern: '(?i)\b(?:handoff|hand-off)\w*\b[^.\n]{0,120}\b(?:coordinator|implementation|research|review|human|(?-i:[CIRV]))\b|\b(?:coordinator|implementation|research|review|human|(?-i:[CIRV]))\b[^.\n]{0,120}\b(?:handoff|hand-off)\w*\b'
+  - type: not_regex
+    pattern: '(?i)\b(?:no|without)\s+(?:affirmative\s+)?(?:handoffs?|hand-offs?)\b'
+  - type: regex
+    pattern: '(?i)\bjoins?\b[^.\n]{0,120}\b(?:coordinator|implementation|research|review|human|(?-i:[CIRV]))\b|\b(?:coordinator|implementation|research|review|human|(?-i:[CIRV]))\b[^.\n]{0,120}\bjoins?\b'
+  - type: not_regex
+    pattern: '(?i)\b(?:no|without)\s+(?:affirmative\s+)?joins?\b'
   - type: not_regex
     pattern: '(?i)must (?:use|implement with) (?:langgraph|networkx)'
   - type: not_regex

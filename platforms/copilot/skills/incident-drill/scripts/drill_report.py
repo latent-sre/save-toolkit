@@ -20,7 +20,19 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 import sys
+
+
+SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def _safe_component(value: str, flag: str) -> str:
+    if value in (".", "..") or not SAFE_COMPONENT.fullmatch(value):
+        raise SystemExit(
+            f"{flag} must be a safe path component: 1-128 ASCII letters, digits, '.', '_', or '-'"
+        )
+    return value
 
 
 def load(run_dir: pathlib.Path) -> list[dict]:
@@ -46,7 +58,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="emit JSON instead of the Markdown table")
     args = parser.parse_args(argv)
 
-    run_dir = args.runs_dir / args.run_id
+    run_id = _safe_component(args.run_id, "--run-id")
+    run_dir = args.runs_dir / run_id
     if not run_dir.is_dir():
         print(f"run directory not found: {run_dir}", file=sys.stderr)
         return 1

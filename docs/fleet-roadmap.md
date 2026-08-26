@@ -163,7 +163,10 @@ skills beyond the accepted generic consumer contract in this stage.
 
 ### DRILL-001 — apply the `incident-drill` evaluation backlog
 
-**Status:** `ready` (2026-08-25)
+**Status:** `active` (updated 2026-08-26). Backlog items 1–8 merged in PR #175. A three-case
+`gpt-5.6-terra` acceptance candidate is retained for exact-revision review; the item stays live
+until the owner accepts the reconstructed-case and cost-telemetry limitations and the evidence
+merges.
 
 **Owner:** `agent-engineer` owns the skill text, references, and templates; `software-engineer`
 owns the bundled scripts. Human acceptance of the exact revision remains with `latent-sre`.
@@ -188,14 +191,25 @@ rerun of the same three cases showing the authoring case no longer leaks ground 
 runnable chain, with the cost delta recorded; Gate A, links, canary, `test_check_links.py`, and
 strict plugin validation green; projections regenerated once.
 
-**Next action:** Apply items 1–3 first — they are the ones that made the authoring case lose — then
-rerun that case before touching the rest.
+**Terra acceptance (2026-08-26):** Setup, authoring, and retro passed their reconstructed published
+case categories against revision `9ca5758`. The authored migration-lock scenario re-scaffolded to
+six service files, seven evidence files, and five dispatchable packets; its service regression
+passed, distinctive ground-truth phrases and undispatchable markers were absent, and the retro kept
+fleet findings separate from coordinator defects. The original byte-exact prompts did not survive,
+so this is not transcript replay. The original authoring arm cost 205k tokens and 19 minutes; the
+Terra host exposes no token or USD telemetry, so a numeric delta is unavailable rather than guessed.
+Evidence: [`2026-08-26 Terra DRILL-001 acceptance`](reviews/2026-08-26-exercise-terra-drill-001-acceptance.md).
+
+**Next action:** `latent-sre` accepts the exact PR revision with the reconstructed-case and
+unavailable-cost limitations, or requires one priced Terra rerun on a host that exposes usage.
+After acceptance and merge, move the item to the closed ledger; do not reimplement items 1–8.
 
 ### GRAPH-001 — engineer the fleet itself as an executable workflow graph
 
-**Status:** `active` (updated 2026-08-25). Accepted fixes are published for exact-revision review in
-[PR #165](https://github.com/latent-sre/save-toolkit/pull/165); the candidate remains unpromoted
-until owner acceptance of that head.
+**Status:** `active` (updated 2026-08-26). [PR #165](https://github.com/latent-sre/save-toolkit/pull/165)
+merged at `5d94987`; its nine current, non-outdated review findings are addressed by follow-up
+candidate `d5c3189` on `work/close-graph-grader-evidence`. The item stays active until owner
+acceptance and merge of that exact follow-up revision.
 
 **Owner:** `agent-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
 the exact revision. Each accepted finding is implemented by the owner of the surface it names
@@ -255,54 +269,10 @@ proposed, a roadmap item with an owner; (3) any live control that lands ships in
 the focused red-to-green evidence `CONTRIBUTING.md` requires; (4) `WF-001` remains unchanged unless
 separately accepted.
 
-**Next action:** `latent-sre` reviews and accepts the exact PR #165 head revision before promotion.
-Resolve any current review finding or failed check on that revision. F7, F11, N4, `GRAPH-002`, and
-`WF-001` are out of scope for this item.
-
-### INCIDENT-001 — keep active-incident ownership in SRE through terminal recovery
-
-**Status:** `active` (2026-08-25) — the ownership contract merged in PR #164 and the first typed
-record merged in PR #167. Three accepted late-review gaps are being addressed on
-`work/incident-state-v2-review-fixes` from refreshed `origin/main`: record-last enforcement,
-tilde-fenced competing records, and unknown or fractional recovery progress.
-
-**Owner:** `agent-engineer` owns the fleet prompt, context, loop, and graph contract; `latent-sre`
-accepts the exact revision. Human incident command and release owners retain their existing live
-authority.
-
-**Outcome:** One typed `sre` lane owns a reliability incident from triage through sustained recovery
-and a named terminal state. It loads observability, platform, and database skills as context inside
-that lane. Its only agent call during the incident is a bounded sanitized public research question
-that returns to the same loop. After terminal resolution, the caller starts observability,
-engineering, and documentation as separate next-phase tasks; SRE does not dispatch them.
-
-**Source:** Owner direction on 2026-08-25 accepted the four-theme standard — Prompt selects and
-guides the owner, Context equips it, Loop governs work and termination, and Graph governs ownership
-transitions — and specifically chose sustained SRE incident ownership over combining SRE with the
-steady-state observability or documentation lanes. This accepts the SRE slice of `GRAPH-001` F4;
-it does not activate the held SRE capability additions from `SKILLS-003`.
-
-**Prerequisites:** Fresh branch from refreshed `origin/main`; current agent, skill, graph-validator,
-and eval behavior inspected before editing; one focused regression frozen and run on the incumbent
-before the candidate.
-
-**Acceptance:** (1) canonical `sre` delegation, `EXPECTED_DELEGATION`, and the roster expose only
-`researcher`; (2) SRE and `incident-command` keep `investigating`, `mitigating`, and
-`monitoring-recovery` nonterminal and require sustained same-signal evidence for `resolved`; (3)
-`observability-engineer`, `software-engineer`, and `scribe` are named as caller-dispatched next-phase owners, not
-live SRE delegates; (4) the same two-trial direct-SRE case, model, timeout, prompt, and graders fail
-the incumbent and pass the one candidate; (5) affected offline tests, generated projections, strict
-fleet validation, and Gate A pass, with main-thread-only `Agent(target)` enforcement reported as the
-host boundary; (6) `monitoring-recovery` responses retain operator prose and end with exactly one
-`incident-state/v2` JSON record that closes the state, owner, recovery window, production authority,
-and post-terminal caller-dispatch relationships; (7) integer seconds preserve fractional-minute
-progress, paired nulls preserve unknown progress without invention, and competing backtick or tilde
-JSON records fail closed.
-
-**Next action:** Require the frozen fractional and unknown-progress incumbent cases to fail at 0/2,
-the one exact candidate to pass both at 2/2 under the same model and timeout, all affected offline
-and structural checks to pass, and `latent-sre` to accept the exact follow-up PR head before
-promotion.
+**Next action:** `latent-sre` reviews exact follow-up revision `d5c3189`, including the nine recorded
+PR #165 dispositions in
+[`2026-08-26-graph-grader-evidence-closeout.md`](reviews/2026-08-26-graph-grader-evidence-closeout.md),
+and accepts or rejects it before merge. F7, F11, N4, `GRAPH-002`, and `WF-001` remain out of scope.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
@@ -508,7 +478,8 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 ### EVIDENCE-001 — stop losing measurement evidence by default
 
-**Status:** `ready` (2026-08-25)
+**Status:** `active` (updated 2026-08-26). Implementation candidate `d5c3189` is ready for
+exact-revision review; the item remains live until that candidate merges.
 
 **Owner:** `agent-engineer` owns the eval and acceptance evidence paths; `latent-sre` accepts the
 exact revision.
@@ -535,9 +506,15 @@ deliberately *not* kept — raw transcripts are large and may carry untrusted co
 requirement is the summary, the identities, and the verbatim phrasings a future reader would
 otherwise have to re-run to recover. Do not solve this by committing raw transcripts wholesale.
 
-**Next action:** Inventory where each measurement type currently writes — `.eval-runs/`, agent task
-output files, session scratchpads — and which of those the repository can reach at the moment a run
-finishes. Propose the capture step against that inventory before writing any tooling.
+**Evidence:** The producer inventory, reachable/unreachable host boundary, retained fields, and
+explicit raw-transcript exclusions are in
+[`2026-08-26-evidence-001-capture-design.md`](reviews/2026-08-26-evidence-001-capture-design.md).
+The candidate automatically captures sealed eval summaries, provides a validated exercise envelope,
+and adds a Gate A resolver for live-roadmap batch IDs. Focused capture and resolver suites pass 3/3
+each; the full component gate passes 31/31.
+
+**Next action:** `latent-sre` reviews and accepts or rejects exact candidate revision `d5c3189`.
+After merge, move the item to the closed ledger; no paid rerun is required solely to recover wording.
 
 ### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
@@ -692,12 +669,20 @@ closes the instrument and discovery contract-shape work; `SKILLS-003` closed sep
 four review rounds bound to stated revisions. It does **not** promote the three direct contracts;
 all remain `calibration` pending a separate owner decision.
 
-**Next action:** Prefer `EVIDENCE-001` before the next paid run so its evidence survives. Then run
-one direct `agent-authoring` batch under the standing pinned conditions to exercise the widened
-graders, especially `agent-authoring-roster-graph-contract`. A measured pass supplies evidence for
-a separate owner promotion decision; it does not change a split by itself. Do not widen a grader
-further without reading the transcript that failed it, and do not edit a discovery prompt — it is
-the routing stimulus and the 62/62 routing evidence depends on it staying byte-identical.
+**Terra transfer candidate (2026-08-26).** Three independent clean-context `gpt-5.6-terra` trials
+answered the three direct prompts without repository or grader access. Their retained bounded forms
+reproduced a 1/9 pre-fix result and pass 9/9 against exact candidate `d5c3189`; the keyword-rich
+incomplete and reproduced oracle-gap fixtures still reject. Full deterministic evidence is 884/884
+grader checks and 107 valid scenarios. See the
+[`baseline`](reviews/2026-08-26-exercise-terra-grader-transfer-baseline.md),
+[`candidate`](reviews/2026-08-26-exercise-terra-grader-transfer-candidate.md), and
+[`closeout`](reviews/2026-08-26-graph-grader-evidence-closeout.md). No Claude eval batch was run,
+and the Terra transfer is not automatic promotion authority.
+
+**Next action:** `latent-sre` reviews exact candidate `d5c3189` and separately decides whether the
+three direct scenarios remain `calibration` or are promoted. Merge the accepted grader correction,
+then close this item with that decision recorded. Do not edit a discovery prompt — it is the routing
+stimulus and the 62/62 routing evidence depends on it staying byte-identical.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
@@ -731,8 +716,8 @@ do not move reference-dependent behavior graders into discovery.
 
 ### ROUTE-002 — resolve the `obs-logs` / `obs-alerting` trigger collision
 
-**Status:** `active` (2026-08-20) — kept open: the "no other overlapping scenario moved" half of
-acceptance is not yet evidenced.
+**Status:** `active` (updated 2026-08-26). The missing overlap evidence now has a 7/7
+`gpt-5.6-terra` transfer candidate; the item stays live until exact-revision acceptance and merge.
 
 **Outcome:** One skill owns log-based alert design **in the canonical text**, and the routing suite
 contains a scenario that would fail if the other started firing for it. Both halves are required: the
@@ -753,40 +738,17 @@ results.
 the conflicting trigger or naming `obs-alerting`; and (2) the deferral scenario and every other
 overlapping scenario pass after the edit. Run a prior-revision baseline only for a red scenario.
 
-**Next action:** Establish the missing half of acceptance — run the *other* overlapping
-`obs-alerting`/`obs-logs` scenarios against the changed descriptions and show they remain green. If
-one is red, run that scenario at the prior revision to attribute it. Then close. Do not close on the
-defer scenario alone.
+**Terra overlap transfer (2026-08-26):** Seven independent clean-context trials saw one exact
+committed prompt and only the four current descriptions. All seven selected the expected owner:
+Akamai/GCP steady-state alert design and the log-derived saved-search alert went to `obs-alerting`;
+Akamai/GCP backend query construction went to `obs-logs`; both direct positives stayed with their
+owner. This is host-neutral description transfer, not a Claude Code Skill-discovery run or content-
+grader evidence. Evidence:
+[`2026-08-26 Terra ROUTE-002 overlap`](reviews/2026-08-26-exercise-terra-route-002-overlap.md).
 
-### SURFACE-001 — trim the user-facing surface (banner, retracted examples, shipped maintenance bytes)
-
-**Status:** `ready` (2026-08-13; progress 2026-08-23) — remaining: the two example-footnote
-compactions. The maintenance skills remain bundled by owner decision.
-
-**Outcome:** A user who opens any canonical skill reaches actionable content within a few lines: the
-shared evidence-default banner is gone, worked examples carry provenance as a single footnote instead
-of a paragraph retracting the example, retired learning packet/ledger machinery no longer ships in
-every install, and the packaging question for maintenance skills has a recorded decision.
-
-**Source:** The 2026-08-13 owner review measured the same four-line banner on all 29 then-current
-entrypoints, about 249 lines of provenance boilerplate, and two worked examples that retracted
-themselves: the `pcf-deploy` manifest interaction and `runbook` footer. The banner and retired
-learning packet/ledger paths were removed. The owner retained the maintenance bundles because no
-named consumer impact had been measured; only the two footnote compactions remain.
-
-**Prerequisites:** None blocking. By owner decision the maintenance skills stay in the shared
-package: no current measurement shows that their install size or discovery surface harms a named
-consumer. Reopen that packaging decision only with measured consumer impact attributable to those
-bundles.
-
-**Acceptance:** No shared evidence-default banner remains and adapters regenerate byte-clean; the two
-self-retracting examples keep their labels as one-line footnotes; the retired learning packet and
-ledger paths remain absent; Gate A passes; operational closeout still produces evidence-bound
-documentation dispositions and owners without execution authority.
-
-**Next action:** Compact the provenance paragraphs in the `pcf-deploy` and `runbook` worked examples
-to one-line footnotes. Keep the maintenance skills together unless the measured-impact reopen trigger
-fires.
+**Next action:** `latent-sre` accepts the 7/7 Terra transfer as the requested replacement for the
+Claude-only live runner, or requires a host-specific run. After acceptance and merge, close the
+item; no description edit or prior-revision baseline is indicated by the all-green transfer.
 
 ## Deferred
 

@@ -210,6 +210,23 @@ class IncidentDrillHarnessTests(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "safe path component"):
                 run_lane.reserve_attempt_output(runs, "..", "01", "builder", "attempt-3")
 
+    def test_report_rejects_run_ids_that_escape_the_runs_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runs = root / "runs"
+            outside = root / "outside-run"
+            runs.mkdir()
+            outside.mkdir()
+            (outside / "result.meta.json").write_text(
+                json.dumps({"run_id": "outside-run", "step": "01", "lane": "sre"}),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(SystemExit, "safe path component"):
+                drill_report.main([str(runs), "--run-id", str(outside), "--json"])
+            with self.assertRaisesRegex(SystemExit, "safe path component"):
+                drill_report.main([str(runs), "--run-id", "..", "--json"])
+
     def test_path_budget_refuses_on_windows_before_writing_and_measures_elsewhere(self) -> None:
         # The guarded failure: a deep drill root whose longest packed path crosses MAX_PATH would
         # otherwise write fine and then kill `git add -A` mid-setup with "Filename too long".
@@ -250,7 +267,12 @@ class IncidentDrillHarnessTests(unittest.TestCase):
                 mock.patch.object(
                     run_lane.subprocess,
                     "run",
-                    side_effect=subprocess.TimeoutExpired(cmd=["claude"], timeout=10),
+                    side_effect=subprocess.TimeoutExpired(
+                        cmd=["claude"],
+                        timeout=10,
+                        output=b"partial stdout",
+                        stderr=b"partial stderr",
+                    ),
                 ),
             ):
                 status = run_lane.main(
@@ -276,6 +298,83 @@ class IncidentDrillHarnessTests(unittest.TestCase):
             self.assertEqual("UNKNOWN", metadata["outcome"])
             self.assertEqual("TIMEOUT", metadata["failure_class"])
             self.assertEqual("UNVERIFIED", metadata["descendant_termination"])
+            self.assertEqual(
+                "partial stdout",
+                metadata_path.with_name("result.stdout.json").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                "partial stderr",
+                metadata_path.with_name("result.stderr.txt").read_text(encoding="utf-8"),
+            )
+
+    def test_empty_success_result_is_a_failed_attempt(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("service", "plugin", "neutral", "config"):
+                (root / name).mkdir()
+            prompt = root / "prompt.md"
+            prompt.write_text("return a result", encoding="utf-8")
+
+            @contextlib.contextmanager
+            def fake_config():
+                yield root / "config"
+
+            @contextlib.contextmanager
+            def fake_neutral():
+                yield root / "neutral"
+
+            completed = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout='{"result":"","is_error":false}', stderr=""
+            )
+            with (
+                mock.patch.object(run_lane, "isolated_config", fake_config),
+                mock.patch.object(run_lane, "neutral_workspace", fake_neutral),
+                mock.patch.object(run_lane.subprocess, "run", return_value=completed),
+            ):
+                status = run_lane.main([
+                    "--run-id", "run-empty", "--attempt-id", "attempt-1",
+                    "--step", "01", "--lane", "builder", "--prompt-file", str(prompt),
+                    "--plugin-dir", str(root / "plugin"), "--cwd", str(root / "service"),
+                    "--runs-dir", str(root / "runs"), "--claude", "claude",
+                    "--python-dir", str(root), "--credential-free-runtime",
+                ])
+
+            base = root / "runs" / "run-empty" / "01-builder" / "attempt-1" / "result"
+            metadata = json.loads(base.with_suffix(".meta.json").read_text(encoding="utf-8"))
+            self.assertNotEqual(0, status)
+            self.assertFalse(base.with_suffix(".md").exists())
+            self.assertEqual("FAILED", metadata["outcome"])
+            self.assertEqual("EMPTY_RESULT", metadata["failure_class"])
+            self.assertTrue(metadata["is_error"])
+
+    def test_setup_failure_after_reservation_is_recorded(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("service", "plugin"):
+                (root / name).mkdir()
+            prompt = root / "prompt.md"
+            prompt.write_text("test", encoding="utf-8")
+
+            @contextlib.contextmanager
+            def failed_config():
+                raise SystemExit("credentials unavailable")
+                yield  # pragma: no cover
+
+            with mock.patch.object(run_lane, "isolated_config", failed_config):
+                status = run_lane.main([
+                    "--run-id", "run-setup", "--attempt-id", "attempt-1",
+                    "--step", "01", "--lane", "builder", "--prompt-file", str(prompt),
+                    "--plugin-dir", str(root / "plugin"), "--cwd", str(root / "service"),
+                    "--runs-dir", str(root / "runs"), "--claude", "claude",
+                    "--python-dir", str(root), "--credential-free-runtime",
+                ])
+
+            base = root / "runs" / "run-setup" / "01-builder" / "attempt-1" / "result"
+            metadata = json.loads(base.with_suffix(".meta.json").read_text(encoding="utf-8"))
+            self.assertNotEqual(0, status)
+            self.assertEqual("FAILED", metadata["outcome"])
+            self.assertEqual("SETUP_OR_LAUNCH", metadata["failure_class"])
+            self.assertTrue(metadata["is_error"])
 
 
 if __name__ == "__main__":

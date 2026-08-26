@@ -1283,6 +1283,41 @@ class ArtifactTests(unittest.TestCase):
                 self.assertEqual(trace_path.stat().st_mode & 0o077, 0)
             run_evals.assert_private_path(trace_path)
 
+    def test_response_excerpt_is_bounded_without_losing_short_verbatim_text(self) -> None:
+        self.assertEqual("short response", run_evals.bounded_response_excerpt("short response"))
+        excerpt = run_evals.bounded_response_excerpt("x" * 900)
+        self.assertTrue(excerpt.endswith("… [truncated]"))
+        self.assertLessEqual(len(excerpt), run_evals.RESPONSE_EXCERPT_CHARS + 13)
+
+    def test_private_summary_requires_durable_capture(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            writer = run_evals.ArtifactWriter(root / "private", {"run_id": "run-1"})
+            expected = root / "docs" / "reviews" / "record.md"
+            with mock.patch.object(
+                run_evals.capture_measurement_evidence,
+                "capture_eval_summary",
+                return_value=expected,
+            ) as capture:
+                summary, evidence = run_evals.persist_summary_and_evidence(
+                    writer, {"verdict": "PASS"}, root / "docs" / "reviews"
+                )
+
+            self.assertTrue(summary.is_file())
+            self.assertEqual(expected, evidence)
+            capture.assert_called_once_with(summary, root / "docs" / "reviews")
+
+    def test_durable_capture_failure_makes_batch_non_publishable(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            writer = run_evals.ArtifactWriter(Path(td), {"run_id": "run-1"})
+            with mock.patch.object(
+                run_evals.capture_measurement_evidence,
+                "capture_eval_summary",
+                side_effect=run_evals.capture_measurement_evidence.CaptureError("bad summary"),
+            ):
+                with self.assertRaisesRegex(clean_room.RunnerFailed, "durable evidence capture failed"):
+                    run_evals.persist_summary_and_evidence(writer, {"verdict": "PASS"})
+
     def test_summary_records_measurement_conditions(self) -> None:
         args = argparse.Namespace(
             timeout=42, trials=5, threshold=0.66, mode="discovery", split="regression", match="merge",

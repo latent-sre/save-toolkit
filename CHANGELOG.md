@@ -7,6 +7,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Added durable-by-default measurement capture (`EVIDENCE-001`): sealed eval summaries now produce
+  bounded, escaped evidence under `docs/reviews/`; host-owned exercises use the same validated
+  envelope; Gate A rejects live-roadmap batch IDs that resolve to no committed review record. Raw
+  transcripts, prompts, tool payloads, session identifiers, temporary paths, and credentials stay
+  outside the durable record.
 - Added the canonical `workflow-graph-engineering` skill (`SKILLS-003`): a runtime-neutral design
   and review contract for executable workflow/state graphs — typed state, node and edge classes,
   fan-out/fan-in, scheduling and admission, retries, effects with idempotency keys and an explicit
@@ -27,6 +32,17 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Reconciled four stale or evidence-pending roadmap items. `INCIDENT-001` and `SURFACE-001` now
+  close against their already merged exact revisions instead of inviting duplicate work.
+  `DRILL-001` retains a three-case Terra acceptance candidate and `ROUTE-002` a 7/7 Terra overlap
+  transfer; both state the host-transfer and missing-telemetry limits and remain live until owner
+  acceptance rather than treating an eval result as promotion authority.
+- Closed the current `GRAPH-001` incident-drill and production-`UNKNOWN` review gaps: byte-valued
+  timeout output is retained, empty and setup-failed attempts are explicit failures, report run IDs
+  cannot escape their root, retries require a safe terminal readback and affirmative human owner,
+  and the production scenario rejects agent-executed reconciliation claims. The three
+  `GRADER-003` direct contracts also carry frozen Terra transfer forms: 1/9 before the bounded grader
+  correction and 9/9 after it, with existing incomplete/adversarial responses still rejected.
 - Cut the body/reference duplication the 2026-08-26 three-pass audit measured — the same rule
   bought twice whenever a reference loaded alongside the body that already states it. **Context:**
   `agent-authoring`'s `artifact.md` no longer restates SKILL.md's source-trust gate, four method

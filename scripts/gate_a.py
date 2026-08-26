@@ -49,6 +49,11 @@ STRUCTURAL_STEPS = [
         None,
     ),
     (
+        "Live roadmap measurement batches resolve to durable evidence",
+        ["scripts/check_evidence_refs.py"],
+        None,
+    ),
+    (
         "No stale unit names",
         ["scripts/check_stale_names.py"],
         None,
