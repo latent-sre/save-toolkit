@@ -32,6 +32,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Reconciled four stale or evidence-pending roadmap items. `INCIDENT-001` and `SURFACE-001` now
+  close against their already merged exact revisions instead of inviting duplicate work.
+  `DRILL-001` retains a three-case Terra acceptance candidate and `ROUTE-002` a 7/7 Terra overlap
+  transfer; both state the host-transfer and missing-telemetry limits and remain live until owner
+  acceptance rather than treating an eval result as promotion authority.
 - Closed the current `GRAPH-001` incident-drill and production-`UNKNOWN` review gaps: byte-valued
   timeout output is retained, empty and setup-failed attempts are explicit failures, report run IDs
   cannot escape their root, retries require a safe terminal readback and affirmative human owner,
