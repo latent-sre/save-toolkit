@@ -65,6 +65,13 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   than a fix. Added the two routing scenarios `ci-actions` lacked, one of them the pwn-request
   request that a helpful assistant would otherwise fulfil, and gave `agent-security` and `ci-actions`
   the `argument-hint` the rest of the fleet carries.
+- Corrected the README roster's `Routing` column for `observability-engineer` and `prompt-engineer`,
+  which mixed real `Agent(...)` delegation edges with handoffs the caller must dispatch. Both agent
+  bodies state the constraint explicitly ("this role cannot invoke `software-engineer`; the
+  recommendation returns to the caller"), and the `sre` row already modelled the distinction, so the
+  two rows now follow it. AGENTS.md's `Delegates to` column is bound to `EXPECTED_DELEGATION` by
+  `validate_roster_graph`; README's `Routing` column is prose and is not, which is why it could drift
+  into naming edges the frontmatter never granted.
 - Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
   implementation, testing, and operations-tooling lane. This is a breaking address change from
   `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are
