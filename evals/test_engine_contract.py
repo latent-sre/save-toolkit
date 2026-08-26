@@ -172,6 +172,61 @@ class EvalEngineContractTests(unittest.TestCase):
         with self.assertRaisesRegex(engine_contract.ContractError, "canary"):
             engine_contract.validate_envelope(envelope)
 
+    def test_reference_claim_requires_a_canary_for_the_same_scenario(self) -> None:
+        envelope = self._valid()
+        second = copy.deepcopy(envelope["scenarios"][0])
+        second["id"] = "second-scenario"
+        envelope["scenarios"].append(second)
+        envelope["claims_requested"].append("reference_used")
+        envelope["scenarios"][0]["claims"].append({
+            "type": "reference_used",
+            "status": "PASS",
+            "evidence": [OTHER_DIGEST],
+            "limitations": [],
+        })
+        envelope["canaries"] = [{
+            "scenario_id": "second-scenario",
+            "path": "skills/x/references/a.md",
+            "expected": "q_reference_1234",
+            "observed": "q_reference_1234",
+            "status": "PASS",
+        }]
+
+        with self.assertRaisesRegex(engine_contract.ContractError, "same scenario"):
+            engine_contract.validate_envelope(envelope)
+
+    def test_reference_claim_status_must_match_its_canaries(self) -> None:
+        envelope = self._valid()
+        envelope["claims_requested"].append("reference_used")
+        envelope["scenarios"][0]["claims"].append({
+            "type": "reference_used",
+            "status": "PASS",
+            "evidence": [OTHER_DIGEST],
+            "limitations": [],
+        })
+        envelope["canaries"] = [{
+            "scenario_id": "agent-direct-sre-readonly-triage",
+            "path": "skills/x/references/a.md",
+            "expected": "q_reference_1234",
+            "observed": None,
+            "status": "MISSING",
+        }]
+
+        with self.assertRaisesRegex(engine_contract.ContractError, "claim status"):
+            engine_contract.validate_envelope(envelope)
+
+        envelope["scenarios"][0]["claims"][-1]["status"] = "INCONCLUSIVE"
+        envelope["scenarios"][0]["verdict"] = "INCONCLUSIVE"
+        envelope["verdict"] = "INCONCLUSIVE"
+        envelope["promotion_eligible"] = False
+        engine_contract.validate_envelope(envelope)
+
+    def test_run_id_is_safe_as_a_cross_platform_filename_component(self) -> None:
+        envelope = self._valid()
+        envelope["run_id"] = "2026-08-26T12:00:00Z"
+        with self.assertRaisesRegex(engine_contract.ContractError, "safe bounded identifier"):
+            engine_contract.validate_envelope(envelope)
+
     def test_unavailable_subscription_cost_is_null_not_zero(self) -> None:
         envelope = self._valid()
         envelope["cost"]["amount"] = 0

@@ -996,6 +996,8 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         command: tuple[str, ...] = (),
         duration_seconds: float | None = None,
         requested_model: str | None = None,
+        resolved_model: str | None = None,
+        parsed_trace: ParsedTrace | None = None,
         stream_diagnostics: dict | None = None,
         context_sha256: str | None = None,
         policy_sha256: str | None = None,
@@ -1003,6 +1005,7 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         observed_canaries: tuple[str, ...] = (),
         total_cost_usd: float | None = None,
         stop_campaign: bool = False,
+        model_executed: bool = False,
     ):
         super().__init__(message)
         self.raw_trace = raw_trace
@@ -1011,6 +1014,8 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         self.command = command
         self.duration_seconds = duration_seconds
         self.requested_model = requested_model
+        self.resolved_model = resolved_model
+        self.parsed_trace = parsed_trace
         self.stream_diagnostics = stream_diagnostics
         self.context_sha256 = context_sha256
         self.policy_sha256 = policy_sha256
@@ -1018,6 +1023,7 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         self.observed_canaries = observed_canaries
         self.total_cost_usd = total_cost_usd
         self.stop_campaign = stop_campaign
+        self.model_executed = model_executed
 
 
 @dataclass(frozen=True)
@@ -1060,6 +1066,9 @@ def enforce_reported_cost_budget(
             observed_canaries=execution.observed_canaries,
             total_cost_usd=amount,
             stop_campaign=True,
+            resolved_model=execution.parsed.model,
+            parsed_trace=execution.parsed,
+            model_executed=True,
         )
     updated = spent_usd + amount
     if updated > float(maximum):
@@ -1077,6 +1086,9 @@ def enforce_reported_cost_budget(
             observed_canaries=execution.observed_canaries,
             total_cost_usd=amount,
             stop_campaign=True,
+            resolved_model=execution.parsed.model,
+            parsed_trace=execution.parsed,
+            model_executed=True,
         )
     return updated
 
@@ -1138,6 +1150,7 @@ def run_agent(
             f"trial timed out after {timeout}s", raw_trace=raw, stderr=err, returncode=None,
             command=tuple(command), duration_seconds=time.monotonic() - started,
             requested_model=model, stream_diagnostics=_safe_stream_diagnostics(raw),
+            model_executed=True,
         ) from exc
     duration = time.monotonic() - started
     if clean_room.is_auth_failure(proc.stdout, proc.returncode) or clean_room.is_auth_failure(proc.stderr, proc.returncode):
@@ -1145,6 +1158,7 @@ def run_agent(
             "Claude trial did not authenticate", raw_trace=proc.stdout, stderr=proc.stderr,
             returncode=proc.returncode, command=tuple(command), duration_seconds=duration,
             requested_model=model, stream_diagnostics=_safe_stream_diagnostics(proc.stdout),
+            model_executed=True,
         )
     if proc.returncode != 0:
         raise InconclusiveTrial(
@@ -1156,7 +1170,10 @@ def run_agent(
             duration_seconds=duration,
             requested_model=model,
             stream_diagnostics=_safe_stream_diagnostics(proc.stdout),
+            model_executed=True,
         )
+    parsed: ParsedTrace | None = None
+    boundary_proven = False
     try:
         parsed = parse_stream_trace(proc.stdout)
         boundary_options: dict[str, object] = {"expected_tools": expected_tools}
@@ -1167,6 +1184,7 @@ def run_agent(
             )
             boundary_options["required_denied_path"] = denied_probe_path
         enforce_runtime_boundary(parsed, plugin_root, **boundary_options)
+        boundary_proven = True
         if expected_canaries:
             missing_canaries = set(expected_canaries.values()) - set(parsed.observed_canaries)
             if missing_canaries:
@@ -1175,20 +1193,52 @@ def run_agent(
                     f"{sorted(missing_canaries)}"
                 )
     except clean_room.AuthUnavailable as exc:
+        observed = (
+            tuple(sorted(set(parsed.observed_canaries) & set(expected_canaries.values())))
+            if parsed else ()
+        )
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
             command=tuple(command), duration_seconds=duration, requested_model=model,
             stream_diagnostics=(
                 getattr(exc, "stream_diagnostics", None) or _safe_stream_diagnostics(proc.stdout)
             ),
+            resolved_model=parsed.model if parsed else None,
+            parsed_trace=parsed,
+            policy_sha256=(
+                engine_adapters.ClaudeNativeAdapter().policy_sha256(
+                    enable_snapshot_reads=enable_snapshot_reads
+                )
+                if boundary_proven else None
+            ),
+            expected_canaries=tuple(sorted(expected_canaries.values())),
+            observed_canaries=observed,
+            total_cost_usd=parsed.total_cost_usd if parsed else None,
+            model_executed=True,
         ) from exc
     except clean_room.RunnerFailed as exc:
+        observed = (
+            tuple(sorted(set(parsed.observed_canaries) & set(expected_canaries.values())))
+            if parsed else ()
+        )
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
             command=tuple(command), duration_seconds=duration, requested_model=model,
             stream_diagnostics=(
                 getattr(exc, "stream_diagnostics", None) or _safe_stream_diagnostics(proc.stdout)
             ),
+            resolved_model=parsed.model if parsed else None,
+            parsed_trace=parsed,
+            policy_sha256=(
+                engine_adapters.ClaudeNativeAdapter().policy_sha256(
+                    enable_snapshot_reads=enable_snapshot_reads
+                )
+                if boundary_proven else None
+            ),
+            expected_canaries=tuple(sorted(expected_canaries.values())),
+            observed_canaries=observed,
+            total_cost_usd=parsed.total_cost_usd if parsed else None,
+            model_executed=True,
         ) from exc
     return TrialExecution(
         parsed,
@@ -1280,6 +1330,7 @@ def run_codex_agent(
                 command=tuple(command),
                 duration_seconds=time.monotonic() - started,
                 requested_model=model,
+                model_executed=True,
                 **evidence,
             ) from exc
         duration = time.monotonic() - started
@@ -1294,6 +1345,7 @@ def run_codex_agent(
                 command=tuple(command),
                 duration_seconds=duration,
                 requested_model=model,
+                model_executed=True,
                 **evidence,
             )
         if proc.returncode != 0:
@@ -1305,6 +1357,7 @@ def run_codex_agent(
                 command=tuple(command),
                 duration_seconds=duration,
                 requested_model=model,
+                model_executed=True,
                 **evidence,
             )
         try:
@@ -1318,6 +1371,7 @@ def run_codex_agent(
                 command=tuple(command),
                 duration_seconds=duration,
                 requested_model=model,
+                model_executed=True,
                 **evidence,
             ) from exc
         policy_sha256 = hashlib.sha256(
@@ -1335,7 +1389,10 @@ def run_codex_agent(
                 command=tuple(command),
                 duration_seconds=duration,
                 requested_model=model,
+                resolved_model=trace.resolved_model,
+                policy_sha256=policy_sha256,
                 observed_canaries=trace.reference_canaries,
+                model_executed=True,
                 **evidence,
             )
         parsed = ParsedTrace(
@@ -2170,10 +2227,10 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2 if args.run else 3
-        if profile.engine == "codex-cli" and any(
-            scenario["mode"] != "direct" for scenario in selected
-        ):
-            print("run_evals: Codex profiles support direct scenarios only", file=sys.stderr)
+        try:
+            execution_profiles.validate_scenario_bindings(profile, selected)
+        except execution_profiles.ProfileError as exc:
+            print(f"run_evals: invalid execution profile: {exc}", file=sys.stderr)
             return 2 if args.run else 3
     else:
         args.timeout = args.timeout or 300
@@ -2373,6 +2430,7 @@ def main() -> int:
                         trial_result = {
                             "trial": trial_number,
                             "state": state,
+                            "model_executed": True,
                             "started_at": started_at,
                             "duration_seconds": execution.duration_seconds,
                             "exit_code": execution.returncode,
@@ -2414,6 +2472,7 @@ def main() -> int:
                         }
                     except (InconclusiveTrial, clean_room.AuthUnavailable) as exc:
                         state = "INCONCLUSIVE"
+                        parsed_evidence = getattr(exc, "parsed_trace", None)
                         incurred_cost = getattr(exc, "total_cost_usd", None)
                         if (
                             profile is not None
@@ -2438,13 +2497,31 @@ def main() -> int:
                             "exit_code": getattr(exc, "returncode", None),
                             "duration_seconds": getattr(exc, "duration_seconds", None),
                             "requested_model": getattr(exc, "requested_model", args.model),
-                            "resolved_model": None,
-                            "session_id": None,
+                            "resolved_model": getattr(exc, "resolved_model", None),
+                            "model_executed": getattr(exc, "model_executed", False),
+                            "session_id": (
+                                parsed_evidence.session_id if parsed_evidence is not None else None
+                            ),
                             "total_cost_usd": getattr(exc, "total_cost_usd", None),
-                            "completed_invocations": {"skills": [], "agents": []},
-                            "completed_root_invocations": {"skills": [], "agents": []},
-                            "attempted_invocations": {"skills": [], "agents": []},
-                            "runtime_namespace": None,
+                            "completed_invocations": {
+                                "skills": list(parsed_evidence.skills) if parsed_evidence else [],
+                                "agents": list(parsed_evidence.agents) if parsed_evidence else [],
+                            },
+                            "completed_root_invocations": {
+                                "skills": list(parsed_evidence.root_skills) if parsed_evidence else [],
+                                "agents": list(parsed_evidence.root_agents) if parsed_evidence else [],
+                            },
+                            "attempted_invocations": {
+                                "skills": list(parsed_evidence.attempted_skills) if parsed_evidence else [],
+                                "agents": list(parsed_evidence.attempted_agents) if parsed_evidence else [],
+                            },
+                            "runtime_namespace": ({
+                                "plugins": list(parsed_evidence.runtime_plugins),
+                                "mcp_servers": list(parsed_evidence.mcp_servers),
+                                "available_skills": list(parsed_evidence.available_skills),
+                                "available_agents": list(parsed_evidence.available_agents),
+                                "available_tools": list(parsed_evidence.available_tools),
+                            } if parsed_evidence else None),
                             "stream_diagnostics": getattr(exc, "stream_diagnostics", None),
                             "argv": list(getattr(exc, "command", ()) or planned_command),
                             "trace_sha256": hashlib.sha256(raw.encode("utf-8")).hexdigest(),

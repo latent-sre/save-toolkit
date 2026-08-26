@@ -76,6 +76,33 @@ class ExecutionProfileTests(unittest.TestCase):
         with self.assertRaisesRegex(execution_profiles.ProfileError, "approval"):
             execution_profiles.validate_profile(value, require_approval=True)
 
+    def test_approval_timestamp_must_be_a_real_utc_instant(self) -> None:
+        value = self._valid()
+        value["approval"]["approved_at"] = "2026-99-99T99:99:99Z"
+        with self.assertRaisesRegex(execution_profiles.ProfileError, "valid timestamp"):
+            execution_profiles.validate_profile(value, require_approval=True)
+
+    def test_claude_references_require_the_supported_direct_sre_shape(self) -> None:
+        value = self._valid()
+        value["engine"] = "claude-plugin"
+        value["model"] = "sonnet"
+        profile = execution_profiles.validate_profile(value, require_approval=True)
+        unsupported = [{
+            "id": value["scenario_ids"][0],
+            "mode": "direct",
+            "target": {"kind": "skill", "name": "incident-investigation"},
+        }]
+
+        with self.assertRaisesRegex(execution_profiles.ProfileError, "direct sre agent"):
+            execution_profiles.validate_scenario_bindings(profile, unsupported)
+
+        supported = [{
+            "id": value["scenario_ids"][0],
+            "mode": "direct",
+            "target": {"kind": "agent", "name": "sre"},
+        }]
+        execution_profiles.validate_scenario_bindings(profile, supported)
+
     def test_unsupported_claim_is_rejected(self) -> None:
         value = self._valid()
         value["claims"].append("native_plugin_loaded")

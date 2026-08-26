@@ -256,7 +256,10 @@ def build_envelope(
         (datetime.fromisoformat(ended.replace("Z", "+00:00")) -
          datetime.fromisoformat(started.replace("Z", "+00:00"))).total_seconds(),
     )
-    costs = [trial.get("total_cost_usd") for trial in all_trials]
+    executed_trials = [
+        trial for trial in all_trials if trial.get("model_executed", True) is not False
+    ]
+    costs = [trial.get("total_cost_usd") for trial in executed_trials]
     if engine == "claude-plugin" and costs and all(
         isinstance(value, (int, float)) and not isinstance(value, bool) for value in costs
     ):

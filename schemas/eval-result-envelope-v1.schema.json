@@ -12,7 +12,7 @@
   ],
   "properties": {
     "schema_version": { "const": "eval-result-envelope/v1" },
-    "run_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+    "run_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
     "engine": {
       "type": "object",
       "additionalProperties": false,

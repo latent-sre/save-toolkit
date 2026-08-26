@@ -6,8 +6,9 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
-from typing import Mapping
+from typing import Mapping, Sequence
 
 import engine_adapters
 import engine_contract
@@ -246,6 +247,14 @@ def validate_profile(
         }
         if TIMESTAMP_RE.fullmatch(approval["approved_at"]) is None:
             raise ProfileError("profile.approval.approved_at must be an RFC3339 UTC timestamp")
+        try:
+            datetime.fromisoformat(
+                approval["approved_at"][:-1] + "+00:00"
+            ).astimezone(timezone.utc)
+        except ValueError as exc:
+            raise ProfileError(
+                "profile.approval.approved_at is not a valid timestamp"
+            ) from exc
     if require_approval and approval is None:
         raise ProfileError("live model execution requires explicit profile approval")
 
@@ -272,6 +281,31 @@ def validate_profile(
             total_timeout_s=total_timeout_s,
         ),
     )
+
+
+def validate_scenario_bindings(
+    profile: ExecutionProfile,
+    scenarios: Sequence[Mapping[str, object]],
+) -> None:
+    """Reject profile/scenario combinations that an adapter cannot execute safely."""
+
+    by_id = {scenario.get("id"): scenario for scenario in scenarios}
+    missing = set(profile.scenario_ids) - set(by_id)
+    if missing:
+        raise ProfileError(f"profile names unknown scenario(s): {sorted(missing)}")
+    for scenario_id in profile.scenario_ids:
+        scenario = by_id[scenario_id]
+        if profile.engine == "codex-cli" and scenario.get("mode") != "direct":
+            raise ProfileError("codex-cli profiles support direct scenarios only")
+        if profile.engine != "claude-plugin" or not profile.required_references.get(scenario_id):
+            continue
+        target = scenario.get("target")
+        if not isinstance(target, Mapping) or (
+            scenario.get("mode"), target.get("kind"), target.get("name")
+        ) != ("direct", "agent", "sre"):
+            raise ProfileError(
+                "Claude required references are supported only for a direct sre agent scenario"
+            )
 
 
 def load_profile(path: Path, *, require_approval: bool = False) -> ExecutionProfile:

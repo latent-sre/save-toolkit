@@ -1060,6 +1060,40 @@ class StreamTraceTests(unittest.TestCase):
         self.assertNotIn("private first response", serialized)
         self.assertNotIn("private second response", serialized)
 
+    def test_post_parse_canary_failure_retains_proven_model_policy_and_canaries(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._trace())
+        completed = mock.Mock(returncode=0, stdout=self._trace(), stderr="")
+        scenario = {
+            "mode": "direct",
+            "target": {"kind": "agent", "name": "sre"},
+            "prompt": "private prompt",
+        }
+        with (
+            mock.patch.object(run_evals, "build_command", return_value=["claude"]),
+            mock.patch.object(run_evals, "expected_runtime_tools", return_value=("Skill", "Task")),
+            mock.patch.object(run_evals, "expected_canaries_for_paths", return_value={"ref": "q_probe_1234"}),
+            mock.patch.object(run_evals.subprocess, "run", return_value=completed),
+            mock.patch.object(run_evals, "parse_stream_trace", return_value=parsed),
+            mock.patch.object(run_evals, "enforce_runtime_boundary"),
+        ):
+            with self.assertRaisesRegex(run_evals.InconclusiveTrial, "canary") as caught:
+                run_evals.run_agent(
+                    scenario,
+                    env={},
+                    cwd=run_evals.ROOT,
+                    timeout=30,
+                    model="sonnet",
+                    required_references=("skills/x/references/a.md",),
+                    denied_probe_path=run_evals.ROOT.parent / "denied",
+                )
+
+        self.assertEqual(caught.exception.resolved_model, "claude-test")
+        self.assertIsNotNone(caught.exception.policy_sha256)
+        self.assertEqual(caught.exception.expected_canaries, ("q_probe_1234",))
+        self.assertEqual(caught.exception.observed_canaries, ())
+        self.assertIs(caught.exception.parsed_trace, parsed)
+        self.assertTrue(caught.exception.model_executed)
+
     def test_unmatched_or_errored_tool_calls_do_not_count_as_invocations(self) -> None:
         events = [
             {"type": "assistant", "message": {"content": [

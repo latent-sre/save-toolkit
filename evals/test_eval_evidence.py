@@ -91,6 +91,7 @@ class EvalEvidenceTests(unittest.TestCase):
     def _results(self, *, observed: tuple[str, ...] = (CANARY,)) -> list[dict[str, object]]:
         trial = {
             "state": "PASS",
+            "model_executed": True,
             "duration_seconds": 1.5,
             "resolved_model": "resolved-model",
             "total_cost_usd": None,
@@ -175,6 +176,36 @@ class EvalEvidenceTests(unittest.TestCase):
         self.assertIn("advertised_tool_inventory", emitted)
         self.assertIn("callable_tool_boundary", emitted)
         self.assertEqual(envelope["cost"]["amount"], 0.5)
+
+    def test_claude_cost_ignores_trials_skipped_after_a_budget_stop(self) -> None:
+        results = self._results()
+        results[0]["verdict"] = "INCONCLUSIVE"
+        first, second = results[0]["trials"]
+        first["state"] = "INCONCLUSIVE"
+        first["total_cost_usd"] = 0.75
+        second.update({
+            "state": "INCONCLUSIVE",
+            "model_executed": False,
+            "total_cost_usd": None,
+            "policy_sha256": None,
+            "resolved_model": None,
+        })
+
+        envelope = eval_evidence.build_envelope(
+            provenance=self._provenance("claude-plugin"),
+            profile=self._profile("claude-plugin"),
+            scenario_results=results,
+            reference_canaries={SCENARIO: {REFERENCE: CANARY}},
+            grader_sha256=DIGEST,
+            ended_at="2026-08-26T12:00:04Z",
+        )
+
+        self.assertEqual(envelope["cost"], {
+            "status": "available",
+            "amount": 0.75,
+            "currency": "USD",
+            "reason": None,
+        })
 
     def test_claude_skill_does_not_claim_native_invocation_without_trace_evidence(self) -> None:
         profile = self._profile("claude-plugin")

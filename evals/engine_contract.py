@@ -64,7 +64,7 @@ TOP_LEVEL_FIELDS = {
 }
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 SCENARIO_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 CANARY_RE = re.compile(r"^[a-z][a-z0-9_]{5,63}$")
 RFC3339_UTC_RE = re.compile(
@@ -276,6 +276,7 @@ def validate_envelope(envelope: object) -> None:
     scenario_ids: set[str] = set()
     scenario_verdicts: list[str] = []
     emitted_types: set[str] = set()
+    reference_claim_statuses: dict[str, str] = {}
     for index, raw_scenario in enumerate(scenarios):
         field = f"scenarios[{index}]"
         scenario = _mapping(raw_scenario, field)
@@ -305,6 +306,8 @@ def validate_envelope(envelope: object) -> None:
             claim_types.add(claim_type)
             emitted_types.add(claim_type)
             claim_states.append(claim_state)
+            if claim_type == "reference_used":
+                reference_claim_statuses[scenario_id] = claim_state
         if verdict != _aggregate(claim_states):
             raise ContractError(f"{field}.verdict disagrees with its claim statuses")
         scenario_verdicts.append(verdict)
@@ -316,7 +319,7 @@ def validate_envelope(envelope: object) -> None:
         raise ContractError("canaries must be a list")
     canary_keys: set[tuple[str, str]] = set()
     bad_canary = False
-    canary_scenarios: set[str] = set()
+    canary_statuses: dict[str, list[str]] = {}
     for index, raw_canary in enumerate(canaries):
         field = f"canaries[{index}]"
         canary = _mapping(raw_canary, field)
@@ -346,10 +349,20 @@ def validate_envelope(envelope: object) -> None:
         if key in canary_keys:
             raise ContractError(f"duplicate canary path for scenario: {key}")
         canary_keys.add(key)
-        canary_scenarios.add(scenario_id)
+        canary_statuses.setdefault(scenario_id, []).append(str(status))
         bad_canary = bad_canary or status != "PASS"
-    if "reference_used" in emitted_types and not canaries:
-        raise ContractError("reference_used claims require reference canary evidence")
+    for scenario_id, claim_status in reference_claim_statuses.items():
+        statuses = canary_statuses.get(scenario_id)
+        if not statuses:
+            raise ContractError(
+                "reference_used claims require canary evidence for the same scenario"
+            )
+        expected_status = "PASS" if all(status == "PASS" for status in statuses) else "INCONCLUSIVE"
+        if claim_status != expected_status:
+            raise ContractError(
+                f"reference_used claim status for {scenario_id} must be {expected_status} "
+                "to match its canary evidence"
+            )
 
     verdict = value["verdict"]
     if verdict not in VERDICTS:
