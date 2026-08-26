@@ -1,0 +1,47 @@
+schema_version: 1
+id: agent-authoring-loop-contract
+mode: direct
+# Calibration until a measured pass exists (evals/README.md: a positive enters regression only
+# after one). GRADER-003 moved this behavioural contract here from
+# discovery-agent-authoring-loop-engineering, where it could not be satisfied reliably: a
+# discovery response is tool-less and prose-shaped, and an 7-grader conjunction over 3 trials had a
+# measured ceiling near 0.53 regardless of grader quality. Direct mode pins the component and lets
+# it emit a determinate artifact, which is where a contract this specific belongs.
+# Measured 3/3 (skill fired 3/3) in batch 20260825T225402Z-8ff050e2, and deliberately NOT
+# promoted on that alone. This branch measured discovery-agent-authoring-trigger-and-shape at
+# 3/3 and then 1/3 with no change made to it, so one clean trial is a sample, not a property.
+# A second batch (20260825T233556Z-5fb69d7b) then measured loop-contract 3/3 again and
+# trigger-and-shape 2/3 -- it varied with no change made to it, which is why neither was
+# promoted on the first. Promotion is not an eval outcome at all: AGENTS.md reserves it to
+# human acceptance of the exact revision.
+split: calibration
+target:
+  kind: skill
+  name: agent-authoring
+prompt: |
+  Design a bounded Loop Engineering contract for improving an LLM-facing artifact. Name the entry
+  and mutable state, the independent verifier, hard iteration and candidate budgets, a hard
+  time-or-cost budget, the success condition, the no-progress stop, the safety/authority stop, who
+  holds promotion authority, and what durable evidence the loop leaves behind. Keep operations
+  knowledge closeout and executable graph cycles outside this contract.
+success_criteria:
+  - Names the entry state, mutable state, and one independent verifier
+  - Bounds iterations and cost, and names the no-progress and safety/authority stops
+  - Names promotion authority as human and the durable evidence the loop records
+graders:
+  - type: contains_all
+    of: ["verifier", "budget"]
+  - type: regex
+    pattern: '(?i)\biterations?\b[^.\n]{0,60}(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d|\b\d+\s*(?:propose|improve|edit|verify|pass|cycle|round))|(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d)[^.\n]{0,40}\biterations?\b'
+  - type: regex
+    pattern: '(?i)\b(?:cost|token|spend|dollar)s?\b[^.\n]{0,60}\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b|\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b[^.\n]{0,40}\b(?:cost|token|spend|dollar)s?\b'
+  - type: contains_any
+    of: ["no-progress", "no progress"]
+  - type: contains_any
+    of: ["safety stop", "authority stop", "safety/authority"]
+  - type: contains_any
+    of: ["human acceptance", "human approves", "human promotion", "human release owner", "promotion authority"]
+  - type: contains_any
+    of: ["durable evidence", "recorded evidence"]
+  - type: not_contains
+    of: ["unbounded iterations", "iterate until correct", "retry until it passes"]

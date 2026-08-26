@@ -668,11 +668,30 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 ### SKILLS-003 — add a portable executable workflow-graph engineering skill
 
-**Status:** `active` (2026-08-24) — first candidate implemented on
-`work/skills-003-workflow-graph-engineering` with its
-[implementation evidence packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md);
-live routing trials, the frozen acceptance exercise, independent review, and human acceptance of
-the exact revision remain open. Roadmap activation merged in PR
+**Status:** `active` (updated 2026-08-25) — acceptance 3 ran on `claude-opus-5` against the merged
+revision and **3 of 5 cases passed every predeclared assertion (18/18) under independent grading**;
+the other two completed and produced full designs but their transcripts were not persisted, so they
+could not be graded and their raw outputs are not retained. `latent-sre` **accepted that result on
+2026-08-25**: 3-of-5 at 18/18 closes acceptance 3, and cases 3 and 4 are not re-run. The retention
+gap stands as a recorded limitation of this pass, owned by `EVIDENCE-001`, not as a silent pass.
+Evidence: the
+[frozen pre-call record](reviews/2026-08-25-skills-003-acceptance-3-precall-record.md) and the
+[result](reviews/2026-08-25-skills-003-acceptance-3-result.md). The skill is **merged**: commit
+`f1afd57` on
+`origin/main` via PR [#162](https://github.com/latent-sre/save-toolkit/pull/162), bundled with
+`incident-drill` and the graph-program documents rather than shipped as its own SKILLS-003 pull
+request. Acceptance 4 is met. Acceptance 1 and 2 are met with stated caveats: the `runtime-selection`
+seam in acceptance 2 over-triggered at root 1/3 in both runs, which the packet calls an unchanged
+calibration measurement rather than a pass; and acceptance 1's "no unrelated finding is implemented
+in the branch" is reconciled by `CONTRIBUTING.md`'s one-branch rule — `GRADER-003` shares this
+item's owners and roadmap surface, so it is stacked here rather than split. Acceptance 5 and 6 are
+partial. The
+[implementation evidence packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md)
+carries the measurements and a 2026-08-25 addendum recording the merge, the resolved base-freshness
+question, the applied routing-only correction, and a passing `claude plugin validate . --strict`.
+What keeps this item open is one independent exact-revision review. Acceptance 3 is closed by the
+owner acceptance recorded above; an earlier revision of this paragraph said both, which was the
+ledger contradicting itself in the one item whose deliverable is accurate bookkeeping. Roadmap activation merged in PR
 [#157](https://github.com/latent-sre/save-toolkit/pull/157) at `a8f98ce`. Renewed owner direction
 activates only the executable workflow/state-graph capability from Batch 3. The proposed SRE
 capability additions remain held; this item selects no graph runtime, creates no execution service,
@@ -877,9 +896,202 @@ and review evidence without conflating their claims, then move `SKILLS-003` to t
 runtime, schema, executable validator, `codebase-atlas`, or SRE capability remains separate future
 work and does not keep this skill-capability item open.
 
-**Next action:** From refreshed `origin/main`, inventory the exact owning surfaces, freeze the
-routing matrix and five bounded artifact cases, and implement only `workflow-graph-engineering` as
-the first reviewed Batch 3 slice.
+**Next action:** One independent correctness/security and roadmap-plan conformance review bound to
+this branch's exact head — not PR #162's bundled head, which is what the two Codex reviews covered.
+Then push, open the pull request, and on owner acceptance of the exact head move `SKILLS-003` to
+the closed table, recording its structural, routing, artifact, and review evidence separately
+without conflating their claims. Do not average the Opus artifact result with the development
+pass's 47/47 on `claude-fable-5` — different tier, different baseline. `GRADER-003`,
+`EVIDENCE-001`, and any runtime, schema, validator, or `codebase-atlas` work stay separate items
+and do not hold this one open.
+
+### EVIDENCE-001 — stop losing measurement evidence by default
+
+**Status:** `ready` (2026-08-25)
+
+**Owner:** `prompt-engineer` owns the eval and acceptance evidence paths; `latent-sre` accepts the
+exact revision.
+
+**Outcome:** Evidence from a paid measurement survives the session that produced it, without
+depending on someone remembering to copy it into a committed document.
+
+**Source:** Three losses in one line of work, all `[verified]`: the `GRADER-003` incumbent baseline
+batch `20260824T231543Z-53c0a77c` vanished with a removed worktree; `.eval-runs/` is gitignored, so
+all three verification batches would have been lost had their findings not been hand-copied into
+[the batch record](reviews/2026-08-25-grader-003-verification-batch.md); and the acceptance 3
+harness persisted three of five agent transcripts, leaving two completed cases ungradable
+([result](reviews/2026-08-25-skills-003-acceptance-3-result.md)). Each loss cost either a re-run or
+a permanent gap in an acceptance record. The common cause is that measurement output lands
+somewhere ephemeral by default and survives only by an unenforced human habit.
+
+**Prerequisites:** None. This is repository tooling, not a fleet-authority change.
+
+**Acceptance:** A paid measurement's evidence is committed by construction, not by convention.
+Minimally: a documented capture step that extracts the durable summary from a batch or exercise
+into `docs/reviews/` before the ephemeral store can be reclaimed; a check that a roadmap item citing
+a batch ID can resolve it to committed evidence; and a stated retention boundary saying what is
+deliberately *not* kept — raw transcripts are large and may carry untrusted content, so the
+requirement is the summary, the identities, and the verbatim phrasings a future reader would
+otherwise have to re-run to recover. Do not solve this by committing raw transcripts wholesale.
+
+**Next action:** Inventory where each measurement type currently writes — `.eval-runs/`, agent task
+output files, session scratchpads — and which of those the repository can reach at the moment a run
+finishes. Propose the capture step against that inventory before writing any tooling.
+
+### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
+
+**Status:** `active` (2026-08-25) — `latent-sre` approved **all three** shapes, and they compose:
+direct mode now carries the behavioural contracts at full strength, discovery keeps a routing floor
+of three-to-four graders, and the discovery positives run at `threshold: 0.66` because discovery
+measures a propensity rather than a contract. Applied and **measured**: see the two batches below. The instrument defect is diagnosed and fixed, and a
+second, larger constraint was then measured: **contract shape**. Five discovery batches under
+identical conditions gave 0/12, 4/12, 9/12, 8/12, **12/12**; `trigger-and-shape` went 3/3 then 1/3
+**with no change made to it**, so the 9/12 was a lucky sample rather than progress, and the closing
+12/12 is the new shape. Routing is `[verified]` **48/48** across every revision with no misroute
+anywhere. **Fifteen** reds traced, zero behavioural defects. Evidence:
+[the verification batches](reviews/2026-08-25-grader-003-verification-batch.md).
+
+**Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
+
+**Outcome:** The four `agent-authoring` discovery scenarios grade what a correctly routed response
+actually contains, so a red in that set means a routing or behaviour defect rather than evaluator
+vocabulary.
+
+**Source:** The `SKILLS-003` implementation packet dispositioned this `proposed to roadmap` and it
+was never filed. Its incumbent baseline run `20260824T231543Z-53c0a77c`, taken on `origin/main`
+bytes with no candidate present (Sonnet, 3 trials, 600 s), scored **0/4 scenarios and 0/12 trials
+with no routing failure in any trial** — every red a behavioural `contains_any` on vocabulary the
+real transcripts did not use. A description edit cannot change response content, so this is an
+incumbent evaluator defect that the SKILLS-003 change neither caused nor fixed. Evidence:
+[the SKILLS-003 packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md).
+
+**What the defect actually was.** `[verified]` by reading each scenario against its own prompt: in
+every case the grader demanded vocabulary the prompt never requested. `loop-engineering` asked for
+"hard iteration/candidate/time/cost budgets" and "promotion authority" while grading for
+`maximum iterations` and `human acceptance`; `trigger-and-shape` asked to "name the adoption and
+stop conditions" while grading only for `adoption authority`; `workflow-graph` asked for "allowed
+edges" and "handoff/join" while grading for `delegation edge`. These are exactly the terms the
+baseline recorded as red. No transcript was needed to see it, which is why the lost batch stopped
+mattering.
+
+**Treatment applied.** One `not_fire` near miss (`defers-code-dependency-graph`) became
+routing-only, the structural twin of the workflow-graph case. The three positives keep their
+behavioural contracts — the graded response is `agent-authoring`'s own — with their graders moved
+to what the prompt requests. **Prompts were not edited**: a discovery prompt is the routing
+stimulus, so changing one re-opens the routing measurement, and the existing evidence (12/12
+correct, no routing failure on either revision) had to survive. `[verified]` the diff touches only
+grader term-sets, comments, `threshold`, `success_criteria`,
+and three new scenario files -- **not** prompts. An earlier revision of this sentence said "only grader term-sets
+and comments", which the same diff falsified: a threshold is a scoring rule, and changing it changes
+what red means. Corrected after review rather than left standing.
+
+**Guard against recurrence.** `test_discovery_positives_grade_only_what_the_prompt_requests`
+requires each positive to declare, in `_AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS`, the prompt terms
+carrying its graded behaviours — the `_OBS_BEHAVIOR_PROMPT_TERMS` shape. It is deliberately *not*
+derived from grader tokens: a grader should demand artifact-level vocabulary the prompt does not
+contain, because that is what keeps a prompt echo from passing. Two findings came out of building
+it, both `[verified]`: bare `"AST"` matched `last`/`past`/`broadcast` under substring matching and
+is now spelled out; and in two scenarios a single grader was silently the only one rejecting the
+prompt echo, so widening it with the prompt's own wording let the echo pass the whole set. Both are
+recorded in the scenario comments.
+
+**Prerequisites:** None outstanding. The two the packet implied are resolved: the baseline
+transcripts are `[verified]` gone — that batch ran in the since-removed `.worktrees/graph-program`
+and is absent from every `.eval-runs` directory here — and the treatment chosen does not need them,
+because the mismatch is visible in each scenario against its own prompt. Any *further* grader
+widening does need a transcript first.
+
+**Measured results.** Three candidate batches plus the incumbent baseline. Same model, trials,
+timeout, and threshold throughout (Sonnet, 3 trials, 600 s, threshold 1.0); the CLI differed —
+2.1.241 for the incumbent baseline, 2.1.245 for the three candidates:
+
+| Batch | Candidate | Trials green | Routing | Cost |
+|---|---|---|---|---|
+| `20260824T231543Z-53c0a77c` (incumbent) | `origin/main` bytes | 0/12 | 12/12 | — |
+| `20260825T174112Z-498600c4` | `90bd33e` | 4/12 | 12/12 | USD 3.54 |
+| `20260825T183911Z-ea5961ab` | `95a017a` | 9/12 | 12/12 | USD 3.23 |
+| `20260825T192519Z-4b6fe947` | `16a236d` | 8/12 | 12/12 | USD 3.88 |
+
+**Finding 1 — the instrument (fixed).** `contains_any` is a plain substring test and cannot express
+these contracts. Fifteen reds were traced to their transcripts across six batches and **not one was
+a behavioural defect**: they were defeated by a markdown label, a hyphen, word order, a word
+boundary, an unadmitted method, a numeric bound, and a singular. Eight graders moved to bounded
+`regex`; `workflow-graph`'s delegation-edge behaviour now grades structurally, because a correct
+answer's words there are the prompt's own words and no token can both match the answer and reject
+the echo.
+
+**Finding 2 — the contract shape.** This is what moved the item to `decision-needed`; the owner
+has since chosen all three shapes, so the item is `active` again. These
+scenarios are conjunctions: every positive grader must pass in all three trials. `loop-engineering`
+has 7 positive graders, so 21 grader-trials — even at 97% per grader-trial its chance of a clean
+sweep is 0.53. `trigger-and-shape` is 0.58. The one scenario that reached 3/3,
+`defers-code-dependency-graph`, has a single grader. The ceiling is set by conjunction length, not
+by grader quality, which is why the third batch went down rather than up. No further grader edit was
+made after that batch: widening cannot fix this.
+
+**Acceptance:** Instrument work is complete and three times measured: `test_graders` 665/665,
+`--validate` OK at 94 scenarios, Gate A 6/6, generator byte-clean,
+`claude plugin validate . --strict` PASS, the prompt-alignment invariant proven red for its named
+reason, and every batch recorded with transcripts summarised in a committed document rather than in
+gitignored `.eval-runs/`. The regression split stays red until the contract shape is decided — an
+honest red reflecting a contract the suite cannot satisfy, not a fleet defect.
+
+**Applied (2026-08-25).** Three direct-mode contracts were added —
+`agent-authoring-loop-contract`, `agent-authoring-trigger-and-shape-contract`, and
+`agent-authoring-roster-graph-contract` — each `calibration` until a measured pass, per
+`evals/README.md`. The three discovery positives keep only an identity grader, an echo-rejector,
+and their anti-pattern guards, and each **names the direct scenario that now holds its contract**.
+`test_trimmed_discovery_positives_have_a_direct_contract` enforces the pairing in both directions:
+it fails if a paired contract is missing, and it fails if a discovery case is re-inflated back into
+a contract. Both failure modes were proven red for their named reason and restored. Offline:
+`test_graders` 726/726, `--validate` OK at 97 scenarios (30 direct), Gate A 6/6, generator
+byte-clean, `claude plugin validate . --strict` PASS.
+
+**Measured (2026-08-25).** Two batches under the standing conditions. Discovery
+`20260825T214004Z-ab8dff39` on `ce0278a`: **4/4 scenarios, 12/12 trials, routing 12/12**, USD 3.44 —
+the trimmed shape passes cleanly on unseen trials, which the old shape never did in three attempts.
+Direct `20260825T225402Z-8ff050e2` on `b8dea04`: **8/9 trials**, skill fired 3/3 on every contract,
+USD 2.70; `agent-authoring-loop-contract` and `agent-authoring-trigger-and-shape-contract` measured 3/3 and
+`agent-authoring-roster-graph-contract` measured 2/3. A second direct batch
+`20260825T233556Z-5fb69d7b` then measured **3/3, 3/3, and 2/3** — `roster-graph-contract` improved
+because the widened proximity window fixed its two-character miss, and **`trigger-and-shape-contract`
+went 3/3 → 2/3 with no change made to it**. That is the whole argument for not promoting on one
+clean batch, and it is why `7c88f57` reverted the promotion made on batch 5: the reverted scenario
+is precisely the one that later measured 2/3. **All three stay `calibration`** — and under
+`AGENTS.md` promotion is not an eval outcome at all, only human acceptance of the exact revision. Its single red is the fourteenth traced on this item and the fourteenth with
+the behaviour present: a `read-only … review` proximity grader allowed 40 characters and the answer
+put 42 between them. Discovery trials across five batches: `0/12 → 4/12 → 9/12 → 8/12 → 12/12`;
+routing `[verified]` **48/48**; **fourteen reds traced, zero behavioural defects**.
+
+**Stated rather than implied:** the threshold relaxation made **no observable difference**. Every
+discovery scenario passed 3/3, so the 2-of-3 bar absorbed nothing and `threshold: 1.0` would have
+given the same result. Option 2 is verifiably in force — the bar computes to 2 of 3 against
+`run_evals.py:1113` — and was simply not exercised. `[unverified]` the post-batch widenings (the
+80-char proximity window, the Mermaid arrow forms, the `go list` boundary, the `scoring`
+inflection) have not been measured; each is a pure widening on a scenario that already passed, so
+none can have turned a pass into a fail.
+
+**Measured (2026-08-26).** Batch `20260826T000538Z-2b8d7cc5` closed the last gap: the two graders
+rewritten on this branch but never measured — `defers-code-graph` (sole grader, `split: regression`,
+so it gates) and `defers-runtime-selection` — both returned **3/3**, and all three regression
+scenarios in that suite passed 3/3. 14 of 15 trials passed; the fifteenth was a clean 600 s harness
+timeout that produced no response, so the batch verdict is `INCONCLUSIVE` rather than PASS.
+**No grader on this branch is reasoning-only any more.** Routing is `[verified]` 62/62 conclusive.
+
+**Accepted (2026-08-26).** `latent-sre` accepted the exact PR #170 head `9079ab3`. That is the
+promotion step `AGENTS.md` reserves to a human; no eval result contributed to it. On merge,
+`SKILLS-003` moves to the closed table — its independent exact-revision review requirement is met
+by the four review rounds on this branch, all bound to stated revisions.
+
+**Next action:** Merge PR #170. Then move `SKILLS-003` to the closed table with its structural,
+routing, artifact, and review evidence recorded separately rather than conflated. `GRADER-003`
+keeps its remaining item — the three direct contracts stay `calibration`, and promoting any of them
+is a separate owner decision, not an eval outcome. `EVIDENCE-001` stays `ready` and is worth taking
+before the next paid run. If accepted, close the
+GRADER-003 instrument and shape work and leave one follow-up: a batch that exercises the widened
+graders, which would let `agent-authoring-roster-graph-contract` earn `regression`. Do not widen a
+grader further without reading the transcript that failed it, and do not edit a discovery prompt —
+it is the routing stimulus and the 48/48 routing evidence depends on it staying byte-identical.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

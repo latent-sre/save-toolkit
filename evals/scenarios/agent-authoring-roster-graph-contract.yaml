@@ -1,0 +1,42 @@
+schema_version: 1
+id: agent-authoring-roster-graph-contract
+mode: direct
+# Calibration until measured. GRADER-003 moved this contract here from
+# discovery-agent-authoring-workflow-graph. The roster/delegation-graph contract is agent-authoring's
+# to hold; the discovery case keeps only enough to prove the request reached this lane.
+# Stays calibration: batch 20260825T225402Z-8ff050e2 measured 2/3 (skill fired 3/3). The one
+# red was the proximity miss recorded on the read-only grader below, fixed after the batch and
+# therefore `[unverified]` -- no run has exercised the widened form, so this has not earned
+# regression.
+split: calibration
+target:
+  kind: skill
+  name: agent-authoring
+prompt: |
+  Design the agent roster/delegation graph for change delivery: coordinator, implementation,
+  research, read-only independent review, and human-owned effects. Give the nodes, the allowed
+  edges as an explicit edge list, the handoff and join points, the authority boundary of each lane
+  including which lane is read-only, who owns effects, and where the fleet terminates. Do not map
+  code dependencies or pick a runtime.
+success_criteria:
+  - Gives nodes, an explicit edge list, authority boundaries, joins, and termination
+  - Names the review lane read-only and effects as human-owned
+  - Does not turn the roster into a code-dependency graph or select a runtime
+graders:
+  - type: regex
+    pattern: '(?is)(?=.*\bnodes?\b)(?=.*\bedges?\b)(?=.*\bauthorit(?:y|ies)\b)(?=.*\b(?:terminat|terminal)\w*\b)'
+  - type: regex
+    pattern: '(?i)\b\w[\w\-]*\s*(?:\u2192|-{1,3}>|={1,2}>|-\.->)\s*(?:\|[^|\n]{0,40}\|\s*)?\w[\w\-]*'
+  # Window widened 40 -> 80 after batch 20260825T225402Z-8ff050e2 trial 3, which wrote
+  # "read-only lane by design - this is the independent-review boundary" and missed the
+  # 40-char window by TWO characters. The behaviour was present, as in every traced red on
+  # this item. Safe: this is not the scenario's echo-rejector (the arrow above is), and the
+  # prompt already matched at 40, so widening costs no echo rejection.
+  - type: regex
+    pattern: '(?i)\bread[\s\-]?only\b[^.\n]{0,80}\breview\w*\b|\breview\w*\b[^.\n]{0,80}\bread[\s\-]?only\b'
+  - type: regex
+    pattern: '(?i)\bhuman\b[^.\n]{0,60}\beffects?\b|\beffects?\b[^.\n]{0,40}\bhuman\b'
+  - type: not_regex
+    pattern: '(?i)must (?:use|implement with) (?:langgraph|networkx)'
+  - type: not_regex
+    pattern: '(?i)\bimports?\b.*\b(?:cycle|cycles)\b|\b(?:cycle|cycles)\b.*\bimports?\b'
