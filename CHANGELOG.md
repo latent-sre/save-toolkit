@@ -27,6 +27,80 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Audited `backend-craft` against the four-theme design rule and repaired what the audit found.
+  **Correctness:** `consuming-apis` cited a product name one rename stale against `stack-profile`
+  (Wavefront/Aria Operations for Applications, now Broadcom DX OpenExplore) and omitted Moogsoft's
+  current vendor, under a heading that told the reader to cite current names — the per-integration
+  section now carries an ownership pointer making `stack-profile` the single place a rename lands;
+  its blanket "reflect a hard-down critical dependency in `/readyz`" contradicted SKILL.md's
+  qualified readiness rule and now defers to it; and seven references pointed at
+  `skills/backend-craft/SKILL.md`, a path that does not resolve once the skill ships in a plugin,
+  now `../SKILL.md` as elsewhere in the fleet. **Context:** `api-design` restated SKILL.md's method
+  semantics, status codes, and pagination default nearly verbatim, charging for them twice whenever
+  it loaded, and now owns only what SKILL.md leaves open; `consuming-apis` carried two overlapping
+  sections covering the same five topics and an ops-tooling voice inside a general-purpose skill;
+  five references repeated their own H1 as a section heading; `auth` had one bullet list split by a
+  stray blank line; SKILL.md stated the `429`/`Retry-After` rule twice within one section.
+  **Loop:** the OpenAPI starter had drifted from the contract SKILL.md asserts — no `request_id`
+  extension and no rate-limit response at all — so it now carries both, pinned to SKILL.md by a
+  focused regression proven red before green; `fastapi` gained the Pydantic v2 / SQLAlchemy 2.0
+  version caveat `spring-boot` already carried. Two routing scenarios now cover the skill's two
+  trigger arms, which had no eval coverage among the previous 94. **Hosts:** the repo-rooted
+  path was broken in the Copilot projection too, where the bundle sits under a different
+  prefix entirely, so `check_links.py` now rejects a reference naming its own `SKILL.md` by
+  repo-rooted path — the pattern `CODE_PATH_RE` never covered. Arming it surfaced the same
+  defect in seven `frontend-craft` references, fixed here; a focused regression proves the
+  self-pointer red and both `../SKILL.md` and a sibling-skill mention green.
+- Assessed merging `agent-authoring` and `agent-security`; kept them separate and recorded why. The
+  bundles share no distinctive vocabulary (trifecta, prompt injection, Rule of Two, tool absence all
+  appear zero times in `agent-authoring`), `artifact.md` already declares `agent-security` the owner
+  of the independent threat review, and `prompt-engineer` composes them on a predicate rather than
+  needing one file. Merging would push the always-loaded body to roughly 4.5k tokens against a 5k
+  budget, and collapse eight routing scenarios including three deferral contracts.
+- Refreshed `ci-actions` on `actions/checkout` fork-checkout refusal: the behavior shipped in v7.0.0
+  on 2026-06-18 and was **backported to every supported major on 2026-07-16**, so the reference's
+  "v7.0.0 and later" framing no longer described a pinned v5 or v6 workflow that had started failing
+  without moving — the skill's own "why is this workflow failing" trigger. Added the exact refusal
+  conditions and the `allow-unsafe-pr-checkout` opt-out, framed as an unsafe design to review rather
+  than a fix. Added the two routing scenarios `ci-actions` lacked, one of them the pwn-request
+  request that a helpful assistant would otherwise fulfil, and gave `agent-security` and `ci-actions`
+  the `argument-hint` the rest of the fleet carries.
+- Corrected the README roster's `Routing` column for `observability-engineer` and `prompt-engineer`,
+  which mixed real `Agent(...)` delegation edges with handoffs the caller must dispatch. Both agent
+  bodies state the constraint explicitly ("this role cannot invoke `software-engineer`; the
+  recommendation returns to the caller"), and the `sre` row already modelled the distinction, so the
+  two rows now follow it. AGENTS.md's `Delegates to` column is bound to `EXPECTED_DELEGATION` by
+  `validate_roster_graph`; README's `Routing` column is prose and is not, which is why it could drift
+  into naming edges the frontmatter never granted.
+- Deepened the `runbook` skill from process coverage to authoring craft. It was already strong on
+  protocol — structure, accretion, Confluence import, alert linking, Crawl→Walk→Run — but every
+  asset in the bundle was a blank skeleton, so an author got slots and rules and never saw what
+  filling them well looks like. Adds a complete worked exemplar
+  (`assets/runbook-example.md`): a matured runbook whose triage branches route *away* from the
+  wrong action, whose expected-output lines separate partly-worked from failed, and whose incident
+  history shows three real incidents changing it. Adds `references/step-craft.md` on how a
+  correct-looking step produces a wrong action under pressure — ambient targets, success-only
+  expectations, steps reached out of order, non-idempotent rollbacks, unbounded retries,
+  placeholders with no source, scope that quietly grew. Adds a *Before you publish* readback to the
+  body: four questions asked as the tired responder rather than the author, since authors cannot
+  see the gaps they hold the context for. The exemplar is pinned to the frontmatter schema and to
+  its own exemplar disclaimer by two focused regressions, each proven red before green — a
+  demonstrated-but-invalid example teaches the wrong shape more effectively than the schema teaches
+  the right one. Two routing scenarios join the existing pair, which tested only routing: one
+  measures whether authored steps carry branches, stop conditions, and rollbacks; the other hands
+  the skill a prompt that actively invites confabulation ("just put in whatever is plausible") and
+  checks the honest gaps stay visible as gaps. Body grows from ~1.7k to ~2.2k tokens against the
+  ~5k budget.
+- Renamed the `prompt-engineer` agent to `agent-engineer`. The lane owns agent bodies, skills, tool
+  and grader descriptions, bounded eval loops, roster and delegation graphs, and workflow-graph
+  designs; prompt text is one artifact class among those, so the old name understated it the same way
+  `coder` understated the build lane. This is a breaking address change from
+  `save-toolkit:prompt-engineer` to `save-toolkit:agent-engineer`; description, tool authority, body
+  contract, and the single `Agent(researcher)` edge are unchanged
+  ([ADR](docs/decisions/2026-08-26-agent-engineer-rename.md)). No routing comparison was run —
+  the decision rests on human legibility, as its predecessor did, and the prior rename's measured tie
+  is the only evidence that a name change of this kind does not move automatic routing. Retiring the
+  name also removes one of the three role-name collisions with the sibling `sde-agents` fleet.
 - Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
   implementation, testing, and operations-tooling lane. This is a breaking address change from
   `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are

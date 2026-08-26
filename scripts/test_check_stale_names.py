@@ -64,14 +64,49 @@ class StaleNamesTest(unittest.TestCase):
 
     def test_a_path_or_md_reference_is_exempt(self) -> None:
         # The carve-out that keeps a reintroduced name usable as a real filename: a match adjacent to
-        # `/` or immediately followed by `.md` is skipped. `api-design` is a retired unit name that
-        # now also ships as api-design.md; the link form must NOT trip the guard.
+        # `/` or immediately followed by `.md` is skipped *when a file of that name exists in the
+        # scanned tree*. `api-design` is a retired unit name that now also ships as api-design.md,
+        # so the link form must NOT trip the guard -- but only because the file is really there.
+        # Writing it is what earns the exemption; see
+        # test_a_retired_name_with_no_live_file_is_caught_in_path_and_md_form for the other half.
         stale_file_token = "api-design"
         self.assertIn(stale_file_token, check_stale_names.STALE)
+        self._write(f"skills/probe/references/{stale_file_token}.md", "# API surface design\n")
         self._write(
             "skills/probe/SKILL.md",
             f"See [API surface design](references/{stale_file_token}.md) and "
             f"`references/{stale_file_token}.md`.\n",
+        )
+        self.assertEqual([], check_stale_names.check(self.root))
+
+    def test_a_retired_name_with_no_live_file_is_caught_in_path_and_md_form(self) -> None:
+        """The carve-out must exempt real filenames, not every retired unit.
+
+        `_hits` skipped any match adjacent to `/` or followed by `.md`, so a live handoff naming
+        `agents/prompt-engineer.md` -- the exact artifact the rename retired -- passed Gate A. The
+        exemption is meant for retired unit names that survive as real files (`api-design.md`), so
+        it is granted per name, on evidence that such a file exists in the scanned tree.
+        """
+
+        retired = "prompt-engineer"
+        self.assertIn(retired, check_stale_names.STALE)
+        self.assertFalse(
+            (check_stale_names.ROOT / "agents" / f"{retired}.md").is_file(),
+            "the retired agent file must not exist for this test to mean anything",
+        )
+        for form in (f"see agents/{retired}.md", f"see {retired}.md", f"handoff to {retired}/"):
+            with self.subTest(form=form):
+                self._write("skills/probe/SKILL.md", form + "\n")
+                failures = check_stale_names.check(self.root)
+                self.assertEqual(1, len(failures), f"{form!r} evaded the checker: {failures}")
+                self.assertIn(retired, failures[0])
+
+    def test_a_sibling_repository_url_stays_writable(self) -> None:
+        # The `/` carve-out exists for repository URLs; `sre-agents` and `sde-agents` are real
+        # sibling repositories, so narrowing the carve-out must not make their URLs unwritable.
+        self._write(
+            "skills/probe/SKILL.md",
+            "See https://github.com/latent-sre/sde-agents and latent-sre/sre-agents.\n",
         )
         self.assertEqual([], check_stale_names.check(self.root))
 

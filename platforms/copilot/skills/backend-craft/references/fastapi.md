@@ -6,7 +6,12 @@ Read this when building in Python + FastAPI — the greenfield default named in
 [stack](stack.md). These are the stack-specific mechanics behind the language-neutral rules;
 in another stack, satisfy the same rules with that stack's idioms.
 
-The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conflict, SKILL.md wins.
+The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
+
+Everything below assumes **Pydantic v2** and **SQLAlchemy 2.0** APIs. The versions a given repository
+runs are `[unverified]` until read from its `pyproject.toml`/lock file — the v1→v2 Pydantic rename
+(`orm_mode` → `from_attributes`, `@validator` → `@field_validator`/`@model_validator`, `.dict()` →
+`.model_dump()`) makes copied code fail loudly at import in v1, so check before copying.
 
 ## Shape of the app
 

@@ -5,6 +5,7 @@ description: >-
   environments with deployment protection, OIDC, caching, concurrency, least-privilege
   permissions, self-hosted runners for on-prem/PCF. Triggers: 'set up CI', 'add a deploy job',
   'why is this workflow failing', 'harden the pipeline'.
+argument-hint: "[the workflow or CI problem]"
 ---
 
 # GitHub Actions CI/CD

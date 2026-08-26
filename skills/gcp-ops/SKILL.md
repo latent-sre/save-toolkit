@@ -8,6 +8,7 @@ description: >-
   only—not a load: the `stack-profile` skill supplies boundary facts; obs-logs owns backend
   log-query dialects; pcf-ops owns the PCF side while both runtimes coexist.
 compatibility: Requires the gcloud CLI and viewer access to the target GCP project
+argument-hint: "[the GCP service or symptom]"
 ---
 
 # GCP application-side triage (gcloud, read-only)

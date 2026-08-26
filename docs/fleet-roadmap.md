@@ -81,7 +81,7 @@ external data/cost boundary and the remaining guarantees can be proven.
 **Status:** `active` (2026-08-24)
 
 **Owner:** `latent-sre` owns the architecture decision and acceptance of the exact generic-alpha
-revision. `prompt-engineer` owns consumer context-requirement semantics for agents/skills;
+revision. `agent-engineer` owns consumer context-requirement semantics for agents/skills;
 `software-engineer` owns any later resolver, validator, or onboarding-tool implementation. A team
 owner becomes accountable for values and operational documents only when that team separately opts
 into onboarding. No owner may approve its own unreviewed evidence.
@@ -165,7 +165,7 @@ skills beyond the accepted generic consumer contract in this stage.
 
 **Status:** `ready` (2026-08-25)
 
-**Owner:** `prompt-engineer` owns the skill text, references, and templates; `software-engineer`
+**Owner:** `agent-engineer` owns the skill text, references, and templates; `software-engineer`
 owns the bundled scripts. Human acceptance of the exact revision remains with `latent-sre`.
 
 **Outcome:** The `incident-drill` skill's authoring path stops producing scenarios that leak their
@@ -197,9 +197,9 @@ rerun that case before touching the rest.
 [PR #165](https://github.com/latent-sre/save-toolkit/pull/165); the candidate remains unpromoted
 until owner acceptance of that head.
 
-**Owner:** `prompt-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
+**Owner:** `agent-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
 the exact revision. Each accepted finding is implemented by the owner of the surface it names
-(`software-engineer` for validators and harness code, `prompt-engineer` for agent and skill text),
+(`software-engineer` for validators and harness code, `agent-engineer` for agent and skill text),
 never by this item directly.
 
 **Outcome:** The fleet's agents and skills are described once as an executable workflow/state graph
@@ -266,7 +266,7 @@ record merged in PR #167. Three accepted late-review gaps are being addressed on
 `work/incident-state-v2-review-fixes` from refreshed `origin/main`: record-last enforcement,
 tilde-fenced competing records, and unknown or fractional recovery progress.
 
-**Owner:** `prompt-engineer` owns the fleet prompt, context, loop, and graph contract; `latent-sre`
+**Owner:** `agent-engineer` owns the fleet prompt, context, loop, and graph contract; `latent-sre`
 accepts the exact revision. Human incident command and release owners retain their existing live
 authority.
 
@@ -308,7 +308,7 @@ promotion.
 
 **Status:** `decision-needed` (2026-08-24)
 
-**Owner:** `software-engineer` owns implementation; `prompt-engineer` owns the skill text that
+**Owner:** `software-engineer` owns implementation; `agent-engineer` owns the skill text that
 carries runtime-specific references; `stack-profile`'s decision owner names the runtime.
 
 **Outcome:** `software-engineer` can implement an accepted `workflow-graph-engineering` design
@@ -510,7 +510,7 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 **Status:** `ready` (2026-08-25)
 
-**Owner:** `prompt-engineer` owns the eval and acceptance evidence paths; `latent-sre` accepts the
+**Owner:** `agent-engineer` owns the eval and acceptance evidence paths; `latent-sre` accepts the
 exact revision.
 
 **Outcome:** Evidence from a paid measurement survives the session that produced it, without
@@ -552,7 +552,7 @@ identical conditions gave 0/12, 4/12, 9/12, 8/12, **12/12**; `trigger-and-shape`
 anywhere. **Fifteen** reds traced, zero behavioural defects. Evidence:
 [the verification batches](reviews/2026-08-25-grader-003-verification-batch.md).
 
-**Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
+**Owner:** `agent-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
 
 **Outcome:** The four `agent-authoring` discovery scenarios grade what a correctly routed response
 actually contains, so a red in that set means a routing or behaviour defect rather than evaluator

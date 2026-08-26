@@ -1,10 +1,10 @@
 schema_version: 1
-id: agent-direct-prompt-engineer-learning-loop
+id: agent-direct-agent-engineer-learning-loop
 mode: direct
 split: regression
 target:
   kind: agent
-  name: prompt-engineer
+  name: agent-engineer
 prompt: |
   A material authority failure in the reviewer agent is reproduced: it accepted a change without
   the evidence its contract requires. We want to fix that failure without opening another persistent

@@ -57,6 +57,35 @@ class LinkCheckerTests(Fixture):
         self.write("skills/probe-skill/assets/template.txt", "template\n")
         self.assertEqual([], check_links.check(self.root))
 
+    def test_a_reference_naming_its_own_skill_by_repo_rooted_path_is_flagged(self):
+        """The pointer that reads correct and resolves nowhere.
+
+        `skills/<name>/SKILL.md` inside that skill's own references/ resolves neither from the
+        reference's directory nor in platforms/copilot/skills/, where the bundle sits under a
+        different prefix. Eight of backend-craft's nine references carried it through every green
+        gate because CODE_PATH_RE only covers bundle-internal prefixes.
+        """
+        self.skill("# Probe\n\nRead [notes](./references/notes.md).\n")
+        self.write(
+            "skills/probe-skill/references/notes.md",
+            "# Notes\n\nThe universal rules live in `skills/probe-skill/SKILL.md`.\n",
+        )
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any("points at its own skill by repo-rooted path" in f for f in failures),
+            failures,
+        )
+
+    def test_the_relative_self_pointer_and_a_sibling_reference_are_both_allowed(self):
+        """`../SKILL.md` is the fix, and naming a *different* skill is not this defect."""
+        self.skill("# Probe\n\nRead [notes](./references/notes.md).\n")
+        self.write(
+            "skills/probe-skill/references/notes.md",
+            "# Notes\n\nRules live in `../SKILL.md`; ownership sits with "
+            "`skills/other-skill/SKILL.md`.\n",
+        )
+        self.assertEqual([], check_links.check(self.root))
+
     def test_top_level_frontmatter_comment_is_allowed(self):
         frontmatter = CLEAN_FRONTMATTER.replace(
             'argument-hint: "[the probe]"',
@@ -343,12 +372,20 @@ class StaleNameCheckerTests(Fixture):
         self.write("skills/probe/SKILL.md", "Hand this to code-reviewer now.\n")
         self.assertTrue(check_stale_names.check(self.root))
 
-    def test_path_and_md_suffix_are_exempt(self):
+    def test_path_and_md_suffix_are_exempt_when_the_file_is_really_there(self):
+        # The exemption is earned by the file existing, not by the name being retired -- otherwise
+        # `agents/prompt-engineer.md` would be exempt too. See
+        # test_check_stale_names.test_a_retired_name_with_no_live_file_is_caught_in_path_and_md_form.
+        self.write("skills/probe/references/safe-refactor.md", "# Safe refactor\n")
         self.write(
             "skills/probe/SKILL.md",
             "[safe](references/safe-refactor.md) and safe-refactor.md remain paths.\n",
         )
         self.assertEqual([], check_stale_names.check(self.root))
+
+    def test_a_retired_name_with_no_such_file_is_not_exempt_as_a_path(self):
+        self.write("skills/probe/SKILL.md", "[lane](../agents/prompt-engineer.md) owns this.\n")
+        self.assertTrue(check_stale_names.check(self.root))
 
     def test_canonical_command_description_is_scanned(self):
         self._fleet(command_description="Ask code-reviewer to approve this")

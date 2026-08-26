@@ -54,10 +54,23 @@ repository context and can be triggered by an untrusted fork. Never check out an
 that context. Prefer `pull_request` for untrusted contributions, where secrets are withheld. Split a
 secret-dependent check into a later trusted job rather than weakening the fork boundary.
 
-`actions/checkout` v7.0.0 and later refuses fork checkout under `pull_request_target` and
-`workflow_run`; treat an upgrade failure there as evidence of an unsafe workflow design, not a
-reason to bypass the protection. *[sourced: actions/checkout CHANGELOG v7.0.0; reviewed
-2026-08-21]*
+`actions/checkout` refuses fork checkout under `pull_request_target`, and under `workflow_run` when
+the triggering `workflow_run.event` is a `pull_request*` event. It fails when `repository` resolves
+to the fork, when `ref` matches `refs/pull/<n>/head` or `/merge`, or when `ref` resolves to the fork
+PR's head or merge SHA.
+
+**This is not a v7-only behavior any more.** It shipped in v7.0.0 on 2026-06-18 and was backported
+to every supported major on 2026-07-16, so a workflow resolving to v5 or v6 enforces it too. That
+matters for the "why did this start failing" case, but only for workflows on a *floating* major
+tag such as `@v5`: the tag is mutable, so unchanged YAML can resolve to newly backported code. A
+full commit SHA pin, which this file requires above, cannot change behavior until someone moves
+it — there the backport arrives with the re-pin, not on its own. So on a floating tag, read the
+failure as the protection engaging rather than hunting for a regression in your own YAML; on a
+SHA pin, look at the commit that moved it. The opt-out input `allow-unsafe-pr-checkout: true` exists — treat finding one in a
+diff as an unsafe design to review, not a fix to reach for, and treat an upgrade failure the same
+way. *[sourced: GitHub Changelog, ["Safer pull_request_target defaults for GitHub Actions
+checkout"](https://github.blog/changelog/2026-06-18-safer-pull_request_target-defaults-for-github-actions-checkout/),
+and actions/checkout CHANGELOG v7.0.0; reviewed 2026-08-25]*
 
 Never echo secrets. Pass them only through the narrow job environment that needs them, mask any
 sensitive derived value, and enable repository secret scanning plus push protection.

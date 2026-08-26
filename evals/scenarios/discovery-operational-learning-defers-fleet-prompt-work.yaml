@@ -14,10 +14,10 @@ routing:
   expect: not_fire
   expected_alternative: inline
 success_criteria:
-  - Names prompt-engineer as the owner instead of firing operational-learning
+  - Names agent-engineer as the owner instead of firing operational-learning
   - Identifies the named regression as part of that lane's work
 graders:
   - type: contains_any
-    of: ["prompt-engineer", "prompt engineer"]
+    of: ["agent-engineer", "agent engineer"]
   - type: contains_any
     of: ["named regression", "regression case"]

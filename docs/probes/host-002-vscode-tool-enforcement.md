@@ -124,7 +124,7 @@ Record UTC start/end times and raw UI text for every step. A blank field is unre
 
 Open the Chat agent picker and record the exact displayed label for:
 
-`observability-engineer`, `prompt-engineer`, `repository-investigator`, `researcher`, `reviewer`,
+`observability-engineer`, `agent-engineer`, `repository-investigator`, `researcher`, `reviewer`,
 `scribe`, `software-engineer`, and `sre`.
 
 Also record the exact UI path to the picker, missing expected agents, and unexpected agents. This is

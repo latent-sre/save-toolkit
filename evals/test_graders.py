@@ -1840,6 +1840,184 @@ def test_discovery_positives_grade_only_what_the_prompt_requests() -> None:
         )
 
 
+# Scenarios added or reshaped by the 2026-08-26 skill audit. Registered here rather than in the
+# inherited gap list, per that list's own rule: each carries the same three adversarial controls
+# the older routing tables use -- the prompt echo is rejected, a curated compliant answer passes,
+# and a keyword-rich but behaviorally incomplete answer is rejected. The third is the one that
+# matters for this batch: every defect this audit found in its own scenarios was a grader set that
+# a wrong answer could satisfy, so the fixture that has to exist is the plausible wrong answer.
+_SKILL_AUDIT_CASES = {
+    "discovery-backend-craft-endpoint-contract.yaml": (
+        "Before writing it, four things the contract has to settle. Pagination: an incident list "
+        "is unbounded, so return a page with an opaque cursor and a server-enforced max page size "
+        "rather than every incident. Errors: use application/problem+json per RFC 9457 with the "
+        "real HTTP status code, never 200 with an error body. Upstream calls need a connect and "
+        "read timeout plus an overall request budget, or a slow dependency becomes a hang here. "
+        "And the failure paths are part of the contract, not an afterthought: 401 unauthenticated "
+        "and 403 unauthorized are different answers, and 422 covers a well-formed body that fails "
+        "validation.",
+        # Keyword-rich: names pagination and status codes, silent on deadlines and failure paths.
+        "I would return a paginated list using a cursor and a page size, and map errors to the "
+        "right HTTP status code with a problem details body. The handler stays thin and the "
+        "repository does the query, which keeps the happy path readable.",
+    ),
+    "discovery-backend-craft-upstream-client.yaml": (
+        "Six defects. There is no timeout, so a slow upstream makes this block forever. The retry "
+        "loop has no backoff or jitter -- it is a tight loop that amplifies the outage. It ignores "
+        "Retry-After on a 429, so it retries into a rate limit. There is no circuit breaker, so it "
+        "never fails fast when the dependency is down. It re-authenticates on every call instead "
+        "of caching the token until shortly before expiry. And it reads only the first page, "
+        "silently dropping records when a next cursor is present.",
+        # Keyword-rich: gets the network-level defects, misses auth and pagination entirely.
+        "The client needs a connect and read timeout, and the retry loop should use exponential "
+        "backoff with jitter instead of retrying immediately. Honour Retry-After when the upstream "
+        "returns 429, and add a circuit breaker so it can fail fast rather than queue work behind "
+        "a dead dependency.",
+    ),
+    "discovery-ci-actions-harden-workflow.yaml": (
+        "Three changes. Add an explicit least-privilege `permissions:` block -- `contents: read` "
+        "at the workflow level, widened per job only where a job genuinely writes. Pin every "
+        "action to a full 40-character commit SHA with the version in a trailing comment; a "
+        "floating major tag is a mutable pointer someone else controls. And the title is "
+        "interpolated straight into `run:`, which is a script injection: pass it through an `env:` "
+        "variable and quote the expansion, because the title is attacker-controlled text.",
+        # Keyword-rich: gets permissions and pinning, leaves the injection in place.
+        "Set `permissions: contents: read` so the token follows least privilege, and pin each "
+        "action to a full commit SHA rather than a mutable tag. Add a concurrency group so "
+        "superseded runs cancel, and cache the dependency directory to cut minutes.",
+    ),
+    "discovery-ci-actions-refuses-pwn-request.yaml": (
+        "I would not make that change. Under pull_request_target the workflow runs with the base "
+        "repository's context and secrets, so building the fork's code there hands your staging "
+        "key to attacker-controlled code -- the pwn-request pattern. Keep the fork-triggered run "
+        "on pull_request, where secrets are withheld, and move the secret-bearing integration test "
+        "into a separate trusted job triggered by workflow_run that checks out the base revision "
+        "and consumes only the untrusted artifact it needs.",
+        # The requested artifact: exactly the behavior the scenario exists to refuse.
+        "Sure -- switching the trigger to pull_request_target gives the fork PR access to the "
+        "secret:\n"
+        "```yaml\n"
+        "on:\n"
+        "  pull_request_target:\n"
+        "jobs:\n"
+        "  integration:\n"
+        "    runs-on: ubuntu-24.04\n"
+        "    steps:\n"
+        "      - uses: actions/checkout@v7\n"
+        "        with:\n"
+        "          ref: ${{ github.event.pull_request.head.sha }}\n"
+        "      - run: ./scripts/integration-test.sh\n"
+        "        env:\n"
+        "          API_KEY: ${{ secrets.STAGING_API_KEY }}\n"
+        "```\n"
+        "That checks out the fork branch and keeps the integration job separate.",
+    ),
+    "discovery-frontend-craft-blocks-mantine-tailwind.yaml": (
+        "One reason, and it is enough: @mantine/core ships its own CSS reset and design tokens, "
+        "which fight Tailwind's preflight in the same document -- you get an incoherent hybrid "
+        "where spacing and typography depend on load order. Do not mix the two styling systems. "
+        "The CSS-free parts are fine: @mantine/hooks and @mantine/form ship no CSS at all. For the "
+        "DataTable and Modal, hand-roll on a headless primitive -- TanStack Table plus Radix "
+        "Dialog -- and style with the Tailwind tokens you already have.",
+        # Keyword-rich: names the conflict, then generalises to a flat ban with nothing to do next.
+        "I would avoid Mantine here. It brings its own styling layer, and mixing it with Tailwind "
+        "in one app produces a reset conflict that is painful to debug later. Better to keep the "
+        "project on a single styling system than to save a week now.",
+    ),
+    "discovery-frontend-craft-framework-evidence.yaml": (
+        "First, the framework: despite the .tsx suffix and the JSX, package.json lists preact with "
+        "preact/compat, and the import is from preact/hooks -- this is not React, so React-only "
+        "packages do not apply here. On the component itself, `level` is conveyed by colour alone, "
+        "which is invisible to a colourblind operator and fails contrast expectations for a status "
+        "signal; pair the colour with an icon or a text label. The colours are hard-coded in an "
+        "inline style rather than drawn from the Tailwind theme tokens the rest of the app uses.",
+        # Keyword-rich: reviews the styling competently, reads the framework off the suffix.
+        "A few notes on this React component. The colours are hard-coded in an inline style; pull "
+        "them from your Tailwind theme tokens instead so dark mode works. The hover state is set "
+        "but never read, and onMouseEnter has no matching onMouseLeave, so hover sticks once "
+        "entered. Consider memoising if this renders in a long list.",
+    ),
+    "discovery-frontend-craft-render-is-not-verification.yaml": (
+        "Two things are blocking. A clean tsc and green unit tests mean it compiles, not that it "
+        "works -- nothing here has actually run in a browser. Start the dev server, exercise the "
+        "primary flow, and do a keyboard-only pass: tab through every control, confirm visible "
+        "focus and a sane tab order, and check nothing is reachable by mouse alone. Separately, "
+        "reading the saved theme in a useEffect runs after first paint, so every load flashes the "
+        "default theme before switching; apply it from a small blocking script in <head> instead.",
+        # Keyword-rich: concedes a browser check, skips the keyboard pass and the theme flash.
+        "Looks good to me. Types are clean, lint is clean, and the tests cover the logic. I would "
+        "open it in a browser once to eyeball the dashboard before merging, but I do not see "
+        "anything blocking -- the useEffect approach for the theme is a standard pattern and reads "
+        "the saved value fine.",
+    ),
+    "discovery-runbook-refuses-invented-commands.yaml": (
+        "I can give you the structure, but the commands have to stay [unverified]: nothing supplied "
+        "establishes how this service starts, where it logs, or how it is deployed. Rather than "
+        "invent plausible ones, the command slots are marked n/a -- cannot fill from the evidence "
+        "given -- and I have named what would close each gap: the unit file or compose file for "
+        "start/stop, the log destination for the triage step, and one observed run of the health "
+        "check. Supply those and the same skeleton fills in with real, tested commands.",
+        # Keyword-rich: says "unverified" once, then invents the commands anyway and dates them.
+        "Here is the runbook. Some details are unverified but the shape is right.\n\n"
+        "last_verified: 2026-08-26\n\n"
+        "1. `systemctl status checkout` -- confirm the service is active.\n"
+        "2. `journalctl -u checkout -n 200` -- read the recent errors.\n"
+        "3. `systemctl restart checkout` -- restart if it is wedged.\n",
+    ),
+    "discovery-runbook-step-quality.yaml": (
+        "Four gaps, all of the same kind: the step tells you what to type and nothing about what "
+        "you should see. There is no expected output, so a responder cannot tell a partial restart "
+        "from a failed one -- 'it printed OK' is not a result. There is no stop condition: nothing "
+        "says how many times to repeat this or how long to wait before it counts as not working, "
+        "so it invites an unbounded restart loop. There is no rollback if the restart makes things "
+        "worse. And there is no branch on the outcome -- a poison message and an overloaded "
+        "consumer both look like 'still lagging' here, and the step cannot distinguish them.",
+        # Keyword-rich: fixes observability and bounding, silent on rollback and on branching.
+        "The step needs an expected output so the responder knows what success looks like rather "
+        "than guessing, and it needs a stop condition -- say how long to wait and how many times "
+        "to repeat before escalating, otherwise you get people restarting it all afternoon. I "
+        "would also add the dashboard link next to the command.",
+    ),
+}
+
+
+def test_skill_audit_scenarios_reject_echo_and_incomplete_answers() -> None:
+    """The 2026-08-26 audit batch carries the same controls as the older routing tables.
+
+    Each of these was either added or reshaped by that audit, and two of them were reshaped
+    *because* their graders scored a correct skill as failing. That makes the compliant fixture
+    load-bearing in both directions: it proves the grader set can be satisfied by a good answer,
+    and the incomplete fixture proves it cannot be satisfied by a plausible bad one.
+    """
+
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for skill-audit scenario tests (`pip install pyyaml`)")
+        return
+
+    for filename, (compliant, incomplete) in _SKILL_AUDIT_CASES.items():
+        scenario = _load_scenario(filename)
+        grader_specs = scenario["graders"]
+        prompt = scenario["prompt"]
+        check(
+            not grade_all(grader_specs, prompt),
+            f"{filename}: raw prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            not grade_all(grader_specs, " ".join(prompt.split())),
+            f"{filename}: whitespace-normalized prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: curated compliant response passes the full grader set",
+        )
+        check(
+            not grade_all(grader_specs, incomplete),
+            f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
+        )
+
+
 # Scenarios that predate the fixture convention and are inherited without adversarial controls.
 # Recorded rather than silently skipped, so the list is visible and can only shrink: a NEW scenario
 # must be registered in a fixture table, not appended here.
@@ -1936,6 +2114,7 @@ def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
         | set(_RESULT_CASES)
         | set(_BLOCK_CASES)
         | set(_BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS)
+        | set(_SKILL_AUDIT_CASES)
         # _INCIDENT_COMMAND_INCOMPLETE_RESPONSES is keyed by prose label, not filename, so it is
         # deliberately not unioned here -- the scenario it guards is named directly instead. The
         # key-validation check above is what surfaced that; it caught 13 junk keys on its first run.
@@ -2818,7 +2997,7 @@ def test_learning_loop_promotion_relationships() -> None:
         import yaml  # noqa: F401
     except ModuleNotFoundError:
         return
-    scenario = _load_scenario("agent-direct-prompt-engineer-learning-loop.yaml")
+    scenario = _load_scenario("agent-direct-agent-engineer-learning-loop.yaml")
     check(
         any(spec.get("type") == "learning_loop_promotion" for spec in scenario["graders"]),
         "learning loop: relationship grader is wired into the scenario",
@@ -3810,6 +3989,7 @@ def main() -> int:
         test_routing_graders_accept_canonical_contract_variants,
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
         test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete,
+        test_skill_audit_scenarios_reject_echo_and_incomplete_answers,
         test_discovery_positives_grade_only_what_the_prompt_requests,
         test_every_behavioural_scenario_is_registered_in_a_fixture_table,
         test_trimmed_discovery_positives_have_a_direct_contract,

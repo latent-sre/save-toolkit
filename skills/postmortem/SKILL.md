@@ -6,6 +6,7 @@ description: >-
   timeline, detection, response, and owned action items. Direct retrospective writing belongs to
   scribe; active incidents route to sre and incident-command. Triggers:
   "postmortem mode selected", "apply the postmortem structure", "use the postmortem template".
+argument-hint: "[the resolved incident]"
 ---
 
 # Blameless postmortem

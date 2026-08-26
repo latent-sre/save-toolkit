@@ -12,11 +12,16 @@ from pathlib import Path
 
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 STALE = (
-    # `researcher` and `prompt-engineer` remain canonical plugin agents.
+    # `researcher` and `agent-engineer` remain canonical plugin agents.
     # `observer` retired into `sre-steward`, which then retired into `observability-engineer`;
     # `scribe` is canonical again. `sre-steward` was renamed because `sre` is a strict prefix of
     # it, which makes substring-matching tooling (eval graders, adapter name rewriting) confuse
     # the incident lane with the steady-state lane.
+    # `prompt-engineer` retired into `agent-engineer`: the lane owns agent bodies, skills, roster
+    # and delegation graphs, and eval loops, of which prompt text is one artifact. The sibling
+    # `sde-agents` fleet still ships a `prompt-engineer`, so leaving the old name unguarded here
+    # would let a cross-fleet copy read as this fleet's.
+    "prompt-engineer",
     "sde", "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
     "test-engineer", "sre-monitor", "runbook-author",
     "observer", "sre-steward",
@@ -24,7 +29,7 @@ STALE = (
     # the `sre` ⊂ `sre-agents` prefix collision (renaming agents alone could never fix it, because
     # the namespace carried the collision). Listed here so leftover `sre-agents:<component>`
     # addressing in agents/, skills/, or commands/ fails the build instead of silently not
-    # resolving. Repository URLs are unaffected: `_hits` skips a match preceded by "/".
+    # resolving. Repository URLs are unaffected: `SIBLING_REPOSITORIES` keeps it usable as a path.
     "sre-agents",
     "incident-severity", "blameless-postmortem",
     "rollback-mitigation", "github-actions-ci", "wavefront-queries",
@@ -51,16 +56,45 @@ STALE_RE = re.compile(
 )
 
 
-def _hits(text: str):
+SCANNED_ROOTS = (Path("skills"), Path("agents"), Path("commands"), Path("evals/scenarios"))
+# Real sibling repositories, so `latent-sre/sde-agents` in a URL is a legitimate reference even
+# though both names are retired as fleet units. Names, not paths: the carve-out below is granted
+# per name, never to every retired unit.
+SIBLING_REPOSITORIES = frozenset({"sre-agents", "sde-agents"})
+
+
+def _filename_exempt_names(root: Path) -> frozenset:
+    """Retired unit names that still name a real file in the scanned tree.
+
+    Some units were retired as *units* while their name survived as a *filename*: `api-design`
+    became `skills/backend-craft/references/api-design.md`. A link to that file must not trip the
+    guard. Granting the carve-out to every retired name instead made it far too wide -- a handoff
+    naming `agents/prompt-engineer.md` passed Gate A, which is the retired identity the rename
+    exists to reject. Tie the exemption to evidence that such a file is actually there.
+    """
+
+    live = set()
+    for relative in SCANNED_ROOTS:
+        base = root / relative
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*"):
+            if path.is_file():
+                live.add(path.stem)
+    return frozenset(live & set(STALE)) | SIBLING_REPOSITORIES
+
+
+def _hits(text: str, exempt: frozenset = SIBLING_REPOSITORIES):
     for match in STALE_RE.finditer(text):
         before = text[match.start() - 1] if match.start() else ""
         after = text[match.end() :]
-        if before == "/" or after.startswith("/") or after.startswith(".md"):
+        adjacent = before == "/" or after.startswith("/") or after.startswith(".md")
+        if adjacent and match.group(1) in exempt:
             continue
         yield match
 
 
-def _scan_file(path: Path) -> list[str]:
+def _scan_file(path: Path, exempt: frozenset) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
@@ -69,7 +103,7 @@ def _scan_file(path: Path) -> list[str]:
         return [f"{path.as_posix()}: cannot read: {exc}"]
     failures = []
     for number, line in enumerate(text.splitlines(), start=1):
-        for match in _hits(line):
+        for match in _hits(line, exempt):
             failures.append(
                 f"{path.as_posix()}:{number}: stale fleet-unit name '{match.group(1)}'"
             )
@@ -84,22 +118,23 @@ def _scan_tree(root: Path) -> list[str]:
     # holds frozen result JSON that records what was true on the day it ran, and the repo has
     # committed to leaving those bytes unchanged. Widening this to `evals` lights up on 24 such
     # hits that are supposed to be there.
-    for relative in (Path("skills"), Path("agents"), Path("commands"), Path("evals/scenarios")):
+    exempt = _filename_exempt_names(root)
+    for relative in SCANNED_ROOTS:
         base = root / relative
         if not base.is_dir():
             continue
         for path in sorted(base.rglob("*")):
             if path.is_file() and "__pycache__" not in path.parts:
-                failures.extend(_scan_file(path))
+                failures.extend(_scan_file(path, exempt))
     return failures
 
 
-def _scan_value(value: object, json_path: str) -> list[str]:
+def _scan_value(value: object, json_path: str, exempt: frozenset) -> list[str]:
     if not isinstance(value, str):
         return []
     return [
         f"canonical/fleet.json:{json_path}: stale fleet-unit name '{match.group(1)}'"
-        for match in _hits(value)
+        for match in _hits(value, exempt)
     ]
 
 
@@ -118,21 +153,22 @@ def _scan_metadata(root: Path) -> list[str]:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         return [f"canonical/fleet.json: cannot parse metadata for stale-name scan: {exc}"]
+    exempt = _filename_exempt_names(root)
     failures = []
     for index, agent in enumerate(data.get("agents", [])):
         if isinstance(agent, dict):
             failures.extend(
-                _scan_value(agent.get("description"), f"agents[{index}].description")
+                _scan_value(agent.get("description"), f"agents[{index}].description", exempt)
             )
     for index, command in enumerate(data.get("commands", [])):
         if not isinstance(command, dict):
             continue
         failures.extend(
-            _scan_value(command.get("description"), f"commands[{index}].description")
+            _scan_value(command.get("description"), f"commands[{index}].description", exempt)
         )
         if "argument_usage" in command:
             failures.extend(
-                _scan_value(command.get("argument_usage"), f"commands[{index}].argument_usage")
+                _scan_value(command.get("argument_usage"), f"commands[{index}].argument_usage", exempt)
             )
     return failures
 

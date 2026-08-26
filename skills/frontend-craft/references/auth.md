@@ -3,7 +3,7 @@
 Read this for any UI a teammate can reach — at work that is all of them.
 
 The server still enforces; the UI is convenience, not the security boundary. The universal frontend
-rules live in `skills/frontend-craft/SKILL.md`. On any conflict, SKILL.md wins.
+rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
 ## Auth
 

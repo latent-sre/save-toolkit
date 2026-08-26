@@ -18,7 +18,12 @@ Investigate before writing: read the actual config, compose/unit files, and any 
 ## Required structure (every slot filled or marked "n/a — why")
 
 Full fill-in template: [runbook template](./assets/runbook-template.md) — copy it to start; it
-carries every required slot.
+carries every required slot. The blank template shows the slots; it cannot show what filling them
+well looks like, so read the [worked exemplar](./assets/runbook-example.md) before writing your
+first one, or when a draft has every section and still feels thin. It is a complete, matured
+runbook — decision branches that route *away* from the wrong action, expected output that separates
+partly-worked from failed, and an illustrative incident history showing the shape a runbook takes
+once incidents have revised it. Its service, dates, and evidence ids are invented and bind nothing.
 
 Rules:
 - Every command copy-pasteable as written — real paths and real names. A `<placeholder>` is allowed only for truly variable values, and then say where to find the value.
@@ -54,6 +59,33 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
 - **Preserve command evidence before publishing** — use only supplied, authorized execution evidence
   for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
   this documentation lane, including a read-only command, merely to confirm syntax or output.
+
+Writing the Procedure or Triage steps? The specific ways a correct-looking step produces a wrong
+action under pressure — ambient targets, success-only expected output, non-idempotent rollbacks,
+unbounded retries, placeholders with no source — are in [step craft](./references/step-craft.md).
+
+## Before you publish — read it back as the responder
+
+You cannot see the gaps in your own runbook, because you hold the context the steps leave out. So
+stop being the author and read it as someone paged at 3 a.m. who has never seen this service. Walk
+the procedure top to bottom and stop at the first line where you would have to make a judgment call
+the runbook did not equip you for — that line is the finding, and it is usually the only one that
+matters.
+
+Four questions that surface most of them:
+
+- **Could you paste every command without editing it?** If one needs a value, does the runbook say
+  which command or panel produces that value?
+- **Does each expected-output line tell you what *partly worked* looks like**, and where to go from
+  there? Success-only expectations leave the reader stranded in the case they actually hit.
+- **Does every step that might not work have a stop condition** — how long, how many times, and
+  where to go instead? An unbounded "restart it" becomes forty minutes.
+- **Does the escalation row reach a human at 3 a.m.?** A team alias nobody watches overnight is a
+  dead end wearing an escalation path's clothes.
+
+A slot you cannot fill honestly is information, not a gap to paper over: mark it `n/a — why`, or
+`[unverified]` where evidence is missing. Both are more useful at 3 a.m. than a confident sentence
+nobody tested.
 
 ## Living runbooks — every incident leaves the runbook better
 

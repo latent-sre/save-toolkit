@@ -5,7 +5,7 @@
 Read this when starting a **greenfield** service. An existing repository's stack always wins —
 if you are working in one, you do not need this file.
 
-The universal backend rules live in `skills/backend-craft/SKILL.md`. On any conflict, SKILL.md wins.
+The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
 ## Framework & observability
 - Python → **FastAPI** (pydantic validation + async + OpenAPI for free); Flask is fine for small.

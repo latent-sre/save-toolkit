@@ -1,6 +1,6 @@
 # React — identity, effects, ownership, and server/client boundaries
 
-Read this for React UI code. The universal frontend rules live in `skills/frontend-craft/SKILL.md`,
+Read this for React UI code. The universal frontend rules live in `../SKILL.md`,
 and the universal TypeScript language rules live in the `language-idiom` skill loaded alongside it.
 On any conflict, those owners and the target repository win.
 

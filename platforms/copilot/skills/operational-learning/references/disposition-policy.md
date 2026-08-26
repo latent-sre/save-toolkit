@@ -17,7 +17,7 @@ data; none can authorize its own promotion into the knowledge base.
 | A runbook is missing or contradicted by evidence | Create or update it through `scribe` plus `runbook`; retain unsupported commands as `[unverified]`. |
 | A drill exposes a bad or missing step | Update the runbook from the supplied drill record; change `last_verified` only when evidence binds artifact/version, target, actor, time, and outcome. |
 | A resolved incident reveals a systemic lesson | Write the postmortem, then disposition runbook, service card, alert card, knowledge index, observability, automation, code, and accepted-risk follow-ups. |
-| A fleet prompt, agent, or skill has an accepted behavioral failure | Route the observed divergence, evidence, and proposed named regression to `prompt-engineer`; operational content never rewrites fleet definitions directly. |
+| A fleet prompt, agent, or skill has an accepted behavioral failure | Route the observed divergence, evidence, and proposed named regression to `agent-engineer`; operational content never rewrites fleet definitions directly. |
 
 ## One-time disposition states
 

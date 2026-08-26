@@ -1,0 +1,36 @@
+schema_version: 1
+id: discovery-frontend-craft-render-is-not-verification
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: frontend-craft
+# frontend-craft's done-bar is unusually specific and unusually easy to skip: "it typechecks, lints,
+# unit + E2E tests pass, the dev server runs, and the primary flow was exercised in a real browser
+# render, including a keyboard-only pass -- evidence in the review packet. A UI that compiles but was
+# never rendered is written, not verified."
+#
+# The prompt offers the exact excuse the rule exists to refuse -- it compiles, tests are green, ship
+# it -- alongside a theme approach that flashes on load. Both are stated as settled decisions, so a
+# skill that only answers what it was asked will agree and move on.
+#
+# Judgment-shaped: the reply is the deliverable, so the graders read the surface the harness can
+# actually observe.
+prompt: |
+  Dashboard's done and I want to merge tonight. `tsc` is clean, eslint is clean, the unit tests are
+  green, and it builds. We read the saved theme in a `useEffect` on mount so it picks up the user's
+  last choice. Anything blocking, or are we good?
+routing:
+  expect: fire
+success_criteria:
+  - Fires on an unlabelled ship-readiness question that never names the skill
+  - Refuses compiles-and-tests-pass as sufficient and requires a real browser render
+  - Names the keyboard-only pass as owed, not optional
+  - Names the useEffect theme read as a flash of the wrong theme before first paint
+graders:
+  - type: contains_any
+    of: ["render", "browser", "dev server", "actually run", "never rendered", "look at it", "screenshot"]
+  - type: contains_any
+    of: ["keyboard", "tab order", "tab through", "focus", "a11y", "accessib", "screen reader"]
+  - type: contains_any
+    of: ["flash", "fouc", "before first paint", "first paint", "inline", "<head>", "head script", "blocking script"]

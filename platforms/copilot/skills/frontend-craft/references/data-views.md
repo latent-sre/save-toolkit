@@ -4,7 +4,7 @@
 
 Read this when the view shows a table, list, or grid of records.
 
-The universal frontend rules live in `skills/frontend-craft/SKILL.md`. On any conflict, SKILL.md wins.
+The universal frontend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
 ## Data-dense views (tables & lists)
 

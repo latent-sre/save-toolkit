@@ -53,7 +53,7 @@ prove runtime connectivity, authentication, telemetry delivery, persistence, or 
 | `observability-engineer` | Steady-state observability | **Unguarded Bash**; writes observability config and only authorized dashboards | `scribe`, `researcher` |
 | `scribe` | Evidence-bound runbooks, resolved-incident postmortems, and approved operational knowledge | Local read/write, but **no Bash, web, or delegation**; terminal | — |
 | `researcher` | Cited public research | **External-only by tool absence** — no local read, Bash, Write, Skill, or Agent | — |
-| `prompt-engineer` | Fleet prompts, skills, agents, evals, and graphs | Local read/write + Bash; no web | `researcher` |
+| `agent-engineer` | Fleet prompts, skills, agents, evals, and graphs | Local read/write + Bash; no web | `researcher` |
 
 ## Enforcement boundaries
 

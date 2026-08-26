@@ -8,7 +8,7 @@ working in one, you do not need this file.
 This file also carries the one hard prohibition: never import `@mantine/core` or any styled Mantine
 component. Mantine's *hooks* mix freely with Tailwind; its *components* do not.
 
-The universal frontend rules live in `skills/frontend-craft/SKILL.md`. On any conflict, SKILL.md wins.
+The universal frontend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
 ## Stack
 

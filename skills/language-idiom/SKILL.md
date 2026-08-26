@@ -6,6 +6,7 @@ description: >-
   processes. Triggers: 'write this in Python', 'review this Bash script', 'refactor this Go code'.
   Ownership map only—not a load: backend-craft owns API/resiliency design and frontend-craft owns
   UI architecture, state, accessibility, and resilience UX.
+argument-hint: "[the language and the code under review]"
 ---
 
 # Language idiom — pick the language
