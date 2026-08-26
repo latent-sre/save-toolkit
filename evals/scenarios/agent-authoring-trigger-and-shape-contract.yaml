@@ -8,7 +8,10 @@ mode: direct
 # Measured 3/3 (skill fired 3/3) in batch 20260825T225402Z-8ff050e2, and deliberately NOT
 # promoted on that alone. This branch measured discovery-agent-authoring-trigger-and-shape at
 # 3/3 and then 1/3 with no change made to it, so one clean trial is a sample, not a property.
-# Promotion waits for a second independent batch.
+# A second batch (20260825T233556Z-5fb69d7b) then measured loop-contract 3/3 again and
+# trigger-and-shape 2/3 -- it varied with no change made to it, which is why neither was
+# promoted on the first. Promotion is not an eval outcome at all: AGENTS.md reserves it to
+# human acceptance of the exact revision.
 split: calibration
 target:
   kind: skill
@@ -32,8 +35,12 @@ graders:
     pattern: '(?i)\b(?:separate|separately|independent|independently|distinct|apart|in isolation|decoupl)\w*\b'
   - type: contains_any
     of: ["baseline", "reproduce", "regression case", "focused case", "focused set", "test corpus", "fixed corpus"]
-  - type: contains_any
-    of: ["one candidate", "candidate budget", "single candidate", "exactly one candidate"]
+    # Regex, derived from batch 20260825T233556Z-5fb69d7b trial 1, which wrote "## Candidate -
+    # exactly one", "No second candidate is authorized", and "**Single-candidate stop:**". The
+    # behaviour was unmistakable; the word list missed it on reversed order and a hyphen. Fifteenth
+    # traced red on this item, fifteenth with the behaviour present.
+  - type: regex
+    pattern: '(?i)\bone candidate\b|\bcandidate budget\b|\bsingle[-\s]candidate\b|\bcandidates?\b[^.\n]{0,24}\bexactly one\b|\bexactly one\b[^.\n]{0,24}\bcandidates?\b|\bno second candidate\b' 
   - type: contains_any
     of: ["human acceptance", "human approves", "human promotion", "adoption authority", "adoption condition", "adoption criteria", "adoption gate", "adopted when"]
   # Echo-rejector, required by evals/README.md:231. Every grader above is satisfied by this

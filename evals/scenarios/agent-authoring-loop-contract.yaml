@@ -10,7 +10,10 @@ mode: direct
 # Measured 3/3 (skill fired 3/3) in batch 20260825T225402Z-8ff050e2, and deliberately NOT
 # promoted on that alone. This branch measured discovery-agent-authoring-trigger-and-shape at
 # 3/3 and then 1/3 with no change made to it, so one clean trial is a sample, not a property.
-# Promotion waits for a second independent batch.
+# A second batch (20260825T233556Z-5fb69d7b) then measured loop-contract 3/3 again and
+# trigger-and-shape 2/3 -- it varied with no change made to it, which is why neither was
+# promoted on the first. Promotion is not an eval outcome at all: AGENTS.md reserves it to
+# human acceptance of the exact revision.
 split: calibration
 target:
   kind: skill

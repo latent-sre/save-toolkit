@@ -948,7 +948,7 @@ second, larger constraint was then measured: **contract shape**. Five discovery 
 identical conditions gave 0/12, 4/12, 9/12, 8/12, **12/12**; `trigger-and-shape` went 3/3 then 1/3
 **with no change made to it**, so the 9/12 was a lucky sample rather than progress, and the closing
 12/12 is the new shape. Routing is `[verified]` **48/48** across every revision with no misroute
-anywhere. **Fourteen** reds traced, zero behavioural defects. Evidence:
+anywhere. **Fifteen** reds traced, zero behavioural defects. Evidence:
 [the verification batches](reviews/2026-08-25-grader-003-verification-batch.md).
 
 **Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
@@ -1013,7 +1013,7 @@ timeout, and threshold throughout (Sonnet, 3 trials, 600 s, threshold 1.0); the 
 | `20260825T192519Z-4b6fe947` | `16a236d` | 8/12 | 12/12 | USD 3.88 |
 
 **Finding 1 — the instrument (fixed).** `contains_any` is a plain substring test and cannot express
-these contracts. Fourteen reds were traced to their transcripts across five batches and **not one was
+these contracts. Fifteen reds were traced to their transcripts across six batches and **not one was
 a behavioural defect**: they were defeated by a markdown label, a hyphen, word order, a word
 boundary, an unadmitted method, a numeric bound, and a singular. Eight graders moved to bounded
 `regex`; `workflow-graph`'s delegation-edge behaviour now grades structurally, because a correct
@@ -1052,9 +1052,13 @@ byte-clean, `claude plugin validate . --strict` PASS.
 the trimmed shape passes cleanly on unseen trials, which the old shape never did in three attempts.
 Direct `20260825T225402Z-8ff050e2` on `b8dea04`: **8/9 trials**, skill fired 3/3 on every contract,
 USD 2.70; `agent-authoring-loop-contract` and `agent-authoring-trigger-and-shape-contract` measured 3/3 and
-`agent-authoring-roster-graph-contract` measured 2/3. **All three stay `calibration`** — one clean
-batch is a sample, and `AGENTS.md` reserves promotion to human acceptance of the exact revision, not
-to an eval result. Its single red is the fourteenth traced on this item and the fourteenth with
+`agent-authoring-roster-graph-contract` measured 2/3. A second direct batch
+`20260825T233556Z-5fb69d7b` then measured **3/3, 3/3, and 2/3** — `roster-graph-contract` improved
+because the widened proximity window fixed its two-character miss, and **`trigger-and-shape-contract`
+went 3/3 → 2/3 with no change made to it**. That is the whole argument for not promoting on one
+clean batch, and it is why `7c88f57` reverted the promotion made on batch 5: the reverted scenario
+is precisely the one that later measured 2/3. **All three stay `calibration`** — and under
+`AGENTS.md` promotion is not an eval outcome at all, only human acceptance of the exact revision. Its single red is the fourteenth traced on this item and the fourteenth with
 the behaviour present: a `read-only … review` proximity grader allowed 40 characters and the answer
 put 42 between them. Discovery trials across five batches: `0/12 → 4/12 → 9/12 → 8/12 → 12/12`;
 routing `[verified]` **48/48**; **fourteen reds traced, zero behavioural defects**.

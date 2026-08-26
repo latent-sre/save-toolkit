@@ -249,3 +249,38 @@ prompt echo after the change.
 **Running totals across five batches.** Discovery trials `0/12 → 4/12 → 9/12 → 8/12 → 12/12`;
 routing `[verified]` **48/48** with no misroute in any trial of any batch; **fourteen reds traced,
 zero behavioural defects**. Total measured spend on this item: USD 20.79.
+
+## Sixth batch — the n=2 confirmation, and why the revert was right
+
+`[verified]` Batch `20260825T233556Z-5fb69d7b`, candidate `7c88f57`, `--mode direct`, same
+conditions. Integrity PASS. Cost USD 3.12.
+
+| Contract | Batch 5 | Batch 6 | Reading |
+|---|---|---|---|
+| `agent-authoring-loop-contract` | 3/3 | 3/3 | consistent at n=2 |
+| `agent-authoring-roster-graph-contract` | 2/3 | **3/3** | the widened 80-char window resolved batch 5's only red |
+| `agent-authoring-trigger-and-shape-contract` | 3/3 | **2/3** | **varied with no change made to it** |
+
+**This is the clearest result on the item.** `trigger-and-shape-contract` moved 3/3 → 2/3 across two
+batches with byte-identical scenario content. Promoting it on batch 5's single clean pass — which is
+what happened, and was reverted in `7c88f57` — would have placed a scenario that measures 2/3 into
+the split that gates everyone else's work. The revert was not caution; it was correct, and this
+batch is the evidence.
+
+It also confirms the reverse: `roster-graph-contract` went 2/3 → 3/3 because the 80-character
+proximity window fixed the two-character miss traced in batch 5. That widening is now `[verified]`
+rather than reasoned.
+
+**The fifteenth traced red, and the fifteenth with the behaviour present.** Batch 6 trial 1 wrote
+`## Candidate — exactly one`, `No second candidate is authorized inside this loop. One shot.`, and
+`**Single-candidate stop:**`. The grader wanted `"exactly one candidate"` — the response reversed
+the word order — or `"single candidate"` — the response hyphenated it. Word order and a hyphen,
+the same class as the preceding fourteen. The grader is now a regex derived from that transcript.
+
+**None of the three is promoted.** Under `AGENTS.md` an eval result never promotes a candidate;
+only human acceptance of the exact revision does. All three stay `calibration` with their
+measurements recorded.
+
+Running totals: discovery `0/12 → 4/12 → 9/12 → 8/12 → 12/12`; direct 8/9 then 8/9; routing
+`[verified]` 48/48 with no misroute in any trial of any batch; **fifteen reds traced, zero
+behavioural defects**.
