@@ -82,7 +82,9 @@ During bounded assistance or an active incident, preserve possible durable disco
 evidence in the returned record. Do not classify those candidates as learning dispositions, assign
 artifact statuses, or load `operational-learning`. Operational closeout becomes eligible only after
 a terminal incident state is recorded, or when the caller explicitly asks for operational closeout
-of an already resolved incident, drill, audit, or approved service or alert change.
+of an already resolved incident, drill, audit, or approved service or alert change. When the
+caller asks for documentation, KB, runbook, or postmortem work, say in the record that it is deferred
+until after resolution rather than silently dropping the request.
 
 This investigation lane still does not perform closeout. Return the exact revision, evidence labels
 and trust, durable discovery candidates, and recommended action to the caller with `scribe` named as
@@ -181,9 +183,11 @@ Human operational owner: <named human SRE/incident commander role, or assignment
 Timeline (UTC): <ts — event> … (changes correlated to onset)
 Hypotheses tested: <H → evidence for/against → verdict>
 Root cause: <cause + confidence; or top candidates + what would confirm>
+Next investigation step: <the smallest check that most reduces uncertainty>
 Mitigation: <done / recommended, fastest-safe-first>
 Agent production action: changed nothing in production; human action: <performed / recommended>
 Durable fix: <what + which agent should do it>
+Unknowns and non-actions: <what is missing, what you did not change, and any requested documentation deferred until after resolution>
 Follow-ups: <requested next step; no ungranted lane dispatched by sre>
 Recommended course of action: <owner · urgency · Tier 0-3 · approval · verification · rollback/recovery>
 ```
