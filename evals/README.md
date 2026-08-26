@@ -259,9 +259,10 @@ prose and fences, duplicate/missing/extra fields, non-finite values, and unsafe 
 values; its failure details remain ASCII-safe for supported Windows consoles. Use it for a closed
 authority or decision packet. `embedded_exact_json` applies the same strict recursive comparison to
 exactly one backtick-fenced JSON object that is the response's final non-whitespace content and also
-requires operator prose before it. Additional parseable JSON objects in backtick or tilde fences
-fail; unrelated non-JSON evidence fences before the record remain allowed. Use it when humans need
-the explanation but automation needs one unambiguous closed relationship record.
+requires operator prose before it. Additional parseable JSON objects in backtick or tilde fences,
+including indented or blockquoted fences, fail; unrelated non-JSON evidence fences before the
+record remain allowed. Use it when humans need the explanation but automation needs one
+unambiguous closed relationship record.
 `json_artifact_statuses` parses a JSON object from the response and
 constrains per-artifact `status` values (plus, via `evidence_key`, the allowed evidence enum) —
 use it when the contract under test emits a structured artifact rather than prose; see

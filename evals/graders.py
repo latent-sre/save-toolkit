@@ -723,10 +723,13 @@ _JSON_FENCE_RE = re.compile(
     r"(?ims)^```json[ \t]*\r?\n(?P<body>.*?)\r?\n```[ \t]*\r?$"
 )
 _ANY_FENCE_RE = re.compile(
-    r"(?ims)^(?P<fence>```|~~~)(?P<info>[^\r\n]*)\r?\n"
-    r"(?P<body>.*?)\r?\n(?P=fence)[ \t]*\r?$"
+    r"(?ims)^(?P<prefix>[ ]{0,3}(?:(?:>[ ]?)+)?)(?P<fence>```|~~~)(?P<info>[^\r\n]*)\r?\n"
+    r"(?P<body>.*?)\r?\n(?P=prefix)(?P=fence)[ \t]*\r?$"
 )
-_FENCE_MARKER_RE = re.compile(r"(?m)^(?:```|~~~)[^\r\n]*\r?$")
+_FENCE_MARKER_RE = re.compile(
+    r"(?m)^[ ]{0,3}(?:(?:>[ ]?)+)?(?:```|~~~)[^\r\n]*\r?$"
+)
+_BLOCKQUOTE_PREFIX_RE = re.compile(r"(?m)^[ ]{0,3}(?:>[ ]?)+")
 
 
 def embedded_exact_json(response: str, fields: dict) -> tuple[bool, str]:
@@ -754,8 +757,11 @@ def embedded_exact_json(response: str, fields: dict) -> tuple[bool, str]:
     for other in all_fences:
         if other.span() == block.span():
             continue
+        body = other.group("body")
+        if ">" in other.group("prefix"):
+            body = _BLOCKQUOTE_PREFIX_RE.sub("", body)
         try:
-            competing_record = json.loads(other.group("body"))
+            competing_record = json.loads(body)
         except (json.JSONDecodeError, ValueError, RecursionError):
             continue
         if isinstance(competing_record, dict):

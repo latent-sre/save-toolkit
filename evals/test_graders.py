@@ -624,6 +624,14 @@ def test_embedded_exact_json() -> None:
             "tilde",
             '~~~json\n{"schema":"incident-state/v1","state":"resolved"}\n~~~',
         ),
+        (
+            "three-space-indented tilde",
+            '   ~~~json\n   {"schema":"incident-state/v1","state":"resolved"}\n   ~~~',
+        ),
+        (
+            "blockquoted tilde",
+            '> ~~~json\n> {"schema":"incident-state/v1","state":"resolved"}\n> ~~~',
+        ),
     )
     for fence_kind, competing_object in competing_objects:
         candidate = (
@@ -2882,6 +2890,15 @@ def test_direct_agent_contract_graders() -> None:
             + unknown_recovery_record,
         ),
         "direct SRE recovery: invented progress despite an unknown start is REJECTED",
+    )
+    check(
+        not grade_all(
+            unknown_recovery_graders,
+            unknown_recovery_good
+            + " The signals have been continuously healthy since 14:02 UTC."
+            + unknown_recovery_record,
+        ),
+        "direct SRE recovery: an invented healthy-start timestamp is REJECTED",
     )
     check(
         not grade_all(unknown_recovery_graders, unknown_recovery_scenario["prompt"]),

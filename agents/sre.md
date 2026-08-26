@@ -254,8 +254,9 @@ Populate every value from current evidence:
   start and observation time are both known, set integer `healthy_elapsed_seconds` and
   `remaining_seconds = required_continuous_seconds - healthy_elapsed_seconds`; do not round. If
   either time is unknown, set both progress fields to JSON `null`; never estimate or use zero as
-  unknown. While the state remains `monitoring-recovery`, known elapsed time is less than the
-  required duration and known remaining time is positive;
+  unknown, and do not assert a recovery-start timestamp the evidence does not establish. While the
+  state remains `monitoring-recovery`, known elapsed time is less than the required duration and
+  known remaining time is positive;
 - `production_action.further_change_authorized` reflects the caller's current authorization and
   `production_action.agent_executed` remains `false` because this lane never applies production
   changes; and

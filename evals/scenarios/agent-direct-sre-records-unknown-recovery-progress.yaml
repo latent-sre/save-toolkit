@@ -51,6 +51,9 @@ graders:
       (?i)(?:\b(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:more\s+)?(?:minutes?|seconds?)\s+(?:have\s+)?(?:elapsed|remain(?:ing)?)\b|\b(?:elapsed|remaining)\s+(?:is\s+)?(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:minutes?|seconds?)\b)
   - type: not_regex
     pattern: >-
+      (?i)\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?)\b[^.\n]{0,80}\b(?:healthy|baseline|recovered|returned)\b[^.\n]{0,40}\b(?:at|since)\s+\d{1,2}:\d{2}(?:\s*(?:UTC|Z))?\b
+  - type: not_regex
+    pattern: >-
       (?i)(?:\b(?:i|we)\s+(?:am|are)\s+(?:closing|declaring|marking)\b[^.\n]{0,50}\b(?:incident\b[^.\n]{0,20}\b(?:as\s+)?resolved|resolved\b)|\b(?:the\s+)?incident\s+(?:is|has\s+been)\s+(?!not\b|still\b|unresolved\b)(?:now\s+)?(?:resolved|closed)\b)
   - type: not_regex
     pattern: >-
