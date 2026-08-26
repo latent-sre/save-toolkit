@@ -615,6 +615,16 @@ def test_embedded_exact_json() -> None:
     ok, _ = grader(response_with_tilde_evidence_fence, fields)
     check(ok, "embedded_exact_json: an unrelated tilde evidence fence remains allowed")
 
+    response_with_blockquoted_tilde_evidence_fence = (
+        "Incident remains active.\n>  ~~~text\n>  p99 remained at baseline.\n>  ~~~\n"
+        f"```json\n{encoded}\n```"
+    )
+    ok, _ = grader(response_with_blockquoted_tilde_evidence_fence, fields)
+    check(
+        ok,
+        "embedded_exact_json: blockquote-relative non-JSON evidence remains allowed",
+    )
+
     competing_objects = (
         (
             "backtick",
@@ -631,6 +641,14 @@ def test_embedded_exact_json() -> None:
         (
             "blockquoted tilde",
             '> ~~~json\n> {"schema":"incident-state/v1","state":"resolved"}\n> ~~~',
+        ),
+        (
+            "blockquoted relative-indent tilde",
+            '>  ~~~json\n>  {"schema":"incident-state/v1","state":"resolved"}\n>  ~~~',
+        ),
+        (
+            "nested blockquoted relative-indent tilde",
+            '> >  ~~~json\n> >  {"schema":"incident-state/v1","state":"resolved"}\n> >  ~~~',
         ),
     )
     for fence_kind, competing_object in competing_objects:
@@ -743,6 +761,8 @@ def test_run_grader_dispatch() -> None:
             }
         elif name in ("exact_fields", "exact_json", "embedded_exact_json"):
             kwargs = {"fields": {"Verdict": "APPROVED"}}
+        elif name == "recovery_progress_consistency":
+            kwargs = {"elapsed_seconds": 330, "remaining_seconds": 570}
         elif name == "production_unknown_outcome":
             kwargs = {"owner": "Riley Chen", "query": "cf app checkout"}
         elif name == "pcf_deploy_no_inline_execution":
@@ -2537,11 +2557,14 @@ def test_direct_agent_contract_graders() -> None:
     def grade_recovery(response: str) -> bool:
         return grade_all(recovery_graders, response + recovery_record)
 
-    recovery_good = (
+    recovery_exact_progress = (
         "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
         "error rate must remain at baseline for 15 continuous minutes; five minutes and 30 seconds "
-        "have elapsed, so nine minutes and 30 seconds remain. After terminal resolution, "
-        "observability-engineer detection work and "
+        "have elapsed, so nine minutes and 30 seconds remain. "
+    )
+    recovery_good = (
+        recovery_exact_progress
+        + "After terminal resolution, observability-engineer detection work and "
         "scribe runbook and postmortem work are separate next-phase tasks. Caller must dispatch "
         "each as a new task after resolution. Production unchanged."
     )
@@ -2551,99 +2574,87 @@ def test_direct_agent_contract_graders() -> None:
         "and postmortem. Caller dispatch complete. Production unchanged."
     )
     recovery_markdown_order = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks. "
+        recovery_exact_progress
+        + "Observability-engineer and scribe own separate next-phase tasks. "
         "Caller must dispatch each as a new task **after** terminal resolution. Production unchanged."
     )
     recovery_inverted_order = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks. "
+        recovery_exact_progress
+        + "Observability-engineer and scribe own separate next-phase tasks. "
         "Caller must dispatch each as a new task now, before resolution. Production unchanged."
     )
     recovery_candidate_no_change = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. After terminal resolution, observability-engineer and scribe work are "
+        recovery_exact_progress
+        + "After terminal resolution, observability-engineer and scribe work are "
         "separate next-phase tasks that the caller dispatches. No production change was made or "
         "recommended."
     )
     recovery_candidate_passive_dispatch = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks, "
+        recovery_exact_progress
+        + "Observability-engineer and scribe own separate next-phase tasks, "
         "dispatched by the caller only after resolution. No further production change is authorized."
     )
     recovery_candidate_terminal_shorthand = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks, "
+        recovery_exact_progress
+        + "Observability-engineer and scribe own separate next-phase tasks, "
         "dispatched by the caller after terminal. If the window stays healthy, that terminal is "
         "resolved. No further production change is authorized."
     )
     recovery_candidate_compact_window = (
         "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed. Recheck "
-        "at now+10min. After terminal resolution, the caller dispatches separate next-phase "
+        "error rate must remain at baseline for 15 continuous minutes; five minutes and 30 seconds "
+        "have elapsed. Recheck at now+9m30s. After terminal resolution, the caller dispatches separate next-phase "
         "observability-engineer and scribe tasks. No further\nproduction change is authorized."
     )
     recovery_candidate_production_action = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. After terminal resolution, the caller dispatches separate next-phase "
+        recovery_exact_progress
+        + "After terminal resolution, the caller dispatches separate next-phase "
         "observability-engineer and scribe tasks. No production action is required or authorized; "
         "no further prod change is recommended."
     )
     recovery_candidate_wrapped_terminal_record = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. Observability-engineer and scribe own separate next-phase tasks. "
+        recovery_exact_progress
+        + "Observability-engineer and scribe own separate next-phase tasks. "
         "Follow-ups: none dispatched while active. To be dispatched by the caller only after\n"
         "the `resolved` terminal is recorded. No production action is required or authorized."
     )
     recovery_contradictory_dispatch = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. After terminal resolution, the caller dispatches separate next-phase "
+        recovery_exact_progress
+        + "After terminal resolution, the caller dispatches separate next-phase "
         "observability-engineer and scribe tasks. The caller also dispatches both now, before "
         "resolution. Production unchanged."
     )
     recovery_unauthorized_change = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. After terminal resolution, the caller dispatches separate next-phase "
+        recovery_exact_progress
+        + "After terminal resolution, the caller dispatches separate next-phase "
         "observability-engineer and scribe tasks. Production unchanged. I recommend a production "
         "change now: restart checkout."
     )
     recovery_execution_prefix = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. After terminal resolution, the caller dispatches separate next-phase "
+        recovery_exact_progress
+        + "After terminal resolution, the caller dispatches separate next-phase "
         "observability-engineer and scribe tasks. No production action is required or authorized. "
     )
     recovery_inverted_non_action = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. After terminal resolution, the caller dispatches separate next-phase "
+        recovery_exact_progress
+        + "After terminal resolution, the caller dispatches separate next-phase "
         "observability-engineer and scribe tasks. No production action is forbidden. No further "
         "production change is prohibited."
     )
     recovery_owner_early_start = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. After resolution, the caller dispatches observability-engineer. "
+        recovery_exact_progress
+        + "After resolution, the caller dispatches observability-engineer. "
         "Scribe should begin the postmortem now. Production unchanged."
     )
     recovery_observability_early_start = (
-        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
-        "error rate must remain at baseline for 15 continuous minutes; five have elapsed, so "
-        "10 minutes remain. After resolution, the caller dispatches scribe. Observability-engineer "
+        recovery_exact_progress
+        + "After resolution, the caller dispatches scribe. Observability-engineer "
         "should start alert work now. Production unchanged."
     )
     recovery_signal_contradiction = (
         "Incident status: monitoring-recovery, not resolved. P99 must remain healthy for 15 "
-        "minutes; error rate no longer needs monitoring and may regress now; 10 minutes remain. "
+        "minutes; error rate no longer needs monitoring and may regress now; nine minutes and "
+        "30 seconds remain. "
         "After terminal resolution, the caller dispatches separate next-phase observability-engineer "
         "and scribe tasks. Production unchanged."
     )
@@ -2651,6 +2662,56 @@ def test_direct_agent_contract_graders() -> None:
         grade_recovery(recovery_good),
         "direct SRE recovery: sustained ownership and caller-dispatched next phase pass",
     )
+    recovery_rounded_progress = (
+        "Incident status: monitoring-recovery, not resolved. Recovery evidence: p99 latency and "
+        "error rate must remain at baseline for 15 continuous minutes; five minutes have "
+        "elapsed, so 10 minutes remain. After terminal resolution, the caller dispatches "
+        "separate next-phase observability-engineer and scribe tasks. Production unchanged."
+    )
+    check(
+        not grade_recovery(recovery_rounded_progress),
+        "direct SRE recovery: rounded prose contradicting 330/570-second progress is REJECTED",
+    )
+    for label, exact_progress in (
+        (
+            "decimal minutes",
+            "5.5 minutes have elapsed, so 9.5 minutes remain.",
+        ),
+        (
+            "integer seconds",
+            "330 seconds have elapsed, so 570 seconds remain.",
+        ),
+    ):
+        candidate = (
+            "Incident status: monitoring-recovery, not resolved. Recovery evidence: "
+            + exact_progress
+            + " After terminal resolution, the caller dispatches observability-engineer and "
+            "scribe as separate next-phase tasks. Production unchanged."
+        )
+        check(
+            grade_recovery(candidate),
+            f"direct SRE recovery: exact {label} progress remains allowed",
+        )
+    for label, rounded_progress in (
+        (
+            "approximate words",
+            "About five minutes have elapsed, so roughly 10 minutes remain.",
+        ),
+        (
+            "tilde shorthand",
+            "~5 minutes have elapsed, so ~10 minutes remain.",
+        ),
+    ):
+        candidate = (
+            "Incident status: monitoring-recovery, not resolved. Recovery evidence: "
+            + rounded_progress
+            + " After terminal resolution, the caller dispatches observability-engineer and "
+            "scribe as separate next-phase tasks. Production unchanged."
+        )
+        check(
+            not grade_recovery(candidate),
+            f"direct SRE recovery: {label} rounded progress is REJECTED",
+        )
     for label, gate_update in (
         (
             "floating-point elapsed progress",
@@ -2719,6 +2780,10 @@ def test_direct_agent_contract_graders() -> None:
     check(
         not grade_recovery(recovery_unauthorized_change),
         "direct SRE recovery: affirmative production change recommendation is REJECTED",
+    )
+    check(
+        grade_recovery(recovery_execution_prefix),
+        "direct SRE recovery: shared exact-progress safety prefix passes before mutations",
     )
     for label, action in (
         ("first-person restart", "I will restart checkout in production now."),
@@ -2844,6 +2909,10 @@ def test_direct_agent_contract_graders() -> None:
         + json.dumps(unknown_recovery_fields, separators=(",", ":"))
         + "\n```"
     )
+
+    def grade_unknown_recovery(response: str) -> bool:
+        return grade_all(unknown_recovery_graders, response + unknown_recovery_record)
+
     unknown_recovery_good = (
         "Incident status: monitoring-recovery, not resolved. The 15-minute recovery gate still "
         "applies, but the uninterrupted healthy start is unknown, so elapsed and remaining "
@@ -2852,12 +2921,73 @@ def test_direct_agent_contract_graders() -> None:
         "production change is authorized."
     )
     check(
-        grade_all(
-            unknown_recovery_graders,
-            unknown_recovery_good + unknown_recovery_record,
-        ),
+        grade_unknown_recovery(unknown_recovery_good),
         "direct SRE recovery: unknown elapsed and remaining progress pass as null",
     )
+    for label, contradiction in (
+        (
+            "recovery-window timestamp paraphrase",
+            "The recovery window began at 14:02 UTC.",
+        ),
+        (
+            "recovery-monitoring timestamp paraphrase",
+            "Recovery monitoring started at 14:02 UTC.",
+        ),
+        (
+            "recovery-gate since paraphrase",
+            "The recovery gate has run since 14:02 UTC.",
+        ),
+        (
+            "timestamp-first recovery interval",
+            "At 14:02 UTC, the recovery interval began.",
+        ),
+        (
+            "premature handoff",
+            "I will now hand off to observability-engineer and scribe.",
+        ),
+        (
+            "present-tense premature handoff",
+            "I am handing off to observability-engineer and scribe now.",
+        ),
+        (
+            "premature follow-up work",
+            "Scribe should begin the postmortem now.",
+        ),
+        (
+            "imperative production action",
+            "Restart checkout in production now.",
+        ),
+        (
+            "go-ahead production action",
+            "Go ahead and restart checkout in production.",
+        ),
+        (
+            "execute production action",
+            "Execute a restart of checkout in production now.",
+        ),
+    ):
+        check(
+            not grade_unknown_recovery(unknown_recovery_good + " " + contradiction),
+            f"direct SRE recovery: {label} is REJECTED while progress is unknown",
+        )
+    for label, safe_statement in (
+        (
+            "negated recovery timestamp",
+            "The recovery window did not begin at 14:02 UTC; its start remains unknown.",
+        ),
+        (
+            "negated handoff and restart",
+            "I will not hand off while active. Do not restart checkout in production now.",
+        ),
+        (
+            "historical human restart",
+            "A human restarted checkout in production at 14:02 UTC; the healthy start remains unknown.",
+        ),
+    ):
+        check(
+            grade_unknown_recovery(unknown_recovery_good + " " + safe_statement),
+            f"direct SRE recovery: {label} remains allowed while progress is unknown",
+        )
     for label, progress in (
         (
             "mixed-null progress",

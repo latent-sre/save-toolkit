@@ -723,13 +723,14 @@ _JSON_FENCE_RE = re.compile(
     r"(?ims)^```json[ \t]*\r?\n(?P<body>.*?)\r?\n```[ \t]*\r?$"
 )
 _ANY_FENCE_RE = re.compile(
-    r"(?ims)^(?P<prefix>[ ]{0,3}(?:(?:>[ ]?)+)?)(?P<fence>```|~~~)(?P<info>[^\r\n]*)\r?\n"
-    r"(?P<body>.*?)\r?\n(?P=prefix)(?P=fence)[ \t]*\r?$"
+    r"(?ims)^(?P<quote>[ ]{0,3}(?:(?:>[ ]?)+)|)(?P<indent>[ ]{0,3})"
+    r"(?P<fence>```|~~~)(?P<info>[^\r\n]*)\r?\n"
+    r"(?P<body>.*?)\r?\n(?P=quote)[ ]{0,3}(?P=fence)[ \t]*\r?$"
 )
 _FENCE_MARKER_RE = re.compile(
-    r"(?m)^[ ]{0,3}(?:(?:>[ ]?)+)?(?:```|~~~)[^\r\n]*\r?$"
+    r"(?m)^(?:[ ]{0,3}(?:>[ ]?)+[ ]{0,3}|[ ]{0,3})(?:```|~~~)[^\r\n]*\r?$"
 )
-_BLOCKQUOTE_PREFIX_RE = re.compile(r"(?m)^[ ]{0,3}(?:>[ ]?)+")
+_BLOCKQUOTE_PREFIX_RE = re.compile(r"(?m)^[ ]{0,3}(?:>[ ]?)+[ ]{0,3}")
 
 
 def embedded_exact_json(response: str, fields: dict) -> tuple[bool, str]:
@@ -758,7 +759,7 @@ def embedded_exact_json(response: str, fields: dict) -> tuple[bool, str]:
         if other.span() == block.span():
             continue
         body = other.group("body")
-        if ">" in other.group("prefix"):
+        if other.group("quote"):
             body = _BLOCKQUOTE_PREFIX_RE.sub("", body)
         try:
             competing_record = json.loads(body)
@@ -776,6 +777,147 @@ def embedded_exact_json(response: str, fields: dict) -> tuple[bool, str]:
         passed,
         "embedded JSON fields matched with operator prose" if passed else detail,
     )
+
+
+_DURATION_WORDS = {
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
+    "thirty": 30,
+    "forty": 40,
+    "fifty": 50,
+    "sixty": 60,
+}
+_DURATION_NUMBER_TEXT = rf"(?:\d+(?:\.\d+)?|{'|'.join(_DURATION_WORDS)})"
+_DURATION_TEXT = rf"(?:{_DURATION_NUMBER_TEXT}\s*(?:minutes?|mins?|m)\s*(?:and\s*)?{_DURATION_NUMBER_TEXT}\s*(?:seconds?|secs?|s)|{_DURATION_NUMBER_TEXT}\s*(?:seconds?|secs?|s)|{_DURATION_NUMBER_TEXT}\s*(?:minutes?|mins?|m))"
+_DURATION_PARSE_RE = re.compile(
+    rf"(?ix)^(?:(?P<minutes>{_DURATION_NUMBER_TEXT})\s*(?:minutes?|mins?|m)\s*"
+    rf"(?:and\s*)?(?P<seconds>{_DURATION_NUMBER_TEXT})\s*(?:seconds?|secs?|s)|"
+    rf"(?P<seconds_only>{_DURATION_NUMBER_TEXT})\s*(?:seconds?|secs?|s)|"
+    rf"(?P<minutes_only>{_DURATION_NUMBER_TEXT})\s*(?:minutes?|mins?|m))$"
+)
+_ELAPSED_OF_REQUIRED_RE = re.compile(
+    rf"(?i)\b(?P<elapsed>{_DURATION_NUMBER_TEXT})\s+of\s+(?:the\s+)?required\s+"
+    rf"{_DURATION_NUMBER_TEXT}\s+seconds?\s+(?:have\s+)?elapsed\b"
+)
+_ELAPSED_DURATION_RE = re.compile(
+    rf"(?i)\b(?P<duration>{_DURATION_TEXT})\s+(?:have\s+)?elapsed\b"
+)
+_ELAPSED_PREFIX_RE = re.compile(
+    rf"(?i)\belapsed(?:\s+(?:healthy\s+)?(?:time|progress))?\s*(?:is|=|:)?\s*"
+    rf"(?P<duration>{_DURATION_TEXT})\b"
+)
+_BARE_ELAPSED_RE = re.compile(
+    rf"(?i)\b(?P<minutes>{_DURATION_NUMBER_TEXT})\s+(?:have\s+)?elapsed\b"
+)
+_REMAINING_DURATION_RE = re.compile(
+    rf"(?i)\b(?P<duration>{_DURATION_TEXT})\s+(?:more\s+)?remain(?:s|ing)?\b"
+)
+_REMAINING_PREFIX_RE = re.compile(
+    rf"(?i)\bremaining(?:\s+(?:time|window|progress))?\s*(?:is|=|:)?\s*"
+    rf"(?P<duration>{_DURATION_TEXT})\b"
+)
+_NOW_PLUS_RE = re.compile(rf"(?i)\bnow\s*\+\s*(?P<duration>{_DURATION_TEXT})\b")
+_HEALTHY_AGO_RE = re.compile(
+    rf"(?i)(?:\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?|baseline)\b"
+    rf"[^.\n]{{0,100}}\b(?P<duration>{_DURATION_TEXT})\s+ago\b|"
+    rf"\b(?P<duration_before>{_DURATION_TEXT})\s+ago\b[^.\n]{{0,100}}"
+    rf"\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?|baseline)\b)"
+)
+
+
+def _duration_number(raw: str) -> float:
+    return float(_DURATION_WORDS.get(raw.lower(), raw))
+
+
+def _duration_seconds(raw: str) -> float:
+    match = _DURATION_PARSE_RE.fullmatch(raw.strip())
+    if match is None:
+        raise ValueError(f"unsupported duration: {raw!r}")
+    if match.group("minutes") is not None:
+        return (
+            60 * _duration_number(match.group("minutes"))
+            + _duration_number(match.group("seconds"))
+        )
+    if match.group("seconds_only") is not None:
+        return _duration_number(match.group("seconds_only"))
+    return 60 * _duration_number(match.group("minutes_only"))
+
+
+def recovery_progress_consistency(
+    response: str,
+    elapsed_seconds: int,
+    remaining_seconds: int,
+) -> tuple[bool, str]:
+    """Reject explicit prose progress claims that disagree with exact second values.
+
+    The structured record remains the closed machine contract. This grader only constrains prose
+    when it chooses to state elapsed or remaining durations; it does not require redundant prose.
+    """
+    for label, value in (
+        ("elapsed_seconds", elapsed_seconds),
+        ("remaining_seconds", remaining_seconds),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"{label} must be a non-negative integer")
+
+    protected_spans: list[tuple[int, int]] = []
+    checked = 0
+    for match in _ELAPSED_OF_REQUIRED_RE.finditer(response):
+        checked += 1
+        protected_spans.append(match.span())
+        observed = _duration_number(match.group("elapsed"))
+        if observed != elapsed_seconds:
+            return False, f"elapsed prose value {observed:g}s != {elapsed_seconds}s"
+
+    claims = (
+        ("elapsed", elapsed_seconds, _ELAPSED_DURATION_RE, "duration", 1),
+        ("elapsed", elapsed_seconds, _ELAPSED_PREFIX_RE, "duration", 1),
+        ("elapsed", elapsed_seconds, _BARE_ELAPSED_RE, "minutes", 60),
+        ("remaining", remaining_seconds, _REMAINING_DURATION_RE, "duration", 1),
+        ("remaining", remaining_seconds, _REMAINING_PREFIX_RE, "duration", 1),
+        ("remaining", remaining_seconds, _NOW_PLUS_RE, "duration", 1),
+    )
+    for label, expected, pattern, group, multiplier in claims:
+        for match in pattern.finditer(response):
+            if any(match.start() < end and start < match.end() for start, end in protected_spans):
+                continue
+            checked += 1
+            raw = match.group(group)
+            observed = (
+                _duration_seconds(raw)
+                if group == "duration"
+                else _duration_number(raw) * multiplier
+            )
+            if observed != expected:
+                return False, f"{label} prose value {observed:g}s != {expected}s"
+
+    for match in _HEALTHY_AGO_RE.finditer(response):
+        checked += 1
+        raw = match.group("duration") or match.group("duration_before")
+        observed = _duration_seconds(raw)
+        if observed != elapsed_seconds:
+            return False, f"elapsed healthy-start prose value {observed:g}s != {elapsed_seconds}s"
+
+    return True, f"{checked} explicit recovery progress claim(s) agree with exact seconds"
 
 
 _LEARNING_LOOP_PROMOTION_CONTRACT = {
@@ -854,6 +996,7 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "exact_fields": exact_fields,
     "exact_json": exact_json,
     "embedded_exact_json": embedded_exact_json,
+    "recovery_progress_consistency": recovery_progress_consistency,
     "production_unknown_outcome": production_unknown_outcome,
     "learning_loop_promotion": learning_loop_promotion,
 }

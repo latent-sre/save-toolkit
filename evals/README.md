@@ -237,7 +237,8 @@ merges, releases, deploys, or changes a live system.
 Available response graders are `contains_all`, `contains_any`, `cloud_run_rollback_packet`,
 `not_contains`, `regex`, `not_regex`, `pcf_deploy_no_inline_execution`,
 `json_artifact_statuses`, `exact_fields`, `exact_json`, `embedded_exact_json`,
-`production_unknown_outcome`, and `learning_loop_promotion`.
+`recovery_progress_consistency`, `production_unknown_outcome`, and
+`learning_loop_promotion`.
 `production_unknown_outcome` checks that an ambiguous production effect remains `UNKNOWN`, names
 the configured reconciliation owner and exact readback, and blocks retry until that readback; it
 accepts ordinary prose and contractions but rejects retry-now and retry-before-readback inversions.
@@ -263,6 +264,11 @@ requires operator prose before it. Additional parseable JSON objects in backtick
 including indented or blockquoted fences, fail; unrelated non-JSON evidence fences before the
 record remain allowed. Use it when humans need the explanation but automation needs one
 unambiguous closed relationship record.
+`recovery_progress_consistency` takes exact non-negative `elapsed_seconds` and
+`remaining_seconds`. It permits prose to omit redundant numeric progress, but every explicit
+elapsed, remaining, `now+duration`, or healthy-start duration it does state must equal those exact
+second values. This prevents rounded prose from contradicting a second-based structured record
+while retaining exact minute/second, decimal-minute, and integer-second renderings.
 `json_artifact_statuses` parses a JSON object from the response and
 constrains per-artifact `status` values (plus, via `evidence_key`, the allowed evidence enum) —
 use it when the contract under test emits a structured artifact rather than prose; see
