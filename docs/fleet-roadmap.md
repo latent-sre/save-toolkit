@@ -193,9 +193,10 @@ rerun that case before touching the rest.
 
 ### GRAPH-001 — engineer the fleet itself as an executable workflow graph
 
-**Status:** `active` (updated 2026-08-25). Accepted fixes are published for exact-revision review in
-[PR #165](https://github.com/latent-sre/save-toolkit/pull/165); the candidate remains unpromoted
-until owner acceptance of that head.
+**Status:** `active` (updated 2026-08-26). [PR #165](https://github.com/latent-sre/save-toolkit/pull/165)
+merged at `5d94987`; its nine current, non-outdated review findings are addressed by follow-up
+candidate `d5c3189` on `work/close-graph-grader-evidence`. The item stays active until owner
+acceptance and merge of that exact follow-up revision.
 
 **Owner:** `agent-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
 the exact revision. Each accepted finding is implemented by the owner of the surface it names
@@ -255,9 +256,10 @@ proposed, a roadmap item with an owner; (3) any live control that lands ships in
 the focused red-to-green evidence `CONTRIBUTING.md` requires; (4) `WF-001` remains unchanged unless
 separately accepted.
 
-**Next action:** `latent-sre` reviews and accepts the exact PR #165 head revision before promotion.
-Resolve any current review finding or failed check on that revision. F7, F11, N4, `GRAPH-002`, and
-`WF-001` are out of scope for this item.
+**Next action:** `latent-sre` reviews exact follow-up revision `d5c3189`, including the nine recorded
+PR #165 dispositions in
+[`2026-08-26-graph-grader-evidence-closeout.md`](reviews/2026-08-26-graph-grader-evidence-closeout.md),
+and accepts or rejects it before merge. F7, F11, N4, `GRAPH-002`, and `WF-001` remain out of scope.
 
 ### INCIDENT-001 — keep active-incident ownership in SRE through terminal recovery
 
@@ -508,7 +510,8 @@ descriptions, or combine the already-owed `eng-ladder` after-change run with thi
 
 ### EVIDENCE-001 — stop losing measurement evidence by default
 
-**Status:** `ready` (2026-08-25)
+**Status:** `active` (updated 2026-08-26). Implementation candidate `d5c3189` is ready for
+exact-revision review; the item remains live until that candidate merges.
 
 **Owner:** `agent-engineer` owns the eval and acceptance evidence paths; `latent-sre` accepts the
 exact revision.
@@ -535,9 +538,15 @@ deliberately *not* kept — raw transcripts are large and may carry untrusted co
 requirement is the summary, the identities, and the verbatim phrasings a future reader would
 otherwise have to re-run to recover. Do not solve this by committing raw transcripts wholesale.
 
-**Next action:** Inventory where each measurement type currently writes — `.eval-runs/`, agent task
-output files, session scratchpads — and which of those the repository can reach at the moment a run
-finishes. Propose the capture step against that inventory before writing any tooling.
+**Evidence:** The producer inventory, reachable/unreachable host boundary, retained fields, and
+explicit raw-transcript exclusions are in
+[`2026-08-26-evidence-001-capture-design.md`](reviews/2026-08-26-evidence-001-capture-design.md).
+The candidate automatically captures sealed eval summaries, provides a validated exercise envelope,
+and adds a Gate A resolver for live-roadmap batch IDs. Focused capture and resolver suites pass 3/3
+each; the full component gate passes 31/31.
+
+**Next action:** `latent-sre` reviews and accepts or rejects exact candidate revision `d5c3189`.
+After merge, move the item to the closed ledger; no paid rerun is required solely to recover wording.
 
 ### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
@@ -692,12 +701,20 @@ closes the instrument and discovery contract-shape work; `SKILLS-003` closed sep
 four review rounds bound to stated revisions. It does **not** promote the three direct contracts;
 all remain `calibration` pending a separate owner decision.
 
-**Next action:** Prefer `EVIDENCE-001` before the next paid run so its evidence survives. Then run
-one direct `agent-authoring` batch under the standing pinned conditions to exercise the widened
-graders, especially `agent-authoring-roster-graph-contract`. A measured pass supplies evidence for
-a separate owner promotion decision; it does not change a split by itself. Do not widen a grader
-further without reading the transcript that failed it, and do not edit a discovery prompt — it is
-the routing stimulus and the 62/62 routing evidence depends on it staying byte-identical.
+**Terra transfer candidate (2026-08-26).** Three independent clean-context `gpt-5.6-terra` trials
+answered the three direct prompts without repository or grader access. Their retained bounded forms
+reproduced a 1/9 pre-fix result and pass 9/9 against exact candidate `d5c3189`; the keyword-rich
+incomplete and reproduced oracle-gap fixtures still reject. Full deterministic evidence is 884/884
+grader checks and 107 valid scenarios. See the
+[`baseline`](reviews/2026-08-26-exercise-terra-grader-transfer-baseline.md),
+[`candidate`](reviews/2026-08-26-exercise-terra-grader-transfer-candidate.md), and
+[`closeout`](reviews/2026-08-26-graph-grader-evidence-closeout.md). No Claude eval batch was run,
+and the Terra transfer is not automatic promotion authority.
+
+**Next action:** `latent-sre` reviews exact candidate `d5c3189` and separately decides whether the
+three direct scenarios remain `calibration` or are promoted. Merge the accepted grader correction,
+then close this item with that decision recorded. Do not edit a discovery prompt — it is the routing
+stimulus and the 62/62 routing evidence depends on it staying byte-identical.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

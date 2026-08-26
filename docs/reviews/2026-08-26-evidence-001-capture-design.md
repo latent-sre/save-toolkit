@@ -56,4 +56,3 @@ identity and wording to judge the measurement without pretending to preserve the
    one Markdown record under `docs/reviews/`.
 4. Capture refuses unsafe identifiers, output outside `docs/reviews/`, overwrite, malformed input,
    and an empty durable summary.
-
