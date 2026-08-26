@@ -2900,6 +2900,32 @@ def test_direct_agent_contract_graders() -> None:
         ),
         "direct SRE recovery: an invented healthy-start timestamp is REJECTED",
     )
+    for label, invented_start in (
+        (
+            "timestamp-first recovery start",
+            "At 14:02 UTC, the signals returned to baseline.",
+        ),
+        (
+            "ISO recovery start",
+            "The signals returned to baseline at 2026-08-25T14:02Z.",
+        ),
+    ):
+        check(
+            not grade_all(
+                unknown_recovery_graders,
+                unknown_recovery_good + " " + invented_start + unknown_recovery_record,
+            ),
+            f"direct SRE recovery: {label} is REJECTED when start time is unknown",
+        )
+    check(
+        grade_all(
+            unknown_recovery_graders,
+            unknown_recovery_good
+            + " The human rollback occurred at 14:02 UTC; the healthy start remains unknown."
+            + unknown_recovery_record,
+        ),
+        "direct SRE recovery: an ordinary rollback timestamp remains allowed",
+    )
     check(
         not grade_all(unknown_recovery_graders, unknown_recovery_scenario["prompt"]),
         "direct SRE recovery: unknown-progress raw prompt echo is REJECTED",
