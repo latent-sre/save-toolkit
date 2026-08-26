@@ -75,20 +75,23 @@ class IncidentDrillHarnessTests(unittest.TestCase):
             "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1",
             "REPOSITORY_SPECIFIC_SECRET": "must-not-cross",
         }
+        # Fixture paths must not contain os.pathsep. A Windows drive letter does on POSIX --
+        # "C:/Python312".split(":") yields "C" -- so the fixture is platform-shaped, not hardcoded.
+        config_dir = Path("C:/isolated-claude") if os.name == "nt" else Path("/isolated-claude")
+        python_dir = Path("C:/Python312") if os.name == "nt" else Path("/opt/python312")
         with mock.patch.dict(os.environ, host, clear=True):
-            child = run_lane.scrubbed_child_env(
-                config_dir=Path("C:/isolated-claude"),
-                python_dir=Path("C:/Python312"),
-            )
+            child = run_lane.scrubbed_child_env(config_dir=config_dir, python_dir=python_dir)
 
         self.assertEqual("required-claude-auth", child["ANTHROPIC_API_KEY"])
-        self.assertEqual(Path("C:/isolated-claude"), Path(child["CLAUDE_CONFIG_DIR"]))
-        # The property is that the isolated interpreter comes FIRST on PATH, so a drill cannot
-        # pick up a host toolchain. Compare the first entry as a Path: the previous assertion
-        # hardcoded a Windows-normalised prefix, so it passed on Windows and failed everywhere
-        # else -- invisible until CI actually ran it.
-        first_on_path = child["PATH"].split(os.pathsep)[0]
-        self.assertEqual(Path("C:/Python312"), Path(first_on_path))
+        self.assertEqual(config_dir, Path(child["CLAUDE_CONFIG_DIR"]))
+        # The property is that the isolated interpreter comes FIRST on PATH, so a drill cannot pick
+        # up a host toolchain. Compare against str(python_dir) rather than a literal: the original
+        # assertion hardcoded a Windows-normalised "C:\Python312" prefix and so passed on Windows
+        # and failed everywhere else, invisible until CI ran it.
+        self.assertTrue(
+            child["PATH"].startswith(str(python_dir)),
+            f'PATH must start with {python_dir}; got {child["PATH"]!r}',
+        )
         for key in (
             "GITHUB_TOKEN",
             "AWS_SECRET_ACCESS_KEY",
