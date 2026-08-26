@@ -9,7 +9,8 @@ sources or the generated host adapters.
 
 | Document class | Where | Authority |
 |---|---|---|
-| Live tracker | [`fleet-roadmap.md`](fleet-roadmap.md) | The **only** owner of unfinished, blocked, and deferred work. Nothing else adds work to the queue |
+| Live tracker | [`fleet-roadmap.md`](fleet-roadmap.md) | The **only** owner of unfinished, blocked, and deferred work. Nothing else adds work to the queue. It states what is still owed and cites its evidence rather than restating it |
+| Closed-item register | [`roadmap-closed.md`](roadmap-closed.md) | The disposition of every item that has left the live tracker. Historical evidence, never a task list; a row closed by owner disposition states its own reopen condition |
 | Decisions (ADRs) | [`decisions/`](decisions) | An **accepted** record governs its decision, names what lost, and states its reopen trigger; a proposed record carries no implementation authority. Never an execution checklist |
 | Round plans and specs | [`superpowers/plans/`](superpowers/plans), [`superpowers/specs/`](superpowers/specs) | The directories always exist; they are **empty between rounds**, because the round's closing PR deletes its plan and git history keeps the payload. While a file is present it needs a `Status:` banner (`implemented`, `superseded`, or `historical`) and a pointer back to `fleet-roadmap.md`, which `check_plan_status.py` enforces |
 | Roadmap-linked probe instruments | [`probes/`](probes) | Blank, repeatable procedures that are operational only while an active roadmap item links them. They are neither evidence nor a second task list; completed results live in validated evidence envelopes and dated review packets |
@@ -25,8 +26,8 @@ and the live reference contracts ([`rules.md`](rules.md),
 `probes/` contains no independent authority: an instrument is live only through the active roadmap
 item that links it. `superpowers/plans/` and `superpowers/specs/` are empty between rounds.
 `reviews/` holds closure evidence that a roadmap item, a decision record, a live doc, or a test
-still cites; a review nothing cites is removed the same way. Everything there is history, not a
-task list. A historical file may retain a dated "open" section as evidence of what was believed
+still cites; a review nothing cites is removed the same way. [`roadmap-closed.md`](roadmap-closed.md)
+records where each retired item landed. Everything in both is history, not a task list. A historical file may retain a dated "open" section as evidence of what was believed
 then — that section does not re-enter the queue unless the roadmap imports it.
 
 ### Retained full-skill audit evidence
