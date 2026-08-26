@@ -12,11 +12,16 @@ from pathlib import Path
 
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 STALE = (
-    # `researcher` and `prompt-engineer` remain canonical plugin agents.
+    # `researcher` and `agent-engineer` remain canonical plugin agents.
     # `observer` retired into `sre-steward`, which then retired into `observability-engineer`;
     # `scribe` is canonical again. `sre-steward` was renamed because `sre` is a strict prefix of
     # it, which makes substring-matching tooling (eval graders, adapter name rewriting) confuse
     # the incident lane with the steady-state lane.
+    # `prompt-engineer` retired into `agent-engineer`: the lane owns agent bodies, skills, roster
+    # and delegation graphs, and eval loops, of which prompt text is one artifact. The sibling
+    # `sde-agents` fleet still ships a `prompt-engineer`, so leaving the old name unguarded here
+    # would let a cross-fleet copy read as this fleet's.
+    "prompt-engineer",
     "sde", "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
     "test-engineer", "sre-monitor", "runbook-author",
     "observer", "sre-steward",

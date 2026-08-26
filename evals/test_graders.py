@@ -2351,7 +2351,7 @@ def test_learning_loop_promotion_relationships() -> None:
         import yaml  # noqa: F401
     except ModuleNotFoundError:
         return
-    scenario = _load_scenario("agent-direct-prompt-engineer-learning-loop.yaml")
+    scenario = _load_scenario("agent-direct-agent-engineer-learning-loop.yaml")
     check(
         any(spec.get("type") == "learning_loop_promotion" for spec in scenario["graders"]),
         "learning loop: relationship grader is wired into the scenario",

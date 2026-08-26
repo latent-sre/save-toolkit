@@ -104,7 +104,7 @@ external data/cost boundary and the remaining guarantees can be proven.
 **Status:** `active` (2026-08-24)
 
 **Owner:** `latent-sre` owns the architecture decision and acceptance of the exact generic-alpha revision.
-`prompt-engineer` owns consumer context-requirement semantics for agents/skills; `software-engineer` owns any
+`agent-engineer` owns consumer context-requirement semantics for agents/skills; `software-engineer` owns any
 later resolver, validator, or onboarding-tool implementation. A team owner becomes accountable for
 values and operational documents only when that team separately opts into onboarding. No owner may
 approve its own unreviewed evidence.
@@ -224,7 +224,7 @@ skills beyond the accepted generic consumer contract in this stage.
 
 **Status:** `ready` (2026-08-25)
 
-**Owner:** `prompt-engineer` owns the skill text, references, and templates; `software-engineer` owns the
+**Owner:** `agent-engineer` owns the skill text, references, and templates; `software-engineer` owns the
 bundled scripts. Human acceptance of the exact revision remains with `latent-sre`.
 
 **Outcome:** The `incident-drill` skill's authoring path stops producing scenarios that leak their
@@ -258,9 +258,9 @@ Focused checks, the narrow security-boundary review, generated adapter checks, a
 the candidate remains unpromoted until owner acceptance of the PR head. F7 and F11 retain their
 existing owners.
 
-**Owner:** `prompt-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
+**Owner:** `agent-engineer` owns the fleet's design contract and its review; `latent-sre` accepts
 the exact revision. Each accepted finding is implemented by the owner of the surface it names
-(`software-engineer` for validators and harness code, `prompt-engineer` for agent and skill text), never by this
+(`software-engineer` for validators and harness code, `agent-engineer` for agent and skill text), never by this
 item directly.
 
 **Outcome:** The fleet's agents and skills are described once as an executable workflow/state
@@ -293,16 +293,16 @@ a rejected row is recorded with the reason. No row is implemented by this item.
 
 | # | Finding (packet section) | Owner | Proposed disposition |
 |---|---|---|---|
-| F1 | Tier 2/3 approvals and IC envelopes carry no expiry and no resumed-state re-check before the human acts (§10, §9) | `prompt-engineer` gate text via `reviewer` | `worked` in candidate — expiry plus execution-time binding added; focused contracts green and the final fixed comparison improved 1/2 → 2/2 |
+| F1 | Tier 2/3 approvals and IC envelopes carry no expiry and no resumed-state re-check before the human acts (§10, §9) | `agent-engineer` gate text via `reviewer` | `worked` in candidate — expiry plus execution-time binding added; focused contracts green and the final fixed comparison improved 1/2 → 2/2 |
 | F2 | The human-executor effect boundary has no return edge: no `executed` / `not executed` / `UNKNOWN` outcome, receipt, or reconciliation owner (§9, §5 E5) | same as F1 | `worked` in candidate — result/receipt/reconciliation block added; direct stayed 2/2 and discovery improved 0/2 → 2/2 |
-| F3 | No model is pinned while a routing edge is measurably model-dependent (§2, §5 E1, §13) | `prompt-engineer` (policy); `ROUTE-003` (measurement) | measurement `already owned` by `ROUTE-003`; policy `worked` in candidate — every packet carries requested/resolved model evidence and cannot close a model-dependent decision when resolution is absent; no alias pin added |
-| F4 | `prompt-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `prompt-engineer` | `worked` in candidate — all three state they cannot invoke the lane and return dispatch to the caller; authority unchanged |
-| F5 | The `software-engineer` → `reviewer` → caller → `software-engineer` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `prompt-engineer` | `worked` in candidate — numeric round and elapsed/cost budgets plus success, no-progress, stale, exhausted, and safety terminals added |
-| F6 | `[UNTRUSTED]` taint is carried on five lanes and absent from `prompt-engineer`, `researcher`, and `repository-investigator` output contracts (§12, §3) | `prompt-engineer` | `worked` in candidate — source-trust fields and claim-level default taint added to the three lanes |
+| F3 | No model is pinned while a routing edge is measurably model-dependent (§2, §5 E1, §13) | `agent-engineer` (policy); `ROUTE-003` (measurement) | measurement `already owned` by `ROUTE-003`; policy `worked` in candidate — every packet carries requested/resolved model evidence and cannot close a model-dependent decision when resolution is absent; no alias pin added |
+| F4 | `agent-engineer`, `observability-engineer`, and `sre` document handoffs to lanes outside their `Agent(...)` grant without the "cannot invoke; returns to the caller who dispatches" sentence `reviewer` and `scribe` carry (§5 E11) | `agent-engineer` | `worked` in candidate — all three state they cannot invoke the lane and return dispatch to the caller; authority unchanged |
+| F5 | The `software-engineer` → `reviewer` → caller → `software-engineer` cycle has no round, time, or cost bound and §11 has no terminal classes beyond the safety stop (§11, §5 E9) | `agent-engineer` | `worked` in candidate — numeric round and elapsed/cost budgets plus success, no-progress, stale, exhausted, and safety terminals added |
+| F6 | `[UNTRUSTED]` taint is carried on five lanes and absent from `agent-engineer`, `researcher`, and `repository-investigator` output contracts (§12, §3) | `agent-engineer` | `worked` in candidate — source-trust fields and claim-level default taint added to the three lanes |
 | F7 | `disable-model-invocation` is the deterministic invocation guard on the manual-only skills and was `[unverified]` on the installed CLI (§5 E3) | `HOST-002` | `verified 2026-08-25` — a paired harmless plugin canary on Claude Code 2.1.243 hid the guarded skill from model invocation while preserving explicit invocation; see the dated packet |
 | F8 | The Grafana dashboard write has no `UNKNOWN` state or named replay-safety class, although a byte-identical re-apply is idempotent and a stale token fails loudly (§9, §8) | `observability-engineer` / `obs-dashboards` text | `worked` in candidate — `idempotent-by-target`, UNKNOWN, readback-plus-version-history reconciliation, and redispatch block added; authority unchanged; direct behavior 2/2 |
-| F9 | No per-lane failure path for a delegate that returns nothing, garbage, or half its contract; no liveness rule (§8, §6) | `prompt-engineer` | `worked` in candidate — malformed/empty/partial/timeout/kill is a failed attempt with no dependent dispatch; no scheduler/lease/heartbeat is claimed |
-| F10 | Live runs carry no run/attempt lineage; only the eval manifest does (§10, §13) | `prompt-engineer` (packet convention) | `worked` in candidate — every lane carries run/attempt and requested/resolved model fields and preserves/increments lineage |
+| F9 | No per-lane failure path for a delegate that returns nothing, garbage, or half its contract; no liveness rule (§8, §6) | `agent-engineer` | `worked` in candidate — malformed/empty/partial/timeout/kill is a failed attempt with no dependent dispatch; no scheduler/lease/heartbeat is claimed |
+| F10 | Live runs carry no run/attempt lineage; only the eval manifest does (§10, §13) | `agent-engineer` (packet convention) | `worked` in candidate — every lane carries run/attempt and requested/resolved model fields and preserves/increments lineage |
 | F11 | The handoff packet has no schema, and the reviewed tree was dirty (§2, §3) | `SKILLS-003` | schema `already owned` (deliberately deferred by `SKILLS-003`); dirty-tree binding `worked` (recorded in §2) |
 
 **Live traversal (2026-08-25):** a synthetic P3→P1 incident was worked end to end through the
@@ -315,7 +315,7 @@ findings:
 | # | Finding | Owner | Proposed disposition |
 |---|---|---|---|
 | N1 | The plugin guard denies all Bash for every agent when no PATH interpreter answers with its exit codes; on this Windows host the bare names resolve to the Store stub, so unguarded lanes lost shell authority silently | guard shim, `fleet_doctor`, CONTRIBUTING | `worked` in candidate — candidate results surface in the fail-closed launcher, doctor evidence records exact resolved paths, and the SessionStart canary plus PATH guidance make the dependency visible |
-| N2 | Lanes cannot tell a tool they do not hold from a guard denial and report the wrong cause | `prompt-engineer` (agent guardrails) | `worked` in candidate — every body separates absent/not-granted from an observed guard denial and records the denial reason only after invocation |
+| N2 | Lanes cannot tell a tool they do not hold from a guard denial and report the wrong cause | `agent-engineer` (agent guardrails) | `worked` in candidate — every body separates absent/not-granted from an observed guard denial and records the denial reason only after invocation |
 | N3 | Cross-lane prerequisites (an alert that needs a gauge the service does not export) are not modelled in handoff or action-item templates | `postmortem`, `incident-command` templates | `worked` in candidate — both action templates carry an instrumentation-prerequisite field and ready/blocked state |
 | N4 | Lane cost is dominated by rediscovery when packets carry pointers instead of excerpts | packet convention (F10) | `dropped with reason` — coordinator practice, folded into F10 |
 
@@ -364,7 +364,7 @@ structured-state follow-up is in progress on `work/incident-structured-state` fr
 `origin/main`; it replaces distributed positive lexical checks with one typed relationship record
 while retaining adversarial prose checks.
 
-**Owner:** `prompt-engineer` owns the fleet prompt, context, loop, and graph contract; `latent-sre`
+**Owner:** `agent-engineer` owns the fleet prompt, context, loop, and graph contract; `latent-sre`
 accepts the exact revision. Human incident command and release owners retain their existing live
 authority.
 
@@ -403,7 +403,7 @@ structural checks to pass, and `latent-sre` to accept the exact PR head before p
 
 **Status:** `decision-needed` (2026-08-24)
 
-**Owner:** `software-engineer` owns implementation; `prompt-engineer` owns the skill text that carries
+**Owner:** `software-engineer` owns implementation; `agent-engineer` owns the skill text that carries
 runtime-specific references; `stack-profile`'s decision owner names the runtime.
 
 **Outcome:** `software-engineer` can implement an accepted `workflow-graph-engineering` design contract against
@@ -678,7 +678,7 @@ activates only the executable workflow/state-graph capability from Batch 3. The 
 capability additions remain held; this item selects no graph runtime, creates no execution service,
 and does not activate `codebase-atlas`.
 
-**Owner:** `prompt-engineer` owns the canonical design method and its routing/evaluation contract.
+**Owner:** `agent-engineer` owns the canonical design method and its routing/evaluation contract.
 `software-engineer` owns any later implementation in team-authored code, but this item grants no implementation,
 deployment, or live-effect authority. Human acceptance of the exact pull-request revision remains
 with `latent-sre`.
@@ -689,7 +689,7 @@ contract. The result names its data, nodes, edges, concurrency, failure recovery
 lifecycle, authority, observability, and evaluation semantics without implying that a checkpoint
 makes an external effect exactly once or that a graph-shaped design requires a particular runtime.
 
-**Concrete consumer:** The immediate consumer is `prompt-engineer` when a team-approved request
+**Concrete consumer:** The immediate consumer is `agent-engineer` when a team-approved request
 needs an executable workflow/state-graph design or a review of one. Its output is a human-reviewed
 engineering artifact that can later become a pinned handoff to `software-engineer`. There is no machine consumer
 in this slice, so it adds no JSON Schema or validator. A later proposal may add those only after it
@@ -715,7 +715,7 @@ overlap or contradiction:
 
 | Requested term | Canonical boundary to verify |
 |---|---|
-| Prompt engineering | `prompt-engineer` and `agent-authoring` own LLM-facing routing, instructions, output shape, and bounded prompt changes; schemas, runtime controls, and evaluator defects stay with their owning layer |
+| Prompt engineering | `agent-engineer` and `agent-authoring` own LLM-facing routing, instructions, output shape, and bounded prompt changes; schemas, runtime controls, and evaluator defects stay with their owning layer |
 | Context engineering | `agent-authoring/references/context.md` owns selection, order, trust, freshness, compaction, retention, preload, and retrieval; context isolation is not authority isolation |
 | Handoff engineering | `agent-authoring/references/roster.md` and canonical packet conventions require a stateless receiver interface with one owner, exact state, evidence/taint, success criteria, unknowns, and non-actions |
 | Loop engineering | `agent-authoring`, `artifact.md`, and `roster.md` own mutable state, one verifier, fixed budgets and stops, durable evidence, and human promotion |
@@ -809,15 +809,15 @@ coupled atomically; otherwise reconciliation is mandatory. An interrupted dispat
 automatically while unknown. No generated design authorizes production access or execution.
 
 **Implementation boundary:** Implement one new canonical skill in one reviewed commit. The expected
-canonical surfaces are `skills/workflow-graph-engineering/`, the minimum `prompt-engineer` routing
+canonical surfaces are `skills/workflow-graph-engineering/`, the minimum `agent-engineer` routing
 change needed to expose it, the directly affected scenario files, and repository catalog/count text
 required by fleet validators. References are split only along observable request predicates. Do not
-perform a fleet-wide prompt rewrite, add a second prompt-engineering or Loop Engineering skill,
+perform a fleet-wide prompt rewrite, add a second agent-engineering or Loop Engineering skill,
 change agent authority, introduce a runtime dependency, or bundle `codebase-atlas` into the same
 pull request.
 
 **Prerequisites:** Start implementation on a fresh branch from refreshed `origin/main`. Reinspect the
-exact `prompt-engineer`, `agent-authoring`, routing-scenario, generator, and manifest/catalog
+exact `agent-engineer`, `agent-authoring`, routing-scenario, generator, and manifest/catalog
 surfaces before naming the final file set. If another open change overlaps those surfaces, do not
 stack dependent edits. Define the positive, neighboring-owner, and near-miss cases before drafting
 the skill. Current framework details are consulted through Context7 only when a version-specific

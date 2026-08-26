@@ -54,7 +54,7 @@ authoritative?*
 | `scribe`: local document write; no Bash, web, or Agent | [`AGENTS.md`](../AGENTS.md) roster |
 | `sre`: guarded Bash; recommends mitigation, never applies it | [`AGENTS.md`](../AGENTS.md) |
 | `observability-engineer`: unguarded Bash + obs-config write; Grafana dashboard create/update is its one live apply, and its three conditions are necessary but **not sufficient** — every other Tier 2/3 change is recommend-only | Agent body; [ADR 2026-08-21](decisions/2026-08-21-observability-engineer-unguarded-bash.md); production-change-gate |
-| `software-engineer` / `prompt-engineer`: unguarded Bash — host/network egress controls remain load-bearing | [`AGENTS.md`](../AGENTS.md) Enforcement boundaries |
+| `software-engineer` / `agent-engineer`: unguarded Bash — host/network egress controls remain load-bearing | [`AGENTS.md`](../AGENTS.md) Enforcement boundaries |
 | Guard is a command filter, not a sandbox; OS least privilege remains load-bearing | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | `Agent(target)` grants enforce on the main thread only; at subagent depth the list is documentary | Frontmatter reference; [`AGENTS.md`](../AGENTS.md) |
 | `model:` on an agent must be a generation alias (`haiku`/`sonnet`/`opus`/`fable`/`inherit`), never a full ID; default is to inherit the session model | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-model-aliases.md); `validate_fleet.py` |
@@ -103,7 +103,7 @@ authoritative?*
 | Operational dispositions: `prepared` / `proposed` / `blocked` / `duplicate` / `not_applicable`; silence is not `not_applicable` | Disposition policy |
 | Config definitions are authoritative; KB cards summarize and link, they do not fork queries | Disposition policy |
 | Agents never self-mark knowledge as approved/merged/deployed/verified | Disposition policy |
-| Operational artifacts never rewrite fleet definitions; route an accepted fleet failure and proposed named regression to `prompt-engineer` | Disposition policy; [`artifact.md`](../skills/agent-authoring/references/artifact.md) |
+| Operational artifacts never rewrite fleet definitions; route an accepted fleet failure and proposed named regression to `agent-engineer` | Disposition policy; [`artifact.md`](../skills/agent-authoring/references/artifact.md) |
 | Leave historical plans/evals under old names as evidence — do not rewrite recorded results | [`2026-08-04-observability-engineer-rename.md`](decisions/2026-08-04-observability-engineer-rename.md); [`2026-08-05-language-idiom-rename.md`](decisions/2026-08-05-language-idiom-rename.md) |
 
 ## 5. Stack / runtime

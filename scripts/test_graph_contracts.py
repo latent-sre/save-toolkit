@@ -38,7 +38,7 @@ class GraphContractTests(unittest.TestCase):
 
     def test_documented_ungranted_handoffs_return_to_the_caller(self) -> None:
         expected = {
-            "prompt-engineer.md": ("reviewer", "software-engineer"),
+            "agent-engineer.md": ("reviewer", "software-engineer"),
             "observability-engineer.md": ("software-engineer",),
             "sre.md": ("software-engineer",),
         }
@@ -67,7 +67,7 @@ class GraphContractTests(unittest.TestCase):
                 self.assertIn(token, text)
 
     def test_missing_taint_contracts_carry_source_trust_and_claim_taint(self) -> None:
-        for filename in ("prompt-engineer.md", "researcher.md", "repository-investigator.md"):
+        for filename in ("agent-engineer.md", "researcher.md", "repository-investigator.md"):
             text = _compact((ROOT / "agents" / filename).read_text(encoding="utf-8"))
             with self.subTest(agent=filename):
                 self.assertIn("Inputs/source trust:", text)
@@ -75,7 +75,7 @@ class GraphContractTests(unittest.TestCase):
                 self.assertIn("claim-level `[UNTRUSTED]`", text)
 
     def test_delegate_failure_path_is_explicit_and_has_no_scheduler_claim(self) -> None:
-        for filename in ("software-engineer.md", "sre.md", "observability-engineer.md", "prompt-engineer.md"):
+        for filename in ("software-engineer.md", "sre.md", "observability-engineer.md", "agent-engineer.md"):
             text = _compact((ROOT / "agents" / filename).read_text(encoding="utf-8"))
             with self.subTest(agent=filename):
                 self.assertIn("empty, malformed, partial, timed-out, or killed delegate return", text)

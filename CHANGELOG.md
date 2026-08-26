@@ -72,6 +72,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   two rows now follow it. AGENTS.md's `Delegates to` column is bound to `EXPECTED_DELEGATION` by
   `validate_roster_graph`; README's `Routing` column is prose and is not, which is why it could drift
   into naming edges the frontmatter never granted.
+- Renamed the `prompt-engineer` agent to `agent-engineer`. The lane owns agent bodies, skills, tool
+  and grader descriptions, bounded eval loops, roster and delegation graphs, and workflow-graph
+  designs; prompt text is one artifact class among those, so the old name understated it the same way
+  `coder` understated the build lane. This is a breaking address change from
+  `save-toolkit:prompt-engineer` to `save-toolkit:agent-engineer`; description, tool authority, body
+  contract, and the single `Agent(researcher)` edge are unchanged
+  ([ADR](docs/decisions/2026-08-26-agent-engineer-rename.md)). No routing comparison was run —
+  the decision rests on human legibility, as its predecessor did, and the prior rename's measured tie
+  is the only evidence that a name change of this kind does not move automatic routing. Retiring the
+  name also removes one of the three role-name collisions with the sibling `sde-agents` fleet.
 - Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
   implementation, testing, and operations-tooling lane. This is a breaking address change from
   `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are

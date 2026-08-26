@@ -170,7 +170,7 @@ EXPECTED_AUTHORITY = {
         "required": SCRIBE_TOOLS,
         "forbidden": {*(BUILTIN_TOOLS - SCRIBE_TOOLS), *EXTERNAL_EVIDENCE_TOOLS},
     },
-    "prompt-engineer": {
+    "agent-engineer": {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
@@ -183,7 +183,7 @@ EXPECTED_DELEGATION = {
     "sre": {"researcher"},
     "observability-engineer": {"scribe", "researcher"},
     "scribe": set(),
-    "prompt-engineer": {"researcher"},
+    "agent-engineer": {"researcher"},
 }
 
 

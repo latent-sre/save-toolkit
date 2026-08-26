@@ -4,7 +4,7 @@ description: >-
   Apply the operational-learning closeout after scribe selects knowledge closeout mode, or when a
   user explicitly invokes this skill. Direct KB writing belongs to scribe; active incidents route
   to sre, alert design routes to observability-engineer, and fleet prompt work routes to
-  prompt-engineer. Triggers: 'knowledge closeout mode selected',
+  agent-engineer. Triggers: 'knowledge closeout mode selected',
   'apply the operational-learning closeout', 'capture durable operational lessons'.
 argument-hint: "[component, alert, incident, drill, or audit]"
 ---
@@ -79,7 +79,7 @@ stays with `observability-engineer`; code or automation stays with `software-eng
   secrets or unrelated transcript content in the documentation.
 - Tier 2 or 3 recommendations name explicit human approval and rollback or recovery; agents do not
   apply them.
-- Fleet prompt, skill, or agent failures route to `prompt-engineer` with the observed divergence
+- Fleet prompt, skill, or agent failures route to `agent-engineer` with the observed divergence
   and a proposed named regression. Operational content never rewrites the fleet directly, and no
   operational artifact grants edit, review, merge, release, or production authority.
 

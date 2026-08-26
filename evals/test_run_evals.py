@@ -926,7 +926,7 @@ class StreamTraceTests(unittest.TestCase):
             }]}},
             {"type": "assistant", "session_id": "session-1", "message": {"content": [{
                 "type": "tool_use", "id": "duplicate", "name": "Agent",
-                "input": {"subagent_type": "save-toolkit:prompt-engineer"},
+                "input": {"subagent_type": "save-toolkit:agent-engineer"},
             }]}},
             {"type": "user", "session_id": "session-1", "message": {"content": [{
                 "type": "tool_result", "tool_use_id": "duplicate", "is_error": False,
@@ -1119,7 +1119,7 @@ class StreamTraceTests(unittest.TestCase):
 
     def test_root_scope_rejects_nested_target_under_wrong_root_agent(self) -> None:
         parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            root_agents=("sre", "prompt-engineer"),
+            root_agents=("sre", "agent-engineer"),
             nested_skills=("gcp-ops",),
             nested_skill_parent="agent-root-1",
         ))
