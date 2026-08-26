@@ -36,6 +36,7 @@ list. An item with no surviving evidence document closed into a live contract in
 | `AUDIT-002` (Batch 1) | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Implementation and review corrections merged in PR [#141](https://github.com/latent-sre/save-toolkit/pull/141) at merge commit `09e775b`, final head `11b8041`. Batch 1 selected no graph runtime, added no unconsumed schema, and activated no SRE capability addition; two positive-route reliability gaps moved to deferred `ROUTE-003` rather than triggering retries against unchanged bytes. Evidence: [`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) |
 | `DOCTOR-001` | 2026-08-23 | Installed-layout `fleet_doctor` now separates checkout and plugin evidence, validates each payload's first authenticated guard answer and independently trusted launcher bytes, and degrades repository-only checks outside a checkout. Final head `505f9b5`, merged in PR [#152](https://github.com/latent-sre/save-toolkit/pull/152) at `e76d38b` |
 | `GRADER-002` | 2026-08-24 | Direct-skill trials explicitly request the exact `Skill` invocation and still require its completed tool result; availability-only metadata and inline answers fail closed. Implementation commit `ec6e583`, paired approved/missing-authority evidence matched the committed evaluator digest, merged in PR [#155](https://github.com/latent-sre/save-toolkit/pull/155) at `24e62b0` |
+| `CI-001` | 2026-08-26 | CI ran no `test_*.py` at all, so four component tests were failing with nobody notified. All four fixed, not quarantined. The load-bearing one: `scripts/readonly-guard-hook.sh` had drifted from `hooks/hooks.json`, missing the `[ -n "$OUT" ]` guard — a guard exiting 43 (deny) with empty stdout would have printed nothing and exited 0, which the host reads as **allow**. `hooks.json` was hardened in `f80c569` (PR #165 review); the launcher and `fleet_doctor`'s trusted digest were never updated with it. Also fixed: a `PATH` assertion hardcoding a Windows-normalised prefix (passed on Windows, failed everywhere else) and a stale blind-file inventory that had drifted in both directions. Component tests now run in CI at 30/30, ~48 s |
 | `SKILLS-003` | 2026-08-26 | Portable `workflow-graph-engineering` skill: a runtime-neutral design and review contract for executable workflow/state graphs. Skill merged at `f1afd57`; the acceptance evidence, routing repair, and bookkeeping merged in PR [#170](https://github.com/latent-sre/save-toolkit/pull/170) at `33ffb2f`. Evidence, kept separate rather than conflated: **structural** — Gate A 6/6, 97 scenarios, `test_graders` 727/727, generator byte-clean, strict plugin validation; **routing** — [`[verified]` 62/62 conclusive trials](reviews/2026-08-25-grader-003-verification-batch.md) across seven batches with no misroute; **artifact** — [3 of 5 frozen cases at 18/18 under independent grading](reviews/2026-08-25-skills-003-acceptance-3-result.md), owner-accepted with two transcripts unretained and that gap owned by `EVIDENCE-001`; **review** — four independent rounds bound to stated revisions, independently-found P0/P1s 6 → 2 → 0. Runtime behaviour, durability, and effect safety remain `[unverified]` by construction: nothing was executed |
 
 The local Sol evaluator decision is recorded separately in
@@ -667,41 +668,6 @@ selected entrypoint and already owns substantial routable reference depth. Prese
 invariants, proposed conditional boundaries, expected byte movement, and recommendation before
 changing its bytes. Do not start a second skill, requeue a completed Phase 1 skill, rewrite discovery
 descriptions, or combine the already-owed `eng-ladder` after-change run with this checkpoint.
-
-### CI-001 — fix the three component tests that were failing unnoticed
-
-**Status:** `ready` (2026-08-26)
-
-**Owner:** `sde` owns the three failing implementations; `latent-sre` accepts the exact revision.
-
-**Outcome:** Every component test passes in CI, and `QUARANTINE` in
-[`scripts/run_component_tests.py`](../scripts/run_component_tests.py) is empty and removable.
-
-**Source:** CI ran no `test_*.py` at all — `scripts/gate_a.py` deliberately excludes the component
-and eval suites, so the only gates were the structural audit and `claude plugin validate`. Adding a
-component-test job surfaced `[verified]` **three tests failing on `main`**, none of them touched by
-the change that found them:
-
-| Test | What is broken |
-|---|---|
-| `scripts/test_fleet_doctor.py` | the hook-registration check reports `pass` where the fixture expects `fail`; and a minimal installed plugin still imports repository helpers |
-| `scripts/test_hook_wiring.py` | the standalone launcher and the inlined hook command have drifted — the launcher omits the `[ -n "$OUT" ]` guard the inlined form carries, so an empty guard result is handled differently by each |
-| `scripts/test_mutation_guard.py` | the live tree has tractable blind files the guard's import discovery does not cover |
-
-Take `test_hook_wiring` first: [`hooks/hooks.json`](../hooks/hooks.json) is the fail-closed Bash
-allowlist for `sre`, and a launcher that handles an empty guard result differently from the inlined
-form is a divergence in a security control, not a fixture mismatch. `[unverified]` which of the two
-forms is correct — the test asserts they match, and they no longer do.
-
-**Prerequisites:** None. Each failure is independent and local.
-
-**Acceptance:** Each of the three either passes or is removed with a recorded reason; `QUARANTINE`
-shrinks to empty and its ratchet assertion is deleted with it. For `test_hook_wiring` specifically,
-the evidence names which form was correct and what the divergence would have allowed or denied.
-
-**Next action:** Take `test_hook_wiring.py` first, on the security-control reasoning above. Do not
-loosen a test to make it pass — all three failed silently for an unknown period, so the failures are
-the finding, not an obstacle to it.
 
 ### EVIDENCE-001 — stop losing measurement evidence by default
 

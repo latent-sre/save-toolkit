@@ -59,9 +59,10 @@ jobs:
     # CI running no test file at all -- and three were failing on main with nobody notified. This is
     # that gate.
     #
-    # Cost, measured 2026-08-26: 27 active tests in ~28 s wall, sequential. Two files dominate
-    # (evals/test_run_evals.py ~15 s, scripts/test_readonly_guard.py ~8 s), so parallelising would
-    # buy little and would make a failure harder to attribute. The pip install adds a few seconds.
+    # Cost, measured 2026-08-26: 30 tests in ~48 s wall, sequential. Three files dominate
+    # (evals/test_run_evals.py ~15 s, scripts/test_mutation_guard.py ~13 s,
+    # scripts/test_readonly_guard.py ~8 s), so parallelising would buy little and would make a
+    # failure harder to attribute. The pip install adds a few seconds.
     #
     # Limitation, stated rather than discovered later: this runs on ubuntu only. Windows behaviour
     # of these tests is unverified in CI; validate-windows still covers the structural gate there.
@@ -80,6 +81,13 @@ jobs:
       # these tests without it is worse than not running them.
       - name: Install pinned dev dependencies
         run: python -m pip install -r requirements-dev.txt
+
+      # Run the runner's own behavioural tests DIRECTLY first. Invoked through the runner they
+      # see COMPONENT_TEST_CHILD=1 and skip their recursion-unsafe cases, so the runner would be
+      # the only thing in CI whose guard never actually fires -- the exact defect class this job
+      # exists to catch.
+      - name: Component-test runner self-tests
+        run: python scripts/test_run_component_tests.py
 
       - name: Component tests
         run: python scripts/run_component_tests.py

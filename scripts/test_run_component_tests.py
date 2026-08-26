@@ -4,7 +4,7 @@
 A guard written to prevent a recurrence has to assert the failing property, not the structural
 arrangement that happens to accompany it -- a lesson paid for in PR #170, where a guard checked
 pairing, counts, mode, and target and still let the defect it was written for ship a second time.
-So these tests make the runner actually go red rather than checking that it looks like it would.
+So these cases make the runner actually go red rather than checking that it looks like it would.
 
 Every case uses `--match` against a tiny subset: the runner takes ~28 s over the full tree, and a
 self-test that costs a minute is a self-test people disable.
@@ -16,7 +16,6 @@ import importlib.util
 import os
 import subprocess
 import sys
-import textwrap
 import unittest
 from pathlib import Path
 
@@ -25,8 +24,21 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "scripts" / "run_component_tests.py"
 
 # The runner discovers this file and runs it, so without this marker the process tree recurses
-# forever. The runner sets it for every child it spawns.
+# forever. The runner sets it for every child it spawns. CI runs this file DIRECTLY as well, so the
+# behavioural cases below are not silently skipped there -- see the workflow's separate step.
 IS_CHILD = os.environ.get("COMPONENT_TEST_CHILD") == "1"
+
+FAILING_TEST_SOURCE = """import unittest
+
+
+class Planted(unittest.TestCase):
+    def test_fails(self) -> None:
+        self.fail("planted")
+
+
+if __name__ == "__main__":
+    unittest.main()
+"""
 
 
 def _run(*args: str, script: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -46,28 +58,21 @@ def _load_runner():
     return module
 
 
+def _patched_runner(quarantine_body: str, path: Path) -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    patched = source.replace(
+        "QUARANTINE: dict[str, str] = {}", f"QUARANTINE: dict[str, str] = {{{quarantine_body}}}", 1
+    )
+    assert patched != source, "fixture must patch the quarantine"
+    path.write_text(patched, encoding="utf-8")
+
+
 class RunnerTests(unittest.TestCase):
     @unittest.skipIf(IS_CHILD, "would recurse: the runner is what spawned this process")
     def test_a_failing_test_turns_the_runner_red(self) -> None:
         """The property that matters: a newly failing test fails the run, never tolerated."""
         planted = ROOT / "scripts" / "test_zzplanted_failure.py"
-        planted.write_text(
-            textwrap.dedent(
-                """
-                import unittest
-
-
-                class Planted(unittest.TestCase):
-                    def test_fails(self) -> None:
-                        self.fail("planted")
-
-
-                if __name__ == "__main__":
-                    unittest.main()
-                """
-            ).lstrip(),
-            encoding="utf-8",
-        )
+        planted.write_text(FAILING_TEST_SOURCE, encoding="utf-8")
         try:
             result = _run("--match", "zzplanted")
             self.assertEqual(result.returncode, 1, "a failing test must fail the runner")
@@ -82,24 +87,39 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("1/1 passed", result.stdout)
 
     @unittest.skipIf(IS_CHILD, "would recurse: the runner is what spawned this process")
-    def test_a_quarantined_test_does_not_fail_the_run(self) -> None:
-        module = _load_runner()
-        name = next(iter(module.QUARANTINE))
-        result = _run("--match", Path(name).stem)
-        self.assertEqual(result.returncode, 0, "a quarantined failure must not fail the run")
-        self.assertIn("QUAR", result.stdout)
+    def test_a_quarantined_failure_does_not_fail_the_run(self) -> None:
+        """Synthetic, so it holds whether or not anything is live-quarantined.
+
+        The live QUARANTINE is empty -- CI-001 fixed all three rather than tolerating them -- and a
+        mechanism tested only through live data stops being tested the moment the data is right.
+        """
+        planted = ROOT / "scripts" / "test_zzquarantined_failure.py"
+        planted.write_text(FAILING_TEST_SOURCE, encoding="utf-8")
+        scratch = ROOT / "scripts" / "runner_quarantine_fixture.py"
+        _patched_runner(
+            '\n    "scripts/test_zzquarantined_failure.py": '
+            '"synthetic fixture proving a quarantined failure does not fail the run",\n',
+            scratch,
+        )
+        try:
+            quarantined = _run("--match", "zzquarantined", script=scratch)
+            self.assertEqual(quarantined.returncode, 0, "a quarantined failure must not fail")
+            self.assertIn("QUAR", quarantined.stdout)
+            # The same failure unquarantined must fail, or the pass above proves only that the
+            # test never ran.
+            self.assertEqual(_run("--match", "zzquarantined").returncode, 1)
+        finally:
+            scratch.unlink()
+            planted.unlink()
 
     @unittest.skipIf(IS_CHILD, "would recurse: the runner is what spawned this process")
     def test_a_stale_quarantine_entry_fails(self) -> None:
         """A quarantine naming a deleted test silently re-arms the gap it made visible."""
-        patched = RUNNER.read_text(encoding="utf-8").replace(
-            "QUARANTINE: dict[str, str] = {",
-            'QUARANTINE: dict[str, str] = {\n    "scripts/test_deleted_long_ago.py": '
-            '"a stale entry that names nothing on disk",',
-            1,
-        ).replace("<= 3", "<= 4", 1)
         scratch = ROOT / "scripts" / "runner_stale_fixture.py"
-        scratch.write_text(patched, encoding="utf-8")
+        _patched_runner(
+            '\n    "scripts/test_deleted_long_ago.py": "a stale entry naming nothing on disk",\n',
+            scratch,
+        )
         try:
             result = _run("--match", "test_canary_tokens", script=scratch)
             self.assertEqual(result.returncode, 1)
@@ -107,9 +127,9 @@ class RunnerTests(unittest.TestCase):
         finally:
             scratch.unlink()
 
-    def test_every_quarantined_test_exists_and_names_what_is_broken(self) -> None:
+    def test_any_live_quarantine_entry_exists_and_names_what_is_broken(self) -> None:
+        """Empty is the expected state; a populated one must still be honest."""
         module = _load_runner()
-        self.assertTrue(module.QUARANTINE, "an empty quarantine needs no ratchet")
         for name, reason in module.QUARANTINE.items():
             self.assertTrue((ROOT / name).exists(), f"{name} is quarantined but absent")
             self.assertGreater(

@@ -35,29 +35,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TEST_PATTERNS = ("scripts/test_*.py", "evals/test_*.py")
 
-# Tests that already fail on `main` as of 2026-08-26, recorded rather than silently skipped so the
-# list is visible in review and can only shrink. Each entry names what is broken; a test quarantined
-# without a reason is indistinguishable from one nobody looked at.
-#
-# A NEW failing test belongs fixed, not appended here. See CI-001 in docs/fleet-roadmap.md.
-QUARANTINE: dict[str, str] = {
-    "scripts/test_fleet_doctor.py":
-        "hook-registration check reports 'pass' where the fixture expects 'fail'; and a minimal "
-        "installed plugin still imports repository helpers",
-    "scripts/test_hook_wiring.py":
-        "the standalone launcher and the inlined hook command have drifted: the launcher omits the "
-        "`[ -n \"$OUT\" ]` guard the inlined form carries, so an empty guard result is handled "
-        "differently by each",
-    "scripts/test_mutation_guard.py":
-        "the live tree has tractable blind files the guard's import discovery does not cover",
-}
-
-# The quarantine is a ratchet. `<=` and not `==`: removing an entry because the test was FIXED must
-# not trip the assertion. One character still defeats it, so this is a diff-visibility device --
-# the real control is that the runner fails for anything failing and unlisted.
-assert len(QUARANTINE) <= 3, (
-    "the quarantine may shrink, never grow. A newly failing test belongs fixed, not listed here."
-)
+# Empty, and that is the point: the three tests this runner found failing on `main` on 2026-08-26
+# were fixed rather than tolerated (CI-001). Keep the mechanism -- a future red test may need a
+# recorded, reasoned quarantine while it is repaired -- but never as a way to make CI green. An
+# entry without a reason is indistinguishable from one nobody looked at.
+QUARANTINE: dict[str, str] = {}
 
 
 def discover() -> list[Path]:

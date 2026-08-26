@@ -83,7 +83,12 @@ class IncidentDrillHarnessTests(unittest.TestCase):
 
         self.assertEqual("required-claude-auth", child["ANTHROPIC_API_KEY"])
         self.assertEqual(Path("C:/isolated-claude"), Path(child["CLAUDE_CONFIG_DIR"]))
-        self.assertTrue(child["PATH"].startswith("C:\\Python312"))
+        # The property is that the isolated interpreter comes FIRST on PATH, so a drill cannot
+        # pick up a host toolchain. Compare the first entry as a Path: the previous assertion
+        # hardcoded a Windows-normalised prefix, so it passed on Windows and failed everywhere
+        # else -- invisible until CI actually ran it.
+        first_on_path = child["PATH"].split(os.pathsep)[0]
+        self.assertEqual(Path("C:/Python312"), Path(first_on_path))
         for key in (
             "GITHUB_TOKEN",
             "AWS_SECRET_ACCESS_KEY",
