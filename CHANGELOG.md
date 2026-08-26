@@ -7,6 +7,13 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Added `sre-ladder`, a dedicated evidence-selected incident-depth router for first response,
+  hypothesis investigation, systemic failure, and optional signal characterization. The `sre`
+  agent now uses those work modes while assisting the human incident team; `eng-ladder` returns to
+  Builder/Principal/Distinguished engineering altitude only. The move preserves guarded read-only
+  investigation and human-executed production effects, adds positive and engineering near-miss
+  routing regressions, and deliberately removes the restored canonical name from the stale-name
+  denylist.
 - Added durable-by-default measurement capture (`EVIDENCE-001`): sealed eval summaries now produce
   bounded, escaped evidence under `docs/reviews/`; host-owned exercises use the same validated
   envelope; Gate A rejects live-roadmap batch IDs that resolve to no committed review record. Raw

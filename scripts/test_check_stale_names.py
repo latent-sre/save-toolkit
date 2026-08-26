@@ -62,6 +62,13 @@ class StaleNamesTest(unittest.TestCase):
         self._write("skills/probe/SKILL.md", "Route it to the reviewer agent.\n")
         self.assertEqual([], check_stale_names.check(self.root))
 
+    def test_reintroduced_sre_ladder_is_not_stale(self) -> None:
+        self.assertNotIn(
+            "sre-ladder",
+            check_stale_names.STALE,
+            "the approved incident-mode router is canonical again",
+        )
+
     def test_a_path_or_md_reference_is_exempt(self) -> None:
         # The carve-out that keeps a reintroduced name usable as a real filename: a match adjacent to
         # `/` or immediately followed by `.md` is skipped *when a file of that name exists in the

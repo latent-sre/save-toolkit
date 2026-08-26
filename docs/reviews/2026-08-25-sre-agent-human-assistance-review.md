@@ -1,10 +1,9 @@
 # SRE agent review — human incident-assistance model
 
-> **Status: review and cross-machine handoff, not implementation authority and not a second
-> backlog.** This document records the findings and recommended direction discussed on 2026-08-25.
-> It does not change the canonical `sre` agent, its skills, its evaluations, or production authority.
-> Future implementation enters the fleet only through an explicit owner decision and, if tracked,
-> [`fleet-roadmap.md`](../fleet-roadmap.md).
+> **Status: review and cross-machine handoff, not independent implementation authority and not a
+> second backlog.** This document records the baseline findings and direction discussed on
+> 2026-08-25. On 2026-08-26 the repository owner approved the dedicated `sre-ladder` name and its
+> extraction on this branch. The review itself grants no tool, delegation, or production authority.
 
 **Reviewed baseline:** `873fdf4c134e9073ea9824e776a88ac3acbe56ca` (`origin/main`, merge of PR
 #169)
@@ -172,20 +171,25 @@ actual `monitoring-recovery` state with a caller-supplied recovery window, as it
 
 #### Finding
 
-[`eng-ladder`](../../skills/eng-ladder/SKILL.md) currently performs two different jobs:
+At the reviewed baseline, [`eng-ladder`](../../skills/eng-ladder/SKILL.md) performed two different
+jobs:
 
 1. it selects Builder, Principal, or Distinguished altitude for engineering work; and
 2. it selects Responder, Investigator, or Elite altitude for incident work.
 
 The incident references themselves are valuable. Their content is not the problem:
 
-- [`responder.md`](../../skills/eng-ladder/references/responder.md) preserves the first-ten-minute
+- the former `responder.md`, now
+  [`first-response.md`](../../skills/sre-ladder/references/first-response.md), preserves the first-ten-minute
   checks, read-only posture, runbook use, time-box, and early escalation;
-- [`investigator.md`](../../skills/eng-ladder/references/investigator.md) preserves timeline
+- the former `investigator.md`, now
+  [`hypothesis-investigation.md`](../../skills/sre-ladder/references/hypothesis-investigation.md), preserves timeline
   correlation, differential hypotheses, predictions, evidence tests, and confidence;
-- [`elite.md`](../../skills/eng-ladder/references/elite.md) preserves distributed failure modes,
+- the former `elite.md`, now
+  [`systemic-failure.md`](../../skills/sre-ladder/references/systemic-failure.md), preserves distributed failure modes,
   shared fate, cascades, retry storms, saturation collapse, feedback loops, and metastability; and
-- [`golden-signals.md`](../../skills/eng-ladder/references/golden-signals.md) preserves a compact
+- the former `golden-signals.md`, now
+  [`signal-characterization.md`](../../skills/sre-ladder/references/signal-characterization.md), preserves a compact
   signal vocabulary and the start-time/blast-radius/trend triple.
 
 The mismatch is classification. Responder, investigator, and systemic-failure analysis are
@@ -196,10 +200,9 @@ emergent behavior.
 #### Recommendation
 
 Keep `eng-ladder` for Builder, Principal, and Distinguished engineering altitude. Move the four
-incident references, substantially intact, behind an incident-specific entry point such as a new
-`incident-investigation` skill. The exact component name is an implementation decision; the
-important boundary is that technical incident context no longer depends on the software-engineering
-ladder.
+incident references behind a dedicated incident-specific entry point. The approved implementation
+names that component [`sre-ladder`](../../skills/sre-ladder/SKILL.md); the important boundary is
+that technical incident context no longer depends on the software-engineering ladder.
 
 Use observable routing predicates:
 
@@ -446,17 +449,14 @@ The redesign is successful when all of the following are true:
 - the guard, tool absence, researcher sanitization, credential boundary, production-effect boundary,
   and security carve-out remain intact.
 
-## Decisions still requiring the repository owner's approval
+## Decisions still requiring the repository owner's approval after the ladder extraction
 
-1. Whether the incident reference entry point should be a new `incident-investigation` skill or an
-   extension of another existing skill. This review recommends a new skill because neither
-   `incident-command` nor `root-cause` owns the entire responder-to-systemic context range.
-2. Whether the agent may be assigned sustained lifecycle support by default for a declared incident,
+1. Whether the agent may be assigned sustained lifecycle support by default for a declared incident,
    or only through an explicit caller instruction. This review recommends explicit assignment.
-3. Whether the full generic handoff block should remain duplicated in every orchestrating agent or
+2. Whether the full generic handoff block should remain duplicated in every orchestrating agent or
    be made conditional through a shared workflow mechanism. Any change must preserve current taint
    and evidence semantics.
-4. The exact recovery-window source and whether any service-specific default may be resolved from
+3. The exact recovery-window source and whether any service-specific default may be resolved from
    approved operational context. The agent must not invent a duration.
 
 ## What this review did not do
@@ -477,12 +477,13 @@ The redesign is successful when all of the following are true:
 - [`agents/sre.md`](../../agents/sre.md) — canonical current agent
 - [`incident-command`](../../skills/incident-command/SKILL.md) — severity, command, communications,
   and human mitigation decision
-- [`eng-ladder`](../../skills/eng-ladder/SKILL.md) — current mixed engineering/SRE altitude router
-- [`responder`](../../skills/eng-ladder/references/responder.md),
-  [`investigator`](../../skills/eng-ladder/references/investigator.md),
-  [`elite`](../../skills/eng-ladder/references/elite.md), and
-  [`golden-signals`](../../skills/eng-ladder/references/golden-signals.md) — incident knowledge to
-  preserve under a better boundary
+- [`eng-ladder`](../../skills/eng-ladder/SKILL.md) — engineering altitude router
+- [`sre-ladder`](../../skills/sre-ladder/SKILL.md) and its
+  [`first-response`](../../skills/sre-ladder/references/first-response.md),
+  [`hypothesis-investigation`](../../skills/sre-ladder/references/hypothesis-investigation.md),
+  [`systemic-failure`](../../skills/sre-ladder/references/systemic-failure.md), and
+  [`signal-characterization`](../../skills/sre-ladder/references/signal-characterization.md)
+  references — evidence-selected incident context
 - [`root-cause`](../../skills/root-cause/SKILL.md) — hypothesis verification loop
 - [`roster.md`](../../skills/agent-authoring/references/roster.md) — Prompt, Context, Loop, and Graph
   Engineering decision rule

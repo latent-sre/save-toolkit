@@ -16,6 +16,28 @@ def _compact(text: str) -> str:
 
 
 class GraphContractTests(unittest.TestCase):
+    def test_sre_and_engineering_ladders_are_separate_context_routers(self) -> None:
+        sre_agent = _compact((ROOT / "agents/sre.md").read_text(encoding="utf-8"))
+        engineering = _compact((ROOT / "skills/eng-ladder/SKILL.md").read_text(encoding="utf-8"))
+        sre_ladder_path = ROOT / "skills/sre-ladder/SKILL.md"
+
+        self.assertTrue(sre_ladder_path.is_file(), "the incident-specific SRE ladder must exist")
+        sre_ladder = _compact(sre_ladder_path.read_text(encoding="utf-8"))
+
+        self.assertIn("`sre-ladder`", sre_agent)
+        self.assertNotIn("`eng-ladder`", sre_agent)
+        self.assertNotIn("The SRE track", engineering)
+        self.assertNotIn("responder", engineering.lower())
+        for name in (
+            "first-response.md",
+            "hypothesis-investigation.md",
+            "systemic-failure.md",
+            "signal-characterization.md",
+        ):
+            with self.subTest(reference=name):
+                self.assertIn(f"references/{name}", sre_ladder)
+                self.assertTrue((ROOT / "skills/sre-ladder/references" / name).is_file())
+
     def test_all_agent_outputs_carry_lineage_and_resolved_model_evidence(self) -> None:
         self.assertEqual(8, len(AGENTS))
         for path in AGENTS:
