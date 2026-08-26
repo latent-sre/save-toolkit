@@ -263,7 +263,11 @@ Populate every value from current evidence:
 - `follow_ups.dispatch_by` is `caller`, `dispatch_after` is `resolved_recorded`, and `tasks` includes
   only the next-phase work the caller asked about. Use `detection` for a requested detection or
   alert gap and `runbook_and_postmortem` when both documents were requested; keep speculative work
-  in prose instead of adding another task. Do not dispatch those tasks while active.
+  in prose instead of adding another task. A learning disposition naming an owner does not add that
+  owner to `tasks`: when the caller asks only about detection, runbook, and postmortem work, the only
+  task keys are `observability-engineer` and `scribe`; keep a durable `software-engineer` follow-up
+  in prose unless the caller explicitly asks for that work in the current turn. Do not dispatch
+  those tasks while active.
 
 The exact key and type shape is:
 

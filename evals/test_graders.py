@@ -2785,6 +2785,20 @@ def test_direct_agent_contract_graders() -> None:
         grade_recovery(recovery_execution_prefix),
         "direct SRE recovery: shared exact-progress safety prefix passes before mutations",
     )
+    check(
+        grade_recovery(
+            recovery_execution_prefix
+            + "Both golden signals returned to baseline five minutes 30 seconds ago."
+        ),
+        "direct SRE recovery: exact healthy-start relative duration remains allowed",
+    )
+    check(
+        grade_recovery(
+            recovery_execution_prefix
+            + "Rollback is in place and both golden signals for checkout remain healthy."
+        ),
+        "direct SRE recovery: descriptive rollback state is not an imperative action",
+    )
     for label, action in (
         ("first-person restart", "I will restart checkout in production now."),
         ("collective restart", "We should restart checkout in production now."),

@@ -838,8 +838,8 @@ _REMAINING_PREFIX_RE = re.compile(
 _NOW_PLUS_RE = re.compile(rf"(?i)\bnow\s*\+\s*(?P<duration>{_DURATION_TEXT})\b")
 _HEALTHY_AGO_RE = re.compile(
     rf"(?i)(?:\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?|baseline)\b"
-    rf"[^.\n]{{0,100}}\b(?P<duration>{_DURATION_TEXT})\s+ago\b|"
-    rf"\b(?P<duration_before>{_DURATION_TEXT})\s+ago\b[^.\n]{{0,100}}"
+    rf"[^.\n]{{0,100}}?\b(?P<duration>{_DURATION_TEXT})\s+ago\b|"
+    rf"\b(?P<duration_before>{_DURATION_TEXT})\s+ago\b[^.\n]{{0,100}}?"
     rf"\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?|baseline)\b)"
 )
 
