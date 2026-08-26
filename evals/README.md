@@ -146,9 +146,10 @@ least-privilege harness.
 Raw stdout, stderr, and `summary.json` land under `.eval-runs/<run-id>/`. The directory is gitignored.
 After sealing `summary.json`, the runner must also create a bounded durable record under
 `docs/reviews/<date>-eval-<run-id>.md`; a capture failure makes the batch non-publishable. The record
-keeps identities, verdicts, trial states, cost/duration, and at most 600 characters of each response
-as escaped untrusted data. It deliberately excludes raw traces, complete prompts and responses,
-session IDs, tool payloads, credentials, and temporary paths. Backfill a sealed private batch with:
+keeps identities, dirty-state flags, run-shaping conditions, verdicts, trial states, cost/duration,
+and at most 600 characters of each response as escaped untrusted data. It deliberately excludes raw
+traces, complete prompts and responses, session IDs, tool payloads, credentials, and temporary
+paths. Backfill a sealed private batch with:
 
 ```powershell
 python scripts/capture_measurement_evidence.py eval .eval-runs/<run-id>/summary.json

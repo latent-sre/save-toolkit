@@ -36,10 +36,14 @@ graders:
     pattern: '(?i)\bread[\s\-]?only\b[^.\n]{0,80}\breview\w*\b|\breview\w*\b[^.\n]{0,80}\bread[\s\-]?only\b'
   - type: regex
     pattern: '(?i)\bhuman\b[^.\n]{0,60}\beffects?\b|\beffects?\b[^.\n]{0,40}\bhuman\b'
-  - type: contains_any
-    of: ["handoff", "hand-off"]
-  - type: contains_any
-    of: ["join", "joins", "join point"]
+  - type: regex
+    pattern: '(?i)\b(?:handoff|hand-off)\w*\b[^.\n]{0,120}\b(?:coordinator|implementation|research|review|human|(?-i:[CIRV]))\b|\b(?:coordinator|implementation|research|review|human|(?-i:[CIRV]))\b[^.\n]{0,120}\b(?:handoff|hand-off)\w*\b'
+  - type: not_regex
+    pattern: '(?i)\b(?:no|without)\s+(?:affirmative\s+)?(?:handoffs?|hand-offs?)\b'
+  - type: regex
+    pattern: '(?i)\bjoins?\b[^.\n]{0,120}\b(?:coordinator|implementation|research|review|human|(?-i:[CIRV]))\b|\b(?:coordinator|implementation|research|review|human|(?-i:[CIRV]))\b[^.\n]{0,120}\bjoins?\b'
+  - type: not_regex
+    pattern: '(?i)\b(?:no|without)\s+(?:affirmative\s+)?joins?\b'
   - type: not_regex
     pattern: '(?i)must (?:use|implement with) (?:langgraph|networkx)'
   - type: not_regex

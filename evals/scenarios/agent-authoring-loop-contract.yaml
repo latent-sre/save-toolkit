@@ -38,7 +38,7 @@ graders:
   - type: regex
     pattern: '(?i)\biterations?\b[^.\n]{0,60}(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d|\b\d+\s*(?:propose|improve|edit|verify|pass|cycle|round))|(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d|\bat\s+most\s+\d+)[^.\n]{0,40}\biterations?\b'
   - type: regex
-    pattern: '(?i)\b(?:candidate\s+(?:budget|cap|limit)|(?:allow|maximum|max|at most|exactly)\s+(?:one|two|three|\d+)\s+candidate(?:s|\s+revisions?)?|(?:one|two|three|\d+)\s+candidate\s+revisions?)\b'
+    pattern: '(?i)\b(?:candidate\s+(?:budget|cap|limit)\b[^.\n]{0,40}\b(?:is|of|allows?|permits?)\s+(?:(?:at\s+most|maximum|max|exactly)\s+)?(?:one|two|three|\d+|single)\b|(?:allow|maximum|max|at most|exactly)\s+(?:one|two|three|\d+)\s+candidate(?:s|\s+revisions?)?|(?:one|two|three|\d+)\s+candidate\s+revisions?)\b'
   - type: regex
     pattern: '(?i)\b(?:cost|token|spend|dollar)s?\b[^.\n]{0,60}\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b|\b(?:ceiling|cap|caps|limit|budget|bound|quota)\b[^.\n]{0,40}\b(?:cost|token|spend|dollar)s?\b|\bbudgets?\b[^.\n]{0,120}\b\d+\s*(?:minutes?|hours?)\b|\$\s*\d+(?:\.\d+)?\s+(?:execution\s+)?budget\b'
   - type: regex

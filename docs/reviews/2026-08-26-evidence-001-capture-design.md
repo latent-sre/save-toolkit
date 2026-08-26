@@ -30,8 +30,9 @@ validated, and immediately writable to the tracked evidence directory.
 Every captured record keeps:
 
 - the batch or exercise identity;
-- producer kind, exact repository revision, requested and observed model identities, timestamps,
-  scenario/case identities, verdicts, trial states, and integrity result when present;
+- producer kind, exact repository revision, plugin-input and workspace dirty-state flags, requested
+  and observed model identities, timestamps, run-shaping timeout/trial/threshold/selection
+  conditions, scenario/case identities, verdicts, trial states, and integrity result when present;
 - a bounded verbatim excerpt from each model result, marked **untrusted data**, so a grader miss can
   be diagnosed without rerunning solely to recover the wording;
 - a statement that capture succeeded and the private source can now be reclaimed.

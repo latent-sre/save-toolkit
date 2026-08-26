@@ -33,7 +33,14 @@ class MeasurementCaptureTests(unittest.TestCase):
                 "plugin_commit": "a" * 40,
                 "requested_model": "gpt-5.6-terra",
                 "claude_cli_version": "test-cli",
-                "conditions": {"requested_trials": 1, "timeout_s": 60},
+                "workspace_dirty": True,
+                "plugin_inputs_dirty": True,
+                "conditions": {
+                    "requested_trials": 1,
+                    "requested_threshold": 0.66,
+                    "timeout_s": 60,
+                    "selected": {"mode": "direct", "split": "calibration", "match": "case-one"},
+                },
                 "eval_suite_sha256": "b" * 64,
                 "plugin_source_sha256": "c" * 64,
             },
@@ -58,6 +65,12 @@ class MeasurementCaptureTests(unittest.TestCase):
         self.assertIn("20260826T120000Z-1234abcd", text)
         self.assertIn("gpt-5.6-terra", text)
         self.assertIn("case-one", text)
+        self.assertIn("Plugin inputs dirty:** `True`", text)
+        self.assertIn("Workspace dirty:** `True`", text)
+        self.assertIn("Timeout:** `60` seconds", text)
+        self.assertIn("Requested trials:** `1`", text)
+        self.assertIn("Requested threshold:** `0.66`", text)
+        self.assertIn("Selection:** `direct / calibration / case-one`", text)
         self.assertIn("&lt;/pre&gt;", text)
         self.assertNotIn("secret-prompt-that-must-not-be-copied", text)
         self.assertNotIn("private-session", text)

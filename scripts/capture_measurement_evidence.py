@@ -101,6 +101,16 @@ def _validate_eval_summary(summary: dict) -> tuple[dict, str, str]:
 
 def render_eval_summary(summary: dict) -> tuple[str, str]:
     provenance, run_id, capture_date = _validate_eval_summary(summary)
+    conditions = provenance.get("conditions") or {}
+    if not isinstance(conditions, dict):
+        raise CaptureError("eval summary provenance conditions must be an object")
+    selected = conditions.get("selected") or {}
+    if not isinstance(selected, dict):
+        raise CaptureError("eval summary provenance conditions selected must be an object")
+    selection = " / ".join(
+        str(selected.get(field) if selected.get(field) is not None else "*")
+        for field in ("mode", "split", "match")
+    )
     models = summary.get("models_observed") or []
     if not isinstance(models, list):
         raise CaptureError("models_observed must be a list")
@@ -119,8 +129,14 @@ def render_eval_summary(summary: dict) -> tuple[str, str]:
         f"- **Batch:** `{run_id}`",
         f"- **Completed:** `{summary.get('completed_at')}`",
         f"- **Plugin revision:** `{provenance['plugin_commit']}`",
+        f"- **Plugin inputs dirty:** `{_cell(provenance.get('plugin_inputs_dirty', 'unknown'))}`",
+        f"- **Workspace dirty:** `{_cell(provenance.get('workspace_dirty', 'unknown'))}`",
         f"- **Requested model:** `{provenance.get('requested_model', 'unknown')}`",
         f"- **Observed models:** {', '.join(f'`{_cell(model)}`' for model in models) or '`none`'}",
+        f"- **Timeout:** `{_cell(conditions.get('timeout_s', 'unknown'))}` seconds",
+        f"- **Requested trials:** `{_cell(conditions.get('requested_trials', 'unknown'))}`",
+        f"- **Requested threshold:** `{_cell(conditions.get('requested_threshold', 'unknown'))}`",
+        f"- **Selection:** `{_cell(selection)}`",
         f"- **Verdict:** `{summary.get('verdict', 'UNKNOWN')}`",
         f"- **Integrity:** `{(summary.get('integrity') or {}).get('state', 'UNKNOWN')}`",
         f"- **Eval-suite SHA-256:** `{provenance.get('eval_suite_sha256', 'unknown')}`",
