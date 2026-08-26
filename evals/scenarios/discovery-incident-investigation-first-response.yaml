@@ -1,0 +1,18 @@
+schema_version: 1
+id: discovery-incident-investigation-first-response
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: incident-investigation
+prompt: |
+  A latency alert for the checkout app in production just fired two minutes ago and nobody has
+  looked at it yet. I don't know if it is real or how bad it is. What should I check first, and how
+  deep should this investigation go before I escalate?
+routing:
+  expect: fire
+success_criteria:
+  - Routes an untriaged alert to the incident-investigation skill (routing floor; the behavior contract lives in the direct sre scenarios)
+graders:
+  - type: contains_any
+    of: ["first response", "first-response", "untriaged", "confirm", "flapping", "golden signal"]

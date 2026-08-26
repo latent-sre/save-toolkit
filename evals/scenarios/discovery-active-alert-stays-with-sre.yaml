@@ -24,4 +24,4 @@ graders:
   - type: contains_any
     of: ["severity", "blast radius", "hypothesis", "evidence"]
   - type: contains_any
-    of: ["later", "after resolution", "proposed", "not prepared"]
+    of: ["later", "after resolution", "after the incident", "once resolved", "until resolved", "actually resolved", "and a resolution", "deferred", "defer", "proposed", "not prepared"]
