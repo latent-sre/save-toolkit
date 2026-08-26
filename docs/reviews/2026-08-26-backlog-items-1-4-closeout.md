@@ -1,10 +1,9 @@
 # DRILL-001, INCIDENT-001, ROUTE-002, and SURFACE-001 closeout packet
 
-> **Status: mixed closure and exact-revision candidate evidence.** `INCIDENT-001` and
-> `SURFACE-001` were already accepted and merged; this packet closes their stale roadmap entries.
-> `DRILL-001` and `ROUTE-002` have new Terra evidence bound to repository revision
-> `9ca5758f109eb3b7004df2418cda7aeefb92a52e` and remain live until the owner accepts the stated
-> transfer limitations and the evidence merges.
+> **Status: accepted closure evidence.** `INCIDENT-001` and `SURFACE-001` were already accepted and
+> merged. `DRILL-001` and `ROUTE-002` carry Terra evidence bound to repository revision
+> `9ca5758f109eb3b7004df2418cda7aeefb92a52e`; the owner accepted their stated transfer limitations
+> after the evidence merged in PR #176 at `810f7e6`.
 
 ## Conclusion
 
@@ -104,13 +103,10 @@ skills remains unchanged because no measured consumer impact exists.
 Gate A, the full component runner, strict plugin validation, and final diff hygiene run on the
 combined documentation tree at the push boundary.
 
-## Owner decisions still required
+## Owner acceptance
 
-1. Accept the reconstructed DRILL cases and unavailable numeric cost delta, or request one priced
-   Terra rerun on a host that exposes usage.
-2. Accept the 7/7 host-neutral Terra ROUTE transfer as the requested substitute for the Claude-only
-   live runner, or require a host-specific discovery run.
-
-Until those exact-revision decisions are recorded, `DRILL-001` and `ROUTE-002` stay in the live
-roadmap. `INCIDENT-001` and `SURFACE-001` are closed because their accepted implementation and
-verification had already merged before this packet.
+On 2026-08-26, `latent-sre` explicitly accepted the reconstructed DRILL cases and unavailable
+numeric cost telemetry, accepted the 7/7 host-neutral Terra ROUTE transfer, and approved closure of
+both items. This acceptance preserves the limitations above; it does not relabel either result as a
+Claude Skill-discovery run or fabricate missing cost data. `INCIDENT-001` and `SURFACE-001` were
+already closed against their accepted merged evidence.

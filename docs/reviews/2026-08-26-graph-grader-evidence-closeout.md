@@ -1,25 +1,28 @@
-# GRAPH-001, GRADER-003, and EVIDENCE-001 candidate closeout
+# GRAPH-001, GRADER-003, and EVIDENCE-001 closure
 
-> **Status: exact-revision candidate evidence.** This packet records the implementation and fresh
-> verification for revision `d5c3189f93f53d96a4f656279e27a48c7b1a4316`. It does not promote a
-> calibration split or substitute for owner acceptance of the pull-request revision.
+> **Status: accepted closure evidence.** This packet records the base implementation and fresh
+> verification for revision `d5c3189f93f53d96a4f656279e27a48c7b1a4316`, plus review hardening
+> through exact PR head `1875057096ee94655821358117357922339ad015`, merged at `810f7e6`. Owner
+> acceptance keeps the three direct scenarios in `calibration`.
 
 ## Conclusion
 
-The three live-roadmap items now have one reviewable candidate:
+The three roadmap items closed on one accepted implementation line:
 
 - `EVIDENCE-001` automatically writes a bounded durable record after an eval summary is sealed,
   provides the same capture path for host-owned exercises, and makes an unresolved live-roadmap
   batch identity a Gate A failure.
-- `GRAPH-001`'s nine current, non-outdated PR #165 review findings are either fixed by this candidate
-  or independently verified as already fixed on current `main`.
+- `GRAPH-001`'s nine current, non-outdated PR #165 review findings were either fixed by the accepted
+  implementation line or independently verified as already fixed on current `main`.
 - `GRADER-003`'s direct-contract graders reject the reproduced false positives and accept the
   bounded semantic forms from three independent clean-context Terra trials. The deterministic
   transfer moved from 1/9 to 9/9 without weakening the retained adversarial fixtures.
 
 PR #165 is `[verified live]` merged at `5d94987e37f6b9c9d4fd0f5427ea2269dab36131`.
-Its review API still exposes 13 unresolved threads: four are outdated and nine are current. This
-candidate addresses the nine current findings; it does not rewrite the historical review state.
+Its review API exposed 13 unresolved threads at the time of the base candidate: four outdated and
+nine current. The implementation addressed the nine current findings without rewriting that
+historical review state. PR #176's six follow-up review threads were replied to and resolved on
+exact head `1875057` before merge.
 
 ## EVIDENCE-001
 
@@ -87,9 +90,9 @@ grader replay, sufficient for exact-revision calibration review but not automati
 Gate A, strict plugin validation, and final diff hygiene are run on the final documentation tree at
 the push boundary and recorded in the pull request.
 
-## Remaining authority
+## Owner acceptance
 
-`latent-sre` still owns exact-revision acceptance. Merge can close `EVIDENCE-001` and the current
-`GRAPH-001` follow-up. `GRADER-003` can close when that same review explicitly accepts whether the
-three direct scenarios remain `calibration` or are promoted; the 9/9 Terra transfer does not make
-that policy decision itself.
+On 2026-08-26, `latent-sre` accepted the merged `GRAPH-001` and `EVIDENCE-001` implementations and
+closed `GRADER-003` while explicitly retaining its three direct scenarios in `calibration`. The 9/9
+Terra transfer remains bounded semantic evidence; it is not relabelled as native Claude behavior or
+used as independent promotion authority.
