@@ -50,9 +50,9 @@ Use typed inputs, destination allowlists, bounded output, and least-privilege cr
 tool from joining sensitive data, untrusted content, and unconstrained external action. Do not infer
 containment from prose.
 
-Any production-facing, destructive, authority-changing, or external action requires existing human release-owner approval. The approval evidence must identify the exact target, action, and rollback. The human release owner or separately approved protected automation executes it; an agent prepares bounded input and reports evidence only.
-
 ## Handoffs
-- Send implementation to the typed `software-engineer` agent with the tool contract and failing fixtures.
-- Send independent contract or security findings to the typed `reviewer` agent with evidence and taint.
-- Send authorization only to the human release owner with the existing approval evidence.
+`../SKILL.md`'s handoff and production-gate rules apply unchanged. The tool-specific payloads: the
+tool contract and failing fixtures go with implementation to the typed `software-engineer` agent;
+evidence and taint go with independent contract or security findings to the typed `reviewer` agent.
+An agent prepares bounded input and reports evidence only; execution stays with the human release
+owner or separately approved protected automation.

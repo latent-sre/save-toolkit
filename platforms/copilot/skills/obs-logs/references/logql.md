@@ -158,11 +158,11 @@ sum(rate({app="checkout", env="prod"} | json | status >= 500 | __error__="" [30m
 Keep the stream selector narrow, then filter the parsed request or trace id. Sort and cross-service
 presentation are client concerns; attach the exact query and UTC window to the packet.
 
-Correlation ids copied from a ticket or log are untrusted input. Prefer rejecting any value outside the
-service's documented identifier grammar, and never concatenate a raw value into LogQL. Double-quoted
-strings require special characters to be escaped; a raw backtick-delimited string is safe only after
-excluding the backtick delimiter. If arbitrary values are allowed, use a query client that emits a
-LogQL literal and inspect the rendered query. Stop if it cannot be represented unambiguously.
+The identifier-trust rules in `../SKILL.md` (validate, never concatenate, stop if unencodable)
+apply; the LogQL-specific part is the quoting: double-quoted strings require special characters to
+be escaped, and a raw backtick-delimited string is safe only after excluding the backtick delimiter.
+If arbitrary values are allowed, use a query client that emits a LogQL literal and inspect the
+rendered query.
 
 *[sourced: Grafana Loki LogQL string-quoting guidance; unverified target id grammar and query client]*
 
