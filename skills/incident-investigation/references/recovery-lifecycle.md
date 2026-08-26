@@ -37,19 +37,26 @@ Populate every value from current evidence:
   `terminal.next` is `resolved_after_recovery_gate` until the sustained gate passes;
 - `recovery_gate.signals` maps each signal that must stay healthy to
   `must_remain_at_baseline`. Normalize the caller's signal nouns to lower `snake_case`; do not
-  prefix the observed service or resource. Express recovery durations as integer seconds.
+  prefix the observed service or resource. For example, "checkout p99 latency and error rate"
+  becomes `p99_latency` and `error_rate`. Express recovery durations as integer seconds.
   `required_continuous_seconds` is the evidence-backed gate duration. If the uninterrupted healthy
   start and observation time are both known, set integer `healthy_elapsed_seconds` and
   `remaining_seconds = required_continuous_seconds - healthy_elapsed_seconds`; do not round. If
   either time is unknown, set both progress fields to JSON `null`; never estimate or use zero as
-  unknown. While the state remains `monitoring-recovery`, known elapsed time is less than the
-  required duration and known remaining time is positive;
+  unknown, and do not assert a recovery-start timestamp the evidence does not establish. While the
+  state remains `monitoring-recovery`, known elapsed time is less than the required duration and
+  known remaining time is positive;
 - `production_action.further_change_authorized` reflects the caller's current authorization and
-  `production_action.agent_executed` remains `false`; and
+  `production_action.agent_executed` remains `false` because this lane never applies production
+  changes; and
 - `follow_ups.dispatch_by` is `caller`, `dispatch_after` is `resolved_recorded`, and `tasks` includes
   only the next-phase work the caller requested. Use `detection` for a requested detection or alert
   gap and `runbook_and_postmortem` when both documents were requested. Keep speculative work in
-  prose and do not dispatch any task while the incident is active.
+  prose instead of adding another task. A durable-discovery candidate naming an owner does not add
+  that owner to `tasks`: when the caller asks only about detection, runbook, and postmortem work,
+  the only task keys are `observability-engineer` and `scribe`; keep a durable `software-engineer`
+  follow-up in prose unless the caller explicitly asks for that work in the current turn. Do not
+  dispatch any task while the incident is active.
 
 The exact key and type shape is:
 
