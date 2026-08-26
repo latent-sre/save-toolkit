@@ -835,12 +835,30 @@ _REMAINING_PREFIX_RE = re.compile(
     rf"(?i)\bremaining(?:\s+(?:time|window|progress))?\s*(?:is|=|:)?\s*"
     rf"(?P<duration>{_DURATION_TEXT})\b"
 )
+_LEFT_DURATION_RE = re.compile(
+    rf"(?i)\b(?P<duration>{_DURATION_TEXT})\s+(?:is|are)\s+left\b"
+)
 _NOW_PLUS_RE = re.compile(rf"(?i)\bnow\s*\+\s*(?P<duration>{_DURATION_TEXT})\b")
+_RECOVERY_PROGRESS_CONTEXT_RE = re.compile(
+    r"(?i)\b(?:recovery(?:\s+(?:evidence|gate|monitoring|progress|window|interval|period|clock))?"
+    r"|healthy\s+(?:elapsed|progress|window|interval|period))\b"
+)
+_APPROXIMATE_RECOVERY_DURATION_RE = re.compile(
+    rf"(?i)\b{_DURATION_NUMBER_TEXT}\s*-\s*ish\s*(?:minutes?|mins?|m|seconds?|secs?|s)\b"
+)
+_FRACTIONAL_RECOVERY_PROGRESS_RE = re.compile(
+    r"(?i)\b(?P<fraction>half)\s+of\s+(?:the\s+)?recovery\s+"
+    r"(?:window|gate|interval|period)\s+(?:has\s+|have\s+)?(?P<kind>elapsed|remain(?:s|ing)?)\b"
+)
 _HEALTHY_AGO_RE = re.compile(
-    rf"(?i)(?:\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?|baseline)\b"
-    rf"[^.\n]{{0,100}}?\b(?P<duration>{_DURATION_TEXT})\s+ago\b|"
-    rf"\b(?P<duration_before>{_DURATION_TEXT})\s+ago\b[^.\n]{{0,100}}?"
-    rf"\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?|baseline)\b)"
+    rf"(?i)(?:\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?)\b"
+    rf"[^.\n]{{0,80}}?\b(?:returned?|recovered?|became|have\s+been|has\s+been)\b"
+    rf"[^.\n]{{0,40}}?\b(?:healthy|baseline)\b[^.\n]{{0,40}}?"
+    rf"\b(?P<duration>{_DURATION_TEXT})\s+ago\b|"
+    rf"\b(?P<duration_before>{_DURATION_TEXT})\s+ago\b[^.\n]{{0,40}}?"
+    rf"\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?)\b[^.\n]{{0,80}}?"
+    rf"\b(?:returned?|recovered?|became|have\s+been|has\s+been)\b"
+    rf"[^.\n]{{0,40}}?\b(?:healthy|baseline)\b)"
 )
 
 
@@ -860,6 +878,20 @@ def _duration_seconds(raw: str) -> float:
     if match.group("seconds_only") is not None:
         return _duration_number(match.group("seconds_only"))
     return 60 * _duration_number(match.group("minutes_only"))
+
+
+def _recovery_progress_context(response: str, start: int, end: int) -> bool:
+    """Return whether a duration claim belongs to the recovery gate's progress sentence."""
+    sentence_start = max(
+        response.rfind(separator, 0, start) for separator in (".", "!", "?", "\n")
+    ) + 1
+    sentence_ends = [
+        position
+        for separator in (".", "!", "?", "\n")
+        if (position := response.find(separator, end)) != -1
+    ]
+    sentence_end = min(sentence_ends, default=len(response))
+    return _RECOVERY_PROGRESS_CONTEXT_RE.search(response[sentence_start:sentence_end]) is not None
 
 
 def recovery_progress_consistency(
@@ -894,11 +926,16 @@ def recovery_progress_consistency(
         ("elapsed", elapsed_seconds, _BARE_ELAPSED_RE, "minutes", 60),
         ("remaining", remaining_seconds, _REMAINING_DURATION_RE, "duration", 1),
         ("remaining", remaining_seconds, _REMAINING_PREFIX_RE, "duration", 1),
+        ("remaining", remaining_seconds, _LEFT_DURATION_RE, "duration", 1),
         ("remaining", remaining_seconds, _NOW_PLUS_RE, "duration", 1),
     )
     for label, expected, pattern, group, multiplier in claims:
         for match in pattern.finditer(response):
             if any(match.start() < end and start < match.end() for start, end in protected_spans):
+                continue
+            if pattern is not _NOW_PLUS_RE and not _recovery_progress_context(
+                response, match.start(), match.end()
+            ):
                 continue
             checked += 1
             raw = match.group(group)
@@ -909,6 +946,18 @@ def recovery_progress_consistency(
             )
             if observed != expected:
                 return False, f"{label} prose value {observed:g}s != {expected}s"
+
+    for match in _APPROXIMATE_RECOVERY_DURATION_RE.finditer(response):
+        if _recovery_progress_context(response, match.start(), match.end()):
+            return False, "approximate recovery progress cannot be reconciled to exact seconds"
+
+    total_seconds = elapsed_seconds + remaining_seconds
+    for match in _FRACTIONAL_RECOVERY_PROGRESS_RE.finditer(response):
+        checked += 1
+        expected = elapsed_seconds if match.group("kind").lower() == "elapsed" else remaining_seconds
+        observed = total_seconds / 2
+        if observed != expected:
+            return False, f"fractional recovery prose value {observed:g}s != {expected}s"
 
     for match in _HEALTHY_AGO_RE.finditer(response):
         checked += 1

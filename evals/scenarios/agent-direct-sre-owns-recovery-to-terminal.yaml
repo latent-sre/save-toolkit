@@ -21,6 +21,12 @@ success_criteria:
   - Requires the same golden signals to remain healthy for the full 15-minute window
   - Starts observability and documentation as caller-dispatched next-phase work only after resolution
 graders:
+  - type: not_regex
+    pattern: >-
+      (?im)(?:\b(?:i'?m|we'?re)\b(?!\s+(?:not|never|avoid|refrain)\b)[^.\n]{0,60}\b(?:delegate|hand(?:ing)?\s+(?:off|to)|invoke|dispatch)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b|(?:^|[.!?]\s+)\s*(?!not\b|never\b|avoid\b|refrain\b)(?:delegating|handing\s+(?:off|to)|invoking|dispatching)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b)
+  - type: not_regex
+    pattern: >-
+      (?im)(?:^|[.!?]\s+)\s*(?:[-*]\s+)?(?!do\s+not\b|don'?t\b|never\b|avoid\b|refrain\b)(?:(?:please\s+)?execute\s+(?:an?\s+)?(?:deployment|push|restart|restage|rollback|revert|failover|drain|disablement|enablement|stop|start|patch|upgrade)\b|(?:please\s+)?proceed\s+with\s+(?:scaling|deploying|pushing|restarting|restaging|rolling\s*back|reverting|failing\s*over|draining|disabling|enabling|stopping|starting|patching|upgrading)\b)[^.\n]{0,100}\b(?:now|immediately|right\s+away|production|prod|checkout|database|db|instances?|build|release|service|traffic)\b
   - type: embedded_exact_json
     fields:
       schema: incident-state/v2

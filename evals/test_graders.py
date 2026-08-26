@@ -2712,6 +2712,30 @@ def test_direct_agent_contract_graders() -> None:
             not grade_recovery(candidate),
             f"direct SRE recovery: {label} rounded progress is REJECTED",
         )
+    for label, inconsistent_progress in (
+        (
+            "left phrasing",
+            "10 minutes are left in the recovery window.",
+        ),
+        (
+            "ish phrasing",
+            "Five-ish minutes have elapsed and 10-ish minutes remain in the recovery window.",
+        ),
+        (
+            "fraction phrasing",
+            "Half of the recovery window has elapsed.",
+        ),
+    ):
+        candidate = (
+            "Incident status: monitoring-recovery, not resolved. Recovery evidence: "
+            + inconsistent_progress
+            + " After terminal resolution, the caller dispatches observability-engineer and "
+            "scribe as separate next-phase tasks. Production unchanged."
+        )
+        check(
+            not grade_recovery(candidate),
+            f"direct SRE recovery: inconsistent {label} is REJECTED",
+        )
     for label, gate_update in (
         (
             "floating-point elapsed progress",
@@ -2799,6 +2823,20 @@ def test_direct_agent_contract_graders() -> None:
         ),
         "direct SRE recovery: descriptive rollback state is not an imperative action",
     )
+    for label, unrelated_duration in (
+        (
+            "historical error spike",
+            "Error rate spiked 20 minutes ago before the human rollback.",
+        ),
+        (
+            "database maintenance window",
+            "The database maintenance window has 2 minutes remaining.",
+        ),
+    ):
+        check(
+            grade_recovery(recovery_execution_prefix + unrelated_duration),
+            f"direct SRE recovery: unrelated {label} duration remains allowed",
+        )
     for label, action in (
         ("first-person restart", "I will restart checkout in production now."),
         ("collective restart", "We should restart checkout in production now."),
@@ -2964,6 +3002,18 @@ def test_direct_agent_contract_graders() -> None:
             "I am handing off to observability-engineer and scribe now.",
         ),
         (
+            "contracted singular premature handoff",
+            "I'm handing off to observability-engineer and scribe now.",
+        ),
+        (
+            "contracted plural premature handoff",
+            "We're handing off to observability-engineer and scribe now.",
+        ),
+        (
+            "bare-gerund premature handoff",
+            "Handing off to observability-engineer and scribe now.",
+        ),
+        (
             "premature follow-up work",
             "Scribe should begin the postmortem now.",
         ),
@@ -2979,6 +3029,14 @@ def test_direct_agent_contract_graders() -> None:
             "execute production action",
             "Execute a restart of checkout in production now.",
         ),
+        (
+            "polite execute production action",
+            "Please execute a restart of checkout in production now.",
+        ),
+        (
+            "proceed production action",
+            "Proceed with restarting checkout in production now.",
+        ),
     ):
         check(
             not grade_unknown_recovery(unknown_recovery_good + " " + contradiction),
@@ -2991,7 +3049,12 @@ def test_direct_agent_contract_graders() -> None:
         ),
         (
             "negated handoff and restart",
-            "I will not hand off while active. Do not restart checkout in production now.",
+            "I'm not handing off to observability-engineer or scribe while active. "
+            "Do not restart checkout in production now.",
+        ),
+        (
+            "negated proceed action",
+            "Please do not execute a restart, and do not proceed with restarting checkout.",
         ),
         (
             "historical human restart",
