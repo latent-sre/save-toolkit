@@ -2,7 +2,7 @@
 
 > **Status: review and cross-machine handoff, not independent implementation authority and not a
 > second backlog.** This document records the baseline findings and direction discussed on
-> 2026-08-25. On 2026-08-26 the repository owner approved the dedicated `sre-ladder` name and its
+> 2026-08-25. On 2026-08-26 the repository owner first approved a dedicated `sre-ladder` name, then the same day renamed the component `incident-investigation` (this review's original suggestion; `sre-ladder` stays retired) and approved its
 > extraction on this branch. The review itself grants no tool, delegation, or production authority.
 
 **Reviewed baseline:** `873fdf4c134e9073ea9824e776a88ac3acbe56ca` (`origin/main`, merge of PR
@@ -180,16 +180,16 @@ jobs:
 The incident references themselves are valuable. Their content is not the problem:
 
 - the former `responder.md`, now
-  [`first-response.md`](../../skills/sre-ladder/references/first-response.md), preserves the first-ten-minute
+  [`first-response.md`](../../skills/incident-investigation/references/first-response.md), preserves the first-ten-minute
   checks, read-only posture, runbook use, time-box, and early escalation;
 - the former `investigator.md`, now
-  [`hypothesis-investigation.md`](../../skills/sre-ladder/references/hypothesis-investigation.md), preserves timeline
+  [`hypothesis-investigation.md`](../../skills/incident-investigation/references/hypothesis-investigation.md), preserves timeline
   correlation, differential hypotheses, predictions, evidence tests, and confidence;
 - the former `elite.md`, now
-  [`systemic-failure.md`](../../skills/sre-ladder/references/systemic-failure.md), preserves distributed failure modes,
+  [`systemic-failure.md`](../../skills/incident-investigation/references/systemic-failure.md), preserves distributed failure modes,
   shared fate, cascades, retry storms, saturation collapse, feedback loops, and metastability; and
 - the former `golden-signals.md`, now
-  [`signal-characterization.md`](../../skills/sre-ladder/references/signal-characterization.md), preserves a compact
+  [`signal-characterization.md`](../../skills/incident-investigation/references/signal-characterization.md), preserves a compact
   signal vocabulary and the start-time/blast-radius/trend triple.
 
 The mismatch is classification. Responder, investigator, and systemic-failure analysis are
@@ -201,7 +201,7 @@ emergent behavior.
 
 Keep `eng-ladder` for Builder, Principal, and Distinguished engineering altitude. Move the four
 incident references behind a dedicated incident-specific entry point. The approved implementation
-names that component [`sre-ladder`](../../skills/sre-ladder/SKILL.md); the important boundary is
+names that component [`incident-investigation`](../../skills/incident-investigation/SKILL.md); the important boundary is
 that technical incident context no longer depends on the software-engineering ladder.
 
 Use observable routing predicates:
@@ -482,11 +482,11 @@ The redesign is successful when all of the following are true:
 - [`incident-command`](../../skills/incident-command/SKILL.md) — severity, command, communications,
   and human mitigation decision
 - [`eng-ladder`](../../skills/eng-ladder/SKILL.md) — engineering altitude router
-- [`sre-ladder`](../../skills/sre-ladder/SKILL.md) and its
-  [`first-response`](../../skills/sre-ladder/references/first-response.md),
-  [`hypothesis-investigation`](../../skills/sre-ladder/references/hypothesis-investigation.md),
-  [`systemic-failure`](../../skills/sre-ladder/references/systemic-failure.md), and
-  [`signal-characterization`](../../skills/sre-ladder/references/signal-characterization.md)
+- [`incident-investigation`](../../skills/incident-investigation/SKILL.md) and its
+  [`first-response`](../../skills/incident-investigation/references/first-response.md),
+  [`hypothesis-investigation`](../../skills/incident-investigation/references/hypothesis-investigation.md),
+  [`systemic-failure`](../../skills/incident-investigation/references/systemic-failure.md), and
+  [`signal-characterization`](../../skills/incident-investigation/references/signal-characterization.md)
   references — evidence-selected incident context
 - [`root-cause`](../../skills/root-cause/SKILL.md) — hypothesis verification loop
 - [`roster.md`](../../skills/agent-authoring/references/roster.md) — Prompt, Context, Loop, and Graph

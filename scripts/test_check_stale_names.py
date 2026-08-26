@@ -62,11 +62,11 @@ class StaleNamesTest(unittest.TestCase):
         self._write("skills/probe/SKILL.md", "Route it to the reviewer agent.\n")
         self.assertEqual([], check_stale_names.check(self.root))
 
-    def test_reintroduced_sre_ladder_is_not_stale(self) -> None:
-        self.assertNotIn(
+    def test_sre_ladder_stays_retired(self) -> None:
+        self.assertIn(
             "sre-ladder",
             check_stale_names.STALE,
-            "the approved incident-mode router is canonical again",
+            "the incident-mode router is `incident-investigation`; `sre-ladder` stays retired",
         )
 
     def test_a_path_or_md_reference_is_exempt(self) -> None:

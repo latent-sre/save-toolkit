@@ -11,7 +11,7 @@ import validate_fleet
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS = tuple(sorted((ROOT / "agents").glob("*.md")))
-SRE_HANDOFF = ROOT / "skills/sre-ladder/references/incident-handoff.md"
+SRE_HANDOFF = ROOT / "skills/incident-investigation/references/incident-handoff.md"
 
 
 def _compact(text: str) -> str:
@@ -36,16 +36,16 @@ class GraphContractTests(unittest.TestCase):
         incident_command = _compact(
             (ROOT / "skills/incident-command/SKILL.md").read_text(encoding="utf-8")
         )
-        sre_ladder_path = ROOT / "skills/sre-ladder/SKILL.md"
+        sre_ladder_path = ROOT / "skills/incident-investigation/SKILL.md"
 
-        self.assertTrue(sre_ladder_path.is_file(), "the incident-specific SRE ladder must exist")
+        self.assertTrue(sre_ladder_path.is_file(), "the incident-investigation router must exist")
         sre_ladder = _compact(sre_ladder_path.read_text(encoding="utf-8"))
 
-        self.assertIn("`sre-ladder`", sre_agent)
+        self.assertIn("`incident-investigation`", sre_agent)
         self.assertNotIn("`eng-ladder`", sre_agent)
         self.assertNotIn("The SRE track", engineering)
         self.assertNotIn("responder", engineering.lower())
-        self.assertIn("`sre-ladder` owns investigation-depth selection", incident_command)
+        self.assertIn("`incident-investigation` owns investigation-depth selection", incident_command)
         for retired_reference in (
             "responder.md",
             "investigator.md",
@@ -67,11 +67,11 @@ class GraphContractTests(unittest.TestCase):
         ):
             with self.subTest(reference=name):
                 self.assertIn(f"references/{name}", sre_ladder)
-                self.assertTrue((ROOT / "skills/sre-ladder/references" / name).is_file())
+                self.assertTrue((ROOT / "skills/incident-investigation/references" / name).is_file())
 
     def test_sre_support_span_closeout_and_heavy_context_are_predicate_keyed(self) -> None:
         sre_agent = _compact((ROOT / "agents/sre.md").read_text(encoding="utf-8"))
-        sre_ladder = _compact((ROOT / "skills/sre-ladder/SKILL.md").read_text(encoding="utf-8"))
+        sre_ladder = _compact((ROOT / "skills/incident-investigation/SKILL.md").read_text(encoding="utf-8"))
         fleet_guide = _compact((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
         triage_scenario = (
             ROOT / "evals/scenarios/agent-direct-sre-readonly-triage.yaml"
@@ -121,7 +121,7 @@ class GraphContractTests(unittest.TestCase):
         )
 
         recovery = _compact(
-            (ROOT / "skills/sre-ladder/references/recovery-lifecycle.md").read_text(
+            (ROOT / "skills/incident-investigation/references/recovery-lifecycle.md").read_text(
                 encoding="utf-8"
             )
         )
