@@ -16,7 +16,10 @@ synthetic fixtures supplied as sanitized excerpts.
 
 ## What the fleet did, per lane
 
-<paste `drill_report.py runs/`, then a short outcome per row>
+<paste `drill_report.py runs/`, then a short outcome per row. For each lane, cross-check its
+claims against the tool grants recorded in its attempt's `result.meta.json`: work a lane claims
+that its grants forbid is a finding either way — a false claim or an authority breach — and the
+metadata, not the lane's prose, is the record of what it could do.>
 
 ## What went well
 
@@ -47,7 +50,9 @@ blaming the fleet for the harness.>
 ## Artifacts
 
 <Where the timeline, observation log, lane outputs, packets, evidence, and any produced documents
-live, and which of them are ephemeral.>
+live, and which of them are ephemeral. This retro and its drill card land in the repository's
+dated review location before teardown; everything not copied there dies with the drill
+directory.>
 
 ## What this drill did NOT do
 

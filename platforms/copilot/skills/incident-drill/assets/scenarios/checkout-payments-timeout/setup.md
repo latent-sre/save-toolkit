@@ -18,7 +18,10 @@ python <skill>/scripts/scaffold_drill.py \
 That writes `service/` (13 files) with its two-release git history, `evidence/` (7 excerpts),
 `prompts/` (14 packets, `{{PYTHON}}` already substituted), empty `runs/` and `docs-out/` trees, a
 `docs-out/runbooks/checkout.md` copy, and `prod-state.json`. On Windows pass the venv's
-`Scripts\python.exe` path instead.
+`Scripts\python.exe` path instead — and keep the drill root **short** (`C:\d\chk1`, not a deep
+profile path): scenario files nest several directories deep, Windows' default 260-character path
+limit breaks `git add` mid-setup, and the scaffold refuses to start a drill whose paths would
+cross it rather than let the failure surface halfway through.
 
 Confirm the history is real evidence a lane can read:
 
@@ -66,8 +69,10 @@ Write them into the timeline's premise paragraph now, not afterwards.
 
 ## Teardown
 
-Destroy the disposable runtime, not just the drill directory. Nothing in it is durable except what
-you copy into the retro packet:
-the timeline, the observation log, the lane table from `drill_report.py`, and the retro itself.
+First land the retro and its drill card in the repository's dated review location (`docs/reviews/`
+in this repository) — teardown must never hold the only copy of what the drill proved. Copy the
+timeline, the observation log, and the lane table from `drill_report.py` into that packet too.
+Only then destroy the disposable runtime, not just the drill directory; nothing left inside it is
+durable.
 
 Reference-read token: q_idset_9a13
