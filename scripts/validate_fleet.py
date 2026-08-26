@@ -50,6 +50,17 @@ NON_DELEGATION_DISCLAIMERS = (
     "cannot delegate",
     "caller must invoke",
 )
+CONDITIONAL_HANDOFF_CONTRACTS = {
+    "sre": Path("skills/sre-ladder/references/incident-handoff.md"),
+}
+CONDITIONAL_HANDOFF_POINTERS = {
+    "sre": (
+        "When calling `researcher`, handling an empty or failed delegate return, or returning work "
+        "that changes ownership, read `sre-ladder`'s incident-handoff reference before forming the "
+        "packet. Do not load that reference for a bounded response that returns directly to the "
+        "same human owner."
+    ),
+}
 
 
 def _flatten(text: str) -> str:
@@ -204,6 +215,25 @@ def _delegates(raw: object) -> set[str]:
     return result
 
 
+def _resolve_handoff_contract(root: Path, name: str, body: str) -> str | None:
+    """Resolve an inline or explicitly predicate-loaded handoff contract."""
+
+    if "## The handoff packet" in body or "## Handoffs" in body:
+        return body
+    relative = CONDITIONAL_HANDOFF_CONTRACTS.get(name)
+    pointer = CONDITIONAL_HANDOFF_POINTERS.get(name)
+    paragraphs = {_flatten(paragraph) for paragraph in re.split(r"\n\s*\n", body)}
+    if relative is None or pointer is None or pointer not in paragraphs:
+        return None
+    try:
+        contract = (root / relative).read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    if "## The handoff packet" not in contract and "## Handoffs" not in contract:
+        return None
+    return contract
+
+
 def validate_agents(root: Path) -> tuple[list[str], list[str]]:
     failures: list[str] = []
     names: list[str] = []
@@ -268,7 +298,7 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
                     f"{path}: scoped tool grant {spec!r} is silently ignored by the runtime; "
                     f"grant bare {base!r} (per-command scoping lives in the guard, not tools:)"
                 )
-        if "## The handoff packet" not in body and "## Handoffs" not in body:
+        if _resolve_handoff_contract(root, name, body) is None:
             failures.append(f"{path}: missing handoff contract")
         # An agent with no `Agent` tool cannot dispatch anyone, so the shared handoff block's
         # imperative form is a false instruction in that lane. This is not hypothetical tidying:

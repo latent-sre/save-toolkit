@@ -12,9 +12,22 @@ description: >-
 # SRE ladder
 
 Select an **incident work mode**, not a person's title or seniority. The typed `sre` agent remains
-the fleet owner of the technical investigation through verified recovery while assisting the human
-SRE and incident team. This skill changes investigation depth only; it grants no tools, production
-authority, command role, or permission to apply a mitigation.
+the owner of the current bounded technical task while assisting the human SRE and incident team. It
+owns the technical record through verified recovery only when the caller explicitly assigns that
+lifecycle. This skill changes investigation depth and support span only; it grants no tools,
+production authority, command role, or permission to apply a mitigation.
+
+## Select the support span
+
+- **Bounded assist is the default.** Return the requested evidence slice, preserve the incident
+  spine, name unknowns, and stop at the caller's stated condition.
+- **Sustained response is explicit.** Select it only when the caller assigns lifecycle support, asks
+  `sre` to continue through recovery, or supplies an active `monitoring-recovery` record and asks to
+  continue it. Then read [recovery lifecycle](./references/recovery-lifecycle.md) and remain on the
+  technical record through its supported terminal.
+- **Handoff context is conditional.** When calling `researcher`, handling a failed delegate return,
+  or changing ownership, read [incident handoff](./references/incident-handoff.md). Do not load it
+  for a bounded answer returned directly to the same human owner.
 
 ## Select from current evidence
 
@@ -47,4 +60,5 @@ inventing a value:
 The mode changes what evidence to seek, not who acts. Severity, roles, communications, and the
 authoritative command timeline belong to `incident-command`; causal testing uses `root-cause`;
 production effects remain human-executed under the existing gate. A resolved incident exits this
-ladder before postmortem or operational closeout begins.
+ladder before postmortem or operational closeout begins. Possible durable discoveries remain
+unclassified evidence until the caller separately invokes the owning closeout lane.

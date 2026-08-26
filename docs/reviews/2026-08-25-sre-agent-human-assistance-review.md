@@ -449,15 +449,19 @@ The redesign is successful when all of the following are true:
 - the guard, tool absence, researcher sanitization, credential boundary, production-effect boundary,
   and security carve-out remain intact.
 
-## Decisions still requiring the repository owner's approval after the ladder extraction
+## Repository-owner decisions after the ladder extraction
 
-1. Whether the agent may be assigned sustained lifecycle support by default for a declared incident,
-   or only through an explicit caller instruction. This review recommends explicit assignment.
-2. Whether the full generic handoff block should remain duplicated in every orchestrating agent or
-   be made conditional through a shared workflow mechanism. Any change must preserve current taint
-   and evidence semantics.
-3. The exact recovery-window source and whether any service-specific default may be resolved from
-   approved operational context. The agent must not invent a duration.
+1. **Accepted 2026-08-26:** bounded assistance is the default; sustained lifecycle support begins
+   only from an explicit caller instruction or an existing recovery record the caller asks `sre` to
+   continue.
+2. **Accepted 2026-08-26 for `sre`:** recovery and handoff payloads are predicate-loaded references.
+   The always-loaded agent retains the authority, evidence, taint, and non-action boundaries. No
+   fleet-wide shared workflow abstraction was introduced.
+3. **Accepted 2026-08-26:** active response preserves durable-discovery evidence but does not assign
+   learning dispositions. Formal classification begins only in a separately invoked operational
+   closeout owned by `scribe`.
+4. **Still open:** the exact recovery-window source and whether any service-specific default may be
+   resolved from approved operational context. The agent must not invent a duration.
 
 ## What this review did not do
 
