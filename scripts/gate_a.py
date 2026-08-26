@@ -64,6 +64,11 @@ STRUCTURAL_STEPS = [
         None,
     ),
     (
+        "Team query catalogs carry their shape and no credentials",
+        ["scripts/check_query_catalog.py"],
+        None,
+    ),
+    (
         "Test script entrypoints keep every test class reachable",
         ["scripts/check_test_layout.py"],
         None,

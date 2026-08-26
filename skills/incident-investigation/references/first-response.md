@@ -21,7 +21,8 @@ and the next task is to prove why the system broke.
 3. **Characterize the service.** If start time, blast radius, trend, or signal baseline is missing,
    read [signal characterization](./signal-characterization.md).
 4. **Use the documented procedure.** If the alert supplies one, follow it and record each observed
-   result.
+   result. Ownership map only—not a load: `obs-logs`' team query catalog holds the searches this
+   team already trusts for common questions, with what a healthy result looks like.
 5. **Keep checks read-only.** Within the typed `sre` lane, examples include `cf app <app>`,
    `cf events <app>`, `cf logs <app> --recent`, and recent-change inspection. Do not restart, scale,
    deploy, or change live state.

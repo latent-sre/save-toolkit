@@ -22,7 +22,9 @@ differential with a prediction per candidate, test to eliminate, five whys past 
 conclude at the evidence level — with `root-cause` owning the causal-testing discipline. This
 reference does not restate it. Ownership map only—not a load: the `stack-profile` observability
 reference names which backend serves each signal today, and `obs-logs`, `obs-metrics`,
-`obs-traces`, and `obs-alerting` own the queries; do not assume a vendor from this file.
+`obs-traces`, and `obs-alerting` own the queries; do not assume a vendor from this file. When a
+common question already has a trusted search, `obs-logs`' team query catalog holds it with the
+result shape a healthy service produces — recommend that entry rather than composing a new query.
 
 ## Common application-operations failure modes
 
