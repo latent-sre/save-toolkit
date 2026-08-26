@@ -325,7 +325,8 @@ paid calls are not prerequisites for the offline stages.
    profile. No host ports or general egress are required.
 3. **Executable graph:** implement typed state, stable run/thread/attempt identities, reducer and
    fan-out behavior, approval interrupts, SQLite checkpoints, attempt/time/spend budgets,
-   cancellation, and evidence-envelope output.
+   cancellation, evidence-envelope output, and the structured boundary-event handoff accepted in
+   the [`GRAPH-003 preparation decision`](decisions/2026-08-26-graph-003-observability-preparation.md).
 4. **Failure and recovery:** exercise application failure, payment latency, runner termination and
    resume, checkpoint failure, duplicate effect prevention, crash-after-dispatch `UNKNOWN`, budget
    exhaustion, and cancellation acknowledgement. Retrying a LangGraph node never substitutes for
@@ -360,7 +361,8 @@ and red-first negative fixtures. Do not add live Terra egress or credentials in 
 
 ### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
 
-**Status:** `decision-needed` (2026-08-24)
+**Status:** `blocked` (2026-08-26). Scope and the first operated graph are accepted; implementation
+waits for `GRAPH-002` to produce the running graph and observable failure planes.
 
 **Owner:** `observability-engineer` for indicators, dashboards, and alert design; `scribe`/`runbook`
 for operating documents; `sre` remains the live-incident lane. No new agent.
@@ -368,24 +370,55 @@ for operating documents; `sre` remains the live-incident lane. No new agent.
 **Outcome:** The owning observability and operations skills carry graph-specific material
 (run/node/edge/attempt lineage, per-failure-plane indicators, queue and worker health, `UNKNOWN`
 effect backlog, approval wait, checkpoint age, replay canaries, and the runbook branches per failure
-class) as references inside their existing skills rather than a new SRE capability.
+class) as references inside their existing skills rather than a new SRE capability. The first scope
+is the synthetic `checkout-payments-timeout-drill/v1` graph running in `graph-sandbox/v1`; this item
+does not deploy a production dashboard, alert route, or pager.
 
 **Source:** Owner direction on 2026-08-24 (stage 2). Requirements are enumerated in section 8 of the
 [`2026-08-23 research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md). The
 2026-08-23 owner disposition that held the five SRE capability additions is unchanged; this item is
-an operating reference for graphs, not one of those additions.
+an operating reference for graphs, not one of those additions. Owner direction on 2026-08-26
+confirmed that scope and named the first graph after accepting the
+[`GRAPH-002 runtime decision`](decisions/2026-08-26-graph-002-docker-sandbox-runtime.md). The same
+owner direction accepted the bounded telemetry handoff, operational questions, and fault matrix in
+the [`GRAPH-003 preparation decision`](decisions/2026-08-26-graph-003-observability-preparation.md);
+that design evidence does not prove the graph emits any signal yet.
 
-**Decision required:** confirm that this direction is the renewed owner request the hold requires for
-graph operations specifically, and name the first graph the team will operate.
+**Accepted boundary:** `observability-engineer` extends the existing observability skills with the
+smallest graph-specific references needed to answer whether the graph is serving, where it failed,
+and whether replay or reconciliation is safe. `scribe`/`runbook` owns the corresponding operating
+document. `sre` retains live-incident ownership. No new agent, tool, credential, production data
+source, or effect authority is created. The first operated graph is
+`checkout-payments-timeout-drill/v1`; a later graph must justify its own additional signals rather
+than silently widening this reference set.
 
-**Prerequisites:** `GRAPH-002`'s consumer exists or a team-operated graph is named; otherwise the
-references would describe a system nobody runs.
+**Prerequisites:** `GRAPH-002` must first deliver a runnable offline topology, the graph
+runner, stable run/node/edge/task/attempt/replay/checkpoint/effect identities, structured events,
+controllable failure modes, and restart/resume behavior. This item remains blocked until those
+signals exist as real sandbox output; drafting dashboards, thresholds, or runbooks solely from the
+design would describe a system nobody operates. The GRAPH-002 implementation must preserve this
+telemetry handoff, but the observability owner—not the graph runner—owns operational interpretation, cardinality
+budgets, alert semantics, and runbook response.
 
-**Acceptance:** References added under the owning skills with a discovery near-miss keeping a live
-graph outage with `sre`; one synthetic runbook and alert set reviewed against the research
-requirements; no new agent, tool, or credential.
+**Acceptance:** All conditions are required. (1) References are added under the existing owning
+skills with a discovery near-miss keeping a live graph outage with `sre`. (2) The indicator set is
+derived from observed `graph-sandbox/v1` output and covers graph outcome and consistency, path
+divergence, retries and timeouts, stuck work, cancellation latency, approval wait, checkpoint age
+and recovery, cost/budget, and `UNKNOWN` effects without unbounded metric labels. (3) Failure-plane
+views distinguish graph control, runner/worker, model fixture or approved provider, checkpoint
+store, and downstream synthetic services rather than hiding them in one aggregate success rate.
+(4) One synthetic runbook branches for model or fixture failure, tool/application failure, join
+starvation, approval timeout, checkpoint failure, effect uncertainty, and budget exhaustion. (5) A
+synthetic alert set is evaluated against real sandbox data, fires under the injected condition,
+resolves after recovery, names an owner and first action, and pages only on actionable symptoms;
+cause and saturation signals remain diagnostic. (6) No new agent, tool, credential, production
+dashboard, live alert route, or pager is introduced.
 
-**Next action:** Owner confirms scope and names the first operated graph.
+**Next action:** Complete the GRAPH-002 offline graph through restart/resume and
+fault-injection evidence with the telemetry identities above. Then inspect the emitted data before
+choosing queries, thresholds, retention, dashboards, or alert rules; implement the minimum reference,
+synthetic runbook, and tested alert set against that evidence. No paid or Terra run is required to
+record this decision or to exercise deterministic sandbox failures.
 
 ### GRAPH-004 — `codebase-atlas`: code, dependency, knowledge, and GraphRAG graphs
 
