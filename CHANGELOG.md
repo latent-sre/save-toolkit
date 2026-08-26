@@ -14,7 +14,9 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   assistance, and enters sustained response only on explicit assignment; `eng-ladder` returns to
   Builder/Principal/Distinguished engineering altitude only. Guarded read-only investigation and
   human-executed production effects are preserved. (`sre-ladder`, briefly used for this router on
-  the same day, stays on the stale-name denylist.)
+  the same day, stays on the stale-name denylist.) New direct contracts with red/green fixtures
+  cover bounded assist, human ownership, first response, and the suspected-compromise carve-out;
+  the measurement notes record the runner and grader findings from the implementation.
 - Added durable-by-default measurement capture (`EVIDENCE-001`): sealed eval summaries now produce
   bounded, escaped evidence under `docs/reviews/`; host-owned exercises use the same validated
   envelope; Gate A rejects live-roadmap batch IDs that resolve to no committed review record. Raw
