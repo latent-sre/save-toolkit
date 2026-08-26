@@ -44,6 +44,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
                 "skills/obs-metrics/references/promql.md": "q_dup_0001\n",
                 "skills/obs-metrics/references/wql.md": "q_dup_0001\n",
                 "skills/akamai-edge/references/edge.md": "q_akedge_0003\n",
+                "skills/incident-investigation/references/first-response.md": "q_iifr_0004\n",
             })
             failures = check_canary_tokens.check(root)
             self.assertEqual(len(failures), 1, failures)
@@ -57,6 +58,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
             _tree(root, {
                 "skills/obs-traces/references/traceql.md": "body with no token\n",
                 "skills/akamai-edge/references/edge.md": "q_akedge_0003\n",
+                "skills/incident-investigation/references/first-response.md": "q_iifr_0004\n",
             })
             failures = check_canary_tokens.check(root)
             self.assertEqual(len(failures), 1, failures)
@@ -81,6 +83,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
                 # the required-bundle file counts as carrying none.
                 "skills/obs-logs/references/logql.md": "q_ab and Q_UPPER_0001\n",
                 "skills/akamai-edge/references/edge.md": "q_akedge_0003\n",
+                "skills/incident-investigation/references/first-response.md": "q_iifr_0004\n",
             })
             failures = check_canary_tokens.check(root)
             self.assertTrue(any("logql.md" in f and "carries none" in f for f in failures), failures)
