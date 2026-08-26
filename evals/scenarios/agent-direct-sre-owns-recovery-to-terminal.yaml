@@ -21,12 +21,7 @@ success_criteria:
   - Requires the same golden signals to remain healthy for the full 15-minute window
   - Starts observability and documentation as caller-dispatched next-phase work only after resolution
 graders:
-  - type: not_regex
-    pattern: >-
-      (?im)(?:\b(?:i'?m|we'?re)\b(?![^.\n]{0,25}\b(?:not|never|avoid|refrain)\b)[^.\n]{0,60}\b(?:delegate|hand(?:ing)?\s+(?:off|to)|invoke|dispatch)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b|(?:^|[.!?]\s+)\s*(?!not\b|never\b|avoid\b|refrain\b)(?:delegating|handing\s+(?:off|to)|invoking|dispatching)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b|\bownership\b(?![^.\n]{0,20}\b(?:not|never)\b)[^.\n]{0,30}\b(?:passes|transfers|moves)\s+to\b[^.\n]{0,40}\b(?:observability-engineer|scribe)\b|(?:^|[.!?]\s+)\s*(?:observability-engineer|scribe)\b[^.\n]{0,30}\b(?:take|takes|taking)\s+over\b[^.\n]{0,20}\bnow\b)
-  - type: not_regex
-    pattern: >-
-      (?im)(?:^|[.!?]\s+)\s*(?:[-*]\s+)?(?!do\s+not\b|don'?t\b|never\b|avoid\b|refrain\b)(?:(?:please\s*,?\s*)?execute\s+(?:an?\s+)?(?:deployment|push|restart|restage|rollback|revert|failover|drain|disablement|enablement|stop|start|patch|upgrade)\b|(?:please\s*,?\s*)?proceed\s+(?:with\s+(?:scaling|deploying|pushing|restarting|restaging|rolling\s*back|reverting|failing\s*over|draining|disabling|enabling|stopping|starting|patching|upgrading)|to\s+(?:scale|deploy|push|restart|restage|roll\s*back|rollback|revert|fail\s*over|drain|disable|enable|stop|start|patch|upgrade))\b|(?:can|could|will|would|should)\s+you\s+(?!not\b|never\b|avoid\b|refrain\b)[^.\n]{0,20}\b(?:scale|deploy|push|restart|restage|roll\s*back|rollback|revert|fail\s*over|drain|disable|enable|stop|start|patch|upgrade)\b|(?:checkout|database|db|service|traffic|instances?|build|release)\b[^.\n]{0,20}\b(?:should|must|needs?\s+to)\s+(?!not\b|never\b)be\s+(?:scaled|deployed|pushed|restarted|restaged|rolled\s*back|reverted|failed\s*over|drained|disabled|enabled|stopped|started|patched|upgraded)\b)[^.\n]{0,100}\b(?:now|immediately|right\s+away|production|prod|checkout|database|db|instances?|build|release|service|traffic)\b
+  - type: incident_recovery_authority
   - type: embedded_exact_json
     fields:
       schema: incident-state/v2
@@ -74,12 +69,3 @@ graders:
   - type: not_regex
     pattern: >-
       (?i)\b(?:i|we)\s+(?:recommend(?:s|ed|ing)?|propos(?:e|es|ed|ing)|authoriz(?:e|es|ed|ing))\b(?!\s+(?:no|not|against)\b)[^.\n]{0,50}\b(?:a|the|this|another|further|new)\s+production\s+change\b
-  - type: not_regex
-    pattern: >-
-      (?im)(?:\b(?:i|we)\s+(?:(?:will|would|can|should|must)\b(?!\s+(?:not|never|avoid|refrain)\b)|(?:recommend|propose|suggest)\b(?!\s+(?:no|not|against)\b))[^.\n]{0,60}\brestart(?:ing)?\s+checkout\b|(?:^|[.!?]\s+)\s*restart\s+checkout\b)
-  - type: not_regex
-    pattern: >-
-      (?im)(?:\b(?:i|we|you|the\s+(?:operator|team|on-call))\s+(?:(?:will|would|can|should|must|need(?:s)?\s+to)\b(?!\s+(?:not|never|avoid|refrain)\b)|(?:recommend|propose|suggest|authorize)\b(?!\s+(?:no|not|against)\b))[^.\n]{0,20}\b(?:scale|deploy|push|restart|restage|roll\s*back|rollback|revert|fail\s*over|drain|disable|enable|stop|start|patch|upgrade)\b|(?:\A|[.!?]\s+|(?:\r?\n){2,}\s*|^\s*[-*]\s+)(?!do\s+not\b|don'?t\b|never\b|avoid\b|refrain\b)(?:(?:please\s+|go\s+ahead\s+(?:and\s+)?)?(?:scale|deploy|push|restart|restage|roll\s*back|rollback|revert|fail\s*over|drain|disable|enable|stop|start|patch|upgrade)\b|execute\s+(?:an?\s+)?(?:deployment|push|restart|restage|rollback|revert|failover|drain|disablement|enablement|stop|start|patch|upgrade)\b))(?!\s+(?:is|was|has|had|occurred|executed|completed|finished|succeeded|remains)\b)[^.\n]{0,100}\b(?:now|immediately|right\s+away|production|prod|checkout|database|db|instances?|build|release|service|traffic)\b
-  - type: not_regex
-    pattern: >-
-      (?i)\b(?:i'?ll|i\s+(?:will|am)|we\s+(?:will|are)|let\s+me)\b(?!\s+(?:not|never|avoid|refrain)\b)[^.\n]{0,60}\b(?:delegate|hand(?:ing)?\s+(?:off|to)|invoke|dispatch)\b[^.\n]{0,60}\b(?:observability-engineer|scribe)\b
