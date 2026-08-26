@@ -541,10 +541,13 @@ finishes. Propose the capture step against that inventory before writing any too
 
 ### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
-**Status:** `active` (2026-08-25) — `latent-sre` approved **all three** shapes, and they compose:
-direct mode now carries the behavioural contracts at full strength, discovery keeps a routing floor
-of three-to-four graders, and the discovery positives run at `threshold: 0.66` because discovery
-measures a propensity rather than a contract. Applied and **measured**: see the two batches below. The instrument defect is diagnosed and fixed, and a
+**Status:** `active` (updated 2026-08-26) — PR [#170](https://github.com/latent-sre/save-toolkit/pull/170)
+merged at `33ffb2f`. Its accepted instrument and discovery contract-shape work is complete; one
+direct-contract calibration follow-up remains. `latent-sre` approved **all three** shapes, and they
+compose: direct mode now carries the behavioural contracts at full strength, discovery keeps a
+routing floor of three-to-four graders, and the discovery positives run at `threshold: 0.66`
+because discovery measures a propensity rather than a contract. Applied and **measured**: see the
+two batches below. The instrument defect is diagnosed and fixed, and a
 second, larger constraint was then measured: **contract shape**. Five discovery batches under
 identical conditions gave 0/12, 4/12, 9/12, 8/12, **12/12**; `trigger-and-shape` went 3/3 then 1/3
 **with no change made to it**, so the 9/12 was a lucky sample rather than progress, and the closing
@@ -556,7 +559,9 @@ anywhere. **Fifteen** reds traced, zero behavioural defects. Evidence:
 
 **Outcome:** The four `agent-authoring` discovery scenarios grade what a correctly routed response
 actually contains, so a red in that set means a routing or behaviour defect rather than evaluator
-vocabulary.
+vocabulary. The three direct contracts have fresh, retained evidence against the current widened
+graders, sufficient for `latent-sre` to decide any promotion on an exact revision rather than from
+a stale sample.
 
 **Source:** The `SKILLS-003` implementation packet dispositioned this `proposed to roadmap` and it
 was never filed. Its incumbent baseline run `20260824T231543Z-53c0a77c`, taken on `origin/main`
@@ -679,20 +684,20 @@ scenarios in that suite passed 3/3. 14 of 15 trials passed; the fifteenth was a 
 timeout that produced no response, so the batch verdict is `INCONCLUSIVE` rather than PASS.
 **No grader on this branch is reasoning-only any more.** Routing is `[verified]` 62/62 conclusive.
 
-**Accepted (2026-08-26).** `latent-sre` accepted the exact PR #170 head `9079ab3`. That is the
-promotion step `AGENTS.md` reserves to a human; no eval result contributed to it. On merge,
-`SKILLS-003` moves to the closed table — its independent exact-revision review requirement is met
-by the four review rounds on this branch, all bound to stated revisions.
+**Merged (2026-08-26).** `latent-sre` accepted exact behavior/eval revision `9079ab3`; no eval
+result contributed to that promotion step. Final PR head `cbe2ce0` only records that acceptance,
+and PR [#170](https://github.com/latent-sre/save-toolkit/pull/170) merged at `33ffb2f`. The merge
+closes the instrument and discovery contract-shape work; `SKILLS-003` closed separately into
+[`roadmap-closed.md`](roadmap-closed.md), its independent exact-revision review requirement met by
+four review rounds bound to stated revisions. It does **not** promote the three direct contracts;
+all remain `calibration` pending a separate owner decision.
 
-**Next action:** Merge PR #170. Then move `SKILLS-003` to the closed table with its structural,
-routing, artifact, and review evidence recorded separately rather than conflated. `GRADER-003`
-keeps its remaining item — the three direct contracts stay `calibration`, and promoting any of them
-is a separate owner decision, not an eval outcome. `EVIDENCE-001` stays `ready` and is worth taking
-before the next paid run. If accepted, close the
-GRADER-003 instrument and shape work and leave one follow-up: a batch that exercises the widened
-graders, which would let `agent-authoring-roster-graph-contract` earn `regression`. Do not widen a
-grader further without reading the transcript that failed it, and do not edit a discovery prompt —
-it is the routing stimulus and the 48/48 routing evidence depends on it staying byte-identical.
+**Next action:** Prefer `EVIDENCE-001` before the next paid run so its evidence survives. Then run
+one direct `agent-authoring` batch under the standing pinned conditions to exercise the widened
+graders, especially `agent-authoring-roster-graph-contract`. A measured pass supplies evidence for
+a separate owner promotion decision; it does not change a split by itself. Do not widen a grader
+further without reading the transcript that failed it, and do not edit a discovery prompt — it is
+the routing stimulus and the 62/62 routing evidence depends on it staying byte-identical.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

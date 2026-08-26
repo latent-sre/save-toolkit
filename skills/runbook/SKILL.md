@@ -134,5 +134,4 @@ the right runbook automatically — each tool in our stack has a mechanism:
 > **Verification**: p95 back under 800 ms within 10 min on the checkout dashboard.
 > **Rollback**: none needed — the restart is the reset. If step 1 ran twice without effect, STOP:
 > restart is a stopgap, not a fix — escalate per the Escalation table.
-> **Provenance**: this excerpt is illustrative only. First checks, procedure step 1, and any later
-> step remain [unverified] until a human tests and records the exact command, target, actor, and result.
+> *Illustrative only; every step stays [unverified] until a human records the exact command, target, actor, and result.*

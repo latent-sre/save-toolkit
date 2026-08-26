@@ -10,6 +10,7 @@ in stages, and packets that hand the fleet its work.
 - The rule that makes a drill evidence
 - Designing the fault
 - Building the system under drill
+- The pack format
 - Writing the evidence pack
 - Writing packets
 - Choosing human decision points
@@ -20,8 +21,11 @@ in stages, and packets that hand the fleet its work.
 **Give lanes evidence, never the answer.** If a packet names the cause, the drill measures
 summarization. Everything a lane concludes must be derivable from what it can read: the repository,
 the release diff, and the excerpts you release. Write the ground truth down before you write the
-first packet — in the scenario file, marked held-back — so you cannot drift toward whatever the
-lanes happen to say.
+first packet — in its own `ground-truth.md` beside the scenario file, never inside a document you
+will have open while composing packets — so you cannot drift toward whatever the lanes happen to
+say. The separate file matters because leakage is a copy-editing accident, not a decision: a
+held-back section inside the scenario file sits on screen while you write packets, and its phrases
+migrate. A file you open exactly twice — once to write it, once at the postmortem — cannot do that.
 
 Corollary: your fixtures are read as adversarially as production evidence. A number that
 contradicts another number becomes an `[unverified]` discrepancy in a lane's output and eats
@@ -56,6 +60,35 @@ Put the fault in the code's structure, not in a comment. In the bundled scenario
 held across both dependency calls; nothing says "this is the bug", and every lane that finds it
 does so by reading.
 
+## The pack format
+
+A scenario ships as three packed Markdown documents — `service.md`, `evidence.md`, and
+`packets.md` — which [`scaffold_drill.py`](../scripts/scaffold_drill.py) writes back out as real
+files. Each pack is a sequence of sections:
+
+~~~markdown
+## <relative/path/of/the/file.ext>
+
+```<optional-language>
+<the file's full payload>
+```
+~~~
+
+What the parser enforces, so you do not discover it at scaffold time:
+
+- Every `## ` header must be followed by exactly one fenced payload; a bare section is an error.
+- Choose a fence run **longer** than any backtick run inside the payload — four or more backticks
+  around a payload that itself contains fenced Markdown. A `## ` line inside an open fence is
+  content, not a new section, which is what makes packing Markdown-in-Markdown safe.
+- `service.md` may carry one special section, `_previous-release.json`, which the scaffold consumes
+  to build the two-release git history rather than writing it out as a file.
+- `{{PYTHON}}` anywhere in `packets.md` is replaced with the `--python` argument at scaffold time.
+
+Author a new pack directly in this shape and check it by running the scaffold itself —
+`scaffold_drill.py <scenario-dir> <scratch-dir> --no-git` — rather than by reading the bundled
+`packets.md` to infer the format. That file is ~27k tokens of scenario content; the format is the
+four rules above, and the scaffold is the authority on whether you followed them.
+
 ## Writing the evidence pack
 
 One file per source, each written the way the fleet actually receives it — a sanitized excerpt with
@@ -75,6 +108,21 @@ whether a lane flags it. Do not include an ambiguity you cannot explain afterwar
 Every packet is the **head** of a prompt: role, drill clock, what the lane may and may not do,
 the tools it does not have, and exactly what it must return. Then you append the data — the prior
 lane's output verbatim, the evidence, the diff.
+
+**Pre-write only what cannot depend on ground truth.** An opening hop — a packet whose entire data
+half is evidence you staged yourself — may be written in full while authoring. Every later packet
+exists at authoring time as a head only; its data half is composed at dispatch, out of what the
+prior lane actually returned. The reason is not tidiness: a downstream packet pre-filled "so the
+chain reads well" necessarily contains what the earlier lane *should have concluded*, and that is
+the answer. One authored scenario leaked its fix mechanism this way — the packets read naturally,
+and the drill they described would have measured nothing past hop two.
+
+**Scope the chain to what the artifacts can support.** A hop needs its inputs to exist: the service
+file it inspects, the evidence it receives, the output of a hop that will really run. If an
+artifact is deferred, the honest move is to cut the hops that need it, not to mark them "do not
+dispatch" and call the scenario done — a chain half of which cannot be dispatched is half a
+scenario, and the lane count on its card is a fiction. A scenario is finished when every hop in it
+can be dispatched today.
 
 Rules learned the hard way:
 
@@ -97,10 +145,16 @@ see whether the fleet handles a "no" as cleanly as a "yes".
 
 ## Checking a scenario before you run it
 
-- Ground truth written down and absent from every packet.
+- Ground truth written down in its own `ground-truth.md` and absent from every packet — grep the
+  packets for its distinctive phrases, because you will not spot your own wording by rereading.
+- No downstream packet contains a conclusion a lane is supposed to reach; only opening hops are
+  pre-written in full.
+- Every hop is dispatchable today — its artifacts exist, and nothing is marked "do not dispatch".
 - Evidence supports each conclusion you expect, without stating it.
 - The release diff shows the change and nothing that gives the game away.
 - Tests pass on the shipped revision.
+- Each pack parses: run `scaffold_drill.py <scenario-dir> <scratch-dir> --no-git` and read what it
+  materialized.
 - Each packet names its lane's tool grants and non-actions, and ends where the data begins.
 - Every placeholder is substituted.
 - You can say, in one sentence, what the drill would prove if it went perfectly — and what it

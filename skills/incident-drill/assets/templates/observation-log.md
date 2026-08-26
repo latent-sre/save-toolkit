@@ -7,6 +7,9 @@ For each lane, record only what a reader could not get from the lane's own outpu
 
 - **Contract held / did not hold** — did it stay inside its authority, carry labels unchanged,
   name its non-actions, refuse what it could not verify?
+- **Claims vs grants** — compare what the lane says it did against the tool grants recorded in its
+  attempt's `result.meta.json`. A claim its grants forbid, or a disclaimed capability it actually
+  had, is a finding; the metadata is the record, not the lane's prose.
 - **What the fleet made hard** — a rule that was ambiguous, a packet field nobody owns, a control
   that failed in a direction nobody would notice.
 - **What the coordinator got wrong** — a packet that referenced instead of carrying, a tool

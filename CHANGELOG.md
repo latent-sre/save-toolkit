@@ -27,6 +27,27 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Cut the body/reference duplication the 2026-08-26 three-pass audit measured — the same rule
+  bought twice whenever a reference loaded alongside the body that already states it. **Context:**
+  `agent-authoring`'s `artifact.md` no longer restates SKILL.md's source-trust gate, four method
+  steps, description rule, failure→form table, or handoff/production-gate rules; it now owns only
+  what the body leaves open (case-set sizing, the per-symptom fix table, the wrong form each
+  failure invites) and states its candidate budget once instead of three times. `context.md` and
+  `tools.md` defer to the body's trust and handoff rules the same way. `operational-learning`'s
+  `disposition-policy.md` keeps the event→artifact map, default paths, and evidence rules, and
+  defers `prepared`/`duplicate` to SKILL.md's invariants — while retaining the validator-pinned
+  checkout-binding and promotion sentences the fleet deliberately states in every layer (both
+  regressions went red during the cut and were restored, which is the pin working). `obs-logs`'
+  SPL and LogQL references keep only dialect-specific escaping/quoting mechanics under the body's
+  identifier-trust and rate-not-count rules. Fleet-wide body-sentence echoes by the audit's own
+  measure drop 64 → 33; every remaining echo is a router-table line matching its reference's gate,
+  a validator-pinned multi-layer rule, or `incident-command` text owned by active roadmap item
+  `INCIDENT-001` and deliberately left untouched. **Surface (`SURFACE-001`):** the two
+  self-retracting worked examples — `pcf-deploy`'s manifest-name interaction and `runbook`'s
+  worked excerpt — keep their `[unverified]` labels as one-line footnotes instead of retraction
+  paragraphs. Adapters regenerated; Gate A, `check_links`, `check_canary_tokens`,
+  `validate_fleet`, `run_evals --validate` (107 scenarios), and the scripts/evals unittest suites
+  pass, minus one pre-existing `test_fleet_doctor` envelope error also red on the unchanged base.
 - Audited `backend-craft` against the four-theme design rule and repaired what the audit found.
   **Correctness:** `consuming-apis` cited a product name one rename stale against `stack-profile`
   (Wavefront/Aria Operations for Applications, now Broadcom DX OpenExplore) and omitted Moogsoft's

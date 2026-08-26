@@ -29,6 +29,13 @@ if REPORT_SPEC is None or REPORT_SPEC.loader is None:  # pragma: no cover - impo
 drill_report = importlib.util.module_from_spec(REPORT_SPEC)
 REPORT_SPEC.loader.exec_module(drill_report)
 
+SCAFFOLD_PATH = ROOT / "skills/incident-drill/scripts/scaffold_drill.py"
+SCAFFOLD_SPEC = importlib.util.spec_from_file_location("incident_drill_scaffold", SCAFFOLD_PATH)
+if SCAFFOLD_SPEC is None or SCAFFOLD_SPEC.loader is None:  # pragma: no cover - import machinery failure
+    raise RuntimeError(f"cannot load {SCAFFOLD_PATH}")
+scaffold_drill = importlib.util.module_from_spec(SCAFFOLD_SPEC)
+SCAFFOLD_SPEC.loader.exec_module(scaffold_drill)
+
 
 class IncidentDrillHarnessTests(unittest.TestCase):
     def test_usage_examples_include_required_lineage_and_runtime_confirmation(self) -> None:
@@ -202,6 +209,18 @@ class IncidentDrillHarnessTests(unittest.TestCase):
                 run_lane.reserve_attempt_output(runs, "../escape", "01", "builder", "attempt-3")
             with self.assertRaisesRegex(SystemExit, "safe path component"):
                 run_lane.reserve_attempt_output(runs, "..", "01", "builder", "attempt-3")
+
+    def test_path_budget_refuses_on_windows_before_writing_and_measures_elsewhere(self) -> None:
+        # The guarded failure: a deep drill root whose longest packed path crosses MAX_PATH would
+        # otherwise write fine and then kill `git add -A` mid-setup with "Filename too long".
+        deep = Path("C:/Users/example/deep/profile") / ("x" * 240) / "prompts" / "01-sre-triage.md"
+        short = Path("C:/d/chk1/prompts/01-sre-triage.md")
+        with self.assertRaisesRegex(SystemExit, "path budget exceeded"):
+            scaffold_drill.enforce_path_budget([short, deep], platform="nt")
+        # Same paths off Windows: measured, never refused — the limit is a Windows contract.
+        self.assertEqual(deep, scaffold_drill.enforce_path_budget([short, deep], platform="posix"))
+        # Under the limit on Windows: allowed.
+        self.assertEqual(short, scaffold_drill.enforce_path_budget([short], platform="nt"))
 
     def test_timeout_is_unknown_and_does_not_claim_descendant_termination(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

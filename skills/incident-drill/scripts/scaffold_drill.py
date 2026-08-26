@@ -29,6 +29,26 @@ import sys
 SECTION = re.compile(r"^## (?P<path>\S.*?)\s*$")
 FENCE = re.compile(r"^(?P<ticks>`{3,})(?P<lang>[A-Za-z0-9_+-]*)\s*$")
 
+WINDOWS_PATH_LIMIT = 260
+
+
+def enforce_path_budget(targets: list[pathlib.Path], platform: str = os.name,
+                        limit: int = WINDOWS_PATH_LIMIT) -> pathlib.Path:
+    """Refuse, before anything is written, a drill whose paths would cross Windows' MAX_PATH.
+
+    Without this the failure surfaces halfway through setup: every file writes fine and then
+    ``git add -A`` dies on the longest one with "Filename too long". Checking up front turns that
+    into one message with a remedy. Non-Windows platforms measure but never refuse.
+    """
+    longest = max(targets, key=lambda target: len(str(target)))
+    if platform == "nt" and len(str(longest)) >= limit:
+        raise SystemExit(
+            f"path budget exceeded: {longest} is {len(str(longest))} characters and Windows' "
+            f"default limit is {limit}. Choose a shorter drill directory (e.g. C:\\d\\chk1) or "
+            "enable Windows long paths (LongPathsEnabled), then re-run."
+        )
+    return longest
+
 
 def parse_pack(path: pathlib.Path) -> dict[str, str]:
     """Return {relative path: payload} for one packed document.
@@ -136,6 +156,12 @@ def main(argv: list[str] | None = None) -> int:
     packets = parse_pack(args.scenario_dir / "packets.md")
 
     service = args.drill_dir / "service"
+    drill_root = args.drill_dir.resolve()
+    enforce_path_budget(
+        [drill_root / "service" / relative for relative in service_pack]
+        + [drill_root / "evidence" / relative for relative in evidence]
+        + [drill_root / "prompts" / relative for relative in packets]
+    )
     count = write_files(service_pack, service)
     write_files(evidence, args.drill_dir / "evidence")
     write_files({name: text.replace("{{PYTHON}}", args.python) for name, text in packets.items()},

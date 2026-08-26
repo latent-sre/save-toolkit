@@ -58,10 +58,9 @@ manifest contains exactly one application, the CLI renames the stanza to the arg
 if it contains multiple applications, it fails with `AppNotInManifestError`. Check that the approved
 manifest has one stanza before using this command; no separate `manifest-green.yml` is needed for
 that single-app case. *[sourced: `cloudfoundry/cli`
-`actor/v7pushaction/handle_app_name_override.go` at `fcb3492`; reviewed 2026-08-21]*
-
-Behavior on the deployed CLI and foundation remains `[unverified]` until the human release owner
-runs the flow on a bounded non-production target and attaches the output.
+`actor/v7pushaction/handle_app_name_override.go` at `fcb3492`; reviewed 2026-08-21 —
+`[unverified]` on the deployed CLI/foundation until the human release owner runs it on a bounded
+non-production target and attaches the output]*
 
 ## Rollback boundaries by phase
 

@@ -168,11 +168,10 @@ index=<app_index> earliest=-8d
 
 ## Correlate one request across services
 
-Correlation ids copied from a ticket or log are untrusted input. Prefer rejecting any value outside the
-service's documented identifier grammar. Never concatenate the raw value into SPL. If that grammar
-permits reserved characters, apply classic SPL's documented escaping for quotes, pipes, and backslashes,
-then inspect the final rendered query; API, shell, or dashboard layers can require additional encoding.
-Stop if the value cannot be represented unambiguously.
+The identifier-trust rules in `../SKILL.md` (validate, never concatenate, stop if unencodable)
+apply; the SPL-specific part is the escaping: apply classic SPL's documented escaping for quotes,
+pipes, and backslashes, then inspect the final rendered query — API, shell, or dashboard layers can
+require additional encoding.
 
 *[sourced: Splunk classic search quoting/escaping; unverified target id grammar and client layers]*
 
@@ -191,8 +190,8 @@ finding — recommend adding one through the `software-engineer` agent.
 
 ## Compare before vs after a deploy
 
-Compare **rates**, not raw counts — if traffic differs between the two phases (and after a deploy it
-usually does), a count comparison tells you about traffic, not about the deploy.
+`../SKILL.md`'s rate-not-count rule and equal-window discipline govern the comparison; the SPL
+shape:
 
 *[sourced: Splunk `eval` and `stats` syntax; unverified for target fields and deploy epoch]*
 

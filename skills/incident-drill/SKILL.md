@@ -48,8 +48,10 @@ It never starts because a conversation mentioned an outage.
    [checkout payments-timeout saturation scenario](./assets/scenarios/checkout-payments-timeout/scenario.md)
    (P3 → P2 → P1, eight lanes, ~90 minutes, ~USD 7 on a mid tier), whose parts are the
    [service file pack](./assets/scenarios/checkout-payments-timeout/service.md), the
-   [staged evidence pack](./assets/scenarios/checkout-payments-timeout/evidence.md), and the
-   [per-lane handoff packets](./assets/scenarios/checkout-payments-timeout/packets.md). For anything
+   [staged evidence pack](./assets/scenarios/checkout-payments-timeout/evidence.md), the
+   [per-lane handoff packets](./assets/scenarios/checkout-payments-timeout/packets.md), and the
+   held-back [ground truth](./assets/scenarios/checkout-payments-timeout/ground-truth.md) (open it
+   for the timeline premise and the postmortem grade, never while composing packets). For anything
    else, read [authoring a scenario](./references/authoring-a-scenario.md) first.
 2. **Build the working directory:** run [`scaffold_drill.py`](./scripts/scaffold_drill.py) to
    materialize the service with its two-release history, the evidence, and the packets, then follow
@@ -71,11 +73,16 @@ It never starts because a conversation mentioned an outage.
 7. **Close with the retro**, from [the template](./assets/templates/retro.md): run
    [`drill_report.py`](./scripts/drill_report.py) for the cost table, then write what went well,
    fleet findings with owners, coordinator findings kept separate, and a disposition per finding.
+   Fill the one-screen [drill card](./assets/templates/drill-card.md) and land both in the
+   repository's dated review location (here, `docs/reviews/`) **before** teardown — the drill
+   directory is disposable, and teardown must never hold the only copy of what the drill proved.
 
 ## Rules that decide whether the drill is evidence
 
-- **Ground truth stays out of the packets.** Write it down before authoring; if a lane could only
-  reach the answer because a packet contained it, that hop proves nothing.
+- **Ground truth stays out of the packets.** Write it down before authoring — in the scenario's
+  separate ground-truth file — and pre-write only opening-hop packets in full; every later packet
+  is a head whose data is composed at dispatch from the real prior lane's output. If a lane could
+  only reach the answer because a packet contained it, that hop proves nothing.
 - **Evidence is staged.** Release the escalation pack when a lane asks or when your timeline's
   paging alert fires — not up front.
 - **One owner per hop, one thing asked.** Matching the fleet's own handoff contract is what makes a
