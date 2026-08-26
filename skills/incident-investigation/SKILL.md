@@ -11,11 +11,17 @@ description: >-
 
 # Incident investigation
 
-Select an **incident work mode**, not a person's title or seniority. The typed `sre` agent remains
-the owner of the current bounded technical task while assisting the human SRE and incident team. It
-owns the technical record through verified recovery only when the caller explicitly assigns that
-lifecycle. This skill changes investigation depth and support span only; it grants no tools,
-production authority, command role, or permission to apply a mitigation.
+Select an **incident work mode**, not a person's title or seniority.
+
+**Whoever loaded this skill still owns the work.** A skill load deepens the current lane; it never
+transfers ownership and never confers another lane's tool posture. When the typed `sre` agent loads
+this, `sre` owns the current bounded technical task and owns the technical record through verified
+recovery only when the caller explicitly assigns that lifecycle. When any other context loads it, that
+context remains the owner, holds only its own tools, and must delegate to `sre` if the guarded
+read-only investigation posture is actually required — do not emit a record that names `sre` as owner
+when no delegation occurred. Either way the human SRE or incident commander stays the operational
+owner. This skill changes investigation depth and support span only; it grants no tools, production
+authority, command role, or permission to apply a mitigation.
 
 ## Select the support span
 
