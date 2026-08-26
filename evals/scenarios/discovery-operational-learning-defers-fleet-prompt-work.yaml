@@ -18,6 +18,6 @@ success_criteria:
   - Identifies the named regression as part of that lane's work
 graders:
   - type: contains_any
-    of: ["agent-engineer", "prompt engineer"]
+    of: ["agent-engineer", "agent engineer"]
   - type: contains_any
     of: ["named regression", "regression case"]
