@@ -905,6 +905,41 @@ pass's 47/47 on `claude-fable-5` — different tier, different baseline. `GRADER
 `EVIDENCE-001`, and any runtime, schema, validator, or `codebase-atlas` work stay separate items
 and do not hold this one open.
 
+### CI-001 — fix the three component tests that were failing unnoticed
+
+**Status:** `ready` (2026-08-26)
+
+**Owner:** `sde` owns the three failing implementations; `latent-sre` accepts the exact revision.
+
+**Outcome:** Every component test passes in CI, and `QUARANTINE` in
+[`scripts/run_component_tests.py`](../scripts/run_component_tests.py) is empty and removable.
+
+**Source:** CI ran no `test_*.py` at all — `scripts/gate_a.py` deliberately excludes the component
+and eval suites, so the only gates were the structural audit and `claude plugin validate`. Adding a
+component-test job surfaced `[verified]` **three tests failing on `main`**, none of them touched by
+the change that found them:
+
+| Test | What is broken |
+|---|---|
+| `scripts/test_fleet_doctor.py` | the hook-registration check reports `pass` where the fixture expects `fail`; and a minimal installed plugin still imports repository helpers |
+| `scripts/test_hook_wiring.py` | the standalone launcher and the inlined hook command have drifted — the launcher omits the `[ -n "$OUT" ]` guard the inlined form carries, so an empty guard result is handled differently by each |
+| `scripts/test_mutation_guard.py` | the live tree has tractable blind files the guard's import discovery does not cover |
+
+Take `test_hook_wiring` first: [`hooks/hooks.json`](../hooks/hooks.json) is the fail-closed Bash
+allowlist for `sre`, and a launcher that handles an empty guard result differently from the inlined
+form is a divergence in a security control, not a fixture mismatch. `[unverified]` which of the two
+forms is correct — the test asserts they match, and they no longer do.
+
+**Prerequisites:** None. Each failure is independent and local.
+
+**Acceptance:** Each of the three either passes or is removed with a recorded reason; `QUARANTINE`
+shrinks to empty and its ratchet assertion is deleted with it. For `test_hook_wiring` specifically,
+the evidence names which form was correct and what the divergence would have allowed or denied.
+
+**Next action:** Take `test_hook_wiring.py` first, on the security-control reasoning above. Do not
+loosen a test to make it pass — all three failed silently for an unknown period, so the failures are
+the finding, not an obstacle to it.
+
 ### EVIDENCE-001 — stop losing measurement evidence by default
 
 **Status:** `ready` (2026-08-25)
