@@ -97,3 +97,7 @@ The exact key and type shape is:
 
 The example values are illustrative. Replace its signal keys, duration values, authorization, and
 task map with the incident's evidence; do not copy them when the evidence differs.
+
+```text
+q_iirl_4f6b
+```

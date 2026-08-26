@@ -17,7 +17,7 @@ and the next task is to prove why the system broke.
 
 1. **Acknowledge and timestamp.** Record the UTC time and exactly what fired.
 2. **Confirm the symptom.** Establish actual user impact or a flapping signal. Check the symptom
-   from the user's side with the available synthetic, ThousandEyes, or health-endpoint evidence.
+   from the user's side with the available synthetic-probe or health-endpoint evidence.
 3. **Characterize the service.** If start time, blast radius, trend, or signal baseline is missing,
    read [signal characterization](./signal-characterization.md).
 4. **Use the documented procedure.** If the alert supplies one, follow it and record each observed
@@ -58,3 +58,7 @@ and the next task is to prove why the system broke.
 
 When evidence is thin, remain in first response and name the next safe observation. Uncertainty is
 not permission to poke production.
+
+```text
+q_iifr_3a1c
+```

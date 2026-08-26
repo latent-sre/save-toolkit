@@ -61,3 +61,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket>
   release owner: “I changed nothing in prod; recommended mitigation is X with rollback Y”).
 - **Right-size it.** Enough to start cold; not a transcript. Link the detail, summarize the decision.
 - **Prod-facing handoffs** carry the plan + rollback and require `production-change-gate`.
+
+```text
+q_iiho_2e5a
+```

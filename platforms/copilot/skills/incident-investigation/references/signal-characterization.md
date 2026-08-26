@@ -8,12 +8,15 @@ platforms, and synthetics; this reference defines what to establish, not backend
 
 ## Golden signals
 
-| Signal | Question | Where in this fleet's stack |
-|---|---|---|
-| **Latency** | How long does work take? Split successful and failed requests. | Wavefront p50/p95/p99; Grafana |
-| **Traffic** | How much demand is arriving—requests, messages, or jobs per second? | Wavefront rates; Splunk access logs |
-| **Errors** | What fraction fails, times out, or returns incorrect results? | Splunk error counts; Wavefront error ratio |
-| **Saturation** | Which finite resource—CPU, memory, threads, queues, pools, or connections—is near its limit? | `cf app`; Wavefront container metrics |
+| Signal | Question |
+|---|---|
+| **Latency** | How long does work take? Split successful and failed requests. |
+| **Traffic** | How much demand is arriving—requests, messages, or jobs per second? |
+| **Errors** | What fraction fails, times out, or returns incorrect results? |
+| **Saturation** | Which finite resource—CPU, memory, threads, queues, pools, or connections—is near its limit? |
+
+Ownership map only—not a load: the `stack-profile` observability reference names which backend
+serves each signal today; the `obs-*` skills own the queries. Do not assume a vendor from this file.
 
 Use **RED**—rate, errors, duration—for request-driven services and **USE**—utilization, saturation,
 errors—for resources.
@@ -42,8 +45,12 @@ A matching timestamp makes a change a priority hypothesis, not a proven cause.
 4. **Errors rise while traffic and latency stay flat:** investigate logic, deploy, or configuration
    rather than assuming load.
 5. **Internal signals stay flat while users report impact:** inspect the external path, region, DNS,
-   routing, and ThousandEyes or health-endpoint evidence.
+   routing, and synthetic-probe or health-endpoint evidence.
 
 Return the exact start time, blast radius, and trend—worsening, stable, or recovering—with evidence
 labels. Those fields determine whether first response can continue or hypothesis investigation has
 enough foundation to begin.
+
+```text
+q_iisc_9d4f
+```

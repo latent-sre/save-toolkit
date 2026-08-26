@@ -31,6 +31,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
                 "skills/obs-metrics/references/promql.md": "body\n\nq_ompr_0001\n",
                 "skills/obs-logs/references/logql.md": "body\n\nq_ollq_0002\n",
                 "skills/akamai-edge/references/edge.md": "body\n\nq_akedge_0003\n",
+                "skills/incident-investigation/references/first-response.md": "body\n\nq_iifr_0004\n",
                 # a bundle outside REQUIRED_GLOBS may carry no token at all
                 "skills/backend-craft/references/api.md": "no token here\n",
             })

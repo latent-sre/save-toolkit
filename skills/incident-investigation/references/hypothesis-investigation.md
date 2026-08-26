@@ -15,26 +15,14 @@ Return to [first response](./first-response.md) if the symptom matches a documen
 causal investigation is needed. Move to [systemic failure](./systemic-failure.md) only when evidence
 shows a distributed or self-sustaining mechanism.
 
-## Investigation loop
+## Where the loop lives
 
-1. **Characterize precisely.** Establish exact start time, blast radius, severity, and trend. Read
-   [signal characterization](./signal-characterization.md) if the incident record lacks them.
-2. **Build a UTC timeline.** Align the symptom with deploys, releases, config or feature-flag
-   changes, platform events, dependency incidents, traffic shifts, and certificate or credential
-   expiries.
-3. **Write the differential.** For each candidate cause, state a prediction that would be observed
-   if it were true.
-4. **Test to eliminate.** Use the typed `sre` lane's authorized logs, metrics, traces, events, and
-   network evidence to confirm or reject predictions. Load `root-cause` for the causal-testing loop:
-   - Splunk or Loki logs for error spikes, stack traces, and correlation IDs;
-   - Wavefront, Prometheus, or Grafana metrics for latency, errors, traffic, and saturation per
-     application or instance;
-   - ThousandEyes evidence for network, DNS, and dependency reachability; and
-   - Moogsoft clustering or correlation for related alerts and platform events.
-5. **Separate trigger from mechanism.** Use five whys past the proximate cause. A bad deploy may be
-   the trigger; the missing test, rollout guard, or containment boundary may be the systemic cause.
-6. **Conclude at the evidence level.** Record a supported cause and confidence, or the remaining
-   candidates and the exact observation that would distinguish them.
+The loop itself is the `sre` agent's Method — characterize, build the UTC timeline, write the
+differential with a prediction per candidate, test to eliminate, five whys past the trigger, and
+conclude at the evidence level — with `root-cause` owning the causal-testing discipline. This
+reference does not restate it. Ownership map only—not a load: the `stack-profile` observability
+reference names which backend serves each signal today, and `obs-logs`, `obs-metrics`,
+`obs-traces`, and `obs-alerting` own the queries; do not assume a vendor from this file.
 
 ## Common application-operations failure modes
 
@@ -60,3 +48,7 @@ the active incident reaches its terminal recovery state.
 Ownership map only—not a load: mitigation goes to the human release owner; durable code changes go
 to `software-engineer`; later signal and alert work goes to `observability-engineer`; a proven
 systemic or distributed mechanism changes this skill's mode to systemic failure.
+
+```text
+q_iihi_5b2d
+```
