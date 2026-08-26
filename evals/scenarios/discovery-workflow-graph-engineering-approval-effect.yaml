@@ -32,8 +32,14 @@ graders:
     of: ["tombstone", "retention", "retained"]
   - type: contains_any
     of: ["approver", "candidate identity", "revision identity", "bound to the revision", "bound to the exact"]
+  # Vocabulary widened 2026-08-25 against run 20260824T220919Z-d783ef1e, where one of three
+  # otherwise-correct transcripts expressed intent rejection as "an approval for a different
+  # revision does not match the recorded candidate identity and is refused" — the contract, in
+  # wording the first three phrasings missed. The keyword-rich incomplete fixture in
+  # evals/test_graders.py already contains "mismatch" and is still rejected, by the exactly-once
+  # not_regex grader below.
   - type: contains_any
-    of: ["mismatch", "different intent", "rejected before dispatch"]
+    of: ["mismatch", "different intent", "rejected before dispatch", "does not match", "different revision", "different target", "different payload", "differs from", "reused approval", "reused key"]
   - type: not_regex
     # A checkpoint offered as exactly-once proof. Negation is bound to the verb via lookbehinds so
     # "a checkpoint does not prove ... exactly once" (compliant) passes while "the checkpoint

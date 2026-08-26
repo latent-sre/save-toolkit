@@ -5,6 +5,10 @@ mode: discovery
 # case timed out without an attempted/completed target invocation, and evals/README.md defines
 # that as unsuccessful routing; the regression split carries no known-failing case.
 split: calibration
+# 0.66, not 0.67: the bar is ceil(trials * threshold), and at DEFAULT_TRIALS = 3
+# ceil(3 * 0.67) == 3 -- byte-identical to threshold 1.0. ceil(3 * 0.66) == 2 is the
+# intended 2-of-3 propensity bar.
+threshold: 0.66
 target:
   kind: skill
   name: agent-authoring
@@ -19,17 +23,23 @@ success_criteria:
   - Describes nodes, allowed edges, authority boundaries, joins, and termination
   - Does not turn the request into a code dependency graph or prematurely select a runtime
 graders:
-  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
-  # the adversarial fixtures for this scenario live in evals/test_graders.py.
-  - type: contains_all
-    of: ["nodes", "edges", "authority", "termination"]
-  - type: contains_any
-    of: ["delegation edge", "handoff edge", "delegation edges", "handoff edges"]
-  - type: contains_any
-    of: ["read-only review", "read-only independent review", "review without write"]
-  - type: contains_any
-    of: ["human-owned effects", "human-owned effect", "human applies", "human-executed"]
+  # GRADER-003, options 1 and 2. The full behavioural contract moved to the direct-mode scenario
+  # named below, where the component is pinned and can emit a determinate artifact. What stays
+  # here is the routing floor: one grader proving the request reached this lane, one the prompt
+  # echo fails, and the anti-pattern guard. Four batches measured the old 8-grader conjunction at
+  # a ~0.53 ceiling over 3 trials regardless of grader quality, so the shape was the defect, not
+  # the words. threshold is below 1 because discovery here measures a propensity, not
+  # a contract.
+  # Full contract: evals/scenarios/agent-authoring-roster-graph-contract.yaml
+  # Identity: a roster graph names nodes, edges, authority, and termination.
+  - type: regex
+    pattern: '(?is)(?=.*\bnodes?\b)(?=.*\bedges?\b)(?=.*\bauthorit(?:y|ies)\b)(?=.*\b(?:terminat|terminal)\w*\b)'
+  # Echo-rejector: a real answer DRAWS its edges; the prompt contains no arrow.
+  - type: regex
+    pattern: '(?i)\b\w[\w\-]*\s*(?:\u2192|-{1,3}>|={1,2}>|-\.->)\s*(?:\|[^|\n]{0,40}\|\s*)?\w[\w\-]*'
+  # Anti-pattern: no runtime selected.
   - type: not_regex
     pattern: '(?i)must (?:use|implement with) (?:langgraph|networkx)'
+  # Anti-pattern: not a code-dependency graph.
   - type: not_regex
     pattern: '(?i)\bimports?\b.*\b(?:cycle|cycles)\b|\b(?:cycle|cycles)\b.*\bimports?\b'

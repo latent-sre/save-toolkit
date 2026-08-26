@@ -262,20 +262,27 @@ class RoadmapDispositionTests(unittest.TestCase):
         return (check_plan_status.ROOT / relative).read_text(encoding="utf-8")
 
     def test_closed_mutation_campaigns_keep_owner_dispositions_in_history(self) -> None:
-        """A campaign leaves the roadmap only with its owner disposition recorded there.
+        """A campaign leaves the live roadmap only with its owner disposition recorded.
 
         The disposition used to be asserted against the dated sweep review's prose, which made a
         historical record load-bearing for this suite: it could not be swept, and could not even be
         reworded, without a red test. Dispositions belong in the tracker, so that is what this
         reads; the review is free to be history.
+
+        The tracker is now two files -- the live roadmap owns what is still owed, and
+        ``docs/roadmap-closed.md`` owns the disposition of everything that has left it. Both halves
+        are asserted here: the closed campaign must be absent from the live queue AND present with
+        its owner disposition in the register. A register is not a dated review; sweeping it would
+        still turn this red.
         """
         roadmap = self._read("docs/fleet-roadmap.md")
+        closed = self._read("docs/roadmap-closed.md")
 
         self.assertNotIn("### MUTATION-001", roadmap)
         self.assertNotIn("### SWEEP-001", roadmap)
-        self.assertIn("explicit owner disposition", roadmap)
-        self.assertIn("`not_applicable` as live work, owner `latent-sre`", roadmap)
-        self.assertIn("`SWEEP-001` and `MUTATION-001`", roadmap)
+        self.assertIn("explicit owner disposition", closed)
+        self.assertIn("`not_applicable` as live work, owner `latent-sre`", closed)
+        self.assertIn("`SWEEP-001` and `MUTATION-001`", closed)
 
 
 if __name__ == "__main__":

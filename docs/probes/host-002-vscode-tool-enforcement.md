@@ -74,7 +74,7 @@ $SnapshotRoot = Join-Path $ProbeRun "target"
 New-Item -ItemType Directory -Path $ProbeRun
 git archive --format=zip --output=$SnapshotZip HEAD
 Expand-Archive -LiteralPath $SnapshotZip -DestinationPath $SnapshotRoot
-python scripts/verification_sandbox.py tree-digest $SnapshotRoot
+python scripts/evidence_envelope.py tree-digest $SnapshotRoot
 ```
 
 Open **Help > About** in the exact VS Code window being tested and record:

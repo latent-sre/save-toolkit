@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 import io
 import json
+import os
+import shutil
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -177,6 +179,71 @@ class EvidenceEnvelopeTests(unittest.TestCase):
             schema["properties"]["ended_at"]["pattern"],
         )
         self.assertFalse(schema["additionalProperties"])
+
+
+class TreeDigestTests(unittest.TestCase):
+    """The snapshot hasher that moved here when the verification sandbox was retired.
+
+    Its one live consumer is the HOST-002 probe instrument, which records a snapshot digest as
+    evidence. The safety rules are the point: a digest computed over a tree that quietly followed
+    a symlink, or that included .git, would attest to bytes nobody reviewed.
+    """
+
+    def _tree(self, files: dict[str, str]) -> Path:
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        for relative, content in files.items():
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+        return root
+
+    def test_the_digest_is_stable_and_content_sensitive(self) -> None:
+        first = self._tree({"a.txt": "alpha", "sub/b.txt": "beta"})
+        second = self._tree({"a.txt": "alpha", "sub/b.txt": "beta"})
+        self.assertEqual(
+            evidence_envelope.tree_digest(first), evidence_envelope.tree_digest(second)
+        )
+        (first / "sub/b.txt").write_text("BETA", encoding="utf-8")
+        self.assertNotEqual(
+            evidence_envelope.tree_digest(first), evidence_envelope.tree_digest(second)
+        )
+
+    def test_a_renamed_file_changes_the_digest(self) -> None:
+        """Path framing is hashed, so identical bytes under a new name are a different tree."""
+        root = self._tree({"a.txt": "alpha"})
+        before = evidence_envelope.tree_digest(root)
+        (root / "a.txt").rename(root / "b.txt")
+        self.assertNotEqual(before, evidence_envelope.tree_digest(root))
+
+    def test_git_metadata_is_rejected(self) -> None:
+        root = self._tree({"a.txt": "alpha"})
+        (root / ".git").mkdir()
+        with self.assertRaisesRegex(evidence_envelope.TreeDigestError, "git metadata"):
+            evidence_envelope.tree_digest(root)
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "platform cannot create symlinks")
+    def test_a_symlink_inside_the_tree_is_rejected(self) -> None:
+        root = self._tree({"a.txt": "alpha"})
+        try:
+            (root / "link.txt").symlink_to(root / "a.txt")
+        except (OSError, NotImplementedError):
+            self.skipTest("symlink creation is not permitted here")
+        with self.assertRaisesRegex(evidence_envelope.TreeDigestError, "links or reparse points"):
+            evidence_envelope.tree_digest(root)
+
+    def test_a_missing_or_non_directory_source_is_refused(self) -> None:
+        root = self._tree({"a.txt": "alpha"})
+        with self.assertRaises(evidence_envelope.TreeDigestError):
+            evidence_envelope.tree_digest(root / "a.txt")
+
+    def test_the_cli_prints_the_digest(self) -> None:
+        root = self._tree({"a.txt": "alpha"})
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = evidence_envelope.main(["tree-digest", str(root)])
+        self.assertEqual(0, code)
+        self.assertEqual(evidence_envelope.tree_digest(root), out.getvalue().strip())
 
 
 if __name__ == "__main__":

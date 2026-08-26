@@ -790,9 +790,14 @@ class ImportDiscoveryTests(unittest.TestCase):
 
     def test_the_live_tree_has_no_tractable_blind_files(self) -> None:
         """Only non-module contract suites or .sh/.json subjects remain unresolved."""
+        # Inventory of what legitimately has no importable subject module: contract suites whose
+        # subjects are .md/.yaml/.json, and .sh/.json wiring. Updated 2026-08-26 -- it had drifted
+        # in both directions and nothing noticed, because CI ran no component tests.
+        # `test_graph_contracts.py` arrived with GRAPH-001 (a017836) and was never added;
+        # `test_hook_wiring.py` became resolvable and was never removed.
         self.assertEqual(
             {
-                "test_hook_wiring.py",
+                "test_graph_contracts.py",
                 "test_observability_skill_contracts.py",
                 "test_platform_skill_contracts.py",
                 "test_release_skill_contracts.py",

@@ -16,14 +16,29 @@ routing:
 success_criteria:
   - Does not invoke agent-authoring for a code/import dependency graph
   - Treats the request as local repository investigation and does not fabricate missing files
+# Routing-only (2026-08-25, GRADER-003). This scenario expects not_fire, so the graded response is
+# the inline alternative's answer, whose investigation contract is not agent-authoring's to carry;
+# the one-sanity-grader shape follows the existing _ROUTING_ONLY_DISCOVERY_SCENARIOS
+# precedent in evals/test_graders.py (the obs near misses, service-readiness-audit). It is
+# NOT a rule in evals/README.md -- that file says the opposite for negative scenarios
+# (:194, the expected alternative and response graders must also pass), so the shape rests
+# on precedent and the reasoning below, not on a citation. It is the structural
+# twin of discovery-workflow-graph-engineering-defers-code-graph, converted the same way and for
+# the same reason. The incumbent baseline run 20260824T231543Z-53c0a77c scored this scenario red on
+# behavioural vocabulary with no routing failure; those transcripts are gone, so the treatment
+# chosen here is the one that does not depend on re-reading them.
+#
+# The retained grader is the method set, the only one of the four a prompt echo cannot satisfy —
+# the prompt already contains "source-code structure" and "dependency graph". "AST" is spelled out
+# because contains_any is a plain substring match and a bare "AST" also matches "last"/"past".
 graders:
-  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
-  # the adversarial fixtures for this scenario live in evals/test_graders.py.
-  - type: contains_any
-    of: ["local repository investigation", "repository-investigator", "source structure", "source-code structure"]
-  - type: contains_any
-    of: ["import graph", "dependency graph", "module graph", "call graph"]
-  - type: contains_any
-    of: ["parser", "AST", "static analysis", "import extraction", "statically"]
-  - type: not_regex
-    pattern: '(?i)design (?:a|an|the) (?:agent|delegation|prompt|workflow)'
+    # Regex with word boundaries, not a word list. Measured answers write "parse each file with
+    # `ast`" and "parse each file's AST"; the spelled-out phrases missed both, while a bare
+    # "AST" substring token matched last/past/broadcast. Word boundaries express what neither
+    # could. Verified against all three transcripts of batch 20260825T174112Z-498600c4, prompt
+    # echo still rejected.
+    # Batch 20260825T183911Z-ea5961ab trial 3 described a grep-based extraction ("Grep each file
+    # for `^import `") and never said AST or static analysis - a legitimate method the technique
+    # list did not admit. Grep/regex extraction and "import statements/lines/edges" now count.
+  - type: regex
+    pattern: '(?i)\bast\b|\babstract syntax tree\b|\bstatic(?:ally)?\s+analy\w+\b|\bparser?s?\b|\bparsing\b|\bcompiler api\b|\bmodulefinder\b|\bpydeps\b|\bts-morph\b|\bgrep(?:ping|s)?\b|\bregex(?:es)?\b|\bimport\s+(?:statement|line|edge)s?\b'

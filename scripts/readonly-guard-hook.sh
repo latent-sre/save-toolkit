@@ -14,11 +14,12 @@ for C in python3 python py; do
   OUT=$(printf '%s' "$IN" | "$C" -I -S "$G" 2>/dev/null); RC=$?
   TRACE="${TRACE}${C}=exit-${RC};"
   if [ "$RC" -eq 42 ]; then exit 0; fi
-  # A deny is only a deny if the guard actually produced the decision JSON. An empty stdout with
-  # RC=43 would print nothing and exit 0, which a PreToolUse hook reads as "no decision" -- the
-  # call proceeds. Fall through instead, so the next interpreter is tried and, failing that, the
-  # unconditional deny below runs. hooks/hooks.json already carries this guard; the launcher had
-  # drifted from it, leaving the human-readable source the unsafe one.
+  # `-n "$OUT"` is load-bearing, not defensive noise: a guard that exits 43 (deny) with EMPTY
+  # stdout would otherwise print nothing and exit 0, which the host reads as "no decision"
+  # -- i.e. ALLOW a command the guard denied. Requiring a payload makes that case fall
+  # through to the fail-closed deny below. hooks/hooks.json has always carried this guard;
+  # this launcher had drifted without it, and scripts/test_hook_wiring.py was red for that
+  # reason with nobody notified, because CI ran no component tests.
   if [ "$RC" -eq 43 ] && [ -n "$OUT" ]; then printf '%s' "$OUT"; exit 0; fi
 done
 printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"save-toolkit read-only guard unavailable or failed: no interpreter answered with the guard exit codes; candidate results: '
