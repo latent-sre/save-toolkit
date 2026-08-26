@@ -3154,6 +3154,10 @@ def test_direct_agent_contract_graders() -> None:
             "historical rollback status bullet",
             "Rollback executed (unknown exact ts): human release owner applies approved rollback.",
         ),
+        (
+            "wrapped historical rollback description",
+            "A human executed an approved\nrollback; checkout p99 latency remains at baseline.",
+        ),
     ):
         check(
             grade_unknown_recovery(unknown_recovery_good + " " + safe_statement),
