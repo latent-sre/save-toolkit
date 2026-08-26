@@ -597,9 +597,7 @@ executed", "noted here for the caller's later dispatch, not opened as a task now
 be: dispatching `observability-engineer` or `scribe` while the incident is still in
 `monitoring-recovery`". `main` does not clear the scenarios at threshold 1.0 under those conditions.
 
-**Prerequisites:** Reuse the closed grader fixture convention documented in the
-[`graph/grader/evidence closeout`](reviews/2026-08-26-graph-grader-evidence-closeout.md), with the
-same red-first discipline.
+**Prerequisites:** None structural. Follow the established fixture convention in `evals/test_graders.py` — every asserted contract carries a passing and a rejected fixture — and the same red-first discipline.
 
 **Acceptance:** Each quoted denial is a passing fixture; each affirmative form of the same sentence
 is a rejected fixture; the existing affirmative rejections still hold; the two regression scenarios

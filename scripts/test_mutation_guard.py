@@ -793,8 +793,10 @@ class ImportDiscoveryTests(unittest.TestCase):
         # Inventory of what legitimately has no importable subject module: contract suites whose
         # subjects are .md/.yaml/.json, and .sh/.json wiring. Updated 2026-08-26 -- it had drifted
         # in both directions and nothing noticed, because CI ran no component tests.
-        # `test_graph_contracts.py` and `test_hook_wiring.py` are now resolved through their
-        # imported Python subjects and therefore do not belong in this contract-only inventory.
+        # `test_hook_wiring.py` became resolvable and was never removed. `test_graph_contracts.py`
+        # left this list on 2026-08-26 for the same reason: it now imports `validate_fleet` to
+        # assert the conditional-handoff contract, so the sweep resolves a real subject module for
+        # it and it is no longer blind.
         self.assertEqual(
             {
                 "test_observability_skill_contracts.py",
