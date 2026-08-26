@@ -87,7 +87,11 @@ GUARD_INTERPRETER_CANDIDATES = ("python3", "python", "py")
 GUARD_ALLOW_EXIT = 42
 GUARD_DENY_EXIT = 43
 GUARD_PROBE_TIMEOUT_SECONDS = 5
-TRUSTED_GUARD_HOOK_SHA256 = "bda0b531c84ebb689736fbc184d8b77816301094022f1a281e4c4362d892316a"
+# Digests of the exact hook commands in hooks/hooks.json, so a tampered or drifted
+# registration cannot pass as the reviewed one. Repin both in the same commit that changes a
+# command; test_fleet_doctor.test_trusted_hook_digests_pin_the_shipped_hook_configuration
+# fails by name when they drift.
+TRUSTED_GUARD_HOOK_SHA256 = "1cc5b2c53e2f4d1e581819ba10ae6ef1f3c8ec9aeaeefbfa64275d03fbaa103e"
 TRUSTED_SESSION_HOOK_SHA256 = "0c6c1f8c789a0f5bb8fe24c6abe5229ed255de678a2938e6b861247018046183"
 GUARD_ALLOW_PAYLOAD = json.dumps(
     {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -612,6 +613,50 @@ class FleetDoctorTests(unittest.TestCase):
                 exit_code = fleet_doctor.main(["--json"])
         self.assertEqual(1, exit_code)
         self.assertIn('"fail": 1', output.getvalue())
+
+    def test_trusted_hook_digests_pin_the_shipped_hook_configuration(self) -> None:
+        """A pin that no longer describes hooks.json silently downgrades every guard verdict.
+
+        ``_guard_hook_check`` requires both that the registered command equals the standalone
+        launcher and that its digest equals the pin here. The launcher half already has a
+        verifier (``test_hook_wiring.test_standalone_launcher_matches_inlined_hook_command``);
+        the digest half had none, so ``f80c569`` changed the PreToolUse command without
+        updating the constant and the doctor reported ``fail`` for every later revision. That
+        surfaced only as three ``'pass' != 'fail'`` assertions that named nothing. This binds
+        the constants to the bytes they claim to describe, so the next legitimate command
+        change fails here, by name, in the same commit.
+        """
+
+        document = json.loads((REPO / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        for event, matcher, pin, label in (
+            ("PreToolUse", "Bash", fleet_doctor.TRUSTED_GUARD_HOOK_SHA256, "TRUSTED_GUARD_HOOK_SHA256"),
+            (
+                "SessionStart",
+                "startup|resume|clear|compact",
+                fleet_doctor.TRUSTED_SESSION_HOOK_SHA256,
+                "TRUSTED_SESSION_HOOK_SHA256",
+            ),
+        ):
+            with self.subTest(event=event):
+                registrations = [
+                    registration
+                    for registration in document["hooks"][event]
+                    if registration.get("matcher") == matcher
+                ]
+                self.assertEqual(1, len(registrations), f"expected one {event} {matcher} registration")
+                commands = [
+                    hook["command"]
+                    for hook in registrations[0]["hooks"]
+                    if hook.get("type") == "command"
+                ]
+                self.assertEqual(1, len(commands), f"expected one {event} command hook")
+                digest = hashlib.sha256(commands[0].encode("utf-8")).hexdigest()
+                self.assertEqual(
+                    pin,
+                    digest,
+                    f"{label} does not describe the shipped {event} command; "
+                    f"review the new command and repin it to {digest}",
+                )
 
 
 if __name__ == "__main__":
