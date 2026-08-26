@@ -62,6 +62,10 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket>
 - **Right-size it.** Enough to start cold; not a transcript. Link the detail, summarize the decision.
 - **Prod-facing handoffs** carry the plan + rollback and require `production-change-gate`.
 
+## Inert canary
+
+This token only proves the reference loaded; it asserts nothing about a handoff.
+
 ```text
 q_iiho_2e5a
 ```
