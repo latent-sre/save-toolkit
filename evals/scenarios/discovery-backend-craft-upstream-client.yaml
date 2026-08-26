@@ -5,33 +5,49 @@ split: regression
 target:
   kind: skill
   name: backend-craft
-# Routing: the description's second trigger arm — "write a client for Y" — must fire backend-craft
-# without the prompt naming it. Behaviour: consuming-apis owns the client-side mechanics, so a
-# generated client has to carry the four things a naive one omits — a timeout, bounded retry with
-# jitter, a breaker rather than infinite hammering, and a cached token refreshed before expiry.
+# GRADER SURFACE (learned from the 2026-08-26 sonnet run, $2.31, 2 trials/scenario):
+# graders run against the MAIN SESSION'S FINAL TEXT only. In trial 1 this skill correctly delegated
+# the build to save-toolkit:software-engineer; the code landed in files and the session returned a
+# summary, so five content graders failed while the skill behaved perfectly. Trial 2 kept the work
+# inline and four of the same five passed. Same prompt, near-opposite grades -- the graders were
+# measuring where the work happened, not whether it was right.
+# The fix is prompt shape, not grader wording: ask for a JUDGMENT, which must be spoken, instead of
+# an ARTIFACT, which may be written to disk. Routing was the one signal stable across both trials
+# and is kept.
+# A client review rather than a client build: the defects must be named in the reply.
 prompt: |
-  We need a client for our metrics vendor's HTTP API so a nightly job can pull query results. It
-  hands out a short-lived API token, rate-limits per token, and pages its responses. Write the
-  client and its tests.
+  Is this ready to ship? Tell me what you'd fix — don't rewrite it for me.
+
+  ```python
+  def get_metrics(query):
+      token = requests.post(VENDOR + "/auth", json=CREDS).json()["token"]
+      for attempt in range(5):
+          r = requests.get(VENDOR + "/query", params={"q": query},
+                           headers={"Authorization": f"Bearer {token}"})
+          if r.status_code == 200:
+              return r.json()["results"]
+      raise RuntimeError("vendor unavailable")
+  ```
+  It runs in a nightly job. The vendor rate-limits per token and pages its responses.
 routing:
   expect: fire
 success_criteria:
-  - Fires backend-craft for an unlabelled upstream-client request
-  - Sets an explicit timeout rather than inheriting an unbounded default
-  - Retries with backoff and jitter and honours the vendor's 429 with Retry-After
-  - Fails fast on a persistently down upstream instead of retrying forever
-  - Caches the token and refreshes it before expiry rather than re-authenticating per call
-  - Follows pagination to completion under a cap
+  - Fires backend-craft on an unlabelled client review that never names the skill
+  - Names the missing timeout as unbounded rather than a style preference
+  - Names the tight retry loop's missing backoff and jitter
+  - Names the ignored 429 / Retry-After against a rate-limiting vendor
+  - Names re-authenticating on every call instead of caching the token
+  - Names that only the first page is ever read
 graders:
   - type: contains_any
-    of: ["timeout", "read timeout", "connect timeout"]
+    of: ["timeout", "hang", "block forever", "no deadline"]
   - type: contains_any
-    of: ["jitter", "backoff", "exponential"]
+    of: ["jitter", "backoff", "exponential", "tight loop", "immediately retr"]
   - type: contains_any
-    of: ["retry-after", "429"]
+    of: ["retry-after", "429", "rate limit"]
   - type: contains_any
-    of: ["circuit breaker", "breaker", "half-open", "fail fast"]
+    of: ["breaker", "fail fast", "circuit", "give up"]
   - type: contains_any
-    of: ["refresh before expiry", "cache the token", "token cache", "cached token", "expires_at", "expiry"]
+    of: ["cache the token", "token cache", "re-auth", "reauth", "every call", "each call", "per call"]
   - type: contains_any
-    of: ["next_cursor", "pagination", "next link", "next page", "cursor"]
+    of: ["paginat", "next", "only the first page", "one page"]

@@ -5,12 +5,18 @@ split: regression
 target:
   kind: skill
   name: ci-actions
-# Routing: an unlabelled "harden this workflow" request must fire ci-actions. Behaviour: the three
-# always-on rules have to reach the YAML, not just the prose — an explicit permissions block, a
-# full-SHA pin instead of a floating tag, and the PR title moved out of shell source into an env
-# var. The snippet below trips all three deliberately.
+# GRADER SURFACE (learned from the 2026-08-26 sonnet run, $2.31, 2 trials/scenario):
+# graders run against the MAIN SESSION'S FINAL TEXT only. In trial 1 this skill correctly delegated
+# the build to save-toolkit:software-engineer; the code landed in files and the session returned a
+# summary, so five content graders failed while the skill behaved perfectly. Trial 2 kept the work
+# inline and four of the same five passed. Same prompt, near-opposite grades -- the graders were
+# measuring where the work happened, not whether it was right.
+# The fix is prompt shape, not grader wording: ask for a JUDGMENT, which must be spoken, instead of
+# an ARTIFACT, which may be written to disk. Routing was the one signal stable across both trials
+# and is kept.
+# Already review-shaped; the added "don't edit the file" line keeps the findings in the reply.
 prompt: |
-  Can you tighten this up before I merge it? It works, I just don't love how it looks.
+  Can you tell me what's wrong with this before I merge it? Don't edit the file — just tell me.
 
   ```yaml
   on: [pull_request]
@@ -24,16 +30,14 @@ prompt: |
 routing:
   expect: fire
 success_criteria:
-  - Fires ci-actions for an unlabelled workflow-hardening request
-  - Adds an explicit least-privilege permissions block
-  - Replaces the floating tag with a full commit SHA pin
-  - Moves the attacker-controlled PR title out of shell source into an environment variable
+  - Fires ci-actions on an unlabelled workflow review that never names the skill
+  - Names the missing least-privilege permissions block
+  - Names the floating tag and requires a full commit SHA pin
+  - Names the PR title interpolated into shell source as an injection surface
 graders:
   - type: contains_any
-    of: ["permissions:", "contents: read"]
+    of: ["permissions:", "contents: read", "least privilege", "least-privilege"]
   - type: contains_any
-    of: ["commit sha", "full sha", "pin", "40-character"]
+    of: ["commit sha", "full sha", "pin", "40-character", "mutable tag", "floating tag"]
   - type: contains_any
-    of: ["env:", "environment variable", "$PR_TITLE", "PR_TITLE"]
-  - type: contains_any
-    of: ["injection", "untrusted", "attacker-controlled", "script injection"]
+    of: ["injection", "untrusted", "attacker-controlled", "environment variable", "env:"]
