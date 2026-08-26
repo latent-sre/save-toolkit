@@ -36,6 +36,8 @@ list. An item with no surviving evidence document closed into a live contract in
 | `AUDIT-002` (Batch 1) | 2026-08-23 | `not_applicable` by **explicit owner disposition**, owner `latent-sre`. Implementation and review corrections merged in PR [#141](https://github.com/latent-sre/save-toolkit/pull/141) at merge commit `09e775b`, final head `11b8041`. Batch 1 selected no graph runtime, added no unconsumed schema, and activated no SRE capability addition; two positive-route reliability gaps moved to deferred `ROUTE-003` rather than triggering retries against unchanged bytes. Evidence: [`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) |
 | `DOCTOR-001` | 2026-08-23 | Installed-layout `fleet_doctor` now separates checkout and plugin evidence, validates each payload's first authenticated guard answer and independently trusted launcher bytes, and degrades repository-only checks outside a checkout. Final head `505f9b5`, merged in PR [#152](https://github.com/latent-sre/save-toolkit/pull/152) at `e76d38b` |
 | `GRADER-002` | 2026-08-24 | Direct-skill trials explicitly request the exact `Skill` invocation and still require its completed tool result; availability-only metadata and inline answers fail closed. Implementation commit `ec6e583`, paired approved/missing-authority evidence matched the committed evaluator digest, merged in PR [#155](https://github.com/latent-sre/save-toolkit/pull/155) at `24e62b0` |
+| `CI-001` | 2026-08-26 | CI ran no `test_*.py` at all, so four component tests were failing with nobody notified. All four fixed, not quarantined. The load-bearing one: `scripts/readonly-guard-hook.sh` had drifted from `hooks/hooks.json`, missing the `[ -n "$OUT" ]` guard — a guard exiting 43 (deny) with empty stdout would have printed nothing and exited 0, which the host reads as **allow**. `hooks.json` was hardened in `f80c569` (PR #165 review); the launcher and `fleet_doctor`'s trusted digest were never updated with it. Also fixed: a `PATH` assertion hardcoding a Windows-normalised prefix (passed on Windows, failed everywhere else) and a stale blind-file inventory that had drifted in both directions. Component tests now run in CI at 30/30, ~48 s |
+| `SKILLS-003` | 2026-08-26 | Portable `workflow-graph-engineering` skill: a runtime-neutral design and review contract for executable workflow/state graphs. Skill merged at `f1afd57`; the acceptance evidence, routing repair, and bookkeeping merged in PR [#170](https://github.com/latent-sre/save-toolkit/pull/170) at `33ffb2f`. Evidence, kept separate rather than conflated: **structural** — Gate A 6/6, 97 scenarios, `test_graders` 727/727, generator byte-clean, strict plugin validation; **routing** — [`[verified]` 62/62 conclusive trials](reviews/2026-08-25-grader-003-verification-batch.md) across seven batches with no misroute; **artifact** — [3 of 5 frozen cases at 18/18 under independent grading](reviews/2026-08-25-skills-003-acceptance-3-result.md), owner-accepted with two transcripts unretained and that gap owned by `EVIDENCE-001`; **review** — four independent rounds bound to stated revisions, independently-found P0/P1s 6 → 2 → 0. Runtime behaviour, durability, and effect safety remain `[unverified]` by construction: nothing was executed |
 
 The local Sol evaluator decision is recorded separately in
 [`2026-08-01-local-sol-conformance.md`](decisions/2026-08-01-local-sol-conformance.md).
@@ -319,9 +321,10 @@ findings:
 | N3 | Cross-lane prerequisites (an alert that needs a gauge the service does not export) are not modelled in handoff or action-item templates | `postmortem`, `incident-command` templates | `worked` in candidate — both action templates carry an instrumentation-prerequisite field and ready/blocked state |
 | N4 | Lane cost is dominated by rediscovery when packets carry pointers instead of excerpts | packet convention (F10) | `dropped with reason` — coordinator practice, folded into F10 |
 
-**Prerequisites:** `SKILLS-003` merged, so the method has an exact revision to cite. The first
-review ran against the `SKILLS-003` candidate branch as a draft, labelled `[unverified]` until
-re-run on the merged revision.
+**Prerequisites:** Satisfied — the `workflow-graph-engineering` method merged at `f1afd57` (closed
+2026-08-26; see the closed table), so there is an exact revision to cite. The first review ran
+against that method's candidate branch as a draft, labelled `[unverified]` until re-run on the
+merged revision.
 
 **Acceptance:** (1) A dated packet under `docs/reviews/` carries the fourteen-section contract for
 the fleet with file-and-line citations and labels, plus ranked review findings; (2) every finding
@@ -424,7 +427,7 @@ while `WF-001` is blocked), the runtime candidates admissible under `stack-profi
 runtime decision, and whether references live in a new skill or under an existing `software-engineer`-loaded
 craft skill.
 
-**Prerequisites:** `SKILLS-003` merged; a named consumer graph with an accepted design contract;
+**Prerequisites:** The `workflow-graph-engineering` method merged at `f1afd57` (closed 2026-08-26; see the closed table) — satisfied; a named consumer graph with an accepted design contract;
 a `stack-profile` runtime decision with an owner; `researcher`/GitHits evidence pinned to exact
 upstream revisions.
 
@@ -669,220 +672,193 @@ invariants, proposed conditional boundaries, expected byte movement, and recomme
 changing its bytes. Do not start a second skill, requeue a completed Phase 1 skill, rewrite discovery
 descriptions, or combine the already-owed `eng-ladder` after-change run with this checkpoint.
 
-### SKILLS-003 — add a portable executable workflow-graph engineering skill
+### EVIDENCE-001 — stop losing measurement evidence by default
 
-**Status:** `active` (2026-08-24) — first candidate implemented on
-`work/skills-003-workflow-graph-engineering` with its
-[implementation evidence packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md);
-live routing trials, the frozen acceptance exercise, independent review, and human acceptance of
-the exact revision remain open. Roadmap activation merged in PR
-[#157](https://github.com/latent-sre/save-toolkit/pull/157) at `a8f98ce`. Renewed owner direction
-activates only the executable workflow/state-graph capability from Batch 3. The proposed SRE
-capability additions remain held; this item selects no graph runtime, creates no execution service,
-and does not activate `codebase-atlas`.
+**Status:** `ready` (2026-08-25)
 
-**Owner:** `prompt-engineer` owns the canonical design method and its routing/evaluation contract.
-`software-engineer` owns any later implementation in team-authored code, but this item grants no implementation,
-deployment, or live-effect authority. Human acceptance of the exact pull-request revision remains
-with `latent-sre`.
+**Owner:** `prompt-engineer` owns the eval and acceptance evidence paths; `latent-sre` accepts the
+exact revision.
 
-**Outcome:** A user asking to design or review an executable workflow/state graph can invoke one
-runtime-neutral `workflow-graph-engineering` skill and receive a portable, evidence-labelled design
-contract. The result names its data, nodes, edges, concurrency, failure recovery, human-control,
-lifecycle, authority, observability, and evaluation semantics without implying that a checkpoint
-makes an external effect exactly once or that a graph-shaped design requires a particular runtime.
+**Outcome:** Evidence from a paid measurement survives the session that produced it, without
+depending on someone remembering to copy it into a committed document.
 
-**Concrete consumer:** The immediate consumer is `prompt-engineer` when a team-approved request
-needs an executable workflow/state-graph design or a review of one. Its output is a human-reviewed
-engineering artifact that can later become a pinned handoff to `software-engineer`. There is no machine consumer
-in this slice, so it adds no JSON Schema or validator. A later proposal may add those only after it
-names the exact producer, consumer, compatibility policy, and safety-critical predicate the
-validator enforces.
+**Source:** Three losses in one line of work, all `[verified]`: the `GRADER-003` incumbent baseline
+batch `20260824T231543Z-53c0a77c` vanished with a removed worktree; `.eval-runs/` is gitignored, so
+all three verification batches would have been lost had their findings not been hand-copied into
+[the batch record](reviews/2026-08-25-grader-003-verification-batch.md); and the acceptance 3
+harness persisted three of five agent transcripts, leaving two completed cases ungradable
+([result](reviews/2026-08-25-skills-003-acceptance-3-result.md)). Each loss cost either a re-run or
+a permanent gap in an acceptance record. The common cause is that measurement output lands
+somewhere ephemeral by default and survives only by an unenforced human habit.
 
-**Source:** The
-[`2026-08-22 skill clarity, routing, prompt, loop, and graph audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md)
-separated graph engineering into three contracts: the existing roster/delegation graph, the missing
-executable workflow/state graph, and a separate code/dependency/knowledge graph capability. Its
-Batch 3 hold required renewed owner direction plus a concrete consumer and authority boundary. The
-[`2026-08-23 research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md)
-compared current framework contracts and pinned upstream source/tests, found that no inspected
-runtime supplied the entire portable contract, and recommended a runtime-neutral reference before
-runtime or schema selection. Owner direction on 2026-08-24 supplies the activation decision: use
-the repository's agent/skill framework, keep SRE additions deferred, and do not add a universal
-runtime.
+**Prerequisites:** None. This is repository tooling, not a fleet-authority change.
 
-**Implementation audit and discipline boundaries:** Derive the working taxonomy from the exact
-current `agents/` and `skills/` bytes. In pull-request evidence, record each discipline's canonical
-name, owner, path, input, output, state/authority boundary, verifier, neighboring owner, and any
-overlap or contradiction:
+**Acceptance:** A paid measurement's evidence is committed by construction, not by convention.
+Minimally: a documented capture step that extracts the durable summary from a batch or exercise
+into `docs/reviews/` before the ephemeral store can be reclaimed; a check that a roadmap item citing
+a batch ID can resolve it to committed evidence; and a stated retention boundary saying what is
+deliberately *not* kept — raw transcripts are large and may carry untrusted content, so the
+requirement is the summary, the identities, and the verbatim phrasings a future reader would
+otherwise have to re-run to recover. Do not solve this by committing raw transcripts wholesale.
 
-| Requested term | Canonical boundary to verify |
-|---|---|
-| Prompt engineering | `prompt-engineer` and `agent-authoring` own LLM-facing routing, instructions, output shape, and bounded prompt changes; schemas, runtime controls, and evaluator defects stay with their owning layer |
-| Context engineering | `agent-authoring/references/context.md` owns selection, order, trust, freshness, compaction, retention, preload, and retrieval; context isolation is not authority isolation |
-| Handoff engineering | `agent-authoring/references/roster.md` and canonical packet conventions require a stateless receiver interface with one owner, exact state, evidence/taint, success criteria, unknowns, and non-actions |
-| Loop engineering | `agent-authoring`, `artifact.md`, and `roster.md` own mutable state, one verifier, fixed budgets and stops, durable evidence, and human promotion |
-| Graph engineering | `delegation-graph.md` keeps the roster/capability graph; this item adds a distinct portable executable workflow/state-graph method, not a code/knowledge graph or runtime proof |
-| Self-learning | Map the requested term to current **learning engineering** and `operational-learning`; never introduce autonomous self-modification, background promotion, or an unbounded optimizer |
+**Next action:** Inventory where each measurement type currently writes — `.eval-runs/`, agent task
+output files, session scratchpads — and which of those the repository can reach at the moment a run
+finishes. Propose the capture step against that inventory before writing any tooling.
 
-Generated projections may confirm rendering but never establish ownership. Dated research is evidence,
-not current authority. Preserve canonical disagreements as findings rather than inventing a new
-discipline. Make one minimal candidate, keep universal authority/safety and the minimum usable
-output contract always loaded, and route conditional depth behind explicit predicates. Freeze cases,
-verifier, budgets, and stop conditions before editing; keep handoffs self-contained and one writer in
-the isolated worktree; preserve tool authority, approval edges, terminal lanes, and host-specific
-controls. Human acceptance of the exact revision is the only promotion step.
+### GRADER-003 — repair the `agent-authoring` discovery behavioural graders
 
-Disposition every implementation discovery as `worked`, `already owned`, `proposed to roadmap`,
-or `dropped with reason`. These do not replace `operational-learning`'s canonical operational
-states. Check the live roadmap before proposing work and never implement unrelated audit findings in
-this branch.
+**Status:** `active` (2026-08-25) — `latent-sre` approved **all three** shapes, and they compose:
+direct mode now carries the behavioural contracts at full strength, discovery keeps a routing floor
+of three-to-four graders, and the discovery positives run at `threshold: 0.66` because discovery
+measures a propensity rather than a contract. Applied and **measured**: see the two batches below. The instrument defect is diagnosed and fixed, and a
+second, larger constraint was then measured: **contract shape**. Five discovery batches under
+identical conditions gave 0/12, 4/12, 9/12, 8/12, **12/12**; `trigger-and-shape` went 3/3 then 1/3
+**with no change made to it**, so the 9/12 was a lucky sample rather than progress, and the closing
+12/12 is the new shape. Routing is `[verified]` **48/48** across every revision with no misroute
+anywhere. **Fifteen** reds traced, zero behavioural defects. Evidence:
+[the verification batches](reviews/2026-08-25-grader-003-verification-batch.md).
 
-**Capability boundaries:**
+**Owner:** `prompt-engineer` owns the evaluator text; `latent-sre` accepts the exact revision.
 
-- The existing **roster/delegation graph** remains in `agent-authoring` and
-  `agent-authoring/references/delegation-graph.md`. This item may sharpen the neighboring routing
-  boundary but does not duplicate or relocate that method.
-- **Executable workflow/state graph design** belongs to the new
-  `workflow-graph-engineering` skill. It defines portable contracts and reviews designs; it does
-  not execute a graph, select infrastructure, or write application code.
-- **Code, import, dependency, knowledge, runtime-topology, and GraphRAG graphs** remain a separate
-  possible `codebase-atlas` capability with different inputs, provenance, and success criteria.
-  This item does not activate it.
-- Prompt Engineering owns LLM-facing instructions and semantic behavior; Context Engineering owns
-  selection, ordering, provenance, freshness, trust, compaction, and retention; Loop Engineering
-  owns bounded gather/action/verify/repeat control and promotion authority. Workflow Graph
-  Engineering composes their contracts but does not collapse those evidence lanes into one score.
-- SRE concerns below are design requirements for an operable graph, not authorization for a new
-  SRE agent, skill, runtime, deployment, credential, or production-change lane.
+**Outcome:** The four `agent-authoring` discovery scenarios grade what a correctly routed response
+actually contains, so a red in that set means a routing or behaviour defect rather than evaluator
+vocabulary.
 
-**Required portable design contract:**
+**Source:** The `SKILLS-003` implementation packet dispositioned this `proposed to roadmap` and it
+was never filed. Its incumbent baseline run `20260824T231543Z-53c0a77c`, taken on `origin/main`
+bytes with no candidate present (Sonnet, 3 trials, 600 s), scored **0/4 scenarios and 0/12 trials
+with no routing failure in any trial** — every red a behavioural `contains_any` on vocabulary the
+real transcripts did not use. A description edit cannot change response content, so this is an
+incumbent evaluator defect that the SKILLS-003 change neither caused nor fixed. Evidence:
+[the SKILLS-003 packet](reviews/2026-08-24-skills-003-workflow-graph-engineering.md).
 
-| Concern | Required output |
-|---|---|
-| Identity and boundary | Graph ID/version, purpose, owner, caller, trust boundary, start condition, and exact agent, prompt, tool, schema, configuration, grader, model, and runtime identities/revisions when they exist; an unavailable identity stays explicit, while a supplied identity is never omitted |
-| Typed data | Input, internal state, context, node input/output, edge payload, reducer state, checkpoint, and final-output contracts; unresolved types remain explicit rather than inferred |
-| Nodes | Deterministic compute, model call, tool/effect, approval, reducer/join, verifier, and terminal classes with preconditions, authority, timeout, retry owner, and success/failure results |
-| Edges | Deterministic, conditional, model-selected handoff, fan-out, fan-in, interrupt, retry, compensation, and terminal edges; every model-selected edge names its allowed destination set and deterministic guardrails |
-| Concurrency and joins | Writer cardinality, reducer identity and algebra, ordering guarantees, conflict handling, join quorum, partial-worker failure, late-result policy, and fan-out budget |
-| Scheduling and admission | Queue ownership and capacity, priority and fairness, tenant quota, concurrency cap, backpressure and load-shed behavior, worker lease/heartbeat/liveness, stale-worker handling, poison-work quarantine/manual repair, and the evidence required to admit work |
-| Failure and retry | Failure classes, one retry owner, attempt/time budget, backoff, replay-safety classification, authority for an unsafe replay, timeout ownership, and fail-closed handling of missing or inconclusive evidence |
-| Replay and compatibility | Recovery model that distinguishes checkpoint resume from deterministic event-history replay, code/build version, history and state-schema compatibility boundary, replay or shadow verification, fork semantics, migration, and repair policy |
-| Durability | Run/thread/checkpoint identity, state and checkpoint schema version, durability mode, checkpoint boundary, last known recovery point, resume semantics, retention, restore, and evidence of persisted state |
-| External effects | Deterministic caller/operation/target/tenant/payload-bound idempotency-key construction, attempt identity, mismatched-intent rejection, result/tombstone retention, effect journal or receipt, atomic receipt/mutation coupling when the target supports it, read-after-write reconciliation, explicit `UNKNOWN`, safe compensation limits, and a prohibition on automatic replay while outcome is unknown |
-| Human control | Approval immediately before the effect path, bound to approver identity, exact action and target, immutable candidate/config identity, expiry, rejection, timeout, and resumed state |
-| Lifecycle and cancellation | Pause/resume, cooperative-cancel signal and safe observation point, durable-cancel persistence and new-dispatch prevention, in-flight effect handling, late-worker/result quarantine, supersession, restart behavior, replay/fork relationship, and cleanup deadline |
-| Termination | Success, no-progress, maximum turns/iterations/time/tokens/cost, cancellation, safety stop, unreachable-exit detection, and terminal evidence requirements |
-| Security and context | Actor and credential scope, least authority per node, untrusted-input treatment, provenance/freshness, taint propagation across every edge and handoff, redaction, and retention |
-| Observability and evaluation | Run/node/edge/attempt/retry/replay lineage; tool, handoff, guardrail, approval, checkpoint, and effect events; node, edge, path, outcome, recovery, consistency, temporal, and budget evaluations |
+**What the defect actually was.** `[verified]` by reading each scenario against its own prompt: in
+every case the grader demanded vocabulary the prompt never requested. `loop-engineering` asked for
+"hard iteration/candidate/time/cost budgets" and "promotion authority" while grading for
+`maximum iterations` and `human acceptance`; `trigger-and-shape` asked to "name the adoption and
+stop conditions" while grading only for `adoption authority`; `workflow-graph` asked for "allowed
+edges" and "handoff/join" while grading for `delegation edge`. These are exactly the terms the
+baseline recorded as red. No transcript was needed to see it, which is why the lost batch stopped
+mattering.
 
-**Skill and context shape:** The canonical `SKILL.md` keeps the mandate, authority boundary,
-untrusted-content rule, effect-safety invariants, common decision rules, reference-routing table,
-and required final-artifact sections in unconditional context. Provider procedures, framework
-comparisons, extended examples, failure tables, and detailed evaluation recipes sit behind explicit
-predicate-keyed references. The entrypoint must remain usable without opening a reference, and each
-reference must be linked from it. Canonical sources are edited once and generated projections are
-regenerated once before the push-boundary gate; projections are never hand-edited.
+**Treatment applied.** One `not_fire` near miss (`defers-code-dependency-graph`) became
+routing-only, the structural twin of the workflow-graph case. The three positives keep their
+behavioural contracts — the graded response is `agent-authoring`'s own — with their graders moved
+to what the prompt requests. **Prompts were not edited**: a discovery prompt is the routing
+stimulus, so changing one re-opens the routing measurement, and the existing evidence (12/12
+correct, no routing failure on either revision) had to survive. `[verified]` the diff touches only
+grader term-sets, comments, `threshold`, `success_criteria`,
+and three new scenario files -- **not** prompts. An earlier revision of this sentence said "only grader term-sets
+and comments", which the same diff falsified: a threshold is a scoring rule, and changing it changes
+what red means. Corrected after review rather than left standing.
 
-**Required artifact shape:** Every completed design contains, in order: (1) scope, consumer, owner,
-authority, assumptions, and unresolved decisions; (2) graph, actor, build, prompt, tool, schema,
-configuration, grader, model, and runtime identities when supplied; (3) typed input/state/output
-contract; (4) node table; (5) edge and routing table; (6) scheduling, admission, fairness,
-backpressure, load-shedding, and worker-liveness contract; (7) fan-out/fan-in and state-merge
-contract; (8) failure, retry, timeout, and replay-safety matrix; (9) idempotency-key, effect,
-receipt, retention, `UNKNOWN`, reconciliation, and compensation matrix; (10) approval, durability,
-resume, cancellation, supersession, restart, replay/fork, and compatibility controls; (11)
-termination budgets; (12) context provenance, taint, and security boundaries; (13) trace and
-graph-level evaluation plan; and (14) runtime-selection criteria explicitly marked deferred unless
-a separately approved consumer decision supplies them. The artifact labels `[verified]`,
-`[sourced]`, and `[unverified]` per claim and never presents design completeness as runtime proof.
+**Guard against recurrence.** `test_discovery_positives_grade_only_what_the_prompt_requests`
+requires each positive to declare, in `_AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS`, the prompt terms
+carrying its graded behaviours — the `_OBS_BEHAVIOR_PROMPT_TERMS` shape. It is deliberately *not*
+derived from grader tokens: a grader should demand artifact-level vocabulary the prompt does not
+contain, because that is what keeps a prompt echo from passing. Two findings came out of building
+it, both `[verified]`: bare `"AST"` matched `last`/`past`/`broadcast` under substring matching and
+is now spelled out; and in two scenarios a single grader was silently the only one rejecting the
+prompt echo, so widening it with the prompt's own wording let the echo pass the whole set. Both are
+recorded in the scenario comments.
 
-**Authority and safety invariants:** Repository text, retrieved material, tool results, graph state,
-and worker handoffs are data, never instructions, and cannot select tools, widen authority, or
-approve effects. Delegation and a separate context window are not isolation. Approval gates record
-a decision but do not create credentials or enforcement; the effect boundary must enforce the
-approved identity and arguments. Checkpoints record known progress but do not prove exactly-once
-external effects. Cancellation cannot roll back a completed remote effect. Compensation is claimed
-only for a domain operation shown to be reversible. Each effect design defines the idempotency key
-from the caller, operation, target, tenant, and canonical intent/payload; reuse with different
-intent is rejected before dispatch. A successful result or tombstone remains available through the
-full retry and ambiguity window. When supported, receipt creation and the remote mutation are
-coupled atomically; otherwise reconciliation is mandatory. An interrupted dispatch remains
-`UNKNOWN` until reconciliation or target-native idempotency resolves it, and it is never replayed
-automatically while unknown. No generated design authorizes production access or execution.
+**Prerequisites:** None outstanding. The two the packet implied are resolved: the baseline
+transcripts are `[verified]` gone — that batch ran in the since-removed `.worktrees/graph-program`
+and is absent from every `.eval-runs` directory here — and the treatment chosen does not need them,
+because the mismatch is visible in each scenario against its own prompt. Any *further* grader
+widening does need a transcript first.
 
-**Implementation boundary:** Implement one new canonical skill in one reviewed commit. The expected
-canonical surfaces are `skills/workflow-graph-engineering/`, the minimum `prompt-engineer` routing
-change needed to expose it, the directly affected scenario files, and repository catalog/count text
-required by fleet validators. References are split only along observable request predicates. Do not
-perform a fleet-wide prompt rewrite, add a second prompt-engineering or Loop Engineering skill,
-change agent authority, introduce a runtime dependency, or bundle `codebase-atlas` into the same
-pull request.
+**Measured results.** Three candidate batches plus the incumbent baseline. Same model, trials,
+timeout, and threshold throughout (Sonnet, 3 trials, 600 s, threshold 1.0); the CLI differed —
+2.1.241 for the incumbent baseline, 2.1.245 for the three candidates:
 
-**Prerequisites:** Start implementation on a fresh branch from refreshed `origin/main`. Reinspect the
-exact `prompt-engineer`, `agent-authoring`, routing-scenario, generator, and manifest/catalog
-surfaces before naming the final file set. If another open change overlaps those surfaces, do not
-stack dependent edits. Define the positive, neighboring-owner, and near-miss cases before drafting
-the skill. Current framework details are consulted through Context7 only when a version-specific
-contract is needed; GitHits supplies separately labelled pinned upstream source/test/adoption
-evidence. Existing dated research is a source, not permission to resume any other checklist.
+| Batch | Candidate | Trials green | Routing | Cost |
+|---|---|---|---|---|
+| `20260824T231543Z-53c0a77c` (incumbent) | `origin/main` bytes | 0/12 | 12/12 | — |
+| `20260825T174112Z-498600c4` | `90bd33e` | 4/12 | 12/12 | USD 3.54 |
+| `20260825T183911Z-ea5961ab` | `95a017a` | 9/12 | 12/12 | USD 3.23 |
+| `20260825T192519Z-4b6fe947` | `16a236d` | 8/12 | 12/12 | USD 3.88 |
 
-**Acceptance:** All of the following are required:
+**Finding 1 — the instrument (fixed).** `contains_any` is a plain substring test and cannot express
+these contracts. Fifteen reds were traced to their transcripts across six batches and **not one was
+a behavioural defect**: they were defeated by a markdown label, a hyphen, word order, a word
+boundary, an unadmitted method, a numeric bound, and a singular. Eight graders moved to bounded
+`regex`; `workflow-graph`'s delegation-edge behaviour now grades structurally, because a correct
+answer's words there are the prompt's own words and no token can both match the answer and reject
+the echo.
 
-1. **Discipline taxonomy:** Pull-request evidence derives all six requested disciplines from the
-   exact canonical implementation base, records the owner/boundary table and any disagreements, and
-   accounts separately for canonical, preloaded, generated, and host-specific context. Every audit
-   discovery has one of the four implementation dispositions above and any proposal demonstrates
-   that the live roadmap has no existing owner. No unrelated finding is implemented in the branch.
-2. **Routing separation:** A positive request for portable executable workflow/state-graph design
-   reaches `workflow-graph-engineering`; a roster/delegation-graph request remains with
-   `agent-authoring`; a repository dependency/knowledge/GraphRAG request does not route to the new
-   skill; a request to implement a concrete runtime remains with `software-engineer`; and runtime selection needs
-   a separate owner decision under `stack-profile`. Only scenarios affected by changed routing
-   content are run.
-3. **Artifact behavior:** One fixed five-agent fresh-context exercise uses exactly one trial for each
-   predeclared case: a deterministic graph with queue admission, fairness, backpressure,
-   load-shedding, and worker liveness; a model-selected handoff with authority and taint;
-   fan-out/fan-in with partial failure; an approval-gated external effect with semantic idempotency,
-   mismatched-intent rejection, retention, `UNKNOWN`, and reconciliation; and a durable cyclic graph
-   that distinguishes checkpoint resume from deterministic event-history replay and cooperative
-   from durable cancellation while covering in-flight/late workers, supersession, explicit budgets,
-   tracing, and graph-level evals. Before any call, the exercise records the exact candidate full
-   SHA and clean tree, canonical/plugin input digest, host and CLI version, runtime and model
-   identity, effective tool permissions, the five immutable prompts, grader identities and
-   thresholds, per-call timeout, and maximum call/cost budget. Raw prompts, outputs, grader results,
-   timing, errors, and spend evidence are retained. Changing a case, grader, threshold, or candidate
-   creates a new candidate that requires owner approval rather than silently extending this pass.
-   Each result satisfies the required artifact shape without choosing a runtime or claiming
-   execution evidence. This is one bounded candidate/evaluation pass, not an optimizer loop.
-4. **Safety controls:** Focused checks reject automatic replay of an unknown effect; acceptance of a
-   reused idempotency key with mismatched intent; result/tombstone retention shorter than the retry
-   or ambiguity window; approval not bound to the exact action/state; admission without declared
-   queue capacity, fairness, backpressure/load-shed, and worker-liveness behavior; cancellation that
-   omits cooperative versus durable semantics or in-flight/late-worker disposition; checkpoint
-   resume presented as deterministic event-history replay; unbounded cycles; missing terminal
-   states; taint dropped at a handoff; and checkpoint-equals-exactly-once claims. If a deterministic
-   validator or other machine contract is introduced despite the current boundary, its exact
-   consumer must be named and one focused red-to-green regression must prove each new enforced
-   predicate.
-5. **Evidence separation:** Activation/routing, artifact/output quality, and runtime behavior are
-   reported independently. Runtime execution, durability, provider behavior, effect safety, and
-   production readiness remain `[unverified]` unless separately exercised on an approved exact
-   implementation; a strong static design never upgrades that lane.
-6. **Repository integrity:** Every reference is reachable, scenario parsing and affected offline
-   graders pass, the exact changed-description scenario set is recorded, projections regenerate
-   byte-clean once, strict plugin validation passes, and Gate A passes once at the push boundary.
-   The pull request receives one independent exact-revision correctness/security and roadmap-plan
-   conformance review; no automated review loop is started.
+**Finding 2 — the contract shape.** This is what moved the item to `decision-needed`; the owner
+has since chosen all three shapes, so the item is `active` again. These
+scenarios are conjunctions: every positive grader must pass in all three trials. `loop-engineering`
+has 7 positive graders, so 21 grader-trials — even at 97% per grader-trial its chance of a clean
+sweep is 0.53. `trigger-and-shape` is 0.58. The one scenario that reached 3/3,
+`defers-code-dependency-graph`, has a single grader. The ceiling is set by conjunction length, not
+by grader quality, which is why the third batch went down rather than up. No further grader edit was
+made after that batch: widening cannot fix this.
 
-**Closure:** Merge the accepted exact revision, record its focused structural, routing, artifact,
-and review evidence without conflating their claims, then move `SKILLS-003` to the closed table. A
-runtime, schema, executable validator, `codebase-atlas`, or SRE capability remains separate future
-work and does not keep this skill-capability item open.
+**Acceptance:** Instrument work is complete and three times measured: `test_graders` 665/665,
+`--validate` OK at 94 scenarios, Gate A 6/6, generator byte-clean,
+`claude plugin validate . --strict` PASS, the prompt-alignment invariant proven red for its named
+reason, and every batch recorded with transcripts summarised in a committed document rather than in
+gitignored `.eval-runs/`. The regression split stays red until the contract shape is decided — an
+honest red reflecting a contract the suite cannot satisfy, not a fleet defect.
 
-**Next action:** From refreshed `origin/main`, inventory the exact owning surfaces, freeze the
-routing matrix and five bounded artifact cases, and implement only `workflow-graph-engineering` as
-the first reviewed Batch 3 slice.
+**Applied (2026-08-25).** Three direct-mode contracts were added —
+`agent-authoring-loop-contract`, `agent-authoring-trigger-and-shape-contract`, and
+`agent-authoring-roster-graph-contract` — each `calibration` until a measured pass, per
+`evals/README.md`. The three discovery positives keep only an identity grader, an echo-rejector,
+and their anti-pattern guards, and each **names the direct scenario that now holds its contract**.
+`test_trimmed_discovery_positives_have_a_direct_contract` enforces the pairing in both directions:
+it fails if a paired contract is missing, and it fails if a discovery case is re-inflated back into
+a contract. Both failure modes were proven red for their named reason and restored. Offline:
+`test_graders` 726/726, `--validate` OK at 97 scenarios (30 direct), Gate A 6/6, generator
+byte-clean, `claude plugin validate . --strict` PASS.
+
+**Measured (2026-08-25).** Two batches under the standing conditions. Discovery
+`20260825T214004Z-ab8dff39` on `ce0278a`: **4/4 scenarios, 12/12 trials, routing 12/12**, USD 3.44 —
+the trimmed shape passes cleanly on unseen trials, which the old shape never did in three attempts.
+Direct `20260825T225402Z-8ff050e2` on `b8dea04`: **8/9 trials**, skill fired 3/3 on every contract,
+USD 2.70; `agent-authoring-loop-contract` and `agent-authoring-trigger-and-shape-contract` measured 3/3 and
+`agent-authoring-roster-graph-contract` measured 2/3. A second direct batch
+`20260825T233556Z-5fb69d7b` then measured **3/3, 3/3, and 2/3** — `roster-graph-contract` improved
+because the widened proximity window fixed its two-character miss, and **`trigger-and-shape-contract`
+went 3/3 → 2/3 with no change made to it**. That is the whole argument for not promoting on one
+clean batch, and it is why `7c88f57` reverted the promotion made on batch 5: the reverted scenario
+is precisely the one that later measured 2/3. **All three stay `calibration`** — and under
+`AGENTS.md` promotion is not an eval outcome at all, only human acceptance of the exact revision. Its single red is the fourteenth traced on this item and the fourteenth with
+the behaviour present: a `read-only … review` proximity grader allowed 40 characters and the answer
+put 42 between them. Discovery trials across five batches: `0/12 → 4/12 → 9/12 → 8/12 → 12/12`;
+routing `[verified]` **48/48**; **fourteen reds traced, zero behavioural defects**.
+
+**Stated rather than implied:** the threshold relaxation made **no observable difference**. Every
+discovery scenario passed 3/3, so the 2-of-3 bar absorbed nothing and `threshold: 1.0` would have
+given the same result. Option 2 is verifiably in force — the bar computes to 2 of 3 against
+`run_evals.py:1113` — and was simply not exercised. `[unverified]` the post-batch widenings (the
+80-char proximity window, the Mermaid arrow forms, the `go list` boundary, the `scoring`
+inflection) have not been measured; each is a pure widening on a scenario that already passed, so
+none can have turned a pass into a fail.
+
+**Measured (2026-08-26).** Batch `20260826T000538Z-2b8d7cc5` closed the last gap: the two graders
+rewritten on this branch but never measured — `defers-code-graph` (sole grader, `split: regression`,
+so it gates) and `defers-runtime-selection` — both returned **3/3**, and all three regression
+scenarios in that suite passed 3/3. 14 of 15 trials passed; the fifteenth was a clean 600 s harness
+timeout that produced no response, so the batch verdict is `INCONCLUSIVE` rather than PASS.
+**No grader on this branch is reasoning-only any more.** Routing is `[verified]` 62/62 conclusive.
+
+**Accepted (2026-08-26).** `latent-sre` accepted the exact PR #170 head `9079ab3`. That is the
+promotion step `AGENTS.md` reserves to a human; no eval result contributed to it. On merge,
+`SKILLS-003` moves to the closed table — its independent exact-revision review requirement is met
+by the four review rounds on this branch, all bound to stated revisions.
+
+**Next action:** Merge PR #170. Then move `SKILLS-003` to the closed table with its structural,
+routing, artifact, and review evidence recorded separately rather than conflated. `GRADER-003`
+keeps its remaining item — the three direct contracts stay `calibration`, and promoting any of them
+is a separate owner decision, not an eval outcome. `EVIDENCE-001` stays `ready` and is worth taking
+before the next paid run. If accepted, close the
+GRADER-003 instrument and shape work and leave one follow-up: a batch that exercises the widened
+graders, which would let `agent-authoring-roster-graph-contract` earn `regression`. Do not widen a
+grader further without reading the transcript that failed it, and do not edit a discovery prompt —
+it is the routing stimulus and the 48/48 routing evidence depends on it staying byte-identical.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 

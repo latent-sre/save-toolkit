@@ -14,7 +14,13 @@ for C in python3 python py; do
   OUT=$(printf '%s' "$IN" | "$C" -I -S "$G" 2>/dev/null); RC=$?
   TRACE="${TRACE}${C}=exit-${RC};"
   if [ "$RC" -eq 42 ]; then exit 0; fi
-  if [ "$RC" -eq 43 ]; then printf '%s' "$OUT"; exit 0; fi
+  # `-n "$OUT"` is load-bearing, not defensive noise: a guard that exits 43 (deny) with EMPTY
+  # stdout would otherwise print nothing and exit 0, which the host reads as "no decision"
+  # -- i.e. ALLOW a command the guard denied. Requiring a payload makes that case fall
+  # through to the fail-closed deny below. hooks/hooks.json has always carried this guard;
+  # this launcher had drifted without it, and scripts/test_hook_wiring.py was red for that
+  # reason with nobody notified, because CI ran no component tests.
+  if [ "$RC" -eq 43 ] && [ -n "$OUT" ]; then printf '%s' "$OUT"; exit 0; fi
 done
 printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"save-toolkit read-only guard unavailable or failed: no interpreter answered with the guard exit codes; candidate results: '
 printf '%s' "$TRACE"

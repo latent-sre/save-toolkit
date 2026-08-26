@@ -1,14 +1,22 @@
 # SKILLS-003 `workflow-graph-engineering` implementation evidence
 
+> **Correction, 2026-08-25.** The conclusion, acceptance-5 summary, and "what was not done"
+> footer below were written before the live routing runs and were never updated when those runs
+> landed in the routing-matrix section of this same document. They said no live trials ran while
+> the section between them records three of them. All three are corrected in place; no measurement
+> was changed. See the [addendum](#addendum-2026-08-25) for the merge and the remaining work.
+
 **Conclusion:** The first candidate of the canonical `workflow-graph-engineering` skill is
 implemented on branch `work/skills-003-workflow-graph-engineering` from the locally known
 `origin/main` `773b596334c5fa5678fbcabad2de0fe35921bd06`. `[verified]` Structural, link, canary,
 scenario-schema, grader-fixture, generator, and Gate A checks pass in a pinned container.
-`[unverified]` Live clean-room routing trials did not run on the authoring host, `origin/main`
-could not be refreshed there (`git fetch origin` was denied), and the frozen five-case acceptance
-exercise on a committed SHA has not run. The development exercise recorded below is a candidate
-pass on the uncommitted tree, not that acceptance pass. Human acceptance of the exact revision
-remains the only promotion step.
+`[verified]` Two live clean-room routing batches ran on Sonnet at three trials per scenario, plus
+an incumbent baseline batch; routing separation held on four of five scenarios (12/12 trials in
+run 2), and the `runtime-selection` seam over-triggered at root 1/3 in both runs. `[unverified]`
+`origin/main` could not be refreshed on the authoring host (`git fetch origin` was denied), and the
+frozen five-case acceptance exercise on a committed SHA has not run. The development exercise
+recorded below is a candidate pass on the uncommitted tree, not that acceptance pass. Human
+acceptance of the exact revision remains the only promotion step.
 
 ## Exact evidence base
 
@@ -186,8 +194,10 @@ controls exist as prose and as offline grader fixtures:
 
 ## Evidence separation (acceptance 5)
 
-Activation/routing: offline schema and fixtures `[verified]`; live `[unverified]`. Artifact
-quality: development exercise above. Runtime behaviour, durability, provider behaviour, effect
+Activation/routing: offline schema and fixtures `[verified]`; live routing `[verified]` on Sonnet
+across two candidate batches and one incumbent baseline, reported separately from the behavioural
+graders that shared those batches. Artifact quality: development exercise above — a candidate pass,
+not the frozen acceptance exercise. Runtime behaviour, durability, provider behaviour, effect
 safety, and production readiness: `[unverified]` by construction — nothing was executed.
 
 ## Repository integrity (acceptance 6)
@@ -205,11 +215,44 @@ All in the pinned container against the worktree, `--network none`:
 | `evals/run_evals.py --validate` | eval suite OK — 89 scenarios (23 direct, 66 discovery, 37 regression) |
 | `evals/test_graders.py` | 585/585 |
 | `scripts/test_validate_fleet.py`, `test_check_links.py`, `test_canary_tokens.py` | 43, 28, 6 tests OK |
-| `claude plugin validate . --strict` | `[unverified]` not run in this session |
+| `claude plugin validate . --strict` | `[verified]` PASS, but on the 2026-08-25 bookkeeping revision and CLI 2.1.245, not on this document's revision — see the addendum |
 | Independent exact-revision review | `[unverified]` not requested yet |
 
 ## What was not done
 
-No live routing trials, no frozen acceptance exercise, no independent review, no pull request, no
-remote refresh, no runtime or schema selection, no `codebase-atlas`, and no change to any agent's
-tool authority or delegation edges.
+No frozen acceptance exercise, no independent exact-revision review, no pull request, no remote
+refresh, no runtime or schema selection, no `codebase-atlas`, and no change to any agent's tool
+authority or delegation edges. Live routing trials *were* run — see the routing matrix above.
+
+## Addendum 2026-08-25
+
+`[verified]` **Merged.** The candidate landed as commit `f1afd57` on `origin/main` via pull request
+[#162](https://github.com/latent-sre/save-toolkit/pull/162) (`work/graph-engineering-and-drills`,
+merged 2026-08-25 02:47Z), bundled with the `incident-drill` skill and the graph-program roadmap
+documents rather than as a dedicated SKILLS-003 pull request. The branch
+`work/skills-003-workflow-graph-engineering` and its worktree no longer exist.
+
+`[verified]` **Base freshness, resolved.** `git fetch origin` is still denied on this host
+(SSH publickey), but `gh api repos/latent-sre/save-toolkit/commits/main` returns
+`5d94987e37f6b9c9d4fd0f5427ea2269dab36131`, identical to the local `origin/main` ref. The
+divergence question this document left open is answered: there is none.
+
+`[verified]` **Routing-only correction, applied.** The correction this document proposed but did
+not apply — move the four near-miss scenarios to the routing-only shape and register them in
+`_ROUTING_ONLY_DISCOVERY_SCENARIOS` — is implemented on `work/skills-003-bookkeeping`. Each near
+miss now carries one `contains_any` sanity grader chosen from the vocabulary its measured
+transcripts actually used; the positive keeps its full behavioural set with the intent-rejection
+grader widened against the one run-2 transcript that phrased rejection without the first three
+terms. Offline: `test_graders.py` 655/655 (baseline 658 — the four scenarios give up three echo
+and incomplete checks each, and the routing-only shape adds nine; the arithmetic is exact),
+`run_evals.py --validate` OK at 94 scenarios, `gate_a.py` PASS 6/6. `[unverified]` The regression
+split has not been re-run live against these graders; that run belongs with the acceptance pass.
+
+`[verified]` **Strict plugin validation, run.** `claude plugin validate . --strict` passes on
+CLI 2.1.245 against the bookkeeping revision (base `origin/main` `5d94987` plus the corrections
+above). This closes the acceptance-6 row that this document had left unrun; it is evidence for that
+revision, not retroactively for `f1afd57`.
+
+**Still open for acceptance:** the frozen five-case exercise (acceptance 3) on the committed SHA
+with its full pre-call record, and an independent exact-revision review. The two Codex reviews on PR #162 were taken at branch head `5a50cb3` over
+the bundled change, not at this slice's revision.

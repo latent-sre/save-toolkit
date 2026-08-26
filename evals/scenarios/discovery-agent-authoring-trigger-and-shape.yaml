@@ -2,6 +2,10 @@ schema_version: 1
 id: discovery-agent-authoring-trigger-and-shape
 mode: discovery
 split: regression
+# 0.66, not 0.67: the bar is ceil(trials * threshold), and at DEFAULT_TRIALS = 3
+# ceil(3 * 0.67) == 3 -- byte-identical to threshold 1.0. ceil(3 * 0.66) == 2 is the
+# intended 2-of-3 propensity bar.
+threshold: 0.66
 target:
   kind: skill
   name: agent-authoring
@@ -16,19 +20,20 @@ success_criteria:
   - Separates activation or routing evidence from output-behavior evidence
   - Defines a bounded loop with a baseline, one candidate, comparable cases, and explicit termination
 graders:
-  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
-  # the adversarial fixtures for this scenario live in evals/test_graders.py.
+  # GRADER-003, options 1 and 2. The full behavioural contract moved to the direct-mode scenario
+  # named below, where the component is pinned and can emit a determinate artifact. What stays
+  # here is the routing floor: one grader proving the request reached this lane, one the prompt
+  # echo fails, and the anti-pattern guard. Four batches measured the old 8-grader conjunction at
+  # a ~0.53 ceiling over 3 trials regardless of grader quality, so the shape was the defect, not
+  # the words. threshold is below 1 because discovery here measures a propensity, not
+  # a contract.
+  # Full contract: evals/scenarios/agent-authoring-trigger-and-shape-contract.yaml
+  # Identity: the answer is about activation, not output quality.
   - type: contains_any
     of: ["activation", "routing"]
+  # Echo-rejector: the prompt says 'the adoption and stop conditions' and matches none of these.
   - type: contains_any
-    of: ["output shape", "output format", "output contract", "output behavior", "output behaviour"]
-  - type: contains_any
-    of: ["measure", "separately", "distinct"]
-  - type: contains_any
-    of: ["baseline", "reproduce", "regression case", "focused case"]
-  - type: contains_any
-    of: ["one candidate", "candidate budget", "single candidate", "exactly one candidate"]
-  - type: contains_any
-    of: ["human acceptance", "human approves", "human promotion", "adoption authority"]
+    of: ["human acceptance", "human approves", "human promotion", "adoption authority", "adoption condition", "adoption criteria", "adoption gate", "adopted when"]
+  # Anti-pattern guard.
   - type: not_contains
     of: ["unbounded iterations", "iterate until correct", "keep trying candidates"]

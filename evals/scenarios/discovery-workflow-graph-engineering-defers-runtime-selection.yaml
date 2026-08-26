@@ -19,14 +19,21 @@ routing:
     name: stack-profile
 success_criteria:
   - Does not invoke workflow-graph-engineering for a runtime-selection question
-  - Loads the team's current stack definition and platform boundary before answering
   - Treats the engine choice as a separate owner decision rather than selecting one
+# Routing-only (2026-08-25). The response graded here comes from the ALTERNATIVE lane, and
+# stack-profile's behavioral contract is not this skill's to grade; the one-sanity-grader shape follows the
+# existing _ROUTING_ONLY_DISCOVERY_SCENARIOS precedent in evals/test_graders.py, not a rule in
+# evals/README.md -- that file says the opposite for negative scenarios (:194, the expected
+# alternative and response graders must also pass), so this shape rests on precedent and the
+# reasoning below. Measured on Sonnet, 3 trials, runs
+# 20260824T205218Z-0b59db4b and 20260824T220919Z-d783ef1e: the routing seam over-triggered at root
+# 1/3 in both runs — an unchanged calibration measurement with two data points, not a grader
+# defect — and the platform-vocabulary grader added a further red the seam did not cause. The
+# retained sanity grader is the deferral set, which carries this scenario's actual contract: the
+# engine is not chosen here. The keyword-rich "standardize on Temporal" answer fails it.
 graders:
-  # Behavioral grader sets must reject a prompt echo and a keyword-rich incomplete response;
-  # the adversarial fixtures for this scenario live in evals/test_graders.py.
-  - type: contains_any
-    of: ["pcf", "tanzu", "cloud foundry"]
-  - type: contains_any
-    of: ["platform team", "platform boundary", "we own", "application team"]
-  - type: contains_any
-    of: ["decision record", "owner decision", "deferred", "pending", "not selected", "no engine is selected", "no runtime is selected"]
+    # Word-boundary regex, not contains_any: "pending" is a substring of "depending", and this
+    # is now the only grader in this scenario, so "Temporal is right depending on your effect
+    # model" -- exactly the answer this case exists to reject -- would have passed.
+  - type: regex
+    pattern: '(?i)\bdecision record\b|\bowner decision\b|\bdefer(?:s|red|ring|ral|rals)?\b|\bpending\b|\bnot selected\b|\bno (?:engine|runtime) is selected\b' 

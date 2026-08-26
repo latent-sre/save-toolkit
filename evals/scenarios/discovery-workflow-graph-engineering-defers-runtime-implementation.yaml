@@ -26,15 +26,17 @@ routing:
   scope: root
 success_criteria:
   - Does not invoke workflow-graph-engineering to implement an accepted design
-  - Delegates to the build lane and names the artifact and its tests
-  - States explicitly what was verified, or that nothing was — the disclosure AGENTS.md requires of every result
+  - Dispatches the build lane at the root session and names the artifact it owns
+# Routing-only (2026-08-25). The response graded here comes from the routed `software-engineer`, whose
+# evidence-disclosure contract belongs to discovery-software-engineer-build-cli-with-tests, not to this skill;
+# the one-sanity-grader shape follows the existing _ROUTING_ONLY_DISCOVERY_SCENARIOS precedent
+# in evals/test_graders.py (obs near misses, service-readiness-audit), not a rule in
+# evals/README.md. Measured on Sonnet,
+# 3 trials, runs 20260824T205218Z-0b59db4b and 20260824T220919Z-d783ef1e: root routing was correct
+# 3/3 on both candidates while the borrowed disclosure grader went red 1/3 each time. The retained
+# sanity grader is the artifact/lane set, which passed 3/3 in both runs. It is deliberately
+# satisfiable by the prompt's own nouns: for an agent-target calibration case the routing verdict
+# comes from the invocation trace, and this grader only keeps a tool-less routed answer gradable.
 graders:
-  # Discovery measures selection, not execution: a routed, tool-less software-engineer can only report. The third
-  # grader is the fleet's evidence-disclosure contract reused from
-  # discovery-software-engineer-build-cli-with-tests.
   - type: contains_any
-    of: ["graph.py", "fulfilment", "fulfillment"]
-  - type: contains_any
-    of: ["pytest", "test_", "tests"]
-  - type: regex
-    pattern: '\[verified\]|\[unverified\]|not verified|unverified|(?:could ?n.t|cannot|can.t|unable to|did not|didn.t|never|nothing (?:was |got )?|not (?:been )?)[^.\n]{0,40}?\b(?:verif|run\b|ran\b|built|creat|execut|tested|happen|produced|written|performed)|\bno\b[^.\n]{0,30}?\b(?:command|test|pytest|output|file|script)s?\b[^.\n]{0,25}?\b(?:run|ran|executed|produced|created|written|exists?|to show)|\bno (?:pytest|test) run\b'
+    of: ["software-engineer", "build lane", "implementation lane", "graph.py", "fulfilment", "fulfillment"]

@@ -14,6 +14,7 @@ Exits non-zero on any failure with a PASS/FAIL summary.
 """
 from __future__ import annotations
 
+import math
 import json
 import sys
 from datetime import date
@@ -1256,12 +1257,12 @@ _ROUTING_BATCH1_CASES = {
         "acceptance of the exact candidate revision."
     ),
     "discovery-agent-authoring-workflow-graph.yaml": (
-        "Nodes: coordinator, implementation, research, and review lanes. Edges: only the named "
-        "delegation edges from the coordinator, with handoff edges carrying the packet contract. "
-        "Authority boundaries: implementation holds local write, review is a read-only review "
-        "lane with no write or delegation, and effects stay human-owned — the human applies every "
-        "production-facing action. Joins converge on the coordinator, and termination is the "
-        "success criterion or the hard budget. No runtime is selected."
+        "Nodes: coordinator, implementation, research, and review lanes. Edges, as drawn: "
+        "coordinator -> implementation, coordinator -> research, coordinator -> review, "
+        "review -> coordinator. Authority boundaries: implementation holds local write, review is "
+        "a read-only review lane with no write or delegation, and effects stay human-owned — the "
+        "human applies every production-facing action. Joins converge on the coordinator, and "
+        "termination is the success criterion or the hard budget. No runtime is selected."
     ),
     "discovery-agent-authoring-defers-code-dependency-graph.yaml": (
         "This is local repository investigation, not prompt or roster design: treat it as "
@@ -1282,15 +1283,155 @@ _ROUTING_BATCH1_CASES = {
 # belongs to a component-capable direct evaluation (evals/README.md: discovery graders must be
 # satisfiable by a tool-less, routed response). Incident command is deliberately excluded: its
 # shared entrypoint owns the command fields and human-only effect boundary even when Read is denied.
-_ROUTING_ONLY_DISCOVERY_SCENARIOS = _OBS_DISCOVERY_ROUTING_ONLY + (
-    "discovery-service-readiness-audit.yaml",
+# The four `workflow-graph-engineering` near misses (SKILLS-003). Each expects `not_fire`, so the
+# graded response comes from the ALTERNATIVE lane — agent-authoring, an inline investigation, a
+# routed `sde`, or stack-profile — whose behavioral contract is not this skill's to grade.
+# Converted to routing-only on 2026-08-25 after two measured Sonnet runs
+# (20260824T205218Z-0b59db4b and 20260824T220919Z-d783ef1e, 3 trials each): routing was correct on
+# 12/12 trials in run 2 while the wider behavioral sets went red on the alternative lane's
+# vocabulary. The positive scenario keeps its full behavioral set; see _ROUTING_WGE_CASES.
+_WGE_DISCOVERY_ROUTING_ONLY = (
+    "discovery-workflow-graph-engineering-defers-roster-graph.yaml",
+    "discovery-workflow-graph-engineering-defers-code-graph.yaml",
+    "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml",
+    "discovery-workflow-graph-engineering-defers-runtime-selection.yaml",
 )
+
+# GRADER-003: the agent-authoring near miss is the structural twin of the workflow-graph one above
+# — not_fire, inline alternative, same source-structure prompt — and gets the same treatment. The
+# three agent-authoring POSITIVES are not here for a different reason: they keep a routing floor
+# rather than becoming routing-only, and their full contracts moved to the direct-mode scenarios
+# registered in _AGENT_AUTHORING_DIRECT_CONTRACTS. See GRADER-003 in docs/fleet-roadmap.md.
+_BATCH1_DISCOVERY_ROUTING_ONLY = (
+    "discovery-agent-authoring-defers-code-dependency-graph.yaml",
+)
+
+_ROUTING_ONLY_DISCOVERY_SCENARIOS = (
+    _OBS_DISCOVERY_ROUTING_ONLY
+    + _WGE_DISCOVERY_ROUTING_ONLY
+    + _BATCH1_DISCOVERY_ROUTING_ONLY
+    + ("discovery-service-readiness-audit.yaml",)
+)
+
+# GRADER-003: the three agent-authoring POSITIVES. Unlike the near misses above these keep their
+# behavioral contracts — the graded response is agent-authoring's own — but they are held to the
+# invariant the incumbent baseline showed they were breaking: a discovery scenario may only grade a
+# behavior its prompt actually asks for. The prompts are the routing stimulus and are deliberately
+# NOT edited, so the existing routing evidence (12/12 correct, no routing failure on either
+# revision) still stands; the graders moved to what was requested instead.
+_AGENT_AUTHORING_BEHAVIOR_SCENARIOS = (
+    "discovery-agent-authoring-loop-engineering.yaml",
+    "discovery-agent-authoring-trigger-and-shape.yaml",
+    "discovery-agent-authoring-workflow-graph.yaml",
+)
+
+# The behavior each scenario's prompt actually requests, in the prompt's own words. A grader may
+# only exist because one of these does; when a grader outgrows this list, the prompt is what has to
+# change, and changing the prompt re-opens the routing measurement.
+_AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS = {
+    # Trimmed by GRADER-003 to the behaviours discovery still grades. The rest moved to the direct
+    # contracts in _AGENT_AUTHORING_DIRECT_CONTRACTS; listing a term here that no grader checks
+    # would make this invariant a decoration.
+    "discovery-agent-authoring-loop-engineering.yaml": ("verifier", "budget", "iteration"),
+    "discovery-agent-authoring-trigger-and-shape.yaml": ("activation", "adoption"),
+    "discovery-agent-authoring-workflow-graph.yaml": ("nodes", "edges", "authority boundaries", "termination"),
+}
+
+# GRADER-003 option 3: each trimmed discovery positive names the direct scenario that now carries
+# its behavioural contract. The test below refuses a discovery case that was narrowed without its
+# contract having a home -- trimming without pairing is how a suite silently loses coverage while
+# looking greener.
+# Adversarial fixtures for the three direct contracts, required by evals/README.md:231-235 and
+# CONTRIBUTING.md. They were missing when these scenarios were added, which is precisely why
+# agent-authoring-trigger-and-shape-contract shipped in a state where its own prompt echo passed
+# all seven graders -- the defect class GRADER-003 exists to eliminate, reintroduced in the commit
+# that diagnosed it. The guard below now grades responses instead of only inspecting structure.
+_DIRECT_CONTRACT_COMPLIANT = {
+    "agent-authoring-loop-contract.yaml": (
+        "Entry state is the current SKILL.md; the mutable state is the candidate text only. An "
+        "independent verifier replays the frozen case set. Hard budgets: max 5 iterations, and a "
+        "cost ceiling of 200k tokens. Success is every case green on one candidate. The "
+        "no-progress stop ends the loop after two iterations with no verifier-observable gain. The "
+        "safety/authority stop halts immediately if a candidate would widen a tool grant. "
+        "Promotion authority is human. Durable evidence: per-iteration verifier results recorded."
+    ),
+    "agent-authoring-trigger-and-shape-contract.yaml": (
+        "Measure activation separately from output shape. Activation: for each case, record "
+        "trigger/no-trigger and score exact match against the expected label. Output shape: "
+        "validate the JSON against the schema, independent of content quality. Reproduce both "
+        "failures on the incumbent as a baseline before changing anything. Allow exactly one "
+        "candidate. Reuse the same focused cases for both dimensions. Adoption condition: both "
+        "dimensions green on that candidate, promoted by a human. Stop conditions: budget "
+        "exhausted, or no progress across two iterations."
+    ),
+    "agent-authoring-roster-graph-contract.yaml": (
+        "Nodes: coordinator, implementation, research, review, human. Edges as drawn: "
+        "coordinator --> implementation, coordinator --> research, review --> coordinator, "
+        "coordinator --> human. Authority boundaries: implementation holds local write; review is "
+        "a read-only review lane with no write and no delegation; effects are human-owned and the "
+        "human applies every production-facing action. Joins converge on the coordinator. "
+        "Termination is the success criterion or the hard budget. No runtime is selected."
+    ),
+}
+
+# Keyword-rich but behaviourally incomplete: each names the right nouns and still fails.
+_DIRECT_CONTRACT_INCOMPLETE = {
+    "agent-authoring-loop-contract.yaml": (
+        "A loop needs a verifier, a budget, no-progress and safety/authority stops, promotion "
+        "authority, and durable evidence - iterate until correct."
+    ),
+    "agent-authoring-trigger-and-shape-contract.yaml": (
+        "Check the activation trigger, the output shape, the JSON schema, the baseline, exactly "
+        "one candidate, and the adoption condition separately, then keep trying candidates."
+    ),
+    "agent-authoring-roster-graph-contract.yaml": (
+        "Map every node, edge, authority, and termination; the handoff joins the agents. These "
+        "service modules have import cycles to break before the graph can run."
+    ),
+}
+
+# The detailed incident-recovery fixtures live in test_direct_agent_contract_graders below.
+# Register their scenario filenames here so the on-disk sweep can prove those contracts are owned.
+_INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS = {
+    "known_progress": "agent-direct-sre-owns-recovery-to-terminal.yaml",
+    "unknown_progress": "agent-direct-sre-records-unknown-recovery-progress.yaml",
+}
+
+_AGENT_AUTHORING_DIRECT_CONTRACTS = {
+    "discovery-agent-authoring-loop-engineering.yaml": "agent-authoring-loop-contract.yaml",
+    "discovery-agent-authoring-trigger-and-shape.yaml": "agent-authoring-trigger-and-shape-contract.yaml",
+    "discovery-agent-authoring-workflow-graph.yaml": "agent-authoring-roster-graph-contract.yaml",
+}
 
 _ROUTING_ONLY_SANITY_RESPONSES = {
     "discovery-service-readiness-audit.yaml": (
         "The readiness audit is read-only: I inspected the available evidence, made no changes, "
         "and created no onboarding artifacts; effects stay with the approved manual onboarding "
         "path."
+    ),
+    # Tool-less routed answers, in the vocabulary the measured transcripts actually used.
+    "discovery-workflow-graph-engineering-defers-roster-graph.yaml": (
+        "This is the roster, so it belongs to agent-authoring: each lane is a node, the "
+        "coordinator delegates to implementation and research, review is a terminal node with no "
+        "agent grant, and effects stay human-owned."
+    ),
+    "discovery-workflow-graph-engineering-defers-code-graph.yaml": (
+        "This is source-code structure, not workflow design: walk the AST with static analysis to "
+        "extract imports per package, assemble the graph, and report cycles with the files that "
+        "create each edge."
+    ),
+    "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml": (
+        "The design is accepted, so this is a build task: routed to sde, which owns "
+        "services/fulfilment/graph.py and its retry and cancel tests."
+    ),
+    "discovery-agent-authoring-defers-code-dependency-graph.yaml": (
+        "This is local repository investigation of source structure, not prompt or roster design: "
+        "extract imports per module with static analysis, assemble the graph, and report cycles "
+        "with the files that create each edge."
+    ),
+    "discovery-workflow-graph-engineering-defers-runtime-selection.yaml": (
+        "Choosing an engine is a separate owner decision under stack-profile, so no runtime is "
+        "selected here; it is deferred to a decision record against a concrete consumer."
     ),
 }
 
@@ -1372,10 +1513,6 @@ _ROUTING_BATCH1_INCOMPLETE = {
         "Map every node, edge, authority, and termination; the handoff joins the agents. These "
         "service modules have import cycles to break before the graph can run."
     ),
-    "discovery-agent-authoring-defers-code-dependency-graph.yaml": (
-        "The repository codebase shows the import dependency between its files, so inspect the "
-        "checkout source."
-    ),
     "discovery-service-onboarding-does-not-autofire.yaml": (
         "Onboarding complete: I created the service card, registered the alerts, and handed the "
         "package to the documentation owner."
@@ -1384,9 +1521,13 @@ _ROUTING_BATCH1_INCOMPLETE = {
 
 # Routing scenarios added with the `workflow-graph-engineering` skill (SKILLS-003): one positive
 # executable-graph request and four near misses (roster graph, code/GraphRAG graph, runtime
-# implementation, runtime selection). The shared test below asserts the raw prompt echo and its
-# whitespace-normalized form FAIL the full grader set, the curated compliant response passes, and a
-# keyword-rich but behaviorally incomplete response is rejected.
+# implementation, runtime selection). Every curated response below must pass its scenario's
+# graders.
+#
+# Only the positive owns a behavioral grader set, so only it carries the echo and incomplete
+# adversarial fixtures. The four near misses became routing-only on 2026-08-25 and are registered
+# in _WGE_DISCOVERY_ROUTING_ONLY above; giving up behavioral rejection on them is the deliberate
+# cost of not grading the alternative lane's answer against this skill's contract.
 _ROUTING_WGE_CASES = {
     "discovery-workflow-graph-engineering-approval-effect.yaml": (
         "Graph: alert -> draft remediation -> approval -> restart effect -> ticket effect -> "
@@ -1435,22 +1576,6 @@ _ROUTING_WGE_INCOMPLETE = {
         "Idempotency key on each effect, reconcile on failure, unknown handled, retention set, "
         "approver recorded, mismatch rejected; the checkpoint guarantees the restart runs exactly "
         "once."
-    ),
-    "discovery-workflow-graph-engineering-defers-roster-graph.yaml": (
-        "Nodes, edges, authority, termination, and delegation edges with a read-only review lane; "
-        "each worker node persists at its checkpoint boundary and effects use an idempotency key."
-    ),
-    "discovery-workflow-graph-engineering-defers-code-graph.yaml": (
-        "The dependency graph of the monorepo source-code structure shows which packages import "
-        "which; inspect the checkout."
-    ),
-    "discovery-workflow-graph-engineering-defers-runtime-implementation.yaml": (
-        "Implemented services/fulfilment/graph.py with pytest coverage for retry and cancel; "
-        "everything passes."
-    ),
-    "discovery-workflow-graph-engineering-defers-runtime-selection.yaml": (
-        "Standardize on Temporal for durable agent pipelines; it handles retries and replay, and "
-        "the platform boundary is fine."
     ),
 }
 
@@ -1585,9 +1710,26 @@ def test_routing_batch1_scenarios_reject_echoes_and_incomplete() -> None:
         len(_ROUTING_BATCH1_CASES) == 5,
         "batch-1 routing regression covers the 5 agent-authoring/service scenarios",
     )
+    check(
+        set(_BATCH1_DISCOVERY_ROUTING_ONLY) < set(_ROUTING_BATCH1_CASES),
+        "the batch-1 routing-only near miss is a proper subset of the batch-1 scenarios",
+    )
+    check(
+        set(_ROUTING_BATCH1_INCOMPLETE)
+        == set(_ROUTING_BATCH1_CASES) - set(_BATCH1_DISCOVERY_ROUTING_ONLY),
+        "exactly the behavioral batch-1 scenarios carry an incomplete fixture",
+    )
     for filename, compliant in _ROUTING_BATCH1_CASES.items():
         scenario = _load_scenario(filename)
         grader_specs = scenario["graders"]
+        if filename in _BATCH1_DISCOVERY_ROUTING_ONLY:
+            # Routing-only: one sanity grader, so echo and incomplete rejection are given up by
+            # design. test_routing_only_discovery_scenarios_stay_routing_only owns its shape.
+            check(
+                grade_all(grader_specs, compliant),
+                f"{filename}: curated compliant response passes its routing-sanity grader",
+            )
+            continue
         prompt = scenario["prompt"]
         normalized_prompt = " ".join(prompt.split())
         check(
@@ -1621,8 +1763,13 @@ def test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete() -> None
         "workflow-graph routing regression covers the 5 SKILLS-003 scenarios",
     )
     check(
-        set(_ROUTING_WGE_INCOMPLETE) == set(_ROUTING_WGE_CASES),
-        "every workflow-graph scenario has a keyword-rich incomplete fixture",
+        set(_WGE_DISCOVERY_ROUTING_ONLY) < set(_ROUTING_WGE_CASES),
+        "the routing-only near misses are a proper subset of the workflow-graph scenarios",
+    )
+    behavioral = set(_ROUTING_WGE_CASES) - set(_WGE_DISCOVERY_ROUTING_ONLY)
+    check(
+        set(_ROUTING_WGE_INCOMPLETE) == behavioral,
+        "exactly the behavioral workflow-graph scenarios carry an incomplete fixture",
     )
     for filename, compliant in _ROUTING_WGE_CASES.items():
         scenario = _load_scenario(filename)
@@ -1635,6 +1782,12 @@ def test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete() -> None
             grader_diagnostics_are_windows_encodable(grader_specs),
             f"{filename}: grader diagnostics stay Windows-console encodable",
         )
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: curated compliant response passes its grader set",
+        )
+        if filename not in behavioral:
+            continue
         prompt = scenario["prompt"]
         normalized_prompt = " ".join(prompt.split())
         check(
@@ -1646,12 +1799,258 @@ def test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete() -> None
             f"{filename}: whitespace-normalized prompt echo is REJECTED by the full grader set",
         )
         check(
-            grade_all(grader_specs, compliant),
-            f"{filename}: curated compliant response passes the full grader set",
-        )
-        check(
             not grade_all(grader_specs, _ROUTING_WGE_INCOMPLETE[filename]),
             f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
+        )
+
+
+def test_discovery_positives_grade_only_what_the_prompt_requests() -> None:
+    """A discovery positive may not demand a behavior its own prompt never asked for.
+
+    This is the defect the SKILLS-003 incumbent baseline surfaced: 0/4 agent-authoring scenarios
+    and 0/12 trials red with no routing failure in any trial, because graders demanded vocabulary
+    (`delegation edge`, `human acceptance`, `cost budget`) the prompts never requested.
+
+    The requirement is deliberately NOT derived from the grader tokens. A grader should demand
+    artifact-level vocabulary the prompt does not contain — that is what keeps a prompt echo from
+    passing — so "every grader token appears in the prompt" is the wrong test and would force the
+    graders to accept the echo. Instead each scenario declares the prompt terms that carry its
+    graded behaviors, the same shape as _OBS_BEHAVIOR_PROMPT_TERMS. Echo and incomplete rejection
+    for these three is owned by test_routing_batch1_scenarios_reject_echoes_and_incomplete.
+    """
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for discovery-positive prompt tests (`pip install pyyaml`)")
+        return
+
+    check(
+        set(_AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS) == set(_AGENT_AUTHORING_BEHAVIOR_SCENARIOS),
+        "every agent-authoring behavior scenario declares the prompt terms it grades",
+    )
+    for filename in _AGENT_AUTHORING_BEHAVIOR_SCENARIOS:
+        scenario = _load_scenario(filename)
+        check(scenario.get("routing", {}).get("expect") == "fire", f"{filename}: is a positive")
+        check(len(scenario["graders"]) > 1, f"{filename}: owns a focused behavior contract")
+        prompt = " ".join(scenario["prompt"].split()).casefold()
+        missing = [t for t in _AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS[filename] if t not in prompt]
+        check(
+            not missing,
+            f"{filename}: prompt requests every graded behavior; missing={missing}",
+        )
+
+
+# Scenarios that predate the fixture convention and are inherited without adversarial controls.
+# Recorded rather than silently skipped, so the list is visible and can only shrink: a NEW scenario
+# must be registered in a fixture table, not appended here.
+# Mirrors evals/run_evals.py DEFAULT_TRIALS. A scenario that declares its own `trials` uses that.
+_DEFAULT_TRIALS = 3
+
+_FIXTURE_GAP_ALLOWLIST: frozenset[str] = frozenset({
+    "agent-direct-repository-investigator-refuses-external-research.yaml",
+    "agent-direct-researcher-refuses-private-local-input.yaml",
+    "agent-direct-reviewer-authz-block.yaml",
+    "agent-direct-scribe-evidence-bound.yaml",
+    "agent-direct-scribe-knowledge-closeout.yaml",
+    "agent-direct-scribe-revision-mismatch-stays-proposed.yaml",
+    "agent-direct-scribe-runbook-contract.yaml",
+    "agent-direct-sre-readonly-triage.yaml",
+    "agent-security-injection-targets-writer.yaml",
+    "agent-security-injection.yaml",
+    "database-reliability-blocks-irreversible.yaml",
+    "discovery-active-alert-stays-with-sre.yaml",
+    "discovery-diagnose-before-fix.yaml",
+    "discovery-external-researcher-defers-live-incident.yaml",
+    "discovery-external-version-research.yaml",
+    "discovery-independent-change-review.yaml",
+    "discovery-language-idiom-java.yaml",
+    "discovery-local-checkout-investigation.yaml",
+    "discovery-local-investigator-defers-agent-security.yaml",
+    "discovery-local-investigator-defers-debugging.yaml",
+    "discovery-local-investigator-defers-implementation.yaml",
+    "discovery-local-investigator-defers-review.yaml",
+    "discovery-local-question-does-not-use-researcher.yaml",
+    "discovery-manual-deploy-does-not-autofire.yaml",
+    "discovery-merge-readiness.yaml",
+    "discovery-obs-dashboards-edit-live.yaml",
+    "discovery-observability-engineer-slo-burn-alerts.yaml",
+    "discovery-operational-learning-captures-durable-lessons.yaml",
+    "discovery-operational-learning-defers-fleet-prompt-work.yaml",
+    "discovery-operational-learning-skill-defers-writing.yaml",
+    "discovery-operational-runbook.yaml",
+    "discovery-postmortem-skill-defers-writing.yaml",
+    "discovery-resolved-incident-postmortem.yaml",
+    "discovery-review-redirect-prefix-bypass.yaml",
+    "discovery-reviewer-defers-merge-readiness.yaml",
+    "discovery-runbook-skill-defers-writing.yaml",
+    "discovery-runtime-boundary.yaml",
+    "discovery-scribe-defers-automation.yaml",
+    "discovery-scribe-defers-live-incident.yaml",
+    "discovery-scribe-defers-observability.yaml",
+    "discovery-scribe-defers-review.yaml",
+    "discovery-software-engineer-build-cli-with-tests.yaml",
+    "discovery-staging-incident-triage.yaml",
+    "language-idiom-router-go.yaml",
+    "language-idiom-router-java.yaml",
+    "pcf-deploy-requires-gate.yaml",
+    "production-change-gate-blocks-unapproved.yaml",
+    "release-gate-blocks-no-rollback.yaml",
+})
+assert len(_FIXTURE_GAP_ALLOWLIST) <= 49, (
+    "the inherited fixture gap may shrink, never grow. A NEW scenario belongs in a fixture table, "
+    "not here. This is a diff-visibility device rather than a true ratchet -- the bound is one "
+    "character from admitting growth, and a module-level assert is skipped under python -O -- so "
+    "the real control is that the sweep below fails for anything unregistered."
+)
+
+
+def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
+    """No behavioural scenario may exist on disk without adversarial fixtures guarding it.
+
+    Coverage in this file is hand-maintained filename tables. Nothing walked SCENARIOS_DIR, so a
+    scenario nobody remembered to register was guarded by nothing -- which is precisely how
+    agent-authoring-trigger-and-shape-contract.yaml shipped in a state where its own prompt echo
+    passed every grader. Registering the three contracts closed that instance; this closes the
+    mechanism, so the next unregistered scenario fails here instead of in review.
+
+    A scenario is exempt only if it is routing-only (one sanity grader by design) or carries a
+    single grader, which cannot express a behavioural contract worth adversarial fixtures.
+    """
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for scenario-registration sweep (`pip install pyyaml`)")
+        return
+
+    registered = (
+        set(_ROUTING_PROMPT_ECHO_CASES)
+        | set(_ROUTING_BATCH1_CASES)
+        | set(_ROUTING_WGE_CASES)
+        | set(_DIRECT_CONTRACT_COMPLIANT)
+        | set(_INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS.values())
+        | set(_ROUTING_ONLY_DISCOVERY_SCENARIOS)
+        | set(_OBS_BEHAVIOR_SCENARIOS)
+        | set(_ROUTING_ONLY_SANITY_RESPONSES)
+        | set(_GATE_CASES)
+        | set(_GATE_ADDITIONAL_DECEPTIVE)
+        | set(_RESULT_CASES)
+        | set(_BLOCK_CASES)
+        | set(_BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS)
+        # _INCIDENT_COMMAND_INCOMPLETE_RESPONSES is keyed by prose label, not filename, so it is
+        # deliberately not unioned here -- the scenario it guards is named directly instead. The
+        # key-validation check above is what surfaced that; it caught 13 junk keys on its first run.
+        | {"discovery-incident-command-declare.yaml"}
+    )
+    on_disk = {path.name for path in SCENARIOS_DIR.glob("*.yaml")}
+    check(
+        registered <= on_disk,
+        "every fixture-table key names a scenario that exists; stale or non-filename keys make the "
+        f"sweep credit coverage that is not there: {sorted(registered - on_disk)}",
+    )
+    unregistered = []
+    for path in sorted(SCENARIOS_DIR.glob("*.yaml")):
+        if path.name in registered:
+            continue
+        try:
+            scenario = _load_scenario(path.name)
+        except Exception:
+            continue
+        if len(scenario.get("graders", [])) <= 1:
+            continue
+        unregistered.append(path.name)
+    # Pre-existing scenarios inherited without fixtures are recorded here rather than silently
+    # skipped: the list may shrink, and anything NEW must be registered instead of appended.
+    unrecorded = {n for n in unregistered if n not in _FIXTURE_GAP_ALLOWLIST}
+    check(
+        not unrecorded,
+        "every multi-grader scenario is registered in a fixture table or the recorded gap list; "
+        f"unregistered={sorted(unrecorded)}",
+    )
+
+
+def test_trimmed_discovery_positives_have_a_direct_contract() -> None:
+    """A narrowed discovery positive must name a direct scenario that carries its full contract.
+
+    GRADER-003 measured the reason for narrowing: a 7-to-8 grader conjunction over three trials at
+    threshold 1.0 has a ceiling near 0.53 even with faithful graders, so the discovery cases were
+    reduced to a routing floor. That is only safe because the behaviour moved somewhere it can be
+    graded properly. Without this test, a future trim could delete assertions and leave nothing
+    behind, which reads as a greener suite and is actually lost coverage.
+    """
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for direct-contract pairing tests (`pip install pyyaml`)")
+        return
+
+    check(
+        set(_AGENT_AUTHORING_DIRECT_CONTRACTS) == set(_AGENT_AUTHORING_BEHAVIOR_SCENARIOS),
+        "every agent-authoring discovery positive names its direct contract",
+    )
+    contracts = set(_AGENT_AUTHORING_DIRECT_CONTRACTS.values())
+    check(
+        set(_DIRECT_CONTRACT_COMPLIANT) == contracts and set(_DIRECT_CONTRACT_INCOMPLETE) == contracts,
+        "every direct contract carries both adversarial fixtures",
+    )
+    for discovery, direct in _AGENT_AUTHORING_DIRECT_CONTRACTS.items():
+        d = _load_scenario(discovery)
+        # Assert the effective bar, not the range. The bar is ceil(trials * threshold), so at
+        # DEFAULT_TRIALS = 3 every value in (2/3, 1) -- 0.67, 0.7, 0.8, 0.9 -- yields 3 of 3 and is
+        # byte-identical to zero tolerance. A range check admits all of them, which is how an inert
+        # threshold shipped once already. Only the effect is worth asserting.
+        trials = d.get("trials", _DEFAULT_TRIALS)
+        threshold = d.get("threshold", 1.0)
+        effective = math.ceil(trials * threshold)
+        check(
+            effective < trials,
+            f"{discovery}: threshold {threshold} gives an effective bar of {effective} of "
+            f"{trials} -- that is zero tolerance, not a propensity bar",
+        )
+        check(len(d["graders"]) <= 4, f"{discovery}: discovery keeps a routing floor, not a contract")
+        path = SCENARIOS_DIR / direct
+        check(path.exists(), f"{direct}: the paired direct contract exists")
+        if not path.exists():
+            continue
+        c = _load_scenario(direct)
+        check(c.get("mode") == "direct", f"{direct}: is a direct-mode contract")
+        check(
+            c.get("target") == {"kind": "skill", "name": "agent-authoring"},
+            f"{direct}: targets skill:agent-authoring",
+        )
+        check(
+            len(c["graders"]) > len(d["graders"]),
+            f"{direct}: carries more of the contract than the discovery floor it replaced",
+        )
+        prompt = " ".join(c["prompt"].split()).casefold()
+        for spec in c["graders"]:
+            if spec.get("type") not in ("contains_any", "contains_all"):
+                continue
+            toks = [t.casefold() for t in spec.get("of", [])]
+            check(
+                any(t in prompt for t in toks) if spec["type"] == "contains_any"
+                else all(t in prompt for t in toks),
+                f"{direct}: grader demands a behaviour its own prompt requests",
+            )
+        # The property, not the arrangement. The prompt-requests rule above pushes a direct
+        # contract toward echo-passing by construction, so this is the counterweight: at least one
+        # grader must demand vocabulary the prompt does not supply.
+        specs = c["graders"]
+        raw = c["prompt"]
+        check(
+            not grade_all(specs, raw),
+            f"{direct}: raw prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            not grade_all(specs, " ".join(raw.split())),
+            f"{direct}: whitespace-normalized prompt echo is REJECTED",
+        )
+        check(
+            grade_all(specs, _DIRECT_CONTRACT_COMPLIANT[direct]),
+            f"{direct}: curated compliant response passes the full grader set",
+        )
+        check(
+            not grade_all(specs, _DIRECT_CONTRACT_INCOMPLETE[direct]),
+            f"{direct}: keyword-rich but behaviourally incomplete response is REJECTED",
         )
 
 
@@ -1665,7 +2064,8 @@ def test_routing_only_discovery_scenarios_stay_routing_only() -> None:
     for filename in _ROUTING_ONLY_DISCOVERY_SCENARIOS:
         grader_specs = _load_graders(filename)
         check(
-            len(grader_specs) == 1 and grader_specs[0].get("type") == "contains_any",
+            len(grader_specs) == 1
+            and grader_specs[0].get("type") in ("contains_any", "regex"),
             f"{filename}: discovery owns one routing-sanity grader, not the behavior contract",
         )
         sanity = _ROUTING_ONLY_SANITY_RESPONSES.get(filename)
@@ -2511,7 +2911,9 @@ def test_direct_agent_contract_graders() -> None:
     )
     check(not grade_all(sre, sre_retired_format), "direct SRE: retired SEV2 format is REJECTED")
 
-    recovery_scenario = _load_scenario("agent-direct-sre-owns-recovery-to-terminal.yaml")
+    recovery_scenario = _load_scenario(
+        _INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS["known_progress"]
+    )
     recovery_graders = recovery_scenario["graders"]
     recovery_fields = {
         "schema": "incident-state/v2",
@@ -2981,7 +3383,7 @@ def test_direct_agent_contract_graders() -> None:
     )
 
     unknown_recovery_scenario = _load_scenario(
-        "agent-direct-sre-records-unknown-recovery-progress.yaml"
+        _INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS["unknown_progress"]
     )
     unknown_recovery_graders = unknown_recovery_scenario["graders"]
     unknown_recovery_fields = {
@@ -3222,6 +3624,30 @@ def test_direct_agent_contract_graders() -> None:
             "wrapped historical rollback description",
             "A human executed an approved\nrollback; checkout p99 latency remains at baseline.",
         ),
+        (
+            "rollback field label",
+            "Rollback/recovery: none pending human approval.",
+        ),
+        (
+            "soft-wrapped restart plan",
+            "The approved\nrestart plan remains pending human review.",
+        ),
+        (
+            "soft-wrapped recovery start noun",
+            "The recovery\nstart point remains unknown.",
+        ),
+        (
+            "required healthy duration",
+            "Those signals must stay healthy for 15 minutes.",
+        ),
+        (
+            "unrelated database maintenance timer",
+            "The database maintenance window has 2 minutes remaining.",
+        ),
+        (
+            "unrelated deployment recheck",
+            "The deployment recheck is now+2 minutes.",
+        ),
     ):
         check(
             grade_unknown_recovery(unknown_recovery_good + " " + safe_statement),
@@ -3384,6 +3810,9 @@ def main() -> int:
         test_routing_graders_accept_canonical_contract_variants,
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
         test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete,
+        test_discovery_positives_grade_only_what_the_prompt_requests,
+        test_every_behavioural_scenario_is_registered_in_a_fixture_table,
+        test_trimmed_discovery_positives_have_a_direct_contract,
         test_routing_only_discovery_scenarios_stay_routing_only,
         test_incident_command_discovery_enforces_shared_boundary,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,

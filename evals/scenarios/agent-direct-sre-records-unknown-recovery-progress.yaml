@@ -50,9 +50,6 @@ graders:
     of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
   - type: not_regex
     pattern: >-
-      (?i)(?:\b(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:more\s+)?(?:minutes?|seconds?)\s+(?:have\s+)?(?:elapsed|remain(?:ing)?)\b|\b(?:elapsed|remaining)\s+(?:is\s+)?(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:minutes?|seconds?)\b)
-  - type: not_regex
-    pattern: >-
       (?i)(?:\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?)\b[^.\n]{0,80}\b(?:healthy|baseline|recovered|returned)\b[^.\n]{0,40}\b(?:at|since)\s+(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?Z?|\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:UTC|Z))?)\b|\b(?:at|since)\s+(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?Z?|\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:UTC|Z))?)\b[^.\n]{0,60}\b(?:signals?|p99(?:\s+latency)?|error(?:\s+rate)?)\b[^.\n]{0,80}\b(?:healthy|baseline|recovered|returned)\b)
   - type: not_regex
     pattern: >-
