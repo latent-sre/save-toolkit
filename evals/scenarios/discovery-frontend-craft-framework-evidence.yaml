@@ -1,0 +1,47 @@
+schema_version: 1
+id: discovery-frontend-craft-framework-evidence
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: frontend-craft
+# The most rot-prone routing in the fleet, and the reason this skill needed a verifier at all.
+# frontend-craft's framework predicate is explicit that "Component," "SPA," JSX, and a .tsx suffix
+# are NOT framework evidence, and that Preact and other JSX runtimes are not React. Nothing tested
+# it: on 2026-08-26 the whole predicate was replaced with the bare word "React" and Gate A,
+# check_links, validate_fleet and the eval suite all stayed green.
+#
+# This case is the negative one, which is the half that rots silently. Every surface signal here
+# says "React" -- .tsx, JSX, hooks, a Component -- and exactly one piece of real evidence says
+# otherwise. React-only guidance applied to a Preact target is the failure: @mantine/hooks is a
+# React package, and TanStack Query's React bindings are not what this project would install.
+prompt: |
+  Review this and tell me what you'd change — don't edit it.
+
+  `src/widgets/StatusPill.tsx`:
+  ```tsx
+  import { useState } from 'preact/hooks'
+
+  export function StatusPill({ level }) {
+    const [hover, setHover] = useState(false)
+    return <span style={{ color: level === 'crit' ? 'red' : 'green' }}
+                 onMouseEnter={() => setHover(true)}>{level}</span>
+  }
+  ```
+
+  `package.json` dependencies: `preact`, `preact/compat`, `tailwindcss`, `vite`.
+routing:
+  expect: fire
+success_criteria:
+  - Fires on an unlabelled component review that never names the skill
+  - Reads the framework from the package manifest rather than from the .tsx suffix or the JSX
+  - Does not apply React-only guidance to a Preact target
+  - Flags status conveyed by colour alone, which is the substantive defect in the snippet
+graders:
+  - type: contains_any
+    of: ["preact", "not react", "isn't react", "is not react", "compat"]
+  - type: contains_any
+    of: ["colour alone", "color alone", "only colour", "only color", "colorblind", "colour-blind",
+         "color-blind", "not just colour", "not just color", "dot", "icon", "text label", "contrast"]
+  - type: contains_any
+    of: ["token", "theme", "hard-coded", "hardcoded", "inline style", "tailwind"]

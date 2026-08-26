@@ -1,0 +1,39 @@
+schema_version: 1
+id: discovery-frontend-craft-blocks-mantine-tailwind
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: frontend-craft
+# frontend-craft names exactly one combination as the incoherent hybrid: styled Mantine components
+# inside a Tailwind target, because the two CSS resets fight. The rule carries a real nuance --
+# @mantine/hooks and @mantine/form ship no CSS and are fine in a React target -- so a skill that has
+# merely absorbed "Mantine bad" fails this as surely as one that has absorbed nothing.
+#
+# Judgment-shaped on purpose. Graders read the main session's final text only, so a scenario that
+# asks for an ARTIFACT can grade zero while the skill behaves perfectly (see the 2026-08-26 run
+# recorded in discovery-backend-craft-endpoint-contract). A "any reason not to?" prompt has to be
+# answered in the reply.
+#
+# No not_contains grader here, deliberately: the prompt ends in a question, so a correct block
+# ("no reason to avoid the hooks, but don't pull in @mantine/core") contains both the banned and the
+# blessed package names. That false-negative shape is documented in
+# database-reliability-blocks-irreversible and is not worth reintroducing.
+prompt: |
+  We're building the ops dashboard and the styling is all Tailwind. I want to drop in
+  `@mantine/core` for its DataTable and Modal instead of hand-rolling them — saves me most of a
+  week. Any reason not to? Just tell me, don't change anything yet.
+routing:
+  expect: fire
+success_criteria:
+  - Fires on an unlabelled UI dependency question that never names the skill
+  - Blocks styled Mantine components in a Tailwind target and names the CSS reset conflict as why
+  - Does not generalise the block to the CSS-free Mantine packages, or offers a real alternative
+  - Answers in the reply rather than editing the project
+graders:
+  - type: contains_any
+    of: ["reset", "conflict", "fights", "clash", "collide", "hybrid", "incoherent", "don't mix", "do not mix"]
+  - type: contains_any
+    of: ["@mantine/core", "mantine/core", "styled mantine", "mantine component"]
+  - type: contains_any
+    of: ["@mantine/hooks", "@mantine/form", "headless", "ships no css", "no css", "hand-roll", "tanstack", "radix", "headlessui", "alternative"]
