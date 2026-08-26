@@ -28,7 +28,7 @@ root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs
 ([ADR](docs/decisions/2026-08-23-retire-codex-distribution-target.md)).
 
 **Before first use:** the canonical [`stack-profile` skill bundle](skills/stack-profile/) declares
-*this* team's stack (PCF, GCP Cloud Run, Wavefront, Splunk, Akamai). Every platform-touching skill
+*this* team's stack (PCF, GCP Cloud Run, DX OpenExplore, Splunk, Akamai). Every platform-touching skill
 routes through it — if that is not your stack, update its entrypoint and matching references first
 or the fleet will confidently recommend someone else's tools.
 

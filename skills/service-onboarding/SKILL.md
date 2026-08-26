@@ -7,6 +7,7 @@ description: >-
   'complete service onboarding'. Not for read-only readiness reviews; use `service-readiness-audit`.
 # Side-effect-shaped: invoke explicitly as `/save-toolkit:service-onboarding`; never auto-load.
 disable-model-invocation: true
+argument-hint: "[the service to onboard]"
 ---
 
 This is the explicit, effect-shaped onboarding workflow. For a read-only assessment of whether an

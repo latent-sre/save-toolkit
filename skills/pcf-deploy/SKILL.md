@@ -8,6 +8,7 @@ description: >-
 compatibility: Requires the cf CLI v8 and authorized access to the target PCF foundation/space
 # Deploys are human-initiated: invoke explicitly as `/save-toolkit:pcf-deploy`; never auto-load.
 disable-model-invocation: true
+argument-hint: "[the app and target foundation]"
 ---
 
 # PCF / TAS deploy planning (cf CLI v8)

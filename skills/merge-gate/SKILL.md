@@ -7,6 +7,7 @@ description: >-
   `/save-toolkit:merge-gate`. Triggers: "is this ready to merge", "run the merge gate", "can I merge this
   PR". Ownership map only—not a load: merge-gate = ready to merge; release-gate = ready to ship;
   production-change-gate = authorized to act on prod.
+argument-hint: "[the change to gate]"
 ---
 
 # Merge gate

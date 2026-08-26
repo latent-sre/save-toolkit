@@ -7,6 +7,7 @@ description: >-
   tested rollback exists. Triggers: "is this build ready to ship", "run the release gate", "can we
   release this". Ownership map only—not a load: merge-gate = ready to merge; release-gate = ready to
   ship; production-change-gate = authorized to act on prod.
+argument-hint: "[the release or artifact to gate]"
 ---
 
 # Release gate

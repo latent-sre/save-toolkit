@@ -6,6 +6,7 @@ description: >-
   'can I run this cf command in prod', 'review this rollback plan'. Ownership map only—not a load:
   the `merge-gate` skill decides merge readiness and the `release-gate` skill decides ship readiness; this
   gate authorizes the prod action.
+argument-hint: "[the proposed production change]"
 ---
 
 # Production change gate

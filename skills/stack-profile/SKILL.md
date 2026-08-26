@@ -6,6 +6,7 @@ description: >-
   choosing between observability backends. Triggers: "what's our stack", "should we use X for this",
   "can we move this to Kubernetes / the cloud", "which backend do I query". This skill bundle changes
   when the ground shifts.
+argument-hint: "[the runtime, tool, or infrastructure question]"
 ---
 
 # Stack profile — current facts, not aspirations

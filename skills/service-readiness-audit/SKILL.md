@@ -5,6 +5,7 @@ description: >-
   ownership, health, telemetry, SLOs, alerts, runbooks, dependencies, capacity, and recovery.
   Triggers: 'audit this service', 'is this service operationally ready', 'find our service readiness
   gaps'. Not for creating onboarding artifacts or live changes; use manual `service-onboarding`.
+argument-hint: "[the service to assess]"
 ---
 
 # Service readiness audit

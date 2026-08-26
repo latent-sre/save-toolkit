@@ -6,6 +6,7 @@ description: >-
   my app 502-ing', 'exit code 137', 'X-Cf-RouterError'. Ownership map only—not a load: the `stack-profile` skill supplies boundary facts; widespread Diego/Gorouter failures go to the platform
   team with evidence.
 compatibility: Requires the cf CLI v8 and access/auth to the target PCF foundation
+argument-hint: "[the app or platform symptom]"
 ---
 
 # PCF / TAS application-side triage (cf CLI v8)

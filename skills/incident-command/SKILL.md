@@ -6,6 +6,7 @@ description: >-
   execution. Triggers: 'declare an incident', 'what severity is this', 'send the incident update',
   'should we roll back'. Not for technical diagnosis (sre), resolved-incident documentation
   (scribe), or applying production changes.
+argument-hint: "[the incident or severity question]"
 ---
 
 # Incident command
