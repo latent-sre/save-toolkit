@@ -76,8 +76,24 @@ class RunnerFailed(RuntimeError):
     with an empty trace; this is the general case."""
 
 
+def _scrub_tree(path) -> None:
+    """rmtree that reports what it could not delete, on every interpreter this repo blesses.
+
+    `onexc` arrived in 3.12; `onerror` is deprecated there but still honored, and is all 3.11 has.
+    Gate A's floor is 3.11, so naming either callback alone breaks one of the two interpreters --
+    and it breaks it as a raised TypeError inside a `finally:` that is deleting a COPY OF THE AUTH
+    CREDENTIALS. The teardown must not be the thing that fails.
+    """
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=_warn_leftover)
+    else:
+        shutil.rmtree(
+            path, onerror=lambda func, p, exc_info: _warn_leftover(func, p, exc_info[1])
+        )
+
+
 def _warn_leftover(func, path, exc) -> None:
-    """onexc handler for the clean-room rmtree: never fail silently, we're deleting a credential copy."""
+    """Failure handler for the clean-room rmtree: never fail silently, we're deleting a credential copy."""
     print(
         f"clean_room: WARNING -- failed to remove {path} ({func.__name__}: {exc}). "
         f"This directory holds a COPY OF THE AUTH CREDENTIALS and was left on disk.",
@@ -163,7 +179,7 @@ def neutral_workspace():
             raise RunnerFailed("neutral trial workspace contains project instructions or settings")
         yield tmp
     finally:
-        shutil.rmtree(tmp, onexc=_warn_leftover)
+        _scrub_tree(tmp)
 
 
 def is_auth_failure(text: str, returncode: int | None = None) -> bool:
@@ -208,4 +224,4 @@ def clean_env():
         # credential-file check is inapplicable.
         yield scrubbed_child_env(tmp)
     finally:
-        shutil.rmtree(tmp, onexc=_warn_leftover)  # onexc (3.12+): repo/CI both pin Python 3.12.
+        _scrub_tree(tmp)
