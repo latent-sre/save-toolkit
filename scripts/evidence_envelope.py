@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
 import re
+import stat
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -94,6 +96,103 @@ def sha256_file(path: Path) -> str:
     with path.open("rb") as handle:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
+    return digest.hexdigest()
+
+
+class TreeDigestError(ValueError):
+    """A source snapshot could not be hashed under the tree-digest rules."""
+
+
+# Kept byte-compatible with the retired scripts/verification_sandbox.py implementation -- the
+# `save-toolkit-verification-tree-v1` prefix and the D/F framing are part of the digest, so any
+# already-recorded digest in a dated evidence packet still verifies against this code.
+TREE_DIGEST_PREFIX = b"save-toolkit-verification-tree-v1\0"
+MAX_TREE_FILES = 100_000
+MAX_TREE_BYTES = 10 * 1024 * 1024 * 1024
+FILE_ATTRIBUTE_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+
+
+def _is_indirection(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TreeDigestError(f"cannot inspect path metadata: {path}") from exc
+    return path.is_symlink() or bool(
+        getattr(info, "st_file_attributes", 0) & FILE_ATTRIBUTE_REPARSE_POINT
+    )
+
+
+def _absolute_without_indirection(path: Path, label: str) -> Path:
+    """Resolve an absolute path only after rejecting linked/reparsed existing ancestors."""
+
+    absolute = Path(os.path.abspath(path.expanduser()))
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        if not current.exists() and not current.is_symlink():
+            break
+        if _is_indirection(current):
+            raise TreeDigestError(f"{label} must not traverse a link or reparse point: {current}")
+    return absolute.resolve()
+
+
+def tree_digest(root: Path) -> str:
+    """Hash a bounded ordinary-file tree without following links or executing target code."""
+
+    root = _absolute_without_indirection(root, "source")
+    if not root.is_dir() or _is_indirection(root):
+        raise TreeDigestError("source must be an ordinary directory, not a link or reparse point")
+    if root.name.casefold() == ".git":
+        raise TreeDigestError("source snapshots must not expose .git metadata")
+    digest = hashlib.sha256(TREE_DIGEST_PREFIX)
+    file_count = 0
+    byte_count = 0
+
+    def visit(directory: Path) -> None:
+        nonlocal file_count, byte_count
+        try:
+            entries = sorted(directory.iterdir(), key=lambda item: item.name)
+        except OSError as exc:
+            raise TreeDigestError(f"cannot enumerate source tree: {directory}") from exc
+        for entry in entries:
+            relative = entry.relative_to(root).as_posix()
+            if entry.name.casefold() == ".git":
+                raise TreeDigestError("source snapshots must not expose .git metadata")
+            if _is_indirection(entry):
+                raise TreeDigestError(
+                    f"source snapshots must not contain links or reparse points: {relative}"
+                )
+            try:
+                info = entry.stat(follow_symlinks=False)
+            except OSError as exc:
+                raise TreeDigestError(f"cannot stat source entry: {relative}") from exc
+            encoded = relative.encode("utf-8", errors="surrogatepass")
+            if stat.S_ISDIR(info.st_mode):
+                digest.update(b"D\0" + encoded + b"\0")
+                visit(entry)
+                continue
+            if not stat.S_ISREG(info.st_mode):
+                raise TreeDigestError(
+                    f"source snapshots may contain only files and directories: {relative}"
+                )
+            file_count += 1
+            byte_count += info.st_size
+            if file_count > MAX_TREE_FILES or byte_count > MAX_TREE_BYTES:
+                raise TreeDigestError("source snapshot exceeds the verification tree limit")
+            content_digest = sha256_file(entry)
+            after = entry.stat(follow_symlinks=False)
+            if (info.st_size, info.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+                raise TreeDigestError(f"source changed while it was being hashed: {relative}")
+            digest.update(
+                b"F\0"
+                + encoded
+                + b"\0"
+                + str(info.st_size).encode("ascii")
+                + b"\0"
+                + bytes.fromhex(content_digest)
+            )
+
+    visit(root)
     return digest.hexdigest()
 
 
@@ -315,6 +414,8 @@ def _parser() -> argparse.ArgumentParser:
     validate.add_argument("path", type=Path)
     digest = subparsers.add_parser("digest", help="print a file's SHA-256 digest")
     digest.add_argument("path", type=Path)
+    tree = subparsers.add_parser("tree-digest", help="hash a link-free source snapshot")
+    tree.add_argument("path", type=Path)
     return parser
 
 
@@ -323,6 +424,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "digest":
             print(sha256_file(args.path))
+            return 0
+        if args.command == "tree-digest":
+            print(tree_digest(args.path))
             return 0
         data = json.loads(
             args.path.read_text(encoding="utf-8"),

@@ -67,7 +67,7 @@ Load only the rows matched by the change:
 | `scripts/readonly-guard.py` or `hooks/hooks.json` | Read both docstrings; run `python scripts/test_readonly_guard.py` and `python scripts/test_hook_wiring.py`; inspect the allow/deny corpus diff; preserve 42 allow / 43 deny / 44 indeterminate. |
 | `agents/`, `skills/`, or `commands/` | Confirm the regenerated projections are included with their canonical source; use the command under **Edit canonical source**. |
 | Bundled reference | Files covered by `CANARY_REQUIRED_GLOBS` need a unique canary token; run `python scripts/test_canary_tokens.py`. Replace an old dated verification stamp; retain an older date only for a different assertion. |
-| Runtime probe or schema | Follow [`docs/schema-compatibility.md`](docs/schema-compatibility.md) and [`docs/verification-sandbox.md`](docs/verification-sandbox.md). |
+| Runtime probe or schema | Follow [`docs/schema-compatibility.md`](docs/schema-compatibility.md); for a containerized check follow the Docker-backed local verification contract in [`AGENTS.md`](AGENTS.md). |
 | Explicit operational closeout after an incident, drill, audit, or approved service/alert change | Apply [`disposition-policy.md`](skills/operational-learning/references/disposition-policy.md). A human-accepted fleet failure instead becomes one focused regression under [`artifact.md`](skills/agent-authoring/references/artifact.md). |
 
 Routing and behavioral evaluations are manual clean-room runs, never CI jobs. Use

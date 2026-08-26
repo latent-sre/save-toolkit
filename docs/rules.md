@@ -39,7 +39,7 @@ authoritative?*
 | Personal-first: prototype under `~/.claude`, promote by PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | PR implementation starts from refreshed `origin/main` on a new branch named for the body of work, never a branch whose PR already merged; measure divergence both directions against `origin/main`, never a local `main`; preserve dirty and published branches | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | One branch may carry several related changes as separate commits; split only for independent work, and stack rather than parallelize when both sides touch catalog text (counts, `README` lists, `CHANGELOG`, roadmap) | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| Probe and schema contracts: published schemas are immutable; runtime probes use evidence envelopes (`skip`/`inconclusive`, never fake `pass`); the verification sandbox is digest-bound and networkless, and probe success grants no production authority | [`schema-compatibility.md`](schema-compatibility.md); [`verification-sandbox.md`](verification-sandbox.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Probe and schema contracts: published schemas are immutable; runtime probes use evidence envelopes (`skip`/`inconclusive`, never fake `pass`); Docker-backed verification pins an exact image and runs `--rm --network none`, and probe success grants no production authority | [`schema-compatibility.md`](schema-compatibility.md); [`AGENTS.md`](../AGENTS.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 
 ## 2. Agent authority / tooling
 
@@ -94,7 +94,7 @@ authoritative?*
 | Rule | Primary source |
 |---|---|
 | Nothing under `docs/` overrides canonical `agents/` / `skills/` or generated adapters | [`README.md`](README.md) |
-| Only live: the roadmap, **accepted** ADRs, and live reference contracts (this file, schema-compatibility, verification-sandbox) | [`README.md`](README.md) |
+| Only live: the roadmap, **accepted** ADRs, and live reference contracts (this file, schema-compatibility) | [`README.md`](README.md) |
 | Accepted ADRs govern; proposed ADRs carry no implementation authority; ADRs are not execution checklists | [`README.md`](README.md) |
 | Reviews are closure evidence, never a task list | [`README.md`](README.md) |
 | Dated plans/specs are operational only while their round is active; historical “open” sections do not re-queue unless the roadmap imports them | [`README.md`](README.md); [`AGENTS.md`](../AGENTS.md) |
