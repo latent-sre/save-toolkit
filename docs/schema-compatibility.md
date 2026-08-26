@@ -26,6 +26,19 @@ that must remain byte-identical to the canonical source.
 contracts. Its validator is `scripts/evidence_envelope.py`. The envelope preserves evidence and
 provenance; it does not authorize an effect or promote the subject it describes.
 
+## Evaluation contracts
+
+`eval-execution-profile-v1` binds one engine, requested claims, selected scenarios, required
+references, model, trial count, time limits, cost-budget representation, and separate live-run
+approval. `evals/execution_profiles.py` is its semantic validator. A profile with `approval: null`
+may be validated and reviewed offline, but cannot start a model process.
+
+`eval-result-envelope-v1` is the active claim-scoped result shape for Claude native-plugin and
+Codex resolved-context measurements. `evals/engine_contract.py` rejects unsupported claims,
+incomplete traces presented as decisive results, missing canaries presented as reference use, and
+dirty candidates presented as promotion-eligible. The envelope records evidence; it never promotes
+a candidate, and cross-engine comparison never averages the engines into one score.
+
 ## Runbook frontmatter
 
 `runbook-frontmatter-v1` is `contract-only`. It publishes the machine-linkable shape carried by

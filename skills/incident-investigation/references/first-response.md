@@ -1,0 +1,65 @@
+# First response — stabilize the basics, escalate well, do no harm
+
+Use this mode when first on the scene. The job is to assess accurately, avoid making the incident
+worse, and give the human responder the right evidence fast. It is a work mode, not a title: any
+engineer first to an alert starts here.
+
+## Use this mode when
+
+- An alert just fired or a problem was just reported and nothing has been triaged.
+- The cause is unknown and the immediate work is safe assessment, not causal proof.
+- A documented procedure may exist for the symptom.
+
+Move to [hypothesis investigation](./hypothesis-investigation.md) when first response is not enough
+and the next task is to prove why the system broke.
+
+## The first 10 minutes
+
+1. **Acknowledge and timestamp.** Record the UTC time and exactly what fired.
+2. **Confirm the symptom.** Establish actual user impact or a flapping signal. Check the symptom
+   from the user's side with the available synthetic-probe or health-endpoint evidence.
+3. **Characterize the service.** If start time, blast radius, trend, or signal baseline is missing,
+   read [signal characterization](./signal-characterization.md).
+4. **Use the documented procedure.** If the alert supplies one, follow it and record each observed
+   result. Ownership map only—not a load: `obs-logs`' team query catalog holds the searches this
+   team already trusts for common questions, with what a healthy result looks like.
+5. **Keep checks read-only.** Within the typed `sre` lane, examples include `cf app <app>`,
+   `cf events <app>`, `cf logs <app> --recent`, and recent-change inspection. Do not restart, scale,
+   deploy, or change live state.
+6. **Escalate the response when impact requires it.** `incident-command` owns severity, roles,
+   communications, and response cadence. Supply the trigger, current evidence, unknowns, and the
+   named human roles still needed. Escalate when impact is user-facing or growing, the blast radius
+   cannot be bounded, or the situation is not stabilized in about 15 minutes.
+
+## Return to the incident record
+
+- What fired, when, and the current severity and blast radius.
+- What was checked and what the evidence showed.
+- Current hypotheses, even if every candidate remains `[unverified]`.
+- Mitigation performed by a human or recommended for human execution.
+- What this lane did not touch.
+
+## Do no harm
+
+- Never run a mutating or remediation command in production. Recommend it for the human release
+  owner with the approval and rollback packet.
+- If a documented step is destructive, stop and surface that property rather than treating the
+  runbook as authority to execute.
+- When unsure, escalate. The speed of the right escalation beats a risky guess.
+
+## Change mode when
+
+- The symptom is confirmed and distinguishing causes now requires predictions and evidence: move to
+  [hypothesis investigation](./hypothesis-investigation.md).
+- Evidence shows multi-service or shared-dependency scope, a cascade, feedback loop, retry storm,
+  saturation collapse, or metastability: move to
+  [systemic failure](./systemic-failure.md).
+- User impact needs coordinated roles or communications: keep technical ownership in `sre` and
+  load `incident-command` for the command process.
+
+When evidence is thin, remain in first response and name the next safe observation. Uncertainty is
+not permission to poke production.
+
+```text
+q_iifr_3a1c
+```

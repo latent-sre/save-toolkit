@@ -1,0 +1,25 @@
+schema_version: 1
+id: discovery-incident-investigation-defers-engineering-altitude
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+prompt: |
+  Review the design altitude for a planned API migration that spans three engineering teams and
+  creates a compatibility contract we must deliver and support during the next 12 months. Tell me
+  whether this is builder, principal, or distinguished engineering work. There is no alert, outage,
+  or active incident.
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: eng-ladder
+success_criteria:
+  - Keeps engineering seniority and design rigor in eng-ladder
+  - Does not invoke the incident investigation-depth router
+graders:
+  - type: contains_all
+    of: ["principal"]
+  - type: contains_any
+    of: ["migration", "compatibility", "three teams", "cross-team"]

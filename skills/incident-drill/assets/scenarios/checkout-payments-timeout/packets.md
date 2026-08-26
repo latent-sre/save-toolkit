@@ -326,7 +326,7 @@ Per your instruction, the production-change-gate packet (exact target/command/bl
 - No severity label was upgraded to P1 or downgraded to P3 on my own authority beyond the provisional P2 declared above — those transitions wait on the named triggers in §6.
 
 --- sre escalation analysis and mitigation recommendation at 21:47Z (step 03, data) ---
-Using root-cause: reproduce → evidence → hypothesis → verify → fix. This is prod-only, so the diagnosis stands on correlated log/metric/diff evidence, not a live reproduction — stated explicitly below. Altitude: Investigator tier (hypothesis-driven RCA, timeline, "what changed") — right size for a bounded, single-app-plus-one-dependency incident with a clean diff in evidence; not escalating to Elite, this isn't a distributed/systemic pattern requiring cross-service prevention design.
+Using root-cause: reproduce → evidence → hypothesis → verify → fix. This is prod-only, so the diagnosis stands on correlated log/metric/diff evidence, not a live reproduction — stated explicitly below. Mode: hypothesis investigation (hypothesis-driven RCA, timeline, "what changed") — right size for a bounded, single-app-plus-one-dependency incident with a clean diff in evidence; not moving to systemic-failure mode, this isn't a distributed/systemic pattern requiring cross-service prevention design.
 
 **Note on H-numbering:** I don't have the literal H1/H3/H6 text in this thread — only "your triage packet is on record." I'm resolving them by mapping each evidence bundle you supplied to the hypothesis it was clearly gathered to test: **H1** = a recent checkout deploy/config change is the trigger (→ git diff); **H3** = payments is broadly/fleet-wide degraded, its own incident (→ payments dashboard); **H6** = this is platform/PCF-side (routing, capacity, evacuating cells), not app-side (→ cf logs router-error fields + PCF quota). If that's not what H3/H6 actually were, say so and I'll re-run against the real text — but the evidence below stands regardless of the label.
 
@@ -410,11 +410,11 @@ Deferred to post-incident reconciliation (does not block this mitigation): forma
 
 **Should severity change?** **Recommend escalating provisional P2 → P1**, for Alex/IC to actually declare — my recommendation, not a decision I'm making. Reasoning: the golden signals are worsening, not stable — 5xx 2.6%→4.2% and burn 5.2×→8.4× in 15 minutes, p95 5.4s→8.4s (+55%) — and in-flight is pinned at the hard concurrency ceiling on *every* instance, meaning there is zero remaining headroom while both checkout and payments traffic are still ramping upward. That combination (accelerating trend + zero slack + revenue-critical journey) is exactly the "round up when unsure" case even though the literal P1 bar ("outage for all or most users") isn't strictly met yet at 95.8% success. If you hold at P2, at minimum tighten the update cadence to P1's 15-minute rhythm given the trend.
 
-## Learning dispositions (incident still live — all `proposed`/`blocked`, per doctrine)
-- Detection gap: no alert on "in-flight/concurrency pinned at MAX_IN_FLIGHT cap sustained" — a leading indicator that would have paged before the SLO-burn alert did. → `observability-engineer`, proposed, blocked until resolution.
-- Resilience defect: shared timeout across both fast-fail and false-positive tuning goals, no per-instance circuit breaker. → `software-engineer`, proposed, blocked until resolution.
-- Runbook gap: no documented step for "payments dependency timeout raised without a bulkhead." → `scribe` (runbook), proposed, blocked until resolution.
-- Payments-side stuck-connection-after-restart behavior on instance #2 → payments team's own finding once paged; not disposed here.
+## Durable discovery candidates (incident still live — evidence only, not dispositions)
+- Detection gap: no alert on "in-flight/concurrency pinned at MAX_IN_FLIGHT cap sustained" — a leading indicator that would have paged before the SLO-burn alert did. Likely next-phase lane: `observability-engineer` after terminal recovery.
+- Resilience defect: shared timeout across both fast-fail and false-positive tuning goals, no per-instance circuit breaker. Likely next-phase lane: `software-engineer` after terminal recovery.
+- Runbook gap: no documented step for "payments dependency timeout raised without a bulkhead." Likely next-phase lane: `scribe` during separately invoked operational closeout.
+- Payments-side stuck-connection-after-restart behavior on instance #2 remains evidence for the payments team; no disposition is assigned during active response.
 
 ## Not done / open
 - I did not run or execute any command — all evidence above is your pasted output; I only analyzed it.

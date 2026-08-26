@@ -1,11 +1,11 @@
 ---
 name: eng-ladder
 description: >-
-  Set your altitude before the task — how much rigor, review depth, and design ceremony this work
-  earns, on the engineering ladder or the SRE one. Triggers: 'how rigorous should this be', 'review
-  this at the principal level', 'what tier is this incident work', 'is this a design doc or just a
-  PR'. A scoped change with an obvious owner and an existing pattern routes straight to its builder
-  or lane skill without this.
+  Select the engineering altitude for implementation, design, review, or growth feedback when work
+  may span components, teams, migrations, or hard-to-reverse choices. Triggers: 'how rigorous
+  should this be', 'review this at the principal level', 'is this a design doc or just a PR'. A
+  scoped change with an obvious owner and existing pattern routes straight to its builder or craft
+  skill. Active-alert investigation depth belongs to incident-investigation.
 argument-hint: "[task, diff, file, or design doc]"
 ---
 
@@ -14,7 +14,7 @@ argument-hint: "[task, diff, file, or design doc]"
 > **Copilot adapter:** Fleet component names are bare in this generated copy.
 > Resolve them from the installed plugin using the host's agent or skill picker.
 
-## The ladder
+## The engineering ladder
 
 Pick the rung the work actually sits at, then read only that tier file. Do not preload neighboring
 tiers as a checklist. Load a different tier only when observed scope changes the altitude or the
@@ -27,18 +27,6 @@ selected tier's escalation rule requires it.
 | **Core question** | does it work, and can it be operated? | is this the right design, and what's the blast radius? | is this the right problem, and will the solution survive the org? |
 | **Artifacts** | working, verified code + tests | design docs, decision records, phased plans | ADRs, north-star architecture, build/buy analyses |
 | **Failure lens** | handles errors, timeouts, retries | failure modes, rollout/rollback | failure domains, blast-radius containment |
-
-## The SRE track — altitude for an alert or incident
-
-Same idea, detection-side. Match response depth to the situation and load only the starting tier;
-move tiers only when the evidence crosses the selected tier's escalation boundary:
-
-- **Responder** — safe first response: golden signals, read-only checks, work the runbook,
-  decide severity, escalate → [responder](./references/responder.md) (signals primer:
-  [golden signals](./references/golden-signals.md))
-- **Investigator** — hypothesis-driven RCA: timeline, "what changed", test hypotheses against
-  evidence → [investigator](./references/investigator.md)
-- **Elite** — systemic/distributed failure analysis and prevention → [elite](./references/elite.md)
 
 ## Mode 1 — Route a task
 

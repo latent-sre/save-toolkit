@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/latent-sre/save-toolkit/schemas/eval-execution-profile-v1.schema.json",
+  "title": "Save Toolkit eval execution profile v1",
+  "description": "Approval- and budget-bound multi-engine execution inputs. Semantic validation is implemented by evals/execution_profiles.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "id", "comparison", "engine", "claims", "scenario_ids", "required_references",
+    "model", "trials", "timeout_s", "total_timeout_s", "cost_budget", "approval"
+  ],
+  "properties": {
+    "schema_version": { "const": "eval-execution-profile/v1" },
+    "id": { "$ref": "#/$defs/slug" },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "models"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "models": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["claude-plugin", "codex-cli"],
+          "properties": {
+            "claude-plugin": { "type": "string", "minLength": 1 },
+            "codex-cli": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "engine": { "enum": ["claude-plugin", "codex-cli"] },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/claim" }
+    },
+    "scenario_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/slug" }
+    },
+    "required_references": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "pattern": "^skills/[a-z0-9][a-z0-9/-]*/[A-Za-z0-9._-]+$"
+        }
+      }
+    },
+    "model": { "type": "string", "minLength": 1 },
+    "trials": { "type": "integer", "minimum": 2 },
+    "timeout_s": { "type": "integer", "minimum": 1 },
+    "total_timeout_s": { "type": "integer", "minimum": 1 },
+    "cost_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "max_usd"],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "max_usd": { "type": ["number", "null"], "exclusiveMinimum": 0 }
+      }
+    },
+    "approval": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["approved_by", "approved_at", "budget_id"],
+          "properties": {
+            "approved_by": { "type": "string", "minLength": 1 },
+            "approved_at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+            },
+            "budget_id": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "claim": {
+      "enum": [
+        "candidate_snapshot_integrity", "native_plugin_loaded", "native_component_invoked",
+        "advertised_tool_inventory", "callable_tool_boundary", "reference_used",
+        "behavioral_contract", "deterministic_grader_result"
+      ]
+    }
+  }
+}

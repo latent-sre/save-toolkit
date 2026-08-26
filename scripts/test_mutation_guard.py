@@ -793,11 +793,10 @@ class ImportDiscoveryTests(unittest.TestCase):
         # Inventory of what legitimately has no importable subject module: contract suites whose
         # subjects are .md/.yaml/.json, and .sh/.json wiring. Updated 2026-08-26 -- it had drifted
         # in both directions and nothing noticed, because CI ran no component tests.
-        # `test_graph_contracts.py` arrived with GRAPH-001 (a017836) and was never added;
-        # `test_hook_wiring.py` became resolvable and was never removed.
+        # `test_graph_contracts.py` and `test_hook_wiring.py` are now resolved through their
+        # imported Python subjects and therefore do not belong in this contract-only inventory.
         self.assertEqual(
             {
-                "test_graph_contracts.py",
                 "test_observability_skill_contracts.py",
                 "test_platform_skill_contracts.py",
                 "test_release_skill_contracts.py",

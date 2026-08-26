@@ -34,7 +34,11 @@ ROOT = Path(__file__).resolve().parents[1]
 TOKEN = re.compile(r"\bq_[a-z0-9_]{3,}\b")
 
 # Bundles where every reference file carries a token today; presence is enforced only here.
-REQUIRED_GLOBS = ("obs-*/references/*.md", "akamai-edge/references/*.md")
+REQUIRED_GLOBS = (
+    "obs-*/references/*.md",
+    "akamai-edge/references/*.md",
+    "incident-investigation/references/*.md",
+)
 
 
 def tokens_by_file(skills: Path) -> dict[Path, set[str]]:
