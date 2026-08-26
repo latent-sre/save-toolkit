@@ -118,6 +118,22 @@ def test_api_key_auth_bypasses_the_credentials_file_requirement() -> None:
             del os.environ["GITHUB_TOKEN"]
 
 
+def test_subscriber_only_clean_env_rejects_api_key_auth() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        cfg = _fake_home(Path(td))
+        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
+        os.environ["ANTHROPIC_API_KEY"] = "must-not-be-used"
+        try:
+            try:
+                with clean_room.clean_env(subscriber_only=True):
+                    check(False, "subscriber-only clean_env must reject API key auth")
+            except clean_room.AuthUnavailable as exc:
+                check("subscriber" in str(exc), "subscriber-only rejection names the required auth mode")
+        finally:
+            del os.environ["CLAUDE_CONFIG_DIR"]
+            del os.environ["ANTHROPIC_API_KEY"]
+
+
 def test_neutral_workspace_is_empty_outside_the_repository_and_removed() -> None:
     room = None
     with clean_room.neutral_workspace() as workspace:
@@ -238,6 +254,7 @@ def main() -> int:
         test_clean_env_is_removed_even_when_the_body_raises,
         test_missing_credentials_raises_instead_of_running,
         test_api_key_auth_bypasses_the_credentials_file_requirement,
+        test_subscriber_only_clean_env_rejects_api_key_auth,
         test_neutral_workspace_is_empty_outside_the_repository_and_removed,
         test_is_auth_failure_recognises_a_real_not_logged_in_trace,
         test_is_auth_failure_does_not_fire_on_a_healthy_trace,

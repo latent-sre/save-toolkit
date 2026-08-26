@@ -274,6 +274,21 @@ class InvocationPlanTests(unittest.TestCase):
                 support_path.write_bytes(original)
         self.assertNotEqual(digest_before, digest_after)
 
+    def test_execution_profile_is_copied_into_frozen_eval_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "profile.json"
+            source.write_text('{"schema_version":"eval-execution-profile/v1"}\n', encoding="utf-8")
+            with run_evals.frozen_eval_snapshot() as snapshot:
+                rewritten = run_evals.freeze_profile_argument(
+                    ["--run", "--profile", str(source)],
+                    snapshot,
+                )
+                frozen = Path(rewritten[rewritten.index("--profile") + 1])
+                self.assertTrue(frozen.is_relative_to(snapshot))
+                self.assertEqual(frozen.read_bytes(), source.read_bytes())
+                source.write_text("{}\n", encoding="utf-8")
+                self.assertNotEqual(frozen.read_bytes(), source.read_bytes())
+
     def test_forged_snapshot_marker_cannot_bypass_bootstrap(self) -> None:
         with mock.patch.dict(
             run_evals.os.environ,
@@ -515,7 +530,14 @@ class StreamTraceTests(unittest.TestCase):
         }
         discovery = {"mode": "discovery", "target": {"kind": "agent", "name": "reviewer"}}
         self.assertEqual(run_evals.expected_runtime_tools(reviewer), ())
-        self.assertEqual(run_evals.expected_runtime_tools(sre), ("Skill", "Task"))
+        self.assertEqual(
+            run_evals.expected_runtime_tools(sre),
+            ("Glob", "Grep", "Skill", "Task"),
+        )
+        self.assertEqual(
+            run_evals.expected_runtime_tools(sre, enable_snapshot_reads=True),
+            ("Glob", "Grep", "Read", "Skill", "Task"),
+        )
         self.assertEqual(run_evals.expected_runtime_tools(researcher), ())
         self.assertEqual(run_evals.expected_runtime_tools(repository_investigator), ())
         self.assertEqual(run_evals.expected_runtime_tools(discovery), ("Skill", "Task"))
@@ -732,6 +754,53 @@ class StreamTraceTests(unittest.TestCase):
         incomplete = json.dumps({"type": "system", "subtype": "init"})
         with self.assertRaises(clean_room.RunnerFailed):
             run_evals.parse_stream_trace(incomplete)
+
+    def test_parser_records_read_attempt_path_and_outcome(self) -> None:
+        events = [
+            self._init_event(),
+            {"type": "assistant", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_use",
+                "id": "read-1",
+                "name": "Read",
+                "input": {"file_path": "/tmp/frozen/skills/x/references/a.md"},
+            }]}},
+            {"type": "user", "session_id": "session-1", "message": {"content": [{
+                "type": "tool_result",
+                "tool_use_id": "read-1",
+                "is_error": False,
+                "content": "reference body q_probe_1234",
+            }]}},
+            self._result_event("done"),
+        ]
+        parsed = run_evals.parse_stream_trace(self._blob(events))
+        self.assertEqual(
+            parsed.tool_attempts,
+            (run_evals.engine_adapters.ToolAttempt(
+                tool="Read",
+                path="/tmp/frozen/skills/x/references/a.md",
+                outcome="allowed",
+            ),),
+        )
+        self.assertEqual(parsed.observed_canaries, ("q_probe_1234",))
+
+    def test_runtime_boundary_rejects_successful_read_outside_snapshot(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._trace())
+        unsafe = run_evals.ParsedTrace(
+            **{
+                **parsed.__dict__,
+                "tool_attempts": (
+                    run_evals.engine_adapters.ToolAttempt(
+                        tool="Read", path="/etc/passwd", outcome="allowed"
+                    ),
+                ),
+            }
+        )
+        with self.assertRaisesRegex(clean_room.RunnerFailed, "out-of-snapshot"):
+            run_evals.enforce_runtime_boundary(
+                unsafe,
+                expected_tools=("Skill", "Task"),
+                callable_read_tools=("Read",),
+            )
 
     def test_coherent_task_notification_continuation_uses_final_root_response(self) -> None:
         events = [
@@ -990,6 +1059,40 @@ class StreamTraceTests(unittest.TestCase):
         self.assertNotIn("private prompt", serialized)
         self.assertNotIn("private first response", serialized)
         self.assertNotIn("private second response", serialized)
+
+    def test_post_parse_canary_failure_retains_proven_model_policy_and_canaries(self) -> None:
+        parsed = run_evals.parse_stream_trace(self._trace())
+        completed = mock.Mock(returncode=0, stdout=self._trace(), stderr="")
+        scenario = {
+            "mode": "direct",
+            "target": {"kind": "agent", "name": "sre"},
+            "prompt": "private prompt",
+        }
+        with (
+            mock.patch.object(run_evals, "build_command", return_value=["claude"]),
+            mock.patch.object(run_evals, "expected_runtime_tools", return_value=("Skill", "Task")),
+            mock.patch.object(run_evals, "expected_canaries_for_paths", return_value={"ref": "q_probe_1234"}),
+            mock.patch.object(run_evals.subprocess, "run", return_value=completed),
+            mock.patch.object(run_evals, "parse_stream_trace", return_value=parsed),
+            mock.patch.object(run_evals, "enforce_runtime_boundary"),
+        ):
+            with self.assertRaisesRegex(run_evals.InconclusiveTrial, "canary") as caught:
+                run_evals.run_agent(
+                    scenario,
+                    env={},
+                    cwd=run_evals.ROOT,
+                    timeout=30,
+                    model="sonnet",
+                    required_references=("skills/x/references/a.md",),
+                    denied_probe_path=run_evals.ROOT.parent / "denied",
+                )
+
+        self.assertEqual(caught.exception.resolved_model, "claude-test")
+        self.assertIsNotNone(caught.exception.policy_sha256)
+        self.assertEqual(caught.exception.expected_canaries, ("q_probe_1234",))
+        self.assertEqual(caught.exception.observed_canaries, ())
+        self.assertIs(caught.exception.parsed_trace, parsed)
+        self.assertTrue(caught.exception.model_executed)
 
     def test_unmatched_or_errored_tool_calls_do_not_count_as_invocations(self) -> None:
         events = [
@@ -1272,6 +1375,7 @@ class ArtifactTests(unittest.TestCase):
             writer = run_evals.ArtifactWriter(root, provenance)
             trace_path = writer.write_trace("scenario", 1, "{\"type\":\"result\"}\n")
             summary_path = writer.write_summary({"verdict": "INCONCLUSIVE"})
+            envelope_path = writer.write_envelope({"schema_version": "eval-result-envelope/v1"})
             self.assertEqual(trace_path.read_text(encoding="utf-8"), '{"type":"result"}\n')
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
             self.assertEqual(summary["verdict"], "INCONCLUSIVE")
@@ -1279,6 +1383,10 @@ class ArtifactTests(unittest.TestCase):
             self.assertEqual(summary["provenance"]["requested_model"], "sonnet")
             self.assertEqual(summary["provenance"]["plugin_commit"], "a" * 40)
             self.assertEqual(summary["provenance"]["fixture_sha256"], "b" * 64)
+            self.assertEqual(
+                json.loads(envelope_path.read_text(encoding="utf-8"))["schema_version"],
+                "eval-result-envelope/v1",
+            )
             if sys.platform != "win32":
                 self.assertEqual(trace_path.stat().st_mode & 0o077, 0)
             run_evals.assert_private_path(trace_path)
@@ -1317,6 +1425,26 @@ class ArtifactTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(clean_room.RunnerFailed, "durable evidence capture failed"):
                     run_evals.persist_summary_and_evidence(writer, {"verdict": "PASS"})
+
+    def test_profile_envelope_is_the_bounded_durable_capture_source(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            writer = run_evals.ArtifactWriter(root / "private", {"run_id": "run-1"})
+            envelope_path = writer.write_envelope({"schema_version": "eval-result-envelope/v1"})
+            expected = root / "docs/reviews/record.md"
+            with mock.patch.object(
+                run_evals.capture_measurement_evidence,
+                "capture_eval_envelope",
+                return_value=expected,
+            ) as capture:
+                _, evidence = run_evals.persist_summary_and_evidence(
+                    writer,
+                    {"verdict": "PASS"},
+                    root / "docs/reviews",
+                    envelope_path=envelope_path,
+                )
+            self.assertEqual(evidence, expected)
+            capture.assert_called_once_with(envelope_path, root / "docs/reviews")
 
     def test_summary_records_measurement_conditions(self) -> None:
         args = argparse.Namespace(
@@ -1390,6 +1518,73 @@ class ArtifactTests(unittest.TestCase):
 
 
 class AggregateVerdictTests(unittest.TestCase):
+    def test_codex_live_blocker_prevents_subprocess_start(self) -> None:
+        scenario = {"mode": "direct", "prompt": "untrusted candidate prompt"}
+        with mock.patch.object(run_evals.subprocess, "run") as child:
+            with self.assertRaisesRegex(
+                run_evals.InconclusiveTrial, "Codex live execution is disabled"
+            ) as caught:
+                run_evals.run_codex_agent(
+                    scenario,
+                    candidate_root=Path("/does/not/matter"),
+                    candidate_sha="a" * 40,
+                    required_references=(),
+                    timeout=60,
+                    model="gpt-test",
+                    codex_bin="codex",
+                    env={},
+                )
+        self.assertTrue(caught.exception.stop_campaign)
+        child.assert_not_called()
+
+    def test_reported_cost_budget_is_enforced_at_trial_boundary(self) -> None:
+        profile = run_evals.execution_profiles.ExecutionProfile(
+            id="claude-profile", engine="claude-plugin",
+            comparison={
+                "id": "case-one-v1",
+                "models": {"claude-plugin": "sonnet", "codex-cli": "gpt-test"},
+            },
+            claims=("behavioral_contract", "deterministic_grader_result"),
+            scenario_ids=("case-one",), required_references={}, model="sonnet",
+            trials=2, timeout_s=60, total_timeout_s=120,
+            cost_budget={"status": "available", "max_usd": 1.0},
+            approval=None, sha256="a" * 64,
+            comparison_sha256="b" * 64,
+        )
+        execution = mock.Mock()
+        execution.parsed.total_cost_usd = 0.6
+        self.assertEqual(
+            run_evals.enforce_reported_cost_budget(profile, 0.0, execution),
+            0.6,
+        )
+        with self.assertRaisesRegex(
+            run_evals.InconclusiveTrial, "cost budget exceeded"
+        ) as caught:
+            run_evals.enforce_reported_cost_budget(profile, 0.6, execution)
+        self.assertTrue(caught.exception.stop_campaign)
+
+    def test_missing_reported_cost_stops_the_campaign(self) -> None:
+        profile = run_evals.execution_profiles.ExecutionProfile(
+            id="claude-profile",
+            comparison={
+                "id": "case-one-v1",
+                "models": {"claude-plugin": "sonnet", "codex-cli": "gpt-test"},
+            },
+            engine="claude-plugin",
+            claims=("behavioral_contract", "deterministic_grader_result"),
+            scenario_ids=("case-one",), required_references={}, model="sonnet",
+            trials=2, timeout_s=60, total_timeout_s=120,
+            cost_budget={"status": "available", "max_usd": 1.0},
+            approval=None, sha256="a" * 64, comparison_sha256="b" * 64,
+        )
+        execution = mock.Mock()
+        execution.parsed.total_cost_usd = None
+
+        with self.assertRaises(run_evals.InconclusiveTrial) as caught:
+            run_evals.enforce_reported_cost_budget(profile, 0.0, execution)
+
+        self.assertTrue(caught.exception.stop_campaign)
+
     def test_pass_fail_and_inconclusive_are_distinct(self) -> None:
         self.assertEqual(run_evals.aggregate_verdict(["PASS", "PASS"], 1.0), "PASS")
         self.assertEqual(run_evals.aggregate_verdict(["PASS", "FAIL"], 1.0), "FAIL")

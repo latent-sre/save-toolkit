@@ -7,7 +7,8 @@ look like a menu even when a path is not runnable or authoritative.
 
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
-| **Claude behavioral evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | `python evals/run_evals.py --run …` — needs an authenticated Claude CLI (the operator's existing login works; `ANTHROPIC_API_KEY` is optional, not required) plus the clean-room runner. |
+| **Claude native-plugin evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | Legacy `python evals/run_evals.py --run …` remains compatible. Claim-scoped runs use an approved execution profile and the operator's existing Claude subscriber login; API keys are not used by this fleet. |
+| **Codex resolved-context evals** — same scenarios and deterministic graders through [`engine_adapters.py`](engine_adapters.py) | **offline; live activation blocked** | no | Profiles, bundles, commands, traces, and evidence contracts are validated offline. The runner refuses before starting `codex` because this CLI has no proven tool-read boundary separating the bundle from subscriber `HOME`/`CODEX_HOME`. This is not a Codex plugin or distribution target. |
 | **Codex/Terra ROUTE-001** | **retired 2026-08-22** ([decision](../docs/decisions/2026-08-11-codex-terra-routing.md)); its last diagnostic is the [Linux canary packet](../docs/reviews/2026-08-20-route001-linux-canary.md) | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
 | **Codex/Sol conformance** | **retired 2026-08-23** ([superseded decision](../docs/decisions/2026-08-01-local-sol-conformance.md)); its 2026-07-31 results were **revoked** as release evidence and removed from the tree | n/a | tag `pre-trim-2026-08-02` preserves historical bytes; recover only after a new accepted decision names the Codex consumer, regression, or model migration plus an owner and fixed budget |
 
@@ -15,6 +16,48 @@ Active `evals/test_*.py` suites are owner-triggered: run the affected file direc
 (`python evals/test_graders.py`, `python evals/test_run_evals.py`, …) when you change its owning
 harness code. Gate A is structural only and does not run them. Retired execution code stays out of
 the active tree, and frozen evidence remains read-only.
+
+The active Codex adapter does not restore the retired ROUTE-001 or Sol harnesses. It creates a
+bounded, read-only context bundle for one direct scenario and is designed to measure only the
+claims registered for `codex-cli` once its separate live-isolation blocker is resolved.
+
+## Multi-engine contract
+
+An execution profile uses [`eval-execution-profile/v1`](../schemas/eval-execution-profile-v1.schema.json)
+to bind the engine, exact scenario IDs, requested claims, required references, model, trials,
+per-trial timeout, total timeout, cost-budget representation, and a separate approval record. The
+profile also names one cross-engine comparison contract with the complete Claude/Codex model
+matrix. Its engine-neutral digest binds that matrix, scenario/reference selection, trial count,
+timeouts, adapter contract version, and both requested policy contracts; the reducer refuses
+envelopes whose comparison digests differ.
+The parent bootstrap copies that profile into the frozen evaluator before starting the child. A live
+run refuses `approval: null`; preparing or validating a profile does not call a model.
+
+Both adapters emit [`eval-result-envelope/v1`](../schemas/eval-result-envelope-v1.schema.json)
+beside the legacy private summary when a profile is used. The envelope binds the exact candidate
+Git SHA and input digest, engine and adapter, runtime/model, scenario and grader digests, policy,
+trace integrity, reference canaries, and claim-specific verdicts. It records subscriber-session
+authentication without copying credential material. Codex subscription cost is `unavailable` with
+null amount and currency, never zero.
+
+A decisive Claude reference trial must trace both a successful `Read` of every required path inside
+the frozen plugin and a denied `Read` of an evaluator-created file outside it. A decisive Codex
+trial must obtain the resolved model and effective ambient policy from trusted CLI trace metadata;
+if the installed CLI does not expose either, the trial is `INCONCLUSIVE` and the policy digest is
+null. Requested flags are not treated as observed policy evidence.
+
+Codex live execution is additionally hard-disabled before `subprocess.run`. `--sandbox read-only`
+does not restrict reads, and subscriber authentication requires retaining host identity state. A
+candidate bundle is untrusted model context, so prompt instructions cannot safely prevent shell
+tools from reading or returning host files. Activation requires a structural no-tool or
+bundle-only read boundary plus an exact-CLI negative out-of-bundle probe; profile approval alone
+cannot bypass this gate.
+
+Claude can support native plugin/component and host-tool claims. Codex supports candidate integrity,
+reference use, portable behavior, and deterministic grader claims only. The comparison reducer
+classifies agreement, behavioral divergence, evidence gaps, or incomparable inputs; it never
+averages verdicts, rates, durations, or costs, and neither engine can offset the other's failure.
+Automated evidence never promotes a candidate.
 
 ## Claude behavioral evals
 
@@ -63,6 +106,16 @@ python evals/run_evals.py --run --mode direct --match merge-gate --trials 3
 and starts a fresh non-persistent process for every trial. It supports `--mode`, `--split`, `--match`,
 `--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`. The discovery regression command
 selects skill targets only; agent-target discovery cases are optional calibration measurements.
+
+For a profile-backed run, do not combine `--profile` with `--mode`, `--split`, `--match`, `--model`,
+or `--trials`; the profile owns those values. A Codex profile may select direct scenarios only.
+Before any live run, the owner must separately approve the exact model, trial count, per-trial
+timeout, total timeout, and budget record. No such approval is implied by an accepted design or by
+offline test success. When a CLI reports trustworthy currency cost, the runner checks the approved
+ceiling after each trial and starts no later trial once exhausted or once a supposedly available
+cost is not reported; enforcement is therefore at one-trial granularity. Codex subscriber cost is
+unavailable, so its declared ceilings are trials and wall-clock time.
+Codex still refuses live execution until its independent isolation blocker is resolved.
 
 Pin `--model` on every `--run`. The fleet's measurement default is the `sonnet` alias unless the
 roadmap item or scenario names another tier: it is the tier the existing routing evidence was
@@ -134,16 +187,24 @@ further reduce it through its own frontmatter; the harness derives and requires 
 intersection (`Skill` and/or the runtime's `Task` name for an `Agent(...)` grant). Missing and extra
 tools both make the trial inconclusive.
 
+Reference-bearing direct `sre` trials are the narrow exception: only the declared read tools needed
+for the scenario are made callable, only against the frozen plugin snapshot, with non-interactive
+path rules. Advertised inventory and callable policy remain separate claims. A successful read
+outside the snapshot, traversal, ambiguous outcome, missing required canary, or inability to prove
+the exact CLI path-rule semantics makes the trial `INCONCLUSIVE`.
+
 This is a narrow evaluation boundary, not an OS security sandbox. Claude authentication remains
 available to the CLI process, and the plugin source remains readable by the host. Use only reviewed,
 non-secret scenario prompts and keep raw traces private.
 
-The harness refuses to grade an unauthenticated run. Claude login credentials and direct
-`ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` are supported. Bedrock and Vertex modes are refused
-because safely copying their provider-specific host credential environment is outside this
-least-privilege harness.
+The harness refuses to grade an unauthenticated run. Profile-backed multi-engine evals use the
+operator's existing subscriber sessions for Claude and Codex; they do not request, copy, or accept
+API keys. Bedrock, Vertex, and API-key-backed modes are outside this claim-scoped contract. The
+legacy profile-less Claude command retains its pre-existing direct-key compatibility during the
+expand/migrate window, but it cannot produce the new claim-scoped result.
 
-Raw stdout, stderr, and `summary.json` land under `.eval-runs/<run-id>/`. The directory is gitignored.
+Raw stdout, stderr, `summary.json`, and profile-backed `eval-result-envelope-v1.json` land under
+`.eval-runs/<run-id>/`. The directory is gitignored.
 After sealing `summary.json`, the runner must also create a bounded durable record under
 `docs/reviews/<date>-eval-<run-id>.md`; a capture failure makes the batch non-publishable. The record
 keeps identities, dirty-state flags, run-shaping conditions, verdicts, trial states, cost/duration,
@@ -153,6 +214,7 @@ paths. Backfill a sealed private batch with:
 
 ```powershell
 python scripts/capture_measurement_evidence.py eval .eval-runs/<run-id>/summary.json
+python scripts/capture_measurement_evidence.py eval-envelope .eval-runs/<run-id>/eval-result-envelope-v1.json
 ```
 
 For a host-owned agent task or session exercise, export the versioned JSON envelope described in

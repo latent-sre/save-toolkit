@@ -28,6 +28,7 @@ from datetime import UTC, datetime
 from itertools import pairwise
 from pathlib import Path
 from types import ModuleType
+from typing import Mapping
 
 EVAL_ROOT = Path(__file__).resolve().parent
 EVAL_BUNDLE_ROOT = EVAL_ROOT.parent
@@ -38,7 +39,12 @@ if str(SCRIPTS_ROOT) not in sys.path:
 
 import clean_room
 import capture_measurement_evidence
+import engine_adapters
+import engine_contract
+import eval_evidence
+import execution_profiles
 import graders
+import resolved_context
 
 try:
     import yaml
@@ -49,7 +55,17 @@ except ModuleNotFoundError:
 ROOT = Path(os.environ.get("FLEET_ROOT") or EVAL_BUNDLE_ROOT).resolve()
 SCENARIOS_DIR = EVAL_ROOT / "scenarios"
 EVAL_SNAPSHOT_ROOT_ENV = "FLEET_EVAL_SNAPSHOT_ROOT"
-EVAL_INPUT_PATHS = ("run_evals.py", "graders.py", "clean_room.py", "scenarios")
+EVAL_INPUT_PATHS = (
+    "run_evals.py",
+    "graders.py",
+    "clean_room.py",
+    "engine_adapters.py",
+    "engine_contract.py",
+    "eval_evidence.py",
+    "execution_profiles.py",
+    "resolved_context.py",
+    "scenarios",
+)
 EVAL_SUPPORT_INPUT_PATHS = (
     "scripts/fleet_frontmatter.py",
     "scripts/capture_measurement_evidence.py",
@@ -95,6 +111,17 @@ REQUIRED_SCENARIO_IDS = (
     "discovery-agent-authoring-loop-engineering",
 )
 ALLOWED_ROUTING_KEYS = {"expect", "scope", "also_acceptable", "expected_alternative"}
+REFERENCE_REQUIREMENTS = {
+    "agent-direct-sre-first-response-untriaged-alert": (
+        "skills/incident-investigation/references/first-response.md",
+    ),
+    "agent-direct-sre-owns-recovery-to-terminal": (
+        "skills/incident-investigation/references/recovery-lifecycle.md",
+    ),
+    "agent-direct-sre-records-unknown-recovery-progress": (
+        "skills/incident-investigation/references/recovery-lifecycle.md",
+    ),
+}
 
 
 def positive_trials(value: str) -> int:
@@ -102,6 +129,13 @@ def positive_trials(value: str) -> int:
     if trials < 2:
         raise argparse.ArgumentTypeError(f"must be >= 2, got {trials}")
     return trials
+
+
+def positive_timeout(value: str) -> int:
+    timeout = int(value)
+    if timeout < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {timeout}")
+    return timeout
 
 
 def bounded_threshold(value: str) -> float:
@@ -398,6 +432,8 @@ class ParsedTrace:
     available_skills: tuple[str, ...]
     available_agents: tuple[str, ...]
     available_tools: tuple[str, ...]
+    tool_attempts: tuple[engine_adapters.ToolAttempt, ...]
+    observed_canaries: tuple[str, ...]
     stream_diagnostics: StreamDiagnostics
 
 
@@ -625,6 +661,9 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
 
     pending: dict[tuple[int, str | None, str], tuple[str, str]] = {}
     successful_ids: set[tuple[int, str | None, str]] = set()
+    read_pending: dict[tuple[int, str | None, str], tuple[str, str | None]] = {}
+    read_outcomes: dict[tuple[int, str | None, str], str] = {}
+    observed_canaries: list[str] = []
     attempted_skills: list[str] = []
     attempted_agents: list[str] = []
     epoch = 0
@@ -654,9 +693,33 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
                         _fail_stream("duplicate component tool_use within one epoch and parent", diagnostics)
                     pending[call_key] = ("agent", tool_input["subagent_type"])
                     attempted_agents.append(tool_input["subagent_type"])
+                elif node.get("name") in engine_adapters.READ_TOOLS:
+                    call_key = (epoch, parent, node["id"])
+                    if call_key in read_pending:
+                        _fail_stream("duplicate read tool_use within one epoch and parent", diagnostics)
+                    path = next(
+                        (
+                            tool_input.get(field)
+                            for field in ("file_path", "path", "pattern")
+                            if isinstance(tool_input.get(field), str)
+                        ),
+                        None,
+                    )
+                    read_pending[call_key] = (str(node["name"]), path)
             elif node.get("type") == "tool_result" and isinstance(node.get("tool_use_id"), str):
+                result_key = (epoch, parent, node["tool_use_id"])
                 if _tool_result_succeeded(node):
-                    successful_ids.add((epoch, parent, node["tool_use_id"]))
+                    successful_ids.add(result_key)
+                    if result_key in read_pending:
+                        read_outcomes[result_key] = "allowed"
+                        rendered_content = node.get("content")
+                        if not isinstance(rendered_content, str):
+                            rendered_content = json.dumps(rendered_content, ensure_ascii=False)
+                        observed_canaries.extend(
+                            resolved_context.CANARY_RE.findall(rendered_content)
+                        )
+                elif result_key in read_pending:
+                    read_outcomes[result_key] = "denied"
 
     completed = {
         call_key: component
@@ -707,6 +770,14 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
         response = json.dumps(response, ensure_ascii=False)
     cost = result.get("total_cost_usd")
     metadata = init_metadata[0] if init_metadata else _init_runtime_metadata({})
+    tool_attempts = tuple(
+        engine_adapters.ToolAttempt(
+            tool=tool,
+            path=path,
+            outcome=read_outcomes.get(call_key, "ambiguous"),
+        )
+        for call_key, (tool, path) in read_pending.items()
+    )
     return ParsedTrace(
         response=response,
         skills=_dedupe(skills),
@@ -724,6 +795,8 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
         available_skills=metadata["available_skills"],
         available_agents=metadata["available_agents"],
         available_tools=metadata["available_tools"],
+        tool_attempts=tool_attempts,
+        observed_canaries=_dedupe(observed_canaries),
         stream_diagnostics=diagnostics,
     )
 
@@ -765,8 +838,46 @@ def _load_trusted_frontmatter_parser() -> ModuleType:
         raise clean_room.RunnerFailed(f"cannot load trusted frontmatter parser: {exc}") from exc
 
 
-def expected_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[str, ...]:
-    """Return the exact effective built-in ceiling for this invocation plan."""
+def reference_requirements(scenario: Mapping[str, object]) -> tuple[str, ...]:
+    scenario_id = scenario.get("id")
+    return REFERENCE_REQUIREMENTS.get(str(scenario_id), ())
+
+
+def expected_reference_canaries(
+    scenario: Mapping[str, object],
+    plugin_root: Path = ROOT,
+) -> dict[str, str]:
+    return expected_canaries_for_paths(reference_requirements(scenario), plugin_root)
+
+
+def expected_canaries_for_paths(
+    paths: tuple[str, ...],
+    plugin_root: Path = ROOT,
+) -> dict[str, str]:
+    expected: dict[str, str] = {}
+    for relative in paths:
+        path = plugin_root / relative
+        try:
+            if not path.is_file() or _is_reparse_point(path):
+                raise ValueError("must be an ordinary file")
+            tokens = sorted(set(resolved_context.CANARY_RE.findall(path.read_text(encoding="utf-8"))))
+        except (OSError, UnicodeError, ValueError) as exc:
+            raise clean_room.RunnerFailed(f"cannot inspect required reference {path}: {exc}") from exc
+        if len(tokens) != 1:
+            raise clean_room.RunnerFailed(
+                f"required reference must carry exactly one canary token: {path}"
+            )
+        expected[relative] = tokens[0]
+    return expected
+
+
+def expected_runtime_tools(
+    scenario: dict,
+    plugin_root: Path = ROOT,
+    *,
+    enable_snapshot_reads: bool = False,
+) -> tuple[str, ...]:
+    """Return the exact advertised built-in inventory expected for this invocation plan."""
     _require_matching_frontmatter_parser(plugin_root)
     frontmatter_parser = _load_trusted_frontmatter_parser()
     target = scenario["target"]
@@ -788,7 +899,16 @@ def expected_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[st
         effective.append("Skill")
     if "Agent" in bases:
         effective.append("Task")
-    return tuple(effective)
+    # Claude 2.1.243--2.1.246 advertises agent-declared Grep/Glob even when the runner denies their
+    # calls. Inventory is therefore recorded separately from callable policy. Read becomes
+    # advertised only for a plan that explicitly enables snapshot-scoped reference access.
+    if target.get("name") == "sre":
+        for tool in ("Glob", "Grep"):
+            if tool in bases:
+                effective.append(tool)
+    if enable_snapshot_reads and "Read" in bases:
+        effective.append("Read")
+    return tuple(sorted(effective))
 
 
 def enforce_runtime_boundary(
@@ -796,6 +916,9 @@ def enforce_runtime_boundary(
     expected_plugin_root: Path = ROOT,
     *,
     expected_tools: tuple[str, ...] = ALLOWED_BUILTIN_TOOLS,
+    callable_read_tools: tuple[str, ...] = (),
+    required_allowed_paths: tuple[Path, ...] = (),
+    required_denied_path: Path | None = None,
 ) -> None:
     """Refuse a measurement if the CLI did not honor the requested namespace/tool boundary."""
     observed_tools = set(parsed.available_tools)
@@ -826,6 +949,18 @@ def enforce_runtime_boundary(
             f"runtime plugin identity mismatch: expected {expected} at {expected_plugin_root}, "
             f"observed {runtime_plugin}"
         )
+    try:
+        engine_adapters.ClaudeNativeAdapter().validate_tool_boundary(
+            advertised=parsed.available_tools,
+            expected=expected_tools,
+            attempts=parsed.tool_attempts,
+            plugin_root=expected_plugin_root,
+            callable_read_tools=callable_read_tools,
+            required_allowed_paths=required_allowed_paths,
+            required_denied_path=required_denied_path,
+        )
+    except engine_adapters.AdapterError as exc:
+        raise clean_room.RunnerFailed(str(exc)) from exc
 
 
 def build_command(
@@ -833,35 +968,21 @@ def build_command(
     model: str | None,
     claude_bin: str | None = None,
     plugin_root: Path = ROOT,
+    *,
+    enable_snapshot_reads: bool = False,
+    required_reference_paths: tuple[str, ...] = (),
+    denied_probe_path: Path | None = None,
 ) -> list[str]:
-    target = scenario["target"]
-    prompt = scenario["prompt"]
-    command = [claude_bin or os.environ.get("CLAUDE_BIN", "claude")]
-    if scenario["mode"] == "direct":
-        if target["kind"] == "skill":
-            skill = qualified_target(target, plugin_root)
-            prompt = (
-                f"Use the Skill tool to invoke `{skill}` before answering. "
-                "If the Skill call does not complete successfully, do not answer the task.\n\n"
-                f"{prompt}"
-            )
-        else:
-            command += ["--agent", qualified_target(target, plugin_root)]
-    command += [
-        "-p", prompt,
-        "--output-format", "stream-json",
-        "--verbose",
-        "--forward-subagent-text",
-        "--no-session-persistence",
-        "--plugin-dir", str(plugin_root.resolve()),
-        "--mcp-config", '{"mcpServers":{}}',
-        "--strict-mcp-config",
-        "--tools", ",".join(ALLOWED_BUILTIN_TOOLS),
-        "--disallowedTools", DENIED_TOOLS,
-    ]
-    if model:
-        command += ["--model", model]
-    return command
+    return engine_adapters.ClaudeNativeAdapter().build_command(
+        scenario=scenario,
+        executable=claude_bin or os.environ.get("CLAUDE_BIN", "claude"),
+        plugin_root=plugin_root,
+        qualified_target=qualified_target(scenario["target"], plugin_root),
+        model=model,
+        enable_snapshot_reads=enable_snapshot_reads,
+        required_reference_paths=required_reference_paths,
+        denied_probe_path=denied_probe_path,
+    )
 
 
 class InconclusiveTrial(clean_room.RunnerFailed):
@@ -875,7 +996,16 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         command: tuple[str, ...] = (),
         duration_seconds: float | None = None,
         requested_model: str | None = None,
+        resolved_model: str | None = None,
+        parsed_trace: ParsedTrace | None = None,
         stream_diagnostics: dict | None = None,
+        context_sha256: str | None = None,
+        policy_sha256: str | None = None,
+        expected_canaries: tuple[str, ...] = (),
+        observed_canaries: tuple[str, ...] = (),
+        total_cost_usd: float | None = None,
+        stop_campaign: bool = False,
+        model_executed: bool = False,
     ):
         super().__init__(message)
         self.raw_trace = raw_trace
@@ -884,7 +1014,16 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         self.command = command
         self.duration_seconds = duration_seconds
         self.requested_model = requested_model
+        self.resolved_model = resolved_model
+        self.parsed_trace = parsed_trace
         self.stream_diagnostics = stream_diagnostics
+        self.context_sha256 = context_sha256
+        self.policy_sha256 = policy_sha256
+        self.expected_canaries = expected_canaries
+        self.observed_canaries = observed_canaries
+        self.total_cost_usd = total_cost_usd
+        self.stop_campaign = stop_campaign
+        self.model_executed = model_executed
 
 
 @dataclass(frozen=True)
@@ -895,6 +1034,63 @@ class TrialExecution:
     command: tuple[str, ...]
     returncode: int
     duration_seconds: float
+    context_sha256: str | None = None
+    policy_sha256: str | None = None
+    expected_canaries: tuple[str, ...] = ()
+    observed_canaries: tuple[str, ...] = ()
+
+
+def enforce_reported_cost_budget(
+    profile: execution_profiles.ExecutionProfile,
+    spent_usd: float,
+    execution: TrialExecution,
+) -> float:
+    """Apply an available reported-cost ceiling at one-trial granularity."""
+
+    if profile.cost_budget["status"] == "unavailable":
+        return spent_usd
+    amount = execution.parsed.total_cost_usd
+    maximum = profile.cost_budget["max_usd"]
+    if amount is None or not isinstance(maximum, (int, float)):
+        raise InconclusiveTrial(
+            "approved cost budget is available but the trial reported no trustworthy cost",
+            raw_trace=execution.raw_trace,
+            stderr=execution.stderr,
+            returncode=execution.returncode,
+            command=execution.command,
+            duration_seconds=execution.duration_seconds,
+            requested_model=profile.model,
+            context_sha256=execution.context_sha256,
+            policy_sha256=execution.policy_sha256,
+            expected_canaries=execution.expected_canaries,
+            observed_canaries=execution.observed_canaries,
+            total_cost_usd=amount,
+            stop_campaign=True,
+            resolved_model=execution.parsed.model,
+            parsed_trace=execution.parsed,
+            model_executed=True,
+        )
+    updated = spent_usd + amount
+    if updated > float(maximum):
+        raise InconclusiveTrial(
+            f"reported cost budget exceeded after this trial: USD {updated:.6f} > {float(maximum):.6f}",
+            raw_trace=execution.raw_trace,
+            stderr=execution.stderr,
+            returncode=execution.returncode,
+            command=execution.command,
+            duration_seconds=execution.duration_seconds,
+            requested_model=profile.model,
+            context_sha256=execution.context_sha256,
+            policy_sha256=execution.policy_sha256,
+            expected_canaries=execution.expected_canaries,
+            observed_canaries=execution.observed_canaries,
+            total_cost_usd=amount,
+            stop_campaign=True,
+            resolved_model=execution.parsed.model,
+            parsed_trace=execution.parsed,
+            model_executed=True,
+        )
+    return updated
 
 
 def run_agent(
@@ -906,10 +1102,33 @@ def run_agent(
     model: str | None,
     claude_bin: str | None = None,
     plugin_root: Path = ROOT,
+    required_references: tuple[str, ...] | None = None,
+    denied_probe_path: Path | None = None,
 ) -> TrialExecution:
-    expected_tools = expected_runtime_tools(scenario, plugin_root)
+    references = (
+        reference_requirements(scenario)
+        if required_references is None
+        else required_references
+    )
+    enable_snapshot_reads = bool(references)
+    if enable_snapshot_reads and denied_probe_path is None:
+        raise clean_room.RunnerFailed(
+            "reference trials require an external negative boundary probe"
+        )
+    expected_tools = expected_runtime_tools(
+        scenario,
+        plugin_root,
+        enable_snapshot_reads=enable_snapshot_reads,
+    )
+    expected_canaries = expected_canaries_for_paths(references, plugin_root)
     command = build_command(
-        scenario, model=model, claude_bin=claude_bin, plugin_root=plugin_root,
+        scenario,
+        model=model,
+        claude_bin=claude_bin,
+        plugin_root=plugin_root,
+        enable_snapshot_reads=enable_snapshot_reads,
+        required_reference_paths=references,
+        denied_probe_path=denied_probe_path,
     )
     started = time.monotonic()
     try:
@@ -931,6 +1150,7 @@ def run_agent(
             f"trial timed out after {timeout}s", raw_trace=raw, stderr=err, returncode=None,
             command=tuple(command), duration_seconds=time.monotonic() - started,
             requested_model=model, stream_diagnostics=_safe_stream_diagnostics(raw),
+            model_executed=True,
         ) from exc
     duration = time.monotonic() - started
     if clean_room.is_auth_failure(proc.stdout, proc.returncode) or clean_room.is_auth_failure(proc.stderr, proc.returncode):
@@ -938,6 +1158,7 @@ def run_agent(
             "Claude trial did not authenticate", raw_trace=proc.stdout, stderr=proc.stderr,
             returncode=proc.returncode, command=tuple(command), duration_seconds=duration,
             requested_model=model, stream_diagnostics=_safe_stream_diagnostics(proc.stdout),
+            model_executed=True,
         )
     if proc.returncode != 0:
         raise InconclusiveTrial(
@@ -949,31 +1170,264 @@ def run_agent(
             duration_seconds=duration,
             requested_model=model,
             stream_diagnostics=_safe_stream_diagnostics(proc.stdout),
+            model_executed=True,
         )
+    parsed: ParsedTrace | None = None
+    boundary_proven = False
     try:
         parsed = parse_stream_trace(proc.stdout)
-        enforce_runtime_boundary(
-            parsed,
-            plugin_root,
-            expected_tools=expected_tools,
-        )
+        boundary_options: dict[str, object] = {"expected_tools": expected_tools}
+        if enable_snapshot_reads:
+            boundary_options["callable_read_tools"] = engine_adapters.READ_TOOLS
+            boundary_options["required_allowed_paths"] = tuple(
+                plugin_root / relative for relative in references
+            )
+            boundary_options["required_denied_path"] = denied_probe_path
+        enforce_runtime_boundary(parsed, plugin_root, **boundary_options)
+        boundary_proven = True
+        if expected_canaries:
+            missing_canaries = set(expected_canaries.values()) - set(parsed.observed_canaries)
+            if missing_canaries:
+                raise clean_room.RunnerFailed(
+                    f"required reference canary was not observed in a successful scoped read: "
+                    f"{sorted(missing_canaries)}"
+                )
     except clean_room.AuthUnavailable as exc:
+        observed = (
+            tuple(sorted(set(parsed.observed_canaries) & set(expected_canaries.values())))
+            if parsed else ()
+        )
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
             command=tuple(command), duration_seconds=duration, requested_model=model,
             stream_diagnostics=(
                 getattr(exc, "stream_diagnostics", None) or _safe_stream_diagnostics(proc.stdout)
             ),
+            resolved_model=parsed.model if parsed else None,
+            parsed_trace=parsed,
+            policy_sha256=(
+                engine_adapters.ClaudeNativeAdapter().policy_sha256(
+                    enable_snapshot_reads=enable_snapshot_reads
+                )
+                if boundary_proven else None
+            ),
+            expected_canaries=tuple(sorted(expected_canaries.values())),
+            observed_canaries=observed,
+            total_cost_usd=parsed.total_cost_usd if parsed else None,
+            model_executed=True,
         ) from exc
     except clean_room.RunnerFailed as exc:
+        observed = (
+            tuple(sorted(set(parsed.observed_canaries) & set(expected_canaries.values())))
+            if parsed else ()
+        )
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
             command=tuple(command), duration_seconds=duration, requested_model=model,
             stream_diagnostics=(
                 getattr(exc, "stream_diagnostics", None) or _safe_stream_diagnostics(proc.stdout)
             ),
+            resolved_model=parsed.model if parsed else None,
+            parsed_trace=parsed,
+            policy_sha256=(
+                engine_adapters.ClaudeNativeAdapter().policy_sha256(
+                    enable_snapshot_reads=enable_snapshot_reads
+                )
+                if boundary_proven else None
+            ),
+            expected_canaries=tuple(sorted(expected_canaries.values())),
+            observed_canaries=observed,
+            total_cost_usd=parsed.total_cost_usd if parsed else None,
+            model_executed=True,
         ) from exc
-    return TrialExecution(parsed, proc.stdout, proc.stderr, tuple(command), proc.returncode, duration)
+    return TrialExecution(
+        parsed,
+        proc.stdout,
+        proc.stderr,
+        tuple(command),
+        proc.returncode,
+        duration,
+        policy_sha256=engine_adapters.ClaudeNativeAdapter().policy_sha256(
+            enable_snapshot_reads=enable_snapshot_reads
+        ),
+        expected_canaries=tuple(sorted(expected_canaries.values())),
+        observed_canaries=tuple(
+            sorted(
+                set(
+                    parsed.observed_canaries
+                    if isinstance(parsed.observed_canaries, tuple)
+                    else ()
+                )
+                & set(expected_canaries.values())
+            )
+        ),
+    )
+
+
+def run_codex_agent(
+    scenario: dict,
+    *,
+    candidate_root: Path,
+    candidate_sha: str,
+    required_references: tuple[str, ...],
+    timeout: int,
+    model: str,
+    codex_bin: str,
+    env: Mapping[str, str] | None = None,
+) -> TrialExecution:
+    """Run one direct portability trial against an ephemeral resolved-context bundle."""
+
+    if scenario.get("mode") != "direct":
+        raise clean_room.RunnerFailed("Codex portability profiles support direct scenarios only")
+    adapter = engine_adapters.CodexResolvedContextAdapter()
+    try:
+        adapter.require_safe_live_activation()
+    except engine_adapters.AdapterError as exc:
+        raise InconclusiveTrial(
+            str(exc),
+            requested_model=model,
+            duration_seconds=0.0,
+            stop_campaign=True,
+        ) from exc
+    started = time.monotonic()
+    with resolved_context.resolved_bundle(
+        candidate_root=candidate_root,
+        scenario=scenario,
+        candidate_sha=candidate_sha,
+        required_references=required_references,
+    ) as bundle:
+        expected = tuple(sorted(bundle.canaries.values()))
+        evidence = {
+            "context_sha256": bundle.tree_sha256,
+            "expected_canaries": expected,
+        }
+        command = adapter.build_command(
+            executable=codex_bin,
+            bundle_root=bundle.root,
+            response_schema=bundle.root / "response-schema.json",
+            model=model,
+        )
+        try:
+            proc = subprocess.run(
+                command,
+                cwd=bundle.root,
+                input=scenario["prompt"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                encoding="utf-8",
+                errors="replace",
+                env=adapter.sanitized_environment(env),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raw = exc.stdout if isinstance(exc.stdout, str) else (exc.stdout or b"").decode("utf-8", "replace")
+            err = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", "replace")
+            raise InconclusiveTrial(
+                f"Codex trial timed out after {timeout}s",
+                raw_trace=raw,
+                stderr=err,
+                command=tuple(command),
+                duration_seconds=time.monotonic() - started,
+                requested_model=model,
+                model_executed=True,
+                **evidence,
+            ) from exc
+        duration = time.monotonic() - started
+        if clean_room.is_auth_failure(proc.stdout, proc.returncode) or clean_room.is_auth_failure(
+            proc.stderr, proc.returncode
+        ):
+            raise InconclusiveTrial(
+                "Codex trial did not authenticate with the subscriber session",
+                raw_trace=proc.stdout,
+                stderr=proc.stderr,
+                returncode=proc.returncode,
+                command=tuple(command),
+                duration_seconds=duration,
+                requested_model=model,
+                model_executed=True,
+                **evidence,
+            )
+        if proc.returncode != 0:
+            raise InconclusiveTrial(
+                f"Codex trial exited rc={proc.returncode}: {proc.stderr.strip()[:300]}",
+                raw_trace=proc.stdout,
+                stderr=proc.stderr,
+                returncode=proc.returncode,
+                command=tuple(command),
+                duration_seconds=duration,
+                requested_model=model,
+                model_executed=True,
+                **evidence,
+            )
+        try:
+            trace = adapter.parse_trace(proc.stdout, requested_model=model)
+        except engine_adapters.AdapterError as exc:
+            raise InconclusiveTrial(
+                str(exc),
+                raw_trace=proc.stdout,
+                stderr=proc.stderr,
+                returncode=proc.returncode,
+                command=tuple(command),
+                duration_seconds=duration,
+                requested_model=model,
+                model_executed=True,
+                **evidence,
+            ) from exc
+        policy_sha256 = hashlib.sha256(
+            bytes.fromhex(bundle.policy_sha256) + bytes.fromhex(trace.policy_sha256)
+        ).hexdigest()
+        missing = set(expected) - set(trace.reference_canaries)
+        unexpected = set(trace.reference_canaries) - set(expected)
+        if missing or unexpected:
+            raise InconclusiveTrial(
+                f"Codex reference canary mismatch: missing={sorted(missing)}, "
+                f"unexpected={sorted(unexpected)}",
+                raw_trace=proc.stdout,
+                stderr=proc.stderr,
+                returncode=proc.returncode,
+                command=tuple(command),
+                duration_seconds=duration,
+                requested_model=model,
+                resolved_model=trace.resolved_model,
+                policy_sha256=policy_sha256,
+                observed_canaries=trace.reference_canaries,
+                model_executed=True,
+                **evidence,
+            )
+        parsed = ParsedTrace(
+            response=trace.response,
+            skills=(),
+            agents=(),
+            root_skills=(),
+            root_agents=(),
+            nested_ownership=(),
+            attempted_skills=(),
+            attempted_agents=(),
+            model=trace.resolved_model,
+            session_id=None,
+            total_cost_usd=None,
+            runtime_plugins=(),
+            mcp_servers=(),
+            available_skills=(),
+            available_agents=(),
+            available_tools=(),
+            tool_attempts=(),
+            observed_canaries=trace.reference_canaries,
+            stream_diagnostics=StreamDiagnostics(0, 1, 0, None, 1, 0, ()),
+        )
+        return TrialExecution(
+            parsed=parsed,
+            raw_trace=proc.stdout,
+            stderr=proc.stderr,
+            command=tuple(command),
+            returncode=proc.returncode,
+            duration_seconds=duration,
+            context_sha256=bundle.tree_sha256,
+            policy_sha256=policy_sha256,
+            expected_canaries=expected,
+            observed_canaries=trace.reference_canaries,
+        )
 
 
 def _completed_components(parsed: ParsedTrace, kind: str, *, scope: str = "any") -> set[str]:
@@ -1068,14 +1522,23 @@ def grade_direct_skill_fired(scenario: dict, parsed: ParsedTrace) -> tuple[bool,
     return False, f"pinned skill {expected} did not complete; saw skills={sorted(actual)}"
 
 
-def grade_trial(scenario: dict, parsed: ParsedTrace) -> tuple[bool, list[str]]:
+def grade_trial(
+    scenario: dict,
+    parsed: ParsedTrace,
+    *,
+    require_native_invocation: bool = True,
+) -> tuple[bool, list[str]]:
     details: list[str] = []
     passed_all = True
     if scenario["mode"] == "discovery":
         routing_passed, routing_detail = grade_routing(scenario, parsed)
         passed_all &= routing_passed
         details.append(f"    [{'PASS' if routing_passed else 'FAIL'}] routing: {routing_detail}")
-    elif scenario["mode"] == "direct" and scenario["target"]["kind"] == "skill":
+    elif (
+        require_native_invocation
+        and scenario["mode"] == "direct"
+        and scenario["target"]["kind"] == "skill"
+    ):
         fired_passed, fired_detail = grade_direct_skill_fired(scenario, parsed)
         passed_all &= fired_passed
         details.append(f"    [{'PASS' if fired_passed else 'FAIL'}] skill-fired: {fired_detail}")
@@ -1376,6 +1839,9 @@ class ArtifactWriter:
     def write_summary(self, summary: dict) -> Path:
         return self._write_json(self.root / "summary.json", {**summary, "provenance": self.provenance})
 
+    def write_envelope(self, envelope: dict) -> Path:
+        return self._write_json(self.root / "eval-result-envelope-v1.json", envelope)
+
 
 def bounded_response_excerpt(response: str) -> str:
     """Keep diagnostic wording without turning the durable record into a raw transcript."""
@@ -1389,14 +1855,18 @@ def persist_summary_and_evidence(
     writer: ArtifactWriter,
     summary: dict,
     reviews_root: Path | None = None,
+    *,
+    envelope_path: Path | None = None,
 ) -> tuple[Path, Path]:
     """Seal the private summary and require its bounded durable review record."""
 
     summary_path = writer.write_summary(summary)
     try:
-        evidence_path = capture_measurement_evidence.capture_eval_summary(
-            summary_path,
-            reviews_root or ROOT / "docs" / "reviews",
+        capture_root = reviews_root or ROOT / "docs" / "reviews"
+        evidence_path = (
+            capture_measurement_evidence.capture_eval_envelope(envelope_path, capture_root)
+            if envelope_path is not None
+            else capture_measurement_evidence.capture_eval_summary(summary_path, capture_root)
         )
     except (capture_measurement_evidence.CaptureError, FileExistsError, OSError) as exc:
         raise clean_room.RunnerFailed(
@@ -1486,19 +1956,57 @@ def frozen_eval_snapshot():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def freeze_profile_argument(argv: list[str], snapshot_root: Path) -> list[str]:
+    """Copy an optional execution profile beside the frozen harness and rewrite argv to it."""
+
+    rewritten = list(argv)
+    matches: list[tuple[int, str, bool]] = []
+    for index, argument in enumerate(rewritten):
+        if argument == "--profile":
+            if index + 1 >= len(rewritten):
+                raise clean_room.RunnerFailed("--profile requires a path")
+            matches.append((index + 1, rewritten[index + 1], False))
+        elif argument.startswith("--profile="):
+            matches.append((index, argument.partition("=")[2], True))
+    if not matches:
+        return rewritten
+    if len(matches) != 1:
+        raise clean_room.RunnerFailed("--profile may be supplied only once")
+    index, raw_path, joined = matches[0]
+    source = Path(raw_path)
+    try:
+        if not source.is_file() or _is_reparse_point(source):
+            raise ValueError("must be an ordinary file")
+        before = source.stat(follow_symlinks=False)
+        content = source.read_bytes()
+        after = source.stat(follow_symlinks=False)
+        if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+            raise ValueError("changed while it was read")
+        destination = snapshot_root / "execution-profile.json"
+        destination.write_bytes(content)
+        if destination.read_bytes() != content:
+            raise ValueError("frozen copy did not preserve the source bytes")
+    except (OSError, ValueError) as exc:
+        raise clean_room.RunnerFailed(f"could not freeze execution profile {source}: {exc}") from exc
+    replacement = str(destination.resolve())
+    rewritten[index] = f"--profile={replacement}" if joined else replacement
+    return rewritten
+
+
 def run_from_frozen_eval(argv: list[str]) -> int:
     """Bootstrap a live run from frozen harness/scenario bytes, not the mutable checkout."""
     try:
         with frozen_eval_snapshot() as snapshot_root:
+            frozen_argv = freeze_profile_argument(argv, snapshot_root)
             env = os.environ.copy()
             env[EVAL_SNAPSHOT_ROOT_ENV] = str(snapshot_root)
             env["FLEET_ROOT"] = str(ROOT)
             proc = subprocess.run(
-                [sys.executable, str(snapshot_root / "run_evals.py"), *argv],
+                [sys.executable, str(snapshot_root / "run_evals.py"), *frozen_argv],
                 cwd=Path.cwd(), env=env, check=False,
             )
             return proc.returncode
-    except clean_room.RunnerFailed as exc:
+    except (clean_room.RunnerFailed, resolved_context.BundleError, engine_adapters.AdapterError) as exc:
         print(f"run_evals: {exc}", file=sys.stderr)
         return 2
 
@@ -1574,6 +2082,8 @@ def collect_provenance(
     plugin_root: Path,
     suite_sha256: str,
     conditions: dict | None = None,
+    *,
+    engine_name: str = "claude-plugin",
 ) -> dict:
     manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
     manifest = plugin_manifest(plugin_root)
@@ -1589,11 +2099,14 @@ def collect_provenance(
         raise clean_room.RunnerFailed(
             "plugin workspace changed after the frozen execution snapshot was created"
         )
-    return {
+    runtime_version = required_command_text([claude_bin, "--version"])
+    provenance = {
         "run_id": datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8],
         "started_at": datetime.now(UTC).isoformat(),
-        "claude_cli_path": str(Path(claude_bin).resolve()),
-        "claude_cli_version": required_command_text([claude_bin, "--version"]),
+        "engine": engine_name,
+        "runtime_cli_path": str(Path(claude_bin).resolve()),
+        "runtime_cli_version": runtime_version,
+        "auth_mode": "subscriber_session",
         "requested_model": model,
         "plugin_name": manifest["name"],
         "plugin_version": manifest.get("version"),
@@ -1613,11 +2126,20 @@ def collect_provenance(
         "fixture_cwd": str(workspace),
         "fixture_sha256": hashlib.sha256(b"neutral-empty-git-root-v1\n").hexdigest(),
         "fixture_kind": "neutral-empty-git-root-v1",
-        "namespace": "save-toolkit plugin plus Claude built-ins; neutral project; strict empty MCP",
+        "namespace": (
+            "save-toolkit plugin plus Claude built-ins; neutral project; strict empty MCP"
+            if engine_name == "claude-plugin"
+            else "ephemeral resolved context; read-only Codex sandbox; ignored user config/rules"
+        ),
         "denied_tools": DENIED_TOOLS.split(","),
         "allowed_builtin_tools": list(ALLOWED_BUILTIN_TOOLS),
         "conditions": conditions if conditions is not None else {},
     }
+    if engine_name == "claude-plugin":
+        # Compatibility fields for the legacy v1 summary and durable renderer during expansion.
+        provenance["claude_cli_path"] = provenance["runtime_cli_path"]
+        provenance["claude_cli_version"] = runtime_version
+    return provenance
 
 
 def _filter_scenarios(scenarios: list[dict], args: argparse.Namespace) -> list[dict]:
@@ -1636,14 +2158,19 @@ def main() -> int:
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--validate", action="store_true", help="validate scenario schema; no model")
     action.add_argument("--list", action="store_true", help="list selected scenarios")
-    action.add_argument("--run", action="store_true", help="run selected scenarios against Claude")
+    action.add_argument("--run", action="store_true", help="run selected scenarios through the selected engine")
     parser.add_argument("--mode", choices=["all", *sorted(MODES)], default="all")
     parser.add_argument("--split", choices=["all", *sorted(SPLITS)], default="all")
     parser.add_argument("--match", help="select scenario IDs containing this substring")
     parser.add_argument("--trials", type=positive_trials, help="override trials per scenario (>=2)")
     parser.add_argument("--threshold", type=bounded_threshold, help="override scenario pass threshold")
-    parser.add_argument("--timeout", type=int, default=300, help="seconds per trial")
+    parser.add_argument("--timeout", type=positive_timeout, help="seconds per trial (default: 300)")
     parser.add_argument("--model", help="Claude model alias or full ID; actual model is recorded from trace")
+    parser.add_argument(
+        "--profile",
+        type=Path,
+        help="versioned multi-engine execution profile; required for Codex and approval-gated for --run",
+    )
     parser.add_argument("--results-dir", type=Path, default=ROOT / ".eval-runs")
     parser.add_argument("--require-clean-plugin", action="store_true", help="refuse if plugin inputs differ from HEAD")
     args = parser.parse_args()
@@ -1661,6 +2188,53 @@ def main() -> int:
         print("EVAL SUITE INVALID:")
         print("\n".join("  - " + problem for problem in problems))
         return 3
+    profile: execution_profiles.ExecutionProfile | None = None
+    if args.profile is not None:
+        try:
+            profile = execution_profiles.load_profile(
+                args.profile,
+                require_approval=args.run,
+            )
+        except execution_profiles.ProfileError as exc:
+            print(f"run_evals: invalid execution profile: {exc}", file=sys.stderr)
+            return 2 if args.run else 3
+        if any(
+            (
+                args.mode != "all",
+                args.split != "all",
+                args.match is not None,
+                args.trials is not None,
+                args.threshold is not None,
+                args.timeout is not None,
+                args.model is not None,
+            )
+        ):
+            print(
+                "run_evals: --profile owns engine, scenario selection, model, trials, and timeout; "
+                "do not combine it with selection/model/trial/timeout/threshold overrides",
+                file=sys.stderr,
+            )
+            return 2 if args.run else 3
+        args.model = profile.model
+        args.trials = profile.trials
+        args.timeout = profile.timeout_s
+        selected_ids = set(profile.scenario_ids)
+        selected = [scenario for scenario in scenarios if scenario["id"] in selected_ids]
+        missing_ids = selected_ids - {scenario["id"] for scenario in selected}
+        if missing_ids:
+            print(
+                f"run_evals: profile names unknown scenario(s): {sorted(missing_ids)}",
+                file=sys.stderr,
+            )
+            return 2 if args.run else 3
+        try:
+            execution_profiles.validate_scenario_bindings(profile, selected)
+        except execution_profiles.ProfileError as exc:
+            print(f"run_evals: invalid execution profile: {exc}", file=sys.stderr)
+            return 2 if args.run else 3
+    else:
+        args.timeout = args.timeout or 300
+        selected = _filter_scenarios(scenarios, args)
     if args.validate:
         direct = sum(s["mode"] == "direct" for s in scenarios)
         discovery = len(scenarios) - direct
@@ -1671,7 +2245,6 @@ def main() -> int:
         )
         return 0
 
-    selected = _filter_scenarios(scenarios, args)
     if not selected:
         print("no scenarios matched the requested filters")
         return 3
@@ -1685,22 +2258,55 @@ def main() -> int:
         print("run_evals: live execution requires the frozen eval bootstrap", file=sys.stderr)
         return 2
 
-    claude_setting = os.environ.get("CLAUDE_BIN", "claude")
-    claude_bin = shutil.which(claude_setting) or (claude_setting if Path(claude_setting).is_file() else None)
-    if not claude_bin:
-        print(f"run_evals: Claude CLI not found: {claude_setting}", file=sys.stderr)
+    engine_name = profile.engine if profile is not None else "claude-plugin"
+    runtime_setting = (
+        os.environ.get("CODEX_BIN", "codex")
+        if engine_name == "codex-cli"
+        else os.environ.get("CLAUDE_BIN", "claude")
+    )
+    runtime_bin = shutil.which(runtime_setting) or (
+        runtime_setting if Path(runtime_setting).is_file() else None
+    )
+    if not runtime_bin:
+        print(f"run_evals: {engine_name} CLI not found: {runtime_setting}", file=sys.stderr)
         return 2
 
     try:
         results_root = resolve_results_root(args.results_dir)
-        with (
-            frozen_plugin_snapshot() as plugin_root,
-            clean_room.clean_env() as env,
-            clean_room.neutral_workspace() as workspace,
-        ):
+        with contextlib.ExitStack() as stack:
+            plugin_root = stack.enter_context(frozen_plugin_snapshot())
+            workspace = stack.enter_context(clean_room.neutral_workspace())
+            env: Mapping[str, str]
+            if engine_name == "claude-plugin":
+                env = stack.enter_context(
+                    clean_room.clean_env(subscriber_only=profile is not None)
+                )
+            else:
+                env = os.environ.copy()
+            denied_probe_path: Path | None = None
+            if engine_name == "claude-plugin" and any(
+                (
+                    profile.required_references.get(scenario["id"], ())
+                    if profile is not None
+                    else reference_requirements(scenario)
+                )
+                for scenario in selected
+            ):
+                denied_probe_root = Path(
+                    stack.enter_context(
+                        tempfile.TemporaryDirectory(prefix="fleet-eval-denied-boundary-")
+                    )
+                )
+                denied_probe_path = denied_probe_root / "must-remain-denied.txt"
+                denied_probe_path.write_text(
+                    "Evaluator boundary sentinel. This content must not be readable.\n",
+                    encoding="utf-8",
+                )
+                denied_probe_path.chmod(0o600)
             provenance = collect_provenance(
-                args.model, workspace, claude_bin, plugin_root, suite_sha256,
+                args.model, workspace, runtime_bin, plugin_root, suite_sha256,
                 measurement_conditions(args),
+                engine_name=engine_name,
             )
             if args.require_clean_plugin and provenance["plugin_inputs_dirty"]:
                 print("run_evals: plugin inputs differ from HEAD; refusing publishable baseline", file=sys.stderr)
@@ -1708,8 +2314,16 @@ def main() -> int:
             run_dir = results_root / provenance["run_id"]
             writer = ArtifactWriter(run_dir, provenance)
             scenario_results: list[dict] = []
-            print(f"run: {provenance['run_id']} | CLI {provenance['claude_cli_version']} | plugin {provenance['plugin_commit']}")
+            print(
+                f"run: {provenance['run_id']} | engine {engine_name} | "
+                f"CLI {provenance['runtime_cli_version']} | candidate {provenance['plugin_commit']}"
+            )
             print(f"namespace: {provenance['namespace']} | artifacts: {run_dir}")
+            batch_deadline = (
+                time.monotonic() + profile.total_timeout_s if profile is not None else None
+            )
+            reported_cost_usd = 0.0
+            campaign_stop_reason: str | None = None
             for scenario in selected:
                 trials = args.trials or scenario.get("trials", DEFAULT_TRIALS)
                 threshold = effective_threshold(
@@ -1720,21 +2334,103 @@ def main() -> int:
                 print(f"\n== {scenario['id']} [{scenario['mode']}/{scenario['split']}] ==")
                 for trial_number in range(1, trials + 1):
                     started_at = datetime.now(UTC).isoformat()
-                    planned_command = build_command(
-                        scenario, args.model, claude_bin, plugin_root,
-                    )
-                    try:
-                        execution = run_agent(
-                            scenario, env=env, cwd=workspace, timeout=args.timeout,
-                            model=args.model, claude_bin=claude_bin, plugin_root=plugin_root,
+                    if engine_name == "claude-plugin":
+                        planned_references = (
+                            profile.required_references.get(scenario["id"], ())
+                            if profile is not None
+                            else reference_requirements(scenario)
                         )
+                        planned_command = build_command(
+                            scenario,
+                            args.model,
+                            runtime_bin,
+                            plugin_root,
+                            enable_snapshot_reads=bool(planned_references),
+                            required_reference_paths=planned_references,
+                            denied_probe_path=denied_probe_path,
+                        )
+                    else:
+                        planned_command = [runtime_bin, "exec", "<ephemeral-resolved-context>"]
+                    try:
+                        if campaign_stop_reason is not None:
+                            raise InconclusiveTrial(
+                                campaign_stop_reason,
+                                command=tuple(planned_command),
+                                duration_seconds=0.0,
+                                requested_model=args.model,
+                                stop_campaign=True,
+                            )
+                        if (
+                            profile is not None
+                            and profile.cost_budget["status"] == "available"
+                            and reported_cost_usd >= float(profile.cost_budget["max_usd"])
+                        ):
+                            raise InconclusiveTrial(
+                                "reported cost budget was exhausted before trial start",
+                                command=tuple(planned_command),
+                                duration_seconds=0.0,
+                                requested_model=args.model,
+                                stop_campaign=True,
+                            )
+                        if batch_deadline is not None:
+                            remaining = batch_deadline - time.monotonic()
+                            if remaining <= 0:
+                                raise InconclusiveTrial(
+                                    "execution profile total timeout exhausted before trial start",
+                                    command=tuple(planned_command),
+                                    duration_seconds=0.0,
+                                    requested_model=args.model,
+                                )
+                            trial_timeout = min(args.timeout, max(1, math.ceil(remaining)))
+                        else:
+                            trial_timeout = args.timeout
+                        if engine_name == "claude-plugin":
+                            execution = run_agent(
+                                scenario,
+                                env=dict(env),
+                                cwd=workspace,
+                                timeout=trial_timeout,
+                                model=args.model,
+                                claude_bin=runtime_bin,
+                                plugin_root=plugin_root,
+                                required_references=planned_references,
+                                denied_probe_path=denied_probe_path,
+                            )
+                        else:
+                            if profile is None:
+                                raise clean_room.RunnerFailed(
+                                    "Codex execution requires a versioned approved profile"
+                                )
+                            execution = run_codex_agent(
+                                scenario,
+                                candidate_root=plugin_root,
+                                candidate_sha=provenance["plugin_commit"],
+                                required_references=profile.required_references.get(
+                                    scenario["id"], ()
+                                ),
+                                timeout=trial_timeout,
+                                model=profile.model,
+                                codex_bin=runtime_bin,
+                                env=env,
+                            )
+                        if profile is not None:
+                            reported_cost_usd = enforce_reported_cost_budget(
+                                profile,
+                                reported_cost_usd,
+                                execution,
+                            )
                         writer.write_trace(scenario["id"], trial_number, execution.raw_trace)
                         writer.write_stderr(scenario["id"], trial_number, execution.stderr)
-                        passed, details = grade_trial(scenario, execution.parsed)
+                        passed, details = grade_trial(
+                            scenario,
+                            execution.parsed,
+                            require_native_invocation=engine_name == "claude-plugin",
+                        )
                         state = "PASS" if passed else "FAIL"
                         trial_result = {
                             "trial": trial_number,
                             "state": state,
+                            "model_executed": True,
                             "started_at": started_at,
                             "duration_seconds": execution.duration_seconds,
                             "exit_code": execution.returncode,
@@ -1764,9 +2460,31 @@ def main() -> int:
                             "details": details,
                             "response_excerpt": bounded_response_excerpt(execution.parsed.response),
                             "argv": list(execution.command),
+                            "trace_sha256": hashlib.sha256(
+                                execution.raw_trace.encode("utf-8")
+                            ).hexdigest(),
+                            "context_sha256": execution.context_sha256,
+                            "policy_sha256": execution.policy_sha256,
+                            "canaries": {
+                                "expected": list(execution.expected_canaries),
+                                "observed": list(execution.observed_canaries),
+                            },
                         }
                     except (InconclusiveTrial, clean_room.AuthUnavailable) as exc:
                         state = "INCONCLUSIVE"
+                        parsed_evidence = getattr(exc, "parsed_trace", None)
+                        incurred_cost = getattr(exc, "total_cost_usd", None)
+                        if (
+                            profile is not None
+                            and profile.cost_budget["status"] == "available"
+                            and isinstance(incurred_cost, (int, float))
+                        ):
+                            reported_cost_usd += incurred_cost
+                        if getattr(exc, "stop_campaign", False):
+                            campaign_stop_reason = (
+                                "campaign stopped before model execution after a prior budget "
+                                f"boundary became inconclusive: {exc}"
+                            )
                         raw = getattr(exc, "raw_trace", "")
                         stderr = getattr(exc, "stderr", "")
                         writer.write_trace(scenario["id"], trial_number, raw)
@@ -1779,15 +2497,40 @@ def main() -> int:
                             "exit_code": getattr(exc, "returncode", None),
                             "duration_seconds": getattr(exc, "duration_seconds", None),
                             "requested_model": getattr(exc, "requested_model", args.model),
-                            "resolved_model": None,
-                            "session_id": None,
-                            "total_cost_usd": None,
-                            "completed_invocations": {"skills": [], "agents": []},
-                            "completed_root_invocations": {"skills": [], "agents": []},
-                            "attempted_invocations": {"skills": [], "agents": []},
-                            "runtime_namespace": None,
+                            "resolved_model": getattr(exc, "resolved_model", None),
+                            "model_executed": getattr(exc, "model_executed", False),
+                            "session_id": (
+                                parsed_evidence.session_id if parsed_evidence is not None else None
+                            ),
+                            "total_cost_usd": getattr(exc, "total_cost_usd", None),
+                            "completed_invocations": {
+                                "skills": list(parsed_evidence.skills) if parsed_evidence else [],
+                                "agents": list(parsed_evidence.agents) if parsed_evidence else [],
+                            },
+                            "completed_root_invocations": {
+                                "skills": list(parsed_evidence.root_skills) if parsed_evidence else [],
+                                "agents": list(parsed_evidence.root_agents) if parsed_evidence else [],
+                            },
+                            "attempted_invocations": {
+                                "skills": list(parsed_evidence.attempted_skills) if parsed_evidence else [],
+                                "agents": list(parsed_evidence.attempted_agents) if parsed_evidence else [],
+                            },
+                            "runtime_namespace": ({
+                                "plugins": list(parsed_evidence.runtime_plugins),
+                                "mcp_servers": list(parsed_evidence.mcp_servers),
+                                "available_skills": list(parsed_evidence.available_skills),
+                                "available_agents": list(parsed_evidence.available_agents),
+                                "available_tools": list(parsed_evidence.available_tools),
+                            } if parsed_evidence else None),
                             "stream_diagnostics": getattr(exc, "stream_diagnostics", None),
                             "argv": list(getattr(exc, "command", ()) or planned_command),
+                            "trace_sha256": hashlib.sha256(raw.encode("utf-8")).hexdigest(),
+                            "context_sha256": getattr(exc, "context_sha256", None),
+                            "policy_sha256": getattr(exc, "policy_sha256", None),
+                            "canaries": {
+                                "expected": list(getattr(exc, "expected_canaries", ())),
+                                "observed": list(getattr(exc, "observed_canaries", ())),
+                            },
                         }
                     states.append(state)
                     trial_results.append(trial_result)
@@ -1826,6 +2569,32 @@ def main() -> int:
                 )
             if integrity_errors:
                 overall = "INCONCLUSIVE"
+            completed_at = datetime.now(UTC).isoformat()
+            envelope_path: Path | None = None
+            if profile is not None:
+                try:
+                    reference_canaries = {
+                        scenario["id"]: expected_canaries_for_paths(
+                            profile.required_references.get(scenario["id"], ()),
+                            plugin_root,
+                        )
+                        for scenario in selected
+                        if profile.required_references.get(scenario["id"])
+                    }
+                    envelope = eval_evidence.build_envelope(
+                        provenance=provenance,
+                        profile=profile,
+                        scenario_results=scenario_results,
+                        reference_canaries=reference_canaries,
+                        grader_sha256=_sha256_file(EVAL_ROOT / "graders.py"),
+                        ended_at=completed_at,
+                        integrity_errors=integrity_errors,
+                    )
+                    envelope_path = writer.write_envelope(envelope)
+                except (eval_evidence.EvidenceError, engine_contract.ContractError) as exc:
+                    raise clean_room.RunnerFailed(
+                        f"could not produce normalized eval evidence: {exc}"
+                    ) from exc
             summary_path, evidence_path = persist_summary_and_evidence(writer, {
                 "schema_version": 1,
                 "verdict": overall,
@@ -1836,19 +2605,20 @@ def main() -> int:
                     "state": "PASS" if not integrity_errors else "INCONCLUSIVE",
                     "errors": integrity_errors,
                 },
-                "completed_at": datetime.now(UTC).isoformat(),
-            })
+                "completed_at": completed_at,
+            }, envelope_path=envelope_path)
             if integrity_errors:
                 print("\nINCONCLUSIVE integrity check: " + "; ".join(integrity_errors))
             print(
                 f"\n{overall}: {verdicts.count('PASS')}/{len(verdicts)} scenarios passed; "
                 f"summary: {summary_path}; durable evidence: {evidence_path}"
+                + (f"; normalized envelope: {envelope_path}" if envelope_path else "")
             )
             return {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2}[overall]
     except clean_room.AuthUnavailable as exc:
         print(f"run_evals: {exc}", file=sys.stderr)
         return 2
-    except clean_room.RunnerFailed as exc:
+    except (clean_room.RunnerFailed, resolved_context.BundleError, engine_adapters.AdapterError) as exc:
         print(f"run_evals: {exc}", file=sys.stderr)
         return 2
 

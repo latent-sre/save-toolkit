@@ -389,6 +389,78 @@ Agent control remains unaffected. Keep invocation authority open until a real to
 denial is observed. Do not run a third identical picker retry, substitute a prompt-file override, or
 populate `hooks/copilot-hooks.json`.
 
+### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
+
+**Status:** `active` (2026-08-26). The architecture and offline implementation are accepted; no
+model execution is authorized.
+
+**Owner:** `latent-sre` owns the architecture, evidence/security contracts, live-run budgets, and
+acceptance of an exact revision. `agent-engineer` owns the claim vocabulary, scenarios, graders, and
+reference canaries. `software-engineer` owns the runner, adapters, isolation, schemas, and tests.
+Neither implementation owner promotes its own result.
+
+**Outcome:** One shared scenario and deterministic-grader corpus can run through an explicit Claude
+native-plugin adapter and an explicit Codex resolved-context adapter. Claude measures the real
+frozen plugin and host boundary. Codex, using an existing subscriber session rather than an API key,
+measures only portable behavior, reference use, grader coverage, and cross-engine divergence. Every
+result says which claims its engine can support, emits a normalized digest-bound envelope, and stays
+separate in comparison and promotion views. Codex is not restored as a distribution target.
+
+**Source:** Owner direction on 2026-08-26 requested a multi-engine evaluation architecture and
+selected subscriber-account authentication for Codex. The
+[`accepted multi-engine evaluation contract`](decisions/2026-08-26-multi-engine-evaluation-contract.md)
+records the claim matrix, adapters, evidence envelope, security boundary, rollout, rollback, and
+alternatives. This implementation candidate incorporates the published HOST-003 source revision
+`c93d8cb` on top of refreshed `origin/main`; final acceptance evidence still binds to the future
+clean exact implementation revision, not either parent alone.
+
+**Prerequisites:** The owner accepted the hard-to-reverse contracts: (1) the claim matrix;
+(2) a separate `eval-result-envelope/v1` rather than changing the general evidence envelope; (3)
+Claude snapshot-scoped reference reads with advertised inventory distinguished from callable
+policy; (4) Codex ephemeral read-only resolved-context execution using only the existing subscriber
+session and no credential copying; and (5) separate engine verdicts with no averaged score. Before
+any model call, the owner separately approves a fixed model, reasoning/effort setting, trial count,
+per-trial timeout, total timeout, and stop condition. No API key, production target, Codex generated
+projection, push, merge, or release is a prerequisite.
+
+**Implementation sequence:** Expand before migration. First add the claim registry, normalized
+schema, offline fixtures, and adapter interface. Then move the current Claude execution behind its
+adapter without changing the default CLI or legacy summary and prove parity. Resolve HOST-003 on the
+exact SRE candidate with positive in-snapshot and negative out-of-snapshot canaries. Add the Codex
+bundle resolver and adapter offline, then request a bounded live-run approval. Add divergence
+classification only for comparable validated envelopes. Retire no legacy result contract until its
+consumers have migrated.
+
+**Acceptance:** All conditions are required. (1) Existing scenario YAML and deterministic graders
+remain shared; provider commands and authentication never enter scenarios. (2) Claude runs one real
+frozen plugin in a neutral project and separately records advertised tools, callable policy, plugin
+identity, scoped reference reads, and canaries. (3) Codex runs an immutable, path-safe, size-bounded
+resolved-context bundle through `codex exec --ephemeral` with a read-only sandbox, ignored user
+configuration, bound ambient policy, no prior session, and no API key handling. (4) The normalized
+envelope binds engine and adapter versions, resolved model, candidate SHA and input digest,
+plugin/context applicability and digests, policy/scenario/grader/profile/comparison digests, canaries, claims,
+verdict, duration, and typed unavailable cost. (5) Red-first tests reject unexpected tools,
+out-of-snapshot reads, traversal/indirection, missing canaries, wrong digests, unsupported claims,
+incomplete traces, engine mislabeling, incomparable reductions, and zero-valued unavailable cost.
+(6) Claude and Codex verdicts remain separate; Codex cannot emit plugin, native-routing, or Claude
+tool-boundary claims; deterministic graders gate while model judgment remains calibration only.
+(7) Focused and full component tests, any required canonical generation, strict plugin validation,
+`git diff --check`, Gate A, and independent exact-revision review pass. (8) Human acceptance of the
+exact revision remains the only promotion authority, and no live run occurs without its own budget
+approval.
+
+**Rollback:** Before merge, delete the implementation branch. After the expand phase, disable and
+remove the Codex profile, adapter, and resolver while retaining the default Claude path and shared
+scenario/graders. If Claude path scoping cannot prove both allow and deny cases on the pinned host,
+keep reference-bearing trials `INCONCLUSIVE` and leave HOST-003 unresolved; do not widen filesystem
+access.
+
+**Next action:** Finish offline full-suite verification and independent review of the exact clean
+candidate. Codex live execution is hard-disabled before process start: establish a structural
+no-tool or bundle-only read boundary, prove a denied out-of-bundle probe plus traced resolved model
+and effective policy on the exact CLI, then seek separate fixed-budget approval. Do not run either
+model until its live prerequisites are satisfied.
+
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
 **Status:** `active` (2026-08-24). Phase 1 is complete and closed as evidence; Phase 2 is the live
@@ -478,7 +550,8 @@ do not move reference-dependent behavior graders into discovery.
 
 ### HOST-003 — restore direct-mode `sre` measurements under the CLI tool-inventory drift
 
-**Status:** `decision-needed` (2026-08-26)
+**Status:** `active` (2026-08-26). The snapshot-scoped-read rule is accepted and implemented
+offline; exact-host allow/deny proof and a live direct result remain budget-gated.
 
 **Outcome:** `evals/run_evals.py --run` can grade a `mode: direct` / `kind: agent` scenario that
 pins `save-toolkit:sre` again, without weakening the fail-closed runtime boundary.
@@ -497,16 +570,19 @@ tool specifiers), which also makes reference loading measurable via the bundle's
 (b) keep the tool-less clean room and record sustained response as unmeasurable; or (c) move the
 schema back into the agent body, reversing part of the step-5 trim.
 
-**Prerequisites:** None structural. The owner decides between accepting the pinned agent's declared
-`Grep`/`Glob` in `expected_runtime_tools` (with a red/green test that still rejects any tool the
-frontmatter does not declare) and finding a CLI flag that masks them. Editing agent frontmatter to
-dodge the check is not an option.
+**Prerequisites:** The accepted multi-engine evaluation contract chooses snapshot-scoped reads and
+separates advertised inventory from callable policy. The pinned agent's declared `Grep`/`Glob` may
+appear in `expected_runtime_tools`; `Read`, `Grep`, and `Glob` become callable only for a
+reference-bearing plan and only inside the frozen plugin snapshot. Editing agent frontmatter to
+dodge the check remains out of scope.
 
 **Acceptance:** A direct `sre` scenario grades PASS/FAIL rather than INCONCLUSIVE on the current
 CLI; a focused test goes red when an undeclared tool appears in the inventory; the boundary
 documentation in `evals/README.md` states the accepted rule.
 
-**Next action:** Owner chooses the rule; `software-engineer` implements it with the focused test.
+**Next action:** Under a separately approved live profile, prove one allowed in-snapshot reference
+read, one denied traversal/out-of-snapshot attempt, the expected canary, and a terminal PASS/FAIL
+direct result on the pinned Claude CLI. Until then HOST-003 remains active, not closed.
 
 ### GRADER-004 — make `incident_recovery_authority` negation-aware
 

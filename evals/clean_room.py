@@ -200,13 +200,18 @@ def is_auth_failure(text: str, returncode: int | None = None) -> bool:
 
 
 @contextlib.contextmanager
-def clean_env():
+def clean_env(*, subscriber_only: bool = False):
     """Yield an allowlisted env whose CLAUDE_CONFIG_DIR holds only credentials (or nothing for
     direct Anthropic API authentication -- see has_api_key_auth()).
 
     The caller loads this repository with `--plugin-dir`; the model then sees that plugin and
     nothing else from the operator's personal Claude configuration.
     """
+    if subscriber_only and has_api_key_auth():
+        raise AuthUnavailable(
+            "profile-backed fleet evals require the existing Claude subscriber session; "
+            "remove ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN from the runner environment"
+        )
     creds = None if has_api_key_auth() else require_credentials()
     tmp = Path(tempfile.mkdtemp(prefix="fleet-cleanroom-"))
     try:
