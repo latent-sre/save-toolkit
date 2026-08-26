@@ -144,6 +144,21 @@ because safely copying their provider-specific host credential environment is ou
 least-privilege harness.
 
 Raw stdout, stderr, and `summary.json` land under `.eval-runs/<run-id>/`. The directory is gitignored.
+After sealing `summary.json`, the runner must also create a bounded durable record under
+`docs/reviews/<date>-eval-<run-id>.md`; a capture failure makes the batch non-publishable. The record
+keeps identities, verdicts, trial states, cost/duration, and at most 600 characters of each response
+as escaped untrusted data. It deliberately excludes raw traces, complete prompts and responses,
+session IDs, tool payloads, credentials, and temporary paths. Backfill a sealed private batch with:
+
+```powershell
+python scripts/capture_measurement_evidence.py eval .eval-runs/<run-id>/summary.json
+```
+
+For a host-owned agent task or session exercise, export the versioned JSON envelope described in
+[`EVIDENCE-001`'s capture design](../docs/reviews/2026-08-26-evidence-001-capture-design.md) while the
+host output still exists, then run `python scripts/capture_measurement_evidence.py exercise <file>`.
+The exercise command also accepts `-` to read the envelope from standard input without leaving a
+second scratch file.
 The runner enforces and verifies owner-only POSIX modes or a current-user-only Windows ACL; inability
 to prove that boundary is an instrument failure, not a fleet result. The manifest records CLI
 path/version, requested model, resolved per-trial model, plugin commit and snapshot hashes, dirty state,

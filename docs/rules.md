@@ -33,7 +33,7 @@ authoritative?*
 | Single live backlog is [`fleet-roadmap.md`](fleet-roadmap.md); never resume unchecked historical checklists | [`AGENTS.md`](../AGENTS.md); [`README.md`](README.md) in this directory |
 | Plans/specs need a historical `Status:` banner and a pointer back to the roadmap | [`README.md`](README.md); [`check_plan_status.py`](../scripts/check_plan_status.py) |
 | Retired names are rejected under live `agents/`/`skills/`/`commands/` trees | [`check_stale_names.py`](../scripts/check_stale_names.py) |
-| Routing/behavioral evals are manual clean-room only — never in CI; outputs under `.eval-runs/` | [`AGENTS.md`](../AGENTS.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Routing/behavioral evals are manual clean-room only — never in CI; raw outputs stay under `.eval-runs/`, while the runner must extract bounded durable evidence to `docs/reviews/` | [`AGENTS.md`](../AGENTS.md); [`CONTRIBUTING.md`](../CONTRIBUTING.md); [`EVIDENCE-001 capture design`](reviews/2026-08-26-evidence-001-capture-design.md) |
 | A newly asserted contract needs one focused test that goes red when that contract is deliberately broken and green when restored; mutation tooling is optional, single-module, and a survivor count is not work | [`CONTRIBUTING.md`](../CONTRIBUTING.md) Change-specific evidence |
 | Description edits that change routing content need after-change clean-room runs of the scenarios targeting the component; pure rewording needs none | [`CONTRIBUTING.md`](../CONTRIBUTING.md) Change-specific evidence |
 | Personal-first: prototype under `~/.claude`, promote by PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
