@@ -1,0 +1,42 @@
+schema_version: 1
+id: discovery-runbook-step-quality
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: runbook
+# The two existing runbook scenarios test routing and the accretion protocol. This one tests what
+# the skill produces: a step whose only stated outcome is success, or a restart with no bound, is
+# the failure that costs forty minutes at 3 a.m. The prompt supplies enough real detail that a good
+# runbook is achievable, so a thin one is the skill's fault rather than the input's.
+prompt: |
+  Write up the on-call procedure for this alert. Do not run anything — I'm giving you what we
+  already know.
+
+  Alert `queue-depth-critical` pages when the `invoices` worker queue exceeds 5000 messages for
+  10 minutes. Two causes we've actually seen: the worker app got scaled to zero instances after a
+  bad release, and a poison message that makes every consumer crash on the same payload. We're on
+  PCF — `cf` CLI against the `billing` org, `prod` space. Restarting the workers clears a transient
+  backlog but does nothing for a poison message; we lost 40 minutes to that last time. Escalation
+  is the billing engineering lead.
+routing:
+  expect: fire
+success_criteria:
+  - Fires for a from-scratch authoring request that never names the structure
+  - Triage branches between the two known causes rather than one linear path
+  - Steps state what partial or failed output looks like, not only success
+  - The retry-shaped step carries a stop condition instead of an unbounded "restart it"
+  - State-changing steps carry rollback, and escalation names a condition or elapsed time
+graders:
+  - type: contains_any
+    of: ["## Triage", "first checks", "decision tree", "If ", "→"]
+  - type: contains_any
+    of: ["expected:", "expected output", "you should see"]
+  - type: contains_any
+    of: ["if it does not", "if that fails", "stop", "do not repeat", "escalate", "instead go to"]
+  - type: contains_any
+    of: ["rollback", "roll back", "undo", "safe-abort", "one-way"]
+  - type: contains_any
+    of: ["poison", "scaled to zero", "scale to zero", "instances"]
+  - type: contains_any
+    of: ["minutes", "min", "elapsed"]

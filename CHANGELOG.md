@@ -72,6 +72,25 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   two rows now follow it. AGENTS.md's `Delegates to` column is bound to `EXPECTED_DELEGATION` by
   `validate_roster_graph`; README's `Routing` column is prose and is not, which is why it could drift
   into naming edges the frontmatter never granted.
+- Deepened the `runbook` skill from process coverage to authoring craft. It was already strong on
+  protocol — structure, accretion, Confluence import, alert linking, Crawl→Walk→Run — but every
+  asset in the bundle was a blank skeleton, so an author got slots and rules and never saw what
+  filling them well looks like. Adds a complete worked exemplar
+  (`assets/runbook-example.md`): a matured runbook whose triage branches route *away* from the
+  wrong action, whose expected-output lines separate partly-worked from failed, and whose incident
+  history shows three real incidents changing it. Adds `references/step-craft.md` on how a
+  correct-looking step produces a wrong action under pressure — ambient targets, success-only
+  expectations, steps reached out of order, non-idempotent rollbacks, unbounded retries,
+  placeholders with no source, scope that quietly grew. Adds a *Before you publish* readback to the
+  body: four questions asked as the tired responder rather than the author, since authors cannot
+  see the gaps they hold the context for. The exemplar is pinned to the frontmatter schema and to
+  its own exemplar disclaimer by two focused regressions, each proven red before green — a
+  demonstrated-but-invalid example teaches the wrong shape more effectively than the schema teaches
+  the right one. Two routing scenarios join the existing pair, which tested only routing: one
+  measures whether authored steps carry branches, stop conditions, and rollbacks; the other hands
+  the skill a prompt that actively invites confabulation ("just put in whatever is plausible") and
+  checks the honest gaps stay visible as gaps. Body grows from ~1.7k to ~2.2k tokens against the
+  ~5k budget.
 - Renamed the `prompt-engineer` agent to `agent-engineer`. The lane owns agent bodies, skills, tool
   and grader descriptions, bounded eval loops, roster and delegation graphs, and workflow-graph
   designs; prompt text is one artifact class among those, so the old name understated it the same way

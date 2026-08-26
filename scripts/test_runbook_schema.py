@@ -29,20 +29,21 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "schemas" / "runbook-frontmatter-v1.schema.json"
 CATALOG_PATH = ROOT / "schemas" / "catalog-v1.json"
 TEMPLATE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-template.md"
+EXAMPLE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-example.md"
 
 _KEY_RE = re.compile(r"^([a-z_][a-z0-9_]*):")
 
 
-def template_frontmatter_keys() -> list[str]:
-    """Top-level keys between the template's first two `---` fences.
+def frontmatter_keys(path: Path) -> list[str]:
+    """Top-level keys between a runbook's first two `---` fences.
 
     The template's frontmatter is deliberately flat (no nested keys), so a line-anchored key
     match is exact, not an approximation. If nesting is ever introduced, this parser — and the
     flat schema it guards — both need to change, and this test failing is the reminder.
     """
-    lines = TEMPLATE_PATH.read_text(encoding="utf-8").splitlines()
+    lines = path.read_text(encoding="utf-8").splitlines()
     if not lines or lines[0].strip() != "---":
-        raise AssertionError(f"{TEMPLATE_PATH}: template must open with a `---` frontmatter fence")
+        raise AssertionError(f"{path}: must open with a `---` frontmatter fence")
     keys: list[str] = []
     for line in lines[1:]:
         if line.strip() == "---":
@@ -50,7 +51,7 @@ def template_frontmatter_keys() -> list[str]:
         match = _KEY_RE.match(line)
         if match:
             keys.append(match.group(1))
-    raise AssertionError(f"{TEMPLATE_PATH}: frontmatter fence never closes")
+    raise AssertionError(f"{path}: frontmatter fence never closes")
 
 
 class RunbookSchemaTest(unittest.TestCase):
@@ -71,7 +72,39 @@ class RunbookSchemaTest(unittest.TestCase):
         # The template is what humans copy; the schema is what machines trust. A key present in
         # one and absent from the other means generated runbooks and the published contract have
         # already diverged — the exact drift this file exists to catch.
-        self.assertEqual(sorted(template_frontmatter_keys()), sorted(self.schema["properties"]))
+        self.assertEqual(sorted(frontmatter_keys(TEMPLATE_PATH)), sorted(self.schema["properties"]))
+
+    def test_example_carries_the_same_frontmatter_contract_as_the_template(self) -> None:
+        """The worked exemplar is a runbook, so it is bound by the runbook contract.
+
+        An example that drifts is worse than no example: readers copy what they are shown, and a
+        demonstrated-but-invalid frontmatter teaches the wrong shape more effectively than the
+        schema teaches the right one. Same keys as the template and the schema, and `status` inside
+        the published enum.
+        """
+        self.assertEqual(sorted(frontmatter_keys(EXAMPLE_PATH)), sorted(self.schema["properties"]))
+        status = next(
+            line.split(":", 1)[1].strip()
+            for line in EXAMPLE_PATH.read_text(encoding="utf-8").splitlines()
+            if line.startswith("status:")
+        )
+        self.assertIn(status, self.schema["properties"]["status"]["enum"])
+
+    def test_example_is_marked_as_an_exemplar_before_its_first_procedure(self) -> None:
+        """Its dates and evidence ids are illustrative, and a copier must learn that first.
+
+        The frontmatter shows a matured runbook -- non-null `last_verified`, populated
+        `verification_evidence`, three history rows. That is the point: the blank template cannot
+        show it. It is also exactly what someone would inherit unnoticed by copying the file, so
+        the disclaimer has to land above the first thing anyone acts on.
+        """
+        text = EXAMPLE_PATH.read_text(encoding="utf-8")
+        self.assertIn("teaching exemplar, not a live runbook", text)
+        self.assertLess(
+            text.index("teaching exemplar"),
+            text.index("## Procedure"),
+            "the exemplar disclaimer must precede the procedure a reader would follow",
+        )
 
     def test_catalog_entry_matches_the_file_on_disk(self) -> None:
         entries = [e for e in self.catalog["schemas"] if e["id"] == "runbook-frontmatter-v1"]
