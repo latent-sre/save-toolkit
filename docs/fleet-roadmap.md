@@ -506,6 +506,14 @@ pressure-dropped invariants, and the routing table. The after-change discovery r
 1/3 against a 0/3 previous-revision baseline (pre-existing routing instability, see `ROUTE-004`);
 evidence is in the disposition review.
 
+`agent-authoring` — retained router with a recitation cut on branch `work/skill-001-agent-authoring`:
+10,911 → 9,653 immutable entrypoint bytes, references 66,628 → 59,529 (owner-preference trim of a
+pattern catalog, vendor commentary, and a changelog digest; every rule retained), description
+byte-identical, retained above the screen because clean-room probes on both tiers show the body's
+remaining content is fleet decisions and platform traps the models author wrong. After-change
+discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe correction, is in the
+[`agent-authoring disposition`](reviews/2026-08-27-skill-001-agent-authoring.md).
+
 **Phase 2 screen:** `[verified]` On `origin/main` `0eb3daf`, 33 entrypoints total 231,513 immutable
 bytes and seventeen non-Phase-1 entrypoints other than `frontend-craft` sit at or above 5,000 bytes;
 the list is in the disposition review's remeasurement section. The earlier twelve-candidate screen
@@ -517,7 +525,10 @@ unrefreshed and still does not authorize a description rewrite inside Phase 2.
 Phase 1 skills, and processes one screened entrypoint only after its checkpoint. The checkpoint now
 includes, before any byte changes: an unhinted knowledge probe mapped to the body's rules and a
 no-skill pressure control on the skill's own discovery prompts, both on the fleet's measurement tier
-and on Opus; body lines are then classified as decision, posture, or recitation. Verification is
+and on Opus, run in the eval harness's clean room (credentials-only config dir, empty workspace,
+no plugin) — an Agent-tool subagent inside the repository inherits `AGENTS.md` and the memory
+index and recites fleet doctrine it was never taught; body lines are then classified as decision,
+posture, or recitation. Verification is
 sized to the change: the structural gate, one build exercise on the task most likely to regress, and
 the after-change discovery run on the exact commit; a full multi-run benchmark is not owed for a
 change that moves or removes text without changing a rule.
@@ -532,10 +543,12 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Close the `frontend-craft` slice: after-change discovery run on the exact committed
-candidate, Gate A, merge. Then inspect `backend-craft` alone with the probe-first checkpoint — it
-shares `frontend-craft`'s shape and is the largest remaining candidate with routable depth. Do not
-start a second skill, requeue a Phase 1 skill, or rewrite discovery descriptions.
+**Next action:** Merge the `agent-authoring` slice. `backend-craft` is in progress on its own branch
+with the same checkpoint. After it, take the knowledge-heavy candidates first — `gcp-ops` and
+`obs-alerting`, where the probe method found frontend-sized recitation — and close the doctrine
+skills (`service-lifecycle`, `service-readiness-audit`, `operational-learning`, `root-cause`,
+`postmortem`) with a clean-room probe as the receipt for a retain disposition. Do not requeue a
+Phase 1 skill or rewrite discovery descriptions.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
