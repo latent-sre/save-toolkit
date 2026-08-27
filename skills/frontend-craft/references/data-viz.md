@@ -4,8 +4,6 @@ Read this when the view charts, graphs, or plots anything.
 
 The universal frontend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
-## Data visualization
-
 Chart *design*, in brief: pick the form the data asks for — time series → line, comparison → bar, part-of-whole → stacked bar (pie only for 2–3 slices), distribution → histogram; label axes and units; a dashboard leads with the number that answers the viewer's question. Implementation:
 
 - **Library**: match an existing repository first. In the React greenfield stack, use **Recharts

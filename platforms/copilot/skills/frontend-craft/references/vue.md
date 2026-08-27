@@ -108,7 +108,7 @@ On any conflict, those owners and the target repository win.
 
 - Use `onErrorCaptured`/`errorCaptured` at a meaningful descendant boundary for local handling and
   `app.config.errorHandler` for final uncaught application reporting. A global logger alone does
-  not provide the designed per-panel fallback the Resilience UX rules require.
+  not provide the designed per-panel fallback the `Failure-first` invariant in `SKILL.md` requires.
 - Returning `false` from an error-capture hook stops further propagation; do it only when that
   boundary has actually handled the failure. Avoid rendering the same failing content in the
   fallback path and causing a loop.

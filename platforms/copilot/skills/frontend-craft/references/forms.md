@@ -6,8 +6,6 @@ Read this when the view collects user input for submission.
 
 The universal frontend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
-## Forms
-
 - Match the target repository's framework and form/validation layer. In the React greenfield stack,
   use `react-hook-form` or `@mantine/form`; the latter ships no CSS, but wire it to existing
   non-Mantine inputs rather than importing `@mantine/core`. In Vue, use `v-model` plus the
