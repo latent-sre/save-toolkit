@@ -120,6 +120,12 @@ instability is filed as `ROUTE-004`.
   discovery harness.
 - The interview-style knowledge probe measures recall, not task behavior; the pressure control is
   the closer measurement and covers only the three scenario prompts.
+- Both probes ran as Agent-tool subagents inside this repository, so Claude Code loaded `AGENTS.md`
+  and the session's memory index into their context. Neither carries UI rules, and the fleet's
+  greenfield stack is named there only by the skill name `stack-profile`, so the frontend findings
+  stand; but the method is not a clean room. The `agent-authoring` slice found the same setup
+  reciting `AGENTS.md` verbatim and moved probes to the harness's clean room (credentials-only
+  config dir, empty workspace, no plugin).
 - All results are Claude-host results. The Copilot projection of this skill may run on a model
   with different knowledge; the fleet's host-specific-authority rule applies to the knowledge cut.
 - One run per cell throughout. No token or duration claim rises above variance.

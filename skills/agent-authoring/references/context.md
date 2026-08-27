@@ -1,70 +1,33 @@
 # Context engineering
 
-The model has a **limited attention budget**; every token spent on noise is attention not spent on the
-task. The lever isn't a cleverer prompt — it's *thoughtfully curating what's in context at each step*.
-More tokens ≠ better: large or stale context degrades reasoning ("context rot").
-*[sourced: Anthropic, "Effective context engineering for AI agents"]*
+Find the smallest set of high-signal tokens that lets the agent act correctly, and treat context
+like least privilege: include what the step needs, nothing it doesn't. `../SKILL.md`'s
+untrusted-data and label rules apply unchanged — compression, compaction, and handoff are the
+easiest places to silently upgrade a label.
 
-`../SKILL.md`'s untrusted-data and label rules apply unchanged — and compression, compaction, and
-handoff are the easiest places to silently upgrade a label.
+## Fleet rules the general techniques leave open
 
-## The principle
-Find the **smallest set of high-signal tokens** that lets the agent act correctly. Treat context like
-least privilege: include what the step needs, nothing it doesn't.
-
-## Techniques (use the lightest that works)
-- **Just-in-time retrieval.** Pull the file, log slice, or metric *when you need it* — don't preload
-  everything up front. Read the failing test, not the whole suite; `cf logs --recent`, not the firehose.
-  *[sourced: Anthropic — JIT/agentic retrieval over load-everything]*
-- **Progressive disclosure.** A short description sits in context; detail is read only when the task
-  matches. Design new context the same way — a pointer now, the detail when warranted.
-- **Compaction.** Near the limit, summarize the conversation's durable facts and reinitialize — carry
-  the decisions and open threads, drop the chatter. *[sourced: Anthropic — compaction]*
-- **Sub-agent context isolation.** Hand expensive, bounded fact-finding to a focused subagent that
-  burns its own context and returns a **short summary** — the caller's window stays lean.
-  *[sourced: Anthropic multi-agent research system]*
-- **Structured note-taking / external memory.** Persist durable knowledge *outside* the window where
-  it survives compaction — for us that's runbooks, postmortems, and the knowledge loop, not a giant
-  scratchpad in-context.
-
-## Operating heuristics (sessions & runtime primitives)
-- **Finished task → prefer a fresh session.** Preserve a session only when continuity is part of the
-  runtime contract; otherwise stale history competes with the next task.
-- **Fork or rewind only when replay is defined.** A checkpoint before a failed path can give a clean
-  retry, but only when the runtime defines replay and effect semantics. Never replay an external
-  side effect by assumption; otherwise correct in place and record the divergence.
-- **Degradation is gradual, not a cliff.** Quality can erode before the advertised context limit and
-  varies by model and task — manage context proactively rather than inventing one token threshold.
-- **Use the lightest safe primitive:** clear old tool results only after retaining their load-bearing
-  facts and only when the source can be read safely again; compact while preserving decisions and
-  open state; use external memory for facts that must survive sessions. None is automatically
-  lossless. *[sourced: Anthropic context engineering guidance]*
+- **Durable knowledge lives outside the window** — for us that is runbooks, postmortems, and the
+  knowledge loop, never a giant in-context scratchpad.
+- **Preload the two things a step always needs; keep just-in-time retrieval for what only some
+  steps require.** Forcing three fetches before work can start trades tokens for latency and for
+  the chance of fetching the wrong files.
+- **Fork or rewind only when replay is defined.** A checkpoint before a failed path gives a clean
+  retry only when the runtime defines replay and effect semantics. Never replay an external side
+  effect by assumption; otherwise correct in place and record the divergence.
+- **Clearing old tool results is not lossless.** Clear only after retaining their load-bearing
+  facts and only when the source can be read safely again.
 
 ## In this fleet
-Thin agent bodies, on-demand detail, isolated bounded work, and compact evidence packets keep context
-deliberate. Apply the techniques above before reaching for a bigger model or longer prompt. A cold-start
-packet contains intent, exact source/SHA or state, success criteria, allowed scope, source trust, open
-unknowns, and the requested return schema. It returns findings with evidence, source trust, current state, open unknowns, and retained [verified], [sourced], [unverified], and [UNTRUSTED] markers.
 
-## Anti-patterns
-- Dumping an entire file/log/repo into context "to be safe" — it dilutes attention and invites context rot.
-- Carrying a completed sub-task's full transcript forward instead of its conclusion.
-- Re-deriving facts already established earlier in the conversation.
-- The opposite failure: forcing an agent to fetch three files before it can start trades tokens for
-  latency and for the chance it fetches the wrong ones. Preload the two things it always needs; keep
-  JIT for what only *some* steps require.
-
-## Diagnosing a context problem
-Match the symptom to the cause before reaching for a bigger model or a longer prompt.
-
-| Symptom | Likely cause |
-|---|---|
-| Ignores an instruction it followed earlier | Context filled; the instruction is far back and diluted. Move it into the output contract, or shorten the run. |
-| Re-reads the same file repeatedly | No durable notes; it is rediscovering. Write findings to a file. |
-| Confidently wrong about a fact that changed | A stale early read is still in context. Re-read explicitly, or rewind past it. |
-| Worker does a subtly different job | The handoff prompt, not the worker's definition — underspecified context. |
-| Degrades only in long sessions | Compaction dropped something load-bearing. Move it to a file. |
+Thin agent bodies, on-demand detail, isolated bounded work, and compact evidence packets keep
+context deliberate; apply them before reaching for a bigger model or a longer prompt. A cold-start
+packet contains intent, exact source/SHA or state, success criteria, allowed scope, source trust,
+open unknowns, and the requested return schema. It returns findings with evidence, source trust,
+current state, open unknowns, and retained [verified], [sourced], [unverified], and [UNTRUSTED]
+markers.
 
 ## Handoffs
+
 `../SKILL.md`'s handoff and production-gate rules apply unchanged. A handoff is itself a context
 artifact: send the cold-start packet shape above, not a transcript.
