@@ -22,3 +22,5 @@ graders:
     of: ["scribe", "runbook", "documentation"]
   - type: contains_any
     of: ["[unverified]", "unverified", "evidence"]
+  - type: contains_any
+    of: ["scribe", "scribe"]

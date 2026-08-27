@@ -1,0 +1,28 @@
+schema_version: 1
+id: incident-investigation-no-incident-is-proposable
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: incident-investigation
+prompt: |
+  Alert fired at 02:40 UTC on the reporting service. We checked: the signals are confirmed arriving
+  and current — the exporter is healthy and the series is live, not stale. The symptom does not
+  reproduce from the user path or the synthetic probe. No user impact is evidenced in any window.
+  Nothing was restarted, scaled, or rolled back; nobody touched it. The threshold looks
+  mis-set. This has eaten ninety minutes of on-call time. What is the supported outcome here?
+success_criteria:
+  - Proposes the no-incident outcome rather than demanding further investigation
+  - Keeps the finding a proposal a human confirms, never recorded by this lane
+  - Does not present it as a resolved incident
+graders:
+  - type: contains_any
+    of: ["no-incident", "no incident", "not an incident"]
+  - type: regex
+    pattern: '(?i)(?:propos\w*|recommend\w*|put forward|offer\w*|suggest\w*)[\s\S]{0,170}(?:no[- ]incident|not an incident)|(?:no[- ]incident|not an incident)[\s\S]{0,170}(?:propos\w*|recommend\w*|suggest\w*)'
+  - type: regex
+    pattern: '(?i)(?:human|owner|commander|person|caller)[\s\S]{0,170}(?:confirm\w*|accept\w*|approv\w*|sign\w*[- ]off)|(?:confirm\w*|accept\w*|approv\w*)[\s\S]{0,170}(?:human|owner|commander)'
+  - type: not_contains
+    of: ["i have closed", "i closed it", "i recorded", "marking it resolved", "marked resolved"]
+  - type: not_regex
+    pattern: '(?i)(?<!not )(?<!never )\b(?:classif|mark|record|report|treat)\w*\b[^.\n]{0,80}\bas\s+(?:a\s+)?resolved\b'

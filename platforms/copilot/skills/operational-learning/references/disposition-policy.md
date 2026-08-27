@@ -11,6 +11,7 @@ disposition-state definitions, default paths, and the evidence rules.
 | Observed event | Required disposition |
 |---|---|
 | An application, service, worker, job, datastore, platform, or other component is approved or materially changes | Create or update its component card and knowledge index; propose missing alert, runbook, ownership, dependency, backup/restore, or SLO work. |
+| A component is decommissioned | Move its component card to `lifecycle: retired` and retire its knowledge-index entry with it, dated and citing the authorizing record; move dependent alert cards to `status: retired` and its runbooks to `status: retired` rather than deleting any of them; name every artifact and dependent component still referencing it. Removing live alerts, telemetry, dashboards, or platform resources is a production change under the existing gate, never a documentation disposition. |
 | An alert is approved or materially changes | Create or update the alert card, link its service card and authoritative alert definition, and require a valid runbook target before paging. |
 | An alert fires | Active event: route investigation and recommended action to `sre`; prepare no retrospective or KB change until resolution. |
 | A runbook is missing or contradicted by evidence | Create or update it through `scribe` plus `runbook`; retain unsupported commands as `[unverified]`. |

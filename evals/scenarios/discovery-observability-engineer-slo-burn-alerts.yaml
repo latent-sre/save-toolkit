@@ -22,3 +22,5 @@ graders:
     of: ["burn rate", "burn-rate", "fast-burn", "fast burn", "slow-burn", "slow burn"]
   - type: contains_any
     of: ["runbook"]
+  - type: contains_any
+    of: ["SLI", "14.4", "5m", "1h", "6h", "3d"]

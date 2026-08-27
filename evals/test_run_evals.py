@@ -523,6 +523,10 @@ class StreamTraceTests(unittest.TestCase):
     def test_direct_agent_tools_are_derived_from_frontmatter(self) -> None:
         reviewer = {"mode": "direct", "target": {"kind": "agent", "name": "reviewer"}}
         sre = {"mode": "direct", "target": {"kind": "agent", "name": "sre"}}
+        skill = {
+            "mode": "direct",
+            "target": {"kind": "skill", "name": "incident-command"},
+        }
         researcher = {"mode": "direct", "target": {"kind": "agent", "name": "researcher"}}
         repository_investigator = {
             "mode": "direct",
@@ -536,6 +540,11 @@ class StreamTraceTests(unittest.TestCase):
         )
         self.assertEqual(
             run_evals.expected_runtime_tools(sre, enable_snapshot_reads=True),
+            ("Glob", "Grep", "Read", "Skill", "Task"),
+        )
+        self.assertEqual(run_evals.expected_runtime_tools(skill), ("Skill", "Task"))
+        self.assertEqual(
+            run_evals.expected_runtime_tools(skill, enable_snapshot_reads=True),
             ("Glob", "Grep", "Read", "Skill", "Task"),
         )
         self.assertEqual(run_evals.expected_runtime_tools(researcher), ())

@@ -20,3 +20,5 @@ graders:
     of: ["upstream", "source", "repository"]
   - type: contains_any
     of: ["could not verify", "[unverified]", "version", "release"]
+  - type: contains_any
+    of: ["[sourced]", "http", "changelog", "release notes"]

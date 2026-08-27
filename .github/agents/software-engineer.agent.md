@@ -237,6 +237,7 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket>
 - `language-idiom` — for the language-specific rules and test conventions of the file being changed; loads *alongside* the layer skill below, not instead of it
 - `backend-craft` — before writing backend services, APIs, workers, storage, or integrations
 - `frontend-craft` — before writing operator-facing web UI code
+- `obs-pipeline` — before app-side OpenTelemetry instrumentation or changing how application code emits or propagates metrics, traces, or structured logs
 - `ci-actions` — before authoring or fixing GitHub Actions workflows
 - `ops-tooling` — when the task is a whole new operator-facing tool, not a change inside an existing project
 

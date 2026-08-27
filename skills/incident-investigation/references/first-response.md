@@ -56,6 +56,10 @@ and the next task is to prove why the system broke.
   [systemic failure](./systemic-failure.md).
 - User impact needs coordinated roles or communications: keep technical ownership in `sre` and
   load `incident-command` for the command process.
+- The symptom does not reproduce, no user impact is evidenced, and the signals are at baseline:
+  propose the `no-incident` finding instead of escalating a mode, and let a human confirm it.
+  Confirm the signals are arriving before reading baseline as health, and route a symptom that
+  recovered on its own to hypothesis investigation instead.
 
 When evidence is thin, remain in first response and name the next safe observation. Uncertainty is
 not permission to poke production.

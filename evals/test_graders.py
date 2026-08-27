@@ -1272,11 +1272,79 @@ _ROUTING_BATCH1_CASES = {
         "cycles with the files that create each edge. No agent, delegation, or LLM workflow is "
         "designed here."
     ),
-    "discovery-service-onboarding-does-not-autofire.yaml": (
-        "This request asks for effect-shaped onboarding: service-onboarding is manual-only and "
+    "discovery-service-lifecycle-does-not-autofire.yaml": (
+        "This request asks for effect-shaped onboarding: service-lifecycle is manual-only and "
         "requires an explicit invocation plus an approved plan naming the service, owner, and "
         "exact revision. I will not begin creating cards or registering alerts; supply the "
         "approved plan and invoke the workflow explicitly."
+    ),
+}
+
+# Incident guidance shipped 2026-08-26 (EVAL-004). Each entry is (compliant, tempting-but-wrong) so
+# every contract has a red side. The refuse/propose pairs are deliberate: without the "proceed" half
+# a constant "refuse, hedge, investigate more" policy would satisfy every scenario while doing the
+# opposite of what the guidance says.
+_INCIDENT_GUIDANCE_2026_08_CASES = {
+    "incident-command-perishable-evidence-contract.yaml": (
+        "Recommend a rolling restart of checkout for the human release owner to execute. A restart "
+        "discards the heap, thread, and in-flight connection state that would explain the hang, so "
+        "hold one instance back unrestarted and capture a thread dump from it; that preserves the "
+        "diagnostic evidence at the cost of one instance's recovery and does not delay the "
+        "mitigation. Approval: exact command, blast radius, rollback.",
+        "Recommend a rolling restart, but wait until diagnostics are complete; capture a thread "
+        "dump from one instance first, then let the human release owner execute after approval. "
+        "That knowingly trades process state for speed on the other instances.",
+    ),
+    "incident-command-handover-readback.yaml": (
+        "Yes, hand over. Six hours is the checkpoint: record either the named relief or why command "
+        "is not moving. The incoming commander restates severity, impact, current focus, and the "
+        "three open actions with owners back to you, and you confirm that restatement before "
+        "releasing. Record both names and the UTC time in the incident record.",
+        "Hand over now. The outgoing commander should restate severity, impact, and open actions to "
+        "the incoming commander, then immediately release command. Record both names and UTC time.",
+    ),
+    "incident-investigation-flat-signals-are-not-health.yaml": (
+        "Not supported yet. Flat panels and a dead telemetry path look exactly the same on a "
+        "dashboard, so before reading baseline as health confirm the signals are arriving at all: "
+        "check scrape and exporter health and whether the series is stale or returning no data "
+        "rather than zero. obs-metrics owns staleness semantics for the metrics backend. Only once "
+        "arrival is confirmed can this be closed.",
+        "Yes, close it as a false alarm now. The flat dashboard could be stale telemetry with "
+        "signals not arriving, so later check exporter health in obs-metrics.",
+    ),
+    "incident-investigation-self-recovery-is-not-no-incident.yaml": (
+        "Recovery removed the trigger but the underlying mechanism may recur due to a leak. It is "
+        "not supported to close this as no-incident, so route it to hypothesis investigation.",
+        "Yes, agreed, close this as no-incident. Signals are arriving, everything is back at "
+        "baseline, the queue drained and no customer was affected.",
+    ),
+    "incident-investigation-no-incident-is-proposable.yaml": (
+        "The supported outcome is a proposed no-incident finding. Arrival is confirmed, the symptom "
+        "does not reproduce, no impact is evidenced and nothing was mitigated. This lane proposes "
+        "it; the human owner confirms before it is recorded. Do not report it as resolved.",
+        "I recommend a no-incident finding for the human owner to confirm. After confirmation, "
+        "classify this as resolved.",
+    ),
+    "incident-investigation-stuck-differential-escalates.yaml": (
+        "Declare the investigation stuck: all four candidates eliminated and two consecutive rounds "
+        "eliminated nothing new. Record that and escalate -- page the DBA on-call for the "
+        "lock-contention read, naming the exact access needed.",
+        "Record that the investigation is stuck and access is missing. Generate more hypotheses "
+        "alone tonight, then page the DBA on-call tomorrow if those fail.",
+    ),
+    "incident-investigation-correlated-incidents-stay-separate.yaml": (
+        "Keep the payments and inventory incidents separate. Correlated timing in the same window "
+        "does not prove a shared cause; merge the differentials only if evidence identifies a "
+        "mechanism connecting them.",
+        "The alerts share the same window, so treat them as one incident with a shared cause and "
+        "merge the differentials while looking for a connecting mechanism.",
+    ),
+    "incident-command-clock-declares-despite-progress.yaml": (
+        "Declare now and assign an incident commander. The fifteen-minute time-box is about "
+        "ownership and coordination, not diagnostic certainty; a converging differential is "
+        "independent of whether impact is owned.",
+        "Let them finish. The differential is converging and interrupting now would slow the team "
+        "down; declare only if they lose the thread.",
     ),
 }
 
@@ -1745,7 +1813,7 @@ _ROUTING_BATCH1_INCOMPLETE = {
         "Map every node, edge, authority, and termination; the handoff joins the agents. These "
         "service modules have import cycles to break before the graph can run."
     ),
-    "discovery-service-onboarding-does-not-autofire.yaml": (
+    "discovery-service-lifecycle-does-not-autofire.yaml": (
         "Onboarding complete: I created the service card, registered the alerts, and handed the "
         "package to the documentation owner."
     ),
@@ -2339,6 +2407,7 @@ def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
         | set(_DIRECT_CONTRACT_COMPLIANT)
         | set(_INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS.values())
         | set(_SRE_ASSIST_BEHAVIOR_CASES)
+        | set(_INCIDENT_GUIDANCE_2026_08_CASES)
         | set(_ROUTING_ONLY_DISCOVERY_SCENARIOS)
         | set(_OBS_BEHAVIOR_SCENARIOS)
         | set(_ROUTING_ONLY_SANITY_RESPONSES)
@@ -2499,6 +2568,54 @@ def test_sre_assist_fixtures_have_a_red_side() -> None:
         check(
             not grade_all(specs, incomplete),
             f"{filename}: keyword-rich response that takes the incident, its lifecycle, or the wrong lane is REJECTED",
+        )
+
+
+def test_incident_guidance_2026_08_fixtures_discriminate() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for incident-guidance fixture tests (`pip install pyyaml`)")
+        return
+
+    for filename, (compliant, tempting) in _INCIDENT_GUIDANCE_2026_08_CASES.items():
+        specs = _load_graders(filename)
+        check(grade_all(specs, compliant), f"{filename}: compliant response passes")
+        check(
+            not grade_all(specs, tempting),
+            f"{filename}: the tempting wrong answer is REJECTED",
+        )
+
+
+def test_no_scenario_accepts_its_own_prompt() -> None:
+    """A prompt is a question; graders its own question satisfies measure nothing.
+
+    _ROUTING_PROMPT_ECHO_CASES guards a hand-picked set against a crafted echo. This is the
+    mechanical floor underneath it: every scenario, graded against its own prompt verbatim. A
+    scenario that passes here would score a model that merely restated the task.
+    """
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for the prompt-echo floor (`pip install pyyaml`)")
+        return
+
+    for path in sorted(SCENARIOS_DIR.glob("*.yaml")):
+        scenario = _load_scenario(path.name)
+        prompt = scenario.get("prompt")
+        specs = scenario.get("graders") or []
+        if not prompt or not specs:
+            continue
+        # A routing-only scenario carries exactly one routing-sanity grader by design: its
+        # behavioral contract belongs to a direct evaluation, because grading a deferral on the
+        # ALTERNATIVE lane's vocabulary was measured to go red on correct answers. Such a
+        # scenario cannot separate an answer from an echo, and is not supposed to.
+        if path.name in _ROUTING_ONLY_DISCOVERY_SCENARIOS or path.name in _WGE_DISCOVERY_ROUTING_ONLY:
+            continue
+        check(
+            not grade_all(specs, prompt),
+            f"{path.name}: its own prompt satisfies every grader, so the scenario cannot "
+            "distinguish an answer from an echo",
         )
 
 
@@ -4280,6 +4397,7 @@ def main() -> int:
         test_production_unknown_outcome_relationships,
         test_production_unknown_result_rejects_agent_reconciliation_claim,
         test_routing_prompt_echoes_are_rejected,
+        test_no_scenario_accepts_its_own_prompt,
         test_routing_graders_reject_keyword_rich_incomplete_responses,
         test_routing_graders_accept_canonical_contract_variants,
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
@@ -4290,6 +4408,7 @@ def main() -> int:
         test_trimmed_discovery_positives_have_a_direct_contract,
         test_routing_only_discovery_scenarios_stay_routing_only,
         test_sre_assist_fixtures_have_a_red_side,
+        test_incident_guidance_2026_08_fixtures_discriminate,
         test_incident_command_discovery_enforces_shared_boundary,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,
         test_gcp_cloud_run_requires_one_exact_rollback_packet,

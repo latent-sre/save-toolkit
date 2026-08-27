@@ -13,6 +13,9 @@ spec:
   optional:
     - /resources/runbooks
     - /resources/observability
+    - /resources/pipelines
+    - /resources/dependencies
+    - /resources/configuration
   alternatives:
     - id: health-authority
       anyOf:

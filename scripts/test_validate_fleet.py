@@ -36,7 +36,7 @@ class FleetValidatorTests(unittest.TestCase):
         Path("skills/runbook/SKILL.md"),
         Path("skills/postmortem/SKILL.md"),
         Path("skills/operational-learning/SKILL.md"),
-        Path("skills/service-onboarding/SKILL.md"),
+        Path("skills/service-lifecycle/SKILL.md"),
         Path("skills/incident-command/SKILL.md"),
         Path("skills/runbook/assets/runbook-template.md"),
         Path("skills/postmortem/assets/postmortem-template.md"),

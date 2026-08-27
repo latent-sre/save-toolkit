@@ -25,3 +25,5 @@ graders:
   - type: regex   # `sre` on a name boundary, so the `save-toolkit` plugin prefix cannot stand in
                   # for actually naming the incident lane
     pattern: '(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])|incident|investigation'
+  - type: contains_any
+    of: ["sre", "sre"]

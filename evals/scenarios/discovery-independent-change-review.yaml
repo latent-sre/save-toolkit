@@ -19,3 +19,5 @@ graders:
     of: ["commit", "sha", "revision", "diff"]
   - type: contains_any
     of: ["cannot", "can't", "provisional", "need", "missing", "not enough"]
+  - type: contains_any
+    of: ["blocked", "no verdict", "cannot issue", "unable to", "insufficient", "not reviewable"]

@@ -157,13 +157,13 @@ class LinkCheckerTests(Fixture):
 
     def test_manual_only_control_is_required_inside_frontmatter_and_cannot_widen(self):
         manual_frontmatter = CLEAN_FRONTMATTER.replace(
-            "name: probe-skill", "name: service-onboarding"
+            "name: probe-skill", "name: service-lifecycle"
         ).replace(
             'argument-hint: "[the probe]"',
             'argument-hint: "[the probe]"\ndisable-model-invocation: true',
         )
         self.write(
-            "skills/service-onboarding/SKILL.md",
+            "skills/service-lifecycle/SKILL.md",
             manual_frontmatter + "\n# Manual probe\n",
         )
         self.assertEqual([], check_links.check(self.root))
@@ -172,7 +172,7 @@ class LinkCheckerTests(Fixture):
         missing = fixture_root / "missing"
         self.root = missing
         self.write(
-            "skills/service-onboarding/SKILL.md",
+            "skills/service-lifecycle/SKILL.md",
             manual_frontmatter.replace("disable-model-invocation: true\n", "")
             + "\n# Manual probe\n",
         )
@@ -183,7 +183,7 @@ class LinkCheckerTests(Fixture):
         moved = fixture_root / "moved"
         self.root = moved
         self.write(
-            "skills/service-onboarding/SKILL.md",
+            "skills/service-lifecycle/SKILL.md",
             manual_frontmatter.replace("disable-model-invocation: true\n", "")
             + "\ndisable-model-invocation: true\n# Manual probe\n",
         )

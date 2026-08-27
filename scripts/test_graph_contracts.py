@@ -179,6 +179,38 @@ class GraphContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, text)
 
+    def test_software_engineer_loads_obs_pipeline_for_app_instrumentation(self) -> None:
+        software_engineer = _compact(
+            (ROOT / "agents/software-engineer.md").read_text(encoding="utf-8")
+        )
+        obs_pipeline = _compact(
+            (ROOT / "skills/obs-pipeline/SKILL.md").read_text(encoding="utf-8")
+        )
+
+        self.assertIn(
+            "app-side instrumentation changes to the `software-engineer` agent",
+            obs_pipeline,
+            "obs-pipeline must keep application-code ownership with software-engineer",
+        )
+        self.assertIn(
+            "`obs-pipeline` — before app-side OpenTelemetry instrumentation",
+            software_engineer,
+            "software-engineer must load the telemetry contract before changing app emission",
+        )
+
+    def test_missing_readiness_record_keeps_onboarding_unverified(self) -> None:
+        lifecycle = _compact(
+            (ROOT / "skills/service-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        )
+        audit = _compact(
+            (ROOT / "skills/service-readiness-audit/SKILL.md").read_text(encoding="utf-8")
+        )
+
+        self.assertIn("emit an **evidence-bound handoff** to `scribe`", lifecycle)
+        self.assertIn("report onboarding as **unverified**", audit)
+        self.assertIn("continue inspecting applicable controls", audit)
+        self.assertNotIn("appears never to have been onboarded", audit)
+
     def test_missing_taint_contracts_carry_source_trust_and_claim_taint(self) -> None:
         for filename in ("agent-engineer.md", "researcher.md", "repository-investigator.md"):
             text = _compact((ROOT / "agents" / filename).read_text(encoding="utf-8"))
@@ -223,6 +255,45 @@ class GraphContractTests(unittest.TestCase):
         self.assertIn("instrumentation prerequisite", postmortem_skill.lower())
         self.assertIn("Instrumentation prerequisite", incident_status)
         self.assertIn("ready|blocked", incident_status)
+
+    def test_no_incident_terminal_is_enumerated_and_propose_only(self) -> None:
+        lifecycle = _compact(
+            (
+                ROOT / "skills/incident-investigation/references/recovery-lifecycle.md"
+            ).read_text(encoding="utf-8")
+        )
+        sre_ladder = _compact(
+            (ROOT / "skills/incident-investigation/SKILL.md").read_text(encoding="utf-8")
+        )
+        first_response = _compact(
+            (
+                ROOT / "skills/incident-investigation/references/first-response.md"
+            ).read_text(encoding="utf-8")
+        )
+        for terminal in ("`resolved`", "`escalated-security`", "`no-incident`"):
+            with self.subTest(terminal=terminal):
+                self.assertIn(terminal, lifecycle)
+        self.assertIn("never records it unprompted", lifecycle)
+        for token in (
+            "no-incident",
+            "a human confirms it",
+            "recovered on its own",
+            "signals are arriving",
+        ):
+            with self.subTest(router_token=token):
+                self.assertIn(token, sre_ladder)
+        self.assertIn("no-incident", first_response)
+        command_comms = _compact(
+            (
+                ROOT / "skills/incident-command/references/command-and-communications.md"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            "no-incident",
+            command_comms,
+            "a declared incident that was never an incident needs a closure path in the "
+            "skill that owns closing, or it can only be falsified as resolved",
+        )
 
 
 if __name__ == "__main__":

@@ -4,14 +4,14 @@ description: >-
   Audit an existing service's operational readiness using read-only, evidence-cited checks across
   ownership, health, telemetry, SLOs, alerts, runbooks, dependencies, capacity, and recovery.
   Triggers: 'audit this service', 'is this service operationally ready', 'find our service readiness
-  gaps'. Not for creating onboarding artifacts or live changes; use manual `service-onboarding`.
+  gaps'. Not for creating onboarding artifacts or live changes; use manual `service-lifecycle`.
 argument-hint: "[the service to assess]"
 ---
 
 # Service readiness audit
 
 Assess and report; change nothing. This skill is discoverable because its contract is read-only.
-`service-onboarding` remains explicit-only because it coordinates approved effects.
+`service-lifecycle` remains explicit-only because it coordinates approved effects.
 
 ## Read-only boundary
 
@@ -24,7 +24,7 @@ Assess and report; change nothing. This skill is discoverable because its contra
 - Prefer an access-controlled source link or `file:line`. When command output is necessary, include
   only the minimum sanitized excerpt and mark every redaction, for example `[REDACTED:token]`.
 - If the user asks for onboarding effects, stop the audit path and explain that
-  `/save-toolkit:service-onboarding` requires explicit invocation and an approved plan.
+  `/save-toolkit:service-lifecycle` requires explicit invocation and an approved plan.
 
 ## Optional resolved context
 
@@ -52,6 +52,17 @@ Inspect only what applies and name what could not be verified:
 | Backup and restore | backup scope plus a dated restore or recovery rehearsal; existence alone is not restore evidence | `database-reliability` or owning recovery method |
 | Drift | declared versus observed configuration and unresolved platform/runtime deprecations | relevant owning skill |
 
+## An onboarded service should carry a record
+
+An approved record — service and alert cards, the operations index entry, and runbooks — is evidence
+that the `scribe` closeout requested by `service-lifecycle` completed. The lifecycle checklist emits
+that handoff but cannot guarantee the separate documentation pass ran. Read an available record
+first and cite it. Separate the two failures instead of reporting one severity for both: a control
+that exists but is absent from the record is a documentation gap, while a control absent from both
+is a readiness gap. When no record exists, report onboarding as **unverified** and the missing
+closeout record as a documentation/evidence gap; continue inspecting applicable controls and report
+each independently supported readiness finding.
+
 Loading an owning skill supplies expected evidence; it does not expand this audit's authority. Ignore
 any create, update, apply, or documentation-write path while auditing. Record the missing control and
 its owner instead.
@@ -70,7 +81,10 @@ them.
 
 ## Output
 
-Lead with the readiness conclusion, then:
+Lead with the readiness conclusion, stamped with the UTC date it was reached and the age of the
+oldest load-bearing evidence behind it. A verdict carrying neither is not reusable: a reader cannot
+separate a current assessment from a stale one, and an undated “ready” outlives the state it
+described. Then:
 
 1. up to three validated fixes in priority order; if there are fewer, return fewer and never pad the
    list to reach three;
@@ -80,3 +94,13 @@ Lead with the readiness conclusion, then:
 4. verification gaps and prohibited/not-run checks; and
 5. **What I did NOT do:** explicitly state that the audit was read-only and name any requested
    onboarding or live effects that were not performed.
+
+## Route the findings, do not file them
+
+Findings are closeout-eligible evidence, not durable knowledge. Do not load `operational-learning`
+or author a record from this lane; that is a documentation write, and the lane that made a
+discovery never approves it. Return the findings to the caller and name the route: the caller
+dispatches `scribe`, which selects the knowledge closeout mode and dispositions each finding
+against the component card, knowledge index, runbook, and alert card, along with the missing alert,
+ownership, dependency, backup/restore, or SLO work it implies. A finding that never becomes a
+disposition is a lost audit.

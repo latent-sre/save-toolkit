@@ -21,3 +21,5 @@ graders:
     of: ["hypothesis", "evidence", "503", "timeline"]
   - type: contains_any
     of: ["not change", "read-only", "approval", "recommend", "do not"]
+  - type: contains_any
+    of: ["P1", "P2", "P3", "P4", "sev-1", "sev1", "sev-2"]

@@ -110,8 +110,13 @@ is the accepted record: it disposes every load-bearing choice (service/system bo
 environment/deployment split, central Git first source, versioned skill-side requirement sidecars,
 typed references without deep merge, runbook indexing, phase-one file/CLI resolver, and the
 curated-facts-only rule) and states the consequences, rejected alternatives, failure modes, and
-rollback. Owner approval on 2026-08-24 authorizes **stages 1–3 only**; it does not authorize
-real-team onboarding or effect-capable adoption.
+rollback. Owner approval on 2026-08-24 authorized **stages 1–3 only**. Owner decision on
+2026-08-26 widens that scope: effect-capable adoption of the context contract is authorized for
+`service-lifecycle` as the second consumer, alongside the read-only first consumer. The
+widening covers building the consumer contract; it does not waive acceptance condition (7),
+which is a safety proof rather than a process gate — an effect-capable path must still
+demonstrate that resolved context cannot default to production, approve an action, supply a
+credential, or bypass the production/effect gate. Real-team onboarding remains unauthorized.
 
 **Prerequisites:** The accepted ADR names the schema/contract owner, resolver owner, source
 repository and permissions, generic fixture policy, representational platform shapes, and the alpha
@@ -156,10 +161,17 @@ alpha contract and next migration boundary, then close the item. Fleet-wide adop
 Backstage/MCP adapters, automatic discovery, live reconciliation, or a general overlay language are
 separately justified work and do not silently expand this item.
 
-**Next action:** Create the approved private `latent-sre/sre-context` repository and implement stages
-1–3: contract skeleton, first synthetic-tenant read-only proof, and second synthetic-tenant
-portability proof. No team-specific values are required. Do not onboard a real team or rewrite fleet
-skills beyond the accepted generic consumer contract in this stage.
+**Next action:** Close the producer/consumer gap between the two service skills, which needs no
+resolver: `service-lifecycle` names the readiness audit as its independent verifier and states
+what an onboarded service leaves on record; `service-readiness-audit` states what it expects to
+find there. Then add `service-lifecycle`'s requirement sidecar under the widened authorization,
+with the condition (7) safety proof. `latent-sre/sre-context` exists and carries the versioned
+schemas, resolver, CLI, fixtures, and tests; stages 1–3 are substantially built rather than owed,
+and this file previously said otherwise. What remains is the acceptance evidence: the second
+synthetic-tenant portability proof, the effect-capable safety proof, and the paired consumer
+sidecars. Sidecars ship as a mirrored pair — the consumer copy here, its twin under that
+repository's `examples/`, where its own tests validate it against the schema. No team-specific
+values are required and no real team is onboarded.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
@@ -605,6 +617,91 @@ are re-measured on the accepted candidate revision.
 
 **Next action:** Owner accepts the item; `agent-engineer` extends `_claim_is_negated` and the fixture
 tables in `evals/test_graders.py`.
+
+### EVAL-004 — measure the incident guidance added on 2026-08-26
+
+**Status:** `ready` (2026-08-26)
+
+**Outcome:** Every behavior claim added to `incident-command` and `incident-investigation` on
+2026-08-26 has a discriminating scenario, so a later edit that removes the behavior turns a
+scenario red instead of passing silently.
+
+**Source:** Seven guidance changes shipped with structural verification only. `incident-command`
+carries them on `work/incident-command-evidence-and-command`; the `incident-investigation` set was
+uncommitted at the time this item was written. No claim below has been measured against a model.
+
+| Claim to measure | Where |
+|---|---|
+| A mitigation packet names the perishable evidence captured or knowingly forgone | `mitigation-selection.md` rules 2 and 6 |
+| A restart recommendation does not silently discard the state that would explain the hang | `mitigation-selection.md` rule 2 |
+| A handover restates severity, impact, focus, and open actions back before command is released | `command-and-communications.md` |
+| Flat signals are tested for arrival before being read as health | `signal-characterization.md` pattern 5 |
+| `no-incident` is proposed, never recorded, and is blocked by stale telemetry or self-recovery | `incident-investigation/SKILL.md`, `first-response.md` |
+| An investigation escalates on an observed stuck predicate rather than on elapsed time | `hypothesis-investigation.md` |
+| Two incidents in one window are not merged into one differential without a mechanism | `hypothesis-investigation.md` |
+
+**Current evidence:** `[verified]` Eight direct scenarios now cover these claims and the independent
+declaration-clock contract. `incident-investigation-correlated-incidents-stay-separate` carries the
+previously missing shared-cause invariant, and every scenario has a paired compliant and
+tempting-but-wrong fixture in `evals/test_graders.py`. Exact model behavior remains `[unverified]`.
+
+**Prerequisites:** None structural. The `no-incident` vocabulary is already guarded structurally by
+`test_no_incident_terminal_is_enumerated_and_propose_only` in `scripts/test_graph_contracts.py`,
+which is mutation-proven; that guard covers wording presence, not behavior.
+
+**Acceptance:** Each claim carries a scenario whose failing case is tempting rather than absurd —
+an alert that looks dead but whose telemetry is stale, a wedged app where restarting is the obvious
+move, a six-hour incident where continuing is easier than handing over. Graders discriminate by
+adjacency, not bare substring presence. Each scenario is measured red on a revision without the
+guidance before it is accepted green with it.
+
+**Next action:** Under a separately approved live profile, measure the eight scenarios in one run;
+report which claims survive and tighten the wording of any that do not. Do not expand or reuse the
+five-scenario reference-reachability approval for this behavioral campaign.
+
+### LIFECYCLE-001 — a service record stays true for the whole service life
+
+**Status:** `active` (2026-08-26)
+
+**Outcome:** The four unowned service-lifecycle transitions — change, remediation, refresh, and
+retirement — have owners, so a record in the operational memory is either current or visibly not. A
+reader separates a live service from a decommissioned one, and a fresh readiness verdict from a
+stale one, without re-deriving either from the running system.
+
+**Source:** A 2026-08-26 audit of `service-lifecycle` and `service-readiness-audit` found the fleet
+models a service's birth and its health and no other transition. The knowledge model already
+represents retirement — the service card carries `lifecycle: proposed | active | deprecated |
+retired`, and the alert card and runbook templates carry their own `retired` status — but no event
+triggered that transition and no lane performs it. The mechanisms for the other three already exist
+and were simply unwired: `runbook`'s
+accretion protocol defines held/contradicted/missing outcomes and the binding rule for
+`last_verified`; `operational-learning` already declares `audit` an input type and already
+generalizes that binding rule past runbooks; the knowledge index already carries an open-gaps
+column. The recurring defect is a defined receiver with a silent sender.
+
+**Prerequisites:** None for stage 2. Stage 3 is effect-shaped and carries the same approval and
+production-gate posture as `service-lifecycle`; a retirement that removes alerting or telemetry is
+a production change, not a documentation change. Stage 4's fields belong to CONTEXT-001 stage 1 and
+must not be forked into a skill-local schema.
+
+**Acceptance:** (1) A readiness verdict states the UTC date it was reached and the age of its oldest
+load-bearing evidence. (2) The audit names the closeout route and does not load
+`operational-learning` itself, preserving both its read-only contract and the rule that the
+originating lane never approves its own discovery. (3) The disposition policy carries a row for a
+component being decommissioned, distinct from one that materially changes. (4) A retirement
+checklist removes the service from platform, telemetry, alerting, and knowledge under the existing
+gate, states what it did not remove, and leaves the record retired rather than deleted, using the
+existing card vocabulary rather than a new one. (5) Two schema enhancements — `last_verified` with
+a consumer-declared `maxAge` that fails closed, and a `forbidden` path list beside
+`required`/`optional` in the requirements sidecar — reach CONTEXT-001 as amendments to the
+existing `context-requirements-v1alpha1` and resolved-context schemas, which already ship without
+either; they are implemented there rather than locally. Record lifecycle status is not among them; the
+card templates already carry it.
+
+**Next action:** Add the decommission disposition row to `operational-learning`, then design the
+retirement checklist as `service-lifecycle`'s effect-shaped sibling, then carry the three schema
+enhancements to CONTEXT-001. Conditions (1) and (2) are committed; their evidence is in the commit,
+not here.
 
 ## Deferred
 

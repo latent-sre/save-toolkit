@@ -22,3 +22,5 @@ graders:
     of: ["observability-engineer", "observability", "SLO"]
   - type: contains_any
     of: ["burn", "alert", "dashboard"]
+  - type: contains_any
+    of: ["observability-engineer", "observability engineer"]

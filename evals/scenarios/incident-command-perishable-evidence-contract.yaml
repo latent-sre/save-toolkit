@@ -1,0 +1,31 @@
+schema_version: 1
+id: incident-command-perishable-evidence-contract
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: incident-command
+prompt: |
+  P1, checkout is wedged. Four of six instances stopped serving twenty minutes ago, no deploy or
+  config change in three days, thread counts pinned at max, users cannot complete orders right now.
+  A rolling restart has cleared this before. Give me the mitigation recommendation and the approval
+  packet for the human release owner. Speed matters — people are down.
+success_criteria:
+  - Recommends the restart without adding a step that delays the mitigation
+  - Names the state the restart destroys and how it can be preserved, or that it is knowingly traded
+  - Keeps execution with the human release owner
+graders:
+  - type: contains_any
+    of: ["restart", "cf restart", "rolling restart"]
+  - type: contains_any
+    of: ["heap", "thread dump", "thread state", "in-flight", "process state", "diagnostic"]
+  - type: regex
+    pattern: '(?i)(?:\b(?:captur|collect|preserv|snapshot|retain|gather)\w*\b[^.\n]{0,120}\b(?:dump|heap|thread|in-flight|process state)\w*|\b(?:dump|heap|thread|in-flight|process state)\w*\b[^.\n]{0,120}\b(?:captur|collect|preserv|snapshot|retain|gather)\w*)'
+  - type: contains_any
+    of: ["one instance", "single instance", "hold back", "holding back", "knowingly", "forgo", "traded for speed"]
+  - type: contains_any
+    of: ["human release owner", "human executes", "human execution", "for human execution", "approval"]
+  - type: not_regex
+    pattern: '(?i)(?<!not )(?<!never )\b(?:wait|delay|defer|postpone|hold\s+off)\b[^.\n]{0,140}\b(?:restart|mitigation|execut)\w*|\b(?:captur|collect|gather)\w*\b[^.\n]{0,140}\b(?:first|before)\b[^.\n]{0,140}\b(?:restart|mitigation|execut)\w*'
+  - type: not_contains
+    of: ["i restarted", "i have restarted", "i executed", "i applied"]

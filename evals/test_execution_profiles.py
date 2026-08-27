@@ -82,26 +82,37 @@ class ExecutionProfileTests(unittest.TestCase):
         with self.assertRaisesRegex(execution_profiles.ProfileError, "valid timestamp"):
             execution_profiles.validate_profile(value, require_approval=True)
 
-    def test_claude_references_require_the_supported_direct_sre_shape(self) -> None:
+    def test_claude_references_require_a_direct_scenario_of_either_target_kind(self) -> None:
+        """Reference reads are scoped to the plugin snapshot, so target kind is irrelevant.
+
+        What is not irrelevant is `mode`. Enabling references prepends a boundary preflight to the
+        prompt, and a discovery scenario must reach the model byte-for-byte, so a discovery profile
+        would silently measure a different prompt than the one authored.
+        """
         value = self._valid()
         value["engine"] = "claude-plugin"
         value["model"] = "sonnet"
         profile = execution_profiles.validate_profile(value, require_approval=True)
-        unsupported = [{
+
+        for target in (
+            {"kind": "agent", "name": "sre"},
+            {"kind": "agent", "name": "software-engineer"},
+            {"kind": "skill", "name": "incident-investigation"},
+            {"kind": "skill", "name": "incident-command"},
+        ):
+            with self.subTest(target=target):
+                execution_profiles.validate_scenario_bindings(
+                    profile,
+                    [{"id": value["scenario_ids"][0], "mode": "direct", "target": target}],
+                )
+
+        discovery = [{
             "id": value["scenario_ids"][0],
-            "mode": "direct",
+            "mode": "discovery",
             "target": {"kind": "skill", "name": "incident-investigation"},
         }]
-
-        with self.assertRaisesRegex(execution_profiles.ProfileError, "direct sre agent"):
-            execution_profiles.validate_scenario_bindings(profile, unsupported)
-
-        supported = [{
-            "id": value["scenario_ids"][0],
-            "mode": "direct",
-            "target": {"kind": "agent", "name": "sre"},
-        }]
-        execution_profiles.validate_scenario_bindings(profile, supported)
+        with self.assertRaisesRegex(execution_profiles.ProfileError, "direct"):
+            execution_profiles.validate_scenario_bindings(profile, discovery)
 
     def test_unsupported_claim_is_rejected(self) -> None:
         value = self._valid()

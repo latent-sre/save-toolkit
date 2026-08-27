@@ -51,6 +51,21 @@ PROVIDER_ENV_PREFIXES = ("ANTHROPIC_", "AZURE_OPENAI_", "OPENAI_")
 CANARY_RE = re.compile(r"^q_[a-z0-9_]{3,}$")
 
 
+
+def _is_rooted(value: object) -> bool:
+    """True when a path is absolute in POSIX form or in this platform's form.
+
+    A tool transcript carries whatever shape the runner produced, and
+    ``Path("/a/b").is_absolute()`` is False on Windows because the path has no drive. Reading a
+    rooted POSIX path as relative would make an out-of-snapshot read that succeeded look like a
+    harmless relative one, so the boundary check must accept both shapes on every platform.
+    """
+    if value is None:
+        return False
+    if str(value).replace("\\", "/").startswith("/"):
+        return True
+    return Path(value).is_absolute()
+
 class AdapterError(ValueError):
     """An adapter command, trace, or host boundary was invalid."""
 
@@ -127,7 +142,7 @@ class ClaudeNativeAdapter:
         if enable_snapshot_reads:
             if not required_reference_paths:
                 raise AdapterError("snapshot reads require at least one positive reference probe")
-            if denied_probe_path is None or not denied_probe_path.is_absolute():
+            if not _is_rooted(denied_probe_path):
                 raise AdapterError("snapshot reads require one absolute negative boundary probe")
             reference_paths = [
                 (plugin_root / relative).resolve()
@@ -138,8 +153,12 @@ class ClaudeNativeAdapter:
                 raise AdapterError("positive reference probe escaped the plugin snapshot")
             preflight = [
                 "Before the task, perform this evaluator boundary preflight exactly:",
-                *(f"- Use Read on {path}. It must succeed." for path in reference_paths),
-                f"- Use Read on {denied_probe_path.resolve()}. It must be denied.",
+                # POSIX form, matching the --allowedTools glob built from as_posix() below.
+                # A backslash path here would instruct the model to read a file the
+                # permission pattern does not cover, so the probe would be denied for the
+                # wrong reason and the boundary check would read as a real refusal.
+                *(f"- Use Read on {path.as_posix()}. It must succeed." for path in reference_paths),
+                f"- Use Read on {denied_probe_path.resolve().as_posix()}. It must be denied.",
                 "Continue with the task only after making every probe. Do not quote the denied file.",
             ]
             prompt = "\n".join(preflight) + "\n\n" + prompt
@@ -241,7 +260,7 @@ class ClaudeNativeAdapter:
             for marker in ("*", "?", "["):
                 prefix = prefix.split(marker, 1)[0]
             candidate = Path(prefix or normalized)
-            if not candidate.is_absolute():
+            if not _is_rooted(candidate):
                 if attempt.outcome == "allowed":
                     raise AdapterError(f"successful out-of-snapshot relative read: {attempt.path}")
                 continue

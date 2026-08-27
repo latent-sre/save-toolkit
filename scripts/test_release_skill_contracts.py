@@ -270,7 +270,7 @@ class ReleaseSkillContractTests(unittest.TestCase):
     def test_service_onboarding_is_runtime_and_workload_aware(self) -> None:
         self.assertTrue(
             service_onboarding_is_runtime_and_workload_aware(
-                read("skills/service-onboarding/SKILL.md")
+                read("skills/service-lifecycle/SKILL.md")
             )
         )
 
@@ -299,7 +299,7 @@ class ReleaseSkillContractTests(unittest.TestCase):
         merge = read("skills/merge-gate/SKILL.md")
         release = read("skills/release-gate/SKILL.md")
         production = read("skills/production-change-gate/SKILL.md")
-        onboarding = read("skills/service-onboarding/SKILL.md")
+        onboarding = read("skills/service-lifecycle/SKILL.md")
         canary = read("skills/pcf-deploy/references/rolling-canary-and-revisions.md")
         rollback = read("skills/production-change-gate/references/tier-2-approval-example.md")
         incident = read("skills/production-change-gate/references/incident-fast-path.md")

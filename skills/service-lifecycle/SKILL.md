@@ -1,18 +1,20 @@
 ---
-name: service-onboarding
+name: service-lifecycle
 description: >-
-  Onboard an approved new or changed service into the platform, observability, and operational-
-  knowledge model. Invoke explicitly as Copilot `/service-onboarding` or Claude
-  `/save-toolkit:service-onboarding`. Triggers: 'onboard this service', 'register this application',
-  'complete service onboarding'. Not for read-only readiness reviews; use `service-readiness-audit`.
-# Side-effect-shaped: invoke explicitly as `/save-toolkit:service-onboarding`; never auto-load.
+  Carry an approved service change through the platform, observability, and operational-knowledge
+  model: onboarding a new service, and re-onboarding a materially changed one. Invoke explicitly as
+  Copilot `/service-lifecycle` or Claude `/save-toolkit:service-lifecycle`. Triggers: 'onboard this
+  service', 'register this application', 'complete service onboarding'. Retirement is not covered
+  here. Not for read-only readiness reviews; use `service-readiness-audit`.
+# Side-effect-shaped: invoke explicitly as `/save-toolkit:service-lifecycle`; never auto-load.
 disable-model-invocation: true
-argument-hint: "[the service to onboard]"
+argument-hint: "[the service to onboard or change]"
 ---
 
-This is the explicit, effect-shaped onboarding workflow. For a read-only assessment of whether an
-existing service is ready, use `service-readiness-audit`; do not simulate onboarding to answer an
-audit question.
+This is the explicit, effect-shaped workflow for bringing an approved service change into service:
+a new service, or a materially changed one. Retiring a service is not covered here. For a read-only
+assessment of whether an existing service is ready, use `service-readiness-audit`; do not simulate
+onboarding to answer an audit question.
 
 Use only sanitized evidence and the smallest redacted excerpt needed for each decision. Never run or
 request credential-bearing reads such as `cf env`, `cf service-key`, `CF_TRACE`, or credential
@@ -23,6 +25,20 @@ authoritative service/alert definitions before starting. Work through every appl
 order; when one is skipped, say so explicitly and why—silence reads as “done.” This checklist grants
 no permission of its own. Before any production-facing step, load `production-change-gate` and
 re-enter it.
+
+## Optional resolved context
+
+When a compatible generic resolver implementing `sre-context-resolver/v1alpha1.0` is available, a
+caller may resolve [this skill's context requirements](./context-requirements.yaml) for an explicit
+team, service, and environment selection. Use it to learn what already exists: a resolved knowledge
+record, runbook, or pipeline means this is a change to an existing service rather than a new
+onboarding, so verify and update those artifacts instead of creating duplicates.
+
+Resolved context is routing input only. It never supplies the approved plan, the approval record,
+or a credential; it never selects the environment implicitly; and its validity authorizes nothing.
+A resolved record tells you the service is a change, not that the change is approved. Missing
+context is recorded as a gap and never guessed, and caller-supplied evidence remains supported when
+the resolver is unavailable.
 
 ## Required on-demand skill dependencies
 - `stack-profile`
@@ -67,3 +83,12 @@ destination choices come from the approved platform boundary rather than this ch
 Return the completed/skipped steps, approval and production-gate evidence, verification results,
 remaining gaps with owners, the `scribe` handoff packet, and **what was not done**. Never report an
 onboarding effect as complete without evidence from its authoritative system.
+
+## Independent verification
+
+Every result above is self-reported by the pass that performed the effect. Close by recommending
+`service-readiness-audit` for the same service and environment, and name what it should find: the
+versioned deployment specification and health check, one arrival query per shipped signal, the
+dashboard, every alert with its linked runbook, the SLI formula with target and window, promotion
+controls and the rollback path, and the step 9 `scribe` records. Report that audit as owed
+verification, never as a result — a recommended audit that has not run is not evidence.

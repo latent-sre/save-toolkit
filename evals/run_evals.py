@@ -881,7 +881,13 @@ def expected_runtime_tools(
     _require_matching_frontmatter_parser(plugin_root)
     frontmatter_parser = _load_trusted_frontmatter_parser()
     target = scenario["target"]
-    if scenario["mode"] != "direct" or target["kind"] != "agent":
+    if scenario["mode"] != "direct":
+        return ALLOWED_BUILTIN_TOOLS
+    if target["kind"] == "skill":
+        if enable_snapshot_reads:
+            return tuple(sorted((*ALLOWED_BUILTIN_TOOLS, *engine_adapters.READ_TOOLS)))
+        return ALLOWED_BUILTIN_TOOLS
+    if target["kind"] != "agent":
         return ALLOWED_BUILTIN_TOOLS
     path = plugin_root / "agents" / f"{target['name']}.md"
     try:

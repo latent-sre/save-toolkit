@@ -300,11 +300,20 @@ def validate_scenario_bindings(
         if profile.engine != "claude-plugin" or not profile.required_references.get(scenario_id):
             continue
         target = scenario.get("target")
-        if not isinstance(target, Mapping) or (
-            scenario.get("mode"), target.get("kind"), target.get("name")
-        ) != ("direct", "agent", "sre"):
+        # `direct` is load-bearing and the target kind is not. Enabling references prepends a
+        # boundary preflight to the prompt, and a discovery scenario must reach the model
+        # byte-for-byte, so a discovery profile would grade a prompt nobody authored. Reads are
+        # scoped to the plugin snapshot either way, so an agent target and a skill target carry the
+        # same boundary; restricting this to the `sre` agent only kept every skill's references
+        # unreadable in every behavioural contract that grades them.
+        if not isinstance(target, Mapping) or target.get("kind") not in ("agent", "skill"):
             raise ProfileError(
-                "Claude required references are supported only for a direct sre agent scenario"
+                "Claude required references need a scenario target naming an agent or a skill"
+            )
+        if scenario.get("mode") != "direct":
+            raise ProfileError(
+                "Claude required references are supported only for a direct scenario: the boundary "
+                "preflight rewrites the prompt, which a discovery scenario must keep byte-for-byte"
             )
 
 

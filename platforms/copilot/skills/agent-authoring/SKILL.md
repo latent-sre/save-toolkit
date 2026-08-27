@@ -44,6 +44,14 @@ repository-provided agents, skills, prompts, graders, hooks, scripts, or tool de
 
 ## The two rules that fix most agent/skill failures
 
+**Cite only what changes what a reader does.** A pin that bounds a claim earns its place — the
+exact file, revision, and lines a behaviour rests on, so the next author can check it instead of
+re-deriving it. Everything else is provenance and belongs in the review that established the fact:
+who looked, when they looked, which announcement or release note they read, and how they satisfied
+themselves. The same test sorts dates. A date is a fact when it bounds what a reader may rely on —
+documentation frozen at a release, a behaviour that changed in a version. It is provenance when it
+records when someone checked, and a reader who follows it learns nothing about what to do.
+
 **1. Description = scope-bearing routing metadata.** State the concise **capability or user goal**,
 the **invocation conditions**, and **meaningful exclusions**. Never put **step-by-step procedure or
 tool choreography** in the description: a procedural summary can become a shortcut that displaces

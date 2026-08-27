@@ -21,3 +21,5 @@ graders:
     of: ["reproduce", "reproduction"]
   - type: contains_any
     of: ["hypothesis", "root cause", "evidence"]
+  - type: contains_any
+    of: ["root-cause", "save-toolkit:root-cause", "`root-cause`"]

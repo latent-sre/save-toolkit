@@ -25,6 +25,9 @@ STALE = (
     "sde", "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
     "test-engineer", "sre-monitor", "runbook-author",
     "observer", "sre-steward",
+    # `service-onboarding` retired into `service-lifecycle`: the lane owns the effect-shaped
+    # transitions of a service, of which first onboarding is one. No release had shipped.
+    "service-onboarding",
     # The plugin itself was renamed `sre-agents` -> `save-toolkit`, which is what finally removed
     # the `sre` ⊂ `sre-agents` prefix collision (renaming agents alone could never fix it, because
     # the namespace carried the collision). Listed here so leftover `sre-agents:<component>`

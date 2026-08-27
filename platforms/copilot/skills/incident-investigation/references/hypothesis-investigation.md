@@ -19,15 +19,13 @@ shows a distributed or self-sustaining mechanism.
 
 ## Where the loop lives
 
-The loop itself is the `sre` agent's Method — characterize, build the UTC timeline, write the
-differential with a prediction per candidate, test to eliminate, five whys past the trigger, and
-conclude at the evidence level — with `root-cause` owning the causal-testing discipline. This
-reference does not restate it. Ownership map only—not a load: the `stack-profile` observability
-reference names which backend serves each signal today, and `obs-logs`, `obs-metrics`,
-`obs-traces`, and `obs-alerting` own the queries; do not assume a vendor from this file. When a
-common question already has a cataloged starting query, `obs-logs`' team query catalog holds it
-with the result shape a healthy service produces — start from that entry rather than composing a
-new query, and carry its verification state forward rather than upgrading it.
+The loop itself is the `sre` agent's Method, with `root-cause` owning the causal-testing
+discipline. This reference does not restate it. Ownership map only—not a load: the `stack-profile`
+observability reference names which backend serves each signal today, and `obs-logs`,
+`obs-metrics`, `obs-traces`, and `obs-alerting` own the queries; do not assume a vendor from this
+file. When a common question already has a cataloged starting query, `obs-logs`' team query
+catalog holds it with the result shape a healthy service produces — start from that entry rather
+than composing a new query, and carry its verification state forward rather than upgrading it.
 
 ## Common application-operations failure modes
 
@@ -42,6 +40,27 @@ new query, and carry its verification state forward rather than upgrading it.
   affected path.
 - **Connection or thread-pool exhaustion:** saturation leads latency, then errors.
 - **Certificate, credential, or secret expiry:** failures begin sharply at an expiry boundary.
+
+Two incidents in the same window are not evidence of one cause. Correlated timing is a hypothesis
+like any other and needs a mechanism that connects them. Assuming a shared cause merges two
+differentials into one and can hide the second failure entirely.
+
+## When the differential stops converging
+
+This governs pulling in help mid-investigation. It does not touch the first-response clock: an
+unstabilized service still declares an incident at roughly fifteen minutes regardless of how the
+differential is going.
+
+Escalate on being stuck, not on elapsed time. A stated time target for producing a cause pressures
+the response without informing it; what matters is whether the last round of tests changed the
+ranking.
+
+Declare the investigation stuck when any of these is observed: every candidate is eliminated and no
+new one is supported by evidence; two consecutive tests eliminate no candidate; or the next
+discriminating observation needs access, data, or expertise this lane does not hold. On any of
+them, record the state and name the service owner, evidence source, or mode change needed.
+Hesitating to pull in a subject-matter expert is the common failure, and asking early costs less
+than a prolonged incident.
 
 ## Return to the incident record
 
