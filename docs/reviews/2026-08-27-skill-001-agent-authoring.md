@@ -124,6 +124,23 @@ the six fixture cases with paired incumbent/candidate runs, one candidate, hard 
 no-progress and safety stops, and human acceptance of the exact revision; and read exactly
 `artifact.md` and `claude-code-frontmatter.md`. 77k tokens, 4.7 minutes.
 
+## Six-run Sonnet comparison (owner-requested, after the PR opened)
+
+`[verified]` Three runs of the incumbent (`origin/main` 4f01f22 snapshot) and three of the candidate
+(`f492153`) on the same fixture task, Sonnet, in-repository subagents (identical context for both
+arms, so the comparison is fair even though it is not a clean room). Scripted assertions: incumbent
+24/24, candidate 23/24, with the one miss — "activation and shape measured separately with a
+baseline" on candidate run 2 — passing on reading: that plan's `### Measurement` section carries an
+**Activation (A1–A3)** track and an **Output shape (S1–S3)** track, each paired against the
+incumbent. The detector keys on wording ("separate", "two tracks") and was widened once during
+grading; the Opus run re-graded 8/8 under the same version. Every run in both arms read exactly
+`artifact.md` and `claude-code-frontmatter.md`, declined to execute the fixture under the
+source-trust gate, rewrote the description to capability + quoted triggers + exclusions, moved the
+JSON contract to a strict output rule, removed the "offer to post" step, and named human acceptance
+as promotion. Candidate runs averaged 78.4k tokens / 205 s against the incumbent's 78.7k / 217 s —
+no behavioral difference, and no context penalty, on the fleet's measurement tier. Budget for this
+check: six Sonnet calls beyond the slice's three-per-tier, at the owner's request.
+
 ## Fleet routing evidence
 
 `[verified]` After-change run on exact candidate `fc5748a` (clean tree, `--require-clean-plugin`),
@@ -143,5 +160,5 @@ run; Sonnet — contaminated probe, clean probe, repo discovery run. No build be
 
 - Probes measure recall; the pressure control covers only three prompts and is scored on content,
   not routing.
-- One exercise run; no incumbent comparison.
+- The Opus exercise run has no incumbent comparison; the Sonnet six-run comparison does, at n=3 per arm.
 - Claude-host results only; the Copilot projection may run on a model with different knowledge.
