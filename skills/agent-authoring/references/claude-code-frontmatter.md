@@ -104,46 +104,9 @@ authority, never restrict it. The field-by-field map is in the sibling reference
 [skill portability](./skill-portability.md); this file stays the source of truth for what each field
 does.
 
-### Recent platform changes worth knowing
+### Hook scoping is a fleet decision
 
-[doc-checked 2026-08-19, CLI 2.1.193–2.1.236 changelog] Perishable — re-verify after upgrades:
-
-- **Skills synced from claude.ai are sandboxed harder** (2.1.228): they no longer shadow local
-  commands or MCP prompts, their descriptions are sanitized and labeled, and their bodies don't
-  run `!` commands or expand `@` files. The personal-skill shadowing trap above still applies to
-  skills *installed* locally — only the claude.ai-sync path was narrowed.
-- **`claude plugin validate` now checks a bare `.claude/skills` directory** (2.1.233), reporting
-  SKILL.md files whose frontmatter fails to parse. Our canonical `skills/` sits in a plugin, so
-  the existing `--strict` run already covered it; this widens the net for project-scope skills.
-- **Upstream precedent for the bundle pattern** (2.1.236): the built-in `claude-api` skill's
-  context cost dropped from ~200k+ tokens to ~25k by moving reference docs to on-demand loads —
-  the same Level-3 `references/` discipline this fleet already mandates.
-- **Skill/command argument substitution hardened** (2.1.233): argument values are no longer
-  re-expanded as template markers. Nothing to change here; noted because our skills take
-  `argument-hint` arguments.
-
-- **`context: fork` skills now run in the background by default** (2.1.218). Add `background: false`
-  to keep the old inline-result behavior. This fleet uses neither field today.
-- **Booleans accept `yes`/`no`/`on`/`off`/`1`/`0`** case-insensitively (2.1.218), not just
-  `true`/`false`. Keep writing `true` — the repo's checker pins the literal.
-- **`${user_config.*}` in a shell-form hook command is rejected** (2.1.218, shell-injection fix); use
-  the exec form or read `CLAUDE_PLUGIN_OPTION_<KEY>` from the hook environment. Our hook uses
-  neither.
-- **Hook matcher semantics tightened**: hyphenated matchers are exact-match (2.1.195),
-  comma-separated matchers now fire (2.1.216), and a single-segment `dir/**` matches only one level
-  (2.1.214). Our `PreToolUse` matcher is the plain tool name `Bash`, so none of these apply.
-- **A colon is reserved in agent names** (2.1.214) for the `plugin-name:agent-name` form; existing
-  names keep working. Our kebab-case rule already forbids it.
-- **Re-invoking the same skill no longer re-appends its full text** (2.1.202) — a token-bloat fix,
-  nothing to change.
-- **Agent frontmatter hooks now require accepted workspace trust** (2.1.218). Irrelevant here: plugin
-  agents ignore `hooks` entirely, which is why this fleet's guard lives in `hooks/hooks.json`.
-- **`claude plugin validate --strict` flags unrecognized manifest fields** with typo suggestions
-  (2.1.142+), and `metadata` is recognized rather than flagged (2.1.222). The Claude manifest carries
-  a `$schema` pointer to the published plugin-manifest schema for editor validation; it has no
-  runtime effect.
-
-A note on hook scoping, since the changelog invites it: matchers can express an agent-scoped hook.
+Hook matchers can express an agent-scoped hook.
 This fleet deliberately does **not** use that for the read-only guard. A matcher that fails to match
 — after an upstream rename, say — silently skips the hook and fails **open**. The guard instead runs
 on every Bash call and scopes itself in Python, so the same rename trips a canary and fails
