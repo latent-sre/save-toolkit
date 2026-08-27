@@ -158,6 +158,31 @@ def _tool_base(spec: str) -> str:
     return spec.split("(", 1)[0].strip()
 
 
+def _delegation_targets(specs: list[str], source: Path) -> list[str] | None:
+    """Translate canonical ``Agent(target, ...)`` grants into a Copilot allowlist.
+
+    Omitting Copilot's ``agents:`` field allows every eligible subagent, so a canonical Agent
+    grant must never degrade to an unscoped ``agent`` tool. Canonical validation independently
+    checks the fleet graph; this parser keeps the generated authority fail-closed when invoked on
+    an individual source or fixture.
+    """
+
+    targets: list[str] = []
+    for spec in specs:
+        if _tool_base(spec) != "Agent":
+            continue
+        match = re.fullmatch(r"Agent\(([^()]*)\)", spec)
+        if match is None:
+            raise ValueError(f"{source}: Agent tool must declare an explicit target allowlist")
+        for target in (item.strip() for item in match.group(1).split(",")):
+            if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", target):
+                raise ValueError(f"{source}: invalid Agent target {target!r}")
+            if target in targets:
+                raise ValueError(f"{source}: duplicate Agent target {target!r}")
+            targets.append(target)
+    return targets or None
+
+
 def _installed_resource(match: re.Match[str]) -> str:
     kind, name, tail = match.group("kind"), match.group("name"), match.group("tail")
     if kind == "agents":
@@ -193,8 +218,10 @@ def _description(fields: dict[str, object], source: Path) -> str:
 def render_copilot_agent(source: Path) -> str:
     fields, body, _ = parse_frontmatter(source)
     name = str(fields.get("name") or "")
-    tools = {_tool_base(item) for item in _split_tool_specs(fields.get("tools"))}
-    has_external_evidence = any(item.startswith("mcp__") for item in _split_tool_specs(fields.get("tools")))
+    tool_specs = _split_tool_specs(fields.get("tools"))
+    tools = {_tool_base(item) for item in tool_specs}
+    delegation_targets = _delegation_targets(tool_specs, source)
+    has_external_evidence = any(item.startswith("mcp__") for item in tool_specs)
     mapped = {COPILOT_TOOL_MAP[item] for item in tools if item in COPILOT_TOOL_MAP}
     if name in GUARDED_AGENTS:
         mapped.discard("execute")
@@ -230,12 +257,17 @@ def render_copilot_agent(source: Path) -> str:
             f"{source}: generated Copilot agent prompt body is {len(prompt_body):,} characters; "
             f"it exceeds the {COPILOT_AGENT_PROMPT_MAX_CHARS:,}-character maximum"
         )
-    return (
+    frontmatter = (
         "---\n"
         f"name: {json.dumps(name, ensure_ascii=False)}\n"
         f"description: {json.dumps(adapt_text(_description(fields, source), 'copilot'), ensure_ascii=False)}\n"
         f"tools: {json.dumps(ordered)}\n"
-        "---\n\n"
+    )
+    if delegation_targets is not None:
+        frontmatter += f"agents: {json.dumps(delegation_targets)}\n"
+    return (
+        frontmatter
+        + "---\n\n"
         + prompt_body
     )
 
