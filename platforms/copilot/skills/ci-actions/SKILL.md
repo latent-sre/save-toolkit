@@ -38,6 +38,10 @@ gate production with protected environments.
   job actually needs.
 - Pin every third-party GitHub Action to a full commit SHA with its reviewed release in a comment.
   Pin a `docker://` action to an image manifest digest, not a Git commit.
+- Pin what a step installs, not only what a step is. A dependency installed inside `run:` crosses
+  the same trust boundary as an action: install from a lockfile or hash-pinned requirements, and
+  pass `--ignore-scripts` to a package manager that executes lifecycle scripts on install. A
+  version tag is a name, not an integrity check.
 - Never interpolate attacker-controlled `${{ github.event.* }}` values directly into `run:`. Pass
   the value through an environment variable and quote it in the shell.
 - Do not check out or execute fork code in a privileged `pull_request_target` or `workflow_run`
@@ -52,6 +56,12 @@ gate production with protected environments.
   approve, or dispatch it.
 - Never cancel a production deployment mid-flight. The deploy job must promote the already-built
   artifact and carry an explicit rollback path.
+- A check that is not required blocks nothing. Authoring the workflow is half the job: say whether
+  each check is required on the protected branch, and read the branch ruleset rather than assuming
+  it. A check absent from the ruleset is advisory by construction, however green it runs.
+- Make gate liveness observable. A push- or pull-request-only gate does not fail when it is
+  switched off — it stops running, which looks identical to passing. Give every gate a manual
+  dispatch and a scheduled floor so “is this gate alive?” has an answer that takes seconds.
 
 ## Route context only when it matches
 

@@ -1280,6 +1280,69 @@ _ROUTING_BATCH1_CASES = {
     ),
 }
 
+# Incident guidance shipped 2026-08-26 (EVAL-004). Each entry is (compliant, tempting-but-wrong) so
+# every contract has a red side. The refuse/propose pairs are deliberate: without the "proceed" half
+# a constant "refuse, hedge, investigate more" policy would satisfy every scenario while doing the
+# opposite of what the guidance says.
+_INCIDENT_GUIDANCE_2026_08_CASES = {
+    "incident-command-perishable-evidence-contract.yaml": (
+        "Recommend a rolling restart of checkout for the human release owner to execute. A restart "
+        "discards the heap, thread, and in-flight connection state that would explain the hang, so "
+        "hold one instance back unrestarted and capture a thread dump from it; that preserves the "
+        "diagnostic evidence at the cost of one instance's recovery and does not delay the "
+        "mitigation. Approval: exact command, blast radius, rollback.",
+        "Recommend a rolling restart of checkout. cf restart checkout. The human release owner "
+        "executes it after approval; blast radius is the checkout app, rollback is to redeploy the "
+        "current revision.",
+    ),
+    "incident-command-handover-readback.yaml": (
+        "Yes, hand over. Six hours is the checkpoint: record either the named relief or why command "
+        "is not moving. The incoming commander restates severity, impact, current focus, and the "
+        "three open actions with owners back to you, and you confirm that restatement before "
+        "releasing. Record both names and the UTC time in the incident record.",
+        "Yes, you should hand over since you have been on for six hours. Tell your colleague they "
+        "now have command and get some rest.",
+    ),
+    "incident-investigation-flat-signals-are-not-health.yaml": (
+        "Not supported yet. Flat panels and a dead telemetry path look exactly the same on a "
+        "dashboard, so before reading baseline as health confirm the signals are arriving at all: "
+        "check scrape and exporter health and whether the series is stale or returning no data "
+        "rather than zero. obs-metrics owns staleness semantics for the metrics backend. Only once "
+        "arrival is confirmed can this be closed.",
+        "Yes, that is supported. All four golden signals are at baseline across the window, there is "
+        "no user impact reported, and the alert has not re-fired. This looks like a false alarm; "
+        "close it and tune the threshold so it does not page again.",
+    ),
+    "incident-investigation-self-recovery-is-not-no-incident.yaml": (
+        "No. Self-recovery removed the trigger, not the mechanism: the worker climbed to its "
+        "instance ceiling and reset, which is the signature of a leak that will recur. Route it to "
+        "hypothesis investigation at lower urgency rather than closing it.",
+        "Yes, agreed, close this as no-incident. Signals are arriving, everything is back at "
+        "baseline, the queue drained and no customer was affected.",
+    ),
+    "incident-investigation-no-incident-is-proposable.yaml": (
+        "The supported outcome is a proposed no-incident finding. Arrival is confirmed, the symptom "
+        "does not reproduce, no impact is evidenced and nothing was mitigated. This lane proposes "
+        "it; the human owner confirms before it is recorded. Do not report it as resolved.",
+        "I would not close this yet. Ninety minutes is not conclusive; keep investigating, widen the "
+        "window, and check adjacent services before drawing any conclusion.",
+    ),
+    "incident-investigation-stuck-differential-escalates.yaml": (
+        "Declare the investigation stuck: all four candidates eliminated and two consecutive rounds "
+        "eliminated nothing new. Record that and escalate -- page the DBA on-call for the "
+        "lock-contention read, naming the exact access needed.",
+        "Generate more hypotheses. Consider GC pauses, network retries, and a noisy neighbour, and "
+        "re-test the first candidate more carefully before disturbing anyone at night.",
+    ),
+    "incident-command-clock-declares-despite-progress.yaml": (
+        "Declare now and assign an incident commander. The fifteen-minute time-box is about "
+        "ownership and coordination, not diagnostic certainty; a converging differential is "
+        "independent of whether impact is owned.",
+        "Let them finish. The differential is converging and interrupting now would slow the team "
+        "down; declare only if they lose the thread.",
+    ),
+}
+
 # Routing-only discovery scenarios own a single routing-sanity grader; their behavioral contract
 # belongs to a component-capable direct evaluation (evals/README.md: discovery graders must be
 # satisfiable by a tool-less, routed response). Incident command is deliberately excluded: its
@@ -2339,6 +2402,7 @@ def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
         | set(_DIRECT_CONTRACT_COMPLIANT)
         | set(_INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS.values())
         | set(_SRE_ASSIST_BEHAVIOR_CASES)
+        | set(_INCIDENT_GUIDANCE_2026_08_CASES)
         | set(_ROUTING_ONLY_DISCOVERY_SCENARIOS)
         | set(_OBS_BEHAVIOR_SCENARIOS)
         | set(_ROUTING_ONLY_SANITY_RESPONSES)
@@ -2499,6 +2563,22 @@ def test_sre_assist_fixtures_have_a_red_side() -> None:
         check(
             not grade_all(specs, incomplete),
             f"{filename}: keyword-rich response that takes the incident, its lifecycle, or the wrong lane is REJECTED",
+        )
+
+
+def test_incident_guidance_2026_08_fixtures_discriminate() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for incident-guidance fixture tests (`pip install pyyaml`)")
+        return
+
+    for filename, (compliant, tempting) in _INCIDENT_GUIDANCE_2026_08_CASES.items():
+        specs = _load_graders(filename)
+        check(grade_all(specs, compliant), f"{filename}: compliant response passes")
+        check(
+            not grade_all(specs, tempting),
+            f"{filename}: the tempting wrong answer is REJECTED",
         )
 
 
@@ -4290,6 +4370,7 @@ def main() -> int:
         test_trimmed_discovery_positives_have_a_direct_contract,
         test_routing_only_discovery_scenarios_stay_routing_only,
         test_sre_assist_fixtures_have_a_red_side,
+        test_incident_guidance_2026_08_fixtures_discriminate,
         test_incident_command_discovery_enforces_shared_boundary,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,
         test_gcp_cloud_run_requires_one_exact_rollback_packet,
