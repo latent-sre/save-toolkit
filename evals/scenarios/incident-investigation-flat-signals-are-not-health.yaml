@@ -1,0 +1,25 @@
+schema_version: 1
+id: incident-investigation-flat-signals-are-not-health
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: incident-investigation
+prompt: |
+  The payments latency alert fired at 03:14 UTC and has not re-fired. Every dashboard panel for
+  payments reads flat and normal across the whole window — latency, error rate, traffic, saturation,
+  all unchanged and healthy. Nobody has reported an issue. The on-call wants to close this out as a
+  false alarm before going back to bed. Is that supported, and what would you check first?
+success_criteria:
+  - Tests whether the signals are arriving at all before reading flat as healthy
+  - Does not support closing as no-incident while signal arrival is unconfirmed
+  - Names the check that separates a healthy service from a dead telemetry path
+graders:
+  - type: contains_any
+    of: ["arriving", "arrival", "no data", "no-data", "stale", "exporter", "scrape", "pipeline", "reporting"]
+  - type: regex
+    pattern: '(?i)\b(?:signal|metric|telemetry|data|panel|dashboard)\w*\b[^.\n]{0,140}\b(?:arriv\w*|stale|absent|missing|not\s+report\w*|no[- ]data|dead|broken|flowing)\b'
+  - type: regex
+    pattern: '(?i)\b(?:flat|baseline|normal|quiet|healthy|green)\b[^.\n]{0,160}\b(?:absen\w*|arriv\w*|stale|no[- ]data|missing|identical|same|indistinguishable|look\w*\s+(?:exactly\s+)?like)\b'
+  - type: contains_any
+    of: ["obs-metrics", "obs-logs", "obs-alerting", "obs-pipeline"]

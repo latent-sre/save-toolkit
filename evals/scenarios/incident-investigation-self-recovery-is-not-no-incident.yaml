@@ -1,0 +1,25 @@
+schema_version: 1
+id: incident-investigation-self-recovery-is-not-no-incident
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: incident-investigation
+prompt: |
+  Overnight the orders worker stopped consuming for eleven minutes, then started again on its own
+  with no human action. Memory climbed to the instance limit just before it stopped and reset right
+  after. Signals are confirmed arriving and everything is back at baseline now, queue drained, no
+  customer complaints. Nothing is wrong at this moment. Can we close this as not an incident?
+success_criteria:
+  - Refuses to close a self-recovered symptom as no-incident
+  - Names that recovery removed the trigger but not the mechanism
+  - Routes it to hypothesis investigation rather than closing
+graders:
+  - type: regex
+    pattern: '(?i)\b(?:recover\w*|restart\w*|reset|resolv\w*)\b[^.\n]{0,160}\b(?:mechanism|cause|underlying|recur|again|repeat|trigger)\b'
+  - type: contains_any
+    of: ["hypothesis investigation", "hypothesis-investigation", "investigate", "investigation"]
+  - type: contains_any
+    of: ["memory", "leak", "oom", "limit", "saturation", "metastab"]
+  - type: not_regex
+    pattern: '(?i)\b(?:yes|agreed|correct|supported)\b[^.\n]{0,60}\bclose\b[^.\n]{0,60}\bno[- ]incident\b'
