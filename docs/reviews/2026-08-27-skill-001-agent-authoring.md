@@ -6,8 +6,8 @@ the only live backlog; this record does not queue work.
 ## Conclusion
 
 `agent-authoring` is dispositioned as a **retained router with a recitation cut**: the always-loaded
-entrypoint falls from 10,911 to 9,672 immutable bytes (−11%), the description is byte-identical,
-and the bundle routes 51,188 reference bytes (66,628 before the two reference cuts below) against 9,672 retained. The cut is small by design:
+entrypoint falls from 10,911 to 8,843 immutable bytes (−19%), the description is byte-identical,
+and the bundle routes 36,754 reference bytes (66,628 at the base) against 8,843 retained. The cut is small by design:
 the clean-room probes show both models already produce the general method this skill teaches, but
 neither knows the fleet's decisions, and both author the Claude Code frontmatter facts wrong — so
 the body keeps decisions, traps, the rule statements its references defer to, and the router, and
@@ -59,7 +59,7 @@ direct misses are mostly phrasing the regexes do not accept ("Safety/authority:"
 "each delegation carries" rather than "handoff"); Sonnet's discovery miss is a missing adoption
 condition. Recorded as phrasing sensitivity, not as knowledge gaps.
 
-## The cut (10,911 → 9,672 bytes)
+## The cut (10,911 → 8,843 bytes)
 
 Retained verbatim or compressed: the source-trust gate; the evidence-matching and retest rules;
 the cite-only rule; the description rule and the failure→form table (both are statements
@@ -110,6 +110,23 @@ question by question; those two are public guidance the models paraphrased in Q6
 files are conditional loads, so the cut was made on that reading rather than on a fourth call per
 tier. Every `../SKILL.md` statement a reference defers to was grepped present after the edit, and
 no reference names a removed section `[verified]`.
+
+## Form pass: rules as tables, no prose (references 36,754 bytes after; body 8,843)
+
+Owner standard applied: a rule is its trigger, its imperative, and the failure it prevents. Every
+paragraph that stated rules became a table or bullet list; explanatory and provenance narrative was
+removed; every rule, every platform fact with its `doc-checked`/`probed` stamp, and every statement a
+reference defers to was kept and re-grepped `[verified]`. Per file: body 8,843 (source-trust gate,
+evidence-per-change, symptom→cause, four themes, which-graph, and the router are tables);
+`roster.md` 8,789 (agent-vs-skill, verifiers per lane, orchestration shapes, packet rules, tiering,
+wrapper failures as tables; the four-theme table dropped because the body owns it);
+`artifact.md` 5,694 (case-set sizing and the wrong-form list as tables; learn-from-failure as
+bullets); `claude-code-frontmatter.md` 10,859 (agent and skill fields, checkable rules, budgets,
+and unused-field decisions as tables; the runtime-environment section removed as not an authoring
+concern; the `disable-model-invocation` and plain-scalar histories reduced to the fact and its stamp);
+`delegation-graph.md` 2,495 and `skill-portability.md` 4,619 (copies, roles, and host limits as
+tables). Not a knowledge cut: no rule was removed for being known; this pass changes form only, so
+by the fleet's own rule it owes no live eval, and an after-change discovery run was made anyway.
 
 ## Exercise check
 

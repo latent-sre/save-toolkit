@@ -507,9 +507,9 @@ pressure-dropped invariants, and the routing table. The after-change discovery r
 evidence is in the disposition review.
 
 `agent-authoring` — retained router with a recitation cut on branch `work/skill-001-agent-authoring`:
-10,911 → 9,672 immutable entrypoint bytes, references 66,628 → 51,188 (an owner-preference trim of a
-pattern catalog, vendor commentary, and a changelog digest, then a probe-backed recitation cut; every
-fleet rule retained), description
+10,911 → 8,843 immutable entrypoint bytes, references 66,628 → 36,754 (an owner-preference trim of a
+pattern catalog, vendor commentary, and a changelog digest, a probe-backed recitation cut, then a
+rules-as-tables form pass; every fleet rule retained), description
 byte-identical, retained above the screen because clean-room probes on both tiers show the body's
 remaining content is fleet decisions and platform traps the models author wrong. After-change
 discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe correction, is in the
