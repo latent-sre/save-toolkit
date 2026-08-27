@@ -58,7 +58,8 @@ inventing a value:
 - severity and user impact;
 - blast radius and trend;
 - UTC timeline, with onset stated as a bound: an alert fires when its window closes and a probe
-  reports when it sampled, so neither timestamp is the start;
+  reports when it sampled, so neither timestamp is the start, and no candidate is ranked on a gap
+  measured from either until the true onset is read from the data;
 - hypotheses with evidence for and against;
 - mitigation already performed by a human or recommended for human execution.
 
@@ -71,11 +72,12 @@ The reader is a responder in the middle of an incident, so a bounded answer is b
 from its first screen. When the caller's lane carries its own output contract (the typed `sre`
 agent's), fill that contract. Otherwise the answer is, in order:
 
-1. **The finding**, in the responder's terms: what is happening, whether it is real, and what the
-   investigation now has to cover, stated as properties of the incident (one service or several; a
-   bounded cause or a self-sustaining mechanism; confirmed or not yet), never as a choice among
-   modes. Mode names, reference files, and this skill are how that was selected; the responder
-   receives what was selected, not the machinery.
+1. **The finding**, in two or three sentences in the responder's terms: what is happening,
+   whether it is real, and what the investigation now has to cover, stated as properties of the
+   incident (one service or several; a bounded cause or a self-sustaining mechanism; confirmed or
+   not yet), never as a choice among modes. Mode names, reference files, and this skill are how
+   that was selected; the responder receives what was selected, not the machinery. The mechanism,
+   its evidence, and the differential are supporting detail and follow item 3.
 2. **The next observation** and what each result would change.
 3. **The trigger for escalation or handover**, with what travels: what fired and when, what was
    checked and what it showed, current hypotheses, mitigation status, and what this lane did not
@@ -83,9 +85,9 @@ agent's), fill that contract. Otherwise the answer is, in order:
 4. **The incident spine** with current values and evidence labels.
 5. **Unknowns and non-actions.**
 
-The first three items are the first screen: short enough to read before scrolling, and complete
-enough that a responder who reads nothing else can act. Everything after them is appendix, and
-supporting detail follows the step it supports. Anything a human
+Items 1 to 3 are the first screen: they open the answer, nothing interrupts them, and together
+they run about a dozen lines, so a responder who reads nothing else can act. Everything after
+them is appendix, and supporting detail follows the step it supports. Anything a human
 must execute is a recommendation, never an action taken; it carries its rollback and the recovery
 criterion that proves it worked — which signals must return to baseline and for how long, never a
 single green point.
