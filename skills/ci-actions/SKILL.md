@@ -31,7 +31,10 @@ gate production with protected environments.
 
 - Set `permissions:` explicitly. Begin with `contents: read` and grant only the capabilities the
   job actually needs.
-- Pin every third-party GitHub Action to a full commit SHA with its reviewed release in a comment.
+- Pin every third-party GitHub Action to a full commit SHA, and name the exact reviewed release in
+  the trailing comment — the release the SHA actually resolves to, never a floating major alias.
+  The pin is what protects you; the comment is what tells a reader which bytes they are trusting,
+  and `# v5` on a SHA that is really `v5.6.0` hides the version that was reviewed.
   Pin a `docker://` action to an image manifest digest, not a Git commit.
 - Pin what a step installs, not only what a step is. A dependency installed inside `run:` crosses
   the same trust boundary as an action, and a version tag is a name rather than an integrity

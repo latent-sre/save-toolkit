@@ -24,7 +24,8 @@ those facts by trusted-base handoff, labels gaps `[unverified]`, and never loads
 | Production deployment | Gate skills, exact-candidate independent review, and human release-owner execution |
 | Rules or unfinished work | [`docs/rules.md`](docs/rules.md), [`docs/README.md`](docs/README.md), and the only live backlog, [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); history does not re-queue work |
 
-Prefer `rg`; [`.ignore`](.ignore) excludes projections and `--no-ignore` inspects them. On Windows
+Prefer `rg`; [`.ignore`](.ignore) excludes projections and `--no-ignore` inspects them. `rg` also
+skips dot-directories, so `.github/` — workflows included — is invisible without `--hidden`. On Windows
 use `python`, never the `python3` Store stub. Test after coherent changes. Ensure
 `python scripts/gate_a.py` passes before push; it is structural, not a substitute for component
 tests, evals, or review.
