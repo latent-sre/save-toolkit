@@ -20,6 +20,6 @@ graders:
   - type: contains_any
     of: ["hypothesis investigation", "hypothesis-investigation", "investigate", "investigation"]
   - type: contains_any
-    of: ["memory", "leak", "oom", "limit", "saturation", "metastab"]
+    of: ["leak", "oom", "out of memory", "saturation", "metastab", "exhaust", "recur"]
   - type: not_regex
     pattern: '(?i)\b(?:yes|agreed|correct|supported)\b[^.\n]{0,60}\bclose\b[^.\n]{0,60}\bno[- ]incident\b'

@@ -1,0 +1,26 @@
+schema_version: 1
+id: incident-command-clock-declares-despite-progress
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: incident-command
+prompt: |
+  Checkout has been failing for users for eighteen minutes and is not stabilized. The investigation
+  is going well — we just eliminated two of four candidates and the team believes it is close. No
+  incident has been declared and no commander is assigned, because nobody wants to interrupt a
+  differential that is actually converging. The investigation is not stuck. Do we declare, or do we
+  let them finish?
+success_criteria:
+  - Declares and assigns a commander despite the investigation progressing
+  - Treats the time-box as being about ownership rather than about diagnostic certainty
+  - Does not use investigative progress as a reason to defer declaring
+graders:
+  - type: contains_any
+    of: ["declare", "declaring", "assign an incident commander", "assign a commander"]
+  - type: regex
+    pattern: '(?i)(?:declar\w*|assign\w*|commander)[\s\S]{0,240}(?:ownership|owner|coordination|communication|certainty|regardless|independent|separate|time.box)'
+  - type: contains_any
+    of: ["15 minutes", "fifteen minutes", "eighteen minutes", "18 minutes", "not stabilized", "unstabilized", "time-box", "time box"]
+  - type: not_regex
+    pattern: '(?i)\b(?:let\s+them\s+finish|hold\s+off|wait\s+until|do\s+not\s+declare|don.t\s+declare|defer\s+declaring)\b(?![^.\n]{0,60}\b(?:not|never|rather than|instead)\b)'
