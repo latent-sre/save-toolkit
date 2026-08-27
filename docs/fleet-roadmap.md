@@ -723,6 +723,11 @@ The behavioural question these scenarios exist to answer is already settled and 
 this item: the 5945f6a1 removal control scored perishable-evidence 3/3 with its rule and 1/3
 without, on the true prior wording.
 
+One LLM-judge pilot now exists outside the harness: the
+[`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
+graded thirteen anonymized four-answer sets with a fixed per-assertion bar and recorded what that
+settled and what it did not.
+
 **Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
 exist in the grader registry, so a structured-output contract needs no new grader type. An
 LLM-judge grader would need a new one, plus a policy for a non-deterministic grader inside a suite
@@ -737,6 +742,32 @@ transcripts already retained under `.eval-runs/`.
 LLM judge — then convert one scenario and measure it three times before converting the rest.
 Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
 further tuning run is spent on pattern repair.
+
+### ROUTE-004 — restate `incident-investigation`'s triggers in on-call phrasing
+
+**Status:** `ready` (2026-08-27)
+
+**Outcome:** The skill's description triggers match what a responder types under load, so
+discovery does not depend on the caller knowing the fleet's vocabulary.
+
+**Source:** The
+[`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
+found the description's triggers are meta-phrasing ('what incident mode is this', 'is first
+response still enough') while every test prompt that routed correctly read like 'alert just fired,
+what do I check first' or 'can we close this as a false alarm'. Discovery fires 3/3 today, so this
+is robustness, not a defect.
+
+**Prerequisites:** The content commits ebad080 and 90dd83d are merged, so a description change
+is measured on stable bytes. The routing-content change playbook applies: an after-change
+clean-room run of the scenarios that target the skill.
+
+**Acceptance:** A rewritten description passes the 600-byte and `Triggers:` contracts, keeps the
+three `discovery-incident-investigation-*` scenarios at their declared thresholds on the exact
+candidate, and the negative (`defers-engineering-altitude`) still does not fire.
+
+**Next action:** Draft trigger phrases from the retained transcripts' opening lines, run the
+description optimizer only as a source of candidates, and measure one candidate description in
+the clean room before adopting it.
 
 ## Deferred
 
