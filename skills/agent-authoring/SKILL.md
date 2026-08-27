@@ -65,8 +65,9 @@ not named clearly enough.
 
 For human-facing shaping problems, prohibitions backfire and recipes leave less to negotiate. Avoid
 nuance clauses ("unless it matters") — they reopen the negotiation. Prompt text is not always the
-owner: locate the first boundary that diverges — schema, code, tool gate, harness — before editing
-instructions; the control table in [artifact guidance](./references/artifact.md) ranks them.
+owner: machine-consumed shape belongs in a strict schema, fixed branches and effects in code or a tool
+gate, context selection in the harness — locate the first boundary that diverges before editing
+instructions.
 
 **3. Four themes decide every artifact or roster change.** **Prompt Engineering** selects and
 guides the current owner; **Context Engineering** equips it with the smallest trusted state; **Loop

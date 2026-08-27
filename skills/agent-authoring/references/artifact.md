@@ -3,8 +3,7 @@
 An LLM-facing artifact is one layer of a system contract. First locate whether the failure belongs
 to routing metadata, instructions, context assembly, a tool/output schema, orchestration, the
 wrapper/model/runtime, or the evaluator. When the artifact owns the failure, edit it like code:
-reproduce, make the minimal fix, and verify. *[sourced: OpenAI prompt and evaluation guidance;
-Anthropic prompt/context guidance; obra/superpowers `writing-skills` empirical skill-testing]*
+reproduce, make the minimal fix, and verify.
 
 The source-trust gate and untrusted-data rules in `../SKILL.md` govern every step here and are not
 restated. One consequence worth naming at this altitude: a clean-context subagent is not a sandbox.
@@ -54,31 +53,13 @@ evidence—not as a universal merge prerequisite. Add a
 bounded read-only canary only when the change has a named host or runtime risk; otherwise the
 deterministic and behavioral evidence is the gate.
 
-## Choose the strongest control
-
-| Contract | First choice |
-|---|---|
-| Machine-consumed response | Strict structured-output schema plus runtime validation |
-| Tool name and arguments | Typed tool schema; strict mode when the host supports it |
-| Fixed branch, approval, or side effect | Deterministic code or an effect/tool boundary |
-| Semantic judgment, tone, or human-facing shape | Prompt instructions and a small set of representative examples |
-
-Do not compensate for a missing schema, loader, tool gate, or evaluator by making the prose more
-emphatic. Prompt-only formatting remains appropriate when the host cannot enforce a schema or the
-output is intentionally free-form.
-
 ## Descriptions: scope-bearing routing metadata
 
-`../SKILL.md` states the rule — capability or user goal, invocation conditions, meaningful
-exclusions, never procedure — and the reason procedure is banned there. What it leaves open is the
-fix per symptom:
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| Never triggers | Invocation conditions do not match real user phrasing | Add the literal phrases ("review this", "why is X slow") |
-| Fires too often | Capability or exclusion boundary is too broad | Name the concrete goal and the neighboring owner it must defer to |
-| Wrong lane | Two descriptions claim the same goal without a boundary | Give one owner the capability and make the other name that alternative |
-| Triggers, then does the wrong steps | Description contains procedural choreography | Keep capability, invocation conditions, and exclusions; move steps to the body |
+`../SKILL.md` states the rule and the three symptoms. The fix is the symptom inverted — the literal
+phrases users type, the concrete goal plus the neighboring owner, one owner with the other naming
+the alternative. A fourth symptom is this fleet's own finding: a skill that **triggers and then does
+the wrong steps** is carrying procedural choreography in its description; keep capability,
+invocation conditions, and exclusions there and move the steps to the body.
 
 ## Match the form to the failure
 
@@ -93,9 +74,11 @@ the threshold ("≤150 words, no preamble").
 
 ## Structural beats behavioral
 
-When a rule is load-bearing, prefer the mechanical control and say so: explicit tool scope, strict
-schemas, generated runtime projections, protected environments, gates, validators, and regression
-fixtures. Prose guardrails are for cooperative behavior; structural enforcement owns invariants.
+When a rule is load-bearing, prefer the mechanical control and say so — explicit tool scope, strict
+schemas, generated runtime projections, protected environments, gates, validators, regression
+fixtures. Prose guardrails are for cooperative behavior; structural enforcement owns invariants,
+and prompt-only formatting is appropriate only where the host cannot enforce a schema or the output
+is intentionally free-form.
 
 ## In this fleet
 

@@ -17,23 +17,20 @@ free-standing ceremony.
 - The loop inside each lane (loop engineering)
 - Orchestration shapes (graph engineering)
 - Handoffs between contexts (context + graph engineering)
-- Design principles
-- Failure modes to diagnose
+- Design principles this fleet enforces
 - Deliverable
-- When it pays — and when it doesn't
+- When it pays
 - Right-sizing
 - Learning as repository state (loop engineering)
 - Wrapper-layer failure taxonomy
 
 ## First question: should this be multi-agent at all?
 
-Start with one agent or a deterministic workflow. Add agents when evaluation shows that ownership
-transfer, context or authority isolation, independent verification, parallel breadth, or additional
-context capacity pays for the added coordination. If none of those hold, recommend the simpler
-design and say why.
-
-Multi-agent is an architecture decision with real costs — tokens, latency, and information loss at
-handoffs. Budget it per lane from this fleet's own measurements, not from a vendor's multiplier.
+Start with one agent or a deterministic workflow. Add agents only when evaluation shows that
+ownership transfer, context or authority isolation, independent verification, parallel breadth, or
+additional context capacity pays for the coordination, tokens, latency, and handoff loss it costs;
+otherwise recommend the simpler design and say why. Budget per lane from this fleet's own
+measurements, not a vendor's multiplier.
 
 ## Four-theme decision rule
 
@@ -93,23 +90,15 @@ scratch attempts are not a second learning system.
 
 ## Orchestration shapes (graph engineering)
 
-- **Orchestrator–workers** — the main session owns plan + synthesis; workers get bounded mandates
-  and isolated context. This is the fleet default when multi-agent work is justified.
-- **Pipeline** — use for fixed, decomposable stages where items can advance independently without a
-  global barrier; wall-clock is the slowest single-item chain.
-- **Fan-out with barrier** — only when a stage needs ALL prior results at once (dedupe,
-  cross-compare, early-exit on zero). Barriers idle the fast workers; justify each one.
-- **Judge panel / adversarial verification** — independent attempts scored, or findings that
-  survive only if skeptics prompted to *refute* them fail. Kills plausible-but-wrong output;
-  worth the cost on high-stakes review.
-- **Loop-until-dry** — for unknown-size discovery, choose K and a hard maximum before starting, then
-  stop after K consecutive rounds surface nothing new or the hard budget is reached. Fixed counts
-  alone miss the tail; an unspecified K creates a runaway loop.
-
-Decompose by **context boundary — what each lane may see — not by job title.** That is why `reviewer`
-reads the local checkout but holds no web, shell, or delegation, and `researcher` holds only the
-public web and no local read. Fan-out costs real tokens (see *When it pays*), so the single-lane
-default stands until breadth, isolation, or adversarial verification pays for the split.
+**Orchestrator–workers** is the fleet default when multi-agent work is justified: the main session
+owns plan and synthesis; workers get bounded mandates and isolated context. A pipeline needs no
+barrier; a fan-out barrier is justified only when a stage needs all prior results at once, because
+it idles the fast workers. Adversarial or judge-panel verification is worth its cost on
+high-stakes review. A loop-until-dry discovery chooses K and a hard maximum before starting.
+Decompose by **context boundary — what each lane may see — not by job title**: that is why
+`reviewer` reads the local checkout with no web, shell, or delegation, and `researcher` holds only
+the public web with no local read. The single-lane default stands until breadth, isolation, or
+adversarial verification pays for the split.
 
 ## Handoffs between contexts (context + graph engineering)
 
@@ -136,29 +125,17 @@ an underspecified packet can fail silently when the receiver works from the wron
   to the caller as `BLOCKED` or `INCONCLUSIVE`; a human may choose a replacement or a retry inside
   the declared budget. No background scheduler, lease, stale-worker detector, or heartbeat is implied.
 
-## Design principles
+## Design principles this fleet enforces
 
-- **Never assume inherited context.** Construct exactly the context each worker needs: intent,
-  current state, success criteria, exact inputs, source trust, open unknowns, and a return schema.
-  A runtime may preserve a worker thread while still isolating it from the caller's history.
-- **The final message is the interface.** Specify each agent's return contract; free-text handoffs
-  drop constraints at every hop. Preserve [verified], [sourced], [unverified], and [UNTRUSTED] labels.
-- **Tools are authority.** The agent's `tools:` list encodes the mandate. Enforce roles at the tool
+- **Tools are authority.** The agent's `tools:` list encodes the mandate; enforce roles at the tool
   layer, not with prose.
-- **Descriptions route.** State the concise **capability or user goal**, **invocation conditions**,
-  and **meaningful exclusions**; never put **step-by-step procedure or tool choreography** there
-  (see [artifact guidance](./artifact.md)).
-- **Budget explicitly.** Tokens, latency, and strand count per task; right-size the fan-out: 1 agent
-  for a lookup, 2–4 for a comparison or multi-lens review, more only for genuinely decomposable work.
-- **Design the failure path.** Decide up front what happens when a worker returns garbage, nothing,
-  or half the contract — and where untrusted content could enter.
-
-## Failure modes to diagnose
-
-Context poisoning (bad early output contaminates downstream) · telephone-game loss (each
-summarization hop drops a constraint) · duplicated/overlapping work from vague lane boundaries ·
-ambiguity amplification (one underspecified task fanned to N agents → N interpretations) · barrier
-waste · runaway loops with no dry-out condition · missing return contracts.
+- **The final message is the interface.** Specify each agent's return contract and preserve
+  [verified], [sourced], [unverified], and [UNTRUSTED] labels; construct each worker's context —
+  intent, state, success criteria, inputs, source trust, unknowns, return schema — rather than
+  assuming inheritance.
+- **Budget the fan-out.** One agent for a lookup, 2–4 for a comparison or multi-lens review, more
+  only for genuinely decomposable work; decide the failure path (garbage, nothing, half the
+  contract, untrusted content) before launching.
 
 ## Deliverable
 
@@ -175,28 +152,25 @@ pin is Claude-only and the projection simply omits it. Hand single-artifact word
 findings to the typed `reviewer` agent, and authorization to the human release owner with existing
 approval evidence naming the exact target, action, and rollback.
 
-## When it pays — and when it doesn't
+## When it pays
 
-- **Parallelize** genuinely *independent* strands: research across sources, a multi-lens review,
-  sweeping many files/foundations, or distinct hypotheses.
-- **Keep tightly coupled work sequential.** Decide by the task dependency graph and evals, not by
-  declaring all coding single- or multi-agent.
-- **Mind the cost.** Measure this fleet's token, latency, and outcome delta before generalizing a
-  fan-out from one lane to another.
+Parallelize genuinely independent strands — research across sources, a multi-lens review,
+sweeping many files or foundations, distinct hypotheses. Keep tightly coupled work sequential and
+decide by the task dependency graph and evals, not by declaring all coding single- or
+multi-agent. Measure this fleet's token, latency, and outcome delta before generalizing a fan-out
+from one lane to another.
 
 ## Right-sizing
 
-- Start with 1 agent for a simple lookup and a small fan-out for an independent comparison or
-  multi-lens review; scale only when the task remains genuinely decomposable.
-- Give each strand an **isolated context** and a **bounded mandate**, and have it return a **short
-  summary**, not its transcript (see [context guidance](./context.md)).
-- Combine deliberately: a merge pass reconciling the strands beats naive concatenation.
+- Give each strand an **isolated context** and a **bounded mandate**, and have it return a
+  **short summary**, not its transcript (see [context guidance](./context.md)); combine with a
+  deliberate merge pass, not concatenation.
 - **Set the tier per strand.** A spawned agent inherits the session model unless the call names
   one, so on an expensive session tier a fan-out silently prices bulk work at the top rate. Name the
   generation alias for every strand — `sonnet` for mechanical executors, graders, and routing
   trials, `opus` for judgment-heavy review — and reserve the session's top tier for work the human
-  has explicitly priced. Before launching more than a handful of strands, state the tier and the
-  rough token cost in the plan; a fork inherits the session model and cannot be tiered down.
+  has explicitly priced. State the tier and rough token cost in the plan before launching more than
+  a handful of strands; a fork inherits the session model and cannot be tiered down.
 
 ## Learning as repository state (loop engineering)
 
@@ -209,19 +183,10 @@ stores: it prevents memory poisoning by admission.
 
 ## Wrapper-layer failure taxonomy
 
-When an agent runs behind prompt-assembly, memory, retry, and delivery layers, the model is rarely
-the first thing to suspect. Diagnose the stack:
-
-- **Wrapper regression** — the model answers correctly on a direct call but fails inside the stack.
-  Bisect the layers before blaming the model.
-- **Hidden second passes** — a repair, retry, or summarize step mutating output between generation
-  and delivery. Make each an explicit contract or remove it; a silent second pass is unaccountable.
-- **Memory poisoning by admission** — the agent's own assertions written into durable memory and
-  later read back as fact. User corrections outrank the agent's self-reports; never let an agent
-  promote its own claim to accepted knowledge (this is the fleet's learning-disposition rule).
-- **Context duplication** — one fact arriving via prompt, history, *and* memory reads as three
-  independent confirmations. Dedupe the source, or it manufactures false certainty.
-- **Transport corruption** — the logs show the right answer but the user sees a wrong one. The defect
-  is rendering or delivery, not generation; check the last hop.
-- **Prompt-only tool mandates** — a required tool the code never actually gates gets skipped under
-  load. If a step must run a tool, enforce it in the harness, not with prose alone.
+When an agent runs behind prompt-assembly, memory, retry, and delivery layers, bisect the stack
+before blaming the model. The two failures this fleet's rules exist for: **memory poisoning by
+admission** — an agent's own assertions written into durable memory and read back as fact; user
+corrections outrank self-reports and no agent promotes its own claim to accepted knowledge — and
+**prompt-only tool mandates** — a required tool the harness never gates gets skipped under load; if
+a step must run a tool, enforce it in the harness. A silent repair or summarize pass between
+generation and delivery is a hidden second pass: make it an explicit contract or remove it.

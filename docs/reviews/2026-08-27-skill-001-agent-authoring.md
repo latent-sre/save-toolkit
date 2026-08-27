@@ -6,8 +6,8 @@ the only live backlog; this record does not queue work.
 ## Conclusion
 
 `agent-authoring` is dispositioned as a **retained router with a recitation cut**: the always-loaded
-entrypoint falls from 10,911 to 9,653 immutable bytes (−12%), the description is byte-identical,
-and the bundle routes 59,529 reference bytes (66,628 before the owner's trim below) against 9,653 retained. The cut is small by design:
+entrypoint falls from 10,911 to 9,672 immutable bytes (−11%), the description is byte-identical,
+and the bundle routes 51,188 reference bytes (66,628 before the two reference cuts below) against 9,672 retained. The cut is small by design:
 the clean-room probes show both models already produce the general method this skill teaches, but
 neither knows the fleet's decisions, and both author the Claude Code frontmatter facts wrong — so
 the body keeps decisions, traps, the rule statements its references defer to, and the router, and
@@ -59,7 +59,7 @@ direct misses are mostly phrasing the regexes do not accept ("Safety/authority:"
 "each delegation carries" rather than "handoff"); Sonnet's discovery miss is a missing adoption
 condition. Recorded as phrasing sensitivity, not as knowledge gaps.
 
-## The cut (10,911 → 9,653 bytes)
+## The cut (10,911 → 9,672 bytes)
 
 Retained verbatim or compressed: the source-trust gate; the evidence-matching and retest rules;
 the cite-only rule; the description rule and the failure→form table (both are statements
@@ -86,6 +86,30 @@ sections is retained; only the narrative around it went. `claude-code-frontmatte
 the one decision in it — hook matchers fail open, so the guard scopes itself in Python — stays as
 its own section. This is consistent with the fleet's own rule that a skill cites only where the
 source changes what the reader does.
+
+## Probe-backed recitation cut in the references (59,529 → 51,188 bytes)
+
+A second pass answered the owner's question "is there anything in those files an LLM already
+knows" against the clean-probe answers. `artifact.md` (7,884 → 6,813) lost the
+"strongest control" table (Q4/Q6), the symptom→fix table (Q3, except the fleet's own fourth symptom,
+which stays as a sentence), and the long form of "structural beats behavioral" (Q4); the body's
+pointer to that table became a plain rule. `roster.md` (15,289 → 12,722) lost the
+orchestration-pattern descriptions, the generic design principles, the failure-modes list, and the
+generic half of the wrapper taxonomy (Q8), keeping the fleet default, the context-boundary rule, the
+tools-are-authority and final-message rules, the fan-out budget, the tiering rule, and the two
+wrapper failures this fleet's rules exist for. `context.md` (4,981 → 1,904) and
+`tools.md` (4,020 → 2,394) were reduced to their fleet rules: the cold-start packet, the
+replay/side-effect rule, the domain-namespacing examples, the output cap, the promote-from-bash gate,
+the sprawl stance, in-this-fleet, and handoffs. `delegation-graph.md`, `skill-portability.md`, and
+`claude-code-frontmatter.md` are untouched: their content is fleet and platform fact the probes
+showed both models get wrong or hedge.
+
+Evidence gap, stated: the probe questions covered `artifact.md`'s and `roster.md`'s cut sections
+directly (Q3, Q4, Q6, Q8, Q13, Q14) but not `context.md`'s techniques or `tools.md`'s principles
+question by question; those two are public guidance the models paraphrased in Q6 and Q8, and both
+files are conditional loads, so the cut was made on that reading rather than on a fourth call per
+tier. Every `../SKILL.md` statement a reference defers to was grepped present after the edit, and
+no reference names a removed section `[verified]`.
 
 ## Exercise check
 
