@@ -96,6 +96,7 @@ class ExecutionProfileTests(unittest.TestCase):
 
         for target in (
             {"kind": "agent", "name": "sre"},
+            {"kind": "agent", "name": "software-engineer"},
             {"kind": "skill", "name": "incident-investigation"},
             {"kind": "skill", "name": "incident-command"},
         ):

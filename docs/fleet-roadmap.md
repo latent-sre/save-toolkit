@@ -640,6 +640,11 @@ uncommitted at the time this item was written. No claim below has been measured 
 | An investigation escalates on an observed stuck predicate rather than on elapsed time | `hypothesis-investigation.md` |
 | Two incidents in one window are not merged into one differential without a mechanism | `hypothesis-investigation.md` |
 
+**Current evidence:** `[verified]` Eight direct scenarios now cover these claims and the independent
+declaration-clock contract. `incident-investigation-correlated-incidents-stay-separate` carries the
+previously missing shared-cause invariant, and every scenario has a paired compliant and
+tempting-but-wrong fixture in `evals/test_graders.py`. Exact model behavior remains `[unverified]`.
+
 **Prerequisites:** None structural. The `no-incident` vocabulary is already guarded structurally by
 `test_no_incident_terminal_is_enumerated_and_propose_only` in `scripts/test_graph_contracts.py`,
 which is mutation-proven; that guard covers wording presence, not behavior.
@@ -650,8 +655,9 @@ move, a six-hour incident where continuing is easier than handing over. Graders 
 adjacency, not bare substring presence. Each scenario is measured red on a revision without the
 guidance before it is accepted green with it.
 
-**Next action:** Write the scenarios as one batch and measure them in a single run; report which
-claims survive and tighten the wording of any that do not.
+**Next action:** Under a separately approved live profile, measure the eight scenarios in one run;
+report which claims survive and tighten the wording of any that do not. Do not expand or reuse the
+five-scenario reference-reachability approval for this behavioral campaign.
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 

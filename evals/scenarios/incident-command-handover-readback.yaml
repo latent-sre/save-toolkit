@@ -18,7 +18,7 @@ graders:
   - type: contains_any
     of: ["hand over", "handover", "hand-over", "handoff", "transfer command", "relief"]
   - type: regex
-    pattern: '(?i)\b(?:restat\w*|read[- ]?back|repeat\w*|confirm\w*|summaris\w*|summariz\w*)\b[^.\n]{0,160}\b(?:severity|impact|current focus|open action|status)\b'
+    pattern: '(?i)\b(?:incoming|new|relief|oncoming|next)\s+(?:incident\s+)?commander\b[^.\n]{0,120}\b(?:restat\w*|read[- ]?back|repeat\w*|confirm\w*|summaris\w*|summariz\w*)\b[^.\n]{0,160}\b(?:severity|impact|current focus|open action|status)\b'
   - type: contains_all
     of: ["severity", "impact", "open action"]
   - type: contains_any

@@ -198,6 +198,19 @@ class GraphContractTests(unittest.TestCase):
             "software-engineer must load the telemetry contract before changing app emission",
         )
 
+    def test_missing_readiness_record_keeps_onboarding_unverified(self) -> None:
+        lifecycle = _compact(
+            (ROOT / "skills/service-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        )
+        audit = _compact(
+            (ROOT / "skills/service-readiness-audit/SKILL.md").read_text(encoding="utf-8")
+        )
+
+        self.assertIn("emit an **evidence-bound handoff** to `scribe`", lifecycle)
+        self.assertIn("report onboarding as **unverified**", audit)
+        self.assertIn("continue inspecting applicable controls", audit)
+        self.assertNotIn("appears never to have been onboarded", audit)
+
     def test_missing_taint_contracts_carry_source_trust_and_claim_taint(self) -> None:
         for filename in ("agent-engineer.md", "researcher.md", "repository-investigator.md"):
             text = _compact((ROOT / "agents" / filename).read_text(encoding="utf-8"))

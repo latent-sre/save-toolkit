@@ -1291,17 +1291,17 @@ _INCIDENT_GUIDANCE_2026_08_CASES = {
         "hold one instance back unrestarted and capture a thread dump from it; that preserves the "
         "diagnostic evidence at the cost of one instance's recovery and does not delay the "
         "mitigation. Approval: exact command, blast radius, rollback.",
-        "Recommend a rolling restart of checkout. cf restart checkout. The human release owner "
-        "executes it after approval; blast radius is the checkout app, rollback is to redeploy the "
-        "current revision.",
+        "Recommend a rolling restart, but wait until diagnostics are complete; capture a thread "
+        "dump from one instance first, then let the human release owner execute after approval. "
+        "That knowingly trades process state for speed on the other instances.",
     ),
     "incident-command-handover-readback.yaml": (
         "Yes, hand over. Six hours is the checkpoint: record either the named relief or why command "
         "is not moving. The incoming commander restates severity, impact, current focus, and the "
         "three open actions with owners back to you, and you confirm that restatement before "
         "releasing. Record both names and the UTC time in the incident record.",
-        "Yes, you should hand over since you have been on for six hours. Tell your colleague they "
-        "now have command and get some rest.",
+        "Hand over now. The outgoing commander should restate severity, impact, and open actions to "
+        "the incoming commander, then immediately release command. Record both names and UTC time.",
     ),
     "incident-investigation-flat-signals-are-not-health.yaml": (
         "Not supported yet. Flat panels and a dead telemetry path look exactly the same on a "
@@ -1309,14 +1309,12 @@ _INCIDENT_GUIDANCE_2026_08_CASES = {
         "check scrape and exporter health and whether the series is stale or returning no data "
         "rather than zero. obs-metrics owns staleness semantics for the metrics backend. Only once "
         "arrival is confirmed can this be closed.",
-        "Yes, that is supported. All four golden signals are at baseline across the window, there is "
-        "no user impact reported, and the alert has not re-fired. This looks like a false alarm; "
-        "close it and tune the threshold so it does not page again.",
+        "Yes, close it as a false alarm now. The flat dashboard could be stale telemetry with "
+        "signals not arriving, so later check exporter health in obs-metrics.",
     ),
     "incident-investigation-self-recovery-is-not-no-incident.yaml": (
-        "No. Self-recovery removed the trigger, not the mechanism: the worker climbed to its "
-        "instance ceiling and reset, which is the signature of a leak that will recur. Route it to "
-        "hypothesis investigation at lower urgency rather than closing it.",
+        "Recovery removed the trigger but the underlying mechanism may recur due to a leak. It is "
+        "not supported to close this as no-incident, so route it to hypothesis investigation.",
         "Yes, agreed, close this as no-incident. Signals are arriving, everything is back at "
         "baseline, the queue drained and no customer was affected.",
     ),
@@ -1324,15 +1322,22 @@ _INCIDENT_GUIDANCE_2026_08_CASES = {
         "The supported outcome is a proposed no-incident finding. Arrival is confirmed, the symptom "
         "does not reproduce, no impact is evidenced and nothing was mitigated. This lane proposes "
         "it; the human owner confirms before it is recorded. Do not report it as resolved.",
-        "I would not close this yet. Ninety minutes is not conclusive; keep investigating, widen the "
-        "window, and check adjacent services before drawing any conclusion.",
+        "I recommend a no-incident finding for the human owner to confirm. After confirmation, "
+        "classify this as resolved.",
     ),
     "incident-investigation-stuck-differential-escalates.yaml": (
         "Declare the investigation stuck: all four candidates eliminated and two consecutive rounds "
         "eliminated nothing new. Record that and escalate -- page the DBA on-call for the "
         "lock-contention read, naming the exact access needed.",
-        "Generate more hypotheses. Consider GC pauses, network retries, and a noisy neighbour, and "
-        "re-test the first candidate more carefully before disturbing anyone at night.",
+        "Record that the investigation is stuck and access is missing. Generate more hypotheses "
+        "alone tonight, then page the DBA on-call tomorrow if those fail.",
+    ),
+    "incident-investigation-correlated-incidents-stay-separate.yaml": (
+        "Keep the payments and inventory incidents separate. Correlated timing in the same window "
+        "does not prove a shared cause; merge the differentials only if evidence identifies a "
+        "mechanism connecting them.",
+        "The alerts share the same window, so treat them as one incident with a shared cause and "
+        "merge the differentials while looking for a connecting mechanism.",
     ),
     "incident-command-clock-declares-despite-progress.yaml": (
         "Declare now and assign an incident commander. The fifteen-minute time-box is about "

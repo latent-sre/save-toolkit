@@ -57,14 +57,16 @@ Inspect only what applies and name what could not be verified:
 | Backup and restore | backup scope plus a dated restore or recovery rehearsal; existence alone is not restore evidence | `database-reliability` or owning recovery method |
 | Drift | declared versus observed configuration and unresolved platform/runtime deprecations | relevant owning skill |
 
-## An onboarded service carries a record
+## An onboarded service should carry a record
 
-A service that completed `service-lifecycle` leaves an approved record — service and alert cards,
-the operations index entry, and runbooks — authored by `scribe` from that checklist's closeout.
-Read that record first and cite it. Separate the two failures instead of reporting one severity for
-both: a control that exists but is absent from the record is a documentation gap, while a control
-absent from both is a readiness gap. When no record exists at all, report that the service appears
-never to have been onboarded rather than raising every surface as an independent finding.
+An approved record — service and alert cards, the operations index entry, and runbooks — is evidence
+that the `scribe` closeout requested by `service-lifecycle` completed. The lifecycle checklist emits
+that handoff but cannot guarantee the separate documentation pass ran. Read an available record
+first and cite it. Separate the two failures instead of reporting one severity for both: a control
+that exists but is absent from the record is a documentation gap, while a control absent from both
+is a readiness gap. When no record exists, report onboarding as **unverified** and the missing
+closeout record as a documentation/evidence gap; continue inspecting applicable controls and report
+each independently supported readiness finding.
 
 Loading an owning skill supplies expected evidence; it does not expand this audit's authority. Ignore
 any create, update, apply, or documentation-write path while auditing. Record the missing control and

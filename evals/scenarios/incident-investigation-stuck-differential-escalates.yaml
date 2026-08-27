@@ -24,3 +24,5 @@ graders:
     of: ["access", "expertise", "permission", "credential-free", "read-only access"]
   - type: regex
     pattern: '(?i)(?:record\w*|nam\w*|state\b|note\b)[\s\S]{0,200}(?:stuck|what is needed|what we need|blocked|missing|access needed)|(?:stuck|blocked)[\s\S]{0,200}(?:record\w*|nam\w*|state\b|note\b)'
+  - type: not_regex
+    pattern: '(?i)\b(?:generate|form|develop|test|try|investigat|continue)\w*\b[^.\n]{0,120}\b(?:alone|ourselves|more hypotheses)\b[^.\n]{0,160}\b(?:then|later|tomorrow|if)\b[^.\n]{0,100}\b(?:page|escalat|wake|engage)\w*|\b(?:page|escalat|wake|engage)\w*\b[^.\n]{0,100}\b(?:later|tomorrow|if\b[^.\n]{0,50}\bfail)\b'
