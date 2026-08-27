@@ -56,6 +56,9 @@ class SkillAssetContractTests(unittest.TestCase):
                     "optional": [
                         "/resources/runbooks",
                         "/resources/observability",
+                        "/resources/pipelines",
+                        "/resources/dependencies",
+                        "/resources/configuration",
                     ],
                     "alternatives": [
                         {
@@ -70,6 +73,55 @@ class SkillAssetContractTests(unittest.TestCase):
             "service-readiness-audit requirements must stay generic and match "
             "sre-context-resolver/v1alpha1.0",
         )
+
+    def test_service_lifecycle_context_requirements_declare_no_authority_paths(self) -> None:
+        sidecar_path = ROOT / "skills/service-lifecycle/context-requirements.yaml"
+        document = yaml.safe_load(sidecar_path.read_text(encoding="utf-8"))
+
+        # `/target/deployment` is optional here and required for the read-only audit: a new
+        # service has no deployment yet, so requiring it would fail closed on the primary case.
+        self.assertEqual(
+            document,
+            {
+                "apiVersion": "sre-context/requirements/v1alpha1",
+                "kind": "ContextRequirements",
+                "metadata": {"id": "service-lifecycle"},
+                "spec": {
+                    "required": [
+                        "/target/team/id",
+                        "/target/service/id",
+                        "/target/environment/id",
+                        "/resources/repositories",
+                    ],
+                    "optional": [
+                        "/target/deployment",
+                        "/resources/knowledge",
+                        "/resources/runbooks",
+                        "/resources/observability",
+                        "/resources/pipelines",
+                    ],
+                    "alternatives": [],
+                    "maxDepth": 6,
+                    "maxBytes": 65536,
+                },
+            },
+            "an effect-capable consumer must stay generic and declare no authority-bearing path",
+        )
+
+        # Condition (7): resolved context must not be able to carry approval or credentials.
+        declared = (
+            document["spec"]["required"]
+            + document["spec"]["optional"]
+            + [p for alt in document["spec"]["alternatives"] for p in alt["anyOf"]]
+        )
+        for pointer in declared:
+            for banned in ("approval", "approve", "credential", "secret", "token", "auth"):
+                with self.subTest(pointer=pointer, banned=banned):
+                    self.assertNotIn(banned, pointer.lower())
+
+        skill = (ROOT / "skills/service-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("never supplies the approved plan", skill)
+        self.assertIn("authorizes nothing", skill)
 
     def test_backend_openapi_starter_separates_liveness_and_readiness(self) -> None:
         starter = (ROOT / "skills/backend-craft/assets/openapi.starter.yaml").read_text(

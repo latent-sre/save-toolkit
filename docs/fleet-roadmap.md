@@ -165,8 +165,13 @@ separately justified work and do not silently expand this item.
 resolver: `service-lifecycle` names the readiness audit as its independent verifier and states
 what an onboarded service leaves on record; `service-readiness-audit` states what it expects to
 find there. Then add `service-lifecycle`'s requirement sidecar under the widened authorization,
-with the condition (7) safety proof. The `latent-sre/sre-context` repository and stages 1–3
-remain owed. No team-specific values are required and no real team is onboarded.
+with the condition (7) safety proof. `latent-sre/sre-context` exists and carries the versioned
+schemas, resolver, CLI, fixtures, and tests; stages 1–3 are substantially built rather than owed,
+and this file previously said otherwise. What remains is the acceptance evidence: the second
+synthetic-tenant portability proof, the effect-capable safety proof, and the paired consumer
+sidecars. Sidecars ship as a mirrored pair — the consumer copy here, its twin under that
+repository's `examples/`, where its own tests validate it against the schema. No team-specific
+values are required and no real team is onboarded.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
@@ -682,8 +687,9 @@ checklist removes the service from platform, telemetry, alerting, and knowledge 
 gate, states what it did not remove, and leaves the record retired rather than deleted, using the
 existing card vocabulary rather than a new one. (5) Two schema enhancements — `last_verified` with
 a consumer-declared `maxAge` that fails closed, and a `forbidden` path list beside
-`required`/`optional` in the requirements sidecar — reach CONTEXT-001 as stage-1 input with their
-rationale, implemented there rather than locally. Record lifecycle status is not among them; the
+`required`/`optional` in the requirements sidecar — reach CONTEXT-001 as amendments to the
+existing `context-requirements-v1alpha1` and resolved-context schemas, which already ship without
+either; they are implemented there rather than locally. Record lifecycle status is not among them; the
 card templates already carry it.
 
 **Next action:** Add the decommission disposition row to `operational-learning`, then design the
