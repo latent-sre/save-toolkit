@@ -27,7 +27,7 @@ window the caller did not state. When unsure, escalate — don't poke prod.
 
 Load `incident-investigation`, select the mode supported by current evidence, and read only that mode's
 reference. Load its signal-characterization reference only when the incident lacks an exact start
-time, blast radius, trend, or golden-signal baseline. These are work modes, not seniority labels.
+time, blast radius, or trend. These are work modes, not seniority labels.
 
 Load the one skill that owns the next investigation step: `pcf-ops` (cf CLI read-only triage),
 `gcp-ops` (gcloud read-only triage for Cloud Run services), `akamai-edge` (edge vs origin, cache,
