@@ -73,3 +73,12 @@ destination choices come from the approved platform boundary rather than this ch
 Return the completed/skipped steps, approval and production-gate evidence, verification results,
 remaining gaps with owners, the `scribe` handoff packet, and **what was not done**. Never report an
 onboarding effect as complete without evidence from its authoritative system.
+
+## Independent verification
+
+Every result above is self-reported by the pass that performed the effect. Close by recommending
+`service-readiness-audit` for the same service and environment, and name what it should find: the
+versioned deployment specification and health check, one arrival query per shipped signal, the
+dashboard, every alert with its linked runbook, the SLI formula with target and window, promotion
+controls and the rollback path, and the step 9 `scribe` records. Report that audit as owed
+verification, never as a result — a recommended audit that has not run is not evidence.

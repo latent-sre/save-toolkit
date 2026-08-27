@@ -52,6 +52,15 @@ Inspect only what applies and name what could not be verified:
 | Backup and restore | backup scope plus a dated restore or recovery rehearsal; existence alone is not restore evidence | `database-reliability` or owning recovery method |
 | Drift | declared versus observed configuration and unresolved platform/runtime deprecations | relevant owning skill |
 
+## An onboarded service carries a record
+
+A service that completed `service-onboarding` leaves an approved record — service and alert cards,
+the operations index entry, and runbooks — authored by `scribe` from that checklist's closeout.
+Read that record first and cite it. Separate the two failures instead of reporting one severity for
+both: a control that exists but is absent from the record is a documentation gap, while a control
+absent from both is a readiness gap. When no record exists at all, report that the service appears
+never to have been onboarded rather than raising every surface as an independent finding.
+
 Loading an owning skill supplies expected evidence; it does not expand this audit's authority. Ignore
 any create, update, apply, or documentation-write path while auditing. Record the missing control and
 its owner instead.
@@ -70,7 +79,10 @@ them.
 
 ## Output
 
-Lead with the readiness conclusion, then:
+Lead with the readiness conclusion, stamped with the UTC date it was reached and the age of the
+oldest load-bearing evidence behind it. A verdict carrying neither is not reusable: a reader cannot
+separate a current assessment from a stale one, and an undated “ready” outlives the state it
+described. Then:
 
 1. up to three validated fixes in priority order; if there are fewer, return fewer and never pad the
    list to reach three;
@@ -80,3 +92,13 @@ Lead with the readiness conclusion, then:
 4. verification gaps and prohibited/not-run checks; and
 5. **What I did NOT do:** explicitly state that the audit was read-only and name any requested
    onboarding or live effects that were not performed.
+
+## Route the findings, do not file them
+
+Findings are closeout-eligible evidence, not durable knowledge. Do not load `operational-learning`
+or author a record from this lane; that is a documentation write, and the lane that made a
+discovery never approves it. Return the findings to the caller and name the route: the caller
+dispatches `scribe`, which selects the knowledge closeout mode and dispositions each finding
+against the component card, knowledge index, runbook, and alert card, along with the missing alert,
+ownership, dependency, backup/restore, or SLO work it implies. A finding that never becomes a
+disposition is a lost audit.

@@ -110,8 +110,13 @@ is the accepted record: it disposes every load-bearing choice (service/system bo
 environment/deployment split, central Git first source, versioned skill-side requirement sidecars,
 typed references without deep merge, runbook indexing, phase-one file/CLI resolver, and the
 curated-facts-only rule) and states the consequences, rejected alternatives, failure modes, and
-rollback. Owner approval on 2026-08-24 authorizes **stages 1–3 only**; it does not authorize
-real-team onboarding or effect-capable adoption.
+rollback. Owner approval on 2026-08-24 authorized **stages 1–3 only**. Owner decision on
+2026-08-26 widens that scope: effect-capable adoption of the context contract is authorized for
+`service-onboarding` as the second consumer, alongside the read-only first consumer. The
+widening covers building the consumer contract; it does not waive acceptance condition (7),
+which is a safety proof rather than a process gate — an effect-capable path must still
+demonstrate that resolved context cannot default to production, approve an action, supply a
+credential, or bypass the production/effect gate. Real-team onboarding remains unauthorized.
 
 **Prerequisites:** The accepted ADR names the schema/contract owner, resolver owner, source
 repository and permissions, generic fixture policy, representational platform shapes, and the alpha
@@ -156,10 +161,12 @@ alpha contract and next migration boundary, then close the item. Fleet-wide adop
 Backstage/MCP adapters, automatic discovery, live reconciliation, or a general overlay language are
 separately justified work and do not silently expand this item.
 
-**Next action:** Create the approved private `latent-sre/sre-context` repository and implement stages
-1–3: contract skeleton, first synthetic-tenant read-only proof, and second synthetic-tenant
-portability proof. No team-specific values are required. Do not onboard a real team or rewrite fleet
-skills beyond the accepted generic consumer contract in this stage.
+**Next action:** Close the producer/consumer gap between the two service skills, which needs no
+resolver: `service-onboarding` names the readiness audit as its independent verifier and states
+what an onboarded service leaves on record; `service-readiness-audit` states what it expects to
+find there. Then add `service-onboarding`'s requirement sidecar under the widened authorization,
+with the condition (7) safety proof. The `latent-sre/sre-context` repository and stages 1–3
+remain owed. No team-specific values are required and no real team is onboarded.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
@@ -640,6 +647,49 @@ guidance before it is accepted green with it.
 
 **Next action:** Write the scenarios as one batch and measure them in a single run; report which
 claims survive and tighten the wording of any that do not.
+
+### LIFECYCLE-001 — a service record stays true for the whole service life
+
+**Status:** `active` (2026-08-26)
+
+**Outcome:** The four unowned service-lifecycle transitions — change, remediation, refresh, and
+retirement — have owners, so a record in the operational memory is either current or visibly not. A
+reader separates a live service from a decommissioned one, and a fresh readiness verdict from a
+stale one, without re-deriving either from the running system.
+
+**Source:** A 2026-08-26 audit of `service-onboarding` and `service-readiness-audit` found the fleet
+models a service's birth and its health and no other transition. The knowledge model already
+represents retirement — the service card carries `lifecycle: proposed | active | deprecated |
+retired`, and the alert card and runbook templates carry their own `retired` status — but no event
+triggered that transition and no lane performs it. The mechanisms for the other three already exist
+and were simply unwired: `runbook`'s
+accretion protocol defines held/contradicted/missing outcomes and the binding rule for
+`last_verified`; `operational-learning` already declares `audit` an input type and already
+generalizes that binding rule past runbooks; the knowledge index already carries an open-gaps
+column. The recurring defect is a defined receiver with a silent sender.
+
+**Prerequisites:** None for stage 2. Stage 3 is effect-shaped and carries the same approval and
+production-gate posture as `service-onboarding`; a retirement that removes alerting or telemetry is
+a production change, not a documentation change. Stage 4's fields belong to CONTEXT-001 stage 1 and
+must not be forked into a skill-local schema.
+
+**Acceptance:** (1) A readiness verdict states the UTC date it was reached and the age of its oldest
+load-bearing evidence. (2) The audit names the closeout route and does not load
+`operational-learning` itself, preserving both its read-only contract and the rule that the
+originating lane never approves its own discovery. (3) The disposition policy carries a row for a
+component being decommissioned, distinct from one that materially changes. (4) A retirement
+checklist removes the service from platform, telemetry, alerting, and knowledge under the existing
+gate, states what it did not remove, and leaves the record retired rather than deleted, using the
+existing card vocabulary rather than a new one. (5) Two schema enhancements — `last_verified` with
+a consumer-declared `maxAge` that fails closed, and a `forbidden` path list beside
+`required`/`optional` in the requirements sidecar — reach CONTEXT-001 as stage-1 input with their
+rationale, implemented there rather than locally. Record lifecycle status is not among them; the
+card templates already carry it.
+
+**Next action:** Add the decommission disposition row to `operational-learning`, then design the
+retirement checklist as `service-onboarding`'s effect-shaped sibling, then carry the three schema
+enhancements to CONTEXT-001. Conditions (1) and (2) are committed; their evidence is in the commit,
+not here.
 
 ## Deferred
 
