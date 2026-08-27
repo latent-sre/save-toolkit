@@ -169,6 +169,10 @@ trials** — `defers-code-dependency-graph` (not_fire) 2/2, `loop-engineering` 2
 these scenarios is the 2026-08-24 batch-1 audit's narrative (code-graph exclusion 2/2, Loop
 Engineering activation 2/2); the calibration-split `workflow-graph` scenario was not run.
 
+`[verified]` After the form pass and the owner decisions, exact candidate `e53eaa4` (clean tree,
+`--require-clean-plugin`), batch [`20260827T234106Z-dca82a64`](2026-08-27-eval-20260827T234106Z-dca82a64.md), same conditions:
+**3/3 scenarios, 6/6 trials** — the rewritten body routes as the pre-rewrite body did.
+
 ## Budget
 
 At most three model calls per tier, as directed: Opus — contaminated probe, clean probe, exercise
