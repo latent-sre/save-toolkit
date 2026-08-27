@@ -4,14 +4,14 @@ description: >-
   Audit an existing service's operational readiness using read-only, evidence-cited checks across
   ownership, health, telemetry, SLOs, alerts, runbooks, dependencies, capacity, and recovery.
   Triggers: 'audit this service', 'is this service operationally ready', 'find our service readiness
-  gaps'. Not for creating onboarding artifacts or live changes; use manual `service-onboarding`.
+  gaps'. Not for creating onboarding artifacts or live changes; use manual `service-lifecycle`.
 argument-hint: "[the service to assess]"
 ---
 
 # Service readiness audit
 
 Assess and report; change nothing. This skill is discoverable because its contract is read-only.
-`service-onboarding` remains explicit-only because it coordinates approved effects.
+`service-lifecycle` remains explicit-only because it coordinates approved effects.
 
 ## Read-only boundary
 
@@ -24,7 +24,7 @@ Assess and report; change nothing. This skill is discoverable because its contra
 - Prefer an access-controlled source link or `file:line`. When command output is necessary, include
   only the minimum sanitized excerpt and mark every redaction, for example `[REDACTED:token]`.
 - If the user asks for onboarding effects, stop the audit path and explain that
-  `/save-toolkit:service-onboarding` requires explicit invocation and an approved plan.
+  `/save-toolkit:service-lifecycle` requires explicit invocation and an approved plan.
 
 ## Optional resolved context
 
@@ -54,7 +54,7 @@ Inspect only what applies and name what could not be verified:
 
 ## An onboarded service carries a record
 
-A service that completed `service-onboarding` leaves an approved record — service and alert cards,
+A service that completed `service-lifecycle` leaves an approved record — service and alert cards,
 the operations index entry, and runbooks — authored by `scribe` from that checklist's closeout.
 Read that record first and cite it. Separate the two failures instead of reporting one severity for
 both: a control that exists but is absent from the record is a documentation gap, while a control

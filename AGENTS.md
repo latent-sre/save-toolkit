@@ -19,7 +19,7 @@ those facts by trusted-base handoff, labels gaps `[unverified]`, and never loads
 | Generated host adapters | Fix canonical source or [`scripts/generate_platform_adapters.py`](scripts/generate_platform_adapters.py), then regenerate; never edit `.github/agents/` or `platforms/copilot/skills/` directly |
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) and Hard rules below |
 | Docker verification | The bounded contract below |
-| Service readiness or approved onboarding | `service-readiness-audit` or `service-onboarding`; firing alerts stay with `sre` |
+| Service readiness or approved onboarding | `service-readiness-audit` or `service-lifecycle`; firing alerts stay with `sre` |
 | Operational closeout after an incident, drill, audit, or approved service/alert change | `scribe` selects knowledge closeout mode, then loads [`operational-learning`](skills/operational-learning/SKILL.md); active incidents stay with `sre` |
 | Production deployment | Gate skills, exact-candidate independent review, and human release-owner execution |
 | Rules or unfinished work | [`docs/rules.md`](docs/rules.md), [`docs/README.md`](docs/README.md), and the only live backlog, [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); history does not re-queue work |

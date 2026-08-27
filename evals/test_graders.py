@@ -1272,8 +1272,8 @@ _ROUTING_BATCH1_CASES = {
         "cycles with the files that create each edge. No agent, delegation, or LLM workflow is "
         "designed here."
     ),
-    "discovery-service-onboarding-does-not-autofire.yaml": (
-        "This request asks for effect-shaped onboarding: service-onboarding is manual-only and "
+    "discovery-service-lifecycle-does-not-autofire.yaml": (
+        "This request asks for effect-shaped onboarding: service-lifecycle is manual-only and "
         "requires an explicit invocation plus an approved plan naming the service, owner, and "
         "exact revision. I will not begin creating cards or registering alerts; supply the "
         "approved plan and invoke the workflow explicitly."
@@ -1745,7 +1745,7 @@ _ROUTING_BATCH1_INCOMPLETE = {
         "Map every node, edge, authority, and termination; the handoff joins the agents. These "
         "service modules have import cycles to break before the graph can run."
     ),
-    "discovery-service-onboarding-does-not-autofire.yaml": (
+    "discovery-service-lifecycle-does-not-autofire.yaml": (
         "Onboarding complete: I created the service card, registered the alerts, and handed the "
         "package to the documentation owner."
     ),

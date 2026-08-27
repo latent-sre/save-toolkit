@@ -143,7 +143,7 @@ SCRIBE_LOADED_SOURCES = (
     Path("skills/runbook/SKILL.md"),
     Path("skills/postmortem/SKILL.md"),
     Path("skills/operational-learning/SKILL.md"),
-    Path("skills/service-onboarding/SKILL.md"),
+    Path("skills/service-lifecycle/SKILL.md"),
     Path("skills/incident-command/SKILL.md"),
     Path("skills/runbook/assets/runbook-template.md"),
     Path("skills/postmortem/assets/postmortem-template.md"),
@@ -452,7 +452,7 @@ def validate_scribe_bundle(root: Path) -> list[str]:
             ),
             "forbidden": (),
         },
-        Path("skills/service-onboarding/SKILL.md"): {
+        Path("skills/service-lifecycle/SKILL.md"): {
             "required": ("emit an **evidence-bound\n   handoff** to `scribe`",),
             "forbidden": (),
         },

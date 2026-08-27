@@ -112,7 +112,7 @@ typed references without deep merge, runbook indexing, phase-one file/CLI resolv
 curated-facts-only rule) and states the consequences, rejected alternatives, failure modes, and
 rollback. Owner approval on 2026-08-24 authorized **stages 1–3 only**. Owner decision on
 2026-08-26 widens that scope: effect-capable adoption of the context contract is authorized for
-`service-onboarding` as the second consumer, alongside the read-only first consumer. The
+`service-lifecycle` as the second consumer, alongside the read-only first consumer. The
 widening covers building the consumer contract; it does not waive acceptance condition (7),
 which is a safety proof rather than a process gate — an effect-capable path must still
 demonstrate that resolved context cannot default to production, approve an action, supply a
@@ -162,9 +162,9 @@ Backstage/MCP adapters, automatic discovery, live reconciliation, or a general o
 separately justified work and do not silently expand this item.
 
 **Next action:** Close the producer/consumer gap between the two service skills, which needs no
-resolver: `service-onboarding` names the readiness audit as its independent verifier and states
+resolver: `service-lifecycle` names the readiness audit as its independent verifier and states
 what an onboarded service leaves on record; `service-readiness-audit` states what it expects to
-find there. Then add `service-onboarding`'s requirement sidecar under the widened authorization,
+find there. Then add `service-lifecycle`'s requirement sidecar under the widened authorization,
 with the condition (7) safety proof. The `latent-sre/sre-context` repository and stages 1–3
 remain owed. No team-specific values are required and no real team is onboarded.
 
@@ -657,7 +657,7 @@ retirement — have owners, so a record in the operational memory is either curr
 reader separates a live service from a decommissioned one, and a fresh readiness verdict from a
 stale one, without re-deriving either from the running system.
 
-**Source:** A 2026-08-26 audit of `service-onboarding` and `service-readiness-audit` found the fleet
+**Source:** A 2026-08-26 audit of `service-lifecycle` and `service-readiness-audit` found the fleet
 models a service's birth and its health and no other transition. The knowledge model already
 represents retirement — the service card carries `lifecycle: proposed | active | deprecated |
 retired`, and the alert card and runbook templates carry their own `retired` status — but no event
@@ -669,7 +669,7 @@ generalizes that binding rule past runbooks; the knowledge index already carries
 column. The recurring defect is a defined receiver with a silent sender.
 
 **Prerequisites:** None for stage 2. Stage 3 is effect-shaped and carries the same approval and
-production-gate posture as `service-onboarding`; a retirement that removes alerting or telemetry is
+production-gate posture as `service-lifecycle`; a retirement that removes alerting or telemetry is
 a production change, not a documentation change. Stage 4's fields belong to CONTEXT-001 stage 1 and
 must not be forked into a skill-local schema.
 
@@ -687,7 +687,7 @@ rationale, implemented there rather than locally. Record lifecycle status is not
 card templates already carry it.
 
 **Next action:** Add the decommission disposition row to `operational-learning`, then design the
-retirement checklist as `service-onboarding`'s effect-shaped sibling, then carry the three schema
+retirement checklist as `service-lifecycle`'s effect-shaped sibling, then carry the three schema
 enhancements to CONTEXT-001. Conditions (1) and (2) are committed; their evidence is in the commit,
 not here.
 
