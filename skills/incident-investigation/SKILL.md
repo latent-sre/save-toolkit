@@ -11,29 +11,8 @@ description: >-
 
 # Incident investigation
 
-Select an **incident work mode**, not a person's title or seniority.
-
-**Whoever loaded this skill still owns the work.** A skill load deepens the current lane; it never
-transfers ownership and never confers another lane's tool posture. When the typed `sre` agent loads
-this, `sre` owns the current bounded technical task and owns the technical record through verified
-recovery only when the caller explicitly assigns that lifecycle. When any other context loads it, that
-context remains the owner, holds only its own tools, and must delegate to `sre` if the guarded
-read-only investigation posture is actually required — do not emit a record that names `sre` as owner
-when no delegation occurred. Either way the human SRE or incident commander stays the operational
-owner. This skill changes investigation depth and support span only; it grants no tools, production
-authority, command role, or permission to apply a mitigation.
-
-## Select the support span
-
-- **Bounded assist is the default.** Return the requested evidence slice, preserve the incident
-  spine, name unknowns, and stop at the caller's stated condition.
-- **Sustained response is explicit.** Select it only when the caller assigns lifecycle support, asks
-  `sre` to continue through recovery, or supplies an active `monitoring-recovery` record and asks to
-  continue it. Then read [recovery lifecycle](./references/recovery-lifecycle.md) and remain on the
-  technical record through its supported terminal.
-- **Handoff context is conditional.** When calling `researcher`, handling a failed delegate return,
-  or changing ownership, read [incident handoff](./references/incident-handoff.md). Do not load it
-  for a bounded answer returned directly to the same human owner.
+Select an **incident work mode**, not a person's title or seniority. Ownership, support span, and
+handoff rules are at the end of this file; they do not change with the mode.
 
 ## Select from current evidence
 
@@ -47,10 +26,11 @@ checklist.
 | The symptom is confirmed and the next task is to distinguish candidate causes with evidence | **Hypothesis investigation** — read [hypothesis-investigation](./references/hypothesis-investigation.md) |
 | Evidence shows multi-service or shared-dependency scope, a cascade, retry storm, saturation collapse, feedback loop, or metastability | **Systemic failure** — read [systemic-failure](./references/systemic-failure.md) |
 
-Signal characterization is a companion, not a higher mode. When exact start time, blast radius,
-trend, or the baseline golden signals are missing, also read
-[signal-characterization](./references/signal-characterization.md). Do not load it merely to repeat
-signal definitions already established in the incident record.
+Signal characterization is a companion, not a higher mode. When the incident record lacks an exact
+start time, blast radius, or trend, also read
+[signal-characterization](./references/signal-characterization.md). A baseline the caller has not
+quoted is the ordinary state of a request, not a missing field: do not load the companion for that
+alone, or merely to repeat signal definitions already established in the incident record.
 
 ## The ladder has a bottom
 
@@ -77,9 +57,60 @@ inventing a value:
 
 - severity and user impact;
 - blast radius and trend;
-- UTC timeline;
+- UTC timeline, with onset stated as a bound: an alert fires when its window closes and a probe
+  reports when it sampled, so neither timestamp is the start;
 - hypotheses with evidence for and against;
 - mitigation already performed by a human or recommended for human execution.
+
+What the caller reports is `[sourced]` to the caller; `[verified]` is reserved for what this lane
+observed itself.
+
+## What you return
+
+The reader is a responder in the middle of an incident, so a bounded answer is built to be acted on
+from its first screen. When the caller's lane carries its own output contract (the typed `sre`
+agent's), fill that contract. Otherwise the answer is, in order:
+
+1. **The finding**, in the responder's terms: what is happening, whether it is real, and what the
+   investigation now has to cover, stated as properties of the incident (one service or several; a
+   bounded cause or a self-sustaining mechanism; confirmed or not yet), never as a choice among
+   modes. Mode names, reference files, and this skill are how that was selected; the responder
+   receives what was selected, not the machinery.
+2. **The next observation** and what each result would change.
+3. **The trigger for escalation or handover**, with what travels: what fired and when, what was
+   checked and what it showed, current hypotheses, mitigation status, and what this lane did not
+   touch.
+4. **The incident spine** with current values and evidence labels.
+5. **Unknowns and non-actions.**
+
+The first three items are the first screen: short enough to read before scrolling, and complete
+enough that a responder who reads nothing else can act. Everything after them is appendix, and
+supporting detail follows the step it supports. Anything a human
+must execute is a recommendation, never an action taken; it carries its rollback and the recovery
+criterion that proves it worked — which signals must return to baseline and for how long, never a
+single green point.
+
+## Ownership and support span
+
+**Whoever loaded this skill still owns the work.** A skill load deepens the current lane; it never
+transfers ownership and never confers another lane's tool posture. When the typed `sre` agent loads
+this, `sre` owns the current bounded technical task and owns the technical record through verified
+recovery only when the caller explicitly assigns that lifecycle. When any other context loads it, that
+context remains the owner, holds only its own tools, and must delegate to `sre` if the guarded
+read-only investigation posture is actually required — do not emit a record that names `sre` as owner
+when no delegation occurred. Either way the human SRE or incident commander stays the operational
+owner. This skill changes investigation depth and support span only; it grants no tools, production
+authority, command role, or permission to apply a mitigation.
+
+- **Bounded assist is the default.** Return the requested evidence slice, preserve the incident
+  spine, name unknowns, and stop at the caller's stated condition.
+- **Sustained response is explicit.** Select it only when the caller assigns lifecycle support, asks
+  `sre` to continue through recovery, or supplies an active `monitoring-recovery` record and asks to
+  continue it. Then read [recovery lifecycle](./references/recovery-lifecycle.md) and remain on the
+  technical record through its supported terminal.
+- **Handoff context is conditional.** When calling `researcher`, handling a failed delegate return,
+  or changing ownership, read [incident handoff](./references/incident-handoff.md). Do not load it
+  for a bounded answer returned directly to the same human owner.
 
 The mode changes what evidence to seek, not who acts. Severity, roles, communications, and the
 authoritative command timeline belong to `incident-command`; causal testing uses `root-cause`;

@@ -35,8 +35,9 @@ If evidence instead supports one bounded cause in one service, return to
 ## Produce
 
 1. The systemic mechanism, contributing factors, and evidence strength—never just the trigger.
-2. The fastest safe mitigation for human execution, including how it breaks the mechanism and how
-   recovery will be verified.
+2. The fastest safe mitigation for human execution, including how it breaks the mechanism, how
+   recovery will be verified, and what it can destroy (in-flight work, money movement, state) with
+   the owner whose call that is.
 3. Resilience proposals such as bounded timeouts, retries with backoff and jitter, circuit breakers,
    bulkheads, backpressure, load shedding, idempotency, graceful degradation, or dependency
    isolation, selected only when the evidence supports them.
@@ -56,6 +57,11 @@ If evidence instead supports one bounded cause in one service, return to
 - Detection, SLO, prevention, and evidence-capture proposals return to the caller for later
   `observability-engineer` work; the durable retrospective method belongs to `postmortem` after
   terminal recovery.
+
+## Inert canary
+
+This token only proves the reference loaded; it asserts nothing about the incident and belongs in
+no answer.
 
 ```text
 q_iisf_7c3e

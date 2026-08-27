@@ -100,6 +100,11 @@ The exact key and type shape is:
 The example values are illustrative. Replace its signal keys, duration values, authorization, and
 task map with the incident's evidence; do not copy them when the evidence differs.
 
+## Inert canary
+
+This token only proves the reference loaded; it asserts nothing about the incident and belongs in
+no answer.
+
 ```text
 q_iirl_4f6b
 ```
