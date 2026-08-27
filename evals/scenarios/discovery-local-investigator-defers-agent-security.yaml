@@ -21,3 +21,5 @@ graders:
     of: ["prompt injection", "lethal trifecta", "least privilege"]
   - type: contains_any
     of: ["structural", "tool", "authority", "egress"]
+  - type: contains_any
+    of: ["agent-security", "agent security"]

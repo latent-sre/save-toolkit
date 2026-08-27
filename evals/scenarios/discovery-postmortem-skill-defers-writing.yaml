@@ -22,3 +22,5 @@ graders:
     of: ["scribe", "postmortem", "retrospective"]
   - type: contains_any
     of: ["timeline", "systemic", "action item", "evidence"]
+  - type: contains_any
+    of: ["scribe", "scribe"]

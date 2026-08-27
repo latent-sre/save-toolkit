@@ -24,3 +24,5 @@ graders:
     of: ["timeline", "hypothesis", "signals"]
   - type: not_contains
     of: ["I rolled back", "I restarted", "mitigation applied"]
+  - type: contains_any
+    of: ["sre", "sre"]

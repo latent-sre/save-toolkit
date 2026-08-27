@@ -23,3 +23,5 @@ graders:
     of: ["authorization", "correctness", "security"]
   - type: contains_any
     of: ["verdict", "merge", "request changes", "approve"]
+  - type: contains_any
+    of: ["reviewer", "reviewer"]

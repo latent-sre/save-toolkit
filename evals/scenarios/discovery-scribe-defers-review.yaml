@@ -22,3 +22,5 @@ graders:
     of: ["reviewer", "review", "finding"]
   - type: contains_any
     of: ["approve", "request changes", "verdict", "severity"]
+  - type: contains_any
+    of: ["reviewer", "reviewer"]

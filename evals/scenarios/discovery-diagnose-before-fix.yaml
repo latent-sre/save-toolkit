@@ -19,3 +19,5 @@ graders:
     of: ["reproduce", "reproduction", "minimal repro"]
   - type: contains_any
     of: ["hypothesis", "evidence", "verify", "observation"]
+  - type: contains_any
+    of: ["root-cause", "rank", "ranked", "cheapest", "eliminate", "differential"]

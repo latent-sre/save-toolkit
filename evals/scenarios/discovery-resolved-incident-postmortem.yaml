@@ -21,3 +21,5 @@ graders:
     of: ["timeline", "impact", "root cause", "systemic cause"]
   - type: contains_any
     of: ["action item", "owner", "due date", "follow-up"]
+  - type: contains_any
+    of: ["[verified]", "[unverified]", "[sourced]"]

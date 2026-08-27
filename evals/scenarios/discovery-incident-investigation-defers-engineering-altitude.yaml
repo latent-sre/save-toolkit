@@ -23,3 +23,5 @@ graders:
     of: ["principal"]
   - type: contains_any
     of: ["migration", "compatibility", "three teams", "cross-team"]
+  - type: contains_any
+    of: ["eng-ladder", "eng ladder"]

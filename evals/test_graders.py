@@ -2582,6 +2582,38 @@ def test_incident_guidance_2026_08_fixtures_discriminate() -> None:
         )
 
 
+def test_no_scenario_accepts_its_own_prompt() -> None:
+    """A prompt is a question; graders its own question satisfies measure nothing.
+
+    _ROUTING_PROMPT_ECHO_CASES guards a hand-picked set against a crafted echo. This is the
+    mechanical floor underneath it: every scenario, graded against its own prompt verbatim. A
+    scenario that passes here would score a model that merely restated the task.
+    """
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for the prompt-echo floor (`pip install pyyaml`)")
+        return
+
+    for path in sorted(SCENARIOS_DIR.glob("*.yaml")):
+        scenario = _load_scenario(path.name)
+        prompt = scenario.get("prompt")
+        specs = scenario.get("graders") or []
+        if not prompt or not specs:
+            continue
+        # A routing-only scenario carries exactly one routing-sanity grader by design: its
+        # behavioral contract belongs to a direct evaluation, because grading a deferral on the
+        # ALTERNATIVE lane's vocabulary was measured to go red on correct answers. Such a
+        # scenario cannot separate an answer from an echo, and is not supposed to.
+        if path.name in _ROUTING_ONLY_DISCOVERY_SCENARIOS or path.name in _WGE_DISCOVERY_ROUTING_ONLY:
+            continue
+        check(
+            not grade_all(specs, prompt),
+            f"{path.name}: its own prompt satisfies every grader, so the scenario cannot "
+            "distinguish an answer from an echo",
+        )
+
+
 def test_routing_only_discovery_scenarios_stay_routing_only() -> None:
     try:
         import yaml  # noqa: F401
@@ -4360,6 +4392,7 @@ def main() -> int:
         test_production_unknown_outcome_relationships,
         test_production_unknown_result_rejects_agent_reconciliation_claim,
         test_routing_prompt_echoes_are_rejected,
+        test_no_scenario_accepts_its_own_prompt,
         test_routing_graders_reject_keyword_rich_incomplete_responses,
         test_routing_graders_accept_canonical_contract_variants,
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
