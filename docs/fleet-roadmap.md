@@ -475,60 +475,67 @@ model until its live prerequisites are satisfied.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-24). Phase 1 is complete and closed as evidence; Phase 2 is the live
-work.
+**Status:** `active` (2026-08-27). Phase 1 is closed as evidence; Phase 2 is the live work, one
+skill per slice, and its method changed on 2026-08-27: probe before routing.
 
-**Outcome:** No skill spends a caller's context on detail the call did not need. Each screened
-entrypoint receives one evidence/recommendation checkpoint. A confirmed conditional body becomes a
-router with an "if the question involves X, read Y" table while retaining its authority and safety
-invariants; a cohesive body is retained explicitly rather than split to satisfy a byte target.
+**Outcome:** No skill spends a caller's context on detail the call did not need, and no skill
+spends it restating what the fleet's models already produce unprompted. Each screened entrypoint
+receives one evidence/recommendation checkpoint. A confirmed conditional body becomes a router with
+an "if the question involves X, read Y" table; recitation is cut rather than routed; decisions,
+pressure-dropped invariants, and routing predicates are retained explicitly with the probe evidence
+that shows why.
 
-**Source:** The initial measurement and reproduction command are in the
+**Source:** The initial measurement is in the
 [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md); the
 [`complete skill audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) corrected the
-drifted candidate list. Description metadata follows the current rule — capability or user goal,
-invocation conditions, and meaningful exclusions, without procedure — not the retired "trigger only"
-doctrine. The
-[`2026-08-24 host context-budget audit`](reviews/2026-08-24-host-context-budget-audit.md) separates
-the host contracts that prompted Phase 2: Claude's 8,000-character default budgets the aggregate
-discovery listing, its 5,000-token-per-skill and 25,000-token-total values govern post-compaction
-invoked content, and Copilot's 30,000-character value applies to one generated custom-agent prompt.
-None is the repository's 5,000-byte screen.
+candidate list; the [`2026-08-24 host context-budget audit`](reviews/2026-08-24-host-context-budget-audit.md)
+separates the host contracts from the repository's 5,000-byte screen. The
+[`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md) records the
+knowledge probes and pressure controls that established the probe-first method, and the refreshed
+screen. Description metadata follows the current rule — capability, invocation conditions, and
+exclusions, without procedure.
 
-**Phase 1 (closed evidence):** The nine one-skill router slices merged in PRs #142, #143, #145, #146,
-#147, #149, #150, #151, and #154. Per-slice candidate and merge identities, byte movement, reference
-splits, review fixes, and the evidence gaps that remain open elsewhere are in the
-[Phase 1 closure review](reviews/2026-08-24-skill-001-phase-1-closure.md). That review is historical
-evidence; the nine skills are excluded from Phase 2 and are not a candidate pool to rerun.
+**Phase 1 (closed evidence):** Nine router slices merged in PRs #142, #143, #145, #146, #147, #149,
+#150, #151, and #154; the [Phase 1 closure review](reviews/2026-08-24-skill-001-phase-1-closure.md)
+holds the per-slice evidence. Those nine skills are excluded from Phase 2.
 
-**Phase 2 screen:** `[verified]` On exact base `b9b274f237caf8ce6068812e151f8543f608c7e7`, twelve
-non-Phase-1 entrypoints sit at or above 5,000 immutable bytes, totaling 95,068: `frontend-craft`
-13,827; `backend-craft` 10,814; `obs-dashboards` 10,724; `agent-authoring` 9,420; `obs-alerting`
-7,656; `runbook` 7,385; `gcp-ops` 7,384; `operational-learning` 6,078; `eng-ladder` 5,873;
-`obs-pipeline` 5,835; `root-cause` 5,048; `obs-traces` 5,024. Selection means inspect, not rewrite;
-size alone is not a finding. Separately, `[verified]` the same base carries 28 model-invocable skills
-whose discovery metadata totals 13,239 characters, 5,239 above the installed CLI 2.1.241 default
-fallback; no individual description reaches 1,536 characters. Exact real-session truncation remains
-`[unverified]`, and this discovery risk does not authorize a description rewrite inside Phase 2.
+**Phase 2 dispositions:** `frontend-craft` — confirmed router with a knowledge cut on branch
+`work/skill-001-frontend-craft`: 14,150 → 7,481 immutable entrypoint bytes, references 37,107 →
+39,798, description byte-identical, retained above the screen because what remains is decisions,
+pressure-dropped invariants, and the routing table. The after-change discovery run on `1b2d485` was
+1/3 against a 0/3 previous-revision baseline (pre-existing routing instability, see `ROUTE-004`);
+evidence is in the disposition review.
 
-**Prerequisites:** All Phase 1 slices are closed. Phase 2 starts from refreshed exact `origin/main`,
-excludes the completed nine skills, and processes one screened entrypoint only after its
-evidence/recommendation checkpoint. Description edits follow the routing-content change playbook.
+**Phase 2 screen:** `[verified]` On `origin/main` `0eb3daf`, 33 entrypoints total 231,513 immutable
+bytes and seventeen non-Phase-1 entrypoints other than `frontend-craft` sit at or above 5,000 bytes;
+the list is in the disposition review's remeasurement section. The earlier twelve-candidate screen
+on `b9b274f` predates six of them. Selection means inspect, not rewrite; size alone is not a finding.
+The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
+unrefreshed and still does not authorize a description rewrite inside Phase 2.
+
+**Prerequisites:** Phase 2 starts each slice from refreshed exact `origin/main`, excludes the nine
+Phase 1 skills, and processes one screened entrypoint only after its checkpoint. The checkpoint now
+includes, before any byte changes: an unhinted knowledge probe mapped to the body's rules and a
+no-skill pressure control on the skill's own discovery prompts, both on the fleet's measurement tier
+and on Opus; body lines are then classified as decision, posture, or recitation. Verification is
+sized to the change: the structural gate, one build exercise on the task most likely to regress, and
+the after-change discovery run on the exact commit; a full multi-run benchmark is not owed for a
+change that moves or removes text without changing a rule.
 
 **Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 5,000
 immutable bytes. Each receives one committed disposition: a confirmed router either drops below the
 screen or routes more reference bytes than it retains, with every target reachable through
-`check_links`; a retained entrypoint records why no clean conditional boundary exists. Rerunning the
-recorded measurement returns no **undispositioned** candidate. Entrypoints retain all authority and
-safety invariants. Each changed description passes the 600-byte and `Triggers:` contracts and has an
-after-change overlapping scenario run; a previous-revision baseline is required only for an existing
-scenario that returns red. Gate A green.
+`check_links`; a knowledge cut cites its probe and control transcripts; a retained entrypoint
+records why no clean conditional boundary exists. Rerunning the recorded measurement returns no
+**undispositioned** candidate. Entrypoints retain all authority and safety invariants and every
+phrase their discovery graders target. Each changed description passes the 600-byte and
+`Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
+is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Inspect `frontend-craft` alone on the exact Phase 2 base because it is the largest
-selected entrypoint and already owns substantial routable reference depth. Present its retained
-invariants, proposed conditional boundaries, expected byte movement, and recommendation before
-changing its bytes. Do not start a second skill, requeue a completed Phase 1 skill, rewrite discovery
-descriptions, or combine the already-owed `eng-ladder` after-change run with this checkpoint.
+**Next action:** Close the `frontend-craft` slice: after-change discovery run on the exact committed
+candidate, Gate A, merge. Then inspect `backend-craft` alone with the probe-first checkpoint — it
+shares `frontend-craft`'s shape and is the largest remaining candidate with routable depth. Do not
+start a second skill, requeue a Phase 1 skill, or rewrite discovery descriptions.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
@@ -559,6 +566,30 @@ model-migration question, or explicit owner approval for one fixed-budget reliab
 
 **Next action:** None while deferred. Do not rerun unchanged bytes merely to turn timeouts green, and
 do not move reference-dependent behavior graders into discovery.
+
+### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
+
+**Status:** `decision-needed` (2026-08-27)
+
+**Outcome:** The `frontend-craft` regression scenarios either fire reliably enough to sit in the
+regression split at threshold 1.0, or are moved to calibration with the reason recorded, so a red
+there means a skill regression rather than a routing coin-flip.
+
+**Source:** The [`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md):
+first-ever executions of the three scenarios added in PR #174 scored 1/3 on the candidate and 0/3
+on the untouched previous revision, with every failing trial a routing miss — the "merge tonight"
+prompt routes to `merge-gate`, and the Preact review often invokes no skill at all. The description
+is byte-identical across both revisions.
+
+**Prerequisites:** Owner approval of a fixed measurement budget. Predeclare model, trials, timeout,
+and threshold; do not tune prompts to turn the batches green.
+
+**Acceptance:** Either a predeclared batch shows each scenario at its declared threshold on an
+exact revision, or the scenarios move to the calibration split with the recorded rate; the
+description is edited only through the routing-content change playbook with an after-change run.
+
+**Next action:** Owner decides between a description-side routing fix (a separate SKILL-001-exempt
+slice) and reclassifying the scenarios. No rerun of unchanged bytes.
 
 ### HOST-003 — restore direct-mode `sre` measurements under the CLI tool-inventory drift
 
@@ -617,6 +648,32 @@ are re-measured on the accepted candidate revision.
 
 **Next action:** Owner accepts the item; `agent-engineer` extends `_claim_is_negated` and the fixture
 tables in `evals/test_graders.py`.
+
+### GRADER-005 — posture graders for gate-shaped contracts
+
+**Status:** `ready` (2026-08-27)
+
+**Outcome:** A discovery or direct grader can tell "names the rule" from "enforces the rule" for a
+scenario whose contract is a gate, so a green on `render-is-not-verification` means the response
+blocked the merge rather than mentioned a browser pass.
+
+**Source:** The no-skill pressure control in the
+[`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md): with no skill
+loaded, Opus satisfied every `contains_any` group on all three `frontend-craft` discovery scenarios
+while writing "not me blocking the merge"; Sonnet satisfied the flash group and wrote "no objection
+to merging".
+
+**Prerequisites:** The control transcripts (kept in the gitignored eval workspace and quoted in the
+review) serve as the rejected fixtures; a with-skill response that blocks is the passing fixture.
+Follow the fixture convention in `evals/test_graders.py` and the red-first discipline.
+
+**Acceptance:** A grader shape for the three `frontend-craft` scenarios rejects both control replies
+and accepts the blocking replies, without a bare negative regex that false-reds correct denials;
+the shape is documented for reuse by any gate-shaped contract; the three scenarios are re-measured
+on an accepted candidate revision.
+
+**Next action:** Owner accepts the item; `agent-engineer` drafts the shape against the quoted
+control text before touching the scenarios.
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
