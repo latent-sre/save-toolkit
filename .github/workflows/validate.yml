@@ -17,6 +17,12 @@ on:
   schedule:
     - cron: '0 14 * * 1'  # Mondays 14:00 UTC
 
+# Whether these checks BLOCK a merge is a property of the branch ruleset, not of this file. As of
+# 2026-08-26 `Protect main` carries no required_status_checks rule, so every job here is advisory:
+# a red run does not stop a merge. Do not trust that sentence — it is the kind of fact that drifts.
+# Check it: gh api repos/latent-sre/save-toolkit/rulesets --jq '.[].name'
+#           gh api repos/latent-sre/save-toolkit/rulesets/<id> --jq '.rules[].type'
+
 permissions:
   contents: read
 
