@@ -1,0 +1,56 @@
+{
+  "schema_version": "eval-execution-profile/v1",
+  "id": "eval-004-reference-reachability",
+  "comparison": {
+    "id": "eval-004-reference-reachability",
+    "models": {
+      "claude-plugin": "sonnet",
+      "codex-cli": "not-run"
+    }
+  },
+  "engine": "claude-plugin",
+  "claims": [
+    "behavioral_contract",
+    "deterministic_grader_result",
+    "reference_used",
+    "native_component_invoked"
+  ],
+  "scenario_ids": [
+    "incident-command-perishable-evidence-contract",
+    "incident-command-handover-readback",
+    "incident-command-clock-declares-despite-progress",
+    "incident-investigation-flat-signals-are-not-health",
+    "incident-investigation-stuck-differential-escalates"
+  ],
+  "required_references": {
+    "incident-command-perishable-evidence-contract": [
+      "skills/incident-command/references/mitigation-selection.md"
+    ],
+    "incident-command-handover-readback": [
+      "skills/incident-command/references/command-and-communications.md"
+    ],
+    "incident-command-clock-declares-despite-progress": [
+      "skills/incident-command/references/command-and-communications.md",
+      "skills/incident-command/references/severity-and-declaration.md"
+    ],
+    "incident-investigation-flat-signals-are-not-health": [
+      "skills/incident-investigation/references/signal-characterization.md"
+    ],
+    "incident-investigation-stuck-differential-escalates": [
+      "skills/incident-investigation/references/hypothesis-investigation.md"
+    ]
+  },
+  "model": "sonnet",
+  "trials": 3,
+  "timeout_s": 600,
+  "total_timeout_s": 7200,
+  "cost_budget": {
+    "status": "available",
+    "max_usd": 8
+  },
+  "approval": {
+    "approved_by": "latent-sre",
+    "approved_at": "2026-08-27T05:19:24Z",
+    "budget_id": "eval-004-reference-reachability-2026-08-27"
+  }
+}
