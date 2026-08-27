@@ -20,7 +20,8 @@ executes every production mitigation.
 4. Record `resolved` only after the recovery gate passes. Record `escalated-security` only after the
    human security incident owner accepts a suspected compromise. Record `no-incident` only after a
    human confirms the proposed finding; this lane proposes that terminal and never records it
-   unprompted. A blocked turn, failed delegate, or proposed follow-up is not a terminal.
+   unprompted. `no-incident` is unavailable once a mitigation has been performed or the record has
+   entered `monitoring-recovery`: both assert impact that this terminal denies. A blocked turn, failed delegate, or proposed follow-up is not a terminal.
 5. Return the authoritative technical record and proposed next-phase work to the caller. Do not
    load `postmortem` or `operational-learning`; the caller starts those later owning lanes.
 

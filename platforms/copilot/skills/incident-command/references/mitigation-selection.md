@@ -46,8 +46,10 @@ rollback.
    input, or dependency hypothesis and continue investigation with the typed `sre` agent.
 5. **Record every decision and result in UTC** in the IC-owned timeline.
 6. **Confirm before executing.** The packet names the exact target, change, command, blast radius,
-   verification window, rollback, human executor, approving decider, and the perishable evidence
-   captured or knowingly forgone.
+   verification window, rollback, human executor, and approving decider. It also records the
+   perishable evidence captured or knowingly forgone — recorded, never gating. Gate latency is
+   itself harm on the mitigation path; missing evidence never delays a mitigation, and the
+   `production-change-gate` incident fast path remains the closed list of what blocks execution.
 
 The approval shape is the `production-change-gate` incident fast path: human confirmation of the
 exact command or an IC-approved bounded envelope, blast radius, backout, and named decider. Other

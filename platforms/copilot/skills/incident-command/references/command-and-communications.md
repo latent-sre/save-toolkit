@@ -27,7 +27,7 @@ Command decays over a long incident, and the decay is invisible to the person it
 These are checkpoints, not judgment calls left to the commander.
 
 - **Unclaimed command is the default failure.** If no commander is present, the first qualified
-  responder assumes it and records the name and UTC time. An incident whose commander is assumed
+  human responder assumes it and records the name and UTC time. An incident whose commander is assumed
   rather than declared has none.
 - **Hand over by read-back.** The incoming commander restates current severity, impact, current
   focus, and open actions with owners; the outgoing commander confirms that restatement before
@@ -82,6 +82,13 @@ Resolve only after the typed `sre` investigator confirms that user impact has en
 golden signals have returned to baseline and remained there for the stated sustained window. A
 single green point is not enough for a metastable service. Keep the incident in `monitoring` until
 that evidence permits terminal resolution.
+
+A declared incident that turns out to be a false alarm does not resolve. Resolving asserts that
+impact existed and ended, which falsifies the record. Close it as `no-incident` on the same terms
+the investigation lane proposes it — symptom not reproducible, no user impact evidenced, signals
+confirmed arriving and at baseline — with a human confirming, and notify the same audience that
+received the declaration. A symptom that recovered on its own is not this case; it keeps its
+mechanism and stays an incident.
 
 Send the resolution update, then return the UTC timeline, its evidence labels, and proposed
 next-phase work to the caller. After resolution, the caller separately dispatches typed `scribe`

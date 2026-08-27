@@ -251,6 +251,17 @@ class GraphContractTests(unittest.TestCase):
             with self.subTest(router_token=token):
                 self.assertIn(token, sre_ladder)
         self.assertIn("no-incident", first_response)
+        command_comms = _compact(
+            (
+                ROOT / "skills/incident-command/references/command-and-communications.md"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            "no-incident",
+            command_comms,
+            "a declared incident that was never an incident needs a closure path in the "
+            "skill that owns closing, or it can only be falsified as resolved",
+        )
 
 
 if __name__ == "__main__":

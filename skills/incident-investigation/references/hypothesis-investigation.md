@@ -45,6 +45,10 @@ differentials into one and can hide the second failure entirely.
 
 ## When the differential stops converging
 
+This governs pulling in help mid-investigation. It does not touch the first-response clock: an
+unstabilized service still declares an incident at roughly fifteen minutes regardless of how the
+differential is going.
+
 Escalate on being stuck, not on elapsed time. A stated time target for producing a cause pressures
 the response without informing it; what matters is whether the last round of tests changed the
 ranking.
