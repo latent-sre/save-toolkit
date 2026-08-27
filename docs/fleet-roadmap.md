@@ -743,7 +743,7 @@ LLM judge — then convert one scenario and measure it three times before conver
 Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
 further tuning run is spent on pattern repair.
 
-### ROUTE-004 — restate `incident-investigation`'s triggers in on-call phrasing
+### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
 
 **Status:** `ready` (2026-08-27)
 
