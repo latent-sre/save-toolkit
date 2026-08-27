@@ -15,6 +15,10 @@ target:
 # says "React" -- .tsx, JSX, hooks, a Component -- and exactly one piece of real evidence says
 # otherwise. React-only guidance applied to a Preact target is the failure: @mantine/hooks is a
 # React package, and TanStack Query's React bindings are not what this project would install.
+# 2026-08-27 no-skill control: with no skill loaded, Sonnet reviewed this file as React; Opus
+# noticed preact/compat only as a package.json oddity. The framework-evidence paragraph in
+# SKILL.md is load-bearing on the fleet's measurement tier; this scenario measures routing plus
+# that predicate.
 prompt: |
   Review this and tell me what you'd change — don't edit it.
 

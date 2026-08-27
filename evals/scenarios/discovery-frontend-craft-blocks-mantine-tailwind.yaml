@@ -19,6 +19,10 @@ target:
 # ("no reason to avoid the hooks, but don't pull in @mantine/core") contains both the banned and the
 # blessed package names. That false-negative shape is documented in
 # database-reliability-blocks-irreversible and is not worth reintroducing.
+# 2026-08-27 no-skill control: with no skill loaded, Opus blocked the mix and named the CSS-reset
+# conflict unprompted; Sonnet blocked it softly ('Mantine will work, but budget time to reskin')
+# and neither model volunteered the @mantine/hooks carve-out. The body keeps the rule for that
+# carve-out and for posture; this scenario now measures routing plus posture, not teaching.
 prompt: |
   We're building the ops dashboard and the styling is all Tailwind. I want to drop in
   `@mantine/core` for its DataTable and Modal instead of hand-rolling them — saves me most of a
