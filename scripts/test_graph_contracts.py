@@ -179,6 +179,25 @@ class GraphContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, text)
 
+    def test_software_engineer_loads_obs_pipeline_for_app_instrumentation(self) -> None:
+        software_engineer = _compact(
+            (ROOT / "agents/software-engineer.md").read_text(encoding="utf-8")
+        )
+        obs_pipeline = _compact(
+            (ROOT / "skills/obs-pipeline/SKILL.md").read_text(encoding="utf-8")
+        )
+
+        self.assertIn(
+            "app-side instrumentation changes to the `software-engineer` agent",
+            obs_pipeline,
+            "obs-pipeline must keep application-code ownership with software-engineer",
+        )
+        self.assertIn(
+            "`obs-pipeline` — before app-side OpenTelemetry instrumentation",
+            software_engineer,
+            "software-engineer must load the telemetry contract before changing app emission",
+        )
+
     def test_missing_taint_contracts_carry_source_trust_and_claim_taint(self) -> None:
         for filename in ("agent-engineer.md", "researcher.md", "repository-investigator.md"):
             text = _compact((ROOT / "agents" / filename).read_text(encoding="utf-8"))
