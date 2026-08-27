@@ -94,6 +94,5 @@ ordinary PR evidence.
 
 Start with [AGENTS.md](AGENTS.md) (the fleet guide, loaded into every session),
 [CONTRIBUTING.md](CONTRIBUTING.md) (authoring, verification, and promotion policy), and
-[`docs/rules.md`](docs/rules.md) (the must-follow index). Third-party attribution is in
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Live and deferred work is tracked solely
-in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+[`docs/rules.md`](docs/rules.md) (the must-follow index). Live and deferred work is tracked
+solely in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
