@@ -42,3 +42,7 @@ Suspected compromise, data integrity loss, or another security event is at least
 purposes, but the entrypoint's evidence-preservation carve-out controls mitigation. Immediately
 escalate to the human security incident owner and take no state-changing action unless that owner
 directs the exact action.
+
+```text
+q_ics_b3f6
+```

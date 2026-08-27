@@ -28,6 +28,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _tree(root, {
+                "skills/incident-command/references/severity.md": "body\n\nq_ics_9001\n",
                 "skills/obs-metrics/references/promql.md": "body\n\nq_ompr_0001\n",
                 "skills/obs-logs/references/logql.md": "body\n\nq_ollq_0002\n",
                 "skills/akamai-edge/references/edge.md": "body\n\nq_akedge_0003\n",
@@ -41,6 +42,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _tree(root, {
+                "skills/incident-command/references/severity.md": "body\n\nq_ics_9002\n",
                 "skills/obs-metrics/references/promql.md": "q_dup_0001\n",
                 "skills/obs-metrics/references/wql.md": "q_dup_0001\n",
                 "skills/akamai-edge/references/edge.md": "q_akedge_0003\n",
@@ -56,6 +58,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _tree(root, {
+                "skills/incident-command/references/severity.md": "body\n\nq_ics_9003\n",
                 "skills/obs-traces/references/traceql.md": "body with no token\n",
                 "skills/akamai-edge/references/edge.md": "q_akedge_0003\n",
                 "skills/incident-investigation/references/first-response.md": "q_iifr_0004\n",
@@ -79,6 +82,7 @@ class CheckCanaryTokensTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             _tree(root, {
+                "skills/incident-command/references/severity.md": "body\n\nq_ics_9004\n",
                 # `q_ab` is too short and `Q_UPPER_0001` is the wrong case: neither is a token, so
                 # the required-bundle file counts as carrying none.
                 "skills/obs-logs/references/logql.md": "q_ab and Q_UPPER_0001\n",
