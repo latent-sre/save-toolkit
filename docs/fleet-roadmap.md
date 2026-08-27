@@ -489,7 +489,8 @@ that shows why.
 [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md); the
 [`complete skill audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) corrected the
 candidate list; the [`2026-08-24 host context-budget audit`](reviews/2026-08-24-host-context-budget-audit.md)
-separates the host contracts from the repository's 5,000-byte screen. The
+separates the host contracts from the repository's byte screen — 5,000 until the owner reset it to
+7,500 on 2026-08-27. The
 [`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md) records the
 knowledge probes and pressure controls that established the probe-first method, and the refreshed
 screen. Description metadata follows the current rule — capability, invocation conditions, and
@@ -501,7 +502,7 @@ holds the per-slice evidence. Those nine skills are excluded from Phase 2.
 
 **Phase 2 dispositions:** `frontend-craft` — confirmed router with a knowledge cut on branch
 `work/skill-001-frontend-craft`: 14,150 → 7,481 immutable entrypoint bytes, references 37,107 →
-39,798, description byte-identical, retained above the screen because what remains is decisions,
+39,798, description byte-identical; below the 7,500-byte screen, and what remains is decisions,
 pressure-dropped invariants, and the routing table. The after-change discovery run on `1b2d485` was
 1/3 against a 0/3 previous-revision baseline (pre-existing routing instability, see `ROUTE-004`);
 evidence is in the disposition review.
@@ -510,15 +511,17 @@ evidence is in the disposition review.
 10,911 → 8,843 immutable entrypoint bytes, references 66,628 → 36,754 (an owner-preference trim of a
 pattern catalog, vendor commentary, and a changelog digest, a probe-backed recitation cut, then a
 rules-as-tables form pass; every fleet rule retained), description
-byte-identical, retained above the screen because clean-room probes on both tiers show the body's
-remaining content is fleet decisions and platform traps the models author wrong. After-change
+byte-identical, retained above the 7,500-byte screen because clean-room probes on both tiers show
+the body's remaining content is fleet decisions and platform traps the models author wrong. After-change
 discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe correction, is in the
 [`agent-authoring disposition`](reviews/2026-08-27-skill-001-agent-authoring.md).
 
-**Phase 2 screen:** `[verified]` On `origin/main` `0eb3daf`, 33 entrypoints total 231,513 immutable
-bytes and seventeen non-Phase-1 entrypoints other than `frontend-craft` sit at or above 5,000 bytes;
-the list is in the disposition review's remeasurement section. The earlier twelve-candidate screen
-on `b9b274f` predates six of them. Selection means inspect, not rewrite; size alone is not a finding.
+**Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
+5,000 before). On `origin/main` `4f01f22`, 33 entrypoints total 224,844 immutable bytes and seven
+non-Phase-1 entrypoints other than `agent-authoring` sit at or above it: `obs-dashboards` 11,419,
+`backend-craft` 11,123, `runbook` 9,561, `workflow-graph-engineering` 8,622, `incident-drill` 8,154,
+`gcp-ops` 8,102, `obs-alerting` 7,755. `frontend-craft` (7,481) is below it. The earlier 5,000-byte
+screens on `b9b274f` (twelve) and `0eb3daf` (seventeen) are superseded. Selection means inspect, not rewrite; size alone is not a finding.
 The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
 unrefreshed and still does not authorize a description rewrite inside Phase 2.
 
@@ -534,7 +537,7 @@ sized to the change: the structural gate, one build exercise on the task most li
 the after-change discovery run on the exact commit; a full multi-run benchmark is not owed for a
 change that moves or removes text without changing a rule.
 
-**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 5,000
+**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 7,500
 immutable bytes. Each receives one committed disposition: a confirmed router either drops below the
 screen or routes more reference bytes than it retains, with every target reachable through
 `check_links`; a knowledge cut cites its probe and control transcripts; a retained entrypoint

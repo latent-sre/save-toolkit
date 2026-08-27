@@ -4,10 +4,10 @@ Four disciplines: **Prompt Engineering** (selection, guidance, output contracts)
 Engineering** (the smallest relevant, trusted state), **Loop Engineering** (work, verification,
 budgets, termination), **Graph Engineering** (ownership and authority transitions). Handoffs are the
 context payload on a graph edge; durable learning is accepted loop output, not a fifth discipline.
-The four-theme decision rule itself is in `../SKILL.md`.
 
 ## Contents
 
+- Four-theme decision rule
 - Should this be multi-agent at all?
 - Agent vs. skill
 - The loop inside each lane
@@ -18,6 +18,22 @@ The four-theme decision rule itself is in `../SKILL.md`.
 - When it pays; right-sizing
 - Learning as repository state
 - Wrapper-layer failures
+
+## Four-theme decision rule
+
+Apply all four to the same work unit.
+
+| Theme | Owns the decision |
+|---|---|
+| Prompt Engineering | Which owner is selected, its instructions, and the response/tool shape it must produce |
+| Context Engineering | What that owner sees, in what order, with which provenance, freshness, trust, compaction, and retention |
+| Loop Engineering | Entry and mutable state, action/verification cycle, budgets, stops, terminal evidence, and promotion authority |
+| Graph Engineering | Which node owns the work, which ownership transitions exist, and what authority and payload cross each edge |
+
+Skills deepen a node; agents change ownership. Keep work in one agent and load a skill when the
+owner and authority remain correct; add or traverse an agent edge only when ownership, authority
+isolation, independent verification, parallel breadth, or additional context capacity justifies
+the transition.
 
 ## Should this be multi-agent at all?
 
