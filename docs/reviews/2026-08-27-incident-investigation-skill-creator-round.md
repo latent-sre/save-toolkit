@@ -58,6 +58,31 @@ the next ruler. Cost was about 100k tokens per set of four answers. Not settled:
 non-deterministic grader inside an otherwise reproducible suite, and how to carry the "fix the bar
 before reading" discipline into a scenario file.
 
+## Clean-room runs on the committed candidate (062f1cf)
+
+Three batches under Claude Code 2.1.247, `claude-sonnet-5`, three trials each, retained as
+`docs/reviews/2026-08-27-eval-*.md`:
+
+- `97efbc22`, profile-less, all nine `incident-investigation` scenarios. Without a profile the runner
+  enables no reference reads, so every trial answered from `SKILL.md` alone: valid for the four
+  SKILL.md-only scenarios (no-incident 3/3, self-recovery 3/3, mode-selection 2/3,
+  correlated-incidents 0/3 on three adjacency regexes with no prior baseline), not for the two
+  reference-bearing ones.
+- `873221fe`, the `eval-004-reference-reachability` profile. All six canaries PASS under the
+  inert-canary framing; stuck-differential 3/3 (2/3 in `4738372a`); flat-signals 1/3 (2/3 in
+  `4738372a`), where both reds are the `not_regex` matching "not a silent close" and "stops being
+  a same-night close-out" while all three trials open "Not yet supported". The three
+  `incident-command` scenarios sit at their accepted 2/3, 2/3, 3/3.
+- `61040f56`, a control on the pre-change bytes (`35fb312`) under the same CLI, discovery scenarios
+  only: defers-engineering-altitude 1/3 against 0/3 on the candidate (the literal `eng-ladder`
+  grader; routing PASS in all six trials), systemic-failure 2/3 against 0/3 (the literal
+  `human execution` phrase list; routing PASS in all six), first-response 3/3 on both. The
+  systemic-failure phrase shift is plausibly the recipe's phrasing at n=3; both scenarios were
+  already below their 1.0 threshold on the old bytes under this CLI.
+
+Per EVAL-005's accepted stance a red on an adjacency grader is not by itself a finding, and no
+tuning run was spent on pattern repair.
+
 ## Limitations
 
 Subagents read the skill from disk without the plugin namespace, so routing under the real host and
