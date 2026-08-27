@@ -120,8 +120,14 @@ class SkillAssetContractTests(unittest.TestCase):
                     self.assertNotIn(banned, pointer.lower())
 
         skill = (ROOT / "skills/service-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        normalized_skill = " ".join(skill.split())
         self.assertIn("never supplies the approved plan", skill)
+        self.assertIn("never selects the environment implicitly", skill)
         self.assertIn("authorizes nothing", skill)
+        self.assertIn(
+            "Before any production-facing step, load `production-change-gate` and re-enter it.",
+            normalized_skill,
+        )
 
     def test_backend_openapi_starter_separates_liveness_and_readiness(self) -> None:
         starter = (ROOT / "skills/backend-craft/assets/openapi.starter.yaml").read_text(
