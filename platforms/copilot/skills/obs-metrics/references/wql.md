@@ -7,21 +7,13 @@ syntax and behavior statements are sourced from current VMware Aria Operations f
 documentation; all metric names, tags, counter types, alert policies, and tenant capabilities remain
 unverified until checked against the team's target.
 
-**Lifecycle — `[sourced]` (reviewed 2026-08-19).** The platform continues as **Broadcom DX
-OpenExplore**: Broadcom TechDocs introduces it as built "using Aria Operations for Applications
-(Wavefront) and the DX platform" and maintains Wavefront release notes under
-`techdocs.broadcom.com/us/en/ca-enterprise-software/it-operations-management/dx-openexplore/saas/`
-(updated February 2026). The 2025-10-31 end-of-availability (support.broadcom.com announcement
-25153) retired the VMware *Tanzu Observability* offering, not the engine or WQL. docs.wavefront.com
-remains online but its source is **frozen**: at `wavefrontHQ/docs@0492d79` the newest release-notes
-entry is 2024-09.x (a 2024-10.x entry sits committed but commented out) and the string "OpenExplore"
-appears nowhere in the repository `[sourced: GitHits grep/read of wavefrontHQ/docs@0492d79]`. WQL
-syntax below therefore remains valid as of that freeze; any language change after 2024 appears only
-in the DX OpenExplore TechDocs. The public proxy repository is likewise closed off:
-`wavefrontHQ/wavefront-proxy`'s README declares the repo read-only and reference-only, with Proxy
-14.0+ no longer built from the public sources — proxy updates and security fixes come from
-Broadcom, not GitHub `[sourced: wavefrontHQ/wavefront-proxy@7b217ea README]`. `stack-profile` stays
-the authority on what the team runs today.
+**Lifecycle.** Wavefront continues as Broadcom DX OpenExplore; the end-of-availability retired
+the VMware *Tanzu Observability* offering, not the engine or WQL. `docs.wavefront.com` is still
+online but frozen at 2024-09 — treat it as authoritative for the WQL syntax below and for nothing
+newer, because a language change after that date appears only in the DX OpenExplore TechDocs. The
+public proxy repository is read-only and reference-only: Proxy 14.0+ is not built from public
+sources, so proxy updates and security fixes come from Broadcom rather than GitHub.
+`stack-profile` stays the authority on what the team runs today.
 
 Primary references:
 
