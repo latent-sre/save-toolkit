@@ -703,6 +703,41 @@ retirement checklist as `service-lifecycle`'s effect-shaped sibling, then carry 
 enhancements to CONTEXT-001. Conditions (1) and (2) are committed; their evidence is in the commit,
 not here.
 
+### EVAL-005 — grade incident behaviour without phrase adjacency
+
+**Status:** `ready` (2026-08-27)
+
+**Outcome:** A behavioural incident scenario returns a verdict that reflects the response rather
+than its phrasing, so a red result is worth investigating instead of routinely being a pattern that
+missed a synonym.
+
+**Source:** Five runs on the same five scenarios — 226d926c, ec8b8265, 5945f6a1, aec04409,
+4738372a — cost roughly USD 20 and converged on one shape: the scenario lands on its behavioural
+substance and loses a trial to a single adjacency regex, a different regex each run. Three such
+patterns were repaired and each run surfaced another. The clearest instance is recorded verbatim in
+4738372a, where a `not_regex` hunting for "escalate … later" matched the correct answer *escalate
+now, not later*, and an earlier one matched *without material delay* as a delay. Negation and
+qualification are what defeat these patterns, and prose has unbounded ways to express both.
+
+The behavioural question these scenarios exist to answer is already settled and does not depend on
+this item: the 5945f6a1 removal control scored perishable-evidence 3/3 with its rule and 1/3
+without, on the true prior wording.
+
+**Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
+exist in the grader registry, so a structured-output contract needs no new grader type. An
+LLM-judge grader would need a new one, plus a policy for a non-deterministic grader inside a suite
+whose other results are reproducible.
+
+**Acceptance:** A repaired scenario returns the same verdict across three consecutive runs on
+unchanged guidance. The removal control still discriminates: with the guidance removed, the
+scenario fails. No grader rejects a response that a reader would call correct, tested against the
+transcripts already retained under `.eval-runs/`.
+
+**Next action:** Choose the grading style — a structured contract the response must emit, or an
+LLM judge — then convert one scenario and measure it three times before converting the rest.
+Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
+further tuning run is spent on pattern repair.
+
 ## Deferred
 
 ### EFFECT-001 — effect-bound execution broker

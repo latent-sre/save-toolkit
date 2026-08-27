@@ -2,13 +2,6 @@ schema_version: 1
 id: incident-command-handover-readback
 mode: direct
 split: calibration
-# 0.66, not 0.67: the bar is ceil(trials * threshold), and at DEFAULT_TRIALS = 3
-# ceil(3 * 0.67) == 3 -- byte-identical to threshold 1.0. ceil(3 * 0.66) == 2 is the
-# intended 2-of-3 propensity bar.
-# Measured across three runs (226d926c, ec8b8265, aec04409): this scenario lands on its
-# behavioural substance every trial and loses a single trial to one adjacency pattern, a
-# different one each run. Prose graders are 2-of-3 reliable; the contract is not.
-threshold: 0.66
 target:
   kind: skill
   name: incident-command
