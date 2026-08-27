@@ -90,8 +90,8 @@ On any conflict, those owners and the target repository win.
 
 ## Errors, Suspense, and async work
 
-- Put error boundaries around meaningful failure domains — the per-panel boundaries the Resilience
-  UX rules require. They catch errors from descendant render and lifecycle work, but not event
+- Put error boundaries around meaningful failure domains — the per-panel boundaries the
+  `Failure-first` invariant in `SKILL.md` requires. They catch errors from descendant render and lifecycle work, but not event
   handlers, arbitrary async callbacks, server rendering, errors in the boundary itself, or failures
   outside the tree.
 - A boundary fallback is designed state with retry/reset behavior and observability. Root

@@ -2,8 +2,8 @@
 
 # Default design language — designed, not default
 
-Read for a greenfield or unbranded UI, or a new app shell or view with no existing design system to
-match. An existing brand or design system always wins — match it and leave this file unread. The
+Read only for a greenfield or unbranded UI with nothing to match — no brand, no design system, no
+established visual conventions. Any of those always wins: match it and leave this file unread. The
 invariants (theme tokens, no-flash theme, status never by color alone, designed states, composition)
 live in `../SKILL.md`; this file owns the *choices* those rules leave open.
 

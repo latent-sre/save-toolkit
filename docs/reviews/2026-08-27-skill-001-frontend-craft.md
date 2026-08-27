@@ -6,8 +6,8 @@ the only live backlog; this record does not queue work.
 ## Conclusion
 
 `frontend-craft` is dispositioned as a **confirmed router with a knowledge cut**: the always-loaded
-entrypoint falls from 14,150 to 7,465 bytes (−47%) in two steps, and the bundle routes more
-reference bytes than it retains (39,753 routed vs 7,465 retained). The description is
+entrypoint falls from 14,150 to 7,481 bytes (−47%) in two steps, and the bundle routes more
+reference bytes than it retains (39,798 routed vs 7,481 retained). The description is
 byte-identical. The entrypoint stays above the 5,000-byte screen because what remains — the fleet's
 decisions, the rules both models drop under pressure, and the routing table — has no conditional
 boundary left to split.
@@ -29,7 +29,7 @@ Two findings changed the method rather than the skill:
 `[verified]` On exact base `origin/main` `0eb3daf`, the entrypoint measured 14,150 immutable bytes
 with 37,107 reference bytes. The greenfield design language (dark-first surfaces, color courage,
 categorical KPI accents, typography, depth cues, self-critique, sidebar-rail default, spacing and
-type scale) moved into `references/design-language.md` (1,872 → 4,664 bytes, merged with its
+type scale) moved into `references/design-language.md` (1,872 → 4,734 bytes, merged with its
 existing paraphrase); the interface-copy rules already in `ux-writing.md` were dropped from the
 body; the TanStack Router detail moved into `stack.md`. Reference rot repaired: `stack.md` stated
 the Mantine rule twice, `auth.md` carried two overlapping sections, and `data-views`/`forms`/
@@ -59,7 +59,7 @@ name; the reference-read parser counted files named in a "not read" list, includ
 heading used markdown emphasis. Reference-read assertions remain executor self-reports and are
 labelled `[unverified]` in every grading.
 
-## Step 2 — knowledge cut (10,664 → 7,465 bytes)
+## Step 2 — knowledge cut (10,664 → 7,481 bytes)
 
 `[verified]` Probe transcripts are in `.eval-runs/frontend-craft-workspace/probes/` (gitignored;
 verbatim replies with the prompts). Knowledge probe: 18/18 for Opus, 18/18 for Sonnet, both picking

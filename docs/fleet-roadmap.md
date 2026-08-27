@@ -500,8 +500,8 @@ exclusions, without procedure.
 holds the per-slice evidence. Those nine skills are excluded from Phase 2.
 
 **Phase 2 dispositions:** `frontend-craft` — confirmed router with a knowledge cut on branch
-`work/skill-001-frontend-craft`: 14,150 → 7,465 immutable entrypoint bytes, references 37,107 →
-39,753, description byte-identical, retained above the screen because what remains is decisions,
+`work/skill-001-frontend-craft`: 14,150 → 7,481 immutable entrypoint bytes, references 37,107 →
+39,798, description byte-identical, retained above the screen because what remains is decisions,
 pressure-dropped invariants, and the routing table. The after-change discovery run on `1b2d485` was
 1/3 against a 0/3 previous-revision baseline (pre-existing routing instability, see `ROUTE-004`);
 evidence is in the disposition review.

@@ -52,7 +52,7 @@ packet.
 
 | If the view involves… | Read first |
 |---|---|
-| a greenfield or unbranded UI, or a new app shell or view with no existing design system to match | [design language](./references/design-language.md) |
+| a greenfield or unbranded UI — nothing to match: no brand, no design system, no established visual conventions | [design language](./references/design-language.md) |
 | dialogs, drawers, menus, tabs, custom widgets, or async announcements | [interaction accessibility](./references/interaction-a11y.md) |
 | labels, actions, errors, empty states, or toasts | [interface copy](./references/ux-writing.md) |
 | choosing a stack for a greenfield UI, or serving a SPA on PCF | Load `stack-profile` first, then [stack](./references/stack.md) |
