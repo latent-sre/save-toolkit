@@ -492,6 +492,29 @@ class EndToEndStubTests(unittest.TestCase):
         evidence = json.loads((out / "eval-tiny" / "new_skill" / "run-2" / "grading.json").read_text(encoding="utf-8"))["expectations"][0]["evidence"]
         self.assertIn("inventory mismatch", evidence)
 
+    def test_a_read_only_agent_advertises_fewer_tools_and_still_grades(self) -> None:
+        """2026-08-28: measuring against the probe's superset made every `sre` trial INCONCLUSIVE.
+
+        The expectation is the agent's own declaration: `sre` carries no Edit/Write, so a runtime
+        that advertises its six tools is honouring the boundary, not breaking it.
+        """
+        expected = build_probe.expected_runtime_tools(ROOT, "sre")
+        self.assertEqual(("Read", "Grep", "Glob", "Bash", "Skill", "Task"), tuple(sorted(expected, key=build_probe.BUILD_TOOLS.index)))
+        self.assertNotIn("Write", expected)
+        self.assertEqual(tuple(build_probe.BUILD_TOOLS), build_probe.expected_runtime_tools(ROOT, "software-engineer"))
+        spec = self._spec()
+        spec["agent"] = "sre"
+        out = self.root / "iteration"
+        summary = build_probe.run_trial(spec, plugin_root=ROOT, label="new_skill", model=None, run_number=1,
+                                        out_dir=out, timeout=60, executable=self._stub(tools=list(expected)),
+                                        keep_workspace=False, env_factory=self._env_factory())
+        self.assertNotEqual("INCONCLUSIVE", summary["status"], "a read-only lane's smaller inventory is not a boundary failure")
+        # …and a tool it never declared still is.
+        broken = build_probe.run_trial(spec, plugin_root=ROOT, label="new_skill", model=None, run_number=2,
+                                       out_dir=out, timeout=60, executable=self._stub(tools=list(expected) + ["Write"]),
+                                       keep_workspace=False, env_factory=self._env_factory())
+        self.assertEqual("INCONCLUSIVE", broken["status"])
+
     def test_provenance_and_isolation_are_recorded_per_run(self) -> None:
         """Review P1: the label is operator-chosen; the digest, commit, and dirty state bind the bytes."""
         out = self.root / "iteration"
