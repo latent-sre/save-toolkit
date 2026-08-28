@@ -75,6 +75,9 @@ checks:
   - {check: file_exists, path: scripts/wordfreq.py, text: "scripts/wordfreq.py exists"}
   - {check: glob_exists, pattern: "tests/test_wordfreq*.py", text: "a wordfreq test module exists"}
   - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "suite is green when the probe runs it"}
+  # unittest discover exits 0 when the new module holds only pytest-style functions it never collects
+  # (or when the fixture's own test was skipped), so require that a wordfreq test actually executed.
+  - {check: command_exit_zero, command: "python -c \"import subprocess,sys; r=subprocess.run([sys.executable,'-m','unittest','discover','-s','tests','-t','.','-v'],capture_output=True,text=True); out=(r.stdout+r.stderr).lower(); sys.exit(0 if r.returncode==0 and 'wordfreq' in out and ' ... ok' in out else 1)\"", text: "a wordfreq test case actually executed and passed"}
   - {check: command_exit_zero, command: "python scripts/wordfreq.py --help", text: "--help exits 0"}
   - {check: command_exit_zero, command: "python scripts/wordfreq.py empty.txt", writes: {empty.txt: ""}, text: "an empty file exits 0"}
   - {check: changed_files_not_containing, glob: "tests/*.py", needle: "import pytest", text: "new tests use the repo's framework (unittest, no pytest import)"}
@@ -83,7 +86,7 @@ checks:
   # this session, at fb85b02 …)" with the colon far down the line or absent, so no colon is demanded.
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
-  - {check: changes_within, allowed: ["scripts/wordfreq.py", "tests/", "README.md"], text: "surgical: only the new tool, its tests, and the README changed"}
+  - {check: changes_within, allowed: ["scripts/wordfreq.py", "tests/test_wordfreq*.py", "README.md"], text: "surgical: only the new tool, its own test module, and the README changed"}
   - {check: no_new_commits, text: "nothing committed uninvited"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
   - {check: skill_not_loaded, skill: eng-ladder, text: "no ladder load for a scoped change"}

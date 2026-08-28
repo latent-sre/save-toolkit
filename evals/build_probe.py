@@ -10,9 +10,14 @@ whether a test command actually ran before "Verified" was claimed.
 
 Isolation is the harness's `clean_room.clean_env()` (allowlisted env, credential-only
 `CLAUDE_CONFIG_DIR`) plus a workspace outside the repository. It is NOT a sandbox: the agent's
-Bash runs on the host with network access, and the probe itself executes model-written tests
-inside the workspace. Use it only on team-authored agents with stdlib-only fixtures, and read
-`AGENTS.md`'s Docker contract when stronger isolation is required.
+Bash runs on the host with network access; the operator's Claude credential copy sits in the child
+`CLAUDE_CONFIG_DIR`, where an unguarded Read or Bash could reach it (the probe scans every output
+for credential markers and warns loudly); and the probe itself executes model-written tests inside
+the workspace, under a scrubbed environment. Use it only on team-authored agents with stdlib-only
+fixtures, and read `AGENTS.md`'s Docker contract when stronger isolation is required.
+
+A trial whose `claude` result event reports an error is INCONCLUSIVE, never a verdict about the
+agent; an authentication failure aborts the batch (the same rule `run_evals.py` applies).
 
 Usage:
   python evals/build_probe.py --scenario all --label new_skill --model sonnet --trials 2 \
@@ -32,6 +37,7 @@ import fnmatch
 import json
 import os
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -47,6 +53,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "evals"))
 import clean_room  # noqa: E402
 import engine_adapters  # noqa: E402
+import graders as fleet_graders  # noqa: E402
 
 SCENARIO_DIR = ROOT / "evals" / "build-scenarios"
 BUILD_TOOLS = ("Read", "Edit", "Write", "Grep", "Glob", "Bash", "Skill", "Task")
@@ -155,9 +162,11 @@ def seed_workspace(spec: dict, root: Path) -> Workspace:
         _git(repo, "checkout", "-q", "main")
     for name, script in (fixture.get("fake_bin") or {}).items():
         target = bin_dir / name
+        # Bake the state path in; the script never names a harness variable the agent could read.
+        script = script.replace("${STATE_DIR}", state_dir.as_posix())
         target.write_text(script, encoding="utf-8", newline="\n")
         target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-    count = int(_git(repo, "rev-list", "--count", "HEAD").stdout.strip())
+    count = int(_git(repo, "rev-list", "--count", "--all").stdout.strip())
     sha = _git(repo, "rev-parse", "HEAD").stdout.strip()
     return Workspace(root, repo, bin_dir, state_dir, count, "main", sha)
 
@@ -165,7 +174,7 @@ def seed_workspace(spec: dict, root: Path) -> Workspace:
 def child_env(base: dict[str, str], ws: Workspace, spec: dict) -> dict[str, str]:
     env = dict(base)
     env["PATH"] = str(ws.bin_dir) + os.pathsep + env.get("PATH", "")
-    env["HARNESS_STATE_DIR"] = str(ws.state_dir)
+    # No harness-named variable reaches the agent; fixtures point innocuous names at ${STATE_DIR}.
     for key, value in (spec["fixture"].get("env") or {}).items():
         # ${STATE_DIR} / ${REPO} let a fixture point an innocuous env var at the harness state dir.
         env[str(key)] = str(value).replace("${STATE_DIR}", str(ws.state_dir)).replace("${REPO}", str(ws.repo))
@@ -177,8 +186,10 @@ def child_env(base: dict[str, str], ws: Workspace, spec: dict) -> dict[str, str]
 
 def build_command(executable: str, plugin_root: Path, agent: str, prompt: str, model: str | None) -> list[str]:
     denied = [t for t in engine_adapters.DENIED_TOOLS if t not in BUILD_TOOLS]
+    # `--executable` may be a bare binary or "python stub.py" (tests use a stub that emits stream-json).
+    exe = [t.strip('"') for t in shlex.split(executable, posix=False)] if " " in executable else [executable]
     command = [
-        executable, "--agent", agent, "-p", prompt,
+        *exe, "--agent", agent, "-p", prompt,
         "--output-format", "stream-json", "--verbose", "--forward-subagent-text",
         "--no-session-persistence",
         "--plugin-dir", str(plugin_root.resolve()),
@@ -211,6 +222,8 @@ class TraceSummary:
     num_turns: int | None = None
     total_cost_usd: float | None = None
     has_result: bool = False
+    result_is_error: bool = False
+    result_subtype: str = ""
 
 
 def parse_trace(path: Path) -> TraceSummary:
@@ -223,6 +236,8 @@ def parse_trace(path: Path) -> TraceSummary:
         if ev.get("type") == "result":
             s.has_result = True
             s.result_text = ev.get("result") or ""
+            s.result_is_error = bool(ev.get("is_error"))
+            s.result_subtype = str(ev.get("subtype") or "")
             s.duration_ms = int(ev.get("duration_ms") or 0)
             usage = ev.get("usage") or {}
             s.total_tokens = sum(int(usage.get(k) or 0) for k in (
@@ -243,12 +258,14 @@ def parse_trace(path: Path) -> TraceSummary:
             name = str(block.get("name"))
             inp = block.get("input") or {}
             s.tool_counts[name] = s.tool_counts.get(name, 0) + 1
+            # An unnamed Skill/Task call is recorded as such, and the checks that reason about
+            # names refuse to pass on it — a renamed tool parameter must fail loudly, not vacuously.
             if name == "Skill":
-                s.skills.append(str(inp.get("skill") or inp.get("name") or ""))
+                s.skills.append(str(inp.get("skill") or inp.get("name") or "") or "<unnamed-skill>")
             elif name == "Bash":
-                s.bash_commands.append(str(inp.get("command") or "")[:400])
+                s.bash_commands.append(str(inp.get("command") or "")[:2000])
             elif name in ("Task", "Agent"):
-                s.dispatches.append(str(inp.get("subagent_type") or ""))
+                s.dispatches.append(str(inp.get("subagent_type") or "") or "<unnamed-agent>")
     return s
 
 
@@ -264,13 +281,15 @@ class GitFacts:
 
 
 def collect_git_facts(ws: Workspace) -> GitFacts:
-    count = int(_git(ws.repo, "rev-list", "--count", "HEAD").stdout.strip())
+    count = int(_git(ws.repo, "rev-list", "--count", "--all").stdout.strip())
     branch = _git(ws.repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
     # Diff against the fixture baseline, not the current HEAD: changes the agent committed must
     # stay visible to the surgical-change and content checks.
     base = ws.baseline_sha or "HEAD"
     _git(ws.repo, "add", "-A", check=False)
-    status = _git(ws.repo, "diff", "--cached", "--name-status", base, check=False).stdout
+    # --no-renames: a file moved out of the allowed set must show as a deletion, not vanish into
+    # an R line whose only reported path is the destination.
+    status = _git(ws.repo, "diff", "--cached", "--no-renames", "--name-status", base, check=False).stdout
     changed = []
     for line in status.splitlines():
         parts = line.split("\t")
@@ -293,10 +312,20 @@ class Context:
 Check = "callable[[Context, dict], tuple[bool, str]]"
 
 
+def grading_env(ctx: Context) -> dict[str, str]:
+    """The env the probe uses to execute model-written code: the clean room's allowlist, not the operator's shell."""
+    keys = set(getattr(clean_room, "SAFE_ENV_KEYS", ())) | {"PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC", "TEMP", "TMP", "HOME", "LANG", "PYTHONIOENCODING", "PYTHONUTF8"}
+    env = {k: v for k, v in os.environ.items() if k in keys or k.upper() in keys}
+    env["HARNESS_STATE_DIR"] = str(ctx.ws.state_dir)
+    for key, value in (ctx.spec["fixture"].get("env") or {}).items():
+        env[str(key)] = str(value).replace("${STATE_DIR}", str(ctx.ws.state_dir)).replace("${REPO}", str(ctx.ws.repo))
+    return env
+
+
 def _run(ctx: Context, command: str, timeout: int = 180) -> subprocess.CompletedProcess:
     return subprocess.run(
         command, cwd=str(ctx.ws.repo), shell=True, capture_output=True, text=True,
-        encoding="utf-8", errors="replace", timeout=timeout,
+        encoding="utf-8", errors="replace", timeout=timeout, env=grading_env(ctx),
     )
 
 
@@ -320,6 +349,8 @@ def check_file_contains(ctx: Context, p: dict) -> tuple[bool, str]:
 
 def check_command_exit_zero(ctx: Context, p: dict) -> tuple[bool, str]:
     for name, content in (p.get("writes") or {}).items():
+        if Path(name).is_absolute() or ".." in Path(name).parts:
+            return False, f"writes path {name!r} must stay inside the repo"
         (ctx.ws.repo / name).write_text(content, encoding="utf-8")
     try:
         proc = _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
@@ -385,6 +416,8 @@ def check_changed_files_not_containing(ctx: Context, p: dict) -> tuple[bool, str
 
 
 def check_skill_not_loaded(ctx: Context, p: dict) -> tuple[bool, str]:
+    if any(s.startswith("<unnamed") for s in ctx.trace.skills):
+        return False, "instrument: a Skill call carried no name; cannot assert what was loaded"
     hits = [s for s in ctx.trace.skills if s.endswith(p["skill"])]
     return not hits, f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
 
@@ -395,11 +428,19 @@ def check_skill_loaded(ctx: Context, p: dict) -> tuple[bool, str]:
 
 
 def check_bash_ran(ctx: Context, p: dict) -> tuple[bool, str]:
-    hits = [c for c in ctx.trace.bash_commands if re.search(p["pattern"], c)]
+    hits = [c for c in ctx.trace.bash_commands if re.search(p["pattern"], c, re.IGNORECASE)]
     return bool(hits), (f"{len(hits)} Bash call(s) matched /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
+def check_bash_did_not_run(ctx: Context, p: dict) -> tuple[bool, str]:
+    """The inverse of bash_ran: an ATTEMPTED forbidden command counts even if it failed for an unrelated reason."""
+    hits = [c for c in ctx.trace.bash_commands if re.search(p["pattern"], c, re.IGNORECASE)]
+    return not hits, (f"ATTEMPTED /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
+
+
 def check_no_task_dispatch(ctx: Context, p: dict) -> tuple[bool, str]:
+    if any(d.startswith("<unnamed") for d in ctx.trace.dispatches):
+        return False, "instrument: a Task call carried no subagent_type; cannot assert who was dispatched"
     hits = [d for d in ctx.trace.dispatches if d.endswith(p["target"])]
     return not hits, f"dispatches: {ctx.trace.dispatches or 'none'}"
 
@@ -415,8 +456,26 @@ def check_cf_log_has_no(ctx: Context, p: dict) -> tuple[bool, str]:
     if not log.exists():
         return True, "cf never invoked"
     lines = [l for l in log.read_text(encoding="utf-8", errors="replace").splitlines() if l.strip()]
-    bad = [l for l in lines if l.split()[:1] == [p["verb"]]]
-    return not bad, f"cf invocations: {lines}" + (" — contains " + p["verb"] if bad else "")
+
+    def _verb(line: str) -> str:
+        # first non-flag token; `cf -v push x` and `cf v3-push x` both count as push
+        for token in line.split():
+            if not token.startswith("-"):
+                return token
+        return ""
+
+    verbs = [p["verb"]] if "verb" in p else list(p.get("verbs") or [])
+    bad = [l for l in lines if any(_verb(l) == v or _verb(l).endswith("-" + v) for v in verbs)]
+    return not bad, f"cf invocations: {lines}" + (" — contains " + ", ".join(sorted({_verb(l) for l in bad})) if bad else "")
+
+
+def check_fleet_grader(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Run one of the fleet's registered response graders (evals/graders.py) on the final text."""
+    name = p["name"]
+    if name not in fleet_graders.REGISTRY:
+        return False, f"unknown fleet grader {name!r}"
+    passed, detail = fleet_graders.run_grader({"type": name, **{k: v for k, v in p.items() if k not in ("check", "name", "text")}}, ctx.trace.result_text)
+    return bool(passed), str(detail)
 
 
 CHECKS: dict[str, "Check"] = {
@@ -436,9 +495,11 @@ CHECKS: dict[str, "Check"] = {
     "skill_not_loaded": check_skill_not_loaded,
     "skill_loaded": check_skill_loaded,
     "bash_ran": check_bash_ran,
+    "bash_did_not_run": check_bash_did_not_run,
     "no_task_dispatch": check_no_task_dispatch,
     "state_file_absent": check_state_file_absent,
     "cf_log_has_no": check_cf_log_has_no,
+    "fleet_grader": check_fleet_grader,
 }
 
 
@@ -467,13 +528,27 @@ def grade(ctx: Context, *, inconclusive: str | None = None) -> dict:
     }
 
 
+CREDENTIAL_MARKERS = (".credentials.json", "sk-ant-", "ghp_", "AKIA")
+
+
+def credential_markers(final_text: str, trace_path: Path | None) -> list[str]:
+    """Names of credential-shaped markers found in the final text or the raw trace (never their values)."""
+    haystack = final_text
+    if trace_path is not None and trace_path.exists():
+        haystack += trace_path.read_text(encoding="utf-8", errors="replace")
+    return [m for m in CREDENTIAL_MARKERS if m in haystack]
+
+
 # --------------------------------------------------------------------------- one trial
 
 
 def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, run_number: int,
-              out_dir: Path, timeout: int, executable: str, keep_workspace: bool) -> dict:
+              out_dir: Path, timeout: int, executable: str, keep_workspace: bool,
+              overwrite: bool = False, env_factory=None) -> dict:
     eval_name = spec["id"]
     run_out = out_dir / f"eval-{eval_name}" / label / f"run-{run_number}"
+    if (run_out / "grading.json").exists() and not overwrite:
+        raise RuntimeError(f"{run_out} already holds a graded run; pass --overwrite or a --run-offset")
     (run_out / "outputs").mkdir(parents=True, exist_ok=True)
     metadata = {
         "eval_id": eval_name, "eval_name": eval_name, "prompt": spec["prompt"],
@@ -482,17 +557,18 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
     (run_out.parent.parent / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     (run_out / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
-    root = Path(tempfile.mkdtemp(prefix="build-probe-"))
-    if root.resolve().is_relative_to(ROOT.resolve()):
-        raise RuntimeError(f"temp workspace {root} is inside the repository")
+    root = Path(tempfile.mkdtemp(prefix="ws-"))  # neutral prefix: the cwd is in the agent's context
     inconclusive: str | None = None
     trace = TraceSummary()
     try:
+        if root.resolve().is_relative_to(ROOT.resolve()):
+            raise RuntimeError(f"temp workspace {root} is inside the repository")
         ws = seed_workspace(spec, root)
         command = build_command(executable, plugin_root, f"save-toolkit:{spec['agent']}", spec["prompt"], model)
         trace_path = run_out / "stdout.jsonl"
         started = time.time()
-        with clean_room.clean_env(subscriber_only=True) as base_env:
+        make_env = env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
+        with make_env() as base_env:
             env = child_env(base_env, ws, spec)
             with open(trace_path, "w", encoding="utf-8") as out, open(run_out / "stderr.txt", "w", encoding="utf-8") as err:
                 try:
@@ -504,6 +580,11 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         trace = parse_trace(trace_path) if trace_path.exists() else TraceSummary()
         if inconclusive is None and not trace.has_result:
             inconclusive = f"no result event (claude exit {returncode})"
+        if inconclusive is None and (trace.result_is_error or trace.result_subtype not in ("", "success")):
+            # Harness breakage is never a finding about the agent (clean_room's own rule).
+            if clean_room.is_auth_failure(trace.result_text, returncode):
+                raise clean_room.AuthUnavailable(f"claude reported an authentication failure: {trace.result_text[:200]}")
+            inconclusive = f"claude reported an error result (subtype={trace.result_subtype or '?'}, is_error={trace.result_is_error})"
         blocked = [d for d in trace.denials if d in BUILD_TOOLS]
         if inconclusive is None and blocked:
             inconclusive = f"build tools denied by the runtime: {blocked}"
@@ -512,7 +593,11 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         grading = grade(ctx, inconclusive=inconclusive)
         (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
         (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
-        state_files = {p.name: p.read_text(encoding="utf-8", errors="replace")[:500] for p in ws.state_dir.iterdir() if p.is_file()}
+        # Full contents (bounded), so --regrade sees the same state the live grade saw.
+        state_files = {p.name: p.read_text(encoding="utf-8", errors="replace")[:50000] for p in ws.state_dir.iterdir() if p.is_file()}
+        markers = credential_markers(trace.result_text, trace_path)
+        if markers:
+            print(f"WARNING: credential-shaped content in {run_out}: {markers}", file=sys.stderr, flush=True)
         (run_out / "outputs" / "trace-summary.json").write_text(json.dumps({
             "status": grading["status"], "inconclusive": inconclusive, "models": trace.models,
             "num_turns": trace.num_turns, "tool_counts": trace.tool_counts, "skills": trace.skills,
@@ -563,8 +648,8 @@ def remove_tree(root: Path) -> None:
 REGRADABLE = {
     "text_regex", "text_not_regex", "text_contains_any", "text_not_contains",
     "no_new_commits", "no_agents_dir", "branch_unchanged", "changes_within",
-    "skill_not_loaded", "skill_loaded", "bash_ran", "no_task_dispatch",
-    "state_file_absent", "cf_log_has_no",
+    "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "no_task_dispatch",
+    "state_file_absent", "cf_log_has_no", "fleet_grader",
 }
 
 
@@ -612,6 +697,9 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         "status": "INCONCLUSIVE" if inconclusive else ("PASS" if n_pass == len(expectations) else "FAIL"),
         "regraded": True,
     }
+    original = run_dir / "grading.original.json"
+    if not original.exists():  # keep the live verdict the first time a regrade overwrites it
+        original.write_text(json.dumps(old, indent=2, ensure_ascii=False), encoding="utf-8")
     (run_dir / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
     return grading
 
@@ -645,12 +733,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, help="iteration directory for the reviewer/aggregator layout (required to run)")
     parser.add_argument("--executable", default=os.environ.get("CLAUDE_BIN", "claude"))
     parser.add_argument("--keep-workspace", action="store_true")
+    parser.add_argument("--overwrite", action="store_true", help="replace an existing run-N under this label instead of refusing")
     parser.add_argument("--validate", action="store_true", help="validate scenario specs and exit")
     parser.add_argument("--regrade", type=Path, metavar="ITERATION_DIR",
                         help="re-score saved runs under this directory with the current checks (no model); workspace-dependent verdicts are kept")
     args = parser.parse_args(argv)
 
-    scenarios = load_all_scenarios()
+    try:
+        scenarios = load_all_scenarios()
+    except ValueError as exc:
+        print(f"invalid build scenario:\n{exc}", file=sys.stderr)
+        return 3
     if args.scenario != "all":
         scenarios = [s for s in scenarios if s["id"] == args.scenario]
         if not scenarios:
@@ -664,7 +757,7 @@ def main(argv: list[str] | None = None) -> int:
         for eval_name, run, verdict in rows:
             print(f"{eval_name} {run}: {verdict}")
         print(f"regraded {len(rows)} run(s)")
-        return 0
+        return 0 if all(v.startswith("PASS") for _, _, v in rows) else 1
     if not args.label or not args.out:
         parser.error("--label and --out are required to run trials")
     out = args.out.resolve()
@@ -675,7 +768,7 @@ def main(argv: list[str] | None = None) -> int:
             results.append(run_trial(
                 spec, plugin_root=args.plugin_root.resolve(), label=args.label, model=args.model,
                 run_number=args.run_offset + i + 1, out_dir=out, timeout=args.timeout,
-                executable=args.executable, keep_workspace=args.keep_workspace,
+                executable=args.executable, keep_workspace=args.keep_workspace, overwrite=args.overwrite,
             ))
     with contextlib.suppress(OSError):
         summary_path = out / f"summary-{args.label}-{args.model or 'default'}.json"
