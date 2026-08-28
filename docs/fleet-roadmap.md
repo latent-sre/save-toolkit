@@ -547,12 +547,14 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Merge the `agent-authoring` slice. `backend-craft` is in progress on its own branch
-with the same checkpoint. After it, take the knowledge-heavy candidates first — `gcp-ops` and
-`obs-alerting`, where the probe method found frontend-sized recitation — and close the doctrine
-skills (`service-lifecycle`, `service-readiness-audit`, `operational-learning`, `root-cause`,
-`postmortem`) with a clean-room probe as the receipt for a retain disposition. Do not requeue a
-Phase 1 skill or rewrite discovery descriptions.
+**Next action:** The candidate set is the seven entrypoints at or above the 7,500-byte screen.
+`backend-craft` is in progress on its own branch with the clean-room checkpoint. Then, one per
+slice: `gcp-ops` and `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
+recitation), `obs-dashboards` and `runbook` (large, with live-write authority text and a worked
+exemplar to retain explicitly), `incident-drill` (explicit-invocation only; its references are drill
+packs), and `workflow-graph-engineering` (its own review already records why the entrypoint stays
+long — commit that as its disposition after a checkpoint). Skills below the screen owe no
+disposition. Do not requeue a Phase 1 skill or rewrite discovery descriptions.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
