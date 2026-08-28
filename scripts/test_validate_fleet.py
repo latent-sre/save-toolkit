@@ -377,6 +377,32 @@ class FleetValidatorTests(unittest.TestCase):
                 with self.subTest(contract=relative.as_posix(), phrase=phrase):
                     self.assertIn(phrase, text)
 
+    def test_operational_learning_checkout_and_root_trust_have_regression_scenarios(self) -> None:
+        expectations = {
+            Path("evals/scenarios/agent-direct-scribe-checkout-binding-permits-prepared.yaml"): (
+                "git rev-parse head",
+                "checkout binding as [verified]",
+                "as prepared",
+            ),
+            Path(
+                "evals/scenarios/agent-direct-scribe-checkout-binding-bare-assertion-stays-proposed.yaml"
+            ): (
+                "bare checkout assertion to [unverified]",
+                "missing command and output",
+                "proposed or blocked",
+            ),
+            Path("evals/scenarios/agent-direct-scribe-checkout-binding-forbidden-root-blocked.yaml"): (
+                "agents/catalog/",
+                "not a documentation root",
+                "blocked",
+            ),
+        }
+        for relative, phrases in expectations.items():
+            text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
+            with self.subTest(scenario=relative.as_posix()):
+                for phrase in phrases:
+                    self.assertIn(phrase, text)
+
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
         fields, body, _ = validate_fleet.adapters.parse_frontmatter(
             ROOT / "agents" / "observability-engineer.md"
