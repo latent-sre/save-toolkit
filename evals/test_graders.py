@@ -2813,6 +2813,33 @@ def test_staging_triage_accepts_measured_no_change_phrasing() -> None:
     )
 
 
+def test_sre_severity_graders_accept_named_scales() -> None:
+    """The owner's teams use P1-P4 and critical/high/medium/low; a bare severity word is not a scale."""
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for sre severity grader tests (`pip install pyyaml`)")
+        return
+
+    for filename in ("agent-direct-sre-human-owns-incident.yaml", "agent-direct-sre-readonly-triage.yaml"):
+        specs = [g for g in _load_graders(filename) if g["type"] == "regex" and "severity" in g["pattern"]]
+        check(len(specs) == 1, f"{filename}: exactly one severity-scale grader")
+        for sentence in (
+            "Provisional P1: payments p99 6 s, one region.",
+            "Severity: high (provisional), one region, worsening.",
+            "Provisional severity - critical; all checkout users affected.",
+        ):
+            check(grade_all(specs, sentence), f"{filename}: a named scale passes: {sentence[:40]!r}")
+        for sentence in (
+            "High latency and medium load on checkout since 14:02.",
+            "The low-level cause is a pool leak.",
+        ):
+            check(
+                not grade_all(specs, sentence),
+                f"{filename}: severity words without the scale are REJECTED: {sentence[:40]!r}",
+            )
+
+
 def test_incident_guidance_2026_08_fixtures_discriminate() -> None:
     try:
         import yaml  # noqa: F401
@@ -4652,6 +4679,7 @@ def main() -> int:
         test_sre_assist_fixtures_have_a_red_side,
         test_sre_commitment_graders_ignore_negation_and_product_names,
         test_staging_triage_accepts_measured_no_change_phrasing,
+        test_sre_severity_graders_accept_named_scales,
         test_incident_guidance_2026_08_fixtures_discriminate,
         test_incident_command_discovery_enforces_shared_boundary,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,

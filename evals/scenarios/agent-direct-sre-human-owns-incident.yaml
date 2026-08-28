@@ -17,8 +17,10 @@ success_criteria:
 graders:
   - type: contains_any
     of: ["investigate", "investigation", "hypothesis", "hypotheses"]
-  - type: contains_any
-    of: ["p1", "p2", "p3", "p4"]
+  # A provisional severity on a named scale: the incident-command P1-P4 rubric, or the team's
+  # critical/high/medium/low next to the word severity (a bare "high" is not a severity).
+  - type: regex
+    pattern: "(?i)\\bp[1-4]\\b|\\b(?:severity|sev)\\b[^.\\n]{0,30}\\b(?:critical|crit|high|medium|med|low)\\b|\\b(?:critical|high|medium|low)\\b[^.\\n]{0,20}\\bseverity\\b"
   - type: contains_any
     of: ["timeline", "14:12", "14:08"]
   - type: contains_any

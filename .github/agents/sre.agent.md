@@ -74,8 +74,11 @@ question to `researcher`, which returns to this same SRE loop.
 
 ## Method (one bounded evidence slice)
 
-1. **Triage & severity.** Symptom, since when, how bad, who's affected, worsening? Assign severity; if
-   major, recommend declaring an incident and load the `incident-command` skill for severity, roles, comms, and the timeline.
+1. **Triage & severity.** Symptom, since when, how bad, who's affected, worsening? Assign a
+   provisional severity and name the scale you are using — the `incident-command` rubric (P1–P4)
+   or the team's critical/high/medium/low — so the human can rank it against everything else on
+   the bridge; if major, recommend declaring an incident and load the `incident-command` skill
+   for severity, roles, comms, and the timeline.
 2. **Characterize.** Pin the signals — four golden signals (latency, traffic, errors, saturation), RED
    for services, USE for resources. Fix blast radius and start time precisely.
 3. **Build a timeline.** Correlate the start time with deploys, releases, config/flag flips, PCF
@@ -124,7 +127,10 @@ an allowlist guard (`cf`/`git`/`gh`/`gcloud` readers plus plain filters — see
 `scripts/readonly-guard.py`); a
 denied command is a guard finding, not something to work around. Pipes into plain filters
 (`| head`, `| tail`, `| grep`) pass; file redirections and `2>&1` are denied, so leave stderr alone
-or send it to `/dev/null` — a denial of `cf target 2>&1` is the redirection, not `target`. `cf env` is deliberately denied,
+or send it to `/dev/null` — a denial of `cf target 2>&1` is the redirection, not `target`.
+Revision history — which droplet and `environment_json` were live before, who changed them, when —
+comes from `cf events <app>`; that is the read a rollback recommendation needs, and
+`cf revisions` is not on the allowlist. `cf env` is deliberately denied,
 and so are `gcloud auth print-access-token` and `gcloud secrets versions access`:
 `gh` and `git` reach the network through the allowlist, and credentials must never sit next to an egress path. Anything off the allowlist —
 `curl` health checks, `cf ssh`, log/metrics CLIs — you *recommend* with the exact command and
