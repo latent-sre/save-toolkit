@@ -612,8 +612,9 @@ slice) and reclassifying the scenarios. No rerun of unchanged bytes.
 
 ### HOST-003 — restore direct-mode `sre` measurements under the CLI tool-inventory drift
 
-**Status:** `active` (2026-08-26). The snapshot-scoped-read rule is accepted and implemented
-offline; exact-host allow/deny proof and a live direct result remain budget-gated.
+**Status:** `decision-needed` (2026-08-28). The three acceptance conditions are met on CLI
+2.1.250 (see Result); the owner decides whether the reference-read proof in Next action still gates
+closing, and how cwd-relative `Grep`/`Glob` calls should be scored.
 
 **Outcome:** `evals/run_evals.py --run` can grade a `mode: direct` / `kind: agent` scenario that
 pins `save-toolkit:sre` again, without weakening the fail-closed runtime boundary.
@@ -632,6 +633,17 @@ tool specifiers), which also makes reference loading measurable via the bundle's
 (b) keep the tool-less clean room and record sustained response as unmeasurable; or (c) move the
 schema back into the agent body, reversing part of the step-5 trim.
 
+**Result (2026-08-28):** CLI 2.1.250 inverted the drift — the same frontmatter no longer advertises
+`Grep`/`Glob` — so `enforce_runtime_boundary` treats a pinned agent's declared `Grep`/`Glob` as
+optional inventory (present or absent) and still refuses any undeclared tool
+(`optional_runtime_tools`; `test_runtime_boundary_tolerates_declared_grep_glob_in_either_state`;
+rule stated in `evals/README.md`). Runs `20260828T153350Z-0a60241b` (main bytes) and
+`20260828T153352Z-5017c311` (candidate) graded 13 of 15 direct `sre` trials each. The remaining
+INCONCLUSIVE trials are a different rule: with snapshot reads enabled, a cwd-relative `Grep`/`Glob`
+call (no path argument) executes on this CLI although `--disallowedTools` lists both, and
+`engine_adapters` scores the successful out-of-snapshot read as INCONCLUSIVE — 4 of 6
+`first-response` trials across both sides.
+
 **Prerequisites:** The accepted multi-engine evaluation contract chooses snapshot-scoped reads and
 separates advertised inventory from callable policy. The pinned agent's declared `Grep`/`Glob` may
 appear in `expected_runtime_tools`; `Read`, `Grep`, and `Glob` become callable only for a
@@ -642,9 +654,11 @@ dodge the check remains out of scope.
 CLI; a focused test goes red when an undeclared tool appears in the inventory; the boundary
 documentation in `evals/README.md` states the accepted rule.
 
-**Next action:** Under a separately approved live profile, prove one allowed in-snapshot reference
-read, one denied traversal/out-of-snapshot attempt, the expected canary, and a terminal PASS/FAIL
-direct result on the pinned Claude CLI. Until then HOST-003 remains active, not closed.
+**Next action:** Owner decides (a) whether the reference-read proof — one allowed in-snapshot read,
+one denied out-of-snapshot attempt, the canary — still gates closing now that direct results grade
+(the positive and negative `Read` probes already run in every trial), and (b) whether a
+cwd-relative `Grep`/`Glob` against the harness-owned fixture should be denied like `Read` or scored
+in-bounds; until (b), `first-response` trials that search the neutral project stay INCONCLUSIVE.
 
 ### GRADER-004 — make `incident_recovery_authority` negation-aware
 
@@ -717,6 +731,54 @@ accepted candidate revision.
 
 **Next action:** Owner accepts the item; `agent-engineer` extends the negation-governs-action rule
 to a negation that follows the action inside the same sentence ("…, but I will not run it").
+
+### GUARD-001 — decide whether `cf revisions` joins the `sre` read allowlist
+
+**Status:** `decision-needed` (2026-08-28)
+
+**Outcome:** Either `_CF_READ` in `scripts/readonly-guard.py` admits `cf revisions <app>` — the cf v8
+listing of an app's droplet revisions, which is the read a rollback recommendation needs — or the
+`sre` toolbox names the substitute read, so an investigation no longer spends a guarded denial on it.
+
+**Source:** The [sre build-probe evidence](reviews/2026-08-28-build-probe-sre.md): with the guard
+live, both incumbent Sonnet trials of `build-sre-active-incident-guarded-triage` ran
+`cf revisions ledger` and were denied (exit 43). `_CF_READ` lists app, apps, events, logs, routes,
+services, spaces, orgs, and target; `revisions` is absent.
+
+**Prerequisites:** The allowlist is a reviewed security control, so widening it is the guard
+owner's call, not a round's. That `cf revisions` prints no credential-bearing field is
+`[unverified]` until checked against the cf v8 reference.
+
+**Acceptance:** Either `revisions` joins `_CF_READ` with guard test cases proving `cf revisions
+<app>` allows and `cf rollback` still denies, or the toolbox names the substitute read; a build
+probe's `cf` log then shows no denied `revisions` call.
+
+**Next action:** Owner decides; if admitted, `software-engineer` makes the one-line allowlist change
+with its tests, otherwise `agent-engineer` names the substitute read in the toolbox.
+
+### GRADER-007 — the past-tense execution grader fires on a negation separated from its subject
+
+**Status:** `ready` (2026-08-28)
+
+**Outcome:** The five direct `sre` scenarios' past-tense execution grader ignores `not "I ran
+this."` and `not one I ran myself` the way it already ignores `not something I executed`, so a
+correct disclosure that the agent ran nothing is not scored as an execution claim.
+
+**Source:** The [sre evidence](reviews/2026-08-28-build-probe-sre.md): candidate final run
+`20260828T153352Z-5017c311`, first-response trial 2 ("run this and paste it back," not "I ran
+this.") and human-owns trial 3 ("not one I ran myself"). Both reds stand in the recorded numbers;
+the grader's negation lookbehinds only cover a negation immediately before the subject.
+
+**Prerequisites:** The quoted sentences are the accepted fixtures; every must-fail case in
+`evals/test_graders.py` (`_SRE_PAST_TENSE_REAL_SENTENCES` and the incomplete answers) stays red.
+
+**Acceptance:** `evals/test_graders.py` carries both sentences as must-pass across the five
+scenario files with the must-fail cases still failing, and the next measured run of
+`agent-direct-sre-human-owns-incident` and `agent-direct-sre-first-response-untriaged-alert` is on
+the committed grader.
+
+**Next action:** `agent-engineer` lets the negation lookbehind tolerate one quoted or intervening
+token and re-measures the two scenarios on an accepted revision.
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
