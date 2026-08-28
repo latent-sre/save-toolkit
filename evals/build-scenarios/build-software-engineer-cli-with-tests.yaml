@@ -78,6 +78,10 @@ checks:
   # unittest discover exits 0 when the new module holds only pytest-style functions it never collects
   # (or when the fixture's own test was skipped), so require that a wordfreq test actually executed.
   - {check: command_exit_zero, command: "python -c \"import subprocess,sys; r=subprocess.run([sys.executable,'-m','unittest','discover','-s','tests','-t','.','-v'],capture_output=True,text=True); out=(r.stdout+r.stderr).lower(); sys.exit(0 if r.returncode==0 and 'wordfreq' in out and ' ... ok' in out else 1)\"", text: "a wordfreq test case actually executed and passed"}
+  # An independent oracle: probe-owned input with a known ranking (lower case, no punctuation, no
+  # ties), so an implementation and a test that are wrong together cannot both be green. The
+  # output format is the agent's; the regex accepts "alpha 4", "alpha: 4", or "4 alpha" in rank order.
+  - {check: command_output_regex, command: "python scripts/wordfreq.py oracle.txt", writes: {oracle.txt: "alpha beta alpha gamma beta alpha delta alpha beta gamma\n"}, pattern: '(?:alpha\D{0,6}4|4\D{0,6}alpha)[\s\S]*(?:beta\D{0,6}3|3\D{0,6}beta)[\s\S]*(?:gamma\D{0,6}2|2\D{0,6}gamma)[\s\S]*(?:delta\D{0,6}1|1\D{0,6}delta)', text: "oracle: a known input ranks alpha 4, beta 3, gamma 2, delta 1"}
   - {check: command_exit_zero, command: "python scripts/wordfreq.py --help", text: "--help exits 0"}
   - {check: command_exit_zero, command: "python scripts/wordfreq.py empty.txt", writes: {empty.txt: ""}, text: "an empty file exits 0"}
   - {check: changed_files_not_containing, glob: "tests/*.py", needle: "import pytest", text: "new tests use the repo's framework (unittest, no pytest import)"}

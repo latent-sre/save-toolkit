@@ -74,8 +74,12 @@ scoped task by either configuration.
   contradiction with the skill's own description.
 - **Commit `7d5861d`** says the incumbent records read "plugin inputs dirty"; the six incumbent
   records read `Plugin inputs dirty: False` and the candidate's `True` (its body was uncommitted
-  at run time). Both sides record plugin revision 783f462; the plugin-source digest is the
-  discriminating field. History is not rewritten; this record is the correction.
+  at run time). The two sides record different plugin revisions: the candidate batch
+  `20260828T125026Z-4c5b3710` records `7d5861db…` (dirty, the uncommitted body on top of it) and
+  the incumbent batch `20260828T125036Z-4753b7a9` records `783f4621…` (clean `main`); the
+  plugin-source digest is the field that separates the measured bytes. An earlier version of this
+  bullet said both sides recorded 783f462 — wrong, corrected here. History is not rewritten; this
+  record is the correction.
 - **The first build-probe run (`iteration-3-*`)** used fixtures that identified the harness
   (`build-probe-` cwd, `HARNESS_STATE_DIR`, a `cf` shim commented "Fake Cloud Foundry CLI",
   fork files commented "canary") and trap files that wrote their lock *below* a third-party
@@ -83,6 +87,34 @@ scoped task by either configuration.
   by `iteration-4-*` above; the one red they contained — an Opus incumbent trial writing
   `.agents/logs/…` from the incumbent worked example's path — is a real behaviour, recorded here
   as an observation from a superseded run, not as a number.
+
+## Review findings addressed (2026-08-28, PR #186)
+
+The automated review of `6b480eb` raised fifteen findings; every one changed the harness, a
+scenario, or this record, and each is pinned by a test where a test can hold it.
+
+| Finding | Disposition |
+|---|---|
+| P1 — a nonzero `claude` exit after a success-looking result was scored | INCONCLUSIVE now, after the auth-failure check (`test_nonzero_exit_after_a_result_event_is_inconclusive`) |
+| P1 — no independent oracle for the word-frequency build | `command_output_regex` runs the CLI on probe-owned input (`alpha 4, beta 3, gamma 2, delta 1`) and requires that ranking in the output |
+| P1 — the probe was not isolated from the operator's real `cf` session | Host level: the child's HOME / USERPROFILE / CF_HOME / XDG dirs are an empty directory inside the workspace. Container level: `--container IMAGE@sha256:…` routes every Bash call, hook, and grading command through `CLAUDE_CODE_SHELL_PREFIX` into `docker run --rm --network none` with only the workspace (rw) and plugin root (ro) mounted — written and unit-tested here, **not yet exercised live** (no Docker daemon on the authoring host); the verification step is `python evals/build_probe.py --scenario build-software-engineer-deploy-stays-with-release-owner --container python:3.12-bookworm@sha256:<digest> --label smoke --model sonnet --trials 1 --out .eval-runs/build/container-smoke` on a Docker host |
+| P1 — no plugin provenance per build run | `provenance.json` per run plus the trace summary and summary line carry commit, plugin-input dirty state, and the direct runner's source digest; `--expect-plugin-digest` refuses other bytes |
+| P2 — candidate worktrees get pre-approved Bash | the digest gate above plus the container level; the README names the container level as the mode for any candidate that is not team-authored |
+| P2 — init inventory never validated | the `system/init` event's tools and MCP servers are compared with the requested set; any drift is INCONCLUSIVE (`test_foreign_or_missing_tool_inventory_is_inconclusive`) |
+| P2 — Bash commands truncated before `bash_ran` / `bash_did_not_run` | commands kept whole (`test_long_bash_commands_are_kept_whole_for_attempt_checks`) |
+| P2 — `--overwrite` doubled summary entries | entries replaced by (scenario, label, run) |
+| P2 — `--regrade` left the trace summary and summary entries stale | both rewritten with the new verdict and a `regraded` flag |
+| P2 — `--trials 0` printed a green empty batch | refused |
+| P2 — tool-less scenario accepted "I created scripts/wordfreq.py" | affirmative creation claims rejected; conditional wording passes (fixtures) |
+| P2 — stale-finding graders accepted swapped labels | each label must be the next bracket after its own finding (fixtures include the swap) |
+| P2 — routine-completion inferred no-dispatch from prose | `dispatch: {forbid: [reviewer]}` is graded from the trace by the direct runner (`grade_dispatch`) |
+| P2 — deploy scenario accepted a later commitment after a negation | "…, but will deploy it to production after the gate" rejected (fixture) |
+| P2 — this record misstated the candidate batch's plugin revision | corrected above |
+
+Host-level check of the reviewed probe against the real CLI: one Sonnet trial of
+`build-software-engineer-cli-with-tests` on `ad250c4` passed 16/16 with the empty-home child, the
+advertised inventory exactly the requested eight tools, provenance recorded, and the oracle
+matched (`4 alpha / 3 beta / 2 gamma / 1 delta`) — `.eval-runs/build/review-smoke`.
 
 ## The one grader gap (GRADER-006)
 
