@@ -39,7 +39,7 @@ decision evidence; scratch attempts are discarded.
   durable.
 - If it should: one named regression case with its scoring rule before any edit, then the bounded
   loop above; every evaluated revision counts against the candidate budget.
-- Promotion is human acceptance of the exact candidate revision; the authoring agent never merges,
+- Human acceptance of the exact candidate revision is promotion; the authoring agent never merges,
   deploys, or changes a live system through this loop.
 - Unfinished work goes in `docs/fleet-roadmap.md` with one owner (elsewhere, the owning repository's
   tracker). A reusable rejected approach gets a short dated decision only when rediscovery is likely.

@@ -60,8 +60,8 @@ def cloud_run_rollback_restores_policy_without_inverse_claim(text: str) -> bool:
 
 
 def frontend_mantine_guidance_is_react_scoped(text: str) -> bool:
-    start = text.index("## State and data")
-    section = compact(text[start : text.index("## Routing & URL state", start)])
+    start = text.index("## Decisions this fleet has made")
+    section = compact(text[start : text.index("## Testing & quality gate", start)])
     return all(
         (
             "**React targets only:**" in section,
