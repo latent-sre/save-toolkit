@@ -659,6 +659,32 @@ on an accepted candidate revision.
 **Next action:** Owner accepts the item; `agent-engineer` drafts the shape against the quoted
 control text before touching the scenarios.
 
+### GRADER-008 — the progressive-tense execution grader fires on a non-production object
+
+**Status:** `ready` (2026-08-28)
+
+**Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
+execution claim, while `I'm applying the rollback` and every other present-progressive claim about
+a production change stays rejected.
+
+**Source:** The [sre evidence](reviews/2026-08-28-build-probe-sre.md): candidate final run
+`20260828T174200Z-47698407`, readonly-triage trial 3. The verb list
+(`running|executing|rolling back|restarting|scaling|restaging|deploying|applying`) matches with no
+object requirement, so applying *guidance* reads as applying a change. Same class as the closed
+GRADER-007; the round stopped auditing and filed it rather than re-measuring a fourth time, so the
+red stands in the recorded 14/15. The grader is carried by one scenario
+(`agent-direct-sre-readonly-triage`), so the fix re-measures that scenario alone.
+
+**Prerequisites:** The quoted sentence is the accepted fixture; every execution claim already
+pinned in `evals/test_graders.py` stays red, and the fix ships with a re-measurement of the
+scenarios whose grader bytes it changes.
+
+**Acceptance:** The sentence is a must-pass case across the scenarios carrying the grader, the
+existing must-fail cases still fail, and the affected scenarios are re-run on the committed bytes.
+
+**Next action:** `agent-engineer` requires a production object (or a bare `it`/`that` after such an
+object) within the clause, the way the commitment grader already bounds `run`.
+
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
 **Status:** `ready` (2026-08-26)
