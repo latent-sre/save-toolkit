@@ -70,7 +70,7 @@ stays with `observability-engineer`; code or automation stays with `software-eng
 - A service card links authoritative configuration and alert definitions; it does not become a
   second configuration source of truth.
 - Approved component changes disposition the service card, knowledge index, and runbook. Approved
-  alert changes disposition the alert card, service card, and runbook.
+  alert changes disposition the alert card, service card, knowledge index, and runbook.
 - `duplicate` names the existing owning artifact and its supporting evidence. If that cannot be
   established, use `proposed` or `blocked`.
 - `last_reviewed` starts `null` and changes only after human or separately authorized document

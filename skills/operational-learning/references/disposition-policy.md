@@ -9,9 +9,9 @@ disposition-state definitions, default paths, and the evidence rules.
 | Observed event | Required disposition |
 |---|---|
 | An application, service, worker, job, datastore, platform, or other component is approved or materially changes | Create or update its component card and knowledge index; propose missing alert, runbook, ownership, dependency, backup/restore, or SLO work. |
-| A component is decommissioned | Move its component card to `lifecycle: retired` and set its knowledge-index lifecycle cell to `retired` with it, dated and citing the authorizing record; move dependent alert cards to `status: retired` and its runbooks to `status: retired` rather than deleting any of them; name every artifact and dependent component still referencing it. Removing live alerts, telemetry, dashboards, or platform resources is a production change under the existing gate, never a documentation disposition. |
+| A component is decommissioned | Move its component card to `lifecycle: retired` and set its knowledge-index lifecycle cell to `retired` with it, dated and citing the authorizing record; move dependent alert cards to `status: retired` and their knowledge-index `Status` cells to `retired`, and its runbooks to `status: retired` rather than deleting any of them; name every artifact and dependent component still referencing it. Removing live alerts, telemetry, dashboards, or platform resources is a production change under the existing gate, never a documentation disposition. |
 | An audit finds a gap on an otherwise unchanged component | Disposition each finding against the component card, knowledge index, runbook, and alert card, and propose the missing alert, ownership, dependency, backup/restore, or SLO work under one owner. Record the dated verdict in the component card's open-gaps table and the index's recent-updates row. The verdict is document review — at most `[sourced]` to the dated audit record — and never moves `last_verified`; findings keep their incoming labels. |
-| An alert is approved or materially changes | Create or update the alert card, link its service card and authoritative alert definition, and require a valid runbook target before paging. |
+| An alert is approved or materially changes | Create or update the alert card and the alert's knowledge-index row, including its `Status` cell; link its service card and authoritative alert definition; and require a valid runbook target before paging. |
 | An alert fires | Active event: route investigation and recommended action to `sre`; prepare no retrospective or KB change until resolution. |
 | A runbook is missing or contradicted by evidence | Create or update it through `scribe` plus `runbook`; retain unsupported commands as `[unverified]`. |
 | A drill exposes a bad or missing step | Update the runbook from the supplied drill record; change `last_verified` only when evidence binds artifact/version, target, actor, time, and outcome. |
@@ -31,9 +31,10 @@ mounted checkout's current full SHA equals the target revision. The rest:
 A `proposed` or `blocked` disposition becomes repository state only when it lands. When a diff is
 prepared under the checkout binding, that same diff adds the row to the index's Open knowledge gaps
 table — or to the component card's open-gaps table when the target index has none — carrying gap,
-artifact, status, owner, tracking link, and evidence label, never the blocking excerpt. Without a
-binding, the handoff's `Follow-up:` line carries a caller-supplied tracker reference or names the
-owner who files it.
+artifact, status, owner, tracking link, and evidence label, never the blocking excerpt. Whenever no
+such diff can be prepared — no binding, a mismatched binding, or another named blocker — the
+handoff's `Follow-up:` line carries a caller-supplied tracker reference or names the owner who
+files it.
 
 ## Default paths when the repository has no convention
 
