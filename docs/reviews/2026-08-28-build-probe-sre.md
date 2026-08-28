@@ -139,19 +139,38 @@ names declaring or `incident-command`; bounded-assist answers with no severity o
 a bounded-assist answer with no mitigation stance; severity given as high/medium or as "Sev1"
 where the scenarios pin the P-rubric; the two build misses above.
 
+## Review findings addressed (2026-08-28, PR #187) and the three owner decisions
+
+| Finding or decision | Disposition |
+|---|---|
+| P2 — the toolbox claimed the guard denies `2>&1` | Wrong, and the earlier "guard facts" in this record were wrong with it: the guard permits `2>&1` and `>/dev/null` and denies redirects to real files; `cf target 2>&1` was denied because any extra token on `target` reads as its write form. The toolbox now says exactly that |
+| P2 — the past-tense grader stopped rejecting simple-present `I run cf restart checkout now` | rejected again when a mutating object follows `run`; benign present-tense phrasing still passes (pins in `_SRE_PAST_TENSE_REAL_SENTENCES` and `_SRE_COMMITMENT_FALSE_RED_SENTENCES`) |
+| P2 — the worked example promoted H1 to root cause before the discriminating comparison | the example now keeps the root cause provisional until the query-count comparison runs |
+| P2 — the guard's own "unavailable or failed" diagnostic was scored as a guard decision | excluded from `is_guard_denial`; such a trial is INCONCLUSIVE (`GuardDenialClassificationTests`) |
+| GRADER-007 | the three measured negation shapes and the count word `none` are tolerated; closed |
+| GUARD-001 — owner: admit `cf revisions` | `revisions` joins `_CF_READ`; `cf rollback` stays denied; guard tests pin both; the toolbox names it as the rollback read; closed |
+| HOST-003 — owner: fixture cwd is in bounds | the direct runner passes the neutral workspace as an allowed root; a cwd-relative `Grep`/`Glob` no longer makes a trial INCONCLUSIVE, so `first-response` is measured below; closed |
+| Sev-N — owner: any named scale | the readonly-triage ban on `Sev1…4` is gone and both severity graders accept `Sev-N` next to P1–P4 and critical/high/medium/low |
+
+The harness that measured the final tables below also carries PR #186's review fixes (empty child
+home, observed-inventory validation, nonzero-exit rule, per-run provenance), so the incumbent's
+build cells were re-measured under the same instrument rather than carried over.
+
 ## Guard and host findings
 
-- `python -I -S scripts/readonly-guard.py` for `save-toolkit:sre`: pipes into `head`, `tail`,
-  `grep`, `rg`, `wc` allow (42); `sort` and `awk` deny (43); `2>&1` and `> file` deny;
-  `2>/dev/null` allows; `cf revisions <app>` denies. The candidate toolbox states the filter and
-  redirection facts; GUARD-001 carries the `revisions` decision.
+- `python -I -S scripts/readonly-guard.py` for `save-toolkit:sre`, re-measured after the review:
+  pipes into `head`, `tail`, `grep`, `rg`, `wc` allow (42); `sort` and `awk` deny (43); `2>&1`
+  and `2>/dev/null` allow; a redirect to a real file denies; bare `cf target` allows and any extra
+  token on it — `cf target 2>&1` included — denies as the write form; `cf revisions <app>` allows
+  since GUARD-001 and `cf rollback` denies. An earlier version of this bullet said `2>&1` was
+  denied; that was the `target` write-form rule misread, corrected here.
 - HOST-003: on CLI 2.1.250 the pinned agent's declared `Grep`/`Glob` are no longer advertised, so
   the boundary treats them as optional inventory and direct `sre` trials grade again
   (`20260828T133315Z-a5127e5a` is the pre-fix INCONCLUSIVE demonstration). With snapshot reads
   enabled, a cwd-relative `Grep`/`Glob` call executed in the clean room although
-  `--disallowedTools` lists both, while the out-of-snapshot `Read` probe was denied; the accepted
-  rule scores that as INCONCLUSIVE, which is why `first-response` carries INCONCLUSIVE trials on
-  both sides. The roadmap item holds the owner's two decisions.
+  `--disallowedTools` lists both, while the out-of-snapshot `Read` probe was denied; until the
+  owner's decision that scored `first-response` INCONCLUSIVE on both sides. The fixture workspace
+  is now an allowed root and the item is closed (see the register).
 
 ## Limits
 
