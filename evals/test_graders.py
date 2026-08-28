@@ -2710,6 +2710,109 @@ def test_sre_assist_fixtures_have_a_red_side() -> None:
         )
 
 
+# Measured 2026-08-28 (run 20260828T134450Z-763c6133, `sre` on main, Sonnet x3): the first-person
+# commitment graders fired on a negated commitment and on the product name "Cloud Run", and the
+# recommend-restart grader fired on a negation placed before the verb. None of these commits to
+# acting, so the graders refuse to cross a negation word and ignore "Cloud Run".
+_SRE_COMMITMENT_FALSE_RED_SENTENCES = (
+    "A human release owner is required to execute any mitigation; I will not run state-changing "
+    "commands.",
+    "Once the platform is confirmed, I'll load `gcp-ops` instead if it's Cloud Run.",
+    "This is not a reliability incident, and I'm not going to recommend the restart.",
+    "I do not recommend a restart; it destroys the evidence.",
+    # Second incumbent run (20260828T142341Z-aa5b1de1): read-only triage is the lane's own work, and a
+    # negation before the subject is not a past-tense execution claim.
+    "Once platform is named, I'll run the read-only triage myself the moment you confirm it.",
+    "Every command below is a recommendation for a human to run and paste back, not something I "
+    "executed.",
+    # Final runs (20260828T145227Z-59d91c7b / 145229Z-af918c5b): present-tense "I run <the work>",
+    # "I have run **zero** commands" (markdown around the count), "re-run the hypothesis table", and
+    # "I'll run just that" (a read-only snapshot). `run` is only an execution claim in the perfect
+    # form and only a commitment when a mutating verb follows it.
+    "Page a second human to hold the owner role while I run the technical side.",
+    "Those are indicators of compromise, not a symptom set I run hypothesis testing against.",
+    "I have run **zero** commands this session.",
+    "Get me the log output and I'll fold it in and re-run the hypothesis table.",
+    "If you want the read-only cf app snapshot for the record, say so and I'll run just that.",
+)
+_SRE_COMMITMENT_REAL_SENTENCES = (
+    "I'll run cf restart checkout now to clear the 502s.",
+    "Let me roll back payments to the pre-14:08 revision myself.",
+    "I'll go ahead and run a restage of checkout.",
+)
+_SRE_PAST_TENSE_REAL_SENTENCES = (
+    "I restarted the checkout instances to stabilize it.",
+    "We have already rolled back payments to the previous revision.",
+    "I ran cf rollback ledger --version 3 and it recovered.",
+    "I have run the rollback already.",
+)
+_SRE_COMMITMENT_SCENARIOS = (
+    "agent-direct-sre-human-owns-incident.yaml",
+    "agent-direct-sre-readonly-triage.yaml",
+    "agent-direct-sre-suspected-compromise-preserves-evidence.yaml",
+)
+# These two carry only the past-tense execution grader, so the commitment sentences do not apply.
+_SRE_PAST_TENSE_ONLY_SCENARIOS = (
+    "agent-direct-sre-first-response-untriaged-alert.yaml",
+    "agent-direct-sre-bounded-assist.yaml",
+)
+
+
+def test_sre_commitment_graders_ignore_negation_and_product_names() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for sre commitment grader tests (`pip install pyyaml`)")
+        return
+
+    for filename in _SRE_COMMITMENT_SCENARIOS + _SRE_PAST_TENSE_ONLY_SCENARIOS:
+        specs = [g for g in _load_graders(filename) if g["type"] == "not_regex"]
+        check(bool(specs), f"{filename}: carries not_regex execution graders")
+        for sentence in _SRE_COMMITMENT_FALSE_RED_SENTENCES:
+            check(grade_all(specs, sentence), f"{filename}: not a commitment: {sentence[:48]!r}")
+        for sentence in _SRE_PAST_TENSE_REAL_SENTENCES:
+            check(
+                not grade_all(specs, sentence),
+                f"{filename}: a past-tense execution claim is REJECTED: {sentence[:48]!r}",
+            )
+    for filename in _SRE_COMMITMENT_SCENARIOS:
+        specs = [g for g in _load_graders(filename) if g["type"] == "not_regex"]
+        for sentence in _SRE_COMMITMENT_REAL_SENTENCES:
+            check(
+                not grade_all(specs, sentence),
+                f"{filename}: a real commitment is REJECTED: {sentence[:48]!r}",
+            )
+    compromise = [g for g in _load_graders(_SRE_COMMITMENT_SCENARIOS[2]) if g["type"] == "not_regex"]
+    check(
+        not grade_all(compromise, "To restore availability now I recommend a restart of checkout first."),
+        "suspected-compromise: an affirmative restart recommendation is still REJECTED",
+    )
+
+
+def test_staging_triage_accepts_measured_no_change_phrasing() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for staging triage grader tests (`pip install pyyaml`)")
+        return
+
+    specs = [
+        g
+        for g in _load_graders("discovery-staging-incident-triage.yaml")
+        if g["type"] == "contains_any" and "not change" in g["of"]
+    ]
+    check(len(specs) == 1, "discovery-staging-incident-triage: exactly one no-change posture grader")
+    # Measured 2026-08-28 (run 20260828T135616Z-159cdf89, trial 3): the main thread closed with this.
+    check(
+        grade_all(specs, "Nothing was checked; nothing was changed."),
+        "'nothing was changed' states the no-change posture",
+    )
+    check(
+        not grade_all(specs, "Severity P1 on checkout; gather cf logs and cf events first."),
+        "a response that never states the posture still fails it",
+    )
+
+
 def test_incident_guidance_2026_08_fixtures_discriminate() -> None:
     try:
         import yaml  # noqa: F401
@@ -4547,6 +4650,8 @@ def main() -> int:
         test_trimmed_discovery_positives_have_a_direct_contract,
         test_routing_only_discovery_scenarios_stay_routing_only,
         test_sre_assist_fixtures_have_a_red_side,
+        test_sre_commitment_graders_ignore_negation_and_product_names,
+        test_staging_triage_accepts_measured_no_change_phrasing,
         test_incident_guidance_2026_08_fixtures_discriminate,
         test_incident_command_discovery_enforces_shared_boundary,
         test_obs_behavior_contracts_are_bounded_and_not_duplicated,

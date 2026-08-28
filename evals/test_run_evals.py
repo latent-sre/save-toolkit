@@ -520,6 +520,26 @@ class StreamTraceTests(unittest.TestCase):
         with self.assertRaises(clean_room.RunnerFailed):
             run_evals.enforce_runtime_boundary(extra_tool, expected_tools=("Skill",))
 
+    def test_runtime_boundary_tolerates_declared_grep_glob_in_either_state(self) -> None:
+        """A pinned agent's declared Grep/Glob may be advertised or not (CLI drift, HOST-003).
+
+        Both inventories grade; an undeclared tool still refuses; a missing required tool still refuses.
+        """
+        parsed = run_evals.parse_stream_trace(self._trace())
+        expected, optional = ("Skill", "Task"), ("Glob", "Grep")
+        without = run_evals.ParsedTrace(**{**parsed.__dict__, "available_tools": ("Skill", "Task")})
+        run_evals.enforce_runtime_boundary(without, expected_tools=expected, optional_tools=optional)
+        with_them = run_evals.ParsedTrace(**{**parsed.__dict__, "available_tools": ("Glob", "Grep", "Skill", "Task")})
+        run_evals.enforce_runtime_boundary(with_them, expected_tools=expected, optional_tools=optional)
+        one_of_them = run_evals.ParsedTrace(**{**parsed.__dict__, "available_tools": ("Grep", "Skill", "Task")})
+        run_evals.enforce_runtime_boundary(one_of_them, expected_tools=expected, optional_tools=optional)
+        undeclared = run_evals.ParsedTrace(**{**parsed.__dict__, "available_tools": ("Read", "Skill", "Task")})
+        with self.assertRaises(clean_room.RunnerFailed):
+            run_evals.enforce_runtime_boundary(undeclared, expected_tools=expected, optional_tools=optional)
+        missing_required = run_evals.ParsedTrace(**{**parsed.__dict__, "available_tools": ("Glob", "Grep", "Skill")})
+        with self.assertRaises(clean_room.RunnerFailed):
+            run_evals.enforce_runtime_boundary(missing_required, expected_tools=expected, optional_tools=optional)
+
     def test_direct_agent_tools_are_derived_from_frontmatter(self) -> None:
         reviewer = {"mode": "direct", "target": {"kind": "agent", "name": "reviewer"}}
         sre = {"mode": "direct", "target": {"kind": "agent", "name": "sre"}}
@@ -534,14 +554,19 @@ class StreamTraceTests(unittest.TestCase):
         }
         discovery = {"mode": "discovery", "target": {"kind": "agent", "name": "reviewer"}}
         self.assertEqual(run_evals.expected_runtime_tools(reviewer), ())
-        self.assertEqual(
-            run_evals.expected_runtime_tools(sre),
-            ("Glob", "Grep", "Skill", "Task"),
-        )
+        # A pinned agent's declared Grep/Glob are optional inventory, not required: CLI
+        # 2.1.243-2.1.246 advertised them, 2.1.250 does not, and the same frontmatter must grade on
+        # both (HOST-003). Required stays exact.
+        self.assertEqual(run_evals.expected_runtime_tools(sre), ("Skill", "Task"))
+        self.assertEqual(run_evals.optional_runtime_tools(sre), ("Glob", "Grep"))
         self.assertEqual(
             run_evals.expected_runtime_tools(sre, enable_snapshot_reads=True),
-            ("Glob", "Grep", "Read", "Skill", "Task"),
+            ("Read", "Skill", "Task"),
         )
+        # reviewer declares Read/Grep/Glob with no Skill/Agent: nothing required, Grep/Glob optional.
+        self.assertEqual(run_evals.optional_runtime_tools(reviewer), ("Glob", "Grep"))
+        self.assertEqual(run_evals.optional_runtime_tools(researcher), ())
+        self.assertEqual(run_evals.optional_runtime_tools(discovery), ())
         self.assertEqual(run_evals.expected_runtime_tools(skill), ("Skill", "Task"))
         self.assertEqual(
             run_evals.expected_runtime_tools(skill, enable_snapshot_reads=True),
@@ -663,7 +688,7 @@ class StreamTraceTests(unittest.TestCase):
                     plugin_root=root,
                 )
 
-            enforce.assert_called_once_with(parsed, root, expected_tools=("Skill",))
+            enforce.assert_called_once_with(parsed, root, expected_tools=("Skill",), optional_tools=())
 
     def test_parser_mismatch_refuses_discovery_child_before_run(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

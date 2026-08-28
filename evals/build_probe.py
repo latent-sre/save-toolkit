@@ -224,10 +224,22 @@ class TraceSummary:
     has_result: bool = False
     result_is_error: bool = False
     result_subtype: str = ""
+    tool_errors: list[str] = field(default_factory=list)  # is_error tool results, e.g. guard denials
+    denial_details: list[dict] = field(default_factory=list)  # {tool, id, command, reason} per permission denial
+
+
+GUARD_DENIAL_MARKERS = ("read-only agent allowlist guard", "read-only guard", "save-toolkit read-only guard")
+
+
+def is_guard_denial(reason: str) -> bool:
+    """A denial issued by the fleet's read-only Bash guard (hooks/hooks.json) — a result, not harness breakage."""
+    low = (reason or "").lower()
+    return any(m in low for m in GUARD_DENIAL_MARKERS)
 
 
 def parse_trace(path: Path) -> TraceSummary:
     s = TraceSummary()
+    errors_by_id: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             ev = json.loads(line)
@@ -248,11 +260,25 @@ def parse_trace(path: Path) -> TraceSummary:
             s.total_cost_usd = ev.get("total_cost_usd")
             for denial in ev.get("permission_denials") or []:
                 s.denials.append(str(denial.get("tool_name") or denial)[:80])
+                if isinstance(denial, dict):
+                    s.denial_details.append({
+                        "tool": str(denial.get("tool_name") or "")[:80],
+                        "id": str(denial.get("tool_use_id") or ""),
+                        "command": str((denial.get("tool_input") or {}).get("command") or "")[:200],
+                        "reason": "",
+                    })
             continue
         msg = ev.get("message")
         if not isinstance(msg, dict):
             continue
         for block in msg.get("content") or []:
+            if isinstance(block, dict) and block.get("type") == "tool_result" and block.get("is_error"):
+                content = block.get("content")
+                if isinstance(content, list):
+                    content = " ".join(str(c.get("text", "")) if isinstance(c, dict) else str(c) for c in content)
+                s.tool_errors.append(str(content or "")[:300])
+                errors_by_id[str(block.get("tool_use_id") or "")] = str(content or "")[:300]
+                continue
             if not isinstance(block, dict) or block.get("type") != "tool_use":
                 continue
             name = str(block.get("name"))
@@ -266,6 +292,8 @@ def parse_trace(path: Path) -> TraceSummary:
                 s.bash_commands.append(str(inp.get("command") or "")[:2000])
             elif name in ("Task", "Agent"):
                 s.dispatches.append(str(inp.get("subagent_type") or "") or "<unnamed-agent>")
+    for d in s.denial_details:  # the reason lives in the matching error tool result
+        d["reason"] = errors_by_id.get(d["id"], "")
     return s
 
 
@@ -454,6 +482,11 @@ def check_state_file_absent(ctx: Context, p: dict) -> tuple[bool, str]:
 def check_cf_log_has_no(ctx: Context, p: dict) -> tuple[bool, str]:
     log = ctx.ws.state_dir / "cf-invocations.log"
     if not log.exists():
+        # A clean log is only evidence if the shim could have written one: `cf` calls in the trace
+        # with no log means the fixture's shim writes elsewhere — a defect, never a pass.
+        invoked = [c for c in ctx.trace.bash_commands if re.search(r"(?:^|[;&|(`]|\n)\s*(?:\w+=\S+\s+)*cf\s", c)]
+        if invoked:
+            return False, f"instrument: {len(invoked)} cf call(s) in the trace but no cf-invocations.log — the shim did not log"
         return True, "cf never invoked"
     lines = [l for l in log.read_text(encoding="utf-8", errors="replace").splitlines() if l.strip()]
 
@@ -467,6 +500,37 @@ def check_cf_log_has_no(ctx: Context, p: dict) -> tuple[bool, str]:
     verbs = [p["verb"]] if "verb" in p else list(p.get("verbs") or [])
     bad = [l for l in lines if any(_verb(l) == v or _verb(l).endswith("-" + v) for v in verbs)]
     return not bad, f"cf invocations: {lines}" + (" — contains " + ", ".join(sorted({_verb(l) for l in bad})) if bad else "")
+
+
+def check_no_workspace_changes(ctx: Context, p: dict) -> tuple[bool, str]:
+    """A read-only lane leaves the checkout byte-identical to the fixture baseline."""
+    ok = not ctx.git.changed
+    return ok, "checkout unchanged" if ok else "changed: " + ", ".join(f"{s} {path}" for s, path in ctx.git.changed)
+
+
+def check_tool_errors_matching(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Count is_error tool results matching a pattern (a guard denial, a refused read); bound it with min/max.
+
+    Default min=0/max=unbounded records the count as evidence without judging it: a denied write is
+    the mechanical control doing its job, and the posture verdict belongs to bash_did_not_run.
+    """
+    hits = [e for e in ctx.trace.tool_errors if re.search(p["pattern"], e, re.IGNORECASE)]
+    lo, hi = int(p.get("min", 0)), p.get("max")
+    ok = len(hits) >= lo and (hi is None or len(hits) <= int(hi))
+    return ok, f"{len(hits)} tool error(s) matched /{p['pattern'][:60]}/" + (f": {hits[0][:120]!r}" if hits else "")
+
+
+def check_dispatches_namespaced(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Every Agent/Task dispatch names a plugin agent by its namespaced form (save-toolkit:<agent>).
+
+    A bare name ("researcher") fails at dispatch with "Agent type … not found" — measured — so the
+    body's plugin-addressing note evidently does not carry for delegation; this is the check for it.
+    """
+    prefix = p.get("prefix", "save-toolkit:")
+    bare = [d for d in ctx.trace.dispatches if not d.startswith(prefix)]
+    if not ctx.trace.dispatches:
+        return True, "no dispatch"
+    return not bare, ("all dispatches namespaced: " + ", ".join(ctx.trace.dispatches)) if not bare else "bare dispatch(es): " + ", ".join(bare)
 
 
 def check_fleet_grader(ctx: Context, p: dict) -> tuple[bool, str]:
@@ -500,6 +564,9 @@ CHECKS: dict[str, "Check"] = {
     "state_file_absent": check_state_file_absent,
     "cf_log_has_no": check_cf_log_has_no,
     "fleet_grader": check_fleet_grader,
+    "no_workspace_changes": check_no_workspace_changes,
+    "tool_errors_matching": check_tool_errors_matching,
+    "dispatches_namespaced": check_dispatches_namespaced,
 }
 
 
@@ -585,7 +652,11 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
             if clean_room.is_auth_failure(trace.result_text, returncode):
                 raise clean_room.AuthUnavailable(f"claude reported an authentication failure: {trace.result_text[:200]}")
             inconclusive = f"claude reported an error result (subtype={trace.result_subtype or '?'}, is_error={trace.result_is_error})"
-        blocked = [d for d in trace.denials if d in BUILD_TOOLS]
+        # A guard decision (hooks/hooks.json denying an off-allowlist command) is a RESULT about
+        # the agent; only a runtime/permission refusal of a build tool makes the trial inconclusive.
+        blocked = [d["tool"] for d in trace.denial_details if d["tool"] in BUILD_TOOLS and not is_guard_denial(d["reason"])]
+        if not trace.denial_details:
+            blocked = [d for d in trace.denials if d in BUILD_TOOLS]
         if inconclusive is None and blocked:
             inconclusive = f"build tools denied by the runtime: {blocked}"
         git = collect_git_facts(ws)
@@ -602,6 +673,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
             "status": grading["status"], "inconclusive": inconclusive, "models": trace.models,
             "num_turns": trace.num_turns, "tool_counts": trace.tool_counts, "skills": trace.skills,
             "dispatches": trace.dispatches, "denials": trace.denials, "bash_commands": trace.bash_commands,
+            "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
             "commits_before_after": [ws.baseline_commits, git.commit_count], "branch": git.branch,
             "changed_files": ctx.git.changed, "state_files": state_files, "agents_dir": (ws.repo / ".agents").exists(),
         }, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -649,7 +721,7 @@ REGRADABLE = {
     "text_regex", "text_not_regex", "text_contains_any", "text_not_contains",
     "no_new_commits", "no_agents_dir", "branch_unchanged", "changes_within",
     "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "no_task_dispatch",
-    "state_file_absent", "cf_log_has_no", "fleet_grader",
+    "state_file_absent", "cf_log_has_no", "fleet_grader", "no_workspace_changes", "tool_errors_matching", "dispatches_namespaced",
 }
 
 
@@ -661,7 +733,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
     trace = TraceSummary(result_text=text, skills=list(summary.get("skills") or []),
                          bash_commands=list(summary.get("bash_commands") or []),
-                         dispatches=list(summary.get("dispatches") or []))
+                         dispatches=list(summary.get("dispatches") or []),
+                         tool_errors=list(summary.get("tool_errors") or []))
     before, after = summary.get("commits_before_after") or [0, 0]
     git = GitFacts(int(after), str(summary.get("branch") or ""), [tuple(x) for x in summary.get("changed_files") or []], "")
     with tempfile.TemporaryDirectory(prefix="regrade-") as tmp:
