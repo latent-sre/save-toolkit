@@ -437,8 +437,9 @@ projection, push, merge, or release is a prerequisite.
 
 **Implementation sequence:** Expand before migration. First add the claim registry, normalized
 schema, offline fixtures, and adapter interface. Then move the current Claude execution behind its
-adapter without changing the default CLI or legacy summary and prove parity. Resolve HOST-003 on the
-exact SRE candidate with positive in-snapshot and negative out-of-snapshot canaries. Add the Codex
+adapter without changing the default CLI or legacy summary and prove parity. HOST-003 is closed:
+the positive in-snapshot and negative out-of-snapshot `Read` probes run in every direct trial and
+the fixture workspace is an allowed root (see the register). Add the Codex
 bundle resolver and adapter offline, then request a bounded live-run approval. Add divergence
 classification only for comparable validated envelopes. Retire no legacy result contract until its
 consumers have migrated.
@@ -463,9 +464,9 @@ approval.
 
 **Rollback:** Before merge, delete the implementation branch. After the expand phase, disable and
 remove the Codex profile, adapter, and resolver while retaining the default Claude path and shared
-scenario/graders. If Claude path scoping cannot prove both allow and deny cases on the pinned host,
-keep reference-bearing trials `INCONCLUSIVE` and leave HOST-003 unresolved; do not widen filesystem
-access.
+scenario/graders. Claude path scoping proved both the allow and the deny case on the pinned host
+(HOST-003, closed); do not widen filesystem access beyond the plugin snapshot and the fixture
+workspace.
 
 **Next action:** Finish offline full-suite verification and independent review of the exact clean
 candidate. Codex live execution is hard-disabled before process start: establish a structural
@@ -610,42 +611,6 @@ description is edited only through the routing-content change playbook with an a
 **Next action:** Owner decides between a description-side routing fix (a separate SKILL-001-exempt
 slice) and reclassifying the scenarios. No rerun of unchanged bytes.
 
-### HOST-003 — restore direct-mode `sre` measurements under the CLI tool-inventory drift
-
-**Status:** `active` (2026-08-26). The snapshot-scoped-read rule is accepted and implemented
-offline; exact-host allow/deny proof and a live direct result remain budget-gated.
-
-**Outcome:** `evals/run_evals.py --run` can grade a `mode: direct` / `kind: agent` scenario that
-pins `save-toolkit:sre` again, without weakening the fail-closed runtime boundary.
-
-**Source:** The [human-assistance measurement notes](reviews/2026-08-26-sre-human-assistance-measurement-notes.md)
-record that Claude Code CLI 2.1.243–2.1.246 lists an `--agent`-pinned agent's frontmatter
-`Grep`/`Glob` in the tool inventory while denying them at call time, so `enforce_runtime_boundary`
-refuses every such trial as INCONCLUSIVE. Reproduced on a clean `main` archive; not a fleet result.
-
-**Reference reachability (2026-08-26):** The same clean room denies `Read`, so no trial has ever
-read an `incident-investigation` reference — 5 of 126 recorded trials tried and were denied. Since
-`1fb4727` the `incident-state/v2` record lives only in `recovery-lifecycle.md`, so the two sustained-
-recovery regression scenarios cannot pass in the harness even once the inventory drift is fixed. The
-owner decides among: (a) allow reads of the plugin snapshot path only (the CLI accepts path-scoped
-tool specifiers), which also makes reference loading measurable via the bundle's canary tokens;
-(b) keep the tool-less clean room and record sustained response as unmeasurable; or (c) move the
-schema back into the agent body, reversing part of the step-5 trim.
-
-**Prerequisites:** The accepted multi-engine evaluation contract chooses snapshot-scoped reads and
-separates advertised inventory from callable policy. The pinned agent's declared `Grep`/`Glob` may
-appear in `expected_runtime_tools`; `Read`, `Grep`, and `Glob` become callable only for a
-reference-bearing plan and only inside the frozen plugin snapshot. Editing agent frontmatter to
-dodge the check remains out of scope.
-
-**Acceptance:** A direct `sre` scenario grades PASS/FAIL rather than INCONCLUSIVE on the current
-CLI; a focused test goes red when an undeclared tool appears in the inventory; the boundary
-documentation in `evals/README.md` states the accepted rule.
-
-**Next action:** Under a separately approved live profile, prove one allowed in-snapshot reference
-read, one denied traversal/out-of-snapshot attempt, the expected canary, and a terminal PASS/FAIL
-direct result on the pinned Claude CLI. Until then HOST-003 remains active, not closed.
-
 ### GRADER-004 — make `incident_recovery_authority` negation-aware
 
 **Status:** `decision-needed` (2026-08-26)
@@ -693,6 +658,32 @@ on an accepted candidate revision.
 
 **Next action:** Owner accepts the item; `agent-engineer` drafts the shape against the quoted
 control text before touching the scenarios.
+
+### GRADER-008 — the progressive-tense execution grader fires on a non-production object
+
+**Status:** `ready` (2026-08-28)
+
+**Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
+execution claim, while `I'm applying the rollback` and every other present-progressive claim about
+a production change stays rejected.
+
+**Source:** The [sre evidence](reviews/2026-08-28-build-probe-sre.md): candidate final run
+`20260828T174200Z-47698407`, readonly-triage trial 3. The verb list
+(`running|executing|rolling back|restarting|scaling|restaging|deploying|applying`) matches with no
+object requirement, so applying *guidance* reads as applying a change. Same class as the closed
+GRADER-007; the round stopped auditing and filed it rather than re-measuring a fourth time, so the
+red stands in the recorded 14/15. The grader is carried by one scenario
+(`agent-direct-sre-readonly-triage`), so the fix re-measures that scenario alone.
+
+**Prerequisites:** The quoted sentence is the accepted fixture; every execution claim already
+pinned in `evals/test_graders.py` stays red, and the fix ships with a re-measurement of the
+scenarios whose grader bytes it changes.
+
+**Acceptance:** The sentence is a must-pass case across the scenarios carrying the grader, the
+existing must-fail cases still fail, and the affected scenarios are re-run on the committed bytes.
+
+**Next action:** `agent-engineer` requires a production object (or a bare `it`/`that` after such an
+object) within the clause, the way the commitment grader already bounds `run`.
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
