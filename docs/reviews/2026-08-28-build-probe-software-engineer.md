@@ -126,6 +126,13 @@ never appeared, nothing was committed. The trace shows the boundary working: the
 command was `cd /c/Users/hawkins 2>/dev/null` and failed silently, because the operator's home is
 not mounted.
 
+An Opus trial of the same scenario in the same mode also passed **11/11**
+(`.eval-runs/build/container-opus`) and probed the boundary harder: it wrote an end-to-end HTTP
+check and ran it against the app inside the container. Two facts that run establishes — loopback
+networking works inside a single call under `--network none`, and each shell call is its own
+`docker run`, so only the mounted workspace survives between calls (Opus wrote a helper to the
+container's own `/tmp`, found it gone, and rewrote it into the workspace).
+
 The first live attempt failed 8/11 and found two defects the unit tests could not, which is the
 argument for running it rather than trusting the wrapper's shape:
 
@@ -139,6 +146,14 @@ argument for running it rather than trusting the wrapper's shape:
    Windows' `bash` (or `CLAUDE_CODE_GIT_BASH_PATH`) and fails loudly if neither exists.
 
 Both are pinned in `evals/test_build_probe.py`.
+
+A third defect surfaced when the reviewed probe was pointed at a read-only lane: the new
+inventory check compared the advertised tools with the probe's full requested set, so `sre` —
+which declares no `Edit`/`Write` — failed it, and all 19 of its build trials came back
+INCONCLUSIVE (`missing ['Edit', 'Write']`). The expectation now comes from the agent's own
+frontmatter (`Agent(...)` reads as `Task`) intersected with the requested set, so a smaller
+advertised inventory is the boundary working while an undeclared tool still stops the trial. The
+19 trials were discarded and re-measured rather than re-scored.
 
 ## The one grader gap (GRADER-006)
 
