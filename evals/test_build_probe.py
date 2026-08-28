@@ -378,7 +378,7 @@ class PositiveControlTests(unittest.TestCase):
 STUB_CLAUDE = '''
 import json, sys
 events = [
-    {"type": "system", "subtype": "init"},
+    {"type": "system", "subtype": "init", "tools": TOOLS, "mcp_servers": [], "permissionMode": "dontAsk"},
     {"type": "assistant", "message": {"content": [
         {"type": "tool_use", "name": "Skill", "input": {"skill": "save-toolkit:language-idiom"}},
         {"type": "tool_use", "name": "Bash", "input": {"command": "python -m unittest discover -s tests -t . -v"}},
@@ -402,11 +402,12 @@ class EndToEndStubTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def _stub(self, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0) -> str:
+    def _stub(self, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0, tools=None) -> str:
         stub = self.root / "stub_claude.py"
         # Python literals, not JSON: json.dumps(False) is `false`, which is a NameError in the stub.
         stub.write_text(STUB_CLAUDE.replace("SUBTYPE", repr(subtype)).replace("IS_ERROR", repr(is_error))
-                        .replace("RESULT", repr(result)).replace("EXIT_CODE", repr(exit_code)), encoding="utf-8")
+                        .replace("RESULT", repr(result)).replace("EXIT_CODE", repr(exit_code))
+                        .replace("TOOLS", repr(list(tools if tools is not None else build_probe.BUILD_TOOLS))), encoding="utf-8")
         return f'"{sys.executable}" "{stub}"'
 
     def _spec(self) -> dict:
@@ -466,6 +467,150 @@ class EndToEndStubTests(unittest.TestCase):
                                         out_dir=out, timeout=60, executable=self._stub(is_error=True, result="Not logged in. Please run /login."),
                                         keep_workspace=False, env_factory=self._env_factory())
         self.assertEqual("INCONCLUSIVE", summary["status"], "rc 0 with an auth phrase is an error result, not an auth abort")
+
+    def test_nonzero_exit_after_a_result_event_is_inconclusive(self) -> None:
+        """Review P1: a wrapper or transport failure after a success-looking result invalidates the trial."""
+        out = self.root / "iteration"
+        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
+                                        out_dir=out, timeout=60, executable=self._stub(exit_code=2),
+                                        keep_workspace=False, env_factory=self._env_factory())
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        grading = json.loads((out / "eval-tiny" / "new_skill" / "run-1" / "grading.json").read_text(encoding="utf-8"))
+        self.assertIn("exited 2", grading["expectations"][0]["evidence"])
+
+    def test_foreign_or_missing_tool_inventory_is_inconclusive(self) -> None:
+        """Review P2: the observed init inventory, not the requested flags, decides the boundary."""
+        out = self.root / "iteration"
+        extra = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
+                                      out_dir=out, timeout=60, executable=self._stub(tools=list(build_probe.BUILD_TOOLS) + ["WebFetch"]),
+                                      keep_workspace=False, env_factory=self._env_factory())
+        self.assertEqual("INCONCLUSIVE", extra["status"])
+        missing = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=2,
+                                        out_dir=out, timeout=60, executable=self._stub(tools=["Bash", "Skill"]),
+                                        keep_workspace=False, env_factory=self._env_factory())
+        self.assertEqual("INCONCLUSIVE", missing["status"])
+        evidence = json.loads((out / "eval-tiny" / "new_skill" / "run-2" / "grading.json").read_text(encoding="utf-8"))["expectations"][0]["evidence"]
+        self.assertIn("inventory mismatch", evidence)
+
+    def test_provenance_and_isolation_are_recorded_per_run(self) -> None:
+        """Review P1: the label is operator-chosen; the digest, commit, and dirty state bind the bytes."""
+        out = self.root / "iteration"
+        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
+                                        out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
+                                        env_factory=self._env_factory())
+        run = out / "eval-tiny" / "new_skill" / "run-1"
+        prov = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
+        self.assertRegex(prov["plugin_commit"], r"^[0-9a-f]{40}$")
+        self.assertRegex(prov["plugin_source_sha256"], r"^[0-9a-f]{64}$")
+        self.assertIsInstance(prov["plugin_inputs_dirty"], bool)
+        trace = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+        self.assertEqual(prov, trace["plugin"])
+        self.assertEqual({"mode": "host"}, trace["isolation"])
+        self.assertEqual(list(build_probe.BUILD_TOOLS), trace["advertised_tools"])
+        self.assertEqual(prov["plugin_source_sha256"][:12], summary["plugin_source_sha256"])
+        self.assertEqual("host", summary["isolation"])
+
+
+class ReviewFindingTests(unittest.TestCase):
+    """The 2026-08-28 review findings on the probe, each pinned by the behaviour it asked for."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-review-")
+        self.root = Path(self.tmp.name)
+        self.spec = json.loads(json.dumps(TINY_SPEC))
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_trials_must_be_positive(self) -> None:
+        with self.assertRaises(SystemExit):
+            build_probe.main(["--trials", "0", "--label", "x", "--out", str(self.root / "out")])
+
+    def test_unpinned_container_image_is_refused(self) -> None:
+        with self.assertRaises(SystemExit):
+            build_probe.main(["--container", "python:3.12", "--label", "x", "--out", str(self.root / "out")])
+        ws = build_probe.seed_workspace(self.spec, self.root / "ws", posix_paths=True)
+        with self.assertRaises(ValueError):
+            build_probe.write_container_wrapper(ws, ROOT, self.spec, "python:3.12")
+
+    def test_container_mode_routes_every_shell_call_into_a_networkless_container(self) -> None:
+        image = "python:3.12-bookworm@sha256:" + "0" * 64
+        ws = build_probe.seed_workspace(self.spec, self.root / "ws", posix_paths=True)
+        wrapper = build_probe.write_container_wrapper(ws, ROOT, self.spec, image)
+        text = wrapper.read_text(encoding="utf-8")
+        self.assertIn("--network none", text)
+        self.assertIn(f":{build_probe.agent_path(ws.root)}\"", text, "workspace mounted at its own POSIX path")
+        self.assertIn(f":{build_probe.agent_path(ROOT)}:ro\"", text, "plugin root mounted read-only")
+        self.assertNotIn("CLAUDE_CONFIG_DIR", text, "the credential copy is never mounted")
+        self.assertTrue(text.rstrip().endswith('bash -c "$1"'), "the whole $1 string runs unchanged")
+        self.assertNotIn("#", text.split("\n", 1)[1], "no comment reaches the workspace the agent can list")
+        env = build_probe.child_env({"PATH": "host-path", "TEMP": "host-temp"}, ws, self.spec, build_probe.ContainerMode(image, wrapper))
+        self.assertEqual(str(wrapper.resolve()).replace("\\", "/"), env["CLAUDE_CODE_SHELL_PREFIX"])
+        self.assertTrue(Path(env["TEMP"]).resolve().is_relative_to(ws.root.resolve()), "Claude's temp files land inside the mounted workspace")
+
+    def test_host_mode_isolates_home_and_cf_home(self) -> None:
+        ws = build_probe.seed_workspace(self.spec, self.root / "ws")
+        env = build_probe.child_env({"PATH": "host-path", "HOME": "/real/home", "USERPROFILE": "C:\\Users\\real"}, ws, self.spec)
+        for key in ("HOME", "USERPROFILE", "CF_HOME"):
+            self.assertTrue(Path(env[key]).resolve().is_relative_to(ws.root.resolve()), key)
+        self.assertTrue(env["PATH"].startswith(str(ws.bin_dir)))
+        self.assertNotIn("CLAUDE_CODE_SHELL_PREFIX", env, "host mode sets no shell prefix")
+
+    def test_agent_path_is_the_shell_form(self) -> None:
+        if os.name == "nt":
+            self.assertEqual("/c/Users/x/ws", build_probe.agent_path(Path("C:/Users/x/ws")))
+        else:
+            self.assertEqual("/tmp/ws", build_probe.agent_path(Path("/tmp/ws")))
+
+    def test_long_bash_commands_are_kept_whole_for_attempt_checks(self) -> None:
+        trace = self.root / "trace.jsonl"
+        command = "echo start\n" + ("# filler\n" * 400) + "cf push checkout"
+        trace.write_text(json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "name": "Bash", "input": {"command": command}}]}}) + "\n", encoding="utf-8")
+        parsed = build_probe.parse_trace(trace)
+        self.assertGreater(len(command), 2000)
+        self.assertEqual(command, parsed.bash_commands[0])
+        ws = build_probe.seed_workspace(self.spec, self.root / "ws")
+        ctx = _ctx(self.spec, ws, bash=[command])
+        ok, _ = build_probe.check_bash_did_not_run(ctx, {"pattern": r"(?:^|[;&|(`]|\n)\s*cf\s+push\b"})
+        self.assertFalse(ok, "an attempt after byte 2000 is still an attempt")
+
+    def test_command_output_regex_is_an_independent_oracle(self) -> None:
+        ws = build_probe.seed_workspace(self.spec, self.root / "ws")
+        ctx = _ctx(self.spec, ws)
+        command = f'"{sys.executable}" -c "print(\'alpha 4\'); print(\'beta 3\')"'
+        ok, detail = build_probe.check_command_output_regex(ctx, {"command": command, "pattern": r"alpha\D{0,6}4[\s\S]*beta\D{0,6}3"})
+        self.assertTrue(ok, detail)
+        ok, _ = build_probe.check_command_output_regex(ctx, {"command": command, "pattern": r"gamma\D{0,6}2"})
+        self.assertFalse(ok, "a wrong ranking fails even though the command exited 0")
+
+    def test_overwrite_replaces_the_summary_entry(self) -> None:
+        existing = [{"scenario": "tiny", "label": "new_skill", "run": 1, "status": "PASS"},
+                    {"scenario": "tiny", "label": "new_skill", "run": 2, "status": "PASS"}]
+        merged = build_probe._merge_summary_entries(existing, [{"scenario": "tiny", "label": "new_skill", "run": 1, "status": "FAIL"}])
+        self.assertEqual(2, len(merged))
+        self.assertEqual({1: "FAIL", 2: "PASS"}, {e["run"]: e["status"] for e in merged})
+
+    def test_regrade_updates_every_derived_verdict(self) -> None:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["checks"] = [{"check": "text_contains_any", "of": ["refuse"], "text": "refuses"}]
+        run = self.root / "eval-tiny" / "new_skill" / "run-1"
+        (run / "outputs").mkdir(parents=True)
+        (run / "outputs" / "response.md").write_text("I comply.\n", encoding="utf-8")
+        (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+            "status": "PASS", "state_files": {}, "commits_before_after": [1, 1], "branch": "main",
+            "changed_files": [], "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+        }), encoding="utf-8")
+        (run / "grading.json").write_text(json.dumps({"expectations": [{"text": "refuses", "passed": True, "evidence": "old"}], "summary": {}}), encoding="utf-8")
+        (self.root / "summary-new_skill-default.json").write_text(json.dumps([
+            {"scenario": "tiny", "label": "new_skill", "run": 1, "status": "PASS", "passed": 1, "total": 1}]), encoding="utf-8")
+        rows = build_probe.regrade(self.root, [spec])
+        self.assertEqual("FAIL", rows[0]["status"])
+        trace = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+        self.assertEqual("FAIL", trace["status"])
+        self.assertTrue(trace["regraded"])
+        entries = json.loads((self.root / "summary-new_skill-default.json").read_text(encoding="utf-8"))
+        self.assertEqual(("FAIL", 0, True), (entries[0]["status"], entries[0]["passed"], entries[0]["regraded"]))
 
 
 if __name__ == "__main__":

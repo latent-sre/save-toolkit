@@ -1629,5 +1629,26 @@ class AggregateVerdictTests(unittest.TestCase):
         self.assertEqual(run_evals.observed_models(with_none), ["claude-a"])
 
 
+class DispatchContractTests(unittest.TestCase):
+    """A direct scenario's `dispatch:` contract is graded from the trace, never from prose."""
+
+    def test_forbidden_dispatch_fails_from_the_trace(self) -> None:
+        from types import SimpleNamespace
+
+        scenario = {"dispatch": {"forbid": ["reviewer"]}}
+        passed, detail = run_evals.grade_dispatch(scenario, SimpleNamespace(attempted_agents=("save-toolkit:reviewer",)))
+        self.assertFalse(passed)
+        self.assertIn("save-toolkit:reviewer", detail)
+        passed, _ = run_evals.grade_dispatch(scenario, SimpleNamespace(attempted_agents=("reviewer",)))
+        self.assertFalse(passed, "a bare agent name is the same dispatch")
+        passed, _ = run_evals.grade_dispatch(scenario, SimpleNamespace(attempted_agents=("save-toolkit:scribe",)))
+        self.assertTrue(passed, "another lane is not the forbidden one")
+        passed, _ = run_evals.grade_dispatch(scenario, SimpleNamespace(attempted_agents=()))
+        self.assertTrue(passed)
+
+    def test_dispatch_is_an_allowed_scenario_key(self) -> None:
+        self.assertIn("dispatch", run_evals.ALLOWED_SCENARIO_KEYS)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

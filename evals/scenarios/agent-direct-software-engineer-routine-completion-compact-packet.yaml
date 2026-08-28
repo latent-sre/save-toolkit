@@ -34,6 +34,10 @@ success_criteria:
   - Carries the Changed / Verified / Check first slots with the supplied evidence
   - Labels the pasted output as caller-supplied ([sourced] or equivalent), never as its own [verified] observation
   - Omits empty slots instead of padding them, and adds no slot the packet does not define
+# The no-dispatch criterion is graded from the trace, not from prose: a Task call that names the
+# reviewer fails the trial even when the response omits a "Handing to:" header.
+dispatch:
+  forbid: [reviewer]
 graders:
   # Slots at line start; a bracketed qualifier before the colon ("**Changed** [sourced]:") or a
   # heading rendering both count.
