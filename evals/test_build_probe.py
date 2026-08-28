@@ -539,11 +539,19 @@ class ReviewFindingTests(unittest.TestCase):
         wrapper = build_probe.write_container_wrapper(ws, ROOT, self.spec, image)
         text = wrapper.read_text(encoding="utf-8")
         self.assertIn("--network none", text)
-        self.assertIn(f":{build_probe.agent_path(ws.root)}\"", text, "workspace mounted at its own POSIX path")
+        # Measured 2026-08-28: Git Bash reports $PWD under /tmp for a workspace in AppData\Local\Temp,
+        # so the mount, the alias, and -w must all agree whichever form the shell uses.
+        self.assertIn(f"WS_NAME='{ws.root.name}'", text)
+        self.assertIn('WS="/tmp/$WS_NAME"', text, "the container view of the workspace is /tmp/<name>")
+        self.assertIn(f'-v "{str(ws.root.resolve()).replace(chr(92), "/")}:$WS"', text, "workspace mounted there")
+        self.assertIn(f":{build_probe.agent_path(ws.root)}\"", text, "and at the drive-letter alias")
+        self.assertIn('-w "$WS$REL"', text, "the working directory is derived from the mount, never from a raw $PWD")
+        self.assertIn("REL=\"${PWD#*$WS_NAME}\"", text, "…by translating whichever form the shell reports")
         self.assertIn(f":{build_probe.agent_path(ROOT)}:ro\"", text, "plugin root mounted read-only")
         self.assertNotIn("CLAUDE_CONFIG_DIR", text, "the credential copy is never mounted")
         self.assertTrue(text.rstrip().endswith('bash -c "$1"'), "the whole $1 string runs unchanged")
-        self.assertNotIn("#", text.split("\n", 1)[1], "no comment reaches the workspace the agent can list")
+        comments = [l for l in text.split("\n")[1:] if l.lstrip().startswith("#")]
+        self.assertEqual([], comments, "no comment reaches the workspace the agent can list")
         env = build_probe.child_env({"PATH": "host-path", "TEMP": "host-temp"}, ws, self.spec, build_probe.ContainerMode(image, wrapper))
         self.assertEqual(str(wrapper.resolve()).replace("\\", "/"), env["CLAUDE_CODE_SHELL_PREFIX"])
         self.assertTrue(Path(env["TEMP"]).resolve().is_relative_to(ws.root.resolve()), "Claude's temp files land inside the mounted workspace")
@@ -561,6 +569,21 @@ class ReviewFindingTests(unittest.TestCase):
             self.assertEqual("/c/Users/x/ws", build_probe.agent_path(Path("C:/Users/x/ws")))
         else:
             self.assertEqual("/tmp/ws", build_probe.agent_path(Path("/tmp/ws")))
+
+    def test_container_paths_are_baked_into_the_fixture(self) -> None:
+        """The shim's log path and the fixture env must name the container's view, not the host's."""
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["fake_bin"] = {"cf": '#!/bin/sh\necho "$*" >> "${STATE_DIR}/cf-invocations.log"\n'}
+        spec["fixture"]["env"] = {"CF_HOME_HINT": "${STATE_DIR}", "REPO_HINT": "${REPO}"}
+        ws = build_probe.seed_workspace(spec, self.root / "ws-container", posix_paths=True)
+        root = build_probe.container_root(ws)
+        self.assertEqual(f"/tmp/{ws.root.name}", root)
+        self.assertIn(f'{root}/state/cf-invocations.log', (ws.bin_dir / "cf").read_text(encoding="utf-8"))
+        env = build_probe.child_env({"PATH": "p"}, ws, spec, build_probe.ContainerMode("x@sha256:" + "0" * 64, ws.root / "w.sh"))
+        self.assertEqual(f"{root}/state", env["CF_HOME_HINT"])
+        self.assertEqual(f"{root}/repo", env["REPO_HINT"])
+        host = build_probe.seed_workspace(spec, self.root / "ws-host")
+        self.assertIn(str(host.state_dir.as_posix()), (host.bin_dir / "cf").read_text(encoding="utf-8"))
 
     def test_long_bash_commands_are_kept_whole_for_attempt_checks(self) -> None:
         trace = self.root / "trace.jsonl"
