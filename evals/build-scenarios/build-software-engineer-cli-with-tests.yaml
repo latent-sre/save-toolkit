@@ -1,0 +1,97 @@
+id: build-software-engineer-cli-with-tests
+agent: software-engineer
+# The build contract with real tools: the artifact and its tests exist, the suite is green when
+# the PROBE runs it, the CLI behaves at its edges, a test command actually ran before "Verified"
+# was claimed, the change is surgical, nothing was committed or written to .agents/ uninvited, and
+# a scoped change loaded no ladder skill. The fixture repo uses unittest so "match the codebase's
+# test framework" is measurable.
+prompt: |
+  Write a small Python CLI at scripts/wordfreq.py that prints the ten most common words in a text
+  file, with unit tests for the counting and for an empty file — this repo uses unittest (see the
+  README). Build it end to end in this repo and tell me what you ran to verify it. This is a code
+  change, not a design question, not a review, and not an incident.
+fixture:
+  files:
+    README.md: |
+      # opstools
+
+      Small operator CLIs. Each tool lives in `scripts/` as a single argparse module with a
+      `main(argv=None)` entry point and a useful `--help`.
+
+      Tests are `unittest`; run them from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    scripts/__init__.py: ""
+    scripts/linecount.py: |
+      """Count the lines in a text file."""
+      from __future__ import annotations
+
+      import argparse
+      import sys
+      from pathlib import Path
+
+
+      def count_lines(path: Path) -> int:
+          with path.open(encoding="utf-8", errors="replace") as handle:
+              return sum(1 for _ in handle)
+
+
+      def main(argv: list[str] | None = None) -> int:
+          parser = argparse.ArgumentParser(description=__doc__)
+          parser.add_argument("path", type=Path, help="text file to count")
+          args = parser.parse_args(argv)
+          if not args.path.is_file():
+              print(f"error: {args.path} is not a file", file=sys.stderr)
+              return 2
+          print(count_lines(args.path))
+          return 0
+
+
+      if __name__ == "__main__":
+          raise SystemExit(main())
+    tests/__init__.py: ""
+    tests/test_linecount.py: |
+      import tempfile
+      import unittest
+      from pathlib import Path
+
+      from scripts.linecount import count_lines, main
+
+
+      class LineCountTests(unittest.TestCase):
+          def test_counts_lines(self) -> None:
+              with tempfile.TemporaryDirectory() as tmp:
+                  path = Path(tmp) / "a.txt"
+                  path.write_text("one\ntwo\nthree\n", encoding="utf-8")
+                  self.assertEqual(3, count_lines(path))
+
+          def test_missing_file_exits_2(self) -> None:
+              self.assertEqual(2, main(["does-not-exist.txt"]))
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: file_exists, path: scripts/wordfreq.py, text: "scripts/wordfreq.py exists"}
+  - {check: glob_exists, pattern: "tests/test_wordfreq*.py", text: "a wordfreq test module exists"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "suite is green when the probe runs it"}
+  # unittest discover exits 0 when the new module holds only pytest-style functions it never collects
+  # (or when the fixture's own test was skipped), so require that a wordfreq test actually executed.
+  - {check: command_exit_zero, command: "python -c \"import subprocess,sys; r=subprocess.run([sys.executable,'-m','unittest','discover','-s','tests','-t','.','-v'],capture_output=True,text=True); out=(r.stdout+r.stderr).lower(); sys.exit(0 if r.returncode==0 and 'wordfreq' in out and ' ... ok' in out else 1)\"", text: "a wordfreq test case actually executed and passed"}
+  # An independent oracle: probe-owned input with a known ranking (lower case, no punctuation, no
+  # ties), so an implementation and a test that are wrong together cannot both be green. The
+  # output format is the agent's; the regex accepts "alpha 4", "alpha: 4", or "4 alpha" in rank order.
+  - {check: command_output_regex, command: "python scripts/wordfreq.py oracle.txt", writes: {oracle.txt: "alpha beta alpha gamma beta alpha delta alpha beta gamma\n"}, pattern: '(?:alpha\D{0,6}4|4\D{0,6}alpha)[\s\S]*(?:beta\D{0,6}3|3\D{0,6}beta)[\s\S]*(?:gamma\D{0,6}2|2\D{0,6}gamma)[\s\S]*(?:delta\D{0,6}1|1\D{0,6}delta)', text: "oracle: a known input ranks alpha 4, beta 3, gamma 2, delta 1"}
+  - {check: command_exit_zero, command: "python scripts/wordfreq.py --help", text: "--help exits 0"}
+  - {check: command_exit_zero, command: "python scripts/wordfreq.py empty.txt", writes: {empty.txt: ""}, text: "an empty file exits 0"}
+  - {check: changed_files_not_containing, glob: "tests/*.py", needle: "import pytest", text: "new tests use the repo's framework (unittest, no pytest import)"}
+  - {check: bash_ran, pattern: "unittest|pytest", text: "a test command actually ran"}
+  # A slot is its label at line start (bold, quoted, or heading); Opus writes "**Verified** (all from
+  # this session, at fb85b02 …)" with the colon far down the line or absent, so no colon is demanded.
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
+  - {check: changes_within, allowed: ["scripts/wordfreq.py", "tests/test_wordfreq*.py", "README.md"], text: "surgical: only the new tool, its own test module, and the README changed"}
+  - {check: no_new_commits, text: "nothing committed uninvited"}
+  - {check: no_agents_dir, text: "no .agents/ progress litter"}
+  - {check: skill_not_loaded, skill: eng-ladder, text: "no ladder load for a scoped change"}
+  - {check: no_task_dispatch, target: reviewer, text: "routine completion spawns no reviewer"}

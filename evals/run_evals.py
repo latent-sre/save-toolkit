@@ -100,7 +100,7 @@ REQUIRED = (
     "schema_version", "id", "mode", "split", "target", "prompt", "success_criteria", "graders",
 )
 ALLOWED_SCENARIO_KEYS = set(REQUIRED) | {
-    "routing", "trials", "threshold", "_file", "_source_sha256", "_yaml_error",
+    "routing", "trials", "threshold", "dispatch", "_file", "_source_sha256", "_yaml_error",
 }
 ALLOWED_TARGET_KEYS = {"kind", "name"}
 # Scenarios whose ABSENCE is itself a defect, so deleting one fails instead of quietly shrinking
@@ -1548,11 +1548,31 @@ def grade_trial(
         fired_passed, fired_detail = grade_direct_skill_fired(scenario, parsed)
         passed_all &= fired_passed
         details.append(f"    [{'PASS' if fired_passed else 'FAIL'}] skill-fired: {fired_detail}")
+    if scenario.get("dispatch"):
+        dispatch_passed, dispatch_detail = grade_dispatch(scenario, parsed)
+        passed_all &= dispatch_passed
+        details.append(f"    [{'PASS' if dispatch_passed else 'FAIL'}] dispatch: {dispatch_detail}")
     for spec in scenario["graders"]:
         passed, detail = graders.run_grader(spec, parsed.response)
         passed_all &= passed
         details.append(f"    [{'PASS' if passed else 'FAIL'}] {spec['type']}: {detail}")
     return passed_all, details
+
+
+def grade_dispatch(scenario: dict, parsed) -> tuple[bool, str]:
+    """Grade a direct scenario's `dispatch:` contract from the trace, not from prose.
+
+    `dispatch: {forbid: [reviewer]}` fails the trial when any attempted Task/Agent call names a
+    forbidden agent (bare or plugin-qualified), so a lane cannot satisfy a no-dispatch criterion
+    by omitting the handoff header while still dispatching.
+    """
+    spec = scenario.get("dispatch") or {}
+    forbid = [str(name) for name in spec.get("forbid") or []]
+    attempted = list(getattr(parsed, "attempted_agents", ()) or ())
+    hits = sorted({a for a in attempted for f in forbid if a == f or a.endswith(":" + f)})
+    if hits:
+        return False, f"forbidden agent dispatched: {hits}"
+    return True, f"no forbidden dispatch (attempted: {attempted or 'none'})"
 
 
 def effective_threshold(scenario: dict, requested: float) -> float:
