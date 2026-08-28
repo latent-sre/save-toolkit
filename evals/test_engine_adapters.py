@@ -75,6 +75,28 @@ class ClaudeNativeAdapterTests(unittest.TestCase):
                 callable_read_tools=("Read",),
             )
 
+    def test_reads_inside_an_allowed_root_are_in_bounds(self) -> None:
+        """HOST-003 (2026-08-28): the harness-owned fixture workspace is an allowed root, so a
+        cwd-relative Grep/Glob or a rooted read inside it is in bounds; anything else is not."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp)
+            relative = engine_adapters.ToolAttempt(tool="Grep", path="CheckoutLatencyHigh", outcome="allowed")
+            rooted = engine_adapters.ToolAttempt(tool="Glob", path=str(fixture / "**" / "manifest.yml"), outcome="allowed")
+            common = dict(
+                advertised=("Glob", "Grep", "Read", "Skill", "Task"),
+                expected=("Glob", "Grep", "Read", "Skill", "Task"),
+                plugin_root=Path("/tmp/frozen-plugin"),
+                callable_read_tools=("Read", "Grep", "Glob"),
+            )
+            self.adapter.validate_tool_boundary(attempts=(relative, rooted), allowed_roots=(fixture,), **common)
+            with self.assertRaisesRegex(engine_adapters.AdapterError, "out-of-snapshot"):
+                self.adapter.validate_tool_boundary(attempts=(relative,), **common)
+            outside = engine_adapters.ToolAttempt(tool="Read", path="/etc/passwd", outcome="allowed")
+            with self.assertRaisesRegex(engine_adapters.AdapterError, "out-of-snapshot"):
+                self.adapter.validate_tool_boundary(attempts=(outside,), allowed_roots=(fixture,), **common)
+
     def test_traversal_attempt_is_rejected_even_when_denied(self) -> None:
         attempt = engine_adapters.ToolAttempt(
             tool="Read",

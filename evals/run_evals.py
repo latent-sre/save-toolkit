@@ -905,16 +905,38 @@ def expected_runtime_tools(
         effective.append("Skill")
     if "Agent" in bases:
         effective.append("Task")
-    # Claude 2.1.243--2.1.246 advertises agent-declared Grep/Glob even when the runner denies their
-    # calls. Inventory is therefore recorded separately from callable policy. Read becomes
-    # advertised only for a plan that explicitly enables snapshot-scoped reference access.
-    if target.get("name") == "sre":
-        for tool in ("Glob", "Grep"):
-            if tool in bases:
-                effective.append(tool)
+    # Read becomes advertised only for a plan that explicitly enables snapshot-scoped reference
+    # access. The agent's declared Grep/Glob are OPTIONAL inventory (see optional_runtime_tools):
+    # Claude 2.1.243--2.1.246 advertised them while denying their calls; 2.1.250 no longer
+    # advertises them for the same frontmatter. Requiring either shape made every direct trial of
+    # a Grep/Glob-declaring agent INCONCLUSIVE on the other CLI (HOST-003, both directions).
     if enable_snapshot_reads and "Read" in bases:
         effective.append("Read")
     return tuple(sorted(effective))
+
+
+def optional_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[str, ...]:
+    """Advertised tools the boundary tolerates in either state: a pinned agent's declared Grep/Glob.
+
+    Inventory is recorded separately from callable policy; these tools stay denied at call time
+    unless a reference-bearing plan enables snapshot reads. Anything outside expected ∪ optional
+    still makes the trial inconclusive.
+    """
+    target = scenario["target"]
+    if scenario["mode"] != "direct" or target["kind"] != "agent":
+        return ()
+    _require_matching_frontmatter_parser(plugin_root)
+    frontmatter_parser = _load_trusted_frontmatter_parser()
+    path = plugin_root / "agents" / f"{target['name']}.md"
+    try:
+        fields = frontmatter_parser.parse_file(path, mode="strict").fields
+    except (OSError, UnicodeError, ValueError):
+        return ()
+    bases = {
+        spec.split("(", 1)[0].strip()
+        for spec in frontmatter_parser.split_tool_specs(fields.get("tools"))
+    }
+    return tuple(sorted(tool for tool in ("Glob", "Grep") if tool in bases))
 
 
 def enforce_runtime_boundary(
@@ -922,17 +944,30 @@ def enforce_runtime_boundary(
     expected_plugin_root: Path = ROOT,
     *,
     expected_tools: tuple[str, ...] = ALLOWED_BUILTIN_TOOLS,
+    optional_tools: tuple[str, ...] = (),
     callable_read_tools: tuple[str, ...] = (),
     required_allowed_paths: tuple[Path, ...] = (),
     required_denied_path: Path | None = None,
+    allowed_roots: tuple[Path, ...] = (),
 ) -> None:
-    """Refuse a measurement if the CLI did not honor the requested namespace/tool boundary."""
+    """Refuse a measurement if the CLI did not honor the requested namespace/tool boundary.
+
+    `optional_tools` are accepted advertised or not (a pinned agent's declared Grep/Glob, which
+    CLI versions advertise differently); every expected tool must be present and nothing outside
+    expected ∪ optional may appear.
+    """
     observed_tools = set(parsed.available_tools)
-    if observed_tools != set(expected_tools):
+    missing = set(expected_tools) - observed_tools
+    unexpected = observed_tools - set(expected_tools) - set(optional_tools)
+    if missing or unexpected:
         raise clean_room.RunnerFailed(
-            f"runtime tool boundary mismatch: expected exactly {sorted(expected_tools)}, "
+            f"runtime tool boundary mismatch: expected {sorted(expected_tools)}"
+            f"{' (+ optional ' + str(sorted(optional_tools)) + ')' if optional_tools else ''}, "
             f"observed {sorted(parsed.available_tools)}"
         )
+    # Downstream checks receive the effective inventory: expected plus whichever optional tools
+    # this CLI actually advertised.
+    expected_tools = tuple(sorted(set(expected_tools) | (observed_tools & set(optional_tools))))
     if parsed.mcp_servers:
         raise clean_room.RunnerFailed(f"strict empty MCP boundary violated: observed {list(parsed.mcp_servers)}")
     expected_plugin_root = expected_plugin_root.resolve()
@@ -964,6 +999,7 @@ def enforce_runtime_boundary(
             callable_read_tools=callable_read_tools,
             required_allowed_paths=required_allowed_paths,
             required_denied_path=required_denied_path,
+            allowed_roots=allowed_roots,
         )
     except engine_adapters.AdapterError as exc:
         raise clean_room.RunnerFailed(str(exc)) from exc
@@ -1126,6 +1162,7 @@ def run_agent(
         plugin_root,
         enable_snapshot_reads=enable_snapshot_reads,
     )
+    optional_tools = optional_runtime_tools(scenario, plugin_root)
     expected_canaries = expected_canaries_for_paths(references, plugin_root)
     command = build_command(
         scenario,
@@ -1182,13 +1219,16 @@ def run_agent(
     boundary_proven = False
     try:
         parsed = parse_stream_trace(proc.stdout)
-        boundary_options: dict[str, object] = {"expected_tools": expected_tools}
+        boundary_options: dict[str, object] = {"expected_tools": expected_tools, "optional_tools": optional_tools}
         if enable_snapshot_reads:
             boundary_options["callable_read_tools"] = engine_adapters.READ_TOOLS
             boundary_options["required_allowed_paths"] = tuple(
                 plugin_root / relative for relative in references
             )
             boundary_options["required_denied_path"] = denied_probe_path
+            # The neutral fixture workspace is harness-owned (its digest is recorded), so a read that
+            # resolves inside it — a cwd-relative Grep/Glob included — is in bounds (HOST-003).
+            boundary_options["allowed_roots"] = (cwd,)
         enforce_runtime_boundary(parsed, plugin_root, **boundary_options)
         boundary_proven = True
         if expected_canaries:
