@@ -1,0 +1,25 @@
+schema_version: 1
+id: discovery-operational-learning-accepts-verified-binding
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: operational-learning
+prompt: |
+  Capture durable operational lessons for a resolved alert tuning change on service `catalog-api`.
+  Target repository: `latent-sre/save-toolkit`; target revision:
+  `050ef8b5d21b07f69fad18d95baa1fb678152d00`.
+  Verified: `git rev-parse HEAD` => `050ef8b5d21b07f69fad18d95baa1fb678152d00`.
+  Authorized documentation roots: `docs/operations`.
+  Evidence says the alert threshold changed and the runbook link remains valid. Produce closeout
+  dispositions only; do not execute anything.
+routing:
+  expect: fire
+success_criteria:
+  - Fires operational-learning for explicit closeout work with a valid command/output checkout binding
+  - Treats the supplied binding as eligible for prepared documentation outcomes
+graders:
+  - type: contains_all
+    of: ["`[verified]` checkout binding", "prepared"]
+  - type: contains_any
+    of: ["knowledge index", "alert card"]

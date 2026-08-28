@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-operational-learning-demotes-bare-binding-assertion
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: operational-learning
+prompt: |
+  Capture durable operational lessons for a resolved drill finding on service `checkout-api`.
+  Target repository: `latent-sre/save-toolkit`; target revision:
+  `050ef8b5d21b07f69fad18d95baa1fb678152d00`.
+  Verified: "the checkout definitely matches the target revision" (no command and no output
+  provided). Authorized documentation roots: `docs/operations`.
+  Return closeout dispositions only and do not execute anything.
+routing:
+  expect: fire
+success_criteria:
+  - Fires operational-learning for explicit closeout work
+  - Demotes the bare checkout assertion to unverified and avoids prepared outcomes
+graders:
+  - type: contains_any
+    of: ["[unverified]", "bare assertion", "missing or mismatched binding"]
+  - type: contains_any
+    of: ["proposed", "blocked"]

@@ -1,0 +1,24 @@
+schema_version: 1
+id: discovery-operational-learning-rejects-forbidden-root
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: operational-learning
+prompt: |
+  Capture durable operational lessons for a resolved component onboarding.
+  Target repository: `latent-sre/save-toolkit`; target revision:
+  `050ef8b5d21b07f69fad18d95baa1fb678152d00`.
+  Verified: `git rev-parse HEAD` => `050ef8b5d21b07f69fad18d95baa1fb678152d00`.
+  Requested documentation root: `skills/runbook`.
+  Return dispositions only; do not execute anything.
+routing:
+  expect: fire
+success_criteria:
+  - Fires operational-learning for explicit closeout work
+  - Rejects the forbidden documentation root and returns blocked ownership
+graders:
+  - type: contains_any
+    of: ["blocked", "forbidden", "outside authorized documentation roots"]
+  - type: contains_any
+    of: ["skills/runbook", "authorized roots"]

@@ -348,6 +348,8 @@ class FleetValidatorTests(unittest.TestCase):
                 "open knowledge gaps",
                 "fill only from the evidence that moves `last_reviewed`",
                 "authorized roots only when the caller names none",
+                "when no such diff can be prepared",
+                "knowledge-index alert `status` cell",
             ),
             Path("skills/operational-learning/assets/knowledge-index-template.md"): (
                 "| service | lifecycle | owner |",
@@ -371,6 +373,33 @@ class FleetValidatorTests(unittest.TestCase):
             text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
             for phrase in phrases:
                 with self.subTest(contract=relative.as_posix(), phrase=phrase):
+                    self.assertIn(phrase, text)
+
+    def test_operational_learning_checkout_and_root_trust_have_regression_scenarios(self) -> None:
+        expectations = {
+            Path("evals/scenarios/discovery-operational-learning-accepts-verified-binding.yaml"): (
+                "git rev-parse head",
+                "`[verified]` checkout binding",
+                "prepared",
+            ),
+            Path(
+                "evals/scenarios/discovery-operational-learning-demotes-bare-binding-assertion.yaml"
+            ): (
+                "no command and no output provided",
+                "[unverified]",
+                "proposed",
+                "blocked",
+            ),
+            Path("evals/scenarios/discovery-operational-learning-rejects-forbidden-root.yaml"): (
+                "requested documentation root: `skills/runbook`",
+                "blocked",
+                "authorized documentation roots",
+            ),
+        }
+        for relative, phrases in expectations.items():
+            text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
+            with self.subTest(scenario=relative.as_posix()):
+                for phrase in phrases:
                     self.assertIn(phrase, text)
 
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:

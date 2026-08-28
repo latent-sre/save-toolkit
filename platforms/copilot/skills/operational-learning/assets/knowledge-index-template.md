@@ -22,6 +22,9 @@ configuration. The linked version-controlled source remains authoritative.
 |---|---|---|---|---|---|---|
 |  |  |  |  |  |  |  |
 
+Set `Status` for every alert row. Keep it aligned with the linked alert card (`active`, `retired`,
+or the repository's equivalent lifecycle state).
+
 ## Open knowledge gaps
 
 | Gap | Artifact | Status | Owner | Tracking link | Evidence label |
