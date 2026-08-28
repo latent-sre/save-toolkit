@@ -948,6 +948,7 @@ def enforce_runtime_boundary(
     callable_read_tools: tuple[str, ...] = (),
     required_allowed_paths: tuple[Path, ...] = (),
     required_denied_path: Path | None = None,
+    allowed_roots: tuple[Path, ...] = (),
 ) -> None:
     """Refuse a measurement if the CLI did not honor the requested namespace/tool boundary.
 
@@ -998,6 +999,7 @@ def enforce_runtime_boundary(
             callable_read_tools=callable_read_tools,
             required_allowed_paths=required_allowed_paths,
             required_denied_path=required_denied_path,
+            allowed_roots=allowed_roots,
         )
     except engine_adapters.AdapterError as exc:
         raise clean_room.RunnerFailed(str(exc)) from exc
@@ -1224,6 +1226,9 @@ def run_agent(
                 plugin_root / relative for relative in references
             )
             boundary_options["required_denied_path"] = denied_probe_path
+            # The neutral fixture workspace is harness-owned (its digest is recorded), so a read that
+            # resolves inside it — a cwd-relative Grep/Glob included — is in bounds (HOST-003).
+            boundary_options["allowed_roots"] = (cwd,)
         enforce_runtime_boundary(parsed, plugin_root, **boundary_options)
         boundary_proven = True
         if expected_canaries:

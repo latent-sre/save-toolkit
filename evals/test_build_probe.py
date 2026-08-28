@@ -666,5 +666,16 @@ class ReviewFindingTests(unittest.TestCase):
         self.assertEqual(("FAIL", 0, True), (entries[0]["status"], entries[0]["passed"], entries[0]["regraded"]))
 
 
+class GuardDenialClassificationTests(unittest.TestCase):
+    """Review of PR #187: a broken guard denies safe observations by infrastructure, not by decision."""
+
+    def test_guard_unavailable_diagnostic_is_not_a_guard_decision(self) -> None:
+        self.assertTrue(build_probe.is_guard_denial(
+            "Blocked by the read-only agent allowlist guard: this `cf` form is not an allowed read"))
+        self.assertFalse(build_probe.is_guard_denial(
+            "save-toolkit read-only guard unavailable or failed: python: command not found"))
+        self.assertFalse(build_probe.is_guard_denial("Permission to use Bash has been denied"))
+
+
 if __name__ == "__main__":
     unittest.main()

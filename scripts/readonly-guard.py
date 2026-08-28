@@ -377,8 +377,10 @@ _FIND_ACTIONS = ("-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-f
 # flag form WRITES the target; see _cf_allowed. `cf env` is ABSENT by design: it
 # prints the app's full environment — credentials included — to an agent that also holds web
 # egress, and that pairing is exactly the exfiltration shape the fleet's doctrine forbids.
+# `revisions` lists an app's droplet/env revisions and which is deployable — the read a rollback
+# recommendation needs — and prints no credential-bearing field; `rollback` stays denied.
 _CF_READ = frozenset({
-    "app", "apps", "events", "logs", "routes", "services", "spaces", "orgs", "target",
+    "app", "apps", "events", "logs", "routes", "services", "spaces", "orgs", "target", "revisions",
 })
 
 # `gcloud` read-only triage for the GCP migration — the `cf` analog, gated by POSITIONAL PREFIX

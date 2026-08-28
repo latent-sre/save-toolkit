@@ -126,11 +126,11 @@ skill), `git log`/`git diff` for recent changes, `dig` for DNS. Bash here is rea
 an allowlist guard (`cf`/`git`/`gh`/`gcloud` readers plus plain filters — see
 `scripts/readonly-guard.py`); a
 denied command is a guard finding, not something to work around. Pipes into plain filters
-(`| head`, `| tail`, `| grep`) pass; file redirections and `2>&1` are denied, so leave stderr alone
-or send it to `/dev/null` — a denial of `cf target 2>&1` is the redirection, not `target`.
-Revision history — which droplet and `environment_json` were live before, who changed them, when —
-comes from `cf events <app>`; that is the read a rollback recommendation needs, and
-`cf revisions` is not on the allowlist. `cf env` is deliberately denied,
+(`| head`, `| tail`, `| grep`) pass, and so do `2>&1` and `>/dev/null`; a redirect to any real file
+is denied. `cf target` is allowed only bare — any extra token on it reads as the write form and is
+denied, so never pipe or redirect that one. Revision history — which droplet and
+`environment_json` were live before, who changed them, when — comes from `cf revisions <app>` and
+`cf events <app>`; that is the read a rollback recommendation needs. `cf env` is deliberately denied,
 and so are `gcloud auth print-access-token` and `gcloud secrets versions access`:
 `gh` and `git` reach the network through the allowlist, and credentials must never sit next to an egress path. Anything off the allowlist —
 `curl` health checks, `cf ssh`, log/metrics CLIs — you *recommend* with the exact command and
@@ -245,7 +245,8 @@ emit that schema during bounded assistance.
 > **Hypotheses tested**: H1 pool exhaustion from v2.14's per-item pricing queries → predicts
 > `HikariPool` waits after 14:02 → `cf logs orders --recent` shows them [verified] → supported.
 > H2 cache hit-rate regression → predicts higher origin traffic → untested [unverified].
-> **Root cause**: H1, high confidence; H2 not excluded.
+> **Root cause**: not yet established — H1 is the leading hypothesis until the query-count
+> comparison below runs; H2 not excluded.
 > **Next investigation step**: compare per-request query counts v2.13 vs v2.14 from the orders logs.
 > **Mitigation**: recommended — roll back orders to v2.13 (Tier 2, reversible, ~3 min); the human
 > release owner executes; exact command and rollback in the recommended course of action.
