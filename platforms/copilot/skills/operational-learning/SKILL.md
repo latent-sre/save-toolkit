@@ -38,10 +38,16 @@ stays with `observability-engineer`; code or automation stays with `software-eng
 ## Close the loop
 
 1. **Confirm the event is ready for closeout.** Name the target repository and revision, component,
-   trigger, owner, evidence, and requested documentation roots. Before any `prepared` disposition,
-   require a caller-supplied `[verified]` checkout binding showing that the mounted checkout's current
-   full SHA equals the target revision. A missing or mismatched binding permits only `proposed` or
-   `blocked` outcomes. An active incident permits only
+   trigger, owner, evidence, and requested documentation roots. Roots lie under the repository's
+   documented operations or docs tree — never `agents/`, `skills/`, `hooks/`, `.github/`,
+   `.claude/`, or a fleet guide — and a root outside it is `blocked`; when the caller names none,
+   the policy's default paths apply. Before any `prepared` disposition, require a caller-supplied
+   `[verified]` checkout binding showing that the mounted checkout's current full SHA equals the
+   target revision. That binding is retainable only when a Bash-holding caller or a human supplies
+   the `git rev-parse HEAD` command and its output on the handoff's `Verified:` line; a bare
+   assertion is `[unverified]`, and this lane never derives the binding from `.git/` contents.
+   A missing or mismatched binding permits only `proposed` or `blocked` outcomes.
+   An active incident permits only
    `proposed` or `blocked` outcomes and returns to `sre`.
 2. **Inventory before creating.** Read existing service cards, alert cards, indexes, runbooks,
    postmortems, alert definitions, and ownership conventions. Update stable IDs and links instead of
@@ -87,7 +93,7 @@ stays with `observability-engineer`; code or automation stays with `software-eng
 
 Lead with the discovery and recommended course of action. Then provide:
 
-1. target, target revision, `[verified]` checkout binding, trigger, and owner;
+1. target, target revision, the `[verified]` checkout binding or its absence, trigger, and owner;
 2. evidence with retained labels and conflicts;
 3. every affected artifact's disposition and owner;
 4. changed paths and links, or the exact reason each remains proposed or blocked;

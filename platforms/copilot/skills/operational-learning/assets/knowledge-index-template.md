@@ -12,15 +12,15 @@ configuration. The linked version-controlled source remains authoritative.
 
 ## Services
 
-| Service | Owner | Criticality | Service card | SLO/dashboard | Open gaps |
-|---|---|---|---|---|---|
-|  |  |  |  |  |  |
+| Service | Lifecycle | Owner | Criticality | Service card | SLO/dashboard | Open gaps |
+|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |
 
 ## Alerts
 
-| Exact alert name | Service | Page/ticket | Alert card | Runbook | Definition |
-|---|---|---|---|---|---|
-|  |  |  |  |  |  |
+| Exact alert name | Status | Service | Page/ticket | Alert card | Runbook | Definition |
+|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |
 
 ## Open knowledge gaps
 

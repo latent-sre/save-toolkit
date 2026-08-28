@@ -11,7 +11,8 @@ disposition-state definitions, default paths, and the evidence rules.
 | Observed event | Required disposition |
 |---|---|
 | An application, service, worker, job, datastore, platform, or other component is approved or materially changes | Create or update its component card and knowledge index; propose missing alert, runbook, ownership, dependency, backup/restore, or SLO work. |
-| A component is decommissioned | Move its component card to `lifecycle: retired` and retire its knowledge-index entry with it, dated and citing the authorizing record; move dependent alert cards to `status: retired` and its runbooks to `status: retired` rather than deleting any of them; name every artifact and dependent component still referencing it. Removing live alerts, telemetry, dashboards, or platform resources is a production change under the existing gate, never a documentation disposition. |
+| A component is decommissioned | Move its component card to `lifecycle: retired` and set its knowledge-index lifecycle cell to `retired` with it, dated and citing the authorizing record; move dependent alert cards to `status: retired` and its runbooks to `status: retired` rather than deleting any of them; name every artifact and dependent component still referencing it. Removing live alerts, telemetry, dashboards, or platform resources is a production change under the existing gate, never a documentation disposition. |
+| An audit finds a gap on an otherwise unchanged component | Disposition each finding against the component card, knowledge index, runbook, and alert card, and propose the missing alert, ownership, dependency, backup/restore, or SLO work under one owner. Record the dated verdict in the component card's open-gaps table and the index's recent-updates row. The verdict is document review — at most `[sourced]` to the dated audit record — and never moves `last_verified`; findings keep their incoming labels. |
 | An alert is approved or materially changes | Create or update the alert card, link its service card and authoritative alert definition, and require a valid runbook target before paging. |
 | An alert fires | Active event: route investigation and recommended action to `sre`; prepare no retrospective or KB change until resolution. |
 | A runbook is missing or contradicted by evidence | Create or update it through `scribe` plus `runbook`; retain unsupported commands as `[unverified]`. |
@@ -29,6 +30,13 @@ mounted checkout's current full SHA equals the target revision. The rest:
 - `blocked` — the missing evidence, authority, dependency, or owner is named.
 - `not_applicable` — the reason this artifact class does not apply is explicit.
 
+A `proposed` or `blocked` disposition becomes repository state only when it lands. When a diff is
+prepared under the checkout binding, that same diff adds the row to the index's Open knowledge gaps
+table — or to the component card's open-gaps table when the target index has none — carrying gap,
+artifact, status, owner, tracking link, and evidence label, never the blocking excerpt. Without a
+binding, the handoff's `Follow-up:` line carries a caller-supplied tracker reference or names the
+owner who files it.
+
 ## Default paths when the repository has no convention
 
 Prefer the target repository's existing documented paths and index. When none exist, use:
@@ -39,7 +47,8 @@ Prefer the target repository's existing documented paths and index. When none ex
 - `docs/runbooks/<runbook>.md`
 - `docs/postmortems/<yyyy-mm-dd>-<incident>.md`
 
-Paths are repository-relative. Reject absolute paths, parent traversal, URLs as write targets, and
+These defaults are the authorized roots only when the caller names none. Paths are
+repository-relative. Reject absolute paths, parent traversal, URLs as write targets, and
 paths outside the caller-authorized documentation roots. Update an existing stable identifier
 instead of creating a second record.
 
@@ -51,7 +60,9 @@ instead of creating a second record.
    the conflict, mark the affected claim `[unverified]`, and assign one owner to resolve it.
 3. `last_reviewed` and `last_verified` follow `../SKILL.md`'s invariants. The distinction they
    protect: document review does not prove a procedure works; only bound execution evidence does,
-   and `last_verified` belongs only to rehearsed operational procedures.
+   and `last_verified` belongs only to rehearsed operational procedures. `Reviewer` and
+   `Reviewed change` cells fill only from the evidence that moves `last_reviewed`; otherwise they
+   stay blank.
 4. Credential checks are defense in depth, not proof of absence. Store only the minimum evidence.
 
 ## Recommended course of action

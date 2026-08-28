@@ -336,6 +336,43 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertIn("`proposed`", text)
                 self.assertIn("`blocked`", text)
 
+    def test_closeout_contracts_bind_sender_roots_and_disposition_homes(self) -> None:
+        expectations = {
+            Path("skills/operational-learning/SKILL.md"): (
+                "never derives the binding from `.git/` contents",
+                "never `agents/`, `skills/`, `hooks/`, `.github/`, `.claude/`, or a fleet guide",
+                "the `[verified]` checkout binding or its absence",
+            ),
+            Path("skills/operational-learning/references/disposition-policy.md"): (
+                "an audit finds a gap on an otherwise unchanged component",
+                "open knowledge gaps",
+                "fill only from the evidence that moves `last_reviewed`",
+                "authorized roots only when the caller names none",
+            ),
+            Path("skills/operational-learning/assets/knowledge-index-template.md"): (
+                "| service | lifecycle | owner |",
+                "| exact alert name | status | service |",
+            ),
+            Path("skills/service-lifecycle/SKILL.md"): (
+                "`git rev-parse head` output on the packet's `verified:` line",
+            ),
+            Path("agents/observability-engineer.md"): (
+                "`git rev-parse head` output on the `verified:` line",
+            ),
+            Path("agents/software-engineer.md"): (
+                "`git rev-parse head` output on the `verified:` line",
+            ),
+            Path("agents/scribe.md"): (
+                "summary, owner, urgency, change tier, approval need, verification",
+                "from `service-lifecycle` or a service owner",
+            ),
+        }
+        for relative, phrases in expectations.items():
+            text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
+            for phrase in phrases:
+                with self.subTest(contract=relative.as_posix(), phrase=phrase):
+                    self.assertIn(phrase, text)
+
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
         fields, body, _ = validate_fleet.adapters.parse_frontmatter(
             ROOT / "agents" / "observability-engineer.md"

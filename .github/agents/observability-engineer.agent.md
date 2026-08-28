@@ -143,7 +143,9 @@ an isolated, networkless runner and preserve the exact evidence.
 - For health reports: SLO/budget status, trend, saturation/capacity outlook, recommended actions.
 - Always name coverage gaps you noticed (journeys with no SLI, alerts with no runbook).
 - For every approved alert addition/change: the learning disposition for alert card, service card,
-  knowledge index, and runbook, including one recommended course of action and next owner.
+  knowledge index, and runbook, including one recommended course of action and next owner, plus the
+  mounted checkout's current full SHA as `git rev-parse HEAD` output on the `Verified:` line when a
+  documentation diff is authorized.
 
 #### Worked example — the output contract, filled (compressed)
 
