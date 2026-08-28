@@ -11,7 +11,8 @@ and the bundle routes 36,754 reference bytes (66,628 at the base) against 8,843 
 the clean-room probes show both models already produce the general method this skill teaches, but
 neither knows the fleet's decisions, and both author the Claude Code frontmatter facts wrong — so
 the body keeps decisions, traps, the rule statements its references defer to, and the router, and
-sheds only restated craft. It stays above the 5,000-byte screen for that reason.
+sheds only restated craft. It stays above the screen — 7,500 bytes since the owner reset it from
+5,000 on 2026-08-27 — for that reason.
 
 The slice also corrected the probe-first method itself: a "no skill" probe run as an Agent-tool
 subagent inside this repository recites `AGENTS.md` and the memory index verbatim. The usable
@@ -167,6 +168,10 @@ trials** — `defers-code-dependency-graph` (not_fire) 2/2, `loop-engineering` 2
 `trigger-and-shape` 2/2. Green, so no previous-revision baseline is owed. The only prior evidence for
 these scenarios is the 2026-08-24 batch-1 audit's narrative (code-graph exclusion 2/2, Loop
 Engineering activation 2/2); the calibration-split `workflow-graph` scenario was not run.
+
+`[verified]` After the form pass and the owner decisions, exact candidate `e53eaa4` (clean tree,
+`--require-clean-plugin`), batch [`20260827T234106Z-dca82a64`](2026-08-27-eval-20260827T234106Z-dca82a64.md), same conditions:
+**3/3 scenarios, 6/6 trials** — the rewritten body routes as the pre-rewrite body did.
 
 ## Budget
 

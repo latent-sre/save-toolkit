@@ -6,10 +6,10 @@ Four disciplines: **Prompt Engineering** (selection, guidance, output contracts)
 Engineering** (the smallest relevant, trusted state), **Loop Engineering** (work, verification,
 budgets, termination), **Graph Engineering** (ownership and authority transitions). Handoffs are the
 context payload on a graph edge; durable learning is accepted loop output, not a fifth discipline.
-The four-theme decision rule itself is in `../SKILL.md`.
 
 ## Contents
 
+- Four-theme decision rule
 - Should this be multi-agent at all?
 - Agent vs. skill
 - The loop inside each lane
@@ -20,6 +20,22 @@ The four-theme decision rule itself is in `../SKILL.md`.
 - When it pays; right-sizing
 - Learning as repository state
 - Wrapper-layer failures
+
+## Four-theme decision rule
+
+Apply all four to the same work unit.
+
+| Theme | Owns the decision |
+|---|---|
+| Prompt Engineering | Which owner is selected, its instructions, and the response/tool shape it must produce |
+| Context Engineering | What that owner sees, in what order, with which provenance, freshness, trust, compaction, and retention |
+| Loop Engineering | Entry and mutable state, action/verification cycle, budgets, stops, terminal evidence, and promotion authority |
+| Graph Engineering | Which node owns the work, which ownership transitions exist, and what authority and payload cross each edge |
+
+Skills deepen a node; agents change ownership. Keep work in one agent and load a skill when the
+owner and authority remain correct; add or traverse an agent edge only when ownership, authority
+isolation, independent verification, parallel breadth, or additional context capacity justifies
+the transition.
 
 ## Should this be multi-agent at all?
 
@@ -86,8 +102,8 @@ thread is retained.
 | Labels copied exactly, never upgraded | A relabeling receiver manufactures evidence |
 | `Change:` names the PR, branch, diff, or working tree; the receiver re-derives the current diff | A prior review silently covering later changes |
 | State what you did not do | The receiver fills the gap with an assumption |
-| `Run/attempt:` and `Model:` (requested and resolved) on every packet; increment the attempt per dispatch, retry, resume, or replacement | A model-dependent decision closed without the resolved identity |
-| Empty, malformed, partial, timed-out, or killed return = failed attempt: record it, dispatch no dependent work, return `BLOCKED` or `INCONCLUSIVE`; a human may retry inside the declared budget | Success by silence — no scheduler, lease, or heartbeat is implied |
+| `Run/attempt:` and `Model:` with the requested and resolved model identity on every packet; preserve the run identity across a workflow and increment the attempt for every dispatch, retry, resume, or replacement | A missing resolved identity cannot close a model-dependent decision |
+| An empty, malformed, partial, timed-out, or killed return is a failed attempt rather than success: record it, dispatch no dependent work, and return control to the caller as `BLOCKED` or `INCONCLUSIVE`; a human may choose a replacement or a retry inside the declared budget | Success by silence. No background scheduler, lease, stale-worker detector, or heartbeat is implied |
 
 ## Design principles this fleet enforces
 
