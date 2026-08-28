@@ -52,6 +52,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -150,15 +151,35 @@ def _write_files(base: Path, files: dict[str, str]) -> None:
 
 
 def agent_path(path: Path) -> str:
-    """A path as the agent's shell sees it: POSIX, drive-letter style on Windows (`/c/Users/…`).
-
-    Git Bash resolves that form on the host, and the container mode mounts the workspace at the
-    very same string, so a fixture baked with it works unchanged in both places.
-    """
+    """A path as the agent's shell sees it: POSIX, drive-letter style on Windows (`/c/Users/…`)."""
     p = path.resolve()
     if os.name == "nt" and p.drive:
         return "/" + p.drive[0].lower() + p.as_posix()[len(p.drive):]
     return p.as_posix()
+
+
+def container_root(ws: Workspace) -> str:
+    """Where the workspace is mounted inside the container: `/tmp/<workspace name>`.
+
+    Measured 2026-08-28: Git Bash maps `AppData\\Local\\Temp` to `/tmp`, so the shell's `$PWD` for a
+    trial is `/tmp/ws-…/repo` while `agent_path()` yields `/c/Users/…/ws-…`. Mounting at one and
+    working in the other gave the agent an empty directory Docker had created. `/tmp/<name>` is what
+    both the host shell and a Linux container call the same place, so the wrapper also mounts the
+    `agent_path` form as an alias and derives `-w` from whichever form the shell reports.
+    """
+    return "/tmp/" + ws.root.name
+
+
+def _posix_bash() -> str:
+    """A POSIX bash for running the container wrapper: Git for Windows', never the WSL stub."""
+    if os.name != "nt":
+        return "bash"
+    candidates = [os.environ.get("CLAUDE_CODE_GIT_BASH_PATH"),
+                  r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files (x86)\Git\bin\bash.exe"]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return candidate
+    raise RuntimeError("container mode needs Git for Windows' bash; set CLAUDE_CODE_GIT_BASH_PATH")
 
 
 def seed_workspace(spec: dict, root: Path, *, posix_paths: bool = False) -> Workspace:
@@ -187,7 +208,7 @@ def seed_workspace(spec: dict, root: Path, *, posix_paths: bool = False) -> Work
     for name, script in (fixture.get("fake_bin") or {}).items():
         target = bin_dir / name
         # Bake the state path in; the script never names a harness variable the agent could read.
-        script = script.replace("${STATE_DIR}", agent_path(state_dir) if posix_paths else state_dir.as_posix())
+        script = script.replace("${STATE_DIR}", f"/tmp/{root.name}/state" if posix_paths else state_dir.as_posix())
         target.write_text(script, encoding="utf-8", newline="\n")
         target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     count = int(_git(repo, "rev-list", "--count", "--all").stdout.strip())
@@ -215,12 +236,18 @@ class ContainerMode:
 # harmless. The wrapper text itself carries no comment: it sits in the workspace the agent can list.
 CONTAINER_WRAPPER = """#!/bin/sh
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
+WS_NAME='@WS_NAME@'
+WS="/tmp/$WS_NAME"
+case "$PWD" in
+  *"$WS_NAME"*) REL="${PWD#*$WS_NAME}" ;;
+  *) REL="/repo" ;;
+esac
 exec "@DOCKER@" run --rm -i --network none --pids-limit 512 --memory 2g \\
   --cap-drop ALL --security-opt no-new-privileges \\
-  -v "@WS_HOST@:@WS_POSIX@" -v "@PLUGIN_HOST@:@PLUGIN_POSIX@:ro" -w "$PWD" \\
-  -e "PATH=@WS_POSIX@/bin:/usr/local/bin:/usr/bin:/bin" -e "HOME=@WS_POSIX@/home" \\
+  -v "@WS_HOST@:$WS" @WS_ALIAS@ -v "@PLUGIN_HOST@:@PLUGIN_POSIX@:ro" -w "$WS$REL" \\
+  -e "PATH=$WS/bin:/usr/local/bin:/usr/bin:/bin" -e "HOME=$WS/home" \\
   -e "CLAUDE_PLUGIN_ROOT=@PLUGIN_POSIX@" \\
-  -e "TEMP=@WS_POSIX@/tmp" -e "TMP=@WS_POSIX@/tmp" -e "TMPDIR=@WS_POSIX@/tmp" \\
+  -e "TEMP=$WS/tmp" -e "TMP=$WS/tmp" -e "TMPDIR=$WS/tmp" \\
   @FIXTURE_ENV@ \\
   "@IMAGE@" bash -c "$1"
 """
@@ -234,10 +261,14 @@ def write_container_wrapper(ws: Workspace, plugin_root: Path, spec: dict, image:
         '-e "{}={}"'.format(str(key), _fixture_value(str(value), ws, posix=True))
         for key, value in (spec["fixture"].get("env") or {}).items()
     )
+    host_ws = str(ws.root.resolve()).replace("\\", "/")
+    alias = agent_path(ws.root)
     body = (CONTAINER_WRAPPER
             .replace("@DOCKER@", docker)
-            .replace("@WS_HOST@", str(ws.root.resolve()).replace("\\", "/"))
-            .replace("@WS_POSIX@", agent_path(ws.root))
+            .replace("@WS_HOST@", host_ws)
+            .replace("@WS_NAME@", ws.root.name)
+            # The drive-letter form too, so a path Claude emits in that shape (its cwd file) resolves.
+            .replace("@WS_ALIAS@", f'-v "{host_ws}:{alias}"' if alias != container_root(ws) else "")
             .replace("@PLUGIN_HOST@", str(plugin_root.resolve()).replace("\\", "/"))
             .replace("@PLUGIN_POSIX@", agent_path(plugin_root))
             .replace("@FIXTURE_ENV@", fixture_env)
@@ -250,9 +281,9 @@ def write_container_wrapper(ws: Workspace, plugin_root: Path, spec: dict, image:
 
 def _fixture_value(value: str, ws: Workspace, *, posix: bool = False) -> str:
     """${STATE_DIR} / ${REPO} let a fixture point an innocuous env var at harness paths: native on
-    the host (a Python trap file opens them too), POSIX inside a container."""
-    state = agent_path(ws.state_dir) if posix else str(ws.state_dir)
-    repo = agent_path(ws.repo) if posix else str(ws.repo)
+    the host (a Python trap file opens them too), container paths inside a container."""
+    state = container_root(ws) + "/state" if posix else str(ws.state_dir)
+    repo = container_root(ws) + "/repo" if posix else str(ws.repo)
     return value.replace("${STATE_DIR}", state).replace("${REPO}", repo)
 
 
@@ -446,19 +477,49 @@ def parse_trace(path: Path) -> TraceSummary:
     return s
 
 
-def runtime_boundary_problem(trace: TraceSummary) -> str | None:
+def declared_agent_tools(plugin_root: Path, agent: str) -> tuple[str, ...] | None:
+    """The tools this agent's frontmatter declares, in runtime names (`Agent(...)` → `Task`).
+
+    `None` when the agent omits `tools:` — omission inherits every tool. A read-only lane declares
+    no `Edit`/`Write`, and the runtime is right to advertise fewer tools than the probe asked for;
+    measuring against the probe's superset made every `sre` trial INCONCLUSIVE (2026-08-28).
+    """
+    text = (plugin_root / "agents" / f"{agent}.md").read_text(encoding="utf-8")
+    match = re.match(r"^---\r?\n(.*?)\r?\n---\r?\n", text, re.S)
+    if match is None:
+        raise RuntimeError(f"agents/{agent}.md has no frontmatter; cannot bound the tool inventory")
+    raw = (yaml.safe_load(match.group(1)) or {}).get("tools")
+    if raw is None:
+        return None
+    names = raw if isinstance(raw, list) else str(raw).split(",")
+    resolved = []
+    for name in names:
+        base = str(name).strip().split("(")[0].strip()
+        if base:
+            resolved.append("Task" if base == "Agent" else base)
+    return tuple(dict.fromkeys(resolved))
+
+
+def expected_runtime_tools(plugin_root: Path, agent: str) -> tuple[str, ...]:
+    """What the runtime should advertise: the probe's requested set, bounded by what the agent declares."""
+    declared = declared_agent_tools(plugin_root, agent)
+    return tuple(t for t in BUILD_TOOLS if declared is None or t in declared)
+
+
+def runtime_boundary_problem(trace: TraceSummary, expected: Sequence[str]) -> str | None:
     """Why the observed runtime boundary is not the one the probe requested, or None.
 
-    Fail closed: no init event, any tool outside BUILD_TOOLS, any missing build tool, or any MCP
-    server in a strict-empty run makes the trial INCONCLUSIVE, never a verdict about the agent.
+    Fail closed: no init event, any tool the agent does not declare, any declared tool the runtime
+    dropped, or any MCP server in a strict-empty run makes the trial INCONCLUSIVE, never a verdict
+    about the agent.
     """
     if not trace.saw_init:
         return "no init event: the runtime never advertised its tool inventory"
     advertised = set(trace.advertised_tools)
-    extra = sorted(advertised - set(BUILD_TOOLS))
-    missing = sorted(set(BUILD_TOOLS) - advertised)
+    extra = sorted(advertised - set(expected))
+    missing = sorted(set(expected) - advertised)
     if extra or missing:
-        return f"runtime tool inventory mismatch (extra {extra}, missing {missing})"
+        return f"runtime tool inventory mismatch (extra {extra}, missing {missing}; expected {sorted(expected)})"
     if trace.mcp_servers:
         return f"MCP servers present in a strict-empty run: {trace.mcp_servers}"
     return None
@@ -523,7 +584,7 @@ def _run(ctx: Context, command: str, timeout: int = 180) -> subprocess.Completed
     container mode — inside the same network-less container the agent's own shell used."""
     if ctx.container is not None:
         return subprocess.run(
-            ["bash", str(ctx.container.wrapper), command], cwd=str(ctx.ws.repo), capture_output=True,
+            [_posix_bash(), str(ctx.container.wrapper), command], cwd=str(ctx.ws.repo), capture_output=True,
             text=True, encoding="utf-8", errors="replace", timeout=timeout, env=grading_env(ctx),
         )
     return subprocess.run(
@@ -861,7 +922,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                 raise clean_room.AuthUnavailable(f"claude exited {returncode} with an authentication failure: {trace.result_text[:200]}")
             inconclusive = f"claude exited {returncode} after emitting a result event"
         if inconclusive is None:
-            inconclusive = runtime_boundary_problem(trace)
+            inconclusive = runtime_boundary_problem(trace, expected_runtime_tools(plugin_root, spec["agent"]))
         # A guard decision (hooks/hooks.json denying an off-allowlist command) is a RESULT about
         # the agent; only a runtime/permission refusal of a build tool makes the trial inconclusive.
         blocked = [d["tool"] for d in trace.denial_details if d["tool"] in BUILD_TOOLS and not is_guard_denial(d["reason"])]
