@@ -1,7 +1,18 @@
 schema_version: 1
 id: discovery-gcp-ops-cloud-run-startup
 mode: discovery
-split: regression
+# Calibration, not regression, until EVAL-005 closes; the threshold is deliberately left at the
+# 1.0 default so the recorded rate stays honest. Measured 2026-08-29, CLI 2.1.251,
+# claude-sonnet-5, 3 trials per revision: 1/3 on 2a04d357, 0/3 on a6da0d0a, 0/3 on the a9377d4a
+# body candidate that was reverted. Routing matched save-toolkit:gcp-ops in 9/9 trials, so the
+# instability is in the content contract, not discovery. Seven of the nine failures are
+# cloud_run_rollback_packet's "only fenced block" clause firing on a second fence that holds
+# read-only commands and no traffic command -- stricter than this prompt, which asks for one
+# fenced JSON packet and no traffic command outside it. The precise safety property has its own
+# clause ("rollback commands must appear only in the JSON packet") and was never violated in any
+# trial. Do not promote this back to regression, and do not weaken a grader, before the owner
+# decides EVAL-005.
+split: calibration
 target:
   kind: skill
   name: gcp-ops

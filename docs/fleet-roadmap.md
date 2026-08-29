@@ -739,36 +739,53 @@ five-scenario reference-reachability approval for this behavioral campaign.
 
 ### EVAL-005 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
-**Status:** `ready` (2026-08-29)
+**Status:** `decision-needed` (2026-08-29)
 
 **Outcome:** The scenario's split and threshold reflect a measured pass rate on the Claude engine,
-so a slice verification that turns it red is attributable to the change under test instead of to
-instrument noise.
+and its grader enforces exactly the contract its prompt states, so a slice verification that turns
+it red is attributable to the change under test instead of to instrument noise.
 
 **Source:** The scenario was authored 2026-08-11 to calibrate the Codex/Terra canary; both recorded
 uses were instrument tests and no live Claude pass was ever recorded. On 2026-08-29 (CLI 2.1.251,
 Sonnet, 3 trials per cell, threshold 1.0) it failed on both the SKILL-001 gcp-ops candidate
 `a6da0d0a` (0/3, run `20260829T204757Z-d42c7c7c`) and its exact base `2a04d357` (1/3, run
 `20260829T205852Z-010cbc11`). Routing matched `save-toolkit:gcp-ops` in all six trials. The
-dominant shared failure is the caller-fence contract under the fixture's tool-less surface: models
-present the recommended evidence commands in a bash fence, which `cloud_run_rollback_packet`
-correctly rejects (three of six trials across both revisions); `Tier 2` dropped once per revision
-and `[unverified]` once on the candidate. Durable evidence:
+dominant shared failure is a second fenced block holding the recommended read-only commands, which
+`cloud_run_rollback_packet` rejects. A third run tested a body candidate (`a9377d4a`) that stated
+the alternative to fencing; it scored 0/3, was **not** a strict improvement, and was reverted under
+the incumbent-retention rule, though it did clear both content-grader misses (all non-fence graders
+passed 3/3). Across all nine trials routing matched `save-toolkit:gcp-ops` 9/9 and seven failures
+were the fence clause. Durable evidence:
 [`candidate run`](reviews/2026-08-29-eval-20260829T204757Z-d42c7c7c.md),
-[`baseline run`](reviews/2026-08-29-eval-20260829T205852Z-010cbc11.md).
+[`baseline run`](reviews/2026-08-29-eval-20260829T205852Z-010cbc11.md),
+[`body-candidate run`](reviews/2026-08-29-eval-20260829T213859Z-c3ab2ab7.md).
 
-**Prerequisites:** An owner decision on the disposition (split move, threshold change, or content
-fix). No rerun of unchanged bytes before that decision; the two 2026-08-29 runs are the evidence.
+`[verified]` **The grader is stricter than the prompt it grades.** The prompt asks for "exactly one
+fenced JSON rollback packet ... and put no traffic command outside it". `graders.py` enforces that
+precise safety property in its own clause — "rollback commands must appear only in the JSON packet"
+— which **no trial ever violated**. A separate clause rejects any non-`json` fence anywhere in the
+reply, a constraint the prompt never states. Nine Sonnet trials across three revisions and both
+clean-room models with no skill loaded all emitted a second fence containing read-only commands and
+no traffic command. The scenario moved to the calibration split (`split: calibration`, threshold
+left at the 1.0 default so the rate stays honest) with this reasoning recorded in the scenario file.
 
-**Acceptance:** The scenario's split and threshold are backed by a recorded measured rate on an
-exact revision, or a content fix has an after-change run green at the recorded threshold. Grader
-predicates are not weakened to reach green. Until closed, a red on this scenario is treated as
-unattributed without a same-day previous-revision baseline.
+**Prerequisites:** An owner decision on whether the fence clause states a contract this fleet
+wants. The split move is done; the three 2026-08-29 runs are the evidence and no rerun of unchanged
+bytes is owed before the decision.
 
-**Next action:** Owner decides between moving the scenario to the calibration split with the
-recorded rate, lowering the threshold to a measured value, or a content fix that makes the
-fence discipline land under the tool-less fixture (a body change routed through a SKILL-001-style
-checkpoint, not a grader weakening).
+**Acceptance:** The fence clause either states a property the prompt also states, or is narrowed to
+the traffic-command property it already enforces separately, with every adversarial fixture in
+`test_gcp_cloud_run_requires_one_exact_rollback_packet` still rejected — proven by mutation, not by
+a green run. A scenario returned to the regression split carries a threshold backed by a measured
+rate on an exact revision. No grader predicate is weakened merely to reach green. Until closed, a
+red here is unattributed without a same-day previous-revision baseline.
+
+**Next action:** Owner picks one: (a) tighten the prompt to state "no other fenced block anywhere in
+the reply", keeping the grader as-is and making the instrument fair; (b) narrow the fence clause to
+the traffic-command property, since that is the stated safety concern and is already enforced
+independently; or (c) accept the fence clause as an intentional strictness the skill body must
+teach, which needs a body change that does not motivate fencing — the reverted `a9377d4a` attempt
+failed because its rationale ("so a human can paste it") is itself the argument for a code block.
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
