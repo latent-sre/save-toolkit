@@ -308,6 +308,12 @@ def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
                     problems.append(f"{where}: grader '{grader.get('type')}' has bad/missing kwargs: {exc}")
                 except re.error as exc:
                     problems.append(f"{where}: grader '{grader.get('type')}' has an invalid regex: {exc}")
+                except Exception as exc:
+                    # A grader may reject its own kwargs before seeing the response (empty
+                    # `fields`, a non-string member of `of`, out-of-range weights) with
+                    # ValueError/AttributeError rather than TypeError; report those as
+                    # validation problems instead of crashing the suite gate.
+                    problems.append(f"{where}: grader '{grader.get('type')}' has invalid configuration: {exc}")
 
         mode = scenario.get("mode")
         routing = scenario.get("routing")
