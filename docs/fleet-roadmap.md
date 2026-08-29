@@ -522,8 +522,10 @@ entrypoint bytes (−15.3%, references untouched), description byte-identical, b
 screen. Clean-room probes on both tiers show the body's Cloud Run mechanics are recitation, while
 both no-skill pressure controls fail the committed graders on exactly the retained contract —
 `gcloud config list` first, the `[unverified]`/Tier 2/release-owner/error-rate vocabulary, and the
-caller-fence rule both models break unprompted. After-change discovery run on `a6da0d0a`:
-RESULT-PENDING. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
+caller-fence rule both models break unprompted. After-change discovery run on `a6da0d0a`: 0/3
+against a 1/3 previous-revision baseline on exact base `2a04d357`, same CLI and fixture, same
+dominant caller-fence failure, routing 6/6 — pre-existing content-contract instability, filed as
+`EVAL-005`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
 
 **Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
 5,000 before). On `origin/main` `4f01f22`, 33 entrypoints total 224,844 immutable bytes and seven
@@ -734,6 +736,39 @@ guidance before it is accepted green with it.
 **Next action:** Under a separately approved live profile, measure the eight scenarios in one run;
 report which claims survive and tighten the wording of any that do not. Do not expand or reuse the
 five-scenario reference-reachability approval for this behavioral campaign.
+
+### EVAL-005 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
+
+**Status:** `ready` (2026-08-29)
+
+**Outcome:** The scenario's split and threshold reflect a measured pass rate on the Claude engine,
+so a slice verification that turns it red is attributable to the change under test instead of to
+instrument noise.
+
+**Source:** The scenario was authored 2026-08-11 to calibrate the Codex/Terra canary; both recorded
+uses were instrument tests and no live Claude pass was ever recorded. On 2026-08-29 (CLI 2.1.251,
+Sonnet, 3 trials per cell, threshold 1.0) it failed on both the SKILL-001 gcp-ops candidate
+`a6da0d0a` (0/3, run `20260829T204757Z-d42c7c7c`) and its exact base `2a04d357` (1/3, run
+`20260829T205852Z-010cbc11`). Routing matched `save-toolkit:gcp-ops` in all six trials. The
+dominant shared failure is the caller-fence contract under the fixture's tool-less surface: models
+present the recommended evidence commands in a bash fence, which `cloud_run_rollback_packet`
+correctly rejects (three of six trials across both revisions); `Tier 2` dropped once per revision
+and `[unverified]` once on the candidate. Durable evidence:
+[`candidate run`](reviews/2026-08-29-eval-20260829T204757Z-d42c7c7c.md),
+[`baseline run`](reviews/2026-08-29-eval-20260829T205852Z-010cbc11.md).
+
+**Prerequisites:** An owner decision on the disposition (split move, threshold change, or content
+fix). No rerun of unchanged bytes before that decision; the two 2026-08-29 runs are the evidence.
+
+**Acceptance:** The scenario's split and threshold are backed by a recorded measured rate on an
+exact revision, or a content fix has an after-change run green at the recorded threshold. Grader
+predicates are not weakened to reach green. Until closed, a red on this scenario is treated as
+unattributed without a same-day previous-revision baseline.
+
+**Next action:** Owner decides between moving the scenario to the calibration split with the
+recorded rate, lowering the threshold to a measured value, or a content fix that makes the
+fence discipline land under the tool-less fixture (a body change routed through a SKILL-001-style
+checkpoint, not a grader weakening).
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
