@@ -16,12 +16,12 @@ success_criteria:
   - Names the evidence required before combining the investigations
 graders:
   - type: contains_any
-    of: ["same window", "correlated timing", "shared cause"]
+    of: ["same window", "correlated timing", "shared cause", "timing alone", "close timing", "shared timing"]
   - type: contains_any
     of: ["mechanism", "connecting", "connection"]
   - type: regex
-    pattern: '(?i)\b(?:keep|track|investigat|maintain|handle|leave)\w*\b[^.\n]{0,80}\b(?:incidents?|them|differentials?)\b[^.\n]{0,80}\b(?:separate|independent\w*)\b'
+    pattern: '(?i)(?:\b(?:keep|track|investigat|maintain|handle|leave)\w*\b[^.\n]{0,80}\b(?:incidents?|them|differentials?)\b[^.\n]{0,80}\b(?:separate|independent\w*)\b|\b(?:keep|track|investigat|maintain|handle|leave)\w*\b[^.\n]{0,40}\b(?:separate|independent\w*)\b[^.\n]{0,80}\b(?:incidents?|them|differentials?)\b)'
   - type: regex
-    pattern: '(?i)\b(?:same window|correlat\w*\s+tim\w*|temporally?\s+correlat\w*)\b[^.\n]{0,140}\b(?:does not|doesn''t|is not|isn''t|cannot|can''t)\b[^.\n]{0,80}\b(?:prove|evidence|establish|show|demonstrate)\w*\b'
+    pattern: '(?i)(?:\b(?:same window|(?:correlat\w*|close|shared)\s+tim\w*|tim\w*\s+(?:alone|correlat\w*\s+alone)|temporally?\s+correlat\w*)\b[^.\n]{0,140}\b(?:does not|doesn''t|is not|isn''t|cannot|can''t)\b[^.\n]{0,80}\b(?:prove|evidence|establish|show|demonstrate)\w*\b|\b(?:do not|don''t|cannot|can''t)\b[^.\n]{0,40}\b(?:merge|combine)\w*\b[^.\n]{0,120}\b(?:timing alone|began within\b[^.\n]{0,40}\bminutes?)\b)'
   - type: regex
-    pattern: '(?i)\b(?:unless|until|without|only if|require\w*|need\w*)\b[^.\n]{0,140}\b(?:mechanism|evidence)\b[^.\n]{0,140}\b(?:connect|link|shared cause)\w*'
+    pattern: '(?i)(?:\b(?:unless|until|without|only if|require\w*|need\w*)\b[^.\n]{0,140}\b(?:mechanism|evidence)\b[^.\n]{0,140}\b(?:connect|link|shared cause)\w*|\b(?:merge|combine)\w*\b[^.\n]{0,80}\bonly if\b[^.\n]{0,140}\b(?:mechanism|evidence)\b)'

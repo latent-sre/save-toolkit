@@ -635,7 +635,7 @@ tables in `evals/test_graders.py`.
 
 ### GRADER-005 — posture graders for gate-shaped contracts
 
-**Status:** `ready` (2026-08-27)
+**Status:** `active` (2026-08-29)
 
 **Outcome:** A discovery or direct grader can tell "names the rule" from "enforces the rule" for a
 scenario whose contract is a gate, so a green on `render-is-not-verification` means the response
@@ -656,12 +656,18 @@ and accepts the blocking replies, without a bare negative regex that false-reds 
 the shape is documented for reuse by any gate-shaped contract; the three scenarios are re-measured
 on an accepted candidate revision.
 
-**Next action:** Owner accepts the item; `agent-engineer` drafts the shape against the quoted
-control text before touching the scenarios.
+**Current evidence:** The
+[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
+records the red-first controls, transfer forms, named `gate_posture` grader, and green offline suite.
+The exact candidate is not committed and the three discovery scenarios have not been rerun, so the
+item is not closure-ready.
+
+**Next action:** Commit the exact candidate, then remeasure the three scenarios without changing
+their prompts, thresholds, or routing description.
 
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
-**Status:** `ready` (2026-08-28)
+**Status:** `active` (2026-08-29)
 
 **Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
 execution claim, while `I'm applying the rollback` and every other present-progressive claim about
@@ -682,12 +688,18 @@ scenarios whose grader bytes it changes.
 **Acceptance:** The sentence is a must-pass case across the scenarios carrying the grader, the
 existing must-fail cases still fail, and the affected scenarios are re-run on the committed bytes.
 
-**Next action:** `agent-engineer` requires a production object (or a bare `it`/`that` after such an
-object) within the clause, the way the commitment grader already bounds `run`.
+**Current evidence:** The
+[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
+records the reproduced false positive and the named, object-bound replacement. Guidance transfer
+forms pass and progressive rollback, restart, restage, and state-changing-command claims remain
+red. The affected direct scenario has not been rerun on committed bytes.
+
+**Next action:** Commit the exact candidate, then remeasure
+`agent-direct-sre-readonly-triage` without changing its prompt or threshold.
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
-**Status:** `ready` (2026-08-26)
+**Status:** `decision-needed` (2026-08-29)
 
 **Outcome:** Every behavior claim added to `incident-command` and `incident-investigation` on
 2026-08-26 has a discriminating scenario, so a later edit that removes the behavior turns a
@@ -707,10 +719,16 @@ uncommitted at the time this item was written. No claim below has been measured 
 | An investigation escalates on an observed stuck predicate rather than on elapsed time | `hypothesis-investigation.md` |
 | Two incidents in one window are not merged into one differential without a mechanism | `hypothesis-investigation.md` |
 
-**Current evidence:** `[verified]` Eight direct scenarios now cover these claims and the independent
-declaration-clock contract. `incident-investigation-correlated-incidents-stay-separate` carries the
-previously missing shared-cause invariant, and every scenario has a paired compliant and
-tempting-but-wrong fixture in `evals/test_graders.py`. Exact model behavior remains `[unverified]`.
+**Current evidence:** `[verified]` Eight direct scenarios cover these claims and the independent
+declaration-clock contract, with paired compliant and tempting-wrong fixtures. The
+[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
+records two frozen current-guidance Terra probes at 8/8 after red-first oracle transfer fixes,
+against pre-guidance baselines of 4/8 and 2/8. The probes are cooperative agent-task transfer
+evidence, not profile-backed native execution; the candidate oracle bytes are not committed. The
+baseline also contradicts the literal expectation that every scenario is red without the guidance.
+Eight independent Luna runs, one per scenario with no retries, initially replayed at 6/8 and finish
+at 8/8 after two additional red-first oracle transfer fixes; they carry the same cooperative,
+non-native limitation.
 
 **Prerequisites:** None structural. The `no-incident` vocabulary is already guarded structurally by
 `test_no_incident_terminal_is_enumerated_and_propose_only` in `scripts/test_graph_contracts.py`,
@@ -722,9 +740,10 @@ move, a six-hour incident where continuing is easier than handing over. Graders 
 adjacency, not bare substring presence. Each scenario is measured red on a revision without the
 guidance before it is accepted green with it.
 
-**Next action:** Under a separately approved live profile, measure the eight scenarios in one run;
-report which claims survive and tighten the wording of any that do not. Do not expand or reuse the
-five-scenario reference-reachability approval for this behavioral campaign.
+**Next action:** Owner decides whether to approve one fixed eight-scenario native Claude profile or
+to accept a revised propensity/transfer closure contract that preserves the measured baseline
+behavior. Do not reuse the five-scenario reference-reachability approval, bypass the Codex live
+blocker, or rerun Terra merely to make the baseline uniformly red.
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
