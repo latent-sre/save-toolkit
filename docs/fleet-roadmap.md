@@ -517,6 +517,14 @@ the body's remaining content is fleet decisions and platform traps the models au
 discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe correction, is in the
 [`agent-authoring disposition`](reviews/2026-08-27-skill-001-agent-authoring.md).
 
+`gcp-ops` — confirmed knowledge cut on branch `work/skill-001-gcp-ops`: 8,102 → 6,859 immutable
+entrypoint bytes (−15.3%, references untouched), description byte-identical, below the 7,500-byte
+screen. Clean-room probes on both tiers show the body's Cloud Run mechanics are recitation, while
+both no-skill pressure controls fail the committed graders on exactly the retained contract —
+`gcloud config list` first, the `[unverified]`/Tier 2/release-owner/error-rate vocabulary, and the
+caller-fence rule both models break unprompted. After-change discovery run on `a6da0d0a`:
+RESULT-PENDING. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
+
 **Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
 5,000 before). On `origin/main` `4f01f22`, 33 entrypoints total 224,844 immutable bytes and seven
 non-Phase-1 entrypoints other than `agent-authoring` sit at or above it: `obs-dashboards` 11,419,
@@ -548,9 +556,10 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** The candidate set is the seven entrypoints at or above the 7,500-byte screen.
+**Next action:** The remaining candidate set is the six undispositioned entrypoints at or above
+the 7,500-byte screen.
 `backend-craft` is in progress on its own branch with the clean-room checkpoint. Then, one per
-slice: `gcp-ops` and `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
+slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
 recitation), `obs-dashboards` and `runbook` (large, with live-write authority text and a worked
 exemplar to retain explicitly), `incident-drill` (explicit-invocation only; its references are drill
 packs), and `workflow-graph-engineering` (its own review already records why the entrypoint stays
