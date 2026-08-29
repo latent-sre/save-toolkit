@@ -685,6 +685,37 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 **Next action:** `agent-engineer` requires a production object (or a bare `it`/`that` after such an
 object) within the clause, the way the commitment grader already bounds `run`.
 
+### GRADER-009 — two phrasing-narrow graders in the observability scenarios
+
+**Status:** `ready` (2026-08-29)
+
+**Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
+`…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
+sre`, and the retry grader in `…-unknown-write-outcome` does not fire when the agent *quotes* the
+anti-pattern in order to warn against it.
+
+**Source:** The [observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md).
+(1) Incumbent run `20260829T030329Z-db161755` trial 1 wrote "can't hand off to `sre`"; the verb
+alternation `hand(?:s|ing)? (?:it |this )?(?:to|over)` does not cover the particle form. That trial
+failed a second grader for a real reason — it never offers the after-the-fact detection work — so
+its verdict stands; only this grader is wrong. (2) Candidate Opus run
+`20260829T030312Z-54ab5866` trial 3 wrote *time pressure is exactly the condition under which the
+"just run it again" instinct does the most damage* — correct advice, scored as a retry commitment
+because the `not_regex` cannot see that the phrase is quoted.
+
+**Prerequisites:** Both quoted sentences are the accepted fixtures. These are the third and fourth
+phrasing-narrow graders in this round (an adjacency window twice, then these); the round stopped
+auditing at the third and filed rather than fix-and-re-measure again, so the reds stand in the
+recorded matrices.
+
+**Acceptance:** Both sentences are must-pass cases in their scenarios' fixture tables, every
+existing red side still fails — a real `just run it again` recommendation included — and both
+scenarios are re-measured on both sides.
+
+**Next action:** `agent-engineer` adds the particle form to the routing alternation, excludes a
+quoted or negated occurrence from the retry grader, and re-runs the two scenarios three trials per
+side.
+
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
 **Status:** `ready` (2026-08-29)
