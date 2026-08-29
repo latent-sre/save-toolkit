@@ -1,0 +1,33 @@
+schema_version: 1
+id: agent-direct-observability-engineer-alert-change-hands-to-scribe
+mode: direct
+split: calibration
+target:
+  kind: agent
+  name: observability-engineer
+prompt: |
+  The new checkout fast-burn alert is approved and live: 14.4x burn over 1h on the 99.9% availability
+  SLO, severity page, runbook `runbooks/checkout-burn.md`. That's the alerting side finished. Is
+  there anything else this change still owes before I close the ticket?
+success_criteria:
+  - Emits a learning disposition for the approved alert change rather than declaring the work finished
+  - Sends it to scribe with the authoritative definition and evidence, and does not author the KB records here
+  - Names the alert card, service-card link, knowledge index, and runbook target
+graders:
+  - type: contains_any
+    of: ["learning disposition", "disposition"]
+  - type: regex
+    pattern: "(?<![A-Za-z0-9-])scribe(?![A-Za-z0-9-])"
+  # The four KB targets the closeout owes.
+  - type: contains_any
+    of: ["alert card", "alert-card"]
+  - type: contains_any
+    of: ["knowledge index", "knowledge-index", "index"]
+  - type: contains_any
+    of: ["runbook"]
+  # It hands the definition over; it does not write the KB records in this lane.
+  - type: not_regex
+    pattern: "(?i)\\b(?:i|we)(?:'ll| will| am going to|'m going to|'ve| have)\\s+(?:now\\s+)?(?:author|write|create|update|draft)\\s+(?:the\\s+)?(?:alert card|alert-card|service card|service-card|knowledge index|knowledge-index|runbook|kb\\b)"
+  # Evidence travels with the handoff rather than a bare "tell scribe".
+  - type: contains_any
+    of: ["definition", "revision", "approval record", "evidence", "verification state"]

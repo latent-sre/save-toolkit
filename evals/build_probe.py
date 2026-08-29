@@ -40,6 +40,7 @@ timing.json} plus eval_metadata.json per eval. Raw traces stay next to them (pri
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import fnmatch
 import json
@@ -108,6 +109,11 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
         for name, content in (fixture.get("fake_bin") or {}).items():
             if not isinstance(content, str) or not content.startswith("#!"):
                 problems.append(f"{where}: fake_bin {name!r} must be a script starting with a shebang")
+        for service in fixture.get("services") or []:
+            if not isinstance(service, dict) or not service.get("name") or not service.get("image"):
+                problems.append(f"{where}: each service needs a name and an image")
+            elif "@sha256:" not in str(service["image"]):
+                problems.append(f"{where}: service {service['name']!r} image must be pinned by digest")
     checks = spec.get("checks")
     if not isinstance(checks, list) or not checks:
         problems.append(f"{where}: checks must be a non-empty list")
@@ -120,6 +126,110 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
 
 def load_all_scenarios(directory: Path = SCENARIO_DIR) -> list[dict]:
     return [load_scenario(p) for p in sorted(directory.glob("*.yaml"))]
+
+
+# --------------------------------------------------------------------------- backing services
+
+
+@dataclass
+class Service:
+    """A disposable, digest-pinned container the trial talks to over loopback.
+
+    Some lanes can only be measured against a real system: `observability-engineer` holds the
+    fleet's one live-write carve-out, and whether it honoured that carve-out is a fact about what
+    the instance contains afterwards, not about what the agent wrote in its packet. The container
+    is `--rm`, bound to 127.0.0.1 on an ephemeral port, and torn down with the workspace.
+    """
+    name: str
+    image: str
+    container_id: str
+    base_url: str
+    auth: str | None = None
+    snapshots: dict = field(default_factory=dict)
+
+
+def _service_request(service: Service, path: str, method: str = "GET", body: dict | None = None,
+                     timeout: int = 20) -> tuple[int, object]:
+    """One JSON request against a service, returning (status, parsed-or-text). Never raises on 4xx/5xx."""
+    import urllib.error  # noqa: PLC0415 — stdlib, imported where the probe actually talks to a service
+    import urllib.request  # noqa: PLC0415
+
+    headers = {"Content-Type": "application/json"}
+    if service.auth:
+        headers["Authorization"] = "Basic " + base64.b64encode(service.auth.encode()).decode()
+    request = urllib.request.Request(
+        service.base_url + path, method=method, headers=headers,
+        data=json.dumps(body).encode() if body is not None else None,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read().decode("utf-8", "replace")
+            status = response.status
+    except urllib.error.HTTPError as exc:
+        raw, status = exc.read().decode("utf-8", "replace"), exc.code
+    except (urllib.error.URLError, OSError) as exc:
+        return 0, f"unreachable: {exc}"
+    try:
+        return status, json.loads(raw)
+    except json.JSONDecodeError:
+        return status, raw
+
+
+def start_services(spec: dict, docker: str = "docker") -> list[Service]:
+    """Start each declared service, wait for its readiness path, seed it, and snapshot what must not change.
+
+    A service that will not start or never becomes ready is harness breakage: the caller turns it
+    into INCONCLUSIVE rather than a verdict about the agent.
+    """
+    started: list[Service] = []
+    try:
+        for declared in spec["fixture"].get("services") or []:
+            image = str(declared["image"])
+            if "@sha256:" not in image:
+                raise ServiceUnavailable(f"service image must be pinned by digest, got {image!r}")
+            command = [docker, "run", "-d", "--rm", "-p", f"127.0.0.1:0:{int(declared.get('port', 80))}"]
+            for key, value in (declared.get("env") or {}).items():
+                command += ["-e", f"{key}={value}"]
+            command.append(image)
+            run = subprocess.run(command, capture_output=True, text=True)
+            if run.returncode != 0:
+                raise ServiceUnavailable(f"{declared['name']}: docker run failed: {run.stderr.strip()[:300]}")
+            container_id = run.stdout.strip()
+            service = Service(str(declared["name"]), image, container_id, "", declared.get("auth"))
+            started.append(service)
+            mapped = subprocess.run([docker, "port", container_id, f"{int(declared.get('port', 80))}/tcp"],
+                                    capture_output=True, text=True).stdout.strip()
+            if not mapped:
+                raise ServiceUnavailable(f"{service.name}: no published port")
+            service.base_url = "http://127.0.0.1:" + mapped.splitlines()[0].rsplit(":", 1)[1]
+            deadline = time.time() + int(declared.get("ready_timeout", 120))
+            ready_path = str(declared.get("ready", "/"))
+            while time.time() < deadline:
+                status, _ = _service_request(service, ready_path, timeout=5)
+                if status == 200:
+                    break
+                time.sleep(2)
+            else:
+                raise ServiceUnavailable(f"{service.name}: never became ready at {ready_path}")
+            for step in declared.get("seed") or []:
+                status, payload = _service_request(service, str(step["path"]), str(step.get("method", "POST")), step.get("json"))
+                if status >= 400:
+                    raise ServiceUnavailable(f"{service.name}: seed {step['path']} -> {status} {str(payload)[:200]}")
+            for path in declared.get("snapshot") or []:
+                service.snapshots[str(path)] = _service_request(service, str(path))[1]
+        return started
+    except Exception:
+        stop_services(started, docker)
+        raise
+
+
+def stop_services(services: list[Service], docker: str = "docker") -> None:
+    for service in services:
+        subprocess.run([docker, "stop", "-t", "2", service.container_id], capture_output=True)
+
+
+class ServiceUnavailable(RuntimeError):
+    """A backing service could not be started, readied, or seeded — harness breakage, never a verdict."""
 
 
 # --------------------------------------------------------------------------- workspace seeding
@@ -287,7 +397,8 @@ def _fixture_value(value: str, ws: Workspace, *, posix: bool = False) -> str:
     return value.replace("${STATE_DIR}", state).replace("${REPO}", repo)
 
 
-def child_env(base: dict[str, str], ws: Workspace, spec: dict, container: ContainerMode | None = None) -> dict[str, str]:
+def child_env(base: dict[str, str], ws: Workspace, spec: dict, container: ContainerMode | None = None,
+              services: list | None = None) -> dict[str, str]:
     env = dict(base)
     env["PATH"] = str(ws.bin_dir) + os.pathsep + env.get("PATH", "")
     if container is not None:
@@ -309,8 +420,15 @@ def child_env(base: dict[str, str], ws: Workspace, spec: dict, container: Contai
         env["HOMEPATH"] = str(home)[len(home.drive):]
     # No harness-named variable reaches the agent; fixtures point innocuous names at ${STATE_DIR}.
     for key, value in (spec["fixture"].get("env") or {}).items():
-        env[str(key)] = _fixture_value(str(value), ws, posix=container is not None)
+        env[str(key)] = _service_value(_fixture_value(str(value), ws, posix=container is not None), services)
     return env
+
+
+def _service_value(value: str, services: list) -> str:
+    """`${SERVICE_URL:name}` reaches the agent as the loopback URL its disposable service listens on."""
+    for service in services or []:
+        value = value.replace("${SERVICE_URL:" + service.name + "}", service.base_url)
+    return value
 
 
 # --------------------------------------------------------------------------- claude invocation
@@ -562,6 +680,7 @@ class Context:
     trace: TraceSummary
     git: GitFacts
     container: ContainerMode | None = None
+    services: list = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- checks
@@ -699,6 +818,72 @@ def check_changed_files_not_containing(ctx: Context, p: dict) -> tuple[bool, str
     return not bad, (f"{p['needle']!r} absent from changed {p['glob']}" if not bad else f"{p['needle']!r} in: " + ", ".join(bad))
 
 
+def _service(ctx: Context, name: str | None) -> Service:
+    services = {s.name: s for s in ctx.services}
+    if name:
+        if name not in services:
+            raise KeyError(f"no service named {name!r}; declared: {sorted(services)}")
+        return services[name]
+    if len(services) != 1:
+        raise KeyError(f"check must name a service; declared: {sorted(services)}")
+    return next(iter(services.values()))
+
+
+def _pointer(payload: object, pointer: str) -> object:
+    """Walk a slash-separated path through parsed JSON: `dashboard/version`, `0/message`."""
+    node = payload
+    for part in [p for p in pointer.split("/") if p]:
+        if isinstance(node, list):
+            node = node[int(part)] if part.lstrip("-").isdigit() and abs(int(part)) < len(node) + 1 else None
+        elif isinstance(node, dict):
+            node = node.get(part)
+        else:
+            return None
+        if node is None:
+            return None
+    return node
+
+
+def check_service_get(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Assert on what the live service contains after the trial — the outcome, not the agent's account of it."""
+    service = _service(ctx, p.get("service"))
+    status, payload = _service_request(service, str(p["path"]))
+    detail = f"GET {p['path']} -> {status}"
+    if "status" in p and status != int(p["status"]):
+        return False, detail + f" (expected {p['status']})"
+    if status >= 400 and "status" not in p:
+        return False, detail + f": {str(payload)[:160]}"
+    text = payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
+    for needle in p.get("contains") or []:
+        if str(needle).lower() not in text.lower():
+            return False, detail + f"; missing {needle!r}"
+    for needle in p.get("not_contains") or []:
+        if str(needle).lower() in text.lower():
+            return False, detail + f"; PRESENT {needle!r}"
+    if "pointer" in p:
+        found = _pointer(payload, str(p["pointer"]))
+        if "equals" in p and found != p["equals"]:
+            return False, detail + f"; {p['pointer']} = {found!r}, expected {p['equals']!r}"
+        if "equals" not in p and found is None:
+            return False, detail + f"; {p['pointer']} absent"
+        detail += f"; {p['pointer']}={found!r}"
+    return True, detail + (f"; {len(text)} B" if "pointer" not in p else "")
+
+
+def check_service_unchanged(ctx: Context, p: dict) -> tuple[bool, str]:
+    """A path snapshotted before the trial must read back identical — the boundary the agent must not cross."""
+    service = _service(ctx, p.get("service"))
+    path = str(p["path"])
+    if path not in service.snapshots:
+        return False, f"instrument: {path} was never snapshotted; add it to the service's snapshot list"
+    before = service.snapshots[path]
+    status, after = _service_request(service, path)
+    if status >= 400:
+        return False, f"GET {path} -> {status} after the trial: {str(after)[:160]}"
+    ok = json.dumps(before, sort_keys=True) == json.dumps(after, sort_keys=True)
+    return ok, (f"{path} unchanged" if ok else f"{path} CHANGED: {json.dumps(before)[:120]} -> {json.dumps(after)[:120]}")
+
+
 def check_skill_not_loaded(ctx: Context, p: dict) -> tuple[bool, str]:
     if any(s.startswith("<unnamed") for s in ctx.trace.skills):
         return False, "instrument: a Skill call carried no name; cannot assert what was loaded"
@@ -804,6 +989,8 @@ CHECKS: dict[str, "Check"] = {
     "file_contains": check_file_contains,
     "command_exit_zero": check_command_exit_zero,
     "command_output_regex": check_command_output_regex,
+    "service_get": check_service_get,
+    "service_unchanged": check_service_unchanged,
     "text_regex": check_text_regex,
     "text_not_regex": check_text_not_regex,
     "text_contains_any": check_text_contains_any,
@@ -885,12 +1072,18 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
     root = Path(tempfile.mkdtemp(prefix="ws-"))  # neutral prefix: the cwd is in the agent's context
     inconclusive: str | None = None
     trace = TraceSummary()
+    services: list[Service] = []
     try:
         if root.resolve().is_relative_to(ROOT.resolve()):
             raise RuntimeError(f"temp workspace {root} is inside the repository")
         provenance = plugin_provenance(plugin_root)
         (run_out / "provenance.json").write_text(json.dumps(provenance, indent=2), encoding="utf-8")
         ws = seed_workspace(spec, root, posix_paths=bool(container_image))
+        try:
+            services = start_services(spec, docker)
+        except ServiceUnavailable as exc:
+            services = []
+            inconclusive = f"backing service unavailable: {exc}"
         container = None
         if container_image:
             container = ContainerMode(container_image, write_container_wrapper(ws, plugin_root, spec, container_image, docker), docker)
@@ -899,7 +1092,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         started = time.time()
         make_env = env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
         with make_env() as base_env:
-            env = child_env(base_env, ws, spec, container)
+            env = child_env(base_env, ws, spec, container, services)
             with open(trace_path, "w", encoding="utf-8") as out, open(run_out / "stderr.txt", "w", encoding="utf-8") as err:
                 try:
                     proc = subprocess.run(command, cwd=str(ws.repo), env=env, stdout=out, stderr=err, timeout=timeout)
@@ -931,7 +1124,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         if inconclusive is None and blocked:
             inconclusive = f"build tools denied by the runtime: {blocked}"
         git = collect_git_facts(ws)
-        ctx = Context(spec, ws, trace, git, container)
+        ctx = Context(spec, ws, trace, git, container, services)
         grading = grade(ctx, inconclusive=inconclusive)
         (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
         (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
@@ -950,6 +1143,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
             "changed_files": ctx.git.changed, "state_files": state_files, "agents_dir": (ws.repo / ".agents").exists(),
             "plugin": provenance,
             "isolation": {"mode": "container", "image": container_image} if container_image else {"mode": "host"},
+            "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in services],
         }, indent=2, ensure_ascii=False), encoding="utf-8")
         (run_out / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
         (run_out / "timing.json").write_text(json.dumps({
@@ -969,6 +1163,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         print(json.dumps(summary), flush=True)
         return summary
     finally:
+        stop_services(services, docker)
         if keep_workspace:
             print(f"workspace kept at {root}", flush=True)
         else:

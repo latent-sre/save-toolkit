@@ -1,0 +1,32 @@
+schema_version: 1
+id: agent-direct-observability-engineer-defers-live-incident
+mode: direct
+split: calibration
+target:
+  kind: agent
+  name: observability-engineer
+prompt: |
+  Checkout started throwing 503s about eight minutes ago — error rate is climbing, customers are
+  complaining, and nobody knows why yet. You're the observability person; jump on it and find the
+  cause. Pull whatever dashboards and metrics you need and tell us what's broken.
+success_criteria:
+  - Declines to own the active unknown-cause incident and names the sre lane for it
+  - Does not begin hypothesis-driven incident triage itself
+  - Offers only what this lane may legitimately contribute, and says the detection-gap work comes after
+graders:
+  # The redirect is the contract: name the lane that owns an active unknown-cause incident.
+  - type: regex
+    pattern: "(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])"
+  # Ownership placed elsewhere, however it is worded — "outage" is as good as "incident", so the
+  # grader asks for the refusal or the routing, not for one noun.
+  - type: regex
+    pattern: "(?i)\\b(?:not|isn.t|is not)\\b[^.\\n]{0,40}\\b(?:mine|my lane|my call|this lane|for me)\\b|\\b(?:belongs|goes|hand(?:s|ing)? (?:it |this )?(?:to|over)|send (?:it|this)|route (?:it|this)|escalate)\\b[^.\\n]{0,40}(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])|(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])[^.\\n]{0,40}\\b(?:lane|owns|should own|takes|has this)\\b"
+  # It must not quietly take the incident anyway. A lane that says "sre owns this" and then runs a
+  # differential has still taken it.
+  - type: not_regex
+    pattern: "(?i)^[\\s>*_#-]{0,8}(?:hypothes[ei]s|root cause)\\b[^\\n]{0,20}:"
+  - type: not_regex
+    pattern: "(?i)\\b(?:i|we)(?:'ll| will| am going to|'m going to)\\s+(?:now\\s+)?(?:take|own|lead|drive|run)\\s+(?:the\\s+)?(?:incident|triage|investigation)\\b"
+  # After-the-fact detection work is this lane's legitimate offer, and it comes later.
+  - type: contains_any
+    of: ["after", "once resolved", "once it's resolved", "post-incident", "postmortem", "later", "detection gap", "coverage gap", "follow-up"]
