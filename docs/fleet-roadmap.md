@@ -826,10 +826,9 @@ existing `context-requirements-v1alpha1` and resolved-context schemas, which alr
 either; they are implemented there rather than locally. Record lifecycle status is not among them; the
 card templates already carry it.
 
-**Next action:** Add the decommission disposition row to `operational-learning`, then design the
-retirement checklist as `service-lifecycle`'s effect-shaped sibling, then carry the three schema
-enhancements to CONTEXT-001. Conditions (1) and (2) are committed; their evidence is in the commit,
-not here.
+**Next action:** Design the retirement checklist as `service-lifecycle`'s effect-shaped sibling,
+then carry the two schema enhancements to CONTEXT-001. Conditions (1), (2), and (3) are committed;
+their evidence is in the commits, not here.
 
 ## Deferred
 

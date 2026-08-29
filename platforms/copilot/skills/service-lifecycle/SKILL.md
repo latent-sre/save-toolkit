@@ -81,10 +81,11 @@ destination choices come from the approved platform boundary rather than this ch
 8. **Runbook** — check/restart/recover doc exists (`runbook`); on-call knows where it is.
 9. **Knowledge closeout** — after the service and alerts are approved, emit an **evidence-bound
    handoff** to `scribe` for the service card, alert cards, operations index, and any missing/stale
-   runbook. Include the exact repository commit ID, authoritative definitions, owners, links, retained
-   evidence labels/trust, the trusted approval record, and one recommended course of action. This
-   checklist does not author those KB records or treat an active deployment/incident as resolved
-   documentation evidence.
+   runbook. Include the exact repository commit ID, the mounted checkout's current full SHA as
+   `git rev-parse HEAD` output on the packet's `Verified:` line, authoritative definitions, owners,
+   links, retained evidence labels/trust, the trusted approval record, and one recommended course of
+   action. This checklist does not author those KB records or treat an active deployment/incident as
+   resolved documentation evidence.
 
 Return the completed/skipped steps, approval and production-gate evidence, verification results,
 remaining gaps with owners, the `scribe` handoff packet, and **what was not done**. Never report an

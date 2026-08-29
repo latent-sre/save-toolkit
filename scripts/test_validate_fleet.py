@@ -336,6 +336,73 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertIn("`proposed`", text)
                 self.assertIn("`blocked`", text)
 
+    def test_closeout_contracts_bind_sender_roots_and_disposition_homes(self) -> None:
+        expectations = {
+            Path("skills/operational-learning/SKILL.md"): (
+                "never derives the binding from `.git/` contents",
+                "never `agents/`, `skills/`, `hooks/`, `.github/`, `.claude/`, or a fleet guide",
+                "the `[verified]` checkout binding or its absence",
+                "alert changes disposition the alert card, service card, knowledge index, and runbook",
+            ),
+            Path("skills/operational-learning/references/disposition-policy.md"): (
+                "an audit finds a gap on an otherwise unchanged component",
+                "open knowledge gaps",
+                "whenever no such diff can be prepared",
+                "the alert's knowledge-index row, including its `status` cell",
+                "their knowledge-index `status` cells to `retired`",
+                "fill only from the evidence that moves `last_reviewed`",
+                "authorized roots only when the caller names none",
+            ),
+            Path("skills/operational-learning/assets/knowledge-index-template.md"): (
+                "| service | lifecycle | owner |",
+                "| exact alert name | status | service |",
+            ),
+            Path("skills/service-lifecycle/SKILL.md"): (
+                "`git rev-parse head` output on the packet's `verified:` line",
+            ),
+            Path("agents/observability-engineer.md"): (
+                "`git rev-parse head` output on the `verified:` line",
+            ),
+            Path("agents/software-engineer.md"): (
+                "`git rev-parse head` output on the `verified:` line",
+            ),
+            Path("agents/scribe.md"): (
+                "summary, owner, urgency, change tier, approval need, verification",
+                "from `service-lifecycle` or a service owner",
+            ),
+        }
+        for relative, phrases in expectations.items():
+            text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
+            for phrase in phrases:
+                with self.subTest(contract=relative.as_posix(), phrase=phrase):
+                    self.assertIn(phrase, text)
+
+    def test_operational_learning_checkout_and_root_trust_have_regression_scenarios(self) -> None:
+        expectations = {
+            Path("evals/scenarios/agent-direct-scribe-checkout-binding-permits-prepared.yaml"): (
+                "git rev-parse head",
+                "checkout binding as [verified]",
+                "as prepared",
+            ),
+            Path(
+                "evals/scenarios/agent-direct-scribe-checkout-binding-bare-assertion-stays-proposed.yaml"
+            ): (
+                "bare checkout assertion to [unverified]",
+                "missing command and output",
+                "proposed or blocked",
+            ),
+            Path("evals/scenarios/agent-direct-scribe-checkout-binding-forbidden-root-blocked.yaml"): (
+                "agents/catalog/",
+                "not a documentation root",
+                "blocked",
+            ),
+        }
+        for relative, phrases in expectations.items():
+            text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
+            with self.subTest(scenario=relative.as_posix()):
+                for phrase in phrases:
+                    self.assertIn(phrase, text)
+
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
         fields, body, _ = validate_fleet.adapters.parse_frontmatter(
             ROOT / "agents" / "observability-engineer.md"
