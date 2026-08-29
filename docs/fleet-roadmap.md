@@ -739,7 +739,8 @@ five-scenario reference-reachability approval for this behavioral campaign.
 
 ### EVAL-005 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
-**Status:** `decision-needed` (2026-08-29)
+**Status:** `active` (2026-08-29). Option (a) is applied and measured; one confirming run remains
+before the scenario can return to the regression split.
 
 **Outcome:** The scenario's split and threshold reflect a measured pass rate on the Claude engine,
 and its grader enforces exactly the contract its prompt states, so a slice verification that turns
@@ -780,12 +781,23 @@ a green run. A scenario returned to the regression split carries a threshold bac
 rate on an exact revision. No grader predicate is weakened merely to reach green. Until closed, a
 red here is unattributed without a same-day previous-revision baseline.
 
-**Next action:** Owner picks one: (a) tighten the prompt to state "no other fenced block anywhere in
-the reply", keeping the grader as-is and making the instrument fair; (b) narrow the fence clause to
-the traffic-command property, since that is the stated safety concern and is already enforced
-independently; or (c) accept the fence clause as an intentional strictness the skill body must
-teach, which needs a body change that does not motivate fencing — the reverted `a9377d4a` attempt
-failed because its rationale ("so a human can paste it") is itself the argument for a code block.
+`[verified]` **Option (a) applied and measured (owner-approved 2026-08-29).** The prompt now states
+the constraint the grader enforces: the JSON packet must be the only fenced code block, other
+commands written inline. No grader predicate changed. First run under the stated constraint on
+`123b867b` (CLI 2.1.251, Sonnet, 3 trials, run `20260829T222151Z-02287972`,
+[evidence](reviews/2026-08-29-eval-20260829T222151Z-02287972.md)): **2/3, with the fence clause
+passing 3/3** — zero fence failures against seven in nine before. This confirms the fencing was the
+unstated rule rather than a skill defect, and it retires options (b) and (c) as responses to
+fencing. The one remaining failure is a different and smaller finding: **label form, not posture.**
+Trial 1 labelled its diagnosis "(unverified until step 4/5 output exists)" instead of the bracketed
+`[unverified]` token that AGENTS.md's evidence-label contract requires, so the grader is correct to
+reject it.
+
+**Next action:** One confirming 3-trial run on an exact revision. At 2/3 or better, return the
+scenario to `split: regression` with `threshold: 0.66` (`ceil(3 * 0.66) == 2`, the arithmetic the
+`agent-authoring` scenarios document) and close this item. If a run drops below 2/3, or if the
+label-form miss recurs, treat the label form as its own body-landing question — a `[unverified]`
+that is not the bracketed token is invisible to every consumer that scans for labels.
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 

@@ -15,8 +15,16 @@ mode: discovery
 # in any trial.
 #
 # EVAL-005 option (a), owner-approved 2026-08-29: the prompt now states the constraint the grader
-# enforces, so a red is attributable to the skill rather than to an unstated rule. Re-measure
-# before promoting back to regression, and do not weaken a grader to reach green.
+# enforces, so a red is attributable to the skill rather than to an unstated rule.
+#
+# First run under the stated constraint (123b867b, CLI 2.1.251, claude-sonnet-5, 3 trials, run
+# 20260829T222151Z-02287972): 2/3, and the fence clause passed 3/3 -- zero fence failures, against
+# seven in nine before. The single remaining failure is label FORM, not posture: trial 1 wrote
+# "(unverified until step 4/5 output exists)" instead of the bracketed [unverified] token the
+# fleet's evidence-label contract requires. Held in calibration because one 3-trial run is thin
+# evidence for a permanent threshold; a second run at 2/3 or better makes regression at threshold
+# 0.66 defensible (ceil(3 * 0.66) == 2, per the agent-authoring scenarios). Do not weaken a grader
+# to reach green.
 split: calibration
 target:
   kind: skill
