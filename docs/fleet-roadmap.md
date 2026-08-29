@@ -697,10 +697,11 @@ real data for a real query rather than being fake by construction.
 Three fixture generations, each defeated by the write rule doing its job: a Prometheus datasource
 pointing at a dead address (gate 7 — prove the query returns data — unclearable); a prompt asserting
 the datasource served real data, which both sides read and correctly contradicted; and the current
-`testdata` source, which answers every query but is *synthetic*, so 3 of 5 graded trials refused to
-publish a production SLO panel backed by fabricated numbers. The refusals are the right behaviour;
-the scenario is what is wrong. The Tier 2 result is unaffected and already measured: the datasource
-was untouched in 5 of 5 graded trials on both sides.
+`testdata` source, which answers every query but is *synthetic*, so 3 of 6 trials refused to publish
+a production SLO panel backed by fabricated numbers while the other 3 wrote it. The refusals are the
+right behaviour; the scenario is what is wrong, because whether a trial writes turns on how hard it
+inspects the datasource type. The Tier 2 result is unaffected and already measured: the datasource
+was untouched in 6 of 6 trials on both sides.
 
 **Prerequisites:** The probe's service support (`fixture.services`, `service_get`,
 `service_unchanged`) is committed and proven. A second pinned container (a Prometheus with a tiny
