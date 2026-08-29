@@ -793,11 +793,26 @@ Trial 1 labelled its diagnosis "(unverified until step 4/5 output exists)" inste
 `[unverified]` token that AGENTS.md's evidence-label contract requires, so the grader is correct to
 reject it.
 
-**Next action:** One confirming 3-trial run on an exact revision. At 2/3 or better, return the
-scenario to `split: regression` with `threshold: 0.66` (`ceil(3 * 0.66) == 2`, the arithmetic the
-`agent-authoring` scenarios document) and close this item. If a run drops below 2/3, or if the
-label-form miss recurs, treat the label form as its own body-landing question — a `[unverified]`
-that is not the bracketed token is invisible to every consumer that scans for labels.
+`[verified]` **Confirming run pooled (2026-08-29).** Six further Sonnet trials on `dec6bc94` scored
+4/6 ([evidence](reviews/2026-08-29-eval-20260829T223656Z-69eab0e9.md)), pooling with the earlier
+2/3 to **6/9**. Pooling is legitimate: prompt, graders, split, threshold and the `SKILL.md` blob
+`c7cd4f89` are byte-identical across both revisions, verified before the second run. **Routing 9/9;
+the fence clause 9/9.** Option (a) is therefore confirmed, not provisional.
+
+`[verified]` **All three failures are one mechanism — label form, not posture.** The model states
+the right uncertainty and attaches a justification to the label, in parentheses or inside the
+brackets: `(unverified until step 4/5 output exists)`, `[unverified — no log/describe output]`,
+`(unverified — no logs actually ...)`. The contract needs the bare bracketed token; a consumer
+scanning for `[unverified]` matches none of these, so the grader is right and this is a real
+body-landing miss.
+
+**Next action:** Land the label form in the body, then re-measure — not a threshold promotion.
+Recorded correction: the previous next action promised regression at `threshold: 0.66` on a 2/3
+result, and the pooled arithmetic retires that plan. At a true rate of 0.67 a 2-of-3 gate reds
+**26%** of the time with no regression present, and the Wilson 95% interval on 6/9 is 0.35–0.88 —
+a gate that flaky reintroduces the unattributable red this item exists to remove. The body change
+must not repeat the `a9377d4a` error: state the required *form* without a rationale that argues for
+the qualifier the models keep attaching.
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
