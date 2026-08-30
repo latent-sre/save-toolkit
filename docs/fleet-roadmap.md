@@ -530,7 +530,7 @@ both no-skill pressure controls fail the committed graders on exactly the retain
 caller-fence rule both models break unprompted. After-change discovery run on `a6da0d0a`: 0/3
 against a 1/3 previous-revision baseline on exact base `2a04d357`, same CLI and fixture, same
 dominant caller-fence failure, routing 6/6 — pre-existing content-contract instability, filed as
-`EVAL-005`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
+`EVAL-006`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
 
 **Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
 5,000 before). On `origin/main` `4f01f22`, 33 entrypoints total 224,844 immutable bytes and seven
@@ -826,7 +826,7 @@ guidance before it is accepted green with it.
 report which claims survive and tighten the wording of any that do not. Do not expand or reuse the
 five-scenario reference-reachability approval for this behavioral campaign.
 
-### EVAL-005 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
+### EVAL-006 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
 **Status:** `decision-needed` (2026-08-29). Option (a) is applied and confirmed at nine trials. A
 later reframe found the prior next action unsound and replaced it; see the fixture finding below.

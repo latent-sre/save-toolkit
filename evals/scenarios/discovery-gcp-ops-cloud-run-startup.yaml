@@ -1,7 +1,7 @@
 schema_version: 1
 id: discovery-gcp-ops-cloud-run-startup
 mode: discovery
-# Calibration, not regression, until EVAL-005 closes; the threshold is deliberately left at the
+# Calibration, not regression, until EVAL-006 closes; the threshold is deliberately left at the
 # 1.0 default so the recorded rate stays honest.
 #
 # History, all under the PRE-2026-08-29 prompt wording and therefore NOT comparable to runs after
@@ -14,7 +14,7 @@ mode: discovery
 # its own clause ("rollback commands must appear only in the JSON packet") and was never violated
 # in any trial.
 #
-# EVAL-005 option (a), owner-approved 2026-08-29: the prompt now states the constraint the grader
+# EVAL-006 option (a), owner-approved 2026-08-29: the prompt now states the constraint the grader
 # enforces, so a red is attributable to the skill rather than to an unstated rule.
 #
 # Pooled measurement under the stated constraint, 9 trials, CLI 2.1.251, claude-sonnet-5:
@@ -33,7 +33,7 @@ mode: discovery
 # Do NOT promote to regression at threshold 0.66 on this evidence, despite ceil(3 * 0.66) == 2
 # looking like a fit for a 6/9 rate: at a true rate of 0.67 a 2-of-3 gate reds 26% of the time
 # with no regression present, and the Wilson 95% interval on 6/9 is 0.35..0.88. A gate that flaky
-# reintroduces exactly the unattributable red EVAL-005 exists to remove. Do not weaken a grader to
+# reintroduces exactly the unattributable red EVAL-006 exists to remove. Do not weaken a grader to
 # reach green.
 #
 # Read the three failures against the fixture before calling them a skill defect. This fixture
@@ -41,7 +41,7 @@ mode: discovery
 # tools -- so the prompt's "inspect the service, revisions, and logs" is impossible here, and seven
 # of nine trials open by saying so. What the scenario actually grades is the degraded path, and on
 # that path the reason for unverifiability is the most informative thing in the reply, which is
-# exactly what the three failing labels added. EVAL-005 owns the decision of which path this
+# exactly what the three failing labels added. EVAL-006 owns the decision of which path this
 # scenario is for. An earlier plan to patch the body so the bare token always appears is
 # SUPERSEDED: it would tune the skill against a constraint no real caller imposes.
 split: calibration
