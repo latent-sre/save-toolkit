@@ -1,0 +1,18 @@
+{
+  "case_version": "graph-sandbox-case/v2",
+  "case_id": "payments-latency-001",
+  "service_fixtures": {
+    "checkout": {"readiness": "ready", "effect": "success"},
+    "payments": {"readiness": "ready", "effect": "latency"},
+    "inventory": {"readiness": "ready", "effect": "success"}
+  },
+  "checkout": {"order_id": "synthetic-order-latency-001", "amount_cents": 1299, "currency": "USD", "items": [{"sku": "synthetic-sku-001", "quantity": 1}]},
+  "model_fixture": {"plan_class": "checkout", "token_count": 64},
+  "budgets": {
+    "attempts": {"limit": 8, "consumed": 0},
+    "wall_time_ms": {"limit": 120000, "consumed": 0},
+    "model_calls": {"limit": 1, "consumed": 0},
+    "tokens": {"limit": 64, "consumed": 0},
+    "spend_micro_usd": {"limit": 0, "consumed": 0}
+  }
+}

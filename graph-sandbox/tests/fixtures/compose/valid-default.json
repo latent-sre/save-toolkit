@@ -1,0 +1,244 @@
+{
+  "name": "graph-sandbox-v1-27c42c93d2da",
+  "networks": {
+    "sandbox": {
+      "name": "graph-sandbox-v1-27c42c93d2da_sandbox",
+      "ipam": {},
+      "internal": true,
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      }
+    }
+  },
+  "volumes": {
+    "runner-state": {
+      "name": "graph-sandbox-v1-27c42c93d2da_runner-state",
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      }
+    },
+    "runner-evidence": {
+      "name": "graph-sandbox-v1-27c42c93d2da_runner-evidence",
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      }
+    },
+    "checkout-data": {
+      "name": "graph-sandbox-v1-27c42c93d2da_checkout-data",
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      }
+    },
+    "payments-data": {
+      "name": "graph-sandbox-v1-27c42c93d2da_payments-data",
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      }
+    },
+    "inventory-data": {
+      "name": "graph-sandbox-v1-27c42c93d2da_inventory-data",
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      }
+    }
+  },
+  "services": {
+    "graph-runner": {
+      "image": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "command": ["python", "-m", "runner.main"],
+      "entrypoint": [],
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      },
+      "working_dir": "/app",
+      "user": "65532:65532",
+      "read_only": true,
+      "cap_drop": ["ALL"],
+      "security_opt": ["no-new-privileges:true"],
+      "pids_limit": 128,
+      "cpus": 1.0,
+      "mem_limit": "536870912",
+      "restart": "no",
+      "stop_grace_period": "10s",
+      "environment": {
+        "APPROVAL_FIXTURE": "APPROVED",
+        "CASE_DIGEST": "74266b9c39a7733128e25f7279bb18820664bfbd6c11d8b0a6a3fa5e53a685d1",
+        "CASE_ID": "mission-healthy-001",
+        "CHECKOUT_URL": "http://checkout:8080",
+        "CHECKPOINT_DB": "/state/checkpoints.sqlite3",
+        "EFFECT_LEDGER_DB": "/state/effects.sqlite3",
+        "EVIDENCE_DIR": "/evidence",
+        "INVENTORY_URL": "http://inventory:8082",
+        "PAYMENTS_URL": "http://payments:8081",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUNBUFFERED": "1",
+        "RUN_ID": "mission-healthy-001",
+        "RUN_TIMEOUT_SECONDS": "300",
+        "SOURCE_REVISION": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "depends_on": {
+        "checkout": {"condition": "service_healthy", "required": true},
+        "inventory": {"condition": "service_healthy", "required": true},
+        "payments": {"condition": "service_healthy", "required": true}
+      },
+      "networks": {"sandbox": null},
+      "tmpfs": ["/tmp:size=16777216,mode=1777"],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "runner-state",
+          "target": "/state"
+        },
+        {
+          "type": "volume",
+          "source": "runner-evidence",
+          "target": "/evidence"
+        }
+      ]
+    },
+    "checkout": {
+      "image": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "command": ["python", "-m", "sandbox_services.checkout"],
+      "entrypoint": [],
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      },
+      "working_dir": "/app",
+      "user": "10001:10001",
+      "read_only": true,
+      "cap_drop": ["ALL"],
+      "security_opt": ["no-new-privileges:true"],
+      "pids_limit": 64,
+      "cpus": 0.5,
+      "mem_limit": "268435456",
+      "restart": "no",
+      "stop_grace_period": "10s",
+      "environment": {
+        "DATA_DB": "/data/checkout.sqlite3",
+        "DEPENDENCY_TIMEOUT_SECONDS": "2",
+        "EFFECT_FIXTURE": "success",
+        "INVENTORY_URL": "http://inventory:8082",
+        "PAYMENTS_URL": "http://payments:8081",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUNBUFFERED": "1",
+        "READINESS_FIXTURE": "ready",
+        "SANDBOX_CASE_ID": "mission-healthy-001",
+        "SERVICE_PORT": "8080"
+      },
+      "healthcheck": {
+        "interval": "2s",
+        "retries": 30,
+        "start_period": "2s",
+        "test": ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080/livez',timeout=0.5); raise SystemExit(0 if r.status == 200 else 1)"],
+        "timeout": "1s"
+      },
+      "networks": {"sandbox": null},
+      "tmpfs": ["/tmp:size=16777216,mode=1777"],
+      "volumes": [{"type": "volume", "source": "checkout-data", "target": "/data"}]
+    },
+    "payments": {
+      "image": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "command": ["python", "-m", "sandbox_services.payments"],
+      "entrypoint": [],
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      },
+      "working_dir": "/app",
+      "user": "10001:10001",
+      "read_only": true,
+      "cap_drop": ["ALL"],
+      "security_opt": ["no-new-privileges:true"],
+      "pids_limit": 64,
+      "cpus": 0.5,
+      "mem_limit": "268435456",
+      "restart": "no",
+      "stop_grace_period": "10s",
+      "environment": {
+        "DATA_DB": "/data/payments.sqlite3",
+        "EFFECT_FIXTURE": "success",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUNBUFFERED": "1",
+        "READINESS_FIXTURE": "ready",
+        "SANDBOX_CASE_ID": "mission-healthy-001",
+        "SERVICE_PORT": "8081"
+      },
+      "healthcheck": {
+        "interval": "2s",
+        "retries": 30,
+        "start_period": "2s",
+        "test": ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8081/livez',timeout=0.5); raise SystemExit(0 if r.status == 200 else 1)"],
+        "timeout": "1s"
+      },
+      "networks": {"sandbox": null},
+      "tmpfs": ["/tmp:size=16777216,mode=1777"],
+      "volumes": [{"type": "volume", "source": "payments-data", "target": "/data"}]
+    },
+    "inventory": {
+      "image": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "command": ["python", "-m", "sandbox_services.inventory"],
+      "entrypoint": [],
+      "labels": {
+        "com.latent-sre.graph-sandbox.run-id": "mission-healthy-001",
+        "com.latent-sre.graph-sandbox.scope": "27c42c93d2da",
+        "com.latent-sre.graph-sandbox.source-revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "com.latent-sre.graph-sandbox.version": "graph-sandbox/v1"
+      },
+      "working_dir": "/app",
+      "user": "10001:10001",
+      "read_only": true,
+      "cap_drop": ["ALL"],
+      "security_opt": ["no-new-privileges:true"],
+      "pids_limit": 64,
+      "cpus": 0.5,
+      "mem_limit": "268435456",
+      "restart": "no",
+      "stop_grace_period": "10s",
+      "environment": {
+        "DATA_DB": "/data/inventory.sqlite3",
+        "EFFECT_FIXTURE": "success",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUNBUFFERED": "1",
+        "READINESS_FIXTURE": "ready",
+        "SANDBOX_CASE_ID": "mission-healthy-001",
+        "SERVICE_PORT": "8082"
+      },
+      "healthcheck": {
+        "interval": "2s",
+        "retries": 30,
+        "start_period": "2s",
+        "test": ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8082/livez',timeout=0.5); raise SystemExit(0 if r.status == 200 else 1)"],
+        "timeout": "1s"
+      },
+      "networks": {"sandbox": null},
+      "tmpfs": ["/tmp:size=16777216,mode=1777"],
+      "volumes": [{"type": "volume", "source": "inventory-data", "target": "/data"}]
+    }
+  }
+}

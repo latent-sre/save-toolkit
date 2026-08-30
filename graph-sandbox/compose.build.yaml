@@ -1,0 +1,17 @@
+activation_guard: graph-sandbox/activate.py/v1
+name: graph-sandbox-build-v1
+
+services:
+  graph-runner-image:
+    image: graph-sandbox/graph-runner:${SOURCE_REVISION:?set the exact source revision}
+    build:
+      context: .
+      dockerfile: runner/Dockerfile
+      pull: true
+
+  synthetic-services-image:
+    image: graph-sandbox/synthetic-services:${SOURCE_REVISION:?set the exact source revision}
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      pull: true

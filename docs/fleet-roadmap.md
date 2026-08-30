@@ -175,8 +175,9 @@ values are required and no real team is onboarded.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
-**Status:** `ready` (2026-08-26). The consumer, runtime, and sandbox boundary are accepted; no
-implementation has started.
+**Status:** `active` (2026-08-29). The isolated implementation candidate and host-side safety gates
+exist; no container has executed, so runtime, restart, fault, and exact-revision acceptance remain
+unverified.
 
 **Owner:** `software-engineer` owns implementation; `agent-engineer` owns the skill text that
 carries runtime-specific references; `stack-profile`'s decision owner names the runtime.
@@ -194,9 +195,12 @@ records that no inspected runtime supplies the whole portable contract, which is
 follows the design and a concrete consumer rather than preceding them. Owner direction on
 2026-08-26 accepted the consumer-specific Docker Compose sandbox and offline-first delivery in the
 [`GRAPH-002 runtime decision`](decisions/2026-08-26-graph-002-docker-sandbox-runtime.md).
+The 2026-08-29 owner direction accepted the advisory-driven
+[`LangGraph security-pin supersession`](decisions/2026-08-29-graph-002-langgraph-security-pin.md)
+before implementation.
 
 **Accepted boundary:** The consumer is `checkout-payments-timeout-drill/v1`, not the fleet itself.
-The allowed runtime is Python 3.12 with exactly pinned `langgraph==1.0.8` and
+The allowed runtime is Python 3.12 with exactly pinned `langgraph==1.0.10` and
 `langgraph-checkpoint-sqlite==3.1.1`, executed only inside `graph-sandbox/v1`; direct host execution
 is prohibited. The default profile has deterministic model fixtures and an internal-only network.
 A later bounded Terra profile requires separate approval of its trial count, spend ceiling,
@@ -254,9 +258,10 @@ remove its explicit entrypoint and return `incident-drill` to the current manual
 procedure; export sanitized evidence first, then remove only the run-scoped containers, network, and
 volumes. No production data migration exists.
 
-**Next action:** Start Docker Desktop or another approved Linux Docker daemon, then open the first
-implementation branch for slice 1: the versioned consumer contract, Compose model, sandbox preflight,
-and red-first negative fixtures. Do not add live Terra egress or credentials in that slice.
+**Next action:** After owner authorization, commit the independently reviewed candidate as one exact
+revision. Build and run only that revision through the pinned offline Docker suite, healthy mission,
+fault matrix, and restart/resume proof; preserve the evidence outside the disposable resources. Do
+not add live Terra egress, credentials, or paid calls.
 
 ### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
 
