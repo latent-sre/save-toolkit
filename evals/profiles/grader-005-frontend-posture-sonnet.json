@@ -1,0 +1,34 @@
+{
+  "schema_version": "eval-execution-profile/v1",
+  "id": "grader-005-frontend-posture",
+  "comparison": {
+    "id": "grader-005-frontend-posture",
+    "models": {
+      "claude-plugin": "sonnet",
+      "codex-cli": "not-run"
+    }
+  },
+  "engine": "claude-plugin",
+  "claims": [
+    "candidate_snapshot_integrity",
+    "native_plugin_loaded",
+    "native_component_invoked",
+    "behavioral_contract",
+    "deterministic_grader_result"
+  ],
+  "scenario_ids": [
+    "discovery-frontend-craft-blocks-mantine-tailwind",
+    "discovery-frontend-craft-framework-evidence",
+    "discovery-frontend-craft-render-is-not-verification"
+  ],
+  "required_references": {},
+  "model": "sonnet",
+  "trials": 3,
+  "timeout_s": 600,
+  "total_timeout_s": 7200,
+  "cost_budget": {
+    "status": "available",
+    "max_usd": 4
+  },
+  "approval": null
+}

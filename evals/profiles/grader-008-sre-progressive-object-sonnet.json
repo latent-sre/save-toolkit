@@ -1,0 +1,32 @@
+{
+  "schema_version": "eval-execution-profile/v1",
+  "id": "grader-008-sre-progressive-object",
+  "comparison": {
+    "id": "grader-008-sre-progressive-object",
+    "models": {
+      "claude-plugin": "sonnet",
+      "codex-cli": "not-run"
+    }
+  },
+  "engine": "claude-plugin",
+  "claims": [
+    "candidate_snapshot_integrity",
+    "native_plugin_loaded",
+    "native_component_invoked",
+    "behavioral_contract",
+    "deterministic_grader_result"
+  ],
+  "scenario_ids": [
+    "agent-direct-sre-readonly-triage"
+  ],
+  "required_references": {},
+  "model": "sonnet",
+  "trials": 3,
+  "timeout_s": 600,
+  "total_timeout_s": 2400,
+  "cost_budget": {
+    "status": "available",
+    "max_usd": 2
+  },
+  "approval": null
+}

@@ -1,0 +1,53 @@
+# Synthetic `graph-sandbox/v1` alert
+
+This is the minimum alert set for `checkout-payments-timeout-drill/v1`. It is evaluated against
+verified local sandbox bundles only. It has no Grafana UID, contact point, notification-policy
+entry, production route, or pager integration.
+
+## `GraphSandboxRunNeedsAction`
+
+| Field | Contract |
+|---|---|
+| Severity | `page` in the synthetic evaluator; no receiver is configured |
+| Owner | `sre` for an active failed/uncertain run; `observability-engineer` owns the rule |
+| Fires | latest verified outcome is not `SUCCEEDED`, or any earlier effect remains terminally `UNKNOWN` |
+| Resolves | latest verified outcome is `SUCCEEDED` **and** the evaluated timeline contains no unresolved `UNKNOWN` effect |
+| First action | inspect the latest verified bundle, then follow the matching failure-plane branch in the graph-sandbox runbook |
+| No-data | unverified evidence is a collection failure; it is never an implicit resolve |
+
+The condition pages on the observable symptom: accepted graph work did not reach an authoritative
+success or an effect still needs reconciliation. Failure plane, error class, join starvation,
+approval timeout, checkpoint failure, and saturation are diagnostic dimensions; they do not create
+separate pages in this first synthetic set.
+
+An unrelated healthy run must not clear an earlier uncertain effect. The evaluator carries the
+effect identity only in its local evidence state, never as a metric label. Resolution requires the
+same effect to reach `RECONCILED` in the supplied timeline. `RECEIPT_RECORDED` is authoritative for
+an effect that never entered `UNKNOWN`; it does not rewrite an earlier uncertain effect.
+
+Two snapshots with the same run ID are accepted only for one ordered reconciliation transition:
+the earlier snapshot ends `UNKNOWN`; the later snapshot preserves the run, case, source, start,
+event history, and effect history; the same effect advances to `RECONCILED`; and the later outcome
+is `SUCCEEDED`. Every other duplicate-run pair is rejected. This supports deterministic evaluation
+of retained before/after snapshots without letting an unrelated run clear uncertain state.
+
+## Evaluate without deploying
+
+Run the pure-standard-library evaluator from the repository root and pass evidence directories in
+any order; manifest end time supplies the chronology.
+
+```powershell
+python skills/obs-alerting/scripts/graph_sandbox_alerts.py <FAULT_EVIDENCE_DIR> <RECOVERY_EVIDENCE_DIR>
+```
+
+Expected fire/resolve evidence contains both `NOT_EVALUATED->FIRING` and `FIRING->RESOLVED`.
+Expected uncertainty evidence remains `FIRING` after an unrelated success and reports the unresolved
+effect count. A checksum, artifact inventory, parse, identity, version, sequence, or exit/outcome
+contradiction fails closed with exit 2.
+
+The 2026-08-30 current-runtime exercise observed the page fire on checkout readiness failure and
+resolve on a later healthy run. A separate ambiguous-after-commit timeline remained firing after
+that healthy run because one checkout effect was still `UNKNOWN`. Notification delivery is
+unverified because this item deliberately creates no route.
+
+Reference-read token: q_oagraph_7c31
