@@ -109,7 +109,7 @@ def _comparison_digest(
         "trials": trials,
         "timeout_s": timeout_s,
         "total_timeout_s": total_timeout_s,
-        "adapter_contract_version": "2",
+        "adapter_contract_version": "1",
         "policy_contracts": {
             "claude-plugin": sorted(
                 {

@@ -3,8 +3,6 @@
 - **Date:** 2026-08-26
 - **Status:** Accepted 2026-08-26
 - **Decision owner:** `latent-sre`
-- **Superseded in part:** The unconditional Codex process-start block only is superseded by the
-  [`2026-08-29 owner risk-acceptance decision`](2026-08-29-enable-codex-resolved-context-live-evals.md).
 - **Roadmap item:** [`EVAL-003`](../fleet-roadmap.md#eval-003--add-claim-scoped-claude-and-codex-evaluation-engines)
 - **Does not supersede:**
   [`2026-08-23-retire-codex-distribution-target.md`](2026-08-23-retire-codex-distribution-target.md),

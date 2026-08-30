@@ -13,7 +13,7 @@ from typing import Mapping, Sequence
 import engine_contract
 
 
-ADAPTER_VERSION = "2"
+ADAPTER_VERSION = "1"
 READ_TOOLS = ("Glob", "Grep", "Read")
 BASE_TOOLS = ("Skill", "Task")
 DENIED_TOOLS = (
@@ -304,6 +304,15 @@ class CodexResolvedContextAdapter:
     version = ADAPTER_VERSION
     supported_claims = engine_contract.ENGINE_CLAIMS[name]
 
+    def require_safe_live_activation(self) -> None:
+        """Fail until the host can structurally remove Codex access to non-bundle files."""
+
+        raise AdapterError(
+            "Codex live execution is disabled: read-only prevents writes but does not confine "
+            "tool reads away from HOME/CODEX_HOME; require a proven no-tool or bundle-only "
+            "runtime boundary before any subscriber-backed model process starts"
+        )
+
     def build_command(
         self,
         *,
@@ -369,8 +378,6 @@ class CodexResolvedContextAdapter:
                 "additional_directories": [],
                 "mcp_configuration": "ignored with user config; none supplied",
                 "provider_environment": "removed",
-                "host_read_confinement": "not_claimed",
-                "residual_host_read_risk": "owner_accepted_2026-08-29",
             }
         )
 

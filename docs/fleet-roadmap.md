@@ -176,11 +176,11 @@ values are required and no real team is onboarded.
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
 **Status:** `active` (2026-08-29). PR #193 review superseded the original runtime candidate after
-finding five recovery, lifecycle-identity, cross-platform-test, and wall-budget gaps. Exact
-remediation candidate `56ebece6d34d30eaa2b6bf5725a1d4a70ecb25f9` passed focused host, Linux,
-immutable-image, and healthy-mission verification. GitHub CI, review-thread acceptance, repository
+finding five recovery, lifecycle-identity, cross-platform-test, and wall-budget gaps. Follow-up
+revision `56ebece6d34d30eaa2b6bf5725a1d4a70ecb25f9` passed focused host, Linux, immutable-image, and
+healthy-mission verification for those five fixes. GitHub CI, review-thread acceptance, repository
 integration, and exact-candidate human acceptance remain open; the earlier full fault matrix is
-historical evidence and was not rerun at this revision.
+historical evidence and was not rerun for this follow-up revision.
 
 **Owner:** `software-engineer` owns implementation; `agent-engineer` owns the skill text that
 carries runtime-specific references; `stack-profile`'s decision owner names the runtime.
@@ -202,7 +202,7 @@ The 2026-08-29 owner direction accepted the advisory-driven
 [`LangGraph security-pin supersession`](decisions/2026-08-29-graph-002-langgraph-security-pin.md)
 before implementation. The original full-matrix results remain in the historical
 [`GRAPH-002 exact-revision verification`](reviews/2026-08-29-graph-002-exact-revision-verification.md);
-the current candidate and its narrower rerun boundary are recorded in the
+the focused post-review follow-up evidence is recorded in the
 [`PR #193 remediation verification`](reviews/2026-08-29-graph-002-pr193-remediation-verification.md).
 
 **Accepted boundary:** The consumer is `checkout-payments-timeout-drill/v1`, not the fleet itself.
@@ -264,10 +264,10 @@ remove its explicit entrypoint and return `incident-drill` to the current manual
 procedure; export sanitized evidence first, then remove only the run-scoped containers, network, and
 volumes. No production data migration exists.
 
-**Next action:** Push exact runtime candidate `56ebece6d34d30eaa2b6bf5725a1d4a70ecb25f9`
-with its documentation consequence, obtain green CI and reviewer closure on the five PR #193
-threads, then ask the owner to accept or reject that exact candidate and the stated rerun limits.
-Any runtime-input change requires another pinned build and verification set. Do not add live Terra
+**Next action:** Push the documentation-only follow-up, obtain green CI and reviewer closure on
+the five PR #193 threads, then either rerun the full matrix on the exact acceptance candidate or
+update the exact-candidate acceptance record before asking the owner to accept or reject it. Any
+runtime-input change requires another pinned build and verification set. Do not add live Terra
 egress, credentials, or paid calls.
 
 ### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
@@ -415,9 +415,8 @@ populate `hooks/copilot-hooks.json`.
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 
-**Status:** `active` (2026-08-29). The architecture and offline implementation are accepted. The
-owner removed the unconditional Codex process-start block and accepted the residual host-read risk;
-each model execution still requires its own exact approved profile.
+**Status:** `active` (2026-08-26). The architecture and offline implementation are accepted; no
+model execution is authorized.
 
 **Owner:** `latent-sre` owns the architecture, evidence/security contracts, live-run budgets, and
 acceptance of an exact revision. `agent-engineer` owns the claim vocabulary, scenarios, graders, and
@@ -438,9 +437,6 @@ records the claim matrix, adapters, evidence envelope, security boundary, rollou
 alternatives. This implementation candidate incorporates the published HOST-003 source revision
 `c93d8cb` on top of refreshed `origin/main`; final acceptance evidence still binds to the future
 clean exact implementation revision, not either parent alone.
-The [`2026-08-29 Codex live-eval decision`](decisions/2026-08-29-enable-codex-resolved-context-live-evals.md)
-supersedes only the original unconditional process-start block and records the narrower evidence
-claims and owner-accepted residual risk.
 
 **Prerequisites:** The owner accepted the hard-to-reverse contracts: (1) the claim matrix;
 (2) a separate `eval-result-envelope/v1` rather than changing the general evidence envelope; (3)
@@ -456,7 +452,8 @@ schema, offline fixtures, and adapter interface. Then move the current Claude ex
 adapter without changing the default CLI or legacy summary and prove parity. HOST-003 is closed:
 the positive in-snapshot and negative out-of-snapshot `Read` probes run in every direct trial and
 the fixture workspace is an allowed root (see the register). Add the Codex
-bundle resolver and adapter offline, then request a bounded live-run approval. Add divergence
+bundle resolver and adapter offline, then request a bounded live-run approval only after an exact
+CLI proves the structural no-tool or bundle-only read boundary the contract requires. Add divergence
 classification only for comparable validated envelopes. Retire no legacy result contract until its
 consumers have migrated.
 

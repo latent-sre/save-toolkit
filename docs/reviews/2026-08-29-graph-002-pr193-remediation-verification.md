@@ -1,17 +1,19 @@
-# GRAPH-002 PR #193 remediation verification — 2026-08-29
+# GRAPH-002 PR #193 remediation follow-up verification — 2026-08-29
 
 ## Verdict
 
-`[verified]` Exact runtime candidate `56ebece6d34d30eaa2b6bf5725a1d4a70ecb25f9`
+`[verified]` Post-review remediation revision `56ebece6d34d30eaa2b6bf5725a1d4a70ecb25f9`
 addresses all five unresolved PR #193 review findings with focused regressions. It passed the
 host-side sandbox suite, structural gate, immutable runner and service image suites, a Linux-hosted
 POSIX regression, and one real healthy Compose mission with verified evidence and complete
-run-scoped teardown.
+run-scoped teardown. This record is follow-up evidence for those fixes, not a new exact-candidate
+acceptance packet.
 
 `[unverified]` GitHub CI and reviewer acceptance of this revision remain pending until the branch is
 pushed. Human promotion remains separate. The earlier eight-run fault matrix and deliberately
-killed live runner were not repeated at this revision; their results remain historical evidence for
-`02932845fe19150166ece6d01a0959a0effbdbc0`, not current-candidate proof.
+killed live runner were not repeated for `56ebece6`; their results remain historical evidence for
+`02932845fe19150166ece6d01a0959a0effbdbc0`, and this report does not relabel the follow-up revision
+as the exact runtime candidate.
 
 ## Findings and fixes
 
