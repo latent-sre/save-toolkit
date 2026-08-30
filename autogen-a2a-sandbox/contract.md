@@ -133,12 +133,15 @@ ingest -> {slo_analyzer, deployment_analyzer, dependency_analyzer}
           -> input-required when still unresolved after attempt=1
 ```
 
-State persists as `canary-analysis-state/v1` with findings keyed by the closed analyzer IDs,
-stable-sorted contradictions, `reconciliation_attempt` in `0..1`, resolution records, analyzer call
-counts, task/context/run/case lineage, cancel state, and terminal reason. At the first quiescent join
-the worker calls real `GraphFlow.save_state()`, atomically stores the JSON, constructs a fresh team,
-calls real `load_state()`, and continues. Evidence rejects a missing state file, digest mismatch,
-or repeated completed analyzer call.
+At the first quiescent join the worker calls real `GraphFlow.save_state()` and atomically stores a
+`canary-analysis-checkpoint/v1`, constructs a fresh team, calls real `load_state()`, and continues.
+After the resumed graph reaches its terminal, it saves again and persists a closed
+`canary-analysis-state/v1` with the initial-checkpoint digest, final team state, stable-sorted
+contradictions, reconciliation count, route and call-count evidence, terminal reason, and
+run/source/case/candidate lineage. Before a completed artifact is emitted, the worker atomically
+binds the actual A2A task/context IDs and recomputes the terminal-state digest. Canceled analysis
+produces neither checkpoint-derived terminal state nor artifact. Evidence rejects missing files,
+digest or lineage mismatch, and repeated completed analyzer calls.
 
 ## Authoritative recommendation artifact
 
@@ -224,6 +227,11 @@ identities, rendered Compose model, A2A event timeline, GraphFlow route/call-cou
 recommendation artifact when allowed, Agent Framework checkpoint/request proof, decision record when
 completed, verification result, and checksums. Prompts, credentials, arbitrary exception bodies,
 raw host environment, and unrestricted payloads are forbidden.
+
+The normal Agent Framework adapter's bounded timeline distinguishes its real `workflow_working`
+lifecycle observation from the later artifact and terminal A2A events; it does not relabel that
+workflow event as protocol `WORKING`. The raw A2A interruption/cancellation path separately records
+the actual A2A `working` update with same-task lineage.
 
 Exit 0 means a schema-valid final decision record was published. Exit 2 means a validated terminal
 non-success (`input-required`, canceled, failed, or rejected recommendation). Exit 20 means the sole

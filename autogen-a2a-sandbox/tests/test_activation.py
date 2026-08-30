@@ -131,6 +131,118 @@ def _rendered_model(image: str = "sha256:" + "a" * 64) -> dict[str, object]:
     }
 
 
+def _final_runtime_fixture(module):
+    _load_runtime()
+    from interop_sandbox.contracts import canonical_sha256
+
+    case_object = json.loads(
+        (SANDBOX_ROOT / "cases" / "mission-healthy-001.json").read_bytes()
+    )
+    case = module._validation_modules()[0].validate_case(case_object)
+    terminal = {
+        "state_version": "canary-analysis-state/v1",
+        "run_id": "host-validator-run",
+        "source_revision": "1" * 40,
+        "case_id": case.case_id,
+        "case_digest": canonical_sha256(case),
+        "candidate_revision": case.candidate.candidate_revision,
+        "a2a_task_id": "task-host-validator",
+        "a2a_context_id": "context-host-validator",
+        "initial_checkpoint_sha256": "6" * 64,
+        "final_team_state": {"agents": []},
+        "status": "COMPLETED",
+        "recommendation": case.expected.recommendation,
+        "basis": ["slo.within_budget"],
+        "resolved_contradictions": [],
+        "unresolved_contradictions": [],
+        "reconciliation_attempts": 0,
+        "route_evidence": ["join.synthesize", "synthesize.exit"],
+        "node_evidence": [
+            {"node_id": node_id, "call_count": count, "observed_input_fields": [[] for _ in range(count)]}
+            for node_id, count in (
+                ("ingest", 1), ("slo_analyzer", 1), ("deployment_analyzer", 1),
+                ("dependency_analyzer", 1), ("join", 1), ("reconcile", 0),
+                ("synthesize", 1), ("input_required", 0),
+            )
+        ],
+        "terminal_reason": "synthesis complete",
+    }
+    artifact = {
+        "artifact_version": "release-recommendation/v1",
+        "artifact_id": "release-recommendation:host-validator-run",
+        "run_id": terminal["run_id"],
+        "case_id": case.case_id,
+        "case_digest": terminal["case_digest"],
+        "source_revision": terminal["source_revision"],
+        "candidate_revision": terminal["candidate_revision"],
+        "a2a_task_id": terminal["a2a_task_id"],
+        "a2a_context_id": terminal["a2a_context_id"],
+        "recommendation": case.expected.recommendation,
+        "basis": terminal["basis"],
+        "resolved_contradictions": [],
+        "unresolved_contradictions": [],
+        "reconciliation_attempts": 0,
+        "graph_state_sha256": canonical_sha256(terminal),
+        "packages": copy.deepcopy(module._PINNED_PACKAGES),
+    }
+    artifact["artifact_digest"] = canonical_sha256(artifact)
+    decision = {
+        "decision_version": "release-decision-state/v1",
+        "run_id": artifact["run_id"],
+        "source_revision": artifact["source_revision"],
+        "case_id": artifact["case_id"],
+        "case_digest": artifact["case_digest"],
+        "candidate_revision": artifact["candidate_revision"],
+        "artifact_digest": artifact["artifact_digest"],
+        "decision": "ACCEPT",
+        "approver": "human-release-owner",
+        "decided_at": "2026-08-30T00:00:00Z",
+        "expires_at": "2026-08-30T00:15:00Z",
+    }
+    timeline = {
+        "timeline_version": "a2a-event-timeline/v1",
+        "events": [
+            {"sequence": 0, "event_kind": "workflow_working", "task_id": None, "context_id": None, "a2a_state": None, "artifact_id": None},
+            {"sequence": 1, "event_kind": "data_artifact", "task_id": artifact["a2a_task_id"], "context_id": artifact["a2a_context_id"], "a2a_state": None, "artifact_id": artifact["artifact_id"]},
+            {"sequence": 2, "event_kind": "session", "task_id": artifact["a2a_task_id"], "context_id": artifact["a2a_context_id"], "a2a_state": "completed", "artifact_id": None},
+        ],
+    }
+    root = {
+        "runtime_evidence_version": "autogen-a2a-runtime-evidence/v1",
+        "status": "DECISION_RECORDED",
+        "run_id": artifact["run_id"],
+        "source_revision": artifact["source_revision"],
+        "case_id": artifact["case_id"],
+        "case_digest": artifact["case_digest"],
+        "candidate_revision": artifact["candidate_revision"],
+        "python": "3.12.10",
+        "packages": copy.deepcopy(module._PINNED_PACKAGES),
+        "analysis_invocations": 1,
+        "a2a": {"state": "completed", "task_id": artifact["a2a_task_id"], "context_id": artifact["a2a_context_id"], "artifact_id": artifact["artifact_id"], "authoritative_content": "data", "used_streaming_workflow": True, "event_timeline": timeline},
+        "graphflow": {"state_sha256": artifact["graph_state_sha256"], "initial_checkpoint_sha256": terminal["initial_checkpoint_sha256"], "terminal_state": terminal, "state_loaded_for_analysis": True, "analysis_rerun_on_approval_resume": False},
+        "approval": {"checkpoint_id": "checkpoint-host", "restored_checkpoint_id": "checkpoint-host", "initial_request_info_count": 1, "resume_request_info_count": 0, "decision_replayed": False},
+        "artifact": artifact,
+        "decision": decision,
+        "release_effect_executed": False,
+    }
+    return case_object, root
+
+
+def _rebind_final_fixture(module, root):
+    _load_runtime()
+    from interop_sandbox.contracts import canonical_sha256
+
+    terminal = root["graphflow"]["terminal_state"]
+    root["graphflow"]["state_sha256"] = canonical_sha256(terminal)
+    artifact = root["artifact"]
+    artifact["graph_state_sha256"] = root["graphflow"]["state_sha256"]
+    artifact["packages"] = copy.deepcopy(root["packages"])
+    artifact["artifact_digest"] = canonical_sha256(
+        {key: value for key, value in artifact.items() if key != "artifact_digest"}
+    )
+    root["decision"]["artifact_digest"] = artifact["artifact_digest"]
+
+
 class ActivationImportTests(unittest.TestCase):
     def test_host_entrypoint_imports_without_third_party_packages(self) -> None:
         source = ACTIVATE_PATH.read_text(encoding="utf-8")
@@ -197,6 +309,45 @@ class ActivationImportTests(unittest.TestCase):
         self.assertEqual(exit_code, module.EXIT_USAGE)
         self.assertEqual(len(lines), 1)
         self.assertEqual(json.loads(lines[0])["error_class"], "invalid_arguments")
+
+    def test_only_desktop_linux_local_endpoint_is_accepted(self) -> None:
+        module = _load_activate()
+        local = [
+            {
+                "Name": "desktop-linux",
+                "Endpoints": {
+                    "docker": {
+                        "Host": "npipe:////./pipe/dockerDesktopLinuxEngine",
+                        "SkipTLSVerify": False,
+                    }
+                },
+            }
+        ]
+        module.validate_docker_context_record(local, "desktop-linux")
+        for context, endpoint in (
+            ("default", "npipe:////./pipe/dockerDesktopLinuxEngine"),
+            ("desktop-linux", "tcp://127.0.0.1:2375"),
+            ("desktop-linux", "ssh://builder@example.test"),
+            ("desktop-linux", "http://127.0.0.1:2375"),
+            ("desktop-linux", "unix://relative.sock"),
+        ):
+            with self.subTest(context=context, endpoint=endpoint):
+                mutation = copy.deepcopy(local)
+                mutation[0]["Name"] = context
+                mutation[0]["Endpoints"]["docker"]["Host"] = endpoint
+                with self.assertRaises(Exception):
+                    module.validate_docker_context_record(mutation, context)
+
+    def test_daemon_id_is_closed_without_exposing_endpoint(self) -> None:
+        module = _load_activate()
+        self.assertEqual(
+            module.validate_daemon_id('"78e193b6-71a1-4a60-9ec0-16e94dd22f62"'),
+            "78e193b6-71a1-4a60-9ec0-16e94dd22f62",
+        )
+        for value in ('""', '"bad id"', "null", '{"endpoint":"tcp://host"}'):
+            with self.subTest(value=value):
+                with self.assertRaises(Exception):
+                    module.validate_daemon_id(value)
 
 
 class AmbientEnvironmentTests(unittest.TestCase):
@@ -330,6 +481,7 @@ class HandoffValidationTests(unittest.TestCase):
             "project": "a2a-deadbeef",
             "state_volume": "a2a-deadbeef-state",
             "evidence_volume": "a2a-deadbeef-evidence",
+            "daemon_id": "78e193b6-71a1-4a60-9ec0-16e94dd22f62",
         }
 
     def test_handoff_is_closed_and_bound_to_host_identity(self) -> None:
@@ -341,6 +493,7 @@ class HandoffValidationTests(unittest.TestCase):
             project="a2a-deadbeef",
             state_volume="a2a-deadbeef-state",
             evidence_volume="a2a-deadbeef-evidence",
+            daemon_id="78e193b6-71a1-4a60-9ec0-16e94dd22f62",
         )
 
     def test_handoff_rejects_unknown_or_stale_identity(self) -> None:
@@ -362,6 +515,7 @@ class HandoffValidationTests(unittest.TestCase):
                         project="a2a-deadbeef",
                         state_volume="a2a-deadbeef-state",
                         evidence_volume="a2a-deadbeef-evidence",
+                        daemon_id="78e193b6-71a1-4a60-9ec0-16e94dd22f62",
                     )
 
     def test_atomic_export_never_overwrites_changed_evidence(self) -> None:
@@ -374,45 +528,235 @@ class HandoffValidationTests(unittest.TestCase):
                 self.module.publish_file_once(target, b"changed\n")
 
 
+class HostEvidenceValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.module = _load_activate()
+        self.case_object, self.runtime = _final_runtime_fixture(self.module)
+
+    def _validate(self, root):
+        return self.module._validate_runtime_final(
+            self.module._canonical_json(root),
+            run_id="host-validator-run",
+            source_revision="1" * 40,
+            case_id="mission-healthy-001",
+            case_object=self.case_object,
+            requested_decision="ACCEPT",
+        )
+
+    def test_full_host_validator_accepts_exact_nested_proofs(self) -> None:
+        validated = self._validate(copy.deepcopy(self.runtime))
+        self.assertEqual(validated["status"], "DECISION_RECORDED")
+
+    def test_full_host_validator_rejects_closed_contract_mutations(self) -> None:
+        mutations = {
+            "unknown field": lambda root: root.update({"unknown": True}),
+            "missing field": lambda root: root.pop("approval"),
+            "artifact digest": lambda root: root["artifact"].update({"artifact_digest": "0" * 64}),
+            "expired decision": lambda root: root["decision"].update({"expires_at": root["decision"]["decided_at"]}),
+            "forged packages": lambda root: root["packages"].update({"a2a-sdk": "9.9.9"}),
+            "missing timeline": lambda root: root["a2a"].pop("event_timeline"),
+            "forged call count": lambda root: root["graphflow"]["terminal_state"]["node_evidence"][0].update({"call_count": 2}),
+            "malformed terminal": lambda root: root["graphflow"]["terminal_state"].pop("terminal_reason"),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                root = copy.deepcopy(self.runtime)
+                mutate(root)
+                if label in {"forged packages", "forged call count", "malformed terminal"}:
+                    _rebind_final_fixture(self.module, root)
+                with self.assertRaises(Exception):
+                    self._validate(root)
+
+    def test_exit2_validator_binds_input_required_timeline_and_terminal(self) -> None:
+        _load_runtime()
+        from interop_sandbox.contracts import canonical_sha256, validate_case
+
+        case_object = json.loads(
+            (SANDBOX_ROOT / "cases" / "unresolved-contradiction-001.json").read_bytes()
+        )
+        case = validate_case(case_object)
+        terminal = copy.deepcopy(self.runtime["graphflow"]["terminal_state"])
+        terminal.update({
+            "run_id": "terminal-validator-run",
+            "case_id": case.case_id,
+            "case_digest": canonical_sha256(case),
+            "candidate_revision": case.candidate.candidate_revision,
+            "a2a_task_id": "task-terminal-validator",
+            "a2a_context_id": "context-terminal-validator",
+            "status": "INPUT_REQUIRED",
+            "recommendation": None,
+            "reconciliation_attempts": 1,
+            "unresolved_contradictions": ["dependency.canary_only_impact"],
+            "route_evidence": ["join.reconcile", "reconcile.join", "join.input_required"],
+            "node_evidence": [
+                {"node_id": node_id, "call_count": count, "observed_input_fields": [[] for _ in range(count)]}
+                for node_id, count in (
+                    ("ingest", 1), ("slo_analyzer", 1), ("deployment_analyzer", 1),
+                    ("dependency_analyzer", 1), ("join", 2), ("reconcile", 1),
+                    ("synthesize", 0), ("input_required", 1),
+                )
+            ],
+        })
+        timeline = {
+            "timeline_version": "a2a-event-timeline/v1",
+            "events": [
+                {"sequence": 0, "event_kind": "workflow_working", "task_id": None, "context_id": None, "a2a_state": None, "artifact_id": None},
+                {"sequence": 1, "event_kind": "session", "task_id": terminal["a2a_task_id"], "context_id": terminal["a2a_context_id"], "a2a_state": "input-required", "artifact_id": None},
+            ],
+        }
+        root = {
+            "runtime_evidence_version": "autogen-a2a-runtime-evidence/v1",
+            "status": "input-required", "run_id": terminal["run_id"],
+            "source_revision": terminal["source_revision"], "case_id": case.case_id,
+            "case_digest": terminal["case_digest"], "candidate_revision": terminal["candidate_revision"],
+            "python": "3.12.10", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
+            "analysis_invocations": 1, "remote_request_info_count": 1,
+            "approval_request_info_count": 0, "artifact": None,
+            "a2a": {"state": "input-required", "task_id": terminal["a2a_task_id"], "context_id": terminal["a2a_context_id"], "artifact_id": None, "used_streaming_workflow": True, "event_timeline": timeline, "recovery": {"same_task": True}},
+            "graphflow": {"state_sha256": canonical_sha256(terminal), "initial_checkpoint_sha256": terminal["initial_checkpoint_sha256"], "terminal_state": terminal},
+            "release_effect_executed": False,
+        }
+        self.module._validate_runtime_terminal(
+            self.module._canonical_json(root), run_id=root["run_id"],
+            source_revision=root["source_revision"], case_id=case.case_id,
+            case_object=case_object,
+        )
+        for label, mutate in (
+            ("timeline", lambda value: value["a2a"]["event_timeline"]["events"].pop(0)),
+            ("call count", lambda value: value["graphflow"]["terminal_state"]["node_evidence"][4].update({"call_count": 1})),
+            ("terminal", lambda value: value["graphflow"]["terminal_state"].pop("terminal_reason")),
+        ):
+            with self.subTest(label=label):
+                mutation = copy.deepcopy(root)
+                mutate(mutation)
+                if label != "timeline":
+                    mutation["graphflow"]["state_sha256"] = canonical_sha256(
+                        mutation["graphflow"]["terminal_state"]
+                    )
+                with self.assertRaises(Exception):
+                    self.module._validate_runtime_terminal(
+                        self.module._canonical_json(mutation), run_id=root["run_id"],
+                        source_revision=root["source_revision"], case_id=case.case_id,
+                        case_object=case_object,
+                    )
+
+    def _create_stage(self, root: Path):
+        image_id = "sha256:" + "a" * 64
+        daemon_id = "78e193b6-71a1-4a60-9ec0-16e94dd22f62"
+        identity = self.module._run_identity("host-validator-run", "1" * 40)
+        model = _rendered_model(image_id)
+        model["name"] = identity.project
+        model["networks"]["sandbox"]["name"] = identity.network
+        model["volumes"]["state"]["name"] = identity.state_volume
+        model["volumes"]["evidence"]["name"] = identity.evidence_volume
+        for service in model["services"].values():
+            service["image"] = image_id
+        command = model["services"]["orchestrator"]["command"]
+        for flag, value in (
+            ("--mode", "resume"), ("--source-revision", "1" * 40),
+            ("--run-id", "host-validator-run"), ("--case", "mission-healthy-001"),
+            ("--decision", "ACCEPT"),
+        ):
+            command[command.index(flag) + 1] = value
+        case_bytes = (SANDBOX_ROOT / "cases" / "mission-healthy-001.json").read_bytes()
+        values = {
+            "case.json": case_bytes,
+            "case-manifest.json": (SANDBOX_ROOT / "cases" / "manifest.json").read_bytes(),
+            "compose-model.json": self.module._canonical_json(model),
+            "runtime-final.json": self.module._canonical_json(self.runtime),
+            "graphflow-state.json": self.module._validation_modules()[0].canonical_json_bytes(self.runtime["graphflow"]["terminal_state"]),
+            "artifact.json": self.module._canonical_json(self.runtime["artifact"]),
+            "decision.json": self.module._canonical_json(self.runtime["decision"]),
+            "environment.json": self.module._canonical_json({
+                "evidence_version": "autogen-a2a-environment/v1", "source_revision": "1" * 40,
+                "run_id": "host-validator-run", "case_id": "mission-healthy-001",
+                "image_id": image_id, "daemon_id": daemon_id, "docker_context": "desktop-linux",
+                "docker_server": {"Version": "29.7.0", "ApiVersion": "1.53", "Os": "linux", "Arch": "amd64"},
+                "docker_compose": "5.0.0", "host_python": platform.python_version(),
+                "runtime_python": "3.12.10", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
+            }),
+        }
+        stage = root / ".final-bundle.pending"
+        stage.mkdir()
+        for name, data in values.items():
+            (stage / name).write_bytes(data)
+        manifest = {
+            "stage_version": self.module._STAGE_MANIFEST_VERSION,
+            "run_id": "host-validator-run", "source_revision": "1" * 40,
+            "case_id": "mission-healthy-001", "image_id": image_id,
+            "daemon_id": daemon_id,
+            "files": {name: __import__("hashlib").sha256(data).hexdigest() for name, data in sorted(values.items())},
+        }
+        (stage / "stage-manifest.json").write_bytes(self.module._canonical_json(manifest))
+        return stage, image_id, daemon_id
+
+    def test_durable_stage_is_nested_validated_and_survives_target_conflict(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            stage, image_id, daemon_id = self._create_stage(root)
+            self.module.validate_staged_bundle(
+                stage, run_id="host-validator-run", source_revision="1" * 40,
+                case_id="mission-healthy-001", image_id=image_id,
+                daemon_id=daemon_id, requested_decision="ACCEPT",
+            )
+            target = root / "final-bundle"
+            target.mkdir()
+            with self.assertRaisesRegex(Exception, "overwrite"):
+                self.module._finalize_bundle(
+                    stage, target, run_id="host-validator-run", revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                )
+            self.assertTrue(stage.is_dir())
+            with self.assertRaises(Exception):
+                self.module.validate_staged_bundle(
+                    stage, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="REJECT",
+                )
+
+
 class RuntimeStateValidationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.module = _load_runtime()
-        self.pending = {
-            "pending_version": "autogen-a2a-pending-state/v1",
-            "state": "AWAITING_APPROVAL",
+        from interop_sandbox.contracts import canonical_sha256
+        terminal_state = {
+            "state_version": "canary-analysis-state/v1",
             "run_id": "mission-healthy-001",
             "source_revision": "1" * 40,
             "case_id": "mission-healthy-001",
             "case_digest": "2" * 64,
             "candidate_revision": "3" * 40,
-            "analysis_invocations": 1,
-            "artifact": {
-                "artifact_digest": "4" * 64,
-                "run_id": "mission-healthy-001",
-                "source_revision": "1" * 40,
-                "case_id": "mission-healthy-001",
-                "case_digest": "2" * 64,
-                "candidate_revision": "3" * 40,
-            },
-            "a2a": {
-                "state": "completed",
-                "task_id": "task-1",
-                "context_id": "context-1",
-                "artifact_id": "release-recommendation:mission-healthy-001",
-                "authoritative_content": "data",
-                "used_streaming_workflow": True,
-            },
-            "approval": {
-                "checkpoint_id": "checkpoint-1",
-                "request_id": "request-1",
-                "request_info_count": 1,
-                "workflow_name": "workflow-1",
-            },
+            "a2a_task_id": "task-1",
+            "a2a_context_id": "context-1",
+            "initial_checkpoint_sha256": "6" * 64,
+            "final_team_state": {"agents": []},
+            "status": "COMPLETED",
+            "recommendation": "ADVANCE_CANARY",
+            "basis": ["slo.within_budget"],
+            "resolved_contradictions": [],
+            "unresolved_contradictions": [],
+            "reconciliation_attempts": 0,
+            "route_evidence": ["join.synthesize", "synthesize.exit"],
+            "node_evidence": [
+                {
+                    "node_id": node_id,
+                    "call_count": call_count,
+                    "observed_input_fields": [[] for _ in range(call_count)],
+                }
+                for node_id, call_count in (
+                    ("ingest", 1),
+                    ("slo_analyzer", 1),
+                    ("deployment_analyzer", 1),
+                    ("dependency_analyzer", 1),
+                    ("join", 1),
+                    ("reconcile", 0),
+                    ("synthesize", 1),
+                    ("input_required", 0),
+                )
+            ],
+            "terminal_reason": "synthesis complete",
         }
-
-    def _completed_retry_fixture(self):
-        from interop_sandbox.contracts import canonical_json_bytes, canonical_sha256
-
         artifact = {
             "artifact_version": "release-recommendation/v1",
             "artifact_id": "release-recommendation:mission-healthy-001",
@@ -428,7 +772,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
             "resolved_contradictions": [],
             "unresolved_contradictions": [],
             "reconciliation_attempts": 0,
-            "graph_state_sha256": "5" * 64,
+            "graph_state_sha256": canonical_sha256(terminal_state),
             "packages": {
                 "agent-framework-core": "1.16.0",
                 "agent-framework-a2a": "1.0.0b260821",
@@ -437,8 +781,51 @@ class RuntimeStateValidationTests(unittest.TestCase):
             },
         }
         artifact["artifact_digest"] = canonical_sha256(artifact)
+        timeline = {
+            "timeline_version": "a2a-event-timeline/v1",
+            "events": [
+                {"sequence": 0, "event_kind": "workflow_working", "task_id": None, "context_id": None, "a2a_state": None, "artifact_id": None},
+                {"sequence": 1, "event_kind": "data_artifact", "task_id": "task-1", "context_id": "context-1", "a2a_state": None, "artifact_id": artifact["artifact_id"]},
+                {"sequence": 2, "event_kind": "session", "task_id": "task-1", "context_id": "context-1", "a2a_state": "completed", "artifact_id": None},
+            ],
+        }
+        self.pending = {
+            "pending_version": "autogen-a2a-pending-state/v1",
+            "state": "AWAITING_APPROVAL",
+            "run_id": "mission-healthy-001",
+            "source_revision": "1" * 40,
+            "case_id": "mission-healthy-001",
+            "case_digest": "2" * 64,
+            "candidate_revision": "3" * 40,
+            "analysis_invocations": 1,
+            "artifact": artifact,
+            "a2a": {
+                "state": "completed",
+                "task_id": "task-1",
+                "context_id": "context-1",
+                "artifact_id": "release-recommendation:mission-healthy-001",
+                "authoritative_content": "data",
+                "used_streaming_workflow": True,
+                "event_timeline": timeline,
+            },
+            "graphflow": {
+                "state_sha256": artifact["graph_state_sha256"],
+                "initial_checkpoint_sha256": terminal_state["initial_checkpoint_sha256"],
+                "terminal_state": terminal_state,
+            },
+            "approval": {
+                "checkpoint_id": "checkpoint-1",
+                "request_id": "request-1",
+                "request_info_count": 1,
+                "workflow_name": "workflow-1",
+            },
+        }
+
+    def _completed_retry_fixture(self):
+        from interop_sandbox.contracts import canonical_json_bytes, canonical_sha256
+
         pending = copy.deepcopy(self.pending)
-        pending["artifact"] = artifact
+        artifact = pending["artifact"]
         decision = {
             "decision_version": "release-decision-state/v1",
             "run_id": artifact["run_id"],
@@ -466,6 +853,8 @@ class RuntimeStateValidationTests(unittest.TestCase):
             "a2a": pending["a2a"],
             "graphflow": {
                 "state_sha256": artifact["graph_state_sha256"],
+                "initial_checkpoint_sha256": pending["graphflow"]["initial_checkpoint_sha256"],
+                "terminal_state": pending["graphflow"]["terminal_state"],
                 "state_loaded_for_analysis": True,
                 "analysis_rerun_on_approval_resume": False,
             },
@@ -493,6 +882,58 @@ class RuntimeStateValidationTests(unittest.TestCase):
         for marker in ("agent_framework", "from a2a", "import httpx", "import uvicorn"):
             with self.subTest(marker=marker):
                 self.assertNotIn(marker, before_main)
+
+    def test_host_direct_runtime_invocations_refuse_before_any_effect(self) -> None:
+        if (
+            Path("/.dockerenv").is_file()
+            and hasattr(os, "getuid")
+            and os.getuid() == 65532
+            and os.environ.get("AUTOGEN_A2A_RUNTIME_MARKER")
+            == "autogen-a2a-sandbox-container/v1"
+        ):
+            self.skipTest("host-direct refusal is verified only outside the valid image boundary")
+        commands = (
+            [
+                "worker",
+                "--state-directory",
+                os.getcwd(),
+                "--agent-url",
+                "http://worker:8081/a2a/jsonrpc",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8081",
+            ],
+            ["healthcheck", "--url", "http://127.0.0.1:8081/readyz"],
+            [
+                "orchestrate",
+                "--mode",
+                "fresh",
+                "--source-revision",
+                "1" * 40,
+                "--run-id",
+                "mission-healthy-001",
+                "--case",
+                "mission-healthy-001",
+                "--decision",
+                "NONE",
+                "--worker-url",
+                "http://worker:8081",
+                "--state-directory",
+                os.getcwd(),
+                "--evidence-directory",
+                os.getcwd(),
+                "--cases-directory",
+                str(SANDBOX_ROOT / "cases"),
+            ],
+        )
+        for command in commands:
+            with self.subTest(command=command[0]):
+                diagnostic = StringIO()
+                with redirect_stderr(diagnostic):
+                    exit_code = self.module.main(command)
+                self.assertEqual(exit_code, 70)
+                self.assertIn("container runtime", diagnostic.getvalue())
 
     def test_pending_state_is_closed_and_lineage_bound(self) -> None:
         value = self.module.validate_runtime_pending(
@@ -624,6 +1065,40 @@ class RuntimeStateValidationTests(unittest.TestCase):
                     pending=pending,
                     requested_decision="ACCEPT",
                 )
+
+    def test_decision_only_reconstructs_exact_runtime_final(self) -> None:
+        pending, _decision_object, runtime_bytes, decision_bytes = (
+            self._completed_retry_fixture()
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            decision_path = root / "decision.json"
+            decision_path.write_bytes(decision_bytes)
+            artifact, decision = self.module._validated_persisted_decision(
+                decision_path=decision_path,
+                pending=pending,
+                requested_decision="ACCEPT",
+            )
+            reconstructed = self.module._canonical_json(
+                self.module._build_runtime_final(
+                    pending=pending,
+                    artifact=artifact,
+                    decision=decision,
+                    decision_replayed=False,
+                )
+            )
+            final_path = root / "runtime-final.json"
+            final_path.write_bytes(runtime_bytes)
+            decision_path.unlink()
+            with self.assertRaisesRegex(Exception, "without its exact decision"):
+                self.module.recover_existing_final(
+                    runtime_final_path=final_path,
+                    decision_path=decision_path,
+                    pending=pending,
+                    requested_decision="ACCEPT",
+                )
+
+        self.assertEqual(reconstructed, runtime_bytes)
 
 
 if __name__ == "__main__":

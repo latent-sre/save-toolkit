@@ -22,6 +22,11 @@ HANDOFF_VERSION = "autogen-a2a-resume-handoff/v1"
 RUNTIME_EVIDENCE_VERSION = "autogen-a2a-runtime-evidence/v1"
 EXIT_PENDING = 20
 EXIT_TERMINAL = 2
+_RUNTIME_MARKER = "autogen-a2a-sandbox-container/v1"
+_RUNTIME_MARKER_PATH = Path("/opt/interop-sandbox/.runtime-marker")
+_RUNTIME_MODULE_PATH = Path(
+    "/opt/interop-sandbox/interop_sandbox/runtime_cli.py"
+)
 _REVISION = re.compile(r"^[0-9a-f]{40}$")
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
 _PENDING_FIELDS = frozenset(
@@ -36,6 +41,7 @@ _PENDING_FIELDS = frozenset(
         "analysis_invocations",
         "artifact",
         "a2a",
+        "graphflow",
         "approval",
     }
 )
@@ -47,7 +53,11 @@ _A2A_FIELDS = frozenset(
         "artifact_id",
         "authoritative_content",
         "used_streaming_workflow",
+        "event_timeline",
     }
+)
+_PERSISTED_GRAPHFLOW_FIELDS = frozenset(
+    {"state_sha256", "initial_checkpoint_sha256", "terminal_state"}
 )
 _APPROVAL_FIELDS = frozenset(
     {
@@ -80,9 +90,30 @@ _RUNTIME_FINAL_FIELDS = frozenset(
 _FINAL_GRAPHFLOW_FIELDS = frozenset(
     {
         "state_sha256",
+        "initial_checkpoint_sha256",
+        "terminal_state",
         "state_loaded_for_analysis",
         "analysis_rerun_on_approval_resume",
     }
+)
+_TIMELINE_EVENT_FIELDS = frozenset(
+    {"sequence", "event_kind", "task_id", "context_id", "a2a_state", "artifact_id"}
+)
+_TIMELINE_EVENT_KINDS = frozenset(
+    {"workflow_working", "task", "status", "data_artifact", "message", "session"}
+)
+_TIMELINE_STATES = frozenset(
+    {"submitted", "working", "completed", "input-required", "canceled", "failed"}
+)
+_GRAPH_NODE_IDS = (
+    "ingest",
+    "slo_analyzer",
+    "deployment_analyzer",
+    "dependency_analyzer",
+    "join",
+    "reconcile",
+    "synthesize",
+    "input_required",
 )
 _FINAL_APPROVAL_FIELDS = frozenset(
     {
@@ -135,6 +166,190 @@ class RuntimeArgumentParser(argparse.ArgumentParser):
         raise RuntimeBoundaryError(f"invalid runtime arguments: {message}")
 
 
+def enforce_container_runtime(environment: Mapping[str, str]) -> None:
+    """Reject host or substituted-image execution before importing frameworks."""
+
+    if environment.get("AUTOGEN_A2A_RUNTIME_MARKER") != _RUNTIME_MARKER:
+        raise RuntimeBoundaryError("container runtime marker is missing or invalid")
+    try:
+        marker_bytes = _RUNTIME_MARKER_PATH.read_bytes()
+    except OSError as exc:
+        raise RuntimeBoundaryError("container runtime marker file is unavailable") from exc
+    if marker_bytes != (_RUNTIME_MARKER + "\n").encode("ascii"):
+        raise RuntimeBoundaryError("container runtime marker file is invalid")
+    if not Path("/.dockerenv").is_file():
+        raise RuntimeBoundaryError("container runtime boundary is unavailable")
+    if Path(__file__).resolve() != _RUNTIME_MODULE_PATH:
+        raise RuntimeBoundaryError("container runtime image path is invalid")
+    if not hasattr(os, "getuid") or not hasattr(os, "getgid"):
+        raise RuntimeBoundaryError("container runtime identity is unavailable")
+    if os.getuid() != 65532 or os.getgid() != 65532:
+        raise RuntimeBoundaryError("container runtime identity is not 65532:65532")
+
+
+def validate_persisted_event_timeline(
+    value: object,
+    *,
+    task_id: str,
+    context_id: str,
+    terminal_state: str,
+    artifact_id: str | None,
+) -> Mapping[str, object]:
+    """Validate the bounded transport timeline without importing A2A or MAF."""
+
+    if type(value) is not dict or set(value) != {"timeline_version", "events"}:
+        raise RuntimeBoundaryError("A2A event timeline is not closed")
+    if value.get("timeline_version") != "a2a-event-timeline/v1":
+        raise RuntimeBoundaryError("A2A event timeline version is unsupported")
+    if terminal_state not in {"completed", "input-required", "canceled", "failed"}:
+        raise RuntimeBoundaryError("A2A event timeline terminal state is unsupported")
+    for item, label in ((task_id, "task ID"), (context_id, "context ID")):
+        if type(item) is not str or not item or len(item) > 128:
+            raise RuntimeBoundaryError(f"A2A event timeline {label} is malformed")
+    if artifact_id is not None and (
+        type(artifact_id) is not str or not artifact_id or len(artifact_id) > 128
+    ):
+        raise RuntimeBoundaryError("A2A event timeline artifact ID is malformed")
+    events = value.get("events")
+    if type(events) is not list or not events or len(events) > 64:
+        raise RuntimeBoundaryError("A2A event timeline length is invalid")
+    data_artifacts = 0
+    saw_working = False
+    for sequence, event in enumerate(events):
+        if type(event) is not dict or set(event) != _TIMELINE_EVENT_FIELDS:
+            raise RuntimeBoundaryError("A2A event timeline entry is not closed")
+        if event.get("sequence") != sequence:
+            raise RuntimeBoundaryError("A2A event timeline sequence is not contiguous")
+        if event.get("event_kind") not in _TIMELINE_EVENT_KINDS:
+            raise RuntimeBoundaryError("A2A event timeline kind is unsupported")
+        for field, expected in (("task_id", task_id), ("context_id", context_id)):
+            observed = event.get(field)
+            if observed is not None and observed != expected:
+                raise RuntimeBoundaryError("A2A event timeline lineage changed")
+        observed_state = event.get("a2a_state")
+        if observed_state is not None and observed_state not in _TIMELINE_STATES:
+            raise RuntimeBoundaryError("A2A event timeline state is unsupported")
+        observed_artifact = event.get("artifact_id")
+        if event.get("event_kind") == "data_artifact":
+            data_artifacts += 1
+            if observed_artifact != artifact_id:
+                raise RuntimeBoundaryError("A2A event timeline artifact lineage changed")
+        elif observed_artifact is not None:
+            raise RuntimeBoundaryError("non-artifact A2A event carries an artifact ID")
+        if sequence < len(events) - 1 and (
+            event.get("event_kind") == "workflow_working" or observed_state == "working"
+        ):
+            saw_working = True
+    if events[-1].get("a2a_state") != terminal_state or not saw_working:
+        raise RuntimeBoundaryError("A2A event timeline lacks a working-to-terminal path")
+    if terminal_state == "completed":
+        if data_artifacts != 1 or artifact_id is None:
+            raise RuntimeBoundaryError("completed A2A timeline lacks one artifact")
+    elif data_artifacts != 0 or artifact_id is not None:
+        raise RuntimeBoundaryError("non-completed A2A timeline contains an artifact")
+    return value
+
+
+def validate_persisted_graphflow_state(
+    value: object,
+    *,
+    run_id: str,
+    source_revision: str,
+    case_id: str,
+    case_digest: str,
+    candidate_revision: str,
+    task_id: str,
+    context_id: str,
+    state_sha256: str,
+) -> Mapping[str, object]:
+    """Validate the closed terminal GraphFlow proof without framework imports."""
+
+    fields = {
+        "state_version", "run_id", "source_revision", "case_id", "case_digest",
+        "candidate_revision", "a2a_task_id", "a2a_context_id",
+        "initial_checkpoint_sha256", "final_team_state", "status", "recommendation",
+        "basis", "resolved_contradictions", "unresolved_contradictions",
+        "reconciliation_attempts", "route_evidence", "node_evidence", "terminal_reason",
+    }
+    if type(value) is not dict or set(value) != fields:
+        raise RuntimeBoundaryError("GraphFlow terminal state is not closed")
+    expected = {
+        "state_version": "canary-analysis-state/v1",
+        "run_id": run_id,
+        "source_revision": source_revision,
+        "case_id": case_id,
+        "case_digest": case_digest,
+        "candidate_revision": candidate_revision,
+        "a2a_task_id": task_id,
+        "a2a_context_id": context_id,
+    }
+    for field, expected_value in expected.items():
+        if value.get(field) != expected_value:
+            raise RuntimeBoundaryError(f"GraphFlow terminal {field} mismatch")
+    if _sha256_object(value) != state_sha256:
+        raise RuntimeBoundaryError("GraphFlow terminal state digest mismatch")
+    initial_digest = value.get("initial_checkpoint_sha256")
+    if type(initial_digest) is not str or _DIGEST.fullmatch(initial_digest) is None:
+        raise RuntimeBoundaryError("GraphFlow initial checkpoint digest is malformed")
+    if type(value.get("final_team_state")) is not dict:
+        raise RuntimeBoundaryError("GraphFlow final team state is malformed")
+    status = value.get("status")
+    recommendation = value.get("recommendation")
+    if status == "COMPLETED":
+        if recommendation not in {"ADVANCE_CANARY", "HALT_CANARY"}:
+            raise RuntimeBoundaryError("completed GraphFlow recommendation is malformed")
+    elif status == "INPUT_REQUIRED":
+        if recommendation is not None:
+            raise RuntimeBoundaryError("input-required GraphFlow has a recommendation")
+    else:
+        raise RuntimeBoundaryError("GraphFlow terminal status is unsupported")
+    for field in (
+        "basis", "resolved_contradictions", "unresolved_contradictions", "route_evidence"
+    ):
+        items = value.get(field)
+        if type(items) is not list or not all(type(item) is str and item for item in items):
+            raise RuntimeBoundaryError(f"GraphFlow terminal {field} is malformed")
+    attempts = value.get("reconciliation_attempts")
+    if type(attempts) is not int or attempts not in (0, 1):
+        raise RuntimeBoundaryError("GraphFlow reconciliation count is malformed")
+    expected_counts = {
+        "ingest": 1, "slo_analyzer": 1, "deployment_analyzer": 1,
+        "dependency_analyzer": 1, "join": 1 + attempts, "reconcile": attempts,
+        "synthesize": 1 if status == "COMPLETED" else 0,
+        "input_required": 1 if status == "INPUT_REQUIRED" else 0,
+    }
+    evidence = value.get("node_evidence")
+    if type(evidence) is not list or len(evidence) != len(_GRAPH_NODE_IDS):
+        raise RuntimeBoundaryError("GraphFlow node evidence is incomplete")
+    for node_id, entry in zip(_GRAPH_NODE_IDS, evidence):
+        if type(entry) is not dict or set(entry) != {
+            "node_id", "call_count", "observed_input_fields"
+        }:
+            raise RuntimeBoundaryError("GraphFlow node evidence entry is not closed")
+        observed_inputs = entry.get("observed_input_fields")
+        if (
+            entry.get("node_id") != node_id
+            or entry.get("call_count") != expected_counts[node_id]
+            or type(observed_inputs) is not list
+            or len(observed_inputs) != expected_counts[node_id]
+            or any(
+                type(item) is not list or not all(type(field) is str for field in item)
+                for item in observed_inputs
+            )
+        ):
+            raise RuntimeBoundaryError("GraphFlow node call proof is invalid")
+    terminal_reason = value.get("terminal_reason")
+    if type(terminal_reason) is not str or not terminal_reason or len(terminal_reason) > 1024:
+        raise RuntimeBoundaryError("GraphFlow terminal reason is malformed")
+    return value
+
+
+def _sha256_object(value: object) -> str:
+    import hashlib
+
+    return hashlib.sha256(_canonical_json(value).rstrip(b"\n")).hexdigest()
+
+
 def validate_runtime_pending(
     value: object,
     *,
@@ -143,6 +358,8 @@ def validate_runtime_pending(
     case_id: str,
 ) -> Mapping[str, object]:
     """Validate enough persisted state before importing framework code on resume."""
+
+    from .contracts import ContractViolation, validate_recommendation_artifact
 
     if type(value) is not dict or set(value) != _PENDING_FIELDS:
         raise RuntimeBoundaryError("pending state is not a closed object")
@@ -164,9 +381,13 @@ def validate_runtime_pending(
         item = value.get(field)
         if type(item) is not str or pattern.fullmatch(item) is None:
             raise RuntimeBoundaryError(f"pending state {field} is malformed")
-    artifact = value.get("artifact")
-    if type(artifact) is not dict:
+    artifact_object = value.get("artifact")
+    if type(artifact_object) is not dict:
         raise RuntimeBoundaryError("pending artifact is not an object")
+    try:
+        artifact = validate_recommendation_artifact(artifact_object)
+    except ContractViolation as exc:
+        raise RuntimeBoundaryError("pending artifact is invalid") from exc
     bindings = {
         "run_id": run_id,
         "source_revision": source_revision,
@@ -175,9 +396,9 @@ def validate_runtime_pending(
         "candidate_revision": value["candidate_revision"],
     }
     for field, expected_value in bindings.items():
-        if artifact.get(field) != expected_value:
+        if getattr(artifact, field) != expected_value:
             raise RuntimeBoundaryError(f"pending artifact {field} mismatch")
-    artifact_digest = artifact.get("artifact_digest")
+    artifact_digest = artifact.artifact_digest
     if type(artifact_digest) is not str or _DIGEST.fullmatch(artifact_digest) is None:
         raise RuntimeBoundaryError("pending artifact digest is malformed")
     a2a = value.get("a2a")
@@ -192,12 +413,49 @@ def validate_runtime_pending(
     for field in ("task_id", "context_id", "artifact_id"):
         if type(a2a.get(field)) is not str or not a2a[field]:
             raise RuntimeBoundaryError(f"pending A2A {field} is malformed")
-    if artifact.get("a2a_task_id") not in (None, a2a["task_id"]):
+    if artifact.a2a_task_id != a2a["task_id"]:
         raise RuntimeBoundaryError("pending A2A task lineage mismatch")
-    if artifact.get("a2a_context_id") not in (None, a2a["context_id"]):
+    if artifact.a2a_context_id != a2a["context_id"]:
         raise RuntimeBoundaryError("pending A2A context lineage mismatch")
-    if artifact.get("artifact_id") not in (None, a2a["artifact_id"]):
+    if artifact.artifact_id != a2a["artifact_id"]:
         raise RuntimeBoundaryError("pending A2A artifact lineage mismatch")
+    validate_persisted_event_timeline(
+        a2a.get("event_timeline"),
+        task_id=a2a["task_id"],
+        context_id=a2a["context_id"],
+        terminal_state="completed",
+        artifact_id=a2a["artifact_id"],
+    )
+    graphflow = value.get("graphflow")
+    if type(graphflow) is not dict or set(graphflow) != _PERSISTED_GRAPHFLOW_FIELDS:
+        raise RuntimeBoundaryError("pending GraphFlow proof is not closed")
+    if graphflow.get("state_sha256") != artifact.graph_state_sha256:
+        raise RuntimeBoundaryError("pending GraphFlow digest does not bind the artifact")
+    terminal_state = validate_persisted_graphflow_state(
+        graphflow.get("terminal_state"),
+        run_id=run_id,
+        source_revision=source_revision,
+        case_id=case_id,
+        case_digest=value["case_digest"],
+        candidate_revision=value["candidate_revision"],
+        task_id=a2a["task_id"],
+        context_id=a2a["context_id"],
+        state_sha256=artifact.graph_state_sha256,
+    )
+    if (
+        graphflow.get("initial_checkpoint_sha256")
+        != terminal_state["initial_checkpoint_sha256"]
+        or terminal_state["status"] != "COMPLETED"
+        or terminal_state["recommendation"] != artifact.recommendation
+        or terminal_state["basis"] != list(artifact.basis)
+        or terminal_state["resolved_contradictions"]
+        != list(artifact.resolved_contradictions)
+        or terminal_state["unresolved_contradictions"]
+        != list(artifact.unresolved_contradictions)
+        or terminal_state["reconciliation_attempts"]
+        != artifact.reconciliation_attempts
+    ):
+        raise RuntimeBoundaryError("pending GraphFlow proof does not bind the artifact")
     approval = value.get("approval")
     if type(approval) is not dict or set(approval) != _APPROVAL_FIELDS:
         raise RuntimeBoundaryError("pending approval proof is not closed")
@@ -218,59 +476,30 @@ def recover_existing_final(
 ) -> bytes | None:
     """Return one exact completed resume result without reopening its MAF gate."""
 
-    from .contracts import (
-        ContractViolation,
-        canonical_json_bytes,
-        to_plain_object,
-        validate_recommendation_artifact,
-        validate_release_decision,
-    )
+    from .contracts import to_plain_object
 
     final_exists = runtime_final_path.is_file()
     decision_exists = decision_path.is_file()
-    if not final_exists and not decision_exists:
+    if not final_exists:
         return None
-    if final_exists != decision_exists:
+    if not decision_exists:
         raise RuntimeBoundaryError(
-            "completed resume evidence is partial; refusing to reopen approval"
+            "runtime-final exists without its exact decision"
         )
-    if requested_decision not in ("ACCEPT", "REJECT"):
-        raise RuntimeBoundaryError("requested decision is not closed")
     try:
         runtime_bytes = runtime_final_path.read_bytes()
-        decision_bytes = decision_path.read_bytes()
         runtime_object = json.loads(runtime_bytes)
-        decision_object = json.loads(decision_bytes)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise RuntimeBoundaryError("completed resume evidence cannot be decoded") from exc
     if type(runtime_object) is not dict or set(runtime_object) != _RUNTIME_FINAL_FIELDS:
         raise RuntimeBoundaryError("existing runtime-final is not a closed object")
     if runtime_bytes != _canonical_json(runtime_object):
         raise RuntimeBoundaryError("existing runtime-final is not canonical JSON")
-    if type(decision_object) is not dict:
-        raise RuntimeBoundaryError("existing decision is not an object")
-
-    try:
-        artifact = validate_recommendation_artifact(pending.get("artifact"))
-        decided_at_value = decision_object.get("decided_at")
-        if type(decided_at_value) is not str or not decided_at_value.endswith("Z"):
-            raise RuntimeBoundaryError("existing decision decided_at is malformed")
-        decided_at = datetime.fromisoformat(decided_at_value[:-1] + "+00:00")
-        decision = validate_release_decision(
-            decision_object,
-            artifact=artifact,
-            # Validate that the persisted decision was valid when recorded. A
-            # host-export retry may legitimately occur after expires_at.
-            at_time=decided_at,
-        )
-    except (ContractViolation, TypeError, ValueError) as exc:
-        raise RuntimeBoundaryError("existing decision or artifact is invalid") from exc
-    if decision_bytes != canonical_json_bytes(decision):
-        raise RuntimeBoundaryError("existing decision bytes are not canonical")
-    if decision.decision != requested_decision:
-        raise RuntimeBoundaryError(
-            "existing decision does not match the requested decision"
-        )
+    artifact, decision = _validated_persisted_decision(
+        decision_path=decision_path,
+        pending=pending,
+        requested_decision=requested_decision,
+    )
 
     expected = {
         "runtime_evidence_version": RUNTIME_EVIDENCE_VERSION,
@@ -306,10 +535,15 @@ def recover_existing_final(
             )
 
     graphflow = runtime_object.get("graphflow")
+    pending_graphflow = pending.get("graphflow")
     if type(graphflow) is not dict or set(graphflow) != _FINAL_GRAPHFLOW_FIELDS:
         raise RuntimeBoundaryError("existing GraphFlow proof is not closed")
     if (
         graphflow.get("state_sha256") != artifact.graph_state_sha256
+        or type(pending_graphflow) is not dict
+        or graphflow.get("initial_checkpoint_sha256")
+        != pending_graphflow.get("initial_checkpoint_sha256")
+        or graphflow.get("terminal_state") != pending_graphflow.get("terminal_state")
         or graphflow.get("state_loaded_for_analysis") is not True
         or graphflow.get("analysis_rerun_on_approval_resume") is not False
     ):
@@ -333,6 +567,97 @@ def recover_existing_final(
     ):
         raise RuntimeBoundaryError("existing approval proof is invalid")
     return runtime_bytes
+
+
+def _validated_persisted_decision(
+    *,
+    decision_path: Path,
+    pending: Mapping[str, object],
+    requested_decision: str,
+):
+    from .contracts import (
+        ContractViolation,
+        canonical_json_bytes,
+        validate_recommendation_artifact,
+        validate_release_decision,
+    )
+
+    if requested_decision not in ("ACCEPT", "REJECT"):
+        raise RuntimeBoundaryError("requested decision is not closed")
+    try:
+        decision_bytes = decision_path.read_bytes()
+        decision_object = json.loads(decision_bytes)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise RuntimeBoundaryError("completed decision cannot be decoded") from exc
+    if type(decision_object) is not dict:
+        raise RuntimeBoundaryError("existing decision is not an object")
+    try:
+        artifact = validate_recommendation_artifact(pending.get("artifact"))
+        decided_at_value = decision_object.get("decided_at")
+        if type(decided_at_value) is not str or not decided_at_value.endswith("Z"):
+            raise RuntimeBoundaryError("existing decision decided_at is malformed")
+        decided_at = datetime.fromisoformat(decided_at_value[:-1] + "+00:00")
+        decision = validate_release_decision(
+            decision_object,
+            artifact=artifact,
+            # A host-export retry can occur after expires_at. Validate that the
+            # immutable decision was valid at its original recording instant.
+            at_time=decided_at,
+        )
+    except (ContractViolation, TypeError, ValueError) as exc:
+        raise RuntimeBoundaryError("existing decision or artifact is invalid") from exc
+    if decision_bytes != canonical_json_bytes(decision):
+        raise RuntimeBoundaryError("existing decision bytes are not canonical")
+    if decision.decision != requested_decision:
+        raise RuntimeBoundaryError(
+            "existing decision does not match the requested decision"
+        )
+    return artifact, decision
+
+
+def _build_runtime_final(
+    *,
+    pending: Mapping[str, object],
+    artifact,
+    decision,
+    decision_replayed: bool,
+) -> Mapping[str, object]:
+    from .contracts import to_plain_object
+
+    approval = pending["approval"]
+    persisted_graphflow = pending["graphflow"]
+    return {
+        "runtime_evidence_version": RUNTIME_EVIDENCE_VERSION,
+        "status": "DECISION_RECORDED",
+        "run_id": pending["run_id"],
+        "source_revision": pending["source_revision"],
+        "case_id": pending["case_id"],
+        "case_digest": pending["case_digest"],
+        "candidate_revision": pending["candidate_revision"],
+        "python": platform.python_version(),
+        "packages": to_plain_object(artifact.packages),
+        "analysis_invocations": pending["analysis_invocations"],
+        "a2a": pending["a2a"],
+        "graphflow": {
+            "state_sha256": artifact.graph_state_sha256,
+            "initial_checkpoint_sha256": persisted_graphflow[
+                "initial_checkpoint_sha256"
+            ],
+            "terminal_state": persisted_graphflow["terminal_state"],
+            "state_loaded_for_analysis": True,
+            "analysis_rerun_on_approval_resume": False,
+        },
+        "approval": {
+            "checkpoint_id": approval["checkpoint_id"],
+            "restored_checkpoint_id": approval["checkpoint_id"],
+            "initial_request_info_count": approval["request_info_count"],
+            "resume_request_info_count": 0,
+            "decision_replayed": decision_replayed,
+        },
+        "artifact": to_plain_object(artifact),
+        "decision": to_plain_object(decision),
+        "release_effect_executed": False,
+    }
 
 
 def reject_runtime_environment(environment: Mapping[str, str]) -> None:
@@ -408,6 +733,7 @@ async def _run_fresh(args: argparse.Namespace) -> int:
     )
     from .maf_orchestrator import (
         cancel_remote_analysis_after_interruption,
+        event_timeline_to_plain_object,
         run_remote_analysis,
     )
 
@@ -462,6 +788,44 @@ async def _run_fresh(args: argparse.Namespace) -> int:
         raise RuntimeBoundaryError(
             f"A2A state {result.a2a_state!r} does not match immutable expectation"
         )
+    timeline = event_timeline_to_plain_object(result.event_timeline)
+    validate_persisted_event_timeline(
+        timeline,
+        task_id=result.task_id,
+        context_id=result.context_id,
+        terminal_state=result.a2a_state,
+        artifact_id=result.artifact_id,
+    )
+    graphflow: Mapping[str, object]
+    if result.a2a_state in ("completed", "input-required"):
+        graph_state_path = state_root / f"{args.run_id}.graphflow-state.json"
+        graph_state_bytes = graph_state_path.read_bytes()
+        graph_state = _load_json(graph_state_path, "GraphFlow terminal state")
+        if graph_state_bytes != canonical_json_bytes(graph_state):
+            raise RuntimeBoundaryError("GraphFlow terminal state is not canonical JSON")
+        graph_digest = canonical_sha256(graph_state)
+        validate_persisted_graphflow_state(
+            graph_state,
+            run_id=args.run_id,
+            source_revision=args.source_revision,
+            case_id=args.case,
+            case_digest=request.case_digest,
+            candidate_revision=request.candidate_revision,
+            task_id=result.task_id,
+            context_id=result.context_id,
+            state_sha256=graph_digest,
+        )
+        graphflow = {
+            "state_sha256": graph_digest,
+            "initial_checkpoint_sha256": graph_state["initial_checkpoint_sha256"],
+            "terminal_state": graph_state,
+        }
+    else:
+        graphflow = {
+            "state_sha256": None,
+            "initial_checkpoint_sha256": None,
+            "terminal_state": None,
+        }
     if result.a2a_state != "completed":
         request_proof = validate_noncompleted_terminal(
             a2a_state=result.a2a_state,
@@ -474,15 +838,28 @@ async def _run_fresh(args: argparse.Namespace) -> int:
             "run_id": args.run_id,
             "source_revision": args.source_revision,
             "case_id": args.case,
+            "case_digest": request.case_digest,
+            "candidate_revision": request.candidate_revision,
+            "python": platform.python_version(),
+            "packages": {
+                "agent-framework-core": "1.16.0",
+                "agent-framework-a2a": "1.0.0b260821",
+                "autogen-agentchat": "0.7.5",
+                "a2a-sdk": "1.1.2",
+            },
             "analysis_invocations": 1,
             **request_proof,
             "artifact": None,
             "a2a": {
+                "state": result.a2a_state,
                 "task_id": result.task_id,
                 "context_id": result.context_id,
+                "artifact_id": None,
                 "used_streaming_workflow": result.used_streaming_workflow,
+                "event_timeline": timeline,
                 "recovery": recovery_proof,
             },
+            "graphflow": graphflow,
             "release_effect_executed": False,
         }
         _publish_once(evidence_root / "runtime-terminal.json", _canonical_json(terminal))
@@ -494,6 +871,13 @@ async def _run_fresh(args: argparse.Namespace) -> int:
         raise RuntimeBoundaryError("completed task lacks an artifact object")
     if artifact.get("recommendation") != case.expected.recommendation:
         raise RuntimeBoundaryError("recommendation does not match immutable expectation")
+    if (
+        artifact.get("graph_state_sha256") != graphflow["state_sha256"]
+        or graphflow["terminal_state"]["status"] != "COMPLETED"
+        or graphflow["terminal_state"]["recommendation"]
+        != artifact.get("recommendation")
+    ):
+        raise RuntimeBoundaryError("completed artifact does not bind terminal GraphFlow state")
     pending = await open_approval_gate(result, checkpoint_directory=checkpoints)
     pending_state = {
         "pending_version": PENDING_VERSION,
@@ -512,7 +896,9 @@ async def _run_fresh(args: argparse.Namespace) -> int:
             "artifact_id": result.artifact_id,
             "authoritative_content": "data",
             "used_streaming_workflow": result.used_streaming_workflow,
+            "event_timeline": timeline,
         },
+        "graphflow": graphflow,
         "approval": {
             "checkpoint_id": pending.checkpoint_id,
             "request_id": pending.request_id,
@@ -544,7 +930,10 @@ async def _run_fresh(args: argparse.Namespace) -> int:
 
 
 async def _run_resume(args: argparse.Namespace) -> int:
-    from .approval_gate import resume_approval_gate
+    from .approval_gate import (
+        resume_approval_gate,
+        validate_pending_approval_checkpoint,
+    )
     from .contracts import (
         canonical_sha256,
         to_plain_object,
@@ -575,16 +964,40 @@ async def _run_resume(args: argparse.Namespace) -> int:
     graph_state = _load_json(state_path, "GraphFlow state")
     if canonical_sha256(graph_state) != artifact.graph_state_sha256:
         raise RuntimeBoundaryError("GraphFlow state digest does not match the artifact")
+    if graph_state != pending["graphflow"]["terminal_state"]:
+        raise RuntimeBoundaryError("GraphFlow state differs from the pending terminal proof")
+    decision_path = (
+        state_root / "decisions" / f"{args.run_id}.release-decision.json"
+    )
+    runtime_final_path = evidence_root / "runtime-final.json"
     existing_final = recover_existing_final(
-        runtime_final_path=evidence_root / "runtime-final.json",
-        decision_path=(
-            state_root / "decisions" / f"{args.run_id}.release-decision.json"
-        ),
+        runtime_final_path=runtime_final_path,
+        decision_path=decision_path,
         pending=pending,
         requested_decision=args.decision,
     )
     if existing_final is not None:
         _print_event("decision_recorded_replay", args.run_id)
+        return 0
+    if decision_path.is_file():
+        persisted_artifact, persisted_decision = _validated_persisted_decision(
+            decision_path=decision_path,
+            pending=pending,
+            requested_decision=args.decision,
+        )
+        await validate_pending_approval_checkpoint(
+            artifact_object=pending["artifact"],
+            checkpoint_directory=state_root / "checkpoints",
+            checkpoint_id=pending["approval"]["checkpoint_id"],
+        )
+        reconstructed = _build_runtime_final(
+            pending=pending,
+            artifact=persisted_artifact,
+            decision=persisted_decision,
+            decision_replayed=False,
+        )
+        _publish_once(runtime_final_path, _canonical_json(reconstructed))
+        _print_event("decision_recorded_reconstructed", args.run_id)
         return 0
     now = datetime.now(timezone.utc).replace(microsecond=0)
     response = {
@@ -608,35 +1021,17 @@ async def _run_resume(args: argparse.Namespace) -> int:
         response=response,
         at_time=now,
     )
-    runtime_final = {
-        "runtime_evidence_version": RUNTIME_EVIDENCE_VERSION,
-        "status": "DECISION_RECORDED",
-        "run_id": args.run_id,
-        "source_revision": args.source_revision,
-        "case_id": args.case,
-        "case_digest": pending["case_digest"],
-        "candidate_revision": pending["candidate_revision"],
-        "python": platform.python_version(),
-        "packages": to_plain_object(artifact.packages),
-        "analysis_invocations": pending["analysis_invocations"],
-        "a2a": pending["a2a"],
-        "graphflow": {
-            "state_sha256": artifact.graph_state_sha256,
-            "state_loaded_for_analysis": True,
-            "analysis_rerun_on_approval_resume": False,
-        },
-        "approval": {
-            "checkpoint_id": approval["checkpoint_id"],
-            "restored_checkpoint_id": outcome.restored_checkpoint_id,
-            "initial_request_info_count": approval["request_info_count"],
-            "resume_request_info_count": outcome.request_info_count,
-            "decision_replayed": outcome.replayed,
-        },
-        "artifact": to_plain_object(artifact),
-        "decision": to_plain_object(outcome.decision),
-        "release_effect_executed": False,
-    }
-    _publish_once(evidence_root / "runtime-final.json", _canonical_json(runtime_final))
+    runtime_final = _build_runtime_final(
+        pending=pending,
+        artifact=artifact,
+        decision=outcome.decision,
+        decision_replayed=outcome.replayed,
+    )
+    if outcome.restored_checkpoint_id != approval["checkpoint_id"]:
+        raise RuntimeBoundaryError("restored checkpoint identity changed")
+    if outcome.request_info_count != 0:
+        raise RuntimeBoundaryError("resume emitted a second request_info")
+    _publish_once(runtime_final_path, _canonical_json(runtime_final))
     _print_event("decision_recorded", args.run_id)
     return 0
 
@@ -772,6 +1167,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = build_parser().parse_args(argv)
         reject_runtime_environment(os.environ)
+        enforce_container_runtime(os.environ)
         if args.command == "worker":
             return _run_worker(args)
         if args.command == "healthcheck":

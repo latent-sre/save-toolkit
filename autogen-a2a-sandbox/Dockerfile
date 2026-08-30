@@ -7,7 +7,8 @@ LABEL org.opencontainers.image.revision=${SANDBOX_SOURCE_REVISION} \
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    AUTOGEN_A2A_RUNTIME_MARKER=autogen-a2a-sandbox-container/v1
 
 WORKDIR /opt/interop-sandbox
 
@@ -19,7 +20,9 @@ COPY cases ./cases
 COPY tests ./tests
 COPY activate.py ./activate.py
 
-RUN mkdir -p /state/checkpoints /state/decisions /evidence \
+RUN printf '%s\n' 'autogen-a2a-sandbox-container/v1' > /opt/interop-sandbox/.runtime-marker \
+    && chmod 0444 /opt/interop-sandbox/.runtime-marker \
+    && mkdir -p /state/checkpoints /state/decisions /evidence \
     && chown -R 65532:65532 /state /evidence
 
 USER 65532:65532

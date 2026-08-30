@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import socket
 import sys
@@ -32,7 +33,11 @@ from interop_sandbox.contracts import (  # noqa: E402
     validate_recommendation_artifact,
     verify_case_manifest,
 )
-from interop_sandbox.maf_orchestrator import run_remote_analysis  # noqa: E402
+from interop_sandbox.maf_orchestrator import (  # noqa: E402
+    event_timeline_to_plain_object,
+    run_remote_analysis,
+    validate_event_timeline,
+)
 
 
 SOURCE_REVISION = "0123456789abcdef0123456789abcdef01234567"
@@ -173,6 +178,26 @@ class A2AMAFIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(artifact.a2a_task_id, result.task_id)
         self.assertEqual(artifact.a2a_context_id, result.context_id)
         self.assertEqual(result.artifact_id, artifact.artifact_id)
+        plain_timeline = event_timeline_to_plain_object(result.event_timeline)
+        self.assertEqual(
+            validate_event_timeline(
+                plain_timeline,
+                task_id=result.task_id,
+                context_id=result.context_id,
+                terminal_state="completed",
+                artifact_id=result.artifact_id,
+            ),
+            result.event_timeline,
+        )
+        self.assertEqual(
+            sum(event.event_kind == "data_artifact" for event in result.event_timeline),
+            1,
+        )
+        terminal_path = self.state_directory / f"{request.run_id}.graphflow-state.json"
+        terminal_state = json.loads(terminal_path.read_bytes())
+        self.assertEqual(terminal_state["a2a_task_id"], result.task_id)
+        self.assertEqual(terminal_state["a2a_context_id"], result.context_id)
+        self.assertEqual(artifact.graph_state_sha256, canonical_sha256(terminal_state))
         self.assertEqual(self.app.state.analysis_executor.analysis_calls, 1)
         self.assertNotIn("openai", sys.modules)
         self.assertNotIn("autogen_ext", sys.modules)
@@ -191,8 +216,73 @@ class A2AMAFIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result.authoritative_part)
         self.assertIsNone(result.artifact_object)
         self.assertIsNone(result.artifact_id)
+        self.assertTrue(
+            any(
+                event.event_kind == "workflow_working"
+                for event in result.event_timeline
+            )
+        )
+        self.assertEqual(result.event_timeline[-1].a2a_state, "input-required")
+        self.assertFalse(
+            any(event.event_kind == "data_artifact" for event in result.event_timeline)
+        )
+        validate_event_timeline(
+            event_timeline_to_plain_object(result.event_timeline),
+            task_id=result.task_id,
+            context_id=result.context_id,
+            terminal_state="input-required",
+            artifact_id=None,
+        )
         self.assertEqual(result.request_info_count, 1)
         self.assertEqual(self.app.state.analysis_executor.analysis_calls, 1)
+
+    async def test_timeline_revalidation_rejects_sequence_and_lineage_drift(self) -> None:
+        request = self.requests["mission-healthy-001"]
+        result = await run_remote_analysis(
+            agent_base_url=self.base_url,
+            request_text=canonical_json_bytes(request).decode("utf-8"),
+        )
+        plain = event_timeline_to_plain_object(result.event_timeline)
+
+        sequence_drift = copy.deepcopy(plain)
+        sequence_drift["events"][0]["sequence"] = 2
+        lineage_drift = copy.deepcopy(plain)
+        lineage_drift["events"][-1]["task_id"] = "different-task"
+
+        with self.assertRaisesRegex(ValueError, "sequence"):
+            validate_event_timeline(
+                sequence_drift,
+                task_id=result.task_id,
+                context_id=result.context_id,
+                terminal_state=result.a2a_state,
+                artifact_id=result.artifact_id,
+            )
+        with self.assertRaisesRegex(ValueError, "lineage"):
+            validate_event_timeline(
+                lineage_drift,
+                task_id=result.task_id,
+                context_id=result.context_id,
+                terminal_state=result.a2a_state,
+                artifact_id=result.artifact_id,
+            )
+
+        fabricated = copy.deepcopy(plain)
+        working = next(
+            event
+            for event in fabricated["events"]
+            if event["event_kind"] == "workflow_working"
+        )
+        working["a2a_state"] = "working"
+        with self.assertRaisesRegex(
+            ValueError, "cannot claim A2A protocol evidence"
+        ):
+            validate_event_timeline(
+                fabricated,
+                task_id=result.task_id,
+                context_id=result.context_id,
+                terminal_state=result.a2a_state,
+                artifact_id=result.artifact_id,
+            )
 
     async def test_unknown_request_field_fails_before_graphflow(self) -> None:
         request_object = to_plain_object(self.requests["mission-healthy-001"])
@@ -211,6 +301,13 @@ class A2AMAFIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.a2a_state, "failed")
         self.assertIsNone(result.authoritative_part)
         self.assertIsNone(result.artifact_object)
+        self.assertTrue(
+            any(
+                event.event_kind == "workflow_working"
+                for event in result.event_timeline
+            )
+        )
+        self.assertEqual(result.event_timeline[-1].a2a_state, "failed")
         self.assertEqual(self.app.state.analysis_executor.analysis_calls, 0)
 
 

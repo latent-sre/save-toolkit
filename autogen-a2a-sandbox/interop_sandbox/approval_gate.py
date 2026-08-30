@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -215,6 +216,36 @@ async def resume_approval_gate(
     )
 
 
+async def validate_pending_approval_checkpoint(
+    *,
+    artifact_object: Mapping[str, object] | None,
+    checkpoint_directory: str | Path,
+    checkpoint_id: str,
+) -> None:
+    """Validate one stored pause without resuming or emitting another request."""
+
+    checkpoint_root = _existing_directory(
+        checkpoint_directory, "checkpoint_directory"
+    )
+    try:
+        artifact = validate_recommendation_artifact(artifact_object)
+    except (ContractViolation, TypeError) as exc:
+        raise ApprovalGateError(f"recommendation artifact rejected: {exc}") from exc
+    if type(checkpoint_id) is not str or not checkpoint_id:
+        raise ApprovalGateError("checkpoint_id must be a non-empty string")
+    storage = FileCheckpointStorage(checkpoint_root)
+    try:
+        checkpoint = await storage.load(checkpoint_id)
+    except Exception as exc:
+        raise ApprovalGateError(f"approval checkpoint could not be loaded: {exc}") from exc
+    _validate_pending_checkpoint(
+        checkpoint,
+        checkpoint_id=checkpoint_id,
+        workflow_name=_workflow_name(artifact.run_id),
+        request_object=_approval_request(artifact),
+    )
+
+
 def _build_workflow(storage: FileCheckpointStorage, workflow_name: str):
     executor = _FinalApprovalExecutor()
     return WorkflowBuilder(
@@ -332,33 +363,65 @@ def _persist_decision(
 ) -> tuple[Path, bool]:
     path = root / f"{decision.run_id}.release-decision.json"
     value = canonical_json_bytes(decision)
-    if path.exists():
-        try:
-            existing_bytes = path.read_bytes()
-            existing_object = json.loads(existing_bytes.decode("utf-8"))
-            existing = validate_release_decision(
-                existing_object, artifact=artifact, at_time=at_time
-            )
-            if existing_bytes != canonical_json_bytes(existing):
-                raise ContractViolation("existing decision file is not canonical JSON")
-            validate_decision_replay(existing, decision)
-        except (OSError, UnicodeError, json.JSONDecodeError, ContractViolation) as exc:
-            raise ApprovalGateError(f"decision replay rejected: {exc}") from exc
+    try:
+        _atomic_write(path, value)
+    except FileExistsError:
+        _validate_existing_decision(
+            path,
+            candidate=decision,
+            artifact=artifact,
+            at_time=at_time,
+        )
         return path, True
-    _atomic_write(path, value)
     return path, False
 
 
-def _atomic_write(path: Path, value: bytes) -> None:
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+def _validate_existing_decision(
+    path: Path,
+    *,
+    candidate: ReleaseDecision,
+    artifact: RecommendationArtifact,
+    at_time: datetime,
+) -> ReleaseDecision:
     try:
-        with temporary.open("xb") as stream:
+        existing_bytes = path.read_bytes()
+        existing_object = json.loads(existing_bytes.decode("utf-8"))
+        existing = validate_release_decision(
+            existing_object, artifact=artifact, at_time=at_time
+        )
+        if existing_bytes != canonical_json_bytes(existing):
+            raise ContractViolation("existing decision file is not canonical JSON")
+        validate_decision_replay(existing, candidate)
+    except (OSError, UnicodeError, json.JSONDecodeError, ContractViolation) as exc:
+        raise ApprovalGateError(f"decision replay rejected: {exc}") from exc
+    return existing
+
+
+def _atomic_write(path: Path, value: bytes) -> None:
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
             stream.write(value)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        # A hard-link publishes the complete inode and fails with EEXIST rather
+        # than replacing a conflicting writer's decision.
+        os.link(temporary, path)
+        if hasattr(os, "O_DIRECTORY"):
+            directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
     finally:
-        if temporary.exists():
+        if temporary is not None and temporary.exists():
             temporary.unlink()
 
 

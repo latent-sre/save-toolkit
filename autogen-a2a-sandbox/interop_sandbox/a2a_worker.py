@@ -38,7 +38,7 @@ from .contracts import (
     to_plain_object,
     validate_recommendation_artifact,
 )
-from .graphflow_runtime import AnalysisResult, run_analysis
+from .graphflow_runtime import AnalysisResult, bind_transport_lineage, run_analysis
 
 
 WORKER_VERSION = "autogen-a2a-worker/v1"
@@ -114,6 +114,12 @@ class CanaryAnalysisExecutor(AgentExecutor):
         request: AnalysisRequest,
         result: AnalysisResult,
     ) -> None:
+        if result.status in ("COMPLETED", "INPUT_REQUIRED"):
+            result = bind_transport_lineage(
+                result,
+                task_id=updater.task_id,
+                context_id=updater.context_id,
+            )
         if result.status == "INPUT_REQUIRED":
             await updater.requires_input(
                 updater.new_agent_message(
@@ -157,6 +163,8 @@ def _build_recommendation_artifact(
 ):
     if result.recommendation is None or result.graph_state_sha256 is None:
         raise ValueError("completed analysis lacks a recommendation or state digest")
+    if result.a2a_task_id != task_id or result.a2a_context_id != context_id:
+        raise ValueError("completed analysis state is not bound to this A2A task")
     payload = {
         "artifact_version": ARTIFACT_VERSION,
         "artifact_id": expected_artifact_id(request.run_id),

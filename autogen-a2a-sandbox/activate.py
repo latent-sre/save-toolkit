@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -27,6 +28,29 @@ _REVISION = re.compile(r"^[0-9a-f]{40}$")
 _IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
 _RUN_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 _RESOURCE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}$")
+_DAEMON_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_PYTHON_VERSION = re.compile(r"^3\.12\.\d+$")
+_HOST_PYTHON_VERSION = re.compile(r"^3\.\d+\.\d+$")
+_COMPOSE_VERSION = re.compile(r"^v?\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$")
+_PINNED_PACKAGES = {
+    "a2a-sdk": "1.1.2",
+    "agent-framework-a2a": "1.0.0b260821",
+    "agent-framework-core": "1.16.0",
+    "autogen-agentchat": "0.7.5",
+}
+_STAGE_MANIFEST_VERSION = "autogen-a2a-final-stage/v1"
+_STAGED_DATA_FILES = frozenset(
+    {
+        "artifact.json",
+        "case-manifest.json",
+        "case.json",
+        "compose-model.json",
+        "decision.json",
+        "environment.json",
+        "graphflow-state.json",
+        "runtime-final.json",
+    }
+)
 _CASE_IDS = frozenset(
     {
         "mission-healthy-001",
@@ -52,6 +76,7 @@ _HANDOFF_FIELDS = frozenset(
         "project",
         "state_volume",
         "evidence_volume",
+        "daemon_id",
     }
 )
 _SENSITIVE_EXACT = frozenset(
@@ -434,6 +459,7 @@ def validate_resume_handoff(
     project: str,
     state_volume: str,
     evidence_volume: str,
+    daemon_id: str,
 ) -> Mapping[str, object]:
     if type(value) is not dict or set(value) != _HANDOFF_FIELDS:
         raise ActivationError("invalid_handoff", "resume handoff is not a closed object", EXIT_PRECONDITION)
@@ -446,6 +472,7 @@ def validate_resume_handoff(
         "project": project,
         "state_volume": state_volume,
         "evidence_volume": evidence_volume,
+        "daemon_id": daemon_id,
     }
     for field, expected_value in expected.items():
         if value.get(field) != expected_value:
@@ -499,14 +526,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         root = Path(__file__).resolve().parent
         repo = root.parent
         _validate_source_tree(repo, root, revision)
-        _validate_docker_context(context)
+        daemon_id = _validate_docker_context(context)
         if args.command == "build":
-            return _build(root, context, revision)
+            return _build(root, context, revision, daemon_id)
         evidence_root = _existing_evidence_root(args.evidence_root, repo)
         run_id = _validated_run_id(args.run_id)
         if args.command == "fresh":
-            return _fresh(root, context, revision, run_id, args.case, evidence_root)
-        return _resume(root, context, revision, run_id, evidence_root, args.decision)
+            return _fresh(
+                root, context, revision, run_id, args.case, evidence_root, daemon_id
+            )
+        return _resume(
+            root, context, revision, run_id, evidence_root, args.decision, daemon_id
+        )
     except ActivationError as exc:
         _emit_error(exc.error_class, str(exc))
         return exc.exit_code
@@ -518,7 +549,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_RUNTIME
 
 
-def _build(root: Path, context: str, revision: str) -> int:
+def _build(root: Path, context: str, revision: str, daemon_id: str) -> int:
     tag = _image_tag(revision)
     command = [
         "docker", "--context", context, "build", "--no-cache", "--platform", "linux/amd64",
@@ -527,11 +558,11 @@ def _build(root: Path, context: str, revision: str) -> int:
     ]
     _run(command, timeout=900, capture=False)
     image_id = _resolve_image(context, tag, revision)
-    print(json.dumps({"event": "image_built", "image_id": image_id, "source_revision": revision, "tag": tag}, sort_keys=True, separators=(",", ":")))
+    print(json.dumps({"daemon_id": daemon_id, "event": "image_built", "image_id": image_id, "source_revision": revision, "tag": tag}, sort_keys=True, separators=(",", ":")))
     return 0
 
 
-def _fresh(root: Path, context: str, revision: str, run_id: str, case_id: str, evidence_root: Path) -> int:
+def _fresh(root: Path, context: str, revision: str, run_id: str, case_id: str, evidence_root: Path, daemon_id: str) -> int:
     if case_id not in _CASE_IDS:
         raise ActivationError("invalid_case", "case is not one of the six immutable cases", EXIT_USAGE)
     image_id = _resolve_image(context, _image_tag(revision), revision)
@@ -549,13 +580,23 @@ def _fresh(root: Path, context: str, revision: str, run_id: str, case_id: str, e
         if exit_code == EXIT_PENDING:
             runtime_handoff = _copy_container_json(context, container_id, "/evidence/pending-handoff.json")
             host_handoff = dict(runtime_handoff)
-            host_handoff.update({"image_id": image_id, "project": identity.project, "state_volume": identity.state_volume, "evidence_volume": identity.evidence_volume})
-            validate_resume_handoff(host_handoff, source_revision=revision, run_id=run_id, image_id=image_id, project=identity.project, state_volume=identity.state_volume, evidence_volume=identity.evidence_volume)
+            host_handoff.update({"daemon_id": daemon_id, "image_id": image_id, "project": identity.project, "state_volume": identity.state_volume, "evidence_volume": identity.evidence_volume})
+            validate_resume_handoff(host_handoff, source_revision=revision, run_id=run_id, image_id=image_id, project=identity.project, state_volume=identity.state_volume, evidence_volume=identity.evidence_volume, daemon_id=daemon_id)
             handoff_bytes = _canonical_json(host_handoff)
             authentic_pending = True
             publish_file_once(_handoff_path(evidence_root, run_id), handoff_bytes)
         elif exit_code == EXIT_TERMINAL:
             terminal = _copy_container_bytes(context, container_id, "/evidence/runtime-terminal.json")
+            case_object = _decode_json_object_bytes(
+                (root / "cases" / f"{case_id}.json").read_bytes(), "case"
+            )
+            _validate_runtime_terminal(
+                terminal,
+                run_id=run_id,
+                source_revision=revision,
+                case_id=case_id,
+                case_object=case_object,
+            )
             publish_file_once(evidence_root / run_id / "runtime-terminal.json", terminal)
         else:
             raise ActivationError("runtime_failed", f"orchestrator exited {exit_code}; inspect bounded container logs", EXIT_RUNTIME)
@@ -570,19 +611,44 @@ def _fresh(root: Path, context: str, revision: str, run_id: str, case_id: str, e
     return EXIT_TERMINAL
 
 
-def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root: Path, decision: str) -> int:
+def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root: Path, decision: str, daemon_id: str) -> int:
     image_id = _resolve_image(context, _image_tag(revision), revision)
     identity = _run_identity(run_id, revision)
     handoff = _load_json_file(_handoff_path(evidence_root, run_id), "resume handoff")
-    validate_resume_handoff(handoff, source_revision=revision, run_id=run_id, image_id=image_id, project=identity.project, state_volume=identity.state_volume, evidence_volume=identity.evidence_volume)
+    validate_resume_handoff(handoff, source_revision=revision, run_id=run_id, image_id=image_id, project=identity.project, state_volume=identity.state_volume, evidence_volume=identity.evidence_volume, daemon_id=daemon_id)
     case_id = str(handoff["case_id"])
     final_target = evidence_root / run_id / "final-bundle"
     if final_target.exists():
         raise ActivationError("evidence_conflict", "refusing to overwrite an existing final bundle", EXIT_PRECONDITION)
-    _require_pending_resources(context, identity)
     expectation = ComposeExpectation(image_id, identity.project, identity.state_volume, identity.evidence_volume, identity.network, "resume", revision, run_id, case_id, decision)
     compose_env = _compose_environment(expectation)
     model_bytes = _render_compose(root, context, compose_env, expectation)
+    durable_stage = _pending_stage_path(final_target)
+    if (durable_stage / "stage-manifest.json").is_file():
+        validate_staged_bundle(
+            durable_stage,
+            run_id=run_id,
+            source_revision=revision,
+            case_id=case_id,
+            image_id=image_id,
+            daemon_id=daemon_id,
+            requested_decision=decision,
+        )
+        _compose_down(root, context, compose_env, remove_volumes=True)
+        _verify_full_cleanup(context, identity)
+        _finalize_bundle(
+            durable_stage,
+            final_target,
+            run_id=run_id,
+            revision=revision,
+            case_id=case_id,
+            image_id=image_id,
+            daemon_id=daemon_id,
+            requested_decision=decision,
+        )
+        print(json.dumps({"event": "decision_published_from_stage", "bundle": str(final_target), "run_id": run_id}, sort_keys=True, separators=(",", ":")))
+        return 0
+    _require_pending_resources(context, identity)
     staged: tuple[Path, Path] | None = None
     failure: BaseException | None = None
     try:
@@ -592,11 +658,16 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
         container_id = _orchestrator_container(context, identity.project)
         runtime_final = _copy_container_bytes(context, container_id, "/evidence/runtime-final.json")
         graph_state = _copy_container_bytes(context, container_id, f"/state/{run_id}.graphflow-state.json")
+        case_object = _decode_json_object_bytes(
+            (root / "cases" / f"{case_id}.json").read_bytes(), "case"
+        )
         runtime_object = _validate_runtime_final(
             runtime_final,
             run_id=run_id,
             source_revision=revision,
             case_id=case_id,
+            case_object=case_object,
+            requested_decision=decision,
         )
         staged = _stage_final_bundle(
             root,
@@ -609,6 +680,7 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
             runtime_final,
             runtime_object,
             graph_state,
+            daemon_id,
         )
     except BaseException as exc:  # retain the authentic pending state on every failed resume
         failure = exc
@@ -622,10 +694,16 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
         raise ActivationError("resume_incomplete", "resume did not stage final evidence; pending volumes were preserved", EXIT_RUNTIME)
     try:
         _verify_full_cleanup(context, identity)
-        _finalize_bundle(*staged, run_id=run_id, revision=revision, image_id=image_id)
+        _finalize_bundle(
+            *staged,
+            run_id=run_id,
+            revision=revision,
+            case_id=case_id,
+            image_id=image_id,
+            daemon_id=daemon_id,
+            requested_decision=decision,
+        )
     except BaseException:
-        if staged[0].exists():
-            shutil.rmtree(staged[0])
         raise
     print(json.dumps({"event": "decision_published", "bundle": str(evidence_root / run_id / "final-bundle"), "run_id": run_id}, sort_keys=True, separators=(",", ":")))
     return 0
@@ -642,36 +720,277 @@ def _stage_final_bundle(
     runtime_final: bytes,
     runtime_object: Mapping[str, object],
     graph_state: bytes,
+    daemon_id: str,
 ) -> tuple[Path, Path]:
     target.parent.mkdir(parents=True, exist_ok=True)
-    stage = Path(tempfile.mkdtemp(prefix=".final-bundle.", dir=target.parent))
+    stage = _pending_stage_path(target)
+    stage.mkdir(parents=False, exist_ok=True)
     try:
-        try:
-            graph_object = json.loads(graph_state)
-        except (json.JSONDecodeError, UnicodeError) as exc:
-            raise ActivationError("runtime_evidence_invalid", "GraphFlow state is not JSON", EXIT_RUNTIME) from exc
-        if type(graph_object) is not dict:
-            raise ActivationError("runtime_evidence_invalid", "GraphFlow state is not an object", EXIT_RUNTIME)
-        graph_digest = hashlib.sha256(
-            json.dumps(graph_object, allow_nan=False, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
-        ).hexdigest()
-        if graph_digest != runtime_object["graphflow"]["state_sha256"]:
-            raise ActivationError("runtime_evidence_invalid", "GraphFlow state digest does not match final evidence", EXIT_RUNTIME)
-        (stage / "case.json").write_bytes((root / "cases" / f"{case_id}.json").read_bytes())
-        (stage / "case-manifest.json").write_bytes((root / "cases" / "manifest.json").read_bytes())
-        (stage / "compose-model.json").write_bytes(model_bytes)
-        (stage / "runtime-final.json").write_bytes(runtime_final)
-        (stage / "graphflow-state.json").write_bytes(graph_state)
-        (stage / "artifact.json").write_bytes(_canonical_json(runtime_object["artifact"]))
-        (stage / "decision.json").write_bytes(_canonical_json(runtime_object["decision"]))
-        docker_version = _run(["docker", "--context", context, "version", "--format", "{{json .Server}}"], timeout=20).stdout
-        compose_version = _run(["docker", "--context", context, "compose", "version", "--short"], timeout=20).stdout.strip()
-        identity_object = {"evidence_version": "autogen-a2a-environment/v1", "source_revision": revision, "image_id": image_id, "docker_context": context, "docker_server": json.loads(docker_version), "docker_compose": compose_version, "host_python": sys.version.split()[0], "runtime_python": runtime_object["python"], "packages": runtime_object["packages"]}
-        (stage / "environment.json").write_bytes(_canonical_json(identity_object))
-        return stage, target
-    except BaseException:
-        shutil.rmtree(stage)
-        raise
+        graph_object = json.loads(graph_state)
+    except (json.JSONDecodeError, UnicodeError) as exc:
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow state is not JSON", EXIT_RUNTIME) from exc
+    if type(graph_object) is not dict:
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow state is not an object", EXIT_RUNTIME)
+    graph_digest = hashlib.sha256(
+        json.dumps(graph_object, allow_nan=False, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    if graph_digest != runtime_object["graphflow"]["state_sha256"]:
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow state digest does not match final evidence", EXIT_RUNTIME)
+    docker_version = _run(["docker", "--context", context, "version", "--format", "{{json .Server}}"], timeout=20).stdout
+    compose_version = _run(["docker", "--context", context, "compose", "version", "--short"], timeout=20).stdout.strip()
+    docker_server_raw = json.loads(docker_version)
+    if type(docker_server_raw) is not dict:
+        raise ActivationError("runtime_evidence_invalid", "Docker server identity is malformed", EXIT_RUNTIME)
+    docker_server = {
+        field: docker_server_raw.get(field)
+        for field in ("Version", "ApiVersion", "Os", "Arch")
+    }
+    identity_object = {"daemon_id": daemon_id, "evidence_version": "autogen-a2a-environment/v1", "source_revision": revision, "run_id": runtime_object["run_id"], "case_id": case_id, "image_id": image_id, "docker_context": context, "docker_server": docker_server, "docker_compose": compose_version, "host_python": sys.version.split()[0], "runtime_python": runtime_object["python"], "packages": runtime_object["packages"]}
+    values = {
+        "case.json": (root / "cases" / f"{case_id}.json").read_bytes(),
+        "case-manifest.json": (root / "cases" / "manifest.json").read_bytes(),
+        "compose-model.json": model_bytes,
+        "runtime-final.json": runtime_final,
+        "graphflow-state.json": graph_state,
+        "artifact.json": _canonical_json(runtime_object["artifact"]),
+        "decision.json": _canonical_json(runtime_object["decision"]),
+        "environment.json": _canonical_json(identity_object),
+    }
+    for name, value in values.items():
+        publish_file_once(stage / name, value)
+    manifest = {
+        "case_id": case_id,
+        "daemon_id": daemon_id,
+        "files": {
+            name: hashlib.sha256(value).hexdigest()
+            for name, value in sorted(values.items())
+        },
+        "image_id": image_id,
+        "run_id": runtime_object["run_id"],
+        "source_revision": revision,
+        "stage_version": _STAGE_MANIFEST_VERSION,
+    }
+    publish_file_once(stage / "stage-manifest.json", _canonical_json(manifest))
+    validate_staged_bundle(
+        stage,
+        run_id=runtime_object["run_id"],
+        source_revision=revision,
+        case_id=case_id,
+        image_id=image_id,
+        daemon_id=daemon_id,
+        requested_decision=runtime_object["decision"]["decision"],
+    )
+    return stage, target
+
+
+def _pending_stage_path(target: Path) -> Path:
+    return target.parent / ".final-bundle.pending"
+
+
+def validate_staged_bundle(
+    stage: Path,
+    *,
+    run_id: str,
+    source_revision: str,
+    case_id: str,
+    image_id: str,
+    daemon_id: str,
+    requested_decision: str,
+) -> Mapping[str, object]:
+    manifest_path = stage / "stage-manifest.json"
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+        manifest = json.loads(manifest_bytes)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ActivationError("invalid_stage", "pending final stage is unreadable", EXIT_PRECONDITION) from exc
+    fields = {"stage_version", "run_id", "source_revision", "case_id", "image_id", "daemon_id", "files"}
+    if type(manifest) is not dict or set(manifest) != fields:
+        raise ActivationError("invalid_stage", "pending final stage manifest is not closed", EXIT_PRECONDITION)
+    if manifest_bytes != _canonical_json(manifest):
+        raise ActivationError("invalid_stage", "pending final stage manifest is not canonical", EXIT_PRECONDITION)
+    expected = {
+        "stage_version": _STAGE_MANIFEST_VERSION,
+        "run_id": run_id,
+        "source_revision": source_revision,
+        "case_id": case_id,
+        "image_id": image_id,
+        "daemon_id": daemon_id,
+    }
+    for field, value in expected.items():
+        if manifest.get(field) != value:
+            raise ActivationError("invalid_stage", f"pending final stage {field} mismatch", EXIT_PRECONDITION)
+    digests = manifest.get("files")
+    if type(digests) is not dict or set(digests) != _STAGED_DATA_FILES:
+        raise ActivationError("invalid_stage", "pending final stage file set mismatch", EXIT_PRECONDITION)
+    allowed = {*_STAGED_DATA_FILES, "stage-manifest.json", "verification.json", "checksums.json"}
+    actual_names = {path.name for path in stage.iterdir() if path.is_file()}
+    if not actual_names <= allowed or not {*_STAGED_DATA_FILES, "stage-manifest.json"} <= actual_names:
+        raise ActivationError("invalid_stage", "pending final stage contains unknown or missing files", EXIT_PRECONDITION)
+    for name, expected_digest in digests.items():
+        if type(expected_digest) is not str or hashlib.sha256((stage / name).read_bytes()).hexdigest() != expected_digest:
+            raise ActivationError("invalid_stage", f"pending final stage {name} digest mismatch", EXIT_PRECONDITION)
+    _validate_staged_contents(
+        stage,
+        run_id=run_id,
+        source_revision=source_revision,
+        case_id=case_id,
+        image_id=image_id,
+        daemon_id=daemon_id,
+        requested_decision=requested_decision,
+    )
+    return manifest
+
+
+def _validate_staged_contents(
+    stage: Path,
+    *,
+    run_id: str,
+    source_revision: str,
+    case_id: str,
+    image_id: str,
+    daemon_id: str,
+    requested_decision: str,
+) -> None:
+    contracts, _runtime_validation = _validation_modules()
+    case_bytes = (stage / "case.json").read_bytes()
+    case_object = _decode_json_object_bytes(case_bytes, "staged case")
+    manifest_object = _decode_json_object_bytes(
+        (stage / "case-manifest.json").read_bytes(), "staged case manifest"
+    )
+    if set(manifest_object) != {"manifest_version", "cases"} or manifest_object.get(
+        "manifest_version"
+    ) != "canary-evidence-case-manifest/v1":
+        raise ActivationError("invalid_stage", "staged case manifest is not closed", EXIT_PRECONDITION)
+    entries = manifest_object.get("cases")
+    if type(entries) is not list or len(entries) != len(_CASE_IDS):
+        raise ActivationError("invalid_stage", "staged case manifest is incomplete", EXIT_PRECONDITION)
+    ordered_ids = (
+        "mission-healthy-001", "confirmed-regression-001",
+        "stale-evidence-reconciled-001", "unresolved-contradiction-001",
+        "slow-analysis-cancel-001", "checkpoint-resume-001",
+    )
+    selected_entry = None
+    for expected_id, entry in zip(ordered_ids, entries):
+        if (
+            type(entry) is not dict
+            or set(entry) != {"case_id", "file", "sha256"}
+            or entry.get("case_id") != expected_id
+            or entry.get("file") != f"{expected_id}.json"
+            or type(entry.get("sha256")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]) is None
+        ):
+            raise ActivationError("invalid_stage", "staged case manifest entry is invalid", EXIT_PRECONDITION)
+        if expected_id == case_id:
+            selected_entry = entry
+    if selected_entry is None or hashlib.sha256(case_bytes).hexdigest() != selected_entry["sha256"]:
+        raise ActivationError("invalid_stage", "staged case bytes do not match the manifest", EXIT_PRECONDITION)
+    try:
+        case = contracts.validate_case(case_object)
+    except contracts.ContractViolation as exc:
+        raise ActivationError("invalid_stage", "staged case contract is invalid", EXIT_PRECONDITION) from exc
+    if case.case_id != case_id:
+        raise ActivationError("invalid_stage", "staged case identity mismatch", EXIT_PRECONDITION)
+
+    runtime_bytes = (stage / "runtime-final.json").read_bytes()
+    runtime_object = _validate_runtime_final(
+        runtime_bytes,
+        run_id=run_id,
+        source_revision=source_revision,
+        case_id=case_id,
+        case_object=case_object,
+        requested_decision=requested_decision,
+    )
+    for name, field in (("artifact.json", "artifact"), ("decision.json", "decision")):
+        if (stage / name).read_bytes() != _canonical_json(runtime_object[field]):
+            raise ActivationError("invalid_stage", f"staged {name} differs from runtime evidence", EXIT_PRECONDITION)
+    graph_bytes = (stage / "graphflow-state.json").read_bytes()
+    graph_object = _decode_json_object_bytes(graph_bytes, "staged GraphFlow state")
+    if graph_bytes != contracts.canonical_json_bytes(graph_object):
+        raise ActivationError(
+            "invalid_stage", "staged GraphFlow state is not canonical", EXIT_PRECONDITION
+        )
+    if graph_object != runtime_object["graphflow"]["terminal_state"]:
+        raise ActivationError("invalid_stage", "staged GraphFlow state differs from runtime evidence", EXIT_PRECONDITION)
+
+    environment = _load_canonical_json_bytes(
+        (stage / "environment.json").read_bytes(), "staged environment"
+    )
+    environment_fields = {
+        "evidence_version", "source_revision", "run_id", "case_id", "image_id",
+        "daemon_id", "docker_context", "docker_server", "docker_compose",
+        "host_python", "runtime_python", "packages",
+    }
+    expected_environment = {
+        "evidence_version": "autogen-a2a-environment/v1",
+        "source_revision": source_revision,
+        "run_id": run_id,
+        "case_id": case_id,
+        "image_id": image_id,
+        "daemon_id": daemon_id,
+        "docker_context": "desktop-linux",
+        "runtime_python": runtime_object["python"],
+        "packages": _PINNED_PACKAGES,
+    }
+    if set(environment) != environment_fields or any(
+        environment.get(field) != expected for field, expected in expected_environment.items()
+    ):
+        raise ActivationError("invalid_stage", "staged environment binding mismatch", EXIT_PRECONDITION)
+    docker_server = environment.get("docker_server")
+    if (
+        type(docker_server) is not dict
+        or set(docker_server) != {"Version", "ApiVersion", "Os", "Arch"}
+        or not all(type(value) is str and value for value in docker_server.values())
+        or docker_server.get("Os") != "linux"
+        or type(environment.get("docker_compose")) is not str
+        or _COMPOSE_VERSION.fullmatch(environment["docker_compose"]) is None
+        or type(environment.get("host_python")) is not str
+        or _HOST_PYTHON_VERSION.fullmatch(environment["host_python"]) is None
+    ):
+        raise ActivationError("invalid_stage", "staged Docker or Python identity is malformed", EXIT_PRECONDITION)
+
+    compose_model = _load_canonical_json_bytes(
+        (stage / "compose-model.json").read_bytes(), "staged Compose model"
+    )
+    identity = _run_identity(run_id, source_revision)
+    validate_compose_model(
+        compose_model,
+        ComposeExpectation(
+            image_id, identity.project, identity.state_volume, identity.evidence_volume,
+            identity.network, "resume", source_revision, run_id, case_id,
+            requested_decision,
+        ),
+    )
+
+    verification_path = stage / "verification.json"
+    if verification_path.is_file():
+        verification = _load_canonical_json_bytes(
+            verification_path.read_bytes(), "staged verification"
+        )
+        expected_verification = {
+            "daemon_id": daemon_id,
+            "verification_version": "autogen-a2a-verification/v1",
+            "result": "PASS",
+            "run_id": run_id,
+            "source_revision": source_revision,
+            "image_id": image_id,
+            "release_effect_executed": False,
+            "resource_cleanup_verified": True,
+        }
+        if verification != expected_verification:
+            raise ActivationError("invalid_stage", "staged verification is invalid", EXIT_PRECONDITION)
+    checksums_path = stage / "checksums.json"
+    if checksums_path.is_file():
+        checksums = _load_canonical_json_bytes(checksums_path.read_bytes(), "staged checksums")
+        expected_checksums = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(stage.iterdir())
+            if path.is_file() and path.name != "checksums.json"
+        }
+        if checksums != {
+            "checksums_version": "autogen-a2a-checksums/v1",
+            "files": expected_checksums,
+        }:
+            raise ActivationError("invalid_stage", "staged checksums are invalid", EXIT_PRECONDITION)
 
 
 def _finalize_bundle(
@@ -680,19 +999,152 @@ def _finalize_bundle(
     *,
     run_id: str,
     revision: str,
+    case_id: str,
     image_id: str,
+    daemon_id: str,
+    requested_decision: str,
 ) -> None:
+    validate_staged_bundle(
+        stage,
+        run_id=run_id,
+        source_revision=revision,
+        case_id=case_id,
+        image_id=image_id,
+        daemon_id=daemon_id,
+        requested_decision=requested_decision,
+    )
+    if target.exists():
+        raise ActivationError("evidence_conflict", "refusing to overwrite an existing final bundle", EXIT_PRECONDITION)
+    verification = {"daemon_id": daemon_id, "verification_version": "autogen-a2a-verification/v1", "result": "PASS", "run_id": run_id, "source_revision": revision, "image_id": image_id, "release_effect_executed": False, "resource_cleanup_verified": True}
+    publish_file_once(stage / "verification.json", _canonical_json(verification))
+    checksums = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(stage.iterdir()) if path.is_file() and path.name != "checksums.json"}
+    publish_file_once(stage / "checksums.json", _canonical_json({"checksums_version": "autogen-a2a-checksums/v1", "files": checksums}))
+    os.rename(stage, target)
+
+
+def _validate_runtime_terminal(
+    value: bytes,
+    *,
+    run_id: str,
+    source_revision: str,
+    case_id: str,
+    case_object: object,
+) -> Mapping[str, object]:
+    contracts, runtime_validation = _validation_modules()
+    root = _load_canonical_json_bytes(value, "terminal runtime evidence")
+    fields = {
+        "runtime_evidence_version", "status", "run_id", "source_revision",
+        "case_id", "case_digest", "candidate_revision", "python", "packages",
+        "analysis_invocations", "remote_request_info_count",
+        "approval_request_info_count", "artifact", "a2a", "graphflow",
+        "release_effect_executed",
+    }
+    if set(root) != fields:
+        raise ActivationError("runtime_evidence_invalid", "terminal runtime evidence is not closed", EXIT_RUNTIME)
     try:
-        if target.exists():
-            raise ActivationError("evidence_conflict", "refusing to overwrite an existing final bundle", EXIT_PRECONDITION)
-        verification = {"verification_version": "autogen-a2a-verification/v1", "result": "PASS", "run_id": run_id, "source_revision": revision, "image_id": image_id, "release_effect_executed": False, "resource_cleanup_verified": True}
-        (stage / "verification.json").write_bytes(_canonical_json(verification))
-        checksums = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(stage.iterdir()) if path.is_file()}
-        (stage / "checksums.json").write_bytes(_canonical_json({"checksums_version": "autogen-a2a-checksums/v1", "files": checksums}))
-        os.replace(stage, target)
-    finally:
-        if stage.exists():
-            shutil.rmtree(stage)
+        case = contracts.validate_case(case_object)
+    except contracts.ContractViolation as exc:
+        raise ActivationError("runtime_evidence_invalid", "terminal case is invalid", EXIT_RUNTIME) from exc
+    expected_state = case.expected.a2a_state
+    expected_remote_requests = {"input-required": 1, "canceled": 0, "failed": 0}
+    expected = {
+        "runtime_evidence_version": "autogen-a2a-runtime-evidence/v1",
+        "status": expected_state,
+        "run_id": run_id,
+        "source_revision": source_revision,
+        "case_id": case_id,
+        "case_digest": contracts.canonical_sha256(case),
+        "candidate_revision": case.candidate.candidate_revision,
+        "packages": _PINNED_PACKAGES,
+        "analysis_invocations": 1,
+        "remote_request_info_count": expected_remote_requests.get(expected_state),
+        "approval_request_info_count": 0,
+        "artifact": None,
+        "release_effect_executed": False,
+    }
+    if expected_state not in expected_remote_requests or any(
+        root.get(field) != expected_value for field, expected_value in expected.items()
+    ):
+        raise ActivationError("runtime_evidence_invalid", "terminal runtime binding mismatch", EXIT_RUNTIME)
+    if type(root.get("python")) is not str or _PYTHON_VERSION.fullmatch(root["python"]) is None:
+        raise ActivationError("runtime_evidence_invalid", "terminal Python identity is malformed", EXIT_RUNTIME)
+    a2a = root.get("a2a")
+    if type(a2a) is not dict or set(a2a) != {
+        "state", "task_id", "context_id", "artifact_id", "used_streaming_workflow",
+        "event_timeline", "recovery",
+    }:
+        raise ActivationError("runtime_evidence_invalid", "terminal A2A proof is not closed", EXIT_RUNTIME)
+    if (
+        a2a.get("state") != expected_state
+        or type(a2a.get("task_id")) is not str
+        or not a2a["task_id"]
+        or type(a2a.get("context_id")) is not str
+        or not a2a["context_id"]
+        or a2a.get("artifact_id") is not None
+        or a2a.get("used_streaming_workflow") is not True
+    ):
+        raise ActivationError("runtime_evidence_invalid", "terminal A2A binding mismatch", EXIT_RUNTIME)
+    try:
+        runtime_validation.validate_persisted_event_timeline(
+            a2a.get("event_timeline"),
+            task_id=a2a["task_id"],
+            context_id=a2a["context_id"],
+            terminal_state=expected_state,
+            artifact_id=None,
+        )
+    except runtime_validation.RuntimeBoundaryError as exc:
+        raise ActivationError("runtime_evidence_invalid", "terminal A2A timeline is invalid", EXIT_RUNTIME) from exc
+    recovery = a2a.get("recovery")
+    if type(recovery) is not dict or recovery.get("same_task") is not True:
+        raise ActivationError("runtime_evidence_invalid", "terminal A2A recovery proof is invalid", EXIT_RUNTIME)
+    if expected_state == "canceled":
+        if set(recovery) != {"same_task", "cancel_sent_task_id", "initial_task_id", "observed_task_ids"}:
+            raise ActivationError("runtime_evidence_invalid", "cancellation proof is not closed", EXIT_RUNTIME)
+        observed = recovery.get("observed_task_ids")
+        if (
+            recovery.get("cancel_sent_task_id") != a2a["task_id"]
+            or recovery.get("initial_task_id") != a2a["task_id"]
+            or type(observed) is not list
+            or not observed
+            or any(task_id != a2a["task_id"] for task_id in observed)
+        ):
+            raise ActivationError("runtime_evidence_invalid", "cancellation crossed task lineage", EXIT_RUNTIME)
+    elif set(recovery) != {"same_task"}:
+        raise ActivationError("runtime_evidence_invalid", "terminal recovery proof is not closed", EXIT_RUNTIME)
+    graphflow = root.get("graphflow")
+    if type(graphflow) is not dict or set(graphflow) != {
+        "state_sha256", "initial_checkpoint_sha256", "terminal_state"
+    }:
+        raise ActivationError("runtime_evidence_invalid", "terminal GraphFlow proof is not closed", EXIT_RUNTIME)
+    if expected_state == "input-required":
+        state_sha256 = graphflow.get("state_sha256")
+        if type(state_sha256) is not str:
+            raise ActivationError("runtime_evidence_invalid", "terminal GraphFlow digest is malformed", EXIT_RUNTIME)
+        try:
+            terminal_state = runtime_validation.validate_persisted_graphflow_state(
+                graphflow.get("terminal_state"),
+                run_id=run_id,
+                source_revision=source_revision,
+                case_id=case_id,
+                case_digest=root["case_digest"],
+                candidate_revision=root["candidate_revision"],
+                task_id=a2a["task_id"],
+                context_id=a2a["context_id"],
+                state_sha256=state_sha256,
+            )
+        except runtime_validation.RuntimeBoundaryError as exc:
+            raise ActivationError("runtime_evidence_invalid", "terminal GraphFlow state is invalid", EXIT_RUNTIME) from exc
+        if (
+            terminal_state["status"] != "INPUT_REQUIRED"
+            or terminal_state["recommendation"] is not None
+            or terminal_state["reconciliation_attempts"] != case.expected.reconciliation_attempts
+            or graphflow.get("initial_checkpoint_sha256")
+            != terminal_state["initial_checkpoint_sha256"]
+        ):
+            raise ActivationError("runtime_evidence_invalid", "input-required GraphFlow proof mismatch", EXIT_RUNTIME)
+    elif any(graphflow.get(field) is not None for field in graphflow):
+        raise ActivationError("runtime_evidence_invalid", "canceled or failed run persisted GraphFlow state", EXIT_RUNTIME)
+    return root
 
 
 def _validate_runtime_final(
@@ -701,7 +1153,10 @@ def _validate_runtime_final(
     run_id: str,
     source_revision: str,
     case_id: str,
+    case_object: object,
+    requested_decision: str,
 ) -> Mapping[str, object]:
+    contracts, runtime_validation = _validation_modules()
     try:
         root = json.loads(value)
     except (json.JSONDecodeError, UnicodeError) as exc:
@@ -713,6 +1168,8 @@ def _validate_runtime_final(
     }
     if type(root) is not dict or set(root) != fields:
         raise ActivationError("runtime_evidence_invalid", "final runtime evidence is not closed", EXIT_RUNTIME)
+    if value != _canonical_json(root):
+        raise ActivationError("runtime_evidence_invalid", "final runtime evidence is not canonical", EXIT_RUNTIME)
     expected = {
         "runtime_evidence_version": "autogen-a2a-runtime-evidence/v1",
         "status": "DECISION_RECORDED",
@@ -725,43 +1182,129 @@ def _validate_runtime_final(
     for field, expected_value in expected.items():
         if root.get(field) != expected_value:
             raise ActivationError("runtime_evidence_invalid", f"final runtime {field} mismatch", EXIT_RUNTIME)
-    artifact = root.get("artifact")
-    decision = root.get("decision")
+    artifact_object = root.get("artifact")
+    decision_object = root.get("decision")
     a2a = root.get("a2a")
     graphflow = root.get("graphflow")
     approval = root.get("approval")
-    if not all(type(item) is dict for item in (artifact, decision, a2a, graphflow, approval)):
+    if not all(type(item) is dict for item in (artifact_object, decision_object, a2a, graphflow, approval)):
         raise ActivationError("runtime_evidence_invalid", "final runtime proof sections are malformed", EXIT_RUNTIME)
+    try:
+        case = contracts.validate_case(case_object)
+        artifact = contracts.validate_recommendation_artifact(artifact_object)
+        decided_at_value = decision_object.get("decided_at")
+        if type(decided_at_value) is not str or not decided_at_value.endswith("Z"):
+            raise ValueError("decision time is malformed")
+        decided_at = datetime.fromisoformat(decided_at_value[:-1] + "+00:00")
+        decision = contracts.validate_release_decision(
+            decision_object, artifact=artifact, at_time=decided_at
+        )
+    except (contracts.ContractViolation, TypeError, ValueError) as exc:
+        raise ActivationError("runtime_evidence_invalid", "artifact, decision, or case contract is invalid", EXIT_RUNTIME) from exc
+    if (
+        contracts.to_plain_object(artifact) != artifact_object
+        or contracts.to_plain_object(decision) != decision_object
+    ):
+        raise ActivationError("runtime_evidence_invalid", "artifact or decision is not canonical", EXIT_RUNTIME)
     bindings = ("run_id", "source_revision", "case_id", "case_digest", "candidate_revision", "artifact_digest")
     for field in bindings:
-        expected_value = artifact.get(field)
+        expected_value = getattr(artifact, field)
         if field != "artifact_digest" and root.get(field) != expected_value:
             raise ActivationError("runtime_evidence_invalid", f"artifact {field} mismatch", EXIT_RUNTIME)
-        if decision.get(field) != expected_value:
+        if getattr(decision, field) != expected_value:
             raise ActivationError("runtime_evidence_invalid", f"decision {field} mismatch", EXIT_RUNTIME)
-    if decision.get("decision") not in ("ACCEPT", "REJECT"):
-        raise ActivationError("runtime_evidence_invalid", "decision is not closed", EXIT_RUNTIME)
+    if (
+        case.case_id != case_id
+        or contracts.canonical_sha256(case) != artifact.case_digest
+        or case.candidate.candidate_revision != artifact.candidate_revision
+        or case.expected.a2a_state != "completed"
+        or case.expected.recommendation != artifact.recommendation
+        or case.expected.reconciliation_attempts != artifact.reconciliation_attempts
+        or decision.decision != requested_decision
+    ):
+        raise ActivationError("runtime_evidence_invalid", "case or requested decision binding mismatch", EXIT_RUNTIME)
+    if set(a2a) != {
+        "state", "task_id", "context_id", "artifact_id", "authoritative_content",
+        "used_streaming_workflow", "event_timeline",
+    }:
+        raise ActivationError("runtime_evidence_invalid", "A2A proof is not closed", EXIT_RUNTIME)
     if (
         a2a.get("state") != "completed"
         or a2a.get("authoritative_content") != "data"
         or a2a.get("used_streaming_workflow") is not True
-        or a2a.get("task_id") != artifact.get("a2a_task_id")
-        or a2a.get("context_id") != artifact.get("a2a_context_id")
-        or a2a.get("artifact_id") != artifact.get("artifact_id")
+        or a2a.get("task_id") != artifact.a2a_task_id
+        or a2a.get("context_id") != artifact.a2a_context_id
+        or a2a.get("artifact_id") != artifact.artifact_id
     ):
         raise ActivationError("runtime_evidence_invalid", "A2A proof does not bind the artifact", EXIT_RUNTIME)
+    try:
+        runtime_validation.validate_persisted_event_timeline(
+            a2a.get("event_timeline"),
+            task_id=artifact.a2a_task_id,
+            context_id=artifact.a2a_context_id,
+            terminal_state="completed",
+            artifact_id=artifact.artifact_id,
+        )
+    except runtime_validation.RuntimeBoundaryError as exc:
+        raise ActivationError("runtime_evidence_invalid", "A2A event timeline is invalid", EXIT_RUNTIME) from exc
+    if set(graphflow) != {
+        "state_sha256", "initial_checkpoint_sha256", "terminal_state",
+        "state_loaded_for_analysis", "analysis_rerun_on_approval_resume",
+    }:
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow proof is not closed", EXIT_RUNTIME)
+    try:
+        terminal_state = runtime_validation.validate_persisted_graphflow_state(
+            graphflow.get("terminal_state"),
+            run_id=artifact.run_id,
+            source_revision=artifact.source_revision,
+            case_id=artifact.case_id,
+            case_digest=artifact.case_digest,
+            candidate_revision=artifact.candidate_revision,
+            task_id=artifact.a2a_task_id,
+            context_id=artifact.a2a_context_id,
+            state_sha256=artifact.graph_state_sha256,
+        )
+    except runtime_validation.RuntimeBoundaryError as exc:
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow terminal proof is invalid", EXIT_RUNTIME) from exc
     if (
         graphflow.get("analysis_rerun_on_approval_resume") is not False
-        or graphflow.get("state_sha256") != artifact.get("graph_state_sha256")
+        or graphflow.get("state_loaded_for_analysis") is not True
+        or graphflow.get("state_sha256") != artifact.graph_state_sha256
+        or graphflow.get("initial_checkpoint_sha256") != terminal_state["initial_checkpoint_sha256"]
+        or terminal_state["recommendation"] != artifact.recommendation
+        or terminal_state["basis"] != list(artifact.basis)
+        or terminal_state["resolved_contradictions"] != list(artifact.resolved_contradictions)
+        or terminal_state["unresolved_contradictions"] != list(artifact.unresolved_contradictions)
+        or terminal_state["reconciliation_attempts"] != artifact.reconciliation_attempts
         or approval.get("checkpoint_id") != approval.get("restored_checkpoint_id")
         or approval.get("initial_request_info_count") != 1
         or approval.get("resume_request_info_count") != 0
+        or type(approval.get("decision_replayed")) is not bool
+        or set(approval) != {
+            "checkpoint_id", "restored_checkpoint_id", "initial_request_info_count",
+            "resume_request_info_count", "decision_replayed",
+        }
     ):
         raise ActivationError("runtime_evidence_invalid", "resume proof does not bind one analysis and checkpoint", EXIT_RUNTIME)
     packages = root.get("packages")
-    if type(packages) is not dict or set(packages) != {"agent-framework-core", "agent-framework-a2a", "autogen-agentchat", "a2a-sdk"}:
-        raise ActivationError("runtime_evidence_invalid", "runtime package identity is incomplete", EXIT_RUNTIME)
+    if (
+        packages != _PINNED_PACKAGES
+        or contracts.to_plain_object(artifact.packages) != _PINNED_PACKAGES
+    ):
+        raise ActivationError("runtime_evidence_invalid", "runtime package identity is not pinned", EXIT_RUNTIME)
+    if type(root.get("python")) is not str or _PYTHON_VERSION.fullmatch(root["python"]) is None:
+        raise ActivationError("runtime_evidence_invalid", "runtime Python identity is malformed", EXIT_RUNTIME)
     return root
+
+
+def _validation_modules():
+    sandbox_root = Path(__file__).resolve().parent
+    sandbox_text = str(sandbox_root)
+    if sandbox_text not in sys.path:
+        sys.path.insert(0, sandbox_text)
+    from interop_sandbox import contracts, runtime_cli
+
+    return contracts, runtime_cli
 
 
 def _render_compose(root: Path, context: str, environment: Mapping[str, str], expectation: ComposeExpectation) -> bytes:
@@ -822,8 +1365,12 @@ def _validated_revision(value: str) -> str:
 
 
 def _validated_context_name(value: str) -> str:
-    if not value or len(value) > 128 or re.fullmatch(r"[A-Za-z0-9_.-]+", value) is None:
-        raise ActivationError("invalid_context", "docker context name is malformed", EXIT_USAGE)
+    if value != "desktop-linux":
+        raise ActivationError(
+            "invalid_context",
+            "docker context must be the approved desktop-linux context",
+            EXIT_USAGE,
+        )
     return value
 
 
@@ -842,14 +1389,72 @@ def _validate_source_tree(repo: Path, sandbox: Path, revision: str) -> None:
         raise ActivationError("dirty_source", "sandbox has uncommitted or untracked bytes", EXIT_PRECONDITION)
 
 
-def _validate_docker_context(context: str) -> None:
+def validate_docker_context_record(value: object, context: str) -> None:
+    """Require one approved context with a local-only Docker endpoint."""
+
+    if context != "desktop-linux":
+        raise ActivationError(
+            "invalid_context", "docker context is not approved", EXIT_PRECONDITION
+        )
+    if type(value) is not list or len(value) != 1 or type(value[0]) is not dict:
+        raise ActivationError(
+            "invalid_context", "docker context inspection shape mismatch", EXIT_PRECONDITION
+        )
+    record = value[0]
+    endpoints = record.get("Endpoints")
+    if record.get("Name") != context or type(endpoints) is not dict:
+        raise ActivationError(
+            "invalid_context", "docker context identity mismatch", EXIT_PRECONDITION
+        )
+    docker_endpoint = endpoints.get("docker")
+    if type(docker_endpoint) is not dict:
+        raise ActivationError(
+            "invalid_context", "docker context endpoint is unavailable", EXIT_PRECONDITION
+        )
+    endpoint = docker_endpoint.get("Host")
+    if type(endpoint) is not str or docker_endpoint.get("SkipTLSVerify") is not False:
+        raise ActivationError(
+            "invalid_context", "docker context endpoint is not local", EXIT_PRECONDITION
+        )
+    local_npipe = endpoint == "npipe:////./pipe/dockerDesktopLinuxEngine"
+    local_unix = endpoint.startswith("unix:///") and (
+        endpoint[7:].startswith("/")
+        and ".." not in Path(endpoint[7:]).parts
+        and not any(ord(character) < 0x20 for character in endpoint)
+    )
+    if not (local_npipe or local_unix):
+        raise ActivationError(
+            "invalid_context", "docker context endpoint is not local", EXIT_PRECONDITION
+        )
+
+
+def validate_daemon_id(value: str) -> str:
+    try:
+        daemon_id = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise ActivationError(
+            "invalid_daemon", "docker daemon identity is malformed", EXIT_PRECONDITION
+        ) from exc
+    if type(daemon_id) is not str or _DAEMON_ID.fullmatch(daemon_id) is None:
+        raise ActivationError(
+            "invalid_daemon", "docker daemon identity is malformed", EXIT_PRECONDITION
+        )
+    return daemon_id
+
+
+def _validate_docker_context(context: str) -> str:
     result = _run(["docker", "context", "inspect", context], timeout=20, environment=_minimal_environment())
     try:
         contexts = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise ActivationError("invalid_context", "docker context inspection was not JSON", EXIT_PRECONDITION) from exc
-    if type(contexts) is not list or len(contexts) != 1 or contexts[0].get("Name") != context:
-        raise ActivationError("invalid_context", "docker context identity mismatch", EXIT_PRECONDITION)
+    validate_docker_context_record(contexts, context)
+    daemon = _run(
+        ["docker", "--context", context, "info", "--format", "{{json .ID}}"],
+        timeout=30,
+        environment=_minimal_environment(),
+    )
+    return validate_daemon_id(daemon.stdout.strip())
 
 
 def _existing_evidence_root(value: str, repo: Path) -> Path:
@@ -962,6 +1567,29 @@ def _load_json_file(path: Path, label: str) -> Mapping[str, object]:
     if type(value) is not dict:
         raise ActivationError("invalid_handoff", f"{label} is not an object", EXIT_PRECONDITION)
     return value
+
+
+def _load_canonical_json_bytes(value: bytes, label: str) -> Mapping[str, object]:
+    decoded = _decode_json_object_bytes(value, label)
+    if value != _canonical_json(decoded):
+        raise ActivationError(
+            "runtime_evidence_invalid", f"{label} is not canonical JSON", EXIT_RUNTIME
+        )
+    return decoded
+
+
+def _decode_json_object_bytes(value: bytes, label: str) -> Mapping[str, object]:
+    try:
+        decoded = json.loads(value)
+    except (json.JSONDecodeError, UnicodeError) as exc:
+        raise ActivationError(
+            "runtime_evidence_invalid", f"{label} is not JSON", EXIT_RUNTIME
+        ) from exc
+    if type(decoded) is not dict:
+        raise ActivationError(
+            "runtime_evidence_invalid", f"{label} is not an object", EXIT_RUNTIME
+        )
+    return decoded
 
 
 def _canonical_json(value: object) -> bytes:

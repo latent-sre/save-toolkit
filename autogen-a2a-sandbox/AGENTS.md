@@ -11,8 +11,10 @@ These instructions apply only under `autogen-a2a-sandbox/`. The root `AGENTS.md`
 - **Build**: `python autogen-a2a-sandbox/activate.py build --docker-context desktop-linux --source-revision <40-lowercase-hex>`.
 - **Run**: `python autogen-a2a-sandbox/activate.py fresh --docker-context desktop-linux --source-revision <same-40-hex> --run-id mission-healthy-001 --evidence-root <existing-canonical-dir> --case mission-healthy-001 --approval-fixture PENDING`.
 - **Resume**: `python autogen-a2a-sandbox/activate.py resume --docker-context desktop-linux --source-revision <same-40-hex> --run-id mission-healthy-001 --evidence-root <same-dir> --decision ACCEPT`.
-- **Test**: `python -m unittest discover -s autogen-a2a-sandbox/tests -p "test_*.py"`; container
-  component tests and the full case matrix run through `activate.py` as documented in the contract.
+- **Host test**: `python -m unittest discover -s autogen-a2a-sandbox/tests -p "test_activation.py"`;
+  this is the only host-direct test surface and remains standard-library-only. Framework and
+  integration discovery runs only inside the hardened, revision-bound sandbox image; the full case
+  matrix runs through `activate.py` as documented in the contract.
 - **Ports**: none on the host. The internal worker listens on TCP 8081 only on the Compose
   `internal: true` network; the orchestrator is a finite process and binds no port.
 - **Module identity**: `git@github.com:latent-sre/save-toolkit.git`; implementation root

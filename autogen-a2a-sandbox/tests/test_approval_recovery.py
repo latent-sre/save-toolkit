@@ -5,6 +5,7 @@ import copy
 import socket
 import sys
 import tempfile
+import threading
 import unittest
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -30,6 +31,7 @@ from interop_sandbox.approval_gate import (  # noqa: E402
     open_approval_gate,
     resume_approval_gate,
 )
+from interop_sandbox import approval_gate  # noqa: E402
 from interop_sandbox.contracts import (  # noqa: E402
     AnalysisRequest,
     canonical_json_bytes,
@@ -42,6 +44,8 @@ from interop_sandbox.contracts import (  # noqa: E402
 )
 from interop_sandbox.maf_orchestrator import (  # noqa: E402
     RemoteAnalysisResult,
+    event_timeline_to_plain_object,
+    validate_event_timeline,
 )
 
 
@@ -270,6 +274,69 @@ class ApprovalGateTests(unittest.IsolatedAsyncioTestCase):
             )
         self.assertEqual(first.decision_path.read_bytes(), original_bytes)
 
+    async def test_two_conflicting_decision_writers_cannot_last_writer_win(self) -> None:
+        artifact_object = self.result.artifact_object
+        self.assertIsInstance(artifact_object, dict)
+        artifact = validate_recommendation_artifact(artifact_object)
+        accept = validate_release_decision(
+            {
+                "decision_version": "release-decision-state/v1",
+                **_decision_response(self.result, decision="ACCEPT"),
+            },
+            artifact=artifact,
+            at_time=CHECKED_AT,
+        )
+        reject = validate_release_decision(
+            {
+                "decision_version": "release-decision-state/v1",
+                **_decision_response(self.result, decision="REJECT"),
+            },
+            artifact=artifact,
+            at_time=CHECKED_AT,
+        )
+        barrier = threading.Barrier(2)
+        link_barrier = threading.Barrier(2)
+        decision_path = self.decisions / f"{accept.run_id}.release-decision.json"
+        real_exists = Path.exists
+        real_link = approval_gate.os.link
+
+        def synchronized_exists(path):
+            if path == decision_path:
+                barrier.wait(timeout=5)
+                return False
+            return real_exists(path)
+
+        def synchronized_link(source, target):
+            link_barrier.wait(timeout=5)
+            return real_link(source, target)
+
+        def write(decision):
+            return approval_gate._persist_decision(
+                self.decisions,
+                decision,
+                artifact=artifact,
+                at_time=CHECKED_AT,
+            )
+
+        with (
+            patch.object(Path, "exists", synchronized_exists),
+            patch.object(approval_gate.os, "link", synchronized_link),
+        ):
+            results = await asyncio.gather(
+                asyncio.to_thread(write, accept),
+                asyncio.to_thread(write, reject),
+                return_exceptions=True,
+            )
+
+        successes = [result for result in results if not isinstance(result, Exception)]
+        failures = [result for result in results if isinstance(result, Exception)]
+        self.assertEqual(len(successes), 1)
+        self.assertEqual(len(failures), 1)
+        self.assertIsInstance(failures[0], ApprovalGateError)
+        written = successes[0][0]
+        winner = accept if written.read_bytes() == canonical_json_bytes(accept) else reject
+        self.assertEqual(written.read_bytes(), canonical_json_bytes(winner))
+
     async def test_non_completed_malformed_and_lineage_mismatch_never_open_gate(self) -> None:
         cases: dict[str, RemoteAnalysisResult] = {}
         for state in ("input-required", "canceled", "failed"):
@@ -408,6 +475,21 @@ class A2ASameTaskLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(recovery.result.a2a_state, "completed")
         self.assertEqual(recovery.initial_task_id, recovery.result.task_id)
         self.assertEqual(set(recovery.observed_task_ids), {recovery.initial_task_id})
+        self.assertEqual(recovery.event_timeline, recovery.result.event_timeline)
+        validate_event_timeline(
+            event_timeline_to_plain_object(recovery.event_timeline),
+            task_id=recovery.result.task_id,
+            context_id=recovery.result.context_id,
+            terminal_state="completed",
+            artifact_id=recovery.result.artifact_id,
+        )
+        self.assertEqual(
+            sum(
+                event.event_kind == "data_artifact"
+                for event in recovery.event_timeline
+            ),
+            1,
+        )
         self.assertGreater(recovery.subscription_event_count, 0)
         self.assertIsNotNone(recovery.result.authoritative_part)
         artifact = validate_recommendation_artifact(
@@ -431,6 +513,18 @@ class A2ASameTaskLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(recovery.cancel_sent_task_id, recovery.initial_task_id)
         self.assertEqual(recovery.result.task_id, recovery.initial_task_id)
         self.assertEqual(recovery.result.a2a_state, "canceled")
+        self.assertEqual(recovery.event_timeline, recovery.result.event_timeline)
+        self.assertTrue(
+            any(event.a2a_state == "working" for event in recovery.event_timeline)
+        )
+        self.assertEqual(recovery.event_timeline[-1].a2a_state, "canceled")
+        validate_event_timeline(
+            event_timeline_to_plain_object(recovery.event_timeline),
+            task_id=recovery.result.task_id,
+            context_id=recovery.result.context_id,
+            terminal_state="canceled",
+            artifact_id=None,
+        )
         self.assertIsNone(recovery.result.artifact_object)
         self.assertIsNone(recovery.result.authoritative_part)
         self.assertEqual(self.app.state.analysis_executor.analysis_calls, 1)

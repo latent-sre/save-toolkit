@@ -13,6 +13,7 @@ from a2a.helpers.proto_helpers import new_text_message
 from a2a.types import (
     CancelTaskRequest,
     GetTaskRequest,
+    Message as A2AMessage,
     Part,
     Role,
     SendMessageRequest,
@@ -21,8 +22,15 @@ from a2a.types import (
     Task,
     TaskArtifactUpdateEvent,
     TaskState,
+    TaskStatusUpdateEvent,
 )
-from agent_framework import AgentExecutor, AgentResponseUpdate, WorkflowBuilder
+from agent_framework import (
+    AgentExecutor,
+    AgentResponseUpdate,
+    WorkflowBuilder,
+    WorkflowEvent,
+    WorkflowRunState,
+)
 from agent_framework.a2a import A2AAgent
 from google.protobuf.json_format import MessageToDict
 
@@ -40,6 +48,33 @@ _A2A_STATES = {
     "TASK_STATE_FAILED": "failed",
     "TASK_STATE_REJECTED": "failed",
 }
+_OBSERVED_A2A_STATES = {
+    "TASK_STATE_SUBMITTED": "submitted",
+    "TASK_STATE_WORKING": "working",
+    **_A2A_STATES,
+}
+_EVENT_KINDS = {
+    "workflow_working",
+    "task",
+    "status",
+    "data_artifact",
+    "message",
+    "session",
+}
+_EVENT_TIMELINE_VERSION = "a2a-event-timeline/v1"
+_MAX_TIMELINE_EVENTS = 64
+
+
+@dataclass(frozen=True, slots=True)
+class RemoteEvent:
+    """One bounded transport observation without diagnostic or payload text."""
+
+    sequence: int
+    event_kind: str
+    task_id: str | None
+    context_id: str | None
+    a2a_state: str | None
+    artifact_id: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +89,7 @@ class RemoteAnalysisResult:
     authoritative_part: Part | None
     request_info_count: int
     used_streaming_workflow: bool
+    event_timeline: tuple[RemoteEvent, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +101,7 @@ class RemoteTaskRecovery:
     subscription_event_count: int
     cancel_sent_task_id: str | None
     result: RemoteAnalysisResult
+    event_timeline: tuple[RemoteEvent, ...] = ()
 
 
 async def run_remote_analysis(
@@ -107,8 +144,9 @@ async def run_remote_analysis(
             name="remote_canary_analysis",
         ).build()
         stream = workflow.run(request_text, stream=True)
-        async for _event in stream:
-            pass
+        timeline: list[RemoteEvent] = []
+        async for event in stream:
+            _append_workflow_event(timeline, event)
         run_result = await stream.get_final_response()
 
     service_state = session.service_session_id
@@ -127,6 +165,13 @@ async def run_remote_analysis(
     if state_name not in _A2A_STATES:
         raise RuntimeError(f"A2A task stopped in unsupported state {state_name}")
     a2a_state = _A2A_STATES[state_name]
+    _append_event(
+        timeline,
+        event_kind="session",
+        task_id=task_id,
+        context_id=context_id,
+        a2a_state=a2a_state,
+    )
 
     artifact_events = _artifact_events(run_result.get_outputs())
     if len(artifact_events) > 1:
@@ -163,6 +208,13 @@ async def run_remote_analysis(
     if a2a_state != "completed" and authoritative_part is not None:
         raise RuntimeError("non-completed A2A task emitted a recommendation artifact")
 
+    event_timeline = validate_event_timeline(
+        event_timeline_to_plain_object(tuple(timeline)),
+        task_id=task_id,
+        context_id=context_id,
+        terminal_state=a2a_state,
+        artifact_id=artifact_id,
+    )
     return RemoteAnalysisResult(
         a2a_state=a2a_state,
         task_id=task_id,
@@ -172,6 +224,7 @@ async def run_remote_analysis(
         authoritative_part=authoritative_part,
         request_info_count=len(run_result.get_request_info_events()),
         used_streaming_workflow=True,
+        event_timeline=event_timeline,
     )
 
 
@@ -186,7 +239,7 @@ async def recover_remote_analysis_after_interruption(
     client = await _create_raw_client(agent_base_url)
     async with client:
         stream = client.send_message(_send_request(request_text))
-        initial_task_id, observed = await _abandon_after_task_id(stream)
+        initial_task_id, observed, timeline = await _abandon_after_task_id(stream)
         subscription_events = 0
         async with asyncio.timeout(10):
             async for event in client.subscribe(
@@ -194,10 +247,11 @@ async def recover_remote_analysis_after_interruption(
             ):
                 subscription_events += 1
                 observed.extend(_stream_response_task_ids(event))
+                _append_stream_response(timeline, event)
         task = await client.get_task(GetTaskRequest(id=initial_task_id))
 
     observed.append(task.id)
-    result = _result_from_task(task, request_text=request_text)
+    result = _result_from_task(task, request_text=request_text, timeline=timeline)
     _require_same_task(initial_task_id, observed, result.task_id)
     return RemoteTaskRecovery(
         initial_task_id=initial_task_id,
@@ -205,6 +259,7 @@ async def recover_remote_analysis_after_interruption(
         subscription_event_count=subscription_events,
         cancel_sent_task_id=None,
         result=result,
+        event_timeline=result.event_timeline,
     )
 
 
@@ -219,15 +274,16 @@ async def cancel_remote_analysis_after_interruption(
     client = await _create_raw_client(agent_base_url)
     async with client:
         stream = client.send_message(_send_request(request_text))
-        initial_task_id, observed = await _abandon_after_task_id(
+        initial_task_id, observed, timeline = await _abandon_after_task_id(
             stream, require_working=True
         )
         canceled = await client.cancel_task(CancelTaskRequest(id=initial_task_id))
         observed.append(canceled.id)
+        _append_raw_event(timeline, canceled)
         task = await client.get_task(GetTaskRequest(id=initial_task_id))
 
     observed.append(task.id)
-    result = _result_from_task(task, request_text=request_text)
+    result = _result_from_task(task, request_text=request_text, timeline=timeline)
     _require_same_task(initial_task_id, observed, result.task_id)
     if result.a2a_state != "canceled":
         raise RuntimeError("CancelTask did not leave the same A2A task canceled")
@@ -237,7 +293,246 @@ async def cancel_remote_analysis_after_interruption(
         subscription_event_count=0,
         cancel_sent_task_id=initial_task_id,
         result=result,
+        event_timeline=result.event_timeline,
     )
+
+
+def event_timeline_to_plain_object(
+    timeline: tuple[RemoteEvent, ...],
+) -> dict[str, object]:
+    """Convert the immutable bounded timeline to its persistence object."""
+
+    if not isinstance(timeline, tuple) or not all(
+        isinstance(event, RemoteEvent) for event in timeline
+    ):
+        raise TypeError("timeline must be a tuple of RemoteEvent values")
+    return {
+        "events": [
+            {
+                "a2a_state": event.a2a_state,
+                "artifact_id": event.artifact_id,
+                "context_id": event.context_id,
+                "event_kind": event.event_kind,
+                "sequence": event.sequence,
+                "task_id": event.task_id,
+            }
+            for event in timeline
+        ],
+        "timeline_version": _EVENT_TIMELINE_VERSION,
+    }
+
+
+def validate_event_timeline(
+    value: object,
+    *,
+    task_id: str,
+    context_id: str,
+    terminal_state: str,
+    artifact_id: str | None,
+) -> tuple[RemoteEvent, ...]:
+    """Validate a persisted timeline against one terminal A2A task lineage."""
+
+    if type(value) is not dict or set(value) != {"events", "timeline_version"}:
+        raise ValueError("event timeline must be a closed object")
+    if value["timeline_version"] != _EVENT_TIMELINE_VERSION:
+        raise ValueError("event timeline version is unsupported")
+    task_id = _nonempty_id(task_id, "task_id")
+    context_id = _nonempty_id(context_id, "context_id")
+    if terminal_state not in _A2A_STATES.values():
+        raise ValueError("event timeline terminal state is unsupported")
+    if artifact_id is not None:
+        artifact_id = _nonempty_id(artifact_id, "artifact_id")
+    events_value = value["events"]
+    if (
+        type(events_value) is not list
+        or not events_value
+        or len(events_value) > _MAX_TIMELINE_EVENTS
+    ):
+        raise ValueError("event timeline must contain 1..64 events")
+
+    events: list[RemoteEvent] = []
+    for sequence, event_value in enumerate(events_value):
+        if type(event_value) is not dict or set(event_value) != {
+            "a2a_state",
+            "artifact_id",
+            "context_id",
+            "event_kind",
+            "sequence",
+            "task_id",
+        }:
+            raise ValueError("event timeline entry must be closed")
+        if event_value["sequence"] != sequence:
+            raise ValueError("event timeline sequence is not contiguous")
+        event_kind = event_value["event_kind"]
+        if type(event_kind) is not str or event_kind not in _EVENT_KINDS:
+            raise ValueError("event timeline kind is unsupported")
+        observed_task_id = _optional_id(event_value["task_id"], "event task_id")
+        observed_context_id = _optional_id(
+            event_value["context_id"], "event context_id"
+        )
+        if observed_task_id is not None and observed_task_id != task_id:
+            raise ValueError("event timeline contains more than one task lineage")
+        if observed_context_id is not None and observed_context_id != context_id:
+            raise ValueError("event timeline contains more than one context lineage")
+        observed_state = event_value["a2a_state"]
+        if observed_state is not None and observed_state not in _OBSERVED_A2A_STATES.values():
+            raise ValueError("event timeline contains an unsupported A2A state")
+        observed_artifact_id = _optional_id(
+            event_value["artifact_id"], "event artifact_id"
+        )
+        if event_kind == "workflow_working":
+            if any(
+                item is not None
+                for item in (
+                    observed_task_id,
+                    observed_context_id,
+                    observed_state,
+                    observed_artifact_id,
+                )
+            ):
+                raise ValueError(
+                    "workflow working event cannot claim A2A protocol evidence"
+                )
+        elif event_kind == "data_artifact":
+            if observed_artifact_id is None:
+                raise ValueError("data artifact event is missing its artifact ID")
+        elif observed_artifact_id is not None:
+            raise ValueError("non-artifact event cannot carry an artifact ID")
+        events.append(
+            RemoteEvent(
+                sequence=sequence,
+                event_kind=event_kind,
+                task_id=observed_task_id,
+                context_id=observed_context_id,
+                a2a_state=observed_state,
+                artifact_id=observed_artifact_id,
+            )
+        )
+
+    if events[-1].a2a_state != terminal_state:
+        raise ValueError("event timeline does not end in the expected terminal state")
+    if not any(
+        event.event_kind == "workflow_working" or event.a2a_state == "working"
+        for event in events[:-1]
+    ):
+        raise ValueError("event timeline lacks a working observation before terminal")
+    data_artifacts = [event for event in events if event.event_kind == "data_artifact"]
+    if terminal_state == "completed":
+        if len(data_artifacts) != 1 or data_artifacts[0].artifact_id != artifact_id:
+            raise ValueError("completed timeline requires exactly one bound data artifact")
+    elif data_artifacts or artifact_id is not None:
+        raise ValueError("non-completed timeline cannot contain an artifact")
+    return tuple(events)
+
+
+def _append_workflow_event(
+    timeline: list[RemoteEvent], event: object
+) -> None:
+    if not isinstance(event, WorkflowEvent):
+        raise RuntimeError("MAF workflow stream emitted an unexpected event type")
+    if event.state == WorkflowRunState.IN_PROGRESS and not any(
+        item.event_kind == "workflow_working" for item in timeline
+    ):
+        _append_event(
+            timeline,
+            event_kind="workflow_working",
+            task_id=None,
+            context_id=None,
+        )
+    if isinstance(event.data, AgentResponseUpdate):
+        _append_raw_event(timeline, event.data.raw_representation)
+
+
+def _append_stream_response(
+    timeline: list[RemoteEvent], event: StreamResponse
+) -> None:
+    if event.HasField("task"):
+        _append_raw_event(timeline, event.task)
+    elif event.HasField("status_update"):
+        _append_raw_event(timeline, event.status_update)
+    elif event.HasField("artifact_update"):
+        _append_raw_event(timeline, event.artifact_update)
+    elif event.HasField("message"):
+        _append_raw_event(timeline, event.message)
+
+
+def _append_raw_event(timeline: list[RemoteEvent], raw: object) -> None:
+    if isinstance(raw, Task):
+        _append_event(
+            timeline,
+            event_kind="task",
+            task_id=raw.id,
+            context_id=raw.context_id,
+            a2a_state=_observed_state(raw.status.state),
+        )
+    elif isinstance(raw, TaskStatusUpdateEvent):
+        _append_event(
+            timeline,
+            event_kind="status",
+            task_id=raw.task_id,
+            context_id=raw.context_id,
+            a2a_state=_observed_state(raw.status.state),
+        )
+    elif isinstance(raw, TaskArtifactUpdateEvent):
+        if (
+            len(raw.artifact.parts) != 1
+            or raw.artifact.parts[0].WhichOneof("content") != "data"
+        ):
+            raise RuntimeError("streamed A2A artifact is not one data Part")
+        _append_event(
+            timeline,
+            event_kind="data_artifact",
+            task_id=raw.task_id,
+            context_id=raw.context_id,
+            artifact_id=raw.artifact.artifact_id,
+        )
+    elif isinstance(raw, A2AMessage):
+        _append_event(
+            timeline,
+            event_kind="message",
+            task_id=raw.task_id or None,
+            context_id=raw.context_id or None,
+        )
+
+
+def _append_event(
+    timeline: list[RemoteEvent],
+    *,
+    event_kind: str,
+    task_id: str | None,
+    context_id: str | None,
+    a2a_state: str | None = None,
+    artifact_id: str | None = None,
+) -> None:
+    if len(timeline) >= _MAX_TIMELINE_EVENTS:
+        raise RuntimeError("A2A event timeline exceeded its 64-event bound")
+    timeline.append(
+        RemoteEvent(
+            sequence=len(timeline),
+            event_kind=event_kind,
+            task_id=task_id,
+            context_id=context_id,
+            a2a_state=a2a_state,
+            artifact_id=artifact_id,
+        )
+    )
+
+
+def _observed_state(value: int) -> str:
+    state_name = TaskState.Name(value)
+    if state_name not in _OBSERVED_A2A_STATES:
+        raise RuntimeError(f"A2A event used unsupported state {state_name}")
+    return _OBSERVED_A2A_STATES[state_name]
+
+
+def _nonempty_id(value: object, label: str) -> str:
+    if type(value) is not str or not value or len(value) > 128:
+        raise ValueError(f"{label} must be a non-empty bounded string")
+    return value
+
+
+def _optional_id(value: object, label: str) -> str | None:
+    return None if value is None else _nonempty_id(value, label)
 
 
 async def _create_raw_client(agent_base_url: str):
@@ -270,12 +565,14 @@ async def _abandon_after_task_id(
     stream,
     *,
     require_working: bool = False,
-) -> tuple[str, list[str]]:
+) -> tuple[str, list[str], list[RemoteEvent]]:
     task_id: str | None = None
     observed: list[str] = []
+    timeline: list[RemoteEvent] = []
     try:
         async with asyncio.timeout(10):
             async for event in stream:
+                _append_stream_response(timeline, event)
                 event_ids = _stream_response_task_ids(event)
                 observed.extend(event_ids)
                 if task_id is None and event_ids:
@@ -289,7 +586,7 @@ async def _abandon_after_task_id(
     if task_id is None:
         raise RuntimeError("A2A stream ended before the server issued a task ID")
     _require_same_task(task_id, observed, task_id)
-    return task_id, observed
+    return task_id, observed, timeline
 
 
 def _is_working_event(event: StreamResponse) -> bool:
@@ -314,6 +611,7 @@ def _result_from_task(
     task: Task,
     *,
     request_text: str,
+    timeline: list[RemoteEvent],
 ) -> RemoteAnalysisResult:
     state_name = TaskState.Name(task.status.state)
     if state_name not in _A2A_STATES:
@@ -352,6 +650,14 @@ def _result_from_task(
         raise RuntimeError("completed A2A task did not store a recommendation artifact")
     if a2a_state != "completed" and authoritative_part is not None:
         raise RuntimeError("non-completed A2A task stored a recommendation artifact")
+    _append_raw_event(timeline, task)
+    event_timeline = validate_event_timeline(
+        event_timeline_to_plain_object(tuple(timeline)),
+        task_id=task.id,
+        context_id=task.context_id,
+        terminal_state=a2a_state,
+        artifact_id=artifact_id,
+    )
     return RemoteAnalysisResult(
         a2a_state=a2a_state,
         task_id=task.id,
@@ -361,6 +667,7 @@ def _result_from_task(
         authoritative_part=authoritative_part,
         request_info_count=0,
         used_streaming_workflow=False,
+        event_timeline=event_timeline,
     )
 
 

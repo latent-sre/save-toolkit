@@ -7,7 +7,7 @@ import json
 import os
 import tempfile
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,7 @@ from .contracts import (
 )
 
 
+GRAPH_CHECKPOINT_VERSION = "canary-analysis-checkpoint/v1"
 GRAPH_STATE_VERSION = "canary-analysis-state/v1"
 NODE_IDS = (
     "ingest",
@@ -84,8 +85,12 @@ class AnalysisResult:
     resolved_contradictions: tuple[str, ...]
     unresolved_contradictions: tuple[str, ...]
     reconciliation_attempts: int
+    initial_checkpoint_sha256: str | None
+    initial_checkpoint_path: Path | None
     graph_state_sha256: str | None
     state_path: Path | None
+    a2a_task_id: str | None
+    a2a_context_id: str | None
     route_evidence: tuple[str, ...]
     node_evidence: tuple[NodeEvidence, ...]
     graph_edges: tuple[tuple[str, str], ...]
@@ -482,30 +487,59 @@ async def run_analysis(
         raise RuntimeError("GraphFlow did not quiesce at the first join")
 
     team_state = await first.team.save_state()
-    state_object = {
+    checkpoint_object = {
         "candidate_revision": request.candidate_revision,
         "case_digest": request.case_digest,
         "case_id": request.case_id,
         "run_id": request.run_id,
         "source_revision": request.source_revision,
-        "state_version": GRAPH_STATE_VERSION,
+        "checkpoint_version": GRAPH_CHECKPOINT_VERSION,
         "team_state": team_state,
     }
-    state_path = state_root / f"{request.run_id}.graphflow-state.json"
-    state_bytes = canonical_json_bytes(state_object)
-    _atomic_write(state_path, state_bytes)
-    state_sha256 = canonical_sha256(state_object)
+    checkpoint_path = state_root / f"{request.run_id}.graphflow-checkpoint.json"
+    checkpoint_bytes = canonical_json_bytes(checkpoint_object)
+    _atomic_write(checkpoint_path, checkpoint_bytes)
+    checkpoint_sha256 = canonical_sha256(checkpoint_object)
 
     fresh = _build_runtime(request, sanitized_input, control, pause_at_join=False)
-    persisted = json.loads(state_path.read_bytes())
-    if canonical_sha256(persisted) != state_sha256:
+    persisted = json.loads(checkpoint_path.read_bytes())
+    if canonical_sha256(persisted) != checkpoint_sha256:
         raise RuntimeError("persisted GraphFlow state digest mismatch")
-    _validate_state_lineage(persisted, request)
+    _validate_checkpoint_lineage(persisted, request)
     await fresh.team.load_state(persisted["team_state"])
     resumed_result = await fresh.team.run(cancellation_token=token)
     outcome = _outcome_from_messages(resumed_result.messages)
     route_evidence = _route_evidence((*first_result.messages, *resumed_result.messages))
-    return AnalysisResult(
+    node_evidence = _node_evidence(fresh.agents)
+    terminal_reason = resumed_result.stop_reason
+    if not isinstance(terminal_reason, str) or not terminal_reason:
+        raise RuntimeError("GraphFlow did not provide a terminal reason")
+    final_team_state = await fresh.team.save_state()
+    terminal_object = {
+        "a2a_context_id": None,
+        "a2a_task_id": None,
+        "basis": outcome["basis"],
+        "candidate_revision": request.candidate_revision,
+        "case_digest": request.case_digest,
+        "case_id": request.case_id,
+        "final_team_state": final_team_state,
+        "initial_checkpoint_sha256": checkpoint_sha256,
+        "node_evidence": _node_evidence_to_plain(node_evidence),
+        "recommendation": outcome["recommendation"],
+        "reconciliation_attempts": outcome["reconciliation_attempts"],
+        "resolved_contradictions": outcome["resolved_contradictions"],
+        "route_evidence": list(route_evidence),
+        "run_id": request.run_id,
+        "source_revision": request.source_revision,
+        "state_version": GRAPH_STATE_VERSION,
+        "status": outcome["status"],
+        "terminal_reason": terminal_reason,
+        "unresolved_contradictions": outcome["unresolved_contradictions"],
+    }
+    state_path = state_root / f"{request.run_id}.graphflow-state.json"
+    _atomic_write(state_path, canonical_json_bytes(terminal_object))
+    state_sha256 = canonical_sha256(terminal_object)
+    result = AnalysisResult(
         request_version=request.request_version,
         run_id=request.run_id,
         case_id=request.case_id,
@@ -522,14 +556,162 @@ async def run_analysis(
             outcome["unresolved_contradictions"], "unresolved contradictions"
         ),
         reconciliation_attempts=_bounded_attempt(outcome["reconciliation_attempts"]),
+        initial_checkpoint_sha256=checkpoint_sha256,
+        initial_checkpoint_path=checkpoint_path,
         graph_state_sha256=state_sha256,
         state_path=state_path,
+        a2a_task_id=None,
+        a2a_context_id=None,
         route_evidence=route_evidence,
-        node_evidence=_node_evidence(fresh.agents),
+        node_evidence=node_evidence,
         graph_edges=topology[0],
         graph_leaf_nodes=topology[1],
         graph_has_cycle_with_exit=topology[2],
     )
+    validate_terminal_state(terminal_object, result=result)
+    return result
+
+
+def bind_transport_lineage(
+    result: AnalysisResult,
+    *,
+    task_id: str,
+    context_id: str,
+) -> AnalysisResult:
+    """Bind the terminal state to the actual A2A task before artifact publication."""
+
+    if not isinstance(result, AnalysisResult):
+        raise TypeError("result must be an AnalysisResult")
+    if result.status not in ("COMPLETED", "INPUT_REQUIRED"):
+        raise ValueError("only a persisted terminal analysis can bind transport lineage")
+    task_id = _transport_id(task_id, "task_id")
+    context_id = _transport_id(context_id, "context_id")
+    if result.state_path is None or result.graph_state_sha256 is None:
+        raise ValueError("terminal analysis lacks persisted state")
+    state_bytes = result.state_path.read_bytes()
+    state_object = json.loads(state_bytes)
+    if state_bytes != canonical_json_bytes(state_object):
+        raise ValueError("terminal state is not canonical JSON")
+    if canonical_sha256(state_object) != result.graph_state_sha256:
+        raise ValueError("terminal state digest does not match the analysis result")
+    validate_terminal_state(state_object, result=result)
+    existing = (state_object["a2a_task_id"], state_object["a2a_context_id"])
+    requested = (task_id, context_id)
+    if existing not in ((None, None), requested):
+        raise ValueError("terminal state transport lineage conflicts with the requested lineage")
+    state_object["a2a_task_id"] = task_id
+    state_object["a2a_context_id"] = context_id
+    _atomic_write(result.state_path, canonical_json_bytes(state_object))
+    bound = replace(
+        result,
+        graph_state_sha256=canonical_sha256(state_object),
+        a2a_task_id=task_id,
+        a2a_context_id=context_id,
+    )
+    validate_terminal_state(state_object, result=bound)
+    return bound
+
+
+def validate_terminal_state(
+    value: object,
+    *,
+    result: AnalysisResult | None = None,
+) -> Mapping[str, object]:
+    """Validate the closed persisted terminal proof and optional result binding."""
+
+    if type(value) is not dict:
+        raise ValueError("terminal state must be an object")
+    expected_fields = {
+        "a2a_context_id",
+        "a2a_task_id",
+        "basis",
+        "candidate_revision",
+        "case_digest",
+        "case_id",
+        "final_team_state",
+        "initial_checkpoint_sha256",
+        "node_evidence",
+        "recommendation",
+        "reconciliation_attempts",
+        "resolved_contradictions",
+        "route_evidence",
+        "run_id",
+        "source_revision",
+        "state_version",
+        "status",
+        "terminal_reason",
+        "unresolved_contradictions",
+    }
+    if set(value) != expected_fields:
+        raise ValueError("terminal state has missing or unknown fields")
+    if value["state_version"] != GRAPH_STATE_VERSION:
+        raise ValueError("terminal state version is unsupported")
+    _transport_id(value["run_id"], "terminal run_id")
+    _transport_id(value["case_id"], "terminal case_id")
+    _lower_hex(value["case_digest"], 64, "terminal case_digest")
+    _lower_hex(value["initial_checkpoint_sha256"], 64, "initial checkpoint digest")
+    _lower_hex(value["source_revision"], 40, "terminal source revision")
+    _lower_hex(value["candidate_revision"], 40, "terminal candidate revision")
+    if type(value["final_team_state"]) is not dict:
+        raise ValueError("terminal state final_team_state must be an object")
+    if type(value["terminal_reason"]) is not str or not value["terminal_reason"]:
+        raise ValueError("terminal state reason must be a non-empty string")
+    basis = _string_tuple(value["basis"], "terminal basis")
+    resolved = _string_tuple(
+        value["resolved_contradictions"], "terminal resolved contradictions"
+    )
+    unresolved = _string_tuple(
+        value["unresolved_contradictions"], "terminal unresolved contradictions"
+    )
+    route_evidence = _string_tuple(value["route_evidence"], "terminal route evidence")
+    if not basis or not route_evidence:
+        raise ValueError("terminal state basis and route evidence cannot be empty")
+    if tuple(sorted(resolved)) != resolved or tuple(sorted(unresolved)) != unresolved:
+        raise ValueError("terminal contradictions must be stable-sorted")
+    status = value["status"]
+    recommendation = value["recommendation"]
+    if status == "COMPLETED":
+        if recommendation not in ("ADVANCE_CANARY", "HALT_CANARY") or unresolved:
+            raise ValueError("completed terminal state requires a closed recommendation")
+    elif status == "INPUT_REQUIRED":
+        if recommendation is not None or not unresolved:
+            raise ValueError("input-required terminal state cannot contain a recommendation")
+    else:
+        raise ValueError("terminal state status is unsupported")
+    _bounded_attempt(value["reconciliation_attempts"])
+    _validate_terminal_node_evidence(value["node_evidence"])
+    task_id = value["a2a_task_id"]
+    context_id = value["a2a_context_id"]
+    if (task_id is None) != (context_id is None):
+        raise ValueError("terminal state transport lineage must be wholly bound or unbound")
+    if task_id is not None:
+        _transport_id(task_id, "a2a_task_id")
+        _transport_id(context_id, "a2a_context_id")
+    if result is not None:
+        bindings = {
+            "a2a_context_id": result.a2a_context_id,
+            "a2a_task_id": result.a2a_task_id,
+            "basis": list(result.basis),
+            "candidate_revision": result.candidate_revision,
+            "case_digest": result.case_digest,
+            "case_id": result.case_id,
+            "initial_checkpoint_sha256": result.initial_checkpoint_sha256,
+            "node_evidence": _node_evidence_to_plain(result.node_evidence),
+            "recommendation": result.recommendation,
+            "reconciliation_attempts": result.reconciliation_attempts,
+            "resolved_contradictions": list(result.resolved_contradictions),
+            "route_evidence": list(result.route_evidence),
+            "run_id": result.run_id,
+            "source_revision": result.source_revision,
+            "status": result.status,
+            "unresolved_contradictions": list(result.unresolved_contradictions),
+        }
+        for field, expected in bindings.items():
+            if value[field] != expected:
+                raise ValueError(f"terminal state {field} does not match the analysis result")
+        if result.graph_state_sha256 != canonical_sha256(value):
+            raise ValueError("terminal state digest does not match the analysis result")
+    return value
 
 
 def _build_runtime(
@@ -818,6 +1000,49 @@ def _node_evidence(
     )
 
 
+def _node_evidence_to_plain(
+    evidence: Sequence[NodeEvidence],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "call_count": node.call_count,
+            "node_id": node.node_id,
+            "observed_input_fields": [
+                list(fields) for fields in node.observed_input_fields
+            ],
+        }
+        for node in evidence
+    ]
+
+
+def _validate_terminal_node_evidence(value: object) -> None:
+    if type(value) is not list or len(value) != len(NODE_IDS):
+        raise ValueError("terminal node evidence must cover every graph node")
+    observed_ids: list[str] = []
+    for entry in value:
+        if type(entry) is not dict or set(entry) != {
+            "call_count",
+            "node_id",
+            "observed_input_fields",
+        }:
+            raise ValueError("terminal node evidence has an invalid entry")
+        node_id = entry["node_id"]
+        call_count = entry["call_count"]
+        input_fields = entry["observed_input_fields"]
+        if type(node_id) is not str or node_id not in NODE_IDS:
+            raise ValueError("terminal node evidence has an unknown node")
+        if type(call_count) is not int or call_count < 0:
+            raise ValueError("terminal node evidence has an invalid call count")
+        if type(input_fields) is not list:
+            raise ValueError("terminal node evidence has invalid input fields")
+        for fields in input_fields:
+            if type(fields) is not list or not all(type(item) is str for item in fields):
+                raise ValueError("terminal node evidence has invalid input fields")
+        observed_ids.append(node_id)
+    if tuple(observed_ids) != NODE_IDS:
+        raise ValueError("terminal node evidence is not in stable node order")
+
+
 def _topology(graph: Any) -> tuple[tuple[tuple[str, str], ...], tuple[str, ...], bool]:
     edges = tuple(
         sorted(
@@ -858,8 +1083,12 @@ def _cancelled_result(
         resolved_contradictions=(),
         unresolved_contradictions=(),
         reconciliation_attempts=0,
+        initial_checkpoint_sha256=None,
+        initial_checkpoint_path=None,
         graph_state_sha256=None,
         state_path=None,
+        a2a_task_id=None,
+        a2a_context_id=None,
         route_evidence=canceled,
         node_evidence=_node_evidence(runtime.agents),
         graph_edges=topology[0],
@@ -888,7 +1117,7 @@ def _atomic_write(path: Path, value: bytes) -> None:
             temporary_path.unlink()
 
 
-def _validate_state_lineage(
+def _validate_checkpoint_lineage(
     state: Mapping[str, object], request: AnalysisRequest
 ) -> None:
     expected = {
@@ -897,7 +1126,7 @@ def _validate_state_lineage(
         "case_id": request.case_id,
         "run_id": request.run_id,
         "source_revision": request.source_revision,
-        "state_version": GRAPH_STATE_VERSION,
+        "checkpoint_version": GRAPH_CHECKPOINT_VERSION,
     }
     if set(state) != {*expected, "team_state"}:
         raise RuntimeError("persisted GraphFlow state shape mismatch")
@@ -924,4 +1153,25 @@ def _string_tuple(value: object, label: str) -> tuple[str, ...]:
 def _bounded_attempt(value: object) -> int:
     if type(value) is not int or value not in (0, 1):
         raise ValueError("reconciliation attempt must be 0 or 1")
+    return value
+
+
+def _transport_id(value: object, label: str) -> str:
+    if (
+        type(value) is not str
+        or not value
+        or len(value) > 128
+        or any(ord(character) < 0x21 or ord(character) > 0x7E for character in value)
+    ):
+        raise ValueError(f"{label} is not a valid transport ID")
+    return value
+
+
+def _lower_hex(value: object, length: int, label: str) -> str:
+    if (
+        type(value) is not str
+        or len(value) != length
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ValueError(f"{label} must be {length} lowercase hexadecimal characters")
     return value
