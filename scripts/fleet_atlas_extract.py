@@ -512,9 +512,14 @@ def extract_tests(root: Path, graph: Graph) -> None:
                     graph.add_edge(Edge(edge_id("verified_by", target, node_id), target, node_id, "verified_by",
                                         "STATIC_EXTRACTED", {"via": "string-literal"},
                                         [cite(root, relative, line_no, line_no, "extract.test-literal", "STATIC_EXTRACTED")]))
-                elif not (root / literal).exists():
-                    graph.add_unknown(Unknown("extract.test-literal-stale", f"{relative}:{line_no} names {literal}, which does not exist",
-                                              relative, "Update the test or restore the path"))
+                # A literal resolving to no node is deliberately not reported. It cannot be told
+                # apart statically from a synthetic fixture path: these suites build temp
+                # repositories containing skills/thing/scripts/converter.py and
+                # skills/incident-command/references/severity.md, which exist only inside a
+                # TemporaryDirectory. Reporting them as stale produced 143 findings with no true
+                # positive, which would bury real contradictions in the stale-evidence view.
+                # Telling a stale pin from a fixture needs scope analysis this extractor does not
+                # do, so the honest output is the pin edges alone.
 
 
 def extract_schemas(root: Path, graph: Graph) -> None:
@@ -586,7 +591,15 @@ def extract_owners(root: Path, graph: Graph) -> None:
     text = (root / "docs/fleet-roadmap.md").read_text(encoding="utf-8")
     for item in check_plan_status._roadmap_items(text):
         owner_field = str(item["fields"].get("Owner", ""))
+        # An Owner field names owners, but it also mentions components in passing ("`agent-engineer`
+        # owns the `fleet-atlas` skill text"). A backticked name matching a skill or command is a
+        # component reference, not an owner, and typing it "human" invents a person: `runbook` and
+        # `stack-profile` were both classified as humans before this filter. A name that is neither
+        # an agent nor a known component is treated as human, which is the only remaining reading.
+        components = {node.name for node in graph.nodes.values() if node.type in ("skill", "command")}
         for name in sorted(set(re.findall(r"`([a-z][a-z0-9-]+)`", owner_field))):
+            if name in components and name not in agents:
+                continue
             if name not in agents and f"owner:{name}" not in graph.nodes:
                 graph.add_node(Node(f"owner:{name}", "owner", name, "external", None, "live", {"kind": "human"}, []))
             if f"owner:{name}" in graph.nodes:

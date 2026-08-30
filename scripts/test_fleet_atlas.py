@@ -308,6 +308,28 @@ class ExtractEvidenceTests(unittest.TestCase):
         caps = [e for e in self.graph.edges.values() if e.kind == "owns" and e.source == "agent:sre"]
         self.assertTrue(caps and all(e.cls == "STATIC_INFERRED" for e in caps))
 
+    def test_a_component_named_in_an_owner_field_is_not_a_person(self) -> None:
+        """An Owner field mentions components in passing; typing one 'human' invents a person.
+
+        `runbook` and `stack-profile` are real skills that appear backticked inside Owner fields,
+        and both were classified as human owners until extract_owners filtered components out.
+        """
+        components = {n.name for n in self.graph.nodes.values() if n.type in ("skill", "command")}
+        humans = {
+            n.name for n in self.graph.nodes.values()
+            if n.type == "owner" and n.attrs["kind"] == "human"
+        }
+        self.assertEqual(humans & components, set(), f"components typed as human owners: {humans & components}")
+
+    def test_no_unknown_reports_a_synthetic_fixture_path_as_stale(self) -> None:
+        """Test files build temp repositories; their paths are not stale repository pins.
+
+        Reporting them produced 143 findings with no true positive, which would bury the real
+        contradictions in the stale-evidence view.
+        """
+        stale = [u for u in self.graph.unknowns if u.code == "extract.test-literal-stale"]
+        self.assertEqual(stale, [], f"{len(stale)} unresolvable test literals reported as stale")
+
 
 if __name__ == "__main__":
     unittest.main()
