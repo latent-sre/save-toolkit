@@ -46,17 +46,17 @@ output for a human to run.
 
 ## The revision model — "what changed?" is one command
 
-Every deploy to a Cloud Run service creates an immutable **revision** (image + env + limits +
-concurrency). A new deployment receives traffic by default only while the service still tracks the
-latest revision: an existing traffic split or previous-revision assignment persists across later
-deployments, and `--no-traffic` keeps the new revision unrouted until traffic is explicitly assigned.
-For a staged rollout, a human can assign a percentage with
-`gcloud run services update-traffic <service> --to-revisions <revision>=<percentage>`.
-`gcloud run services update-traffic <service> --to-latest` instead sends 100% to the latest revision
-and makes later deployments serve the latest revision automatically
+Every deploy creates an immutable **revision** (image + env + limits + concurrency). A new
+deployment takes traffic only while the service still tracks the latest revision:
+an existing traffic split or previous-revision assignment persists across later deployments,
+and `--no-traffic` keeps the new revision unrouted until traffic is explicitly assigned.
+A human stages a rollout with
+`gcloud run services update-traffic <service> --to-revisions <revision>=<percentage>`; `--to-latest`
+instead sends 100% to the latest revision and restores automatic promotion on later deploys
 *[sourced: docs.cloud.google.com/run/docs/resource-model;
-docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration]*. So the PCF `cf events`
-question becomes:
+docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration]*.
+
+The PCF `cf events` question becomes:
 
 ```bash
 gcloud run revisions list --service <service>
@@ -84,15 +84,12 @@ Two shapes matter to this fleet specifically:
 ## Reading failures
 
 - **"Container failed to start and listen on the port defined by the PORT environment variable"**
-  — the canonical Cloud Run startup failure; the app must listen on `0.0.0.0:$PORT`, not
-  `127.0.0.1` *[sourced: docs.cloud.google.com/run/docs/troubleshooting]*. The PCF `$PORT`
-  discipline transfers exactly.
-- **Cold starts** — scale-to-zero is the default; latency spikes at low traffic are a
-  min-instances question, and min-instances is a billed change to recommend, not assume.
-- **Concurrency/saturation** — Cloud Run autoscaling targets a fraction of per-instance max
-  concurrency; sustained latency growth with instance count at max is a limits question. Exact
-  defaults vary by deploy path — `[unverified]`, read them from `services describe`, don't quote
-  memory.
+  — the app must listen on `0.0.0.0:$PORT`, not `127.0.0.1`
+  *[sourced: docs.cloud.google.com/run/docs/troubleshooting]*. The PCF `$PORT` discipline
+  transfers exactly.
+- **Cold starts** — min-instances is a billed change to recommend, not assume.
+- **Concurrency/saturation** — exact defaults vary by deploy path: `[unverified]`, read them from
+  `services describe`, don't quote memory.
 - **OOM** — exact memory-limit error text `[unverified]`; corroborate with the revision's memory
   limit from `services describe` before recommending a bump, same 137-discipline as PCF.
 
