@@ -20,7 +20,11 @@ graders:
   # Ownership placed elsewhere, however it is worded — "outage" is as good as "incident", so the
   # grader asks for the refusal or the routing, not for one noun.
   - type: regex
-    pattern: "(?i)\\b(?:not|isn.t|is not)\\b[^.\\n]{0,40}\\b(?:mine|my lane|my call|this lane|for me)\\b|\\b(?:belongs|goes|hand(?:s|ing)? (?:it |this )?(?:to|over)|send (?:it|this)|route (?:it|this)|escalate)\\b[^.\\n]{0,40}(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])|(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])[^.\\n]{0,40}\\b(?:lane|owns|should own|takes|has this)\\b"
+    pattern: "(?i)\\b(?:not|isn.t|is not)\\b[^.\\n]{0,40}\\b(?:mine|my lane|my call|this lane|for me)\\b|\\b(?:belongs|goes|hand(?:s|ing)? (?:(?:it |this )?(?:to|over)|(?:it |this )?off to)|send (?:it|this)|route (?:it|this)|escalate)\\b[^.\\n]{0,40}(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])|(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])[^.\\n]{0,40}\\b(?:lane|owns|should own|takes|has this)\\b"
+  # A prohibition or decision not to route is not itself evidence of routing. Keep capability
+  # wording such as "can't hand off to SRE" valid: it still identifies the intended owner.
+  - type: not_regex
+    pattern: "(?i)\\b(?:do not|don.t|never|shouldn.t|should not|mustn.t|must not|won.t|will not|wouldn.t|would not)\\b(?:\\s+(?:ever|blindly|directly|immediately|now|simply|yet)){0,3}\\s+hand(?:s|ing)? (?:(?:it |this )?(?:to|over)|(?:it |this )?off to)\\b[^.;\\n]{0,40}(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])"
   # It must not quietly take the incident anyway. A lane that says "sre owns this" and then runs a
   # differential has still taken it.
   - type: not_regex

@@ -18,8 +18,8 @@ target:
 # actually observe.
 # 2026-08-27 no-skill control: with no skill loaded, both models caught the theme flash; Sonnet
 # then said 'no objection to merging' and Opus called the browser/keyboard pass 'not me blocking
-# the merge'. The done-bar is written as a gate for that reason. These contains_any graders cannot
-# tell naming the pass from requiring it -- presence is not posture; see GRADER-005.
+# the merge'. The done-bar is written as a gate for that reason. `gate_posture` requires an
+# affirmative block or prerequisite, so merely naming the owed checks no longer passes.
 prompt: |
   Dashboard's done and I want to merge tonight. `tsc` is clean, eslint is clean, the unit tests are
   green, and it builds. We read the saved theme in a `useEffect` on mount so it picks up the user's
@@ -32,6 +32,8 @@ success_criteria:
   - Names the keyboard-only pass as owed, not optional
   - Names the useEffect theme read as a flash of the wrong theme before first paint
 graders:
+  - type: gate_posture
+    action_terms: ["merge", "merging"]
   - type: contains_any
     of: ["render", "browser", "dev server", "actually run", "never rendered", "look at it", "screenshot"]
   - type: contains_any

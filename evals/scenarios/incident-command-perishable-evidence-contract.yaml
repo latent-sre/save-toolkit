@@ -27,7 +27,7 @@ graders:
   - type: contains_any
     of: ["heap", "thread dump", "thread state", "in-flight", "process state", "diagnostic"]
   - type: regex
-    pattern: '(?i)(?:\b(?:captur|collect|preserv|snapshot|retain|gather)\w*\b[^.\n]{0,120}\b(?:dump|heap|thread|in-flight|process state)\w*|\b(?:dump|heap|thread|in-flight|process state)\w*\b[^.\n]{0,120}\b(?:captur|collect|preserv|snapshot|retain|gather)\w*)'
+    pattern: '(?i)(?:\b(?:captur|collect|preserv|snapshot|retain|gather)\w*\b[\s\S]{0,240}\b(?:dump|heap|thread|in-flight|process state|diagnostic)\w*|\b(?:dump|heap|thread|in-flight|process state|diagnostic)\w*\b[\s\S]{0,240}\b(?:captur|collect|preserv|snapshot|retain|gather)\w*)'
   - type: contains_any
     of: ["one instance", "single instance", "hold back", "holding back", "knowingly", "forgo", "traded for speed"]
   - type: contains_any
