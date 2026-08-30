@@ -44,8 +44,8 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 - Pinned VS Code beta packaging to the supported selector-based Copilot plugin format: the platform
   validator now rejects an Agent Plugins 1.0 `$schema` unless the component layout is deliberately
-  migrated, and the quickstart documents source and isolated-local plugin installation separately
-  from checkout-only agent discovery.
+  migrated, and the quickstart documents source, Copilot CLI marketplace, and isolated-local plugin
+  installation separately from checkout-only agent discovery.
 - Added a pinned VS Code agent-to-agent beta fixture and probe that separates complete plugin
   discovery, a real allowed fleet edge, a synthetic allowed child, and explicit forbidden-child
   rejection, while keeping the `adr` slash command out of the 33-skill inventory. Model-visible

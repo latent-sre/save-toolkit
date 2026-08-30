@@ -21,8 +21,16 @@ claude plugin install save-toolkit@latent-sre
 **VS Code / Copilot Chat (beta plugin):** confirm `chat.plugins.enabled` is on, run
 **Chat: Install Plugin From Source**, and enter `https://github.com/latent-sre/save-toolkit`.
 VS Code clones the repository and loads the generated agents and skills selected by the root
-[`plugin.json`](plugin.json). For an unpublished local branch, use an isolated VS Code profile and
-register the branch worktree with `chat.pluginLocations` instead:
+[`plugin.json`](plugin.json). Alternatively, install the same marketplace through GitHub Copilot
+CLI; VS Code automatically discovers Copilot CLI-installed plugins:
+
+```sh
+copilot plugin marketplace add latent-sre/save-toolkit
+copilot plugin install save-toolkit@latent-sre
+```
+
+For an unpublished local branch, use an isolated VS Code profile and register the branch worktree
+with `chat.pluginLocations` instead:
 
 ```json
 {
