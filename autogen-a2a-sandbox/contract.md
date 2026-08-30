@@ -244,4 +244,4 @@ sysexits-style codes and cannot publish success.
 
 | Version | Change | Propagated to |
 |---|---|---|
-| `autogen-a2a-interface/v1` | Initial two-container A2A/GraphFlow/final-gate contract | implementation pending |
+| `autogen-a2a-interface/v1` | Initial two-container A2A/GraphFlow/final-gate contract | canonical runtime, Compose activation, cases, and tests implemented; acceptance pending |

@@ -231,7 +231,8 @@ candidate. Do not start a duplicate implementation or schedule GraphRAG.
 **Status:** `active` (2026-08-30). The owner approved a new drill, the recommended combined
 Microsoft Agent Framework + AutoGen GraphFlow + A2A shape, autonomous work through final
 verification, and local green-boundary commits. Push and pull-request publication remain behind the
-final acceptance packet.
+final acceptance packet. The local implementation and complete mission transaction are green;
+independent exact-revision review and verification remain before owner acceptance.
 
 **Owner:** `software-engineer` owns the deterministic runtime, activation, cases, evidence, and
 tests. `latent-sre` accepts or rejects the exact final revision. Independent reviewers and the
@@ -279,9 +280,9 @@ container component tests, host tests, `git diff --check`, Gate A, independent e
 correctness/security review, and independent exact-revision verification pass with evidence scoped
 to what each check exercised. No result claims production readiness.
 
-**Next action:** Complete the exact dependency/import probe, then build the walking skeleton in the
-isolated `work/autogen-a2a-sandbox` worktree. Stop and reassess rather than adding compatibility
-wrappers or infrastructure if the current SDK contracts do not support the intended boundary.
+**Next action:** Bind independent correctness, security, and verification evidence to the final
+local candidate, resolve any reportable findings, then present the exact acceptance packet. Do not
+push or open a pull request before the owner accepts that packet.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
