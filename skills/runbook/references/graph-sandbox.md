@@ -6,12 +6,13 @@ status: active
 alert_names: [GraphSandboxRunNeedsAction]
 owner: observability-engineer
 severity: page
-source_revision: save-toolkit@964e9a4aca83c138dc2b5a483b2192422d5e361e
+source_revision: save-toolkit@a6968e821dd5e9449bdfa6f4005b0119081da3e9
 last_reviewed: null
 last_verified: 2026-08-30
 verification_evidence:
   - docs/reviews/2026-08-30-exercise-graph-003-current-runtime.md
-version: 1
+  - docs/reviews/2026-08-30-graph-003-current-runtime-evidence.md
+version: 2
 ---
 
 # Runbook: synthetic graph run needs action
@@ -22,6 +23,10 @@ Handle `GraphSandboxRunNeedsAction` for `checkout-payments-timeout-drill/v1` run
 offline `graph-sandbox/v1` Docker lab. Do not use this runbook for a production workflow, a live
 customer effect, a provider-backed model run, or direct Docker Compose operation.
 
+The frontmatter `source_revision` binds the runbook and evaluator bytes. Each supplied evidence
+bundle retains its separate sandbox runtime `source_revision`; the cited verification evidence
+states which runtime revision and cases were exercised.
+
 ## Trigger
 
 The synthetic alert is firing because the latest verified run did not end `SUCCEEDED` or an earlier
@@ -31,11 +36,13 @@ dashboard or notification route in this phase.
 ## Prerequisites
 
 - Access: local read access to the published evidence bundle; no credentials.
-- Tools: Python 3.12 and this exact repository revision.
+- Tools: Python 3.12 and the repository revision in `source_revision`, or a reviewed descendant
+  containing identical evaluator bytes.
 - Authority: inspection only. Do not replay an effect, raise a budget, self-approve, or operate a
   production target.
-- Stop if evidence validation fails, the bundle names another contract/revision, or the target is
-  not the offline synthetic lab.
+- Stop if evidence validation fails, the bundle names another contract, its runtime revision is not
+  covered by the cited verification evidence, or the target is not the offline synthetic lab. The
+  bundle's runtime revision is not expected to equal the runbook/tool `source_revision`.
 
 ## Triage / first checks
 
@@ -123,3 +130,4 @@ pager route.
 
 - Exact runtime contract: https://github.com/latent-sre/save-toolkit/blob/964e9a4aca83c138dc2b5a483b2192422d5e361e/graph-sandbox/contract.md
 - Accepted telemetry handoff: https://github.com/latent-sre/save-toolkit/blob/964e9a4aca83c138dc2b5a483b2192422d5e361e/docs/decisions/2026-08-26-graph-003-observability-preparation.md
+- Bound evaluator: https://github.com/latent-sre/save-toolkit/blob/a6968e821dd5e9449bdfa6f4005b0119081da3e9/skills/obs-alerting/scripts/graph_sandbox_alerts.py
