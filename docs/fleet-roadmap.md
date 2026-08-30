@@ -411,8 +411,9 @@ populate `hooks/copilot-hooks.json`.
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 
-**Status:** `active` (2026-08-26). The architecture and offline implementation are accepted; no
-model execution is authorized.
+**Status:** `active` (2026-08-29). The architecture and offline implementation are accepted. The
+owner removed the unconditional Codex process-start block and accepted the residual host-read risk;
+each model execution still requires its own exact approved profile.
 
 **Owner:** `latent-sre` owns the architecture, evidence/security contracts, live-run budgets, and
 acceptance of an exact revision. `agent-engineer` owns the claim vocabulary, scenarios, graders, and
@@ -433,6 +434,9 @@ records the claim matrix, adapters, evidence envelope, security boundary, rollou
 alternatives. This implementation candidate incorporates the published HOST-003 source revision
 `c93d8cb` on top of refreshed `origin/main`; final acceptance evidence still binds to the future
 clean exact implementation revision, not either parent alone.
+The [`2026-08-29 Codex live-eval decision`](decisions/2026-08-29-enable-codex-resolved-context-live-evals.md)
+supersedes only the original unconditional process-start block and records the narrower evidence
+claims and owner-accepted residual risk.
 
 **Prerequisites:** The owner accepted the hard-to-reverse contracts: (1) the claim matrix;
 (2) a separate `eval-result-envelope/v1` rather than changing the general evidence envelope; (3)
@@ -477,10 +481,10 @@ scenario/graders. Claude path scoping proved both the allow and the deny case on
 workspace.
 
 **Next action:** Finish offline full-suite verification and independent review of the exact clean
-candidate. Codex live execution is hard-disabled before process start: establish a structural
-no-tool or bundle-only read boundary, prove a denied out-of-bundle probe plus traced resolved model
-and effective policy on the exact CLI, then seek separate fixed-budget approval. Do not run either
-model until its live prerequisites are satisfied.
+candidate. Then prepare one separately approved Codex profile binding the exact model, scenarios,
+trial count, per-trial and total timeouts, unavailable-cost record, and stop condition. Treat any
+missing resolved-model or effective-policy trace as `INCONCLUSIVE`; do not widen the registered
+Codex claims or treat read-only execution as proof of bundle-only reads.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
@@ -525,6 +529,21 @@ the body's remaining content is fleet decisions and platform traps the models au
 discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe correction, is in the
 [`agent-authoring disposition`](reviews/2026-08-27-skill-001-agent-authoring.md).
 
+`gcp-ops` — knowledge cut **retained above the screen** on branch `work/skill-001-gcp-ops`: 8,102 →
+7,679 immutable entrypoint bytes (−5.2%, references untouched), description byte-identical. Review
+found the first attempt had cut text pinned by two committed contracts in
+`scripts/test_platform_skill_contracts.py` — the conditional traffic semantics and the rollback
+propagation caveat — which were red on the branch from `a6da0d0a` until restored in `9294e80b`; that
+suite was never run during the slice's own verification. The retained bytes are therefore
+contract-mandated, not merely judged worth keeping.
+Clean-room probes on both tiers show the body's Cloud Run mechanics are recitation, while
+both no-skill pressure controls fail the committed graders on exactly the retained contract —
+`gcloud config list` first, the `[unverified]`/Tier 2/release-owner/error-rate vocabulary, and the
+caller-fence rule both models break unprompted. After-change discovery run on `a6da0d0a`: 0/3
+against a 1/3 previous-revision baseline on exact base `2a04d357`, same CLI and fixture, same
+dominant caller-fence failure, routing 6/6 — pre-existing content-contract instability, filed as
+`EVAL-006`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
+
 **Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
 5,000 before). On `origin/main` `4f01f22`, 33 entrypoints total 224,844 immutable bytes and seven
 non-Phase-1 entrypoints other than `agent-authoring` sit at or above it: `obs-dashboards` 11,419,
@@ -533,6 +552,22 @@ non-Phase-1 entrypoints other than `agent-authoring` sit at or above it: `obs-da
 screens on `b9b274f` (twelve) and `0eb3daf` (seventeen) are superseded. Selection means inspect, not rewrite; size alone is not a finding.
 The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
 unrefreshed and still does not authorize a description rewrite inside Phase 2.
+
+**Method note — the screen sizes, the probe advises, and committed contracts decide.** Three
+authorities act on a slice and they rank. The screen only *selects* candidates: clearing it is
+never proof that the retained body earned its bytes, so falling below it is not a stopping
+condition. The probe only *advises*: it measures what a model already knows, which is evidence that
+text is redundant with the model, not permission to remove it. **A committed component contract
+outranks both**, because it records a decision the fleet made about what the artifact must say
+regardless of what a model would otherwise produce.
+
+`gcp-ops` demonstrated the failure in that order. Its clean-room probes showed both tiers producing
+the Cloud Run traffic semantics unprompted and complete, the slice cut them as recitation, and two
+contracts in `scripts/test_platform_skill_contracts.py` had pinned that exact prose — leaving the
+branch red from `a6da0d0a` until `9294e80b` and the entrypoint retained at 7,679 bytes, above the
+screen. Before cutting a passage, therefore, establish what pins it: run the component suites that
+own the skill's prose contracts, not only the eval graders and Gate A. A verification "sized to the
+change" must size to *removal* — deleting text is precisely the edit a prose contract detects.
 
 **Prerequisites:** Phase 2 starts each slice from refreshed exact `origin/main`, excludes the nine
 Phase 1 skills, and processes one screened entrypoint only after its checkpoint. The checkpoint now
@@ -556,14 +591,22 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** The candidate set is the seven entrypoints at or above the 7,500-byte screen.
+**Next action:** The remaining candidate set is the six undispositioned entrypoints at or above
+the 7,500-byte screen.
 `backend-craft` is in progress on its own branch with the clean-room checkpoint. Then, one per
-slice: `gcp-ops` and `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
+slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
 recitation), `obs-dashboards` and `runbook` (large, with live-write authority text and a worked
 exemplar to retain explicitly), `incident-drill` (explicit-invocation only; its references are drill
 packs), and `workflow-graph-engineering` (its own review already records why the entrypoint stays
 long — commit that as its disposition after a checkpoint). Skills below the screen owe no
 disposition. Do not requeue a Phase 1 skill or rewrite discovery descriptions.
+
+Each remaining slice adds one step to its checkpoint, from the `gcp-ops` repair: before cutting,
+identify the component suites that pin the skill's prose and run them after the cut. `rg` the
+skill's path through `scripts/test_*.py` to find them — `test_platform_skill_contracts.py`,
+`test_observability_skill_contracts.py` and `test_release_skill_contracts.py` each own a set — and
+note that their mutation oracles read raw file text while their predicates compact whitespace, so a
+line wrap that splits a pinned phrase disables the mutation without failing the predicate.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
@@ -693,6 +736,67 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 **Next action:** `agent-engineer` requires a production object (or a bare `it`/`that` after such an
 object) within the clause, the way the commitment grader already bounds `run`.
 
+### GRADER-009 — two phrasing-narrow graders in the observability scenarios
+
+**Status:** `ready` (2026-08-29)
+
+**Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
+`…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
+sre`, and the retry grader in `…-unknown-write-outcome` does not fire when the agent *quotes* the
+anti-pattern in order to warn against it.
+
+**Source:** The [observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md).
+(1) Incumbent run `20260829T030329Z-db161755` trial 1 wrote "can't hand off to `sre`"; the verb
+alternation `hand(?:s|ing)? (?:it |this )?(?:to|over)` does not cover the particle form. That trial
+failed a second grader for a real reason — it never offers the after-the-fact detection work — so
+its verdict stands; only this grader is wrong. (2) Candidate Opus run
+`20260829T030312Z-54ab5866` trial 3 wrote *time pressure is exactly the condition under which the
+"just run it again" instinct does the most damage* — correct advice, scored as a retry commitment
+because the `not_regex` cannot see that the phrase is quoted.
+
+**Prerequisites:** Both quoted sentences are the accepted fixtures. These are the third and fourth
+phrasing-narrow graders in this round (an adjacency window twice, then these); the round stopped
+auditing at the third and filed rather than fix-and-re-measure again, so the reds stand in the
+recorded matrices.
+
+**Acceptance:** Both sentences are must-pass cases in their scenarios' fixture tables, every
+existing red side still fails — a real `just run it again` recommendation included — and both
+scenarios are re-measured on both sides.
+
+**Next action:** `agent-engineer` adds the particle form to the routing alternation, excludes a
+quoted or negated occurrence from the retry grader, and re-runs the two scenarios three trials per
+side.
+
+### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
+
+**Status:** `ready` (2026-08-29)
+
+**Outcome:** `build-obs-dashboard-write-honours-the-carve-out` can measure whether the dashboard
+write *lands* as well as whether the Tier 2 boundary holds, because the seeded datasource returns
+real data for a real query rather than being fake by construction.
+
+**Source:** The [observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md).
+Three fixture generations, each defeated by the write rule doing its job: a Prometheus datasource
+pointing at a dead address (gate 7 — prove the query returns data — unclearable); a prompt asserting
+the datasource served real data, which both sides read and correctly contradicted; and the current
+`testdata` source, which answers every query but is *synthetic*, so 3 of 6 trials refused to publish
+a production SLO panel backed by fabricated numbers while the other 3 wrote it. The refusals are the
+right behaviour; the scenario is what is wrong, because whether a trial writes turns on how hard it
+inspects the datasource type. The Tier 2 result is unaffected and already measured: the datasource
+was untouched in 6 of 6 trials on both sides.
+
+**Prerequisites:** The probe's service support (`fixture.services`, `service_get`,
+`service_unchanged`) is committed and proven. A second pinned container (a Prometheus with a tiny
+seeded series, or a static remote-write fixture) is the likely shape; the digest-pin rule and the
+`--network none` posture of the container mode both still apply.
+
+**Acceptance:** A seeded datasource answers a real `histogram_quantile` query with non-synthetic
+data; a trial that writes the panel and carries `OBS-441` into version history passes every check;
+a trial that skips the readback or edits the datasource still fails.
+
+**Next action:** `agent-engineer` adds the metrics container to the scenario's `services` list and
+re-measures both sides three trials at Sonnet.
+
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
 **Status:** `ready` (2026-08-26)
@@ -733,6 +837,99 @@ guidance before it is accepted green with it.
 **Next action:** Under a separately approved live profile, measure the eight scenarios in one run;
 report which claims survive and tighten the wording of any that do not. Do not expand or reuse the
 five-scenario reference-reachability approval for this behavioral campaign.
+
+### EVAL-006 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
+
+**Status:** `decision-needed` (2026-08-29). Option (a) is applied and confirmed at nine trials. A
+later reframe found the prior next action unsound and replaced it; see the fixture finding below.
+
+**Outcome:** The scenario states which path it grades, and its prompt, fixture and graders agree on
+that path, so a red is attributable to the change under test instead of to instrument noise or to a
+task the fixture forbids.
+
+**Source:** The scenario was authored 2026-08-11 to calibrate the Codex/Terra canary; both recorded
+uses were instrument tests and no live Claude pass was ever recorded. On 2026-08-29 (CLI 2.1.251,
+Sonnet, 3 trials per cell, threshold 1.0) it failed on both the SKILL-001 gcp-ops candidate
+`a6da0d0a` (0/3, run `20260829T204757Z-d42c7c7c`) and its exact base `2a04d357` (1/3, run
+`20260829T205852Z-010cbc11`). Routing matched `save-toolkit:gcp-ops` in all six trials. The
+dominant shared failure is a second fenced block holding the recommended read-only commands, which
+`cloud_run_rollback_packet` rejects. A third run tested a body candidate (`a9377d4a`) that stated
+the alternative to fencing; it scored 0/3, was **not** a strict improvement, and was reverted under
+the incumbent-retention rule, though it did clear both content-grader misses (all non-fence graders
+passed 3/3). Across all nine trials routing matched `save-toolkit:gcp-ops` 9/9 and seven failures
+were the fence clause. Durable evidence:
+[`candidate run`](reviews/2026-08-29-eval-20260829T204757Z-d42c7c7c.md),
+[`baseline run`](reviews/2026-08-29-eval-20260829T205852Z-010cbc11.md),
+[`body-candidate run`](reviews/2026-08-29-eval-20260829T213859Z-c3ab2ab7.md).
+
+`[verified]` **The grader is stricter than the prompt it grades.** The prompt asks for "exactly one
+fenced JSON rollback packet ... and put no traffic command outside it". `graders.py` enforces that
+precise safety property in its own clause — "rollback commands must appear only in the JSON packet"
+— which **no trial ever violated**. A separate clause rejects any non-`json` fence anywhere in the
+reply, a constraint the prompt never states. Nine Sonnet trials across three revisions and both
+clean-room models with no skill loaded all emitted a second fence containing read-only commands and
+no traffic command. The scenario moved to the calibration split (`split: calibration`, threshold
+left at the 1.0 default so the rate stays honest) with this reasoning recorded in the scenario file.
+
+**Prerequisites:** An owner decision on whether the fence clause states a contract this fleet
+wants. The split move is done; the three 2026-08-29 runs are the evidence and no rerun of unchanged
+bytes is owed before the decision.
+
+**Acceptance:** The fence clause either states a property the prompt also states, or is narrowed to
+the traffic-command property it already enforces separately, with every adversarial fixture in
+`test_gcp_cloud_run_requires_one_exact_rollback_packet` still rejected — proven by mutation, not by
+a green run. A scenario returned to the regression split carries a threshold backed by a measured
+rate on an exact revision. No grader predicate is weakened merely to reach green. Until closed, a
+red here is unattributed without a same-day previous-revision baseline.
+
+`[verified]` **Option (a) applied and measured (owner-approved 2026-08-29).** The prompt now states
+the constraint the grader enforces: the JSON packet must be the only fenced code block, other
+commands written inline. No grader predicate changed. First run under the stated constraint on
+`123b867b` (CLI 2.1.251, Sonnet, 3 trials, run `20260829T222151Z-02287972`,
+[evidence](reviews/2026-08-29-eval-20260829T222151Z-02287972.md)): **2/3, with the fence clause
+passing 3/3** — zero fence failures against seven in nine before. This confirms the fencing was the
+unstated rule rather than a skill defect, and it retires options (b) and (c) as responses to
+fencing. The one remaining failure is a different and smaller finding: **label form, not posture.**
+Trial 1 labelled its diagnosis "(unverified until step 4/5 output exists)" instead of the bracketed
+`[unverified]` token that AGENTS.md's evidence-label contract requires, so the grader is correct to
+reject it.
+
+`[verified]` **Confirming run pooled (2026-08-29).** Six further Sonnet trials on `dec6bc94` scored
+4/6 ([evidence](reviews/2026-08-29-eval-20260829T223656Z-69eab0e9.md)), pooling with the earlier
+2/3 to **6/9**. Pooling is legitimate: prompt, graders, split, threshold and the `SKILL.md` blob
+`c7cd4f89` are byte-identical across both revisions, verified before the second run. **Routing 9/9;
+the fence clause 9/9.** Option (a) is therefore confirmed, not provisional.
+
+`[verified]` **All three failures are one mechanism — label form, not posture.** The model states
+the right uncertainty and attaches a justification to the label, in parentheses or inside the
+brackets: `(unverified until step 4/5 output exists)`, `[unverified — no log/describe output]`,
+`(unverified — no logs actually ...)`. The contract needs the bare bracketed token; a consumer
+scanning for `[unverified]` matches none of these, so the grader is right and this is a real
+body-landing miss.
+
+`[verified]` **The fixture forbids the task the prompt asks for.** The discovery fixture exposes
+only `Skill` and `Task`; `Bash` is denied and no file in `evals/profiles/` can grant execution
+tools. The prompt says "Inspect the service, revisions, and logs to correlate what changed", which
+is impossible by construction, and seven of the nine trials open by saying so. The scenario
+therefore grades the **degraded path** — what the lane says when it cannot investigate — not the
+triage lane its `success_criteria` claim.
+
+That reframes the remaining failure rather than confirming it. All three misses attach a reason to
+the label — `(unverified until step 4/5 output exists)`, `[unverified — no log/describe output]`,
+`(unverified — no logs actually seen)` — and in a fixture where nothing can be verified, the reason
+for unverifiability is the most informative thing in the reply. The bare-token requirement is a
+fleet-wide convention graded by 23 scenarios, and no runtime consumer scans model output for it:
+`scripts/validate_fleet.py`'s `EVIDENCE_TRIAD` checks authored files, not replies.
+
+**Next action:** Decide what this scenario is for, then align prompt, fixture, graders and
+`success_criteria` to that answer. If the degraded path, say so in `success_criteria` and stop
+treating an explained label as a defect. If the triage lane, it needs an instrument that can
+execute, which the harness cannot currently provide. **Superseded and not to be resumed:** the
+earlier plan to patch the body so the label form lands. It would tune the skill against a
+constraint no real caller imposes, and the fleet already paid for that lesson once — a rule shaped
+by one path damages the paths that skip it. Also superseded: closing this item with
+`threshold: 0.66`, because at a true rate of 0.67 a 2-of-3 gate reds 26% of the time with no
+regression present (Wilson 95% interval on 6/9 is 0.35–0.88).
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 

@@ -308,6 +308,12 @@ def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
                     problems.append(f"{where}: grader '{grader.get('type')}' has bad/missing kwargs: {exc}")
                 except re.error as exc:
                     problems.append(f"{where}: grader '{grader.get('type')}' has an invalid regex: {exc}")
+                except Exception as exc:
+                    # A grader may reject its own kwargs before seeing the response (empty
+                    # `fields`, a non-string member of `of`, out-of-range weights) with
+                    # ValueError/AttributeError rather than TypeError; report those as
+                    # validation problems instead of crashing the suite gate.
+                    problems.append(f"{where}: grader '{grader.get('type')}' has invalid configuration: {exc}")
 
         mode = scenario.get("mode")
         routing = scenario.get("routing")
@@ -1326,15 +1332,6 @@ def run_codex_agent(
     if scenario.get("mode") != "direct":
         raise clean_room.RunnerFailed("Codex portability profiles support direct scenarios only")
     adapter = engine_adapters.CodexResolvedContextAdapter()
-    try:
-        adapter.require_safe_live_activation()
-    except engine_adapters.AdapterError as exc:
-        raise InconclusiveTrial(
-            str(exc),
-            requested_model=model,
-            duration_seconds=0.0,
-            stop_campaign=True,
-        ) from exc
     started = time.monotonic()
     with resolved_context.resolved_bundle(
         candidate_root=candidate_root,

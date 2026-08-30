@@ -114,6 +114,64 @@ class ScenarioValidationTests(unittest.TestCase):
         problems = run_evals.validate([scenario])
         self.assertTrue(any("agent-target discovery is calibration-only" in p for p in problems))
 
+    def test_malformed_grader_configuration_reports_instead_of_raising(self) -> None:
+        """A grader spec failing its own pre-response validation is a suite problem, not a crash.
+
+        The probe narrowed on TypeError and re.error only, but several graders raise
+        ValueError/AttributeError for values that pass the type check (empty `fields`, a
+        non-string member of `of`, out-of-range weights). Those escaped and turned a bad
+        scenario file into a raw traceback instead of the EVAL SUITE INVALID report.
+        """
+        malformed = (
+            ({"type": "exact_fields", "fields": {}}, "invalid configuration"),
+            ({"type": "exact_fields", "fields": {"a": 123}}, "invalid configuration"),
+            (
+                {
+                    "type": "json_artifact_statuses",
+                    "artifacts": [],
+                    "allowed_statuses": ["ok"],
+                    "allowed_evidence": ["e"],
+                },
+                "invalid configuration",
+            ),
+            (
+                {
+                    "type": "cloud_run_rollback_packet",
+                    "required_weight": 150,
+                    "required_trailing_flags": {},
+                    "required_service": "svc-a",
+                    "forward_target": "rev-a",
+                    "inverse_target": "rev-b",
+                },
+                "invalid configuration",
+            ),
+            (
+                {"type": "recovery_progress_consistency", "elapsed_seconds": -1, "remaining_seconds": 5},
+                "invalid configuration",
+            ),
+            ({"type": "embedded_exact_json", "fields": {"v": float("nan")}}, "invalid configuration"),
+            ({"type": "contains_all", "of": ["ok", 1]}, "invalid configuration"),
+        )
+        for spec, expected in malformed:
+            with self.subTest(spec=spec):
+                problems = run_evals.validate([self._scenario(graders=[spec])])
+                self.assertTrue(
+                    any(f"grader '{spec['type']}'" in p and expected in p for p in problems),
+                    problems,
+                )
+        self.assertTrue(
+            any(
+                "invalid regex" in p
+                for p in run_evals.validate([self._scenario(graders=[{"type": "regex", "pattern": "("}])])
+            )
+        )
+        self.assertTrue(
+            any(
+                "bad/missing kwargs" in p
+                for p in run_evals.validate([self._scenario(graders=[{"type": "contains_all"}])])
+            )
+        )
+
     def test_scenario_id_cannot_escape_artifact_directory(self) -> None:
         problems = run_evals.validate([self._scenario(id="../escape")])
         self.assertTrue(any("safe lowercase slug" in p for p in problems))
@@ -1552,13 +1610,49 @@ class ArtifactTests(unittest.TestCase):
 
 
 class AggregateVerdictTests(unittest.TestCase):
-    def test_codex_live_blocker_prevents_subprocess_start(self) -> None:
+    def test_owner_authorized_codex_trial_reaches_the_read_only_subprocess(self) -> None:
         scenario = {"mode": "direct", "prompt": "untrusted candidate prompt"}
-        with mock.patch.object(run_evals.subprocess, "run") as child:
-            with self.assertRaisesRegex(
-                run_evals.InconclusiveTrial, "Codex live execution is disabled"
-            ) as caught:
-                run_evals.run_codex_agent(
+        events = (
+            {
+                "type": "thread.started",
+                "model": "gpt-test-resolved",
+                "effective_policy": run_evals.engine_adapters.CODEX_EFFECTIVE_POLICY,
+            },
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "agent_message",
+                    "text": json.dumps({"response": "bounded answer", "reference_canaries": []}),
+                },
+            },
+            {"type": "turn.completed", "usage": {"input_tokens": 2, "output_tokens": 2}},
+        )
+        completed = mock.Mock(
+            returncode=0,
+            stdout="\n".join(json.dumps(event) for event in events),
+            stderr="",
+        )
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            bundle = run_evals.resolved_context.ResolvedBundle(
+                root=root,
+                tree_sha256="a" * 64,
+                policy_sha256="b" * 64,
+                files=("response-schema.json",),
+                canaries={},
+            )
+            bundle_context = mock.MagicMock()
+            bundle_context.__enter__.return_value = bundle
+            bundle_context.__exit__.return_value = False
+            with (
+                mock.patch.object(
+                    run_evals.resolved_context,
+                    "resolved_bundle",
+                    return_value=bundle_context,
+                ),
+                mock.patch.object(run_evals.subprocess, "run", return_value=completed) as child,
+            ):
+                execution = run_evals.run_codex_agent(
                     scenario,
                     candidate_root=Path("/does/not/matter"),
                     candidate_sha="a" * 40,
@@ -1568,8 +1662,12 @@ class AggregateVerdictTests(unittest.TestCase):
                     codex_bin="codex",
                     env={},
                 )
-        self.assertTrue(caught.exception.stop_campaign)
-        child.assert_not_called()
+        child.assert_called_once()
+        command = child.call_args.args[0]
+        self.assertEqual("read-only", command[command.index("--sandbox") + 1])
+        self.assertIn('approval_policy="never"', command)
+        self.assertEqual("bounded answer", execution.parsed.response)
+        self.assertEqual("gpt-test-resolved", execution.parsed.model)
 
     def test_reported_cost_budget_is_enforced_at_trial_boundary(self) -> None:
         profile = run_evals.execution_profiles.ExecutionProfile(
