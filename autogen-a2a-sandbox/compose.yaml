@@ -1,0 +1,113 @@
+name: ${SANDBOX_PROJECT:?SANDBOX_PROJECT is required}
+
+services:
+  worker:
+    image: ${SANDBOX_IMAGE:?SANDBOX_IMAGE is required}
+    command:
+      - python
+      - -m
+      - interop_sandbox.runtime_cli
+      - worker
+      - --state-directory
+      - /state
+      - --agent-url
+      - http://worker:8081/a2a/jsonrpc
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8081"
+    user: "65532:65532"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    cpus: 0.75
+    mem_limit: 512m
+    pids_limit: 64
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    volumes:
+      - type: volume
+        source: state
+        target: /state
+    networks:
+      - sandbox
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -m
+        - interop_sandbox.runtime_cli
+        - healthcheck
+        - --url
+        - http://127.0.0.1:8081/readyz
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 2s
+    restart: "no"
+
+  orchestrator:
+    image: ${SANDBOX_IMAGE:?SANDBOX_IMAGE is required}
+    command:
+      - python
+      - -m
+      - interop_sandbox.runtime_cli
+      - orchestrate
+      - --mode
+      - ${SANDBOX_MODE:?SANDBOX_MODE is required}
+      - --source-revision
+      - ${SANDBOX_SOURCE_REVISION:?SANDBOX_SOURCE_REVISION is required}
+      - --run-id
+      - ${SANDBOX_RUN_ID:?SANDBOX_RUN_ID is required}
+      - --case
+      - ${SANDBOX_CASE_ID:?SANDBOX_CASE_ID is required}
+      - --decision
+      - ${SANDBOX_DECISION:?SANDBOX_DECISION is required}
+      - --worker-url
+      - http://worker:8081
+      - --state-directory
+      - /state
+      - --evidence-directory
+      - /evidence
+      - --cases-directory
+      - /opt/interop-sandbox/cases
+    user: "65532:65532"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    cpus: 0.75
+    mem_limit: 512m
+    pids_limit: 64
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    volumes:
+      - type: volume
+        source: state
+        target: /state
+      - type: volume
+        source: evidence
+        target: /evidence
+    networks:
+      - sandbox
+    depends_on:
+      worker:
+        condition: service_healthy
+        required: true
+    restart: "no"
+
+networks:
+  sandbox:
+    name: ${SANDBOX_NETWORK:?SANDBOX_NETWORK is required}
+    internal: true
+
+volumes:
+  state:
+    name: ${SANDBOX_STATE_VOLUME:?SANDBOX_STATE_VOLUME is required}
+  evidence:
+    name: ${SANDBOX_EVIDENCE_VOLUME:?SANDBOX_EVIDENCE_VOLUME is required}
