@@ -311,12 +311,14 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
             failures,
         )
     if "compatibility" in values:
-        _yaml_string(
+        compatibility = _yaml_string(
             values["compatibility"],
             styles.get("compatibility"),
             f"{where}: compatibility",
             failures,
         )
+        if compatibility and len(compatibility) > 500:
+            failures.append(f"{where}: compatibility exceeds 500 characters")
     raw_manual_only = values.get("disable-model-invocation")
     if expected_name in MANUAL_ONLY:
         if raw_manual_only != "true":

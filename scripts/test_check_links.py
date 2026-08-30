@@ -165,6 +165,18 @@ class LinkCheckerTests(Fixture):
             failures,
         )
 
+    def test_skill_compatibility_over_500_characters_is_rejected(self):
+        frontmatter = CLEAN_FRONTMATTER.replace(
+            'argument-hint: "[the probe]"',
+            'argument-hint: "[the probe]"\ncompatibility: "' + "x" * 501 + '"',
+        )
+        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any("compatibility exceeds 500 characters" in item for item in failures),
+            failures,
+        )
+
     def test_manual_only_control_is_required_inside_frontmatter_and_cannot_widen(self):
         manual_frontmatter = CLEAN_FRONTMATTER.replace(
             "name: probe-skill", "name: service-lifecycle"

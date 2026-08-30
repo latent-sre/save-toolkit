@@ -29,7 +29,7 @@ authoritative?*
 | Allowlist (not denylist), fail-closed; unparseable Bash → deny | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | Agent `tools:` must be explicit (omission inherits every tool; validator rejects omission) | `validate_fleet.py`; frontmatter reference |
 | Agent `description` ≤ 1024 UTF-8 bytes; kebab-case name matches filename | `validate_fleet.py`; frontmatter reference |
-| Skill `name` is kebab-case, matches its parent directory, and is at most 64 characters so VS Code does not silently skip it | `check_links.py`; [`skill-portability.md`](../skills/agent-authoring/references/skill-portability.md) |
+| Skill `name` is kebab-case, matches its parent directory, and is at most 64 characters; optional `compatibility` is at most 500 characters | `check_links.py`; [`skill-portability.md`](../skills/agent-authoring/references/skill-portability.md) |
 | A generated Copilot `.agent.md` Markdown prompt body must stay within the documented 30,000-character per-profile maximum | `render_copilot_agent` in `generate_platform_adapters.py`; [`skill-portability.md`](../skills/agent-authoring/references/skill-portability.md) |
 | Skill `references/` files must be linked from `SKILL.md` or they ship unreachable | [`AGENTS.md`](../AGENTS.md) Start here; [`check_links.py`](../scripts/check_links.py) |
 | Team query catalogs carry names, locators, and query text only — never credentials, tokens, session/user identifiers, or raw payloads; every entry states its question, applicability, reading, healthy shape, owner, and verification | [`check_query_catalog.py`](../scripts/check_query_catalog.py); [`query-catalog.md`](../skills/obs-logs/references/query-catalog.md) |
