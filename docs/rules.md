@@ -21,6 +21,7 @@ authoritative?*
 | After canonical edits are complete and before push, run `generate_platform_adapters.py --write` and commit projections with source | [`CONTRIBUTING.md`](../CONTRIBUTING.md) Change-specific evidence |
 | Never hand-edit generated roots: `.github/agents/`, `platforms/copilot/skills/` | [`AGENTS.md`](../AGENTS.md) Hard rules |
 | The `plugin.json` manifests are per-host selectors, not duplication — each must exist, share the identity fields, and keep host-specific component paths; never dedupe or drop one | `validate_platform_contracts` in `generate_platform_adapters.py`, run by `validate_fleet.py` |
+| Root `plugin.json` stays in the supported selector-based Copilot format until a coordinated Agent Plugins 1.0 layout migration; the Agent Plugins `$schema` is a format discriminator and must not be added to the current manifest | Packaging ADR; `validate_platform_contracts` |
 | Byte-for-byte adapter drift fails the gate | Packaging ADR; `validate_fleet.py` |
 | Plugin agents ignore `hooks:`, `mcpServers:`, `permissionMode:`; those keys are forbidden in canonical frontmatter | [`AGENTS.md`](../AGENTS.md) Hard rules; [`claude-code-frontmatter.md`](../skills/agent-authoring/references/claude-code-frontmatter.md) |
 | Bash guard lives only in [`hooks/hooks.json`](../hooks/hooks.json), scoped to exact guarded `agent_type` values | Packaging ADR; [`readonly-guard.py`](../scripts/readonly-guard.py) |
@@ -28,6 +29,7 @@ authoritative?*
 | Allowlist (not denylist), fail-closed; unparseable Bash → deny | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | Agent `tools:` must be explicit (omission inherits every tool; validator rejects omission) | `validate_fleet.py`; frontmatter reference |
 | Agent `description` ≤ 1024 UTF-8 bytes; kebab-case name matches filename | `validate_fleet.py`; frontmatter reference |
+| Skill `name` is kebab-case, matches its parent directory, and is at most 64 characters; optional `compatibility` is a single-line scalar of at most 500 characters | `check_links.py`; [`skill-portability.md`](../skills/agent-authoring/references/skill-portability.md) |
 | A generated Copilot `.agent.md` Markdown prompt body must stay within the documented 30,000-character per-profile maximum | `render_copilot_agent` in `generate_platform_adapters.py`; [`skill-portability.md`](../skills/agent-authoring/references/skill-portability.md) |
 | Skill `references/` files must be linked from `SKILL.md` or they ship unreachable | [`AGENTS.md`](../AGENTS.md) Start here; [`check_links.py`](../scripts/check_links.py) |
 | Team query catalogs carry names, locators, and query text only — never credentials, tokens, session/user identifiers, or raw payloads; every entry states its question, applicability, reading, healthy shape, owner, and verification | [`check_query_catalog.py`](../scripts/check_query_catalog.py); [`query-catalog.md`](../skills/obs-logs/references/query-catalog.md) |

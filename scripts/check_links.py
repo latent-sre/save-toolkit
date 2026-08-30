@@ -280,10 +280,13 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
     name = _yaml_string(
         values.get("name", ""), styles.get("name"), f"{where}: name", failures
     )
-    if name and (not NAME_RE.fullmatch(name) or name != expected_name):
-        failures.append(
-            f"{where}: name must be kebab-case and equal directory '{expected_name}'"
-        )
+    if name:
+        if len(name) > 64:
+            failures.append(f"{where}: name exceeds 64 characters")
+        if not NAME_RE.fullmatch(name) or name != expected_name:
+            failures.append(
+                f"{where}: name must be kebab-case and equal directory '{expected_name}'"
+            )
     description = _yaml_string(
         values.get("description", ""),
         styles.get("description"),
@@ -308,12 +311,20 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
             failures,
         )
     if "compatibility" in values:
-        _yaml_string(
+        compatibility_style = styles.get("compatibility")
+        compatibility = _yaml_string(
             values["compatibility"],
-            styles.get("compatibility"),
+            compatibility_style,
             f"{where}: compatibility",
             failures,
         )
+        if compatibility_style == "block":
+            failures.append(
+                f"{where}: compatibility must use a single-line scalar so its "
+                "500-character limit is measured exactly"
+            )
+        elif compatibility and len(compatibility) > 500:
+            failures.append(f"{where}: compatibility exceeds 500 characters")
     raw_manual_only = values.get("disable-model-invocation")
     if expected_name in MANUAL_ONLY:
         if raw_manual_only != "true":

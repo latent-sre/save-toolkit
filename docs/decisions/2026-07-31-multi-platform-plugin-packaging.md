@@ -41,6 +41,14 @@ guard that never runs.
    authoritative.
 7. Generated drift, manifest parity, hook wiring, authority, exact MCP grants, and installer collision
    behavior are structural gates.
+8. The root `plugin.json` deliberately remains in the supported Copilot plugin format. Current VS
+   Code [auto-detects the plugin format](https://code.visualstudio.com/docs/agent-customization/agent-plugins#_plugin-formats):
+   adding the Agent Plugins 1.0 `$schema` changes discovery semantics rather than adding inert
+   validation metadata. Agent Plugins 1.0 would require portable skills under root `skills/` and
+   Copilot-specific agents and hooks under `com.github.copilot/`; this fleet instead selects its
+   generated `.github/agents/`, `platforms/copilot/skills/`, and Copilot hook file explicitly.
+   `validate_platform_contracts` rejects a mixed-format manifest. A future Agent Plugins migration
+   must move every producer and consumer together rather than changing the schema alone.
 
 ## Alternatives considered
 
@@ -58,6 +66,9 @@ guard that never runs.
   explicitly cooperative where the host lacks equivalent controls.
 - Every canonical change creates a larger generated diff; generated markers and linguist attributes
   keep review focused on source.
+- VS Code beta installs can use **Chat: Install Plugin From Source** or an isolated local
+  `chat.pluginLocations` entry. Opening this repository as the workspace is a separate projection
+  smoke path, not proof that plugin installation works.
 - Plugin/CLI upgrades must rerun the host validators and the manual runtime probe before their pins or
   contract claims change.
 

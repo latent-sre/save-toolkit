@@ -273,6 +273,20 @@ rejection and child-list forwarding in `d679b159` after that installed build; th
 source at `004a1fbb` contains that enforcement. This source delta is not a live forbidden-call
 observation and does not establish which released build first carries it.
 
+The
+[`2026-08-30 stable plugin/delegation transcript`](reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md)
+and its six validated envelopes bind a disposable VS Code 1.135.0 run to candidate `0c6c4dc2`.
+`[verified]` Plugin registration, all 8 agents, all 33 skills, the separate `save-toolkit:adr`
+prompt, and the synthetic allowed-child call passed. The real plugin `software-engineer` path was
+`inconclusive`: its first response simulated the handoff and the single stronger retry stated that
+no `agent` tool was available, but neither response produced a host tool trace, so no `reviewer`
+child ran and host availability was not established. The paired forbidden arm failed: despite the
+coordinator allowing only `host002-allowed`, the host invoked `host002-forbidden` and returned its
+fixed marker. Current official docs and the exact installed source support the generated `agent`
+alias and bare child names, so no repository-side syntax defect was identified. The no-call cause
+remains `[unverified]`; the forbidden execution is live confirmation of the installed-build boundary
+predicted by static inspection.
+
 The exact-candidate Claude clean-room receiver campaign ran 20/20 approved Sonnet trials but failed
 its declared contract: reviewer passed 5/5 while scribe, software-engineer, and SRE each passed 0/5.
 All 40 action/authority contradiction checks in the three new scenarios passed, but bare-scalar
@@ -307,14 +321,17 @@ evidence. Any hook-portability finding is evidence only; wiring a Copilot hook i
 needing its own review. Exact-agent scope may be established by a hook attached to the selected
 custom agent; the global hook payload does not need to invent an identity field it does not carry.
 
-**Next action:** In an approved disposable VS Code profile, run the paired allowed/forbidden
-subagent canary on installed 1.135.0 and repeat it on the first installed build proven to contain
-upstream `d679b159`. Capture the actual tool result rather than inferring authority from the
-model-visible list. Then run the distinct agent-scoped hook canary: the custom canary must deny a
-harmless terminal request with its fixed marker while the built-in Agent control remains
-unaffected. Keep invocation authority open until real calls or host denials are observed. Do not
-run a third identical picker retry, infer runtime enforcement from source alone, substitute a
-prompt-file override, or populate `hooks/copilot-hooks.json`.
+**Next action:** On the first installed build proven to contain upstream `d679b159`, rerun all six
+criteria in the
+[`VS Code plugin discovery and agent-delegation probe`](probes/host-002-vscode-agent-delegation.md),
+including the real plugin `software-engineer` -> `reviewer` edge and the paired allowed/forbidden
+canary. If the real plugin edge still lacks the `agent` tool there, isolate plugin-agent tool
+exposure from model choice and selection state before changing the fleet graph. Then run the
+distinct agent-scoped hook canary: the custom canary must deny a harmless terminal request with its
+fixed marker while the built-in Agent control remains unaffected. Keep invocation authority open
+until real calls or host denials are observed. Do not run a third picker retry, infer runtime
+enforcement from source alone, substitute a prompt-file override, or populate
+`hooks/copilot-hooks.json`.
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 

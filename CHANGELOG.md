@@ -49,6 +49,19 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Pinned VS Code beta packaging to the supported selector-based Copilot plugin format: the platform
+  validator now rejects an Agent Plugins 1.0 `$schema` unless the component layout is deliberately
+  migrated, and the quickstart documents source, Copilot CLI marketplace, and isolated-local plugin
+  installation separately from checkout-only agent discovery.
+- Added a pinned VS Code agent-to-agent beta fixture and probe that separates complete plugin
+  discovery, a real allowed fleet edge, a synthetic allowed child, and explicit forbidden-child
+  rejection, while keeping the `adr` slash command out of the 33-skill inventory. Model-visible
+  filtering and human-selected handoff buttons no longer count as proof of model-driven delegation
+  enforcement.
+- Added the missing portable skill-metadata gates: names stop at 64 characters and optional
+  `compatibility` text must be a single-line scalar stopping at 500, so an invalid or
+  normalization-bypassing generated skill cannot pass locally and then disappear silently in
+  Copilot.
 - Raised SKILL-001's advisory Phase 2 entrypoint screen from 7,500 to 7,800 immutable bytes and
   remeasured the exact campaign head through Git objects. The six undispositioned slices are
   unchanged; `gcp-ops` and `incident-investigation` are below the new screen while `obs-alerting`
