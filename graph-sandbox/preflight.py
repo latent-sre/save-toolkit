@@ -301,6 +301,9 @@ def run_process(
     stdin: bytes | None = None,
     binary: bool = False,
 ) -> subprocess.CompletedProcess[Any]:
+    text_options: dict[str, str] = {}
+    if not binary:
+        text_options = {"encoding": "utf-8", "errors": "replace"}
     try:
         return subprocess.run(
             list(arguments),
@@ -311,6 +314,7 @@ def run_process(
             timeout=timeout_seconds,
             env=dict(environment),
             shell=False,
+            **text_options,
         )
     except subprocess.TimeoutExpired as exc:
         raise CommandTimeoutError(f"command timed out: {arguments[0]}") from exc

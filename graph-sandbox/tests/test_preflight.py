@@ -238,6 +238,21 @@ class PreflightTests(unittest.TestCase):
         self.assertNotEqual(direct.returncode, 0)
         self.assertIn("activation_guard", direct.stderr)
 
+    def test_run_process_decodes_malformed_command_output_without_host_locale_failure(self) -> None:
+        result = run_process(
+            [
+                sys.executable,
+                "-c",
+                "import os; os.write(1, bytes([0x81])); os.write(2, b'ok')",
+            ],
+            environment=os.environ,
+            timeout_seconds=10,
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "\ufffd")
+        self.assertEqual(result.stderr, "ok")
+
     def test_checked_in_compose_renders_to_the_reviewed_model(self) -> None:
         rendered = render_compose(
             SANDBOX_ROOT / "compose.yaml",
