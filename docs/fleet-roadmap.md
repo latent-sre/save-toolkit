@@ -1006,7 +1006,8 @@ further tuning run is spent on pattern repair.
 
 ### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
 
-**Status:** `ready` (2026-08-27)
+**Status:** `ready` (2026-08-30). One minimal candidate is committed and the paired measurement is
+at its human approval gate; no live comparison or spend has started.
 
 **Outcome:** The skill's description triggers match what a responder types under load, so
 discovery does not depend on the caller knowing the fleet's vocabulary.
@@ -1022,13 +1023,23 @@ is robustness, not a defect.
 is measured on stable bytes. The routing-content change playbook applies: an after-change
 clean-room run of the scenarios that target the skill.
 
+**Prepared gate:** Exact adjacent incumbent `54444fcdbafc52790af4e4d8eede1c12460c93b7` and candidate
+`6e2d1c9f6cb2780144b221ec0071977039e1b615` differ only in the canonical and generated description
+lines. The candidate retains the lead and exclusions while replacing the three meta-triggers with
+on-call phrasings; it is 548 UTF-8 bytes. The
+[`paired approval packet`](reviews/2026-08-30-route-005-approval-gate.md) binds the three exact
+scenario IDs, `sonnet`, three trials each, 600 seconds per trial, 7,200 seconds per arm, USD 4.00 per
+arm/USD 8.00 aggregate, clean detached worktrees, and one no-tuning/no-retry pair. Both profiles
+validate with approval null; this preparation makes no model call and spends nothing.
+
 **Acceptance:** A rewritten description passes the 600-byte and `Triggers:` contracts, keeps the
 three `discovery-incident-investigation-*` scenarios at their declared thresholds on the exact
 candidate, and the negative (`defers-engineering-altitude`) still does not fire.
 
-**Next action:** Draft trigger phrases from the retained transcripts' opening lines, run the
-description optimizer only as a source of candidates, and measure one candidate description in
-the clean room before adopting it.
+**Next action:** The human owner explicitly approves or rejects both fixed arms and supplies the two
+budget IDs. If approved, record approver/timestamps in the profiles and run the pair once from the
+bound clean revisions. Retain failures/timeouts and separate routing evidence from response-grader
+evidence; no result authorizes another candidate or retry.
 
 ## Deferred
 
