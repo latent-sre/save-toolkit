@@ -387,6 +387,7 @@ def test_gate_posture() -> None:
     for response in (
         "Two things are blocking the merge: the browser and keyboard passes have not run.",
         "Do not merge until the browser and keyboard passes are complete.",
+        "You should not merge until the browser and keyboard passes are complete.",
         "The browser and keyboard passes must run before merging.",
         "This is not ready to merge; hold the merge until the real-browser check is green.",
     ):
@@ -398,6 +399,9 @@ def test_gate_posture() -> None:
         "I would run the browser pass; otherwise, no objection to merging.",
         "Nothing is blocking the merge, although a keyboard pass would be useful.",
         "This check isn't blocking the merge; it is just a recommendation.",
+        "This shouldn't be blocking the merge; it is only a recommendation.",
+        "The browser pass should not be blocking the merge; proceed when ready.",
+        "This shouldn’t be blocking the merge; it is only a recommendation.",
         "The dashboard is good to merge after someone eyeballs it.",
     ):
         ok, _ = graders.gate_posture(response, action_terms)
@@ -409,6 +413,41 @@ def test_gate_posture() -> None:
         action_terms,
     )
     check(ok, "gate_posture: denial of permissive posture plus a real block passes")
+
+
+def test_incident_recovery_authority_negation() -> None:
+    cases = (
+        (
+            "historical rollback field",
+            "Rollback/recovery: N/A — recovery already executed.",
+            "Rollback/recovery: execute a rollback now.",
+        ),
+        (
+            "later-dispatch note",
+            "The observability-engineer and scribe follow-ups are noted here for the caller's "
+            "later dispatch, not opened as a task now.",
+            "The caller is dispatching observability-engineer and scribe as tasks now.",
+        ),
+        (
+            "modal early-handoff denial",
+            "None of that next-phase work is dispatched yet, and it shouldn't be: dispatching "
+            "observability-engineer or scribe while the incident is still in monitoring-recovery.",
+            "It should be: dispatching observability-engineer or scribe while the incident is "
+            "still in monitoring-recovery.",
+        ),
+        (
+            "typographic modal early-handoff denial",
+            "None of that next-phase work is dispatched yet, and it shouldn’t be: dispatching "
+            "observability-engineer or scribe while the incident is still in monitoring-recovery.",
+            "It should be: dispatching observability-engineer or scribe while the incident is "
+            "still in monitoring-recovery.",
+        ),
+    )
+    for label, denial, affirmative in cases:
+        ok, detail = graders.incident_recovery_authority(denial)
+        check(ok, f"incident_recovery_authority: {label} passes: {detail}")
+        ok, detail = graders.incident_recovery_authority(affirmative)
+        check(not ok, f"incident_recovery_authority: affirmative twin is REJECTED: {detail}")
 
 
 def test_json_artifact_statuses() -> None:
@@ -5218,6 +5257,7 @@ def main() -> int:
     tests = [
         test_contains_all, test_contains_any, test_cloud_run_rollback_packet, test_not_contains,
         test_regex, test_not_regex, test_gate_posture,
+        test_incident_recovery_authority_negation,
         test_json_artifact_statuses, test_exact_fields, test_exact_json, test_embedded_exact_json,
         test_run_grader_dispatch, test_gate_scenarios_adversarial,
         test_production_unknown_discovery_rejects_echoes_and_unsafe_retry,

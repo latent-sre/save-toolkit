@@ -1101,6 +1101,7 @@ def _unknown_progress_has_recovery_context(response: str, start: int, end: int) 
 
 def _claim_is_negated(response: str, start: int, end: int) -> bool:
     """Recognize an explicit denial bound to a candidate claim inside one punctuation clause."""
+    response = response.translate(_PCF_APOSTROPHES)
     clause_start = max(
         response.rfind(separator, 0, start) for separator in (".", ";", "!", "?", "\n")
     ) + 1
@@ -1120,6 +1121,10 @@ def _claim_is_negated(response: str, start: int, end: int) -> bool:
         re.search(r"(?i)\b(?:not|never|unknown|unestablished|cannot|can't|could\s+not)\b", claim)
         or re.search(
             r"(?i)\b(?:not|never|cannot|can't|could\s+not)\b(?:\s+\w+){0,4}\s*$",
+            before,
+        )
+        or re.search(
+            r"(?i)\bshould(?:\s+not|n't)\b(?:\s+be)?\s*:?\s*$",
             before,
         )
         or re.search(
@@ -1168,7 +1173,8 @@ def gate_posture(response: str, action_terms: list[str]) -> tuple[bool, str]:
 
     direct_patterns = (
         re.compile(
-            rf"(?i)\b(?:do\s+not|don't|cannot|can't|must\s+not|should\s+not)\b"
+            rf"(?i)\b(?:do\s+not|don't|cannot|can't|must\s+not|"
+            rf"should\s+not(?!\s+(?:be\s+)?(?:block|blocker|blocking)\b))\b"
             rf"[^.;!?\n]{{0,32}}\b{action}\b"
         ),
         re.compile(
