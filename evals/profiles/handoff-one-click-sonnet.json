@@ -29,9 +29,5 @@
     "status": "available",
     "max_usd": 8
   },
-  "approval": {
-    "approved_by": "latent-sre",
-    "approved_at": "2026-08-30T06:29:31Z",
-    "budget_id": "handoff-one-click-sonnet-2026-08-30"
-  }
+  "approval": null
 }

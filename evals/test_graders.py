@@ -2700,8 +2700,20 @@ def test_handoff_direct_scenario_fixtures() -> None:
         scenario = _load_scenario(filename)
         specs = scenario["graders"]
         prompt = scenario["prompt"]
+        normalized_prompt = " ".join(prompt.split())
+        exact_specs = [spec for spec in specs if spec.get("type") == "exact_fields"]
+        check(len(exact_specs) == 1,
+              f"{filename}: carries exactly one closed decision-field contract")
+        if exact_specs:
+            for field, value in exact_specs[0]["fields"].items():
+                declaration = f"`{field}` to exactly `{value}`"
+                check(
+                    declaration in normalized_prompt,
+                    f"{filename}: prompt declares the exact value for {field!r}; "
+                    "the grader may not hide a scalar oracle",
+                )
         check(not grade_all(specs, prompt), f"{filename}: rejects a prompt echo")
-        check(not grade_all(specs, " ".join(prompt.split())),
+        check(not grade_all(specs, normalized_prompt),
               f"{filename}: rejects a whitespace-normalized echo")
         check(grader_diagnostics_are_windows_encodable(specs),
               f"{filename}: grader diagnostics are cp1252-safe")
