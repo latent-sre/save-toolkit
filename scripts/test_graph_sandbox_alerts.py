@@ -198,6 +198,11 @@ def _bundle(
     }
     if snapshot_role is not None:
         verification["snapshot_role"] = snapshot_role
+        verification["runner_container_exit"] = {
+            "Status": "exited",
+            "ExitCode": 0,
+            "OOMKilled": False,
+        }
     _write_json(
         bundle / "verification.json",
         verification,
@@ -212,6 +217,38 @@ def _bundle(
 
 
 class GraphSandboxAlertsTest(unittest.TestCase):
+    def test_v2_snapshot_rejects_a_semantic_exit_as_the_runner_exit(self) -> None:
+        module = _load_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            events, effects = _effect_fixture(
+                "reconcile-exit-001",
+                started_at="2026-08-30T11:00:00.000Z",
+                ended_at="2026-08-30T11:00:01.000Z",
+                final_state="UNKNOWN",
+            )
+            bundle = _bundle(
+                root,
+                "reconcile-exit-001",
+                started_at="2026-08-30T11:00:00.000Z",
+                ended_at="2026-08-30T11:00:01.000Z",
+                outcome="UNKNOWN",
+                events=events,
+                effects=effects,
+                snapshot_role="UNKNOWN",
+            )
+            verification_path = bundle / "verification.json"
+            verification = json.loads(verification_path.read_text(encoding="utf-8"))
+            verification["runner_container_exit"]["ExitCode"] = 2
+            _write_json(verification_path, verification)
+            _write_checksums(
+                bundle,
+                ["effects.jsonl", "events.jsonl", "manifest.json", "verification.json"],
+            )
+
+            with self.assertRaisesRegex(module.EvidenceError, "snapshot role"):
+                module.evaluate_timeline([bundle])
+
     def test_failed_run_then_clean_recovery_fires_and_resolves(self) -> None:
         module = _load_module()
         with tempfile.TemporaryDirectory() as temporary:

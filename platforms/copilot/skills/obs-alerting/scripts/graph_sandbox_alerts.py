@@ -236,6 +236,8 @@ def _load_bundle(directory: Path) -> dict[str, object]:
         snapshot_role not in {"UNKNOWN", "RECONCILED"}
         or (snapshot_role == "UNKNOWN" and outcome != "UNKNOWN")
         or (snapshot_role == "RECONCILED" and outcome != "SUCCEEDED")
+        or verification.get("runner_container_exit")
+        != {"Status": "exited", "ExitCode": 0, "OOMKilled": False}
     ):
         raise EvidenceError("v2 verification snapshot role contradicts manifest")
     expected_exit = 0 if outcome == "SUCCEEDED" else 2

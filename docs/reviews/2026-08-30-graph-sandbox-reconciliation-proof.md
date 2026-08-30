@@ -60,7 +60,8 @@ authoritative receipt. It has no second `effect.dispatched` event. The evaluator
 - `[verified red-first]` The focused case-catalog regression initially failed because
   `checkout-ambiguous-after-commit-001` did not exist, then passed after the frozen case and all
   producer/consumer allowlists were added.
-- `[verified]` `python scripts/test_graph_sandbox_alerts.py`: 7/7 passed.
+- `[verified]` `python scripts/test_graph_sandbox_alerts.py`: 8/8 passed, including fail-closed
+  rejection when v2 evidence substitutes the semantic snapshot exit for the actual runner exit.
 - `[verified]` `python -m unittest discover -s graph-sandbox/tests -p "test_*.py"`: 82/82 passed
   before the exact-revision container build.
 - `[verified]` Runner image with `docker run --rm --network none`: contract 22/22, recovery 22/22,
