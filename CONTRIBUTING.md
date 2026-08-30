@@ -106,5 +106,5 @@ roadmap item.
 ## Repository boundaries
 
 `main` requires pull requests and blocks force-pushes and branch deletion. Maintainer and merge
-authority belongs to `latent-sre`; `agentic-sre-dev` is read-only. Merging does not publish an
+authority belongs to Save Toolkit maintainers; `agentic-sre-dev` is read-only. Merging does not publish an
 artifact because this repository has no publication workflow.

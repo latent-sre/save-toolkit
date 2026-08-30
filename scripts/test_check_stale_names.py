@@ -109,11 +109,10 @@ class StaleNamesTest(unittest.TestCase):
                 self.assertIn(retired, failures[0])
 
     def test_a_sibling_repository_url_stays_writable(self) -> None:
-        # The `/` carve-out exists for repository URLs; `sre-agents` and `sde-agents` are real
-        # sibling repositories, so narrowing the carve-out must not make their URLs unwritable.
+        # The `/` carve-out exists for this repository's retired plugin name in a path.
         self._write(
             "skills/probe/SKILL.md",
-            "See https://github.com/latent-sre/sde-agents and latent-sre/sre-agents.\n",
+            "See https://github.com/latent-sre/sre-agents and latent-sre/sre-agents.\n",
         )
         self.assertEqual([], check_stale_names.check(self.root))
 

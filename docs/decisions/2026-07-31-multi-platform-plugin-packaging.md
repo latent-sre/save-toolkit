@@ -3,7 +3,7 @@
 - Date: 2026-07-31
 - Status: Accepted
 - Decision owners: save-toolkit maintainers
-- Sister-lab input: `latent-sre/sde-agents@d50eda62c4fec083f5a5b0b3980f845d7ae0d8a1`
+- Sister-lab input: commit `d50eda62c4fec083f5a5b0b3980f845d7ae0d8a1`
 
 ## Context
 

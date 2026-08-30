@@ -18,9 +18,7 @@ STALE = (
     # it, which makes substring-matching tooling (eval graders, adapter name rewriting) confuse
     # the incident lane with the steady-state lane.
     # `prompt-engineer` retired into `agent-engineer`: the lane owns agent bodies, skills, roster
-    # and delegation graphs, and eval loops, of which prompt text is one artifact. The sibling
-    # `sde-agents` fleet still ships a `prompt-engineer`, so leaving the old name unguarded here
-    # would let a cross-fleet copy read as this fleet's.
+    # and delegation graphs, and eval loops, of which prompt text is one artifact.
     "prompt-engineer",
     "sde", "sre-engineer", "sde-engineer", "code-reviewer", "security-reviewer",
     "test-engineer", "sre-monitor", "runbook-author",
@@ -47,7 +45,7 @@ STALE = (
     "handoff-protocol", "route-request", "adr-template", "runbook-template",
     "bamboo-to-actions-migration", "sde-fullstack", "homelab-platform",
     "principal-engineer", "distinguished-architect", "multi-agent-architect",
-    "prompt-craft", "sre-tool", "service-onboard", "lab-audit", "sde-agents",
+    "prompt-craft", "sre-tool", "service-onboard", "lab-audit",
     # `craft` (the skill) retired into `language-idiom` but is NOT listed here, deliberately: it is
     # ordinary English, and the boundary regex would flag legitimate prose ("# Frontend craft",
     # "reads as noise rather than craft" — 19 such hits when probed). This is exactly why common
@@ -63,10 +61,9 @@ STALE_RE = re.compile(
 
 
 SCANNED_ROOTS = (Path("skills"), Path("agents"), Path("commands"), Path("evals/scenarios"))
-# Real sibling repositories, so `latent-sre/sde-agents` in a URL is a legitimate reference even
-# though both names are retired as fleet units. Names, not paths: the carve-out below is granted
-# per name, never to every retired unit.
-SIBLING_REPOSITORIES = frozenset({"sre-agents", "sde-agents"})
+# This repository's retired plugin name still appears in historical clone paths; the `/` carve-out
+# is granted per name, never to every retired unit.
+SIBLING_REPOSITORIES = frozenset({"sre-agents"})
 
 
 def _filename_exempt_names(root: Path) -> frozenset:

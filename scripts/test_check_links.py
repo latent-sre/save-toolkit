@@ -575,6 +575,53 @@ class LiveOperatorDocTests(unittest.TestCase):
             failures = check_links._check_live_operator_docs(root)
         self.assertTrue(any("'sde'" in item for item in failures), failures)
 
+    def test_owner_role_latent_sre_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "**Owner:** `latent-sre` owns acceptance.\n",
+                encoding="utf-8",
+            )
+            failures = check_links._check_live_operator_docs(root)
+        self.assertTrue(any("latent-sre" in item and "live owner" in item for item in failures), failures)
+
+    def test_marketplace_install_coordinate_is_not_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "claude plugin install save-toolkit@latent-sre\n",
+                encoding="utf-8",
+            )
+            self.assertEqual([], check_links._check_live_operator_docs(root))
+
+    def test_github_url_coordinate_is_not_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "Clone https://github.com/latent-sre/save-toolkit\n",
+                encoding="utf-8",
+            )
+            self.assertEqual([], check_links._check_live_operator_docs(root))
+
+    def test_sde_agents_token_is_flagged_even_when_historical(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "The retired sibling `sde-agents` fleet is historical.\n",
+                encoding="utf-8",
+            )
+            failures = check_links._check_live_operator_docs(root)
+        self.assertTrue(any("sde-agents" in item for item in failures), failures)
+
+    def test_sde_agents_in_plugin_source_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skill = root / "skills" / "probe"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("Do not copy the sde-agents roster.\n", encoding="utf-8")
+            failures = check_links._check_plugin_source_forbidden_names(root)
+        self.assertTrue(any("sde-agents" in item for item in failures), failures)
+
 
 class EscapingLinkTests(unittest.TestCase):
     """A link that resolves outside the repository is a defect, not a pass.

@@ -40,7 +40,7 @@ mutation was then reverted, the test split into
 to confirm the replacement kills it. Both runs are recorded in the commit message of
 `dc4d3e7d6b6d355e28d4f4a6cae651e8be71f4c9`.
 
-The finding originated with the two-lane adversarial review (`sde-agents:deep-review`) against
+The finding originated with the two-lane adversarial review against
 `d94300a92aa2a1b3f0152476d0bcc7280db2b0de`, as finding F3 of seven. It was not found by Gate A,
 which was green throughout, and it was not found by the author.
 

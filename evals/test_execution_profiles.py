@@ -43,7 +43,7 @@ class ExecutionProfileTests(unittest.TestCase):
             "total_timeout_s": 360,
             "cost_budget": {"status": "unavailable", "max_usd": None},
             "approval": {
-                "approved_by": "latent-sre",
+                "approved_by": "Save Toolkit maintainers",
                 "approved_at": "2026-08-26T12:00:00Z",
                 "budget_id": "budget-1",
             },

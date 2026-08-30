@@ -181,7 +181,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   ([ADR](docs/decisions/2026-08-26-agent-engineer-rename.md)). No routing comparison was run —
   the decision rests on human legibility, as its predecessor did, and the prior rename's measured tie
   is the only evidence that a name change of this kind does not move automatic routing. Retiring the
-  name also removes one of the three role-name collisions with the sibling `sde-agents` fleet.
+  name also removes one of the three role-name collisions with another installed agent suite.
 - Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
   implementation, testing, and operations-tooling lane. This is a breaking address change from
   `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are
@@ -206,8 +206,8 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   the projections cannot reach copies already written into a Codex home, and the marker-aware
   installer that owned them is removed here. The ADR's *Migration* section carries the exact
   cleanup — match the whole first line against the `save-toolkit`/`sre-agents` markers, never a
-  filename or prefix, because a sibling fleet's `sde-agents` marker differs by one character and
-  shares three role names.
+  filename or prefix, because another installed suite's marker can differ by one character and
+  share three role names.
 
 ## [0.1.0] - 2026-08-11
 

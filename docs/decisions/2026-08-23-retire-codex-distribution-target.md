@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-23
 - **Status:** Accepted
-- **Decision owner:** `latent-sre`
+- **Decision owner:** Save Toolkit maintainers
 - **Supersedes**, in each case *only as it concerns Codex* — every Claude and Copilot/VS Code clause
   in these records stands unchanged:
   - [`2026-07-31-multi-platform-plugin-packaging.md`](2026-07-31-multi-platform-plugin-packaging.md)
@@ -105,11 +105,10 @@ machine at the time of writing, zero save-toolkit agents were installed.
 ```
 
 > **Do not delete by filename, prefix, or partial match.** Codex resolves custom agents from one
-> flat directory shared with every other installed suite. A sibling fleet writes
-> `# Managed by sde-agents scripts/install_codex_agents.py; do not edit.` — `sde`, not `sre`, a
-> **one-character** difference — and its roles include `prompt-engineer`,
-> `repository-investigator`, and `researcher`, which share names with this fleet's. Match the whole
-> line, and leave anything marked `sde-agents` alone.
+> flat directory shared with every other installed suite. Other installed suites write different
+> first-line markers and may share role names with this fleet (`prompt-engineer`,
+> `repository-investigator`, `researcher`). Match the whole first line against only the two
+> markers above. Leave any other managed-by marker alone.
 
 Look in the user scope (`$CODEX_HOME/agents`, default `~/.codex/agents`) and in any project scope
 that was passed to `--target` (typically `<project>/.codex/agents`). List before deleting:
