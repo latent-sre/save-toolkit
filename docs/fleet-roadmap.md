@@ -536,6 +536,15 @@ screens on `b9b274f` (twelve) and `0eb3daf` (seventeen) are superseded. Selectio
 The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
 unrefreshed and still does not authorize a description rewrite inside Phase 2.
 
+**Method note — the screen is a size rule, the probe is a value test, and the probe governs.** The
+screen selects candidates; it never certifies that a body which fits it has earned its bytes. On
+`gcp-ops` the two disagreed: the slice stopped at −15% once the entrypoint fell under 7,500, while
+its own clean-room probes showed both tiers producing the entire Cloud Run mechanics unprompted and
+complete, leaving the guard decisions, routing lines, unratified boundary and answer contract as
+the only content the models could not supply. Falling below the screen is not a stopping condition
+when the probe still reads recitation. A slice may record "retained at N bytes because the probe
+justifies them"; it may not treat clearing the screen as proof that it does.
+
 **Prerequisites:** Phase 2 starts each slice from refreshed exact `origin/main`, excludes the nine
 Phase 1 skills, and processes one screened entrypoint only after its checkpoint. The checkpoint now
 includes, before any byte changes: an unhinted knowledge probe mapped to the body's rules and a
@@ -739,12 +748,12 @@ five-scenario reference-reachability approval for this behavioral campaign.
 
 ### EVAL-005 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
-**Status:** `active` (2026-08-29). Option (a) is applied and measured; one confirming run remains
-before the scenario can return to the regression split.
+**Status:** `decision-needed` (2026-08-29). Option (a) is applied and confirmed at nine trials. A
+later reframe found the prior next action unsound and replaced it; see the fixture finding below.
 
-**Outcome:** The scenario's split and threshold reflect a measured pass rate on the Claude engine,
-and its grader enforces exactly the contract its prompt states, so a slice verification that turns
-it red is attributable to the change under test instead of to instrument noise.
+**Outcome:** The scenario states which path it grades, and its prompt, fixture and graders agree on
+that path, so a red is attributable to the change under test instead of to instrument noise or to a
+task the fixture forbids.
 
 **Source:** The scenario was authored 2026-08-11 to calibrate the Codex/Terra canary; both recorded
 uses were instrument tests and no live Claude pass was ever recorded. On 2026-08-29 (CLI 2.1.251,
@@ -806,13 +815,29 @@ brackets: `(unverified until step 4/5 output exists)`, `[unverified — no log/d
 scanning for `[unverified]` matches none of these, so the grader is right and this is a real
 body-landing miss.
 
-**Next action:** Land the label form in the body, then re-measure — not a threshold promotion.
-Recorded correction: the previous next action promised regression at `threshold: 0.66` on a 2/3
-result, and the pooled arithmetic retires that plan. At a true rate of 0.67 a 2-of-3 gate reds
-**26%** of the time with no regression present, and the Wilson 95% interval on 6/9 is 0.35–0.88 —
-a gate that flaky reintroduces the unattributable red this item exists to remove. The body change
-must not repeat the `a9377d4a` error: state the required *form* without a rationale that argues for
-the qualifier the models keep attaching.
+`[verified]` **The fixture forbids the task the prompt asks for.** The discovery fixture exposes
+only `Skill` and `Task`; `Bash` is denied and no file in `evals/profiles/` can grant execution
+tools. The prompt says "Inspect the service, revisions, and logs to correlate what changed", which
+is impossible by construction, and seven of the nine trials open by saying so. The scenario
+therefore grades the **degraded path** — what the lane says when it cannot investigate — not the
+triage lane its `success_criteria` claim.
+
+That reframes the remaining failure rather than confirming it. All three misses attach a reason to
+the label — `(unverified until step 4/5 output exists)`, `[unverified — no log/describe output]`,
+`(unverified — no logs actually seen)` — and in a fixture where nothing can be verified, the reason
+for unverifiability is the most informative thing in the reply. The bare-token requirement is a
+fleet-wide convention graded by 23 scenarios, and no runtime consumer scans model output for it:
+`scripts/validate_fleet.py`'s `EVIDENCE_TRIAD` checks authored files, not replies.
+
+**Next action:** Decide what this scenario is for, then align prompt, fixture, graders and
+`success_criteria` to that answer. If the degraded path, say so in `success_criteria` and stop
+treating an explained label as a defect. If the triage lane, it needs an instrument that can
+execute, which the harness cannot currently provide. **Superseded and not to be resumed:** the
+earlier plan to patch the body so the label form lands. It would tune the skill against a
+constraint no real caller imposes, and the fleet already paid for that lesson once — a rule shaped
+by one path damages the paths that skip it. Also superseded: closing this item with
+`threshold: 0.66`, because at a true rate of 0.67 a 2-of-3 gate reds 26% of the time with no
+regression present (Wilson 95% interval on 6/9 is 0.35–0.88).
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 

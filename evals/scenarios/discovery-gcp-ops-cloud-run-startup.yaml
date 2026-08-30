@@ -33,8 +33,17 @@ mode: discovery
 # Do NOT promote to regression at threshold 0.66 on this evidence, despite ceil(3 * 0.66) == 2
 # looking like a fit for a 6/9 rate: at a true rate of 0.67 a 2-of-3 gate reds 26% of the time
 # with no regression present, and the Wilson 95% interval on 6/9 is 0.35..0.88. A gate that flaky
-# reintroduces exactly the unattributable red EVAL-005 exists to remove. Raise the rate by landing
-# the label form in the body first, then re-measure. Do not weaken a grader to reach green.
+# reintroduces exactly the unattributable red EVAL-005 exists to remove. Do not weaken a grader to
+# reach green.
+#
+# Read the three failures against the fixture before calling them a skill defect. This fixture
+# exposes only Skill and Task -- Bash is denied and no evals/profiles/ file can grant execution
+# tools -- so the prompt's "inspect the service, revisions, and logs" is impossible here, and seven
+# of nine trials open by saying so. What the scenario actually grades is the degraded path, and on
+# that path the reason for unverifiability is the most informative thing in the reply, which is
+# exactly what the three failing labels added. EVAL-005 owns the decision of which path this
+# scenario is for. An earlier plan to patch the body so the bare token always appears is
+# SUPERSEDED: it would tune the skill against a constraint no real caller imposes.
 split: calibration
 target:
   kind: skill
