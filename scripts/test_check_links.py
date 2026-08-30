@@ -485,6 +485,19 @@ class LiveOperatorDocTests(unittest.TestCase):
             failures,
         )
 
+    def test_python3_command_token_is_flagged_in_markdown_and_prose(self) -> None:
+        samples = (
+            "1. python3 scripts/gate_a.py\n",
+            "Run python3 scripts/gate_a.py before push.\n",
+            "`python3 scripts/gate_a.py`\n",
+        )
+        for sample in samples:
+            with self.subTest(sample=sample), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / "README.md").write_text(sample, encoding="utf-8")
+                failures = check_links._check_live_operator_docs(root)
+                self.assertTrue(any("python3" in item for item in failures), failures)
+
     def test_python3_prohibition_is_not_flagged(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -515,6 +528,16 @@ class LiveOperatorDocTests(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertEqual([], check_links._check_live_operator_docs(root))
+
+    def test_historical_clause_does_not_exempt_a_later_live_name(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "The old role was retired; route current work to `sde`.\n",
+                encoding="utf-8",
+            )
+            failures = check_links._check_live_operator_docs(root)
+        self.assertTrue(any("'sde'" in item for item in failures), failures)
 
 
 class EscapingLinkTests(unittest.TestCase):

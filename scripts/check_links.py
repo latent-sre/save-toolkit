@@ -82,8 +82,11 @@ LIVE_OPERATOR_DOC_ROOTS = (
     "commands/adr.md",
 )
 LIVE_OPERATOR_DOC_DIR_GLOBS = (("docs/probes", "*.md"),)
+# Match the command token, not one Markdown rendering of it. The following argument keeps a prose
+# mention of the runtime from becoming a command, while list prefixes, prose lead-ins, shell
+# prompts, fenced blocks, and inline-code delimiters remain irrelevant to the detection.
 OPERATOR_PYTHON3_RE = re.compile(
-    r"(?m)^[ \t]*(?:\$[ \t]*)?python3\b" r"|`python3[ \t]+-"
+    r"(?<![A-Za-z0-9_-])python3\b(?=[ \t]+(?:-[A-Za-z0-9]|[A-Za-z0-9_./\\]))"
 )
 PYTHON3_PROHIBITION_RE = re.compile(
     r"never|not |stub|Store|bare `python3`",
@@ -97,6 +100,25 @@ RETIRED_AS_LIVE_HISTORICAL_RE = re.compile(
     r"current names?:",
     re.IGNORECASE,
 )
+RETIRED_CONTEXT_BOUNDARY_RE = re.compile(r"[;.!?]|\s[—–]\s")
+
+
+def _clause_containing(line: str, offset: int) -> str:
+    """Return the punctuation-bounded clause containing *offset*.
+
+    Historical context is earned per retired-name occurrence. A marker in an earlier sentence or
+    semicolon clause must not suppress a later current-tense routing instruction on the same line.
+    """
+
+    start = 0
+    end = len(line)
+    for boundary in RETIRED_CONTEXT_BOUNDARY_RE.finditer(line):
+        if boundary.end() <= offset:
+            start = boundary.end()
+        elif boundary.start() >= offset:
+            end = boundary.start()
+            break
+    return line[start:end]
 
 
 def _iter_doc_paths(
@@ -172,7 +194,9 @@ def _check_live_operator_docs(root: Path) -> list[str]:
                     "use `python` or `py -3` (never the Windows Store stub)"
                 )
             for match in RETIRED_AS_LIVE_RE.finditer(line):
-                if RETIRED_AS_LIVE_HISTORICAL_RE.search(line):
+                if RETIRED_AS_LIVE_HISTORICAL_RE.search(
+                    _clause_containing(line, match.start())
+                ):
                     continue
                 failures.append(
                     f"{relative}:{number}: retired name {match.group(1)!r} presented as a "
