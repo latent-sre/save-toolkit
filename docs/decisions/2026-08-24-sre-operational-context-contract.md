@@ -107,7 +107,8 @@ decisions.
    resolved-context contracts. Platform-generated IDs and freshness-sensitive resource mappings
    still identify their authoritative system, management mode, and last validation evidence.
    Field-by-field provenance is not required for ordinary manually curated catalog facts.
-10. **Use a deterministic file/CLI resolver for the alpha.** `sde` owns the initial implementation
+10. **Use a deterministic file/CLI resolver for the alpha.** `sde` (current name:
+    `software-engineer`) owns the initial implementation
     under `latent-sre/sre-context/tooling/`, co-located with the source schemas and semantic fixtures.
     It validates structural and semantic contracts, rejects duplicate IDs or aliases and
     broken/kind-wrong/cyclic references, resolves an explicit `team + service + environment`
@@ -171,7 +172,8 @@ Repository evidence and the accepted architecture settle four implementation def
 
 1. create a private `latent-sre/sre-context` repository with protected `main`, required validation,
    team-subtree `CODEOWNERS`, and schema/tooling ownership by `latent-sre`;
-2. place the phase-one resolver and semantic validator under `sre-context/tooling/`, owned by `sde`,
+2. place the phase-one resolver and semantic validator under `sre-context/tooling/`, owned by `sde`
+   (current name: `software-engineer`),
    while consumer-requirement sidecars remain with their canonical skills in this repository;
 3. use the alpha compatibility window in decision 12: current plus immediately previous only during
    a declared migration, and no operational `v1` promotion before generic portability plus one
@@ -191,6 +193,9 @@ generic alpha.
 The ownership split is: `latent-sre` for schema/contract acceptance, `prompt-engineer` for
 consumer-requirement semantics, and `sde` for resolver and validator implementation. A real team's
 owner becomes relevant only when that team separately authorizes onboarding.
+Current names: `agent-engineer` and `software-engineer` respectively
+([`2026-08-26-agent-engineer-rename.md`](2026-08-26-agent-engineer-rename.md),
+[`2026-08-25-software-engineer-rename.md`](2026-08-25-software-engineer-rename.md)).
 
 ## Consequences
 

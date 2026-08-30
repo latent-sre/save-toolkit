@@ -42,6 +42,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Closed `GRAPH-002` after owner acceptance of the repository-integrated `graph-sandbox/v1`
+  candidate at merge commit `4a745fb311ad7df83ec6aeaf3268356ce4780db5` (PR #193). This accepts only
+  the offline `checkout-payments-timeout-drill/v1` implementation; GRAPH-003, live Terra execution,
+  credentials, production connectivity, and production authority remain outside the boundary.
 - Reconciled four stale or evidence-pending roadmap items. `INCIDENT-001` and `SURFACE-001` now
   close against their already merged exact revisions instead of inviting duplicate work.
   `DRILL-001` retains a three-case Terra acceptance candidate and `ROUTE-002` a 7/7 Terra overlap
@@ -57,7 +61,8 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   `GRAPH-001`, `EVIDENCE-001`, and `GRADER-003` closed after exact head `1875057` merged in PR #176 at
   `810f7e6`; the owner kept the three direct grader scenarios in `calibration` rather than
   relabelling host-neutral Terra transfer as native Claude behavior.
-- Cut the body/reference duplication the 2026-08-26 three-pass audit measured — the same rule
+- Cut the body/reference duplication the
+  [2026-08-26 three-pass audit](docs/reviews/2026-08-26-three-pass-skill-audit.md) measured — the same rule
   bought twice whenever a reference loaded alongside the body that already states it. **Context:**
   `agent-authoring`'s `artifact.md` no longer restates SKILL.md's source-trust gate, four method
   steps, description rule, failure→form table, or handoff/production-gate rules; it now owns only

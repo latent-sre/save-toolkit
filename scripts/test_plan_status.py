@@ -113,6 +113,9 @@ class PlanStatusTests(unittest.TestCase):
             "pytest reports 18 passed.",
             "33/33 focused tests passed.",
             "all forty-seven scenarios pass.",
+            "The candidate passes 1,364/1,364 grader checks.",
+            "passes Gate A 8/8, and passes all 38 component suites.",
+            "Gate A 8/8",
         )
         for sample in samples:
             with self.subTest(sample=sample):

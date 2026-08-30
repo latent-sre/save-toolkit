@@ -57,6 +57,9 @@ the kind of text that later reads as a control.
   body restricts what it *should* do; nothing mechanical restricts what it *can*. Host and network
   egress controls are load-bearing for this lane, as they already were for `sde` and
   `prompt-engineer` ([`AGENTS.md`](../../AGENTS.md), **Enforcement boundaries**).
+  Current names: `software-engineer` and `agent-engineer`
+  ([`2026-08-25-software-engineer-rename.md`](2026-08-25-software-engineer-rename.md),
+  [`2026-08-26-agent-engineer-rename.md`](2026-08-26-agent-engineer-rename.md)).
 - Credential hygiene moves from hook to doctrine: `cf env`, `gcloud auth print-access-token`,
   `gcloud secrets versions access`, and service-account tokens stay out of tracked files,
   transcripts, and packets because the agent body says so, not because a hook denies them.

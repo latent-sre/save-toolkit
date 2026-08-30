@@ -58,7 +58,8 @@ routing advantage, native-host behavior, or release claim for either candidate.
 - Explicit invocations, bookmarks, and handoffs using `save-toolkit:sde` break and must move to
   `save-toolkit:software-engineer`.
 - The longer name matches the existing `prompt-engineer` and `observability-engineer` convention and
-  describes the lane without opening its body.
+  describes the lane without opening its body. (`prompt-engineer` was later renamed `agent-engineer`;
+  see [`2026-08-26-agent-engineer-rename.md`](2026-08-26-agent-engineer-rename.md).)
 - Generated Copilot and VS Code adapter filenames change with the canonical source.
 - Tool authority, network posture, production boundaries, and the
   `software-engineer → reviewer → software-engineer` loop are unchanged.

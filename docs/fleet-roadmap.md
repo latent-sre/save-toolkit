@@ -173,107 +173,11 @@ sidecars. Sidecars ship as a mirrored pair — the consumer copy here, its twin 
 repository's `examples/`, where its own tests validate it against the schema. No team-specific
 values are required and no real team is onboarded.
 
-### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
-
-**Status:** `active` (2026-08-29). PR #193 review superseded the original runtime candidate after
-finding five recovery, lifecycle-identity, cross-platform-test, and wall-budget gaps. Follow-up
-revision `56ebece6d34d30eaa2b6bf5725a1d4a70ecb25f9` passed focused host, Linux, immutable-image, and
-healthy-mission verification for those five fixes. GitHub CI, review-thread acceptance, repository
-integration, and exact-candidate human acceptance remain open; the earlier full fault matrix is
-historical evidence and was not rerun for this follow-up revision.
-
-**Owner:** `software-engineer` owns implementation; `agent-engineer` owns the skill text that
-carries runtime-specific references; `stack-profile`'s decision owner names the runtime.
-
-**Outcome:** `software-engineer` can implement the accepted
-`checkout-payments-timeout-drill/v1` workflow contract against LangGraph inside a hardened,
-disposable Docker Compose lab named `graph-sandbox/v1`. The lab runs the synthetic checkout,
-payments, and inventory applications alongside the graph runner and proves checkpointer and
-interrupt behavior, reducers and fan-out, idempotent effect handling, cancellation, recovery, and
-budget enforcement without creating production deployment authority.
-
-**Source:** Owner direction on 2026-08-24 (stage 2). The
-[`2026-08-23 research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md)
-records that no inspected runtime supplies the whole portable contract, which is why selection
-follows the design and a concrete consumer rather than preceding them. Owner direction on
-2026-08-26 accepted the consumer-specific Docker Compose sandbox and offline-first delivery in the
-[`GRAPH-002 runtime decision`](decisions/2026-08-26-graph-002-docker-sandbox-runtime.md).
-The 2026-08-29 owner direction accepted the advisory-driven
-[`LangGraph security-pin supersession`](decisions/2026-08-29-graph-002-langgraph-security-pin.md)
-before implementation. The original full-matrix results remain in the historical
-[`GRAPH-002 exact-revision verification`](reviews/2026-08-29-graph-002-exact-revision-verification.md);
-the focused post-review follow-up evidence is recorded in the
-[`PR #193 remediation verification`](reviews/2026-08-29-graph-002-pr193-remediation-verification.md).
-
-**Accepted boundary:** The consumer is `checkout-payments-timeout-drill/v1`, not the fleet itself.
-The allowed runtime is Python 3.12 with exactly pinned `langgraph==1.0.10` and
-`langgraph-checkpoint-sqlite==3.1.1`, executed only inside `graph-sandbox/v1`; direct host execution
-is prohibited. The default profile has deterministic model fixtures and an internal-only network.
-A later bounded Terra profile requires separate approval of its trial count, spend ceiling,
-ephemeral credential path, and externally enforced endpoint-restricted egress; Compose alone is not
-that egress control. Runtime-specific guidance stays conditional and does not make LangGraph a
-universal fleet runtime.
-
-**Prerequisites:** The `workflow-graph-engineering` method merged at `f1afd57` (closed 2026-08-26;
-see the closed table) — satisfied. The named consumer and sandbox decision are accepted. Before the
-first container executes, the implementation must: (1) start from current `origin/main`; (2) confirm
-a reachable Linux Docker daemon; (3) pin every base image by version and digest; (4) add the exact
-Python dependencies to `requirements-dev.txt` without importing them from Gate A or the isolated
-read-only guard; (5) turn the consumer behavior into a versioned typed workflow contract; and (6)
-write the sandbox preflight predicate and its red-first negative fixtures. Live model credentials or
-paid calls are not prerequisites for the offline stages.
-
-**Implementation plan:** Deliver independently reviewable offline slices in this order:
-
-1. **Sandbox contract and preflight:** define the allowed Compose model and reject root users,
-   privileged mode, added capabilities, writable root filesystems, published ports, external
-   networks, Docker-socket or credential mounts, missing image digests, missing resource limits, and
-   an unavailable daemon.
-2. **Running synthetic topology:** containerize the existing checkout fixture; add deterministic
-   payments and inventory simulators plus health checks; add an optional bounded load-generator
-   profile. No host ports or general egress are required.
-3. **Executable graph:** implement typed state, stable run/thread/attempt identities, reducer and
-   fan-out behavior, approval interrupts, SQLite checkpoints, attempt/time/spend budgets,
-   cancellation, evidence-envelope output, and the structured boundary-event handoff accepted in
-   the [`GRAPH-003 preparation decision`](decisions/2026-08-26-graph-003-observability-preparation.md).
-4. **Failure and recovery:** exercise application failure, payment latency, runner termination and
-   resume, checkpoint failure, duplicate effect prevention, crash-after-dispatch `UNKNOWN`, budget
-   exhaustion, and cancellation acknowledgement. Retrying a LangGraph node never substitutes for
-   consumer-owned idempotency or reconciliation.
-5. **Exact-revision verification:** run the focused unit, contract, integration, recovery, and
-   negative sandbox suites; validate the final Compose model; record image digests, commands, exit
-   status, environment, and what each result does not prove; obtain independent review and
-   verification of the exact commit. Only then may an owner approve a separately bounded Terra
-   behavioral run.
-
-**Acceptance:** All conditions are required. (1) The sandbox preflight fails for each forbidden
-privilege, mount, network, port, credential, writable-root, unpinned-image, and missing-limit case and
-passes the reviewed Compose model. (2) The healthy running topology completes one checkout through
-the real synthetic payments and inventory HTTP boundaries. (3) Restarting `graph-runner` against the
-same run-scoped checkpoint resumes the correct thread without reapplying committed nodes. (4) Effect
-tests prove idempotent duplicate handling and preserve `UNKNOWN` after ambiguous dispatch rather than
-claiming exactly-once execution. (5) Recovery, temporal ordering, reducer/fan-out consistency,
-approval, cancellation, and attempt/time/spend budget cases pass deterministically offline. (6) The
-evidence bundle binds the graph contract, exact revision, image digests, run/node/edge/task/attempt/
-replay/checkpoint/effect identities, commands, exit statuses, and environment; teardown never holds
-the only evidence copy. (7) Independent exact-revision verification passes. (8) No production
-system, credential, deployment target, dashboard, alert route, or authority is introduced.
-
-**Rollback:** Before merge, delete the implementation branch. After the offline lab lands, disable or
-remove its explicit entrypoint and return `incident-drill` to the current manual file-and-lane
-procedure; export sanitized evidence first, then remove only the run-scoped containers, network, and
-volumes. No production data migration exists.
-
-**Next action:** Push the documentation-only follow-up, obtain green CI and reviewer closure on
-the five PR #193 threads, then either rerun the full matrix on the exact acceptance candidate or
-update the exact-candidate acceptance record before asking the owner to accept or reject it. Any
-runtime-input change requires another pinned build and verification set. Do not add live Terra
-egress, credentials, or paid calls.
-
 ### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
 
-**Status:** `blocked` (2026-08-26). Scope and the first operated graph are accepted; implementation
-waits for `GRAPH-002` to produce the running graph and observable failure planes.
+**Status:** `ready` (2026-08-30). Scope and the first operated graph are accepted. `GRAPH-002`
+closed after delivering the running sandbox and observable failure planes; no GRAPH-003
+implementation has started.
 
 **Owner:** `observability-engineer` for indicators, dashboards, and alert design; `scribe`/`runbook`
 for operating documents; `sre` remains the live-incident lane. No new agent.
@@ -303,13 +207,14 @@ source, or effect authority is created. The first operated graph is
 `checkout-payments-timeout-drill/v1`; a later graph must justify its own additional signals rather
 than silently widening this reference set.
 
-**Prerequisites:** `GRAPH-002` must first deliver a runnable offline topology, the graph
-runner, stable run/node/edge/task/attempt/replay/checkpoint/effect identities, structured events,
-controllable failure modes, and restart/resume behavior. This item remains blocked until those
-signals exist as real sandbox output; drafting dashboards, thresholds, or runbooks solely from the
-design would describe a system nobody operates. The GRAPH-002 implementation must preserve this
-telemetry handoff, but the observability owner—not the graph runner—owns operational interpretation, cardinality
-budgets, alert semantics, and runbook response.
+**Prerequisites:** Satisfied by the accepted `graph-sandbox/v1` implementation closed on
+2026-08-30. It provides a runnable offline topology, stable
+run/node/edge/task/attempt/replay/checkpoint/effect identities, structured events, controllable
+failure modes, and restart/resume behavior. The full fault matrix remains historical evidence for
+the pre-remediation revision, while the accepted post-review revision carries focused recovery
+evidence and one healthy mission; historical fault samples must not be relabelled as
+exact-remediation measurements. The observability owner—not the graph runner—owns operational
+interpretation, cardinality budgets, alert semantics, and runbook response.
 
 **Acceptance:** All conditions are required. (1) References are added under the existing owning
 skills with a discovery near-miss keeping a live graph outage with `sre`. (2) The indicator set is
@@ -325,11 +230,12 @@ resolves after recovery, names an owner and first action, and pages only on acti
 cause and saturation signals remain diagnostic. (6) No new agent, tool, credential, production
 dashboard, live alert route, or pager is introduced.
 
-**Next action:** Complete the GRAPH-002 offline graph through restart/resume and
-fault-injection evidence with the telemetry identities above. Then inspect the emitted data before
-choosing queries, thresholds, retention, dashboards, or alert rules; implement the minimum reference,
-synthetic runbook, and tested alert set against that evidence. No paid or Terra run is required to
-record this decision or to exercise deterministic sandbox failures.
+**Next action:** `observability-engineer` inspects the emitted `graph-sandbox/v1` data before
+choosing queries, thresholds, retention, dashboards, or alert rules, then implements the minimum
+graph-specific reference, synthetic runbook, and tested alert set against that evidence. Rerun the
+specific deterministic fault cases needed to evaluate those artifacts on current runtime inputs;
+do not reopen GRAPH-002 or reuse historical samples as current measurements. No paid or Terra run
+is required.
 
 ### GRAPH-004 — `codebase-atlas`: code, dependency, knowledge, and GraphRAG graphs
 
@@ -684,11 +590,9 @@ are re-measured on the accepted candidate revision.
 
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-004-working-evidence.md) records the
-red-first five-check failure, paired denial and affirmative fixtures, and exact candidate
-`22d6c728`. `[verified]` The candidate passes 1,355/1,355 grader checks, validates all 136
-scenarios, passes Gate A 8/8, and passes all 38 component suites. Two independent one-shot Terra
-transfer probes pass all 10 graders for each affected scenario on that exact clean revision. They
-are cooperative transfer evidence, not native Claude/profile evidence.
+red-first five-check failure, paired denial and affirmative fixtures, exact candidate
+`22d6c728`, and two cooperative Terra transfer probes. Native remeasurement of the two
+affected scenarios remains owed.
 
 **Next action:** Under a separately approved native Claude run, remeasure
 `agent-direct-sre-owns-recovery-to-terminal` and
@@ -721,9 +625,8 @@ on an accepted candidate revision.
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
 records the red-first controls, transfer forms, named `gate_posture` grader, and green offline suite.
-`[verified]` The combined branch passes 1,364/1,364 grader checks, validates all 136 scenarios, passes
-Gate A 8/8, and passes all 38 component suites. The three discovery scenarios have not been rerun
-on the exact merged revision, so the item is not closure-ready.
+The three discovery scenarios have not been rerun on the exact merged revision, so the item is not
+closure-ready.
 
 **Next action:** Remeasure the three scenarios on the exact merged revision without changing their
 prompts, thresholds, or routing description.
@@ -753,11 +656,8 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records the reproduced false positive and the named, object-bound replacement. Guidance transfer
-forms pass and progressive rollback, restart, restage, and state-changing-command claims remain
-red. `[verified]` The combined branch passes 1,364/1,364 grader checks, validates all 136 scenarios,
-passes Gate A 8/8, and passes all 38 component suites. The affected direct scenario has not been
-rerun on the exact merged revision.
+records the reproduced false positive and the named, object-bound replacement. The affected
+direct scenario has not been rerun on the exact merged revision.
 
 **Next action:** Remeasure `agent-direct-sre-readonly-triage` on the exact merged revision without
 changing its prompt or threshold.
@@ -789,10 +689,12 @@ recorded matrices.
 existing red side still fails — a real `just run it again` recommendation included — and both
 scenarios are re-measured on both sides.
 
-**Current evidence:** `[verified]` The combined branch carries both accepted fixtures and the
-particle-form and quoted-warning fixes. It passes 1,364/1,364 grader checks, validates all 136
-scenarios, passes Gate A 8/8, and passes all 38 component suites. The required model trials have not
-been rerun on the exact merged revision.
+**Current evidence:** The quoted sentences and the particle-form / quoted-warning fixtures are
+recorded in the
+[observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md)
+and the
+[`combined-branch amendment`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md).
+The required model trials have not been rerun on the exact merged revision.
 
 **Next action:** Remeasure the two scenarios three trials per side on the exact merged revision.
 
@@ -851,14 +753,10 @@ uncommitted at the time this item was written. No claim below has been measured 
 **Current evidence:** `[verified]` Eight direct scenarios cover these claims and the independent
 declaration-clock contract, with paired compliant and tempting-wrong fixtures. The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records two frozen current-guidance Terra probes at 8/8 after red-first oracle transfer fixes,
-against pre-guidance baselines of 4/8 and 2/8. The probes are cooperative agent-task transfer
-evidence, not profile-backed native execution. The oracle fixes are present on the combined branch,
-whose offline verification is green, but native profile behavior on the exact merged revision
-remains `[unverified]`. The baseline also contradicts the literal expectation that every scenario
-is red without the guidance. Eight independent Luna runs, one per scenario with no retries,
-initially replayed at 6/8 and finish at 8/8 after two additional red-first oracle transfer fixes;
-they carry the same cooperative, non-native limitation.
+records the frozen Terra and Luna transfer probes, the pre-guidance baselines, and the oracle
+fixes. Those probes are cooperative agent-task transfer evidence, not profile-backed native
+execution. Native profile behavior on the exact merged revision remains `[unverified]`. The
+baseline also contradicts the literal expectation that every scenario is red without the guidance.
 
 **Prerequisites:** None structural. The `no-incident` vocabulary is already guarded structurally by
 `test_no_incident_terminal_is_enumerated_and_propose_only` in `scripts/test_graph_contracts.py`,
@@ -983,6 +881,7 @@ constraint no real caller imposes, and the fleet already paid for that lesson on
 by one path damages the paths that skip it. Also superseded: closing this item with
 `threshold: 0.66`, because at a true rate of 0.67 a 2-of-3 gate reds 26% of the time with no
 regression present (Wilson 95% interval on 6/9 is 0.35–0.88).
+
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
 **Status:** `active` (2026-08-26)
