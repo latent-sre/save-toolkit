@@ -117,6 +117,35 @@ class AmbiguousGateway(FakeGateway):
         }
 
 
+class ReconciledAfterLostResponseGateway(FakeGateway):
+    def __init__(self) -> None:
+        super().__init__()
+        self.receipt: dict[str, object] | None = None
+        self.receipt_lookups = 0
+
+    def dispatch_checkout(
+        self,
+        checkout: dict[str, object],
+        *,
+        idempotency_key: str,
+        case_id: str,
+        request_id: str,
+    ) -> dict[str, object]:
+        self.receipt = super().dispatch_checkout(
+            checkout,
+            idempotency_key=idempotency_key,
+            case_id=case_id,
+            request_id=request_id,
+        )
+        raise AmbiguousDispatch("checkout_transport_ambiguous")
+
+    def get_checkout_receipt(
+        self, idempotency_key: str, *, case_id: str
+    ) -> dict[str, object] | None:
+        self.receipt_lookups += 1
+        return self.receipt
+
+
 class NotCommittedGateway(FakeGateway):
     @staticmethod
     def _failure() -> CheckoutFailure:
@@ -143,6 +172,68 @@ class NotCommittedGateway(FakeGateway):
         raise self._failure()
 
 class RunnerGraphIntegrationTests(unittest.TestCase):
+    def test_checkout_unknown_snapshot_resumes_to_reconciled_without_redispatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            case = copy.deepcopy(load_case(Path("/app/cases/mission-healthy-001.json")))
+            case["service_fixtures"]["checkout"]["effect"] = "ambiguous_after_commit"
+            state = new_run_state(
+                case,
+                run_id="checkout-reconciliation-001",
+                source_revision=REVISION,
+                case_digest=CASE_DIGEST,
+            )
+            gateway = ReconciledAfterLostResponseGateway()
+            ledger = EffectLedger(root / "effects.sqlite3")
+            events = BoundaryEventStore(root / "events.sqlite3")
+            dependencies = RunnerDependencies(
+                gateway=gateway,
+                ledger=ledger,
+                events=events,
+                case=case,
+            )
+            config = {"configurable": {"thread_id": state["thread_id"]}}
+
+            with CheckpointStore(
+                root / "checkpoints.sqlite3",
+                CheckpointFingerprint.current(REVISION),
+            ) as checkpointer:
+                graph = build_graph(dependencies, checkpointer)
+                self.assertIn("__interrupt__", graph.invoke(state, config))
+                graph.invoke(
+                    Command(
+                        resume={
+                            "decision": "APPROVED",
+                            "actor_class": "fixture-operator",
+                        }
+                    ),
+                    config,
+                )
+                snapshot = graph.get_state(config)
+                self.assertEqual(snapshot.next, ("reconcile_after_snapshot",))
+                effect_id = "checkout-reconciliation-001:checkout_effect:0:effect-checkout"
+                self.assertEqual(ledger.current(effect_id)["effect_state"], "UNKNOWN")
+                self.assertEqual(gateway.checkout_calls, 1)
+                self.assertNotIn(
+                    "effect.reconciled",
+                    [event["event_type"] for event in events.project()],
+                )
+
+                completed = graph.invoke(None, config)
+
+            emit_terminal_event(events, completed)
+            self.assertEqual(completed["outcome"], "SUCCEEDED")
+            self.assertEqual(ledger.current(effect_id)["effect_state"], "RECONCILED")
+            self.assertEqual(gateway.checkout_calls, 1)
+            self.assertEqual(gateway.receipt_lookups, 1)
+            effect_states = [
+                record["effect_state"] for record in ledger.project()
+            ]
+            self.assertEqual(
+                effect_states,
+                ["PREPARED", "DISPATCHED", "UNKNOWN", "RECONCILED"],
+            )
+
     def test_readiness_fanout_interrupt_resume_and_effect_complete_once(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

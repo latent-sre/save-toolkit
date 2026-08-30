@@ -166,6 +166,7 @@ def _bundle(
     events: list[dict[str, object]],
     effects: list[dict[str, object]] | None = None,
     bundle_name: str | None = None,
+    snapshot_role: str | None = None,
 ) -> Path:
     bundle = root / (bundle_name or run_id)
     bundle.mkdir()
@@ -185,14 +186,21 @@ def _bundle(
             "started_at": started_at,
         },
     )
+    verification = {
+        "exit_code": 0 if outcome == "SUCCEEDED" else 2,
+        "run_id": run_id,
+        "source_revision": "a" * 40,
+        "verification_version": (
+            "graph-sandbox-host-verification/v2"
+            if snapshot_role is not None
+            else "graph-sandbox-host-verification/v1"
+        ),
+    }
+    if snapshot_role is not None:
+        verification["snapshot_role"] = snapshot_role
     _write_json(
         bundle / "verification.json",
-        {
-            "exit_code": 0 if outcome == "SUCCEEDED" else 2,
-            "run_id": run_id,
-            "source_revision": "a" * 40,
-            "verification_version": "graph-sandbox-host-verification/v1",
-        },
+        verification,
     )
     _write_jsonl(bundle / "events.jsonl", events)
     _write_jsonl(bundle / "effects.jsonl", effects or [])
@@ -320,6 +328,7 @@ class GraphSandboxAlertsTest(unittest.TestCase):
                 events=unknown_events,
                 effects=unknown_effects,
                 bundle_name="reconcile-001-unknown",
+                snapshot_role="UNKNOWN",
             )
             reconciled_events, reconciled_effects = _effect_fixture(
                 "reconcile-001",
@@ -336,6 +345,7 @@ class GraphSandboxAlertsTest(unittest.TestCase):
                 events=reconciled_events,
                 effects=reconciled_effects,
                 bundle_name="reconcile-001-reconciled",
+                snapshot_role="RECONCILED",
             )
 
             result = module.evaluate_timeline([reconciled, unknown])

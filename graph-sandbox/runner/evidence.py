@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import tempfile
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -11,10 +12,19 @@ from runner.validation import validate_atomic_id
 
 
 class EvidenceExporter:
-    def __init__(self, evidence_root: Path, run_id: str) -> None:
+    def __init__(
+        self,
+        evidence_root: Path,
+        run_id: str,
+        *,
+        directory_name: str | None = None,
+    ) -> None:
         validate_atomic_id(run_id, "run_id")
+        selected_name = run_id if directory_name is None else directory_name
+        if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,159}", selected_name):
+            raise ValueError("evidence directory name must be bounded lowercase ASCII")
         self.evidence_root = evidence_root.resolve()
-        self.run_dir = self.evidence_root / run_id
+        self.run_dir = self.evidence_root / selected_name
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
     def write_json(self, relative_path: str, value: object) -> Path:

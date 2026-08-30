@@ -549,6 +549,15 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
     def after_approval(state: GraphState) -> str:
         return "checkout_effect" if state["approval"]["status"] == "APPROVED" else "terminal"
 
+    def after_checkout(state: GraphState) -> str:
+        checkout_fixture = cast(
+            Mapping[str, Mapping[str, str]],
+            dependencies.case["service_fixtures"],
+        )["checkout"]["effect"]
+        if state.get("pending_effects") and checkout_fixture == "ambiguous_after_commit":
+            return "reconcile_after_snapshot"
+        return "reconcile_if_ambiguous"
+
     def checkout_effect(state: GraphState) -> GraphState:
         effect_id = _checkout_effect_id(state)
         task_id = f"{state['run_id']}:checkout_effect:0"
@@ -766,6 +775,28 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
                 failure_plane="checkout",
                 error_class=reason,
             )
+            if (
+                cast(
+                    Mapping[str, Mapping[str, str]],
+                    dependencies.case["service_fixtures"],
+                )["checkout"]["effect"]
+                == "ambiguous_after_commit"
+            ):
+                dependencies.events.emit(
+                    "effect.replay_refused",
+                    state,
+                    {
+                        "effect_class": "checkout",
+                        "effect_state": "UNKNOWN",
+                        "reason_class": "reconciliation_snapshot_required",
+                    },
+                    node_id="checkout_effect",
+                    task_id=task_id,
+                    attempt_id=attempt_id,
+                    effect_id=effect_id,
+                    failure_plane="graph-control",
+                    error_class="automatic_replay_forbidden",
+                )
             return {
                 "budgets": budgets,
                 "pending_effects": [effect_id],
@@ -1149,6 +1180,7 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
     # Deliberately no retry_policy: durable effect safety lives in the target and ledger.
     builder.add_node("checkout_effect", checkout_effect)
     builder.add_node("reconcile_if_ambiguous", reconcile_if_ambiguous)
+    builder.add_node("reconcile_after_snapshot", reconcile_if_ambiguous)
     builder.add_node("terminal", terminal)
     builder.add_edge(START, "admit_run")
     builder.add_conditional_edges(
@@ -1172,7 +1204,15 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
         after_approval,
         ["checkout_effect", "terminal"],
     )
-    builder.add_edge("checkout_effect", "reconcile_if_ambiguous")
+    builder.add_conditional_edges(
+        "checkout_effect",
+        after_checkout,
+        ["reconcile_if_ambiguous", "reconcile_after_snapshot"],
+    )
     builder.add_edge("reconcile_if_ambiguous", "terminal")
+    builder.add_edge("reconcile_after_snapshot", "terminal")
     builder.add_edge("terminal", END)
-    return builder.compile(checkpointer=checkpointer)
+    return builder.compile(
+        checkpointer=checkpointer,
+        interrupt_before=["reconcile_after_snapshot"],
+    )

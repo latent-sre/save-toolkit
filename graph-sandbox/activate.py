@@ -531,6 +531,7 @@ def _validate_success_controls(
     run_id: str,
     *,
     allow_completed_budget_failure: bool = False,
+    reconciled_effect: bool = False,
 ) -> None:
     approval = _require_closed(
         final_state["approval"],
@@ -558,7 +559,12 @@ def _validate_success_controls(
         raise ActivationError("evidence export: tasks do not contain the four required healthy tasks")
     for task_id, task in tasks.items():
         closed = _require_closed(task, {"status", "attempt"}, f"tasks[{task_id}]")
-        if closed["status"] != "completed" or closed["attempt"] != 1:
+        expected_status = (
+            "failed"
+            if reconciled_effect and task_id == f"{run_id}:checkout_effect:0"
+            else "completed"
+        )
+        if closed["status"] != expected_status or closed["attempt"] != 1:
             raise ActivationError(f"evidence export: tasks[{task_id}] is not completed once")
 
     readiness = final_state["readiness"]
@@ -1459,6 +1465,7 @@ def _validate_runner_semantics(
     source_revision: str,
     exit_code: int,
     runner_state: Mapping[str, object],
+    snapshot_role: str | None = None,
 ) -> dict[str, object]:
     manifest = _require_closed(
         _load_evidence_json(files["manifest.json"], "manifest"),
@@ -1541,6 +1548,12 @@ def _validate_runner_semantics(
         or not isinstance(final_state["receipts"], dict)
     ):
         raise ActivationError("evidence export: final state lineage mismatch")
+    if snapshot_role is not None and (
+        snapshot_role not in {"UNKNOWN", "RECONCILED"}
+        or (snapshot_role == "UNKNOWN" and final_state["outcome"] != "UNKNOWN")
+        or (snapshot_role == "RECONCILED" and final_state["outcome"] != "SUCCEEDED")
+    ):
+        raise ActivationError("evidence export: reconciliation snapshot role mismatch")
 
     runtime = _validate_runtime_evidence(files)
 
@@ -1561,10 +1574,11 @@ def _validate_runner_semantics(
         runtime=runtime,
     )
 
+    expected_runner_exit = 0 if snapshot_role is not None else exit_code
     if (
         set(runner_state) != {"Status", "ExitCode", "OOMKilled"}
         or runner_state["Status"] != "exited"
-        or runner_state["ExitCode"] != exit_code
+        or runner_state["ExitCode"] != expected_runner_exit
         or runner_state["OOMKilled"] is not False
     ):
         raise ActivationError("evidence export: runner container exit mismatch")
@@ -1630,6 +1644,7 @@ def _validate_runner_semantics(
             final_state,
             run_id,
             allow_completed_budget_failure=post_effect_budget_failure,
+            reconciled_effect=final_effect["effect_state"] == "RECONCILED",
         )
         expected_outcome = "FAILED" if post_effect_budget_failure else "SUCCEEDED"
         if (
@@ -1650,6 +1665,8 @@ def _validate_runner_semantics(
             )
         ):
             raise ActivationError("evidence export: completed checkout receipt missing or inconsistent")
+        if snapshot_role == "RECONCILED" and final_effect["effect_state"] != "RECONCILED":
+            raise ActivationError("evidence export: final reconciliation snapshot is not RECONCILED")
         checkout_receipt = _require_closed(
             checkout_receipt,
             {
@@ -1803,6 +1820,7 @@ def _write_host_evidence(
     source_revision: str,
     run_id: str,
     commands: Sequence[Mapping[str, object]],
+    snapshot_role: str | None = None,
 ) -> None:
     required_verification = {
         "docker_context",
@@ -1827,6 +1845,7 @@ def _write_host_evidence(
     ):
         if not isinstance(verification[field], str) or not verification[field]:
             raise ActivationError(f"evidence export: host verification {field} missing")
+    expected_runner_exit = 0 if snapshot_role is not None else exit_code
     if (
         not isinstance(verification["docker_context_fingerprint"], str)
         or not SHA256_RE.fullmatch(verification["docker_context_fingerprint"])
@@ -1837,9 +1856,11 @@ def _write_host_evidence(
         or not isinstance(verification["services_image_id"], str)
         or not re.fullmatch(r"sha256:[0-9a-f]{64}", verification["services_image_id"])
         or verification["runner_container_exit"]
-        != {"Status": "exited", "ExitCode": exit_code, "OOMKilled": False}
+        != {"Status": "exited", "ExitCode": expected_runner_exit, "OOMKilled": False}
     ):
         raise ActivationError("evidence export: host verification values mismatch")
+    if snapshot_role is not None and snapshot_role not in {"UNKNOWN", "RECONCILED"}:
+        raise ActivationError("evidence export: invalid reconciliation snapshot role")
     _atomic_write(run_dir / "commands.jsonl", _command_payload(commands))
     _atomic_write(run_dir / "compose-config.json", validated_compose)
     runtime = _validate_runtime_evidence({"runtime.json": run_dir / "runtime.json"})
@@ -1850,7 +1871,11 @@ def _write_host_evidence(
         for name, version in packages.items()
     }
     verification_payload = {
-        "verification_version": "graph-sandbox-host-verification/v1",
+        "verification_version": (
+            "graph-sandbox-host-verification/v2"
+            if snapshot_role is not None
+            else "graph-sandbox-host-verification/v1"
+        ),
         "run_id": run_id,
         "source_revision": source_revision,
         "exit_code": exit_code,
@@ -1859,18 +1884,26 @@ def _write_host_evidence(
         "package_posture": package_posture,
         **dict(verification),
     }
+    if snapshot_role is not None:
+        verification_payload["snapshot_role"] = snapshot_role
     _atomic_write(
         run_dir / "verification.json",
         (json.dumps(verification_payload, indent=2, sort_keys=True) + "\n").encode("utf-8"),
     )
     environment_payload = {
-        "environment_version": "graph-sandbox-host-environment/v1",
+        "environment_version": (
+            "graph-sandbox-host-environment/v2"
+            if snapshot_role is not None
+            else "graph-sandbox-host-environment/v1"
+        ),
         "run_id": run_id,
         "source_revision": source_revision,
         "python_runtime_posture": python_runtime_posture,
         "package_posture": package_posture,
         **dict(verification),
     }
+    if snapshot_role is not None:
+        environment_payload["snapshot_role"] = snapshot_role
     _atomic_write(
         run_dir / "environment.json",
         (json.dumps(environment_payload, indent=2, sort_keys=True) + "\n").encode("utf-8"),
@@ -1904,6 +1937,9 @@ def _validated_staged_run(
     exit_code: int,
     runner_state: Mapping[str, object] | None = None,
     max_bytes: int = MAX_EVIDENCE_BYTES,
+    directory_name: str | None = None,
+    allow_siblings: bool = False,
+    snapshot_role: str | None = None,
 ) -> tuple[Path, Path, Path, dict[str, object]]:
 
     _reject_path_indirection(evidence_root)
@@ -1912,8 +1948,11 @@ def _validated_staged_run(
     if staging_absolute.parent != Path(os.path.abspath(root)) or not staging_absolute.name.startswith("."):
         raise ActivationError("evidence export: staging path must be an exclusive root child")
     _reject_path_indirection(staging_absolute)
-    run_dir = staging_absolute / run_id
-    if set(staging_absolute.iterdir()) != {run_dir} or not run_dir.is_dir():
+    run_dir = staging_absolute / (run_id if directory_name is None else directory_name)
+    if (
+        (not allow_siblings and set(staging_absolute.iterdir()) != {run_dir})
+        or not run_dir.is_dir()
+    ):
         raise ActivationError("evidence export: unexpected top-level path")
     _reject_path_indirection(run_dir)
     files = _evidence_files(run_dir, max_bytes=max_bytes)
@@ -1934,6 +1973,7 @@ def _validated_staged_run(
         source_revision=source_revision,
         exit_code=exit_code,
         runner_state=state,
+        snapshot_role=snapshot_role,
     )
     return root, staging_absolute, run_dir, manifest
 
@@ -1976,6 +2016,60 @@ def _publish_staged_run(
         finally:
             os.close(descriptor)
     return final
+
+
+def _publish_staged_timeline(
+    root: Path,
+    staging: Path,
+    *,
+    run_id: str,
+    source_revision: str,
+    validated_compose: bytes,
+    verification: Mapping[str, object],
+    commands: Sequence[Mapping[str, object]],
+    bundles: Mapping[str, tuple[Path, dict[str, object]]],
+    max_bytes: int,
+) -> tuple[Path, Path]:
+    """Atomically publish the verified UNKNOWN and RECONCILED bundle pair."""
+
+    if set(bundles) != {"UNKNOWN", "RECONCILED"}:
+        raise ActivationError("evidence export: reconciliation timeline is incomplete")
+    semantic_exits = {"UNKNOWN": 2, "RECONCILED": 0}
+    published_children: dict[str, Path] = {}
+    for role, child_name in (("UNKNOWN", "unknown"), ("RECONCILED", "reconciled")):
+        run_dir, manifest = bundles[role]
+        _write_host_evidence(
+            run_dir,
+            manifest=manifest,
+            validated_compose=validated_compose,
+            verification=verification,
+            exit_code=semantic_exits[role],
+            source_revision=source_revision,
+            run_id=run_id,
+            commands=commands,
+            snapshot_role=role,
+        )
+        final_files = _evidence_files(run_dir, max_bytes=max_bytes)
+        _verify_existing_checksums(final_files)
+        child = staging / child_name
+        if child.exists() or _is_link_or_junction(child):
+            raise ActivationError("evidence export: timeline child already exists")
+        os.replace(run_dir, child)
+        published_children[role] = child
+
+    final = root / run_id
+    if final.exists() or _is_link_or_junction(final):
+        raise ActivationError("evidence export: final run path already exists")
+    if set(staging.iterdir()) != set(published_children.values()):
+        raise ActivationError("evidence export: unexpected timeline staging content")
+    os.replace(staging, final)
+    if os.name != "nt":
+        descriptor = os.open(root, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    return final / "unknown", final / "reconciled"
 
 
 def verify_and_publish_evidence(
@@ -2030,29 +2124,22 @@ def verify_and_publish_evidence(
     )
 
 
-def _validate_published_run(
-    final: Path,
+def _validate_published_bundle(
+    bundle: Path,
     *,
-    evidence_root: Path,
     run_id: str,
     case_id: str,
     case_digest: str,
     source_revision: str,
     compose_digest: str,
     context_fingerprint: str,
-    max_bytes: int = MAX_EVIDENCE_BYTES,
-) -> Path:
-    """Validate an already-installed final directory before crash recovery."""
-
-    _reject_path_indirection(evidence_root)
-    root = evidence_root.resolve(strict=True)
-    expected = root / run_id
-    if Path(os.path.abspath(final)) != Path(os.path.abspath(expected)):
-        raise ActivationError("evidence recovery: final run path identity mismatch")
-    _reject_path_indirection(expected)
-    if not expected.is_dir():
-        raise ActivationError("evidence recovery: final run directory is unavailable")
-    files = _evidence_files(expected, max_bytes=max_bytes)
+    snapshot_role: str | None,
+    max_bytes: int,
+) -> None:
+    _reject_path_indirection(bundle)
+    if not bundle.is_dir():
+        raise ActivationError("evidence recovery: final bundle is unavailable")
+    files = _evidence_files(bundle, max_bytes=max_bytes)
     required_host_files = {
         "commands.jsonl",
         "compose-config.json",
@@ -2071,13 +2158,18 @@ def _validate_published_run(
     verification = _load_evidence_json(files["verification.json"], "host verification")
     exit_code = verification.get("exit_code")
     runner_state = verification.get("runner_container_exit")
+    expected_verification_version = (
+        "graph-sandbox-host-verification/v2"
+        if snapshot_role is not None
+        else "graph-sandbox-host-verification/v1"
+    )
     if (
-        verification.get("verification_version")
-        != "graph-sandbox-host-verification/v1"
+        verification.get("verification_version") != expected_verification_version
         or verification.get("run_id") != run_id
         or verification.get("source_revision") != source_revision
         or verification.get("validated_compose_sha256") != compose_digest
         or verification.get("docker_context_fingerprint") != context_fingerprint
+        or verification.get("snapshot_role") != snapshot_role
         or isinstance(exit_code, bool)
         or not isinstance(exit_code, int)
         or exit_code not in TERMINAL_EVIDENCE_EXITS
@@ -2092,18 +2184,77 @@ def _validate_published_run(
         source_revision=source_revision,
         exit_code=exit_code,
         runner_state=runner_state,
+        snapshot_role=snapshot_role,
     )
     commands = _load_evidence_jsonl(files["commands.jsonl"], "commands journal")
     if files["commands.jsonl"].read_bytes() != _command_payload(commands):
         raise ActivationError("evidence recovery: commands journal is not canonical")
     environment = _load_evidence_json(files["environment.json"], "host environment")
+    expected_environment_version = (
+        "graph-sandbox-host-environment/v2"
+        if snapshot_role is not None
+        else "graph-sandbox-host-environment/v1"
+    )
     if (
-        environment.get("environment_version")
-        != "graph-sandbox-host-environment/v1"
+        environment.get("environment_version") != expected_environment_version
         or environment.get("run_id") != run_id
         or environment.get("source_revision") != source_revision
+        or environment.get("snapshot_role") != snapshot_role
     ):
         raise ActivationError("evidence recovery: host environment identity mismatch")
+
+
+def _validate_published_run(
+    final: Path,
+    *,
+    evidence_root: Path,
+    run_id: str,
+    case_id: str,
+    case_digest: str,
+    source_revision: str,
+    compose_digest: str,
+    context_fingerprint: str,
+    reconciliation_timeline: bool = False,
+    max_bytes: int = MAX_EVIDENCE_BYTES,
+) -> Path:
+    """Validate an already-installed final directory before crash recovery."""
+
+    _reject_path_indirection(evidence_root)
+    root = evidence_root.resolve(strict=True)
+    expected = root / run_id
+    if Path(os.path.abspath(final)) != Path(os.path.abspath(expected)):
+        raise ActivationError("evidence recovery: final run path identity mismatch")
+    _reject_path_indirection(expected)
+    if not expected.is_dir():
+        raise ActivationError("evidence recovery: final run directory is unavailable")
+    if reconciliation_timeline:
+        children = {expected / "unknown", expected / "reconciled"}
+        if set(expected.iterdir()) != children:
+            raise ActivationError("evidence recovery: reconciliation timeline is incomplete")
+        for role, child in (("UNKNOWN", expected / "unknown"), ("RECONCILED", expected / "reconciled")):
+            _validate_published_bundle(
+                child,
+                run_id=run_id,
+                case_id=case_id,
+                case_digest=case_digest,
+                source_revision=source_revision,
+                compose_digest=compose_digest,
+                context_fingerprint=context_fingerprint,
+                snapshot_role=role,
+                max_bytes=max_bytes,
+            )
+    else:
+        _validate_published_bundle(
+            expected,
+            run_id=run_id,
+            case_id=case_id,
+            case_digest=case_digest,
+            source_revision=source_revision,
+            compose_digest=compose_digest,
+            context_fingerprint=context_fingerprint,
+            snapshot_role=None,
+            max_bytes=max_bytes,
+        )
     return expected
 
 
@@ -2139,6 +2290,7 @@ def execute_validated_compose(
     on_publish: Callable[[], None] | None = None,
     on_preserve: Callable[[], None] | None = None,
     commands: Sequence[Mapping[str, object]] | None = None,
+    reconciliation_timeline: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     """Execute one validated model; every post-launch fault enters one preservation funnel."""
 
@@ -2306,30 +2458,76 @@ def execute_validated_compose(
             journal.append(
                 _command_record("export", ["docker", "--context", docker_context, "container", "cp"], copied.returncode)
             )
-            root, staging, run_dir, manifest = _validated_staged_run(
-                staging,
-                evidence_root=root,
-                run_id=run_id,
-                case_id=case_id,
-                case_digest=case_digest,
-                source_revision=source_revision,
-                exit_code=result.returncode,
-                runner_state=runner_state,
-            )
             final_verification = {**dict(verification), "runner_container_exit": dict(runner_state)}
-            final = _publish_staged_run(
-                root,
-                staging,
-                run_dir,
-                manifest=manifest,
-                validated_compose=validated_bytes,
-                verification=final_verification,
-                exit_code=result.returncode,
-                source_revision=source_revision,
-                run_id=run_id,
-                commands=journal,
-                max_bytes=MAX_EVIDENCE_BYTES,
-            )
+            if reconciliation_timeline:
+                if result.returncode != 0:
+                    raise ActivationError(
+                        "evidence export: reconciliation timeline did not complete"
+                    )
+                names = {
+                    "UNKNOWN": f"{run_id}-unknown",
+                    "RECONCILED": f"{run_id}-reconciled",
+                }
+                if set(staging.iterdir()) != {
+                    staging / names["UNKNOWN"],
+                    staging / names["RECONCILED"],
+                }:
+                    raise ActivationError(
+                        "evidence export: reconciliation timeline top-level paths mismatch"
+                    )
+                bundles: dict[str, tuple[Path, dict[str, object]]] = {}
+                for role, semantic_exit in (("UNKNOWN", 2), ("RECONCILED", 0)):
+                    root, staging, run_dir, manifest = _validated_staged_run(
+                        staging,
+                        evidence_root=root,
+                        run_id=run_id,
+                        case_id=case_id,
+                        case_digest=case_digest,
+                        source_revision=source_revision,
+                        exit_code=semantic_exit,
+                        runner_state=runner_state,
+                        directory_name=names[role],
+                        allow_siblings=True,
+                        snapshot_role=role,
+                    )
+                    bundles[role] = (run_dir, manifest)
+                published_dirs = _publish_staged_timeline(
+                    root,
+                    staging,
+                    run_id=run_id,
+                    source_revision=source_revision,
+                    validated_compose=validated_bytes,
+                    verification=final_verification,
+                    commands=journal,
+                    bundles=bundles,
+                    max_bytes=MAX_EVIDENCE_BYTES,
+                )
+                final = root / run_id
+            else:
+                root, staging, run_dir, manifest = _validated_staged_run(
+                    staging,
+                    evidence_root=root,
+                    run_id=run_id,
+                    case_id=case_id,
+                    case_digest=case_digest,
+                    source_revision=source_revision,
+                    exit_code=result.returncode,
+                    runner_state=runner_state,
+                )
+                final = _publish_staged_run(
+                    root,
+                    staging,
+                    run_dir,
+                    manifest=manifest,
+                    validated_compose=validated_bytes,
+                    verification=final_verification,
+                    exit_code=result.returncode,
+                    source_revision=source_revision,
+                    run_id=run_id,
+                    commands=journal,
+                    max_bytes=MAX_EVIDENCE_BYTES,
+                )
+                published_dirs = (final,)
             if on_publish is not None:
                 on_publish()
         except BaseException:
@@ -2344,7 +2542,8 @@ def execute_validated_compose(
                     down.returncode,
                 )
             )
-            _refresh_published_commands(final, journal)
+            for published_dir in published_dirs:
+                _refresh_published_commands(published_dir, journal)
         except BaseException:
             return preserve(HOST_INCONCLUSIVE_EXIT, "published run cleanup failed; resources preserved")
         if down.returncode != 0:
@@ -2377,6 +2576,7 @@ def cleanup_published_resources(
     environment: Mapping[str, str],
     revalidate: Callable[[], None],
     on_preserve: Callable[[], None],
+    reconciliation_timeline: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     """Resume a PUBLISHED claim by cleaning resources only; never rerun the graph."""
 
@@ -2428,17 +2628,26 @@ def cleanup_published_resources(
             code = HOST_INCONCLUSIVE_EXIT if stop.returncode == 0 else HOST_PRESERVATION_FAILURE_EXIT
             return subprocess.CompletedProcess(base, code, stdout="", stderr="published cleanup incomplete")
         final = evidence_root.resolve(strict=True) / run_id
+        published_dirs = (
+            (final / "unknown", final / "reconciled")
+            if reconciliation_timeline
+            else (final,)
+        )
         try:
-            commands = _load_evidence_jsonl(final / "commands.jsonl", "commands journal")
-            commands = [record for record in commands if record.get("phase") != "teardown"]
-            commands.append(
-                _command_record(
-                    "teardown",
-                    ["docker", "--context", docker_context, "compose", "down", "--volumes"],
-                    0,
+            for published_dir in published_dirs:
+                commands = _load_evidence_jsonl(
+                    published_dir / "commands.jsonl",
+                    "commands journal",
                 )
-            )
-            _refresh_published_commands(final, commands)
+                commands = [record for record in commands if record.get("phase") != "teardown"]
+                commands.append(
+                    _command_record(
+                        "teardown",
+                        ["docker", "--context", docker_context, "compose", "down", "--volumes"],
+                        0,
+                    )
+                )
+                _refresh_published_commands(published_dir, commands)
         except BaseException:
             return subprocess.CompletedProcess(base, HOST_INCONCLUSIVE_EXIT, stdout="", stderr="published journal finalization incomplete")
         return subprocess.CompletedProcess(base, 0, stdout="", stderr="")
@@ -2484,6 +2693,12 @@ def activate_runtime(
         environment=git_environment,
     )
     sandbox_case = load_sandbox_case(layout.sandbox_root / "cases", args.case_id)
+    service_fixtures = getattr(sandbox_case, "service_fixtures", {})
+    reconciliation_timeline = (
+        isinstance(service_fixtures, Mapping)
+        and isinstance(service_fixtures.get("checkout"), Mapping)
+        and service_fixtures["checkout"].get("effect") == "ambiguous_after_commit"
+    )
     lease = ActivationLease.acquire(args.evidence_root, args.run_id)
     try:
         image_lock = _load_json(layout.images_lock, "images.lock")
@@ -2546,6 +2761,7 @@ def activate_runtime(
                     source_revision=args.source_revision,
                     compose_digest=validated_compose_digest,
                     context_fingerprint=initial_context.fingerprint,
+                    reconciliation_timeline=reconciliation_timeline,
                 )
                 if claim.phase != "PUBLISHED":
                     claim.transition("PUBLISHED")
@@ -2607,6 +2823,7 @@ def activate_runtime(
                 environment=ambient,
                 revalidate=revalidate,
                 on_preserve=inspect_resources,
+                reconciliation_timeline=reconciliation_timeline,
             )
             if cleanup.returncode == 0:
                 claim.release()
@@ -2674,6 +2891,7 @@ def activate_runtime(
                         0,
                     ),
                 ),
+                reconciliation_timeline=reconciliation_timeline,
             )
         except BaseException:
             if args.operation == "fresh" and not launch_attempted:

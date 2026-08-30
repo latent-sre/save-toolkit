@@ -25,7 +25,7 @@ BUDGET_KINDS = {
 }
 SERVICES = {"checkout", "payments", "inventory"}
 ALLOWED_EFFECTS = {
-    "checkout": {"success"},
+    "checkout": {"success", "ambiguous_after_commit"},
     "payments": {"success", "latency", "http_error", "ambiguous_after_commit", "duplicate"},
     "inventory": {"success", "http_error", "duplicate"},
 }

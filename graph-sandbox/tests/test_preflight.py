@@ -170,6 +170,7 @@ class PreflightTests(unittest.TestCase):
     def test_case_catalog_is_exact_closed_and_digest_frozen(self) -> None:
         observed = {path.stem for path in (SANDBOX_ROOT / "cases").glob("*.json")}
         self.assertEqual(observed, set(CASE_DIGESTS))
+        self.assertIn("checkout-ambiguous-after-commit-001", observed)
         for case_id in sorted(observed):
             with self.subTest(case_id=case_id):
                 case = load_sandbox_case(SANDBOX_ROOT / "cases", case_id)

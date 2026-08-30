@@ -24,6 +24,7 @@ IDENTITY_RE = re.compile(IDENTITY_PATTERN)
 RECEIPT_VERSION = "synthetic-receipt/v1"
 CASE_IDS = frozenset(
     {
+        "checkout-ambiguous-after-commit-001",
         "mission-healthy-001",
         "checkout-readiness-failure-001",
         "payments-latency-001",
@@ -34,7 +35,7 @@ CASE_IDS = frozenset(
     }
 )
 SERVICE_EFFECTS: dict[str, frozenset[str]] = {
-    "checkout": frozenset({"success"}),
+    "checkout": frozenset({"success", "ambiguous_after_commit"}),
     "payments": frozenset(
         {"success", "latency", "http_error", "ambiguous_after_commit", "duplicate"}
     ),

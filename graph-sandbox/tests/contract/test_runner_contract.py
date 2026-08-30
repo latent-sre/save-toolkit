@@ -189,6 +189,14 @@ class StateAndBudgetContractTests(unittest.TestCase):
         self.assertEqual(state["phase"], "ADMISSION")
         self.assertIsNone(state["outcome"])
 
+    def test_checkout_ambiguous_after_commit_case_is_runner_accepted(self) -> None:
+        case = load_case(Path("/app/cases/checkout-ambiguous-after-commit-001.json"))
+
+        self.assertEqual(
+            case["service_fixtures"]["checkout"]["effect"],
+            "ambiguous_after_commit",
+        )
+
     def test_budget_consumption_returns_partial_copy(self) -> None:
         state = new_run_state(
             self.case,

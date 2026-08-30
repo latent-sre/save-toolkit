@@ -30,6 +30,7 @@ DEFAULT_SERVICES = frozenset({"graph-runner", "checkout", "payments", "inventory
 SATURATION_SERVICES = DEFAULT_SERVICES | {"loadgen"}
 CASE_VERSION = "graph-sandbox-case/v2"
 CASE_DIGESTS: Mapping[str, str] = {
+    "checkout-ambiguous-after-commit-001": "47d5a457e174e3d991f8e41f6dd93a5f76f3c6a79d8f2cb016f57713df9e0327",
     "checkout-readiness-failure-001": "2d8ba52bd5c263d2e654749787474e7ec9a382a4eebea03911d8bd7a708b7bc1",
     "duplicate-effect-001": "87a70054eae9e23f98ad92391da4ec4ab5a97e1f923ce4e2e4e9a16d10c77f62",
     "inventory-http-error-after-payment-001": "8ff20a5daf5bf37f450e7aabff469a9884fcb80588690461a0dca46d69b39798",
@@ -752,7 +753,7 @@ def load_sandbox_case(cases_root: Path, case_id: str) -> SandboxCase:
     if set(fixtures) != {"checkout", "payments", "inventory"}:
         raise PreflightError("case service_fixtures: exact service set required")
     allowed_effects = {
-        "checkout": {"success"},
+        "checkout": {"success", "ambiguous_after_commit"},
         "payments": {"success", "latency", "http_error", "ambiguous_after_commit", "duplicate"},
         "inventory": {"success", "http_error", "duplicate"},
     }

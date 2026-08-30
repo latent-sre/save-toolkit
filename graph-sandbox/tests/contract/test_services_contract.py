@@ -435,6 +435,95 @@ class TargetServiceContractTests(unittest.IsolatedAsyncioTestCase):
 
 @unittest.skipUnless(CONTAINER_ONLY, "synthetic application code executes only in its container")
 class CheckoutServiceContractTests(unittest.IsolatedAsyncioTestCase):
+    async def test_checkout_commit_survives_lost_response_without_redispatch(self) -> None:
+        import httpx
+
+        from sandbox_services.checkout import create_app
+        from sandbox_services.common import ServiceConfig
+
+        case_id = "checkout-ambiguous-after-commit-001"
+        target_calls: list[str] = []
+
+        def target(effect_class: str):
+            def handle(request: httpx.Request) -> httpx.Response:
+                target_calls.append(effect_class)
+                return httpx.Response(
+                    200,
+                    json={
+                        "receipt_version": "synthetic-receipt/v1",
+                        "effect_class": effect_class,
+                        "receipt_id": f"{effect_class}-receipt-lost",
+                        "idempotency_key": request.headers["Idempotency-Key"],
+                        "request_digest": "a" * 64,
+                        "status": "committed",
+                        "replayed": False,
+                    },
+                )
+
+            return handle
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            payment_client = httpx.AsyncClient(
+                transport=httpx.MockTransport(target("payment")),
+                base_url="http://payments",
+            )
+            inventory_client = httpx.AsyncClient(
+                transport=httpx.MockTransport(target("inventory")),
+                base_url="http://inventory",
+            )
+            config = ServiceConfig.for_test(
+                "checkout",
+                case_id,
+                root / "checkout.sqlite3",
+                effect_fixture="ambiguous_after_commit",
+            )
+            checkout_app = create_app(
+                config=config,
+                payments_client=payment_client,
+                inventory_client=inventory_client,
+            )
+            request_headers = headers("checkout-key-lost", case_id=case_id)
+            request_body = {
+                "order_id": "order-checkout-lost",
+                "amount_cents": 1299,
+                "currency": "USD",
+                "items": [{"sku": "sku-001", "quantity": 1}],
+            }
+            try:
+                async with checkout_app.router.lifespan_context(checkout_app):
+                    async with httpx.AsyncClient(
+                        transport=httpx.ASGITransport(app=checkout_app),
+                        base_url="http://checkout",
+                    ) as client:
+                        with self.assertRaisesRegex(
+                            RuntimeError,
+                            "synthetic_checkout_response_lost_after_commit",
+                        ):
+                            await client.post(
+                                "/checkout",
+                                headers=request_headers,
+                                json=request_body,
+                            )
+                        receipt = await client.get(
+                            "/checkout/receipt",
+                            params={"idempotency_key": "checkout-key-lost"},
+                            headers={"X-Sandbox-Case": case_id},
+                        )
+                        replay = await client.post(
+                            "/checkout",
+                            headers=request_headers,
+                            json=request_body,
+                        )
+            finally:
+                await payment_client.aclose()
+                await inventory_client.aclose()
+
+            self.assertEqual(receipt.status_code, 200)
+            self.assertEqual(receipt.json()["completion_class"], "COMPLETE")
+            self.assertTrue(replay.json()["replayed"])
+            self.assertEqual(target_calls, ["payment", "inventory"])
+
     async def test_checkout_forwards_case_and_persists_success_across_restart(self) -> None:
         import httpx
 

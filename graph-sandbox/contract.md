@@ -39,11 +39,12 @@ schema mismatch fails before launch:
 
 1. `mission-healthy-001`
 2. `checkout-readiness-failure-001`
-3. `payments-latency-001`
-4. `payments-http-error-001`
-5. `payments-ambiguous-after-commit-001`
-6. `inventory-http-error-after-payment-001`
-7. `duplicate-effect-001`
+3. `checkout-ambiguous-after-commit-001`
+4. `payments-latency-001`
+5. `payments-http-error-001`
+6. `payments-ambiguous-after-commit-001`
+7. `inventory-http-error-after-payment-001`
+8. `duplicate-effect-001`
 
 The closed document shape is:
 
@@ -119,6 +120,18 @@ contains payment and inventory receipts. Host publication adds `commands.jsonl`,
 `manifest.json` includes the closed lineage: evidence/contract/sandbox versions, source revision,
 run ID, case ID, case digest, thread ID, outcome, authoritative result ID, timestamps, and artifact
 inventory. `final-state.json` carries the same lineage and the closed terminal graph state.
+
+The checkout-level ambiguous-after-commit case is the one bounded exception to the ordinary
+single-bundle layout. The runner reaches a durable static reconciliation breakpoint after recording
+`UNKNOWN`, exports a provisional terminal projection without adding that terminal event to the
+durable event store, resumes from the recorded checkpoint, observes the target-owned checkout
+receipt, and transitions that same effect to `RECONCILED`. It exports two independently checksummed
+bundles. Activation validates both against the same exited runner and atomically publishes them as
+`<evidence-root>/<run-id>/{unknown,reconciled}`. Host verification v2 identifies each bundle's
+`snapshot_role`; `exit_code` remains the semantic bundle result (`2` then `0`), while
+`runner_container_exit` truthfully records the single final runner exit. The later event history
+extends the earlier durable prefix after excluding only the provisional terminal projection, and
+the effect ledger extends exactly `PREPARED -> DISPATCHED -> UNKNOWN -> RECONCILED`.
 
 ### Boundary event oracle
 

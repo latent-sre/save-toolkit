@@ -2518,6 +2518,77 @@ class ActivationTests(unittest.TestCase):
         self.assertTrue(any("down" in command and "--volumes" in command for command in commands))
         self.assertEqual(len(revalidations), 5)
 
+    def test_reconciliation_timeline_validates_and_publishes_both_snapshots(self) -> None:
+        calls: list[list[str]] = []
+        payload = b'{"name":"validated"}\n'
+
+        def runner(arguments, *, environment, timeout_seconds, stdin=None):
+            arguments = list(arguments)
+            calls.append(arguments)
+            if "up" in arguments:
+                return completed(arguments)
+            if "ps" in arguments:
+                return completed(arguments, "a" * 64 + "\n")
+            if arguments[3:5] == ["container", "inspect"]:
+                return completed(
+                    arguments,
+                    json.dumps({"Status": "exited", "ExitCode": 0, "OOMKilled": False}),
+                )
+            if arguments[3:5] == ["container", "cp"]:
+                staging = Path(arguments[-1])
+                (staging / f"{CASE_ID}-unknown").mkdir()
+                (staging / f"{CASE_ID}-reconciled").mkdir()
+                return completed(arguments)
+            if "down" in arguments:
+                return completed(arguments)
+            self.fail(f"unexpected lifecycle command: {arguments}")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+
+            def validated(staging, **kwargs):
+                directory_name = kwargs["directory_name"]
+                return evidence_root, Path(staging), Path(staging) / directory_name, {
+                    "outcome": kwargs["snapshot_role"]
+                }
+
+            final_parent = evidence_root / CASE_ID
+            final_unknown = final_parent / "unknown"
+            final_reconciled = final_parent / "reconciled"
+            with (
+                mock.patch("activate._validated_staged_run", side_effect=validated) as validate,
+                mock.patch(
+                    "activate._publish_staged_timeline",
+                    return_value=(final_unknown, final_reconciled),
+                ) as publish,
+                mock.patch("activate._refresh_published_commands") as refresh,
+            ):
+                result = execute_validated_compose(
+                    payload,
+                    docker_context="desktop-linux",
+                    project_name=project_scope(CASE_ID),
+                    evidence_root=evidence_root,
+                    run_id=CASE_ID,
+                    source_revision=SOURCE_REVISION,
+                    verification=self.host_verification(),
+                    runner=runner,
+                    environment={"PATH": "safe"},
+                    revalidate=lambda: None,
+                    reconciliation_timeline=True,
+                )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(
+                [(call.kwargs["snapshot_role"], call.kwargs["exit_code"]) for call in validate.call_args_list],
+                [("UNKNOWN", 2), ("RECONCILED", 0)],
+            )
+            publish.assert_called_once()
+            self.assertEqual(
+                [call.args[0] for call in refresh.call_args_list],
+                [final_unknown, final_reconciled],
+            )
+            self.assertTrue(any("down" in command and "--volumes" in command for command in calls))
+
     def test_context_change_after_up_blocks_every_later_docker_effect(self) -> None:
         calls: list[list[str]] = []
         validation_count = 0

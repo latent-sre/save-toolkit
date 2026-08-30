@@ -56,6 +56,7 @@ class RunDeadlineExceeded(TimeoutError):
 class ExecutionResult:
     state: GraphState
     resume_source_checkpoint_id: str | None
+    reconciliation_snapshot_pending: bool = False
 
 
 @dataclass(frozen=True)
@@ -180,6 +181,27 @@ def _execute_graph(
     approval_fixture: str,
 ) -> ExecutionResult:
     config = {"configurable": {"thread_id": initial_state["thread_id"]}}
+
+    def result_from_state(
+        result: Mapping[str, object],
+        resume_source_checkpoint_id: str | None,
+    ) -> ExecutionResult:
+        snapshot = graph.get_state(config)
+        next_nodes = tuple(getattr(snapshot, "next", ()))
+        if next_nodes == ("reconcile_after_snapshot",):
+            values = getattr(snapshot, "values", None)
+            if not isinstance(values, Mapping):
+                raise RuntimeError("reconciliation snapshot lacks durable state")
+            return ExecutionResult(
+                cast(GraphState, dict(values)),
+                resume_source_checkpoint_id,
+                True,
+            )
+        return ExecutionResult(
+            cast(GraphState, dict(result)),
+            resume_source_checkpoint_id,
+        )
+
     snapshot = graph.get_state(config)
     values = getattr(snapshot, "values", None)
     if values and getattr(snapshot, "next", ()):
@@ -246,7 +268,7 @@ def _execute_graph(
             node_id="terminal",
             checkpoint_id=descendant_id,
         )
-        return ExecutionResult(cast(GraphState, result), checkpoint_id)
+        return result_from_state(cast(Mapping[str, object], result), checkpoint_id)
 
     if values:
         return ExecutionResult(cast(GraphState, dict(values)), None)
@@ -264,7 +286,44 @@ def _execute_graph(
             ),
             config,
         )
-    return ExecutionResult(cast(GraphState, result), None)
+    return result_from_state(cast(Mapping[str, object], result), None)
+
+
+def _snapshot_terminal_event(
+    events: BoundaryEventStore,
+    state: Mapping[str, object],
+    ended_at: str,
+) -> dict[str, object]:
+    """Build the non-durable terminal projection for one provisional snapshot."""
+
+    projected = events.project()
+    if not projected or state.get("outcome") != "UNKNOWN":
+        raise RuntimeError("provisional reconciliation snapshot is not UNKNOWN")
+    last = projected[-1]
+    sequence = int(last["sequence"]) + 1
+    return {
+        "event_version": last["event_version"],
+        "event_type": "run.terminal",
+        "event_id": f"{state['run_id']}:{sequence:08d}",
+        "sequence": sequence,
+        "time_utc": ended_at,
+        "contract_version": last["contract_version"],
+        "sandbox_version": last["sandbox_version"],
+        "source_revision": state["source_revision"],
+        "run_id": state["run_id"],
+        "case_id": state["case_id"],
+        "case_digest": state["case_digest"],
+        "thread_id": state["thread_id"],
+        "node_id": "terminal",
+        "task_id": None,
+        "attempt_id": None,
+        "replay_id": f"{state['run_id']}:replay-{state['replay_number']}",
+        "checkpoint_id": None,
+        "effect_id": None,
+        "failure_plane": None,
+        "error_class": None,
+        "data": {"result": "terminal", "outcome": "UNKNOWN"},
+    }
 
 
 def _checkpoint_lineage(
@@ -341,9 +400,18 @@ def _export_evidence(
     checkpoint_lineage: Mapping[str, object],
     started_at: str,
     ended_at: str,
+    directory_name: str | None = None,
+    event_records: list[Mapping[str, object]] | None = None,
 ) -> None:
-    exporter = EvidenceExporter(config.evidence_dir, config.run_id)
-    exporter.write_jsonl("events.jsonl", events.project())
+    exporter = EvidenceExporter(
+        config.evidence_dir,
+        config.run_id,
+        directory_name=directory_name,
+    )
+    exporter.write_jsonl(
+        "events.jsonl",
+        events.project() if event_records is None else event_records,
+    )
     exporter.write_jsonl("effects.jsonl", ledger.project())
     final_state = _sanitized_final_state(state)
     exporter.write_json("final-state.json", final_state)
@@ -400,7 +468,6 @@ def _export_evidence(
 
 
 def run(environment: Mapping[str, str] | None = None) -> int:
-    started_at = datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     config = RunnerConfig.from_environment(environment)
     try:
         case_bytes = config.case_path.read_bytes()
@@ -426,6 +493,10 @@ def run(environment: Mapping[str, str] | None = None) -> int:
         case_digest=config.case_digest,
         limit_ms=state["budgets"]["wall_time_ms"]["limit"],
     )
+    started_at = datetime.fromtimestamp(
+        wall_budget.started_epoch_ms / 1000,
+        UTC,
+    ).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     events_path = config.effect_ledger_db.with_name("events.sqlite3")
     events = BoundaryEventStore(events_path)
     ledger = EffectLedger(config.effect_ledger_db)
@@ -470,6 +541,54 @@ def run(environment: Mapping[str, str] | None = None) -> int:
                     events,
                     config.approval_fixture,
                 )
+            if execution.reconciliation_snapshot_pending:
+                provisional_state = cast(GraphState, dict(execution.state))
+                provisional_state.update(
+                    {
+                        "phase": "TERMINAL",
+                        "outcome": "UNKNOWN",
+                        "checkout_status": "UNKNOWN",
+                    }
+                )
+                provisional_ended_at = (
+                    datetime.now(UTC)
+                    .isoformat(timespec="milliseconds")
+                    .replace("+00:00", "Z")
+                )
+                provisional_events = [
+                    *events.project(),
+                    _snapshot_terminal_event(
+                        events,
+                        provisional_state,
+                        provisional_ended_at,
+                    ),
+                ]
+                provisional_lineage = _checkpoint_lineage(
+                    checkpointer,
+                    state["thread_id"],
+                    fingerprint,
+                    None,
+                )
+                _export_evidence(
+                    config,
+                    state=provisional_state,
+                    events=events,
+                    ledger=ledger,
+                    checkpoint_lineage=provisional_lineage,
+                    started_at=started_at,
+                    ended_at=provisional_ended_at,
+                    directory_name=f"{config.run_id}-unknown",
+                    event_records=provisional_events,
+                )
+                with _run_deadline(max(0.001, wall_budget.remaining_ms() / 1000)):
+                    execution = _execute_graph(
+                        graph,
+                        state,
+                        events,
+                        config.approval_fixture,
+                    )
+                if execution.reconciliation_snapshot_pending:
+                    raise RuntimeError("reconciliation resume did not advance")
             final_state = execution.state
             emit_terminal_event(events, final_state)
             lineage = _checkpoint_lineage(
@@ -493,6 +612,17 @@ def run(environment: Mapping[str, str] | None = None) -> int:
         )
         raise
     ended_at = datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    timeline_completed = (config.evidence_dir / f"{config.run_id}-unknown").is_dir()
+    if timeline_completed:
+        current_effect = ledger.current(
+            f"{config.run_id}:checkout_effect:0:effect-checkout"
+        )
+        if (
+            final_state.get("outcome") != "SUCCEEDED"
+            or current_effect is None
+            or current_effect.get("effect_state") != "RECONCILED"
+        ):
+            raise RuntimeError("reconciliation timeline did not reach RECONCILED")
     _export_evidence(
         config,
         state=final_state,
@@ -501,6 +631,9 @@ def run(environment: Mapping[str, str] | None = None) -> int:
         checkpoint_lineage=lineage,
         started_at=started_at,
         ended_at=ended_at,
+        directory_name=(
+            f"{config.run_id}-reconciled" if timeline_completed else None
+        ),
     )
     summary = {
         "event": "graph_runner_terminal",
