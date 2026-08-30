@@ -155,6 +155,16 @@ class LinkCheckerTests(Fixture):
                 failures = check_links.check(self.root)
                 self.assertTrue(failures, label)
 
+    def test_skill_name_over_64_characters_is_rejected(self):
+        name = "a" * 65
+        frontmatter = CLEAN_FRONTMATTER.replace("probe-skill", name)
+        self.write(f"skills/{name}/SKILL.md", frontmatter + "\n# Probe\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any("name exceeds 64 characters" in item for item in failures),
+            failures,
+        )
+
     def test_manual_only_control_is_required_inside_frontmatter_and_cannot_widen(self):
         manual_frontmatter = CLEAN_FRONTMATTER.replace(
             "name: probe-skill", "name: service-lifecycle"

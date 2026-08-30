@@ -280,10 +280,13 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
     name = _yaml_string(
         values.get("name", ""), styles.get("name"), f"{where}: name", failures
     )
-    if name and (not NAME_RE.fullmatch(name) or name != expected_name):
-        failures.append(
-            f"{where}: name must be kebab-case and equal directory '{expected_name}'"
-        )
+    if name:
+        if len(name) > 64:
+            failures.append(f"{where}: name exceeds 64 characters")
+        if not NAME_RE.fullmatch(name) or name != expected_name:
+            failures.append(
+                f"{where}: name must be kebab-case and equal directory '{expected_name}'"
+            )
     description = _yaml_string(
         values.get("description", ""),
         styles.get("description"),

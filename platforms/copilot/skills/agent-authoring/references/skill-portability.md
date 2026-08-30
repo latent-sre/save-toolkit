@@ -2,7 +2,10 @@
 
 # Skill portability — which frontmatter survives off Claude Code
 
-[doc-checked 2026-08-05] A skill has two audiences. The portable Agent Skills specification
+[doc-checked 2026-08-30] Checked against the current
+[VS Code Agent Skills](https://code.visualstudio.com/docs/agent-customization/agent-skills) and
+[Agent Plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins) contracts.
+A skill has two audiences. The portable Agent Skills specification
 accepts six fields; Claude Code accepts those plus a Claude-only set. A Claude-only field is
 **rejected** by Anthropic's packaging script when publishing to the portable spec, and silently
 dropped by a host that ignores it. This fleet ships a Claude plugin *and* generates Copilot/VS Code
@@ -65,6 +68,9 @@ restricting field is a default there.
   adapter. Stating a difference is not claiming a control: the omitted `execute` narrows a default
   the user can override and the picker can rewrite — read the VS Code limit in `AGENTS.md` before
   citing it as authority. A fleet control is only as strong as the host it is proven on.
+- The root manifest intentionally uses the selector-based Copilot format to point at
+  `platforms/copilot/skills/`. Adding the Agent Plugins 1.0 `$schema` would instead make `skills/`
+  the portable discovery root and is a coordinated layout migration, not a metadata-only edit.
 
 ## Checking a skill before publishing to the portable spec
 
