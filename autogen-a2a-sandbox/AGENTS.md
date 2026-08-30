@@ -57,7 +57,11 @@ These instructions apply only under `autogen-a2a-sandbox/`. The root `AGENTS.md`
 - Fresh activation creates one retained, run-scoped receipt in the invoking user's private platform
   state directory, outside the caller-selected evidence root. The receipt binds the canonical
   handoff, artifact, checkpoint, daemon, image, and Compose resource identity; resume and exact
-  final replay fail closed if it is missing, changed, linked, or substituted.
+  final replay fail closed if it is missing, changed, linked, or substituted. Its private nonce also
+  authenticates the closed stage manifest, including the exact decision/runtime bytes and complete
+  immutable data-file digest map; public receipt hashes and checksums are not trust anchors. Host
+  validation uses one closed byte snapshot, rejects changes observed during validation, and binds a
+  successful publication event to the authenticated final-claim identifier.
 - Evidence files are flushed before publication. POSIX hosts also fsync the stage and parent
   directories; Windows flushes files and publishes the final directory with
   `MoveFileExW(MOVEFILE_WRITE_THROUGH)`, the strongest local stdlib/Win32 boundary available here.

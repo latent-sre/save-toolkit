@@ -848,6 +848,9 @@ class HostEvidenceValidationTests(unittest.TestCase):
             "receipt_sha256": __import__("hashlib").sha256(self.module._canonical_json(receipt)).hexdigest(),
             "files": {name: __import__("hashlib").sha256(data).hexdigest() for name, data in sorted(values.items())},
         }
+        manifest[self.module._FINAL_CLAIM_AUTHENTICATION_FIELD] = (
+            self.module._final_claim_hmac(manifest, receipt)
+        )
         (stage / "stage-manifest.json").write_bytes(self.module._canonical_json(manifest))
         return stage, image_id, daemon_id, handoff, receipt
 
@@ -911,6 +914,233 @@ class HostEvidenceValidationTests(unittest.TestCase):
                     daemon_id=daemon_id, requested_decision="ACCEPT",
                     handoff=forged_handoff, receipt=receipt,
                 )
+
+    def test_private_receipt_authenticates_exact_decision_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(
+                Path(temporary)
+            )
+            runtime_path = stage / "runtime-final.json"
+            decision_path = stage / "decision.json"
+            runtime = json.loads(runtime_path.read_bytes())
+            runtime["decision"]["approver"] = "forged-release-owner"
+            runtime["decision"]["decided_at"] = "2026-08-30T00:01:00Z"
+            runtime["decision"]["expires_at"] = "2026-08-30T00:16:00Z"
+            runtime_path.write_bytes(self.module._canonical_json(runtime))
+            decision_path.write_bytes(self.module._canonical_json(runtime["decision"]))
+
+            manifest_path = stage / "stage-manifest.json"
+            manifest = json.loads(manifest_path.read_bytes())
+            for name in ("runtime-final.json", "decision.json"):
+                manifest["files"][name] = __import__("hashlib").sha256(
+                    (stage / name).read_bytes()
+                ).hexdigest()
+            manifest_path.write_bytes(self.module._canonical_json(manifest))
+
+            with self.assertRaisesRegex(Exception, "authentic|authentication"):
+                self.module.validate_staged_bundle(
+                    stage, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
+                )
+
+    def test_public_receipt_hash_cannot_authenticate_a_forged_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(
+                Path(temporary)
+            )
+            manifest_path = stage / "stage-manifest.json"
+            manifest = json.loads(manifest_path.read_bytes())
+            claim = {
+                field: value
+                for field, value in manifest.items()
+                if field != self.module._FINAL_CLAIM_AUTHENTICATION_FIELD
+            }
+            manifest[self.module._FINAL_CLAIM_AUTHENTICATION_FIELD] = __import__(
+                "hmac"
+            ).new(
+                bytes.fromhex(manifest["receipt_sha256"]),
+                self.module._FINAL_CLAIM_DOMAIN + self.module._canonical_json(claim),
+                __import__("hashlib").sha256,
+            ).hexdigest()
+            manifest_path.write_bytes(self.module._canonical_json(manifest))
+
+            with self.assertRaisesRegex(Exception, "authentication"):
+                self.module.validate_staged_bundle(
+                    stage, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
+                )
+
+    def test_recomputed_final_checksums_cannot_forge_decision_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(root)
+            target = root / "final-bundle"
+            self.module._finalize_bundle(
+                stage, target, run_id="host-validator-run", revision="1" * 40,
+                case_id="mission-healthy-001", image_id=image_id,
+                daemon_id=daemon_id, requested_decision="ACCEPT",
+                handoff=handoff, receipt=receipt,
+            )
+
+            runtime_path = target / "runtime-final.json"
+            decision_path = target / "decision.json"
+            runtime = json.loads(runtime_path.read_bytes())
+            runtime["decision"]["approver"] = "forged-release-owner"
+            runtime["decision"]["decided_at"] = "2026-08-30T00:01:00Z"
+            runtime["decision"]["expires_at"] = "2026-08-30T00:16:00Z"
+            runtime_path.write_bytes(self.module._canonical_json(runtime))
+            decision_path.write_bytes(self.module._canonical_json(runtime["decision"]))
+
+            manifest_path = target / "stage-manifest.json"
+            manifest = json.loads(manifest_path.read_bytes())
+            for name in ("runtime-final.json", "decision.json"):
+                manifest["files"][name] = __import__("hashlib").sha256(
+                    (target / name).read_bytes()
+                ).hexdigest()
+            manifest_path.write_bytes(self.module._canonical_json(manifest))
+            checksums = {
+                path.name: __import__("hashlib").sha256(path.read_bytes()).hexdigest()
+                for path in sorted(target.iterdir())
+                if path.name != "checksums.json"
+            }
+            (target / "checksums.json").write_bytes(
+                self.module._canonical_json(
+                    {"checksums_version": "autogen-a2a-checksums/v1", "files": checksums}
+                )
+            )
+
+            with self.assertRaisesRegex(Exception, "authentication"):
+                self.module._validate_final_bundle(
+                    target, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
+                )
+
+    def test_finalize_revalidates_authenticated_bytes_after_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(root)
+            target = root / "final-bundle"
+
+            def rename_then_tamper(source: Path, destination: Path) -> None:
+                os.rename(source, destination)
+                runtime_path = destination / "runtime-final.json"
+                decision_path = destination / "decision.json"
+                runtime = json.loads(runtime_path.read_bytes())
+                runtime["decision"]["approver"] = "forged-release-owner"
+                runtime_path.write_bytes(self.module._canonical_json(runtime))
+                decision_path.write_bytes(self.module._canonical_json(runtime["decision"]))
+                manifest_path = destination / "stage-manifest.json"
+                manifest = json.loads(manifest_path.read_bytes())
+                for name in ("runtime-final.json", "decision.json"):
+                    manifest["files"][name] = __import__("hashlib").sha256(
+                        (destination / name).read_bytes()
+                    ).hexdigest()
+                manifest_path.write_bytes(self.module._canonical_json(manifest))
+
+            with patch.object(
+                self.module, "_durable_publish_directory", side_effect=rename_then_tamper
+            ), self.assertRaisesRegex(Exception, "authentication"):
+                self.module._finalize_bundle(
+                    stage, target, run_id="host-validator-run", revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
+                )
+
+    def test_stage_change_during_semantic_validation_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(
+                Path(temporary)
+            )
+            validate_snapshot = self.module._validate_staged_contents
+
+            def tamper_then_validate(snapshot, **kwargs) -> None:
+                runtime_path = stage / "runtime-final.json"
+                runtime = json.loads(runtime_path.read_bytes())
+                runtime["decision"]["decided_at"] = "2026-08-30T00:01:00Z"
+                runtime["decision"]["expires_at"] = "2026-08-30T00:16:00Z"
+                runtime_path.write_bytes(self.module._canonical_json(runtime))
+                validate_snapshot(snapshot, **kwargs)
+
+            with patch.object(
+                self.module,
+                "_validate_staged_contents",
+                side_effect=tamper_then_validate,
+            ), self.assertRaisesRegex(Exception, "changed during validation"):
+                self.module.validate_staged_bundle(
+                    stage, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
+                )
+
+    def test_exact_final_replay_validates_after_cleanup_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+            run_root = evidence_root / "host-validator-run"
+            run_root.mkdir()
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(run_root)
+            target = run_root / "final-bundle"
+            self.module._finalize_bundle(
+                stage, target, run_id="host-validator-run", revision="1" * 40,
+                case_id="mission-healthy-001", image_id=image_id,
+                daemon_id=daemon_id, requested_decision="ACCEPT",
+                handoff=handoff, receipt=receipt,
+            )
+
+            def tamper_during_cleanup(*_args) -> None:
+                runtime_path = target / "runtime-final.json"
+                decision_path = target / "decision.json"
+                runtime = json.loads(runtime_path.read_bytes())
+                runtime["decision"]["decided_at"] = "2026-08-30T00:01:00Z"
+                runtime["decision"]["expires_at"] = "2026-08-30T00:16:00Z"
+                runtime_path.write_bytes(self.module._canonical_json(runtime))
+                decision_path.write_bytes(self.module._canonical_json(runtime["decision"]))
+                manifest_path = target / "stage-manifest.json"
+                manifest = json.loads(manifest_path.read_bytes())
+                for name in ("runtime-final.json", "decision.json"):
+                    manifest["files"][name] = __import__("hashlib").sha256(
+                        (target / name).read_bytes()
+                    ).hexdigest()
+                manifest_path.write_bytes(self.module._canonical_json(manifest))
+                checksums = {
+                    path.name: __import__("hashlib").sha256(path.read_bytes()).hexdigest()
+                    for path in sorted(target.iterdir())
+                    if path.name != "checksums.json"
+                }
+                (target / "checksums.json").write_bytes(
+                    self.module._canonical_json(
+                        {"checksums_version": "autogen-a2a-checksums/v1", "files": checksums}
+                    )
+                )
+
+            with patch.object(self.module, "_resolve_image", return_value=image_id), patch.object(
+                self.module, "_load_json_file", return_value=handoff
+            ), patch.object(
+                self.module, "validate_resume_handoff", return_value=handoff
+            ), patch.object(
+                self.module, "_load_trusted_receipt", return_value=receipt
+            ), patch.object(
+                self.module, "_render_compose", return_value=b"{}"
+            ), patch.object(
+                self.module, "_verify_full_cleanup", side_effect=tamper_during_cleanup
+            ), self.assertRaisesRegex(Exception, "authentication"):
+                self.module._resume(
+                    SANDBOX_ROOT, "desktop-linux", "1" * 40,
+                    "host-validator-run", evidence_root, "ACCEPT", daemon_id,
+                )
+
+    def test_runtime_validator_requires_fixed_human_approver(self) -> None:
+        runtime = copy.deepcopy(self.runtime)
+        runtime["decision"]["approver"] = "alternate-release-owner"
+        with self.assertRaisesRegex(Exception, "requested decision"):
+            self._validate(runtime)
 
     def test_stage_rejects_hardlink_and_symlink_substitution(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1032,13 +1262,20 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 self.module, "_render_compose", return_value=b"{}"
             ), patch.object(
                 self.module, "_verify_full_cleanup"
-            ) as cleanup:
+            ) as cleanup, patch("builtins.print") as output:
                 result = self.module._resume(
                     SANDBOX_ROOT, "desktop-linux", "1" * 40,
                     "host-validator-run", evidence_root, "ACCEPT", daemon_id,
                 )
             self.assertEqual(result, 0)
             cleanup.assert_called_once()
+            event = json.loads(output.call_args.args[0])
+            self.assertEqual(
+                event["final_claim_hmac_sha256"],
+                json.loads((target / "stage-manifest.json").read_bytes())[
+                    self.module._FINAL_CLAIM_AUTHENTICATION_FIELD
+                ],
+            )
 
             with patch.object(self.module, "_resolve_image", return_value=image_id), patch.object(
                 self.module, "_load_json_file", return_value=handoff

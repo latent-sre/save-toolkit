@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -40,8 +41,10 @@ _PINNED_PACKAGES = {
     "agent-framework-core": "1.16.0",
     "autogen-agentchat": "0.7.5",
 }
-_STAGE_MANIFEST_VERSION = "autogen-a2a-final-stage/v1"
+_STAGE_MANIFEST_VERSION = "autogen-a2a-final-stage/v2"
 _RECEIPT_VERSION = "autogen-a2a-host-receipt/v1"
+_FINAL_CLAIM_AUTHENTICATION_FIELD = "final_claim_hmac_sha256"
+_FINAL_CLAIM_DOMAIN = b"autogen-a2a-final-claim/v1\0"
 _RECEIPT_FIELDS = frozenset({
     "receipt_version", "receipt_nonce", "handoff_sha256", "run_id",
     "source_revision", "case_id", "artifact_digest", "checkpoint_id",
@@ -610,6 +613,23 @@ def _validate_receipt(
     return receipt
 
 
+def _final_claim_hmac(
+    claim: Mapping[str, object], receipt: Mapping[str, object]
+) -> str:
+    """Authenticate one closed final-claim preimage with the private receipt secret."""
+
+    nonce = receipt.get("receipt_nonce")
+    if type(nonce) is not str or re.fullmatch(r"[0-9a-f]{64}", nonce) is None:
+        raise ActivationError(
+            "invalid_receipt", "trusted host receipt nonce is malformed", EXIT_PRECONDITION
+        )
+    return hmac.new(
+        bytes.fromhex(nonce),
+        _FINAL_CLAIM_DOMAIN + _canonical_json(claim),
+        hashlib.sha256,
+    ).hexdigest()
+
+
 def _require_safe_directory(path: Path, *, private: bool = False) -> None:
     try:
         details = os.lstat(path)
@@ -828,13 +848,13 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
     compose_env = _compose_environment(expectation)
     model_bytes = _render_compose(root, context, compose_env, expectation)
     if os.path.lexists(final_target):
-        _validate_final_bundle(
+        _verify_full_cleanup(context, identity)
+        final_claim = _validate_final_bundle(
             final_target, run_id=run_id, source_revision=revision, case_id=case_id,
             image_id=image_id, daemon_id=daemon_id, requested_decision=decision,
             handoff=handoff, receipt=receipt,
         )
-        _verify_full_cleanup(context, identity)
-        print(json.dumps({"event": "decision_published_replay", "bundle": str(final_target), "run_id": run_id}, sort_keys=True, separators=(",", ":")))
+        print(json.dumps({"event": "decision_published_replay", "bundle": str(final_target), "final_claim_hmac_sha256": final_claim[_FINAL_CLAIM_AUTHENTICATION_FIELD], "run_id": run_id}, sort_keys=True, separators=(",", ":")))
         return 0
     durable_stage = _pending_stage_path(final_target)
     if (durable_stage / "stage-manifest.json").is_file():
@@ -851,7 +871,7 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
         )
         _compose_down(root, context, compose_env, remove_volumes=True)
         _verify_full_cleanup(context, identity)
-        _finalize_bundle(
+        final_claim = _finalize_bundle(
             durable_stage,
             final_target,
             run_id=run_id,
@@ -863,7 +883,7 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
             handoff=handoff,
             receipt=receipt,
         )
-        print(json.dumps({"event": "decision_published_from_stage", "bundle": str(final_target), "run_id": run_id}, sort_keys=True, separators=(",", ":")))
+        print(json.dumps({"event": "decision_published_from_stage", "bundle": str(final_target), "final_claim_hmac_sha256": final_claim[_FINAL_CLAIM_AUTHENTICATION_FIELD], "run_id": run_id}, sort_keys=True, separators=(",", ":")))
         return 0
     _require_pending_resources(context, identity)
     staged: tuple[Path, Path] | None = None
@@ -916,7 +936,7 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
         raise ActivationError("resume_incomplete", "resume did not stage final evidence; pending volumes were preserved", EXIT_RUNTIME)
     try:
         _verify_full_cleanup(context, identity)
-        _finalize_bundle(
+        final_claim = _finalize_bundle(
             *staged,
             run_id=run_id,
             revision=revision,
@@ -929,7 +949,7 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
         )
     except BaseException:
         raise
-    print(json.dumps({"event": "decision_published", "bundle": str(evidence_root / run_id / "final-bundle"), "run_id": run_id}, sort_keys=True, separators=(",", ":")))
+    print(json.dumps({"event": "decision_published", "bundle": str(evidence_root / run_id / "final-bundle"), "final_claim_hmac_sha256": final_claim[_FINAL_CLAIM_AUTHENTICATION_FIELD], "run_id": run_id}, sort_keys=True, separators=(",", ":")))
     return 0
 
 
@@ -991,7 +1011,7 @@ def _stage_final_bundle(
     }
     for name, value in values.items():
         publish_file_once(stage / name, value)
-    manifest = {
+    claim = {
         "case_id": case_id,
         "artifact_digest": handoff["artifact_digest"],
         "checkpoint_id": handoff["checkpoint_id"],
@@ -1006,6 +1026,10 @@ def _stage_final_bundle(
         "source_revision": revision,
         "receipt_sha256": hashlib.sha256(_canonical_json(receipt)).hexdigest(),
         "stage_version": _STAGE_MANIFEST_VERSION,
+    }
+    manifest = {
+        **claim,
+        _FINAL_CLAIM_AUTHENTICATION_FIELD: _final_claim_hmac(claim, receipt),
     }
     publish_file_once(stage / "stage-manifest.json", _canonical_json(manifest))
     validate_staged_bundle(
@@ -1026,6 +1050,39 @@ def _pending_stage_path(target: Path) -> Path:
     return target.parent / ".final-bundle.pending"
 
 
+def _snapshot_stage_files(
+    stage: Path, *, require_final: bool
+) -> Mapping[str, bytes]:
+    _require_safe_directory(stage)
+    allowed = {
+        *_STAGED_DATA_FILES,
+        "stage-manifest.json",
+        "verification.json",
+        "checksums.json",
+    }
+    required = {*_STAGED_DATA_FILES, "stage-manifest.json"}
+    if require_final:
+        required = allowed
+    actual_names = {path.name for path in stage.iterdir()}
+    invalid_names = (
+        actual_names != required
+        if require_final
+        else not (required <= actual_names <= allowed)
+    )
+    if invalid_names:
+        raise ActivationError(
+            "invalid_stage",
+            "final bundle file set is not exact"
+            if require_final
+            else "pending final stage contains unknown or missing files",
+            EXIT_PRECONDITION,
+        )
+    return {
+        name: _read_regular_file(stage / name, f"staged {name}")
+        for name in sorted(actual_names)
+    }
+
+
 def validate_staged_bundle(
     stage: Path,
     *,
@@ -1037,15 +1094,16 @@ def validate_staged_bundle(
     requested_decision: str,
     handoff: Mapping[str, object],
     receipt: Mapping[str, object],
+    require_final: bool = False,
 ) -> Mapping[str, object]:
-    _require_safe_directory(stage)
-    manifest_path = stage / "stage-manifest.json"
+    receipt = _validate_receipt(receipt, handoff)
+    snapshot = _snapshot_stage_files(stage, require_final=require_final)
     try:
-        manifest_bytes = _read_regular_file(manifest_path, "stage manifest")
+        manifest_bytes = snapshot["stage-manifest.json"]
         manifest = json.loads(manifest_bytes)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ActivationError("invalid_stage", "pending final stage is unreadable", EXIT_PRECONDITION) from exc
-    fields = {"stage_version", "run_id", "source_revision", "case_id", "image_id", "daemon_id", "artifact_digest", "checkpoint_id", "handoff_sha256", "receipt_sha256", "files"}
+    fields = {"stage_version", "run_id", "source_revision", "case_id", "image_id", "daemon_id", "artifact_digest", "checkpoint_id", "handoff_sha256", "receipt_sha256", "files", _FINAL_CLAIM_AUTHENTICATION_FIELD}
     if type(manifest) is not dict or set(manifest) != fields:
         raise ActivationError("invalid_stage", "pending final stage manifest is not closed", EXIT_PRECONDITION)
     if manifest_bytes != _canonical_json(manifest):
@@ -1065,18 +1123,30 @@ def validate_staged_bundle(
     for field, value in expected.items():
         if manifest.get(field) != value:
             raise ActivationError("invalid_stage", f"pending final stage {field} mismatch", EXIT_PRECONDITION)
+    authentication = manifest.get(_FINAL_CLAIM_AUTHENTICATION_FIELD)
+    claim = {
+        field: value
+        for field, value in manifest.items()
+        if field != _FINAL_CLAIM_AUTHENTICATION_FIELD
+    }
+    if (
+        type(authentication) is not str
+        or re.fullmatch(r"[0-9a-f]{64}", authentication) is None
+        or not hmac.compare_digest(authentication, _final_claim_hmac(claim, receipt))
+    ):
+        raise ActivationError(
+            "invalid_stage",
+            "pending final stage authentication mismatch",
+            EXIT_PRECONDITION,
+        )
     digests = manifest.get("files")
     if type(digests) is not dict or set(digests) != _STAGED_DATA_FILES:
         raise ActivationError("invalid_stage", "pending final stage file set mismatch", EXIT_PRECONDITION)
-    allowed = {*_STAGED_DATA_FILES, "stage-manifest.json", "verification.json", "checksums.json"}
-    actual_names = {path.name for path in stage.iterdir()}
-    if not actual_names <= allowed or not {*_STAGED_DATA_FILES, "stage-manifest.json"} <= actual_names:
-        raise ActivationError("invalid_stage", "pending final stage contains unknown or missing files", EXIT_PRECONDITION)
     for name, expected_digest in digests.items():
-        if type(expected_digest) is not str or hashlib.sha256(_read_regular_file(stage / name, f"staged {name}")).hexdigest() != expected_digest:
+        if type(expected_digest) is not str or hashlib.sha256(snapshot[name]).hexdigest() != expected_digest:
             raise ActivationError("invalid_stage", f"pending final stage {name} digest mismatch", EXIT_PRECONDITION)
     _validate_staged_contents(
-        stage,
+        snapshot,
         run_id=run_id,
         source_revision=source_revision,
         case_id=case_id,
@@ -1086,11 +1156,17 @@ def validate_staged_bundle(
         handoff=handoff,
         receipt=receipt,
     )
+    if _snapshot_stage_files(stage, require_final=require_final) != snapshot:
+        raise ActivationError(
+            "invalid_stage",
+            "pending final stage changed during validation",
+            EXIT_PRECONDITION,
+        )
     return manifest
 
 
 def _validate_staged_contents(
-    stage: Path,
+    snapshot: Mapping[str, bytes],
     *,
     run_id: str,
     source_revision: str,
@@ -1103,10 +1179,10 @@ def _validate_staged_contents(
 ) -> None:
     _validate_receipt(receipt, handoff)
     contracts, _runtime_validation = _validation_modules()
-    case_bytes = _read_regular_file(stage / "case.json", "staged case")
+    case_bytes = snapshot["case.json"]
     case_object = _decode_json_object_bytes(case_bytes, "staged case")
     manifest_object = _decode_json_object_bytes(
-        _read_regular_file(stage / "case-manifest.json", "staged case manifest"), "staged case manifest"
+        snapshot["case-manifest.json"], "staged case manifest"
     )
     if set(manifest_object) != {"manifest_version", "cases"} or manifest_object.get(
         "manifest_version"
@@ -1142,7 +1218,7 @@ def _validate_staged_contents(
     if case.case_id != case_id:
         raise ActivationError("invalid_stage", "staged case identity mismatch", EXIT_PRECONDITION)
 
-    runtime_bytes = _read_regular_file(stage / "runtime-final.json", "staged runtime final")
+    runtime_bytes = snapshot["runtime-final.json"]
     runtime_object = _validate_runtime_final(
         runtime_bytes,
         run_id=run_id,
@@ -1153,9 +1229,9 @@ def _validate_staged_contents(
         handoff=handoff,
     )
     for name, field in (("artifact.json", "artifact"), ("decision.json", "decision")):
-        if _read_regular_file(stage / name, f"staged {name}") != _canonical_json(runtime_object[field]):
+        if snapshot[name] != _canonical_json(runtime_object[field]):
             raise ActivationError("invalid_stage", f"staged {name} differs from runtime evidence", EXIT_PRECONDITION)
-    graph_bytes = _read_regular_file(stage / "graphflow-state.json", "staged GraphFlow state")
+    graph_bytes = snapshot["graphflow-state.json"]
     graph_object = _decode_json_object_bytes(graph_bytes, "staged GraphFlow state")
     if graph_bytes != contracts.canonical_json_bytes(graph_object):
         raise ActivationError(
@@ -1164,13 +1240,13 @@ def _validate_staged_contents(
     if graph_object != runtime_object["graphflow"]["terminal_state"]:
         raise ActivationError("invalid_stage", "staged GraphFlow state differs from runtime evidence", EXIT_PRECONDITION)
     _validate_graphflow_checkpoint(
-        _read_regular_file(stage / "graphflow-checkpoint.json", "staged GraphFlow checkpoint"),
+        snapshot["graphflow-checkpoint.json"],
         runtime_object=runtime_object,
         handoff=handoff,
     )
 
     environment = _load_canonical_json_bytes(
-        _read_regular_file(stage / "environment.json", "staged environment"), "staged environment"
+        snapshot["environment.json"], "staged environment"
     )
     environment_fields = {
         "evidence_version", "source_revision", "run_id", "case_id", "image_id",
@@ -1206,7 +1282,7 @@ def _validate_staged_contents(
         raise ActivationError("invalid_stage", "staged Docker or Python identity is malformed", EXIT_PRECONDITION)
 
     compose_model = _load_canonical_json_bytes(
-        _read_regular_file(stage / "compose-model.json", "staged Compose model"), "staged Compose model"
+        snapshot["compose-model.json"], "staged Compose model"
     )
     identity = _run_identity(run_id, source_revision)
     validate_compose_model(
@@ -1218,10 +1294,9 @@ def _validate_staged_contents(
         ),
     )
 
-    verification_path = stage / "verification.json"
-    if os.path.lexists(verification_path):
+    if "verification.json" in snapshot:
         verification = _load_canonical_json_bytes(
-            _read_regular_file(verification_path, "staged verification"), "staged verification"
+            snapshot["verification.json"], "staged verification"
         )
         expected_verification = {
             "daemon_id": daemon_id,
@@ -1235,13 +1310,12 @@ def _validate_staged_contents(
         }
         if verification != expected_verification:
             raise ActivationError("invalid_stage", "staged verification is invalid", EXIT_PRECONDITION)
-    checksums_path = stage / "checksums.json"
-    if os.path.lexists(checksums_path):
-        checksums = _load_canonical_json_bytes(_read_regular_file(checksums_path, "staged checksums"), "staged checksums")
+    if "checksums.json" in snapshot:
+        checksums = _load_canonical_json_bytes(snapshot["checksums.json"], "staged checksums")
         expected_checksums = {
-            path.name: hashlib.sha256(_read_regular_file(path, f"staged {path.name}")).hexdigest()
-            for path in sorted(stage.iterdir())
-            if path.name != "checksums.json"
+            name: hashlib.sha256(value).hexdigest()
+            for name, value in sorted(snapshot.items())
+            if name != "checksums.json"
         }
         if checksums != {
             "checksums_version": "autogen-a2a-checksums/v1",
@@ -1312,7 +1386,7 @@ def _finalize_bundle(
     requested_decision: str,
     handoff: Mapping[str, object],
     receipt: Mapping[str, object],
-) -> None:
+) -> Mapping[str, object]:
     validate_staged_bundle(
         stage,
         run_id=run_id,
@@ -1332,6 +1406,17 @@ def _finalize_bundle(
     publish_file_once(stage / "checksums.json", _canonical_json({"checksums_version": "autogen-a2a-checksums/v1", "files": checksums}))
     _sync_directory(stage)
     _durable_publish_directory(stage, target)
+    return _validate_final_bundle(
+        target,
+        run_id=run_id,
+        source_revision=revision,
+        case_id=case_id,
+        image_id=image_id,
+        daemon_id=daemon_id,
+        requested_decision=requested_decision,
+        handoff=handoff,
+        receipt=receipt,
+    )
 
 
 def _durable_publish_directory(stage: Path, target: Path) -> None:
@@ -1364,24 +1449,13 @@ def _validate_final_bundle(
     requested_decision: str,
     handoff: Mapping[str, object],
     receipt: Mapping[str, object],
-) -> None:
-    _require_safe_directory(target)
-    validate_staged_bundle(
+) -> Mapping[str, object]:
+    return validate_staged_bundle(
         target, run_id=run_id, source_revision=source_revision, case_id=case_id,
         image_id=image_id, daemon_id=daemon_id,
         requested_decision=requested_decision, handoff=handoff, receipt=receipt,
+        require_final=True,
     )
-    expected = {
-        *_STAGED_DATA_FILES,
-        "stage-manifest.json",
-        "verification.json",
-        "checksums.json",
-    }
-    actual = {entry.name for entry in target.iterdir()}
-    if actual != expected:
-        raise ActivationError("invalid_stage", "final bundle file set is not exact", EXIT_PRECONDITION)
-    for entry in target.iterdir():
-        _read_regular_file(entry, f"final bundle {entry.name}")
 
 
 def _validate_runtime_terminal(
@@ -1592,6 +1666,7 @@ def _validate_runtime_final(
         or case.expected.recommendation != artifact.recommendation
         or case.expected.reconciliation_attempts != artifact.reconciliation_attempts
         or decision.decision != requested_decision
+        or decision.approver != "human-release-owner"
         or handoff.get("artifact_digest") != artifact.artifact_digest
     ):
         raise ActivationError("runtime_evidence_invalid", "case or requested decision binding mismatch", EXIT_RUNTIME)

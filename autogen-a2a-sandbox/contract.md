@@ -228,6 +228,14 @@ recommendation artifact when allowed, Agent Framework checkpoint/request proof, 
 completed, verification result, and checksums. Prompts, credentials, arbitrary exception bodies,
 raw host environment, and unrestricted payloads are forbidden.
 
+The caller-selected evidence root is untrusted for authenticity. A domain-separated HMAC keyed by
+the private host receipt nonce covers the closed stage manifest and its complete immutable data-file
+digest map, including the standalone and nested final decision bytes. Durable-stage recovery and
+exact-final replay verify that tag before trusting public hashes; the only accepted approver identity
+is `human-release-owner`. Validation consumes one closed byte snapshot, rejects a snapshot that
+changes during semantic checks, performs final-replay cleanup before the last validation, and returns
+the authenticated `final_claim_hmac_sha256` identifier with every successful publication event.
+
 The normal Agent Framework adapter's bounded timeline distinguishes its real `workflow_working`
 lifecycle observation from the later artifact and terminal A2A events; it does not relabel that
 workflow event as protocol `WORKING`. The raw A2A interruption/cancellation path separately records
