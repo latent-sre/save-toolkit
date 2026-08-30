@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/latent-sre/save-toolkit/schemas/fleet-atlas-v1.schema.json",
+  "title": "FleetAtlas",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "nodes", "edges", "unknowns"],
+  "properties": {
+    "apiVersion": {"const": "save-toolkit/fleet-atlas/v1"},
+    "kind": {"const": "FleetAtlas"},
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "dirty", "treeDigest", "nodeCount", "edgeCount", "unknownCount"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "dirty": {"type": "boolean"},
+        "treeDigest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "nodeCount": {"type": "integer", "minimum": 0},
+        "edgeCount": {"type": "integer", "minimum": 0},
+        "unknownCount": {"type": "integer", "minimum": 0}
+      }
+    },
+    "nodes": {"type": "array", "items": {"$ref": "#/$defs/Node"}},
+    "edges": {"type": "array", "items": {"$ref": "#/$defs/Edge"}},
+    "unknowns": {"type": "array", "items": {"$ref": "#/$defs/Unknown"}}
+  },
+  "$defs": {
+    "Evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "lines", "excerptHash", "detector", "class"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "lines": {"type": "array", "items": {"type": "integer", "minimum": 1}, "minItems": 2, "maxItems": 2},
+        "excerptHash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "detector": {"type": "string", "minLength": 1},
+        "class": {"enum": ["CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED", "OPERATOR_CONFIRMED", "UNKNOWN"]}
+      }
+    },
+    "Node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "name", "authority", "path", "state", "attrs", "evidence"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "type": {"enum": ["agent", "skill", "reference", "bundle-file", "command", "rule", "decision", "roadmap-item", "review", "scenario", "test", "schema", "generated-projection", "capability", "owner", "probe"]},
+        "name": {"type": "string", "minLength": 1},
+        "authority": {"enum": ["canonical", "live-contract", "generated", "historical-evidence", "external"]},
+        "path": {"type": ["string", "null"]},
+        "state": {"enum": ["live", "historical", "retired", "proposed", "rejected", "deprecated", "generated"]},
+        "attrs": {"type": "object"},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}}
+      }
+    },
+    "Edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "target", "kind", "class", "attrs", "evidence"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["owns", "routes_to", "delegates_to", "loads_when", "governed_by", "constrained_by", "verified_by", "evidenced_by", "depends_on", "blocks", "supersedes", "generated_from", "near_miss_for", "contradicts", "cites"]},
+        "class": {"enum": ["CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED", "OPERATOR_CONFIRMED", "UNKNOWN"]},
+        "attrs": {"type": "object"},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}}
+      }
+    },
+    "Unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "path", "neededEvidence"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "path": {"type": ["string", "null"]},
+        "neededEvidence": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

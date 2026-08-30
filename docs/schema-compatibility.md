@@ -39,6 +39,14 @@ incomplete traces presented as decisive results, missing canaries presented as r
 dirty candidates presented as promotion-eligible. The envelope records evidence; it never promotes
 a candidate, and cross-engine comparison never averages the engines into one score.
 
+## Fleet atlas
+
+`fleet-atlas-v1` is the active shape of `docs/fleet-atlas/generated/atlas.json`, the fleet's
+revision-bound knowledge graph (`GRAPH-004`). Its validator is `scripts/fleet_atlas.py check`. The
+atlas cites edges that other validators enforce and extracts the rest from canonical bytes; it is a
+generated projection with no authority over anything it describes, and a finding it emits changes
+nothing until a human edits a canonical file or the roadmap imports it.
+
 ## Runbook frontmatter
 
 `runbook-frontmatter-v1` is `contract-only`. It publishes the machine-linkable shape carried by

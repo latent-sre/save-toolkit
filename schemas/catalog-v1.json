@@ -36,6 +36,15 @@
       "canonical_path": "schemas/runbook-frontmatter-v1.schema.json",
       "validator": null,
       "generated_projections": []
+    },
+    {
+      "id": "fleet-atlas-v1",
+      "uri": "https://github.com/latent-sre/save-toolkit/schemas/fleet-atlas-v1.schema.json",
+      "version": 1,
+      "status": "active",
+      "canonical_path": "schemas/fleet-atlas-v1.schema.json",
+      "validator": "scripts/fleet_atlas.py",
+      "generated_projections": ["docs/fleet-atlas/generated/atlas.json"]
     }
   ]
 }
