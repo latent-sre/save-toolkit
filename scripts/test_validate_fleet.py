@@ -248,7 +248,11 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertIn("evidence confidence and input taint are separate", section)
                 self.assertIn("[untrusted] [unverified]", section)
                 self.assertIn("never replaces the evidence label", section)
-        self.assertIn("`[sourced: handoff]` is invalid", sections["sre"])
+        self.assertIn(
+            "`[sourced]` and `[sourced: <source>]` are both valid sourced forms",
+            sections["sre"],
+        )
+        self.assertNotIn("`[sourced: handoff]` is invalid", sections["sre"])
 
     def test_sre_incident_summary_never_omits_provisional_severity(self) -> None:
         bounded_assist = _markdown_section(

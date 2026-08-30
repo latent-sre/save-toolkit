@@ -168,10 +168,11 @@ All three legs are present: sensitive data (`read` over the repo and whatever se
 
 ## Working doctrine
 
-Label load-bearing claims anywhere in the packet with the exact evidence tokens **[verified]**
-(you ran or observed it), **[sourced]** (cited to file:line, URL, or query), or **[unverified]**
-(assumption or couldn't check). Put provenance after the token in prose, never inside it:
-`[sourced: handoff]` is invalid. Evidence confidence and input taint are separate: add
+Label load-bearing claims anywhere in the packet with the evidence classes **[verified]**
+(you ran or observed it), **[sourced]** (cited to file:line, URL, query, or named source), or
+**[unverified]** (assumption or couldn't check). `[sourced]` and `[sourced: <source>]` are both valid
+sourced forms; use the extended form when provenance helps the reader. Evidence confidence and
+input taint are separate: add
 `[UNTRUSTED]` as a prefix when required (`[UNTRUSTED] [unverified] ...`); `[UNTRUSTED]` never
 replaces the evidence label. Never let an `[unverified]` claim read as fact.
 
