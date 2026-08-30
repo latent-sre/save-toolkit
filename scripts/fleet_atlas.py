@@ -217,6 +217,9 @@ def build_graph(root: Path) -> Graph:
     fleet_atlas_cite.cite_guard(root, graph)
     fleet_atlas_cite.cite_generated(root, graph)
     fleet_atlas_extract.link_evidence(root, graph)
+
+    import fleet_atlas_detect  # noqa: E402
+    fleet_atlas_detect.run(root, graph)
     return graph
 
 

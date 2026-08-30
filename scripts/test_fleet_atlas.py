@@ -331,5 +331,127 @@ class ExtractEvidenceTests(unittest.TestCase):
         self.assertEqual(stale, [], f"{len(stale)} unresolvable test literals reported as stale")
 
 
+import fleet_atlas_detect  # noqa: E402
+
+
+def _write_minimal_fixture(root: Path) -> None:
+    """Build a small, real, git-committed repository copy for a detector mutation proof.
+
+    Copies enough of the real tree (agents/, skills/, commands/, the live root docs, decisions,
+    hooks, catalog) for fleet_atlas.build_graph() to run end to end, then commits it so cite()'s
+    git plumbing has something to read. schemas/catalog-v1.json names validators outside every
+    directory this fixture copies wholesale (scripts/evidence_envelope.py, scripts/fleet_atlas.py,
+    evals/execution_profiles.py, evals/engine_contract.py); extract_schemas() cites each one by
+    reading it, so without a stand-in file build_graph() raises FileNotFoundError -- proven by
+    running this fixture without them.
+    """
+    import shutil
+    import subprocess
+
+    shutil.copytree(ROOT / "agents", root / "agents")
+    shutil.copytree(ROOT / "skills", root / "skills")
+    shutil.copytree(ROOT / "commands", root / "commands")
+    for name in ("AGENTS.md", "CONTRIBUTING.md", "README.md"):
+        shutil.copy(ROOT / name, root / name)
+    (root / "docs").mkdir()
+    shutil.copy(ROOT / "docs/rules.md", root / "docs/rules.md")
+    shutil.copytree(ROOT / "docs/decisions", root / "docs/decisions")
+    (root / "docs/reviews").mkdir(); (root / "hooks").mkdir(); (root / "schemas").mkdir()
+    shutil.copy(ROOT / "hooks/hooks.json", root / "hooks/hooks.json")
+    shutil.copy(ROOT / "schemas/catalog-v1.json", root / "schemas/catalog-v1.json")
+    (root / "docs/fleet-roadmap.md").write_text("# Fleet roadmap\n", encoding="utf-8", newline="\n")
+    (root / "docs/README.md").write_text("# map\n", encoding="utf-8", newline="\n")
+    (root / "evals/scenarios").mkdir(parents=True); (root / "scripts").mkdir()
+    (root / "scripts/evidence_envelope.py").write_text("# fixture stand-in\n", encoding="utf-8", newline="\n")
+    (root / "scripts/fleet_atlas.py").write_text("# fixture stand-in\n", encoding="utf-8", newline="\n")
+    (root / "evals/execution_profiles.py").write_text("# fixture stand-in\n", encoding="utf-8", newline="\n")
+    (root / "evals/engine_contract.py").write_text("# fixture stand-in\n", encoding="utf-8", newline="\n")
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "fixture"], cwd=root, check=True)
+
+
+class DetectorTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.graph = fleet_atlas.build_graph(ROOT)
+
+    def test_detectors_never_emit_a_fact_class(self) -> None:
+        findings = [e for e in self.graph.edges.values() if e.kind == "contradicts"]
+        self.assertTrue(all(e.cls == "STATIC_INFERRED" for e in findings))
+        self.assertTrue(all("detector" in e.attrs and "message" in e.attrs for e in findings))
+
+    def test_uncited_review_detector_fires_on_a_known_orphan_and_respects_batch_citations(self) -> None:
+        uncited = {u.path for u in self.graph.unknowns if u.code == "stale.review-uncited"}
+        self.assertIn("docs/reviews/2026-08-19-obs-skill-hardening-round.md", uncited)
+        cited_by_batch = [n for n in self.graph.nodes.values() if n.type == "review" and n.authority == "generated"
+                          and any(e.target == n.id and e.kind == "evidenced_by" for e in self.graph.edges.values())]
+        for node in cited_by_batch:
+            self.assertNotIn(node.path, uncited)
+
+    def test_uncited_review_detector_also_scans_live_doc_citations(self) -> None:
+        """docs/rules.md's "Related" section cites a review that no roadmap item or decision does.
+
+        link_evidence() and extract_reviews() only walk roadmap-item/decision/review sources for
+        citations, not a live root/docs guide's own body. Without also scanning that guide,
+        docs/reviews/2026-08-06-docs-authority-refresh.md -- cited only from docs/rules.md's
+        "Related" section -- was wrongly reported uncited: a real false positive found by spot-
+        checking the real-repository yield of this detector, not a hypothetical.
+        """
+        uncited = {u.path for u in self.graph.unknowns if u.code == "stale.review-uncited"}
+        self.assertNotIn("docs/reviews/2026-08-06-docs-authority-refresh.md", uncited)
+
+    def test_retired_name_detector_fires_on_prose_but_respects_the_filename_carve_out(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_minimal_fixture(root)
+            agent_path = root / "agents" / "sre.md"
+            original = agent_path.read_text(encoding="utf-8")
+
+            # A prose mention of a retired unit name is a real hit.
+            agent_path.write_text(original + "\nSee prompt-engineer for legacy context.\n",
+                                  encoding="utf-8", newline="\n")
+            prose_graph = fleet_atlas.build_graph(root)
+            prose_hits = [u for u in prose_graph.unknowns if u.code == "stale.retired-name"]
+            self.assertTrue(prose_hits, "a prose mention of a retired unit name must be reported")
+            self.assertNotIn("F:", prose_hits[0].message, "the message must not embed an absolute path")
+            self.assertTrue(prose_hits[0].message.startswith("agents/sre.md:"), prose_hits[0].message)
+
+            # A link to a file that still legitimately carries a retired name (api-design.md
+            # survives as skills/backend-craft/references/api-design.md) must NOT be reported.
+            agent_path.write_text(
+                original + "\nSee [api design](../skills/backend-craft/references/api-design.md).\n",
+                encoding="utf-8", newline="\n",
+            )
+            exempt_graph = fleet_atlas.build_graph(root)
+            exempt_hits = [u for u in exempt_graph.unknowns if u.code == "stale.retired-name"]
+            self.assertEqual(exempt_hits, [], "a link to a surviving retired-name filename is not a stale mention")
+
+    def test_delegation_mismatch_detector_fires_when_the_roster_disagrees_with_the_enforced_graph(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_minimal_fixture(root)
+            agents_md = root / "AGENTS.md"
+            text = agents_md.read_text(encoding="utf-8")
+            before = fleet_atlas.build_graph(root)
+            before_findings = [e for e in before.edges.values()
+                               if e.kind == "contradicts" and e.attrs["detector"] == "delegation_mismatch"]
+            needle = "| `sre` |"
+            self.assertEqual(text.count(needle), 1, "fixture AGENTS.md must carry exactly one sre roster row")
+            row_start = text.index(needle)
+            row_end = text.index("\n", row_start)
+            row = text[row_start:row_end]
+            self.assertTrue(row.endswith("`researcher` |"), row)
+            mutated_row = row[: -len("`researcher` |")] + "`researcher`, `scribe` |"
+            agents_md.write_text(text[:row_start] + mutated_row + text[row_end:], encoding="utf-8", newline="\n")
+            after = fleet_atlas.build_graph(root)
+            after_findings = [e for e in after.edges.values()
+                              if e.kind == "contradicts" and e.attrs["detector"] == "delegation_mismatch"]
+            self.assertEqual(before_findings, [])
+            self.assertGreater(len(after_findings), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
