@@ -54,6 +54,16 @@ class PlatformAdapterTests(unittest.TestCase):
         )
         return None if value is None else json.loads(value)
 
+    @staticmethod
+    def _copilot_handoffs(name: str) -> list[dict[str, object]] | None:
+        rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
+        frontmatter = rendered.split("---", 2)[1]
+        value = next(
+            (line[10:] for line in frontmatter.splitlines() if line.startswith("handoffs: ")),
+            None,
+        )
+        return None if value is None else json.loads(value)
+
     def test_committed_outputs_match_canonical_sources(self) -> None:
         self.assertEqual([], adapters.validate_generated_outputs(ROOT))
 
@@ -103,6 +113,53 @@ class PlatformAdapterTests(unittest.TestCase):
             source.write_text(agent, encoding="utf-8", newline="\n")
             with self.assertRaisesRegex(ValueError, "explicit target allowlist"):
                 adapters.render_copilot_agent(source)
+
+    def test_copilot_agents_offer_the_current_roster_handoff_graph(self) -> None:
+        expected_targets = {
+            "agent-engineer": [],
+            "observability-engineer": ["sre", "scribe"],
+            "repository-investigator": [],
+            "researcher": [],
+            "reviewer": ["software-engineer"],
+            "scribe": ["software-engineer"],
+            "software-engineer": ["reviewer", "scribe"],
+            "sre": ["scribe", "software-engineer"],
+        }
+        for name, targets in expected_targets.items():
+            with self.subTest(agent=name):
+                handoffs = self._copilot_handoffs(name) or []
+                self.assertEqual(targets, [item.get("agent") for item in handoffs])
+                self.assertEqual(len(targets), len({item.get("agent") for item in handoffs}))
+                for handoff in handoffs:
+                    self.assertIs(handoff.get("send"), True)
+                    self.assertTrue(str(handoff.get("label", "")).strip())
+                    self.assertTrue(str(handoff.get("prompt", "")).strip())
+                    self.assertNotEqual("researcher", handoff["agent"])
+                    if handoff["agent"] == "reviewer":
+                        self.assertIn("[UNTRUSTED]", handoff["prompt"])
+                        self.assertIn("Re-derive the diff", handoff["prompt"])
+                        self.assertIn("Do not modify files", handoff["prompt"])
+                    if handoff["agent"] == "scribe":
+                        self.assertIn("explicitly approved", handoff["prompt"])
+                        self.assertIn("without writing", handoff["prompt"])
+                    if handoff["agent"] == "software-engineer":
+                        self.assertIn("explicitly approved", handoff["prompt"])
+                        self.assertIn("[UNTRUSTED]", handoff["prompt"])
+                        self.assertIn("without editing", handoff["prompt"])
+                    if handoff["agent"] == "sre":
+                        self.assertIn("[UNTRUSTED]", handoff["prompt"])
+                        self.assertIn("without applying production changes", handoff["prompt"])
+
+    def test_copilot_handoffs_are_independent_of_model_called_subagents(self) -> None:
+        self.assertNotIn("sre", self._copilot_agents("observability-engineer") or [])
+        self.assertEqual(["software-engineer"], [
+            handoff["agent"] for handoff in self._copilot_handoffs("reviewer") or []
+        ])
+        self.assertNotIn("agent", self._copilot_tools("reviewer"))
+        self.assertEqual(["software-engineer"], [
+            handoff["agent"] for handoff in self._copilot_handoffs("scribe") or []
+        ])
+        self.assertNotIn("agent", self._copilot_tools("scribe"))
 
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
         self.assertEqual(["read", "search"], self._copilot_tools("repository-investigator"))

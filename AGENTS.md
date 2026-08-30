@@ -59,15 +59,23 @@ prove runtime connectivity, authentication, telemetry delivery, persistence, or 
 ## Enforcement boundaries
 
 1. Prefer **tool absence**. `reviewer`, `repository-investigator`, `scribe`, and `researcher` carry
-   only lane-minimum tools. Other local roles use a sanitized `researcher` handoff for public facts.
+   only lane-minimum tools. Other local roles use a sanitized `researcher` call packet for public
+   facts.
 2. The fail-closed Bash allowlist applies only to `sre`, through [`hooks/hooks.json`](hooks/hooks.json)
    and exact `agent_type` values. Plugin-agent `hooks:` are forbidden because they are ignored.
 
 Limits:
 
 - The guard is not a sandbox; OS identity and outbound controls remain load-bearing.
-- `Agent(target)` constrains only main-thread delegation; at depth it is documentary. See
-  [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md).
+- Canonical Claude `Agent(target)` constrains only main-thread delegation; at depth it is
+  documentary. Generated VS Code profiles carry `agents:` allowlists, but runtime enforcement is
+  build-specific and remains a [`HOST-002`](docs/fleet-roadmap.md#host-002--measure-vs-code-tool-enforcement-and-re-probe-hook-portability)
+  evidence question.
+- VS Code `handoffs:` retain conversation context and require a human selection. They form a
+  separate local ownership graph, not model delegation or approval. The generator emits the pinned
+  current-roster transitions with `send: true`, so one human click starts the receiving lane;
+  write-capable receivers still re-check explicit approval and target binding. The external-only
+  `researcher` remains a sanitized subagent call, never a handoff target.
 - The researcher handoff is cooperative, not DLP. Send only sanitized public questions.
 - Host controls are not portable. Copilot tool omission is not equivalent to the Claude guard.
 - Never request credential-bearing `cf env`, `cf service-key`, `CF_TRACE`, gcloud token/ADC, Secret
@@ -78,7 +86,8 @@ Limits:
 
 - **Four-theme design rule.** Prompt selects and guides the owner; Context supplies the smallest
   trusted state; Loop governs execution, verification, budgets, and termination; Graph governs
-  ownership changes. Skills deepen the owner; delegation changes ownership.
+  ownership changes. Skills deepen the owner; delegation or a user-selected handoff changes
+  ownership.
 - **Evidence over assertion.** Label load-bearing claims in what you return: `[verified]` when
   independently observed, `[sourced]` when cited, `[unverified]` otherwise. Never upgrade a label
   in transit; state gaps. It binds what you return, not how a skill is written — `agent-authoring`

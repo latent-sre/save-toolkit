@@ -327,13 +327,34 @@ plugin-wide `PreToolUse` payload carries no custom-agent identity, so the viable
 generated `sre`-scoped hook rather than a self-scoping entry in `hooks/copilot-hooks.json`. No real
 fleet hook is wired.
 
-The [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) records the
-newer boundary. `[verified static]` Installed VS Code 1.135.0 at `08d4889f` recognizes and carries
-`allowedSubagents`, but its exact `runSubagentTool.ts` sets the child field to `undefined` and has no
-named-target rejection. `[sourced]` Current official docs define `agents:` as an allowlist, and
-current upstream source at `004a1fbb` rejects a target outside that list in both prepare and invoke
-paths. This source delta is not a live forbidden-call observation and does not prove which future
-release first contains the enforcement.
+The [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) and
+[`VS Code subagent and handoff enforcement`](reviews/2026-08-30-vscode-subagent-handoff-enforcement.md)
+record the newer boundary. `[verified static]` Installed VS Code 1.135.0 at `08d4889f` recognizes
+and carries `allowedSubagents`, but filters only the model-visible list, does not reject a named
+target outside `agents:`, and passes `allowedSubagents: undefined` to a child. `[sourced]` Current
+official docs define `agents:` as an allowlist. Upstream merged deterministic prepare/invoke
+rejection and child-list forwarding in `d679b159` after that installed build; the inspected current
+source at `004a1fbb` contains that enforcement. This source delta is not a live forbidden-call
+observation and does not establish which released build first carries it.
+
+The exact-candidate Claude clean-room receiver campaign ran 20/20 approved Sonnet trials but failed
+its declared contract: reviewer passed 5/5 while scribe, software-engineer, and SRE each passed 0/5.
+All 40 action/authority contradiction checks in the three new scenarios passed, but bare-scalar
+output checks failed 0/15 and the SRE evidence-label/severity checks had additional misses. The
+[sealed no-go record](reviews/2026-08-30-eval-20260830T063012Z-f5c3f1ea.md) is receiver-behavior
+evidence only; it does not establish VS Code rendering, `send: true`, retained-context fidelity, or
+Copilot tool enforcement.
+A clean corrected-candidate confirmation then passed scribe 3/3 and software-engineer 3/3 but left
+SRE at 0/3 because it changed exact `[sourced]` input labels to `[sourced: handoff]` in every trial.
+Decision fields passed 9/9, SRE severity passed 3/3, and all 24 action/authority contradiction checks
+passed. Later root-cause review found that exact-token rule conflicted with the model-visible corpus
+and had no runtime consumer, so it was superseded by an accepted exact-or-extended grammar and
+structured telemetry/platform state. The resulting SRE-only run passed the target corrections 3/3
+but remained an official 2/3 no-go because trial 3 used the canonical `[unverified] assignment
+pending` severity fallback that the scenario's prose regex rejects. The
+[sealed structured confirmation](reviews/2026-08-30-eval-20260830T122740Z-459779a7.md) and
+[earlier confirmation](reviews/2026-08-30-eval-20260830T072838Z-573c9de8.md) are direct Claude
+receiver evidence only.
 
 **Prerequisites:** An installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
@@ -345,15 +366,16 @@ picker offers `execute` to `sre`; whether an override changes the configuration;
 generated buffer or on-disk file changes; and whether a safe invocation runs or receives an explicit
 host denial. A paired custom-agent canary also records whether a parent with `agents: [allowed]` can
 invoke a named `forbidden` agent on installed 1.135.0 and, separately, on the first tested build
-containing deterministic upstream rejection. An operator-local artifact and hash are not closure
+proven to contain upstream `d679b159`. An operator-local artifact and hash are not closure
 evidence. Any hook-portability finding is evidence only; wiring a Copilot hook is separate work
 needing its own review. Exact-agent scope may be established by a hook attached to the selected
 custom agent; the global hook payload does not need to invent an identity field it does not carry.
 
 **Next action:** In an approved disposable VS Code profile, run the paired allowed/forbidden
 subagent canary on installed 1.135.0 and repeat it on the first installed build proven to contain
-the upstream rejection. Then run the distinct agent-scoped hook canary: the custom canary must deny
-a harmless terminal request with its fixed marker while the built-in Agent control remains
+upstream `d679b159`. Capture the actual tool result rather than inferring authority from the
+model-visible list. Then run the distinct agent-scoped hook canary: the custom canary must deny a
+harmless terminal request with its fixed marker while the built-in Agent control remains
 unaffected. Keep invocation authority open until real calls or host denials are observed. Do not
 run a third identical picker retry, infer runtime enforcement from source alone, substitute a
 prompt-file override, or populate `hooks/copilot-hooks.json`.
@@ -999,9 +1021,28 @@ One LLM-judge pilot now exists outside the harness: the
 [`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
 graded thirteen anonymized four-answer sets with a fixed per-assertion bar and recorded what that
 settled and what it did not. The
-[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) corrects the tracker
-classification: choosing structured output or a nondeterministic judge is a load-bearing owner
-decision, not implementation-ready work.
+[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) correctly classified
+the choice between structured output and a nondeterministic judge as a load-bearing owner decision,
+not implementation-ready work. The later handoff work selected a structured contract for the one
+concrete transcript below; it does not silently make that choice for the remaining scenarios.
+
+The 2026-08-30 direct handoff confirmation adds a different false-green shape: one SRE response
+said the current trend was unverified while also asserting `now — error rate at 8%`. The scenario's
+unknown-marker grader passed because it does not model contradiction. That exact transcript is a
+better first structured-contract pilot than adding another adjacency pattern.
+
+The structured pilot then separated reported/current rate, current trend, and platform into closed
+fields and held those facts 3/3. Its remaining official red is the inverse problem: trial 3 emitted
+the canonical allowed fallback `severity [unverified] assignment pending`, but the severity regex
+recognizes only a named P1–P4 or critical/high/medium/low value. Full-response review called the
+answer compliant. This is another concrete reason not to convert a phrase-pattern red directly into
+a behavior finding.
+
+`[verified structural]` The follow-up evaluator repair replaces that prose regex with the exact
+field `Provisional severity: assignment pending` and adds a reduced positive fixture derived from
+reviewed trial 3. The fixture was observed red under the old oracle and passes with the closed field;
+the scenario's existing contradiction and authority negatives remain green. This is offline grader
+evidence only; the sealed 2/3 model result is not rewritten and the candidate has not been rerun.
 
 **Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
 exist in the grader registry, so a structured-output contract needs no new grader type. An
@@ -1013,9 +1054,9 @@ unchanged guidance. The removal control still discriminates: with the guidance r
 scenario fails. No grader rejects a response that a reader would call correct, tested against the
 transcripts already retained under `.eval-runs/`.
 
-**Next action:** Owner chooses the grading style — a structured contract the response must emit, or
-an LLM judge with an accepted nondeterministic-grader policy. Only then convert one scenario and
-measure it three times before converting the rest.
+**Next action:** Run the still-owed committed guidance-removal control. A new live campaign requires
+separate approval and must bind this exact evaluator candidate; until then the offline repair does
+not promote or supersede the sealed model result.
 Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
 further tuning run is spent on pattern repair.
 
