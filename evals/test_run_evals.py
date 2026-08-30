@@ -114,6 +114,64 @@ class ScenarioValidationTests(unittest.TestCase):
         problems = run_evals.validate([scenario])
         self.assertTrue(any("agent-target discovery is calibration-only" in p for p in problems))
 
+    def test_malformed_grader_configuration_reports_instead_of_raising(self) -> None:
+        """A grader spec failing its own pre-response validation is a suite problem, not a crash.
+
+        The probe narrowed on TypeError and re.error only, but several graders raise
+        ValueError/AttributeError for values that pass the type check (empty `fields`, a
+        non-string member of `of`, out-of-range weights). Those escaped and turned a bad
+        scenario file into a raw traceback instead of the EVAL SUITE INVALID report.
+        """
+        malformed = (
+            ({"type": "exact_fields", "fields": {}}, "invalid configuration"),
+            ({"type": "exact_fields", "fields": {"a": 123}}, "invalid configuration"),
+            (
+                {
+                    "type": "json_artifact_statuses",
+                    "artifacts": [],
+                    "allowed_statuses": ["ok"],
+                    "allowed_evidence": ["e"],
+                },
+                "invalid configuration",
+            ),
+            (
+                {
+                    "type": "cloud_run_rollback_packet",
+                    "required_weight": 150,
+                    "required_trailing_flags": {},
+                    "required_service": "svc-a",
+                    "forward_target": "rev-a",
+                    "inverse_target": "rev-b",
+                },
+                "invalid configuration",
+            ),
+            (
+                {"type": "recovery_progress_consistency", "elapsed_seconds": -1, "remaining_seconds": 5},
+                "invalid configuration",
+            ),
+            ({"type": "embedded_exact_json", "fields": {"v": float("nan")}}, "invalid configuration"),
+            ({"type": "contains_all", "of": ["ok", 1]}, "invalid configuration"),
+        )
+        for spec, expected in malformed:
+            with self.subTest(spec=spec):
+                problems = run_evals.validate([self._scenario(graders=[spec])])
+                self.assertTrue(
+                    any(f"grader '{spec['type']}'" in p and expected in p for p in problems),
+                    problems,
+                )
+        self.assertTrue(
+            any(
+                "invalid regex" in p
+                for p in run_evals.validate([self._scenario(graders=[{"type": "regex", "pattern": "("}])])
+            )
+        )
+        self.assertTrue(
+            any(
+                "bad/missing kwargs" in p
+                for p in run_evals.validate([self._scenario(graders=[{"type": "contains_all"}])])
+            )
+        )
+
     def test_scenario_id_cannot_escape_artifact_directory(self) -> None:
         problems = run_evals.validate([self._scenario(id="../escape")])
         self.assertTrue(any("safe lowercase slug" in p for p in problems))

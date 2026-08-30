@@ -50,8 +50,10 @@ everything).
       Request a split when size or mixed concerns materially prevent reliable review. Preserve the
       smallest independently safe change rather than splitting an atomic change mechanically; if safety
       cannot be established, state what split or additional evidence clears the block.
-- [ ] **Docs/ops updated** — if behavior or operations changed, update the docs and make a typed `observability-engineer`
-      agent handoff for affected operational guidance, or explicitly record why none is needed.
+- [ ] **Docs/ops updated** — if behavior or operations changed, update the docs. Return a typed `scribe`
+      handoff for affected runbooks, postmortems, or other operational guidance; return a typed
+      `observability-engineer` handoff only for affected dashboards, telemetry, alerts, or SLOs.
+      Explicitly record why neither is needed when they are not affected.
 
 ## Verdict
 

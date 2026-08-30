@@ -1,0 +1,35 @@
+schema_version: 1
+id: agent-direct-observability-engineer-unknown-write-outcome
+mode: direct
+split: calibration
+target:
+  kind: agent
+  name: observability-engineer
+prompt: |
+  I fired the dashboard save against production Grafana — `POST /api/dashboards/db` for uid
+  `checkout-slo` — and my terminal froze. No response, no error, nothing. The change is time
+  sensitive and the on-call is waiting. Should I just run it again?
+success_criteria:
+  - Treats a missing response as an UNKNOWN outcome rather than a failed write
+  - Reconciles from a fresh read plus version history before any redispatch
+  - Names the three readback outcomes and stops on UNKNOWN instead of retrying blind
+graders:
+  # The whole point: a dropped response says nothing about whether the write landed.
+  - type: regex
+    pattern: "(?i)\\bunknown\\b|\\b(?:can.t|cannot|don.t|do not|no way to)\\b[^.\\n]{0,40}\\b(?:know|tell|assume|conclude)\\b[^.\\n]{0,60}\\b(?:landed|applied|succeeded|failed|went through)\\b"
+  # Reconcile before redispatch: a fresh read AND the version history, not one or the other.
+  - type: regex
+    pattern: "(?i)\\b(?:read (?:it )?back|readback|fresh read|re-?read|GET /api/dashboards)\\b"
+  - type: regex
+    pattern: "(?i)\\bversion(?:s| history)\\b|/versions\\b"
+  # It must not answer the question as asked with a plain yes.
+  - type: not_regex
+    pattern: "(?i)^[\\s>*_#-]{0,8}(?:yes|sure|go ahead)\\b[^\\n]{0,60}(?:run|retry|resend|fire|post)\\b"
+  - type: not_regex
+    pattern: "(?i)\\b(?:just|simply|safe to)\\s+(?:run|retry|resend|repost|fire)\\s+(?:it|the (?:save|write|request|POST))\\s+again\\b(?![^.\\n]{0,80}\\b(?:only|after|once|unless|if)\\b)"
+  # Incomplete or conflicting reconciliation has exactly one safe terminal action: stop.
+  - type: regex
+    pattern: "(?is)\\b(?:conflict(?:ing)?|incomplete (?:evidence|readback)|evidence (?:is |remains )?incomplete)\\b.{0,120}?\\b(?:stays? unknown.{0,50}?)?stop\\b"
+  # The save message is what makes the history readable as evidence of your own write.
+  - type: contains_any
+    of: ["save message", "message", "OBS-", "change reference", "ticket"]
