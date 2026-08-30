@@ -258,5 +258,56 @@ class ExtractGovernanceTests(unittest.TestCase):
         self.assertTrue(any(u.code == "extract.supersedes-unresolved" for u in self.graph.unknowns))
 
 
+import check_evidence_refs  # noqa: E402
+
+
+class ExtractEvidenceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.graph = fleet_atlas.build_graph(ROOT)
+
+    def test_reviews_are_classified_and_batches_recorded(self) -> None:
+        reviews = [n for n in self.graph.nodes.values() if n.type == "review"]
+        self.assertEqual(len(reviews), len(list((ROOT / "docs/reviews").glob("*.md"))))
+        generated = [n for n in reviews if n.authority == "generated"]
+        self.assertTrue(all("-eval-" in n.name for n in generated))
+        self.assertTrue(all(check_evidence_refs.BATCH_ID_RE.fullmatch(n.attrs["batch"]) for n in generated))
+
+    def test_scenarios_bind_targets_and_near_misses(self) -> None:
+        scenarios = [n for n in self.graph.nodes.values() if n.type == "scenario"]
+        self.assertGreaterEqual(len(scenarios), 130)
+        fire = self.graph.nodes["scenario:discovery-gcp-ops-cloud-run-startup"]
+        self.assertTrue(any(e.kind == "verified_by" and e.source == "skill:gcp-ops" and e.target == fire.id
+                            for e in self.graph.edges.values()))
+        near = [e for e in self.graph.edges.values()
+                if e.kind == "near_miss_for" and e.source == "scenario:discovery-workflow-graph-engineering-defers-code-graph"]
+        self.assertEqual([e.target for e in near], ["skill:workflow-graph-engineering"])
+        self.assertEqual(near[0].attrs["expected_alternative"], "inline")
+        self.assertFalse([u for u in self.graph.unknowns if u.code == "extract.scenario-target-missing"])
+
+    def test_tests_that_read_a_skill_verify_it(self) -> None:
+        pins = [e for e in self.graph.edges.values()
+                if e.kind == "verified_by" and e.source == "skill:gcp-ops"
+                and e.target == "test:scripts/test_platform_skill_contracts.py"]
+        self.assertEqual(len(pins), 1, "test_platform_skill_contracts reads skills/gcp-ops/SKILL.md")
+
+    def test_schemas_come_from_the_catalog(self) -> None:
+        self.assertIn("schema:evidence-envelope-v1", self.graph.nodes)
+        self.assertTrue(any(e.kind == "constrained_by" and e.source == "schema:evidence-envelope-v1"
+                            and e.target == "validator:scripts/evidence_envelope.py" for e in self.graph.edges.values()))
+
+    def test_roadmap_evidence_links_and_batches_resolve(self) -> None:
+        edges = [e for e in self.graph.edges.values() if e.kind == "evidenced_by" and e.source == "roadmap-item:SKILL-001"]
+        self.assertTrue(any(e.target == "review:2026-08-29-skill-001-gcp-ops" for e in edges))
+        self.assertFalse([u for u in self.graph.unknowns if u.code == "extract.batch-unresolved"],
+                         "check_evidence_refs is green, so every cited batch must resolve")
+
+    def test_owners_and_capabilities(self) -> None:
+        self.assertEqual(self.graph.nodes["owner:latent-sre"].attrs["kind"], "human")
+        self.assertEqual(self.graph.nodes["owner:software-engineer"].attrs["kind"], "agent")
+        caps = [e for e in self.graph.edges.values() if e.kind == "owns" and e.source == "agent:sre"]
+        self.assertTrue(caps and all(e.cls == "STATIC_INFERRED" for e in caps))
+
+
 if __name__ == "__main__":
     unittest.main()

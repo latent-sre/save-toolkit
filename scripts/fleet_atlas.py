@@ -205,11 +205,18 @@ def build_graph(root: Path) -> Graph:
     fleet_atlas_extract.extract_roadmap(root, graph)
     fleet_atlas_extract.extract_closed_register(root, graph)
     fleet_atlas_extract.extract_decisions(root, graph)
+    fleet_atlas_extract.extract_reviews(root, graph)
+    fleet_atlas_extract.extract_scenarios(root, graph)
+    fleet_atlas_extract.extract_tests(root, graph)
+    fleet_atlas_extract.extract_schemas(root, graph)
+    fleet_atlas_extract.extract_probes(root, graph)
+    fleet_atlas_extract.extract_owners(root, graph)
 
     import fleet_atlas_cite  # noqa: E402
     fleet_atlas_cite.cite_delegation(root, graph)
     fleet_atlas_cite.cite_guard(root, graph)
     fleet_atlas_cite.cite_generated(root, graph)
+    fleet_atlas_extract.link_evidence(root, graph)
     return graph
 
 

@@ -382,3 +382,302 @@ def extract_decisions(root: Path, graph: Graph) -> None:
                 graph.add_unknown(Unknown("extract.supersedes-unresolved",
                                           f"{relative}:{line_no} supersedes '{prose[:120]}' but names no linked target",
                                           relative, "Link the superseded decision, rule row, or document"))
+
+
+import json  # noqa: E402
+from check_evidence_refs import BATCH_ID_RE  # noqa: E402
+
+EVAL_DOC_RE = re.compile(r"-eval-(\d{8}T\d{6}Z-[0-9a-f]{8})\.md$")
+LITERAL_RE = re.compile(r"[\"']((?:agents|skills|docs|evals|commands|hooks|schemas|scripts)/[A-Za-z0-9._/-]+)[\"']")
+LANE_SLUG_RE = re.compile(r"[^a-z0-9]+")
+_yaml_unavailable_reported = False
+
+
+def _path_index(graph: Graph) -> dict[str, str]:
+    return {node.path: node.id for node in graph.nodes.values() if node.path}
+
+
+def extract_reviews(root: Path, graph: Graph) -> None:
+    for path in sorted((root / "docs/reviews").glob("*.md")):
+        relative = path.relative_to(root).as_posix()
+        text = path.read_text(encoding="utf-8")
+        head = "\n".join(text.splitlines()[:8])
+        batch = EVAL_DOC_RE.search(path.name)
+        date = DATE_RE.match(path.name)
+        attrs = {"date": date.group(1) if date else "", "banner": "Status" in head,
+                 "batches": sorted(set(BATCH_ID_RE.findall(text)))}
+        if batch:
+            attrs["batch"] = batch.group(1)
+        graph.add_node(Node(f"review:{path.stem}", "review", path.stem,
+                            "generated" if batch else "historical-evidence", relative,
+                            "generated" if batch else "historical", attrs,
+                            [cite(root, relative, 1, 1, "extract.review", "STATIC_EXTRACTED")]))
+    index = _path_index(graph)
+    for node in [n for n in graph.nodes.values() if n.type == "review"]:
+        for line_no, line in enumerate((root / node.path).read_text(encoding="utf-8").splitlines(), start=1):
+            for match in LINK_RE.finditer(line):
+                resolved = _resolve_link(root, node.path, match.group(2))
+                target = index.get(resolved) if resolved else None
+                if target and target != node.id:
+                    graph.add_edge(Edge(edge_id("cites", node.id, target, str(line_no)), node.id, target, "cites",
+                                        "STATIC_EXTRACTED", {},
+                                        [cite(root, node.path, line_no, line_no, "extract.review-link", "STATIC_EXTRACTED")]))
+
+
+def extract_scenarios(root: Path, graph: Graph) -> None:
+    global _yaml_unavailable_reported
+    try:
+        import yaml
+    except ImportError:
+        if not _yaml_unavailable_reported:
+            graph.add_unknown(Unknown("extract.yaml-unavailable", "PyYAML is not installed; scenarios were not extracted",
+                                      "evals/scenarios", "pip install -r requirements-dev.txt"))
+            _yaml_unavailable_reported = True
+        return
+    paths = sorted((root / "evals/scenarios").glob("*.yaml")) + sorted((root / "evals/build-scenarios").glob("*.yaml"))
+    for path in paths:
+        relative = path.relative_to(root).as_posix()
+        text = path.read_text(encoding="utf-8")
+        data = yaml.safe_load(text)
+        if not isinstance(data, dict) or "id" not in data:
+            graph.add_unknown(Unknown("extract.scenario-unparsed", f"{relative} has no id", relative, "run_evals --validate owns this"))
+            continue
+        routing = data.get("routing") or {}
+        alternative = routing.get("expected_alternative")
+        node_id = f"scenario:{data['id']}"
+        graph.add_node(Node(node_id, "scenario", str(data["id"]), "live-contract", relative, "live",
+                            {"mode": data.get("mode", ""), "split": data.get("split", ""),
+                             "expect": routing.get("expect", ""), "threshold": data.get("threshold"),
+                             "expected_alternative": alternative if isinstance(alternative, str) else
+                             (f"{alternative.get('kind')}:{alternative.get('name')}" if isinstance(alternative, dict) else ""),
+                             "file": relative},
+                            [cite(root, relative, 1, 1, "extract.scenario", "STATIC_EXTRACTED")]))
+        target = data.get("target") or {}
+        # evals/build-scenarios/*.yaml carries no "target: {kind, name}" mapping -- it names its
+        # single agent directly as a bare "agent: <name>" scalar (build-software-engineer-*.yaml,
+        # build-sre-*.yaml, ...). Falling through to "None:None" there is not an unresolved
+        # reference to report; it is reading the wrong field of a file whose shape this branch
+        # never checked. Treat "agent:" as the direct-mode target when "target:" is absent.
+        if target:
+            target_id = f"{target.get('kind')}:{target.get('name')}"
+            line = find_line(root, relative, "target:")
+        elif isinstance(data.get("agent"), str) and data["agent"]:
+            target_id = f"agent:{data['agent']}"
+            line = find_line(root, relative, "agent:")
+        else:
+            target_id = "None:None"
+            line = 1
+        if target_id not in graph.nodes:
+            graph.add_unknown(Unknown("extract.scenario-target-missing", f"{relative} targets {target_id}, which has no node",
+                                      relative, "Retarget the scenario or restore the component"))
+        elif routing.get("expect") == "not_fire":
+            graph.add_edge(Edge(edge_id("near_miss_for", node_id, target_id), node_id, target_id, "near_miss_for",
+                                "STATIC_EXTRACTED", {"expected_alternative": graph.nodes[node_id].attrs["expected_alternative"]},
+                                [cite(root, relative, line, line, "extract.scenario-routing", "STATIC_EXTRACTED")]))
+            if isinstance(alternative, dict):
+                alt_id = f"{alternative.get('kind')}:{alternative.get('name')}"
+                if alt_id in graph.nodes:
+                    graph.add_edge(Edge(edge_id("routes_to", node_id, alt_id), node_id, alt_id, "routes_to",
+                                        "STATIC_EXTRACTED", {"via": "expected_alternative"}, []))
+        else:
+            graph.add_edge(Edge(edge_id("verified_by", target_id, node_id), target_id, node_id, "verified_by",
+                                "STATIC_EXTRACTED", {"mode": data.get("mode", "")},
+                                [cite(root, relative, line, line, "extract.scenario-target", "STATIC_EXTRACTED")]))
+        for item_id in sorted(set(check_plan_status.ROADMAP_ITEM_ID_RE.findall(text))):
+            if f"roadmap-item:{item_id}" in graph.nodes:
+                graph.add_edge(Edge(edge_id("cites", node_id, f"roadmap-item:{item_id}"), node_id,
+                                    f"roadmap-item:{item_id}", "cites", "STATIC_INFERRED", {"via": "comment"}, []))
+
+
+def extract_tests(root: Path, graph: Graph) -> None:
+    index = _path_index(graph)
+    for path in sorted((root / "scripts").glob("test_*.py")) + sorted((root / "evals").glob("test_*.py")):
+        relative = path.relative_to(root).as_posix()
+        node_id = f"test:{relative}"
+        graph.add_node(Node(node_id, "test", relative, "canonical", relative, "live", {},
+                            [cite(root, relative, 1, 1, "extract.test-file", "STATIC_EXTRACTED")]))
+        # Deduplicate per (target, node_id): the same literal path is often quoted on multiple
+        # lines within one test file (e.g. a fixture read several times), and edge_id() below does
+        # not fold in the line number, so a second occurrence would collide with the first edge's
+        # id. Recording the first citing line is sufficient -- the claim is "this test reads that
+        # path", not "on every one of these lines".
+        seen: set[str] = set()
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            for literal in LITERAL_RE.findall(line):
+                target = index.get(literal)
+                if target:
+                    if target in seen:
+                        continue
+                    seen.add(target)
+                    graph.add_edge(Edge(edge_id("verified_by", target, node_id), target, node_id, "verified_by",
+                                        "STATIC_EXTRACTED", {"via": "string-literal"},
+                                        [cite(root, relative, line_no, line_no, "extract.test-literal", "STATIC_EXTRACTED")]))
+                elif not (root / literal).exists():
+                    graph.add_unknown(Unknown("extract.test-literal-stale", f"{relative}:{line_no} names {literal}, which does not exist",
+                                              relative, "Update the test or restore the path"))
+
+
+def extract_schemas(root: Path, graph: Graph) -> None:
+    catalog = json.loads((root / "schemas/catalog-v1.json").read_text(encoding="utf-8"))
+    for entry in catalog["schemas"]:
+        node_id = f"schema:{entry['id']}"
+        line = find_line(root, "schemas/catalog-v1.json", f"\"{entry['id']}\"")
+        graph.add_node(Node(node_id, "schema", entry["id"], "live-contract", entry["canonical_path"], "live",
+                            {"status": entry["status"], "version": entry["version"]},
+                            [cite(root, "schemas/catalog-v1.json", line, line, "extract.catalog-entry", "CONTRACT_RESOLVED")]))
+        if entry.get("validator"):
+            validator = ensure_document(root, graph, entry["validator"])
+            graph.add_edge(Edge(edge_id("constrained_by", node_id, validator), node_id, validator, "constrained_by",
+                                "CONTRACT_RESOLVED", {"via": "catalog-v1.json"}, []))
+        for projection in entry.get("generated_projections", []):
+            # Deviates from the plan snippet on purpose, for three compounding reasons discovered
+            # by running the suite, not guessed:
+            #  1. schemas/fleet-atlas-v1.schema.json's own Node.type enum is closed (agent, skill,
+            #     reference, bundle-file, command, rule, decision, roadmap-item, review, scenario,
+            #     test, schema, generated-projection, capability, owner, probe, hook, document,
+            #     validator) and has no "schema-projection" or other free-form slot; inventing one
+            #     would make snapshot() emit atlas.json that fails its own committed schema.
+            #  2. Reusing type "generated-projection" for a schema-declared projection instead
+            #     collides with CitedContractTests.test_every_generated_output_has_exactly_one_
+            #     generated_from_edge and fleet_atlas_cite.parity_failures(), which both audit that
+            #     type, and the "generated_from" edge kind, as EXACTLY
+            #     generate_platform_adapters.expected_outputs() -- proven by running both fixes and
+            #     watching each break that test in a different way.
+            #  3. The one non-empty entry today, fleet-atlas-v1, declares
+            #     docs/fleet-atlas/generated/atlas.json -- the atlas's own build output, which this
+            #     task's constraints forbid writing or committing, and cite() (used by every node
+            #     constructor here) reads the file it cites, so fabricating a node for a path that
+            #     may not exist on disk would crash extraction on a checkout where Task 7 has not
+            #     run `fleet_atlas.py build` yet.
+            # None of those three are satisfied by minting a node, so an unresolved projection is
+            # exactly what the rest of this file calls an Unknown carrying its text: this schema
+            # declares a projection this atlas revision has no node for yet. If a future catalog
+            # entry's generated_projections happens to name a path some earlier extractor already
+            # gave a node (checked by path, not assumed), wire the real edge instead of guessing one.
+            target = node_for_path(graph, projection)
+            if target is None:
+                graph.add_unknown(Unknown(
+                    "extract.schema-projection-unresolved",
+                    f"{entry['id']} declares generated_projections {projection}, which has no node yet",
+                    entry["canonical_path"],
+                    "Build the projection, or extract the node that would represent it, before citing it",
+                ))
+                continue
+            graph.add_edge(Edge(edge_id("constrained_by", target, node_id), target, node_id, "constrained_by",
+                                "CONTRACT_RESOLVED", {"via": "catalog-v1.json"}, []))
+
+
+def extract_probes(root: Path, graph: Graph) -> None:
+    roadmap = (root / "docs/fleet-roadmap.md").read_text(encoding="utf-8")
+    for path in sorted((root / "docs/probes").glob("*")):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(root).as_posix()
+        linked = path.name in roadmap
+        graph.add_node(Node(f"probe:{path.stem}", "probe", path.stem,
+                            "live-contract" if linked else "historical-evidence", relative,
+                            "live" if linked else "historical", {"linked_from_roadmap": linked}, []))
+
+
+def extract_owners(root: Path, graph: Graph) -> None:
+    agents = {n.name for n in graph.nodes.values() if n.type == "agent"}
+    for agent in sorted(agents):
+        graph.add_node(Node(f"owner:{agent}", "owner", agent, "canonical", f"agents/{agent}.md", "live", {"kind": "agent"}, []))
+    text = (root / "docs/fleet-roadmap.md").read_text(encoding="utf-8")
+    for item in check_plan_status._roadmap_items(text):
+        owner_field = str(item["fields"].get("Owner", ""))
+        for name in sorted(set(re.findall(r"`([a-z][a-z0-9-]+)`", owner_field))):
+            if name not in agents and f"owner:{name}" not in graph.nodes:
+                graph.add_node(Node(f"owner:{name}", "owner", name, "external", None, "live", {"kind": "human"}, []))
+            if f"owner:{name}" in graph.nodes:
+                graph.add_edge(Edge(edge_id("owns", f"owner:{name}", f"roadmap-item:{item['id']}"), f"owner:{name}",
+                                    f"roadmap-item:{item['id']}", "owns", "STATIC_EXTRACTED", {"field": "Owner"},
+                                    [cite(root, "docs/fleet-roadmap.md", item["line"], item["line"], "extract.roadmap-owner",
+                                          "STATIC_EXTRACTED")]))
+    in_table = False
+    for line_no, line in enumerate((root / "AGENTS.md").read_text(encoding="utf-8").splitlines(), start=1):
+        stripped = line.strip()
+        if not in_table:
+            in_table = stripped.startswith("|") and "Delegates to" in stripped
+            continue
+        if not stripped.startswith("|"):
+            break
+        if SEPARATOR_RE.match(stripped):
+            continue
+        cells = _cells(stripped)
+        agent = cells[0].strip("`")
+        if agent in agents and len(cells) >= 2:
+            lane = _plain(cells[1])
+            slug = LANE_SLUG_RE.sub("-", lane.lower()).strip("-")[:60]
+            cap_id = f"capability:{slug}"
+            if cap_id not in graph.nodes:
+                graph.add_node(Node(cap_id, "capability", lane, "canonical", "AGENTS.md", "live", {"lane": lane},
+                                    [cite(root, "AGENTS.md", line_no, line_no, "extract.roster-lane", "STATIC_INFERRED")]))
+            graph.add_edge(Edge(edge_id("owns", f"agent:{agent}", cap_id), f"agent:{agent}", cap_id, "owns", "STATIC_INFERRED",
+                                {"via": "roster-lane"},
+                                [cite(root, "AGENTS.md", line_no, line_no, "extract.roster-lane", "STATIC_INFERRED")]))
+
+
+def link_evidence(root: Path, graph: Graph) -> None:
+    index = _path_index(graph)
+    by_batch: dict[str, str] = {}
+    for node in graph.nodes.values():
+        if node.type == "review":
+            for batch in node.attrs.get("batches", []):
+                by_batch.setdefault(batch, node.id)
+    sources = [n for n in graph.nodes.values() if n.type in ("roadmap-item", "decision") and n.path]
+    for node in sources:
+        text = (root / node.path).read_text(encoding="utf-8")
+        lines = text.splitlines()
+        if node.type == "roadmap-item":
+            start = int(node.evidence[0].lines[0]) if node.evidence else 1
+            # node.evidence[0].lines[0] is the 1-based line number of the "### ITEM-ID" heading
+            # itself (extract_roadmap cites exactly that line). The item's own content starts on
+            # the NEXT line, so the search for the next heading -- and the span handed to the
+            # second loop below, which treats each value as a 1-based line number -- both begin at
+            # start + 1. Using `start` unshifted here included the heading line in the span and
+            # searched for the terminator one line too early; off by one, though not one that
+            # happens to change any assertion in this file, since no evidence link in this
+            # repository's roadmap items sits on the heading line itself.
+            end = next((i for i in range(start, len(lines)) if lines[i].startswith("### ")), len(lines))
+            span = range(start + 1, end + 1)
+        else:
+            span = range(1, len(lines) + 1)
+        # Two separately-typed sets, not one mixed set: a link-derived hit dedupes by target alone
+        # (edge_id() for the link case has no batch key, so a second link to the same review would
+        # collide), while a batch-derived hit dedupes by (target, batch) (edge_id() there includes
+        # the batch, so two different batches resolving to the same review are two real edges).
+        # Keeping them as separate sets makes each dedup key explicit instead of relying on tuples
+        # and strings never colliding by accident.
+        seen_links: set[str] = set()
+        seen_batches: set[tuple[str, str]] = set()
+        for line_no in span:
+            line = lines[line_no - 1] if line_no - 1 < len(lines) else ""
+            for match in LINK_RE.finditer(line):
+                resolved = _resolve_link(root, node.path, match.group(2))
+                target = index.get(resolved) if resolved else None
+                if target and target.startswith(("review:", "decision:")) and target != node.id and target not in seen_links:
+                    seen_links.add(target)
+                    graph.add_edge(Edge(edge_id("evidenced_by", node.id, target), node.id, target, "evidenced_by",
+                                        "STATIC_EXTRACTED", {},
+                                        [cite(root, node.path, line_no, line_no, "extract.evidence-link", "STATIC_EXTRACTED")]))
+            for batch in BATCH_ID_RE.findall(line):
+                target = by_batch.get(batch)
+                if target is None:
+                    # check_evidence_refs.check() only requires a durable review for batches cited
+                    # in docs/fleet-roadmap.md (its `cited` set comes solely from ROADMAP text) --
+                    # it never reads docs/decisions/*.md. A decision may cite a batch as inline
+                    # evidence the ADR itself is the durable record of (e.g.
+                    # 2026-08-22-agent-discovery-calibration.md:29-35 cites five batches with no
+                    # separate review file, and that is not a gap check_evidence_refs would ever
+                    # flag). Reporting it as extract.batch-unresolved here would assert a contract
+                    # the cited detector does not enforce, so this Unknown is scoped to the node
+                    # type check_evidence_refs actually reads.
+                    if node.type == "roadmap-item":
+                        graph.add_unknown(Unknown("extract.batch-unresolved", f"{node.path}:{line_no} cites batch {batch} with no review",
+                                                  node.path, "check_evidence_refs owns the hard failure"))
+                elif (target, batch) not in seen_batches:
+                    seen_batches.add((target, batch))
+                    graph.add_edge(Edge(edge_id("evidenced_by", node.id, target, batch), node.id, target, "evidenced_by",
+                                        "STATIC_EXTRACTED", {"batch": batch},
+                                        [cite(root, node.path, line_no, line_no, "extract.evidence-batch", "STATIC_EXTRACTED")]))
