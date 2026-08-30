@@ -161,6 +161,12 @@ class CodexResolvedContextAdapterTests(unittest.TestCase):
         self.assertNotIn("--add-dir", command)
         self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", command)
 
+    def test_live_activation_is_blocked_without_structural_read_confinement(self) -> None:
+        with self.assertRaisesRegex(
+            engine_adapters.AdapterError, "read-only prevents writes but does not confine"
+        ):
+            self.adapter.require_safe_live_activation()
+
     def test_environment_removes_api_keys_but_keeps_subscriber_home(self) -> None:
         environment = self.adapter.sanitized_environment(
             {

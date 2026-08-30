@@ -116,8 +116,7 @@ offline test success. When a CLI reports trustworthy currency cost, the runner c
 ceiling after each trial and starts no later trial once exhausted or once a supposedly available
 cost is not reported; enforcement is therefore at one-trial granularity. Codex subscriber cost is
 unavailable, so its declared ceilings are trials and wall-clock time.
-Codex live execution additionally carries the owner-accepted residual host-read risk documented
-above; profile approval authorizes the exact model and bounded run, not broader evidence claims.
+Codex still refuses live execution until its independent isolation blocker is resolved.
 
 Pin `--model` on every `--run`. The fleet's measurement default is the `sonnet` alias unless the
 roadmap item or scenario names another tier: it is the tier the existing routing evidence was
