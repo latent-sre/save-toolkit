@@ -41,7 +41,7 @@ accepted record under `docs/decisions/`. An item cites its evidence; it does not
 
 ### WF-001 — establish a supported exact-dispatch boundary for Claude workflows
 
-**Status:** `blocked`
+**Status:** `blocked` (rechecked 2026-08-30)
 
 **Outcome:** The repository carries no executable `ship-review` workflow until Claude provides a
 supported way to dispatch one exact trusted workflow without granting caller-supplied workflow code.
@@ -54,9 +54,14 @@ launcher, hook receipt, Git-object isolation, and upgrade matrix were a bespoke 
 disproportionate to this fleet, so the experiment was removed rather than shipped. Re-checked
 2026-08-18 on 2.1.227: built-in `claude ultrareview` removes the caller-supplied workflow-body
 surface but exposes no immutable reviewed-subject identity and no findings-sensitive verdict — it
-exits 0 either way, bundles a mutable tree, and uploads to a paid cloud sandbox. Still blocked.
-Sources and queries: the
-[first-three backlog evidence packet](reviews/2026-08-18-first-three-backlog-evidence.md).
+exits 0 either way, bundles a mutable tree, and uploads to a paid cloud sandbox. Re-checked without
+a paid run on installed 2.1.251: official SDK documentation still exposes dynamic local/remote
+Workflow execution and a returned `scriptPath`; exact skill selection is a separate control and
+does not bind one immutable Workflow implementation. The 2.1.251 `scriptPath` permission-order fix
+closes a pre-check read/quote defect, not this dispatch contract. Still blocked. Sources and
+queries: the
+[first-three backlog evidence packet](reviews/2026-08-18-first-three-backlog-evidence.md) and the
+[2026-08-30 live backlog refresh](reviews/2026-08-30-live-backlog-refresh.md).
 
 **Prerequisites:** A documented direct-dispatch API, or documented permission semantics that bind
 the registered workflow implementation as well as its name. Any alternative architecture needs an
@@ -69,16 +74,18 @@ tool-bearing model; (4) reviewer lanes have structurally bounded authority; and 
 failed review evidence cannot become approval. Gate A and mocked JavaScript are supporting evidence,
 not substitutes for the live boundary proof.
 
-**Next action:** Monitor the ultrareview/direct-dispatch result contract for a documented immutable
-candidate identity and machine-enforceable finding verdict. Do not restore `ship-review`, wrap an
-exit-0 result as approval, or launch a paid/uploading probe until an owner explicitly accepts that
-external data/cost boundary and the remaining guarantees can be proven.
+**Next action:** Monitor the documented Workflow and ultrareview result contracts for immutable
+implementation binding, immutable candidate identity, and a machine-enforceable finding verdict.
+Re-probe only after one of those documented boundaries materially changes. Do not restore
+`ship-review`, treat exact skill selection as exact Workflow binding, wrap an exit-0 result as
+approval, or launch a paid/uploading probe until an owner explicitly accepts that external
+data/cost boundary and the remaining guarantees can be proven.
 
 ## Repository work
 
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
 
-**Status:** `active` (2026-08-24)
+**Status:** `active` (2026-08-30)
 
 **Owner:** `latent-sre` owns the architecture decision and acceptance of the exact generic-alpha
 revision. `agent-engineer` owns consumer context-requirement semantics for agents/skills;
@@ -161,16 +168,17 @@ alpha contract and next migration boundary, then close the item. Fleet-wide adop
 Backstage/MCP adapters, automatic discovery, live reconciliation, or a general overlay language are
 separately justified work and do not silently expand this item.
 
-**Next action:** Close the producer/consumer gap between the two service skills, which needs no
-resolver: `service-lifecycle` names the readiness audit as its independent verifier and states
-what an onboarded service leaves on record; `service-readiness-audit` states what it expects to
-find there. Then add `service-lifecycle`'s requirement sidecar under the widened authorization,
-with the condition (7) safety proof. `latent-sre/sre-context` exists and carries the versioned
-schemas, resolver, CLI, fixtures, and tests; stages 1–3 are substantially built rather than owed,
-and this file previously said otherwise. What remains is the acceptance evidence: the second
-synthetic-tenant portability proof, the effect-capable safety proof, and the paired consumer
-sidecars. Sidecars ship as a mirrored pair — the consumer copy here, its twin under that
-repository's `examples/`, where its own tests validate it against the schema. No team-specific
+**Next action:** Review and integrate the two exact published follow-ups, in producer-first order:
+`latent-sre/sre-context:work/context-001-lifecycle-contract` at `458f39c` adds the lifecycle mirror
+and paired resolver/CLI coverage; `latent-sre/save-toolkit:work/context-001-close-contract-gap` at
+`96e1784` strengthens the already-present lifecycle safety test. Neither has a pull request, and
+publication is not closure. Save-toolkit main already carries both local consumer sidecars and
+both skill-side links; sre-context main carries the readiness mirror and second synthetic tenant.
+Do not rebuild or requeue them. After review and merge, verify the mirrors and condition (7) safety
+boundary together on the exact paired revisions, complete independent review of the remaining
+acceptance evidence, and then ask the owner to accept or reject the generic alpha. Evidence and
+current branch boundaries:
+[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md). No team-specific
 values are required and no real team is onboarded.
 
 ### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
@@ -237,35 +245,54 @@ specific deterministic fault cases needed to evaluate those artifacts on current
 do not reopen GRAPH-002 or reuse historical samples as current measurements. No paid or Terra run
 is required.
 
-### GRAPH-004 — `codebase-atlas`: code, dependency, knowledge, and GraphRAG graphs
+### GRAPH-004 — `fleet-atlas`: a revision-bound knowledge graph over fleet artifacts
 
-**Status:** `decision-needed` (2026-08-24)
+**Status:** `active` (2026-08-30). The owner accepted the fleet-knowledge scope, the published
+branch carries the decision and initial implementation, and additional isolated implementation is
+in progress. No pull request exists and no candidate is accepted or merged.
 
-**Owner:** to be named; `repository-investigator` is the nearest lane for local source structure.
+**Owner:** `software-engineer` owns the generator, schema, catalog entry, drift check, and tests;
+`agent-engineer` owns the `fleet-atlas` skill and scenarios; `repository-investigator`,
+`agent-engineer`, `scribe`, and the human owner are read-only consumers; `latent-sre` accepts
+findings and the exact candidate revision. No new agent or authority over another contract's edge.
 
-**Outcome:** A separate capability with its own inputs, provenance, and success criteria for
-import/dependency graphs, runtime topology, knowledge graphs, and GraphRAG — kept distinct from
-`workflow-graph-engineering` (executable graphs) and `agent-authoring` (roster graphs), both of which
-already carry near-miss scenarios that keep these requests out.
+**Outcome:** A deterministic static atlas answers, with `path:line` provenance and an exact source
+revision, which artifact is canonical for a rule, which agent or skill owns a capability, which
+references load for a predicate, which decision superseded another, which roadmap items depend on
+which, which eval/test/evidence supports a claim, which generated projections derive from which
+canonical source, and where documentation, rules, status, and implementation disagree. It returns
+`UNKNOWN` rather than guessing when evidence cannot resolve an edge.
 
-**Source:** Owner direction on 2026-08-24 (stage 2). The
-[`2026-08-22 audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) split graph engineering
-into three contracts and deferred this one pending confirmed owner need.
+**Source:** Owner direction on 2026-08-30 redirected the earlier general code/GraphRAG idea to the
+fleet's own knowledge. Published branch `origin/work/graph-004-fleet-atlas` at `0828418c` carries
+the accepted decision packet and deterministic implementation slices; the isolated local branch
+had advanced to `8f493793` with further work at the final 2026-08-30 refresh. The
+[`live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) records exact branch and dirty
+state without promoting either to main. The
+[`2026-08-22 audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) remains the source for
+separating this capability from executable and roster graphs.
 
-**Decision required:** the operator need (which questions the atlas must answer), whether output is a
-static analysis artifact or a retrieval index, the provenance and freshness contract, and the
-consumer.
+**Prerequisites:** Satisfied for the current static implementation. The generator stays
+standard-library-only on the Gate A path; optional parser use stays in component verification.
+Application-code AST/import/call graphs, runtime topology, production telemetry, executable
+workflow engines, graph databases, automatic canonical rewrites, and GraphRAG remain out of scope.
 
-**Prerequisites:** none technical; a named need and owner.
+**Acceptance:** The atlas schema and catalog entry validate; generation is deterministic and a
+regenerate-and-compare check detects source drift; mutation proves unresolved or renamed references
+become `UNKNOWN`; extracted delegation, roster, generated-projection, roadmap-dependency, and guard
+edges match their enforcing contracts; every accepted operator question has a pinned golden answer;
+bounded index/detail views cite revision and source; positive discovery and direct provenance/
+contradiction scenarios pass while existing code-graph and roster-graph near misses remain green;
+Gate A and independent exact-revision review pass. Generated findings never edit canonical truth.
 
-**Acceptance:** to be defined with the decision; at minimum a positive discovery scenario, the two
-existing near-miss scenarios remaining green, and no overlap with `workflow-graph-engineering`.
-
-**Next action:** Owner names the need; until then no implementation.
+**Next action:** Finish the existing isolated `work/graph-004-fleet-atlas` candidate without
+overwriting its uncommitted files, restore a clean exact revision, run its focused atlas and
+mutation checks plus Gate A, obtain independent review, and open one review path for that exact
+candidate. Do not start a duplicate implementation or schedule GraphRAG.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `active` (2026-08-25). F7's installed-Claude-CLI visibility gap is closed; the VS Code
+**Status:** `active` (2026-08-30). F7's installed-Claude-CLI visibility gap is closed; the VS Code
 boundary remains open.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
@@ -300,6 +327,14 @@ plugin-wide `PreToolUse` payload carries no custom-agent identity, so the viable
 generated `sre`-scoped hook rather than a self-scoping entry in `hooks/copilot-hooks.json`. No real
 fleet hook is wired.
 
+The [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) records the
+newer boundary. `[verified static]` Installed VS Code 1.135.0 at `08d4889f` recognizes and carries
+`allowedSubagents`, but its exact `runSubagentTool.ts` sets the child field to `undefined` and has no
+named-target rejection. `[sourced]` Current official docs define `agents:` as an allowlist, and
+current upstream source at `004a1fbb` rejects a target outside that list in both prepare and invoke
+paths. This source delta is not a live forbidden-call observation and does not prove which future
+release first contains the enforcement.
+
 **Prerequisites:** An installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
 observational: it changes no live system, and it neither authorizes nor implies a Copilot hook
@@ -308,16 +343,20 @@ implementation.
 **Acceptance:** A dated packet and durable, non-secret transcript/envelopes record whether the tools
 picker offers `execute` to `sre`; whether an override changes the configuration; whether the active
 generated buffer or on-disk file changes; and whether a safe invocation runs or receives an explicit
-host denial. An operator-local artifact and hash are not closure evidence. Any hook-portability
-finding is evidence only; wiring a Copilot hook is separate work needing its own review. Exact-agent
-scope may be established by a hook attached to the selected custom agent; the global hook payload
-does not need to invent an identity field it does not carry.
+host denial. A paired custom-agent canary also records whether a parent with `agents: [allowed]` can
+invoke a named `forbidden` agent on installed 1.135.0 and, separately, on the first tested build
+containing deterministic upstream rejection. An operator-local artifact and hash are not closure
+evidence. Any hook-portability finding is evidence only; wiring a Copilot hook is separate work
+needing its own review. Exact-agent scope may be established by a hook attached to the selected
+custom agent; the global hook payload does not need to invent an identity field it does not carry.
 
-**Next action:** Run the probe's distinct agent-scoped hook canary in a disposable VS Code profile:
-the custom canary must deny a harmless terminal request with its fixed marker, while the built-in
-Agent control remains unaffected. Keep invocation authority open until a real tool call or host
-denial is observed. Do not run a third identical picker retry, substitute a prompt-file override, or
-populate `hooks/copilot-hooks.json`.
+**Next action:** In an approved disposable VS Code profile, run the paired allowed/forbidden
+subagent canary on installed 1.135.0 and repeat it on the first installed build proven to contain
+the upstream rejection. Then run the distinct agent-scoped hook canary: the custom canary must deny
+a harmless terminal request with its fixed marker while the built-in Agent control remains
+unaffected. Keep invocation authority open until real calls or host denials are observed. Do not
+run a third identical picker retry, infer runtime enforcement from source alone, substitute a
+prompt-file override, or populate `hooks/copilot-hooks.json`.
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 
@@ -395,7 +434,7 @@ Codex claims or treat read-only execution as proof of bundle-only reads.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-27). Phase 1 is closed as evidence; Phase 2 is the live work, one
+**Status:** `active` (2026-08-30). Phase 1 is closed as evidence; Phase 2 is the live work, one
 skill per slice, and its method changed on 2026-08-27: probe before routing.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need, and no skill
@@ -452,10 +491,11 @@ dominant caller-fence failure, routing 6/6 — pre-existing content-contract ins
 `EVAL-006`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
 
 **Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
-5,000 before). On `origin/main` `4f01f22`, 33 entrypoints total 224,844 immutable bytes and seven
-non-Phase-1 entrypoints other than `agent-authoring` sit at or above it: `obs-dashboards` 11,419,
-`backend-craft` 11,123, `runbook` 9,561, `workflow-graph-engineering` 8,622, `incident-drill` 8,154,
-`gcp-ops` 8,102, `obs-alerting` 7,755. `frontend-craft` (7,481) is below it. The earlier 5,000-byte
+5,000 before). On refreshed `origin/main` `41406af0`, 33 entrypoints total 225,466 immutable bytes
+and seven non-Phase-1 entrypoints other than `agent-authoring` sit at or above it:
+`obs-dashboards` 11,419, `backend-craft` 11,123, `runbook` 9,561,
+`workflow-graph-engineering` 8,622, `incident-drill` 8,154, `obs-alerting` 7,755, and the retained
+`gcp-ops` candidate 7,679. `frontend-craft` (7,481) is below it. The earlier 5,000-byte
 screens on `b9b274f` (twelve) and `0eb3daf` (seventeen) are superseded. Selection means inspect, not rewrite; size alone is not a finding.
 The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
 unrefreshed and still does not authorize a description rewrite inside Phase 2.
@@ -499,14 +539,17 @@ phrase their discovery graders target. Each changed description passes the 600-b
 is required only for an existing scenario that returns red. Gate A green.
 
 **Next action:** The remaining candidate set is the six undispositioned entrypoints at or above
-the 7,500-byte screen.
-`backend-craft` is in progress on its own branch with the clean-room checkpoint. Then, one per
-slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
+the 7,500-byte screen. No next slice is in progress and no `backend-craft` Phase 2 branch exists.
+At the next one-item evidence/recommendation checkpoint, select whether `backend-craft` is the next
+slice; only after owner approval create a refreshed branch and run its clean-room checkpoint. Then,
+one per approved slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
 recitation), `obs-dashboards` and `runbook` (large, with live-write authority text and a worked
 exemplar to retain explicitly), `incident-drill` (explicit-invocation only; its references are drill
 packs), and `workflow-graph-engineering` (its own review already records why the entrypoint stays
 long — commit that as its disposition after a checkpoint). Skills below the screen owe no
-disposition. Do not requeue a Phase 1 skill or rewrite discovery descriptions.
+disposition. The exact refresh evidence is in
+[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md). Do not requeue a
+Phase 1 skill or rewrite discovery descriptions.
 
 Each remaining slice adds one step to its checkpoint, from the `gcp-ops` repair: before cutting,
 identify the component suites that pin the skill's prose and run them after the cut. `rg` the
@@ -517,7 +560,8 @@ line wrap that splits a pinned phrase disables the mutation without failing the 
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
-**Status:** `deferred` (2026-08-23)
+**Status:** `ready` (2026-08-30). The material route/evaluator-change trigger fired; no
+remeasurement has started.
 
 **Owner:** `latent-sre`
 
@@ -530,20 +574,23 @@ two trials, and a 180-second timeout passed read-only service readiness 1/2 and 
 trial. The exact dispositions are in the
 [`skill clarity and routing audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md).
 
-**Prerequisites:** A material routing, evaluator, host, or model change that can alter the result, or
-explicit owner approval of a fixed no-tuning measurement budget. Use a clean exact plugin revision
-and predeclare model, timeout, trials, threshold, and selected scenarios.
+**Prerequisites:** Satisfied by material post-deferral changes. `workflow-graph-engineering` was
+introduced at `f1afd574`; the service-readiness route and lifecycle vocabulary changed through
+`afb6f846`, `ee80ba67`, and `bbc228ad`; evaluator follow-up reached `c6d928c9`. The
+[`2026-08-30 refresh`](reviews/2026-08-30-live-backlog-refresh.md) records why these changes satisfy
+the item's own trigger. Use a clean exact plugin revision and predeclare model, timeout, trials,
+threshold, selected scenarios, and spend ceiling before measurement.
 
 **Acceptance:** The workflow-graph and service-readiness cases each meet their declared threshold on
 the exact candidate under the predeclared conditions, with no overlapping regression loss. A failed
 or inconclusive batch remains evidence; it does not authorize prompt edits or retries without a
 separately accepted fleet failure and candidate budget.
 
-**Reopen trigger:** A material change to either route or its evaluator/runtime boundary, a named
-model-migration question, or explicit owner approval for one fixed-budget reliability measurement.
-
-**Next action:** None while deferred. Do not rerun unchanged bytes merely to turn timeouts green, and
-do not move reference-dependent behavior graders into discovery.
+**Next action:** Present one fixed, no-tuning measurement packet for owner approval: exact plugin
+revision, model, the two named discovery cases, timeout, trials, thresholds, stop conditions, and
+spend ceiling. If approved, run that packet once and retain failures/timeouts as evidence. Do not
+retry unchanged bytes merely to turn timeouts green or move reference-dependent behavior graders
+into discovery.
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
@@ -927,7 +974,7 @@ their evidence is in the commits, not here.
 
 ### EVAL-007 — grade incident behaviour without phrase adjacency
 
-**Status:** `ready` (2026-08-27)
+**Status:** `decision-needed` (2026-08-30)
 
 **Outcome:** A behavioural incident scenario returns a verdict that reflects the response rather
 than its phrasing, so a red result is worth investigating instead of routinely being a pattern that
@@ -951,7 +998,10 @@ guidance, cited by SHA, before any with/without comparison is presented as settl
 One LLM-judge pilot now exists outside the harness: the
 [`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
 graded thirteen anonymized four-answer sets with a fixed per-assertion bar and recorded what that
-settled and what it did not.
+settled and what it did not. The
+[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) corrects the tracker
+classification: choosing structured output or a nondeterministic judge is a load-bearing owner
+decision, not implementation-ready work.
 
 **Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
 exist in the grader registry, so a structured-output contract needs no new grader type. An
@@ -963,8 +1013,9 @@ unchanged guidance. The removal control still discriminates: with the guidance r
 scenario fails. No grader rejects a response that a reader would call correct, tested against the
 transcripts already retained under `.eval-runs/`.
 
-**Next action:** Choose the grading style — a structured contract the response must emit, or an
-LLM judge — then convert one scenario and measure it three times before converting the rest.
+**Next action:** Owner chooses the grading style — a structured contract the response must emit, or
+an LLM judge with an accepted nondeterministic-grader policy. Only then convert one scenario and
+measure it three times before converting the rest.
 Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
 further tuning run is spent on pattern repair.
 
