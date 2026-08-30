@@ -1,0 +1,232 @@
+activation_guard: graph-sandbox/activate.py/v1
+name: ${GRAPH_PROJECT_NAME:?activation derives the run-scoped project name}
+
+services:
+  graph-runner:
+    image: ${GRAPH_RUNNER_IMAGE_ID:?set from images.lock.json through preflight.py}
+    entrypoint: []
+    command: ["python", "-m", "runner.main"]
+    working_dir: /app
+    user: "65532:65532"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    cpus: 1.0
+    mem_limit: 512m
+    restart: "no"
+    stop_grace_period: 10s
+    environment:
+      APPROVAL_FIXTURE: ${APPROVAL_FIXTURE:-APPROVED}
+      CASE_DIGEST: ${SANDBOX_CASE_DIGEST:?activation freezes the case digest}
+      CASE_ID: ${SANDBOX_CASE_ID:?activation freezes the case identity}
+      CHECKOUT_URL: http://checkout:8080
+      CHECKPOINT_DB: /state/checkpoints.sqlite3
+      EFFECT_LEDGER_DB: /state/effects.sqlite3
+      EVIDENCE_DIR: /evidence
+      INVENTORY_URL: http://inventory:8082
+      PAYMENTS_URL: http://payments:8081
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      RUN_ID: ${GRAPH_RUN_ID:?set a stable run ID through preflight.py}
+      RUN_TIMEOUT_SECONDS: "300"
+      SOURCE_REVISION: ${SOURCE_REVISION:?set the exact source revision through preflight.py}
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1
+    depends_on:
+      checkout:
+        condition: service_healthy
+        required: true
+        restart: false
+      payments:
+        condition: service_healthy
+        required: true
+        restart: false
+      inventory:
+        condition: service_healthy
+        required: true
+        restart: false
+    networks:
+      sandbox:
+    tmpfs:
+      - /tmp:size=16777216,mode=1777
+    volumes:
+      - type: volume
+        source: runner-state
+        target: /state
+      - type: volume
+        source: runner-evidence
+        target: /evidence
+
+  checkout:
+    image: ${SYNTHETIC_SERVICES_IMAGE_ID:?set from images.lock.json through preflight.py}
+    entrypoint: []
+    command: ["python", "-m", "sandbox_services.checkout"]
+    working_dir: /app
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    cpus: 0.5
+    mem_limit: 256m
+    restart: "no"
+    stop_grace_period: 10s
+    environment:
+      DATA_DB: /data/checkout.sqlite3
+      DEPENDENCY_TIMEOUT_SECONDS: "2"
+      EFFECT_FIXTURE: ${CHECKOUT_EFFECT_FIXTURE:?activation projects checkout effect fixture}
+      INVENTORY_URL: http://inventory:8082
+      PAYMENTS_URL: http://payments:8081
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      READINESS_FIXTURE: ${CHECKOUT_READINESS_FIXTURE:?activation projects checkout readiness fixture}
+      SANDBOX_CASE_ID: ${SANDBOX_CASE_ID:?activation freezes the case identity}
+      SERVICE_PORT: "8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080/livez',timeout=0.5); raise SystemExit(0 if r.status == 200 else 1)"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+      start_period: 2s
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1
+    networks:
+      sandbox:
+    tmpfs:
+      - /tmp:size=16777216,mode=1777
+    volumes:
+      - type: volume
+        source: checkout-data
+        target: /data
+
+  payments:
+    image: ${SYNTHETIC_SERVICES_IMAGE_ID:?set from images.lock.json through preflight.py}
+    entrypoint: []
+    command: ["python", "-m", "sandbox_services.payments"]
+    working_dir: /app
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    cpus: 0.5
+    mem_limit: 256m
+    restart: "no"
+    stop_grace_period: 10s
+    environment:
+      DATA_DB: /data/payments.sqlite3
+      EFFECT_FIXTURE: ${PAYMENTS_EFFECT_FIXTURE:?activation projects payments effect fixture}
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      READINESS_FIXTURE: ${PAYMENTS_READINESS_FIXTURE:?activation projects payments readiness fixture}
+      SANDBOX_CASE_ID: ${SANDBOX_CASE_ID:?activation freezes the case identity}
+      SERVICE_PORT: "8081"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8081/livez',timeout=0.5); raise SystemExit(0 if r.status == 200 else 1)"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+      start_period: 2s
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1
+    networks:
+      sandbox:
+    tmpfs:
+      - /tmp:size=16777216,mode=1777
+    volumes:
+      - type: volume
+        source: payments-data
+        target: /data
+
+  inventory:
+    image: ${SYNTHETIC_SERVICES_IMAGE_ID:?set from images.lock.json through preflight.py}
+    entrypoint: []
+    command: ["python", "-m", "sandbox_services.inventory"]
+    working_dir: /app
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    cpus: 0.5
+    mem_limit: 256m
+    restart: "no"
+    stop_grace_period: 10s
+    environment:
+      DATA_DB: /data/inventory.sqlite3
+      EFFECT_FIXTURE: ${INVENTORY_EFFECT_FIXTURE:?activation projects inventory effect fixture}
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      READINESS_FIXTURE: ${INVENTORY_READINESS_FIXTURE:?activation projects inventory readiness fixture}
+      SANDBOX_CASE_ID: ${SANDBOX_CASE_ID:?activation freezes the case identity}
+      SERVICE_PORT: "8082"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8082/livez',timeout=0.5); raise SystemExit(0 if r.status == 200 else 1)"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+      start_period: 2s
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1
+    networks:
+      sandbox:
+    tmpfs:
+      - /tmp:size=16777216,mode=1777
+    volumes:
+      - type: volume
+        source: inventory-data
+        target: /data
+
+networks:
+  sandbox:
+    internal: true
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1
+
+volumes:
+  runner-state:
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1
+  runner-evidence:
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1
+  checkout-data:
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1
+  payments-data:
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1
+  inventory-data:
+    labels:
+      com.latent-sre.graph-sandbox.run-id: ${GRAPH_RUN_ID:?activation owns the run ID}
+      com.latent-sre.graph-sandbox.scope: ${GRAPH_SCOPE_HASH:?activation owns the scope hash}
+      com.latent-sre.graph-sandbox.source-revision: ${SOURCE_REVISION:?activation owns the revision}
+      com.latent-sre.graph-sandbox.version: graph-sandbox/v1

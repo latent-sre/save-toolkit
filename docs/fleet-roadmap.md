@@ -175,8 +175,12 @@ values are required and no real team is onboarded.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
-**Status:** `ready` (2026-08-26). The consumer, runtime, and sandbox boundary are accepted; no
-implementation has started.
+**Status:** `active` (2026-08-29). PR #193 review superseded the original runtime candidate after
+finding five recovery, lifecycle-identity, cross-platform-test, and wall-budget gaps. Follow-up
+revision `56ebece6d34d30eaa2b6bf5725a1d4a70ecb25f9` passed focused host, Linux, immutable-image, and
+healthy-mission verification for those five fixes. GitHub CI, review-thread acceptance, repository
+integration, and exact-candidate human acceptance remain open; the earlier full fault matrix is
+historical evidence and was not rerun for this follow-up revision.
 
 **Owner:** `software-engineer` owns implementation; `agent-engineer` owns the skill text that
 carries runtime-specific references; `stack-profile`'s decision owner names the runtime.
@@ -194,9 +198,15 @@ records that no inspected runtime supplies the whole portable contract, which is
 follows the design and a concrete consumer rather than preceding them. Owner direction on
 2026-08-26 accepted the consumer-specific Docker Compose sandbox and offline-first delivery in the
 [`GRAPH-002 runtime decision`](decisions/2026-08-26-graph-002-docker-sandbox-runtime.md).
+The 2026-08-29 owner direction accepted the advisory-driven
+[`LangGraph security-pin supersession`](decisions/2026-08-29-graph-002-langgraph-security-pin.md)
+before implementation. The original full-matrix results remain in the historical
+[`GRAPH-002 exact-revision verification`](reviews/2026-08-29-graph-002-exact-revision-verification.md);
+the focused post-review follow-up evidence is recorded in the
+[`PR #193 remediation verification`](reviews/2026-08-29-graph-002-pr193-remediation-verification.md).
 
 **Accepted boundary:** The consumer is `checkout-payments-timeout-drill/v1`, not the fleet itself.
-The allowed runtime is Python 3.12 with exactly pinned `langgraph==1.0.8` and
+The allowed runtime is Python 3.12 with exactly pinned `langgraph==1.0.10` and
 `langgraph-checkpoint-sqlite==3.1.1`, executed only inside `graph-sandbox/v1`; direct host execution
 is prohibited. The default profile has deterministic model fixtures and an internal-only network.
 A later bounded Terra profile requires separate approval of its trial count, spend ceiling,
@@ -254,9 +264,11 @@ remove its explicit entrypoint and return `incident-drill` to the current manual
 procedure; export sanitized evidence first, then remove only the run-scoped containers, network, and
 volumes. No production data migration exists.
 
-**Next action:** Start Docker Desktop or another approved Linux Docker daemon, then open the first
-implementation branch for slice 1: the versioned consumer contract, Compose model, sandbox preflight,
-and red-first negative fixtures. Do not add live Terra egress or credentials in that slice.
+**Next action:** Push the documentation-only follow-up, obtain green CI and reviewer closure on
+the five PR #193 threads, then either rerun the full matrix on the exact acceptance candidate or
+update the exact-candidate acceptance record before asking the owner to accept or reject it. Any
+runtime-input change requires another pinned build and verification set. Do not add live Terra
+egress, credentials, or paid calls.
 
 ### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
 
@@ -440,7 +452,8 @@ schema, offline fixtures, and adapter interface. Then move the current Claude ex
 adapter without changing the default CLI or legacy summary and prove parity. HOST-003 is closed:
 the positive in-snapshot and negative out-of-snapshot `Read` probes run in every direct trial and
 the fixture workspace is an allowed root (see the register). Add the Codex
-bundle resolver and adapter offline, then request a bounded live-run approval. Add divergence
+bundle resolver and adapter offline, then request a bounded live-run approval only after an exact
+CLI proves the structural no-tool or bundle-only read boundary the contract requires. Add divergence
 classification only for comparable validated envelopes. Retire no legacy result contract until its
 consumers have migrated.
 
@@ -469,10 +482,10 @@ scenario/graders. Claude path scoping proved both the allow and the deny case on
 workspace.
 
 **Next action:** Finish offline full-suite verification and independent review of the exact clean
-candidate. Codex live execution is hard-disabled before process start: establish a structural
-no-tool or bundle-only read boundary, prove a denied out-of-bundle probe plus traced resolved model
-and effective policy on the exact CLI, then seek separate fixed-budget approval. Do not run either
-model until its live prerequisites are satisfied.
+candidate. Then prepare one separately approved Codex profile binding the exact model, scenarios,
+trial count, per-trial and total timeouts, unavailable-cost record, and stop condition. Treat any
+missing resolved-model or effective-policy trace as `INCONCLUSIVE`; do not widen the registered
+Codex claims or treat read-only execution as proof of bundle-only reads.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
