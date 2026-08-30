@@ -236,7 +236,30 @@ class ExtractGovernanceTests(unittest.TestCase):
                 if dep != item["id"] and dep in expected_ids:
                     self.assertIn((f"roadmap-item:{item['id']}", f"roadmap-item:{dep}"), contract)
         inferred = [e for e in self.graph.edges.values() if e.kind == "depends_on" and e.cls == "STATIC_INFERRED"]
-        self.assertTrue(any(e.source == "roadmap-item:GRAPH-003" and e.target == "roadmap-item:GRAPH-002" for e in inferred))
+        self.assertTrue(inferred, "a dependency stated outside Prerequisites must still be recorded")
+        self.assertTrue(all(e.attrs.get("field") != "Prerequisites" for e in inferred),
+                        "a Prerequisites dependency is CONTRACT_RESOLVED, never inferred")
+
+    def test_a_dependency_on_a_closed_item_is_kept_not_dropped(self) -> None:
+        """A live item depending on a CLOSED item is a real relationship, and the one an operator
+        asks about: 'it was waiting on that — is it unblocked now?'
+
+        extract_roadmap once resolved dependencies against live item ids only, so when GRAPH-002
+        closed the GRAPH-003 -> GRAPH-002 edge vanished silently. Dropping an edge answers the
+        question wrongly and without saying so, which is worse than naming a historical target.
+        """
+        closed_ids = {
+            n.id for n in self.graph.nodes.values()
+            if n.type == "roadmap-item" and n.state == "historical"
+        }
+        to_closed = [
+            e for e in self.graph.edges.values()
+            if e.kind == "depends_on" and e.target in closed_ids
+        ]
+        self.assertTrue(to_closed, "no live item depends on a closed one; this test proves nothing")
+        for edge in self.graph.edges.values():
+            if edge.kind == "depends_on":
+                self.assertIn(edge.target, self.graph.nodes, f"{edge.id} points at a missing node")
 
     def test_closed_register_rows_are_historical_items(self) -> None:
         closed = {n.name for n in self.graph.nodes.values() if n.type == "roadmap-item" and n.state == "historical"}
@@ -383,13 +406,28 @@ class DetectorTests(unittest.TestCase):
         self.assertTrue(all(e.cls == "STATIC_INFERRED" for e in findings))
         self.assertTrue(all("detector" in e.attrs and "message" in e.attrs for e in findings))
 
-    def test_uncited_review_detector_fires_on_a_known_orphan_and_respects_batch_citations(self) -> None:
+    def test_uncited_review_detector_discriminates_cited_from_uncited(self) -> None:
+        """Pins the DISCRIMINATION, not one filename.
+
+        This test used to assert a specific orphan (2026-08-19-obs-skill-hardening-round.md). The
+        live-doc cleanup then deleted that file — which is what docs/README.md prescribes for an
+        uncited review, i.e. the detector's own finding was acted on — and the test failed for
+        being right. A fixture that a correct downstream action invalidates is the wrong fixture.
+        """
         uncited = {u.path for u in self.graph.unknowns if u.code == "stale.review-uncited"}
-        self.assertIn("docs/reviews/2026-08-19-obs-skill-hardening-round.md", uncited)
-        cited_by_batch = [n for n in self.graph.nodes.values() if n.type == "review" and n.authority == "generated"
-                          and any(e.target == n.id and e.kind == "evidenced_by" for e in self.graph.edges.values())]
-        for node in cited_by_batch:
-            self.assertNotIn(node.path, uncited)
+        reviews = {n.path for n in self.graph.nodes.values() if n.type == "review"}
+        self.assertTrue(uncited, "the detector must still find at least one uncited review")
+        self.assertTrue(uncited <= reviews, "every finding names a real review node")
+
+        cited = {
+            self.graph.nodes[e.target].path
+            for e in self.graph.edges.values()
+            if e.kind in ("evidenced_by", "cites")
+            and e.target in self.graph.nodes
+            and self.graph.nodes[e.target].type == "review"
+        }
+        self.assertTrue(cited, "some reviews are cited; otherwise this proves nothing")
+        self.assertEqual(cited & uncited, set(), "a cited review must never be reported uncited")
 
     def test_uncited_review_detector_also_scans_live_doc_citations(self) -> None:
         """docs/rules.md's "Related" section cites a review that no roadmap item or decision does.

@@ -17,7 +17,9 @@ runtime decision, and the live roadmap remain authoritative.
 - **Ports**: none — the offline profile publishes no host ports; service ports exist only on the internal Compose network.
 - **Module identity**: `git@github.com:latent-sre/save-toolkit.git`; implementation root `graph-sandbox/`; contract `checkout-payments-timeout-drill/v1`.
 - **Credentials**: none — the offline profile accepts no model, cloud, GitHub, PCF, SSH, or host credential mount or environment variable.
-- **Progress**: orchestrator plan `.agents/plan.md`; builder shards `.agents/progress/<component>.md`, one writer per shard.
+- **Progress**: GRAPH-002 is closed. Remaining operator work is `GRAPH-003` on
+  [`docs/fleet-roadmap.md`](../docs/fleet-roadmap.md). Do not restore multi-worker plan files
+  under `.agents/`.
 
 ## Mission block
 
@@ -52,6 +54,3 @@ runtime decision, and the live roadmap remain authoritative.
 - Evidence events follow the GRAPH-003 boundary vocabulary; unique identities stay out of metric
   labels. Prompts, credentials, authorization headers, raw payloads, and raw exception bodies do
   not enter normal telemetry.
-- You are not alone in the repository. Do not revert or overwrite another worker's changes; stay
-  inside the file ownership named in your spawn contract and route interface changes to the
-  orchestrator.

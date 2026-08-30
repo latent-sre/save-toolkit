@@ -289,7 +289,15 @@ def extract_roadmap(root: Path, graph: Graph) -> None:
     relative = "docs/fleet-roadmap.md"
     text = (root / relative).read_text(encoding="utf-8")
     items = check_plan_status._roadmap_items(text)
-    known = {item["id"] for item in items}
+    # Resolve dependencies against CLOSED items too, not just live ones. A live item routinely
+    # depends on something that has since closed -- GRAPH-003 waited on GRAPH-002, which closed
+    # when PR #193 was accepted -- and that is exactly the relationship an operator asks about
+    # ("is this unblocked now?"). Restricting to live ids dropped the edge silently, which is a
+    # worse answer than saying "depends_on GRAPH-002 (historical)". The closed nodes are created
+    # later by extract_closed_register; an edge may name a target that appears after it, which the
+    # graph permits.
+    closed_text = (root / "docs/roadmap-closed.md").read_text(encoding="utf-8") if (root / "docs/roadmap-closed.md").is_file() else ""
+    known = {item["id"] for item in items} | set(BACKTICK_ID_RE.findall(closed_text))
     for item in items:
         fields = dict(item["fields"])
         status_text = fields.get("Status", "")

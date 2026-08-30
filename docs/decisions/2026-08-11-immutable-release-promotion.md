@@ -3,7 +3,7 @@
 - Date: 2026-08-11
 - Status: Superseded 2026-08-23; repository implementation retired before live activation
 - Decision owners: save-toolkit maintainers
-- Roadmap item: `RELEASE-001` (retired by [owner disposition](../fleet-roadmap.md))
+- Roadmap item: `RELEASE-001` (retired by [owner disposition](../roadmap-closed.md))
 
 > **Historical record only.** No release was published under this design. The custom workflow,
 > contracts, release-only tests, and runbook were removed because there was no named consumer for

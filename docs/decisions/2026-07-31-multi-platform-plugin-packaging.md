@@ -25,7 +25,10 @@ guard that never runs.
    `.github/agents/`, `.codex/agents/`, `platforms/copilot/skills/`, and
    `plugins/save-toolkit/skills/`.
    (Post-decision: the plugin id was later renamed from `sre-agents` to `save-toolkit`; see
-   [`2026-08-05-save-toolkit-rename.md`](2026-08-05-save-toolkit-rename.md).)
+   [`2026-08-05-save-toolkit-rename.md`](2026-08-05-save-toolkit-rename.md). Codex distribution
+   projections were later retired; remaining generated roots are `.github/agents/` and
+   `platforms/copilot/skills/` — see
+   [`2026-08-23-retire-codex-distribution-target.md`](2026-08-23-retire-codex-distribution-target.md).)
 4. Copilot/VS Code guarded roles receive no execute tool because their plugin contract cannot enforce
    Claude's agent-specific command allowlist.
 5. Codex agents are standalone TOML, not a claimed plugin component. They request sandbox mode from

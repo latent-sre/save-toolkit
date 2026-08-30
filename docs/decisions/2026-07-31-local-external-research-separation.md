@@ -51,6 +51,9 @@ that holds repository evidence.
   exchange for isolation and clearer provenance.
 - Removing direct web tools is not full egress prevention for `sde` and `prompt-engineer`, which keep
   unguarded Bash. Host/network controls remain load-bearing for those roles.
+  Current names: `software-engineer` and `agent-engineer`
+  ([`2026-08-25-software-engineer-rename.md`](2026-08-25-software-engineer-rename.md),
+  [`2026-08-26-agent-engineer-rename.md`](2026-08-26-agent-engineer-rename.md)).
 - The `researcher` input gate cannot prevent a caller from placing sensitive content directly in its
   prompt. Sanitization is a caller obligation until a brokered boundary exists.
 - Generated Codex profiles preserve the method but require outer isolation to enforce it. A passing

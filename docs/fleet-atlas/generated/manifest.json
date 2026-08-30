@@ -1,15 +1,15 @@
 {
   "apiVersion": "save-toolkit/fleet-atlas-manifest/v1",
   "files": {
-    "INDEX.md": "sha256:63af13ccb52c8bfbd73d712e1e907743f3ee3d0c1a2b7537b422c153fa220488",
-    "atlas.json": "sha256:043a1a5034ff15e073c8b32ba61bd0cc324ea6b81c0081dd787f1e6b98ee43c2",
-    "capability-owner-map.md": "sha256:a6ad50ef7440762a17db33f042cb58a0cff8022c0d0b291848ca623bad0aef51",
-    "claim-to-eval-map.md": "sha256:1e7cc5dcf50d9ee8742b703384c796851190e55265aa4828109d56335266fc3a",
-    "contradictions-and-stale-evidence.md": "sha256:848cddd89f318f8d596670e5ab077f1431163c691d0325c162b0bf28f1a29034",
-    "decision-supersession-map.md": "sha256:da691600058e9d0d7df9d7a9ce19e36a1bf7140494407e3b89941781a268a5e1",
+    "INDEX.md": "sha256:3b5c84f0a08e764cd8e2b1dff2cbb34cea808524680cf0b57608a89673f8a243",
+    "atlas.json": "sha256:03ace970f3f9568422112d2cf9e8cc238f5bfc793a777d8c771e3b1f6629dad8",
+    "capability-owner-map.md": "sha256:62a4506912e2d639c01ed74fe5418ad16884d77e9e2c528ac797b45acd83c977",
+    "claim-to-eval-map.md": "sha256:4e4892ac683a45b023d10fe185d8c5d4a277e6b38fb396f567a4b10f2684d3fb",
+    "contradictions-and-stale-evidence.md": "sha256:e15f181af743554ef98c740ea3e16f23c4c68633fbdbfffd7ed1f58e6b7f6636",
+    "decision-supersession-map.md": "sha256:8962bb5498513ea36090fbaa1a741cee132d2b37b7db1ca094ec7bc25e090c37",
     "delegation.mmd": "sha256:12055a2b945179ab57151bed43715666c6a860addce54e152c9ff6cdc36de37c",
-    "roadmap-dependency-map.md": "sha256:d18c3896492b7c7d6c8de2aa99f255c9045d5406b1f15fdbeb1b05982fcb2c2a",
-    "roadmap-dependency-map.mmd": "sha256:442b47446ea5b0975b936ab7fd32e7615dda8963ee3120659ac357aafc2f25fd",
-    "skill-reference-loading-map.md": "sha256:a7c7cb06ef507a857d949cab5dc795617ed1e3fb5d2b8c3cbad5ce173db5756d"
+    "roadmap-dependency-map.md": "sha256:a2e9a94ca0c88eaa55b1538e966384bcb7af62584b0d1ae00d57d5f6944e6c32",
+    "roadmap-dependency-map.mmd": "sha256:ba36d68428185707a9df09d8d1ff29f7ced88bca123828349a60da69ef7ec367",
+    "skill-reference-loading-map.md": "sha256:fbccc8a3a2f8095b65689ce24f28c668de2b7881778f260f08a60befd2491e57"
   }
 }

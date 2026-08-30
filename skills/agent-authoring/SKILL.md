@@ -105,7 +105,7 @@ authorizes a self-modifying loop.
 |---|---|
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
 | "Agent or skill?", delegation, fan-out, orchestration | [roster guidance](./references/roster.md) |
-| Adding, removing, or checking a delegation edge | [the delegation graph](./references/delegation-graph.md) — one enforced source, one validated render, the main-thread-only limit |
+| Adding, removing, or checking a delegation edge | [the delegation graph](./references/delegation-graph.md) — one enforced source, validated host renders, and host-specific enforcement limits |
 | A tool contract, or promoting a shell prototype to a tool | [tool guidance](./references/tools.md) |
 | A cold-start packet or bounded evidence | [context guidance](./references/context.md) |
 | Authoring or debugging any agent or skill frontmatter | [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth |
@@ -117,7 +117,7 @@ authorizes a self-modifying loop.
 |---|---|
 | Canonical source | `agents/<name>.md`, `skills/<name>/SKILL.md`, `commands/adr.md`; regenerate projections with `scripts/generate_platform_adapters.py --write`; never edit a generated root |
 | Agent frontmatter | `name`, `description`, `tools` — omitting `tools` inherits **every** tool |
-| Delegation | A scoped grant in the tool list: `Agent(target, …)`. An edge not granted does not exist on the main thread; at subagent depth the list is documented intent |
+| Delegation | Canonical Claude uses `Agent(target, …)`: an ungranted main-thread edge does not exist, while depth is documented intent. Generated VS Code profiles use `agent` plus `agents:` for model calls and a separately pinned `handoffs:` graph for human-selected ownership changes; enforcement is build-specific and tracked under `HOST-002` |
 | Agent keys that do nothing in a plugin | `hooks`, `mcpServers`, `permissionMode` — the read-only Bash guard lives once in `hooks/hooks.json`, scoped to the exact `agent_type` |
 | Skill frontmatter this fleet uses | `name`, `description`, `argument-hint`, `disable-model-invocation`; depth in `references/`, `assets/`, `scripts/`, each linked from the body |
 | Invocation | Claude calls a plugin skill through its namespace (`/save-toolkit:pcf-deploy`); the generator rewrites fleet names to bare host-native forms elsewhere |
