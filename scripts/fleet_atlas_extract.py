@@ -364,6 +364,11 @@ def extract_decisions(root: Path, graph: Graph) -> None:
             if not match:
                 continue
             prose = (match.group(1) or match.group(2) or "").strip()
+            # Deliberately scans ONLY the matched line. A continuation line is not evidence of a
+            # target: 2026-08-26-retire-verification-sandbox.md wraps to a link it names in order
+            # to say that document is *not* superseded, and a proximity rule reads that backwards.
+            # Prose supersession stays UNKNOWN with its text preserved; resolving it needs a
+            # structured target field in the ADR convention, not a cleverer scan here.
             resolved = None
             for raw in [m.group(2) for m in LINK_RE.finditer(line)]:
                 resolved = _resolve_link(root, relative, raw) or resolved
