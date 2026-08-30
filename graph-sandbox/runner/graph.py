@@ -1106,7 +1106,7 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
         )
         wall_event = (
             "budget.exhausted"
-            if elapsed_ms > remaining and not prior_budget_failure
+            if newly_consumed > remaining and not prior_budget_failure
             else "budget.observed"
         )
         dependencies.events.emit(

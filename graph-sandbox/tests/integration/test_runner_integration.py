@@ -253,12 +253,13 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
             )
             gateway = FakeGateway()
             events = BoundaryEventStore(root / "events.sqlite3")
+            observed_times = iter((1.0, 1.0, 121.0))
             dependencies = RunnerDependencies(
                 gateway=gateway,
                 ledger=EffectLedger(root / "effects.sqlite3"),
                 events=events,
                 case=case,
-                monotonic_clock=lambda: 121.0,
+                monotonic_clock=lambda: next(observed_times),
                 started_monotonic=0.0,
             )
             config = {"configurable": {"thread_id": state["thread_id"]}}
