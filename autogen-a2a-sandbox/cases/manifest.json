@@ -1,0 +1,35 @@
+{
+  "manifest_version": "canary-evidence-case-manifest/v1",
+  "cases": [
+    {
+      "case_id": "mission-healthy-001",
+      "file": "mission-healthy-001.json",
+      "sha256": "4553ef61712821ad77234e9121b38027d061ecca138067f3635fba17b4258c22"
+    },
+    {
+      "case_id": "confirmed-regression-001",
+      "file": "confirmed-regression-001.json",
+      "sha256": "f32d1a0a25642c2f96b0f0fd567012727b9b472d75e4dc00dbb8b20f829b1414"
+    },
+    {
+      "case_id": "stale-evidence-reconciled-001",
+      "file": "stale-evidence-reconciled-001.json",
+      "sha256": "4b290cce87641fa1db2d5067e63ef0d2099ce57d89377cf0955293f0a0a14ff5"
+    },
+    {
+      "case_id": "unresolved-contradiction-001",
+      "file": "unresolved-contradiction-001.json",
+      "sha256": "2f250b52b5ea13ac7bba3d52650eda7370a47c94ae1571dbbe8f8c45dad42af0"
+    },
+    {
+      "case_id": "slow-analysis-cancel-001",
+      "file": "slow-analysis-cancel-001.json",
+      "sha256": "92ffb004e7bb86ddc78f7193cb71a31b60ef3f2c59004c978e630eb7b0fbcd6b"
+    },
+    {
+      "case_id": "checkpoint-resume-001",
+      "file": "checkpoint-resume-001.json",
+      "sha256": "874f51adddc1f498a3a3261be623f4d9c562938a2131b17fbf21c9f94d5f3d62"
+    }
+  ]
+}

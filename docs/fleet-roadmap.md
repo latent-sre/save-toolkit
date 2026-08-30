@@ -226,6 +226,63 @@ overwriting its uncommitted files, restore a clean exact revision, run its focus
 mutation checks plus Gate A, obtain independent review, and open one review path for that exact
 candidate. Do not start a duplicate implementation or schedule GraphRAG.
 
+### GRAPH-005 — AutoGen GraphFlow + A2A canary-evidence sandbox
+
+**Status:** `active` (2026-08-30). The owner approved a new drill, the recommended combined
+Microsoft Agent Framework + AutoGen GraphFlow + A2A shape, autonomous work through final
+verification, and local green-boundary commits. Push and pull-request publication remain behind the
+final acceptance packet.
+
+**Owner:** `software-engineer` owns the deterministic runtime, activation, cases, evidence, and
+tests. `latent-sre` accepts or rejects the exact final revision. Independent reviewers and the
+verifier do not approve their own changes. No component gains production authority.
+
+**Outcome:** A hardened, offline, two-container sandbox proves a Microsoft Agent Framework workflow
+can discover and consume a real streamed A2A v1 task from an AutoGen AgentChat GraphFlow worker.
+The new `canary-release-evidence-conflict/v1` drill fans out three deterministic evidence analyses,
+joins them independent of arrival order, performs at most one contradiction-reconciliation cycle,
+persists and resumes real GraphFlow state, and returns either one typed `ADVANCE_CANARY` /
+`HALT_CANARY` recommendation or a non-actionable protocol state. Exactly one human gate occurs
+after a validated final recommendation; accepting it writes only a local decision record and never
+executes a release action.
+
+**Source:** Owner direction on 2026-08-30 requested a new sandbox using the current Microsoft Agent
+Framework, AutoGen GraphFlow, and open A2A project, using the accepted LangGraph sandbox only as a
+framework and avoiding both training-memory design and unnecessary human interaction. Current
+official documentation and upstream source establish Agent Framework workflow checkpoint/HITL and
+A2A integration, AutoGen GraphFlow fan-out/join/cycle/save-load behavior (with an experimental API
+warning), and A2A v1 Agent Card/task/stream/artifact/cancel contracts. The living local interface is
+[`autogen-a2a-sandbox/contract.md`](../autogen-a2a-sandbox/contract.md).
+
+**Prerequisites:** The runtime is a synthetic local Docker experiment permitted by `stack-profile`;
+it does not select a production platform. First prove in one pinned Python 3.12 image that the exact
+published distributions resolve and their required imports/constructors coexist. Split images only
+if that clean proof demonstrates a real conflict. No credential, paid model, production endpoint,
+host port, or external runtime network is permitted.
+
+**Acceptance:** All conditions are required. (1) Closed case/request/state/recommendation/decision
+schemas and exact case digests have focused red-first tests. (2) The built image records the exact
+base digest, image ID, source revision, and installed versions of `agent-framework-core`,
+`agent-framework-a2a`, `autogen-agentchat`, and `a2a-sdk`; runtime imports no model provider. (3)
+GraphFlow evidence proves fixed three-way fan-out, all-join, stable analyzer-ID reduction, both
+recommendation routes, one reachable reconciliation exit, unresolved `input-required`, real
+`save_state`/fresh-team/`load_state` continuation, and no duplicate completed analyzer call. (4) A
+real internal A2A JSON-RPC/SSE boundary proves Agent Card discovery, task/context lineage, streamed
+working status, exactly one authoritative A2A v1 `Part.data` value on completion, same-task
+interruption handling, and cancellation without an artifact. (5) A real Agent Framework workflow validates the artifact
+before exactly one final request-info gate; checkpoint-bound `ACCEPT`/`REJECT` writes only an
+idempotent local decision record, and every non-completed A2A state forbids approval. (6) Compose
+preflight rejects ports, external networks, bind/socket/credential mounts, root/privileged/writable
+containers, extra services or volumes, unbounded resources, and unpinned images. (7) The full six-
+case matrix, pending/resume mission transaction, deliberate interruption/cancellation checks,
+container component tests, host tests, `git diff --check`, Gate A, independent exact-revision
+correctness/security review, and independent exact-revision verification pass with evidence scoped
+to what each check exercised. No result claims production readiness.
+
+**Next action:** Complete the exact dependency/import probe, then build the walking skeleton in the
+isolated `work/autogen-a2a-sandbox` worktree. Stop and reassess rather than adding compatibility
+wrappers or infrastructure if the current SDK contracts do not support the intended boundary.
+
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
 **Status:** `active` (2026-08-30). F7's installed-Claude-CLI visibility gap is closed; the VS Code
