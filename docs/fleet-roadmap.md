@@ -399,6 +399,13 @@ the installed VS Code 1.135.0 build at `08d4889f` filters the model-visible suba
 not reject a named target outside `agents:` and passes `allowedSubagents: undefined` to a child.
 Upstream merged deterministic prepare/invoke rejection and child-list forwarding in `d679b159`
 after that installed build. This is exact-source evidence, not a live forbidden-call observation.
+The exact-candidate Claude clean-room receiver campaign ran 20/20 approved Sonnet trials but failed
+its declared contract: reviewer passed 5/5 while scribe, software-engineer, and SRE each passed 0/5.
+All 40 action/authority contradiction checks in the three new scenarios passed, but bare-scalar
+output checks failed 0/15 and the SRE evidence-label/severity checks had additional misses. The
+[sealed no-go record](reviews/2026-08-30-eval-20260830T063012Z-f5c3f1ea.md) is receiver-behavior
+evidence only; it does not establish VS Code rendering, `send: true`, retained-context fidelity, or
+Copilot tool enforcement.
 
 **Prerequisites:** An installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
@@ -422,7 +429,9 @@ actual tool result rather than inferring authority from the model-visible list. 
 hook canary must deny a harmless terminal request with its fixed marker, while the built-in
 Agent control remains unaffected. Keep invocation authority open until a real tool call or host
 denial is observed. Do not run a third identical picker retry, substitute a prompt-file override, or
-populate `hooks/copilot-hooks.json`.
+populate `hooks/copilot-hooks.json`. Separately, `agent-engineer` may propose one bounded correction
+to the rejected direct-receiver prompt/oracle pairing; it needs a new exact candidate, human
+acceptance, and a separately approved budget. Do not rerun the unchanged failed candidate.
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 
