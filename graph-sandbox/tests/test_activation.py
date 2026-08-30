@@ -334,11 +334,13 @@ class ResourceScopeTests(unittest.TestCase):
 
 
 class SnapshotTests(unittest.TestCase):
-    def test_extensionless_build_inputs_force_lf_in_git_attributes(self) -> None:
+    def test_build_inputs_force_lf_in_git_attributes(self) -> None:
         repository_root = SANDBOX_ROOT.parent
         expected = {
             "graph-sandbox/runner/Dockerfile": ("set", "lf"),
+            "graph-sandbox/runner/requirements.txt": ("set", "lf"),
             "graph-sandbox/services/Dockerfile": ("set", "lf"),
+            "graph-sandbox/services/requirements.txt": ("set", "lf"),
             "graph-sandbox/.dockerignore": ("set", "lf"),
         }
         for relative, (text_value, eol_value) in expected.items():
