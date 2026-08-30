@@ -36,6 +36,8 @@ Open a neutral test workspace for that plugin check; opening this repository its
 `.github/agents/` as workspace agents and can hide duplicate-install mistakes. Opening the repository
 without installing the plugin remains a checkout-only development path:
 [`.vscode/settings.json`](.vscode/settings.json) registers the generated skill projection.
+The exact beta discovery and agent-to-agent procedure is the
+[`HOST-002 VS Code plugin probe`](docs/probes/host-002-vscode-agent-delegation.md).
 
 **Codex:** the fleet is not distributed to Codex. Codex working *in* this repository picks up the
 root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs

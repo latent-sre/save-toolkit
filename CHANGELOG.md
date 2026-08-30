@@ -46,6 +46,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   validator now rejects an Agent Plugins 1.0 `$schema` unless the component layout is deliberately
   migrated, and the quickstart documents source and isolated-local plugin installation separately
   from checkout-only agent discovery.
+- Added a pinned VS Code agent-to-agent beta fixture and probe that separates complete plugin
+  discovery, a real allowed fleet edge, a synthetic allowed child, and explicit forbidden-child
+  rejection. Model-visible filtering and human-selected handoff buttons no longer count as proof of
+  model-driven delegation enforcement.
 - Closed `GRAPH-002` after owner acceptance of the repository-integrated `graph-sandbox/v1`
   candidate at merge commit `4a745fb311ad7df83ec6aeaf3268356ce4780db5` (PR #193). This accepts only
   the offline `checkout-payments-timeout-drill/v1` implementation; GRAPH-003, live Terra execution,

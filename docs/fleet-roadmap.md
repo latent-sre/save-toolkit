@@ -372,13 +372,15 @@ needing its own review. Exact-agent scope may be established by a hook attached 
 custom agent; the global hook payload does not need to invent an identity field it does not carry.
 
 **Next action:** In an approved disposable VS Code profile, run the paired allowed/forbidden
-subagent canary on installed 1.135.0 and repeat it on the first installed build proven to contain
-upstream `d679b159`. Capture the actual tool result rather than inferring authority from the
-model-visible list. Then run the distinct agent-scoped hook canary: the custom canary must deny a
-harmless terminal request with its fixed marker while the built-in Agent control remains
-unaffected. Keep invocation authority open until real calls or host denials are observed. Do not
-run a third identical picker retry, infer runtime enforcement from source alone, substitute a
-prompt-file override, or populate `hooks/copilot-hooks.json`.
+subagent canary from the
+[`VS Code plugin discovery and agent-delegation probe`](probes/host-002-vscode-agent-delegation.md)
+on installed 1.135.0 and repeat it on the first installed build proven to contain upstream
+`d679b159`. Capture the actual tool result rather than inferring authority from the model-visible
+list. Then run the distinct agent-scoped hook canary: the custom canary must deny a harmless
+terminal request with its fixed marker while the built-in Agent control remains unaffected. Keep
+invocation authority open until real calls or host denials are observed. Do not run a third
+identical picker retry, infer runtime enforcement from source alone, substitute a prompt-file
+override, or populate `hooks/copilot-hooks.json`.
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 

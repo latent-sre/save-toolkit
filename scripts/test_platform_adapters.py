@@ -161,6 +161,39 @@ class PlatformAdapterTests(unittest.TestCase):
         ])
         self.assertNotIn("agent", self._copilot_tools("scribe"))
 
+    def test_vscode_agent_delegation_probe_pins_allowed_and_forbidden_children(self) -> None:
+        fixture = ROOT / "docs/probes/fixtures/host-002-agent-delegation/.github/agents"
+        expected = {
+            "host002-allowed.agent.md",
+            "host002-coordinator.agent.md",
+            "host002-forbidden.agent.md",
+        }
+        self.assertEqual(expected, {path.name for path in fixture.glob("*.agent.md")})
+
+        def json_field(path: Path, key: str) -> object:
+            frontmatter = path.read_text(encoding="utf-8").split("---", 2)[1]
+            prefix = f"{key}: "
+            return json.loads(
+                next(line[len(prefix):] for line in frontmatter.splitlines() if line.startswith(prefix))
+            )
+
+        coordinator = fixture / "host002-coordinator.agent.md"
+        self.assertEqual(["agent"], json_field(coordinator, "tools"))
+        self.assertEqual(["host002-allowed"], json_field(coordinator, "agents"))
+
+        markers = {
+            "host002-allowed.agent.md": "HOST002_ALLOWED_CHILD_COMPLETED",
+            "host002-forbidden.agent.md": "HOST002_FORBIDDEN_CHILD_RAN",
+        }
+        for filename, marker in markers.items():
+            child = fixture / filename
+            with self.subTest(child=filename):
+                self.assertEqual([], json_field(child, "tools"))
+                self.assertIs(json_field(child, "user-invocable"), False)
+                body = child.read_text(encoding="utf-8").split("---", 2)[2]
+                self.assertIn(marker, body)
+                self.assertNotIn(next(value for value in markers.values() if value != marker), body)
+
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
         self.assertEqual(["read", "search"], self._copilot_tools("repository-investigator"))
         self.assertEqual(["web"], self._copilot_tools("researcher"))
