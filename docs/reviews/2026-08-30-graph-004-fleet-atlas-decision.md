@@ -97,7 +97,7 @@ subtypes agent and human.
 |---|---:|---|---|
 | `agent` | 8 | `agents/*.md` frontmatter | name, description, tools, guard-roster membership |
 | `skill` | 33 | `skills/*/SKILL.md` frontmatter | name, description, argument-hint, manual-only (3), entrypoint bytes |
-| `reference` | 114 (+52 bundle files) | `skills/*/references/*.md` | owning skill, bytes |
+| `reference` | 114 (+33 bundle files) | `skills/*/references/*.md` | owning skill, bytes |
 | `command` | 1 | `commands/*.md` | selected-agent precondition |
 | `rule` | 90 | `docs/rules.md` rows | section, statement; stable row hash as ID until rules gain IDs |
 | `decision` | 23 | `docs/decisions/*.md` | date, declared state |
