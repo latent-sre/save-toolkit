@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import os
 import signal
 import sys
@@ -14,6 +13,7 @@ from typing import Any, Iterator, Mapping, cast
 
 from langgraph.types import Command
 
+from runner.budgets import DurableWallTimeBudget
 from runner.checkpoints import (
     CheckpointFingerprint,
     CheckpointIncompatible,
@@ -141,7 +141,7 @@ def _absolute_path(value: str, field: str) -> Path:
 
 
 @contextmanager
-def _run_deadline(seconds: int) -> Iterator[None]:
+def _run_deadline(seconds: float) -> Iterator[None]:
     if not hasattr(signal, "SIGALRM"):
         raise RuntimeError("graph-sandbox/v1 requires a Linux SIGALRM runtime")
 
@@ -418,6 +418,14 @@ def run(environment: Mapping[str, str] | None = None) -> int:
         source_revision=config.source_revision,
         case_digest=config.case_digest,
     )
+    wall_budget = DurableWallTimeBudget.acquire(
+        config.checkpoint_db.with_name("wall-time-budget.sqlite3"),
+        run_id=config.run_id,
+        thread_id=state["thread_id"],
+        source_revision=config.source_revision,
+        case_digest=config.case_digest,
+        limit_ms=state["budgets"]["wall_time_ms"]["limit"],
+    )
     events_path = config.effect_ledger_db.with_name("events.sqlite3")
     events = BoundaryEventStore(events_path)
     ledger = EffectLedger(config.effect_ledger_db)
@@ -436,6 +444,7 @@ def run(environment: Mapping[str, str] | None = None) -> int:
         events=events,
         case=sandbox_case,
         approval_fixture=config.approval_fixture,
+        wall_time_elapsed_ms=wall_budget.elapsed_ms,
     )
     ensure_run_started_events(events, state)
     reconcile_effect_transition_events(ledger, events, state)
@@ -448,16 +457,11 @@ def run(environment: Mapping[str, str] | None = None) -> int:
             )
             observed_checkpointer = ObservedCheckpointSaver(checkpointer, events, state)
             graph = build_graph(dependencies, observed_checkpointer)
-            wall_counter = state["budgets"]["wall_time_ms"]
-            remaining_wall_seconds = max(
-                1,
-                math.ceil(
-                    (wall_counter["limit"] - wall_counter["consumed"]) / 1000
-                ),
-            )
-            effective_timeout = min(
-                config.run_timeout_seconds,
-                remaining_wall_seconds,
+            remaining_wall_ms = wall_budget.remaining_ms()
+            effective_timeout = (
+                min(config.run_timeout_seconds, remaining_wall_ms / 1000)
+                if remaining_wall_ms > 0
+                else 1.0
             )
             with _run_deadline(effective_timeout):
                 execution = _execute_graph(

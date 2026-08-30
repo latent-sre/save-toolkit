@@ -9,6 +9,7 @@ from unittest import mock
 from datetime import UTC, datetime
 from pathlib import Path
 
+from runner.budgets import DurableWallTimeBudget
 from runner.controls import BudgetExhausted, consume_budget
 from runner.events import BoundaryEventStore, EventContractError
 from runner.fixtures import load_case
@@ -217,6 +218,36 @@ class StateAndBudgetContractTests(unittest.TestCase):
         self.assertEqual(caught.exception.limit, 1)
         self.assertEqual(caught.exception.consumed, 0)
         self.assertEqual(caught.exception.requested, 2)
+
+    def test_wall_time_deadline_is_durable_across_process_resumes(self) -> None:
+        now_ms = [1_000_000]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "wall-time.sqlite3"
+            first = DurableWallTimeBudget.acquire(
+                path,
+                run_id="run-healthy-001",
+                thread_id="checkout-payments-timeout-drill-v1:run-healthy-001",
+                source_revision=REVISION,
+                case_digest=CASE_DIGEST,
+                limit_ms=120_000,
+                clock_ms=lambda: now_ms[0],
+            )
+            now_ms[0] += 30_000
+            resumed = DurableWallTimeBudget.acquire(
+                path,
+                run_id="run-healthy-001",
+                thread_id="checkout-payments-timeout-drill-v1:run-healthy-001",
+                source_revision=REVISION,
+                case_digest=CASE_DIGEST,
+                limit_ms=120_000,
+                clock_ms=lambda: now_ms[0],
+            )
+
+            self.assertEqual(first.started_epoch_ms, 1_000_000)
+            self.assertEqual(resumed.started_epoch_ms, first.started_epoch_ms)
+            self.assertEqual(resumed.deadline_epoch_ms, 1_120_000)
+            self.assertEqual(resumed.elapsed_ms(), 30_000)
+            self.assertEqual(resumed.remaining_ms(), 90_000)
 
 
 class BoundaryEventContractTests(unittest.TestCase):

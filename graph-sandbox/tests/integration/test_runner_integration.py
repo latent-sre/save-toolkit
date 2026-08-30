@@ -287,6 +287,63 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
             self.assertEqual(gateway.checkout_calls, 1)
             self.assertIn("budget.exhausted", [event["event_type"] for event in events.project()])
 
+    def test_resumed_process_cannot_reset_wall_budget_before_checkout_effect(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            case = load_case(Path("/app/cases/mission-healthy-001.json"))
+            state = new_run_state(
+                case,
+                run_id="run-wall-resume-001",
+                source_revision=REVISION,
+                case_digest=CASE_DIGEST,
+            )
+            gateway = FakeGateway()
+            ledger = EffectLedger(root / "effects.sqlite3")
+            events = BoundaryEventStore(root / "events.sqlite3")
+            config = {"configurable": {"thread_id": state["thread_id"]}}
+
+            with CheckpointStore(
+                root / "checkpoints.sqlite3",
+                CheckpointFingerprint.current(REVISION),
+            ) as checkpointer:
+                first_process = RunnerDependencies(
+                    gateway=gateway,
+                    ledger=ledger,
+                    events=events,
+                    case=case,
+                    wall_time_elapsed_ms=lambda: 1_000,
+                )
+                paused = build_graph(first_process, checkpointer).invoke(state, config)
+                self.assertIn("__interrupt__", paused)
+
+                resumed_process = RunnerDependencies(
+                    gateway=gateway,
+                    ledger=ledger,
+                    events=events,
+                    case=case,
+                    wall_time_elapsed_ms=lambda: 121_000,
+                )
+                completed = build_graph(resumed_process, checkpointer).invoke(
+                    Command(
+                        resume={
+                            "decision": "APPROVED",
+                            "actor_class": "fixture-operator",
+                        }
+                    ),
+                    config,
+                )
+
+            self.assertEqual(completed["outcome"], "FAILED")
+            self.assertEqual(completed["checkout_status"], "NOT_STARTED")
+            self.assertEqual(completed["budgets"]["wall_time_ms"]["consumed"], 120_000)
+            self.assertEqual(completed["failure"]["error_class"], "budget_exhausted")
+            self.assertEqual(gateway.checkout_calls, 0)
+            exhausted = [
+                event for event in events.project() if event["event_type"] == "budget.exhausted"
+            ]
+            self.assertEqual(len(exhausted), 1)
+            self.assertEqual(exhausted[0]["node_id"], "checkout_effect")
+
     def test_exhausted_model_budget_stops_before_approval_and_effect(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

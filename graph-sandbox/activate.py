@@ -1301,7 +1301,10 @@ def _validate_no_effect_outcome(
                     expected_decision="approval.approved",
                     after_sequence=join_sequence,
                 )
-                if first_exhausted <= approved_sequence or kind != "attempts":
+                if first_exhausted <= approved_sequence or kind not in {
+                    "attempts",
+                    "wall_time_ms",
+                }:
                     raise ActivationError("evidence export: effect-attempt budget sequence is invalid")
                 allowed_approval = {"approval.requested", "approval.approved"}
             elif first_exhausted <= join_sequence or kind not in {"model_calls", "tokens"}:
@@ -2027,6 +2030,83 @@ def verify_and_publish_evidence(
     )
 
 
+def _validate_published_run(
+    final: Path,
+    *,
+    evidence_root: Path,
+    run_id: str,
+    case_id: str,
+    case_digest: str,
+    source_revision: str,
+    compose_digest: str,
+    context_fingerprint: str,
+    max_bytes: int = MAX_EVIDENCE_BYTES,
+) -> Path:
+    """Validate an already-installed final directory before crash recovery."""
+
+    _reject_path_indirection(evidence_root)
+    root = evidence_root.resolve(strict=True)
+    expected = root / run_id
+    if Path(os.path.abspath(final)) != Path(os.path.abspath(expected)):
+        raise ActivationError("evidence recovery: final run path identity mismatch")
+    _reject_path_indirection(expected)
+    if not expected.is_dir():
+        raise ActivationError("evidence recovery: final run directory is unavailable")
+    files = _evidence_files(expected, max_bytes=max_bytes)
+    required_host_files = {
+        "commands.jsonl",
+        "compose-config.json",
+        "environment.json",
+        "verification.json",
+    }
+    missing = (REQUIRED_RUNNER_EVIDENCE | required_host_files) - set(files)
+    if missing:
+        raise ActivationError(
+            f"evidence recovery: missing required artifact {sorted(missing)[0]}"
+        )
+    _verify_existing_checksums(files)
+    if hashlib.sha256(files["compose-config.json"].read_bytes()).hexdigest() != compose_digest:
+        raise ActivationError("evidence recovery: validated Compose digest mismatch")
+
+    verification = _load_evidence_json(files["verification.json"], "host verification")
+    exit_code = verification.get("exit_code")
+    runner_state = verification.get("runner_container_exit")
+    if (
+        verification.get("verification_version")
+        != "graph-sandbox-host-verification/v1"
+        or verification.get("run_id") != run_id
+        or verification.get("source_revision") != source_revision
+        or verification.get("validated_compose_sha256") != compose_digest
+        or verification.get("docker_context_fingerprint") != context_fingerprint
+        or isinstance(exit_code, bool)
+        or not isinstance(exit_code, int)
+        or exit_code not in TERMINAL_EVIDENCE_EXITS
+        or not isinstance(runner_state, dict)
+    ):
+        raise ActivationError("evidence recovery: host verification identity mismatch")
+    _validate_runner_semantics(
+        files,
+        run_id=run_id,
+        case_id=case_id,
+        case_digest=case_digest,
+        source_revision=source_revision,
+        exit_code=exit_code,
+        runner_state=runner_state,
+    )
+    commands = _load_evidence_jsonl(files["commands.jsonl"], "commands journal")
+    if files["commands.jsonl"].read_bytes() != _command_payload(commands):
+        raise ActivationError("evidence recovery: commands journal is not canonical")
+    environment = _load_evidence_json(files["environment.json"], "host environment")
+    if (
+        environment.get("environment_version")
+        != "graph-sandbox-host-environment/v1"
+        or environment.get("run_id") != run_id
+        or environment.get("source_revision") != source_revision
+    ):
+        raise ActivationError("evidence recovery: host environment identity mismatch")
+    return expected
+
+
 def _refresh_published_commands(
     final: Path, commands: Sequence[Mapping[str, object]]
 ) -> None:
@@ -2083,8 +2163,13 @@ def execute_validated_compose(
         ):
             raise ActivationError("validated Compose bytes changed during lifecycle")
 
-    def compose_action(action: str, *, volumes: bool = False) -> subprocess.CompletedProcess[str]:
+    def assert_lifecycle_identity() -> None:
         assert_exact_compose()
+        revalidate()
+        assert_exact_compose()
+
+    def compose_action(action: str, *, volumes: bool = False) -> subprocess.CompletedProcess[str]:
+        assert_lifecycle_identity()
         arguments = [
             "docker", "--context", docker_context, "compose", "--file", str(compose_path),
             "--project-name", project_name, action,
@@ -2137,9 +2222,7 @@ def execute_validated_compose(
             os.fsync(stream.fileno())
         if before_launch is not None:
             before_launch(compose_path)
-        assert_exact_compose()
-        revalidate()
-        assert_exact_compose()
+        assert_lifecycle_identity()
 
         try:
             if on_launch is not None:
@@ -2174,6 +2257,7 @@ def execute_validated_compose(
             return result
 
         try:
+            assert_lifecycle_identity()
             located = runner(
                 [
                     "docker", "--context", docker_context, "compose", "--file", str(compose_path),
@@ -2186,6 +2270,7 @@ def execute_validated_compose(
             container_id = str(located.stdout).strip()
             if located.returncode != 0 or not CONTAINER_ID_RE.fullmatch(container_id):
                 raise ActivationError("evidence export: graph-runner container identity unavailable")
+            assert_lifecycle_identity()
             inspected = runner(
                 [
                     "docker", "--context", docker_context, "container", "inspect",
@@ -2206,6 +2291,7 @@ def execute_validated_compose(
             root = evidence_root.resolve(strict=True)
             staging = root / f".{run_id}.{secrets.token_hex(16)}.export"
             staging.mkdir(mode=0o700)
+            assert_lifecycle_identity()
             copied = runner(
                 [
                     "docker", "--context", docker_context, "container", "cp",
@@ -2297,13 +2383,20 @@ def cleanup_published_resources(
     with tempfile.TemporaryDirectory(prefix="graph-sandbox-cleanup-") as temporary:
         compose_path = Path(temporary) / "runtime.json"
         _atomic_write(compose_path, validated_bytes)
-        revalidate()
+        expected_digest = hashlib.sha256(validated_bytes).digest()
+
+        def assert_lifecycle_identity() -> None:
+            if hashlib.sha256(compose_path.read_bytes()).digest() != expected_digest:
+                raise ActivationError("validated Compose bytes changed during lifecycle")
+            revalidate()
+
         base = [
             "docker", "--context", docker_context, "compose", "--file", str(compose_path),
             "--project-name", project_name,
         ]
         scrubbed = scrub_environment(environment)
         try:
+            assert_lifecycle_identity()
             down = runner(
                 [*base, "down", "--volumes", "--remove-orphans", "--timeout", "10"],
                 environment=scrubbed,
@@ -2314,6 +2407,7 @@ def cleanup_published_resources(
             down = subprocess.CompletedProcess(base, 1, stdout="", stderr="cleanup call failed")
         if down.returncode != 0:
             try:
+                assert_lifecycle_identity()
                 stop = runner(
                     [*base, "stop", "--timeout", "10"],
                     environment=scrubbed,
@@ -2437,7 +2531,25 @@ def activate_runtime(
             validated_compose_digest,
         )
         try:
-            if claim.phase != "PUBLISHED":
+            final = args.evidence_root / args.run_id
+            if claim.phase == "PUBLISHED" or (
+                args.operation == "resume"
+                and claim.phase in {"RUNNING", "PRESERVED"}
+                and (final.exists() or _is_link_or_junction(final))
+            ):
+                _validate_published_run(
+                    final,
+                    evidence_root=args.evidence_root,
+                    run_id=args.run_id,
+                    case_id=sandbox_case.case_id,
+                    case_digest=sandbox_case.digest,
+                    source_revision=args.source_revision,
+                    compose_digest=validated_compose_digest,
+                    context_fingerprint=initial_context.fingerprint,
+                )
+                if claim.phase != "PUBLISHED":
+                    claim.transition("PUBLISHED")
+            else:
                 _prepare_evidence_directory(args.operation, args.evidence_root, args.run_id)
             resource_validation = validate_resource_mode(
                 args.operation,
@@ -2475,7 +2587,7 @@ def activate_runtime(
                 args.docker_context, runner=runner, environ=ambient
             )
             if current_context != initial_context:
-                raise ActivationError("context.endpoint: Docker context changed before launch")
+                raise ActivationError("context.endpoint: Docker context changed during lifecycle")
             _runtime_revision_is_exact(
                 layout.repository_root,
                 args.source_revision,
@@ -2516,7 +2628,8 @@ def activate_runtime(
 
         def note_launch_attempt() -> None:
             nonlocal launch_attempted
-            claim.transition("RUNNING")
+            if claim.phase != "RUNNING":
+                claim.transition("RUNNING")
             launch_attempted = True
 
         def note_publication() -> None:

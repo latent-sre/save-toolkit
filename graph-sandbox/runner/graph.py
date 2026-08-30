@@ -5,7 +5,7 @@ import json
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Protocol, cast
+from typing import Any, Callable, Protocol, cast
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send, interrupt
@@ -68,10 +68,22 @@ class RunnerDependencies:
     approval_fixture: str = "APPROVED"
     monotonic_clock: Any = time.monotonic
     started_monotonic: float = field(default_factory=time.monotonic)
+    wall_time_elapsed_ms: Callable[[], int] | None = None
 
     def __post_init__(self) -> None:
         if self.approval_fixture not in {"APPROVED", "REJECTED", "TIMEOUT"}:
             raise ValueError("approval_fixture must be APPROVED, REJECTED, or TIMEOUT")
+
+    def observed_wall_time_ms(self) -> int:
+        if self.wall_time_elapsed_ms is not None:
+            observed = self.wall_time_elapsed_ms()
+            if isinstance(observed, bool) or not isinstance(observed, int) or observed < 0:
+                raise ValueError("wall_time_elapsed_ms must return a non-negative integer")
+            return observed
+        return max(
+            0,
+            int((self.monotonic_clock() - self.started_monotonic) * 1000),
+        )
 
 
 def _task_lineage(state: Mapping[str, object], node_id: str) -> tuple[str, str]:
@@ -176,6 +188,51 @@ def ensure_run_started_events(
 def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
     """Build the one consumer-specific graph; effect execution has no RetryPolicy."""
 
+    def wall_budget_failure(
+        state: GraphState,
+        *,
+        node_id: str,
+        task_id: str | None = None,
+        attempt_id: str | None = None,
+        effect_id: str | None = None,
+    ) -> GraphState | None:
+        wall_budget = state["budgets"]["wall_time_ms"]
+        observed = max(wall_budget["consumed"], dependencies.observed_wall_time_ms())
+        if observed < wall_budget["limit"]:
+            return None
+        budgets = consume_budget(
+            state["budgets"],
+            "wall_time_ms",
+            wall_budget["limit"] - wall_budget["consumed"],
+        )
+        dependencies.events.emit(
+            "budget.exhausted",
+            state,
+            {
+                "kind": "wall_time_ms",
+                "limit": wall_budget["limit"],
+                "consumed": wall_budget["limit"],
+                "remaining": 0,
+            },
+            node_id=node_id,
+            task_id=task_id,
+            attempt_id=attempt_id,
+            effect_id=effect_id,
+            failure_plane="graph-control",
+            error_class="budget_exhausted",
+        )
+        return {
+            "budgets": budgets,
+            "phase": "TERMINAL",
+            "outcome": "FAILED",
+            "failure": {
+                "plane": "graph-control",
+                "error_class": "budget_exhausted",
+                "retryable": False,
+                "disposition": "stop",
+            },
+        }
+
     def admit_run(state: GraphState) -> GraphState:
         cancellation = state["cancellation"]
         if cancellation["state"] == "REQUESTED":
@@ -212,31 +269,9 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
                 "phase": "TERMINAL",
                 "outcome": "CANCELLED",
             }
-        wall_budget = state["budgets"]["wall_time_ms"]
-        if wall_budget["consumed"] >= wall_budget["limit"]:
-            dependencies.events.emit(
-                "budget.exhausted",
-                state,
-                {
-                    "kind": "wall_time_ms",
-                    "limit": wall_budget["limit"],
-                    "consumed": wall_budget["consumed"],
-                    "remaining": 0,
-                },
-                node_id="admit_run",
-                failure_plane="graph-control",
-                error_class="budget_exhausted",
-            )
-            return {
-                "phase": "TERMINAL",
-                "outcome": "FAILED",
-                "failure": {
-                    "plane": "graph-control",
-                    "error_class": "budget_exhausted",
-                    "retryable": False,
-                    "disposition": "stop",
-                },
-            }
+        failure = wall_budget_failure(state, node_id="admit_run")
+        if failure is not None:
+            return failure
         return {"phase": "ADMISSION"}
 
     def fanout_or_terminal(state: GraphState) -> str | list[Send]:
@@ -523,6 +558,15 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
         replay_id = f"{state['run_id']}:replay-{state['replay_number']}"
         key = derive_idempotency_key(effect_id)
         payload_hash = _payload_hash(state["checkout"])
+        wall_failure = wall_budget_failure(
+            state,
+            node_id="checkout_effect",
+            task_id=task_id,
+            attempt_id=attempt_id,
+            effect_id=effect_id,
+        )
+        if wall_failure is not None:
+            return wall_failure
         try:
             budgets = consume_budget(state["budgets"], "attempts", 1)
         except BudgetExhausted as exc:
@@ -1047,16 +1091,14 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
             checkout_status = "COMPLETE"
         elif outcome == "UNKNOWN":
             checkout_status = "UNKNOWN"
-        elapsed_ms = max(
-            0,
-            int((dependencies.monotonic_clock() - dependencies.started_monotonic) * 1000),
-        )
+        elapsed_ms = dependencies.observed_wall_time_ms()
         wall_counter = state["budgets"]["wall_time_ms"]
         remaining = wall_counter["limit"] - wall_counter["consumed"]
+        newly_consumed = max(0, elapsed_ms - wall_counter["consumed"])
         budgets = consume_budget(
             state["budgets"],
             "wall_time_ms",
-            min(elapsed_ms, remaining),
+            min(newly_consumed, remaining),
         )
         prior_budget_failure = (
             isinstance(state.get("failure"), Mapping)

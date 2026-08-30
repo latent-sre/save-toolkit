@@ -469,11 +469,14 @@ class SnapshotTests(unittest.TestCase):
             if "archive" in arguments:
                 return subprocess.CompletedProcess(arguments, 0, stdout=archive, stderr=b"")
             if arguments[3:5] == ["context", "inspect"]:
+                endpoint = (
+                    "npipe:////./pipe/dockerDesktopLinuxEngine"
+                    if os.name == "nt"
+                    else "unix:///var/run/docker.sock"
+                )
                 payload = {
                     "Name": "desktop-linux",
-                    "Endpoints": {
-                        "docker": {"Host": "npipe:////./pipe/dockerDesktopLinuxEngine"}
-                    },
+                    "Endpoints": {"docker": {"Host": endpoint}},
                 }
                 return completed(arguments, json.dumps(payload))
             if arguments[3] == "info":
@@ -2064,6 +2067,179 @@ class ActivationTests(unittest.TestCase):
             )
             claim.release()
 
+    def test_resume_continues_an_interrupted_running_claim_without_self_transition(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            args = type(
+                "Args",
+                (),
+                {
+                    "operation": "resume",
+                    "docker_context": "desktop-linux",
+                    "source_revision": SOURCE_REVISION,
+                    "run_id": CASE_ID,
+                    "evidence_root": root,
+                    "case_id": CASE_ID,
+                    "approval_fixture": "APPROVED",
+                },
+            )()
+            context = ContextIdentity("desktop-linux", "npipe:////./pipe/docker", "f" * 64)
+            layout = RepositoryLayout(
+                root,
+                root,
+                root / "compose.yaml",
+                root / "build.yaml",
+                root / "lock.json",
+            )
+            sandbox_case = type("Case", (), {"case_id": CASE_ID, "digest": CASE_DIGEST})()
+            compose_digest = hashlib.sha256(b"{}\n").hexdigest()
+            claim = RunClaim.acquire(
+                "fresh",
+                root,
+                CASE_ID,
+                SOURCE_REVISION,
+                context.fingerprint,
+                CASE_ID,
+                CASE_DIGEST,
+                "APPROVED",
+                compose_digest,
+            )
+            claim.transition("RUNNING")
+            docker = mock.Mock()
+            docker.status.return_value = type(
+                "Status",
+                (),
+                {"engine_version": "29", "compose_version": "5", "os_type": "linux"},
+            )()
+            docker.resource_state.return_value = ResourceState(())
+
+            def interrupted(*arguments, **kwargs):
+                kwargs["on_launch"]()
+                return subprocess.CompletedProcess([], 126, stdout="", stderr="preserved")
+
+            with (
+                mock.patch("activate.trusted_layout", return_value=layout),
+                mock.patch("activate.validate_local_context", return_value=context),
+                mock.patch("activate._runtime_revision_is_exact"),
+                mock.patch("activate.load_sandbox_case", return_value=sandbox_case),
+                mock.patch("activate._load_json", return_value={
+                    "images": {
+                        "runner": {
+                            "base_reference": "python@sha256:" + "a" * 64,
+                            "image_id": "sha256:" + "b" * 64,
+                        },
+                        "services": {"image_id": "sha256:" + "c" * 64},
+                    }
+                }),
+                mock.patch("activate.render_compose", return_value={}),
+                mock.patch("activate.DockerCLI", return_value=docker),
+                mock.patch("activate.validate_preflight"),
+                mock.patch("activate.execute_validated_compose", side_effect=interrupted),
+                redirect_stdout(StringIO()),
+            ):
+                exit_code = activate_runtime(
+                    args,
+                    runner=lambda *a, **k: completed([]),
+                    environ={"PATH": "safe"},
+                )
+
+            self.assertEqual(exit_code, 126)
+            persisted = json.loads((root / f".{CASE_ID}.claim.json").read_text(encoding="utf-8"))
+            self.assertEqual(persisted["phase"], "PRESERVED")
+
+    def test_resume_recovers_a_published_directory_after_claim_transition_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            staging = root / ".published-before-claim.export"
+            staging.mkdir()
+            self.write_runner_evidence(staging)
+            verify_and_publish_evidence(
+                staging,
+                evidence_root=root,
+                run_id=CASE_ID,
+                source_revision=SOURCE_REVISION,
+                exit_code=0,
+                validated_compose=b"{}\n",
+                verification=self.host_verification(),
+                commands=self.command_journal(),
+            )
+
+            args = type(
+                "Args",
+                (),
+                {
+                    "operation": "resume",
+                    "docker_context": "desktop-linux",
+                    "source_revision": SOURCE_REVISION,
+                    "run_id": CASE_ID,
+                    "evidence_root": root,
+                    "case_id": CASE_ID,
+                    "approval_fixture": "APPROVED",
+                },
+            )()
+            context = ContextIdentity("desktop-linux", "npipe:////./pipe/docker", "f" * 64)
+            layout = RepositoryLayout(
+                root,
+                root,
+                root / "compose.yaml",
+                root / "build.yaml",
+                root / "lock.json",
+            )
+            sandbox_case = type("Case", (), {"case_id": CASE_ID, "digest": CASE_DIGEST})()
+            claim = RunClaim.acquire(
+                "fresh",
+                root,
+                CASE_ID,
+                SOURCE_REVISION,
+                context.fingerprint,
+                CASE_ID,
+                CASE_DIGEST,
+                "APPROVED",
+                hashlib.sha256(b"{}\n").hexdigest(),
+            )
+            claim.transition("RUNNING")
+            docker = mock.Mock()
+            docker.status.return_value = type(
+                "Status",
+                (),
+                {"engine_version": "29", "compose_version": "5", "os_type": "linux"},
+            )()
+            docker.resource_state.return_value = ResourceState(())
+
+            with (
+                mock.patch("activate.trusted_layout", return_value=layout),
+                mock.patch("activate.validate_local_context", return_value=context),
+                mock.patch("activate._runtime_revision_is_exact"),
+                mock.patch("activate.load_sandbox_case", return_value=sandbox_case),
+                mock.patch("activate._load_json", return_value={
+                    "images": {
+                        "runner": {
+                            "base_reference": "python@sha256:" + "a" * 64,
+                            "image_id": "sha256:" + "b" * 64,
+                        },
+                        "services": {"image_id": "sha256:" + "c" * 64},
+                    }
+                }),
+                mock.patch("activate.render_compose", return_value={}),
+                mock.patch("activate.DockerCLI", return_value=docker),
+                mock.patch("activate.validate_preflight"),
+                mock.patch(
+                    "activate.cleanup_published_resources",
+                    return_value=completed([]),
+                ) as cleanup,
+                mock.patch("activate.execute_validated_compose") as execute,
+            ):
+                exit_code = activate_runtime(
+                    args,
+                    runner=lambda *a, **k: completed([]),
+                    environ={"PATH": "safe"},
+                )
+
+            self.assertEqual(exit_code, 0)
+            cleanup.assert_called_once()
+            execute.assert_not_called()
+            self.assertFalse((root / f".{CASE_ID}.claim.json").exists())
+
     def test_timeout_stops_without_volumes_and_returns_resume_exit(self) -> None:
         calls: list[list[str]] = []
 
@@ -2291,6 +2467,7 @@ class ActivationTests(unittest.TestCase):
 
     def test_terminal_launch_exports_verifies_publishes_then_tears_down_exact_model(self) -> None:
         observed: dict[str, object] = {"commands": []}
+        revalidations: list[str] = []
         payload = b'{"name":"validated"}\n'
 
         def runner(arguments, *, environment, timeout_seconds, stdin=None):
@@ -2329,7 +2506,7 @@ class ActivationTests(unittest.TestCase):
                 verification=self.host_verification(),
                 runner=runner,
                 environment={"PATH": "safe", "DOCKER_HOST": "tcp://remote"},
-                revalidate=lambda: None,
+                revalidate=lambda: revalidations.append("validated"),
             )
             self.assertTrue((evidence_root / "mission-healthy-001" / "verification.json").is_file())
         self.assertEqual(result.returncode, 0)
@@ -2339,6 +2516,43 @@ class ActivationTests(unittest.TestCase):
         self.assertIn("--no-build", commands[0])
         self.assertEqual(commands[0][commands[0].index("--pull") + 1], "never")
         self.assertTrue(any("down" in command and "--volumes" in command for command in commands))
+        self.assertEqual(len(revalidations), 5)
+
+    def test_context_change_after_up_blocks_every_later_docker_effect(self) -> None:
+        calls: list[list[str]] = []
+        validation_count = 0
+
+        def runner(arguments, *, environment, timeout_seconds, stdin=None):
+            arguments = list(arguments)
+            calls.append(arguments)
+            if "up" in arguments:
+                return completed(arguments)
+            return completed(arguments)
+
+        def revalidate() -> None:
+            nonlocal validation_count
+            validation_count += 1
+            if validation_count > 1:
+                raise ActivationError("context.endpoint: Docker context changed during lifecycle")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            result = execute_validated_compose(
+                b'{"name":"validated"}\n',
+                docker_context="desktop-linux",
+                project_name=project_scope(CASE_ID),
+                evidence_root=Path(temporary),
+                run_id=CASE_ID,
+                source_revision=SOURCE_REVISION,
+                verification=self.host_verification(),
+                runner=runner,
+                environment={"PATH": "safe"},
+                revalidate=revalidate,
+            )
+
+        self.assertEqual(result.returncode, 125)
+        self.assertEqual(validation_count, 3)
+        self.assertEqual(len(calls), 1)
+        self.assertIn("up", calls[0])
 
     def test_nonterminal_exit_preserves_resources_without_export_or_teardown(self) -> None:
         calls: list[list[str]] = []
