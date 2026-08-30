@@ -174,7 +174,6 @@ WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
 IDENTITY_FIELDS = (
     "name", "version", "description", "author", "homepage", "repository", "license", "keywords"
 )
-AGENT_PLUGINS_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 
 PLUGIN_BANNER_RE = re.compile(
     r"^> \*\*Plugin addressing:\*\*(?:.*\n)+?\n", re.MULTILINE
@@ -578,11 +577,11 @@ def validate_platform_contracts(root: Path) -> list[str]:
             failures.append(str(exc))
     if len(manifests) == len(paths):
         claude, copilot = manifests
-        if copilot.get("$schema") == AGENT_PLUGINS_SCHEMA:
+        if "$schema" in copilot:
             failures.append(
-                "plugin.json: selector-based Copilot format must not declare the Agent Plugins 1.0 "
-                "$schema without migrating skills to skills/ and Copilot-specific components "
-                "to com.github.copilot/"
+                "plugin.json: selector-based Copilot format must not declare $schema without "
+                "migrating skills to skills/ and Copilot-specific components to "
+                "com.github.copilot/"
             )
         for field in IDENTITY_FIELDS:
             if copilot.get(field) != claude.get(field):
