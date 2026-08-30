@@ -409,8 +409,14 @@ Copilot tool enforcement.
 A clean corrected-candidate confirmation then passed scribe 3/3 and software-engineer 3/3 but left
 SRE at 0/3 because it changed exact `[sourced]` input labels to `[sourced: handoff]` in every trial.
 Decision fields passed 9/9, SRE severity passed 3/3, and all 24 action/authority contradiction checks
-passed. The [sealed confirmation no-go](reviews/2026-08-30-eval-20260830T072838Z-573c9de8.md) is
-again direct Claude receiver evidence only.
+passed. Later root-cause review found that exact-token rule conflicted with the model-visible corpus
+and had no runtime consumer, so it was superseded by an accepted exact-or-extended grammar and
+structured telemetry/platform state. The resulting SRE-only run passed the target corrections 3/3
+but remained an official 2/3 no-go because trial 3 used the canonical `[unverified] assignment
+pending` severity fallback that the scenario's prose regex rejects. The
+[sealed structured confirmation](reviews/2026-08-30-eval-20260830T122740Z-459779a7.md) and
+[earlier confirmation](reviews/2026-08-30-eval-20260830T072838Z-573c9de8.md) are direct Claude
+receiver evidence only.
 
 **Prerequisites:** An installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
@@ -1085,6 +1091,13 @@ said the current trend was unverified while also asserting `now — error rate a
 unknown-marker grader passed because it does not model contradiction. That exact transcript is a
 better first structured-contract pilot than adding another adjacency pattern.
 
+The structured pilot then separated reported/current rate, current trend, and platform into closed
+fields and held those facts 3/3. Its remaining official red is the inverse problem: trial 3 emitted
+the canonical allowed fallback `severity [unverified] assignment pending`, but the severity regex
+recognizes only a named P1–P4 or critical/high/medium/low value. Full-response review called the
+answer compliant. This is another concrete reason not to convert a phrase-pattern red directly into
+a behavior finding.
+
 **Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
 exist in the grader registry, so a structured-output contract needs no new grader type. An
 LLM-judge grader would need a new one, plus a policy for a non-deterministic grader inside a suite
@@ -1095,10 +1108,10 @@ unchanged guidance. The removal control still discriminates: with the guidance r
 scenario fails. No grader rejects a response that a reader would call correct, tested against the
 transcripts already retained under `.eval-runs/`.
 
-**Next action:** Use `agent-direct-handoff-sre-recommend-only` as the first pilot. Choose either a
-structured current-telemetry state that cannot coexist with an invented current sample, or an LLM
-judge, then freeze the observed contradictory response as the red side and measure the candidate
-three times before converting the rest.
+**Next action:** Keep the structured current-telemetry and platform state. Replace the severity
+adjacency regex with a closed field that includes the canonical `assignment pending` fallback,
+freeze the reviewed trial-3 response as a compliant fixture, then run the still-owed committed
+guidance-removal control before any new live campaign.
 Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
 further tuning run is spent on pattern repair.
 
