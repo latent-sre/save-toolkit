@@ -54,6 +54,14 @@ These instructions apply only under `autogen-a2a-sandbox/`. The root `AGENTS.md`
 - `activate.py` is the only supported build/run entrypoint. Host execution is limited to its
   standard-library validation and tests; Microsoft Agent Framework, AutoGen, and A2A code execute
   only inside the sandbox image.
+- Fresh activation creates one retained, run-scoped receipt in the invoking user's private platform
+  state directory, outside the caller-selected evidence root. The receipt binds the canonical
+  handoff, artifact, checkpoint, daemon, image, and Compose resource identity; resume and exact
+  final replay fail closed if it is missing, changed, linked, or substituted.
+- Evidence files are flushed before publication. POSIX hosts also fsync the stage and parent
+  directories; Windows flushes files and publishes the final directory with
+  `MoveFileExW(MOVEFILE_WRITE_THROUGH)`, the strongest local stdlib/Win32 boundary available here.
+  This does not claim multi-host durability or recovery from storage-device failure.
 - Runtime uses exactly two containers and one internal network. Publish no ports. Add no evidence
   provider service, queue, broker, database server, gateway, model stub, or telemetry backend.
 - Containers are numeric non-root, read-only, capability-free, `no-new-privileges`, and bounded by

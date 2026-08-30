@@ -8,7 +8,9 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -39,6 +41,12 @@ _PINNED_PACKAGES = {
     "autogen-agentchat": "0.7.5",
 }
 _STAGE_MANIFEST_VERSION = "autogen-a2a-final-stage/v1"
+_RECEIPT_VERSION = "autogen-a2a-host-receipt/v1"
+_RECEIPT_FIELDS = frozenset({
+    "receipt_version", "receipt_nonce", "handoff_sha256", "run_id",
+    "source_revision", "case_id", "artifact_digest", "checkpoint_id",
+    "daemon_id", "image_id", "project", "state_volume", "evidence_volume",
+})
 _STAGED_DATA_FILES = frozenset(
     {
         "artifact.json",
@@ -48,6 +56,7 @@ _STAGED_DATA_FILES = frozenset(
         "decision.json",
         "environment.json",
         "graphflow-state.json",
+        "graphflow-checkpoint.json",
         "runtime-final.json",
     }
 )
@@ -346,7 +355,7 @@ def _validate_service(
         _model_error("tmpfs", f"{name} tmpfs is not bounded and hardened")
     if service.get("networks") != {"sandbox": None}:
         _model_error("network", f"{name} is not attached only to the internal network")
-    _validate_mounts(name, service.get("volumes"))
+    _validate_mounts(name, service.get("volumes"), expectation)
     _validate_command(name, service.get("command"), expectation)
     if name == "worker":
         healthcheck = service.get("healthcheck")
@@ -376,7 +385,9 @@ def _validate_service(
         _model_error("depends_on", "orchestrator dependency contract drifted")
 
 
-def _validate_mounts(name: str, value: object) -> None:
+def _validate_mounts(
+    name: str, value: object, expectation: ComposeExpectation
+) -> None:
     if type(value) is not list:
         _model_error("mount", f"{name} mounts are missing")
     expected = (
@@ -395,6 +406,13 @@ def _validate_mounts(name: str, value: object) -> None:
         if type(source) is not str or type(target) is not str:
             _model_error("mount", f"{name} mount identity is malformed")
         actual.add((source, target))
+        read_only = mount.get("read_only", False)
+        expected_read_only = (
+            name == "worker" and source == "state" and expectation.mode == "resume"
+        )
+        if read_only is not expected_read_only:
+            label = "read-only" if expected_read_only else "writable"
+            _model_error(label, f"{name} state mount mode does not match {expectation.mode}")
     if actual != expected:
         _model_error("mount", f"{name} mount set does not match the contract")
 
@@ -493,12 +511,194 @@ def validate_resume_handoff(
     return value
 
 
+def _private_receipt_root() -> Path:
+    """Return a per-user state directory without trusting process path variables."""
+
+    if os.name == "nt":
+        import ctypes
+
+        buffer = ctypes.create_unicode_buffer(32768)
+        result = ctypes.windll.shell32.SHGetFolderPathW(  # type: ignore[attr-defined]
+            None, 0x001C, None, 0, buffer
+        )
+        if result != 0 or not buffer.value:
+            raise ActivationError(
+                "receipt_unavailable", "cannot resolve the private host state directory", EXIT_PRECONDITION
+            )
+        base = Path(buffer.value)
+    else:
+        import pwd
+
+        base = Path(pwd.getpwuid(os.getuid()).pw_dir) / ".local" / "state"
+    return base / "autogen-a2a-sandbox" / "receipts"
+
+
+def _receipt_path(handoff: Mapping[str, object]) -> Path:
+    key = "\0".join(
+        str(handoff.get(field, ""))
+        for field in ("source_revision", "run_id", "project")
+    )
+    return _private_receipt_root() / f"{hashlib.sha256(key.encode()).hexdigest()}.json"
+
+
+def _create_or_load_receipt(handoff: Mapping[str, object]) -> Mapping[str, object]:
+    root = _private_receipt_root()
+    root.mkdir(parents=True, mode=0o700, exist_ok=True)
+    _require_safe_directory(root, private=True)
+    path = _receipt_path(handoff)
+    if path.exists():
+        return _load_trusted_receipt(handoff)
+    receipt = {
+        "receipt_version": _RECEIPT_VERSION,
+        "receipt_nonce": secrets.token_hex(32),
+        "handoff_sha256": hashlib.sha256(_canonical_json(handoff)).hexdigest(),
+        **{
+            field: handoff[field]
+            for field in (
+                "run_id", "source_revision", "case_id", "artifact_digest",
+                "checkpoint_id", "daemon_id", "image_id", "project",
+                "state_volume", "evidence_volume",
+            )
+        },
+    }
+    data = _canonical_json(receipt)
+    try:
+        _atomic_create_file(path, data, mode=0o600)
+    except FileExistsError:
+        return _load_trusted_receipt(handoff)
+    return _validate_receipt(receipt, handoff)
+
+
+def _load_trusted_receipt(handoff: Mapping[str, object]) -> Mapping[str, object]:
+    path = _receipt_path(handoff)
+    try:
+        data = _read_regular_file(path, "host receipt")
+        receipt = json.loads(data)
+    except ActivationError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ActivationError(
+            "invalid_receipt", "trusted host receipt is missing or unsafe", EXIT_PRECONDITION
+        ) from exc
+    if data != _canonical_json(receipt):
+        raise ActivationError("invalid_receipt", "trusted host receipt is not canonical", EXIT_PRECONDITION)
+    return _validate_receipt(receipt, handoff)
+
+
+def _validate_receipt(
+    receipt: object, handoff: Mapping[str, object]
+) -> Mapping[str, object]:
+    if type(receipt) is not dict or set(receipt) != _RECEIPT_FIELDS:
+        raise ActivationError("invalid_receipt", "trusted host receipt is not closed", EXIT_PRECONDITION)
+    expected = {
+        "receipt_version": _RECEIPT_VERSION,
+        "handoff_sha256": hashlib.sha256(_canonical_json(handoff)).hexdigest(),
+        **{
+            field: handoff[field]
+            for field in (
+                "run_id", "source_revision", "case_id", "artifact_digest",
+                "checkpoint_id", "daemon_id", "image_id", "project",
+                "state_volume", "evidence_volume",
+            )
+        },
+    }
+    if any(receipt.get(field) != value for field, value in expected.items()):
+        raise ActivationError("invalid_receipt", "trusted host receipt binding mismatch", EXIT_PRECONDITION)
+    nonce = receipt.get("receipt_nonce")
+    if type(nonce) is not str or re.fullmatch(r"[0-9a-f]{64}", nonce) is None:
+        raise ActivationError("invalid_receipt", "trusted host receipt nonce is malformed", EXIT_PRECONDITION)
+    return receipt
+
+
+def _require_safe_directory(path: Path, *, private: bool = False) -> None:
+    try:
+        details = os.lstat(path)
+    except OSError as exc:
+        raise ActivationError("unsafe_path", "required directory is unavailable", EXIT_PRECONDITION) from exc
+    if not stat.S_ISDIR(details.st_mode) or _is_link_or_reparse(details):
+        raise ActivationError("unsafe_path", "directory is a link or reparse substitution", EXIT_PRECONDITION)
+    if private and os.name != "nt":
+        if details.st_uid != os.getuid() or stat.S_IMODE(details.st_mode) & 0o077:
+            raise ActivationError("unsafe_path", "private receipt directory permissions are unsafe", EXIT_PRECONDITION)
+
+
+def _is_link_or_reparse(details: os.stat_result) -> bool:
+    return stat.S_ISLNK(details.st_mode) or bool(
+        getattr(details, "st_file_attributes", 0) & 0x400
+    )
+
+
+def _read_regular_file(path: Path, label: str) -> bytes:
+    try:
+        before = os.lstat(path)
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or _is_link_or_reparse(before)
+            or before.st_nlink != 1
+            or before.st_size > 4 * 1024 * 1024
+        ):
+            raise ActivationError(
+                "unsafe_path",
+                f"{label} is a link or non-regular file",
+                EXIT_PRECONDITION,
+            )
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(path, flags)
+        try:
+            opened = os.fstat(descriptor)
+            if (
+                not stat.S_ISREG(opened.st_mode)
+                or _is_link_or_reparse(opened)
+                or opened.st_nlink != 1
+                or (before.st_dev, before.st_ino) != (opened.st_dev, opened.st_ino)
+                or opened.st_size > 4 * 1024 * 1024
+            ):
+                raise ActivationError("unsafe_path", f"{label} is a link or non-regular file", EXIT_PRECONDITION)
+            with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                return stream.read()
+        finally:
+            os.close(descriptor)
+    except ActivationError:
+        raise
+    except OSError as exc:
+        raise ActivationError("unsafe_path", f"{label} cannot be read safely", EXIT_PRECONDITION) from exc
+
+
+def _atomic_create_file(path: Path, data: bytes, *, mode: int = 0o600) -> None:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, mode)
+    try:
+        with os.fdopen(descriptor, "wb", closefd=False) as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+    finally:
+        os.close(descriptor)
+    _sync_directory(path.parent)
+
+
+def _sync_directory(path: Path) -> None:
+    """Persist directory metadata where the host exposes a directory fsync API."""
+
+    if os.name == "nt":
+        # Windows stdlib cannot open a directory for fsync. Individual files
+        # are flushed and final publication uses MoveFileExW WRITE_THROUGH.
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    descriptor = os.open(path, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def publish_file_once(path: Path, data: bytes) -> None:
     """Atomically create evidence, accepting only an exact idempotent replay."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        if path.read_bytes() == data:
+    _require_safe_directory(path.parent)
+    if os.path.lexists(path):
+        if _read_regular_file(path, path.name) == data:
             return
         raise ActivationError("evidence_conflict", f"refusing to overwrite changed evidence: {path.name}", EXIT_PRECONDITION)
     temporary: Path | None = None
@@ -508,9 +708,13 @@ def publish_file_once(path: Path, data: bytes) -> None:
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
-        if path.exists():
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            if _read_regular_file(path, path.name) == data:
+                return
             raise ActivationError("evidence_conflict", f"refusing to overwrite changed evidence: {path.name}", EXIT_PRECONDITION)
-        os.replace(temporary, path)
+        _sync_directory(path.parent)
     finally:
         if temporary is not None and temporary.exists():
             temporary.unlink()
@@ -581,8 +785,9 @@ def _fresh(root: Path, context: str, revision: str, run_id: str, case_id: str, e
             runtime_handoff = _copy_container_json(context, container_id, "/evidence/pending-handoff.json")
             host_handoff = dict(runtime_handoff)
             host_handoff.update({"daemon_id": daemon_id, "image_id": image_id, "project": identity.project, "state_volume": identity.state_volume, "evidence_volume": identity.evidence_volume})
-            validate_resume_handoff(host_handoff, source_revision=revision, run_id=run_id, image_id=image_id, project=identity.project, state_volume=identity.state_volume, evidence_volume=identity.evidence_volume, daemon_id=daemon_id)
+            host_handoff = validate_resume_handoff(host_handoff, source_revision=revision, run_id=run_id, image_id=image_id, project=identity.project, state_volume=identity.state_volume, evidence_volume=identity.evidence_volume, daemon_id=daemon_id)
             handoff_bytes = _canonical_json(host_handoff)
+            _create_or_load_receipt(host_handoff)
             authentic_pending = True
             publish_file_once(_handoff_path(evidence_root, run_id), handoff_bytes)
         elif exit_code == EXIT_TERMINAL:
@@ -615,14 +820,22 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
     image_id = _resolve_image(context, _image_tag(revision), revision)
     identity = _run_identity(run_id, revision)
     handoff = _load_json_file(_handoff_path(evidence_root, run_id), "resume handoff")
-    validate_resume_handoff(handoff, source_revision=revision, run_id=run_id, image_id=image_id, project=identity.project, state_volume=identity.state_volume, evidence_volume=identity.evidence_volume, daemon_id=daemon_id)
+    handoff = validate_resume_handoff(handoff, source_revision=revision, run_id=run_id, image_id=image_id, project=identity.project, state_volume=identity.state_volume, evidence_volume=identity.evidence_volume, daemon_id=daemon_id)
+    receipt = _load_trusted_receipt(handoff)
     case_id = str(handoff["case_id"])
     final_target = evidence_root / run_id / "final-bundle"
-    if final_target.exists():
-        raise ActivationError("evidence_conflict", "refusing to overwrite an existing final bundle", EXIT_PRECONDITION)
     expectation = ComposeExpectation(image_id, identity.project, identity.state_volume, identity.evidence_volume, identity.network, "resume", revision, run_id, case_id, decision)
     compose_env = _compose_environment(expectation)
     model_bytes = _render_compose(root, context, compose_env, expectation)
+    if os.path.lexists(final_target):
+        _validate_final_bundle(
+            final_target, run_id=run_id, source_revision=revision, case_id=case_id,
+            image_id=image_id, daemon_id=daemon_id, requested_decision=decision,
+            handoff=handoff, receipt=receipt,
+        )
+        _verify_full_cleanup(context, identity)
+        print(json.dumps({"event": "decision_published_replay", "bundle": str(final_target), "run_id": run_id}, sort_keys=True, separators=(",", ":")))
+        return 0
     durable_stage = _pending_stage_path(final_target)
     if (durable_stage / "stage-manifest.json").is_file():
         validate_staged_bundle(
@@ -633,6 +846,8 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
             image_id=image_id,
             daemon_id=daemon_id,
             requested_decision=decision,
+            handoff=handoff,
+            receipt=receipt,
         )
         _compose_down(root, context, compose_env, remove_volumes=True)
         _verify_full_cleanup(context, identity)
@@ -645,6 +860,8 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
             image_id=image_id,
             daemon_id=daemon_id,
             requested_decision=decision,
+            handoff=handoff,
+            receipt=receipt,
         )
         print(json.dumps({"event": "decision_published_from_stage", "bundle": str(final_target), "run_id": run_id}, sort_keys=True, separators=(",", ":")))
         return 0
@@ -658,6 +875,7 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
         container_id = _orchestrator_container(context, identity.project)
         runtime_final = _copy_container_bytes(context, container_id, "/evidence/runtime-final.json")
         graph_state = _copy_container_bytes(context, container_id, f"/state/{run_id}.graphflow-state.json")
+        graph_checkpoint = _copy_container_bytes(context, container_id, f"/state/{run_id}.graphflow-checkpoint.json")
         case_object = _decode_json_object_bytes(
             (root / "cases" / f"{case_id}.json").read_bytes(), "case"
         )
@@ -668,6 +886,7 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
             case_id=case_id,
             case_object=case_object,
             requested_decision=decision,
+            handoff=handoff,
         )
         staged = _stage_final_bundle(
             root,
@@ -680,7 +899,10 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
             runtime_final,
             runtime_object,
             graph_state,
+            graph_checkpoint,
             daemon_id,
+            handoff,
+            receipt,
         )
     except BaseException as exc:  # retain the authentic pending state on every failed resume
         failure = exc
@@ -702,6 +924,8 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
             image_id=image_id,
             daemon_id=daemon_id,
             requested_decision=decision,
+            handoff=handoff,
+            receipt=receipt,
         )
     except BaseException:
         raise
@@ -720,11 +944,16 @@ def _stage_final_bundle(
     runtime_final: bytes,
     runtime_object: Mapping[str, object],
     graph_state: bytes,
+    graph_checkpoint: bytes,
     daemon_id: str,
+    handoff: Mapping[str, object],
+    receipt: Mapping[str, object],
 ) -> tuple[Path, Path]:
     target.parent.mkdir(parents=True, exist_ok=True)
+    _require_safe_directory(target.parent)
     stage = _pending_stage_path(target)
     stage.mkdir(parents=False, exist_ok=True)
+    _require_safe_directory(stage)
     try:
         graph_object = json.loads(graph_state)
     except (json.JSONDecodeError, UnicodeError) as exc:
@@ -736,6 +965,9 @@ def _stage_final_bundle(
     ).hexdigest()
     if graph_digest != runtime_object["graphflow"]["state_sha256"]:
         raise ActivationError("runtime_evidence_invalid", "GraphFlow state digest does not match final evidence", EXIT_RUNTIME)
+    _validate_graphflow_checkpoint(
+        graph_checkpoint, runtime_object=runtime_object, handoff=handoff
+    )
     docker_version = _run(["docker", "--context", context, "version", "--format", "{{json .Server}}"], timeout=20).stdout
     compose_version = _run(["docker", "--context", context, "compose", "version", "--short"], timeout=20).stdout.strip()
     docker_server_raw = json.loads(docker_version)
@@ -752,6 +984,7 @@ def _stage_final_bundle(
         "compose-model.json": model_bytes,
         "runtime-final.json": runtime_final,
         "graphflow-state.json": graph_state,
+        "graphflow-checkpoint.json": graph_checkpoint,
         "artifact.json": _canonical_json(runtime_object["artifact"]),
         "decision.json": _canonical_json(runtime_object["decision"]),
         "environment.json": _canonical_json(identity_object),
@@ -760,7 +993,10 @@ def _stage_final_bundle(
         publish_file_once(stage / name, value)
     manifest = {
         "case_id": case_id,
+        "artifact_digest": handoff["artifact_digest"],
+        "checkpoint_id": handoff["checkpoint_id"],
         "daemon_id": daemon_id,
+        "handoff_sha256": hashlib.sha256(_canonical_json(handoff)).hexdigest(),
         "files": {
             name: hashlib.sha256(value).hexdigest()
             for name, value in sorted(values.items())
@@ -768,6 +1004,7 @@ def _stage_final_bundle(
         "image_id": image_id,
         "run_id": runtime_object["run_id"],
         "source_revision": revision,
+        "receipt_sha256": hashlib.sha256(_canonical_json(receipt)).hexdigest(),
         "stage_version": _STAGE_MANIFEST_VERSION,
     }
     publish_file_once(stage / "stage-manifest.json", _canonical_json(manifest))
@@ -779,6 +1016,8 @@ def _stage_final_bundle(
         image_id=image_id,
         daemon_id=daemon_id,
         requested_decision=runtime_object["decision"]["decision"],
+        handoff=handoff,
+        receipt=receipt,
     )
     return stage, target
 
@@ -796,14 +1035,17 @@ def validate_staged_bundle(
     image_id: str,
     daemon_id: str,
     requested_decision: str,
+    handoff: Mapping[str, object],
+    receipt: Mapping[str, object],
 ) -> Mapping[str, object]:
+    _require_safe_directory(stage)
     manifest_path = stage / "stage-manifest.json"
     try:
-        manifest_bytes = manifest_path.read_bytes()
+        manifest_bytes = _read_regular_file(manifest_path, "stage manifest")
         manifest = json.loads(manifest_bytes)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ActivationError("invalid_stage", "pending final stage is unreadable", EXIT_PRECONDITION) from exc
-    fields = {"stage_version", "run_id", "source_revision", "case_id", "image_id", "daemon_id", "files"}
+    fields = {"stage_version", "run_id", "source_revision", "case_id", "image_id", "daemon_id", "artifact_digest", "checkpoint_id", "handoff_sha256", "receipt_sha256", "files"}
     if type(manifest) is not dict or set(manifest) != fields:
         raise ActivationError("invalid_stage", "pending final stage manifest is not closed", EXIT_PRECONDITION)
     if manifest_bytes != _canonical_json(manifest):
@@ -815,6 +1057,10 @@ def validate_staged_bundle(
         "case_id": case_id,
         "image_id": image_id,
         "daemon_id": daemon_id,
+        "artifact_digest": handoff.get("artifact_digest"),
+        "checkpoint_id": handoff.get("checkpoint_id"),
+        "handoff_sha256": hashlib.sha256(_canonical_json(handoff)).hexdigest(),
+        "receipt_sha256": hashlib.sha256(_canonical_json(receipt)).hexdigest(),
     }
     for field, value in expected.items():
         if manifest.get(field) != value:
@@ -823,11 +1069,11 @@ def validate_staged_bundle(
     if type(digests) is not dict or set(digests) != _STAGED_DATA_FILES:
         raise ActivationError("invalid_stage", "pending final stage file set mismatch", EXIT_PRECONDITION)
     allowed = {*_STAGED_DATA_FILES, "stage-manifest.json", "verification.json", "checksums.json"}
-    actual_names = {path.name for path in stage.iterdir() if path.is_file()}
+    actual_names = {path.name for path in stage.iterdir()}
     if not actual_names <= allowed or not {*_STAGED_DATA_FILES, "stage-manifest.json"} <= actual_names:
         raise ActivationError("invalid_stage", "pending final stage contains unknown or missing files", EXIT_PRECONDITION)
     for name, expected_digest in digests.items():
-        if type(expected_digest) is not str or hashlib.sha256((stage / name).read_bytes()).hexdigest() != expected_digest:
+        if type(expected_digest) is not str or hashlib.sha256(_read_regular_file(stage / name, f"staged {name}")).hexdigest() != expected_digest:
             raise ActivationError("invalid_stage", f"pending final stage {name} digest mismatch", EXIT_PRECONDITION)
     _validate_staged_contents(
         stage,
@@ -837,6 +1083,8 @@ def validate_staged_bundle(
         image_id=image_id,
         daemon_id=daemon_id,
         requested_decision=requested_decision,
+        handoff=handoff,
+        receipt=receipt,
     )
     return manifest
 
@@ -850,12 +1098,15 @@ def _validate_staged_contents(
     image_id: str,
     daemon_id: str,
     requested_decision: str,
+    handoff: Mapping[str, object],
+    receipt: Mapping[str, object],
 ) -> None:
+    _validate_receipt(receipt, handoff)
     contracts, _runtime_validation = _validation_modules()
-    case_bytes = (stage / "case.json").read_bytes()
+    case_bytes = _read_regular_file(stage / "case.json", "staged case")
     case_object = _decode_json_object_bytes(case_bytes, "staged case")
     manifest_object = _decode_json_object_bytes(
-        (stage / "case-manifest.json").read_bytes(), "staged case manifest"
+        _read_regular_file(stage / "case-manifest.json", "staged case manifest"), "staged case manifest"
     )
     if set(manifest_object) != {"manifest_version", "cases"} or manifest_object.get(
         "manifest_version"
@@ -891,7 +1142,7 @@ def _validate_staged_contents(
     if case.case_id != case_id:
         raise ActivationError("invalid_stage", "staged case identity mismatch", EXIT_PRECONDITION)
 
-    runtime_bytes = (stage / "runtime-final.json").read_bytes()
+    runtime_bytes = _read_regular_file(stage / "runtime-final.json", "staged runtime final")
     runtime_object = _validate_runtime_final(
         runtime_bytes,
         run_id=run_id,
@@ -899,11 +1150,12 @@ def _validate_staged_contents(
         case_id=case_id,
         case_object=case_object,
         requested_decision=requested_decision,
+        handoff=handoff,
     )
     for name, field in (("artifact.json", "artifact"), ("decision.json", "decision")):
-        if (stage / name).read_bytes() != _canonical_json(runtime_object[field]):
+        if _read_regular_file(stage / name, f"staged {name}") != _canonical_json(runtime_object[field]):
             raise ActivationError("invalid_stage", f"staged {name} differs from runtime evidence", EXIT_PRECONDITION)
-    graph_bytes = (stage / "graphflow-state.json").read_bytes()
+    graph_bytes = _read_regular_file(stage / "graphflow-state.json", "staged GraphFlow state")
     graph_object = _decode_json_object_bytes(graph_bytes, "staged GraphFlow state")
     if graph_bytes != contracts.canonical_json_bytes(graph_object):
         raise ActivationError(
@@ -911,9 +1163,14 @@ def _validate_staged_contents(
         )
     if graph_object != runtime_object["graphflow"]["terminal_state"]:
         raise ActivationError("invalid_stage", "staged GraphFlow state differs from runtime evidence", EXIT_PRECONDITION)
+    _validate_graphflow_checkpoint(
+        _read_regular_file(stage / "graphflow-checkpoint.json", "staged GraphFlow checkpoint"),
+        runtime_object=runtime_object,
+        handoff=handoff,
+    )
 
     environment = _load_canonical_json_bytes(
-        (stage / "environment.json").read_bytes(), "staged environment"
+        _read_regular_file(stage / "environment.json", "staged environment"), "staged environment"
     )
     environment_fields = {
         "evidence_version", "source_revision", "run_id", "case_id", "image_id",
@@ -949,7 +1206,7 @@ def _validate_staged_contents(
         raise ActivationError("invalid_stage", "staged Docker or Python identity is malformed", EXIT_PRECONDITION)
 
     compose_model = _load_canonical_json_bytes(
-        (stage / "compose-model.json").read_bytes(), "staged Compose model"
+        _read_regular_file(stage / "compose-model.json", "staged Compose model"), "staged Compose model"
     )
     identity = _run_identity(run_id, source_revision)
     validate_compose_model(
@@ -962,9 +1219,9 @@ def _validate_staged_contents(
     )
 
     verification_path = stage / "verification.json"
-    if verification_path.is_file():
+    if os.path.lexists(verification_path):
         verification = _load_canonical_json_bytes(
-            verification_path.read_bytes(), "staged verification"
+            _read_regular_file(verification_path, "staged verification"), "staged verification"
         )
         expected_verification = {
             "daemon_id": daemon_id,
@@ -979,18 +1236,68 @@ def _validate_staged_contents(
         if verification != expected_verification:
             raise ActivationError("invalid_stage", "staged verification is invalid", EXIT_PRECONDITION)
     checksums_path = stage / "checksums.json"
-    if checksums_path.is_file():
-        checksums = _load_canonical_json_bytes(checksums_path.read_bytes(), "staged checksums")
+    if os.path.lexists(checksums_path):
+        checksums = _load_canonical_json_bytes(_read_regular_file(checksums_path, "staged checksums"), "staged checksums")
         expected_checksums = {
-            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            path.name: hashlib.sha256(_read_regular_file(path, f"staged {path.name}")).hexdigest()
             for path in sorted(stage.iterdir())
-            if path.is_file() and path.name != "checksums.json"
+            if path.name != "checksums.json"
         }
         if checksums != {
             "checksums_version": "autogen-a2a-checksums/v1",
             "files": expected_checksums,
         }:
             raise ActivationError("invalid_stage", "staged checksums are invalid", EXIT_PRECONDITION)
+
+
+def _validate_graphflow_checkpoint(
+    value: bytes,
+    *,
+    runtime_object: Mapping[str, object],
+    handoff: Mapping[str, object],
+) -> Mapping[str, object]:
+    contracts, _runtime_validation = _validation_modules()
+    try:
+        checkpoint = json.loads(value)
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow checkpoint is not JSON", EXIT_RUNTIME) from exc
+    fields = {
+        "checkpoint_version", "run_id", "source_revision", "case_id",
+        "case_digest", "candidate_revision", "team_state",
+    }
+    if type(checkpoint) is not dict or set(checkpoint) != fields:
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow checkpoint is not closed", EXIT_RUNTIME)
+    if value != contracts.canonical_json_bytes(checkpoint):
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow checkpoint is not canonical", EXIT_RUNTIME)
+    expected = {
+        "checkpoint_version": "canary-analysis-checkpoint/v1",
+        **{
+            field: runtime_object[field]
+            for field in (
+                "run_id", "source_revision", "case_id", "case_digest",
+                "candidate_revision",
+            )
+        },
+    }
+    if any(checkpoint.get(field) != expected_value for field, expected_value in expected.items()):
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow checkpoint lineage mismatch", EXIT_RUNTIME)
+    if type(checkpoint.get("team_state")) is not dict:
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow checkpoint team state is malformed", EXIT_RUNTIME)
+    digest = contracts.canonical_sha256(checkpoint)
+    graphflow = runtime_object.get("graphflow")
+    artifact = runtime_object.get("artifact")
+    approval = runtime_object.get("approval")
+    if (
+        type(graphflow) is not dict
+        or type(artifact) is not dict
+        or type(approval) is not dict
+        or digest != graphflow.get("initial_checkpoint_sha256")
+        or digest != graphflow.get("terminal_state", {}).get("initial_checkpoint_sha256")
+        or handoff.get("artifact_digest") != artifact.get("artifact_digest")
+        or handoff.get("checkpoint_id") != approval.get("checkpoint_id")
+    ):
+        raise ActivationError("runtime_evidence_invalid", "GraphFlow checkpoint or handoff binding mismatch", EXIT_RUNTIME)
+    return checkpoint
 
 
 def _finalize_bundle(
@@ -1003,6 +1310,8 @@ def _finalize_bundle(
     image_id: str,
     daemon_id: str,
     requested_decision: str,
+    handoff: Mapping[str, object],
+    receipt: Mapping[str, object],
 ) -> None:
     validate_staged_bundle(
         stage,
@@ -1012,14 +1321,67 @@ def _finalize_bundle(
         image_id=image_id,
         daemon_id=daemon_id,
         requested_decision=requested_decision,
+        handoff=handoff,
+        receipt=receipt,
     )
-    if target.exists():
+    if os.path.lexists(target):
         raise ActivationError("evidence_conflict", "refusing to overwrite an existing final bundle", EXIT_PRECONDITION)
     verification = {"daemon_id": daemon_id, "verification_version": "autogen-a2a-verification/v1", "result": "PASS", "run_id": run_id, "source_revision": revision, "image_id": image_id, "release_effect_executed": False, "resource_cleanup_verified": True}
     publish_file_once(stage / "verification.json", _canonical_json(verification))
-    checksums = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(stage.iterdir()) if path.is_file() and path.name != "checksums.json"}
+    checksums = {path.name: hashlib.sha256(_read_regular_file(path, f"staged {path.name}")).hexdigest() for path in sorted(stage.iterdir()) if path.name != "checksums.json"}
     publish_file_once(stage / "checksums.json", _canonical_json({"checksums_version": "autogen-a2a-checksums/v1", "files": checksums}))
-    os.rename(stage, target)
+    _sync_directory(stage)
+    _durable_publish_directory(stage, target)
+
+
+def _durable_publish_directory(stage: Path, target: Path) -> None:
+    """Atomically publish the final directory with the strongest host flush available."""
+
+    _require_safe_directory(stage)
+    if os.path.lexists(target):
+        raise ActivationError("evidence_conflict", "final evidence target already exists", EXIT_PRECONDITION)
+    if os.name == "nt":
+        import ctypes
+
+        if not ctypes.windll.kernel32.MoveFileExW(  # type: ignore[attr-defined]
+            str(stage), str(target), 0x00000008
+        ):
+            raise ctypes.WinError()
+    else:
+        os.rename(stage, target)
+        _sync_directory(target.parent)
+    _require_safe_directory(target)
+
+
+def _validate_final_bundle(
+    target: Path,
+    *,
+    run_id: str,
+    source_revision: str,
+    case_id: str,
+    image_id: str,
+    daemon_id: str,
+    requested_decision: str,
+    handoff: Mapping[str, object],
+    receipt: Mapping[str, object],
+) -> None:
+    _require_safe_directory(target)
+    validate_staged_bundle(
+        target, run_id=run_id, source_revision=source_revision, case_id=case_id,
+        image_id=image_id, daemon_id=daemon_id,
+        requested_decision=requested_decision, handoff=handoff, receipt=receipt,
+    )
+    expected = {
+        *_STAGED_DATA_FILES,
+        "stage-manifest.json",
+        "verification.json",
+        "checksums.json",
+    }
+    actual = {entry.name for entry in target.iterdir()}
+    if actual != expected:
+        raise ActivationError("invalid_stage", "final bundle file set is not exact", EXIT_PRECONDITION)
+    for entry in target.iterdir():
+        _read_regular_file(entry, f"final bundle {entry.name}")
 
 
 def _validate_runtime_terminal(
@@ -1070,8 +1432,8 @@ def _validate_runtime_terminal(
         raise ActivationError("runtime_evidence_invalid", "terminal Python identity is malformed", EXIT_RUNTIME)
     a2a = root.get("a2a")
     if type(a2a) is not dict or set(a2a) != {
-        "state", "task_id", "context_id", "artifact_id", "used_streaming_workflow",
-        "event_timeline", "recovery",
+        "state", "task_id", "context_id", "artifact_id", "transport_mode",
+        "used_streaming_workflow", "event_timeline", "recovery",
     }:
         raise ActivationError("runtime_evidence_invalid", "terminal A2A proof is not closed", EXIT_RUNTIME)
     if (
@@ -1081,9 +1443,17 @@ def _validate_runtime_terminal(
         or type(a2a.get("context_id")) is not str
         or not a2a["context_id"]
         or a2a.get("artifact_id") is not None
-        or a2a.get("used_streaming_workflow") is not True
     ):
         raise ActivationError("runtime_evidence_invalid", "terminal A2A binding mismatch", EXIT_RUNTIME)
+    expected_transport = (
+        ("raw-a2a-cancel", False)
+        if expected_state == "canceled"
+        else ("maf-workflow", True)
+    )
+    if (
+        a2a.get("transport_mode"), a2a.get("used_streaming_workflow")
+    ) != expected_transport:
+        raise ActivationError("runtime_evidence_invalid", "terminal A2A transport mode mismatch", EXIT_RUNTIME)
     try:
         runtime_validation.validate_persisted_event_timeline(
             a2a.get("event_timeline"),
@@ -1155,6 +1525,7 @@ def _validate_runtime_final(
     case_id: str,
     case_object: object,
     requested_decision: str,
+    handoff: Mapping[str, object],
 ) -> Mapping[str, object]:
     contracts, runtime_validation = _validation_modules()
     try:
@@ -1221,16 +1592,18 @@ def _validate_runtime_final(
         or case.expected.recommendation != artifact.recommendation
         or case.expected.reconciliation_attempts != artifact.reconciliation_attempts
         or decision.decision != requested_decision
+        or handoff.get("artifact_digest") != artifact.artifact_digest
     ):
         raise ActivationError("runtime_evidence_invalid", "case or requested decision binding mismatch", EXIT_RUNTIME)
     if set(a2a) != {
         "state", "task_id", "context_id", "artifact_id", "authoritative_content",
-        "used_streaming_workflow", "event_timeline",
+        "transport_mode", "used_streaming_workflow", "event_timeline",
     }:
         raise ActivationError("runtime_evidence_invalid", "A2A proof is not closed", EXIT_RUNTIME)
     if (
         a2a.get("state") != "completed"
         or a2a.get("authoritative_content") != "data"
+        or a2a.get("transport_mode") != "maf-workflow"
         or a2a.get("used_streaming_workflow") is not True
         or a2a.get("task_id") != artifact.a2a_task_id
         or a2a.get("context_id") != artifact.a2a_context_id
@@ -1277,6 +1650,7 @@ def _validate_runtime_final(
         or terminal_state["unresolved_contradictions"] != list(artifact.unresolved_contradictions)
         or terminal_state["reconciliation_attempts"] != artifact.reconciliation_attempts
         or approval.get("checkpoint_id") != approval.get("restored_checkpoint_id")
+        or approval.get("checkpoint_id") != handoff.get("checkpoint_id")
         or approval.get("initial_request_info_count") != 1
         or approval.get("resume_request_info_count") != 0
         or type(approval.get("decision_replayed")) is not bool
@@ -1330,7 +1704,7 @@ def _compose_down(root: Path, context: str, environment: Mapping[str, str], *, r
 
 def _compose_environment(expectation: ComposeExpectation) -> dict[str, str]:
     environment = _minimal_environment()
-    environment.update({"SANDBOX_PROJECT": expectation.project, "SANDBOX_IMAGE": expectation.image, "SANDBOX_MODE": expectation.mode, "SANDBOX_SOURCE_REVISION": expectation.source_revision, "SANDBOX_RUN_ID": expectation.run_id, "SANDBOX_CASE_ID": expectation.case_id, "SANDBOX_DECISION": expectation.decision, "SANDBOX_NETWORK": expectation.network, "SANDBOX_STATE_VOLUME": expectation.state_volume, "SANDBOX_EVIDENCE_VOLUME": expectation.evidence_volume})
+    environment.update({"SANDBOX_PROJECT": expectation.project, "SANDBOX_IMAGE": expectation.image, "SANDBOX_MODE": expectation.mode, "SANDBOX_SOURCE_REVISION": expectation.source_revision, "SANDBOX_RUN_ID": expectation.run_id, "SANDBOX_CASE_ID": expectation.case_id, "SANDBOX_DECISION": expectation.decision, "SANDBOX_NETWORK": expectation.network, "SANDBOX_STATE_VOLUME": expectation.state_volume, "SANDBOX_EVIDENCE_VOLUME": expectation.evidence_volume, "SANDBOX_WORKER_STATE_READ_ONLY": "true" if expectation.mode == "resume" else "false"})
     return environment
 
 
@@ -1561,11 +1935,14 @@ def _handoff_path(root: Path, run_id: str) -> Path:
 
 def _load_json_file(path: Path, label: str) -> Mapping[str, object]:
     try:
-        value = json.loads(path.read_bytes())
-    except (OSError, json.JSONDecodeError, UnicodeError) as exc:
+        data = _read_regular_file(path, label)
+        value = json.loads(data)
+    except (OSError, json.JSONDecodeError, UnicodeError, ActivationError) as exc:
         raise ActivationError("invalid_handoff", f"{label} cannot be read", EXIT_PRECONDITION) from exc
     if type(value) is not dict:
         raise ActivationError("invalid_handoff", f"{label} is not an object", EXIT_PRECONDITION)
+    if data != _canonical_json(value):
+        raise ActivationError("invalid_handoff", f"{label} is not canonical", EXIT_PRECONDITION)
     return value
 
 

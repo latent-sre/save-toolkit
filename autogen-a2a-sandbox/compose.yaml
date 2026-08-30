@@ -32,6 +32,7 @@ services:
       - type: volume
         source: state
         target: /state
+        read_only: ${SANDBOX_WORKER_STATE_READ_ONLY:?SANDBOX_WORKER_STATE_READ_ONLY is required}
     networks:
       - sandbox
     healthcheck:

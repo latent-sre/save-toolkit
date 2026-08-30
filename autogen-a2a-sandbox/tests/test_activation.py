@@ -37,7 +37,9 @@ def _load_runtime():
     return runtime_cli
 
 
-def _rendered_model(image: str = "sha256:" + "a" * 64) -> dict[str, object]:
+def _rendered_model(
+    image: str = "sha256:" + "a" * 64, *, mode: str = "fresh"
+) -> dict[str, object]:
     common = {
         "image": image,
         "user": "65532:65532",
@@ -82,9 +84,10 @@ def _rendered_model(image: str = "sha256:" + "a" * 64) -> dict[str, object]:
             "retries": 20,
             "start_period": "2s",
         },
-        "volumes": [
-            {"type": "volume", "source": "state", "target": "/state"}
-        ],
+        "volumes": [{
+            "type": "volume", "source": "state", "target": "/state",
+            **({"read_only": True} if mode == "resume" else {}),
+        }],
     }
     orchestrator = {
         **common,
@@ -218,7 +221,7 @@ def _final_runtime_fixture(module):
         "python": "3.12.10",
         "packages": copy.deepcopy(module._PINNED_PACKAGES),
         "analysis_invocations": 1,
-        "a2a": {"state": "completed", "task_id": artifact["a2a_task_id"], "context_id": artifact["a2a_context_id"], "artifact_id": artifact["artifact_id"], "authoritative_content": "data", "used_streaming_workflow": True, "event_timeline": timeline},
+        "a2a": {"state": "completed", "task_id": artifact["a2a_task_id"], "context_id": artifact["a2a_context_id"], "artifact_id": artifact["artifact_id"], "authoritative_content": "data", "transport_mode": "maf-workflow", "used_streaming_workflow": True, "event_timeline": timeline},
         "graphflow": {"state_sha256": artifact["graph_state_sha256"], "initial_checkpoint_sha256": terminal["initial_checkpoint_sha256"], "terminal_state": terminal, "state_loaded_for_analysis": True, "analysis_rerun_on_approval_resume": False},
         "approval": {"checkpoint_id": "checkpoint-host", "restored_checkpoint_id": "checkpoint-host", "initial_request_info_count": 1, "resume_request_info_count": 0, "decision_replayed": False},
         "artifact": artifact,
@@ -405,6 +408,28 @@ class ComposeModelValidationTests(unittest.TestCase):
     def test_accepts_exact_two_service_hardened_internal_model(self) -> None:
         self.module.validate_compose_model(_rendered_model(), self.expected)
 
+    def test_worker_state_is_writable_only_during_fresh(self) -> None:
+        resume = self.module.ComposeExpectation(
+            image=self.expected.image,
+            project=self.expected.project,
+            state_volume=self.expected.state_volume,
+            evidence_volume=self.expected.evidence_volume,
+            network=self.expected.network,
+            mode="resume",
+            source_revision=self.expected.source_revision,
+            run_id=self.expected.run_id,
+            case_id=self.expected.case_id,
+            decision="ACCEPT",
+        )
+        model = _rendered_model(mode="resume")
+        command = model["services"]["orchestrator"]["command"]
+        command[command.index("--mode") + 1] = "resume"
+        command[command.index("--decision") + 1] = "ACCEPT"
+        self.module.validate_compose_model(model, resume)
+        model["services"]["worker"]["volumes"][0]["read_only"] = False
+        with self.assertRaisesRegex(Exception, "read-only"):
+            self.module.validate_compose_model(model, resume)
+
     def test_rejects_each_load_bearing_topology_or_security_mutation(self) -> None:
         mutations = {
             "host port": lambda model: model["services"]["worker"].update(
@@ -527,6 +552,27 @@ class HandoffValidationTests(unittest.TestCase):
             with self.assertRaisesRegex(Exception, "overwrite"):
                 self.module.publish_file_once(target, b"changed\n")
 
+    def test_private_receipt_rejects_changed_handoff_missing_and_link_substitution(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary, patch.object(
+            self.module, "_private_receipt_root", return_value=Path(temporary) / "receipts"
+        ):
+            receipt = self.module._create_or_load_receipt(self.handoff)
+            self.module._load_trusted_receipt(self.handoff)
+            changed = copy.deepcopy(self.handoff)
+            changed["artifact_digest"] = "9" * 64
+            with self.assertRaisesRegex(Exception, "receipt"):
+                self.module._load_trusted_receipt(changed)
+
+            receipt_path = self.module._receipt_path(self.handoff)
+            twin = receipt_path.with_suffix(".hardlink")
+            os.link(receipt_path, twin)
+            with self.assertRaisesRegex(Exception, "link"):
+                self.module._load_trusted_receipt(self.handoff)
+            twin.unlink()
+            receipt_path.unlink()
+            with self.assertRaisesRegex(Exception, "receipt"):
+                self.module._load_trusted_receipt(self.handoff)
+
 
 class HostEvidenceValidationTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -534,6 +580,10 @@ class HostEvidenceValidationTests(unittest.TestCase):
         self.case_object, self.runtime = _final_runtime_fixture(self.module)
 
     def _validate(self, root):
+        handoff = {
+            "artifact_digest": root["artifact"]["artifact_digest"],
+            "checkpoint_id": root["approval"]["checkpoint_id"],
+        }
         return self.module._validate_runtime_final(
             self.module._canonical_json(root),
             run_id="host-validator-run",
@@ -541,11 +591,45 @@ class HostEvidenceValidationTests(unittest.TestCase):
             case_id="mission-healthy-001",
             case_object=self.case_object,
             requested_decision="ACCEPT",
+            handoff=handoff,
         )
 
     def test_full_host_validator_accepts_exact_nested_proofs(self) -> None:
         validated = self._validate(copy.deepcopy(self.runtime))
         self.assertEqual(validated["status"], "DECISION_RECORDED")
+
+    def test_initial_graphflow_checkpoint_preimage_is_required_and_digest_bound(self) -> None:
+        contracts, _runtime = self.module._validation_modules()
+        runtime = copy.deepcopy(self.runtime)
+        checkpoint = {
+            "checkpoint_version": "canary-analysis-checkpoint/v1",
+            "run_id": runtime["run_id"],
+            "source_revision": runtime["source_revision"],
+            "case_id": runtime["case_id"],
+            "case_digest": runtime["case_digest"],
+            "candidate_revision": runtime["candidate_revision"],
+            "team_state": {"agents": {}},
+        }
+        digest = contracts.canonical_sha256(checkpoint)
+        runtime["graphflow"]["terminal_state"]["initial_checkpoint_sha256"] = digest
+        runtime["graphflow"]["initial_checkpoint_sha256"] = digest
+        _rebind_final_fixture(self.module, runtime)
+        handoff = {
+            "artifact_digest": runtime["artifact"]["artifact_digest"],
+            "checkpoint_id": runtime["approval"]["checkpoint_id"],
+        }
+        checkpoint_bytes = contracts.canonical_json_bytes(checkpoint)
+        self.module._validate_graphflow_checkpoint(
+            checkpoint_bytes, runtime_object=runtime, handoff=handoff
+        )
+        tampered = copy.deepcopy(checkpoint)
+        tampered["team_state"] = {"agents": {"forged": True}}
+        with self.assertRaisesRegex(Exception, "checkpoint"):
+            self.module._validate_graphflow_checkpoint(
+                contracts.canonical_json_bytes(tampered),
+                runtime_object=runtime,
+                handoff=handoff,
+            )
 
     def test_full_host_validator_rejects_closed_contract_mutations(self) -> None:
         mutations = {
@@ -612,7 +696,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
             "python": "3.12.10", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
             "analysis_invocations": 1, "remote_request_info_count": 1,
             "approval_request_info_count": 0, "artifact": None,
-            "a2a": {"state": "input-required", "task_id": terminal["a2a_task_id"], "context_id": terminal["a2a_context_id"], "artifact_id": None, "used_streaming_workflow": True, "event_timeline": timeline, "recovery": {"same_task": True}},
+            "a2a": {"state": "input-required", "task_id": terminal["a2a_task_id"], "context_id": terminal["a2a_context_id"], "artifact_id": None, "transport_mode": "maf-workflow", "used_streaming_workflow": True, "event_timeline": timeline, "recovery": {"same_task": True}},
             "graphflow": {"state_sha256": canonical_sha256(terminal), "initial_checkpoint_sha256": terminal["initial_checkpoint_sha256"], "terminal_state": terminal},
             "release_effect_executed": False,
         }
@@ -640,11 +724,55 @@ class HostEvidenceValidationTests(unittest.TestCase):
                         case_object=case_object,
                     )
 
+    def test_exit2_validator_accepts_raw_same_task_cancellation_transport(self) -> None:
+        _load_runtime()
+        from interop_sandbox.contracts import canonical_sha256, validate_case
+
+        case_object = json.loads(
+            (SANDBOX_ROOT / "cases" / "slow-analysis-cancel-001.json").read_bytes()
+        )
+        case = validate_case(case_object)
+        task_id = "task-cancel-validator"
+        context_id = "context-cancel-validator"
+        root = {
+            "runtime_evidence_version": "autogen-a2a-runtime-evidence/v1",
+            "status": "canceled", "run_id": "cancel-validator-run",
+            "source_revision": "1" * 40, "case_id": case.case_id,
+            "case_digest": canonical_sha256(case),
+            "candidate_revision": case.candidate.candidate_revision,
+            "python": "3.12.10", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
+            "analysis_invocations": 1, "remote_request_info_count": 0,
+            "approval_request_info_count": 0, "artifact": None,
+            "a2a": {
+                "state": "canceled", "task_id": task_id, "context_id": context_id,
+                "artifact_id": None, "transport_mode": "raw-a2a-cancel",
+                "used_streaming_workflow": False,
+                "event_timeline": {
+                    "timeline_version": "a2a-event-timeline/v1",
+                    "events": [
+                        {"sequence": 0, "event_kind": "task", "task_id": task_id, "context_id": context_id, "a2a_state": "working", "artifact_id": None},
+                        {"sequence": 1, "event_kind": "task", "task_id": task_id, "context_id": context_id, "a2a_state": "canceled", "artifact_id": None},
+                    ],
+                },
+                "recovery": {"same_task": True, "cancel_sent_task_id": task_id, "initial_task_id": task_id, "observed_task_ids": [task_id, task_id, task_id]},
+            },
+            "graphflow": {"state_sha256": None, "initial_checkpoint_sha256": None, "terminal_state": None},
+            "release_effect_executed": False,
+        }
+        validated = self.module._validate_runtime_terminal(
+            self.module._canonical_json(root), run_id=root["run_id"],
+            source_revision=root["source_revision"], case_id=case.case_id,
+            case_object=case_object,
+        )
+        self.assertEqual(validated["a2a"]["transport_mode"], "raw-a2a-cancel")
+
     def _create_stage(self, root: Path):
+        contracts, _runtime = self.module._validation_modules()
+        runtime = copy.deepcopy(self.runtime)
         image_id = "sha256:" + "a" * 64
         daemon_id = "78e193b6-71a1-4a60-9ec0-16e94dd22f62"
         identity = self.module._run_identity("host-validator-run", "1" * 40)
-        model = _rendered_model(image_id)
+        model = _rendered_model(image_id, mode="resume")
         model["name"] = identity.project
         model["networks"]["sandbox"]["name"] = identity.network
         model["volumes"]["state"]["name"] = identity.state_volume
@@ -659,14 +787,44 @@ class HostEvidenceValidationTests(unittest.TestCase):
         ):
             command[command.index(flag) + 1] = value
         case_bytes = (SANDBOX_ROOT / "cases" / "mission-healthy-001.json").read_bytes()
+        checkpoint = {
+            "checkpoint_version": "canary-analysis-checkpoint/v1",
+            "run_id": runtime["run_id"], "source_revision": runtime["source_revision"],
+            "case_id": runtime["case_id"], "case_digest": runtime["case_digest"],
+            "candidate_revision": runtime["candidate_revision"], "team_state": {"agents": {}},
+        }
+        checkpoint_bytes = contracts.canonical_json_bytes(checkpoint)
+        checkpoint_digest = contracts.canonical_sha256(checkpoint)
+        runtime["graphflow"]["initial_checkpoint_sha256"] = checkpoint_digest
+        runtime["graphflow"]["terminal_state"]["initial_checkpoint_sha256"] = checkpoint_digest
+        _rebind_final_fixture(self.module, runtime)
+        handoff = {
+            "handoff_version": "autogen-a2a-resume-handoff/v1", "state": "AWAITING_APPROVAL",
+            "run_id": runtime["run_id"], "source_revision": runtime["source_revision"],
+            "case_id": runtime["case_id"], "case_digest": runtime["case_digest"],
+            "candidate_revision": runtime["candidate_revision"],
+            "artifact_digest": runtime["artifact"]["artifact_digest"],
+            "checkpoint_id": runtime["approval"]["checkpoint_id"], "image_id": image_id,
+            "project": identity.project, "state_volume": identity.state_volume,
+            "evidence_volume": identity.evidence_volume, "daemon_id": daemon_id,
+        }
+        receipt = {
+            "receipt_version": self.module._RECEIPT_VERSION, "receipt_nonce": "7" * 64,
+            "handoff_sha256": __import__("hashlib").sha256(self.module._canonical_json(handoff)).hexdigest(),
+            **{field: handoff[field] for field in (
+                "run_id", "source_revision", "case_id", "artifact_digest", "checkpoint_id",
+                "daemon_id", "image_id", "project", "state_volume", "evidence_volume",
+            )},
+        }
         values = {
             "case.json": case_bytes,
             "case-manifest.json": (SANDBOX_ROOT / "cases" / "manifest.json").read_bytes(),
             "compose-model.json": self.module._canonical_json(model),
-            "runtime-final.json": self.module._canonical_json(self.runtime),
-            "graphflow-state.json": self.module._validation_modules()[0].canonical_json_bytes(self.runtime["graphflow"]["terminal_state"]),
-            "artifact.json": self.module._canonical_json(self.runtime["artifact"]),
-            "decision.json": self.module._canonical_json(self.runtime["decision"]),
+            "runtime-final.json": self.module._canonical_json(runtime),
+            "graphflow-state.json": contracts.canonical_json_bytes(runtime["graphflow"]["terminal_state"]),
+            "graphflow-checkpoint.json": checkpoint_bytes,
+            "artifact.json": self.module._canonical_json(runtime["artifact"]),
+            "decision.json": self.module._canonical_json(runtime["decision"]),
             "environment.json": self.module._canonical_json({
                 "evidence_version": "autogen-a2a-environment/v1", "source_revision": "1" * 40,
                 "run_id": "host-validator-run", "case_id": "mission-healthy-001",
@@ -685,19 +843,23 @@ class HostEvidenceValidationTests(unittest.TestCase):
             "run_id": "host-validator-run", "source_revision": "1" * 40,
             "case_id": "mission-healthy-001", "image_id": image_id,
             "daemon_id": daemon_id,
+            "artifact_digest": handoff["artifact_digest"], "checkpoint_id": handoff["checkpoint_id"],
+            "handoff_sha256": __import__("hashlib").sha256(self.module._canonical_json(handoff)).hexdigest(),
+            "receipt_sha256": __import__("hashlib").sha256(self.module._canonical_json(receipt)).hexdigest(),
             "files": {name: __import__("hashlib").sha256(data).hexdigest() for name, data in sorted(values.items())},
         }
         (stage / "stage-manifest.json").write_bytes(self.module._canonical_json(manifest))
-        return stage, image_id, daemon_id
+        return stage, image_id, daemon_id, handoff, receipt
 
     def test_durable_stage_is_nested_validated_and_survives_target_conflict(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            stage, image_id, daemon_id = self._create_stage(root)
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(root)
             self.module.validate_staged_bundle(
                 stage, run_id="host-validator-run", source_revision="1" * 40,
                 case_id="mission-healthy-001", image_id=image_id,
                 daemon_id=daemon_id, requested_decision="ACCEPT",
+                handoff=handoff, receipt=receipt,
             )
             target = root / "final-bundle"
             target.mkdir()
@@ -706,6 +868,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                     stage, target, run_id="host-validator-run", revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
                     daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
                 )
             self.assertTrue(stage.is_dir())
             with self.assertRaises(Exception):
@@ -713,6 +876,182 @@ class HostEvidenceValidationTests(unittest.TestCase):
                     stage, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
                     daemon_id=daemon_id, requested_decision="REJECT",
+                    handoff=handoff, receipt=receipt,
+                )
+            (stage / "graphflow-checkpoint.json").unlink()
+            with self.assertRaisesRegex(Exception, "missing|checkpoint|safely"):
+                self.module.validate_staged_bundle(
+                    stage, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
+                )
+
+    def test_trusted_receipt_rejects_a_self_consistent_forged_stage_binding(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(
+                Path(temporary)
+            )
+            forged_handoff = copy.deepcopy(handoff)
+            forged_handoff["artifact_digest"] = "f" * 64
+            forged_handoff["checkpoint_id"] = "forged-checkpoint"
+            manifest_path = stage / "stage-manifest.json"
+            manifest = json.loads(manifest_path.read_bytes())
+            manifest["artifact_digest"] = forged_handoff["artifact_digest"]
+            manifest["checkpoint_id"] = forged_handoff["checkpoint_id"]
+            manifest["handoff_sha256"] = __import__("hashlib").sha256(
+                self.module._canonical_json(forged_handoff)
+            ).hexdigest()
+            manifest_path.write_bytes(self.module._canonical_json(manifest))
+
+            with self.assertRaisesRegex(Exception, "receipt"):
+                self.module.validate_staged_bundle(
+                    stage, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=forged_handoff, receipt=receipt,
+                )
+
+    def test_stage_rejects_hardlink_and_symlink_substitution(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(root)
+            artifact_path = stage / "artifact.json"
+            hardlink = root / "artifact-hardlink.json"
+            os.link(artifact_path, hardlink)
+            with self.assertRaisesRegex(Exception, "link"):
+                self.module.validate_staged_bundle(
+                    stage, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
+                )
+            hardlink.unlink()
+
+            original = artifact_path.read_bytes()
+            artifact_path.unlink()
+            target = root / "artifact-target.json"
+            target.write_bytes(original)
+            try:
+                artifact_path.symlink_to(target)
+            except OSError as exc:
+                self.skipTest(f"host cannot create a test symlink: {exc}")
+            with self.assertRaisesRegex(Exception, "link"):
+                self.module.validate_staged_bundle(
+                    stage, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
+                )
+
+    def test_windows_reparse_attribute_is_rejected_as_a_link(self) -> None:
+        directory_mode = __import__("stat").S_IFDIR | 0o700
+        details = type(
+            "ReparseDirectory",
+            (),
+            {"st_mode": directory_mode, "st_file_attributes": 0x400},
+        )()
+        with patch.object(self.module.os, "lstat", return_value=details):
+            with self.assertRaisesRegex(Exception, "reparse"):
+                self.module._require_safe_directory(Path("unused"))
+
+    def test_final_bundle_exact_replay_and_post_rename_crash_are_recoverable(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(root)
+            target = root / "final-bundle"
+
+            def rename_then_fail(source: Path, destination: Path) -> None:
+                os.rename(source, destination)
+                raise OSError("fault injected after final rename")
+
+            with patch.object(
+                self.module, "_durable_publish_directory", side_effect=rename_then_fail
+            ):
+                with self.assertRaisesRegex(OSError, "after final rename"):
+                    self.module._finalize_bundle(
+                        stage, target, run_id="host-validator-run", revision="1" * 40,
+                        case_id="mission-healthy-001", image_id=image_id,
+                        daemon_id=daemon_id, requested_decision="ACCEPT",
+                        handoff=handoff, receipt=receipt,
+                    )
+            self.assertFalse(stage.exists())
+            self.module._validate_final_bundle(
+                target, run_id="host-validator-run", source_revision="1" * 40,
+                case_id="mission-healthy-001", image_id=image_id,
+                daemon_id=daemon_id, requested_decision="ACCEPT",
+                handoff=handoff, receipt=receipt,
+            )
+            with self.assertRaises(Exception):
+                self.module._validate_final_bundle(
+                    target, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="REJECT",
+                    handoff=handoff, receipt=receipt,
+                )
+            (target / "decision.json").write_bytes(b"{}")
+            with self.assertRaisesRegex(Exception, "digest"):
+                self.module._validate_final_bundle(
+                    target, run_id="host-validator-run", source_revision="1" * 40,
+                    case_id="mission-healthy-001", image_id=image_id,
+                    daemon_id=daemon_id, requested_decision="ACCEPT",
+                    handoff=handoff, receipt=receipt,
+                )
+
+    def test_final_replay_refuses_any_surviving_run_resource(self) -> None:
+        identity = self.module._run_identity("host-validator-run", "1" * 40)
+        with patch.object(self.module, "_container_ids", return_value=("container",)):
+            with self.assertRaisesRegex(Exception, "remain"):
+                self.module._verify_full_cleanup("desktop-linux", identity)
+        with patch.object(self.module, "_container_ids", return_value=()), patch.object(
+            self.module, "_resource_exists", side_effect=lambda _context, kind, _name: kind == "volume"
+        ):
+            with self.assertRaisesRegex(Exception, "remain"):
+                self.module._verify_full_cleanup("desktop-linux", identity)
+
+    def test_resume_returns_success_from_only_an_exact_closed_final_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+            run_root = evidence_root / "host-validator-run"
+            run_root.mkdir()
+            stage, image_id, daemon_id, handoff, receipt = self._create_stage(run_root)
+            target = run_root / "final-bundle"
+            self.module._finalize_bundle(
+                stage, target, run_id="host-validator-run", revision="1" * 40,
+                case_id="mission-healthy-001", image_id=image_id,
+                daemon_id=daemon_id, requested_decision="ACCEPT",
+                handoff=handoff, receipt=receipt,
+            )
+            with patch.object(self.module, "_resolve_image", return_value=image_id), patch.object(
+                self.module, "_load_json_file", return_value=handoff
+            ), patch.object(
+                self.module, "validate_resume_handoff", return_value=handoff
+            ), patch.object(
+                self.module, "_load_trusted_receipt", return_value=receipt
+            ), patch.object(
+                self.module, "_render_compose", return_value=b"{}"
+            ), patch.object(
+                self.module, "_verify_full_cleanup"
+            ) as cleanup:
+                result = self.module._resume(
+                    SANDBOX_ROOT, "desktop-linux", "1" * 40,
+                    "host-validator-run", evidence_root, "ACCEPT", daemon_id,
+                )
+            self.assertEqual(result, 0)
+            cleanup.assert_called_once()
+
+            with patch.object(self.module, "_resolve_image", return_value=image_id), patch.object(
+                self.module, "_load_json_file", return_value=handoff
+            ), patch.object(
+                self.module, "validate_resume_handoff", return_value=handoff
+            ), patch.object(
+                self.module, "_load_trusted_receipt", return_value=receipt
+            ), patch.object(
+                self.module, "_render_compose", return_value=b"{}"
+            ), self.assertRaises(Exception):
+                self.module._resume(
+                    SANDBOX_ROOT, "desktop-linux", "1" * 40,
+                    "host-validator-run", evidence_root, "REJECT", daemon_id,
                 )
 
 
@@ -805,6 +1144,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
                 "context_id": "context-1",
                 "artifact_id": "release-recommendation:mission-healthy-001",
                 "authoritative_content": "data",
+                "transport_mode": "maf-workflow",
                 "used_streaming_workflow": True,
                 "event_timeline": timeline,
             },

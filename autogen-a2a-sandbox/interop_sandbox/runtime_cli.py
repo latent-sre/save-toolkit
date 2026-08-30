@@ -52,6 +52,7 @@ _A2A_FIELDS = frozenset(
         "context_id",
         "artifact_id",
         "authoritative_content",
+        "transport_mode",
         "used_streaming_workflow",
         "event_timeline",
     }
@@ -407,6 +408,7 @@ def validate_runtime_pending(
     if (
         a2a.get("state") != "completed"
         or a2a.get("authoritative_content") != "data"
+        or a2a.get("transport_mode") != "maf-workflow"
         or a2a.get("used_streaming_workflow") is not True
     ):
         raise RuntimeBoundaryError("pending A2A proof is not approval-eligible")
@@ -778,12 +780,14 @@ async def _run_fresh(args: argparse.Namespace) -> int:
         }
         if not same_task:
             raise RuntimeBoundaryError("cancellation crossed A2A task lineage")
+        transport_mode = "raw-a2a-cancel"
     else:
         result = await run_remote_analysis(
             agent_base_url=args.worker_url,
             request_text=request_text,
         )
         recovery_proof = {"same_task": True}
+        transport_mode = "maf-workflow"
     if result.a2a_state != case.expected.a2a_state:
         raise RuntimeBoundaryError(
             f"A2A state {result.a2a_state!r} does not match immutable expectation"
@@ -855,6 +859,7 @@ async def _run_fresh(args: argparse.Namespace) -> int:
                 "task_id": result.task_id,
                 "context_id": result.context_id,
                 "artifact_id": None,
+                "transport_mode": transport_mode,
                 "used_streaming_workflow": result.used_streaming_workflow,
                 "event_timeline": timeline,
                 "recovery": recovery_proof,
@@ -895,6 +900,7 @@ async def _run_fresh(args: argparse.Namespace) -> int:
             "context_id": result.context_id,
             "artifact_id": result.artifact_id,
             "authoritative_content": "data",
+            "transport_mode": transport_mode,
             "used_streaming_workflow": result.used_streaming_workflow,
             "event_timeline": timeline,
         },
