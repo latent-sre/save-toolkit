@@ -1,11 +1,17 @@
 # GRAPH-002 exact-revision verification — 2026-08-29
 
+> Historical evidence only. PR #193 review later identified five recovery, lifecycle-identity,
+> cross-platform-test, and wall-budget gaps in this candidate. The focused remediation and current
+> candidate evidence are recorded in
+> [`2026-08-29-graph-002-pr193-remediation-verification.md`](2026-08-29-graph-002-pr193-remediation-verification.md).
+
 ## Verdict
 
-`[verified]` The offline `graph-sandbox/v1` candidate at
+`[verified, historical]` The offline `graph-sandbox/v1` candidate at
 `02932845fe19150166ece6d01a0959a0effbdbc0` passed its host gates, immutable-image suites,
 healthy mission, deterministic fault matrix, crash/restart checkpoint proof, evidence validation,
-independent source review, and independent execution verification. No P0 or P1 blocker remains.
+independent source review, and independent execution verification at the time recorded. This is no
+longer current readiness evidence because the later PR #193 findings apply to that revision.
 
 This report is a documentation consequence of that run. Its commit is not represented as the
 container-tested revision. Any later change to a runtime input requires a new build and evidence
