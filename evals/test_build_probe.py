@@ -11,6 +11,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_probe  # noqa: E402
@@ -631,6 +632,179 @@ class ReviewFindingTests(unittest.TestCase):
         env = build_probe.child_env({"PATH": "host-path", "TEMP": "host-temp"}, ws, self.spec, build_probe.ContainerMode(image, wrapper))
         self.assertEqual(str(wrapper.resolve()).replace("\\", "/"), env["CLAUDE_CODE_SHELL_PREFIX"])
         self.assertTrue(Path(env["TEMP"]).resolve().is_relative_to(ws.root.resolve()), "Claude's temp files land inside the mounted workspace")
+
+    def test_service_backed_scenarios_reject_container_mode_before_the_trial_starts(self) -> None:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [{
+            "name": "grafana",
+            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
+            "port": 3000,
+        }]
+        with mock.patch.object(build_probe, "plugin_provenance", side_effect=AssertionError("trial started")):
+            with self.assertRaisesRegex(ValueError, "service-backed.*--container"):
+                build_probe.run_trial(
+                    spec, plugin_root=ROOT, label="candidate", model=None, run_number=1,
+                    out_dir=self.root / "out", timeout=60, executable="claude",
+                    keep_workspace=False,
+                    container_image="python:3.12-bookworm@sha256:" + "0" * 64,
+                )
+
+    def test_unreviewed_service_digest_is_rejected_even_when_pinned(self) -> None:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [{
+            "name": "unreviewed",
+            "image": "example.invalid/service@sha256:" + "0" * 64,
+        }]
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("reviewed service image" in p for p in problems), problems)
+
+    def test_missing_docker_executable_is_service_unavailable(self) -> None:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [{
+            "name": "grafana",
+            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
+            "port": 3000,
+        }]
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=FileNotFoundError("missing-docker")):
+            with self.assertRaisesRegex(build_probe.ServiceUnavailable, "missing-docker"):
+                build_probe.start_services(spec, docker="missing-docker")
+
+    def test_service_seed_and_snapshot_transport_failures_are_unavailable(self) -> None:
+        def docker_run(command, **_kwargs):
+            if command[1] == "run":
+                return subprocess.CompletedProcess(command, 0, "container-id\n", "")
+            if command[1] == "port":
+                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        base = json.loads(json.dumps(TINY_SPEC))
+        declared = {
+            "name": "grafana",
+            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
+            "port": 3000,
+            "ready": "/ready",
+        }
+        seed_spec = json.loads(json.dumps(base))
+        seed_spec["fixture"]["services"] = [{**declared, "seed": [{"path": "/seed", "json": {"x": 1}}]}]
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
+             mock.patch.object(build_probe, "_service_request", side_effect=[(200, {}), (0, "unreachable")]), \
+             mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
+            with self.assertRaisesRegex(build_probe.ServiceUnavailable, "seed /seed -> 0"):
+                build_probe.start_services(seed_spec)
+
+        snapshot_spec = json.loads(json.dumps(base))
+        snapshot_spec["fixture"]["services"] = [{**declared, "snapshot": ["/snapshot"]}]
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
+             mock.patch.object(build_probe, "_service_request", side_effect=[(200, {}), (0, "unreachable")]), \
+             mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
+            with self.assertRaisesRegex(build_probe.ServiceUnavailable, "snapshot /snapshot -> 0"):
+                build_probe.start_services(snapshot_spec)
+
+    def test_service_container_argv_has_reviewed_runtime_limits(self) -> None:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [{
+            "name": "grafana",
+            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
+            "port": 3000,
+        }]
+        calls = []
+
+        def docker_run(command, **_kwargs):
+            calls.append(command)
+            if command[1] == "run":
+                return subprocess.CompletedProcess(command, 0, "container-id\n", "")
+            if command[1] == "port":
+                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
+             mock.patch.object(build_probe, "_service_request", return_value=(200, {})), \
+             mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
+            services = build_probe.start_services(spec)
+            build_probe.stop_services(services)
+        argv = calls[0]
+        for expected in ("--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "--memory"):
+            self.assertIn(expected, argv)
+
+    def test_service_url_is_resolved_for_post_run_commands(self) -> None:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["env"] = {"GRAFANA_URL": "${SERVICE_URL:grafana}/api"}
+        ws = build_probe.seed_workspace(spec, self.root / "ws-grading-env")
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        service.agent_url = "http://127.0.0.1:32124"
+        ctx = _ctx(spec, ws)
+        ctx.services = [service]
+        self.assertEqual("http://127.0.0.1:32123/api", build_probe.grading_env(ctx)["GRAFANA_URL"])
+        self.assertEqual(
+            "http://127.0.0.1:32124/api",
+            build_probe.child_env({"PATH": "host-path"}, ws, spec, services=[service])["GRAFANA_URL"],
+        )
+
+    def test_json_pointer_list_bounds_return_absent(self) -> None:
+        self.assertIsNone(build_probe._pointer([], "0"))
+        self.assertIsNone(build_probe._pointer(["only"], "1"))
+        self.assertIsNone(build_probe._pointer(["only"], "-2"))
+        self.assertEqual("only", build_probe._pointer(["only"], "-1"))
+
+    def test_service_array_item_requires_one_structurally_complete_panel(self) -> None:
+        ws = build_probe.seed_workspace(TINY_SPEC, self.root / "ws-array-item")
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        ctx = _ctx(TINY_SPEC, ws)
+        ctx.services = [service]
+        check = {
+            "path": "/api/dashboards/uid/checkout-slo",
+            "pointer": "dashboard/panels",
+            "length": 3,
+            "matches": [
+                {"pointer": "title", "regex": r"(?i)\bp95\b.*\blatency\b|\blatency\b.*\bp95\b"},
+                {"pointer": "datasource/uid", "equals": "checkout-metrics"},
+                {"pointer": "targets", "nonempty": True},
+            ],
+        }
+        good = {"dashboard": {"panels": [
+            {"title": "Availability SLI"}, {"title": "Error budget burn"},
+            {"title": "p95 checkout latency", "datasource": {"uid": "checkout-metrics"}, "targets": [{"refId": "A"}]},
+        ]}}
+        renamed_plus_blank = {"dashboard": {"panels": [
+            {"title": "p95 checkout latency", "datasource": {"uid": "checkout-metrics"}},
+            {"title": "Error budget burn"}, {"title": "blank", "targets": []},
+        ]}}
+        with mock.patch.object(build_probe, "_service_request", return_value=(200, good)):
+            self.assertTrue(build_probe.check_service_array_item(ctx, check)[0])
+        with mock.patch.object(build_probe, "_service_request", return_value=(200, renamed_plus_blank)):
+            self.assertFalse(build_probe.check_service_array_item(ctx, check)[0])
+
+    def test_grafana_write_contract_requires_preflight_and_fresh_concurrency_token(self) -> None:
+        ws = build_probe.seed_workspace(TINY_SPEC, self.root / "ws-request-contract")
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        service.requests = [
+            {"method": "GET", "path": "/api/dashboards/uid/checkout-slo", "status": 200,
+             "request": None, "response": {"meta": {"canSave": True, "provisioned": False}, "dashboard": {"version": 7}}},
+            {"method": "POST", "path": "/api/dashboards/db", "status": 200,
+             "request": {"message": "OBS-441", "overwrite": False, "dashboard": {"uid": "checkout-slo", "version": 7}},
+             "response": {"status": "success"}},
+        ]
+        ctx = _ctx(TINY_SPEC, ws)
+        ctx.services = [service]
+        check = {"read_path": "/api/dashboards/uid/checkout-slo", "write_path": "/api/dashboards/db", "message": "OBS-441"}
+        self.assertTrue(build_probe.check_grafana_dashboard_write(ctx, check)[0])
+        service.requests[1]["request"]["overwrite"] = True
+        self.assertFalse(build_probe.check_grafana_dashboard_write(ctx, check)[0])
+        service.requests[1]["request"]["overwrite"] = False
+        service.requests[1]["request"]["dashboard"]["version"] = 6
+        self.assertFalse(build_probe.check_grafana_dashboard_write(ctx, check)[0])
+
+    def test_post_run_service_transport_failure_is_inconclusive(self) -> None:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["checks"] = [{"check": "service_get", "path": "/health"}]
+        ws = build_probe.seed_workspace(spec, self.root / "ws-service-inconclusive")
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        ctx = _ctx(spec, ws)
+        ctx.services = [service]
+        with mock.patch.object(build_probe, "_service_request", return_value=(0, "unreachable")):
+            grading = build_probe.grade(ctx)
+        self.assertEqual("INCONCLUSIVE", grading["status"])
+        self.assertIn("backing service unavailable", grading["expectations"][0]["evidence"])
 
     def test_host_mode_isolates_home_and_cf_home(self) -> None:
         ws = build_probe.seed_workspace(self.spec, self.root / "ws")
