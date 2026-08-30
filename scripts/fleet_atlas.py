@@ -200,6 +200,11 @@ def build_graph(root: Path) -> Graph:
     fleet_atlas_extract.extract_agents(root, graph)
     fleet_atlas_extract.extract_skills(root, graph)
     fleet_atlas_extract.extract_commands(root, graph)
+
+    import fleet_atlas_cite  # noqa: E402
+    fleet_atlas_cite.cite_delegation(root, graph)
+    fleet_atlas_cite.cite_guard(root, graph)
+    fleet_atlas_cite.cite_generated(root, graph)
     return graph
 
 

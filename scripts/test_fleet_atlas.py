@@ -143,5 +143,61 @@ class ExtractCanonicalTests(unittest.TestCase):
             )
 
 
+import fleet_atlas_cite  # noqa: E402
+import validate_fleet  # noqa: E402
+import generate_platform_adapters as adapters  # noqa: E402
+
+
+class CitedContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.graph = fleet_atlas.build_graph(ROOT)
+        cls.document = fleet_atlas.snapshot(ROOT, cls.graph)
+
+    def test_delegation_edges_equal_the_enforced_literal(self) -> None:
+        pairs = {
+            (e.source.removeprefix("agent:"), e.target.removeprefix("agent:"))
+            for e in self.graph.edges.values() if e.kind == "delegates_to"
+        }
+        expected = {(a, b) for a, targets in validate_fleet.EXPECTED_DELEGATION.items() for b in targets}
+        self.assertEqual(pairs, expected)
+        self.assertTrue(all(e.cls == "CONTRACT_RESOLVED" for e in self.graph.edges.values() if e.kind == "delegates_to"))
+
+    def test_guarded_agents_are_constrained_by_the_hook(self) -> None:
+        guarded = {
+            e.source.removeprefix("agent:") for e in self.graph.edges.values()
+            if e.kind == "constrained_by" and e.target == "hook:readonly-guard"
+        }
+        self.assertEqual(guarded, set(adapters.GUARDED_AGENTS))
+
+    def test_every_generated_output_has_exactly_one_generated_from_edge(self) -> None:
+        expected = {p.as_posix() for p in adapters.expected_outputs(ROOT)}
+        projections = {n.path for n in self.graph.nodes.values() if n.type == "generated-projection"}
+        self.assertEqual(projections, expected)
+        sources = {}
+        for e in self.graph.edges.values():
+            if e.kind == "generated_from":
+                sources.setdefault(e.source, []).append(e.target)
+        self.assertEqual(set(sources), {f"generated-projection:{p}" for p in expected})
+        self.assertTrue(all(len(v) == 1 for v in sources.values()))
+        self.assertFalse([u for u in self.graph.unknowns if u.code == "cite.generated-source-missing"])
+
+    def test_parity_check_is_a_real_detector(self) -> None:
+        self.assertEqual(fleet_atlas_cite.parity_failures(ROOT, self.document), [])
+        import copy
+        broken = copy.deepcopy(self.document)
+        broken["edges"] = [e for e in broken["edges"] if not (e["kind"] == "delegates_to" and e["source"] == "agent:sre")]
+        self.assertTrue(any("delegates_to" in f and "sre" in f for f in fleet_atlas_cite.parity_failures(ROOT, broken)))
+        broken = copy.deepcopy(self.document)
+        broken["edges"].append({
+            "id": "edge:forged", "source": "agent:scribe", "target": "agent:researcher",
+            "kind": "delegates_to", "class": "CONTRACT_RESOLVED", "attrs": {}, "evidence": [],
+        })
+        self.assertTrue(any("scribe" in f for f in fleet_atlas_cite.parity_failures(ROOT, broken)))
+        broken = copy.deepcopy(self.document)
+        broken["nodes"] = [n for n in broken["nodes"] if n["type"] != "generated-projection"][:-1]
+        self.assertTrue(any("generated" in f for f in fleet_atlas_cite.parity_failures(ROOT, broken)))
+
+
 if __name__ == "__main__":
     unittest.main()
