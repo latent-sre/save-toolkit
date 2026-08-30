@@ -9,6 +9,39 @@ deterministic generator, never edited by hand.
 > **Pre-release (0.1.0).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
 
+## How it works
+
+Save Toolkit is a host-loaded control layer, not a background orchestrator. The host supplies the
+model and executes tools; the plugin supplies the specialist roles, reusable methods, routing, and
+authority boundaries.
+
+```text
+agents/ + skills/ (canonical)
+  |-- Claude Code reads them directly
+  `-- generator -> .github/agents/ + platforms/copilot/skills/ -> VS Code/Copilot
+```
+
+- An **agent** owns a lane with a distinct prompt, tool posture, and return contract.
+- A **skill** adds a method or checklist without changing the current owner.
+- **Model delegation** uses the host's subagent tool to give a bounded task to a named child, which
+  returns its result to the caller. Canonical Claude `Agent(target, ...)` grants become VS Code's
+  `agent` tool plus the parent's `agents:` allowlist.
+- A VS Code **handoff** is a separate human-selected ownership transition from `handoffs:`. It keeps
+  relevant conversation context but does not grant approval or model-delegation authority.
+- Production-facing or materially irreversible effects remain human decisions even when an agent
+  prepares the exact action, verification, and rollback.
+
+### Host guarantees and limits
+
+A field present in an agent file proves what the plugin requested, not what every host enforces.
+Treat these as build-bound evidence, and rerun the linked probe after host upgrades.
+
+| Host surface | Contract shipped | Current evidence boundary |
+|---|---|---|
+| Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
+| VS Code 1.135.0 (`08d4889f`) | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-08-30, plugin registration, 8 agents, 33 skills, the separate ADR prompt, and a synthetic allowed child passed. A forbidden child still ran, the real `software-engineer` -> `reviewer` call was inconclusive, and no fleet Copilot hook is wired. See the [HOST-002 evidence](docs/reviews/2026-08-30-vscode-subagent-handoff-enforcement.md) |
+| First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the [HOST-002 probe](docs/probes/host-002-vscode-agent-delegation.md) passes on that exact build |
+
 ## Quickstart
 
 **Claude Code** (pre-release install from `main`):
