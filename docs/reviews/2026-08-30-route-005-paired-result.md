@@ -72,11 +72,11 @@ incumbent `95a77174f94e7fe5ebc75ec6c83dfa44c8e30b019ab43f285fbbf5bb291dfac4`.
 
 ## Retained evidence
 
-- [Candidate normalized-envelope capture](2026-08-30-eval-20260830T150113Z-25fb8902.md)
+- [Candidate normalized-envelope capture](2026-08-30-folded-eval-index.md) (`20260830T150113Z-25fb8902`)
   (`summary.json` SHA-256
   `240419033ef6df841d6a485ac6a48d1d64314050da6c20a3b68870b7ca403543`;
   envelope SHA-256 `05a51a93d4645c2215c52c7bf3b7fb6186919226f262aaddbe525b4e8c7ca36f`).
-- [Incumbent normalized-envelope capture](2026-08-30-eval-20260830T152600Z-d2661114.md)
+- [Incumbent normalized-envelope capture](2026-08-30-folded-eval-index.md) (`20260830T152600Z-d2661114`)
   (`summary.json` SHA-256
   `6225c82e73b618228b3d317d843af27821ede81c0b68067d81c7d34c4511d386`;
   envelope SHA-256 `8cbf195f05d6b0b39a62933e5d192b3b64ae6f9bfe0550136e75cd14d47a1401`).

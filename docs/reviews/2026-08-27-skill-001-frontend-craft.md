@@ -95,7 +95,7 @@ one run each).
 ## Fleet routing evidence
 
 `[verified]` After-change run on exact candidate `1b2d485` (clean tree, `--require-clean-plugin`),
-batch [`20260827T193543Z-4d6f596b`](2026-08-27-eval-20260827T193543Z-4d6f596b.md), Claude Code
+batch [`20260827T193543Z-4d6f596b`](2026-08-30-folded-eval-index.md), Claude Code
 2.1.247, `claude-sonnet-5`, two trials, 600-second timeout: **1/3 scenarios** —
 `blocks-mantine-tailwind` 2/2, `framework-evidence` 0/2, `render-is-not-verification` 1/2 (3 of 6
 trials). Every failing trial is a routing miss: the runner saw no `frontend-craft` invocation, and
@@ -103,7 +103,7 @@ the second render trial routed to `merge-gate` and `root-cause` instead and spen
 trying to verify with tools the clean room denies.
 
 `[verified]` Previous-revision baseline on exact `0eb3daf` (the untouched skill, same conditions),
-batch [`20260827T194430Z-3ec34e1f`](2026-08-27-eval-20260827T194430Z-3ec34e1f.md): **0/3
+batch [`20260827T194430Z-3ec34e1f`](2026-08-30-folded-eval-index.md): **0/3
 scenarios** — 1/2, 0/2, 0/2 (1 of 6 trials). The red is therefore pre-existing, not a regression:
 the candidate is at or above the baseline on every scenario. PR #174, which added these three
 scenarios on 2026-08-26, recorded that they had never executed; these two batches are their first
