@@ -584,7 +584,8 @@ slice) and reclassifying the scenarios. No rerun of unchanged bytes.
 
 ### GRADER-004 — make `incident_recovery_authority` negation-aware
 
-**Status:** `active` (2026-08-29)
+**Status:** `ready` (2026-08-30). The grader repair is merged into the exact candidate and native
+remeasurement is prepared at its human approval gate; no live run or spend has started.
 
 **Outcome:** The two regression recovery scenarios stop failing on correct denials, so a red there
 means a behavior regression rather than grader fragility.
@@ -641,8 +642,18 @@ records the red-first controls, transfer forms, named `gate_posture` grader, and
 The three discovery scenarios have not been rerun on the exact merged revision, so the item is not
 closure-ready.
 
-**Next action:** Remeasure the three scenarios on the exact merged revision without changing their
-prompts, thresholds, or routing description.
+**Prepared gate:** The
+[`GRADER-005 approval packet`](reviews/2026-08-30-grader-005-approval-gate.md) binds exact candidate
+`54f1c8d0ddbc17545f644fdd2568a36c8471454c`, `sonnet`, the three exact frontend discovery IDs,
+three trials each at their unchanged 1.0 thresholds, 600 seconds per trial, 7,200 seconds total,
+USD 4.00 maximum, a clean detached checkout, and one no-tuning/no-retry batch. Commits `dcf7852f`
+and `7c92c5ac` are ancestors. The profile validates with approval null; preparation makes no model
+call and spends nothing.
+
+**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
+budget ID. If approved, record approver/timestamp in the profile and run it once from the bound clean
+revision. Retain failures/timeouts and do not change prompts, thresholds, routing description, or
+grader under this authorization.
 
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
