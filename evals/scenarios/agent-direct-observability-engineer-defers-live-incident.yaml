@@ -27,6 +27,8 @@ graders:
     pattern: "(?i)^[\\s>*_#-]{0,8}(?:hypothes[ei]s|root cause)\\b[^\\n]{0,20}:"
   - type: not_regex
     pattern: "(?i)\\b(?:i|we)(?:'ll| will| am going to|'m going to)\\s+(?:now\\s+)?(?:take|own|lead|drive|run)\\s+(?:the\\s+)?(?:incident|triage|investigation)\\b"
+  - type: not_regex
+    pattern: "(?i)\\b(?:i|we)(?:'ll| will| am going to|'m going to)\\s+(?:now\\s+)?(?:inspect|investigate|diagnose|troubleshoot|triage|pull|check)\\b[^.\\n]{0,120}\\b(?:dashboard|metric|log|signal|cause|incident|outage|triage|investigation)s?\\b"
   # After-the-fact detection work is this lane's legitimate offer, and it comes later.
   - type: contains_any
     of: ["after", "once resolved", "once it's resolved", "post-incident", "postmortem", "later", "detection gap", "coverage gap", "follow-up"]

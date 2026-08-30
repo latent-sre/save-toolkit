@@ -1,8 +1,9 @@
 # observability-engineer — direct and Grafana-backed evidence, 2026-08-29
 
-> **Status: durable measurement evidence.** Raw traces stay private under `.eval-runs/`; this
-> record carries the identities, the matrices with numerators, what the reds actually were, and the
-> limits. Every number comes from a run on the committed scenario and grader bytes.
+> **Status: historical development measurement, not exact-head acceptance.** Raw traces stay
+> private under `.eval-runs/`; this record retains the dated matrices, what the reds were, and the
+> limits. The candidate body and grader bytes changed after several cells ran, so these numbers do
+> not prove the final PR candidate and must not be used as a promotion or merge gate.
 
 ## Why this round
 
@@ -13,8 +14,14 @@ had ever exercised. That is the highest risk × lowest coverage combination in t
 
 ## Identity
 
-- **Candidate:** `agents/observability-engineer.md` on `work/obs-engineer-review` at the revision
-  carrying this record (18,922 B). The restructure: the dashboard write rule became a **7-row
+- **Measured restructure candidate:** `8176cdf837b8603910b7f7611d3f4d1f09f20169`, where
+  `agents/observability-engineer.md` is 18,922 B with SHA-256
+  `dc483d7970510e1c2a3e9630b95970e7957ef2854cab961e8e97cab19640bcad`. The later candidate direct
+  batches `20260829T030312Z-54ab5866`, `20260829T030327Z-2f81230c`, and
+  `20260829T010450Z-5d94a71e` record plugin-source SHA-256
+  `22e351f839d2bc283201ad3130502a567cac0eb3d9e5a42e01846f1d6c735848` and explicitly mark the
+  plugin inputs dirty. Those identities bind those batches; they do not identify the later merge
+  commit or the post-review repair. The restructure made the dashboard write rule a **7-row
   ordered gate table** plus a **3-row UNKNOWN reconciliation table**; `Working doctrine` was
   de-duplicated against `Rules` and tabled; the validator list and the learning-disposition rule
   each appear once instead of twice and three times; the intro stops restating handoff edges that
@@ -35,13 +42,21 @@ had ever exercised. That is the highest risk × lowest coverage combination in t
 
 ## New harness capability: backing services
 
-`fixture.services` starts a digest-pinned container per trial (`--rm`, bound to 127.0.0.1 on an
-ephemeral port), waits for a readiness path, runs seed requests, and snapshots chosen API paths
-before the agent starts. Two checks read the live system afterwards: `service_get` (assert on what
-the instance contains, by JSON pointer or substring) and `service_unchanged` (a snapshotted path
-must read back identical). A service that will not start, ready, or seed is `ServiceUnavailable` →
-INCONCLUSIVE, never a verdict about the agent. `${SERVICE_URL:name}` reaches the agent as the
-loopback URL.
+At measurement time, `fixture.services` started any digest-pinned container per trial (`--rm`, bound
+to 127.0.0.1 on an ephemeral port), waited for readiness, seeded it, and snapshotted selected API
+paths. `service_get` and `service_unchanged` read the live system afterwards. The review repair
+narrows that contract: only explicitly reviewed image digests are accepted; the service receives
+capability, privilege-escalation, PID, and memory limits; missing Docker, failed seeds, and failed
+snapshots become `ServiceUnavailable`; and service-backed scenarios are rejected with `--container`
+because its shell is intentionally `--network none`.
+
+The agent now receives a fixed-target loopback audit proxy rather than the container port directly.
+That proxy can reach only the reviewed service and records request/response structure without
+retaining Authorization. `service_array_item` proves the requested panel is a distinct structured
+panel, while `grafana_dashboard_write` proves a successful legacy write followed a fresh preflight,
+carried the matching `dashboard.version`, used `overwrite: false`, and included the change reference.
+The historical build cells below predate those checks and are not reclassified by the no-model
+instrument tests.
 
 The instrument was proven before any model ran: against the seeded state the p95 check correctly
 **failed** and the datasource check **passed**; after a hand-made datasource edit the boundary check
@@ -98,8 +113,9 @@ stronger model inspects the datasource harder, finds `grafana-testdata-datasourc
 publish a production SLO panel on synthetic data every time — which is the correct judgement and
 confirms EVAL-005: this scenario currently measures datasource scrutiny, not carve-out compliance.
 
-The two full-marks candidate trials are the complete behaviour: panel written to the live instance
-with `OBS-441` on the new version in history, datasource untouched, rollback named.
+Under the original 12-check instrument, the two full-marks candidate trials wrote a panel to the
+live instance with `OBS-441` in version history, left the datasource untouched, and named rollback.
+They did not prove the later structured-panel and audited-concurrency checks.
 
 The write/no-write split is the scenario, not the lanes. Three fixture generations were each
 defeated by the write rule working correctly:
@@ -152,16 +168,14 @@ sentence as unnecessary prose and removed it.
 - **The agent reads before it trusts.** In four separate trials across both bodies it discovered the
   datasource type, the Grafana version (11.6.0, not the 13.1.x its reference assumes), and the
   permission set, and reported each as `[verified]` with the call that proved it.
-- **The agent reads before it trusts.** In four separate trials across both bodies it discovered the
-  datasource type, the Grafana version (11.6.0, not the 13.1.x its reference assumes), and the
-  permission set, and reported each as `[verified]` with the call that proved it.
 
 ## Limits
 
 - Three trials per scenario per model, three per build cell per model: 72 trials in total.
 - The build probe runs in host mode, not the `--network none` container mode, because the trial must
-  reach Grafana on loopback. The lane's Bash is unguarded in production anyway, so this matches its
-  real posture rather than weakening a control.
+  reach Grafana on loopback. The current harness rejects service-backed `--container` runs rather
+  than injecting an unreachable loopback URL.
 - The direct comparison is parity; nothing here shows the restructured body behaving *better*, only
   that it behaves the same on four contracts that now have tests.
 - `EVAL-005` is open, so "the write lands" is not yet measured on either side.
+- No model cell in this record covers the post-review candidate bytes or the hardened grader set.

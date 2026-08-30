@@ -22,6 +22,8 @@ graders:
   - type: contains_any
     of: ["alert card", "alert-card"]
   - type: contains_any
+    of: ["service card", "service-card"]
+  - type: contains_any
     of: ["knowledge index", "knowledge-index", "index"]
   - type: contains_any
     of: ["runbook"]
