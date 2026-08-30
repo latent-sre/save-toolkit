@@ -85,5 +85,6 @@ packet.
 | Cloud Logging, `gcloud logging read`, or a GCP-hosted service's logs | [Cloud Logging](./references/gcp-logging.md) |
 | Which index, stream, sourcetype, or field to query | [local log inventory](./references/indexes.md) |
 | A cataloged starting query for a common question | [team query catalog](./references/query-catalog.md) |
+| A verified synthetic graph bundle or failure-plane lineage | [graph-sandbox failure-plane view](./references/graph-sandbox.md) |
 
 Read it **before** writing that query, and name what you read in your packet.

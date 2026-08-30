@@ -1,0 +1,373 @@
+#!/usr/bin/env python3
+"""Evaluate the synthetic GRAPH-003 alert against verified graph-sandbox bundles.
+
+The evaluator is intentionally deployment-free. It reads evidence already published by
+``graph-sandbox/activate.py`` and emits a deterministic timeline for the one synthetic page:
+``GraphSandboxRunNeedsAction``. It never contacts Grafana, a notification route, or a live system.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import sys
+from collections import Counter
+from datetime import datetime
+from pathlib import Path, PurePosixPath
+from typing import Iterable, Mapping
+
+
+CONTRACT_VERSION = "checkout-payments-timeout-drill/v1"
+EVIDENCE_VERSION = "graph-evidence/v2"
+EVENT_VERSION = "graph-boundary-event/v2"
+SANDBOX_VERSION = "graph-sandbox/v1"
+VERIFICATION_VERSION = "graph-sandbox-host-verification/v1"
+TERMINAL_EVENTS = {"run.terminal", "run.cancelled", "run.inconclusive"}
+TERMINAL_EFFECT_STATES = {"RECEIPT_RECORDED", "RECONCILED", "UNKNOWN"}
+CHECKSUM_LINE_RE = re.compile(r"([0-9a-f]{64})  ([^\r\n]+)")
+REQUIRED_BUNDLE_ARTIFACTS = {
+    "effects.jsonl",
+    "events.jsonl",
+    "manifest.json",
+    "verification.json",
+}
+
+
+class EvidenceError(ValueError):
+    """Raised when an input cannot be trusted as one verified sandbox evidence bundle."""
+
+
+def _verify_checksums(directory: Path) -> set[str]:
+    checksum_path = directory / "checksums.sha256"
+    try:
+        lines = checksum_path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise EvidenceError(f"checksums.sha256 is not readable UTF-8 text: {exc}") from exc
+    if not lines:
+        raise EvidenceError("checksums.sha256 must not be empty")
+
+    names: set[str] = set()
+    for line_number, line in enumerate(lines, start=1):
+        match = CHECKSUM_LINE_RE.fullmatch(line)
+        if match is None:
+            raise EvidenceError(
+                f"checksums.sha256:{line_number} must be lowercase SHA-256, two spaces, and path"
+            )
+        expected, name = match.groups()
+        relative = PurePosixPath(name)
+        if (
+            relative.is_absolute()
+            or relative.as_posix() != name
+            or ".." in relative.parts
+            or "\\" in name
+        ):
+            raise EvidenceError(f"checksums.sha256:{line_number} has an unsafe artifact path")
+        if name in names:
+            raise EvidenceError(f"checksums.sha256 contains duplicate artifact {name!r}")
+
+        artifact = directory.joinpath(*relative.parts).resolve()
+        if not artifact.is_relative_to(directory) or not artifact.is_file():
+            raise EvidenceError(f"checksum artifact is missing or outside the bundle: {name!r}")
+        actual = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        if actual != expected:
+            raise EvidenceError(f"checksum mismatch for artifact {name!r}")
+        names.add(name)
+
+    missing = REQUIRED_BUNDLE_ARTIFACTS - names
+    if missing:
+        raise EvidenceError(f"checksums.sha256 omits required artifacts: {sorted(missing)}")
+    return names
+
+
+def _read_json(path: Path, label: str) -> dict[str, object]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise EvidenceError(f"{label} is not readable UTF-8 JSON: {exc}") from exc
+    if not isinstance(value, dict):
+        raise EvidenceError(f"{label} must be one JSON object")
+    return value
+
+
+def _read_jsonl(path: Path, label: str, *, allow_empty: bool = False) -> list[dict[str, object]]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise EvidenceError(f"{label} is not readable UTF-8 JSONL: {exc}") from exc
+    if not lines and not allow_empty:
+        raise EvidenceError(f"{label} must not be empty")
+    records: list[dict[str, object]] = []
+    for line_number, line in enumerate(lines, start=1):
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise EvidenceError(f"{label}:{line_number} is invalid JSON: {exc}") from exc
+        if not isinstance(value, dict):
+            raise EvidenceError(f"{label}:{line_number} must be one JSON object")
+        records.append(value)
+    return records
+
+
+def _required(mapping: Mapping[str, object], key: str, expected: type, label: str):
+    value = mapping.get(key)
+    if not isinstance(value, expected):
+        raise EvidenceError(f"{label}.{key} must be {expected.__name__}")
+    return value
+
+
+def _timestamp(value: object, label: str) -> datetime:
+    if not isinstance(value, str):
+        raise EvidenceError(f"{label} must be an ISO-8601 string")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise EvidenceError(f"{label} is not an ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None:
+        raise EvidenceError(f"{label} must carry a timezone")
+    return parsed
+
+
+def _bounded_strings(values: Iterable[object]) -> list[str]:
+    return sorted({value for value in values if isinstance(value, str) and value})
+
+
+def _terminal_effects(effects: list[dict[str, object]], label: str) -> dict[str, str]:
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for index, effect in enumerate(effects, start=1):
+        effect_id = _required(effect, "effect_id", str, f"{label}:{index}")
+        state = _required(effect, "effect_state", str, f"{label}:{index}")
+        sequence = effect.get("sequence")
+        if not isinstance(sequence, int) or sequence < 1:
+            raise EvidenceError(f"{label}:{index}.sequence must be a positive integer")
+        if state not in {"PREPARED", "DISPATCHED", *TERMINAL_EFFECT_STATES}:
+            raise EvidenceError(f"{label}:{index}.effect_state is not in the closed vocabulary")
+        grouped.setdefault(effect_id, []).append(effect)
+
+    terminal: dict[str, str] = {}
+    for effect_id, records in grouped.items():
+        ordered = sorted(records, key=lambda record: int(record["sequence"]))
+        sequences = [int(record["sequence"]) for record in ordered]
+        if sequences != list(range(1, len(sequences) + 1)):
+            raise EvidenceError(f"{label}: effect {effect_id!r} sequences are not contiguous")
+        state = str(ordered[-1]["effect_state"])
+        if state not in TERMINAL_EFFECT_STATES:
+            raise EvidenceError(f"{label}: effect {effect_id!r} has no terminal state")
+        terminal[effect_id] = state
+    return terminal
+
+
+def _load_bundle(directory: Path) -> dict[str, object]:
+    directory = Path(directory).resolve()
+    if not directory.is_dir():
+        raise EvidenceError(f"evidence directory does not exist: {directory}")
+
+    checksum_names = _verify_checksums(directory)
+    manifest = _read_json(directory / "manifest.json", f"{directory}/manifest.json")
+    verification = _read_json(
+        directory / "verification.json", f"{directory}/verification.json"
+    )
+    events = _read_jsonl(directory / "events.jsonl", f"{directory}/events.jsonl")
+    effects = _read_jsonl(
+        directory / "effects.jsonl", f"{directory}/effects.jsonl", allow_empty=True
+    )
+
+    run_id = _required(manifest, "run_id", str, "manifest")
+    case_id = _required(manifest, "case_id", str, "manifest")
+    source_revision = _required(manifest, "source_revision", str, "manifest")
+    outcome = _required(manifest, "outcome", str, "manifest")
+    started = _timestamp(manifest.get("started_at"), "manifest.started_at")
+    ended = _timestamp(manifest.get("ended_at"), "manifest.ended_at")
+    artifacts = manifest.get("artifacts")
+    if (
+        not isinstance(artifacts, list)
+        or not artifacts
+        or not all(isinstance(name, str) and name for name in artifacts)
+        or len(artifacts) != len(set(artifacts))
+    ):
+        raise EvidenceError("manifest.artifacts must be a non-empty unique string list")
+    expected_checksums = set(artifacts) | {"manifest.json"}
+    if checksum_names != expected_checksums:
+        raise EvidenceError("checksum inventory does not exactly match manifest.artifacts")
+    if ended < started:
+        raise EvidenceError("manifest.ended_at precedes manifest.started_at")
+    if (
+        manifest.get("contract_version") != CONTRACT_VERSION
+        or manifest.get("evidence_version") != EVIDENCE_VERSION
+        or manifest.get("sandbox_version") != SANDBOX_VERSION
+    ):
+        raise EvidenceError("manifest contract/evidence/sandbox version mismatch")
+    if len(source_revision) != 40 or any(character not in "0123456789abcdef" for character in source_revision):
+        raise EvidenceError("manifest.source_revision must be 40 lowercase hexadecimal characters")
+
+    if (
+        verification.get("verification_version") != VERIFICATION_VERSION
+        or verification.get("run_id") != run_id
+        or verification.get("source_revision") != source_revision
+    ):
+        raise EvidenceError("verification identity does not match manifest")
+    expected_exit = 0 if outcome == "SUCCEEDED" else 2
+    if verification.get("exit_code") != expected_exit:
+        raise EvidenceError("verification exit_code contradicts manifest outcome")
+
+    sequences: list[int] = []
+    for index, event in enumerate(events, start=1):
+        sequence = event.get("sequence")
+        if not isinstance(sequence, int) or sequence < 1:
+            raise EvidenceError(f"events.jsonl:{index}.sequence must be a positive integer")
+        sequences.append(sequence)
+        if (
+            event.get("event_version") != EVENT_VERSION
+            or event.get("run_id") != run_id
+            or event.get("case_id") != case_id
+            or event.get("source_revision") != source_revision
+            or event.get("contract_version") != CONTRACT_VERSION
+            or event.get("sandbox_version") != SANDBOX_VERSION
+        ):
+            raise EvidenceError(f"events.jsonl:{index} identity does not match manifest")
+        _timestamp(event.get("time_utc"), f"events.jsonl:{index}.time_utc")
+    if sequences != list(range(1, len(events) + 1)):
+        raise EvidenceError("events.jsonl sequences must be contiguous from one")
+    if events[0].get("event_type") != "run.accepted":
+        raise EvidenceError("events.jsonl must start with run.accepted")
+    if events[-1].get("event_type") not in TERMINAL_EVENTS:
+        raise EvidenceError("events.jsonl must end with one terminal run event")
+
+    event_types = Counter(str(event.get("event_type")) for event in events)
+    terminal_time = _timestamp(events[-1].get("time_utc"), "terminal event time")
+    checkpoint_times = [
+        _timestamp(event.get("time_utc"), "checkpoint completion time")
+        for event in events
+        if event.get("event_type") == "checkpoint.write_completed"
+    ]
+    checkpoint_age = None
+    if checkpoint_times:
+        checkpoint_age = max(0.0, (terminal_time - max(checkpoint_times)).total_seconds())
+
+    approval_events = [
+        event for event in events if str(event.get("event_type", "")).startswith("approval.")
+    ]
+    approval_wait = None
+    if len(approval_events) >= 2:
+        approval_wait = max(
+            0.0,
+            (
+                _timestamp(approval_events[-1].get("time_utc"), "approval decision time")
+                - _timestamp(approval_events[0].get("time_utc"), "approval request time")
+            ).total_seconds(),
+        )
+
+    return {
+        "path": directory.as_posix(),
+        "run_id": run_id,
+        "case_id": case_id,
+        "source_revision": source_revision,
+        "outcome": outcome,
+        "started_at": manifest["started_at"],
+        "ended_at": manifest["ended_at"],
+        "ended_sort": ended,
+        "duration_seconds": round((ended - started).total_seconds(), 6),
+        "failure_planes": _bounded_strings(event.get("failure_plane") for event in events),
+        "error_classes": _bounded_strings(event.get("error_class") for event in events),
+        "event_counts": dict(sorted(event_types.items())),
+        "approval_wait_seconds": None if approval_wait is None else round(approval_wait, 6),
+        "checkpoint_completion_age_seconds": (
+            None if checkpoint_age is None else round(checkpoint_age, 6)
+        ),
+        "terminal_effects": _terminal_effects(effects, "effects.jsonl"),
+    }
+
+
+def evaluate_timeline(evidence_directories: Iterable[Path]) -> dict[str, object]:
+    """Return observations and state transitions for a chronological evidence timeline."""
+
+    bundles = [_load_bundle(Path(directory)) for directory in evidence_directories]
+    if not bundles:
+        raise EvidenceError("at least one evidence directory is required")
+    bundles.sort(key=lambda bundle: (bundle["ended_sort"], str(bundle["run_id"])))
+    run_ids = [str(bundle["run_id"]) for bundle in bundles]
+    if len(run_ids) != len(set(run_ids)):
+        raise EvidenceError("timeline contains a duplicate run_id")
+
+    unresolved: set[str] = set()
+    observations: list[dict[str, object]] = []
+    transitions: list[dict[str, object]] = []
+    prior_state = "NOT_EVALUATED"
+    for bundle in bundles:
+        for effect_id, effect_state in dict(bundle["terminal_effects"]).items():
+            if effect_state == "UNKNOWN":
+                unresolved.add(effect_id)
+            elif effect_state in {"RECEIPT_RECORDED", "RECONCILED"}:
+                unresolved.discard(effect_id)
+        state = (
+            "FIRING"
+            if bundle["outcome"] != "SUCCEEDED" or unresolved
+            else "RESOLVED"
+        )
+        observation = {
+            key: value
+            for key, value in bundle.items()
+            if key not in {"ended_sort", "terminal_effects"}
+        }
+        observation.update(
+            {
+                "alert_state": state,
+                "unresolved_unknown_effects": len(unresolved),
+                "unresolved_effect_ids": sorted(unresolved),
+            }
+        )
+        observations.append(observation)
+        if state != prior_state:
+            transitions.append(
+                {
+                    "at_run_id": bundle["run_id"],
+                    "transition": f"{prior_state}->{state}",
+                }
+            )
+            prior_state = state
+
+    final = observations[-1]
+    return {
+        "evaluation_version": "graph-sandbox-alert-evaluation/v1",
+        "rule": {
+            "name": "GraphSandboxRunNeedsAction",
+            "severity": "page",
+            "owner": "sre",
+            "first_action": (
+                "Inspect the latest verified evidence bundle and follow the matching "
+                "failure-plane branch in the graph-sandbox operations runbook."
+            ),
+            "notification_route": None,
+        },
+        "observations": observations,
+        "transitions": transitions,
+        "final_alert": {
+            "state": final["alert_state"],
+            "run_id": final["run_id"],
+            "unresolved_unknown_effects": final["unresolved_unknown_effects"],
+            "unresolved_effect_ids": final["unresolved_effect_ids"],
+        },
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Evaluate GraphSandboxRunNeedsAction against one or more verified graph-sandbox "
+            "evidence directories. Inputs are ordered by manifest.ended_at."
+        )
+    )
+    parser.add_argument("evidence_directory", nargs="+", type=Path)
+    args = parser.parse_args(argv)
+    try:
+        result = evaluate_timeline(args.evidence_directory)
+    except EvidenceError as exc:
+        print(f"graph_sandbox_alerts: FAIL: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

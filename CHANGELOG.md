@@ -7,6 +7,13 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Added and closed the bounded `GRAPH-003` operating layer for the accepted offline
+  `checkout-payments-timeout-drill/v1` graph. Existing metrics, logs, alerting, and runbook skills
+  now carry graph-specific indicator, failure-plane, one-page, and response references; a
+  pure-standard-library evaluator proves readiness fire/healthy resolve and preserves an unresolved
+  `UNKNOWN` effect across unrelated success. Current exact-revision Docker evidence covers eight
+  injected cases plus recovery. A discovery near-miss keeps live graph impact with `sre`; no
+  dashboard, notification route, pager, credential, production target, or new authority is added.
 - Added `incident-investigation`, a dedicated evidence-selected incident-depth router for first
   response, hypothesis investigation, systemic failure, and optional signal characterization, with
   the sustained-recovery lifecycle and the handoff packet as predicate-loaded references. The `sre`
