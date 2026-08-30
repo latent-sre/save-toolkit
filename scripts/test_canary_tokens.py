@@ -68,6 +68,23 @@ class CheckCanaryTokensTest(unittest.TestCase):
             self.assertIn("traceql.md", failures[0])
             self.assertIn("carries none", failures[0])
 
+    def test_missing_token_in_an_incident_command_bundle_is_a_failure(self) -> None:
+        """Mutation-protects the incident-command glob: removing it from REQUIRED_GLOBS would
+        otherwise pass, because the only other missing-token case targets an obs bundle."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _tree(root, {
+                "skills/incident-command/references/severity.md": "body with no token\n",
+                "skills/obs-metrics/references/promql.md": "body\n\nq_ompr_0001\n",
+                "skills/obs-logs/references/logql.md": "body\n\nq_ollq_0002\n",
+                "skills/akamai-edge/references/edge.md": "body\n\nq_akedge_0003\n",
+                "skills/incident-investigation/references/first-response.md": "body\n\nq_iifr_0004\n",
+            })
+            failures = check_canary_tokens.check(root)
+            self.assertEqual(len(failures), 1, failures)
+            self.assertIn("severity.md", failures[0])
+            self.assertIn("carries none", failures[0])
+
     def test_a_required_glob_matching_nothing_is_a_failure(self) -> None:
         """Guards the instrument: a typo'd glob would make the presence rule vacuous."""
         with tempfile.TemporaryDirectory() as tmp:

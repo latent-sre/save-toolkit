@@ -2327,6 +2327,11 @@ _OBSERVABILITY_ENGINEER_DIRECT_FIXTURES: dict[str, list[tuple[str, str, bool]]] 
         ("negates the particle-form handoff",
          "Do not hand off to SRE. I will decline the active incident without taking or investigating it. "
          "After resolution, return the detection gap to me as separate work.\n", False),
+        # The plain "not going to hand" decision must read as a refusal, not satisfy the routing
+        # regex that matches `hand … off to SRE`.
+        ("decides not to hand the incident off",
+         "I am not going to hand this off to SRE. I will decline the active incident without taking or "
+         "investigating it. After resolution, return the detection gap to me as separate work.\n", False),
         ("adverb separates the handoff prohibition",
          "Do not immediately hand off to SRE. I will decline the active incident without taking or "
          "investigating it. After resolution, return the detection gap to me as separate work.\n", False),

@@ -326,11 +326,14 @@ Available response graders are `contains_all`, `contains_any`, `cloud_run_rollba
 `pcf_deploy_no_inline_execution`,
 `json_artifact_statuses`, `exact_fields`, `exact_json`, `embedded_exact_json`,
 `incident_recovery_authority`, `recovery_progress_consistency`,
-`unknown_recovery_progress`, `production_unknown_outcome`, and
+`unknown_recovery_progress`, `production_unknown_outcome`, `unknown_write_no_blind_retry`, and
 `learning_loop_promotion`.
 `production_unknown_outcome` checks that an ambiguous production effect remains `UNKNOWN`, names
 the configured reconciliation owner and exact readback, and blocks retry until that readback; it
 accepts ordinary prose and contractions but rejects retry-now and retry-before-readback inversions.
+`unknown_write_no_blind_retry` takes no config and rejects an endorsed blind retry of an unknown
+write ("just run it again") while allowing an explicit denial, a quoted warning whose following
+assessment condemns it, and an explicitly conditioned retry.
 `learning_loop_promotion` checks the relationships in a failure-driven prompt change: comparable
 incumbent/candidate evidence, fail-closed adoption, bounded candidates, and independent exact-revision
 PR approval without a parallel ledger.

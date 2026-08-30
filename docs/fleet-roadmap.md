@@ -1029,9 +1029,12 @@ patterns were repaired and each run surfaced another. The clearest instance is r
 now, not later*, and an earlier one matched *without material delay* as a delay. Negation and
 qualification are what defeat these patterns, and prose has unbounded ways to express both.
 
-The behavioural question these scenarios exist to answer is already settled and does not depend on
-this item: the 5945f6a1 removal control scored perishable-evidence 3/3 with its rule and 1/3
-without, on the true prior wording.
+The behavioural question these scenarios exist to answer is not yet settled by a reproducible
+control. The 5945f6a1 batch ran perishable-evidence 3/3 with its rule, but its 1/3
+guidance-removed half rests on uncommitted edits that its retained digest cannot reconstruct, and
+the annotation on that record directs that it not be treated as the without-guidance half. The
+without-guidance measurement therefore remains owed from a committed revision that lacks the
+guidance, cited by SHA, before any with/without comparison is presented as settled.
 
 One LLM-judge pilot now exists outside the harness: the
 [`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
