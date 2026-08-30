@@ -17,6 +17,7 @@ from runner.events import BoundaryEventStore
 from runner.fixtures import load_case
 from runner.gateway import AmbiguousDispatch, CheckoutFailure, derive_child_idempotency_key
 from runner.graph import RunnerDependencies, build_graph, emit_terminal_event
+from runner.main import _execute_graph, _latest_completed_resume_source
 from runner.models import new_run_state
 
 
@@ -200,15 +201,9 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
             ) as checkpointer:
                 graph = build_graph(dependencies, checkpointer)
                 self.assertIn("__interrupt__", graph.invoke(state, config))
-                graph.invoke(
-                    Command(
-                        resume={
-                            "decision": "APPROVED",
-                            "actor_class": "fixture-operator",
-                        }
-                    ),
-                    config,
-                )
+                pending = _execute_graph(graph, state, events, "APPROVED")
+                self.assertTrue(pending.reconciliation_snapshot_pending)
+                self.assertIsNotNone(pending.resume_source_checkpoint_id)
                 snapshot = graph.get_state(config)
                 self.assertEqual(snapshot.next, ("reconcile_after_snapshot",))
                 effect_id = "checkout-reconciliation-001:checkout_effect:0:effect-checkout"
@@ -219,7 +214,20 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
                     [event["event_type"] for event in events.project()],
                 )
 
-                completed = graph.invoke(None, config)
+                recreated = _execute_graph(graph, state, events, "APPROVED")
+                self.assertTrue(recreated.reconciliation_snapshot_pending)
+                self.assertEqual(gateway.receipt_lookups, 0)
+                self.assertEqual(
+                    _latest_completed_resume_source(events),
+                    pending.resume_source_checkpoint_id,
+                )
+                completed = _execute_graph(
+                    graph,
+                    state,
+                    events,
+                    "APPROVED",
+                    advance_reconciliation_snapshot=True,
+                ).state
 
             emit_terminal_event(events, completed)
             self.assertEqual(completed["outcome"], "SUCCEEDED")

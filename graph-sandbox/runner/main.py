@@ -179,6 +179,8 @@ def _execute_graph(
     initial_state: GraphState,
     events: BoundaryEventStore,
     approval_fixture: str,
+    *,
+    advance_reconciliation_snapshot: bool = False,
 ) -> ExecutionResult:
     config = {"configurable": {"thread_id": initial_state["thread_id"]}}
 
@@ -204,6 +206,12 @@ def _execute_graph(
 
     snapshot = graph.get_state(config)
     values = getattr(snapshot, "values", None)
+    if (
+        values
+        and tuple(getattr(snapshot, "next", ())) == ("reconcile_after_snapshot",)
+        and not advance_reconciliation_snapshot
+    ):
+        return ExecutionResult(cast(GraphState, dict(values)), None, True)
     if values and getattr(snapshot, "next", ()):
         checkpoint_id = _checkpoint_id(snapshot)
         if checkpoint_id is None:
@@ -324,6 +332,23 @@ def _snapshot_terminal_event(
         "error_class": None,
         "data": {"result": "terminal", "outcome": "UNKNOWN"},
     }
+
+
+def _latest_completed_resume_source(events: BoundaryEventStore) -> str | None:
+    pending_source: str | None = None
+    latest_source: str | None = None
+    for event in events.project():
+        if event["event_type"] == "checkpoint.resume_started":
+            checkpoint_id = event.get("checkpoint_id")
+            pending_source = checkpoint_id if isinstance(checkpoint_id, str) else None
+        elif event["event_type"] == "checkpoint.resume_completed":
+            if pending_source is None:
+                raise RuntimeError("completed checkpoint resume lacks a source")
+            latest_source = pending_source
+            pending_source = None
+        elif event["event_type"] == "checkpoint.resume_failed":
+            pending_source = None
+    return latest_source
 
 
 def _checkpoint_lineage(
@@ -567,7 +592,11 @@ def run(environment: Mapping[str, str] | None = None) -> int:
                     checkpointer,
                     state["thread_id"],
                     fingerprint,
-                    None,
+                    (
+                        execution.resume_source_checkpoint_id
+                        or recovered_resume_source
+                        or _latest_completed_resume_source(events)
+                    ),
                 )
                 _export_evidence(
                     config,
@@ -586,6 +615,7 @@ def run(environment: Mapping[str, str] | None = None) -> int:
                         state,
                         events,
                         config.approval_fixture,
+                        advance_reconciliation_snapshot=True,
                     )
                 if execution.reconciliation_snapshot_pending:
                     raise RuntimeError("reconciliation resume did not advance")

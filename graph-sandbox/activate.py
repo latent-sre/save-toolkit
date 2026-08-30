@@ -2072,6 +2072,66 @@ def _publish_staged_timeline(
     return final / "unknown", final / "reconciled"
 
 
+def _validate_reconciliation_pair(
+    unknown_dir: Path,
+    reconciled_dir: Path,
+    unknown_manifest: Mapping[str, object],
+    reconciled_manifest: Mapping[str, object],
+) -> None:
+    """Prove that two valid bundles are one monotonic same-effect timeline."""
+
+    immutable = ("run_id", "case_id", "case_digest", "source_revision", "thread_id", "started_at")
+    if any(unknown_manifest.get(key) != reconciled_manifest.get(key) for key in immutable):
+        raise ActivationError("evidence export: reconciliation snapshots disagree on identity")
+    if (
+        unknown_manifest.get("outcome") != "UNKNOWN"
+        or reconciled_manifest.get("outcome") != "SUCCEEDED"
+        or not isinstance(unknown_manifest.get("ended_at"), str)
+        or not isinstance(reconciled_manifest.get("ended_at"), str)
+        or str(unknown_manifest["ended_at"]) >= str(reconciled_manifest["ended_at"])
+    ):
+        raise ActivationError("evidence export: reconciliation snapshots are not ordered")
+
+    unknown_events = _load_evidence_jsonl(unknown_dir / "events.jsonl", "UNKNOWN events")
+    reconciled_events = _load_evidence_jsonl(
+        reconciled_dir / "events.jsonl",
+        "RECONCILED events",
+    )
+    if (
+        len(reconciled_events) <= len(unknown_events)
+        or unknown_events[:-1] != reconciled_events[: len(unknown_events) - 1]
+    ):
+        raise ActivationError("evidence export: reconciled event history does not extend UNKNOWN")
+
+    unknown_effects = _load_evidence_jsonl(unknown_dir / "effects.jsonl", "UNKNOWN effects")
+    reconciled_effects = _load_evidence_jsonl(
+        reconciled_dir / "effects.jsonl",
+        "RECONCILED effects",
+    )
+    if (
+        not unknown_effects
+        or len(reconciled_effects) <= len(unknown_effects)
+        or unknown_effects != reconciled_effects[: len(unknown_effects)]
+        or unknown_effects[-1].get("effect_state") != "UNKNOWN"
+        or reconciled_effects[-1].get("effect_state") != "RECONCILED"
+        or unknown_effects[-1].get("effect_id") != reconciled_effects[-1].get("effect_id")
+    ):
+        raise ActivationError("evidence export: reconciled effect history does not extend UNKNOWN")
+
+
+def _requires_reconciliation_timeline(
+    sandbox_case: object,
+    approval_fixture: str,
+) -> bool:
+    service_fixtures = getattr(sandbox_case, "service_fixtures", {})
+    return (
+        approval_fixture == "APPROVED"
+        and isinstance(service_fixtures, Mapping)
+        and isinstance(service_fixtures.get("checkout"), Mapping)
+        and service_fixtures["checkout"].get("effect") == "ambiguous_after_commit"
+    )
+
+
 def verify_and_publish_evidence(
     staging: Path,
     *,
@@ -2491,6 +2551,12 @@ def execute_validated_compose(
                         snapshot_role=role,
                     )
                     bundles[role] = (run_dir, manifest)
+                _validate_reconciliation_pair(
+                    bundles["UNKNOWN"][0],
+                    bundles["RECONCILED"][0],
+                    bundles["UNKNOWN"][1],
+                    bundles["RECONCILED"][1],
+                )
                 published_dirs = _publish_staged_timeline(
                     root,
                     staging,
@@ -2693,11 +2759,9 @@ def activate_runtime(
         environment=git_environment,
     )
     sandbox_case = load_sandbox_case(layout.sandbox_root / "cases", args.case_id)
-    service_fixtures = getattr(sandbox_case, "service_fixtures", {})
-    reconciliation_timeline = (
-        isinstance(service_fixtures, Mapping)
-        and isinstance(service_fixtures.get("checkout"), Mapping)
-        and service_fixtures["checkout"].get("effect") == "ambiguous_after_commit"
+    reconciliation_timeline = _requires_reconciliation_timeline(
+        sandbox_case,
+        args.approval_fixture,
     )
     lease = ActivationLease.acquire(args.evidence_root, args.run_id)
     try:

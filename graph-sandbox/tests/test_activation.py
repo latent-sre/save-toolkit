@@ -22,6 +22,8 @@ from activate import (  # noqa: E402
     ActivationError,
     RunClaim,
     _command_payload,
+    _requires_reconciliation_timeline,
+    _validate_reconciliation_pair,
     activate_runtime,
     cleanup_published_resources,
     execute_validated_compose,
@@ -551,6 +553,91 @@ class SnapshotTests(unittest.TestCase):
 
 
 class ActivationTests(unittest.TestCase):
+    def test_reconciliation_timeline_requires_approved_checkout_fixture(self) -> None:
+        sandbox_case = type(
+            "Case",
+            (),
+            {
+                "service_fixtures": {
+                    "checkout": {"effect": "ambiguous_after_commit"}
+                }
+            },
+        )()
+
+        self.assertTrue(_requires_reconciliation_timeline(sandbox_case, "APPROVED"))
+        self.assertFalse(_requires_reconciliation_timeline(sandbox_case, "REJECTED"))
+        self.assertFalse(_requires_reconciliation_timeline(sandbox_case, "TIMEOUT"))
+
+    def test_reconciliation_pair_rejects_divergent_runtime_histories(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            unknown = root / "unknown"
+            reconciled = root / "reconciled"
+            unknown.mkdir()
+            reconciled.mkdir()
+            immutable = {
+                "run_id": "reconcile-001",
+                "case_id": "checkout-ambiguous-after-commit-001",
+                "case_digest": "a" * 64,
+                "source_revision": "b" * 40,
+                "thread_id": "checkout-payments-timeout-drill-v1:reconcile-001",
+                "started_at": "2026-08-30T12:00:00.000Z",
+            }
+            unknown_manifest = {
+                **immutable,
+                "outcome": "UNKNOWN",
+                "ended_at": "2026-08-30T12:00:01.000Z",
+            }
+            reconciled_manifest = {
+                **immutable,
+                "outcome": "SUCCEEDED",
+                "ended_at": "2026-08-30T12:00:02.000Z",
+            }
+            event_prefix = {"sequence": 1, "event_type": "effect.unknown"}
+            (unknown / "events.jsonl").write_text(
+                json.dumps(event_prefix) + "\n" + json.dumps({"sequence": 2, "event_type": "run.terminal"}) + "\n",
+                encoding="utf-8",
+            )
+            (reconciled / "events.jsonl").write_text(
+                json.dumps(event_prefix) + "\n" + json.dumps({"sequence": 2, "event_type": "effect.reconciled"}) + "\n" + json.dumps({"sequence": 3, "event_type": "run.terminal"}) + "\n",
+                encoding="utf-8",
+            )
+            unknown_effects = [
+                {"sequence": 1, "effect_id": "reconcile-001:effect", "effect_state": "UNKNOWN"}
+            ]
+            reconciled_effects = [
+                *unknown_effects,
+                {"sequence": 2, "effect_id": "reconcile-001:effect", "effect_state": "RECONCILED"},
+            ]
+            (unknown / "effects.jsonl").write_text(
+                "".join(json.dumps(record) + "\n" for record in unknown_effects),
+                encoding="utf-8",
+            )
+            (reconciled / "effects.jsonl").write_text(
+                "".join(json.dumps(record) + "\n" for record in reconciled_effects),
+                encoding="utf-8",
+            )
+
+            _validate_reconciliation_pair(
+                unknown,
+                reconciled,
+                unknown_manifest,
+                reconciled_manifest,
+            )
+            divergent = {"sequence": 1, "event_type": "effect.dispatched"}
+            (reconciled / "events.jsonl").write_text(
+                json.dumps(divergent) + "\n" + json.dumps({"sequence": 2, "event_type": "effect.reconciled"}) + "\n" + json.dumps({"sequence": 3, "event_type": "run.terminal"}) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ActivationError, "event history"):
+                _validate_reconciliation_pair(
+                    unknown,
+                    reconciled,
+                    unknown_manifest,
+                    reconciled_manifest,
+                )
+
     @staticmethod
     def host_verification() -> dict[str, object]:
         return {
@@ -2557,6 +2644,7 @@ class ActivationTests(unittest.TestCase):
             final_reconciled = final_parent / "reconciled"
             with (
                 mock.patch("activate._validated_staged_run", side_effect=validated) as validate,
+                mock.patch("activate._validate_reconciliation_pair") as validate_pair,
                 mock.patch(
                     "activate._publish_staged_timeline",
                     return_value=(final_unknown, final_reconciled),
@@ -2583,6 +2671,7 @@ class ActivationTests(unittest.TestCase):
                 [("UNKNOWN", 2), ("RECONCILED", 0)],
             )
             publish.assert_called_once()
+            validate_pair.assert_called_once()
             self.assertEqual(
                 [call.args[0] for call in refresh.call_args_list],
                 [final_unknown, final_reconciled],
