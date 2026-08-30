@@ -2291,6 +2291,8 @@ def _validate_published_run(
         children = {expected / "unknown", expected / "reconciled"}
         if set(expected.iterdir()) != children:
             raise ActivationError("evidence recovery: reconciliation timeline is incomplete")
+        manifests: dict[str, dict[str, object]] = {}
+        dirs: dict[str, Path] = {}
         for role, child in (("UNKNOWN", expected / "unknown"), ("RECONCILED", expected / "reconciled")):
             _validate_published_bundle(
                 child,
@@ -2303,6 +2305,14 @@ def _validate_published_run(
                 snapshot_role=role,
                 max_bytes=max_bytes,
             )
+            manifests[role] = _load_evidence_json(child / "manifest.json", f"{role} manifest")
+            dirs[role] = child
+        _validate_reconciliation_pair(
+            dirs["UNKNOWN"],
+            dirs["RECONCILED"],
+            manifests["UNKNOWN"],
+            manifests["RECONCILED"],
+        )
     else:
         _validate_published_bundle(
             expected,

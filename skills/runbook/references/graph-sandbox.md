@@ -52,9 +52,17 @@ dashboard or notification route in this phase.
    python skills/obs-alerting/scripts/graph_sandbox_alerts.py <EVIDENCE_DIR>
    ```
 
-   Obtain `EVIDENCE_DIR` from the alert annotation. Expected: valid JSON naming the current run,
-   alert state, outcome, bounded failure planes/classes, and unresolved-effect count. Exit 2 means
-   the evidence cannot support action; preserve it and escalate.
+   Obtain `EVIDENCE_DIR` from the alert annotation. For a single-bundle run this is the published
+   run directory (contains `manifest.json` directly). For a reconciliation timeline run the
+   annotation names `<evidence-root>/<run-id>`; pass both child directories instead:
+
+   ```powershell
+   python skills/obs-alerting/scripts/graph_sandbox_alerts.py <EVIDENCE_DIR>/unknown <EVIDENCE_DIR>/reconciled
+   ```
+
+   Expected: valid JSON naming the current run, alert state, outcome, bounded failure
+   planes/classes, and unresolved-effect count. Exit 2 means the evidence cannot support action;
+   preserve it and escalate.
 2. Read the terminal outcome and unresolved-effect count before the failure plane. `SUCCEEDED` does
    not clear an earlier `UNKNOWN` effect.
 3. Select exactly one branch below from the ordered events. If several planes appear, follow causal
