@@ -521,7 +521,7 @@ discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe corr
 7,679 immutable entrypoint bytes (−5.2%, references untouched), description byte-identical. Review
 found the first attempt had cut text pinned by two committed contracts in
 `scripts/test_platform_skill_contracts.py` — the conditional traffic semantics and the rollback
-propagation caveat — which were red on the branch from `a6da0d0a` until restored in `1e4d1e0`; that
+propagation caveat — which were red on the branch from `a6da0d0a` until restored in `9294e80b`; that
 suite was never run during the slice's own verification. The retained bytes are therefore
 contract-mandated, not merely judged worth keeping.
 Clean-room probes on both tiers show the body's Cloud Run mechanics are recitation, while
@@ -552,7 +552,7 @@ regardless of what a model would otherwise produce.
 `gcp-ops` demonstrated the failure in that order. Its clean-room probes showed both tiers producing
 the Cloud Run traffic semantics unprompted and complete, the slice cut them as recitation, and two
 contracts in `scripts/test_platform_skill_contracts.py` had pinned that exact prose — leaving the
-branch red from `a6da0d0a` until `1e4d1e0` and the entrypoint retained at 7,679 bytes, above the
+branch red from `a6da0d0a` until `9294e80b` and the entrypoint retained at 7,679 bytes, above the
 screen. Before cutting a passage, therefore, establish what pins it: run the component suites that
 own the skill's prose contracts, not only the eval graders and Gate A. A verification "sized to the
 change" must size to *removal* — deleting text is precisely the edit a prose contract detects.
