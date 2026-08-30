@@ -34,9 +34,16 @@ QUESTIONS = (
 
 
 def _head(document: dict, title: str) -> list[str]:
+    """Header binds a view to the INPUTS it describes, never to the commit that contains it.
+
+    A commit sha here made the drift gate permanently red: the atlas cannot embed the sha of the
+    commit that will contain it, so every view drifted the instant it was committed (16 findings
+    at HEAD). The input digest is also the more accurate binding — it changes when the canonical
+    sources change and stays put when an unrelated commit lands, which is exactly what "is this
+    view still describing the fleet?" means.
+    """
     meta = document["metadata"]
-    suffix = " (dirty)" if meta["dirty"] else ""
-    return [BANNER, f"# {title} — as of {meta['revision'][:12]}{suffix}", ""]
+    return [BANNER, f"# {title} — inputs {meta['treeDigest'][7:19]}", ""]
 
 
 def _where(item: dict) -> str:

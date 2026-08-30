@@ -284,21 +284,51 @@ def cmd_build(root: Path) -> int:
     return 0
 
 
+PROVENANCE_PLACEHOLDER = "<normalized-for-drift>"
+
+
+def normalize_provenance(files: dict[str, bytes]) -> dict[str, bytes]:
+    """Blank the fields that change because a commit happened, not because content changed.
+
+    `metadata.revision` and `metadata.dirty` record which checkout produced the atlas. They are
+    real provenance and stay in the shipped artifact, but they cannot participate in the drift
+    comparison: an atlas can never contain the sha of the commit that will contain it, so every
+    committed build looked drifted forever. Normalizing them makes `check` answer the question a
+    drift gate is for -- do the current canonical inputs still reproduce these bytes? -- while
+    `metadata.treeDigest` (the digest OF those inputs) is compared normally and is what actually
+    goes stale when the fleet changes.
+    """
+    normalized: dict[str, bytes] = {}
+    for name, content in files.items():
+        if name != "atlas.json":
+            normalized[name] = content
+            continue
+        document = json.loads(content)
+        document["metadata"]["revision"] = PROVENANCE_PLACEHOLDER
+        document["metadata"]["dirty"] = PROVENANCE_PLACEHOLDER
+        normalized[name] = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return normalized
+
+
 def cmd_check(root: Path) -> int:
     sys.path.insert(0, str(root / "scripts"))
     import fleet_atlas_cite  # noqa: E402
 
     out = root / OUTPUT
     failures: list[str] = []
-    expected = render_all(root)
-    committed = json.loads((out / "manifest.json").read_text(encoding="utf-8")) if (out / "manifest.json").is_file() else {"files": {}}
-    if committed["files"] != manifest(expected)["files"]:
-        for name in sorted(set(committed["files"]) | set(expected)):
-            if committed["files"].get(name) != manifest(expected)["files"].get(name):
-                failures.append(f"drift: {name}")
-    for name, content in expected.items():
-        if not (out / name).is_file() or (out / name).read_bytes() != content:
-            failures.append(f"drift: {name} (bytes)")
+    expected = normalize_provenance(render_all(root))
+    committed_files = {
+        path.name: path.read_bytes() for path in sorted(out.iterdir()) if path.is_file()
+    } if out.is_dir() else {}
+    if not committed_files:
+        print(f"fleet_atlas check: {OUTPUT.as_posix()} is missing; run "
+              "`python scripts/fleet_atlas.py build`", file=sys.stderr)
+        print("fleet_atlas check: FAIL (1)")
+        return 1
+    committed = normalize_provenance({k: v for k, v in committed_files.items() if k != "manifest.json"})
+    for name in sorted(set(committed) | set(expected)):
+        if committed.get(name) != expected.get(name):
+            failures.append(f"drift: {name}")
     failures.extend(fleet_atlas_cite.parity_failures(root, json.loads(expected["atlas.json"])))
     for failure in sorted(set(failures)):
         print(f"fleet_atlas check: {failure}", file=sys.stderr)

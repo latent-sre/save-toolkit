@@ -1,15 +1,15 @@
 {
   "apiVersion": "save-toolkit/fleet-atlas-manifest/v1",
   "files": {
-    "INDEX.md": "sha256:1ace3a7405cfa8fef934751dde67a2ff12a1c48e384427cab7ecf5417b11cdae",
-    "atlas.json": "sha256:0389c3c25c46cd436d0a1e9b4cd8ffa4eb9202a93611599c672ab9208e038f6e",
-    "capability-owner-map.md": "sha256:8d20805f37d1638c4a24ae5e4539986d6468b0445469776de0e273a33ccde97e",
-    "claim-to-eval-map.md": "sha256:78ccc4054c356a1fe2ccad5b19153cacb3bf5667c77791e1ff25c5d0e65302e8",
-    "contradictions-and-stale-evidence.md": "sha256:1fbf6ccc789066c70b57b631bffb8ea476dffa2f3d068ecf74282b150213aa4e",
-    "decision-supersession-map.md": "sha256:9b18e792580ad92c4bcdc5a047bb1e1bfc576dbc067efaeb22731ee6d100023a",
+    "INDEX.md": "sha256:63af13ccb52c8bfbd73d712e1e907743f3ee3d0c1a2b7537b422c153fa220488",
+    "atlas.json": "sha256:043a1a5034ff15e073c8b32ba61bd0cc324ea6b81c0081dd787f1e6b98ee43c2",
+    "capability-owner-map.md": "sha256:a6ad50ef7440762a17db33f042cb58a0cff8022c0d0b291848ca623bad0aef51",
+    "claim-to-eval-map.md": "sha256:1e7cc5dcf50d9ee8742b703384c796851190e55265aa4828109d56335266fc3a",
+    "contradictions-and-stale-evidence.md": "sha256:848cddd89f318f8d596670e5ab077f1431163c691d0325c162b0bf28f1a29034",
+    "decision-supersession-map.md": "sha256:da691600058e9d0d7df9d7a9ce19e36a1bf7140494407e3b89941781a268a5e1",
     "delegation.mmd": "sha256:12055a2b945179ab57151bed43715666c6a860addce54e152c9ff6cdc36de37c",
-    "roadmap-dependency-map.md": "sha256:3e7710961e00581d57338c75e8609221d11fa33faf8b6e77643d5b18430b3855",
+    "roadmap-dependency-map.md": "sha256:d18c3896492b7c7d6c8de2aa99f255c9045d5406b1f15fdbeb1b05982fcb2c2a",
     "roadmap-dependency-map.mmd": "sha256:442b47446ea5b0975b936ab7fd32e7615dda8963ee3120659ac357aafc2f25fd",
-    "skill-reference-loading-map.md": "sha256:a88a46626fefc0daf5fa3af83a13238fdd2ea4f0bbfc43202b46db743050cdf4"
+    "skill-reference-loading-map.md": "sha256:a7c7cb06ef507a857d949cab5dc795617ed1e3fb5d2b8c3cbad5ce173db5756d"
   }
 }
