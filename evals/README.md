@@ -16,7 +16,9 @@ look like a menu even when a path is not runnable or authoritative.
 Active `evals/test_*.py` suites are owner-triggered: run the affected file directly
 (`python evals/test_graders.py`, `python evals/test_run_evals.py`, …) when you change its owning
 harness code. Gate A is structural only and does not run them. Retired execution code stays out of
-the active tree, and frozen evidence remains read-only.
+the active tree, and frozen evidence remains read-only. Uncited sealed packets were folded into the
+[`eval measurement index`](../docs/reviews/2026-08-30-folded-eval-index.md); recover a full packet
+from git history by batch ID.
 
 The active Codex adapter does not restore the retired ROUTE-001 or Sol harnesses. It creates a
 bounded, read-only context bundle for one direct scenario and is designed to measure only the
