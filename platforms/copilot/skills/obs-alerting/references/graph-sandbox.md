@@ -24,7 +24,14 @@ separate pages in this first synthetic set.
 
 An unrelated healthy run must not clear an earlier uncertain effect. The evaluator carries the
 effect identity only in its local evidence state, never as a metric label. Resolution requires the
-same effect to reach `RECEIPT_RECORDED` or `RECONCILED` in the supplied timeline.
+same effect to reach `RECONCILED` in the supplied timeline. `RECEIPT_RECORDED` is authoritative for
+an effect that never entered `UNKNOWN`; it does not rewrite an earlier uncertain effect.
+
+Two snapshots with the same run ID are accepted only for one ordered reconciliation transition:
+the earlier snapshot ends `UNKNOWN`; the later snapshot preserves the run, case, source, start,
+event history, and effect history; the same effect advances to `RECONCILED`; and the later outcome
+is `SUCCEEDED`. Every other duplicate-run pair is rejected. This supports deterministic evaluation
+of retained before/after snapshots without letting an unrelated run clear uncertain state.
 
 ## Evaluate without deploying
 

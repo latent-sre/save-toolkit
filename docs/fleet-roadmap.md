@@ -1053,7 +1053,8 @@ further tuning run is spent on pattern repair.
 
 **Status:** `decision-needed` (2026-08-30). The exact approved pair completed with no retries. Both
 arms routed correctly 9 of 9 times, but the candidate failed the full acceptance contract and is
-not promotion eligible.
+not promotion eligible. The incumbent description is restored in the PR repair; no candidate is
+promoted by publication.
 
 **Outcome:** The skill's description triggers match what a responder types under load, so
 discovery does not depend on the caller knowing the fleet's vocabulary.

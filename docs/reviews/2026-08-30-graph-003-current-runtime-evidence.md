@@ -128,8 +128,10 @@ one error); the named test passes alone on that base. This item neither changes 
 
 - `[unverified]` Current evidence does not inject a model/fixture failure, checkpoint write or
   resume failure, cancellation, or budget exhaustion.
-- `[unverified]` No current case demonstrates the same uncertain effect later reaching
-  `RECONCILED`; the evaluator only proves that unrelated success cannot clear it.
+- `[verified static]` Focused evaluator regressions prove that a monotonic same-run snapshot can
+  advance the same uncertain effect from `UNKNOWN` to `RECONCILED`, while unrelated success and
+  unsupported duplicate-run snapshots cannot clear it. `[unverified]` No current host exercise
+  demonstrates that reconciliation transition.
 - `[unverified]` Notification delivery, production ingestion, retention, SLOs, provider behavior,
   credentials, cross-host persistence/recovery, and any production graph remain outside scope.
 - The raw bundles remain operator-local. This committed record and the bounded host-exercise

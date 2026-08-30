@@ -134,7 +134,9 @@ def _bounded_strings(values: Iterable[object]) -> list[str]:
     return sorted({value for value in values if isinstance(value, str) and value})
 
 
-def _terminal_effects(effects: list[dict[str, object]], label: str) -> dict[str, str]:
+def _terminal_effects(
+    effects: list[dict[str, object]], label: str
+) -> dict[str, dict[str, object]]:
     grouped: dict[str, list[dict[str, object]]] = {}
     for index, effect in enumerate(effects, start=1):
         effect_id = _required(effect, "effect_id", str, f"{label}:{index}")
@@ -146,7 +148,7 @@ def _terminal_effects(effects: list[dict[str, object]], label: str) -> dict[str,
             raise EvidenceError(f"{label}:{index}.effect_state is not in the closed vocabulary")
         grouped.setdefault(effect_id, []).append(effect)
 
-    terminal: dict[str, str] = {}
+    terminal: dict[str, dict[str, object]] = {}
     for effect_id, records in grouped.items():
         ordered = sorted(records, key=lambda record: int(record["sequence"]))
         sequences = [int(record["sequence"]) for record in ordered]
@@ -155,7 +157,21 @@ def _terminal_effects(effects: list[dict[str, object]], label: str) -> dict[str,
         state = str(ordered[-1]["effect_state"])
         if state not in TERMINAL_EFFECT_STATES:
             raise EvidenceError(f"{label}: effect {effect_id!r} has no terminal state")
-        terminal[effect_id] = state
+        authoritative_result_id = None
+        if state in {"RECEIPT_RECORDED", "RECONCILED"}:
+            receipt = ordered[-1].get("receipt")
+            if not isinstance(receipt, dict):
+                raise EvidenceError(f"{label}: effect {effect_id!r} lacks an authoritative receipt")
+            authoritative_result_id = _required(
+                receipt,
+                "authoritative_result_id",
+                str,
+                f"{label}: effect {effect_id!r}.receipt",
+            )
+        terminal[effect_id] = {
+            "authoritative_result_id": authoritative_result_id,
+            "state": state,
+        }
     return terminal
 
 
@@ -230,10 +246,50 @@ def _load_bundle(directory: Path) -> dict[str, object]:
         _timestamp(event.get("time_utc"), f"events.jsonl:{index}.time_utc")
     if sequences != list(range(1, len(events) + 1)):
         raise EvidenceError("events.jsonl sequences must be contiguous from one")
-    if events[0].get("event_type") != "run.accepted":
-        raise EvidenceError("events.jsonl must start with run.accepted")
-    if events[-1].get("event_type") not in TERMINAL_EVENTS:
-        raise EvidenceError("events.jsonl must end with one terminal run event")
+    if [event.get("event_type") for event in events[:2]] != ["run.accepted", "run.started"]:
+        raise EvidenceError("events.jsonl run start prefix must be run.accepted, run.started")
+    terminal_events = [event for event in events if event.get("event_type") in TERMINAL_EVENTS]
+    if len(terminal_events) != 1 or terminal_events[0] is not events[-1]:
+        raise EvidenceError("events.jsonl must contain exactly one final terminal run event")
+
+    terminal_data = events[-1].get("data")
+    if not isinstance(terminal_data, dict) or terminal_data.get("outcome") != outcome:
+        raise EvidenceError("terminal event outcome does not match manifest")
+
+    terminal_effects = _terminal_effects(effects, "effects.jsonl")
+    if outcome == "SUCCEEDED":
+        authoritative_result_id = manifest.get("authoritative_result_id")
+        if not isinstance(authoritative_result_id, str) or not authoritative_result_id:
+            raise EvidenceError("SUCCEEDED manifest lacks an authoritative result")
+        if (
+            events[-1].get("event_type") != "run.terminal"
+            or terminal_data.get("authoritative_result_id") != authoritative_result_id
+        ):
+            raise EvidenceError("SUCCEEDED terminal event lacks the authoritative result")
+        authoritative_effects = [
+            (effect_id, terminal)
+            for effect_id, terminal in terminal_effects.items()
+            if terminal["state"] in {"RECEIPT_RECORDED", "RECONCILED"}
+            and terminal["authoritative_result_id"] == authoritative_result_id
+        ]
+        if len(authoritative_effects) != 1:
+            raise EvidenceError("SUCCEEDED bundle must contain one authoritative effect receipt")
+        effect_id, authoritative_effect = authoritative_effects[0]
+        expected_event_type = (
+            "effect.reconciled"
+            if authoritative_effect["state"] == "RECONCILED"
+            else "effect.receipt_recorded"
+        )
+        matching_events = [
+            event
+            for event in events
+            if event.get("event_type") == expected_event_type
+            and event.get("effect_id") == effect_id
+            and isinstance(event.get("data"), dict)
+            and event["data"].get("authoritative_result_id") == authoritative_result_id
+        ]
+        if len(matching_events) != 1:
+            raise EvidenceError("SUCCEEDED events lack the authoritative effect receipt")
 
     event_types = Counter(str(event.get("event_type")) for event in events)
     terminal_time = _timestamp(events[-1].get("time_utc"), "terminal event time")
@@ -276,8 +332,53 @@ def _load_bundle(directory: Path) -> dict[str, object]:
         "checkpoint_completion_age_seconds": (
             None if checkpoint_age is None else round(checkpoint_age, 6)
         ),
-        "terminal_effects": _terminal_effects(effects, "effects.jsonl"),
+        "event_records": events,
+        "effect_records": effects,
+        "terminal_effects": terminal_effects,
     }
+
+
+def _validate_same_run_snapshot(
+    earlier: Mapping[str, object], later: Mapping[str, object]
+) -> None:
+    run_id = str(earlier["run_id"])
+    if (
+        earlier["case_id"] != later["case_id"]
+        or earlier["source_revision"] != later["source_revision"]
+        or earlier["started_at"] != later["started_at"]
+    ):
+        raise EvidenceError(f"run {run_id!r} snapshots disagree on immutable identity")
+    if later["ended_sort"] <= earlier["ended_sort"]:
+        raise EvidenceError(f"run {run_id!r} snapshots are not strictly ordered")
+    if earlier["outcome"] != "UNKNOWN" or later["outcome"] != "SUCCEEDED":
+        raise EvidenceError(f"run {run_id!r} has an unsupported snapshot outcome transition")
+
+    earlier_events = list(earlier["event_records"])
+    later_events = list(later["event_records"])
+    if (
+        len(later_events) <= len(earlier_events)
+        or earlier_events[:-1] != later_events[: len(earlier_events) - 1]
+    ):
+        raise EvidenceError(f"run {run_id!r} later snapshot does not extend event history")
+    earlier_effects = list(earlier["effect_records"])
+    later_effects = list(later["effect_records"])
+    if (
+        len(later_effects) <= len(earlier_effects)
+        or earlier_effects != later_effects[: len(earlier_effects)]
+    ):
+        raise EvidenceError(f"run {run_id!r} later snapshot does not extend effect history")
+
+    earlier_terminal = dict(earlier["terminal_effects"])
+    later_terminal = dict(later["terminal_effects"])
+    if set(earlier_terminal) != set(later_terminal) or any(
+        terminal["state"] != "UNKNOWN" for terminal in earlier_terminal.values()
+    ):
+        raise EvidenceError(f"run {run_id!r} earlier snapshot is not unresolved UNKNOWN evidence")
+    if any(
+        later_terminal[effect_id]["state"] != "RECONCILED"
+        for effect_id in earlier_terminal
+    ):
+        raise EvidenceError(f"run {run_id!r} later snapshot does not reconcile the same effect")
 
 
 def evaluate_timeline(evidence_directories: Iterable[Path]) -> dict[str, object]:
@@ -287,16 +388,21 @@ def evaluate_timeline(evidence_directories: Iterable[Path]) -> dict[str, object]
     if not bundles:
         raise EvidenceError("at least one evidence directory is required")
     bundles.sort(key=lambda bundle: (bundle["ended_sort"], str(bundle["run_id"])))
-    run_ids = [str(bundle["run_id"]) for bundle in bundles]
-    if len(run_ids) != len(set(run_ids)):
-        raise EvidenceError("timeline contains a duplicate run_id")
+    latest_by_run: dict[str, Mapping[str, object]] = {}
+    for bundle in bundles:
+        run_id = str(bundle["run_id"])
+        earlier = latest_by_run.get(run_id)
+        if earlier is not None:
+            _validate_same_run_snapshot(earlier, bundle)
+        latest_by_run[run_id] = bundle
 
     unresolved: set[str] = set()
     observations: list[dict[str, object]] = []
     transitions: list[dict[str, object]] = []
     prior_state = "NOT_EVALUATED"
     for bundle in bundles:
-        for effect_id, effect_state in dict(bundle["terminal_effects"]).items():
+        for effect_id, terminal in dict(bundle["terminal_effects"]).items():
+            effect_state = terminal["state"]
             if effect_state == "UNKNOWN":
                 unresolved.add(effect_id)
             elif effect_state in {"RECEIPT_RECORDED", "RECONCILED"}:
@@ -309,7 +415,7 @@ def evaluate_timeline(evidence_directories: Iterable[Path]) -> dict[str, object]
         observation = {
             key: value
             for key, value in bundle.items()
-            if key not in {"ended_sort", "terminal_effects"}
+            if key not in {"effect_records", "ended_sort", "event_records", "terminal_effects"}
         }
         observation.update(
             {
