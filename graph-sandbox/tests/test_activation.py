@@ -334,6 +334,34 @@ class ResourceScopeTests(unittest.TestCase):
 
 
 class SnapshotTests(unittest.TestCase):
+    def test_extensionless_build_inputs_force_lf_in_git_attributes(self) -> None:
+        repository_root = SANDBOX_ROOT.parent
+        expected = {
+            "graph-sandbox/runner/Dockerfile": ("set", "lf"),
+            "graph-sandbox/services/Dockerfile": ("set", "lf"),
+            "graph-sandbox/.dockerignore": ("set", "lf"),
+        }
+        for relative, (text_value, eol_value) in expected.items():
+            with self.subTest(relative=relative):
+                observed: dict[str, str] = {}
+                for attribute in ("text", "eol"):
+                    result = run_process(
+                        [
+                            "git",
+                            "-C",
+                            str(repository_root),
+                            "check-attr",
+                            attribute,
+                            "--",
+                            relative,
+                        ],
+                        environment=os.environ,
+                        timeout_seconds=30,
+                    )
+                    self.assertEqual(result.returncode, 0)
+                    observed[attribute] = result.stdout.strip().rsplit(": ", 1)[-1]
+                self.assertEqual(observed, {"text": text_value, "eol": eol_value})
+
     @staticmethod
     def archive_bytes(name: str, payload: bytes, *, member_type: bytes | None = None) -> bytes:
         stream = BytesIO()
