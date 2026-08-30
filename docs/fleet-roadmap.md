@@ -331,31 +331,74 @@ choosing queries, thresholds, retention, dashboards, or alert rules; implement t
 synthetic runbook, and tested alert set against that evidence. No paid or Terra run is required to
 record this decision or to exercise deterministic sandbox failures.
 
-### GRAPH-004 — `codebase-atlas`: code, dependency, knowledge, and GraphRAG graphs
+### GRAPH-004 — `fleet-atlas`: a revision-bound knowledge graph over the fleet's own artifacts
 
-**Status:** `decision-needed` (2026-08-24)
+**Status:** `ready` (2026-08-30)
 
-**Owner:** to be named; `repository-investigator` is the nearest lane for local source structure.
+**Owner:** `software-engineer` implements the generator, schema, catalog entry, drift check, and
+tests; `agent-engineer` owns the `fleet-atlas` skill text and scenarios; `repository-investigator`,
+`agent-engineer`, and `scribe` are read-only consumers; `latent-sre` accepts findings and the
+exact candidate revision. No new agent, and no new authority over any edge another contract
+enforces.
 
-**Outcome:** A separate capability with its own inputs, provenance, and success criteria for
-import/dependency graphs, runtime topology, knowledge graphs, and GraphRAG — kept distinct from
-`workflow-graph-engineering` (executable graphs) and `agent-authoring` (roster graphs), both of which
-already carry near-miss scenarios that keep these requests out.
+**Outcome:** Any lane answers, with `path:line` citations and an atlas revision, which document is
+canonical for a rule, which agent or skill owns a capability, which references load for a
+predicate, which decision introduced or superseded a rule, which roadmap item depends on which,
+which eval or test verifies a claim, which evidence supports a roadmap status, which generated
+projections derive from which canonical source, where documentation, rules, roadmap status, and
+implementation claims disagree, and which claims are stale, unverified, superseded, blocked, or
+missing evidence — without loading the repository into context. Delegation, generation, and
+roadmap-dependency edges are cited from the contracts that enforce them, never derived.
 
-**Source:** Owner direction on 2026-08-24 (stage 2). The
-[`2026-08-22 audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) split graph engineering
-into three contracts and deferred this one pending confirmed owner need.
+**Source:** Owner direction on 2026-08-30 redirected the 2026-08-24 item from code and GraphRAG
+graphs to the fleet's own knowledge. The
+[2026-08-30 decision packet](reviews/2026-08-30-graph-004-fleet-atlas-decision.md) records the
+inspection: the fleet's checkers already compute the delegation, reachability, roadmap-contract,
+evidence-reference, and generated-from slices, and the packet names the relations nothing
+computes and the stale claims found in one session. sre-design's code atlas contributed only its
+provenance, unknown-record, manifest-drift, and boundary-config patterns. The
+[2026-08-22 audit](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) split this
+capability from executable and roster graphs.
 
-**Decision required:** the operator need (which questions the atlas must answer), whether output is a
-static analysis artifact or a retrieval index, the provenance and freshness contract, and the
-consumer.
+**Not in scope (unconditional):** application-code AST, import, call, or package analysis;
+runtime service topology; production telemetry; an executable workflow engine; new
+agent-delegation authority; production access or credentials; target-code execution; automatic
+rewriting of canonical human documentation; GraphRAG before the static knowledge and provenance
+contract is accepted; any generated answer becoming repository truth without a human edit or
+roadmap import; graph-database or product selection.
 
-**Prerequisites:** none technical; a named need and owner.
+**Provenance contract:** every node and edge carries source path and section with an excerpt
+hash, the full source revision and dirty state, an authority class (canonical, live-contract,
+generated, historical-evidence, external), one of `CONTRACT_RESOLVED`, `STATIC_EXTRACTED`,
+`STATIC_INFERRED`, `OPERATOR_CONFIRMED`, `UNKNOWN`, any date the source itself states, and a
+supersession state; absent evidence is an `unknowns[]` record with the evidence needed.
 
-**Acceptance:** to be defined with the decision; at minimum a positive discovery scenario, the two
-existing near-miss scenarios remaining green, and no overlap with `workflow-graph-engineering`.
+**Freshness:** the generator emits no timestamps; a sha256 manifest and regenerate-and-compare
+check detect atlas drift; consumers prefix answers "as of <sha>" when the atlas revision differs
+from `HEAD` and answer `UNKNOWN` for paths changed since; content-staleness detectors emit
+findings, never edits; external state (PR or branch status) is reachable only through an
+explicit read-only probe whose output is labelled and never enters the baseline.
 
-**Next action:** Owner names the need; until then no implementation.
+**Prerequisites:** none technical. The generator is stdlib on the Gate A path; PyYAML use is
+confined to the component-test path. The two existing code-graph near-miss scenarios stay
+unchanged because the fleet atlas is not a code graph.
+
+**Acceptance:** `atlas.json` validates against a new `schemas/fleet-atlas-v1.schema.json` with a
+`catalog-v1.json` entry; determinism and drift are proven by mutation (a renamed reference turns
+its edge `UNKNOWN` and reds the check; a timestamp reds the check); parity with
+`EXPECTED_DELEGATION`, the roster render, `generate_platform_adapters.expected_outputs()`,
+`check_plan_status` prerequisites, and the guard roster is tested by mutating the atlas output;
+each of the eleven questions has a golden fixture answer on a pinned revision; no view exceeds
+5,000 tokens and the index view stays under 1,000; two positive discovery scenarios route to
+`fleet-atlas`; near misses defer delegation design to `agent-authoring` and code graphs inline;
+two direct scenarios grade revision citation, `UNKNOWN` handling, and that a contradiction is
+proposed rather than applied; the skill's exclusions and "cited, never defined" sentence are
+contract-tested; Gate A green.
+
+**Next action:** One slice on an isolated worktree, never on a GRAPH-002 branch: schema and
+generator with the extraction of the slices existing checkers already enforce (parity tests
+first), then the relations nothing computes today, then views, skill, scenarios, and an
+after-change discovery run on the exact commit. GraphRAG is not scheduled.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
