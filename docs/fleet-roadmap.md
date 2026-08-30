@@ -406,6 +406,11 @@ output checks failed 0/15 and the SRE evidence-label/severity checks had additio
 [sealed no-go record](reviews/2026-08-30-eval-20260830T063012Z-f5c3f1ea.md) is receiver-behavior
 evidence only; it does not establish VS Code rendering, `send: true`, retained-context fidelity, or
 Copilot tool enforcement.
+A clean corrected-candidate confirmation then passed scribe 3/3 and software-engineer 3/3 but left
+SRE at 0/3 because it changed exact `[sourced]` input labels to `[sourced: handoff]` in every trial.
+Decision fields passed 9/9, SRE severity passed 3/3, and all 24 action/authority contradiction checks
+passed. The [sealed confirmation no-go](reviews/2026-08-30-eval-20260830T072838Z-573c9de8.md) is
+again direct Claude receiver evidence only.
 
 **Prerequisites:** An installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
@@ -430,8 +435,9 @@ hook canary must deny a harmless terminal request with its fixed marker, while t
 Agent control remains unaffected. Keep invocation authority open until a real tool call or host
 denial is observed. Do not run a third identical picker retry, substitute a prompt-file override, or
 populate `hooks/copilot-hooks.json`. Separately, `agent-engineer` may propose one bounded correction
-to the rejected direct-receiver prompt/oracle pairing; it needs a new exact candidate, human
-acceptance, and a separately approved budget. Do not rerun the unchanged failed candidate.
+for the repeated SRE evidence-token miss and the current-telemetry contradiction grader gap. It
+needs a new exact candidate, human acceptance, and a separately approved budget. Do not rerun either
+unchanged failed candidate.
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 
@@ -1074,6 +1080,11 @@ One LLM-judge pilot now exists outside the harness: the
 graded thirteen anonymized four-answer sets with a fixed per-assertion bar and recorded what that
 settled and what it did not.
 
+The 2026-08-30 direct handoff confirmation adds a different false-green shape: one SRE response
+said the current trend was unverified while also asserting `now — error rate at 8%`. The scenario's
+unknown-marker grader passed because it does not model contradiction. That exact transcript is a
+better first structured-contract pilot than adding another adjacency pattern.
+
 **Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
 exist in the grader registry, so a structured-output contract needs no new grader type. An
 LLM-judge grader would need a new one, plus a policy for a non-deterministic grader inside a suite
@@ -1084,8 +1095,10 @@ unchanged guidance. The removal control still discriminates: with the guidance r
 scenario fails. No grader rejects a response that a reader would call correct, tested against the
 transcripts already retained under `.eval-runs/`.
 
-**Next action:** Choose the grading style — a structured contract the response must emit, or an
-LLM judge — then convert one scenario and measure it three times before converting the rest.
+**Next action:** Use `agent-direct-handoff-sre-recommend-only` as the first pilot. Choose either a
+structured current-telemetry state that cannot coexist with an invented current sample, or an LLM
+judge, then freeze the observed contradictory response as the red side and measure the candidate
+three times before converting the rest.
 Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
 further tuning run is spent on pattern repair.
 
