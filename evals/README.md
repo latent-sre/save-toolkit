@@ -95,7 +95,7 @@ because the clean-room runner calls `shutil.rmtree(..., onexc=...)`, a 3.12-only
 3.12+ interpreter or the first `clean_room` teardown raises `TypeError` mid-suite.
 
 ```bash
-python3 -m pip install -r requirements-dev.txt
+python -m pip install -r requirements-dev.txt
 python evals/run_evals.py --validate
 python evals/run_evals.py --list
 python evals/run_evals.py --run --mode discovery --split calibration --trials 3

@@ -236,6 +236,35 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertNotIn("ci", trusted)
                 self.assertIn("[untrusted] ci output", inputs)
 
+    def test_handoff_receivers_keep_evidence_confidence_separate_from_taint(self) -> None:
+        sections = {
+            "software-engineer": _markdown_section(
+                Path("agents/software-engineer.md"), "## Untrusted input boundary"
+            ),
+            "sre": _markdown_section(Path("agents/sre.md"), "## Working doctrine"),
+        }
+        for agent, section in sections.items():
+            with self.subTest(agent=agent):
+                self.assertIn("evidence confidence and input taint are separate", section)
+                self.assertIn("[untrusted] [unverified]", section)
+                self.assertIn("never replaces the evidence label", section)
+        self.assertIn(
+            "`[sourced]` and `[sourced: <source>]` are both valid sourced forms",
+            sections["sre"],
+        )
+        self.assertNotIn("`[sourced: handoff]` is invalid", sections["sre"])
+
+    def test_sre_incident_summary_never_omits_provisional_severity(self) -> None:
+        bounded_assist = _markdown_section(
+            Path("agents/sre.md"), "## Assist at the evidence-selected incident mode"
+        )
+        output = _markdown_section(Path("agents/sre.md"), "## Output contract")
+        self.assertIn(
+            "insufficient evidence becomes `[unverified] assignment pending`", bounded_assist
+        )
+        self.assertIn("provisional severity + named scale", output)
+        self.assertIn("or `[unverified] assignment pending`", output)
+
     def test_retired_learning_machinery_stays_absent(self) -> None:
         retained = (
             Path("schemas/evidence-envelope-v1.schema.json"),

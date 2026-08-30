@@ -3,6 +3,10 @@
 - **Date:** 2026-08-26
 - **Status:** Accepted
 - **Decision owner:** `latent-sre`
+- **Current state (2026-08-30):** `GRAPH-002` closed into
+  [`roadmap-closed.md`](../roadmap-closed.md). This record still governs the
+  `graph-sandbox/v1` runtime choice. Remaining graph operations work is `GRAPH-003`
+  on the live tracker.
 
 ## Context
 
@@ -85,8 +89,9 @@ consumer must therefore retain its own idempotency, fencing, receipts, reconcili
 9. **Keep runtime guidance conditional.** Portable workflow design remains in
    `workflow-graph-engineering`. Runtime-specific implementation guidance is loaded only for the
    accepted LangGraph consumer; it must not make LangGraph the default for every graph-shaped task.
-   The live implementation work and its acceptance evidence remain tracked solely by `GRAPH-002` in
-   the fleet roadmap.
+   Implementation and acceptance evidence closed with `GRAPH-002` into
+   [`roadmap-closed.md`](../roadmap-closed.md); this ADR still governs the runtime
+   choice, not a second backlog.
 
 ## Failure and recovery contract
 
@@ -129,8 +134,8 @@ consumer must therefore retain its own idempotency, fencing, receipts, reconcili
 
 ## Rollout and rollback
 
-Delivery is offline-first and incremental. The live sequence, acceptance checks, and next action are
-owned by `GRAPH-002` in [`fleet-roadmap.md`](../fleet-roadmap.md); this ADR records the stable choice,
+Delivery is offline-first and incremental. `GRAPH-002` sequence, acceptance checks, and closeout are
+recorded in [`roadmap-closed.md`](../roadmap-closed.md); this ADR records the stable choice,
 not a second backlog.
 
 Before any implementation is merged, rollback is deletion of the feature branch. After the offline

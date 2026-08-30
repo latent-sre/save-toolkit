@@ -44,8 +44,92 @@ SELF_SKILL_PATH_RE = re.compile(r"`skills/(?P<name>[a-z0-9-]+)/SKILL\.md`")
 # Only resolvability is asserted. The skill rules applied elsewhere in this file (owned-root
 # containment, code-span pointers must be Markdown links) are conventions for skill bundles; docs
 # legitimately link across the whole repository and cite scripts inline.
-LIVE_DOC_ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "CHANGELOG.md")
-LIVE_DOC_DIR_GLOBS = (("docs", "*.md"), ("docs/decisions", "*.md"))
+LIVE_DOC_ROOTS = (
+    "README.md",
+    "CONTRIBUTING.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CHANGELOG.md",
+    "evals/README.md",
+    "graph-sandbox/AGENTS.md",
+    "graph-sandbox/contract.md",
+    ".github/pull_request_template.md",
+    ".github/copilot-instructions.md",
+    "commands/adr.md",
+)
+LIVE_DOC_DIR_GLOBS = (
+    ("docs", "*.md"),
+    ("docs/decisions", "*.md"),
+    ("docs/probes", "*.md"),
+)
+# Current-tense operator surfaces. CHANGELOG, dated reviews, and ADR historical narrative keep
+# retired names as history; this set is the one that must not present them as live identities or
+# tell an operator to run the Windows Store `python3` stub.
+LIVE_OPERATOR_DOC_ROOTS = (
+    "README.md",
+    "CONTRIBUTING.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/README.md",
+    "docs/rules.md",
+    "docs/fleet-roadmap.md",
+    "docs/schema-compatibility.md",
+    "evals/README.md",
+    "graph-sandbox/AGENTS.md",
+    "graph-sandbox/contract.md",
+    ".github/pull_request_template.md",
+    ".github/copilot-instructions.md",
+    "commands/adr.md",
+)
+LIVE_OPERATOR_DOC_DIR_GLOBS = (("docs/probes", "*.md"),)
+# Match the command token, not one Markdown rendering of it. The following argument keeps a prose
+# mention of the runtime from becoming a command, while list prefixes, prose lead-ins, shell
+# prompts, fenced blocks, and inline-code delimiters remain irrelevant to the detection.
+OPERATOR_PYTHON3_RE = re.compile(
+    r"(?<![A-Za-z0-9_-])python3\b(?=[ \t]+(?:-[A-Za-z0-9]|[A-Za-z0-9_./\\]))"
+)
+PYTHON3_PROHIBITION_RE = re.compile(
+    r"never|not |stub|Store|bare `python3`",
+    re.IGNORECASE,
+)
+RETIRED_AS_LIVE_RE = re.compile(
+    r"(?<![A-Za-z0-9-])(prompt-engineer|sde|verification-sandbox)(?![A-Za-z0-9-])"
+)
+RETIRED_AS_LIVE_HISTORICAL_RE = re.compile(
+    r"retir|supersed|deleted|historical|formerly|renamed|old name|was `sde`|"
+    r"current names?:",
+    re.IGNORECASE,
+)
+RETIRED_CONTEXT_BOUNDARY_RE = re.compile(r"[;.!?]|\s[—–]\s")
+
+
+def _clause_containing(line: str, offset: int) -> str:
+    """Return the punctuation-bounded clause containing *offset*.
+
+    Historical context is earned per retired-name occurrence. A marker in an earlier sentence or
+    semicolon clause must not suppress a later current-tense routing instruction on the same line.
+    """
+
+    start = 0
+    end = len(line)
+    for boundary in RETIRED_CONTEXT_BOUNDARY_RE.finditer(line):
+        if boundary.end() <= offset:
+            start = boundary.end()
+        elif boundary.start() >= offset:
+            end = boundary.start()
+            break
+    return line[start:end]
+
+
+def _iter_doc_paths(
+    root: Path, roots: tuple[str, ...], globs: tuple[tuple[str, str], ...]
+) -> list[Path]:
+    targets: list[Path] = [root / name for name in roots]
+    for relative, pattern in globs:
+        directory = root / relative
+        if directory.is_dir():
+            targets.extend(sorted(directory.glob(pattern)))
+    return [path for path in targets if path.is_file()]
 
 
 def _check_live_doc_links(root: Path) -> list[str]:
@@ -57,14 +141,7 @@ def _check_live_doc_links(root: Path) -> list[str]:
     # carries the identical fix for the identical reason.
     root = Path(root).resolve()
     failures: list[str] = []
-    targets: list[Path] = [root / name for name in LIVE_DOC_ROOTS]
-    for relative, pattern in LIVE_DOC_DIR_GLOBS:
-        directory = root / relative
-        if directory.is_dir():
-            targets.extend(sorted(directory.glob(pattern)))
-    for path in targets:
-        if not path.is_file():
-            continue
+    for path in _iter_doc_paths(root, LIVE_DOC_ROOTS, LIVE_DOC_DIR_GLOBS):
         try:
             text = _strip_fences(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError) as exc:
@@ -88,6 +165,42 @@ def _check_live_doc_links(root: Path) -> list[str]:
             elif not resolved.exists():
                 failures.append(
                     f"{path.relative_to(root).as_posix()}: dead link {target!r}"
+                )
+    return failures
+
+
+def _check_live_operator_docs(root: Path) -> list[str]:
+    """Reject operator commands and retired names presented as live on current-tense docs."""
+
+    root = Path(root).resolve()
+    failures: list[str] = []
+    for path in _iter_doc_paths(
+        root, LIVE_OPERATOR_DOC_ROOTS, LIVE_OPERATOR_DOC_DIR_GLOBS
+    ):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            failures.append(
+                f"{path.relative_to(root).as_posix()}: cannot read UTF-8: {exc}"
+            )
+            continue
+        relative = path.relative_to(root).as_posix()
+        for number, line in enumerate(text.splitlines(), start=1):
+            if OPERATOR_PYTHON3_RE.search(line) and not PYTHON3_PROHIBITION_RE.search(
+                line
+            ):
+                failures.append(
+                    f"{relative}:{number}: operator command uses python3; live docs must "
+                    "use `python` or `py -3` (never the Windows Store stub)"
+                )
+            for match in RETIRED_AS_LIVE_RE.finditer(line):
+                if RETIRED_AS_LIVE_HISTORICAL_RE.search(
+                    _clause_containing(line, match.start())
+                ):
+                    continue
+                failures.append(
+                    f"{relative}:{number}: retired name {match.group(1)!r} presented as a "
+                    "live identity; use the current name or mark the sentence historical"
                 )
     return failures
 ALLOWED_KEYS = {
@@ -414,6 +527,7 @@ def check(root: Path = ROOT) -> list[str]:
     # has already shipped a review pointing at a file the same round deleted. What is NOT in scope
     # is anchor-only and cross-repo links, which `_check_markdown` already ignores.
     failures.extend(_check_live_doc_links(root))
+    failures.extend(_check_live_operator_docs(root))
     command_root = root / "commands"
     if command_root.is_dir():
         for command in sorted(command_root.glob("*.md")):

@@ -132,3 +132,11 @@ grader suite passes 1,274/1,274 checks, including every original compliant/tempt
    the owner accept a revised propensity/transfer contract. The current literal red-on-every-
    scenario baseline condition is contradicted by the measured 4/8 and 2/8 baselines.
 4. Human acceptance remains required; model and deterministic evidence never promote a candidate.
+
+## Amendment — GRADER-009 fixtures on the combined branch
+
+The same combined working branch later carried the two GRADER-009 fixtures sourced from the
+[observability-engineer probe](2026-08-29-build-probe-observability-engineer.md): the particle-form
+`hand off to sre` routing match, and the quoted-warning exception in
+`unknown_write_no_blind_retry`. This records that those fixtures are present on the branch. It does
+not restate a live suite pass-count. Native remeasurement of both scenarios remains owed.

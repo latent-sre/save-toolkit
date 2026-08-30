@@ -41,7 +41,7 @@ accepted record under `docs/decisions/`. An item cites its evidence; it does not
 
 ### WF-001 — establish a supported exact-dispatch boundary for Claude workflows
 
-**Status:** `blocked`
+**Status:** `blocked` (rechecked 2026-08-30)
 
 **Outcome:** The repository carries no executable `ship-review` workflow until Claude provides a
 supported way to dispatch one exact trusted workflow without granting caller-supplied workflow code.
@@ -54,9 +54,14 @@ launcher, hook receipt, Git-object isolation, and upgrade matrix were a bespoke 
 disproportionate to this fleet, so the experiment was removed rather than shipped. Re-checked
 2026-08-18 on 2.1.227: built-in `claude ultrareview` removes the caller-supplied workflow-body
 surface but exposes no immutable reviewed-subject identity and no findings-sensitive verdict — it
-exits 0 either way, bundles a mutable tree, and uploads to a paid cloud sandbox. Still blocked.
-Sources and queries: the
-[first-three backlog evidence packet](reviews/2026-08-18-first-three-backlog-evidence.md).
+exits 0 either way, bundles a mutable tree, and uploads to a paid cloud sandbox. Re-checked without
+a paid run on installed 2.1.251: official SDK documentation still exposes dynamic local/remote
+Workflow execution and a returned `scriptPath`; exact skill selection is a separate control and
+does not bind one immutable Workflow implementation. The 2.1.251 `scriptPath` permission-order fix
+closes a pre-check read/quote defect, not this dispatch contract. Still blocked. Sources and
+queries: the
+[first-three backlog evidence packet](reviews/2026-08-18-first-three-backlog-evidence.md) and the
+[2026-08-30 live backlog refresh](reviews/2026-08-30-live-backlog-refresh.md).
 
 **Prerequisites:** A documented direct-dispatch API, or documented permission semantics that bind
 the registered workflow implementation as well as its name. Any alternative architecture needs an
@@ -69,16 +74,18 @@ tool-bearing model; (4) reviewer lanes have structurally bounded authority; and 
 failed review evidence cannot become approval. Gate A and mocked JavaScript are supporting evidence,
 not substitutes for the live boundary proof.
 
-**Next action:** Monitor the ultrareview/direct-dispatch result contract for a documented immutable
-candidate identity and machine-enforceable finding verdict. Do not restore `ship-review`, wrap an
-exit-0 result as approval, or launch a paid/uploading probe until an owner explicitly accepts that
-external data/cost boundary and the remaining guarantees can be proven.
+**Next action:** Monitor the documented Workflow and ultrareview result contracts for immutable
+implementation binding, immutable candidate identity, and a machine-enforceable finding verdict.
+Re-probe only after one of those documented boundaries materially changes. Do not restore
+`ship-review`, treat exact skill selection as exact Workflow binding, wrap an exit-0 result as
+approval, or launch a paid/uploading probe until an owner explicitly accepts that external
+data/cost boundary and the remaining guarantees can be proven.
 
 ## Repository work
 
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
 
-**Status:** `active` (2026-08-24)
+**Status:** `active` (2026-08-30)
 
 **Owner:** `latent-sre` owns the architecture decision and acceptance of the exact generic-alpha
 revision. `agent-engineer` owns consumer context-requirement semantics for agents/skills;
@@ -161,119 +168,24 @@ alpha contract and next migration boundary, then close the item. Fleet-wide adop
 Backstage/MCP adapters, automatic discovery, live reconciliation, or a general overlay language are
 separately justified work and do not silently expand this item.
 
-**Next action:** Close the producer/consumer gap between the two service skills, which needs no
-resolver: `service-lifecycle` names the readiness audit as its independent verifier and states
-what an onboarded service leaves on record; `service-readiness-audit` states what it expects to
-find there. Then add `service-lifecycle`'s requirement sidecar under the widened authorization,
-with the condition (7) safety proof. `latent-sre/sre-context` exists and carries the versioned
-schemas, resolver, CLI, fixtures, and tests; stages 1–3 are substantially built rather than owed,
-and this file previously said otherwise. What remains is the acceptance evidence: the second
-synthetic-tenant portability proof, the effect-capable safety proof, and the paired consumer
-sidecars. Sidecars ship as a mirrored pair — the consumer copy here, its twin under that
-repository's `examples/`, where its own tests validate it against the schema. No team-specific
+**Next action:** Review and integrate the two exact published follow-ups, in producer-first order:
+`latent-sre/sre-context:work/context-001-lifecycle-contract` at `458f39c` adds the lifecycle mirror
+and paired resolver/CLI coverage; `latent-sre/save-toolkit:work/context-001-close-contract-gap` at
+`96e1784` strengthens the already-present lifecycle safety test. Neither has a pull request, and
+publication is not closure. Save-toolkit main already carries both local consumer sidecars and
+both skill-side links; sre-context main carries the readiness mirror and second synthetic tenant.
+Do not rebuild or requeue them. After review and merge, verify the mirrors and condition (7) safety
+boundary together on the exact paired revisions, complete independent review of the remaining
+acceptance evidence, and then ask the owner to accept or reject the generic alpha. Evidence and
+current branch boundaries:
+[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md). No team-specific
 values are required and no real team is onboarded.
-
-### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
-
-**Status:** `active` (2026-08-29). PR #193 review superseded the original runtime candidate after
-finding five recovery, lifecycle-identity, cross-platform-test, and wall-budget gaps. Follow-up
-revision `56ebece6d34d30eaa2b6bf5725a1d4a70ecb25f9` passed focused host, Linux, immutable-image, and
-healthy-mission verification for those five fixes. GitHub CI, review-thread acceptance, repository
-integration, and exact-candidate human acceptance remain open; the earlier full fault matrix is
-historical evidence and was not rerun for this follow-up revision.
-
-**Owner:** `software-engineer` owns implementation; `agent-engineer` owns the skill text that
-carries runtime-specific references; `stack-profile`'s decision owner names the runtime.
-
-**Outcome:** `software-engineer` can implement the accepted
-`checkout-payments-timeout-drill/v1` workflow contract against LangGraph inside a hardened,
-disposable Docker Compose lab named `graph-sandbox/v1`. The lab runs the synthetic checkout,
-payments, and inventory applications alongside the graph runner and proves checkpointer and
-interrupt behavior, reducers and fan-out, idempotent effect handling, cancellation, recovery, and
-budget enforcement without creating production deployment authority.
-
-**Source:** Owner direction on 2026-08-24 (stage 2). The
-[`2026-08-23 research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md)
-records that no inspected runtime supplies the whole portable contract, which is why selection
-follows the design and a concrete consumer rather than preceding them. Owner direction on
-2026-08-26 accepted the consumer-specific Docker Compose sandbox and offline-first delivery in the
-[`GRAPH-002 runtime decision`](decisions/2026-08-26-graph-002-docker-sandbox-runtime.md).
-The 2026-08-29 owner direction accepted the advisory-driven
-[`LangGraph security-pin supersession`](decisions/2026-08-29-graph-002-langgraph-security-pin.md)
-before implementation. The original full-matrix results remain in the historical
-[`GRAPH-002 exact-revision verification`](reviews/2026-08-29-graph-002-exact-revision-verification.md);
-the focused post-review follow-up evidence is recorded in the
-[`PR #193 remediation verification`](reviews/2026-08-29-graph-002-pr193-remediation-verification.md).
-
-**Accepted boundary:** The consumer is `checkout-payments-timeout-drill/v1`, not the fleet itself.
-The allowed runtime is Python 3.12 with exactly pinned `langgraph==1.0.10` and
-`langgraph-checkpoint-sqlite==3.1.1`, executed only inside `graph-sandbox/v1`; direct host execution
-is prohibited. The default profile has deterministic model fixtures and an internal-only network.
-A later bounded Terra profile requires separate approval of its trial count, spend ceiling,
-ephemeral credential path, and externally enforced endpoint-restricted egress; Compose alone is not
-that egress control. Runtime-specific guidance stays conditional and does not make LangGraph a
-universal fleet runtime.
-
-**Prerequisites:** The `workflow-graph-engineering` method merged at `f1afd57` (closed 2026-08-26;
-see the closed table) — satisfied. The named consumer and sandbox decision are accepted. Before the
-first container executes, the implementation must: (1) start from current `origin/main`; (2) confirm
-a reachable Linux Docker daemon; (3) pin every base image by version and digest; (4) add the exact
-Python dependencies to `requirements-dev.txt` without importing them from Gate A or the isolated
-read-only guard; (5) turn the consumer behavior into a versioned typed workflow contract; and (6)
-write the sandbox preflight predicate and its red-first negative fixtures. Live model credentials or
-paid calls are not prerequisites for the offline stages.
-
-**Implementation plan:** Deliver independently reviewable offline slices in this order:
-
-1. **Sandbox contract and preflight:** define the allowed Compose model and reject root users,
-   privileged mode, added capabilities, writable root filesystems, published ports, external
-   networks, Docker-socket or credential mounts, missing image digests, missing resource limits, and
-   an unavailable daemon.
-2. **Running synthetic topology:** containerize the existing checkout fixture; add deterministic
-   payments and inventory simulators plus health checks; add an optional bounded load-generator
-   profile. No host ports or general egress are required.
-3. **Executable graph:** implement typed state, stable run/thread/attempt identities, reducer and
-   fan-out behavior, approval interrupts, SQLite checkpoints, attempt/time/spend budgets,
-   cancellation, evidence-envelope output, and the structured boundary-event handoff accepted in
-   the [`GRAPH-003 preparation decision`](decisions/2026-08-26-graph-003-observability-preparation.md).
-4. **Failure and recovery:** exercise application failure, payment latency, runner termination and
-   resume, checkpoint failure, duplicate effect prevention, crash-after-dispatch `UNKNOWN`, budget
-   exhaustion, and cancellation acknowledgement. Retrying a LangGraph node never substitutes for
-   consumer-owned idempotency or reconciliation.
-5. **Exact-revision verification:** run the focused unit, contract, integration, recovery, and
-   negative sandbox suites; validate the final Compose model; record image digests, commands, exit
-   status, environment, and what each result does not prove; obtain independent review and
-   verification of the exact commit. Only then may an owner approve a separately bounded Terra
-   behavioral run.
-
-**Acceptance:** All conditions are required. (1) The sandbox preflight fails for each forbidden
-privilege, mount, network, port, credential, writable-root, unpinned-image, and missing-limit case and
-passes the reviewed Compose model. (2) The healthy running topology completes one checkout through
-the real synthetic payments and inventory HTTP boundaries. (3) Restarting `graph-runner` against the
-same run-scoped checkpoint resumes the correct thread without reapplying committed nodes. (4) Effect
-tests prove idempotent duplicate handling and preserve `UNKNOWN` after ambiguous dispatch rather than
-claiming exactly-once execution. (5) Recovery, temporal ordering, reducer/fan-out consistency,
-approval, cancellation, and attempt/time/spend budget cases pass deterministically offline. (6) The
-evidence bundle binds the graph contract, exact revision, image digests, run/node/edge/task/attempt/
-replay/checkpoint/effect identities, commands, exit statuses, and environment; teardown never holds
-the only evidence copy. (7) Independent exact-revision verification passes. (8) No production
-system, credential, deployment target, dashboard, alert route, or authority is introduced.
-
-**Rollback:** Before merge, delete the implementation branch. After the offline lab lands, disable or
-remove its explicit entrypoint and return `incident-drill` to the current manual file-and-lane
-procedure; export sanitized evidence first, then remove only the run-scoped containers, network, and
-volumes. No production data migration exists.
-
-**Next action:** Push the documentation-only follow-up, obtain green CI and reviewer closure on
-the five PR #193 threads, then either rerun the full matrix on the exact acceptance candidate or
-update the exact-candidate acceptance record before asking the owner to accept or reject it. Any
-runtime-input change requires another pinned build and verification set. Do not add live Terra
-egress, credentials, or paid calls.
 
 ### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
 
-**Status:** `blocked` (2026-08-26). Scope and the first operated graph are accepted; implementation
-waits for `GRAPH-002` to produce the running graph and observable failure planes.
+**Status:** `ready` (2026-08-30). Scope and the first operated graph are accepted. `GRAPH-002`
+closed after delivering the running sandbox and observable failure planes; no GRAPH-003
+implementation has started.
 
 **Owner:** `observability-engineer` for indicators, dashboards, and alert design; `scribe`/`runbook`
 for operating documents; `sre` remains the live-incident lane. No new agent.
@@ -303,13 +215,14 @@ source, or effect authority is created. The first operated graph is
 `checkout-payments-timeout-drill/v1`; a later graph must justify its own additional signals rather
 than silently widening this reference set.
 
-**Prerequisites:** `GRAPH-002` must first deliver a runnable offline topology, the graph
-runner, stable run/node/edge/task/attempt/replay/checkpoint/effect identities, structured events,
-controllable failure modes, and restart/resume behavior. This item remains blocked until those
-signals exist as real sandbox output; drafting dashboards, thresholds, or runbooks solely from the
-design would describe a system nobody operates. The GRAPH-002 implementation must preserve this
-telemetry handoff, but the observability owner—not the graph runner—owns operational interpretation, cardinality
-budgets, alert semantics, and runbook response.
+**Prerequisites:** Satisfied by the accepted `graph-sandbox/v1` implementation closed on
+2026-08-30. It provides a runnable offline topology, stable
+run/node/edge/task/attempt/replay/checkpoint/effect identities, structured events, controllable
+failure modes, and restart/resume behavior. The full fault matrix remains historical evidence for
+the pre-remediation revision, while the accepted post-review revision carries focused recovery
+evidence and one healthy mission; historical fault samples must not be relabelled as
+exact-remediation measurements. The observability owner—not the graph runner—owns operational
+interpretation, cardinality budgets, alert semantics, and runbook response.
 
 **Acceptance:** All conditions are required. (1) References are added under the existing owning
 skills with a discovery near-miss keeping a live graph outage with `sre`. (2) The indicator set is
@@ -325,41 +238,61 @@ resolves after recovery, names an owner and first action, and pages only on acti
 cause and saturation signals remain diagnostic. (6) No new agent, tool, credential, production
 dashboard, live alert route, or pager is introduced.
 
-**Next action:** Complete the GRAPH-002 offline graph through restart/resume and
-fault-injection evidence with the telemetry identities above. Then inspect the emitted data before
-choosing queries, thresholds, retention, dashboards, or alert rules; implement the minimum reference,
-synthetic runbook, and tested alert set against that evidence. No paid or Terra run is required to
-record this decision or to exercise deterministic sandbox failures.
+**Next action:** `observability-engineer` inspects the emitted `graph-sandbox/v1` data before
+choosing queries, thresholds, retention, dashboards, or alert rules, then implements the minimum
+graph-specific reference, synthetic runbook, and tested alert set against that evidence. Rerun the
+specific deterministic fault cases needed to evaluate those artifacts on current runtime inputs;
+do not reopen GRAPH-002 or reuse historical samples as current measurements. No paid or Terra run
+is required.
 
-### GRAPH-004 — `codebase-atlas`: code, dependency, knowledge, and GraphRAG graphs
+### GRAPH-004 — `fleet-atlas`: a revision-bound knowledge graph over fleet artifacts
 
-**Status:** `decision-needed` (2026-08-24)
+**Status:** `active` (2026-08-30). The owner accepted the fleet-knowledge scope, the published
+branch carries the decision and initial implementation, and additional isolated implementation is
+in progress. No pull request exists and no candidate is accepted or merged.
 
-**Owner:** to be named; `repository-investigator` is the nearest lane for local source structure.
+**Owner:** `software-engineer` owns the generator, schema, catalog entry, drift check, and tests;
+`agent-engineer` owns the `fleet-atlas` skill and scenarios; `repository-investigator`,
+`agent-engineer`, `scribe`, and the human owner are read-only consumers; `latent-sre` accepts
+findings and the exact candidate revision. No new agent or authority over another contract's edge.
 
-**Outcome:** A separate capability with its own inputs, provenance, and success criteria for
-import/dependency graphs, runtime topology, knowledge graphs, and GraphRAG — kept distinct from
-`workflow-graph-engineering` (executable graphs) and `agent-authoring` (roster graphs), both of which
-already carry near-miss scenarios that keep these requests out.
+**Outcome:** A deterministic static atlas answers, with `path:line` provenance and an exact source
+revision, which artifact is canonical for a rule, which agent or skill owns a capability, which
+references load for a predicate, which decision superseded another, which roadmap items depend on
+which, which eval/test/evidence supports a claim, which generated projections derive from which
+canonical source, and where documentation, rules, status, and implementation disagree. It returns
+`UNKNOWN` rather than guessing when evidence cannot resolve an edge.
 
-**Source:** Owner direction on 2026-08-24 (stage 2). The
-[`2026-08-22 audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) split graph engineering
-into three contracts and deferred this one pending confirmed owner need.
+**Source:** Owner direction on 2026-08-30 redirected the earlier general code/GraphRAG idea to the
+fleet's own knowledge. Published branch `origin/work/graph-004-fleet-atlas` at `0828418c` carries
+the accepted decision packet and deterministic implementation slices; the isolated local branch
+had advanced to `8f493793` with further work at the final 2026-08-30 refresh. The
+[`live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) records exact branch and dirty
+state without promoting either to main. The
+[`2026-08-22 audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) remains the source for
+separating this capability from executable and roster graphs.
 
-**Decision required:** the operator need (which questions the atlas must answer), whether output is a
-static analysis artifact or a retrieval index, the provenance and freshness contract, and the
-consumer.
+**Prerequisites:** Satisfied for the current static implementation. The generator stays
+standard-library-only on the Gate A path; optional parser use stays in component verification.
+Application-code AST/import/call graphs, runtime topology, production telemetry, executable
+workflow engines, graph databases, automatic canonical rewrites, and GraphRAG remain out of scope.
 
-**Prerequisites:** none technical; a named need and owner.
+**Acceptance:** The atlas schema and catalog entry validate; generation is deterministic and a
+regenerate-and-compare check detects source drift; mutation proves unresolved or renamed references
+become `UNKNOWN`; extracted delegation, roster, generated-projection, roadmap-dependency, and guard
+edges match their enforcing contracts; every accepted operator question has a pinned golden answer;
+bounded index/detail views cite revision and source; positive discovery and direct provenance/
+contradiction scenarios pass while existing code-graph and roster-graph near misses remain green;
+Gate A and independent exact-revision review pass. Generated findings never edit canonical truth.
 
-**Acceptance:** to be defined with the decision; at minimum a positive discovery scenario, the two
-existing near-miss scenarios remaining green, and no overlap with `workflow-graph-engineering`.
-
-**Next action:** Owner names the need; until then no implementation.
+**Next action:** Finish the existing isolated `work/graph-004-fleet-atlas` candidate without
+overwriting its uncommitted files, restore a clean exact revision, run its focused atlas and
+mutation checks plus Gate A, obtain independent review, and open one review path for that exact
+candidate. Do not start a duplicate implementation or schedule GraphRAG.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `active` (2026-08-25). F7's installed-Claude-CLI visibility gap is closed; the VS Code
+**Status:** `active` (2026-08-30). F7's installed-Claude-CLI visibility gap is closed; the VS Code
 boundary remains open.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
@@ -394,6 +327,35 @@ plugin-wide `PreToolUse` payload carries no custom-agent identity, so the viable
 generated `sre`-scoped hook rather than a self-scoping entry in `hooks/copilot-hooks.json`. No real
 fleet hook is wired.
 
+The [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) and
+[`VS Code subagent and handoff enforcement`](reviews/2026-08-30-vscode-subagent-handoff-enforcement.md)
+record the newer boundary. `[verified static]` Installed VS Code 1.135.0 at `08d4889f` recognizes
+and carries `allowedSubagents`, but filters only the model-visible list, does not reject a named
+target outside `agents:`, and passes `allowedSubagents: undefined` to a child. `[sourced]` Current
+official docs define `agents:` as an allowlist. Upstream merged deterministic prepare/invoke
+rejection and child-list forwarding in `d679b159` after that installed build; the inspected current
+source at `004a1fbb` contains that enforcement. This source delta is not a live forbidden-call
+observation and does not establish which released build first carries it.
+
+The exact-candidate Claude clean-room receiver campaign ran 20/20 approved Sonnet trials but failed
+its declared contract: reviewer passed 5/5 while scribe, software-engineer, and SRE each passed 0/5.
+All 40 action/authority contradiction checks in the three new scenarios passed, but bare-scalar
+output checks failed 0/15 and the SRE evidence-label/severity checks had additional misses. The
+[sealed no-go record](reviews/2026-08-30-eval-20260830T063012Z-f5c3f1ea.md) is receiver-behavior
+evidence only; it does not establish VS Code rendering, `send: true`, retained-context fidelity, or
+Copilot tool enforcement.
+A clean corrected-candidate confirmation then passed scribe 3/3 and software-engineer 3/3 but left
+SRE at 0/3 because it changed exact `[sourced]` input labels to `[sourced: handoff]` in every trial.
+Decision fields passed 9/9, SRE severity passed 3/3, and all 24 action/authority contradiction checks
+passed. Later root-cause review found that exact-token rule conflicted with the model-visible corpus
+and had no runtime consumer, so it was superseded by an accepted exact-or-extended grammar and
+structured telemetry/platform state. The resulting SRE-only run passed the target corrections 3/3
+but remained an official 2/3 no-go because trial 3 used the canonical `[unverified] assignment
+pending` severity fallback that the scenario's prose regex rejects. The
+[sealed structured confirmation](reviews/2026-08-30-eval-20260830T122740Z-459779a7.md) and
+[earlier confirmation](reviews/2026-08-30-eval-20260830T072838Z-573c9de8.md) are direct Claude
+receiver evidence only.
+
 **Prerequisites:** An installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
 observational: it changes no live system, and it neither authorizes nor implies a Copilot hook
@@ -402,16 +364,21 @@ implementation.
 **Acceptance:** A dated packet and durable, non-secret transcript/envelopes record whether the tools
 picker offers `execute` to `sre`; whether an override changes the configuration; whether the active
 generated buffer or on-disk file changes; and whether a safe invocation runs or receives an explicit
-host denial. An operator-local artifact and hash are not closure evidence. Any hook-portability
-finding is evidence only; wiring a Copilot hook is separate work needing its own review. Exact-agent
-scope may be established by a hook attached to the selected custom agent; the global hook payload
-does not need to invent an identity field it does not carry.
+host denial. A paired custom-agent canary also records whether a parent with `agents: [allowed]` can
+invoke a named `forbidden` agent on installed 1.135.0 and, separately, on the first tested build
+proven to contain upstream `d679b159`. An operator-local artifact and hash are not closure
+evidence. Any hook-portability finding is evidence only; wiring a Copilot hook is separate work
+needing its own review. Exact-agent scope may be established by a hook attached to the selected
+custom agent; the global hook payload does not need to invent an identity field it does not carry.
 
-**Next action:** Run the probe's distinct agent-scoped hook canary in a disposable VS Code profile:
-the custom canary must deny a harmless terminal request with its fixed marker, while the built-in
-Agent control remains unaffected. Keep invocation authority open until a real tool call or host
-denial is observed. Do not run a third identical picker retry, substitute a prompt-file override, or
-populate `hooks/copilot-hooks.json`.
+**Next action:** In an approved disposable VS Code profile, run the paired allowed/forbidden
+subagent canary on installed 1.135.0 and repeat it on the first installed build proven to contain
+upstream `d679b159`. Capture the actual tool result rather than inferring authority from the
+model-visible list. Then run the distinct agent-scoped hook canary: the custom canary must deny a
+harmless terminal request with its fixed marker while the built-in Agent control remains
+unaffected. Keep invocation authority open until real calls or host denials are observed. Do not
+run a third identical picker retry, infer runtime enforcement from source alone, substitute a
+prompt-file override, or populate `hooks/copilot-hooks.json`.
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 
@@ -489,7 +456,7 @@ Codex claims or treat read-only execution as proof of bundle-only reads.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-27). Phase 1 is closed as evidence; Phase 2 is the live work, one
+**Status:** `active` (2026-08-30). Phase 1 is closed as evidence; Phase 2 is the live work, one
 skill per slice, and its method changed on 2026-08-27: probe before routing.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need, and no skill
@@ -546,10 +513,11 @@ dominant caller-fence failure, routing 6/6 — pre-existing content-contract ins
 `EVAL-006`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
 
 **Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
-5,000 before). On `origin/main` `4f01f22`, 33 entrypoints total 224,844 immutable bytes and seven
-non-Phase-1 entrypoints other than `agent-authoring` sit at or above it: `obs-dashboards` 11,419,
-`backend-craft` 11,123, `runbook` 9,561, `workflow-graph-engineering` 8,622, `incident-drill` 8,154,
-`gcp-ops` 8,102, `obs-alerting` 7,755. `frontend-craft` (7,481) is below it. The earlier 5,000-byte
+5,000 before). On refreshed `origin/main` `41406af0`, 33 entrypoints total 225,466 immutable bytes
+and seven non-Phase-1 entrypoints other than `agent-authoring` sit at or above it:
+`obs-dashboards` 11,419, `backend-craft` 11,123, `runbook` 9,561,
+`workflow-graph-engineering` 8,622, `incident-drill` 8,154, `obs-alerting` 7,755, and the retained
+`gcp-ops` candidate 7,679. `frontend-craft` (7,481) is below it. The earlier 5,000-byte
 screens on `b9b274f` (twelve) and `0eb3daf` (seventeen) are superseded. Selection means inspect, not rewrite; size alone is not a finding.
 The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
 unrefreshed and still does not authorize a description rewrite inside Phase 2.
@@ -593,14 +561,17 @@ phrase their discovery graders target. Each changed description passes the 600-b
 is required only for an existing scenario that returns red. Gate A green.
 
 **Next action:** The remaining candidate set is the six undispositioned entrypoints at or above
-the 7,500-byte screen.
-`backend-craft` is in progress on its own branch with the clean-room checkpoint. Then, one per
-slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
+the 7,500-byte screen. No next slice is in progress and no `backend-craft` Phase 2 branch exists.
+At the next one-item evidence/recommendation checkpoint, select whether `backend-craft` is the next
+slice; only after owner approval create a refreshed branch and run its clean-room checkpoint. Then,
+one per approved slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
 recitation), `obs-dashboards` and `runbook` (large, with live-write authority text and a worked
 exemplar to retain explicitly), `incident-drill` (explicit-invocation only; its references are drill
 packs), and `workflow-graph-engineering` (its own review already records why the entrypoint stays
 long — commit that as its disposition after a checkpoint). Skills below the screen owe no
-disposition. Do not requeue a Phase 1 skill or rewrite discovery descriptions.
+disposition. The exact refresh evidence is in
+[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md). Do not requeue a
+Phase 1 skill or rewrite discovery descriptions.
 
 Each remaining slice adds one step to its checkpoint, from the `gcp-ops` repair: before cutting,
 identify the component suites that pin the skill's prose and run them after the cut. `rg` the
@@ -611,7 +582,8 @@ line wrap that splits a pinned phrase disables the mutation without failing the 
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
-**Status:** `deferred` (2026-08-23)
+**Status:** `ready` (2026-08-30). The material route/evaluator-change trigger fired; no
+remeasurement has started.
 
 **Owner:** `latent-sre`
 
@@ -624,20 +596,23 @@ two trials, and a 180-second timeout passed read-only service readiness 1/2 and 
 trial. The exact dispositions are in the
 [`skill clarity and routing audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md).
 
-**Prerequisites:** A material routing, evaluator, host, or model change that can alter the result, or
-explicit owner approval of a fixed no-tuning measurement budget. Use a clean exact plugin revision
-and predeclare model, timeout, trials, threshold, and selected scenarios.
+**Prerequisites:** Satisfied by material post-deferral changes. `workflow-graph-engineering` was
+introduced at `f1afd574`; the service-readiness route and lifecycle vocabulary changed through
+`afb6f846`, `ee80ba67`, and `bbc228ad`; evaluator follow-up reached `c6d928c9`. The
+[`2026-08-30 refresh`](reviews/2026-08-30-live-backlog-refresh.md) records why these changes satisfy
+the item's own trigger. Use a clean exact plugin revision and predeclare model, timeout, trials,
+threshold, selected scenarios, and spend ceiling before measurement.
 
 **Acceptance:** The workflow-graph and service-readiness cases each meet their declared threshold on
 the exact candidate under the predeclared conditions, with no overlapping regression loss. A failed
 or inconclusive batch remains evidence; it does not authorize prompt edits or retries without a
 separately accepted fleet failure and candidate budget.
 
-**Reopen trigger:** A material change to either route or its evaluator/runtime boundary, a named
-model-migration question, or explicit owner approval for one fixed-budget reliability measurement.
-
-**Next action:** None while deferred. Do not rerun unchanged bytes merely to turn timeouts green, and
-do not move reference-dependent behavior graders into discovery.
+**Next action:** Present one fixed, no-tuning measurement packet for owner approval: exact plugin
+revision, model, the two named discovery cases, timeout, trials, thresholds, stop conditions, and
+spend ceiling. If approved, run that packet once and retain failures/timeouts as evidence. Do not
+retry unchanged bytes merely to turn timeouts green or move reference-dependent behavior graders
+into discovery.
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
@@ -684,11 +659,9 @@ are re-measured on the accepted candidate revision.
 
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-004-working-evidence.md) records the
-red-first five-check failure, paired denial and affirmative fixtures, and exact candidate
-`22d6c728`. `[verified]` The candidate passes 1,355/1,355 grader checks, validates all 136
-scenarios, passes Gate A 8/8, and passes all 38 component suites. Two independent one-shot Terra
-transfer probes pass all 10 graders for each affected scenario on that exact clean revision. They
-are cooperative transfer evidence, not native Claude/profile evidence.
+red-first five-check failure, paired denial and affirmative fixtures, exact candidate
+`22d6c728`, and two cooperative Terra transfer probes. Native remeasurement of the two
+affected scenarios remains owed.
 
 **Next action:** Under a separately approved native Claude run, remeasure
 `agent-direct-sre-owns-recovery-to-terminal` and
@@ -721,9 +694,8 @@ on an accepted candidate revision.
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
 records the red-first controls, transfer forms, named `gate_posture` grader, and green offline suite.
-`[verified]` The combined branch passes 1,364/1,364 grader checks, validates all 136 scenarios, passes
-Gate A 8/8, and passes all 38 component suites. The three discovery scenarios have not been rerun
-on the exact merged revision, so the item is not closure-ready.
+The three discovery scenarios have not been rerun on the exact merged revision, so the item is not
+closure-ready.
 
 **Next action:** Remeasure the three scenarios on the exact merged revision without changing their
 prompts, thresholds, or routing description.
@@ -753,11 +725,8 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records the reproduced false positive and the named, object-bound replacement. Guidance transfer
-forms pass and progressive rollback, restart, restage, and state-changing-command claims remain
-red. `[verified]` The combined branch passes 1,364/1,364 grader checks, validates all 136 scenarios,
-passes Gate A 8/8, and passes all 38 component suites. The affected direct scenario has not been
-rerun on the exact merged revision.
+records the reproduced false positive and the named, object-bound replacement. The affected
+direct scenario has not been rerun on the exact merged revision.
 
 **Next action:** Remeasure `agent-direct-sre-readonly-triage` on the exact merged revision without
 changing its prompt or threshold.
@@ -789,10 +758,12 @@ recorded matrices.
 existing red side still fails — a real `just run it again` recommendation included — and both
 scenarios are re-measured on both sides.
 
-**Current evidence:** `[verified]` The combined branch carries both accepted fixtures and the
-particle-form and quoted-warning fixes. It passes 1,364/1,364 grader checks, validates all 136
-scenarios, passes Gate A 8/8, and passes all 38 component suites. The required model trials have not
-been rerun on the exact merged revision.
+**Current evidence:** The quoted sentences and the particle-form / quoted-warning fixtures are
+recorded in the
+[observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md)
+and the
+[`combined-branch amendment`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md).
+The required model trials have not been rerun on the exact merged revision.
 
 **Next action:** Remeasure the two scenarios three trials per side on the exact merged revision.
 
@@ -851,14 +822,10 @@ uncommitted at the time this item was written. No claim below has been measured 
 **Current evidence:** `[verified]` Eight direct scenarios cover these claims and the independent
 declaration-clock contract, with paired compliant and tempting-wrong fixtures. The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records two frozen current-guidance Terra probes at 8/8 after red-first oracle transfer fixes,
-against pre-guidance baselines of 4/8 and 2/8. The probes are cooperative agent-task transfer
-evidence, not profile-backed native execution. The oracle fixes are present on the combined branch,
-whose offline verification is green, but native profile behavior on the exact merged revision
-remains `[unverified]`. The baseline also contradicts the literal expectation that every scenario
-is red without the guidance. Eight independent Luna runs, one per scenario with no retries,
-initially replayed at 6/8 and finish at 8/8 after two additional red-first oracle transfer fixes;
-they carry the same cooperative, non-native limitation.
+records the frozen Terra and Luna transfer probes, the pre-guidance baselines, and the oracle
+fixes. Those probes are cooperative agent-task transfer evidence, not profile-backed native
+execution. Native profile behavior on the exact merged revision remains `[unverified]`. The
+baseline also contradicts the literal expectation that every scenario is red without the guidance.
 
 **Prerequisites:** None structural. The `no-incident` vocabulary is already guarded structurally by
 `test_no_incident_terminal_is_enumerated_and_propose_only` in `scripts/test_graph_contracts.py`,
@@ -983,6 +950,7 @@ constraint no real caller imposes, and the fleet already paid for that lesson on
 by one path damages the paths that skip it. Also superseded: closing this item with
 `threshold: 0.66`, because at a true rate of 0.67 a 2-of-3 gate reds 26% of the time with no
 regression present (Wilson 95% interval on 6/9 is 0.35–0.88).
+
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
 **Status:** `active` (2026-08-26)
@@ -1028,7 +996,7 @@ their evidence is in the commits, not here.
 
 ### EVAL-007 — grade incident behaviour without phrase adjacency
 
-**Status:** `ready` (2026-08-27)
+**Status:** `decision-needed` (2026-08-30)
 
 **Outcome:** A behavioural incident scenario returns a verdict that reflects the response rather
 than its phrasing, so a red result is worth investigating instead of routinely being a pattern that
@@ -1052,7 +1020,29 @@ guidance, cited by SHA, before any with/without comparison is presented as settl
 One LLM-judge pilot now exists outside the harness: the
 [`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
 graded thirteen anonymized four-answer sets with a fixed per-assertion bar and recorded what that
-settled and what it did not.
+settled and what it did not. The
+[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) correctly classified
+the choice between structured output and a nondeterministic judge as a load-bearing owner decision,
+not implementation-ready work. The later handoff work selected a structured contract for the one
+concrete transcript below; it does not silently make that choice for the remaining scenarios.
+
+The 2026-08-30 direct handoff confirmation adds a different false-green shape: one SRE response
+said the current trend was unverified while also asserting `now — error rate at 8%`. The scenario's
+unknown-marker grader passed because it does not model contradiction. That exact transcript is a
+better first structured-contract pilot than adding another adjacency pattern.
+
+The structured pilot then separated reported/current rate, current trend, and platform into closed
+fields and held those facts 3/3. Its remaining official red is the inverse problem: trial 3 emitted
+the canonical allowed fallback `severity [unverified] assignment pending`, but the severity regex
+recognizes only a named P1–P4 or critical/high/medium/low value. Full-response review called the
+answer compliant. This is another concrete reason not to convert a phrase-pattern red directly into
+a behavior finding.
+
+`[verified structural]` The follow-up evaluator repair replaces that prose regex with the exact
+field `Provisional severity: assignment pending` and adds a reduced positive fixture derived from
+reviewed trial 3. The fixture was observed red under the old oracle and passes with the closed field;
+the scenario's existing contradiction and authority negatives remain green. This is offline grader
+evidence only; the sealed 2/3 model result is not rewritten and the candidate has not been rerun.
 
 **Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
 exist in the grader registry, so a structured-output contract needs no new grader type. An
@@ -1064,8 +1054,9 @@ unchanged guidance. The removal control still discriminates: with the guidance r
 scenario fails. No grader rejects a response that a reader would call correct, tested against the
 transcripts already retained under `.eval-runs/`.
 
-**Next action:** Choose the grading style — a structured contract the response must emit, or an
-LLM judge — then convert one scenario and measure it three times before converting the rest.
+**Next action:** Run the still-owed committed guidance-removal control. A new live campaign requires
+separate approval and must bind this exact evaluator candidate; until then the offline repair does
+not promote or supersede the sealed model result.
 Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
 further tuning run is spent on pattern repair.
 
