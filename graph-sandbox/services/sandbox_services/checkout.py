@@ -300,6 +300,8 @@ def create_app(
         recorded = checkout_store.get(idempotency_key)
         if recorded is None:
             return error_response(404, "not_found")
+        if recorded.get("completion_class") != "COMPLETE":
+            return _failure_response(recorded)
         return recorded
 
     return app

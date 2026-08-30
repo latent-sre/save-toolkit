@@ -417,6 +417,11 @@ class TargetServiceContractTests(unittest.IsolatedAsyncioTestCase):
                                 "items": [{"sku": "sku-001", "quantity": 1}],
                             },
                         )
+                        lookup = await client.get(
+                            "/checkout/receipt",
+                            params={"idempotency_key": "checkout-key-partial"},
+                            headers={"X-Sandbox-Case": case_id},
+                        )
             finally:
                 await payment_client.aclose()
                 await inventory_client.aclose()
@@ -424,6 +429,8 @@ class TargetServiceContractTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status_code, 502)
             self.assertEqual(response.json()["outcome"], "partial")
             self.assertEqual(set(response.json()["known_receipts"]), {"payment"})
+            self.assertEqual(lookup.status_code, response.status_code)
+            self.assertEqual(lookup.json(), response.json())
 
 
 @unittest.skipUnless(CONTAINER_ONLY, "synthetic application code executes only in its container")
