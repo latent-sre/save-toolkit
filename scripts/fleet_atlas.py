@@ -162,10 +162,30 @@ def git_revision(root: Path) -> tuple[str, bool]:
     return head, bool(status.strip())
 
 
-def snapshot(root: Path, graph: Graph) -> dict[str, object]:
-    sys.path.insert(0, str(root / "scripts"))
-    import evidence_envelope  # noqa: E402  (stdlib-only sibling script)
+CANONICAL_INPUTS = ("agents", "skills", "commands", "docs/rules.md", "docs/fleet-roadmap.md", "docs/roadmap-closed.md",
+                    "docs/decisions", "docs/reviews", "docs/probes", "evals/scenarios", "evals/build-scenarios", "schemas",
+                    "hooks", "AGENTS.md", "CONTRIBUTING.md", "README.md", "docs/README.md", "docs/schema-compatibility.md")
 
+
+def canonical_inputs(root: Path) -> list[Path]:
+    files: list[Path] = []
+    for entry in CANONICAL_INPUTS:
+        path = root / entry
+        if path.is_file():
+            files.append(path)
+        elif path.is_dir():
+            files.extend(p for p in path.rglob("*") if p.is_file())
+    files.extend(p for p in (root / "scripts").glob("test_*.py"))
+    files.extend(p for p in (root / "evals").glob("test_*.py"))
+    return sorted(set(files))
+
+
+def input_digest(root: Path) -> str:
+    lines = [f"{p.relative_to(root).as_posix()}:{hashlib.sha256(p.read_bytes()).hexdigest()}" for p in canonical_inputs(root)]
+    return excerpt_hash(lines)
+
+
+def snapshot(root: Path, graph: Graph) -> dict[str, object]:
     revision, dirty = git_revision(root)
     return {
         "apiVersion": API_VERSION,
@@ -174,7 +194,7 @@ def snapshot(root: Path, graph: Graph) -> dict[str, object]:
             "repository": root.name,
             "revision": revision,
             "dirty": dirty,
-            "treeDigest": "sha256:" + evidence_envelope.tree_digest(root / "agents"),
+            "treeDigest": input_digest(root),
             "nodeCount": len(graph.nodes),
             "edgeCount": len(graph.edges),
             "unknownCount": len(graph.unknowns),
@@ -183,6 +203,11 @@ def snapshot(root: Path, graph: Graph) -> dict[str, object]:
         "edges": [graph.edges[key].as_dict() for key in sorted(graph.edges)],
         "unknowns": [item.as_dict() for item in sorted(graph.unknowns, key=lambda u: (u.code, u.path or "", u.message))],
     }
+
+
+def manifest(files: dict[str, bytes]) -> dict[str, object]:
+    return {"apiVersion": "save-toolkit/fleet-atlas-manifest/v1",
+            "files": {name: "sha256:" + hashlib.sha256(content).hexdigest() for name, content in sorted(files.items())}}
 
 
 def write_json(path: Path, document: dict[str, object]) -> None:
@@ -223,13 +248,50 @@ def build_graph(root: Path) -> Graph:
     return graph
 
 
-def cmd_build(root: Path) -> int:
+def render_all(root: Path) -> dict[str, bytes]:
+    sys.path.insert(0, str(root / "scripts"))
+    import fleet_atlas_views  # noqa: E402
+
     document = snapshot(root, build_graph(root))
-    write_json(root / OUTPUT / "atlas.json", document)
-    print(f"fleet_atlas: wrote {OUTPUT}/atlas.json "
-          f"({document['metadata']['nodeCount']} nodes, {document['metadata']['edgeCount']} edges, "
-          f"{document['metadata']['unknownCount']} unknowns)")
+    files = {name: text.encode("utf-8") for name, text in fleet_atlas_views.render_views(document).items()}
+    files["atlas.json"] = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return files
+
+
+def cmd_build(root: Path) -> int:
+    files = render_all(root)
+    out = root / OUTPUT
+    out.mkdir(parents=True, exist_ok=True)
+    for stale in out.iterdir():
+        if stale.name not in files and stale.name != "manifest.json":
+            stale.unlink()
+    for name, content in files.items():
+        (out / name).write_bytes(content)
+    write_json(out / "manifest.json", manifest(files))
+    print(f"fleet_atlas: wrote {len(files) + 1} files under {OUTPUT}")
     return 0
+
+
+def cmd_check(root: Path) -> int:
+    sys.path.insert(0, str(root / "scripts"))
+    import fleet_atlas_cite  # noqa: E402
+
+    out = root / OUTPUT
+    failures: list[str] = []
+    expected = render_all(root)
+    committed = json.loads((out / "manifest.json").read_text(encoding="utf-8")) if (out / "manifest.json").is_file() else {"files": {}}
+    if committed["files"] != manifest(expected)["files"]:
+        for name in sorted(set(committed["files"]) | set(expected)):
+            if committed["files"].get(name) != manifest(expected)["files"].get(name):
+                failures.append(f"drift: {name}")
+    for name, content in expected.items():
+        if not (out / name).is_file() or (out / name).read_bytes() != content:
+            failures.append(f"drift: {name} (bytes)")
+    failures.extend(fleet_atlas_cite.parity_failures(root, json.loads(expected["atlas.json"])))
+    for failure in sorted(set(failures)):
+        print(f"fleet_atlas check: {failure}", file=sys.stderr)
+    print("fleet_atlas check: " + ("PASS" if not failures else f"FAIL ({len(set(failures))})"))
+    return 0 if not failures else 1
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -237,9 +299,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=ROOT)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("build", help="regenerate docs/fleet-atlas/generated/")
+    sub.add_parser("check", help="regenerate in memory and compare with the committed output")
     args = parser.parse_args(argv)
     if args.command == "build":
         return cmd_build(args.root.resolve())
+    if args.command == "check":
+        return cmd_check(args.root.resolve())
     return 2
 
 

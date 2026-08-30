@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import unittest
@@ -12,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import fleet_atlas  # noqa: E402
+import fleet_atlas_views  # noqa: E402
 
 
 class ModelTests(unittest.TestCase):
@@ -451,6 +453,73 @@ class DetectorTests(unittest.TestCase):
                               if e.kind == "contradicts" and e.attrs["detector"] == "delegation_mismatch"]
             self.assertEqual(before_findings, [])
             self.assertGreater(len(after_findings), 0)
+
+
+class ViewAndDriftTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        # unittest's default test-method ordering is alphabetical, which runs
+        # test_a_renamed_reference_... before test_build_is_deterministic_..., yet the former calls
+        # `check` and expects a baseline docs/fleet-atlas/generated/ to already exist and match HEAD.
+        # Building once here (independent of method order) gives every test in this class that
+        # baseline without weakening any individual assertion.
+        result = fleet_atlas.main(["build"])
+        if result != 0:
+            raise RuntimeError(f"fleet_atlas build failed with exit code {result}")
+
+    def test_build_is_deterministic_and_check_passes_after_build(self) -> None:
+        self.assertEqual(fleet_atlas.main(["build"]), 0)
+        first = {p.name: p.read_bytes() for p in (ROOT / "docs/fleet-atlas/generated").iterdir()}
+        self.assertEqual(fleet_atlas.main(["build"]), 0)
+        second = {p.name: p.read_bytes() for p in (ROOT / "docs/fleet-atlas/generated").iterdir()}
+        self.assertEqual(first, second)
+        self.assertEqual(fleet_atlas.main(["check"]), 0)
+
+    def test_every_generated_markdown_has_the_banner_and_respects_caps(self) -> None:
+        for path in (ROOT / "docs/fleet-atlas/generated").glob("*.md"):
+            text = path.read_bytes()
+            self.assertTrue(text.startswith(fleet_atlas_views.BANNER.encode()), path.name)
+            self.assertNotIn(b"\r\n", text, path.name)
+            cap = fleet_atlas_views.INDEX_CAP if path.name == "INDEX.md" else fleet_atlas_views.VIEW_CAP
+            self.assertLessEqual(len(text), cap + len(fleet_atlas_views.TRUNCATED) + 2, path.name)
+
+    def test_no_timestamps_or_absolute_paths_in_generated_output(self) -> None:
+        import re
+        for path in (ROOT / "docs/fleet-atlas/generated").iterdir():
+            text = path.read_text(encoding="utf-8")
+            self.assertIsNone(re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", text), path.name)
+            self.assertNotIn(str(ROOT), text, path.name)
+            self.assertNotIn("F:\\", text, path.name)
+
+    def test_check_detects_a_drifted_view_and_a_timestamp(self) -> None:
+        view = ROOT / "docs/fleet-atlas/generated/INDEX.md"
+        original = view.read_bytes()
+        try:
+            view.write_bytes(original + b"\nextra line\n")
+            self.assertEqual(fleet_atlas.main(["check"]), 1)
+        finally:
+            view.write_bytes(original)
+        self.assertEqual(fleet_atlas.main(["check"]), 0)
+
+    def test_manifest_hashes_every_generated_file(self) -> None:
+        manifest = json.loads((ROOT / "docs/fleet-atlas/generated/manifest.json").read_text(encoding="utf-8"))
+        names = {p.name for p in (ROOT / "docs/fleet-atlas/generated").iterdir()} - {"manifest.json"}
+        self.assertEqual(set(manifest["files"]), names)
+        for name, digest in manifest["files"].items():
+            actual = hashlib.sha256((ROOT / "docs/fleet-atlas/generated" / name).read_bytes()).hexdigest()
+            self.assertEqual(digest, f"sha256:{actual}")
+
+    def test_a_renamed_reference_turns_its_edge_unknown_and_reds_check(self) -> None:
+        ref = ROOT / "skills/stack-profile/references/copilot-models.md"
+        moved = ref.with_name("copilot-models.renamed.md")
+        try:
+            ref.rename(moved)
+            self.assertEqual(fleet_atlas.main(["check"]), 1)
+            graph = fleet_atlas.build_graph(ROOT)
+            self.assertTrue(any(u.code == "extract.skill-link-unresolved" and "copilot-models.md" in u.message for u in graph.unknowns))
+        finally:
+            moved.rename(ref)
+        self.assertEqual(fleet_atlas.main(["check"]), 0)
 
 
 if __name__ == "__main__":
