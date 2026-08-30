@@ -49,7 +49,7 @@ escalation trigger; re-measured on the same prompt (Opus x2, Sonnet x2, 13-asser
 first-screen split into ordering and budget): onset behaviour 3/4, first-screen ordering 3/4,
 first-screen budget 2/4, against 1/4, 2/4, 1/4 before the rewrite.
 
-## What the grader pilot established for EVAL-005
+## What the grader pilot established for EVAL-007
 
 Blind Opus graders with a fixed per-assertion bar produced consistent verdicts across reps, no
 adjacency false-reds of the kind recorded in `4738372a`, literal-token checks where a literal
@@ -80,7 +80,7 @@ Three batches under Claude Code 2.1.247, `claude-sonnet-5`, three trials each, r
   systemic-failure phrase shift is plausibly the recipe's phrasing at n=3; both scenarios were
   already below their 1.0 threshold on the old bytes under this CLI.
 
-Per EVAL-005's accepted stance a red on an adjacency grader is not by itself a finding, and no
+Per EVAL-007's accepted stance a red on an adjacency grader is not by itself a finding, and no
 tuning run was spent on pattern repair.
 
 ## Limitations

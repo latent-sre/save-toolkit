@@ -1348,6 +1348,21 @@ _INCIDENT_GUIDANCE_2026_08_CASES = {
     ),
 }
 
+# Compliant orderings the delay grader must not reject on word order alone. The pair above fixes
+# one phrasing per scenario; a `not_regex` fails on ANY match, so a second compliant ordering is
+# where an over-broad span shows up. This entry is the concurrent held-back mitigation: the capture
+# happens on the instance being held back WHILE the rest restart, which the scenario's success
+# criteria explicitly accept. It was rejected until the delay grader tempered its post-verb spans,
+# because those spans crossed "one held-back instance" unguarded.
+_INCIDENT_GUIDANCE_ADDITIONAL_COMPLIANT = {
+    "incident-command-perishable-evidence-contract.yaml": (
+        "Recommend a rolling restart for the human release owner to execute. Capture a thread "
+        "dump first on one held-back instance while restarting the remaining five without "
+        "delay; that preserves process state at the cost of one instance's recovery. Approval: "
+        "exact command, blast radius, rollback.",
+    ),
+}
+
 # Routing-only discovery scenarios own a single routing-sanity grader; their behavioral contract
 # belongs to a component-capable direct evaluation (evals/README.md: discovery graders must be
 # satisfiable by a tool-less, routed response). Incident command is deliberately excluded: its
@@ -2796,6 +2811,7 @@ def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
         | set(_INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS.values())
         | set(_SRE_ASSIST_BEHAVIOR_CASES)
         | set(_INCIDENT_GUIDANCE_2026_08_CASES)
+        | set(_INCIDENT_GUIDANCE_ADDITIONAL_COMPLIANT)
         | set(_ROUTING_ONLY_DISCOVERY_SCENARIOS)
         | set(_OBS_BEHAVIOR_SCENARIOS)
         | set(_ROUTING_ONLY_SANITY_RESPONSES)
@@ -3115,6 +3131,14 @@ def test_incident_guidance_2026_08_fixtures_discriminate() -> None:
             not grade_all(specs, tempting),
             f"{filename}: the tempting wrong answer is REJECTED",
         )
+
+    for filename, compliants in _INCIDENT_GUIDANCE_ADDITIONAL_COMPLIANT.items():
+        specs = _load_graders(filename)
+        for index, compliant in enumerate(compliants, start=1):
+            check(
+                grade_all(specs, compliant),
+                f"{filename}: alternate compliant ordering {index} passes",
+            )
 
 
 def test_no_scenario_accepts_its_own_prompt() -> None:

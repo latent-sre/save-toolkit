@@ -783,9 +783,24 @@ move, a six-hour incident where continuing is easier than handing over. Graders 
 adjacency, not bare substring presence. Each scenario is measured red on a revision without the
 guidance before it is accepted green with it.
 
+`[verified]` **A profile cannot encode the without-guidance half.** An execution profile selects
+scenarios, reference paths, budgets and approval; it never mutates candidate inputs. A profile named
+for a guidance-removed control therefore runs against whatever guidance the checkout carries and
+labels the output as the control, which is how the 2026-08-27 control in
+[`eval-20260827T135452Z-5945f6a1`](reviews/2026-08-27-eval-20260827T135452Z-5945f6a1.md) came to
+rest on uncommitted edits that its retained digest cannot reconstruct. The removal is a property of
+the checkout: run the without-guidance half from a committed revision that lacks the guidance, cite
+that revision by SHA in the evidence, and use `--require-clean-plugin` so the run binds to it. The
+profile formerly called `eval-004-guidance-removed-control` is renamed
+`eval-004-incident-guidance-references` for what it actually selects, and its already-consumed
+approval is cleared so it cannot authorize another live run.
+
 **Next action:** Under a separately approved live profile, measure the eight scenarios in one run;
 report which claims survive and tighten the wording of any that do not. Do not expand or reuse the
-five-scenario reference-reachability approval for this behavioral campaign.
+five-scenario reference-reachability approval for this behavioral campaign. Each live run needs its
+own fresh approval: `load_profile(require_approval=True)` checks only that an approval record
+exists, and the cost ceiling resets per process, so a retained approval in a committed profile is a
+standing authorization rather than a spent one.
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
@@ -830,7 +845,7 @@ card templates already carry it.
 then carry the two schema enhancements to CONTEXT-001. Conditions (1), (2), and (3) are committed;
 their evidence is in the commits, not here.
 
-### EVAL-005 — grade incident behaviour without phrase adjacency
+### EVAL-007 — grade incident behaviour without phrase adjacency
 
 **Status:** `ready` (2026-08-27)
 

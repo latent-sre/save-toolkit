@@ -1,8 +1,8 @@
 {
   "schema_version": "eval-execution-profile/v1",
-  "id": "eval-004-guidance-removed-control",
+  "id": "eval-004-incident-guidance-references",
   "comparison": {
-    "id": "eval-004-guidance-removed-control",
+    "id": "eval-004-incident-guidance-references",
     "models": {
       "claude-plugin": "sonnet",
       "codex-cli": "not-run"
@@ -35,9 +35,5 @@
     "status": "available",
     "max_usd": 4
   },
-  "approval": {
-    "approved_by": "latent-sre",
-    "approved_at": "2026-08-27T05:19:24Z",
-    "budget_id": "eval-004-guidance-removed-control-2026-08-27"
-  }
+  "approval": null
 }
