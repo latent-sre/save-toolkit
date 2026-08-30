@@ -46,6 +46,16 @@ output for a human to run.
 
 ## The revision model — "what changed?" is one command
 
+Every deploy creates an immutable **revision** (image + env + limits + concurrency). A new
+deployment takes traffic only while the service still tracks the latest revision:
+an existing traffic split or previous-revision assignment persists across later deployments,
+and `--no-traffic` keeps the new revision unrouted until traffic is explicitly assigned.
+A human stages a rollout with
+`gcloud run services update-traffic <service> --to-revisions <revision>=<percentage>`; `--to-latest`
+instead sends 100% to the latest revision and restores automatic promotion on later deploys
+*[sourced: docs.cloud.google.com/run/docs/resource-model;
+docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration]*.
+
 The PCF `cf events` question becomes:
 
 ```bash
@@ -94,7 +104,8 @@ gcloud run services update-traffic <service> --to-revisions <previous-revision>=
 
 Tier 2, human release owner, with the exact revision names, verification (error rate on the service
 dashboard), and a command that restores the intended prior traffic allocation or `--to-latest`
-tracking policy.
+tracking policy. Traffic changes are not instantaneous — in-flight requests may land on either
+revision during the transition.
 
 ## Credential-bearing reads are human-only
 

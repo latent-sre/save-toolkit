@@ -517,9 +517,14 @@ the body's remaining content is fleet decisions and platform traps the models au
 discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe correction, is in the
 [`agent-authoring disposition`](reviews/2026-08-27-skill-001-agent-authoring.md).
 
-`gcp-ops` — confirmed knowledge cut on branch `work/skill-001-gcp-ops`: 8,102 → 6,859 immutable
-entrypoint bytes (−15.3%, references untouched), description byte-identical, below the 7,500-byte
-screen. Clean-room probes on both tiers show the body's Cloud Run mechanics are recitation, while
+`gcp-ops` — knowledge cut **retained above the screen** on branch `work/skill-001-gcp-ops`: 8,102 →
+7,679 immutable entrypoint bytes (−5.2%, references untouched), description byte-identical. Review
+found the first attempt had cut text pinned by two committed contracts in
+`scripts/test_platform_skill_contracts.py` — the conditional traffic semantics and the rollback
+propagation caveat — which were red on the branch from `a6da0d0a` until restored in `1e4d1e0`; that
+suite was never run during the slice's own verification. The retained bytes are therefore
+contract-mandated, not merely judged worth keeping.
+Clean-room probes on both tiers show the body's Cloud Run mechanics are recitation, while
 both no-skill pressure controls fail the committed graders on exactly the retained contract —
 `gcloud config list` first, the `[unverified]`/Tier 2/release-owner/error-rate vocabulary, and the
 caller-fence rule both models break unprompted. After-change discovery run on `a6da0d0a`: 0/3
@@ -536,14 +541,21 @@ screens on `b9b274f` (twelve) and `0eb3daf` (seventeen) are superseded. Selectio
 The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
 unrefreshed and still does not authorize a description rewrite inside Phase 2.
 
-**Method note — the screen is a size rule, the probe is a value test, and the probe governs.** The
-screen selects candidates; it never certifies that a body which fits it has earned its bytes. On
-`gcp-ops` the two disagreed: the slice stopped at −15% once the entrypoint fell under 7,500, while
-its own clean-room probes showed both tiers producing the entire Cloud Run mechanics unprompted and
-complete, leaving the guard decisions, routing lines, unratified boundary and answer contract as
-the only content the models could not supply. Falling below the screen is not a stopping condition
-when the probe still reads recitation. A slice may record "retained at N bytes because the probe
-justifies them"; it may not treat clearing the screen as proof that it does.
+**Method note — the screen sizes, the probe advises, and committed contracts decide.** Three
+authorities act on a slice and they rank. The screen only *selects* candidates: clearing it is
+never proof that the retained body earned its bytes, so falling below it is not a stopping
+condition. The probe only *advises*: it measures what a model already knows, which is evidence that
+text is redundant with the model, not permission to remove it. **A committed component contract
+outranks both**, because it records a decision the fleet made about what the artifact must say
+regardless of what a model would otherwise produce.
+
+`gcp-ops` demonstrated the failure in that order. Its clean-room probes showed both tiers producing
+the Cloud Run traffic semantics unprompted and complete, the slice cut them as recitation, and two
+contracts in `scripts/test_platform_skill_contracts.py` had pinned that exact prose — leaving the
+branch red from `a6da0d0a` until `1e4d1e0` and the entrypoint retained at 7,679 bytes, above the
+screen. Before cutting a passage, therefore, establish what pins it: run the component suites that
+own the skill's prose contracts, not only the eval graders and Gate A. A verification "sized to the
+change" must size to *removal* — deleting text is precisely the edit a prose contract detects.
 
 **Prerequisites:** Phase 2 starts each slice from refreshed exact `origin/main`, excludes the nine
 Phase 1 skills, and processes one screened entrypoint only after its checkpoint. The checkpoint now
@@ -576,6 +588,13 @@ exemplar to retain explicitly), `incident-drill` (explicit-invocation only; its 
 packs), and `workflow-graph-engineering` (its own review already records why the entrypoint stays
 long — commit that as its disposition after a checkpoint). Skills below the screen owe no
 disposition. Do not requeue a Phase 1 skill or rewrite discovery descriptions.
+
+Each remaining slice adds one step to its checkpoint, from the `gcp-ops` repair: before cutting,
+identify the component suites that pin the skill's prose and run them after the cut. `rg` the
+skill's path through `scripts/test_*.py` to find them — `test_platform_skill_contracts.py`,
+`test_observability_skill_contracts.py` and `test_release_skill_contracts.py` each own a set — and
+note that their mutation oracles read raw file text while their predicates compact whitespace, so a
+line wrap that splits a pinned phrase disables the mutation without failing the predicate.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
