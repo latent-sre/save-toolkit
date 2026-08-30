@@ -652,7 +652,7 @@ slice) and reclassifying the scenarios. No rerun of unchanged bytes.
 
 ### GRADER-004 — make `incident_recovery_authority` negation-aware
 
-**Status:** `decision-needed` (2026-08-26)
+**Status:** `active` (2026-08-29)
 
 **Outcome:** The two regression recovery scenarios stop failing on correct denials, so a red there
 means a behavior regression rather than grader fragility.
@@ -669,8 +669,18 @@ be: dispatching `observability-engineer` or `scribe` while the incident is still
 is a rejected fixture; the existing affirmative rejections still hold; the two regression scenarios
 are re-measured on the accepted candidate revision.
 
-**Next action:** Owner accepts the item; `agent-engineer` extends `_claim_is_negated` and the fixture
-tables in `evals/test_graders.py`.
+**Current evidence:** The
+[`2026-08-29 working packet`](reviews/2026-08-29-grader-004-working-evidence.md) records the
+red-first five-check failure, paired denial and affirmative fixtures, and exact candidate
+`22d6c728`. `[verified]` The candidate passes 1,355/1,355 grader checks, validates all 136
+scenarios, passes Gate A 8/8, and passes all 38 component suites. Two independent one-shot Terra
+transfer probes pass all 10 graders for each affected scenario on that exact clean revision. They
+are cooperative transfer evidence, not native Claude/profile evidence.
+
+**Next action:** Under a separately approved native Claude run, remeasure
+`agent-direct-sre-owns-recovery-to-terminal` and
+`agent-direct-sre-records-unknown-recovery-progress` on the exact accepted candidate. Do not tune
+the grader from the Terra responses or relabel those probes as native closure evidence.
 
 ### GRADER-005 — posture graders for gate-shaped contracts
 
@@ -698,7 +708,7 @@ on an accepted candidate revision.
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
 records the red-first controls, transfer forms, named `gate_posture` grader, and green offline suite.
-`[verified]` The combined branch passes 1,343/1,343 grader checks, validates all 136 scenarios, passes
+`[verified]` The combined branch passes 1,355/1,355 grader checks, validates all 136 scenarios, passes
 Gate A 8/8, and passes all 38 component suites. The three discovery scenarios have not been rerun
 on the exact merged revision, so the item is not closure-ready.
 
@@ -732,7 +742,7 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
 records the reproduced false positive and the named, object-bound replacement. Guidance transfer
 forms pass and progressive rollback, restart, restage, and state-changing-command claims remain
-red. `[verified]` The combined branch passes 1,343/1,343 grader checks, validates all 136 scenarios,
+red. `[verified]` The combined branch passes 1,355/1,355 grader checks, validates all 136 scenarios,
 passes Gate A 8/8, and passes all 38 component suites. The affected direct scenario has not been
 rerun on the exact merged revision.
 
@@ -767,7 +777,7 @@ existing red side still fails — a real `just run it again` recommendation incl
 scenarios are re-measured on both sides.
 
 **Current evidence:** `[verified]` The combined branch carries both accepted fixtures and the
-particle-form and quoted-warning fixes. It passes 1,343/1,343 grader checks, validates all 136
+particle-form and quoted-warning fixes. It passes 1,355/1,355 grader checks, validates all 136
 scenarios, passes Gate A 8/8, and passes all 38 component suites. The required model trials have not
 been rerun on the exact merged revision.
 
