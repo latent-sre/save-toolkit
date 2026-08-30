@@ -10,6 +10,8 @@ COPY requirements.txt ./
 RUN python -m pip install --no-cache-dir --root-user-action=ignore --requirement requirements.txt
 
 COPY interop_sandbox ./interop_sandbox
+COPY cases ./cases
+COPY tests ./tests
 
 USER 65532:65532
 
