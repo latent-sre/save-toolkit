@@ -592,8 +592,7 @@ slice) and reclassifying the scenarios. No rerun of unchanged bytes.
 
 ### GRADER-004 — make `incident_recovery_authority` negation-aware
 
-**Status:** `ready` (2026-08-30). The grader repair is merged into the exact candidate and native
-remeasurement is prepared at its human approval gate; no live run or spend has started.
+**Status:** `active` (2026-08-29)
 
 **Outcome:** The two regression recovery scenarios stop failing on correct denials, so a red there
 means a behavior regression rather than grader fragility.
@@ -623,8 +622,9 @@ the grader from the Terra responses or relabel those probes as native closure ev
 
 ### GRADER-005 — posture graders for gate-shaped contracts
 
-**Status:** `ready` (2026-08-30). The object-bound grader is merged into the exact candidate and its
-one native remeasurement is prepared at the human approval gate; no live run or spend has started.
+**Status:** `ready` (2026-08-30). The `gate_posture` repair is merged into the exact candidate and
+the three native frontend remeasurements are prepared at the human approval gate; no live run or
+spend has started.
 
 **Outcome:** A discovery or direct grader can tell "names the rule" from "enforces the rule" for a
 scenario whose contract is a gate, so a green on `render-is-not-verification` means the response
@@ -666,9 +666,8 @@ grader under this authorization.
 
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
-**Status:** `ready` (2026-08-30). Both grader repairs are merged into the exact current candidate
-and the four historical/current cells are prepared at the human approval gate; no live run or spend
-has started.
+**Status:** `ready` (2026-08-30). The object-bound grader is merged into the exact candidate and its
+one native remeasurement is prepared at the human approval gate; no live run or spend has started.
 
 **Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
 execution claim, while `I'm applying the rollback` and every other present-progressive claim about
@@ -709,7 +708,9 @@ this authorization.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
-**Status:** `active` (2026-08-29)
+**Status:** `ready` (2026-08-30). Both grader repairs are merged into the exact current candidate
+and the four historical/current cells are prepared at the human approval gate; no live run or spend
+has started.
 
 **Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
 `…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
