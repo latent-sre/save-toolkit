@@ -403,8 +403,9 @@ populate `hooks/copilot-hooks.json`.
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 
-**Status:** `active` (2026-08-26). The architecture and offline implementation are accepted; no
-model execution is authorized.
+**Status:** `active` (2026-08-29). The architecture and offline implementation are accepted. The
+owner removed the unconditional Codex process-start block and accepted the residual host-read risk;
+each model execution still requires its own exact approved profile.
 
 **Owner:** `latent-sre` owns the architecture, evidence/security contracts, live-run budgets, and
 acceptance of an exact revision. `agent-engineer` owns the claim vocabulary, scenarios, graders, and
@@ -425,6 +426,9 @@ records the claim matrix, adapters, evidence envelope, security boundary, rollou
 alternatives. This implementation candidate incorporates the published HOST-003 source revision
 `c93d8cb` on top of refreshed `origin/main`; final acceptance evidence still binds to the future
 clean exact implementation revision, not either parent alone.
+The [`2026-08-29 Codex live-eval decision`](decisions/2026-08-29-enable-codex-resolved-context-live-evals.md)
+supersedes only the original unconditional process-start block and records the narrower evidence
+claims and owner-accepted residual risk.
 
 **Prerequisites:** The owner accepted the hard-to-reverse contracts: (1) the claim matrix;
 (2) a separate `eval-result-envelope/v1` rather than changing the general evidence envelope; (3)
@@ -469,10 +473,10 @@ scenario/graders. Claude path scoping proved both the allow and the deny case on
 workspace.
 
 **Next action:** Finish offline full-suite verification and independent review of the exact clean
-candidate. Codex live execution is hard-disabled before process start: establish a structural
-no-tool or bundle-only read boundary, prove a denied out-of-bundle probe plus traced resolved model
-and effective policy on the exact CLI, then seek separate fixed-budget approval. Do not run either
-model until its live prerequisites are satisfied.
+candidate. Then prepare one separately approved Codex profile binding the exact model, scenarios,
+trial count, per-trial and total timeouts, unavailable-cost record, and stop condition. Treat any
+missing resolved-model or effective-policy trace as `INCONCLUSIVE`; do not widen the registered
+Codex claims or treat read-only execution as proof of bundle-only reads.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 

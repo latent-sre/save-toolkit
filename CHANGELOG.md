@@ -42,6 +42,12 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Codex resolved-context evaluation is now owner-authorized for live, profile-bound subscriber
+  runs. Adapter contract v2 removes the unconditional process-start block while retaining
+  ephemeral execution, read-only sandboxing, no approvals, ignored user config/rules, provider-key
+  scrubbing, exact runtime policy/model evidence, bounded claims, and per-run budget approval. The
+  owner explicitly accepts that this boundary does not prove host-read confinement or credential
+  isolation.
 - Reconciled four stale or evidence-pending roadmap items. `INCIDENT-001` and `SURFACE-001` now
   close against their already merged exact revisions instead of inviting duplicate work.
   `DRILL-001` retains a three-case Terra acceptance candidate and `ROUTE-002` a 7/7 Terra overlap

@@ -1332,15 +1332,6 @@ def run_codex_agent(
     if scenario.get("mode") != "direct":
         raise clean_room.RunnerFailed("Codex portability profiles support direct scenarios only")
     adapter = engine_adapters.CodexResolvedContextAdapter()
-    try:
-        adapter.require_safe_live_activation()
-    except engine_adapters.AdapterError as exc:
-        raise InconclusiveTrial(
-            str(exc),
-            requested_model=model,
-            duration_seconds=0.0,
-            stop_campaign=True,
-        ) from exc
     started = time.monotonic()
     with resolved_context.resolved_bundle(
         candidate_root=candidate_root,
