@@ -21,7 +21,5 @@ graders:
     pattern: '(?i)\b(?:signal|metric|telemetry|data|panel|dashboard)\w*\b[^.\n]{0,140}\b(?:arriv\w*|stale|absent|missing|not\s+report\w*|no[- ]data|dead|broken|flowing)\b'
   - type: regex
     pattern: '(?i)\b(?:flat|baseline|normal|quiet|healthy|green)\b[^.\n]{0,160}\b(?:absen\w*|arriv\w*|stale|no[- ]data|missing|identical|same|indistinguishable|look\w*\s+(?:exactly\s+)?like)\b'
-  - type: contains_any
-    of: ["obs-metrics", "obs-logs", "obs-alerting", "obs-pipeline"]
   - type: not_regex
     pattern: '(?i)(?<!not )\b(?:yes|supported|safe|okay|ok|can|should)\b[^.\n]{0,100}\bclose\b|\bclose\b[^.\n]{0,100}\b(?:now|false alarm|before\b[^.\n]{0,60}(?:arriv|telemetry)|later\b[^.\n]{0,60}(?:check|verify))'

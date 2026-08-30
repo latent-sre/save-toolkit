@@ -25,9 +25,11 @@ and the next task is to prove why the system broke.
 4. **Use the documented procedure.** If the alert supplies one, follow it and record each observed
    result. Ownership map only—not a load: `obs-logs`' team query catalog holds cataloged
    starting queries for common questions, with what a healthy result looks like.
-5. **Keep checks read-only.** Within the typed `sre` lane, examples include `cf app <app>`,
-   `cf events <app>`, `cf logs <app> --recent`, and recent-change inspection. Do not restart, scale,
-   deploy, or change live state.
+5. **Keep checks read-only.** Within the typed `sre` lane the read-only set is the platform
+   skill's: on PCF `cf app <app>`, `cf events <app>`, and `cf logs <app> --recent` (`pcf-ops`); on
+   Cloud Run `gcloud run services describe`, `gcloud run revisions list`, and `gcloud logging read`
+   (`gcp-ops`); plus recent-change inspection on either. Do not restart, scale, deploy, or change
+   live state.
 6. **Escalate the response when impact requires it.** `incident-command` owns severity, roles,
    communications, and response cadence. Supply the trigger, current evidence, unknowns, and the
    named human roles still needed. Escalate when impact is user-facing or growing, the blast radius
@@ -65,6 +67,11 @@ and the next task is to prove why the system broke.
 
 When evidence is thin, remain in first response and name the next safe observation. Uncertainty is
 not permission to poke production.
+
+## Inert canary
+
+This token only proves the reference loaded; it asserts nothing about the incident and belongs in
+no answer.
 
 ```text
 q_iifr_3a1c

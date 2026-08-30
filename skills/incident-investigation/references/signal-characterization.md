@@ -23,9 +23,11 @@ errors—for resources.
 
 Align the impact start with:
 
-- recent deploys or releases (`cf events`, the release pipeline, and `git log`);
+- recent deploys or releases (`cf events` or `gcloud run revisions list`, the release pipeline, and
+  `git log`);
 - configuration or feature-flag changes;
-- PCF platform events such as cell evacuation, quota, or certificate rotation;
+- platform events such as PCF cell evacuation or quota, Cloud Run scaling or concurrency limits, or
+  certificate rotation;
 - traffic shifts, new clients, retries, or batch work;
 - dependency incidents or vendor status events;
 - certificate, credential, or secret expiries; and
@@ -37,7 +39,8 @@ A matching timestamp makes a change a priority hypothesis, not a proven cause.
 
 1. **Errors and latency rise together:** inspect the application and downstream dependencies.
 2. **Saturation rises, then latency, then errors:** investigate resource exhaustion, capacity, or a
-   leak; check `cf app` instance memory and `cf events` for OOM restarts.
+   leak; check instance memory and restart or OOM events on the platform (`cf app` and `cf events`,
+   or Cloud Run instance metrics and revision logs).
 3. **Traffic rises before latency and errors:** investigate load, capacity, limits, and missing
    backpressure.
 4. **Errors rise while traffic and latency stay flat:** investigate logic, deploy, or configuration
@@ -48,9 +51,18 @@ A matching timestamp makes a change a priority hypothesis, not a proven cause.
    Ownership map only—not a load: `obs-metrics` and `obs-logs` own staleness and no-data semantics
    for their backends, and `obs-alerting` owns the no-data alert state.
 
+An alert fires when its evaluation window closes and a probe reports when it sampled, so onset is
+a bound derived from the window, not the fire time itself; a deploy-to-onset gap constrains the
+deploy hypothesis rather than confirming it.
+
 Return the exact start time, blast radius, and trend—worsening, stable, or recovering—with evidence
 labels. Those fields determine whether first response can continue or hypothesis investigation has
 enough foundation to begin.
+
+## Inert canary
+
+This token only proves the reference loaded; it asserts nothing about the incident and belongs in
+no answer.
 
 ```text
 q_iisc_9d4f

@@ -38,6 +38,7 @@ REQUIRED_GLOBS = (
     "obs-*/references/*.md",
     "akamai-edge/references/*.md",
     "incident-investigation/references/*.md",
+    "incident-command/references/*.md",
 )
 
 

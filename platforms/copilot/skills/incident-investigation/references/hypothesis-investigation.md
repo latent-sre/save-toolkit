@@ -73,6 +73,11 @@ Ownership map only—not a load: mitigation goes to the human release owner; dur
 to `software-engineer`; later signal and alert work goes to `observability-engineer`; a proven
 systemic or distributed mechanism changes this skill's mode to systemic failure.
 
+## Inert canary
+
+This token only proves the reference loaded; it asserts nothing about the incident and belongs in
+no answer.
+
 ```text
 q_iihi_5b2d
 ```

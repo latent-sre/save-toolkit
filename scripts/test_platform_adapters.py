@@ -44,6 +44,16 @@ class PlatformAdapterTests(unittest.TestCase):
             next(line for line in frontmatter.splitlines() if line.startswith("tools: "))[7:]
         )
 
+    @staticmethod
+    def _copilot_agents(name: str) -> list[str] | None:
+        rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
+        frontmatter = rendered.split("---", 2)[1]
+        value = next(
+            (line[8:] for line in frontmatter.splitlines() if line.startswith("agents: ")),
+            None,
+        )
+        return None if value is None else json.loads(value)
+
     def test_committed_outputs_match_canonical_sources(self) -> None:
         self.assertEqual([], adapters.validate_generated_outputs(ROOT))
 
@@ -58,6 +68,41 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_scribe_copilot_agent_can_edit_but_cannot_execute_or_delegate(self) -> None:
         self.assertEqual(["read", "search", "edit"], self._copilot_tools("scribe"))
+
+    def test_copilot_agents_preserve_every_canonical_delegation_allowlist(self) -> None:
+        expected = {
+            "agent-engineer": ["researcher"],
+            "observability-engineer": ["scribe", "researcher"],
+            "repository-investigator": None,
+            "researcher": None,
+            "reviewer": None,
+            "scribe": None,
+            "software-engineer": ["reviewer", "scribe", "researcher"],
+            "sre": ["researcher"],
+        }
+        self.assertEqual(
+            set(expected),
+            {path.stem for path in (ROOT / "agents").glob("*.md")},
+            "every canonical agent must have an explicit Copilot delegation expectation",
+        )
+        for name, allowed_agents in expected.items():
+            with self.subTest(agent=name):
+                self.assertEqual(allowed_agents, self._copilot_agents(name))
+                self.assertEqual(allowed_agents is not None, "agent" in self._copilot_tools(name))
+
+    def test_copilot_agent_rejects_an_unscoped_agent_tool(self) -> None:
+        agent = (
+            "---\n"
+            "name: probe-agent\n"
+            "description: Probe fail-closed Copilot delegation generation.\n"
+            "tools: Read, Agent\n"
+            "---\n\n# Probe\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "probe-agent.md"
+            source.write_text(agent, encoding="utf-8", newline="\n")
+            with self.assertRaisesRegex(ValueError, "explicit target allowlist"):
+                adapters.render_copilot_agent(source)
 
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
         self.assertEqual(["read", "search"], self._copilot_tools("repository-investigator"))

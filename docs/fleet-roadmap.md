@@ -665,7 +665,7 @@ slice) and reclassifying the scenarios. No rerun of unchanged bytes.
 
 ### GRADER-004 — make `incident_recovery_authority` negation-aware
 
-**Status:** `decision-needed` (2026-08-26)
+**Status:** `active` (2026-08-29)
 
 **Outcome:** The two regression recovery scenarios stop failing on correct denials, so a red there
 means a behavior regression rather than grader fragility.
@@ -682,12 +682,22 @@ be: dispatching `observability-engineer` or `scribe` while the incident is still
 is a rejected fixture; the existing affirmative rejections still hold; the two regression scenarios
 are re-measured on the accepted candidate revision.
 
-**Next action:** Owner accepts the item; `agent-engineer` extends `_claim_is_negated` and the fixture
-tables in `evals/test_graders.py`.
+**Current evidence:** The
+[`2026-08-29 working packet`](reviews/2026-08-29-grader-004-working-evidence.md) records the
+red-first five-check failure, paired denial and affirmative fixtures, and exact candidate
+`22d6c728`. `[verified]` The candidate passes 1,355/1,355 grader checks, validates all 136
+scenarios, passes Gate A 8/8, and passes all 38 component suites. Two independent one-shot Terra
+transfer probes pass all 10 graders for each affected scenario on that exact clean revision. They
+are cooperative transfer evidence, not native Claude/profile evidence.
+
+**Next action:** Under a separately approved native Claude run, remeasure
+`agent-direct-sre-owns-recovery-to-terminal` and
+`agent-direct-sre-records-unknown-recovery-progress` on the exact accepted candidate. Do not tune
+the grader from the Terra responses or relabel those probes as native closure evidence.
 
 ### GRADER-005 — posture graders for gate-shaped contracts
 
-**Status:** `ready` (2026-08-27)
+**Status:** `active` (2026-08-29)
 
 **Outcome:** A discovery or direct grader can tell "names the rule" from "enforces the rule" for a
 scenario whose contract is a gate, so a green on `render-is-not-verification` means the response
@@ -708,12 +718,19 @@ and accepts the blocking replies, without a bare negative regex that false-reds 
 the shape is documented for reuse by any gate-shaped contract; the three scenarios are re-measured
 on an accepted candidate revision.
 
-**Next action:** Owner accepts the item; `agent-engineer` drafts the shape against the quoted
-control text before touching the scenarios.
+**Current evidence:** The
+[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
+records the red-first controls, transfer forms, named `gate_posture` grader, and green offline suite.
+`[verified]` The combined branch passes 1,364/1,364 grader checks, validates all 136 scenarios, passes
+Gate A 8/8, and passes all 38 component suites. The three discovery scenarios have not been rerun
+on the exact merged revision, so the item is not closure-ready.
+
+**Next action:** Remeasure the three scenarios on the exact merged revision without changing their
+prompts, thresholds, or routing description.
 
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
-**Status:** `ready` (2026-08-28)
+**Status:** `active` (2026-08-29)
 
 **Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
 execution claim, while `I'm applying the rollback` and every other present-progressive claim about
@@ -734,12 +751,20 @@ scenarios whose grader bytes it changes.
 **Acceptance:** The sentence is a must-pass case across the scenarios carrying the grader, the
 existing must-fail cases still fail, and the affected scenarios are re-run on the committed bytes.
 
-**Next action:** `agent-engineer` requires a production object (or a bare `it`/`that` after such an
-object) within the clause, the way the commitment grader already bounds `run`.
+**Current evidence:** The
+[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
+records the reproduced false positive and the named, object-bound replacement. Guidance transfer
+forms pass and progressive rollback, restart, restage, and state-changing-command claims remain
+red. `[verified]` The combined branch passes 1,364/1,364 grader checks, validates all 136 scenarios,
+passes Gate A 8/8, and passes all 38 component suites. The affected direct scenario has not been
+rerun on the exact merged revision.
+
+**Next action:** Remeasure `agent-direct-sre-readonly-triage` on the exact merged revision without
+changing its prompt or threshold.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
-**Status:** `ready` (2026-08-29)
+**Status:** `active` (2026-08-29)
 
 **Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
 `…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
@@ -764,9 +789,12 @@ recorded matrices.
 existing red side still fails — a real `just run it again` recommendation included — and both
 scenarios are re-measured on both sides.
 
-**Next action:** `agent-engineer` adds the particle form to the routing alternation, excludes a
-quoted or negated occurrence from the retry grader, and re-runs the two scenarios three trials per
-side.
+**Current evidence:** `[verified]` The combined branch carries both accepted fixtures and the
+particle-form and quoted-warning fixes. It passes 1,364/1,364 grader checks, validates all 136
+scenarios, passes Gate A 8/8, and passes all 38 component suites. The required model trials have not
+been rerun on the exact merged revision.
+
+**Next action:** Remeasure the two scenarios three trials per side on the exact merged revision.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
@@ -800,7 +828,7 @@ re-measures both sides three trials at Sonnet.
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
-**Status:** `ready` (2026-08-26)
+**Status:** `decision-needed` (2026-08-29)
 
 **Outcome:** Every behavior claim added to `incident-command` and `incident-investigation` on
 2026-08-26 has a discriminating scenario, so a later edit that removes the behavior turns a
@@ -820,10 +848,17 @@ uncommitted at the time this item was written. No claim below has been measured 
 | An investigation escalates on an observed stuck predicate rather than on elapsed time | `hypothesis-investigation.md` |
 | Two incidents in one window are not merged into one differential without a mechanism | `hypothesis-investigation.md` |
 
-**Current evidence:** `[verified]` Eight direct scenarios now cover these claims and the independent
-declaration-clock contract. `incident-investigation-correlated-incidents-stay-separate` carries the
-previously missing shared-cause invariant, and every scenario has a paired compliant and
-tempting-but-wrong fixture in `evals/test_graders.py`. Exact model behavior remains `[unverified]`.
+**Current evidence:** `[verified]` Eight direct scenarios cover these claims and the independent
+declaration-clock contract, with paired compliant and tempting-wrong fixtures. The
+[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
+records two frozen current-guidance Terra probes at 8/8 after red-first oracle transfer fixes,
+against pre-guidance baselines of 4/8 and 2/8. The probes are cooperative agent-task transfer
+evidence, not profile-backed native execution. The oracle fixes are present on the combined branch,
+whose offline verification is green, but native profile behavior on the exact merged revision
+remains `[unverified]`. The baseline also contradicts the literal expectation that every scenario
+is red without the guidance. Eight independent Luna runs, one per scenario with no retries,
+initially replayed at 6/8 and finish at 8/8 after two additional red-first oracle transfer fixes;
+they carry the same cooperative, non-native limitation.
 
 **Prerequisites:** None structural. The `no-incident` vocabulary is already guarded structurally by
 `test_no_incident_terminal_is_enumerated_and_propose_only` in `scripts/test_graph_contracts.py`,
@@ -835,9 +870,26 @@ move, a six-hour incident where continuing is easier than handing over. Graders 
 adjacency, not bare substring presence. Each scenario is measured red on a revision without the
 guidance before it is accepted green with it.
 
-**Next action:** Under a separately approved live profile, measure the eight scenarios in one run;
-report which claims survive and tighten the wording of any that do not. Do not expand or reuse the
-five-scenario reference-reachability approval for this behavioral campaign.
+`[verified]` **A profile cannot encode the without-guidance half.** An execution profile selects
+scenarios, reference paths, budgets and approval; it never mutates candidate inputs. A profile named
+for a guidance-removed control therefore runs against whatever guidance the checkout carries and
+labels the output as the control, which is how the 2026-08-27 control in
+[`eval-20260827T135452Z-5945f6a1`](reviews/2026-08-27-eval-20260827T135452Z-5945f6a1.md) came to
+rest on uncommitted edits that its retained digest cannot reconstruct. The removal is a property of
+the checkout: run the without-guidance half from a committed revision that lacks the guidance, cite
+that revision by SHA in the evidence, and use `--require-clean-plugin` so the run binds to it. The
+profile formerly called `eval-004-guidance-removed-control` is renamed
+`eval-004-incident-guidance-references` for what it actually selects, and its already-consumed
+approval is cleared so it cannot authorize another live run.
+
+**Next action:** Owner decides whether to approve one fixed eight-scenario native Claude profile or
+to accept a revised propensity/transfer closure contract that preserves the measured baseline
+behavior. If a native run is approved, the without-guidance half must use a committed revision that
+lacks the guidance, cite that SHA, and require a clean plugin. Each live run needs its own fresh
+approval: `load_profile(require_approval=True)` checks only that an approval record exists, and the
+cost ceiling resets per process, so a retained approval in a committed profile is standing rather
+than spent authorization. Do not reuse the five-scenario reference-reachability approval, bypass
+the Codex live blocker, or rerun Terra merely to make the baseline uniformly red.
 
 ### EVAL-006 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
@@ -931,7 +983,6 @@ constraint no real caller imposes, and the fleet already paid for that lesson on
 by one path damages the paths that skip it. Also superseded: closing this item with
 `threshold: 0.66`, because at a true rate of 0.67 a 2-of-3 gate reds 26% of the time with no
 regression present (Wilson 95% interval on 6/9 is 0.35–0.88).
-
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
 **Status:** `active` (2026-08-26)
@@ -974,6 +1025,75 @@ card templates already carry it.
 **Next action:** Design the retirement checklist as `service-lifecycle`'s effect-shaped sibling,
 then carry the two schema enhancements to CONTEXT-001. Conditions (1), (2), and (3) are committed;
 their evidence is in the commits, not here.
+
+### EVAL-007 — grade incident behaviour without phrase adjacency
+
+**Status:** `ready` (2026-08-27)
+
+**Outcome:** A behavioural incident scenario returns a verdict that reflects the response rather
+than its phrasing, so a red result is worth investigating instead of routinely being a pattern that
+missed a synonym.
+
+**Source:** Five runs on the same five scenarios — 226d926c, ec8b8265, 5945f6a1, aec04409,
+4738372a — cost roughly USD 20 and converged on one shape: the scenario lands on its behavioural
+substance and loses a trial to a single adjacency regex, a different regex each run. Three such
+patterns were repaired and each run surfaced another. The clearest instance is recorded verbatim in
+4738372a, where a `not_regex` hunting for "escalate … later" matched the correct answer *escalate
+now, not later*, and an earlier one matched *without material delay* as a delay. Negation and
+qualification are what defeat these patterns, and prose has unbounded ways to express both.
+
+The behavioural question these scenarios exist to answer is not yet settled by a reproducible
+control. The 5945f6a1 batch ran perishable-evidence 3/3 with its rule, but its 1/3
+guidance-removed half rests on uncommitted edits that its retained digest cannot reconstruct, and
+the annotation on that record directs that it not be treated as the without-guidance half. The
+without-guidance measurement therefore remains owed from a committed revision that lacks the
+guidance, cited by SHA, before any with/without comparison is presented as settled.
+
+One LLM-judge pilot now exists outside the harness: the
+[`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
+graded thirteen anonymized four-answer sets with a fixed per-assertion bar and recorded what that
+settled and what it did not.
+
+**Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
+exist in the grader registry, so a structured-output contract needs no new grader type. An
+LLM-judge grader would need a new one, plus a policy for a non-deterministic grader inside a suite
+whose other results are reproducible.
+
+**Acceptance:** A repaired scenario returns the same verdict across three consecutive runs on
+unchanged guidance. The removal control still discriminates: with the guidance removed, the
+scenario fails. No grader rejects a response that a reader would call correct, tested against the
+transcripts already retained under `.eval-runs/`.
+
+**Next action:** Choose the grading style — a structured contract the response must emit, or an
+LLM judge — then convert one scenario and measure it three times before converting the rest.
+Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
+further tuning run is spent on pattern repair.
+
+### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
+
+**Status:** `ready` (2026-08-27)
+
+**Outcome:** The skill's description triggers match what a responder types under load, so
+discovery does not depend on the caller knowing the fleet's vocabulary.
+
+**Source:** The
+[`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
+found the description's triggers are meta-phrasing ('what incident mode is this', 'is first
+response still enough') while every test prompt that routed correctly read like 'alert just fired,
+what do I check first' or 'can we close this as a false alarm'. Discovery fires 3/3 today, so this
+is robustness, not a defect.
+
+**Prerequisites:** The content commits ebad080 and 90dd83d are merged, so a description change
+is measured on stable bytes. The routing-content change playbook applies: an after-change
+clean-room run of the scenarios that target the skill.
+
+**Acceptance:** A rewritten description passes the 600-byte and `Triggers:` contracts, keeps the
+three `discovery-incident-investigation-*` scenarios at their declared thresholds on the exact
+candidate, and the negative (`defers-engineering-altitude`) still does not fire.
+
+**Next action:** Draft trigger phrases from the retained transcripts' opening lines, run the
+description optimizer only as a source of candidates, and measure one candidate description in
+the clean room before adopting it.
 
 ## Deferred
 
