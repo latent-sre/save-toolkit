@@ -1051,8 +1051,9 @@ further tuning run is spent on pattern repair.
 
 ### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
 
-**Status:** `ready` (2026-08-30). One minimal candidate is committed and the paired measurement is
-at its human approval gate; no live comparison or spend has started.
+**Status:** `decision-needed` (2026-08-30). The exact approved pair completed with no retries. Both
+arms routed correctly 9 of 9 times, but the candidate failed the full acceptance contract and is
+not promotion eligible.
 
 **Outcome:** The skill's description triggers match what a responder types under load, so
 discovery does not depend on the caller knowing the fleet's vocabulary.
@@ -1068,23 +1069,27 @@ is robustness, not a defect.
 is measured on stable bytes. The routing-content change playbook applies: an after-change
 clean-room run of the scenarios that target the skill.
 
-**Prepared gate:** Exact adjacent incumbent `54444fcdbafc52790af4e4d8eede1c12460c93b7` and candidate
+**Measured pair:** Exact adjacent incumbent `54444fcdbafc52790af4e4d8eede1c12460c93b7` and candidate
 `6e2d1c9f6cb2780144b221ec0071977039e1b615` differ only in the canonical and generated description
 lines. The candidate retains the lead and exclusions while replacing the three meta-triggers with
 on-call phrasings; it is 548 UTF-8 bytes. The
 [`paired approval packet`](reviews/2026-08-30-route-005-approval-gate.md) binds the three exact
 scenario IDs, `sonnet`, three trials each, 600 seconds per trial, 7,200 seconds per arm, USD 4.00 per
-arm/USD 8.00 aggregate, clean detached worktrees, and one no-tuning/no-retry pair. Both profiles
-validate with approval null; this preparation makes no model call and spends nothing.
+arm/USD 8.00 aggregate, clean detached worktrees, and one no-tuning/no-retry pair. The
+[`paired result`](reviews/2026-08-30-route-005-paired-result.md) records complete traces on resolved
+model `claude-sonnet-5`: candidate 1/3 scenarios and 3/9 full-contract trials; incumbent 1/3
+scenarios and 6/9 full-contract trials; routing 9/9 for each. Aggregate spend was USD 5.5857903.
+The candidate's systemic-failure positive authority wording check regressed from incumbent 2/3 to
+0/3, while the forbidden-self-action negative stayed clean 3/3 on both arms.
 
 **Acceptance:** A rewritten description passes the 600-byte and `Triggers:` contracts, keeps the
 three `discovery-incident-investigation-*` scenarios at their declared thresholds on the exact
 candidate, and the negative (`defers-engineering-altitude`) still does not fire.
 
-**Next action:** The human owner explicitly approves or rejects both fixed arms and supplies the two
-budget IDs. If approved, record approver/timestamps in the profiles and run the pair once from the
-bound clean revisions. Retain failures/timeouts and separate routing evidence from response-grader
-evidence; no result authorizes another candidate or retry.
+**Next action:** Human owner decides whether to close ROUTE-005 with the exact candidate rejected
+and the incumbent retained. That is the recommendation because the fixed full-scenario acceptance
+contract was not met. A changed acceptance boundary, replacement candidate, or additional live run
+requires separately authorized work; this packet permits no retry or tuning.
 
 ## Deferred
 

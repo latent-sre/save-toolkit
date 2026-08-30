@@ -1,8 +1,8 @@
 # ROUTE-005 paired native discovery approval gate
 
-> **Status:** `[verified static]` One minimal description candidate is committed and the paired
-> incumbent/candidate profiles validate offline. **Human gate:** both profiles intentionally carry
-> `"approval": null`; no live model call or spend is authorized.
+> **Status:** `[verified]` The human-approved pair ran once from both exact clean
+> revisions with no retry. The sealed result is `FAIL / no promotion`; see the
+> [paired result](2026-08-30-route-005-paired-result.md).
 
 ## Exact adjacent revisions
 
@@ -68,7 +68,22 @@ The profiles contain no reference injection because discovery prompts must remai
 5. A red content grader is analyzed separately from target invocation. It does not authorize
    prompt, description, grader, threshold, or split edits under this packet.
 
-## Commands after explicit approval
+## Recorded approval and sealed result
+
+The owner approval was recorded in both profiles at `2026-08-30T14:59:21Z` with approver
+`latent-sre` and the distinct budget IDs below:
+
+- candidate: `route-005-incident-investigation-candidate-2026-08-30`;
+- incumbent: `route-005-incident-investigation-incumbent-2026-08-30`.
+
+Both arms resolved `sonnet` to `claude-sonnet-5`. Candidate batch
+`20260830T150113Z-25fb8902` cost USD 2.7599256000000003 and incumbent batch
+`20260830T152600Z-d2661114` cost USD 2.8258647000000003, for USD 5.5857903 aggregate. Both returned
+`FAIL` with 1 of 3 scenarios passing their full thresholds. Routing itself passed 9 of 9 trials on
+each arm. No stop rule fired and neither arm was retried. The exact outcome, limitations, digests,
+and decision boundary are in the [paired result](2026-08-30-route-005-paired-result.md).
+
+## Executed commands
 
 Run the profiles from separate clean detached worktrees at the two bound revisions, passing each
 approved profile by absolute path:
@@ -81,7 +96,7 @@ python evals/run_evals.py --run --profile <ABSOLUTE_INCUMBENT_PROFILE_PATH> --re
 Capture both sealed result envelopes through `scripts/capture_measurement_evidence.py` before any
 adoption or closure claim. Then rerun the unpaid scenario, grader, generator, and Gate A checks.
 
-## Approval text needed
+## Approval text received
 
 A sufficient owner authorization is:
 
@@ -93,5 +108,5 @@ A sufficient owner authorization is:
 > `route-005-incident-investigation-candidate-2026-08-30`; incumbent budget ID:
 > `route-005-incident-investigation-incumbent-2026-08-30`.
 
-Until that approval is received and recorded with UTC timestamps, ROUTE-005 remains at the human
-gate and neither live command runs.
+This approval was received and recorded before either live command ran. It authorized only this
+one fixed pair; the failed result does not authorize a retry, replacement candidate, or tuning run.
