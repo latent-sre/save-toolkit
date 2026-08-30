@@ -1,0 +1,41 @@
+# `graph-sandbox/v1` failure-plane view
+
+Use the verified `graph-evidence/v2` event bundle as a local structured-event source. This view is
+for correlation and diagnosis after a bounded indicator identifies a failed or uncertain run. It
+is not a Splunk/Loki ingestion contract and carries no production query.
+
+## Start with these fields
+
+Keep UTC time, sequence, event type, run/case identity, node, task, attempt, replay, checkpoint,
+effect, failure plane, error class, and the closed event data object. Sort by sequence for causal
+order; time may overlap across fan-out branches. The source revision, contract version, sandbox
+version, and case digest must stay constant within a run.
+
+Run, task, attempt, replay, checkpoint, effect, and receipt identities are high-cardinality
+correlation fields. They may be selected in a log/evidence query but never promoted to stream or
+metric labels. Do not ingest prompt text, model output, tool arguments, raw payloads, authorization
+headers, credentials, or raw exception bodies.
+
+## Failure-plane view
+
+| Plane | Distinguishing evidence | Response ownership |
+|---|---|---|
+| graph control | terminal outcome, join/replay/control events | `sre` during impact; `software-engineer` for runtime defects |
+| runner/worker | runner exit/OOM state, task start/completion gaps | `sre`, then `software-engineer` |
+| model fixture or approved provider | bounded provider/fixture class and budget state | `sre`; provider/fixture owner for remediation |
+| checkpoint store | write, reject, and resume events with compatibility result | `sre`, then `software-engineer` |
+| checkout, payments, inventory | service readiness/HTTP class and receipt boundary | `sre`; owning synthetic-service code path for remediation |
+| effect reconciliation | `UNKNOWN`, replay-refused, receipt, and reconciliation events | `sre`; never automatic replay |
+
+One aggregate failure count cannot select among these branches. When multiple planes appear, retain
+the causal event sequence. For example, an observed checkout uncertainty also produced a later
+graph-control replay refusal; collapsing both to `failed` would hide the safety control that held.
+
+## Evidence packet
+
+Return the source revision, run and case ID, absolute UTC window, terminal outcome, ordered boundary
+events, bounded planes/classes, unresolved-effect count, and artifact location. Redact unique
+identities from broad reports; include one only when following that exact run in an access-controlled
+packet.
+
+Reference-read token: q_olgraph_5e92

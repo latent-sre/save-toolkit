@@ -56,7 +56,7 @@ restricting field is a default there.
 | Host / spec | Limit | Scope |
 |---|---|---|
 | GitHub Copilot custom agents [doc-checked 2026-08-24] | 30,000 characters of Markdown below one `.agent.md` frontmatter | Per generated profile, including its host contract — not an aggregate fleet budget, not a skill-body limit; "character" semantics `[unverified]` (GitHub does not define code points vs UTF-16 units), so report the official contract and the counting semantics separately |
-| Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators; not equivalent to this repository's 7,500-byte candidate screen |
+| Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators; not equivalent to this repository's 7,800-byte candidate screen |
 | VS Code | No matching body-length check in public source | — |
 
 ## What the generated adapters do

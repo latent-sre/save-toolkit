@@ -181,70 +181,6 @@ current branch boundaries:
 [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md). No team-specific
 values are required and no real team is onboarded.
 
-### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
-
-**Status:** `ready` (2026-08-30). Scope and the first operated graph are accepted. `GRAPH-002`
-closed after delivering the running sandbox and observable failure planes; no GRAPH-003
-implementation has started.
-
-**Owner:** `observability-engineer` for indicators, dashboards, and alert design; `scribe`/`runbook`
-for operating documents; `sre` remains the live-incident lane. No new agent.
-
-**Outcome:** The owning observability and operations skills carry graph-specific material
-(run/node/edge/attempt lineage, per-failure-plane indicators, queue and worker health, `UNKNOWN`
-effect backlog, approval wait, checkpoint age, replay canaries, and the runbook branches per failure
-class) as references inside their existing skills rather than a new SRE capability. The first scope
-is the synthetic `checkout-payments-timeout-drill/v1` graph running in `graph-sandbox/v1`; this item
-does not deploy a production dashboard, alert route, or pager.
-
-**Source:** Owner direction on 2026-08-24 (stage 2). Requirements are enumerated in section 8 of the
-[`2026-08-23 research refresh`](reviews/2026-08-23-prompt-loop-graph-engineering-research.md). The
-2026-08-23 owner disposition that held the five SRE capability additions is unchanged; this item is
-an operating reference for graphs, not one of those additions. Owner direction on 2026-08-26
-confirmed that scope and named the first graph after accepting the
-[`GRAPH-002 runtime decision`](decisions/2026-08-26-graph-002-docker-sandbox-runtime.md). The same
-owner direction accepted the bounded telemetry handoff, operational questions, and fault matrix in
-the [`GRAPH-003 preparation decision`](decisions/2026-08-26-graph-003-observability-preparation.md);
-that design evidence does not prove the graph emits any signal yet.
-
-**Accepted boundary:** `observability-engineer` extends the existing observability skills with the
-smallest graph-specific references needed to answer whether the graph is serving, where it failed,
-and whether replay or reconciliation is safe. `scribe`/`runbook` owns the corresponding operating
-document. `sre` retains live-incident ownership. No new agent, tool, credential, production data
-source, or effect authority is created. The first operated graph is
-`checkout-payments-timeout-drill/v1`; a later graph must justify its own additional signals rather
-than silently widening this reference set.
-
-**Prerequisites:** Satisfied by the accepted `graph-sandbox/v1` implementation closed on
-2026-08-30. It provides a runnable offline topology, stable
-run/node/edge/task/attempt/replay/checkpoint/effect identities, structured events, controllable
-failure modes, and restart/resume behavior. The full fault matrix remains historical evidence for
-the pre-remediation revision, while the accepted post-review revision carries focused recovery
-evidence and one healthy mission; historical fault samples must not be relabelled as
-exact-remediation measurements. The observability owner—not the graph runner—owns operational
-interpretation, cardinality budgets, alert semantics, and runbook response.
-
-**Acceptance:** All conditions are required. (1) References are added under the existing owning
-skills with a discovery near-miss keeping a live graph outage with `sre`. (2) The indicator set is
-derived from observed `graph-sandbox/v1` output and covers graph outcome and consistency, path
-divergence, retries and timeouts, stuck work, cancellation latency, approval wait, checkpoint age
-and recovery, cost/budget, and `UNKNOWN` effects without unbounded metric labels. (3) Failure-plane
-views distinguish graph control, runner/worker, model fixture or approved provider, checkpoint
-store, and downstream synthetic services rather than hiding them in one aggregate success rate.
-(4) One synthetic runbook branches for model or fixture failure, tool/application failure, join
-starvation, approval timeout, checkpoint failure, effect uncertainty, and budget exhaustion. (5) A
-synthetic alert set is evaluated against real sandbox data, fires under the injected condition,
-resolves after recovery, names an owner and first action, and pages only on actionable symptoms;
-cause and saturation signals remain diagnostic. (6) No new agent, tool, credential, production
-dashboard, live alert route, or pager is introduced.
-
-**Next action:** `observability-engineer` inspects the emitted `graph-sandbox/v1` data before
-choosing queries, thresholds, retention, dashboards, or alert rules, then implements the minimum
-graph-specific reference, synthetic runbook, and tested alert set against that evidence. Rerun the
-specific deterministic fault cases needed to evaluate those artifacts on current runtime inputs;
-do not reopen GRAPH-002 or reuse historical samples as current measurements. No paid or Terra run
-is required.
-
 ### GRAPH-004 — `fleet-atlas`: a revision-bound knowledge graph over fleet artifacts
 
 **Status:** `active` (2026-08-30). The owner accepted the fleet-knowledge scope, the published
@@ -488,7 +424,7 @@ that shows why.
 [`complete skill audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) corrected the
 candidate list; the [`2026-08-24 host context-budget audit`](reviews/2026-08-24-host-context-budget-audit.md)
 separates the host contracts from the repository's byte screen — 5,000 until the owner reset it to
-7,500 on 2026-08-27. The
+7,500 on 2026-08-27 and 7,800 on 2026-08-30. The
 [`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md) records the
 knowledge probes and pressure controls that established the probe-first method, and the refreshed
 screen. Description metadata follows the current rule — capability, invocation conditions, and
@@ -500,23 +436,26 @@ holds the per-slice evidence. Those nine skills are excluded from Phase 2.
 
 **Phase 2 dispositions:** `frontend-craft` — confirmed router with a knowledge cut on branch
 `work/skill-001-frontend-craft`: 14,150 → 7,481 immutable entrypoint bytes, references 37,107 →
-39,798, description byte-identical; below the 7,500-byte screen, and what remains is decisions,
-pressure-dropped invariants, and the routing table. The after-change discovery run on `1b2d485` was
-1/3 against a 0/3 previous-revision baseline (pre-existing routing instability, see `ROUTE-004`);
-evidence is in the disposition review.
+39,798, description byte-identical; below both the then-current 7,500-byte and current 7,800-byte
+screens, and what remains is decisions, pressure-dropped invariants, and the routing table. The
+after-change discovery run on `1b2d485` was 1/3 against a 0/3 previous-revision baseline
+(pre-existing routing instability, see `ROUTE-004`); evidence is in the disposition review.
 
 `agent-authoring` — retained router with a recitation cut on branch `work/skill-001-agent-authoring`:
 10,911 → 8,843 immutable entrypoint bytes, references 66,628 → 36,754 (an owner-preference trim of a
 pattern catalog, vendor commentary, and a changelog digest, a probe-backed recitation cut, then a
 rules-as-tables form pass; every fleet rule retained), description
-byte-identical, retained above the 7,500-byte screen because clean-room probes on both tiers show
-the body's remaining content is fleet decisions and platform traps the models author wrong. After-change
-discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe correction, is in the
+byte-identical, retained above the then-current 7,500-byte and current 7,800-byte screens because
+clean-room probes on both tiers show the body's remaining content is fleet decisions and platform
+traps the models author wrong. After-change discovery run on `fc5748a`: 3/3. Evidence, including the
+contaminated-probe correction, is in the
 [`agent-authoring disposition`](reviews/2026-08-27-skill-001-agent-authoring.md).
 
-`gcp-ops` — knowledge cut **retained above the screen** on branch `work/skill-001-gcp-ops`: 8,102 →
-7,679 immutable entrypoint bytes (−5.2%, references untouched), description byte-identical. Review
-found the first attempt had cut text pinned by two committed contracts in
+`gcp-ops` — knowledge cut retained after component-contract review on branch
+`work/skill-001-gcp-ops`: 8,102 → 7,679 immutable entrypoint bytes (−5.2%, references untouched),
+description byte-identical. It sat above the then-current 7,500-byte screen when dispositioned and
+is below the current 7,800-byte advisory; the evidence is not requeued. Review found the first
+attempt had cut text pinned by two committed contracts in
 `scripts/test_platform_skill_contracts.py` — the conditional traffic semantics and the rollback
 propagation caveat — which were red on the branch from `a6da0d0a` until restored in `9294e80b`; that
 suite was never run during the slice's own verification. The retained bytes are therefore
@@ -529,15 +468,19 @@ against a 1/3 previous-revision baseline on exact base `2a04d357`, same CLI and 
 dominant caller-fence failure, routing 6/6 — pre-existing content-contract instability, filed as
 `EVAL-006`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
 
-**Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
-5,000 before). On refreshed `origin/main` `41406af0`, 33 entrypoints total 225,466 immutable bytes
-and seven non-Phase-1 entrypoints other than `agent-authoring` sit at or above it:
-`obs-dashboards` 11,419, `backend-craft` 11,123, `runbook` 9,561,
-`workflow-graph-engineering` 8,622, `incident-drill` 8,154, `obs-alerting` 7,755, and the retained
-`gcp-ops` candidate 7,679. `frontend-craft` (7,481) is below it. The earlier 5,000-byte
-screens on `b9b274f` (twelve) and `0eb3daf` (seventeen) are superseded. Selection means inspect, not rewrite; size alone is not a finding.
-The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
-unrefreshed and still does not authorize a description rewrite inside Phase 2.
+**Phase 2 screen:** `[verified]` The screen is 7,800 immutable bytes (owner decision, 2026-08-30;
+7,500 from 2026-08-27, 5,000 before that). On exact campaign revision
+`a253f2ea84c945c227609402782e26e215a80416`, 33 entrypoints total 226,264 immutable bytes. After
+excluding Phase 1 and dispositioned `agent-authoring`, six undispositioned entrypoints remain at or
+above it: `obs-dashboards` 11,419, `backend-craft` 11,123, `runbook` 9,665,
+`workflow-graph-engineering` 8,622, `incident-drill` 8,154, and `obs-alerting` 7,930. `gcp-ops`
+(7,679), `incident-investigation` (7,689), and `frontend-craft` (7,481) are below it. The exact
+remeasurement and exclusion table are in the
+[`7,800-byte screen evidence`](reviews/2026-08-30-skill-001-7800-screen.md). The earlier 7,500- and
+5,000-byte screens are superseded as current selection policy but remain historical evidence.
+Selection means inspect, not rewrite; size alone is not a finding. The separate discovery-listing
+risk (28 descriptions totaling 13,239 characters on `b9b274f`) is unrefreshed and still does not
+authorize a description rewrite inside Phase 2.
 
 **Method note — the screen sizes, the probe advises, and committed contracts decide.** Three
 authorities act on a slice and they rank. The screen only *selects* candidates: clearing it is
@@ -551,7 +494,8 @@ regardless of what a model would otherwise produce.
 the Cloud Run traffic semantics unprompted and complete, the slice cut them as recitation, and two
 contracts in `scripts/test_platform_skill_contracts.py` had pinned that exact prose — leaving the
 branch red from `a6da0d0a` until `9294e80b` and the entrypoint retained at 7,679 bytes, above the
-screen. Before cutting a passage, therefore, establish what pins it: run the component suites that
+then-current 7,500-byte screen. The current 7,800-byte advisory does not erase that contract
+finding. Before cutting a passage, therefore, establish what pins it: run the component suites that
 own the skill's prose contracts, not only the eval graders and Gate A. A verification "sized to the
 change" must size to *removal* — deleting text is precisely the edit a prose contract detects.
 
@@ -567,7 +511,7 @@ sized to the change: the structural gate, one build exercise on the task most li
 the after-change discovery run on the exact commit; a full multi-run benchmark is not owed for a
 change that moves or removes text without changing a rule.
 
-**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 7,500
+**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 7,800
 immutable bytes. Each receives one committed disposition: a confirmed router either drops below the
 screen or routes more reference bytes than it retains, with every target reachable through
 `check_links`; a knowledge cut cites its probe and control transcripts; a retained entrypoint
@@ -577,8 +521,8 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** The remaining candidate set is the six undispositioned entrypoints at or above
-the 7,500-byte screen. No next slice is in progress and no `backend-craft` Phase 2 branch exists.
+**Next action:** The remaining candidate set is the same six undispositioned entrypoints at or above
+the 7,800-byte screen. No next slice is in progress and no `backend-craft` Phase 2 branch exists.
 At the next one-item evidence/recommendation checkpoint, select whether `backend-craft` is the next
 slice; only after owner approval create a refreshed branch and run its clean-room checkpoint. Then,
 one per approved slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
@@ -599,8 +543,8 @@ line wrap that splits a pinned phrase disables the mutation without failing the 
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
-**Status:** `ready` (2026-08-30). The material route/evaluator-change trigger fired; no
-remeasurement has started.
+**Status:** `ready` (2026-08-30). The material route/evaluator-change trigger fired and the fixed
+packet is prepared at its human approval gate; no remeasurement or spend has started.
 
 **Owner:** `latent-sre`
 
@@ -620,16 +564,24 @@ introduced at `f1afd574`; the service-readiness route and lifecycle vocabulary c
 the item's own trigger. Use a clean exact plugin revision and predeclare model, timeout, trials,
 threshold, selected scenarios, and spend ceiling before measurement.
 
+**Prepared gate:** The
+[`ROUTE-003 approval packet`](reviews/2026-08-30-route-003-approval-gate.md) binds exact plugin
+candidate `38dbdf70722c2167ce2c404297ccb4ccc3f5da8f`, requested model `sonnet`, the exact
+`discovery-agent-authoring-workflow-graph` and `discovery-service-readiness-audit` scenario IDs,
+three trials each, their scenario-owned 0.66 and 1.0 thresholds, 600 seconds per trial, 7,200 seconds
+total, USD 4.00 maximum, and one no-tuning/no-retry batch. The execution profile validates offline
+with approval null. This preparation makes no model call and spends nothing.
+
 **Acceptance:** The workflow-graph and service-readiness cases each meet their declared threshold on
 the exact candidate under the predeclared conditions, with no overlapping regression loss. A failed
 or inconclusive batch remains evidence; it does not authorize prompt edits or retries without a
 separately accepted fleet failure and candidate budget.
 
-**Next action:** Present one fixed, no-tuning measurement packet for owner approval: exact plugin
-revision, model, the two named discovery cases, timeout, trials, thresholds, stop conditions, and
-spend ceiling. If approved, run that packet once and retain failures/timeouts as evidence. Do not
-retry unchanged bytes merely to turn timeouts green or move reference-dependent behavior graders
-into discovery.
+**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
+budget ID. If approved, add the approver and UTC timestamp to that profile, execute it once from a
+clean detached checkout of the bound candidate with `--require-clean-plugin`, and retain
+failures/timeouts as evidence. Do not retry unchanged bytes merely to turn timeouts green or move
+reference-dependent behavior graders into discovery.
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
@@ -687,7 +639,9 @@ the grader from the Terra responses or relabel those probes as native closure ev
 
 ### GRADER-005 — posture graders for gate-shaped contracts
 
-**Status:** `active` (2026-08-29)
+**Status:** `ready` (2026-08-30). The `gate_posture` repair is merged into the exact candidate and
+the three native frontend remeasurements are prepared at the human approval gate; no live run or
+spend has started.
 
 **Outcome:** A discovery or direct grader can tell "names the rule" from "enforces the rule" for a
 scenario whose contract is a gate, so a green on `render-is-not-verification` means the response
@@ -714,12 +668,23 @@ records the red-first controls, transfer forms, named `gate_posture` grader, and
 The three discovery scenarios have not been rerun on the exact merged revision, so the item is not
 closure-ready.
 
-**Next action:** Remeasure the three scenarios on the exact merged revision without changing their
-prompts, thresholds, or routing description.
+**Prepared gate:** The
+[`GRADER-005 approval packet`](reviews/2026-08-30-grader-005-approval-gate.md) binds exact candidate
+`54f1c8d0ddbc17545f644fdd2568a36c8471454c`, `sonnet`, the three exact frontend discovery IDs,
+three trials each at their unchanged 1.0 thresholds, 600 seconds per trial, 7,200 seconds total,
+USD 4.00 maximum, a clean detached checkout, and one no-tuning/no-retry batch. Commits `dcf7852f`
+and `7c92c5ac` are ancestors. The profile validates with approval null; preparation makes no model
+call and spends nothing.
+
+**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
+budget ID. If approved, record approver/timestamp in the profile and run it once from the bound clean
+revision. Retain failures/timeouts and do not change prompts, thresholds, routing description, or
+grader under this authorization.
 
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
-**Status:** `active` (2026-08-29)
+**Status:** `ready` (2026-08-30). The object-bound grader is merged into the exact candidate and its
+one native remeasurement is prepared at the human approval gate; no live run or spend has started.
 
 **Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
 execution claim, while `I'm applying the rollback` and every other present-progressive claim about
@@ -745,12 +710,24 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 records the reproduced false positive and the named, object-bound replacement. The affected
 direct scenario has not been rerun on the exact merged revision.
 
-**Next action:** Remeasure `agent-direct-sre-readonly-triage` on the exact merged revision without
-changing its prompt or threshold.
+**Prepared gate:** The
+[`GRADER-008 approval packet`](reviews/2026-08-30-grader-008-approval-gate.md) binds exact candidate
+`7d9aa18c4efb223060b27685d0dd0be4e8590059`, `sonnet`,
+`agent-direct-sre-readonly-triage`, three trials at its unchanged 1.0 threshold, 600 seconds per
+trial, 2,400 seconds total, USD 2.00 maximum, a clean detached checkout, and one no-tuning/no-retry
+batch. Repair `dcf7852f` is an ancestor. The profile validates with approval null; preparation
+makes no model call and spends nothing.
+
+**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
+budget ID. If approved, record approver/timestamp in the profile and run it once from the bound clean
+revision. Retain failures/timeouts and do not change its prompt, threshold, split, or grader under
+this authorization.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
-**Status:** `active` (2026-08-29)
+**Status:** `ready` (2026-08-30). Both grader repairs are merged into the exact current candidate
+and the four historical/current cells are prepared at the human approval gate; no live run or spend
+has started.
 
 **Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
 `…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
@@ -782,7 +759,19 @@ and the
 [`combined-branch amendment`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md).
 The required model trials have not been rerun on the exact merged revision.
 
-**Next action:** Remeasure the two scenarios three trials per side on the exact merged revision.
+**Prepared gate:** The
+[`GRADER-009 approval packet`](reviews/2026-08-30-grader-009-approval-gate.md) binds historical
+plugin `2cdcbbbac3bc560076a1d0c648149173b6863602`, current plugin
+`6e90d06e27acda01cbaa404fc65528a8bdb20625`, and the current evaluator on both sides. The handoff
+scenario runs Sonnet x3 per revision at 600 seconds/USD 2 per cell; the unknown-write scenario runs
+Opus x3 per revision at 900 seconds/USD 4 per cell. Four separate approval/budget records bound 12
+calls and USD 12 aggregate. Repairs `f9075751` and `ff7a6293` are ancestors of current. Every profile
+validates with approval null; preparation makes no model call and spends nothing.
+
+**Next action:** The human owner explicitly approves or rejects all four fixed cells and supplies
+their four budget IDs. If approved, record approver/timestamps and run the matrix once with current
+evaluator bytes, isolated exact plugin revisions, and no tuning/retry. Retain failures/timeouts and
+do not aggregate unlike model/scenario cells.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
@@ -1079,7 +1068,10 @@ further tuning run is spent on pattern repair.
 
 ### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
 
-**Status:** `ready` (2026-08-27)
+**Status:** `decision-needed` (2026-08-30). The exact approved pair completed with no retries. Both
+arms routed correctly 9 of 9 times, but the candidate failed the full acceptance contract and is
+not promotion eligible. The incumbent description is restored in the PR repair; no candidate is
+promoted by publication.
 
 **Outcome:** The skill's description triggers match what a responder types under load, so
 discovery does not depend on the caller knowing the fleet's vocabulary.
@@ -1095,13 +1087,27 @@ is robustness, not a defect.
 is measured on stable bytes. The routing-content change playbook applies: an after-change
 clean-room run of the scenarios that target the skill.
 
+**Measured pair:** Exact adjacent incumbent `54444fcdbafc52790af4e4d8eede1c12460c93b7` and candidate
+`6e2d1c9f6cb2780144b221ec0071977039e1b615` differ only in the canonical and generated description
+lines. The candidate retains the lead and exclusions while replacing the three meta-triggers with
+on-call phrasings; it is 548 UTF-8 bytes. The
+[`paired approval packet`](reviews/2026-08-30-route-005-approval-gate.md) binds the three exact
+scenario IDs, `sonnet`, three trials each, 600 seconds per trial, 7,200 seconds per arm, USD 4.00 per
+arm/USD 8.00 aggregate, clean detached worktrees, and one no-tuning/no-retry pair. The
+[`paired result`](reviews/2026-08-30-route-005-paired-result.md) records complete traces on resolved
+model `claude-sonnet-5`: candidate 1/3 scenarios and 3/9 full-contract trials; incumbent 1/3
+scenarios and 6/9 full-contract trials; routing 9/9 for each. Aggregate spend was USD 5.5857903.
+The candidate's systemic-failure positive authority wording check regressed from incumbent 2/3 to
+0/3, while the forbidden-self-action negative stayed clean 3/3 on both arms.
+
 **Acceptance:** A rewritten description passes the 600-byte and `Triggers:` contracts, keeps the
 three `discovery-incident-investigation-*` scenarios at their declared thresholds on the exact
 candidate, and the negative (`defers-engineering-altitude`) still does not fire.
 
-**Next action:** Draft trigger phrases from the retained transcripts' opening lines, run the
-description optimizer only as a source of candidates, and measure one candidate description in
-the clean room before adopting it.
+**Next action:** Human owner decides whether to close ROUTE-005 with the exact candidate rejected
+and the incumbent retained. That is the recommendation because the fixed full-scenario acceptance
+contract was not met. A changed acceptance boundary, replacement candidate, or additional live run
+requires separately authorized work; this packet permits no retry or tuning.
 
 ## Deferred
 

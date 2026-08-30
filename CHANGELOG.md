@@ -7,6 +7,13 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Added and closed the bounded `GRAPH-003` operating layer for the accepted offline
+  `checkout-payments-timeout-drill/v1` graph. Existing metrics, logs, alerting, and runbook skills
+  now carry graph-specific indicator, failure-plane, one-page, and response references; a
+  pure-standard-library evaluator proves readiness fire/healthy resolve and preserves an unresolved
+  `UNKNOWN` effect across unrelated success. Current exact-revision Docker evidence covers eight
+  injected cases plus recovery. A discovery near-miss keeps live graph impact with `sre`; no
+  dashboard, notification route, pager, credential, production target, or new authority is added.
 - Added `incident-investigation`, a dedicated evidence-selected incident-depth router for first
   response, hypothesis investigation, systemic failure, and optional signal characterization, with
   the sustained-recovery lifecycle and the handoff packet as predicate-loaded references. The `sre`
@@ -54,6 +61,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 - Added the missing portable skill-metadata gates: names stop at 64 characters and optional
   `compatibility` text stops at 500, so an invalid generated skill cannot pass locally and then
   disappear silently in Copilot.
+- Raised SKILL-001's advisory Phase 2 entrypoint screen from 7,500 to 7,800 immutable bytes and
+  remeasured the exact campaign head through Git objects. The six undispositioned slices are
+  unchanged; `gcp-ops` and `incident-investigation` are below the new screen while `obs-alerting`
+  remains above after its GRAPH-003 reference link. The screen still selects evidence checkpoints
+  only—size alone is not a finding or permission to cut content.
 - Closed `GRAPH-002` after owner acceptance of the repository-integrated `graph-sandbox/v1`
   candidate at merge commit `4a745fb311ad7df83ec6aeaf3268356ce4780db5` (PR #193). This accepts only
   the offline `checkout-payments-timeout-drill/v1` implementation; GRAPH-003, live Terra execution,

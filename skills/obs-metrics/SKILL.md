@@ -80,5 +80,6 @@ packet.
 | Mimir, Prometheus, or PromQL | [PromQL](./references/promql.md) |
 | Cloud Monitoring, Managed Prometheus, or a GCP-hosted service's metrics | [Cloud Monitoring](./references/gcp-monitoring.md) |
 | Which metric, counter type, or label exists | [local metric inventory](./references/metrics.md) |
+| The synthetic graph runtime's bounded indicators or cardinality split | [graph-sandbox indicators](./references/graph-sandbox.md) |
 
 Read it **before** writing that query, and name what you read in your packet.
