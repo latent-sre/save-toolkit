@@ -721,7 +721,7 @@ on an accepted candidate revision.
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
 records the red-first controls, transfer forms, named `gate_posture` grader, and green offline suite.
-`[verified]` The combined branch passes 1,355/1,355 grader checks, validates all 136 scenarios, passes
+`[verified]` The combined branch passes 1,364/1,364 grader checks, validates all 136 scenarios, passes
 Gate A 8/8, and passes all 38 component suites. The three discovery scenarios have not been rerun
 on the exact merged revision, so the item is not closure-ready.
 
@@ -755,7 +755,7 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
 records the reproduced false positive and the named, object-bound replacement. Guidance transfer
 forms pass and progressive rollback, restart, restage, and state-changing-command claims remain
-red. `[verified]` The combined branch passes 1,355/1,355 grader checks, validates all 136 scenarios,
+red. `[verified]` The combined branch passes 1,364/1,364 grader checks, validates all 136 scenarios,
 passes Gate A 8/8, and passes all 38 component suites. The affected direct scenario has not been
 rerun on the exact merged revision.
 
@@ -790,7 +790,7 @@ existing red side still fails — a real `just run it again` recommendation incl
 scenarios are re-measured on both sides.
 
 **Current evidence:** `[verified]` The combined branch carries both accepted fixtures and the
-particle-form and quoted-warning fixes. It passes 1,355/1,355 grader checks, validates all 136
+particle-form and quoted-warning fixes. It passes 1,364/1,364 grader checks, validates all 136
 scenarios, passes Gate A 8/8, and passes all 38 component suites. The required model trials have not
 been rerun on the exact merged revision.
 
