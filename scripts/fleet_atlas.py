@@ -192,11 +192,34 @@ def write_json(path: Path, document: dict[str, object]) -> None:
         handle.write("\n")
 
 
+def build_graph(root: Path) -> Graph:
+    sys.path.insert(0, str(root / "scripts"))
+    import fleet_atlas_extract  # noqa: E402
+
+    graph = Graph()
+    fleet_atlas_extract.extract_agents(root, graph)
+    fleet_atlas_extract.extract_skills(root, graph)
+    fleet_atlas_extract.extract_commands(root, graph)
+    return graph
+
+
+def cmd_build(root: Path) -> int:
+    document = snapshot(root, build_graph(root))
+    write_json(root / OUTPUT / "atlas.json", document)
+    print(f"fleet_atlas: wrote {OUTPUT}/atlas.json "
+          f"({document['metadata']['nodeCount']} nodes, {document['metadata']['edgeCount']} edges, "
+          f"{document['metadata']['unknownCount']} unknowns)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_subparsers(dest="command")
-    parser.parse_args(argv)
-    print("fleet_atlas: no command implemented yet", file=sys.stderr)
+    parser.add_argument("--root", type=Path, default=ROOT)
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("build", help="regenerate docs/fleet-atlas/generated/")
+    args = parser.parse_args(argv)
+    if args.command == "build":
+        return cmd_build(args.root.resolve())
     return 2
 
 

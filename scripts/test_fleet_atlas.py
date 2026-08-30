@@ -71,5 +71,77 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(entry[0]["status"], "active")
 
 
+import fleet_atlas_extract  # noqa: E402
+
+
+class ExtractCanonicalTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.graph = fleet_atlas.Graph()
+        fleet_atlas_extract.extract_agents(ROOT, cls.graph)
+        fleet_atlas_extract.extract_skills(ROOT, cls.graph)
+        fleet_atlas_extract.extract_commands(ROOT, cls.graph)
+
+    def test_every_agent_skill_and_command_file_becomes_one_node(self) -> None:
+        agents = {p.stem for p in (ROOT / "agents").glob("*.md")}
+        skills = {p.parent.name for p in (ROOT / "skills").glob("*/SKILL.md")}
+        commands = {p.stem for p in (ROOT / "commands").glob("*.md")}
+        self.assertEqual({n.name for n in self.graph.nodes.values() if n.type == "agent"}, agents)
+        self.assertEqual({n.name for n in self.graph.nodes.values() if n.type == "skill"}, skills)
+        self.assertEqual({n.name for n in self.graph.nodes.values() if n.type == "command"}, commands)
+
+    def test_every_reference_file_is_a_node_with_a_loads_when_edge(self) -> None:
+        references = {
+            f"{p.parents[1].name}/{p.name}" for p in (ROOT / "skills").glob("*/references/*.md")
+        }
+        nodes = {n.name for n in self.graph.nodes.values() if n.type == "reference"}
+        self.assertEqual(nodes, references)
+        targets = {e.target for e in self.graph.edges.values() if e.kind == "loads_when"}
+        self.assertEqual(targets, {f"reference:{name}" for name in references})
+
+    def test_routing_table_rows_carry_their_predicate(self) -> None:
+        stack = [
+            e for e in self.graph.edges.values()
+            if e.kind == "loads_when" and e.source == "skill:stack-profile"
+            and e.target == "reference:stack-profile/observability-stack.md"
+        ]
+        self.assertTrue(stack, "stack-profile must load observability-stack.md")
+        predicates = {e.attrs["predicate"] for e in stack}
+        self.assertTrue(any("observability backend" in p for p in predicates), predicates)
+        self.assertTrue(all(e.cls == "STATIC_EXTRACTED" for e in stack))
+        self.assertTrue(all(ev.path == "skills/stack-profile/SKILL.md" for e in stack for ev in e.evidence))
+
+    def test_manual_only_skills_are_flagged(self) -> None:
+        manual = {n.name for n in self.graph.nodes.values() if n.type == "skill" and n.attrs["manual_only"]}
+        self.assertEqual(manual, {"incident-drill", "pcf-deploy", "service-lifecycle"})
+
+    def test_agent_grants_are_recorded_but_not_yet_edges(self) -> None:
+        engineer = self.graph.nodes["agent:software-engineer"]
+        self.assertEqual(sorted(engineer.attrs["grants"]), ["researcher", "reviewer", "scribe"])
+        self.assertFalse([e for e in self.graph.edges.values() if e.kind == "delegates_to"])
+
+    def test_a_missing_link_target_becomes_an_unknown_not_an_edge(self) -> None:
+        import tempfile, shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "demo"
+            (skill / "references").mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                "---\nname: demo\ndescription: \"Demo. Triggers: 'a', 'b'.\"\n---\n"
+                "See [gone](./references/gone.md) and [here](./references/here.md).\n",
+                encoding="utf-8", newline="\n",
+            )
+            (skill / "references" / "here.md").write_text("# here\n", encoding="utf-8", newline="\n")
+            (root / "agents").mkdir(); (root / "commands").mkdir()
+            graph = fleet_atlas.Graph()
+            fleet_atlas_extract.extract_skills(root, graph)
+            codes = [u.code for u in graph.unknowns]
+            self.assertIn("extract.skill-link-unresolved", codes)
+            self.assertEqual(
+                [e.target for e in graph.edges.values() if e.kind == "loads_when"],
+                ["reference:demo/here.md"],
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
