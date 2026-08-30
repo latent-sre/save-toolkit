@@ -1,15 +1,15 @@
 {
   "apiVersion": "save-toolkit/fleet-atlas-manifest/v1",
   "files": {
-    "INDEX.md": "sha256:939a2ae2f290819506aa29b26dfd1719e9e68cddbb55aebdc11882ea806d14e8",
-    "atlas.json": "sha256:94de055d4a702085a1be200031870789cc21284e639a3bec89dd9b52d21b6804",
-    "capability-owner-map.md": "sha256:484db36c6ccc9e463b2e80e14cf8c294502c05f0704681017599164e953b2b11",
-    "claim-to-eval-map.md": "sha256:e62e0c6061bce0d38506ae772486221dc39fb4f11084fa6600e438b20c916e69",
-    "contradictions-and-stale-evidence.md": "sha256:7bf3de611668aacde88b45c46262397af93eaf96393b3ba3364f379c5d7e4a9d",
-    "decision-supersession-map.md": "sha256:d064123f39ca03bc760ac500a9926d74e6a0cb03f6e88cc2005c8353a23fd1d6",
+    "INDEX.md": "sha256:9714605e1cf503e00887eb841dc0441c4ff85b3f41a3be28d70e8316dd9d4a0e",
+    "atlas.json": "sha256:8b8fcedabdde5086d984d82a96f70d17b843d3e9496f9c44c5111b1c7b6a1a5e",
+    "capability-owner-map.md": "sha256:29d3ae860666bf663d66b59df6db397070e7d26b65941d20ac27d9f24b3ab7b3",
+    "claim-to-eval-map.md": "sha256:0782529f1903cba57dbef711221cfb96e61fdf039f4ea4eac1b9ae3939c67016",
+    "contradictions-and-stale-evidence.md": "sha256:6b4761a911ce7055bf5d19ffce94ae19f4d4b6c7b5a7ccf3d712d02ac28e8f57",
+    "decision-supersession-map.md": "sha256:6a08930a6566ababddb097ee033eafe31485111919333f71b3507e5d3af3c245",
     "delegation.mmd": "sha256:12055a2b945179ab57151bed43715666c6a860addce54e152c9ff6cdc36de37c",
-    "roadmap-dependency-map.md": "sha256:3eb08e1d33f55bd33feea1343eab3a23ac07cc3833f2790de083a741c78daa07",
+    "roadmap-dependency-map.md": "sha256:dfc6fd9b2bf9eaf89534b31989a1a8da6b6539856f6b4ba1cace1b50445d75e6",
     "roadmap-dependency-map.mmd": "sha256:442b47446ea5b0975b936ab7fd32e7615dda8963ee3120659ac357aafc2f25fd",
-    "skill-reference-loading-map.md": "sha256:48507150dc8ebc96c57c85a49ccf0bac6f7dc5512d2005490cc52845295b69ba"
+    "skill-reference-loading-map.md": "sha256:a2cf44b985f67da4065679e2af5982e97559e76fe2cb7e0ba8ba169820452723"
   }
 }

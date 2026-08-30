@@ -155,8 +155,20 @@ def git_revision(root: Path) -> tuple[str, bool]:
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True
     ).stdout.strip()
+    # The dirty check excludes OUTPUT itself. docs/fleet-atlas/generated/ is a committed,
+    # self-referential artifact that embeds this very revision+dirty pair -- once committed, it was
+    # necessarily generated one commit earlier (there is no way for a commit to embed its own future
+    # sha), so a `build` against a freshly checked-out, otherwise-clean HEAD always rewrites it to a
+    # byte-different (still correct) state and would make the tree look dirty forever after, purely
+    # from the atlas describing itself. "dirty" is meant to answer whether the CANONICAL INPUTS the
+    # atlas documents differ from a clean checkout, not whether the atlas's own last build already
+    # matches its next one -- the same reasoning input_digest() already applies by leaving OUTPUT out
+    # of CANONICAL_INPUTS. Proven by reproduction: committing generated/ then running the component
+    # test suite intermittently failed ViewAndDriftTests with a spurious dirty-flag mismatch between
+    # two builds in the same process; excluding OUTPUT from this pathspec made `git status` -- and
+    # every subsequent build/check in the same run -- agree.
     status = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
+        ["git", "status", "--porcelain", "--untracked-files=no", "--", ".", f":(exclude){OUTPUT.as_posix()}"],
         cwd=root, capture_output=True, text=True, check=True,
     ).stdout
     return head, bool(status.strip())
