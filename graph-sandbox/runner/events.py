@@ -130,7 +130,12 @@ class BoundaryEventStore:
                 optional=set(schema.optional),
             )
         except ValueError as exc:
-            message = str(exc).replace("event data has ", "")
+            message = str(exc)
+            message = message.replace(
+                "event data has unexpected fields: ",
+                "unexpected data fields: ",
+                1,
+            )
             raise EventContractError(message) from exc
 
         run_id = validate_atomic_id(state.get("run_id"), "run_id")
