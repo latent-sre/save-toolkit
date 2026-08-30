@@ -48,8 +48,9 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   from checkout-only agent discovery.
 - Added a pinned VS Code agent-to-agent beta fixture and probe that separates complete plugin
   discovery, a real allowed fleet edge, a synthetic allowed child, and explicit forbidden-child
-  rejection. Model-visible filtering and human-selected handoff buttons no longer count as proof of
-  model-driven delegation enforcement.
+  rejection, while keeping the `adr` slash command out of the 33-skill inventory. Model-visible
+  filtering and human-selected handoff buttons no longer count as proof of model-driven delegation
+  enforcement.
 - Added the missing portable skill-metadata gates: names stop at 64 characters and optional
   `compatibility` text stops at 500, so an invalid generated skill cannot pass locally and then
   disappear silently in Copilot.

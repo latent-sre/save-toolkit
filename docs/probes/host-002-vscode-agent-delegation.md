@@ -68,11 +68,13 @@ Get-ChildItem .github/agents -Filter *.agent.md | ForEach-Object { $_.Name -repl
 Get-ChildItem platforms/copilot/skills -Directory | Select-Object -ExpandProperty Name | Sort-Object
 ```
 
-In the neutral workspace, record every Save Toolkit agent shown by the agent picker and every
-plugin-prefixed Save Toolkit skill shown by **Chat: Configure Skills** or the `/` menu. Record exact
-expected/observed counts, missing names, extra names, and duplicate names. Success requires every
-generated agent and skill exactly once. A workspace copy, a bare filename, or a manually copied
-agent without its skills is not plugin-discovery evidence.
+In the neutral workspace, record every Save Toolkit agent shown by the agent picker. Use **Chat:
+Configure Skills** as the authoritative 33-skill inventory and record every plugin-prefixed Save
+Toolkit skill there. Record exact expected/observed counts, missing names, extra names, and duplicate
+names. The `/` menu may colocate plugin commands with skills: `adr` is a slash command, not a skill,
+so record it separately and do not count it as a 34th skill. Success requires every generated agent
+and skill exactly once. A workspace copy, a bare filename, or a manually copied agent without its
+skills is not plugin-discovery evidence.
 
 ## 4. Prove one real allowed plugin edge
 

@@ -194,6 +194,14 @@ class PlatformAdapterTests(unittest.TestCase):
                 self.assertIn(marker, body)
                 self.assertNotIn(next(value for value in markers.values() if value != marker), body)
 
+    def test_vscode_probe_does_not_count_the_adr_command_as_a_skill(self) -> None:
+        probe = (ROOT / "docs/probes/host-002-vscode-agent-delegation.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("authoritative 33-skill inventory", probe)
+        self.assertIn("`adr` is a slash command, not a skill", probe)
+        self.assertNotIn("**Chat: Configure Skills** or the `/` menu", probe)
+
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
         self.assertEqual(["read", "search"], self._copilot_tools("repository-investigator"))
         self.assertEqual(["web"], self._copilot_tools("researcher"))
