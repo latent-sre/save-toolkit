@@ -437,8 +437,9 @@ projection, push, merge, or release is a prerequisite.
 
 **Implementation sequence:** Expand before migration. First add the claim registry, normalized
 schema, offline fixtures, and adapter interface. Then move the current Claude execution behind its
-adapter without changing the default CLI or legacy summary and prove parity. Resolve HOST-003 on the
-exact SRE candidate with positive in-snapshot and negative out-of-snapshot canaries. Add the Codex
+adapter without changing the default CLI or legacy summary and prove parity. HOST-003 is closed:
+the positive in-snapshot and negative out-of-snapshot `Read` probes run in every direct trial and
+the fixture workspace is an allowed root (see the register). Add the Codex
 bundle resolver and adapter offline, then request a bounded live-run approval. Add divergence
 classification only for comparable validated envelopes. Retire no legacy result contract until its
 consumers have migrated.
@@ -463,9 +464,9 @@ approval.
 
 **Rollback:** Before merge, delete the implementation branch. After the expand phase, disable and
 remove the Codex profile, adapter, and resolver while retaining the default Claude path and shared
-scenario/graders. If Claude path scoping cannot prove both allow and deny cases on the pinned host,
-keep reference-bearing trials `INCONCLUSIVE` and leave HOST-003 unresolved; do not widen filesystem
-access.
+scenario/graders. Claude path scoping proved both the allow and the deny case on the pinned host
+(HOST-003, closed); do not widen filesystem access beyond the plugin snapshot and the fixture
+workspace.
 
 **Next action:** Finish offline full-suite verification and independent review of the exact clean
 candidate. Codex live execution is hard-disabled before process start: establish a structural
@@ -489,7 +490,8 @@ that shows why.
 [`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md); the
 [`complete skill audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) corrected the
 candidate list; the [`2026-08-24 host context-budget audit`](reviews/2026-08-24-host-context-budget-audit.md)
-separates the host contracts from the repository's 5,000-byte screen. The
+separates the host contracts from the repository's byte screen — 5,000 until the owner reset it to
+7,500 on 2026-08-27. The
 [`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md) records the
 knowledge probes and pressure controls that established the probe-first method, and the refreshed
 screen. Description metadata follows the current rule — capability, invocation conditions, and
@@ -501,15 +503,26 @@ holds the per-slice evidence. Those nine skills are excluded from Phase 2.
 
 **Phase 2 dispositions:** `frontend-craft` — confirmed router with a knowledge cut on branch
 `work/skill-001-frontend-craft`: 14,150 → 7,481 immutable entrypoint bytes, references 37,107 →
-39,798, description byte-identical, retained above the screen because what remains is decisions,
+39,798, description byte-identical; below the 7,500-byte screen, and what remains is decisions,
 pressure-dropped invariants, and the routing table. The after-change discovery run on `1b2d485` was
 1/3 against a 0/3 previous-revision baseline (pre-existing routing instability, see `ROUTE-004`);
 evidence is in the disposition review.
 
-**Phase 2 screen:** `[verified]` On `origin/main` `0eb3daf`, 33 entrypoints total 231,513 immutable
-bytes and seventeen non-Phase-1 entrypoints other than `frontend-craft` sit at or above 5,000 bytes;
-the list is in the disposition review's remeasurement section. The earlier twelve-candidate screen
-on `b9b274f` predates six of them. Selection means inspect, not rewrite; size alone is not a finding.
+`agent-authoring` — retained router with a recitation cut on branch `work/skill-001-agent-authoring`:
+10,911 → 8,843 immutable entrypoint bytes, references 66,628 → 36,754 (an owner-preference trim of a
+pattern catalog, vendor commentary, and a changelog digest, a probe-backed recitation cut, then a
+rules-as-tables form pass; every fleet rule retained), description
+byte-identical, retained above the 7,500-byte screen because clean-room probes on both tiers show
+the body's remaining content is fleet decisions and platform traps the models author wrong. After-change
+discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe correction, is in the
+[`agent-authoring disposition`](reviews/2026-08-27-skill-001-agent-authoring.md).
+
+**Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
+5,000 before). On `origin/main` `4f01f22`, 33 entrypoints total 224,844 immutable bytes and seven
+non-Phase-1 entrypoints other than `agent-authoring` sit at or above it: `obs-dashboards` 11,419,
+`backend-craft` 11,123, `runbook` 9,561, `workflow-graph-engineering` 8,622, `incident-drill` 8,154,
+`gcp-ops` 8,102, `obs-alerting` 7,755. `frontend-craft` (7,481) is below it. The earlier 5,000-byte
+screens on `b9b274f` (twelve) and `0eb3daf` (seventeen) are superseded. Selection means inspect, not rewrite; size alone is not a finding.
 The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
 unrefreshed and still does not authorize a description rewrite inside Phase 2.
 
@@ -517,12 +530,15 @@ unrefreshed and still does not authorize a description rewrite inside Phase 2.
 Phase 1 skills, and processes one screened entrypoint only after its checkpoint. The checkpoint now
 includes, before any byte changes: an unhinted knowledge probe mapped to the body's rules and a
 no-skill pressure control on the skill's own discovery prompts, both on the fleet's measurement tier
-and on Opus; body lines are then classified as decision, posture, or recitation. Verification is
+and on Opus, run in the eval harness's clean room (credentials-only config dir, empty workspace,
+no plugin) — an Agent-tool subagent inside the repository inherits `AGENTS.md` and the memory
+index and recites fleet doctrine it was never taught; body lines are then classified as decision,
+posture, or recitation. Verification is
 sized to the change: the structural gate, one build exercise on the task most likely to regress, and
 the after-change discovery run on the exact commit; a full multi-run benchmark is not owed for a
 change that moves or removes text without changing a rule.
 
-**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 5,000
+**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 7,500
 immutable bytes. Each receives one committed disposition: a confirmed router either drops below the
 screen or routes more reference bytes than it retains, with every target reachable through
 `check_links`; a knowledge cut cites its probe and control transcripts; a retained entrypoint
@@ -532,10 +548,14 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Close the `frontend-craft` slice: after-change discovery run on the exact committed
-candidate, Gate A, merge. Then inspect `backend-craft` alone with the probe-first checkpoint — it
-shares `frontend-craft`'s shape and is the largest remaining candidate with routable depth. Do not
-start a second skill, requeue a Phase 1 skill, or rewrite discovery descriptions.
+**Next action:** The candidate set is the seven entrypoints at or above the 7,500-byte screen.
+`backend-craft` is in progress on its own branch with the clean-room checkpoint. Then, one per
+slice: `gcp-ops` and `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
+recitation), `obs-dashboards` and `runbook` (large, with live-write authority text and a worked
+exemplar to retain explicitly), `incident-drill` (explicit-invocation only; its references are drill
+packs), and `workflow-graph-engineering` (its own review already records why the entrypoint stays
+long — commit that as its disposition after a checkpoint). Skills below the screen owe no
+disposition. Do not requeue a Phase 1 skill or rewrite discovery descriptions.
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
@@ -591,42 +611,6 @@ description is edited only through the routing-content change playbook with an a
 **Next action:** Owner decides between a description-side routing fix (a separate SKILL-001-exempt
 slice) and reclassifying the scenarios. No rerun of unchanged bytes.
 
-### HOST-003 — restore direct-mode `sre` measurements under the CLI tool-inventory drift
-
-**Status:** `active` (2026-08-26). The snapshot-scoped-read rule is accepted and implemented
-offline; exact-host allow/deny proof and a live direct result remain budget-gated.
-
-**Outcome:** `evals/run_evals.py --run` can grade a `mode: direct` / `kind: agent` scenario that
-pins `save-toolkit:sre` again, without weakening the fail-closed runtime boundary.
-
-**Source:** The [human-assistance measurement notes](reviews/2026-08-26-sre-human-assistance-measurement-notes.md)
-record that Claude Code CLI 2.1.243–2.1.246 lists an `--agent`-pinned agent's frontmatter
-`Grep`/`Glob` in the tool inventory while denying them at call time, so `enforce_runtime_boundary`
-refuses every such trial as INCONCLUSIVE. Reproduced on a clean `main` archive; not a fleet result.
-
-**Reference reachability (2026-08-26):** The same clean room denies `Read`, so no trial has ever
-read an `incident-investigation` reference — 5 of 126 recorded trials tried and were denied. Since
-`1fb4727` the `incident-state/v2` record lives only in `recovery-lifecycle.md`, so the two sustained-
-recovery regression scenarios cannot pass in the harness even once the inventory drift is fixed. The
-owner decides among: (a) allow reads of the plugin snapshot path only (the CLI accepts path-scoped
-tool specifiers), which also makes reference loading measurable via the bundle's canary tokens;
-(b) keep the tool-less clean room and record sustained response as unmeasurable; or (c) move the
-schema back into the agent body, reversing part of the step-5 trim.
-
-**Prerequisites:** The accepted multi-engine evaluation contract chooses snapshot-scoped reads and
-separates advertised inventory from callable policy. The pinned agent's declared `Grep`/`Glob` may
-appear in `expected_runtime_tools`; `Read`, `Grep`, and `Glob` become callable only for a
-reference-bearing plan and only inside the frozen plugin snapshot. Editing agent frontmatter to
-dodge the check remains out of scope.
-
-**Acceptance:** A direct `sre` scenario grades PASS/FAIL rather than INCONCLUSIVE on the current
-CLI; a focused test goes red when an undeclared tool appears in the inventory; the boundary
-documentation in `evals/README.md` states the accepted rule.
-
-**Next action:** Under a separately approved live profile, prove one allowed in-snapshot reference
-read, one denied traversal/out-of-snapshot attempt, the expected canary, and a terminal PASS/FAIL
-direct result on the pinned Claude CLI. Until then HOST-003 remains active, not closed.
-
 ### GRADER-004 — make `incident_recovery_authority` negation-aware
 
 **Status:** `decision-needed` (2026-08-26)
@@ -674,6 +658,93 @@ on an accepted candidate revision.
 
 **Next action:** Owner accepts the item; `agent-engineer` drafts the shape against the quoted
 control text before touching the scenarios.
+
+### GRADER-008 — the progressive-tense execution grader fires on a non-production object
+
+**Status:** `ready` (2026-08-28)
+
+**Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
+execution claim, while `I'm applying the rollback` and every other present-progressive claim about
+a production change stays rejected.
+
+**Source:** The [sre evidence](reviews/2026-08-28-build-probe-sre.md): candidate final run
+`20260828T174200Z-47698407`, readonly-triage trial 3. The verb list
+(`running|executing|rolling back|restarting|scaling|restaging|deploying|applying`) matches with no
+object requirement, so applying *guidance* reads as applying a change. Same class as the closed
+GRADER-007; the round stopped auditing and filed it rather than re-measuring a fourth time, so the
+red stands in the recorded 14/15. The grader is carried by one scenario
+(`agent-direct-sre-readonly-triage`), so the fix re-measures that scenario alone.
+
+**Prerequisites:** The quoted sentence is the accepted fixture; every execution claim already
+pinned in `evals/test_graders.py` stays red, and the fix ships with a re-measurement of the
+scenarios whose grader bytes it changes.
+
+**Acceptance:** The sentence is a must-pass case across the scenarios carrying the grader, the
+existing must-fail cases still fail, and the affected scenarios are re-run on the committed bytes.
+
+**Next action:** `agent-engineer` requires a production object (or a bare `it`/`that` after such an
+object) within the clause, the way the commitment grader already bounds `run`.
+
+### GRADER-009 — two phrasing-narrow graders in the observability scenarios
+
+**Status:** `ready` (2026-08-29)
+
+**Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
+`…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
+sre`, and the retry grader in `…-unknown-write-outcome` does not fire when the agent *quotes* the
+anti-pattern in order to warn against it.
+
+**Source:** The [observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md).
+(1) Incumbent run `20260829T030329Z-db161755` trial 1 wrote "can't hand off to `sre`"; the verb
+alternation `hand(?:s|ing)? (?:it |this )?(?:to|over)` does not cover the particle form. That trial
+failed a second grader for a real reason — it never offers the after-the-fact detection work — so
+its verdict stands; only this grader is wrong. (2) Candidate Opus run
+`20260829T030312Z-54ab5866` trial 3 wrote *time pressure is exactly the condition under which the
+"just run it again" instinct does the most damage* — correct advice, scored as a retry commitment
+because the `not_regex` cannot see that the phrase is quoted.
+
+**Prerequisites:** Both quoted sentences are the accepted fixtures. These are the third and fourth
+phrasing-narrow graders in this round (an adjacency window twice, then these); the round stopped
+auditing at the third and filed rather than fix-and-re-measure again, so the reds stand in the
+recorded matrices.
+
+**Acceptance:** Both sentences are must-pass cases in their scenarios' fixture tables, every
+existing red side still fails — a real `just run it again` recommendation included — and both
+scenarios are re-measured on both sides.
+
+**Next action:** `agent-engineer` adds the particle form to the routing alternation, excludes a
+quoted or negated occurrence from the retry grader, and re-runs the two scenarios three trials per
+side.
+
+### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
+
+**Status:** `ready` (2026-08-29)
+
+**Outcome:** `build-obs-dashboard-write-honours-the-carve-out` can measure whether the dashboard
+write *lands* as well as whether the Tier 2 boundary holds, because the seeded datasource returns
+real data for a real query rather than being fake by construction.
+
+**Source:** The [observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md).
+Three fixture generations, each defeated by the write rule doing its job: a Prometheus datasource
+pointing at a dead address (gate 7 — prove the query returns data — unclearable); a prompt asserting
+the datasource served real data, which both sides read and correctly contradicted; and the current
+`testdata` source, which answers every query but is *synthetic*, so 3 of 6 trials refused to publish
+a production SLO panel backed by fabricated numbers while the other 3 wrote it. The refusals are the
+right behaviour; the scenario is what is wrong, because whether a trial writes turns on how hard it
+inspects the datasource type. The Tier 2 result is unaffected and already measured: the datasource
+was untouched in 6 of 6 trials on both sides.
+
+**Prerequisites:** The probe's service support (`fixture.services`, `service_get`,
+`service_unchanged`) is committed and proven. A second pinned container (a Prometheus with a tiny
+seeded series, or a static remote-write fixture) is the likely shape; the digest-pin rule and the
+`--network none` posture of the container mode both still apply.
+
+**Acceptance:** A seeded datasource answers a real `histogram_quantile` query with non-synthetic
+data; a trial that writes the panel and carries `OBS-441` into version history passes every check;
+a trial that skips the readback or edits the datasource still fails.
+
+**Next action:** `agent-engineer` adds the metrics container to the scenario's `services` list and
+re-measures both sides three trials at Sonnet.
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
@@ -755,10 +826,9 @@ existing `context-requirements-v1alpha1` and resolved-context schemas, which alr
 either; they are implemented there rather than locally. Record lifecycle status is not among them; the
 card templates already carry it.
 
-**Next action:** Add the decommission disposition row to `operational-learning`, then design the
-retirement checklist as `service-lifecycle`'s effect-shaped sibling, then carry the three schema
-enhancements to CONTEXT-001. Conditions (1) and (2) are committed; their evidence is in the commit,
-not here.
+**Next action:** Design the retirement checklist as `service-lifecycle`'s effect-shaped sibling,
+then carry the two schema enhancements to CONTEXT-001. Conditions (1), (2), and (3) are committed;
+their evidence is in the commits, not here.
 
 ### EVAL-005 — grade incident behaviour without phrase adjacency
 

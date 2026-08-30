@@ -223,7 +223,13 @@ class ClaudeNativeAdapter:
         callable_read_tools: Sequence[str] = (),
         required_allowed_paths: Sequence[Path] = (),
         required_denied_path: Path | None = None,
+        allowed_roots: Sequence[Path] = (),
     ) -> None:
+        # `allowed_roots` are harness-owned trees a callable read may resolve into besides the plugin
+        # snapshot — the neutral fixture workspace the trial runs in, whose digest the run records.
+        # A relative read resolves against it, so a cwd-relative Grep/Glob is in bounds there and
+        # out of bounds anywhere else (HOST-003 owner decision, 2026-08-28).
+        roots = [root.resolve() for root in allowed_roots]
         unexpected = set(advertised) - set(expected)
         missing = set(expected) - set(advertised)
         if unexpected:
@@ -261,12 +267,14 @@ class ClaudeNativeAdapter:
                 prefix = prefix.split(marker, 1)[0]
             candidate = Path(prefix or normalized)
             if not _is_rooted(candidate):
-                if attempt.outcome == "allowed":
+                if attempt.outcome == "allowed" and not roots:
                     raise AdapterError(f"successful out-of-snapshot relative read: {attempt.path}")
                 continue
             try:
                 resolved_candidate = candidate.resolve()
-                inside = resolved_candidate.is_relative_to(snapshot)
+                inside = resolved_candidate.is_relative_to(snapshot) or any(
+                    resolved_candidate.is_relative_to(root) for root in roots
+                )
             except OSError as exc:
                 raise AdapterError(f"cannot normalize tool path {attempt.path!r}: {exc}") from exc
             if attempt.outcome == "allowed" and not inside:

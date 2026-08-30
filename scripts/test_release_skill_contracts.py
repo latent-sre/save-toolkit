@@ -134,6 +134,20 @@ def merge_size_rule_preserves_atomicity(text: str) -> bool:
     )
 
 
+def merge_docs_route_to_correct_owners(text: str) -> bool:
+    text = between(text, "**Docs/ops updated**", "## Verdict")
+    return all(
+        (
+            "typed `scribe` handoff for affected runbooks, postmortems, or other operational guidance"
+            in text,
+            "typed `observability-engineer` handoff only for affected dashboards, telemetry, alerts, or SLOs"
+            in text,
+            "observability-engineer`\n      agent handoff for affected operational guidance"
+            not in text,
+        )
+    )
+
+
 def service_onboarding_is_runtime_and_workload_aware(text: str) -> bool:
     dependencies = text.split("1. **Deploy spec & health**", 1)[0]
     step_one = between(text, "1. **Deploy spec & health**", "2. **Instrument**")
@@ -266,6 +280,9 @@ class ReleaseSkillContractTests(unittest.TestCase):
 
     def test_merge_size_rule_preserves_atomic_changes(self) -> None:
         self.assertTrue(merge_size_rule_preserves_atomicity(read("skills/merge-gate/SKILL.md")))
+
+    def test_merge_docs_route_to_correct_owners(self) -> None:
+        self.assertTrue(merge_docs_route_to_correct_owners(read("skills/merge-gate/SKILL.md")))
 
     def test_service_onboarding_is_runtime_and_workload_aware(self) -> None:
         self.assertTrue(

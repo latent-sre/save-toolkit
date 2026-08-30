@@ -2,29 +2,22 @@
 
 # Skill portability — which frontmatter survives off Claude Code
 
-[doc-checked 2026-08-05] A skill has **two** audiences, and they accept different frontmatter. The
-portable Agent Skills specification that other hosts implement accepts six fields. Claude Code
-accepts those plus a larger Claude-only set. A field from the Claude-only set is not a small
-compatibility wrinkle: Anthropic's own packaging script **rejects** a skill that carries one when
-publishing to the portable spec, and a host that merely ignores it silently drops whatever it
-configured.
-
-This matters here because this fleet ships a Claude plugin *and* generates Copilot/VS Code
-adapters. The generator is what absorbs the difference; this file is the map of what it has to
-absorb. `claude-code-frontmatter.md` remains the source of truth for what each field *does* — this
-file only records where each one is honored.
+[doc-checked 2026-08-05] A skill has two audiences. The portable Agent Skills specification
+accepts six fields; Claude Code accepts those plus a Claude-only set. A Claude-only field is
+**rejected** by Anthropic's packaging script when publishing to the portable spec, and silently
+dropped by a host that ignores it. This fleet ships a Claude plugin *and* generates Copilot/VS Code
+adapters; the generator absorbs the difference, and this file maps what it has to absorb.
+`claude-code-frontmatter.md` owns what each field *does*; this file records where it is honored.
 
 ## Contents
 
 - The portable six
 - Claude-only fields
 - Host size limits are not interchangeable
-- What this means for the generated adapters
+- What the generated adapters do
 - Checking a skill before publishing to the portable spec
 
 ## The portable six
-
-Accepted by the Agent Skills spec and by Claude Code:
 
 | Field | Note |
 |---|---|
@@ -37,66 +30,44 @@ Accepted by the Agent Skills spec and by Claude Code:
 
 ## Claude-only fields
 
-Honored by Claude Code, rejected or ignored elsewhere. Every one of these the fleet uses is listed
-with why it is safe for us:
-
-"Claude-only" means the portable skills spec, not every host. VS Code has since grown its own
-Claude-dialect support, so several rows below travel further than the spec promises — verify against
-the host you actually ship to rather than assuming this column.
+"Claude-only" means the portable spec, not every host; VS Code has its own Claude-dialect support.
+Verify against the host you ship to.
 
 | Field | Fleet use | Off-Claude behavior |
 |---|---|---|
-| `argument-hint` | Most skills | Not in the portable spec; dropped there. Recognized by VS Code |
-| `disable-model-invocation` | `incident-drill`, `pcf-deploy`, `service-lifecycle` | Dropped from the portable spec, so the side-effect gate does **not** travel there. VS Code honors it (default `false`), which is what makes the Copilot copies explicit-only |
-| `user-invocable` | not used | Dropped from the portable spec; recognized by VS Code (default `true`) |
-| `disallowed-tools` | not used | Dropped from the portable spec. VS Code has a `disallowedTools` key — note the different spelling — whose runtime effect this fleet has not confirmed |
+| `argument-hint` | Most skills | Dropped by the portable spec; recognized by VS Code |
+| `disable-model-invocation` | `incident-drill`, `pcf-deploy`, `service-lifecycle` | Dropped by the portable spec, so the side-effect gate does **not** travel there; VS Code honors it (default `false`), which makes the Copilot copies explicit-only |
+| `user-invocable` | not used | Dropped by the portable spec; recognized by VS Code (default `true`) |
+| `disallowed-tools` | not used | Dropped by the portable spec; VS Code has `disallowedTools` (different spelling), runtime effect unconfirmed |
 | `context`, `agent`, `background` | not used | Dropped; `context: fork` exists in VS Code behind an experimental setting |
-| `paths`, `shell`, `model`, `effort`, `hooks`, `when_to_use`, `arguments` | not used | Dropped from the portable spec; VS Code recognizes `hooks` on agent files |
-| `allowed-tools` | not used | Travels in the portable spec; **not** supported by VS Code skills, where it is an inert hint |
+| `paths`, `shell`, `model`, `effort`, `hooks`, `when_to_use`, `arguments` | not used | Dropped by the portable spec; VS Code recognizes `hooks` on agent files |
+| `allowed-tools` | not used | Travels in the portable spec; an inert hint in VS Code skills |
 
-The pattern worth internalizing: **the portable set can only grant, never restrict.** Any authority a
-skill expresses through a field the target host ignores is authority that vanishes when the folder is
-published, and it vanishes *silently*. A field the host happens to honor is a convenience, never a
-control you may cite — VS Code's own tool list is user-overridable, so even a recognized restricting
-field is a default there.
+**The portable set can only grant, never restrict.** Authority expressed through a field the target
+host ignores vanishes silently at publication. A field a host happens to honor is a convenience,
+never a control you may cite — VS Code's tool list is user-overridable, so even a recognized
+restricting field is a default there.
 
 ## Host size limits are not interchangeable
 
-[doc-checked 2026-08-24] GitHub's
-[custom-agent reference](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
-limits the Markdown prompt below one `.agent.md` file's YAML frontmatter to **30,000 characters**.
-That is a per-profile custom-agent limit, not an aggregate fleet budget and not an Agent Skill body
-limit. This repository measures the fully generated Copilot prompt, including its host contract,
-because that is what the host receives.
+| Host / spec | Limit | Scope |
+|---|---|---|
+| GitHub Copilot custom agents [doc-checked 2026-08-24] | 30,000 characters of Markdown below one `.agent.md` frontmatter | Per generated profile, including its host contract — not an aggregate fleet budget, not a skill-body limit; "character" semantics `[unverified]` (GitHub does not define code points vs UTF-16 units), so report the official contract and the counting semantics separately |
+| Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators; not equivalent to this repository's 7,500-byte candidate screen |
+| VS Code | No matching body-length check in public source | — |
 
-The portable [Agent Skills specification](https://agentskills.io/specification) instead caps one
-skill's `description` at **1,024 characters** and recommends that an activated `SKILL.md` remain
-under **5,000 tokens** and **500 lines**, with resources loaded on demand. The token and line values
-are authoring recommendations, not hard body validators, and they are not equivalent to this
-repository's conservative 5,000-byte candidate screen.
+## What the generated adapters do
 
-Public VS Code source currently exposes no matching body-length check, and GitHub does not define
-whether “character” means Unicode code points, grapheme clusters, or UTF-16 code units. The official
-30,000-character contract therefore governs; report the exact counting semantics `[unverified]`
-rather than inferring them from one client implementation.
-
-## What this means for the generated adapters
-
-The generator does not attempt field-level equivalence, because there is none. It preserves intent in
-each host's own vocabulary and states the difference in the adapter itself:
-
+- No field-level equivalence is attempted; intent is preserved in each host's own vocabulary and
+  the difference is stated in the adapter itself.
 - A skill marked `disable-model-invocation` keeps that frontmatter in the Copilot projection.
 - Host authority differences (Copilot's omitted `execute`, for one) are stated in every generated
-  adapter rather than papered over. Stating a
-  difference is not claiming a control: the omitted `execute` narrows a default the user can override
-  and the picker can rewrite, so read the VS Code limit in `AGENTS.md` before citing it as authority.
-
-So a fleet control is only as strong as the host it is proven on. Re-read the enforcement notes in
-`AGENTS.md` before assuming a Claude-side restriction reached another host.
+  adapter. Stating a difference is not claiming a control: the omitted `execute` narrows a default
+  the user can override and the picker can rewrite — read the VS Code limit in `AGENTS.md` before
+  citing it as authority. A fleet control is only as strong as the host it is proven on.
 
 ## Checking a skill before publishing to the portable spec
 
-If a skill is ever published outside this plugin, strip it to the portable six and confirm the skill
-body still carries the behavior any dropped field used to enforce. A skill whose safety depended on
-`disable-model-invocation` or `disallowed-tools` must state that boundary in its own prose, because
-off Claude there is nothing else holding it.
+Strip it to the portable six and confirm the body still carries the behavior any dropped field
+enforced. A skill whose safety depended on `disable-model-invocation` or `disallowed-tools` must
+state that boundary in its own prose — off Claude, nothing else holds it.

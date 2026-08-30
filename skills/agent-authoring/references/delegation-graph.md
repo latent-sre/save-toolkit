@@ -1,10 +1,8 @@
 # The delegation graph
 
-The fleet is a **directed graph**, and we engineer it as one. The nodes are the eight canonical
-agents; an edge `A → B` means agent `A` may hand work to agent `B` via an `Agent(B)` grant in `A`'s
-`tools:` frontmatter. Reasoning about the fleet's authority — who can reach whom, where a task can
-fan out, which lanes are terminal — is reasoning about this graph. This file is where that is owned;
-it is not scattered across eight frontmatter blocks and hoped to agree.
+The fleet is a directed graph: nodes are the eight canonical agents; an edge `A → B` is an
+`Agent(B)` grant in `A`'s `tools:` frontmatter. Who can reach whom, where a task can fan out, and
+which lanes are terminal are read from this graph, and this file owns it.
 
 ## Contents
 
@@ -15,50 +13,36 @@ it is not scattered across eight frontmatter blocks and hoped to agree.
 
 ## One enforced source, one validated render
 
-The graph exists in three places, and only the first is authoritative:
-
-1. **Source (enforced).** Each agent's `Agent(target, …)` grant in `agents/<name>.md` frontmatter.
-   This is the only place an edge is *real*: on the main thread the runtime honors the target list,
-   and the generated host adapters carry it forward. `validate_fleet.py` parses every grant and
-   checks it against `EXPECTED_DELEGATION` — a target that does not exist, or a set that does not
-   match the pinned expectation, fails Gate A.
-2. **Expectation (pinned).** `EXPECTED_DELEGATION` in `validate_fleet.py`. Changing an
-   agent's edges means changing this too, or the source check fails — so the intended graph is
-   spelled out once, in code, where a diff shows it.
-3. **Render (validated).** The "Delegates to" column of the roster table in
-   the fleet guide, AGENTS.md. This is the human-readable graph. `validate_roster_graph` in
-   `validate_fleet.py` binds that column back to `EXPECTED_DELEGATION`, so the render can no longer
-   drift into describing a graph the fleet does not have — the repo's signature silent-failure mode,
-   one table out from the code. The roster table *is* the edge list; do not re-tabulate edges here, or
-   this file becomes a fourth copy that nothing checks.
+| Copy | Where | Status |
+|---|---|---|
+| Source | `Agent(target, …)` grants in `agents/<name>.md` | Enforced on the main thread; carried into the host adapters; `validate_fleet.py` fails Gate A on a missing target or a set that differs from the pinned expectation |
+| Expectation | `EXPECTED_DELEGATION` in `validate_fleet.py` | Pinned in code; an edge change without it fails the source check |
+| Render | The "Delegates to" column of the roster table in `AGENTS.md` | Validated by `validate_roster_graph` against the expectation; the roster table *is* the edge list — never re-tabulate edges elsewhere |
 
 ## Reading the shape
 
-Read the current edges from the validated roster table, not from memory. The shape it encodes:
-`software-engineer` and `sre` are the two orchestrators (build-lane and incident-lane); `researcher` is the
-universal sink every orchestrating lane can reach for sanitized public fact-finding; `reviewer`,
-`repository-investigator`, and `scribe` are terminal by design — they hold no `Agent` grant, so no
-work routes onward from them. Terminality is itself a control: a reviewer that cannot delegate cannot
-launder a task past its own read-only posture.
+Read the current edges from the validated roster table, not from memory.
+
+| Role | Agents | Why |
+|---|---|---|
+| Orchestrators | `software-engineer` (build lane), `sre` (incident lane) | The two lanes that dispatch work |
+| Universal sink | `researcher` | Every orchestrating lane reaches it for sanitized public fact-finding |
+| Terminal | `reviewer`, `repository-investigator`, `scribe` | No `Agent` grant, so no work routes onward; a reviewer that cannot delegate cannot launder a task past its read-only posture |
 
 ## The honest limit
 
-`Agent(target)` documents and enforces an edge **only for a main-thread agent**. At subagent depth
-the type list is silently ignored — a probed platform fact recorded in
-[`claude-code-frontmatter.md`](./claude-code-frontmatter.md). So the graph is a convention plus
-main-thread enforcement, not a universal control: a subagent is not prevented by this list from
-naming another type. Host/network isolation and the tool-absence and guard mechanisms
-(the "Enforcement" section of the fleet guide, AGENTS.md) remain the load-bearing controls; the graph makes
-the intended topology explicit and catches drift in it, and does not pretend to sandbox execution.
+`Agent(target)` enforces an edge only for a main-thread agent; at subagent depth the list is
+silently ignored (probed; see [`claude-code-frontmatter.md`](./claude-code-frontmatter.md)). The
+graph is a convention plus main-thread enforcement, not a sandbox: host/network isolation,
+tool absence, and the guard (the fleet guide's Enforcement section) remain the load-bearing
+controls; the graph makes the intended topology explicit and catches drift in it.
 
 ## Changing an edge
 
-An edge change touches all three places and the projections, in one commit:
+One commit touches all four:
 
 1. Edit the `Agent(...)` grant in `agents/<name>.md`.
-2. Update `EXPECTED_DELEGATION` in `validate_fleet.py` to match.
-3. Update the "Delegates to" cell in the AGENTS.md roster table.
-4. Run `python scripts/generate_platform_adapters.py --write` so the host adapters carry the new
-   grant, then `python scripts/gate_a.py`. The source check, the render check, and the byte-for-byte
-   adapter gate must all pass — three independent proofs that the graph, its expectation, its
-   render, and its projections agree.
+2. Update `EXPECTED_DELEGATION` in `validate_fleet.py`.
+3. Update the "Delegates to" cell in the `AGENTS.md` roster table.
+4. `python scripts/generate_platform_adapters.py --write`, then `python scripts/gate_a.py` — the
+   source check, the render check, and the byte-for-byte adapter gate must all pass.

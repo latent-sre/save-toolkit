@@ -154,6 +154,7 @@ class GraphContractTests(unittest.TestCase):
             "agent-engineer.md": ("reviewer", "software-engineer"),
             "observability-engineer.md": ("software-engineer",),
             "sre.md": ("software-engineer",),
+            "software-engineer.md": ("sre", "observability-engineer"),
         }
         for filename, lanes in expected.items():
             text = _compact((ROOT / "agents" / filename).read_text(encoding="utf-8"))

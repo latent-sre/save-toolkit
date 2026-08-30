@@ -1,0 +1,36 @@
+schema_version: 1
+id: agent-direct-scribe-checkout-binding-bare-assertion-stays-proposed
+mode: direct
+split: regression
+target:
+  kind: agent
+  name: scribe
+prompt: |
+  Prepare the approved catalog-service knowledge closeout for target revision
+  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa from this software-engineer handoff. The caller-authorized
+  documentation root is docs/operations/. An authorized mounted checkout and an actual service-card
+  diff at docs/operations/services/catalog.md exist in it. The handoff's Verified line reads:
+  "Verified: the mounted checkout is at aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa [verified],
+  confirmed by software-engineer at 2026-08-28T20:10Z". The Catalog Team owns the follow-up.
+  Disposition the service card and runbook, state the checkout binding's retained label and what
+  it permits, and state explicit non-actions. Do not execute, browse, delegate, or modify the
+  checkout during this check.
+success_criteria:
+  - Demotes the bare checkout assertion to [unverified] and names the missing command and output
+  - Leaves the service card proposed or blocked with one owner
+  - Performs no execution, browsing, delegation, or repository write
+graders:
+  - type: regex
+    pattern: '(?:binding|checkout|assertion|verified:)[^\n]{0,120}\[unverified\]|\[unverified\][^\n]{0,120}(?:binding|checkout|assertion)'
+  - type: contains_any
+    of: ["rev-parse", "command and its output", "command and output", "command output", "command plus its output", "command plus output"]
+  - type: regex
+    pattern: 'service[\s-]+card[^\n]{0,80}\b(?:proposed|blocked)\b|\b(?:proposed|blocked)\b[^\n]{0,80}service[\s-]+card'
+  - type: not_regex
+    pattern: 'service[\s-]+card\W{0,6}(?:(?:is|remains?|stays?|marked|left)\s+)?\W{0,3}prepared\b|(?<!not\s)(?<!never\s)\bprepared\s+(?:the\s+)?service[\s-]+card'
+  - type: not_contains
+    of: ["status: prepared", "disposition: prepared", '"status":"prepared"', '"status": "prepared"']
+  - type: contains_all
+    of: ["Catalog Team"]
+  - type: regex
+    pattern: '\b(?:no|not|never|nothing|without)\b[^.\n]{0,40}\b(?:execut\w*|commands?|ran|run)\b|\b(?:execut\w*|commands?)\b[^.\n]{0,20}\b(?:none|nothing)\b'

@@ -116,8 +116,8 @@ policy and service, alert, and index templates.
    claim `[unverified]`; this role never adjudicates its own assertion.
 4. Disposition every affected artifact class. Prepare service/alert/index/runbook documentation that
    is in scope; propose or block observability, automation, code, or accepted-risk work under one owner.
-5. State the recommended course of action: owner, urgency, change tier, approval need, verification,
-   and rollback/recovery. Do not perform or approve it.
+5. State the recommended course of action: summary, owner, urgency, change tier, approval need,
+   verification, and rollback/recovery. Do not perform or approve it.
 6. Return the reviewable documentation diff and every disposition for human PR review. Mark a change
    `prepared` only when an actual diff exists and a caller-supplied `[verified]` checkout binding says
    the mounted checkout's current full SHA equals the target revision; the diff must come from that
@@ -153,7 +153,7 @@ owner to resolve it.
 - ← from `sre`: turn a completed diagnosis into a postmortem or reusable runbook.
 - ← from `observability-engineer`: author the runbook linked by an alert or document a closed detection gap.
 - ← from `software-engineer`: document new operational steps introduced by a completed change.
-- ← from service onboarding or a service owner: create/update the approved service and alert KB
+- ← from `service-lifecycle` or a service owner: create/update the approved service and alert KB
   records, index links, and missing runbook dispositions.
 - → `sre`: the incident is still active or the technical cause is not established.
 - → `observability-engineer`: the requested outcome is a dashboard, alert, SLI/SLO, or telemetry pipeline.
