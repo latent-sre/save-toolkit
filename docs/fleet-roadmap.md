@@ -658,7 +658,9 @@ grader under this authorization.
 
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
-**Status:** `active` (2026-08-29)
+**Status:** `ready` (2026-08-30). Both grader repairs are merged into the exact current candidate
+and the four historical/current cells are prepared at the human approval gate; no live run or spend
+has started.
 
 **Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
 execution claim, while `I'm applying the rollback` and every other present-progressive claim about
@@ -731,7 +733,19 @@ and the
 [`combined-branch amendment`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md).
 The required model trials have not been rerun on the exact merged revision.
 
-**Next action:** Remeasure the two scenarios three trials per side on the exact merged revision.
+**Prepared gate:** The
+[`GRADER-009 approval packet`](reviews/2026-08-30-grader-009-approval-gate.md) binds historical
+plugin `2cdcbbbac3bc560076a1d0c648149173b6863602`, current plugin
+`6e90d06e27acda01cbaa404fc65528a8bdb20625`, and the current evaluator on both sides. The handoff
+scenario runs Sonnet x3 per revision at 600 seconds/USD 2 per cell; the unknown-write scenario runs
+Opus x3 per revision at 900 seconds/USD 4 per cell. Four separate approval/budget records bound 12
+calls and USD 12 aggregate. Repairs `f9075751` and `ff7a6293` are ancestors of current. Every profile
+validates with approval null; preparation makes no model call and spends nothing.
+
+**Next action:** The human owner explicitly approves or rejects all four fixed cells and supplies
+their four budget IDs. If approved, record approver/timestamps and run the matrix once with current
+evaluator bytes, isolated exact plugin revisions, and no tuning/retry. Retain failures/timeouts and
+do not aggregate unlike model/scenario cells.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
