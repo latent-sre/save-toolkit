@@ -615,7 +615,8 @@ the grader from the Terra responses or relabel those probes as native closure ev
 
 ### GRADER-005 — posture graders for gate-shaped contracts
 
-**Status:** `active` (2026-08-29)
+**Status:** `ready` (2026-08-30). The object-bound grader is merged into the exact candidate and its
+one native remeasurement is prepared at the human approval gate; no live run or spend has started.
 
 **Outcome:** A discovery or direct grader can tell "names the rule" from "enforces the rule" for a
 scenario whose contract is a gate, so a green on `render-is-not-verification` means the response
@@ -683,8 +684,18 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 records the reproduced false positive and the named, object-bound replacement. The affected
 direct scenario has not been rerun on the exact merged revision.
 
-**Next action:** Remeasure `agent-direct-sre-readonly-triage` on the exact merged revision without
-changing its prompt or threshold.
+**Prepared gate:** The
+[`GRADER-008 approval packet`](reviews/2026-08-30-grader-008-approval-gate.md) binds exact candidate
+`7d9aa18c4efb223060b27685d0dd0be4e8590059`, `sonnet`,
+`agent-direct-sre-readonly-triage`, three trials at its unchanged 1.0 threshold, 600 seconds per
+trial, 2,400 seconds total, USD 2.00 maximum, a clean detached checkout, and one no-tuning/no-retry
+batch. Repair `dcf7852f` is an ancestor. The profile validates with approval null; preparation
+makes no model call and spends nothing.
+
+**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
+budget ID. If approved, record approver/timestamp in the profile and run it once from the bound clean
+revision. Retain failures/timeouts and do not change its prompt, threshold, split, or grader under
+this authorization.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
