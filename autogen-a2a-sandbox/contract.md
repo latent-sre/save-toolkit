@@ -246,6 +246,10 @@ non-success (`input-required`, canceled, failed, or rejected recommendation). Ex
 final approval is pending with a resumable exact-bound state. Other host failures use nonzero
 sysexits-style codes and cannot publish success.
 
+For exit 2, the host atomically publishes the validated runtime-terminal record augmented with the
+exact image ID and Docker daemon ID already resolved before Compose starts. These are provenance
+bindings only; they cannot turn a terminal state into an artifact or approval.
+
 ## Non-goals
 
 - No production, cloud, PCF, GCP, model/provider, credential, or external network access.

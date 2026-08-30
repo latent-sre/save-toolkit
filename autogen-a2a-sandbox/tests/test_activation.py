@@ -766,6 +766,24 @@ class HostEvidenceValidationTests(unittest.TestCase):
         )
         self.assertEqual(validated["a2a"]["transport_mode"], "raw-a2a-cancel")
 
+    def test_host_terminal_evidence_binds_image_and_daemon(self) -> None:
+        runtime_terminal = {
+            "runtime_evidence_version": "autogen-a2a-runtime-evidence/v1",
+            "run_id": "terminal-provenance-run",
+            "source_revision": "1" * 40,
+            "case_id": "unresolved-contradiction-001",
+        }
+        bound = self.module._bind_terminal_identity(
+            runtime_terminal,
+            image_id="sha256:" + "a" * 64,
+            daemon_id="78e193b6-71a1-4a60-9ec0-16e94dd22f62",
+        )
+        self.assertEqual(bound["image_id"], "sha256:" + "a" * 64)
+        self.assertEqual(
+            bound["daemon_id"], "78e193b6-71a1-4a60-9ec0-16e94dd22f62"
+        )
+        self.assertEqual(bound["run_id"], runtime_terminal["run_id"])
+
     def _create_stage(self, root: Path):
         contracts, _runtime = self.module._validation_modules()
         runtime = copy.deepcopy(self.runtime)

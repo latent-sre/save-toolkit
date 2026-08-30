@@ -66,6 +66,9 @@ These instructions apply only under `autogen-a2a-sandbox/`. The root `AGENTS.md`
   directories; Windows flushes files and publishes the final directory with
   `MoveFileExW(MOVEFILE_WRITE_THROUGH)`, the strongest local stdlib/Win32 boundary available here.
   This does not claim multi-host durability or recovery from storage-device failure.
+- Host-published terminal-only evidence adds the exact validated image ID and Docker daemon ID to
+  the already validated runtime record before atomic publication; canceled and `input-required`
+  artifacts therefore retain the same per-run provenance boundary as completed bundles.
 - Runtime uses exactly two containers and one internal network. Publish no ports. Add no evidence
   provider service, queue, broker, database server, gateway, model stub, or telemetry backend.
 - Containers are numeric non-root, read-only, capability-free, `no-new-privileges`, and bounded by

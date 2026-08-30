@@ -815,14 +815,21 @@ def _fresh(root: Path, context: str, revision: str, run_id: str, case_id: str, e
             case_object = _decode_json_object_bytes(
                 (root / "cases" / f"{case_id}.json").read_bytes(), "case"
             )
-            _validate_runtime_terminal(
+            terminal_object = _validate_runtime_terminal(
                 terminal,
                 run_id=run_id,
                 source_revision=revision,
                 case_id=case_id,
                 case_object=case_object,
             )
-            publish_file_once(evidence_root / run_id / "runtime-terminal.json", terminal)
+            publish_file_once(
+                evidence_root / run_id / "runtime-terminal.json",
+                _canonical_json(
+                    _bind_terminal_identity(
+                        terminal_object, image_id=image_id, daemon_id=daemon_id
+                    )
+                ),
+            )
         else:
             raise ActivationError("runtime_failed", f"orchestrator exited {exit_code}; inspect bounded container logs", EXIT_RUNTIME)
     finally:
@@ -1589,6 +1596,26 @@ def _validate_runtime_terminal(
     elif any(graphflow.get(field) is not None for field in graphflow):
         raise ActivationError("runtime_evidence_invalid", "canceled or failed run persisted GraphFlow state", EXIT_RUNTIME)
     return root
+
+
+def _bind_terminal_identity(
+    runtime_terminal: Mapping[str, object], *, image_id: str, daemon_id: str
+) -> Mapping[str, object]:
+    """Bind validated terminal-only runtime evidence to its exact host identities."""
+
+    if "image_id" in runtime_terminal or "daemon_id" in runtime_terminal:
+        raise ActivationError(
+            "runtime_evidence_invalid",
+            "terminal runtime evidence already contains host identity",
+            EXIT_RUNTIME,
+        )
+    if _IMAGE_ID.fullmatch(image_id) is None or _DAEMON_ID.fullmatch(daemon_id) is None:
+        raise ActivationError(
+            "runtime_evidence_invalid",
+            "terminal host identity is malformed",
+            EXIT_RUNTIME,
+        )
+    return {**runtime_terminal, "daemon_id": daemon_id, "image_id": image_id}
 
 
 def _validate_runtime_final(
