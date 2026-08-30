@@ -49,6 +49,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Raised SKILL-001's advisory Phase 2 entrypoint screen from 7,500 to 7,800 immutable bytes and
+  remeasured the exact campaign head through Git objects. The six undispositioned slices are
+  unchanged; `gcp-ops` and `incident-investigation` are below the new screen while `obs-alerting`
+  remains above after its GRAPH-003 reference link. The screen still selects evidence checkpoints
+  only—size alone is not a finding or permission to cut content.
 - Closed `GRAPH-002` after owner acceptance of the repository-integrated `graph-sandbox/v1`
   candidate at merge commit `4a745fb311ad7df83ec6aeaf3268356ce4780db5` (PR #193). This accepts only
   the offline `checkout-payments-timeout-drill/v1` implementation; GRAPH-003, live Terra execution,

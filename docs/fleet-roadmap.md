@@ -407,7 +407,7 @@ that shows why.
 [`complete skill audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) corrected the
 candidate list; the [`2026-08-24 host context-budget audit`](reviews/2026-08-24-host-context-budget-audit.md)
 separates the host contracts from the repository's byte screen — 5,000 until the owner reset it to
-7,500 on 2026-08-27. The
+7,500 on 2026-08-27 and 7,800 on 2026-08-30. The
 [`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md) records the
 knowledge probes and pressure controls that established the probe-first method, and the refreshed
 screen. Description metadata follows the current rule — capability, invocation conditions, and
@@ -419,23 +419,26 @@ holds the per-slice evidence. Those nine skills are excluded from Phase 2.
 
 **Phase 2 dispositions:** `frontend-craft` — confirmed router with a knowledge cut on branch
 `work/skill-001-frontend-craft`: 14,150 → 7,481 immutable entrypoint bytes, references 37,107 →
-39,798, description byte-identical; below the 7,500-byte screen, and what remains is decisions,
-pressure-dropped invariants, and the routing table. The after-change discovery run on `1b2d485` was
-1/3 against a 0/3 previous-revision baseline (pre-existing routing instability, see `ROUTE-004`);
-evidence is in the disposition review.
+39,798, description byte-identical; below both the then-current 7,500-byte and current 7,800-byte
+screens, and what remains is decisions, pressure-dropped invariants, and the routing table. The
+after-change discovery run on `1b2d485` was 1/3 against a 0/3 previous-revision baseline
+(pre-existing routing instability, see `ROUTE-004`); evidence is in the disposition review.
 
 `agent-authoring` — retained router with a recitation cut on branch `work/skill-001-agent-authoring`:
 10,911 → 8,843 immutable entrypoint bytes, references 66,628 → 36,754 (an owner-preference trim of a
 pattern catalog, vendor commentary, and a changelog digest, a probe-backed recitation cut, then a
 rules-as-tables form pass; every fleet rule retained), description
-byte-identical, retained above the 7,500-byte screen because clean-room probes on both tiers show
-the body's remaining content is fleet decisions and platform traps the models author wrong. After-change
-discovery run on `fc5748a`: 3/3. Evidence, including the contaminated-probe correction, is in the
+byte-identical, retained above the then-current 7,500-byte and current 7,800-byte screens because
+clean-room probes on both tiers show the body's remaining content is fleet decisions and platform
+traps the models author wrong. After-change discovery run on `fc5748a`: 3/3. Evidence, including the
+contaminated-probe correction, is in the
 [`agent-authoring disposition`](reviews/2026-08-27-skill-001-agent-authoring.md).
 
-`gcp-ops` — knowledge cut **retained above the screen** on branch `work/skill-001-gcp-ops`: 8,102 →
-7,679 immutable entrypoint bytes (−5.2%, references untouched), description byte-identical. Review
-found the first attempt had cut text pinned by two committed contracts in
+`gcp-ops` — knowledge cut retained after component-contract review on branch
+`work/skill-001-gcp-ops`: 8,102 → 7,679 immutable entrypoint bytes (−5.2%, references untouched),
+description byte-identical. It sat above the then-current 7,500-byte screen when dispositioned and
+is below the current 7,800-byte advisory; the evidence is not requeued. Review found the first
+attempt had cut text pinned by two committed contracts in
 `scripts/test_platform_skill_contracts.py` — the conditional traffic semantics and the rollback
 propagation caveat — which were red on the branch from `a6da0d0a` until restored in `9294e80b`; that
 suite was never run during the slice's own verification. The retained bytes are therefore
@@ -448,15 +451,19 @@ against a 1/3 previous-revision baseline on exact base `2a04d357`, same CLI and 
 dominant caller-fence failure, routing 6/6 — pre-existing content-contract instability, filed as
 `EVAL-006`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
 
-**Phase 2 screen:** `[verified]` The screen is 7,500 immutable bytes (owner decision, 2026-08-27;
-5,000 before). On refreshed `origin/main` `41406af0`, 33 entrypoints total 225,466 immutable bytes
-and seven non-Phase-1 entrypoints other than `agent-authoring` sit at or above it:
-`obs-dashboards` 11,419, `backend-craft` 11,123, `runbook` 9,561,
-`workflow-graph-engineering` 8,622, `incident-drill` 8,154, `obs-alerting` 7,755, and the retained
-`gcp-ops` candidate 7,679. `frontend-craft` (7,481) is below it. The earlier 5,000-byte
-screens on `b9b274f` (twelve) and `0eb3daf` (seventeen) are superseded. Selection means inspect, not rewrite; size alone is not a finding.
-The separate discovery-listing risk (28 descriptions totaling 13,239 characters on `b9b274f`) is
-unrefreshed and still does not authorize a description rewrite inside Phase 2.
+**Phase 2 screen:** `[verified]` The screen is 7,800 immutable bytes (owner decision, 2026-08-30;
+7,500 from 2026-08-27, 5,000 before that). On exact campaign revision
+`a253f2ea84c945c227609402782e26e215a80416`, 33 entrypoints total 226,264 immutable bytes. After
+excluding Phase 1 and dispositioned `agent-authoring`, six undispositioned entrypoints remain at or
+above it: `obs-dashboards` 11,419, `backend-craft` 11,123, `runbook` 9,665,
+`workflow-graph-engineering` 8,622, `incident-drill` 8,154, and `obs-alerting` 7,930. `gcp-ops`
+(7,679), `incident-investigation` (7,689), and `frontend-craft` (7,481) are below it. The exact
+remeasurement and exclusion table are in the
+[`7,800-byte screen evidence`](reviews/2026-08-30-skill-001-7800-screen.md). The earlier 7,500- and
+5,000-byte screens are superseded as current selection policy but remain historical evidence.
+Selection means inspect, not rewrite; size alone is not a finding. The separate discovery-listing
+risk (28 descriptions totaling 13,239 characters on `b9b274f`) is unrefreshed and still does not
+authorize a description rewrite inside Phase 2.
 
 **Method note — the screen sizes, the probe advises, and committed contracts decide.** Three
 authorities act on a slice and they rank. The screen only *selects* candidates: clearing it is
@@ -470,7 +477,8 @@ regardless of what a model would otherwise produce.
 the Cloud Run traffic semantics unprompted and complete, the slice cut them as recitation, and two
 contracts in `scripts/test_platform_skill_contracts.py` had pinned that exact prose — leaving the
 branch red from `a6da0d0a` until `9294e80b` and the entrypoint retained at 7,679 bytes, above the
-screen. Before cutting a passage, therefore, establish what pins it: run the component suites that
+then-current 7,500-byte screen. The current 7,800-byte advisory does not erase that contract
+finding. Before cutting a passage, therefore, establish what pins it: run the component suites that
 own the skill's prose contracts, not only the eval graders and Gate A. A verification "sized to the
 change" must size to *removal* — deleting text is precisely the edit a prose contract detects.
 
@@ -486,7 +494,7 @@ sized to the change: the structural gate, one build exercise on the task most li
 the after-change discovery run on the exact commit; a full multi-run benchmark is not owed for a
 change that moves or removes text without changing a rule.
 
-**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 7,500
+**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 7,800
 immutable bytes. Each receives one committed disposition: a confirmed router either drops below the
 screen or routes more reference bytes than it retains, with every target reachable through
 `check_links`; a knowledge cut cites its probe and control transcripts; a retained entrypoint
@@ -496,8 +504,8 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** The remaining candidate set is the six undispositioned entrypoints at or above
-the 7,500-byte screen. No next slice is in progress and no `backend-craft` Phase 2 branch exists.
+**Next action:** The remaining candidate set is the same six undispositioned entrypoints at or above
+the 7,800-byte screen. No next slice is in progress and no `backend-craft` Phase 2 branch exists.
 At the next one-item evidence/recommendation checkpoint, select whether `backend-craft` is the next
 slice; only after owner approval create a refreshed branch and run its clean-room checkpoint. Then,
 one per approved slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
