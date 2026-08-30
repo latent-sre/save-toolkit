@@ -180,12 +180,13 @@ verdict remains FAIL because post-hoc review does not rewrite a predeclared resu
 
 No prompt, grader, or candidate was tuned after the run, and no extra trial was spent. The consumed
 approval is cleared. The claim-scoped record is
-[eval `20260830T122740Z-459779a7`](2026-08-30-eval-20260830T122740Z-459779a7.md). A future candidate
-should retain the structured telemetry/platform fields, replace the severity prose regex with a
-closed value that includes the canonical `assignment pending` fallback, and freeze trial 3 as a
-compliant regression before any separately approved rerun. This remains direct Claude receiver
-evidence under the harness's `Skill`/`Task`-only surface, not proof of VS Code button rendering,
-`send: true`, retained context, or Copilot tool enforcement.
+[eval `20260830T122740Z-459779a7`](2026-08-30-eval-20260830T122740Z-459779a7.md). The follow-up
+evaluator repair retains the structured telemetry/platform fields, replaces the severity prose
+regex with exact `Provisional severity: assignment pending`, and freezes a reduced regression from
+reviewed trial 3. The focused grader suite passes offline; no new model call was made, so the sealed
+FAIL and live-behavior boundary remain unchanged. This remains direct Claude receiver evidence
+under the harness's `Skill`/`Task`-only surface, not proof of VS Code button rendering, `send: true`,
+retained context, or Copilot tool enforcement.
 
 ```text
 Learning: supersede — the structured facts and platform checks held 3/3, while the remaining red rejected the canonical severity fallback

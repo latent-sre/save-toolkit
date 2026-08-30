@@ -1098,6 +1098,12 @@ recognizes only a named P1–P4 or critical/high/medium/low value. Full-response
 answer compliant. This is another concrete reason not to convert a phrase-pattern red directly into
 a behavior finding.
 
+`[verified structural]` The follow-up evaluator repair replaces that prose regex with the exact
+field `Provisional severity: assignment pending` and adds a reduced positive fixture derived from
+reviewed trial 3. The fixture was observed red under the old oracle and passes with the closed field;
+the scenario's existing contradiction and authority negatives remain green. This is offline grader
+evidence only; the sealed 2/3 model result is not rewritten and the candidate has not been rerun.
+
 **Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
 exist in the grader registry, so a structured-output contract needs no new grader type. An
 LLM-judge grader would need a new one, plus a policy for a non-deterministic grader inside a suite
@@ -1108,10 +1114,9 @@ unchanged guidance. The removal control still discriminates: with the guidance r
 scenario fails. No grader rejects a response that a reader would call correct, tested against the
 transcripts already retained under `.eval-runs/`.
 
-**Next action:** Keep the structured current-telemetry and platform state. Replace the severity
-adjacency regex with a closed field that includes the canonical `assignment pending` fallback,
-freeze the reviewed trial-3 response as a compliant fixture, then run the still-owed committed
-guidance-removal control before any new live campaign.
+**Next action:** Run the still-owed committed guidance-removal control. A new live campaign requires
+separate approval and must bind this exact evaluator candidate; until then the offline repair does
+not promote or supersede the sealed model result.
 Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
 further tuning run is spent on pattern repair.
 
