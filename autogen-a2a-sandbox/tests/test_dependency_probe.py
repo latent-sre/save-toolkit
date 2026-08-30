@@ -15,21 +15,33 @@ EXPECTED_DISTRIBUTIONS = {
     "agent-framework-core": "1.16.0",
     "autogen-agentchat": "0.7.5",
 }
+EXPECTED_TRANSPORT_PINS = {
+    "fastapi": "0.116.1",
+    "httpx": "0.28.1",
+    "sse-starlette": "2.4.1",
+    "uvicorn": "0.35.0",
+}
 
 
 class DependencyProbeTests(unittest.TestCase):
-    def test_runtime_dependencies_are_the_four_exact_approved_pins(self) -> None:
+    def test_runtime_dependencies_are_the_exact_framework_and_transport_pins(self) -> None:
         requirement_lines = {
             line
             for line in (SANDBOX_ROOT / "requirements.txt")
             .read_text(encoding="utf-8")
             .splitlines()
-            if line
+            if line and not line.startswith("#")
         }
 
         self.assertEqual(
             requirement_lines,
-            {f"{name}=={version}" for name, version in EXPECTED_DISTRIBUTIONS.items()},
+            {
+                f"{name}=={version}"
+                for name, version in {
+                    **EXPECTED_DISTRIBUTIONS,
+                    **EXPECTED_TRANSPORT_PINS,
+                }.items()
+            },
         )
 
     def test_report_contract_accepts_exact_expected_shape(self) -> None:

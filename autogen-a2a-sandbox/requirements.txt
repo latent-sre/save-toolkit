@@ -2,3 +2,9 @@ agent-framework-core==1.16.0
 agent-framework-a2a==1.0.0b260821
 autogen-agentchat==0.7.5
 a2a-sdk==1.1.2
+# a2a.server.routes imports the FastAPI streaming dependency at module load.
+# 2.4.1 is the latest tested line compatible with FastAPI 0.116.1's Starlette <0.48 cap.
+fastapi==0.116.1
+httpx==0.28.1
+sse-starlette==2.4.1
+uvicorn==0.35.0
