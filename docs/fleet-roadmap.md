@@ -359,7 +359,7 @@ existing near-miss scenarios remaining green, and no overlap with `workflow-grap
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `active` (2026-08-25). F7's installed-Claude-CLI visibility gap is closed; the VS Code
+**Status:** `active` (2026-08-30). F7's installed-Claude-CLI visibility gap is closed; the VS Code
 boundary remains open.
 
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
@@ -394,6 +394,12 @@ plugin-wide `PreToolUse` payload carries no custom-agent identity, so the viable
 generated `sre`-scoped hook rather than a self-scoping entry in `hooks/copilot-hooks.json`. No real
 fleet hook is wired.
 
+[`VS Code subagent and handoff enforcement (2026-08-30)`](reviews/2026-08-30-vscode-subagent-handoff-enforcement.md):
+the installed VS Code 1.135.0 build at `08d4889f` filters the model-visible subagent list but does
+not reject a named target outside `agents:` and passes `allowedSubagents: undefined` to a child.
+Upstream merged deterministic prepare/invoke rejection and child-list forwarding in `d679b159`
+after that installed build. This is exact-source evidence, not a live forbidden-call observation.
+
 **Prerequisites:** An installed VS Code build with the GitHub Copilot tools surface and an
 authenticated disposable test profile or other approved non-production session. The probe is
 observational: it changes no live system, and it neither authorizes nor implies a Copilot hook
@@ -402,13 +408,18 @@ implementation.
 **Acceptance:** A dated packet and durable, non-secret transcript/envelopes record whether the tools
 picker offers `execute` to `sre`; whether an override changes the configuration; whether the active
 generated buffer or on-disk file changes; and whether a safe invocation runs or receives an explicit
-host denial. An operator-local artifact and hash are not closure evidence. Any hook-portability
-finding is evidence only; wiring a Copilot hook is separate work needing its own review. Exact-agent
+host denial. A paired custom-agent canary also records whether a parent with `agents: [allowed]`
+can invoke a named `forbidden` agent on the installed build and, separately, on the first tested
+build containing upstream `d679b159`. An operator-local artifact and hash are not closure evidence.
+Any hook-portability finding is evidence only; wiring a Copilot hook is separate work needing its
+own review. Exact-agent
 scope may be established by a hook attached to the selected custom agent; the global hook payload
 does not need to invent an identity field it does not carry.
 
-**Next action:** Run the probe's distinct agent-scoped hook canary in a disposable VS Code profile:
-the custom canary must deny a harmless terminal request with its fixed marker, while the built-in
+**Next action:** Run the probe's distinct allowlist and agent-scoped-hook canaries in a disposable
+VS Code profile: the allowlist canary names both an allowed and forbidden target and captures the
+actual tool result rather than inferring authority from the model-visible list. Then the custom
+hook canary must deny a harmless terminal request with its fixed marker, while the built-in
 Agent control remains unaffected. Keep invocation authority open until a real tool call or host
 denial is observed. Do not run a third identical picker retry, substitute a prompt-file override, or
 populate `hooks/copilot-hooks.json`.
