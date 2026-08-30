@@ -26,11 +26,15 @@
     "step": "Step 5 - paired enforcement canary, allowed arm",
     "vscode_version": "1.135.0",
     "vscode_commit": "08d4889f9ec4a1685d257b9b95de036c8e1ce1e5",
+    "selected_models": {
+      "initial": "MAI-Code-1.1-Flash"
+    },
     "observed_outcome": "With host002-coordinator selected, VS Code displayed the child tool call Host002-allowed: Invoke the requested child agent and follow its own instructions. The attributed child result was HOST002_ALLOWED_CHILD_COMPLETED."
   },
   "environment": {
     "os": "Microsoft Windows 11 Pro build 26200",
-    "architecture": "x64"
+    "architecture": "x64",
+    "copilot_account_scope": "unavailable - not recorded during the run"
   },
   "isolation": {
     "workspace": "copied committed fixture in a temporary directory outside the repository; disposable VS Code profile",
@@ -40,8 +44,8 @@
   "artifacts": [
     {
       "path": "docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md",
-      "sha256": "13f76b5e16f915e528f8301b4a32b717cc8666d8bdb8697db945fa6254ee775d",
-      "size": 11019
+      "sha256": "d13ae77f00cf4528f8742fcaf5d8cb5d4986f9f6eb99d6573e56da739880c8cf",
+      "size": 12573
     },
     {
       "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-allowed.agent.md",
@@ -60,6 +64,7 @@
     }
   ],
   "limitations": [
+    "Copilot account or entitlement scope was not recorded during the run; successful authentication does not identify it.",
     "This arm proves one permitted workspace-defined child call only; it does not prove plugin-provided delegation or rejection of a forbidden child.",
     "Generic Session Start and tool warning indicators appeared but did not block the tool call; they were not expanded."
   ]

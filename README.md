@@ -28,8 +28,10 @@ agents/ + skills/ (canonical)
   `agent` tool plus the parent's `agents:` allowlist.
 - A VS Code **handoff** is a separate human-selected ownership transition from `handoffs:`. It keeps
   relevant conversation context but does not grant approval or model-delegation authority.
-- Production-facing or materially irreversible effects remain human decisions even when an agent
-  prepares the exact action, verification, and rollback.
+- Production-facing or materially irreversible effects remain human decisions. The one narrow
+  exception is an invoked [`observability-engineer`](agents/observability-engineer.md#change-authority)
+  applying only Grafana dashboard or folder writes under its complete change-authority rule; a
+  handoff alone does not activate that exception.
 
 ### Host guarantees and limits
 
@@ -39,7 +41,7 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 | Host surface | Contract shipped | Current evidence boundary |
 |---|---|---|
 | Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
-| VS Code 1.135.0 (`08d4889f`) | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-08-30, plugin registration, 8 agents, 33 skills, the separate ADR prompt, and a synthetic allowed child passed. A forbidden child still ran, the real `software-engineer` -> `reviewer` call was inconclusive, and no fleet Copilot hook is wired. See the [HOST-002 evidence](docs/reviews/2026-08-30-vscode-subagent-handoff-enforcement.md) |
+| VS Code 1.135.0 (`08d4889f`) | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-08-30, plugin registration, 8 agents, 33 skills, the separate ADR prompt, and a synthetic allowed child passed. A forbidden child still ran, the real `software-engineer` -> `reviewer` call was inconclusive, and the separate hook canary was not run. See the [live transcript](docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md) |
 | First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the [HOST-002 probe](docs/probes/host-002-vscode-agent-delegation.md) passes on that exact build |
 
 ## Quickstart

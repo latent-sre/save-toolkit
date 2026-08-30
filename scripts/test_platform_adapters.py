@@ -202,6 +202,41 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("`adr` is a slash command, not a skill", probe)
         self.assertNotIn("**Chat: Configure Skills** or the `/` menu", probe)
 
+    def test_vscode_probe_binds_account_scope_and_model_attempts(self) -> None:
+        probe = (ROOT / "docs/probes/host-002-vscode-agent-delegation.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("`environment.copilot_account_scope`", probe)
+        self.assertIn("`source.selected_models`", probe)
+
+        evidence_root = ROOT / "docs/reviews/evidence/host-002"
+        evidence_names = (
+            "2026-08-30-agent-discovery.json",
+            "2026-08-30-plugin-registration.json",
+            "2026-08-30-real-plugin-delegation.json",
+            "2026-08-30-skill-discovery.json",
+            "2026-08-30-synthetic-allowed.json",
+            "2026-08-30-synthetic-forbidden.json",
+        )
+        envelopes = {
+            name: json.loads((evidence_root / name).read_text(encoding="utf-8"))
+            for name in evidence_names
+        }
+        for name, envelope in envelopes.items():
+            with self.subTest(evidence=name, field="copilot_account_scope"):
+                self.assertTrue(envelope["environment"]["copilot_account_scope"].strip())
+
+        expected_attempts = {
+            "2026-08-30-real-plugin-delegation.json": {"initial", "retry"},
+            "2026-08-30-synthetic-allowed.json": {"initial"},
+            "2026-08-30-synthetic-forbidden.json": {"initial"},
+        }
+        for name, attempts in expected_attempts.items():
+            with self.subTest(evidence=name, field="selected_models"):
+                selected_models = envelopes[name]["source"]["selected_models"]
+                self.assertEqual(attempts, set(selected_models))
+                self.assertTrue(all(value.strip() for value in selected_models.values()))
+
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
         self.assertEqual(["read", "search"], self._copilot_tools("repository-investigator"))
         self.assertEqual(["web"], self._copilot_tools("researcher"))

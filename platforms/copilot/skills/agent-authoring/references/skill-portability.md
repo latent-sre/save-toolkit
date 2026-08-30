@@ -27,7 +27,7 @@ adapters; the generator absorbs the difference, and this file maps what it has t
 | `name` | Lowercase letters, numbers, hyphens; ≤64 chars; no reserved words |
 | `description` | The trigger. Non-empty; ≤1,024 chars in the spec |
 | `license` | Accepted, not acted on by Claude Code |
-| `compatibility` | Environment requirements; ≤500 chars |
+| `compatibility` | Environment requirements; ≤500 chars. This fleet requires one single-line scalar so the local gate measures the value exactly without a full YAML implementation |
 | `metadata` | Free-form object for your own tooling; Claude Code ignores it |
 | `allowed-tools` | Grants (pre-approves) tools while the skill is active |
 

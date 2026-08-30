@@ -26,11 +26,16 @@
     "step": "Step 4 - prove one real allowed plugin edge",
     "vscode_version": "1.135.0",
     "vscode_commit": "08d4889f9ec4a1685d257b9b95de036c8e1ce1e5",
+    "selected_models": {
+      "initial": "MAI-Code-1.1-Flash",
+      "retry": "unavailable - not separately recorded during the run"
+    },
     "observed_outcome": "With plugin software-engineer selected, the first response emitted parent-authored handoff/review prose and no agent tool call. The single stronger retry emitted no tool call and returned exactly: Cannot invoke the reviewer tool here: no `agent` tool is available in this environment. No reviewer child attribution or result was produced."
   },
   "environment": {
     "os": "Microsoft Windows 11 Pro build 26200",
-    "architecture": "x64"
+    "architecture": "x64",
+    "copilot_account_scope": "unavailable - not recorded during the run"
   },
   "isolation": {
     "workspace": "neutral workspace and disposable VS Code user-data/extensions directories",
@@ -40,8 +45,8 @@
   "artifacts": [
     {
       "path": "docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md",
-      "sha256": "13f76b5e16f915e528f8301b4a32b717cc8666d8bdb8697db945fa6254ee775d",
-      "size": 11019
+      "sha256": "d13ae77f00cf4528f8742fcaf5d8cb5d4986f9f6eb99d6573e56da739880c8cf",
+      "size": 12573
     },
     {
       "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-allowed.agent.md",
@@ -60,6 +65,8 @@
     }
   ],
   "limitations": [
+    "Copilot account or entitlement scope was not recorded during the run; successful authentication does not identify it.",
+    "The retry's selected model was not separately recorded, so a future comparison cannot attribute a tool-selection difference to the host alone unless it controls that variable.",
     "The allowed-edge retry used stronger wording instead of the documented identical prompt; the deviation is preserved in the transcript.",
     "No tool trace or host error was observed; the model's no-tool statement does not prove the host's effective tool inventory or isolate plugin-agent tool exposure, selection state, model behavior, or another host path.",
     "No third model request was submitted."

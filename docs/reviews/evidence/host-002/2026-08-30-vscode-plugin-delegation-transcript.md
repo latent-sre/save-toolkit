@@ -27,6 +27,7 @@ not close `HOST-002` or beta readiness.
 - Host: Microsoft Windows 11 Pro build 26200, `x64`
 - Run ID: `host-002-20260830-vscode-plugin-delegation`
 - Probe start: `2026-08-30T15:11:37Z`
+- Copilot account/entitlement scope: `unavailable - not recorded during the run`
 - UI driver: Codex controlled only the disposable VS Code window under the user's explicit permission.
   The user completed GitHub Copilot authentication; no account identifier, credential, or token was
   captured.
@@ -34,6 +35,30 @@ not close `HOST-002` or beta readiness.
 The candidate was clean at the bound revision before the UI probe. The portable tree digest was
 calculated from an extracted `git archive HEAD` snapshot with
 `python scripts/evidence_envelope.py tree-digest`; it excludes later evidence-file changes by design.
+
+After review, the digest was independently recomputed from a new empty extraction directory with
+the bound revision rather than from the later working tree:
+
+```powershell
+$ArchivePath = Join-Path $env:TEMP 'save-toolkit-0c6c4dc2.tar'
+$EmptyTreeRoot = Join-Path $env:TEMP 'save-toolkit-0c6c4dc2-tree'
+if (Test-Path -LiteralPath $ArchivePath) { throw "archive already exists: $ArchivePath" }
+if (Test-Path -LiteralPath $EmptyTreeRoot) { throw "tree already exists: $EmptyTreeRoot" }
+New-Item -ItemType Directory -Path $EmptyTreeRoot | Out-Null
+git archive --format=tar --output $ArchivePath 0c6c4dc24c5fa88f3927dc33ba6609d23c54ba33
+tar -xf $ArchivePath -C $EmptyTreeRoot
+python scripts/evidence_envelope.py tree-digest $EmptyTreeRoot
+# 5fa582179e4ac5c91c4636cc1a1ae60d76e8cd59aec863d761abaaba58bf2d6f
+```
+
+The selected-model record for the model-driven attempts is:
+
+| Arm and attempt | Selected model |
+|---|---|
+| Real plugin edge, initial | `MAI-Code-1.1-Flash` |
+| Real plugin edge, retry | `unavailable - not separately recorded during the run` |
+| Synthetic allowed arm | `MAI-Code-1.1-Flash` |
+| Synthetic forbidden arm | `MAI-Code-1.1-Flash` |
 
 ## Isolation
 
@@ -225,6 +250,10 @@ This arm failed because the explicitly named child ran even though the parent de
   use those minute bounds.
 - The real plugin-edge retry differed from the documented identical-retry instruction. Its stronger
   wording produced a direct no-tool report, but this run does not claim an identical retry occurred.
+- The Copilot account/entitlement scope and the real-edge retry's separately displayed model were
+  not recorded during the run. Those values remain unavailable rather than being inferred, so a
+  future build comparison must not attribute tool-selection differences to the host alone unless
+  it controls both variables.
 - Generic Session Start/tool warning indicators appeared during the synthetic calls. They did not
   block either tool call and were not expanded, so their cause remains `[unverified]`.
 - The run tested VS Code 1.135.0 only. It did not test the first installed build containing upstream

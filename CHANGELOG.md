@@ -59,8 +59,9 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   filtering and human-selected handoff buttons no longer count as proof of model-driven delegation
   enforcement.
 - Added the missing portable skill-metadata gates: names stop at 64 characters and optional
-  `compatibility` text stops at 500, so an invalid generated skill cannot pass locally and then
-  disappear silently in Copilot.
+  `compatibility` text must be a single-line scalar stopping at 500, so an invalid or
+  normalization-bypassing generated skill cannot pass locally and then disappear silently in
+  Copilot.
 - Raised SKILL-001's advisory Phase 2 entrypoint screen from 7,500 to 7,800 immutable bytes and
   remeasured the exact campaign head through Git objects. The six undispositioned slices are
   unchanged; `gcp-ops` and `incident-investigation` are below the new screen while `obs-alerting`

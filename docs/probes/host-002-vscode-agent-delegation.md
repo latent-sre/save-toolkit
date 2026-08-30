@@ -36,8 +36,17 @@ python scripts/gate_a.py
 ```
 
 Record the full SHA, VS Code version/commit from **Help > About**, OS/architecture, Copilot account
-scope, operator, and UTC start time. `code --version` is supporting evidence only because it can
-resolve a different installation from the open window.
+or entitlement scope as displayed, operator, and UTC start time. If the account scope is not exposed,
+record the literal value `unavailable - not exposed by the host`; never infer it from successful
+authentication. Carry that value in every envelope as `environment.copilot_account_scope`.
+`code --version` is supporting evidence only because it can resolve a different installation from
+the open window.
+
+Before every model-driven submission or retry in steps 4 and 5, record the selected model label as
+displayed by that chat. Carry the values by attempt under `source.selected_models`; if a value is
+not exposed or was not recorded, preserve that gap literally rather than inferring inheritance. A
+cross-build comparison with a changed or unavailable model cannot attribute a tool-selection change
+to the host alone.
 
 ## 2. Load the candidate as a plugin
 
@@ -150,9 +159,11 @@ Use one validated
 5. synthetic allowed-child invocation; and
 6. synthetic forbidden-child rejection.
 
-Bind every envelope to the candidate SHA, candidate tree digest, VS Code version/commit, fixture
-file digests, UTC timestamps, and a non-secret transcript. Use `pass`, `fail`, `inconclusive`, and
-`skip` as evidence-acquisition outcomes, not security grades. Validate each record with
+Bind every envelope to the candidate SHA, candidate tree digest, VS Code version/commit, Copilot
+account scope (or its explicit unavailable value), fixture file digests, UTC timestamps, and a
+non-secret transcript. Model-driven envelopes also carry the selected model for every submission
+and retry. Use `pass`, `fail`, `inconclusive`, and `skip` as evidence-acquisition outcomes, not
+security grades. Validate each record with
 `python scripts/evidence_envelope.py validate <path>`. A local path or screenshot without a durable
 validated envelope is not closure evidence.
 

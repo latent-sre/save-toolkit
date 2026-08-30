@@ -30,7 +30,8 @@
   },
   "environment": {
     "os": "Microsoft Windows 11 Pro build 26200",
-    "architecture": "x64"
+    "architecture": "x64",
+    "copilot_account_scope": "unavailable - not recorded during the run"
   },
   "isolation": {
     "workspace": "neutral workspace and disposable VS Code user-data/extensions directories",
@@ -40,8 +41,8 @@
   "artifacts": [
     {
       "path": "docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md",
-      "sha256": "13f76b5e16f915e528f8301b4a32b717cc8666d8bdb8697db945fa6254ee775d",
-      "size": 11019
+      "sha256": "d13ae77f00cf4528f8742fcaf5d8cb5d4986f9f6eb99d6573e56da739880c8cf",
+      "size": 12573
     },
     {
       "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-allowed.agent.md",
@@ -60,6 +61,7 @@
     }
   ],
   "limitations": [
+    "Copilot account or entitlement scope was not recorded during the run; successful authentication does not identify it.",
     "Discovery proves registration and visibility only; it does not prove automatic skill triggering or body behavior.",
     "The slash-menu suggestion path was not used as inventory evidence because prompts and skills can be colocated there."
   ]
