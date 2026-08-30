@@ -175,9 +175,10 @@ values are required and no real team is onboarded.
 
 ### GRAPH-002 — add a runtime-specific implementation lane for executable graphs
 
-**Status:** `active` (2026-08-29). The isolated implementation candidate and host-side safety gates
-exist; no container has executed, so runtime, restart, fault, and exact-revision acceptance remain
-unverified.
+**Status:** `active` (2026-08-29). The offline implementation candidate at
+`02932845fe19150166ece6d01a0959a0effbdbc0` passed host gates, immutable-image suites, the healthy
+mission, deterministic fault cases, a real checkpoint resume, independent review, and independent
+execution verification. Repository integration and exact-candidate human acceptance remain open.
 
 **Owner:** `software-engineer` owns implementation; `agent-engineer` owns the skill text that
 carries runtime-specific references; `stack-profile`'s decision owner names the runtime.
@@ -197,7 +198,8 @@ follows the design and a concrete consumer rather than preceding them. Owner dir
 [`GRAPH-002 runtime decision`](decisions/2026-08-26-graph-002-docker-sandbox-runtime.md).
 The 2026-08-29 owner direction accepted the advisory-driven
 [`LangGraph security-pin supersession`](decisions/2026-08-29-graph-002-langgraph-security-pin.md)
-before implementation.
+before implementation. The local runtime results and their limits are recorded in the
+[`GRAPH-002 exact-revision verification`](reviews/2026-08-29-graph-002-exact-revision-verification.md).
 
 **Accepted boundary:** The consumer is `checkout-payments-timeout-drill/v1`, not the fleet itself.
 The allowed runtime is Python 3.12 with exactly pinned `langgraph==1.0.10` and
@@ -258,10 +260,11 @@ remove its explicit entrypoint and return `incident-drill` to the current manual
 procedure; export sanitized evidence first, then remove only the run-scoped containers, network, and
 volumes. No production data migration exists.
 
-**Next action:** After owner authorization, commit the independently reviewed candidate as one exact
-revision. Build and run only that revision through the pinned offline Docker suite, healthy mission,
-fault matrix, and restart/resume proof; preserve the evidence outside the disposable resources. Do
-not add live Terra egress, credentials, or paid calls.
+**Next action:** The owner reviews and accepts or rejects exact runtime candidate
+`02932845fe19150166ece6d01a0959a0effbdbc0` and its evidence report. If accepted, integrate the
+reviewed branch without changing runtime inputs, merge the documentation consequence, and close the
+item after the committed evidence is merged. Any runtime-input change requires a new pinned build
+and verification set. Do not add live Terra egress, credentials, or paid calls.
 
 ### GRAPH-003 — operate running graphs: indicators, failure planes, runbooks, and alerts
 
