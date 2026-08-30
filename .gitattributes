@@ -12,6 +12,7 @@
 *.json text eol=lf
 *.toml text eol=lf
 *.txt  text eol=lf
+*.mmd  text eol=lf
 Dockerfile text eol=lf
 .dockerignore text eol=lf
 # Recovery patches in docs/reviews/ diff files that are themselves eol=lf. Without this rule
