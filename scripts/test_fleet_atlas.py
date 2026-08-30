@@ -199,5 +199,64 @@ class CitedContractTests(unittest.TestCase):
         self.assertTrue(any("generated" in f for f in fleet_atlas_cite.parity_failures(ROOT, broken)))
 
 
+import check_plan_status  # noqa: E402
+
+
+class ExtractGovernanceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.graph = fleet_atlas.build_graph(ROOT)
+
+    def test_every_rules_row_is_a_rule_node_with_a_governed_by_edge_or_an_unknown(self) -> None:
+        rows = [
+            line for line in (ROOT / "docs/rules.md").read_text(encoding="utf-8").splitlines()
+            if line.startswith("| ") and not line.startswith("| Rule") and not line.startswith("|---")
+        ]
+        rules = [n for n in self.graph.nodes.values() if n.type == "rule"]
+        self.assertEqual(len(rules), len(rows))
+        governed = {e.source for e in self.graph.edges.values() if e.kind == "governed_by"}
+        unlinked = {u.path for u in self.graph.unknowns if u.code == "extract.rule-source-unlinked"}
+        for rule in rules:
+            self.assertTrue(rule.id in governed or rule.attrs["statement"][:40] in " ".join(unlinked) or unlinked, rule.attrs["statement"])
+        self.assertTrue(all(n.authority == "live-contract" for n in rules))
+
+    def test_live_roadmap_items_match_the_checker_and_prerequisites_become_contract_edges(self) -> None:
+        text = (ROOT / "docs/fleet-roadmap.md").read_text(encoding="utf-8")
+        expected_ids = {item["id"] for item in check_plan_status._roadmap_items(text)}
+        live = {n.name for n in self.graph.nodes.values() if n.type == "roadmap-item" and n.state == "live"}
+        self.assertEqual(live, expected_ids)
+        contract = {
+            (e.source, e.target) for e in self.graph.edges.values()
+            if e.kind == "depends_on" and e.cls == "CONTRACT_RESOLVED"
+        }
+        for item in check_plan_status._roadmap_items(text):
+            for dep in check_plan_status.ROADMAP_ITEM_ID_RE.findall(str(item["fields"].get("Prerequisites", ""))):
+                if dep != item["id"] and dep in expected_ids:
+                    self.assertIn((f"roadmap-item:{item['id']}", f"roadmap-item:{dep}"), contract)
+        inferred = [e for e in self.graph.edges.values() if e.kind == "depends_on" and e.cls == "STATIC_INFERRED"]
+        self.assertTrue(any(e.source == "roadmap-item:GRAPH-003" and e.target == "roadmap-item:GRAPH-002" for e in inferred))
+
+    def test_closed_register_rows_are_historical_items(self) -> None:
+        closed = {n.name for n in self.graph.nodes.values() if n.type == "roadmap-item" and n.state == "historical"}
+        for expected in ("SAFE-001", "EVAL-002", "NAV-001", "SWEEP-001", "MUTATION-001"):
+            self.assertIn(expected, closed)
+        self.assertEqual(self.graph.nodes["roadmap-item:EVAL-002"].authority, "historical-evidence")
+
+    def test_decisions_declare_state_and_disposals_resolve(self) -> None:
+        decisions = [n for n in self.graph.nodes.values() if n.type == "decision"]
+        self.assertEqual(len(decisions), len(list((ROOT / "docs/decisions").glob("*.md"))))
+        self.assertTrue(all(n.state in ("live", "proposed", "historical", "rejected", "deprecated") for n in decisions))
+        calibration = self.graph.nodes["decision:2026-08-22-agent-discovery-calibration"]
+        self.assertEqual(calibration.authority, "live-contract")
+        disposals = [
+            e for e in self.graph.edges.values()
+            if e.kind == "supersedes" and e.attrs.get("relation") == "disposes" and e.source == calibration.id
+        ]
+        self.assertEqual([e.target for e in disposals], ["roadmap-item:EVAL-002"])
+        conformance = self.graph.nodes["decision:2026-08-01-local-sol-conformance"]
+        self.assertEqual(conformance.state, "historical")
+        self.assertTrue(any(u.code == "extract.supersedes-unresolved" for u in self.graph.unknowns))
+
+
 if __name__ == "__main__":
     unittest.main()

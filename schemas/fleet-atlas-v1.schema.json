@@ -45,7 +45,7 @@
       "required": ["id", "type", "name", "authority", "path", "state", "attrs", "evidence"],
       "properties": {
         "id": {"type": "string", "minLength": 1},
-        "type": {"enum": ["agent", "skill", "reference", "bundle-file", "command", "rule", "decision", "roadmap-item", "review", "scenario", "test", "schema", "generated-projection", "capability", "owner", "probe", "hook"]},
+        "type": {"enum": ["agent", "skill", "reference", "bundle-file", "command", "rule", "decision", "roadmap-item", "review", "scenario", "test", "schema", "generated-projection", "capability", "owner", "probe", "hook", "document", "validator"]},
         "name": {"type": "string", "minLength": 1},
         "authority": {"enum": ["canonical", "live-contract", "generated", "historical-evidence", "external"]},
         "path": {"type": ["string", "null"]},

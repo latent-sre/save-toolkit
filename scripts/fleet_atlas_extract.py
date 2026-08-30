@@ -177,3 +177,203 @@ def extract_commands(root: Path, graph: Graph) -> None:
             },
             evidence=[cite(root, relative, 1, 1, "extract.command-frontmatter", "STATIC_EXTRACTED")],
         ))
+
+
+import check_plan_status  # noqa: E402
+from check_links import _relative_target  # noqa: E402
+
+LIVE_DOCS = {
+    "AGENTS.md", "CONTRIBUTING.md", "README.md", "docs/README.md", "docs/rules.md",
+    "docs/schema-compatibility.md", "docs/fleet-roadmap.md",
+}
+DATE_RE = re.compile(r"\b(20\d\d-\d\d-\d\d)\b")
+SUPERSEDES_RE = re.compile(r"\*\*Supersedes:?\*\*:?\s*(.+)|^-?\s*Supersedes:\s*(.+)", re.IGNORECASE)
+DISPOSES_RE = re.compile(r"disposes\s+`([A-Z][A-Z0-9]*-\d{3})`")
+BACKTICK_ID_RE = re.compile(r"`([A-Z][A-Z0-9]*-\d{3})`")
+# check_plan_status._status_state tolerates a qualified marker ("accepted 2026-08-22", "superseded
+# 2026-08-23 by explicit owner disposition") -- it only ever strips at the punctuation that starts
+# the qualifier, not the marker word itself. A bare dict lookup on that value misses every qualified
+# ADR in this repository (4 of the 5 "accepted ..." decisions carry a trailing date or clause), so
+# state resolution mirrors check_plan_status.check()'s own decision-marker tolerance: exact word or
+# "word " prefix.
+DECISION_STATE_BY_MARKER = {
+    "accepted": "live", "proposed": "proposed", "superseded": "historical",
+    "rejected": "rejected", "deprecated": "deprecated",
+}
+
+
+def _decision_state(marker: str) -> str:
+    for word, state in DECISION_STATE_BY_MARKER.items():
+        if marker == word or marker.startswith(f"{word} "):
+            return state
+    return "historical"
+
+
+def node_for_path(graph: Graph, relative: str) -> str | None:
+    for node in graph.nodes.values():
+        if node.path == relative:
+            return node.id
+    return None
+
+
+def ensure_document(root: Path, graph: Graph, relative: str) -> str:
+    existing = node_for_path(graph, relative)
+    if existing:
+        return existing
+    if relative.startswith("scripts/") and relative.endswith(".py"):
+        node_id, node_type, authority = f"validator:{relative}", "validator", "canonical"
+    else:
+        node_id, node_type = f"document:{relative}", "document"
+        authority = ("live-contract" if relative in LIVE_DOCS
+                     else "historical-evidence" if relative.startswith("docs/") else "canonical")
+    graph.add_node(Node(node_id, node_type, relative, authority, relative, "live", {},
+                        [cite(root, relative, 1, 1, "extract.document", "STATIC_EXTRACTED")]))
+    return node_id
+
+
+def _resolve_link(root: Path, base: str, raw_target: str) -> str | None:
+    target = _relative_target(raw_target)
+    if target is None:
+        return None
+    candidate = (root / base).parent / target
+    try:
+        relative = candidate.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return None
+    return relative if (root / relative).is_file() else None
+
+
+def extract_documents(root: Path, graph: Graph) -> None:
+    for relative in sorted(LIVE_DOCS):
+        if (root / relative).is_file():
+            ensure_document(root, graph, relative)
+
+
+def extract_rules(root: Path, graph: Graph) -> None:
+    relative = "docs/rules.md"
+    section = ""
+    for line_no, line in enumerate((root / relative).read_text(encoding="utf-8").splitlines(), start=1):
+        if line.startswith("## "):
+            section = line[3:].strip()
+            continue
+        if not line.startswith("| ") or line.startswith("| Rule") or SEPARATOR_RE.match(line):
+            continue
+        cells = _cells(line)
+        if len(cells) < 2:
+            continue
+        statement, source_cell = _plain(cells[0]), cells[1]
+        rule_id = stable_id("rule", relative, statement)
+        graph.add_node(Node(rule_id, "rule", statement[:80], "live-contract", relative, "live",
+                            {"section": section, "statement": statement, "source_text": _plain(source_cell)},
+                            [cite(root, relative, line_no, line_no, "extract.rules-row", "STATIC_EXTRACTED")]))
+        links = [m.group(2) for m in LINK_RE.finditer(source_cell)]
+        if not links:
+            graph.add_unknown(Unknown("extract.rule-source-unlinked",
+                                      f"{relative}:{line_no} names its source in prose only: {_plain(source_cell)[:80]}",
+                                      relative, "Link the primary source so the rule can be traced"))
+            continue
+        for raw in links:
+            resolved = _resolve_link(root, relative, raw)
+            if resolved is None:
+                graph.add_unknown(Unknown("extract.rule-source-missing",
+                                          f"{relative}:{line_no} links {raw}, which does not resolve",
+                                          relative, "check_links owns the hard failure; fix the link"))
+                continue
+            target = ensure_document(root, graph, resolved)
+            graph.add_edge(Edge(edge_id("governed_by", rule_id, target), rule_id, target, "governed_by",
+                                "STATIC_EXTRACTED", {},
+                                [cite(root, relative, line_no, line_no, "extract.rules-row", "STATIC_EXTRACTED")]))
+
+
+def extract_roadmap(root: Path, graph: Graph) -> None:
+    relative = "docs/fleet-roadmap.md"
+    text = (root / relative).read_text(encoding="utf-8")
+    items = check_plan_status._roadmap_items(text)
+    known = {item["id"] for item in items}
+    for item in items:
+        fields = dict(item["fields"])
+        status_text = fields.get("Status", "")
+        graph.add_node(Node(f"roadmap-item:{item['id']}", "roadmap-item", item["id"], "live-contract",
+                            relative, "live",
+                            {"status": check_plan_status._status_state(status_text) if status_text else "",
+                             "status_text": status_text[:200], "owner": fields.get("Owner", "")[:200],
+                             "fields": sorted(fields)},
+                            [cite(root, relative, item["line"], item["line"], "check_plan_status.roadmap_item",
+                                  "CONTRACT_RESOLVED")]))
+    for item in items:
+        source = f"roadmap-item:{item['id']}"
+        fields = dict(item["fields"])
+        for field_name, value in sorted(fields.items()):
+            for dep in sorted(set(check_plan_status.ROADMAP_ITEM_ID_RE.findall(value))):
+                if dep == item["id"] or dep not in known:
+                    continue
+                contract = field_name == "Prerequisites"
+                graph.add_edge(Edge(edge_id("depends_on", source, f"roadmap-item:{dep}", field_name), source,
+                                    f"roadmap-item:{dep}", "depends_on",
+                                    "CONTRACT_RESOLVED" if contract else "STATIC_INFERRED",
+                                    {"field": field_name,
+                                     "detector": "check_plan_status.prerequisites" if contract else "extract.roadmap-mention"},
+                                    [cite(root, relative, item["line"], item["line"],
+                                          "check_plan_status.prerequisites" if contract else "extract.roadmap-mention",
+                                          "CONTRACT_RESOLVED" if contract else "STATIC_INFERRED")]))
+
+
+def extract_closed_register(root: Path, graph: Graph) -> None:
+    relative = "docs/roadmap-closed.md"
+    if not (root / relative).is_file():
+        return
+    for line_no, line in enumerate((root / relative).read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.startswith("| `") or SEPARATOR_RE.match(line):
+            continue
+        cells = _cells(line)
+        if len(cells) < 3:
+            continue
+        for item_id in BACKTICK_ID_RE.findall(cells[0]):
+            node_id = f"roadmap-item:{item_id}"
+            if node_id in graph.nodes:
+                continue
+            graph.add_node(Node(node_id, "roadmap-item", item_id, "historical-evidence", relative, "historical",
+                                {"closed": cells[1], "disposition": _plain(cells[2])[:200]},
+                                [cite(root, relative, line_no, line_no, "extract.closed-register-row",
+                                      "STATIC_EXTRACTED")]))
+
+
+def extract_decisions(root: Path, graph: Graph) -> None:
+    for path in sorted((root / "docs/decisions").glob("*.md")):
+        relative = path.relative_to(root).as_posix()
+        text = path.read_text(encoding="utf-8")
+        head = "\n".join(text.splitlines()[:14])
+        status_value = check_plan_status._status_value(text, lines=14) or ""
+        marker = check_plan_status._status_state(status_value) if status_value else ""
+        state = _decision_state(marker) if marker else "historical"
+        date = DATE_RE.search(head)
+        node_id = f"decision:{path.stem}"
+        graph.add_node(Node(node_id, "decision", path.stem,
+                            "live-contract" if state == "live" else "historical-evidence", relative, state,
+                            {"date": date.group(1) if date else "", "status_text": status_value[:200]},
+                            [cite(root, relative, 1, 1, "extract.decision-status", "STATIC_EXTRACTED")]))
+        for item_id in DISPOSES_RE.findall(head):
+            target = f"roadmap-item:{item_id}"
+            if target in graph.nodes:
+                line = find_line(root, relative, f"disposes `{item_id}`")
+                graph.add_edge(Edge(edge_id("supersedes", node_id, target, "disposes"), node_id, target, "supersedes",
+                                    "STATIC_EXTRACTED", {"relation": "disposes"},
+                                    [cite(root, relative, line, line, "extract.decision-disposes", "STATIC_EXTRACTED")]))
+        for line_no, line in enumerate(text.splitlines()[:14], start=1):
+            match = SUPERSEDES_RE.search(line)
+            if not match:
+                continue
+            prose = (match.group(1) or match.group(2) or "").strip()
+            resolved = None
+            for raw in [m.group(2) for m in LINK_RE.finditer(line)]:
+                resolved = _resolve_link(root, relative, raw) or resolved
+            if resolved:
+                target = ensure_document(root, graph, resolved)
+                graph.add_edge(Edge(edge_id("supersedes", node_id, target), node_id, target, "supersedes",
+                                    "STATIC_EXTRACTED", {"relation": "supersedes", "text": prose[:200]},
+                                    [cite(root, relative, line_no, line_no, "extract.decision-supersedes",
+                                          "STATIC_EXTRACTED")]))
+            else:
+                graph.add_unknown(Unknown("extract.supersedes-unresolved",
+                                          f"{relative}:{line_no} supersedes '{prose[:120]}' but names no linked target",
+                                          relative, "Link the superseded decision, rule row, or document"))
