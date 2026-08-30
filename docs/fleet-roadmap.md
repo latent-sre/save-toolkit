@@ -518,8 +518,8 @@ line wrap that splits a pinned phrase disables the mutation without failing the 
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
-**Status:** `ready` (2026-08-30). The material route/evaluator-change trigger fired; no
-remeasurement has started.
+**Status:** `ready` (2026-08-30). The material route/evaluator-change trigger fired and the fixed
+packet is prepared at its human approval gate; no remeasurement or spend has started.
 
 **Owner:** `latent-sre`
 
@@ -539,16 +539,24 @@ introduced at `f1afd574`; the service-readiness route and lifecycle vocabulary c
 the item's own trigger. Use a clean exact plugin revision and predeclare model, timeout, trials,
 threshold, selected scenarios, and spend ceiling before measurement.
 
+**Prepared gate:** The
+[`ROUTE-003 approval packet`](reviews/2026-08-30-route-003-approval-gate.md) binds exact plugin
+candidate `38dbdf70722c2167ce2c404297ccb4ccc3f5da8f`, requested model `sonnet`, the exact
+`discovery-agent-authoring-workflow-graph` and `discovery-service-readiness-audit` scenario IDs,
+three trials each, their scenario-owned 0.66 and 1.0 thresholds, 600 seconds per trial, 7,200 seconds
+total, USD 4.00 maximum, and one no-tuning/no-retry batch. The execution profile validates offline
+with approval null. This preparation makes no model call and spends nothing.
+
 **Acceptance:** The workflow-graph and service-readiness cases each meet their declared threshold on
 the exact candidate under the predeclared conditions, with no overlapping regression loss. A failed
 or inconclusive batch remains evidence; it does not authorize prompt edits or retries without a
 separately accepted fleet failure and candidate budget.
 
-**Next action:** Present one fixed, no-tuning measurement packet for owner approval: exact plugin
-revision, model, the two named discovery cases, timeout, trials, thresholds, stop conditions, and
-spend ceiling. If approved, run that packet once and retain failures/timeouts as evidence. Do not
-retry unchanged bytes merely to turn timeouts green or move reference-dependent behavior graders
-into discovery.
+**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
+budget ID. If approved, add the approver and UTC timestamp to that profile, execute it once from a
+clean detached checkout of the bound candidate with `--require-clean-plugin`, and retain
+failures/timeouts as evidence. Do not retry unchanged bytes merely to turn timeouts green or move
+reference-dependent behavior graders into discovery.
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
