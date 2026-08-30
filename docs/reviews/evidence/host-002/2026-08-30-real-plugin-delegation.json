@@ -16,7 +16,7 @@
     "tree_digest": "5fa582179e4ac5c91c4636cc1a1ae60d76e8cd59aec863d761abaaba58bf2d6f"
   },
   "criterion": "The plugin-provided software-engineer invokes the agent tool with agentName reviewer and returns a result attributed to the plugin-provided reviewer.",
-  "status": "fail",
+  "status": "inconclusive",
   "started_at": "2026-08-30T15:30:00Z",
   "ended_at": "2026-08-30T15:31:59Z",
   "command": null,
@@ -40,8 +40,8 @@
   "artifacts": [
     {
       "path": "docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md",
-      "sha256": "0f8f331bd5ef0408e8db1b1ee34c4895ea511bbf088d5b53f989302893942494",
-      "size": 9476
+      "sha256": "13f76b5e16f915e528f8301b4a32b717cc8666d8bdb8697db945fa6254ee775d",
+      "size": 11019
     },
     {
       "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-allowed.agent.md",
@@ -61,7 +61,7 @@
   ],
   "limitations": [
     "The allowed-edge retry used stronger wording instead of the documented identical prompt; the deviation is preserved in the transcript.",
-    "The observation establishes the runtime symptom but does not isolate whether its root cause is plugin-agent tool exposure, selection state, model behavior, or another host path.",
+    "No tool trace or host error was observed; the model's no-tool statement does not prove the host's effective tool inventory or isolate plugin-agent tool exposure, selection state, model behavior, or another host path.",
     "No third model request was submitted."
   ]
 }

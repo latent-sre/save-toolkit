@@ -40,8 +40,8 @@
   "artifacts": [
     {
       "path": "docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md",
-      "sha256": "0f8f331bd5ef0408e8db1b1ee34c4895ea511bbf088d5b53f989302893942494",
-      "size": 9476
+      "sha256": "13f76b5e16f915e528f8301b4a32b717cc8666d8bdb8697db945fa6254ee775d",
+      "size": 11019
     },
     {
       "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-allowed.agent.md",

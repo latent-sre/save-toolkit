@@ -7,14 +7,14 @@
 | Exact-candidate plugin registration | `[verified] pass` | `save-toolkit` appeared under **Plugins > Enabled Locally (1)** with no displayed load error. |
 | Complete plugin-agent discovery | `[verified] pass` | All 8 expected plugin agents appeared exactly once; no missing or extra plugin agents. |
 | Complete plugin-skill discovery | `[verified] pass` | All 33 expected plugin skills appeared exactly once; no missing or extra plugin skills. `save-toolkit:adr` appeared separately under Prompts and was not counted as a skill. |
-| Real plugin `software-engineer` -> `reviewer` edge | `[verified] fail` | The first response simulated a handoff without a tool call. The single retry reported that no `agent` tool was available, so no reviewer child result was produced. |
+| Real plugin `software-engineer` -> `reviewer` edge | `[verified] inconclusive` | The first response simulated a handoff without a tool call. The single stronger retry produced only a model statement that no `agent` tool was available, so no host tool trace or reviewer child result was observed. |
 | Synthetic allowed-child invocation | `[verified] pass` | The host invoked `host002-allowed` and returned `HOST002_ALLOWED_CHILD_COMPLETED`. |
 | Synthetic forbidden-child rejection | `[verified] fail` | The host invoked `host002-forbidden` and returned `HOST002_FORBIDDEN_CHILD_RAN` instead of rejecting the target outside the coordinator's allowlist. |
 
 The installed stable build therefore discovers the plugin correctly and can execute workspace-defined
-agent calls, but it does not satisfy the tested plugin-agent delegation path or the forbidden-child
-enforcement boundary. This packet is evidence for the installed build only; it does not close
-`HOST-002` or beta readiness.
+agent calls, but it does not demonstrate the tested plugin-agent delegation path and fails the
+forbidden-child enforcement boundary. This packet is evidence for the installed build only; it does
+not close `HOST-002` or beta readiness.
 
 ## Candidate and host binding
 
@@ -149,8 +149,27 @@ Cannot invoke the reviewer tool here: no `agent` tool is available in this envir
 
 The retry used 0.1 model credits. No third request was submitted. The generated candidate profile
 does declare `tools: ["read", "search", "edit", "execute", "agent"]` and
-`agents: ["reviewer", "scribe", "researcher"]`; this transcript establishes the runtime symptom,
-not its root cause.
+`agents: ["reviewer", "scribe", "researcher"]`. Because neither response produced a tool call or a
+host error, the procedure classifies this criterion `inconclusive`: the model's statement is an
+observation, not proof of the host's effective tool inventory.
+
+## Post-run contract and source reconciliation
+
+`[sourced]` The current official
+[VS Code subagent documentation](https://github.com/microsoft/vscode-docs/blob/main/docs/agents/run/subagents.md)
+uses `tools: ['agent']` and bare names in `agents:`. GitHub's cross-product
+[custom-agent configuration reference](https://docs.github.com/en/copilot/reference/custom-agents-configuration#tool-aliases)
+also defines `agent` as the primary custom-agent tool alias. `[verified static]` The exact installed
+VS Code revision's
+[tool-alias implementation](https://github.com/microsoft/vscode/blob/08d4889f9ec4a1685d257b9b95de036c8e1ce1e5/src/vs/workbench/contrib/chat/browser/tools/languageModelToolsService.ts#L1558-L1583)
+maps that alias to the run-subagent tool, while its automatic-instructions path compares an
+allowlist against each custom agent's bare `name`.
+
+No repository-side alias or child-name defect was identified. The remaining hypotheses include
+model non-use, stale selection state, or a plugin-source runtime path. The open upstream
+[plugin-agent selection issue](https://github.com/microsoft/vscode/issues/317276) is a related lead,
+not evidence that selection drift caused this run. Changing the generated graph or substituting an
+undocumented tool name would therefore be a workaround without a demonstrated root cause.
 
 ## Synthetic allowed arm
 
