@@ -18,10 +18,24 @@ claude plugin marketplace add latent-sre/save-toolkit
 claude plugin install save-toolkit@latent-sre
 ```
 
-**VS Code / Copilot Chat:** open this repository as the workspace — agents are discovered from
-`.github/agents/` automatically, and [`.vscode/settings.json`](.vscode/settings.json) registers the
-skill projection. For other workspaces install at user level (`~/.copilot/agents/`,
-`~/.copilot/skills/`); copied agent files arrive without their skills.
+**VS Code / Copilot Chat (beta plugin):** confirm `chat.plugins.enabled` is on, run
+**Chat: Install Plugin From Source**, and enter `https://github.com/latent-sre/save-toolkit`.
+VS Code clones the repository and loads the generated agents and skills selected by the root
+[`plugin.json`](plugin.json). For an unpublished local branch, use an isolated VS Code profile and
+register the branch worktree with `chat.pluginLocations` instead:
+
+```json
+{
+  "chat.pluginLocations": {
+    "/absolute/path/to/save-toolkit": true
+  }
+}
+```
+
+Open a neutral test workspace for that plugin check; opening this repository itself also discovers
+`.github/agents/` as workspace agents and can hide duplicate-install mistakes. Opening the repository
+without installing the plugin remains a checkout-only development path:
+[`.vscode/settings.json`](.vscode/settings.json) registers the generated skill projection.
 
 **Codex:** the fleet is not distributed to Codex. Codex working *in* this repository picks up the
 root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs
@@ -80,6 +94,7 @@ stub):
 ```sh
 python scripts/gate_a.py                                # the whole structural gate
 python scripts/generate_platform_adapters.py --write    # after any canonical edit
+python scripts/test_platform_adapters.py                 # Copilot projection + plugin contract
 claude plugin validate . --strict                       # Claude platform contract
 python scripts/fleet_doctor.py                          # repo + installed-host health, read-only
 ```

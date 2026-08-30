@@ -204,6 +204,30 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_platform_manifests_agree(self) -> None:
         self.assertEqual([], adapters.validate_platform_contracts(ROOT))
 
+    def test_copilot_manifest_cannot_change_format_without_layout_migration(self) -> None:
+        """The Agent Plugins schema is a format discriminator, not inert metadata.
+
+        Under Agent Plugins 1.0, skills are discovered from the root ``skills/`` directory and
+        Copilot-specific agents and hooks live under ``com.github.copilot/``.  This fleet instead
+        uses the supported legacy Copilot manifest selectors for generated host adapters.  Adding
+        the new schema while retaining those selectors would make a plausible-looking manifest
+        load the wrong component layout.
+        """
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_platform_contract_files(root)
+            target = root / "plugin.json"
+            manifest = json.loads(target.read_text(encoding="utf-8"))
+            manifest["$schema"] = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+            target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
+            failures = adapters.validate_platform_contracts(root)
+
+        self.assertTrue(
+            any("selector-based Copilot format" in failure for failure in failures),
+            failures,
+        )
+
     def test_each_platform_manifest_is_required(self) -> None:
         manifests = (
             Path(".claude-plugin/plugin.json"),

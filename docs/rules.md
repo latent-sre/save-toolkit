@@ -21,6 +21,7 @@ authoritative?*
 | After canonical edits are complete and before push, run `generate_platform_adapters.py --write` and commit projections with source | [`CONTRIBUTING.md`](../CONTRIBUTING.md) Change-specific evidence |
 | Never hand-edit generated roots: `.github/agents/`, `platforms/copilot/skills/` | [`AGENTS.md`](../AGENTS.md) Hard rules |
 | The `plugin.json` manifests are per-host selectors, not duplication — each must exist, share the identity fields, and keep host-specific component paths; never dedupe or drop one | `validate_platform_contracts` in `generate_platform_adapters.py`, run by `validate_fleet.py` |
+| Root `plugin.json` stays in the supported selector-based Copilot format until a coordinated Agent Plugins 1.0 layout migration; the Agent Plugins `$schema` is a format discriminator and must not be added to the current manifest | Packaging ADR; `validate_platform_contracts` |
 | Byte-for-byte adapter drift fails the gate | Packaging ADR; `validate_fleet.py` |
 | Plugin agents ignore `hooks:`, `mcpServers:`, `permissionMode:`; those keys are forbidden in canonical frontmatter | [`AGENTS.md`](../AGENTS.md) Hard rules; [`claude-code-frontmatter.md`](../skills/agent-authoring/references/claude-code-frontmatter.md) |
 | Bash guard lives only in [`hooks/hooks.json`](../hooks/hooks.json), scoped to exact guarded `agent_type` values | Packaging ADR; [`readonly-guard.py`](../scripts/readonly-guard.py) |
