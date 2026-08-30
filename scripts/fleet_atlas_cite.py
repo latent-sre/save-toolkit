@@ -65,10 +65,6 @@ def canonical_for(projection: str) -> str | None:
             return f"skill:{skill}"
         if tail.startswith("references/") and tail.endswith(".md"):
             return f"reference:{skill}/{tail.removeprefix('references/')}"
-        if "/" not in tail:
-            # A file directly in the skill's canonical directory (e.g. context-requirements.yaml)
-            # has no dedicated extract_skills node of its own; the skill node is its source.
-            return f"skill:{skill}"
         return f"bundle-file:{skill}/{tail}"
     return None
 

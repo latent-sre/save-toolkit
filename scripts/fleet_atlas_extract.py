@@ -117,6 +117,19 @@ def extract_skills(root: Path, graph: Graph) -> None:
                     ))
                     graph.add_edge(Edge(edge_id("cites", skill_id, node_id), skill_id, node_id, "cites",
                                         "STATIC_EXTRACTED", {}, []))
+        # A skill may also carry a file directly in its own directory (context-requirements.yaml).
+        # It is canonical and it is projected, so it needs a node of its own; without one, its
+        # generated projection can only cite the skill, which is not the file it derives from.
+        for item in sorted(skill_dir.iterdir()):
+            if item.is_file() and item.name != "SKILL.md":
+                rel = item.name
+                node_id = f"bundle-file:{name}/{rel}"
+                graph.add_node(Node(
+                    id=node_id, type="bundle-file", name=f"{name}/{rel}", authority="canonical",
+                    path=item.relative_to(root).as_posix(), state="live", attrs={"skill": name},
+                ))
+                graph.add_edge(Edge(edge_id("cites", skill_id, node_id), skill_id, node_id, "cites",
+                                    "STATIC_EXTRACTED", {}, []))
         full_text = skill_md.read_text(encoding="utf-8")
         body_offset = full_text.count("\n", 0, full_text.find(parsed.body))
         seen: set[tuple[str, str]] = set()
