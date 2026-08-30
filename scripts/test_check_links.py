@@ -507,6 +507,9 @@ class LiveOperatorDocTests(unittest.TestCase):
     def test_live_tree_operator_docs_are_clean(self) -> None:
         self.assertEqual([], check_links._check_live_operator_docs(ROOT))
 
+    def test_live_tree_plugin_sources_forbid_sde_agents(self) -> None:
+        self.assertEqual([], check_links._check_plugin_source_forbidden_names(ROOT))
+
     def test_python3_operator_command_is_flagged(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
