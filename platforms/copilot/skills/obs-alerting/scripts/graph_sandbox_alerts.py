@@ -24,7 +24,10 @@ CONTRACT_VERSION = "checkout-payments-timeout-drill/v1"
 EVIDENCE_VERSION = "graph-evidence/v2"
 EVENT_VERSION = "graph-boundary-event/v2"
 SANDBOX_VERSION = "graph-sandbox/v1"
-VERIFICATION_VERSION = "graph-sandbox-host-verification/v1"
+VERIFICATION_VERSIONS = {
+    "graph-sandbox-host-verification/v1",
+    "graph-sandbox-host-verification/v2",
+}
 TERMINAL_EVENTS = {"run.terminal", "run.cancelled", "run.inconclusive"}
 TERMINAL_EFFECT_STATES = {"RECEIPT_RECORDED", "RECONCILED", "UNKNOWN"}
 CHECKSUM_LINE_RE = re.compile(r"([0-9a-f]{64})  ([^\r\n]+)")
@@ -218,12 +221,23 @@ def _load_bundle(directory: Path) -> dict[str, object]:
     if len(source_revision) != 40 or any(character not in "0123456789abcdef" for character in source_revision):
         raise EvidenceError("manifest.source_revision must be 40 lowercase hexadecimal characters")
 
+    verification_version = verification.get("verification_version")
+    snapshot_role = verification.get("snapshot_role")
     if (
-        verification.get("verification_version") != VERIFICATION_VERSION
+        verification_version not in VERIFICATION_VERSIONS
         or verification.get("run_id") != run_id
         or verification.get("source_revision") != source_revision
     ):
         raise EvidenceError("verification identity does not match manifest")
+    if verification_version == "graph-sandbox-host-verification/v1":
+        if snapshot_role is not None:
+            raise EvidenceError("v1 verification cannot carry a snapshot role")
+    elif (
+        snapshot_role not in {"UNKNOWN", "RECONCILED"}
+        or (snapshot_role == "UNKNOWN" and outcome != "UNKNOWN")
+        or (snapshot_role == "RECONCILED" and outcome != "SUCCEEDED")
+    ):
+        raise EvidenceError("v2 verification snapshot role contradicts manifest")
     expected_exit = 0 if outcome == "SUCCEEDED" else 2
     if verification.get("exit_code") != expected_exit:
         raise EvidenceError("verification exit_code contradicts manifest outcome")
@@ -321,6 +335,7 @@ def _load_bundle(directory: Path) -> dict[str, object]:
         "case_id": case_id,
         "source_revision": source_revision,
         "outcome": outcome,
+        "snapshot_role": snapshot_role,
         "started_at": manifest["started_at"],
         "ended_at": manifest["ended_at"],
         "ended_sort": ended,
@@ -352,6 +367,14 @@ def _validate_same_run_snapshot(
         raise EvidenceError(f"run {run_id!r} snapshots are not strictly ordered")
     if earlier["outcome"] != "UNKNOWN" or later["outcome"] != "SUCCEEDED":
         raise EvidenceError(f"run {run_id!r} has an unsupported snapshot outcome transition")
+    if (
+        earlier.get("snapshot_role") is not None
+        or later.get("snapshot_role") is not None
+    ) and (
+        earlier.get("snapshot_role") != "UNKNOWN"
+        or later.get("snapshot_role") != "RECONCILED"
+    ):
+        raise EvidenceError(f"run {run_id!r} snapshot roles are invalid")
 
     earlier_events = list(earlier["event_records"])
     later_events = list(later["event_records"])
