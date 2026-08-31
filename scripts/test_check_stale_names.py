@@ -58,6 +58,32 @@ class StaleNamesTest(unittest.TestCase):
         failures = check_stale_names.check(self.root)
         self.assertTrue(any(old_name in failure for failure in failures), failures)
 
+    def test_purged_sister_fleet_name_is_caught_in_non_markdown_plugin_source(self) -> None:
+        retired = "sde-agents"
+        self._write("skills/probe/helper.py", f'LEGACY_PLUGIN = "{retired}"\n')
+
+        failures = check_stale_names.check(self.root)
+
+        self.assertTrue(
+            any("helper.py" in failure and retired in failure for failure in failures),
+            failures,
+        )
+
+        self._write("skills/probe/helper.py", 'LEGACY_PLUGIN = "sde-agents-helper"\n')
+        self.assertEqual([], check_stale_names.check(self.root))
+
+    def test_sde_agents_is_caught_by_the_standalone_checker(self) -> None:
+        retired_fleet = "sde-agents"
+        self._write(
+            "skills/probe/SKILL.md",
+            f"Do not copy the {retired_fleet} roster.\n",
+        )
+        failures = check_stale_names.check(self.root)
+        self.assertTrue(
+            any(retired_fleet in failure for failure in failures),
+            failures,
+        )
+
     def test_clean_prose_is_silent(self) -> None:
         self._write("skills/probe/SKILL.md", "Route it to the reviewer agent.\n")
         self.assertEqual([], check_stale_names.check(self.root))
@@ -109,11 +135,10 @@ class StaleNamesTest(unittest.TestCase):
                 self.assertIn(retired, failures[0])
 
     def test_a_sibling_repository_url_stays_writable(self) -> None:
-        # The `/` carve-out exists for repository URLs; `sre-agents` and `sde-agents` are real
-        # sibling repositories, so narrowing the carve-out must not make their URLs unwritable.
+        # The `/` carve-out exists for this repository's retired plugin name in a path.
         self._write(
             "skills/probe/SKILL.md",
-            "See https://github.com/latent-sre/sde-agents and latent-sre/sre-agents.\n",
+            "See https://github.com/latent-sre/sre-agents and latent-sre/sre-agents.\n",
         )
         self.assertEqual([], check_stale_names.check(self.root))
 

@@ -2,7 +2,7 @@
 
 - Date: 2026-08-26
 - Status: Accepted
-- Decision owner: `latent-sre`
+- Decision owner: Save Toolkit maintainers
 
 ## Context
 
@@ -65,8 +65,8 @@ this migration: `Read, Grep, Glob, Bash, Edit, Write, Skill, Agent(researcher)` 
   tier, which is the lane's highest-volume work — fixing one description or one output contract.
 - **`fleet-engineer`:** rejected. `fleet` is internal vocabulary that means nothing in a picker
   outside this repository.
-- **Split the lane into two agents** (an artifact tier and a roster/graph tier, as the sibling
-  `sde-agents` fleet does with `prompt-engineer` and `multi-agent-architect`): rejected here. That is
+- **Split the lane into two agents** (an artifact tier and a roster/graph tier, matching a
+  `prompt-engineer` plus `multi-agent-architect` split used elsewhere): rejected here. That is
   a roster change, not a rename, and it would need its own justification against the agent-versus-
   skill rule. The body already routes the three altitudes through skills; nothing observed requires
   an ownership boundary between them.
@@ -75,8 +75,7 @@ this migration: `Read, Grep, Glob, Bash, Edit, Write, Skill, Agent(researcher)` 
 
 - Explicit invocations, bookmarks, and handoffs using `save-toolkit:prompt-engineer` break and must
   move to `save-toolkit:agent-engineer`.
-- The sibling `sde-agents` fleet still ships a `prompt-engineer`. Retiring the name here removes one
-  of the three role-name collisions that
+- Retiring the name here removes one of the three role-name collisions that
   [the Codex retirement ADR](2026-08-23-retire-codex-distribution-target.md) had to write defensive
   cleanup instructions around; `repository-investigator` and `researcher` still collide, and that
   dated ADR keeps its original wording as evidence of what was true when it was written.

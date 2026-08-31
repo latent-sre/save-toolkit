@@ -286,7 +286,7 @@ class RoadmapDispositionTests(unittest.TestCase):
         self.assertNotIn("### MUTATION-001", roadmap)
         self.assertNotIn("### SWEEP-001", roadmap)
         self.assertIn("explicit owner disposition", closed)
-        self.assertIn("`not_applicable` as live work, owner `latent-sre`", closed)
+        self.assertIn("`not_applicable` as live work, owner Save Toolkit maintainers", closed)
         self.assertIn("`SWEEP-001` and `MUTATION-001`", closed)
 
 

@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-29
 - **Status:** Accepted
-- **Decision owner:** `latent-sre`
+- **Decision owner:** Save Toolkit maintainers
 - **Supersedes:** only the `langgraph==1.0.8` version choice in
   [`2026-08-26-graph-002-docker-sandbox-runtime.md`](2026-08-26-graph-002-docker-sandbox-runtime.md)
 

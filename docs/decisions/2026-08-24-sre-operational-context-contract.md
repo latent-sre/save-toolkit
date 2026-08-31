@@ -2,7 +2,7 @@
 
 - Date: 2026-08-24
 - Status: Accepted
-- Decision owners: `latent-sre`
+- Decision owners: Save Toolkit maintainers
 
 ## Context
 
@@ -171,7 +171,7 @@ do not assert that any corresponding team or service exists.
 Repository evidence and the accepted architecture settle four implementation defaults:
 
 1. create a private `latent-sre/sre-context` repository with protected `main`, required validation,
-   team-subtree `CODEOWNERS`, and schema/tooling ownership by `latent-sre`;
+   team-subtree `CODEOWNERS`, and schema/tooling ownership by Save Toolkit maintainers;
 2. place the phase-one resolver and semantic validator under `sre-context/tooling/`, owned by `sde`
    (current name: `software-engineer`),
    while consumer-requirement sidecars remain with their canonical skills in this repository;
@@ -183,14 +183,14 @@ Repository evidence and the accepted architecture settle four implementation def
 
 ## Acceptance and authority boundary
 
-`latent-sre` accepted this generic contract and authorized creation of the separate private context
+Save Toolkit maintainers accepted this generic contract and authorized creation of the separate private context
 repository on 2026-08-24. That approval authorizes stages 1–3 only: the contract skeleton and two
 synthetic-tenant portability proofs. It does not authorize real-team onboarding, effect-capable
 consumer adoption, live discovery, or a platform selection. No team name, service name, owner, FQDN,
 application ID, repository, runbook, or platform adoption decision is required to implement the
 generic alpha.
 
-The ownership split is: `latent-sre` for schema/contract acceptance, `prompt-engineer` for
+The ownership split is: Save Toolkit maintainers for schema/contract acceptance, `prompt-engineer` for
 consumer-requirement semantics, and `sde` for resolver and validator implementation. A real team's
 owner becomes relevant only when that team separately authorizes onboarding.
 Current names: `agent-engineer` and `software-engineer` respectively
