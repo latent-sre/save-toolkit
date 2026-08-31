@@ -6,6 +6,7 @@ import argparse
 import contextlib
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -36,6 +37,26 @@ class ScenarioValidationTests(unittest.TestCase):
         }
         scenario.update(updates)
         return scenario
+
+    def test_suite_and_selected_targets_can_use_distinct_revision_roots(self) -> None:
+        scenario = self._scenario()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            evaluator = root / "evaluator"
+            candidate = root / "candidate"
+            (evaluator / "skills" / "merge-gate").mkdir(parents=True)
+            (evaluator / "skills" / "merge-gate" / "SKILL.md").write_text(
+                "# evaluator component\n", encoding="utf-8"
+            )
+            candidate.mkdir()
+
+            self.assertEqual([], run_evals.validate([scenario], component_root=evaluator))
+            self.assertTrue(
+                any(
+                    "not a known component" in problem
+                    for problem in run_evals.validate([scenario], component_root=candidate)
+                )
+            )
 
     def test_a_required_scenario_cannot_be_silently_deleted(self) -> None:
         """Losing a named routing case must fail, not just shrink the suite.
@@ -369,7 +390,104 @@ class InvocationPlanTests(unittest.TestCase):
                 )
 
             self.assertEqual(str(candidate.resolve()), observed["env"]["FLEET_ROOT"])
+            self.assertEqual(
+                str(run_evals.EVAL_BUNDLE_ROOT.resolve()),
+                observed["env"]["FLEET_EVALUATOR_ROOT"],
+            )
             self.assertIn("--plugin-root", observed["argv"])
+
+    def test_frozen_current_suite_allows_unselected_target_absent_from_historical_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            candidate = root / "candidate"
+            (candidate / "agents").mkdir(parents=True)
+            (candidate / ".claude-plugin").mkdir()
+            (candidate / "agents" / "sre.md").write_text("---\nname: sre\n---\n", encoding="utf-8")
+            (candidate / ".claude-plugin" / "plugin.json").write_text(
+                json.dumps({"name": "save-toolkit", "version": "historical-test"}),
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "init", "-q"], cwd=candidate, check=True)
+            subprocess.run(
+                ["git", "-c", "user.name=Eval Test", "-c", "user.email=eval@example.invalid",
+                 "add", "."],
+                cwd=candidate,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-c", "user.name=Eval Test", "-c", "user.email=eval@example.invalid",
+                 "commit", "-qm", "historical candidate"],
+                cwd=candidate,
+                check=True,
+            )
+            candidate_oid = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=candidate,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            profile = {
+                "schema_version": "eval-execution-profile/v2",
+                "id": "offline-historical-boundary-test",
+                "comparison": {
+                    "id": "offline-historical-boundary-test",
+                    "models": {"claude-plugin": "sonnet", "codex-cli": "not-run"},
+                    "resolved_models": {
+                        "claude-plugin": "claude-sonnet-5",
+                        "codex-cli": "not-run",
+                    },
+                    "reasoning_efforts": {
+                        "claude-plugin": "high",
+                        "codex-cli": "not-run",
+                    },
+                },
+                "engine": "claude-plugin",
+                "claims": ["behavioral_contract", "deterministic_grader_result"],
+                "scenario_ids": ["agent-direct-sre-readonly-triage"],
+                "required_references": {},
+                "model": "sonnet",
+                "resolved_model": "claude-sonnet-5",
+                "reasoning_effort": "high",
+                "stop_condition": "first-inconclusive",
+                "trials": 3,
+                "timeout_s": 600,
+                "total_timeout_s": 2400,
+                "cost_budget": {"status": "available", "max_usd": 2},
+                "approval": {
+                    "approved_by": "test-owner",
+                    "approved_at": "2026-08-31T12:00:00Z",
+                    "budget_id": "offline-historical-boundary-test",
+                },
+            }
+            profile_path = root / "profile.json"
+            profile_path.write_text(json.dumps(profile), encoding="utf-8")
+            missing_cli = root / "definitely-missing-claude"
+            env = os.environ.copy()
+            env["CLAUDE_BIN"] = str(missing_cli)
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(run_evals.__file__).resolve()),
+                    "--run",
+                    "--profile", str(profile_path),
+                    "--plugin-root", str(candidate),
+                    "--expect-plugin-commit", candidate_oid,
+                    "--results-dir", str(root / "results"),
+                    "--require-clean-plugin",
+                ],
+                cwd=run_evals.ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+
+        self.assertEqual(2, proc.returncode)
+        self.assertNotIn("EVAL SUITE INVALID", proc.stdout + proc.stderr)
+        self.assertNotIn("SELECTED EVALS INVALID", proc.stdout + proc.stderr)
+        self.assertIn("CLI not found", proc.stderr)
 
     def test_forged_snapshot_marker_cannot_bypass_bootstrap(self) -> None:
         with mock.patch.dict(

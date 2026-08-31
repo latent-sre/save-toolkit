@@ -53,6 +53,9 @@ except ModuleNotFoundError:
 
 
 ROOT = Path(os.environ.get("FLEET_ROOT") or EVAL_BUNDLE_ROOT).resolve()
+EVALUATOR_SOURCE_ROOT = Path(
+    os.environ.get("FLEET_EVALUATOR_ROOT") or EVAL_BUNDLE_ROOT
+).resolve()
 SCENARIOS_DIR = EVAL_ROOT / "scenarios"
 EVAL_SNAPSHOT_ROOT_ENV = "FLEET_EVAL_SNAPSHOT_ROOT"
 EVAL_INPUT_PATHS = (
@@ -217,11 +220,11 @@ def _target_error(target: object) -> str | None:
     return None
 
 
-def target_exists(target: dict) -> bool:
+def target_exists(target: dict, root: Path = ROOT) -> bool:
     name = target["name"]
     if target["kind"] == "skill":
-        return (ROOT / "skills" / name / "SKILL.md").is_file()
-    return (ROOT / "agents" / f"{name}.md").is_file()
+        return (root / "skills" / name / "SKILL.md").is_file()
+    return (root / "agents" / f"{name}.md").is_file()
 
 
 def qualified_target(target: dict, root: Path = ROOT) -> str:
@@ -235,7 +238,12 @@ def _prompt_names_target(prompt: str, target: dict) -> bool:
     return re.search(pattern, prompt, re.IGNORECASE) is not None
 
 
-def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
+def validate(
+    scenarios: list[dict],
+    *,
+    full_suite: bool = False,
+    component_root: Path = ROOT,
+) -> list[str]:
     problems: list[str] = []
     seen: set[str] = set()
     for scenario in scenarios:
@@ -270,7 +278,7 @@ def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
         target_problem = _target_error(target)
         if target_problem:
             problems.append(f"{where}: target {target_problem}")
-        elif not target_exists(target):
+        elif not target_exists(target, component_root):
             problems.append(
                 f"{where}: target '{target['kind']}:{target['name']}' is not a known component"
             )
@@ -346,7 +354,7 @@ def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
                 else:
                     for alt in alternatives:
                         alt_problem = _target_error(alt)
-                        if alt_problem or not target_exists(alt):
+                        if alt_problem or not target_exists(alt, component_root):
                             problems.append(f"{where}: invalid routing.also_acceptable target {alt!r}")
                 expected_alt = routing.get("expected_alternative")
                 if routing["expect"] == "not_fire" and expected_alt is None:
@@ -368,18 +376,18 @@ def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
                     )
                 if expected_alt is not None and expected_alt != "inline":
                     alt_problem = _target_error(expected_alt)
-                    if alt_problem or not target_exists(expected_alt):
+                    if alt_problem or not target_exists(expected_alt, component_root):
                         problems.append(f"{where}: invalid routing.expected_alternative {expected_alt!r}")
             if not target_problem and isinstance(prompt, str) and _prompt_names_target(prompt, target):
                 problems.append(f"{where}: discovery prompt names its target; it must be byte-for-byte unhinted")
 
-    if scenarios and not any(s.get("mode") == "discovery" for s in scenarios):
-        problems.append("suite: at least one discovery scenario is required")
-    if scenarios and not any(s.get("split") == "regression" for s in scenarios):
-        problems.append("suite: at least one visible regression scenario is required")
     # Only meaningful for the whole committed suite: a caller validating one scenario in
     # isolation is not missing the others.
     if full_suite:
+        if scenarios and not any(s.get("mode") == "discovery" for s in scenarios):
+            problems.append("suite: at least one discovery scenario is required")
+        if scenarios and not any(s.get("split") == "regression" for s in scenarios):
+            problems.append("suite: at least one visible regression scenario is required")
         present = {s.get("id") for s in scenarios}
         for required_id in REQUIRED_SCENARIO_IDS:
             if required_id not in present:
@@ -2178,6 +2186,7 @@ def run_from_frozen_eval(argv: list[str]) -> int:
             env = os.environ.copy()
             env[EVAL_SNAPSHOT_ROOT_ENV] = str(snapshot_root)
             env["FLEET_ROOT"] = str(measured_plugin_root)
+            env["FLEET_EVALUATOR_ROOT"] = str(EVAL_BUNDLE_ROOT)
             proc = subprocess.run(
                 [sys.executable, str(snapshot_root / "run_evals.py"), *frozen_argv],
                 cwd=Path.cwd(), env=env, check=False,
@@ -2390,7 +2399,11 @@ def main() -> int:
     if not scenarios:
         print(f"evals: no scenarios found in {SCENARIOS_DIR}")
         return 3
-    problems = validate(scenarios, full_suite=True)
+    problems = validate(
+        scenarios,
+        full_suite=True,
+        component_root=EVALUATOR_SOURCE_ROOT,
+    )
     if problems:
         print("EVAL SUITE INVALID:")
         print("\n".join("  - " + problem for problem in problems))
@@ -2442,6 +2455,11 @@ def main() -> int:
     else:
         args.timeout = args.timeout or 300
         selected = _filter_scenarios(scenarios, args)
+    candidate_problems = validate(selected, component_root=ROOT)
+    if candidate_problems:
+        print("SELECTED EVALS INVALID FOR MEASURED PLUGIN:")
+        print("\n".join("  - " + problem for problem in candidate_problems))
+        return 2 if args.run else 3
     if args.validate:
         direct = sum(s["mode"] == "direct" for s in scenarios)
         discovery = len(scenarios) - direct
