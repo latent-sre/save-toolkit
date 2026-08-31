@@ -1,8 +1,10 @@
 # GRADER-009 paired historical/current native remeasurement gate
 
-> **Status:** `[verified static]` Both phrasing repairs are committed and four independently
-> budgeted profiles validate offline. **Human gate:** every profile intentionally carries
-> `"approval": null`; no live model call or spend is authorized.
+> **Status:** `[verified static]` Both phrasing repairs are committed and all four independently
+> budgeted profiles carry owner approval recorded at `2026-08-31T11:44:14Z` in commit
+> `f820b287c663a8b611f0e2d0a1d594f97609ca80`.
+> No GRADER-009 cell has started; execution is waiting for the subscriber OAuth session to be
+> refreshed after ROUTE-003 established that the current session cannot authenticate a model call.
 
 ## Exact revisions and evaluator boundary
 
@@ -79,7 +81,7 @@ Capture all four sealed summaries and result envelopes through
 `scripts/capture_measurement_evidence.py` before any closure claim. Then rerun `test_graders.py`,
 `run_evals.py --validate`, generator check, and Gate A on the current branch.
 
-## Approval text needed
+## Approval contract (satisfied)
 
 A sufficient authorization is:
 
@@ -92,5 +94,6 @@ A sufficient authorization is:
 > `grader-009-defers-current-2026-08-30`, `grader-009-defers-incumbent-2026-08-30`,
 > `grader-009-unknown-current-2026-08-30`, and `grader-009-unknown-incumbent-2026-08-30`.
 
-Until that approval is received and all four UTC-stamped approvals are recorded, GRADER-009 stays
-at the human gate and no live command runs.
+All four UTC-stamped approvals are now recorded. The fixed matrix remains unstarted and must run as
+one campaign only after a fresh authentication check succeeds; a failed authentication check does
+not authorize a partial matrix, model substitution, tuning, or retry.

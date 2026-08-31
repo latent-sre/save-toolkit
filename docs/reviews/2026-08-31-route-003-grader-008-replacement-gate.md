@@ -1,8 +1,9 @@
 # ROUTE-003 and GRADER-008 replacement approval gate
 
-> **Status:** `[verified static]` Two one-time replacement profiles are prepared with approval
-> `null` after a material native-runtime recovery signal. Preparation makes no model call and
-> authorizes no execution.
+> **Status:** `[verified]` Owner approval is recorded in both one-time replacement profiles.
+> ROUTE-003 executed once and ended terminally `INCONCLUSIVE` after the subscriber OAuth session
+> expired and could not be refreshed. GRADER-008 remains approved and unstarted pending restored
+> authentication.
 
 ## Why a replacement is now eligible for owner decision
 
@@ -31,6 +32,20 @@ scenario thresholds, and the current approved evaluator bytes. The replacement p
 from the consumed profiles only in profile identity and approval state; they do not tune a prompt,
 description, scenario, grader, split, threshold, model, candidate, timeout, or budget.
 
+Approval was recorded at `2026-08-31T11:44:14Z` in commit
+`f820b287c663a8b611f0e2d0a1d594f97609ca80`, under the owner-authorized
+ceiling of 50 runs per backlog item. The narrower profile ceilings and one-execution retention rules
+below continue to govern these cells.
+
+## Execution update
+
+ROUTE-003 batch
+[`20260831T114601Z-72bffc6d`](2026-08-31-eval-20260831T114601Z-72bffc6d.md) executed its six
+planned calls once on exact candidate `38dbdf70722c2167ce2c404297ccb4ccc3f5da8f`. All six ended
+`INCONCLUSIVE` before model resolution with `Failed to authenticate: OAuth session expired and
+could not be refreshed`; integrity remained `PASS`. The batch is retained and will not be retried.
+The GRADER-008 cell was deliberately not started against that known-unusable session.
+
 Prepared profiles:
 
 - [`ROUTE-003 replacement`](../../evals/profiles/route-003-discovery-reliability-replacement-1-sonnet.json)
@@ -58,7 +73,7 @@ python evals/run_evals.py --run --profile <ABSOLUTE_GRADER_REPLACEMENT_PROFILE> 
 The runner captures the sealed summary and normalized envelope into bounded durable evidence. Do
 not manually copy raw traces into the repository.
 
-## Approval text needed
+## Approval contract (satisfied)
 
 A sufficient one-message authorization is:
 
@@ -71,4 +86,3 @@ A sufficient one-message authorization is:
 > `agent-direct-sre-readonly-triage`, 600 seconds per trial, 2,400 seconds total, and USD 2 maximum.
 > Budget ID: `grader-008-sre-progressive-object-replacement-1-2026-08-31`. Each profile may execute
 > once with no tuning or retry; retain every outcome.
-

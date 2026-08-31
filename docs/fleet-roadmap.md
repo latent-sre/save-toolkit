@@ -543,9 +543,9 @@ line wrap that splits a pinned phrase disables the mutation without failing the 
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
-**Status:** `ready` (2026-08-31). The original packet remains consumed INCONCLUSIVE evidence. A
-subsequent complete native batch demonstrates material provider/runtime recovery, and one fixed
-replacement profile is prepared at a new human approval gate; no replacement call has started.
+**Status:** `decision-needed` (2026-08-31). The original and one approved replacement packet are
+both consumed INCONCLUSIVE evidence. The replacement exhausted its fixed one-run allowance after
+the subscriber OAuth session expired before any trial resolved a model.
 
 **Owner:** Save Toolkit maintainers
 
@@ -586,13 +586,19 @@ separately accepted fleet failure and candidate budget.
 **Replacement gate:** The
 [`2026-08-31 replacement packet`](reviews/2026-08-31-route-003-grader-008-replacement-gate.md)
 binds the unchanged exact candidate and conditions under new profile
-`route-003-discovery-reliability-replacement-1`, with approval null. The conclusive GRADER-005 batch
-is the named runtime-recovery evidence; it does not self-approve this packet.
+`route-003-discovery-reliability-replacement-1`. The conclusive GRADER-005 batch is the named
+runtime-recovery evidence; owner approval was recorded separately before execution.
 
-**Next action:** The human owner explicitly approves or rejects the replacement profile and budget
-ID. If approved, record the approver and UTC timestamp, execute once, and retain every outcome. Do
-not reuse the consumed profile, tune unchanged bytes, or move reference-dependent behavior graders
-into discovery.
+Owner approval was recorded at `2026-08-31T11:44:14Z`. Replacement batch
+[`20260831T114601Z-72bffc6d`](reviews/2026-08-31-eval-20260831T114601Z-72bffc6d.md) then executed
+all six planned calls once on the exact candidate. Every trial ended before model resolution with
+`OAuth session expired and could not be refreshed`; the sealed batch is `INCONCLUSIVE`, with
+integrity `PASS` and no trustworthy cost amount available.
+
+**Next action:** After authentication is restored, the owner decides whether the two consumed
+inconclusive attempts are sufficient to dispose the measurement or whether a newly designed,
+separately approved campaign is warranted. Do not reuse either consumed profile, tune unchanged
+bytes, or move reference-dependent behavior graders into discovery.
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
@@ -650,9 +656,9 @@ the grader from the Terra responses or relabel those probes as native closure ev
 
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
-**Status:** `ready` (2026-08-31). The object-bound grader remains green offline and the original
-packet remains consumed INCONCLUSIVE evidence. A later complete native batch demonstrates material
-provider/runtime recovery, and one fixed replacement profile is prepared with approval null.
+**Status:** `ready` (2026-08-31). The object-bound grader remains green offline, the original
+packet remains consumed INCONCLUSIVE evidence, and the fixed replacement profile is approved but
+unstarted. Execution is waiting for subscriber authentication to be refreshed.
 
 **Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
 execution claim, while `I'm applying the rollback` and every other present-progressive claim about
@@ -692,18 +698,17 @@ timestamp, and budget ID before the terminal batch.
 [`2026-08-31 replacement packet`](reviews/2026-08-31-route-003-grader-008-replacement-gate.md)
 binds the unchanged exact candidate and conditions under new profile
 `grader-008-sre-progressive-object-replacement-1`. The conclusive GRADER-005 batch is the named
-runtime-recovery evidence; it does not authorize execution.
+runtime-recovery evidence; owner approval is recorded and execution remains unstarted.
 
-**Next action:** The human owner explicitly approves or rejects the replacement profile and budget
-ID. If approved, record the approver and UTC timestamp, execute once, and retain every outcome. Do
-not reuse the consumed profile or change the prompt, threshold, split, or grader.
+**Next action:** Refresh subscriber authentication, confirm one no-tool health check, then execute
+the already-approved replacement profile once and retain every outcome. Do not reuse the consumed
+profile or change the prompt, threshold, split, or grader.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
-**Status:** `decision-needed` (2026-08-31). Both repairs and all four profiles are prepared, but the
-owner has authorized Sonnet only while the fixed matrix requires two Opus cells. The packet forbids
-a partial matrix, and the current native provider path is also returning only retried
-`server_error` results. No GRADER-009 call has started.
+**Status:** `ready` (2026-08-31). Both repairs and all four profiles—including the two prescribed
+Opus cells—are approved. The fixed matrix remains unstarted because the current subscriber OAuth
+session cannot authenticate a model call.
 
 **Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
 `…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
@@ -742,13 +747,13 @@ plugin `2cdcbbbac3bc560076a1d0c648149173b6863602`, current plugin
 scenario runs Sonnet x3 per revision at 600 seconds/USD 2 per cell; the unknown-write scenario runs
 Opus x3 per revision at 900 seconds/USD 4 per cell. Four separate approval/budget records bound 12
 calls and USD 12 aggregate. Repairs `f9075751` and `ff7a6293` are ancestors of current. Every profile
-validates with approval null; preparation makes no model call and spends nothing.
+validates with owner, UTC timestamp, and budget ID recorded; preparation makes no model call and
+spends nothing.
 
-**Next action:** After a material provider/host recovery signal, the human owner explicitly approves
-or rejects the two Opus cells and all four budget records. If the matrix is approved, record all
-four approver/timestamps and run it once with current evaluator bytes, isolated exact plugin
-revisions, and no tuning/retry. Do not start only the Sonnet half, substitute Sonnet for Opus, or
-aggregate unlike model/scenario cells.
+**Next action:** Refresh subscriber authentication, confirm one no-tool health check, then run the
+approved four-cell matrix once with current evaluator bytes, isolated exact plugin revisions, and
+no tuning/retry. Do not start only the Sonnet half, substitute Sonnet for Opus, or aggregate unlike
+model/scenario cells.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
