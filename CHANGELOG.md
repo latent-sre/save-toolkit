@@ -7,14 +7,15 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
-- Added `incident-investigation`, the human-facing incident advisor: it anchors on the failing
-  application, reads the knowledge repository (service and alert cards, runbook, postmortems),
-  asks the responder for missing evidence as exact artifacts, explains what is happening, names
-  the next safe step and its owning lane, carries a ledger of discoveries, actions, and
-  decisions every turn, and at resolution routes to `scribe` for the postmortem and knowledge
-  closeout. It loads `investigation-depth` for the method and runs nothing against a live
-  target. Iteration-1 evals (six on-call prompts, sonnet, one run per cell): 88.1% with the
-  skill vs 70.5% without.
+- Added `incident-investigation`, the human-facing troubleshooting advisor a responder runs in
+  their own session. Every turn puts the loop on the first screen: what is known now, two or three
+  ranked candidate causes with evidence for and against, the one check whose results separate them
+  with what each result would mean, the reversible mitigation when users are hurting, who to page
+  and when, and a board (ruled out, open, checked, next, follow-ups) that stops the responder
+  looping back to a dead candidate. It reads the knowledge repository (service and alert cards,
+  runbook, postmortems, index) as `[sourced]` data, names no platform CLI, runs nothing against a
+  live target, writes no document, and at resolution fills a closeout packet routed to `scribe`
+  for the postmortem and knowledge closeout.
 - Added and closed the bounded `GRAPH-003` operating layer for the accepted offline
   `checkout-payments-timeout-drill/v1` graph. Existing metrics, logs, alerting, and runbook skills
   now carry graph-specific indicator, failure-plane, one-page, and response references; a
