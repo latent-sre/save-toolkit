@@ -1191,6 +1191,67 @@ class ActivationTests(unittest.TestCase):
                 {"status": "completed", "attempt": 2},
             )
 
+    def test_reconciled_success_rejects_result_before_final_attempt_start(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+            staging = evidence_root / ".mission-healthy-001.export"
+            staging.mkdir()
+            run_dir = self.write_reconciled_retry_evidence(staging)
+            state = json.loads(
+                (run_dir / "final-state.json").read_text(encoding="utf-8")
+            )
+            reconciliation_task_id = f"{CASE_ID}:reconcile_if_ambiguous:0"
+            final_attempt = state["tasks"][reconciliation_task_id]["attempt"]
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            reconciled = next(
+                event for event in events if event["event_type"] == "effect.reconciled"
+            )
+            final_started = next(
+                event
+                for event in events
+                if event["event_type"] == "task.started"
+                and event["attempt_id"]
+                == f"{reconciliation_task_id}:attempt-{final_attempt}"
+            )
+            events.remove(reconciled)
+            events.insert(events.index(final_started), reconciled)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+            self._rewrite_checksums(run_dir)
+
+            with self.assertRaisesRegex(
+                ActivationError,
+                "reconciliation task does not enclose its durable result",
+            ):
+                verify_and_publish_evidence(
+                    staging,
+                    evidence_root=evidence_root,
+                    run_id=CASE_ID,
+                    case_id=CASE_ID,
+                    case_digest=CASE_DIGEST,
+                    source_revision=SOURCE_REVISION,
+                    exit_code=0,
+                    validated_compose=b"{}\n",
+                    verification=self.host_verification(),
+                    commands=self.command_journal(),
+                    runner_state={
+                        "Status": "exited",
+                        "ExitCode": 0,
+                        "OOMKilled": False,
+                    },
+                )
+
     def test_reconciled_success_accepts_recovered_open_reconciliation_attempt(
         self,
     ) -> None:
