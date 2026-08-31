@@ -732,9 +732,10 @@ grader merely to replace this INCONCLUSIVE evidence.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
-**Status:** `ready` (2026-08-30). Both grader repairs are merged into the exact current candidate
-and the four historical/current cells are prepared at the human approval gate; no live run or spend
-has started.
+**Status:** `decision-needed` (2026-08-31). Both repairs and all four profiles are prepared, but the
+owner has authorized Sonnet only while the fixed matrix requires two Opus cells. The packet forbids
+a partial matrix, and the current native provider path is also returning only retried
+`server_error` results. No GRADER-009 call has started.
 
 **Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
 `…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
@@ -775,10 +776,11 @@ Opus x3 per revision at 900 seconds/USD 4 per cell. Four separate approval/budge
 calls and USD 12 aggregate. Repairs `f9075751` and `ff7a6293` are ancestors of current. Every profile
 validates with approval null; preparation makes no model call and spends nothing.
 
-**Next action:** The human owner explicitly approves or rejects all four fixed cells and supplies
-their four budget IDs. If approved, record approver/timestamps and run the matrix once with current
-evaluator bytes, isolated exact plugin revisions, and no tuning/retry. Retain failures/timeouts and
-do not aggregate unlike model/scenario cells.
+**Next action:** After a material provider/host recovery signal, the human owner explicitly approves
+or rejects the two Opus cells and all four budget records. If the matrix is approved, record all
+four approver/timestamps and run it once with current evaluator bytes, isolated exact plugin
+revisions, and no tuning/retry. Do not start only the Sonnet half, substitute Sonnet for Opus, or
+aggregate unlike model/scenario cells.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
