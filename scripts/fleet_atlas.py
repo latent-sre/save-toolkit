@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -177,19 +178,37 @@ def git_revision(root: Path) -> tuple[str, bool]:
 CANONICAL_INPUTS = ("agents", "skills", "commands", "docs/rules.md", "docs/fleet-roadmap.md", "docs/roadmap-closed.md",
                     "docs/decisions", "docs/reviews", "docs/probes", "evals/scenarios", "evals/build-scenarios", "schemas",
                     "hooks", "AGENTS.md", "CONTRIBUTING.md", "README.md", "docs/README.md", "docs/schema-compatibility.md")
+CANONICAL_GLOBS = ("scripts/fleet_atlas*.py", "scripts/test_*.py", "evals/test_*.py")
+
+
+def tracked_relative_paths(root: Path) -> set[str]:
+    result = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=root, capture_output=True, check=True
+    )
+    return {
+        item.decode("utf-8", errors="surrogateescape")
+        for item in result.stdout.split(b"\0")
+        if item
+    }
+
+
+def _matches_canonical(relative: str) -> bool:
+    if any(relative == entry or relative.startswith(f"{entry}/") for entry in CANONICAL_INPUTS):
+        return True
+    path = Path(relative)
+    return (
+        (path.parent.as_posix() == "scripts" and path.name.startswith("fleet_atlas") and path.suffix == ".py")
+        or (path.parent.as_posix() == "scripts" and path.name.startswith("test_") and path.suffix == ".py")
+        or (path.parent.as_posix() == "evals" and path.name.startswith("test_") and path.suffix == ".py")
+    )
 
 
 def canonical_inputs(root: Path) -> list[Path]:
-    files: list[Path] = []
-    for entry in CANONICAL_INPUTS:
-        path = root / entry
-        if path.is_file():
-            files.append(path)
-        elif path.is_dir():
-            files.extend(p for p in path.rglob("*") if p.is_file())
-    files.extend(p for p in (root / "scripts").glob("test_*.py"))
-    files.extend(p for p in (root / "evals").glob("test_*.py"))
-    return sorted(set(files))
+    return [
+        root / relative
+        for relative in sorted(tracked_relative_paths(root))
+        if _matches_canonical(relative) and (root / relative).is_file()
+    ]
 
 
 def input_digest(root: Path) -> str:
@@ -260,11 +279,14 @@ def build_graph(root: Path) -> Graph:
     return graph
 
 
-def render_all(root: Path) -> dict[str, bytes]:
+def render_all(root: Path, provenance: dict[str, object] | None = None) -> dict[str, bytes]:
     sys.path.insert(0, str(root / "scripts"))
     import fleet_atlas_views  # noqa: E402
 
     document = snapshot(root, build_graph(root))
+    if provenance is not None:
+        document["metadata"]["revision"] = provenance.get("revision")
+        document["metadata"]["dirty"] = provenance.get("dirty")
     files = {name: text.encode("utf-8") for name, text in fleet_atlas_views.render_views(document).items()}
     files["atlas.json"] = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
     return files
@@ -284,30 +306,48 @@ def cmd_build(root: Path) -> int:
     return 0
 
 
-PROVENANCE_PLACEHOLDER = "<normalized-for-drift>"
+REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
-def normalize_provenance(files: dict[str, bytes]) -> dict[str, bytes]:
-    """Blank the fields that change because a commit happened, not because content changed.
+def provenance_failures(root: Path, metadata: object) -> list[str]:
+    if not isinstance(metadata, dict):
+        return ["atlas metadata is missing"]
+    revision = metadata.get("revision")
+    if not isinstance(revision, str) or not REVISION_RE.fullmatch(revision):
+        return ["atlas revision is not a full lowercase Git object ID"]
+    if metadata.get("dirty") is not False:
+        return ["atlas was generated from dirty canonical inputs"]
+    exists = subprocess.run(
+        ["git", "cat-file", "-e", f"{revision}^{{commit}}"],
+        cwd=root, capture_output=True,
+    )
+    if exists.returncode != 0:
+        return [f"atlas revision {revision} is not available in this repository"]
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", revision, "HEAD"],
+        cwd=root, capture_output=True,
+    )
+    if ancestor.returncode != 0:
+        return [f"atlas revision {revision} is not an ancestor of HEAD"]
+    pathspecs = [*CANONICAL_INPUTS, *(f":(glob){item}" for item in CANONICAL_GLOBS)]
+    equivalent = subprocess.run(
+        ["git", "diff", "--quiet", revision, "HEAD", "--", *pathspecs],
+        cwd=root, capture_output=True,
+    )
+    if equivalent.returncode == 1:
+        return [f"canonical inputs changed after atlas revision {revision}"]
+    if equivalent.returncode != 0:
+        return ["could not compare the atlas revision with HEAD"]
+    return []
 
-    `metadata.revision` and `metadata.dirty` record which checkout produced the atlas. They are
-    real provenance and stay in the shipped artifact, but they cannot participate in the drift
-    comparison: an atlas can never contain the sha of the commit that will contain it, so every
-    committed build looked drifted forever. Normalizing them makes `check` answer the question a
-    drift gate is for -- do the current canonical inputs still reproduce these bytes? -- while
-    `metadata.treeDigest` (the digest OF those inputs) is compared normally and is what actually
-    goes stale when the fleet changes.
-    """
-    normalized: dict[str, bytes] = {}
-    for name, content in files.items():
-        if name != "atlas.json":
-            normalized[name] = content
-            continue
-        document = json.loads(content)
-        document["metadata"]["revision"] = PROVENANCE_PLACEHOLDER
-        document["metadata"]["dirty"] = PROVENANCE_PLACEHOLDER
-        normalized[name] = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
-    return normalized
+
+def manifest_failures(files: dict[str, bytes]) -> list[str]:
+    try:
+        recorded = json.loads(files.get("manifest.json", b""))
+    except (json.JSONDecodeError, UnicodeError):
+        return ["manifest.json is not valid JSON"]
+    actual = manifest({name: content for name, content in files.items() if name != "manifest.json"})
+    return [] if recorded == actual else ["manifest.json does not match the generated file set and hashes"]
 
 
 def cmd_check(root: Path) -> int:
@@ -316,7 +356,6 @@ def cmd_check(root: Path) -> int:
 
     out = root / OUTPUT
     failures: list[str] = []
-    expected = normalize_provenance(render_all(root))
     committed_files = {
         path.name: path.read_bytes() for path in sorted(out.iterdir()) if path.is_file()
     } if out.is_dir() else {}
@@ -325,7 +364,18 @@ def cmd_check(root: Path) -> int:
               "`python scripts/fleet_atlas.py build`", file=sys.stderr)
         print("fleet_atlas check: FAIL (1)")
         return 1
-    committed = normalize_provenance({k: v for k, v in committed_files.items() if k != "manifest.json"})
+    try:
+        committed_document = json.loads(committed_files.get("atlas.json", b""))
+    except (json.JSONDecodeError, UnicodeError):
+        committed_document = None
+    failures.extend(provenance_failures(
+        root,
+        committed_document.get("metadata") if isinstance(committed_document, dict) else None,
+    ))
+    failures.extend(manifest_failures(committed_files))
+    provenance = committed_document.get("metadata") if isinstance(committed_document, dict) else None
+    expected = render_all(root, provenance if isinstance(provenance, dict) else None)
+    committed = {k: v for k, v in committed_files.items() if k != "manifest.json"}
     for name in sorted(set(committed) | set(expected)):
         if committed.get(name) != expected.get(name):
             failures.append(f"drift: {name}")
@@ -490,7 +540,11 @@ def cmd_query(root: Path, verb: str, terms: list[str]) -> int:
         print("fleet_atlas query: generated atlas has the wrong contract", file=sys.stderr)
         return 1
     metadata = document.get("metadata")
-    if not isinstance(metadata, dict) or metadata.get("treeDigest") != input_digest(root):
+    if (
+        not isinstance(metadata, dict)
+        or metadata.get("treeDigest") != input_digest(root)
+        or provenance_failures(root, metadata)
+    ):
         print("fleet_atlas query: generated atlas is stale; run check", file=sys.stderr)
         return 1
     try:

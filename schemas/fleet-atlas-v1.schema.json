@@ -45,13 +45,13 @@
       "required": ["id", "type", "name", "authority", "path", "state", "attrs", "evidence"],
       "properties": {
         "id": {"type": "string", "minLength": 1},
-        "type": {"enum": ["agent", "skill", "reference", "bundle-file", "command", "rule", "decision", "roadmap-item", "review", "scenario", "test", "schema", "generated-projection", "capability", "owner", "probe", "hook", "document", "validator"]},
+        "type": {"enum": ["agent", "skill", "reference", "bundle-file", "command", "rule", "decision", "roadmap-item", "review", "scenario", "test", "schema", "schema-projection", "generated-projection", "capability", "owner", "probe", "hook", "document", "validator"]},
         "name": {"type": "string", "minLength": 1},
         "authority": {"enum": ["canonical", "live-contract", "generated", "historical-evidence", "external"]},
         "path": {"type": ["string", "null"]},
         "state": {"enum": ["live", "historical", "retired", "proposed", "rejected", "deprecated", "generated"]},
         "attrs": {"type": "object"},
-        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}}
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}, "minItems": 1}
       }
     },
     "Edge": {
@@ -65,7 +65,7 @@
         "kind": {"enum": ["owns", "routes_to", "delegates_to", "loads_when", "governed_by", "constrained_by", "verified_by", "evidenced_by", "depends_on", "blocks", "supersedes", "generated_from", "near_miss_for", "contradicts", "cites"]},
         "class": {"enum": ["CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED", "OPERATOR_CONFIRMED", "UNKNOWN"]},
         "attrs": {"type": "object"},
-        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}}
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/Evidence"}, "minItems": 1}
       }
     },
     "Unknown": {

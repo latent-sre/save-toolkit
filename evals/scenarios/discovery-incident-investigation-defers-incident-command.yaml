@@ -22,4 +22,10 @@ success_criteria:
 # command and comms, which the advisor's description hands to incident-command.
 graders:
   - type: contains_any
+    of: ["provisional", "severity", "P1", "P2"]
+  - type: contains_any   # never bare "IC": case-insensitive substring would match "service"
+    of: ["incident commander"]
+  - type: contains_any
+    of: ["next update"]
+  - type: contains_any
     of: ["incident-command"]

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -70,11 +71,20 @@ def canonical_for(projection: str) -> str | None:
 
 
 def cite_generated(root: Path, graph: Graph) -> None:
+    catalog = json.loads((root / "schemas/catalog-v1.json").read_text(encoding="utf-8"))
+    projection_schemas = {
+        projection: f"schema:{entry['id']}"
+        for entry in catalog["schemas"]
+        for projection in entry.get("generated_projections", [])
+    }
+    generator_line = find_line(root, "scripts/generate_platform_adapters.py", "def expected_outputs")
     for path, content in sorted(adapters.expected_outputs(root).items()):
         projection = path.as_posix()
         node_id = f"generated-projection:{projection}"
         graph.add_node(Node(node_id, "generated-projection", projection, "generated", projection, "generated",
-                            {"bytes": len(content)}, []))
+                            {"bytes": len(content)},
+                            [cite(root, "scripts/generate_platform_adapters.py", generator_line, generator_line,
+                                  "generate_platform_adapters.expected_outputs", "CONTRACT_RESOLVED")]))
         target = canonical_for(projection)
         if target is None or target not in graph.nodes:
             graph.add_unknown(Unknown("cite.generated-source-missing",
@@ -82,7 +92,16 @@ def cite_generated(root: Path, graph: Graph) -> None:
                                       "Regenerate adapters; the generator owns this mapping"))
             continue
         graph.add_edge(Edge(edge_id("generated_from", node_id, target), node_id, target, "generated_from",
-                            "CONTRACT_RESOLVED", {"via": "generate_platform_adapters.expected_outputs"}, []))
+                            "CONTRACT_RESOLVED", {"via": "generate_platform_adapters.expected_outputs"},
+                            [cite(root, "scripts/generate_platform_adapters.py", generator_line, generator_line,
+                                  "generate_platform_adapters.expected_outputs", "CONTRACT_RESOLVED")]))
+        schema_id = projection_schemas.get(projection)
+        if schema_id in graph.nodes:
+            line = find_line(root, "schemas/catalog-v1.json", f'"{projection}"')
+            graph.add_edge(Edge(edge_id("constrained_by", node_id, schema_id), node_id, schema_id,
+                                "constrained_by", "CONTRACT_RESOLVED", {"via": "catalog-v1.json"},
+                                [cite(root, "schemas/catalog-v1.json", line, line,
+                                      "extract.catalog-projection", "CONTRACT_RESOLVED")]))
 
 
 def parity_failures(root: Path, document: dict) -> list[str]:

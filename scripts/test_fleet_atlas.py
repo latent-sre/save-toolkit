@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import fleet_atlas  # noqa: E402
+import fleet_atlas_extract  # noqa: E402
 import fleet_atlas_views  # noqa: E402
 
 
@@ -56,16 +57,37 @@ class ModelTests(unittest.TestCase):
             graph.add_edge(fleet_atlas.Edge("e:1", "agent:sre", "agent:x", "delegates_to", "MAYBE", {}, []))
 
     def test_snapshot_binds_revision_and_validates_against_schema(self) -> None:
-        graph = fleet_atlas.Graph()
+        from jsonschema import Draft202012Validator
+
+        graph = fleet_atlas.build_graph(ROOT)
         document = fleet_atlas.snapshot(ROOT, graph)
         self.assertEqual(document["apiVersion"], "save-toolkit/fleet-atlas/v1")
         self.assertRegex(document["metadata"]["revision"], r"^[0-9a-f]{40}$")
         self.assertIn(document["metadata"]["dirty"], (True, False))
         self.assertRegex(document["metadata"]["treeDigest"], r"^sha256:[0-9a-f]{64}$")
         schema = json.loads((ROOT / "schemas/fleet-atlas-v1.schema.json").read_text(encoding="utf-8"))
-        self.assertEqual(schema["required"], ["apiVersion", "kind", "metadata", "nodes", "edges", "unknowns"])
-        for key in schema["required"]:
-            self.assertIn(key, document)
+        Draft202012Validator.check_schema(schema)
+        validator = Draft202012Validator(schema)
+        self.assertEqual([], list(validator.iter_errors(document)))
+
+        malformed = json.loads(json.dumps(document))
+        malformed["edges"][0]["evidence"] = []
+        self.assertTrue(list(validator.iter_errors(malformed)))
+
+    def test_stdlib_scenario_header_matches_validated_yaml_identity_fields(self) -> None:
+        import yaml
+
+        paths = [
+            *(ROOT / "evals/scenarios").glob("*.yaml"),
+            *(ROOT / "evals/build-scenarios").glob("*.yaml"),
+        ]
+        for path in paths:
+            with self.subTest(path=path.name):
+                text = path.read_text(encoding="utf-8")
+                expected = yaml.safe_load(text)
+                actual = fleet_atlas_extract.parse_scenario_header(text)
+                for key in ("id", "mode", "split", "threshold", "agent", "target", "routing"):
+                    self.assertEqual(actual.get(key), expected.get(key))
 
     def test_catalog_lists_the_atlas_schema(self) -> None:
         catalog = json.loads((ROOT / "schemas/catalog-v1.json").read_text(encoding="utf-8"))
@@ -190,7 +212,7 @@ class ExtractCanonicalTests(unittest.TestCase):
         self.assertFalse([e for e in self.graph.edges.values() if e.kind == "delegates_to"])
 
     def test_a_missing_link_target_becomes_an_unknown_not_an_edge(self) -> None:
-        import tempfile, shutil
+        import subprocess, tempfile
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             skill = root / "skills" / "demo"
@@ -202,6 +224,8 @@ class ExtractCanonicalTests(unittest.TestCase):
             )
             (skill / "references" / "here.md").write_text("# here\n", encoding="utf-8", newline="\n")
             (root / "agents").mkdir(); (root / "commands").mkdir()
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "add", "-A"], cwd=root, check=True)
             graph = fleet_atlas.Graph()
             fleet_atlas_extract.extract_skills(root, graph)
             codes = [u.code for u in graph.unknowns]
@@ -443,7 +467,10 @@ def _write_minimal_fixture(root: Path) -> None:
     import subprocess
 
     shutil.copytree(ROOT / "agents", root / "agents")
-    shutil.copytree(ROOT / "skills", root / "skills")
+    shutil.copytree(
+        ROOT / "skills", root / "skills",
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
     shutil.copytree(ROOT / "commands", root / "commands")
     for name in ("AGENTS.md", "CONTRIBUTING.md", "README.md"):
         shutil.copy(ROOT / name, root / name)
@@ -458,9 +485,13 @@ def _write_minimal_fixture(root: Path) -> None:
     (root / "evals/scenarios").mkdir(parents=True); (root / "scripts").mkdir()
     (root / "scripts/evidence_envelope.py").write_text("# fixture stand-in\n", encoding="utf-8", newline="\n")
     (root / "scripts/fleet_atlas.py").write_text("# fixture stand-in\n", encoding="utf-8", newline="\n")
+    (root / "scripts/generate_platform_adapters.py").write_text(
+        "def expected_outputs(root):\n    return {}\n", encoding="utf-8", newline="\n",
+    )
     (root / "evals/execution_profiles.py").write_text("# fixture stand-in\n", encoding="utf-8", newline="\n")
     (root / "evals/engine_contract.py").write_text("# fixture stand-in\n", encoding="utf-8", newline="\n")
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(["git", "config", "core.autocrlf", "false"], cwd=root, check=True)
     subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A"], cwd=root, check=True)
     subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "fixture"], cwd=root, check=True)
 
@@ -597,6 +628,21 @@ class ViewAndDriftTests(unittest.TestCase):
         result = fleet_atlas.main(["build"])
         if result != 0:
             raise RuntimeError(f"fleet_atlas build failed with exit code {result}")
+        subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", "add", "docs/fleet-atlas/generated"],
+            cwd=cls.root,
+            check=True,
+        )
+        subprocess.run(
+            [
+                "git", "-c", "user.email=t@t", "-c", "user.name=t",
+                "commit", "-q", "-m", "generated projection",
+            ],
+            cwd=cls.root,
+            check=True,
+        )
+        if fleet_atlas.main(["check"]) != 0:
+            raise RuntimeError("fleet_atlas check failed after generated-only commit")
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -618,12 +664,52 @@ class ViewAndDriftTests(unittest.TestCase):
         self.assertEqual(fleet_atlas.main(["check"]), 0)
 
     def test_every_generated_markdown_has_the_banner_and_respects_caps(self) -> None:
+        atlas = json.loads((self.root / "docs/fleet-atlas/generated/atlas.json").read_text(encoding="utf-8"))
+        revision = atlas["metadata"]["revision"].encode()
         for path in (self.root / "docs/fleet-atlas/generated").glob("*.md"):
             text = path.read_bytes()
             self.assertTrue(text.startswith(fleet_atlas_views.BANNER.encode()), path.name)
+            self.assertIn(revision, text, path.name)
             self.assertNotIn(b"\r\n", text, path.name)
             cap = fleet_atlas_views.INDEX_CAP if path.name == "INDEX.md" else fleet_atlas_views.VIEW_CAP
             self.assertLessEqual(len(text), cap + len(fleet_atlas_views.TRUNCATED) + 2, path.name)
+        for path in (self.root / "docs/fleet-atlas/generated").glob("*.mmd"):
+            self.assertIn(revision, path.read_bytes(), path.name)
+
+    def test_untracked_cache_files_are_not_inputs_or_nodes(self) -> None:
+        before = fleet_atlas.input_digest(self.root)
+        cache = self.root / "skills/incident-drill/scripts/__pycache__/local.cpython-312.pyc"
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_bytes(b"not committed")
+        self.assertEqual(before, fleet_atlas.input_digest(self.root))
+        graph = fleet_atlas.build_graph(self.root)
+        self.assertFalse(any(node.path and "__pycache__" in node.path for node in graph.nodes.values()))
+
+    def test_check_rejects_dirty_provenance_and_a_bad_manifest(self) -> None:
+        generated = self.root / "docs/fleet-atlas/generated"
+        atlas_path = generated / "atlas.json"
+        manifest_path = generated / "manifest.json"
+        original_atlas = atlas_path.read_bytes()
+        original_manifest = manifest_path.read_bytes()
+        try:
+            atlas = json.loads(original_atlas)
+            atlas["metadata"]["dirty"] = True
+            atlas_path.write_text(json.dumps(atlas, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            manifest_path.write_text(
+                json.dumps(fleet_atlas.manifest({
+                    path.name: path.read_bytes()
+                    for path in generated.iterdir()
+                    if path.name != "manifest.json"
+                }), indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(fleet_atlas.main(["check"]), 1)
+            atlas_path.write_bytes(original_atlas)
+            manifest_path.write_text('{"bad": true}\n', encoding="utf-8")
+            self.assertEqual(fleet_atlas.main(["check"]), 1)
+        finally:
+            atlas_path.write_bytes(original_atlas)
+            manifest_path.write_bytes(original_manifest)
 
     def test_no_timestamps_or_absolute_paths_in_generated_output(self) -> None:
         import re

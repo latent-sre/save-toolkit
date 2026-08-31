@@ -21,6 +21,14 @@ REFERENCE_LINK_RE = re.compile(r"\]\((?:\./)?references/([A-Za-z0-9._/-]+\.md)\)
 BUNDLE_DIRS = ("scripts", "assets", "templates")
 
 
+def _tracked(root: Path, paths) -> list[Path]:
+    tracked = fleet_atlas.tracked_relative_paths(root)
+    return sorted(
+        path for path in paths
+        if path.is_file() and path.relative_to(root).as_posix() in tracked
+    )
+
+
 def find_line(root: Path, relative: str, needle: str, default: int = 1) -> int:
     for number, line in enumerate((root / relative).read_text(encoding="utf-8").splitlines(), start=1):
         if needle in line:
@@ -60,7 +68,7 @@ def routing_rows(body: str) -> list[tuple[int, str, list[str]]]:
 
 
 def extract_agents(root: Path, graph: Graph) -> None:
-    for path in sorted((root / "agents").glob("*.md")):
+    for path in _tracked(root, (root / "agents").glob("*.md")):
         relative = path.relative_to(root).as_posix()
         parsed = _frontmatter(path)
         tools = parsed.fields.get("tools", [])
@@ -82,7 +90,7 @@ def extract_agents(root: Path, graph: Graph) -> None:
 
 
 def extract_skills(root: Path, graph: Graph) -> None:
-    for skill_md in sorted((root / "skills").glob("*/SKILL.md")):
+    for skill_md in _tracked(root, (root / "skills").glob("*/SKILL.md")):
         skill_dir = skill_md.parent
         name = skill_dir.name
         relative = skill_md.relative_to(root).as_posix()
@@ -97,7 +105,7 @@ def extract_skills(root: Path, graph: Graph) -> None:
             },
             evidence=[cite(root, relative, 1, 1, "extract.skill-frontmatter", "STATIC_EXTRACTED")],
         ))
-        for reference in sorted((skill_dir / "references").glob("*.md")) if (skill_dir / "references").is_dir() else []:
+        for reference in _tracked(root, (skill_dir / "references").glob("*.md")) if (skill_dir / "references").is_dir() else []:
             graph.add_node(Node(
                 id=f"reference:{name}/{reference.name}", type="reference",
                 name=f"{name}/{reference.name}", authority="canonical",
@@ -107,29 +115,36 @@ def extract_skills(root: Path, graph: Graph) -> None:
                                "extract.reference-file", "STATIC_EXTRACTED")],
             ))
         for bundle_dir in BUNDLE_DIRS:
-            for item in sorted((skill_dir / bundle_dir).rglob("*")) if (skill_dir / bundle_dir).is_dir() else []:
-                if item.is_file():
-                    rel = item.relative_to(skill_dir).as_posix()
-                    node_id = f"bundle-file:{name}/{rel}"
-                    graph.add_node(Node(
-                        id=node_id, type="bundle-file", name=f"{name}/{rel}", authority="canonical",
-                        path=item.relative_to(root).as_posix(), state="live", attrs={"skill": name},
-                    ))
-                    graph.add_edge(Edge(edge_id("cites", skill_id, node_id), skill_id, node_id, "cites",
-                                        "STATIC_EXTRACTED", {}, []))
+            for item in _tracked(root, (skill_dir / bundle_dir).rglob("*")) if (skill_dir / bundle_dir).is_dir() else []:
+                rel = item.relative_to(skill_dir).as_posix()
+                node_id = f"bundle-file:{name}/{rel}"
+                graph.add_node(Node(
+                    id=node_id, type="bundle-file", name=f"{name}/{rel}", authority="canonical",
+                    path=item.relative_to(root).as_posix(), state="live", attrs={"skill": name},
+                    evidence=[cite(root, item.relative_to(root).as_posix(), 1, 1,
+                                   "extract.bundle-file", "STATIC_EXTRACTED")],
+                ))
+                graph.add_edge(Edge(edge_id("cites", skill_id, node_id), skill_id, node_id, "cites",
+                                    "STATIC_EXTRACTED", {},
+                                    [cite(root, item.relative_to(root).as_posix(), 1, 1,
+                                          "extract.bundle-file", "STATIC_EXTRACTED")]))
         # A skill may also carry a file directly in its own directory (context-requirements.yaml).
         # It is canonical and it is projected, so it needs a node of its own; without one, its
         # generated projection can only cite the skill, which is not the file it derives from.
-        for item in sorted(skill_dir.iterdir()):
-            if item.is_file() and item.name != "SKILL.md":
+        for item in _tracked(root, skill_dir.iterdir()):
+            if item.name != "SKILL.md":
                 rel = item.name
                 node_id = f"bundle-file:{name}/{rel}"
                 graph.add_node(Node(
                     id=node_id, type="bundle-file", name=f"{name}/{rel}", authority="canonical",
                     path=item.relative_to(root).as_posix(), state="live", attrs={"skill": name},
+                    evidence=[cite(root, item.relative_to(root).as_posix(), 1, 1,
+                                   "extract.bundle-file", "STATIC_EXTRACTED")],
                 ))
                 graph.add_edge(Edge(edge_id("cites", skill_id, node_id), skill_id, node_id, "cites",
-                                    "STATIC_EXTRACTED", {}, []))
+                                    "STATIC_EXTRACTED", {},
+                                    [cite(root, item.relative_to(root).as_posix(), 1, 1,
+                                          "extract.bundle-file", "STATIC_EXTRACTED")]))
         full_text = skill_md.read_text(encoding="utf-8")
         body_offset = full_text.count("\n", 0, full_text.find(parsed.body))
         seen: set[tuple[str, str]] = set()
@@ -164,7 +179,7 @@ def _reference_edge(root, graph, skill_id, skill, target, predicate, relative, l
 
 
 def extract_commands(root: Path, graph: Graph) -> None:
-    for path in sorted((root / "commands").glob("*.md")):
+    for path in _tracked(root, (root / "commands").glob("*.md")):
         relative = path.relative_to(root).as_posix()
         parsed = _frontmatter(path)
         graph.add_node(Node(
@@ -347,7 +362,7 @@ def extract_closed_register(root: Path, graph: Graph) -> None:
 
 
 def extract_decisions(root: Path, graph: Graph) -> None:
-    for path in sorted((root / "docs/decisions").glob("*.md")):
+    for path in _tracked(root, (root / "docs/decisions").glob("*.md")):
         relative = path.relative_to(root).as_posix()
         text = path.read_text(encoding="utf-8")
         head = "\n".join(text.splitlines()[:14])
@@ -398,7 +413,56 @@ from check_evidence_refs import BATCH_ID_RE  # noqa: E402
 EVAL_DOC_RE = re.compile(r"-eval-(\d{8}T\d{6}Z-[0-9a-f]{8})\.md$")
 LITERAL_RE = re.compile(r"[\"']((?:agents|skills|docs|evals|commands|hooks|schemas|scripts)/[A-Za-z0-9._/-]+)[\"']")
 LANE_SLUG_RE = re.compile(r"[^a-z0-9]+")
-_yaml_unavailable_reported = False
+def _scenario_scalar(value: str):
+    value = value.strip()
+    if value.startswith("{") and value.endswith("}"):
+        return {
+            key.strip(): _scenario_scalar(item)
+            for part in value[1:-1].split(",")
+            for key, item in [part.split(":", 1)]
+        }
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+        return value[1:-1]
+    if re.fullmatch(r"-?\d+(?:\.\d+)?", value):
+        return float(value) if "." in value else int(value)
+    return value
+
+
+def parse_scenario_header(text: str) -> dict[str, object]:
+    """Parse the scalar mapping subset used by scenario identity/routing fields.
+
+    Block scalars and sequences are deliberately skipped: the atlas reads only id, mode, split,
+    threshold, agent, target, and routing. Full YAML validation remains in the component suite.
+    """
+    result: dict[str, object] = {}
+    stack: list[tuple[int, dict[str, object]]] = [(-1, result)]
+    block_indent: int | None = None
+    for raw in text.splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip(" "))
+        if block_indent is not None:
+            if indent > block_indent:
+                continue
+            block_indent = None
+        stripped = raw.strip()
+        if stripped.startswith("-") or ":" not in stripped:
+            continue
+        key, value = stripped.split(":", 1)
+        while stack[-1][0] >= indent:
+            stack.pop()
+        parent = stack[-1][1]
+        value = value.strip()
+        if value in ("|", "|-", ">", ">-"):
+            block_indent = indent
+            continue
+        if not value:
+            child: dict[str, object] = {}
+            parent[key] = child
+            stack.append((indent, child))
+        else:
+            parent[key] = _scenario_scalar(value)
+    return result
 
 
 def _path_index(graph: Graph) -> dict[str, str]:
@@ -406,7 +470,7 @@ def _path_index(graph: Graph) -> dict[str, str]:
 
 
 def extract_reviews(root: Path, graph: Graph) -> None:
-    for path in sorted((root / "docs/reviews").glob("*.md")):
+    for path in _tracked(root, (root / "docs/reviews").glob("*.md")):
         relative = path.relative_to(root).as_posix()
         text = path.read_text(encoding="utf-8")
         head = "\n".join(text.splitlines()[:8])
@@ -433,20 +497,17 @@ def extract_reviews(root: Path, graph: Graph) -> None:
 
 
 def extract_scenarios(root: Path, graph: Graph) -> None:
-    global _yaml_unavailable_reported
-    try:
-        import yaml
-    except ImportError:
-        if not _yaml_unavailable_reported:
-            graph.add_unknown(Unknown("extract.yaml-unavailable", "PyYAML is not installed; scenarios were not extracted",
-                                      "evals/scenarios", "pip install -r requirements-dev.txt"))
-            _yaml_unavailable_reported = True
-        return
-    paths = sorted((root / "evals/scenarios").glob("*.yaml")) + sorted((root / "evals/build-scenarios").glob("*.yaml"))
+    paths = _tracked(
+        root,
+        [
+            *(root / "evals/scenarios").glob("*.yaml"),
+            *(root / "evals/build-scenarios").glob("*.yaml"),
+        ],
+    )
     for path in paths:
         relative = path.relative_to(root).as_posix()
         text = path.read_text(encoding="utf-8")
-        data = yaml.safe_load(text)
+        data = parse_scenario_header(text)
         if not isinstance(data, dict) or "id" not in data:
             graph.add_unknown(Unknown("extract.scenario-unparsed", f"{relative} has no id", relative, "run_evals --validate owns this"))
             continue
@@ -486,7 +547,9 @@ def extract_scenarios(root: Path, graph: Graph) -> None:
                 alt_id = f"{alternative.get('kind')}:{alternative.get('name')}"
                 if alt_id in graph.nodes:
                     graph.add_edge(Edge(edge_id("routes_to", node_id, alt_id), node_id, alt_id, "routes_to",
-                                        "STATIC_EXTRACTED", {"via": "expected_alternative"}, []))
+                                        "STATIC_EXTRACTED", {"via": "expected_alternative"},
+                                        [cite(root, relative, line, line,
+                                              "extract.scenario-routing", "STATIC_EXTRACTED")]))
         else:
             graph.add_edge(Edge(edge_id("verified_by", target_id, node_id), target_id, node_id, "verified_by",
                                 "STATIC_EXTRACTED", {"mode": data.get("mode", "")},
@@ -494,12 +557,18 @@ def extract_scenarios(root: Path, graph: Graph) -> None:
         for item_id in sorted(set(check_plan_status.ROADMAP_ITEM_ID_RE.findall(text))):
             if f"roadmap-item:{item_id}" in graph.nodes:
                 graph.add_edge(Edge(edge_id("cites", node_id, f"roadmap-item:{item_id}"), node_id,
-                                    f"roadmap-item:{item_id}", "cites", "STATIC_INFERRED", {"via": "comment"}, []))
+                                    f"roadmap-item:{item_id}", "cites", "STATIC_INFERRED", {"via": "comment"},
+                                    [cite(root, relative, find_line(root, relative, item_id),
+                                          find_line(root, relative, item_id),
+                                          "extract.scenario-roadmap-comment", "STATIC_INFERRED")]))
 
 
 def extract_tests(root: Path, graph: Graph) -> None:
     index = _path_index(graph)
-    for path in sorted((root / "scripts").glob("test_*.py")) + sorted((root / "evals").glob("test_*.py")):
+    for path in _tracked(
+        root,
+        [*(root / "scripts").glob("test_*.py"), *(root / "evals").glob("test_*.py")],
+    ):
         relative = path.relative_to(root).as_posix()
         node_id = f"test:{relative}"
         graph.add_node(Node(node_id, "test", relative, "canonical", relative, "live", {},
@@ -541,7 +610,9 @@ def extract_schemas(root: Path, graph: Graph) -> None:
         if entry.get("validator"):
             validator = ensure_document(root, graph, entry["validator"])
             graph.add_edge(Edge(edge_id("constrained_by", node_id, validator), node_id, validator, "constrained_by",
-                                "CONTRACT_RESOLVED", {"via": "catalog-v1.json"}, []))
+                                "CONTRACT_RESOLVED", {"via": "catalog-v1.json"},
+                                [cite(root, "schemas/catalog-v1.json", line, line,
+                                      "extract.catalog-validator", "CONTRACT_RESOLVED")]))
         for projection in entry.get("generated_projections", []):
             # Deviates from the plan snippet on purpose, for three compounding reasons discovered
             # by running the suite, not guessed:
@@ -569,33 +640,46 @@ def extract_schemas(root: Path, graph: Graph) -> None:
             # gave a node (checked by path, not assumed), wire the real edge instead of guessing one.
             target = node_for_path(graph, projection)
             if target is None:
-                graph.add_unknown(Unknown(
-                    "extract.schema-projection-unresolved",
-                    f"{entry['id']} declares generated_projections {projection}, which has no node yet",
-                    entry["canonical_path"],
-                    "Build the projection, or extract the node that would represent it, before citing it",
-                ))
-                continue
+                projection_path = root / projection
+                if projection == fleet_atlas.OUTPUT.joinpath("atlas.json").as_posix() and projection_path.is_file():
+                    target = f"schema-projection:{projection}"
+                    graph.add_node(Node(
+                        target, "schema-projection", projection, "generated", projection, "generated",
+                        {"schema": entry["id"]},
+                        [cite(root, projection, 1, 1,
+                              "extract.catalog-projection", "CONTRACT_RESOLVED")],
+                    ))
+                else:
+                    graph.add_unknown(Unknown(
+                        "extract.schema-projection-unresolved",
+                        f"{entry['id']} declares generated_projections {projection}, which has no node yet",
+                        entry["canonical_path"],
+                        "Build the projection, or extract the node that would represent it, before citing it",
+                    ))
+                    continue
             graph.add_edge(Edge(edge_id("constrained_by", target, node_id), target, node_id, "constrained_by",
-                                "CONTRACT_RESOLVED", {"via": "catalog-v1.json"}, []))
+                                "CONTRACT_RESOLVED", {"via": "catalog-v1.json"},
+                                [cite(root, "schemas/catalog-v1.json", line, line,
+                                      "extract.catalog-projection", "CONTRACT_RESOLVED")]))
 
 
 def extract_probes(root: Path, graph: Graph) -> None:
     roadmap = (root / "docs/fleet-roadmap.md").read_text(encoding="utf-8")
-    for path in sorted((root / "docs/probes").glob("*")):
-        if not path.is_file():
-            continue
+    for path in _tracked(root, (root / "docs/probes").glob("*")):
         relative = path.relative_to(root).as_posix()
         linked = path.name in roadmap
         graph.add_node(Node(f"probe:{path.stem}", "probe", path.stem,
                             "live-contract" if linked else "historical-evidence", relative,
-                            "live" if linked else "historical", {"linked_from_roadmap": linked}, []))
+                            "live" if linked else "historical", {"linked_from_roadmap": linked},
+                            [cite(root, relative, 1, 1, "extract.probe-file", "STATIC_EXTRACTED")]))
 
 
 def extract_owners(root: Path, graph: Graph) -> None:
     agents = {n.name for n in graph.nodes.values() if n.type == "agent"}
     for agent in sorted(agents):
-        graph.add_node(Node(f"owner:{agent}", "owner", agent, "canonical", f"agents/{agent}.md", "live", {"kind": "agent"}, []))
+        relative = f"agents/{agent}.md"
+        graph.add_node(Node(f"owner:{agent}", "owner", agent, "canonical", relative, "live", {"kind": "agent"},
+                            [cite(root, relative, 1, 1, "extract.agent-owner", "STATIC_EXTRACTED")]))
     text = (root / "docs/fleet-roadmap.md").read_text(encoding="utf-8")
     for item in check_plan_status._roadmap_items(text):
         owner_field = str(item["fields"].get("Owner", ""))
@@ -615,7 +699,9 @@ def extract_owners(root: Path, graph: Graph) -> None:
             if name not in agents and re.match(r"(?:skill|command)\b", suffix):
                 continue
             if name not in agents and f"owner:{name}" not in graph.nodes:
-                graph.add_node(Node(f"owner:{name}", "owner", name, "external", None, "live", {"kind": "human"}, []))
+                graph.add_node(Node(f"owner:{name}", "owner", name, "external", None, "live", {"kind": "human"},
+                                    [cite(root, "docs/fleet-roadmap.md", item["line"], item["line"],
+                                          "extract.roadmap-owner", "STATIC_EXTRACTED")]))
             if f"owner:{name}" in graph.nodes:
                 graph.add_edge(Edge(edge_id("owns", f"owner:{name}", f"roadmap-item:{item['id']}"), f"owner:{name}",
                                     f"roadmap-item:{item['id']}", "owns", "STATIC_EXTRACTED", {"field": "Owner"},

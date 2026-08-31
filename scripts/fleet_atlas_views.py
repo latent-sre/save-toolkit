@@ -34,16 +34,19 @@ QUESTIONS = (
 
 
 def _head(document: dict, title: str) -> list[str]:
-    """Header binds a view to the INPUTS it describes, never to the commit that contains it.
+    """Header binds a view to the committed canonical inputs it describes.
 
-    A commit sha here made the drift gate permanently red: the atlas cannot embed the sha of the
-    commit that will contain it, so every view drifted the instant it was committed (16 findings
-    at HEAD). The input digest is also the more accurate binding — it changes when the canonical
-    sources change and stays put when an unrelated commit lands, which is exactly what "is this
-    view still describing the fleet?" means.
+    The generated-output commit cannot contain its own future SHA. The recorded revision therefore
+    names the clean canonical-input commit used to build the projection; `check` proves no canonical
+    inputs changed between that revision and HEAD. The tree digest independently binds their bytes.
     """
     meta = document["metadata"]
-    return [BANNER, f"# {title} — inputs {meta['treeDigest'][7:19]}", ""]
+    return [
+        BANNER,
+        f"# {title}",
+        f"Revision: `{meta['revision']}` | Canonical inputs: `{meta['treeDigest']}` | Dirty: `{str(meta['dirty']).lower()}`",
+        "",
+    ]
 
 
 def _where(item: dict) -> str:
@@ -157,7 +160,12 @@ def render_views(document: dict) -> dict[str, str]:
     views["contradictions-and-stale-evidence.md"] = _cap(lines, VIEW_CAP)
 
     def mermaid(kind: str) -> str:
-        body = [BANNER.replace("<!--", "%%").replace("-->", "").rstrip(), "graph LR"]
+        meta = document["metadata"]
+        body = [
+            BANNER.replace("<!--", "%%").replace("-->", "").rstrip(),
+            f"%% revision {meta['revision']} inputs {meta['treeDigest']} dirty {str(meta['dirty']).lower()}",
+            "graph LR",
+        ]
         for e in _edges(document, kind):
             a = MERMAID_SAFE.sub("_", e["source"].split(":", 1)[1])
             b = MERMAID_SAFE.sub("_", e["target"].split(":", 1)[1])
