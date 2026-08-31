@@ -761,8 +761,8 @@ class FleetValidatorTests(unittest.TestCase):
     def test_sre_conditional_handoff_rejects_a_negated_pointer(self) -> None:
         failures = self._agents_with_mutation(
             "sre.md",
-            "read `incident-investigation`'s incident-handoff reference before forming the packet",
-            "do not read `incident-investigation`'s incident-handoff reference before forming the packet",
+            "read `investigation-depth`'s incident-handoff reference before forming the packet",
+            "do not read `investigation-depth`'s incident-handoff reference before forming the packet",
         )
         self.assertIn("missing handoff contract", "\n".join(failures))
 

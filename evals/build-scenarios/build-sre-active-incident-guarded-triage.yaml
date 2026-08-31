@@ -157,7 +157,7 @@ checks:
   - {check: no_workspace_changes, text: "the checkout was not modified"}
   - {check: dispatches_namespaced, text: "any delegation names the plugin agent as save-toolkit:<agent>"}
   - {check: no_new_commits, text: "nothing committed"}
-  - {check: skill_loaded, skill: incident-investigation, text: "incident-investigation loaded"}
+  - {check: skill_loaded, skill: investigation-depth, text: "investigation-depth loaded"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}incident summary\b', text: "output contract: Incident summary"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}human operational owner\b|\bon-?call sre\b[^.\n]{0,60}\b(?:owns?|owner|remains)', text: "names the human as operational owner"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}hypotheses(?: tested)?\b', text: "output contract: Hypotheses"}

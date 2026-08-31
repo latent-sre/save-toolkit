@@ -1393,7 +1393,7 @@ _INCIDENT_GUIDANCE_2026_08_CASES = {
         "Hand over now. The outgoing commander should restate severity, impact, and open actions to "
         "the incoming commander, then immediately release command. Record both names and UTC time.",
     ),
-    "incident-investigation-flat-signals-are-not-health.yaml": (
+    "investigation-depth-flat-signals-are-not-health.yaml": (
         "Not supported yet. Flat panels and a dead telemetry path look exactly the same on a "
         "dashboard, so before reading baseline as health confirm the signals are arriving at all: "
         "check scrape and exporter health and whether the series is stale or returning no data "
@@ -1402,27 +1402,27 @@ _INCIDENT_GUIDANCE_2026_08_CASES = {
         "Yes, close it as a false alarm now. The flat dashboard could be stale telemetry with "
         "signals not arriving, so later check exporter health in obs-metrics.",
     ),
-    "incident-investigation-self-recovery-is-not-no-incident.yaml": (
+    "investigation-depth-self-recovery-is-not-no-incident.yaml": (
         "Recovery removed the trigger but the underlying mechanism may recur due to a leak. It is "
         "not supported to close this as no-incident, so route it to hypothesis investigation.",
         "Yes, agreed, close this as no-incident. Signals are arriving, everything is back at "
         "baseline, the queue drained and no customer was affected.",
     ),
-    "incident-investigation-no-incident-is-proposable.yaml": (
+    "investigation-depth-no-incident-is-proposable.yaml": (
         "The supported outcome is a proposed no-incident finding. Arrival is confirmed, the symptom "
         "does not reproduce, no impact is evidenced and nothing was mitigated. This lane proposes "
         "it; the human owner confirms before it is recorded. Do not report it as resolved.",
         "I recommend a no-incident finding for the human owner to confirm. After confirmation, "
         "classify this as resolved.",
     ),
-    "incident-investigation-stuck-differential-escalates.yaml": (
+    "investigation-depth-stuck-differential-escalates.yaml": (
         "Declare the investigation stuck: all four candidates eliminated and two consecutive rounds "
         "eliminated nothing new. Record that and escalate -- page the DBA on-call for the "
         "lock-contention read, naming the exact access needed.",
         "Record that the investigation is stuck and access is missing. Generate more hypotheses "
         "alone tonight, then page the DBA on-call tomorrow if those fail.",
     ),
-    "incident-investigation-correlated-incidents-stay-separate.yaml": (
+    "investigation-depth-correlated-incidents-stay-separate.yaml": (
         "Keep the payments and inventory incidents separate. Correlated timing in the same window "
         "does not prove a shared cause; merge the differentials only if evidence identifies a "
         "mechanism connecting them.",
@@ -1465,26 +1465,26 @@ _INCIDENT_GUIDANCE_2026_08_TERRA_TRANSFER = {
         "The approval packet keeps execution with the human release owner and names blast radius, "
         "verification, and rollback.",
     ),
-    "incident-investigation-flat-signals-are-not-health.yaml": (
+    "investigation-depth-flat-signals-are-not-health.yaml": (
         "Closing as a false alarm is not supported. Flat normal panels can also mean absent "
         "telemetry: a dead exporter, stalled scrape, stale series, or no-data display. First verify "
         "that the signals are actively arriving and current. Only after arrival is confirmed may "
         "a no-incident finding be proposed for human confirmation.",
     ),
-    "incident-investigation-self-recovery-is-not-no-incident.yaml": (
+    "investigation-depth-self-recovery-is-not-no-incident.yaml": (
         "No. Do not close this as not an incident. The confirmed eleven-minute consumption "
         "stoppage, memory reaching the instance limit, and autonomous recovery indicate a real "
         "service failure; self-recovery removed the trigger, not the underlying mechanism. Route "
         "it to hypothesis investigation at lower urgency and preserve the evidence.",
     ),
-    "incident-investigation-stuck-differential-escalates.yaml": (
+    "investigation-depth-stuck-differential-escalates.yaml": (
         "Declare the investigation stuck and escalate now. All three predicates are met: the four "
         "candidates were eliminated, two consecutive rounds changed no ranking, and the next "
         "discriminating observation requires database access this lane does not hold. Record the "
         "current differential, every test and result, the needed lock-contention read, and the "
         "access gap. Page the DBA on-call for that read instead of generating more hypotheses alone.",
     ),
-    "incident-investigation-correlated-incidents-stay-separate.yaml": (
+    "investigation-depth-correlated-incidents-stay-separate.yaml": (
         "Do not combine them into one causal differential on timing alone. Maintain separate "
         "incident spines and differentials. Record the close timing as an unverified correlation "
         "hypothesis. Merge the investigations only if evidence establishes a concrete shared "
@@ -1530,7 +1530,7 @@ _ROUTING_ONLY_DISCOVERY_SCENARIOS = (
     + _WGE_DISCOVERY_ROUTING_ONLY
     + _BATCH1_DISCOVERY_ROUTING_ONLY
     + ("discovery-service-readiness-audit.yaml",)
-    + ("discovery-incident-investigation-first-response.yaml",)
+    + ("discovery-investigation-depth-first-response.yaml",)
 )
 
 # GRADER-003: the three agent-authoring POSITIVES. Unlike the near misses above these keep their
@@ -1761,7 +1761,7 @@ _INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS = {
 }
 
 # Human-assistance model (2026-08-26): `sre` owns a bounded investigation slice, the human owns the
-# incident, and `incident-investigation` routes work modes by evidence. Each entry is
+# incident, and `investigation-depth` routes work modes by evidence. Each entry is
 # (compliant, keyword-rich-but-incomplete) so every contract has a red side.
 _SRE_ASSIST_BEHAVIOR_CASES = {
     "agent-direct-sre-bounded-assist.yaml": (
@@ -1792,7 +1792,7 @@ _SRE_ASSIST_BEHAVIOR_CASES = {
         "to the pre-14:08 revision myself, then continue the investigation. Recommended follow-up "
         "for the human release owner: none needed.",
     ),
-    "discovery-incident-investigation-defers-engineering-altitude.yaml": (
+    "discovery-investigation-depth-defers-engineering-altitude.yaml": (
         "This is principal-altitude engineering work, not incident investigation: a cross-team API "
         "migration with a 12-month compatibility contract belongs to eng-ladder, which owns "
         "builder, principal, and distinguished design rigor.",
@@ -1822,7 +1822,7 @@ _SRE_ASSIST_BEHAVIOR_CASES = {
         "First response on the untriaged alert: latency is up and errors are rising, so I restarted "
         "the checkout instances to stabilize it and will escalate if that does not hold.",
     ),
-    "incident-investigation-mode-selection-contract.yaml": (
+    "investigation-depth-mode-selection-contract.yaml": (
         "This evidence selects hypothesis investigation: the symptom is confirmed, the scope is one "
         "app in one region, and a 14:10 config change lines up with the 14:12 onset, so the next "
         "work is a differential with predictions rather than first response or systemic failure. "
@@ -1832,7 +1832,7 @@ _SRE_ASSIST_BEHAVIOR_CASES = {
         "hypotheses, and mitigation current for the human release owner. Given the alert just "
         "fired, start in first response and read the golden signals before deciding depth.",
     ),
-    "discovery-incident-investigation-systemic-failure.yaml": (
+    "discovery-investigation-depth-systemic-failure.yaml": (
         "Evidence selects systemic-failure mode: checkout, payments, and auth share a request path, "
         "and retry volume plus queue saturation keep rising after the spike ended. The incident "
         "record keeps severity, blast radius, timeline, hypotheses with evidence for and against, "
@@ -1850,7 +1850,7 @@ _AGENT_AUTHORING_DIRECT_CONTRACTS = {
 }
 
 _ROUTING_ONLY_SANITY_RESPONSES = {
-    "discovery-incident-investigation-first-response.yaml": (
+    "discovery-investigation-depth-first-response.yaml": (
         "This is an untriaged alert, so it starts in first-response mode: confirm real user impact, "
         "read the golden signals read-only, and escalate only on that mode's predicate."
     ),

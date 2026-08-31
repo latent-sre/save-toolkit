@@ -1,10 +1,10 @@
 schema_version: 1
-id: incident-investigation-no-incident-is-proposable
+id: investigation-depth-no-incident-is-proposable
 mode: direct
 split: calibration
 target:
   kind: skill
-  name: incident-investigation
+  name: investigation-depth
 prompt: |
   Alert fired at 02:40 UTC on the reporting service. We checked: the signals are confirmed arriving
   and current — the exporter is healthy and the series is live, not stale. The symptom does not
