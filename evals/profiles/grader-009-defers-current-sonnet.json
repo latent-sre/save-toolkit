@@ -28,5 +28,9 @@
     "status": "available",
     "max_usd": 2
   },
-  "approval": null
+  "approval": {
+    "approved_by": "latent-sre",
+    "approved_at": "2026-08-31T11:44:14Z",
+    "budget_id": "grader-009-defers-current-2026-08-30"
+  }
 }

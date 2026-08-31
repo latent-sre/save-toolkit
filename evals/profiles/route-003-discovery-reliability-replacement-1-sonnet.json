@@ -29,5 +29,9 @@
     "status": "available",
     "max_usd": 4
   },
-  "approval": null
+  "approval": {
+    "approved_by": "latent-sre",
+    "approved_at": "2026-08-31T11:44:14Z",
+    "budget_id": "route-003-discovery-reliability-replacement-1-2026-08-31"
+  }
 }
