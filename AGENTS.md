@@ -78,7 +78,7 @@ The last column is the validated Claude model-delegation graph. VS Code handoffs
 
 ## Hard rules
 
-[`docs/rules.md`](docs/rules.md) is the full must-follow index. These invariants stay unconditional:
+[`docs/rules.md`](docs/rules.md) is the conditional rule map. These invariants stay unconditional:
 
 - Pin third-party dependencies in `requirements-dev.txt`. `scripts/readonly-guard.py` stays
   standard-library-only under `python -I -S`. The first third-party Gate A import updates both CI
