@@ -642,50 +642,6 @@ affected scenarios remains owed.
 `agent-direct-sre-records-unknown-recovery-progress` on the exact accepted candidate. Do not tune
 the grader from the Terra responses or relabel those probes as native closure evidence.
 
-### GRADER-005 — posture graders for gate-shaped contracts
-
-**Status:** `blocked` (2026-08-31). The fixed Sonnet profile is approved but unconsumed. Execution
-is held after two preceding native packets on this host ended exclusively in retried provider
-`server_error` responses; spending this nine-call packet cannot currently produce gradeable evidence.
-
-**Outcome:** A discovery or direct grader can tell "names the rule" from "enforces the rule" for a
-scenario whose contract is a gate, so a green on `render-is-not-verification` means the response
-blocked the merge rather than mentioned a browser pass.
-
-**Source:** The no-skill pressure control in the
-[`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md): with no skill
-loaded, Opus satisfied every `contains_any` group on all three `frontend-craft` discovery scenarios
-while writing "not me blocking the merge"; Sonnet satisfied the flash group and wrote "no objection
-to merging".
-
-**Prerequisites:** The control transcripts (kept in the gitignored eval workspace and quoted in the
-review) serve as the rejected fixtures; a with-skill response that blocks is the passing fixture.
-Follow the fixture convention in `evals/test_graders.py` and the red-first discipline.
-
-**Acceptance:** A grader shape for the three `frontend-craft` scenarios rejects both control replies
-and accepts the blocking replies, without a bare negative regex that false-reds correct denials;
-the shape is documented for reuse by any gate-shaped contract; the three scenarios are re-measured
-on an accepted candidate revision.
-
-**Current evidence:** The
-[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records the red-first controls, transfer forms, named `gate_posture` grader, and green offline suite.
-The three discovery scenarios have not been rerun on the exact merged revision, so the item is not
-closure-ready.
-
-**Prepared gate:** The
-[`GRADER-005 approval packet`](reviews/2026-08-30-grader-005-approval-gate.md) binds exact candidate
-`54f1c8d0ddbc17545f644fdd2568a36c8471454c`, `sonnet`, the three exact frontend discovery IDs,
-three trials each at their unchanged 1.0 thresholds, 600 seconds per trial, 7,200 seconds total,
-USD 4.00 maximum, a clean detached checkout, and one no-tuning/no-retry batch. Commits `dcf7852f`
-and `7c92c5ac` are ancestors. Approval commit `82fb2784` records the human owner, UTC timestamp,
-and budget ID `grader-005-frontend-posture-2026-08-31`; no call from this profile has started.
-
-**Next action:** After a material provider/host recovery signal, run the already-approved profile
-once from the bound clean revision. Retain every outcome and do not change prompts, thresholds,
-routing description, or grader under this authorization. Do not spend it while the repeated
-`server_error` condition persists.
-
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
 **Status:** `decision-needed` (2026-08-31). The object-bound grader remains green offline, but its

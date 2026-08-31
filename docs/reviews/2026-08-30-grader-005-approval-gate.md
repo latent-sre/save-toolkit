@@ -1,9 +1,8 @@
 # GRADER-005 native frontend posture remeasurement gate
 
-> **Status:** `[verified static; execution held]` The code-side grader repair is an ancestor of the
-> exact candidate and the native execution profile is approved and validates offline. No call from
-> this profile has started. Execution is held while the current host/provider path returns only
-> retried `server_error` results for the preceding fixed packets.
+> **Status:** `[verified consumed]` The code-side grader repair is an ancestor of the exact
+> candidate. The approved profile executed once as batch `20260831T052440Z-c13a16f0`; its bounded
+> report is retained and the packet authorizes no retry. [Closure](2026-08-31-grader-005-closure.md).
 
 ## Exact candidate and settled repair
 
@@ -49,7 +48,7 @@ and a content red is not permission to tune the route.
    retained response against the already pinned controls, and return any proposed change to a new
    red-first owner decision.
 
-## Command after provider/host recovery
+## Executed command
 
 From a clean detached checkout of the exact candidate, with the separately approved profile passed
 by absolute path:
@@ -72,5 +71,6 @@ Commit `82fb2784` records approver `latent-sre`, UTC `2026-08-31T04:50:47Z`, and
 > at three trials each (nine calls maximum), 600 seconds per trial, 7,200 seconds total, and USD
 > 4.00 maximum. Budget ID: `grader-005-frontend-posture-2026-08-31`.
 
-The profile remains unconsumed. Do not start it until the repeated provider `server_error` condition
-has materially changed; then run it once without tuning or retries.
+The profile is consumed. The batch resolved `claude-sonnet-5`, completed all nine planned trials in
+504.66 seconds for USD 1.2770608, and returned aggregate FAIL. That terminal result is retained; do
+not rerun, tune, or overwrite it.
