@@ -685,6 +685,23 @@ class ViewAndDriftTests(unittest.TestCase):
         graph = fleet_atlas.build_graph(self.root)
         self.assertFalse(any(node.path and "__pycache__" in node.path for node in graph.nodes.values()))
 
+    def test_untracked_skill_assets_do_not_become_generated_projection_nodes(self) -> None:
+        before = fleet_atlas.input_digest(self.root)
+        scratch = self.root / "skills/incident-drill/assets/local-notes.md"
+        scratch.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            scratch.write_text("local only\n", encoding="utf-8", newline="\n")
+            self.assertEqual(before, fleet_atlas.input_digest(self.root))
+            graph = fleet_atlas.build_graph(self.root)
+            projected = "platforms/copilot/skills/incident-drill/assets/local-notes.md"
+            self.assertFalse(any(node.path == projected for node in graph.nodes.values()))
+            self.assertFalse(any(
+                unknown.code == "cite.generated-source-missing" and unknown.path == projected
+                for unknown in graph.unknowns
+            ))
+        finally:
+            scratch.unlink(missing_ok=True)
+
     def test_check_rejects_dirty_provenance_and_a_bad_manifest(self) -> None:
         generated = self.root / "docs/fleet-atlas/generated"
         atlas_path = generated / "atlas.json"

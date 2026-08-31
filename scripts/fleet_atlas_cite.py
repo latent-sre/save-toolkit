@@ -12,7 +12,7 @@ sys.path.insert(0, str(HERE))
 
 import generate_platform_adapters as adapters  # noqa: E402
 import validate_fleet  # noqa: E402
-from fleet_atlas import Edge, Graph, Node, Unknown, cite  # noqa: E402
+from fleet_atlas import Edge, Graph, Node, Unknown, cite, tracked_relative_paths  # noqa: E402
 from fleet_atlas_extract import edge_id, find_line  # noqa: E402
 
 GUARD_ID = "hook:readonly-guard"
@@ -70,6 +70,25 @@ def canonical_for(projection: str) -> str | None:
     return None
 
 
+def source_for_projection(projection: str) -> str | None:
+    if projection.startswith(".github/agents/") and projection.endswith(".agent.md"):
+        name = projection.removeprefix(".github/agents/").removesuffix(".agent.md")
+        return f"agents/{name}.md"
+    prefix = "platforms/copilot/skills/"
+    if projection.startswith(prefix):
+        return "skills/" + projection.removeprefix(prefix)
+    return None
+
+
+def tracked_expected_outputs(root: Path) -> dict[Path, bytes]:
+    tracked = tracked_relative_paths(root)
+    return {
+        path: content
+        for path, content in adapters.expected_outputs(root).items()
+        if source_for_projection(path.as_posix()) in tracked
+    }
+
+
 def cite_generated(root: Path, graph: Graph) -> None:
     catalog = json.loads((root / "schemas/catalog-v1.json").read_text(encoding="utf-8"))
     projection_schemas = {
@@ -78,7 +97,7 @@ def cite_generated(root: Path, graph: Graph) -> None:
         for projection in entry.get("generated_projections", [])
     }
     generator_line = find_line(root, "scripts/generate_platform_adapters.py", "def expected_outputs")
-    for path, content in sorted(adapters.expected_outputs(root).items()):
+    for path, content in sorted(tracked_expected_outputs(root).items()):
         projection = path.as_posix()
         node_id = f"generated-projection:{projection}"
         graph.add_node(Node(node_id, "generated-projection", projection, "generated", projection, "generated",
@@ -120,7 +139,7 @@ def parity_failures(root: Path, document: dict) -> list[str]:
     if guarded != set(adapters.GUARDED_AGENTS):
         failures.append(f"guard roster mismatch: atlas {sorted(guarded)} vs {sorted(adapters.GUARDED_AGENTS)}")
     projections = {n["path"] for n in nodes if n["type"] == "generated-projection"}
-    expected_paths = {p.as_posix() for p in adapters.expected_outputs(root)}
+    expected_paths = {p.as_posix() for p in tracked_expected_outputs(root)}
     if projections != expected_paths:
         failures.append(f"generated projections differ from expected_outputs by "
                         f"{len(projections ^ expected_paths)} path(s)")
