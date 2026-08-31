@@ -133,6 +133,14 @@ bundles. Activation validates both against the same exited runner and atomically
 extends the earlier durable prefix after excluding only the provisional terminal projection, and
 the effect ledger extends exactly `PREPARED -> DISPATCHED -> UNKNOWN -> RECONCILED`.
 
+Only the read-only `reconcile_if_ambiguous:0` receipt lookup may use more than one task attempt, and
+only after the same checkout effect is durably `UNKNOWN`. Its attempt ordinals start at one, remain
+contiguous, and may not exceed the runtime's `budgets.attempts.limit`; the final attempt completes.
+An earlier started attempt may lack a task result only when the durable ledger/event evidence already
+proves `RECONCILED`, covering a crash between the ledger append and task/checkpoint persistence.
+Readiness and checkout-effect tasks remain attempt one, checkout dispatch consumption remains exactly
+one, and reconciliation never redispatches, replays, or widens effect authority.
+
 ### Boundary event oracle
 
 Every `graph-boundary-event/v2` record has exactly: `event_version`, `event_type`, `event_id`,

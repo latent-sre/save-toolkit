@@ -23,6 +23,7 @@ from activate import (  # noqa: E402
     RunClaim,
     _command_payload,
     _requires_reconciliation_timeline,
+    _validate_published_run,
     _validate_reconciliation_pair,
     activate_runtime,
     cleanup_published_resources,
@@ -803,6 +804,7 @@ class ActivationTests(unittest.TestCase):
             ("approval.approved", {"request_id": "approval-mission-healthy-001", "approval_status": "APPROVED", "actor_class": "fixture-operator"}, None, None),
             ("checkpoint.write_started", {"operation": "write"}, "checkpoint-001", None),
             ("checkpoint.write_completed", {"operation": "write", "result": "recorded"}, "checkpoint-001", None),
+            ("task.started", {"status": "started"}, None, effect_id),
             ("effect.prepared", {"effect_class": "checkout", "effect_state": "PREPARED"}, None, effect_id),
             ("effect.dispatched", {"effect_class": "checkout", "effect_state": "DISPATCHED"}, None, effect_id),
             (
@@ -810,6 +812,14 @@ class ActivationTests(unittest.TestCase):
                 {"effect_class": "checkout", "effect_state": "RECEIPT_RECORDED", "authoritative_result_id": "result-001"}
                 if outcome == "SUCCEEDED"
                 else {"effect_class": "checkout", "effect_state": "UNKNOWN", "reason_class": "synthetic_failure"},
+                None,
+                effect_id,
+            ),
+            (
+                "task.completed" if outcome == "SUCCEEDED" else "task.failed",
+                {"status": "completed"}
+                if outcome == "SUCCEEDED"
+                else {"status": "failed", "disposition": "stop"},
                 None,
                 effect_id,
             ),
@@ -829,7 +839,7 @@ class ActivationTests(unittest.TestCase):
                 task_id = f"mission-healthy-001:readiness:{ordinal}"
                 attempt_id = f"{task_id}:attempt-1"
                 readiness_task_event += 1
-            elif event_type.startswith("effect."):
+            elif event_effect_id is not None:
                 task_id = "mission-healthy-001:checkout_effect:0"
                 attempt_id = f"{task_id}:attempt-1"
             events.append(
@@ -935,6 +945,397 @@ class ActivationTests(unittest.TestCase):
                 checksum_lines.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative}\n")
         (run_dir / "checksums.sha256").write_text("".join(checksum_lines), encoding="ascii")
         return run_dir
+
+    def write_reconciled_retry_evidence(
+        self,
+        root: Path,
+        *,
+        recovered_incomplete_attempt: bool = False,
+    ) -> Path:
+        """Shape runner output for one failed reconciliation lookup, then success."""
+
+        run_dir = self.write_runner_evidence(root)
+        state_path = run_dir / "final-state.json"
+        events_path = run_dir / "events.jsonl"
+        effects_path = run_dir / "effects.jsonl"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        events = [
+            json.loads(line)
+            for line in events_path.read_text(encoding="utf-8").splitlines()
+        ]
+        effects = [
+            json.loads(line)
+            for line in effects_path.read_text(encoding="utf-8").splitlines()
+        ]
+        checkout_task_id = "mission-healthy-001:checkout_effect:0"
+        reconcile_task_id = "mission-healthy-001:reconcile_if_ambiguous:0"
+        effect_id = f"{checkout_task_id}:effect-checkout"
+        checkout_receipt = state["receipts"][effect_id]
+        state["tasks"][checkout_task_id] = {"status": "failed", "attempt": 1}
+        state["tasks"][reconcile_task_id] = {"status": "completed", "attempt": 2}
+
+        unknown_record = copy.deepcopy(effects[-1])
+        unknown_record.update(
+            {
+                "effect_state": "UNKNOWN",
+                "reason_class": "ambiguous_after_commit",
+                "receipt": None,
+            }
+        )
+        reconciled_record = copy.deepcopy(unknown_record)
+        reconciled_record.update(
+            {
+                "sequence": 4,
+                "effect_state": "RECONCILED",
+                "time_utc": "2026-08-29T12:00:01.004Z",
+                "reason_class": None,
+                "receipt": checkout_receipt,
+            }
+        )
+        effects = [*effects[:2], unknown_record, reconciled_record]
+
+        checkout_started = next(
+            event
+            for event in events
+            if event["event_type"] == "task.started"
+            and event["task_id"] == checkout_task_id
+        )
+        checkout_completed = next(
+            event
+            for event in events
+            if event["event_type"] == "task.completed"
+            and event["task_id"] == checkout_task_id
+        )
+        prepared = next(event for event in events if event["event_type"] == "effect.prepared")
+        dispatched = next(
+            event for event in events if event["event_type"] == "effect.dispatched"
+        )
+        receipt_recorded = next(
+            event
+            for event in events
+            if event["event_type"] == "effect.receipt_recorded"
+        )
+        terminal = copy.deepcopy(events[-1])
+        prefix = events[: events.index(checkout_started) + 1]
+
+        effect_unknown = copy.deepcopy(receipt_recorded)
+        effect_unknown.update(
+            {
+                "event_type": "effect.unknown",
+                "failure_plane": "checkout",
+                "error_class": "ambiguous_after_commit",
+                "data": {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "ambiguous_after_commit",
+                },
+            }
+        )
+        checkout_failed = copy.deepcopy(checkout_completed)
+        checkout_failed.update(
+            {
+                "event_type": "task.failed",
+                "failure_plane": "checkout",
+                "error_class": "ambiguous_after_commit",
+                "data": {"status": "failed", "disposition": "reconcile"},
+            }
+        )
+        snapshot_replay_refused = copy.deepcopy(effect_unknown)
+        snapshot_replay_refused.update(
+            {
+                "event_type": "effect.replay_refused",
+                "failure_plane": "graph-control",
+                "error_class": "automatic_replay_forbidden",
+                "data": {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "reconciliation_snapshot_required",
+                },
+            }
+        )
+
+        def reconciliation_task_event(
+            event_type: str,
+            attempt: int,
+        ) -> dict[str, object]:
+            event = copy.deepcopy(
+                checkout_started if event_type == "task.started" else checkout_completed
+            )
+            event.update(
+                {
+                    "event_type": event_type,
+                    "node_id": "reconcile_if_ambiguous",
+                    "task_id": reconcile_task_id,
+                    "attempt_id": f"{reconcile_task_id}:attempt-{attempt}",
+                    "effect_id": effect_id,
+                    "failure_plane": "checkout" if event_type == "task.failed" else None,
+                    "error_class": "gateway_unavailable"
+                    if event_type == "task.failed"
+                    else None,
+                    "data": (
+                        {"status": "failed", "disposition": "stop"}
+                        if event_type == "task.failed"
+                        else {"status": event_type.removeprefix("task.")}
+                    ),
+                }
+            )
+            return event
+
+        retry_replay_refused = copy.deepcopy(effect_unknown)
+        retry_replay_refused.update(
+            {
+                "event_type": "effect.replay_refused",
+                "node_id": "reconcile_if_ambiguous",
+                "task_id": None,
+                "attempt_id": None,
+                "failure_plane": "checkout",
+                "error_class": "gateway_unavailable",
+                "data": {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "reconciliation_unavailable",
+                },
+            }
+        )
+        effect_reconciled = copy.deepcopy(receipt_recorded)
+        effect_reconciled.update(
+            {
+                "event_type": "effect.reconciled",
+                "data": {
+                    "effect_class": "checkout",
+                    "effect_state": "RECONCILED",
+                    "authoritative_result_id": checkout_receipt[
+                        "authoritative_result_id"
+                    ],
+                },
+            }
+        )
+        first_attempt_tail = (
+            [effect_reconciled]
+            if recovered_incomplete_attempt
+            else [
+                retry_replay_refused,
+                reconciliation_task_event("task.failed", 1),
+            ]
+        )
+        events = [
+            *prefix,
+            prepared,
+            dispatched,
+            effect_unknown,
+            checkout_failed,
+            snapshot_replay_refused,
+            reconciliation_task_event("task.started", 1),
+            *first_attempt_tail,
+            reconciliation_task_event("task.started", 2),
+            *([] if recovered_incomplete_attempt else [effect_reconciled]),
+            reconciliation_task_event("task.completed", 2),
+            terminal,
+        ]
+        for sequence, event in enumerate(events, start=1):
+            event["sequence"] = sequence
+            event["event_id"] = f"mission-healthy-001:{sequence:08d}"
+
+        state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+        events_path.write_text(
+            "".join(json.dumps(event) + "\n" for event in events),
+            encoding="utf-8",
+        )
+        effects_path.write_text(
+            "".join(json.dumps(record) + "\n" for record in effects),
+            encoding="utf-8",
+        )
+        self._rewrite_checksums(run_dir)
+        return run_dir
+
+    def test_reconciled_success_accepts_bounded_failed_lookup_then_success(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+            staging = evidence_root / ".mission-healthy-001.export"
+            staging.mkdir()
+            self.write_reconciled_retry_evidence(staging)
+
+            final = verify_and_publish_evidence(
+                staging,
+                evidence_root=evidence_root,
+                run_id=CASE_ID,
+                case_id=CASE_ID,
+                case_digest=CASE_DIGEST,
+                source_revision=SOURCE_REVISION,
+                exit_code=0,
+                validated_compose=b"{}\n",
+                verification=self.host_verification(),
+                commands=self.command_journal(),
+                runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
+            )
+
+            state = json.loads(
+                (final / "final-state.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                state["tasks"][f"{CASE_ID}:reconcile_if_ambiguous:0"],
+                {"status": "completed", "attempt": 2},
+            )
+
+    def test_reconciled_success_accepts_recovered_open_reconciliation_attempt(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+            staging = evidence_root / ".mission-healthy-001.export"
+            staging.mkdir()
+            self.write_reconciled_retry_evidence(
+                staging,
+                recovered_incomplete_attempt=True,
+            )
+
+            final = verify_and_publish_evidence(
+                staging,
+                evidence_root=evidence_root,
+                run_id=CASE_ID,
+                case_id=CASE_ID,
+                case_digest=CASE_DIGEST,
+                source_revision=SOURCE_REVISION,
+                exit_code=0,
+                validated_compose=b"{}\n",
+                verification=self.host_verification(),
+                commands=self.command_journal(),
+                runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
+            )
+
+            events = [
+                json.loads(line)
+                for line in (final / "events.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            reconciliation_task_id = f"{CASE_ID}:reconcile_if_ambiguous:0"
+            self.assertEqual(
+                [
+                    event["event_type"]
+                    for event in events
+                    if event["task_id"] == reconciliation_task_id
+                ],
+                ["task.started", "task.started", "task.completed"],
+            )
+
+    def test_success_oracle_rejects_out_of_contract_task_retries(self) -> None:
+        reconciliation_task_id = f"{CASE_ID}:reconcile_if_ambiguous:0"
+        checkout_task_id = f"{CASE_ID}:checkout_effect:0"
+
+        def over_ceiling(run_dir: Path) -> None:
+            state_path = run_dir / "final-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["tasks"][reconciliation_task_id]["attempt"] = 9
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+
+        def noncontiguous(run_dir: Path) -> None:
+            state_path = run_dir / "final-state.json"
+            events_path = run_dir / "events.jsonl"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["tasks"][reconciliation_task_id]["attempt"] = 3
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            for event in events:
+                if event["attempt_id"] == f"{reconciliation_task_id}:attempt-2":
+                    event["attempt_id"] = f"{reconciliation_task_id}:attempt-3"
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def unrelated_retry(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            unrelated = copy.deepcopy(
+                next(
+                    event
+                    for event in events
+                    if event["task_id"] == reconciliation_task_id
+                    and event["event_type"] == "task.started"
+                )
+            )
+            unrelated_task_id = f"{CASE_ID}:unrelated:0"
+            unrelated.update(
+                {
+                    "task_id": unrelated_task_id,
+                    "attempt_id": f"{unrelated_task_id}:attempt-2",
+                }
+            )
+            events.insert(-1, unrelated)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def retried_checkout_dispatch(run_dir: Path) -> None:
+            state_path = run_dir / "final-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["tasks"][checkout_task_id]["attempt"] = 2
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+
+        def retried_effect_ledger(run_dir: Path) -> None:
+            effects_path = run_dir / "effects.jsonl"
+            effects = [
+                json.loads(line)
+                for line in effects_path.read_text(encoding="utf-8").splitlines()
+            ]
+            effects[0]["attempt_id"] = f"{checkout_task_id}:attempt-2"
+            effects_path.write_text(
+                "".join(json.dumps(record) + "\n" for record in effects),
+                encoding="utf-8",
+            )
+
+        def consumed_reconciliation_attempt(run_dir: Path) -> None:
+            state_path = run_dir / "final-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["budgets"]["attempts"]["consumed"] = 2
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+
+        cases = (
+            (over_ceiling, "runtime limit"),
+            (noncontiguous, "bounded and contiguous"),
+            (unrelated_retry, "unrelated task event"),
+            (retried_checkout_dispatch, "retried unexpectedly"),
+            (retried_effect_ledger, "effect ledger identity"),
+            (consumed_reconciliation_attempt, "healthy fixture consumption"),
+        )
+        for mutate, message in cases:
+            with self.subTest(mutate=mutate.__name__), tempfile.TemporaryDirectory() as temporary:
+                evidence_root = Path(temporary)
+                staging = evidence_root / ".mission-healthy-001.export"
+                staging.mkdir()
+                run_dir = self.write_reconciled_retry_evidence(staging)
+                mutate(run_dir)
+                self._rewrite_checksums(run_dir)
+
+                with self.assertRaisesRegex(ActivationError, message):
+                    verify_and_publish_evidence(
+                        staging,
+                        evidence_root=evidence_root,
+                        run_id=CASE_ID,
+                        case_id=CASE_ID,
+                        case_digest=CASE_DIGEST,
+                        source_revision=SOURCE_REVISION,
+                        exit_code=0,
+                        validated_compose=b"{}\n",
+                        verification=self.host_verification(),
+                        commands=self.command_journal(),
+                        runner_state={
+                            "Status": "exited",
+                            "ExitCode": 0,
+                            "OOMKilled": False,
+                        },
+                    )
 
     def test_host_verifies_adds_metadata_rechecksums_and_atomically_publishes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -2326,6 +2727,93 @@ class ActivationTests(unittest.TestCase):
             cleanup.assert_called_once()
             execute.assert_not_called()
             self.assertFalse((root / f".{CASE_ID}.claim.json").exists())
+
+    def test_resume_revalidates_a_published_reconciliation_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            final = root / CASE_ID
+            unknown = final / "unknown"
+            reconciled = final / "reconciled"
+            unknown.mkdir(parents=True)
+            reconciled.mkdir()
+            immutable = {
+                "run_id": CASE_ID,
+                "case_id": CASE_ID,
+                "case_digest": CASE_DIGEST,
+                "source_revision": SOURCE_REVISION,
+                "thread_id": f"checkout-payments-timeout-drill-v1:{CASE_ID}",
+                "started_at": "2026-08-30T12:00:00.000Z",
+            }
+            unknown_manifest = {
+                **immutable,
+                "outcome": "UNKNOWN",
+                "ended_at": "2026-08-30T12:00:01.000Z",
+            }
+            reconciled_manifest = {
+                **immutable,
+                "outcome": "SUCCEEDED",
+                "ended_at": "2026-08-30T12:00:02.000Z",
+            }
+            for directory, manifest in (
+                (unknown, unknown_manifest),
+                (reconciled, reconciled_manifest),
+            ):
+                (directory / "manifest.json").write_text(
+                    json.dumps(manifest) + "\n",
+                    encoding="utf-8",
+                )
+            (unknown / "events.jsonl").write_text(
+                json.dumps({"sequence": 1, "event_type": "effect.unknown"})
+                + "\n"
+                + json.dumps({"sequence": 2, "event_type": "run.terminal"})
+                + "\n",
+                encoding="utf-8",
+            )
+            (reconciled / "events.jsonl").write_text(
+                json.dumps({"sequence": 1, "event_type": "effect.dispatched"})
+                + "\n"
+                + json.dumps({"sequence": 2, "event_type": "effect.reconciled"})
+                + "\n"
+                + json.dumps({"sequence": 3, "event_type": "run.terminal"})
+                + "\n",
+                encoding="utf-8",
+            )
+
+            # Each child passes its independent bundle check; only the pair check can
+            # detect that the reconciled history does not extend the UNKNOWN history.
+            with (
+                mock.patch("activate._validate_published_bundle") as validate_bundle,
+                mock.patch(
+                    "activate._validate_reconciliation_pair",
+                    wraps=_validate_reconciliation_pair,
+                ) as validate_pair,
+                self.assertRaisesRegex(ActivationError, "event history"),
+            ):
+                _validate_published_run(
+                    final,
+                    evidence_root=root,
+                    run_id=CASE_ID,
+                    case_id=CASE_ID,
+                    case_digest=CASE_DIGEST,
+                    source_revision=SOURCE_REVISION,
+                    compose_digest=hashlib.sha256(b"{}\n").hexdigest(),
+                    context_fingerprint="f" * 64,
+                    reconciliation_timeline=True,
+                )
+
+            self.assertEqual(
+                [
+                    (call.args[0], call.kwargs["snapshot_role"])
+                    for call in validate_bundle.call_args_list
+                ],
+                [(unknown, "UNKNOWN"), (reconciled, "RECONCILED")],
+            )
+            validate_pair.assert_called_once_with(
+                unknown,
+                reconciled,
+                unknown_manifest,
+                reconciled_manifest,
+            )
 
     def test_timeout_stops_without_volumes_and_returns_resume_exit(self) -> None:
         calls: list[list[str]] = []

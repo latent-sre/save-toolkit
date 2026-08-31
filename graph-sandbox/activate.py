@@ -526,8 +526,205 @@ def _derive_child_key(parent_key: str, effect_class: str) -> str:
     ).hexdigest()
 
 
+def _task_attempt_number(event: Mapping[str, object], task_id: str) -> int:
+    attempt_id = event.get("attempt_id")
+    match = (
+        re.fullmatch(rf"{re.escape(task_id)}:attempt-([1-9][0-9]*)", attempt_id)
+        if isinstance(attempt_id, str)
+        else None
+    )
+    if match is None:
+        raise ActivationError(f"evidence export: {task_id} attempt lineage is invalid")
+    return int(match.group(1))
+
+
+def _validate_success_task_history(
+    tasks: Mapping[str, object],
+    events: Sequence[Mapping[str, object]],
+    run_id: str,
+    *,
+    reconciled_effect: bool,
+    reconciliation_attempt_limit: int,
+) -> None:
+    readiness_task_ids = {
+        f"{run_id}:readiness:{ordinal}" for ordinal in range(3)
+    }
+    checkout_task_id = f"{run_id}:checkout_effect:0"
+    reconciliation_task_id = f"{run_id}:reconcile_if_ambiguous:0"
+    allowed_task_ids = readiness_task_ids | {checkout_task_id}
+    if reconciled_effect:
+        allowed_task_ids.add(reconciliation_task_id)
+    task_events = [
+        event for event in events if str(event["event_type"]).startswith("task.")
+    ]
+    if any(event["task_id"] not in allowed_task_ids for event in task_events):
+        raise ActivationError("evidence export: success contains an unrelated task event")
+
+    for task_id in sorted(readiness_task_ids):
+        observed = [event for event in task_events if event["task_id"] == task_id]
+        if (
+            [event["event_type"] for event in observed]
+            != ["task.started", "task.completed"]
+            or any(
+                event["attempt_id"] != f"{task_id}:attempt-1"
+                for event in observed
+            )
+            or [event["data"] for event in observed]
+            != [{"status": "started"}, {"status": "completed"}]
+        ):
+            raise ActivationError(
+                "evidence export: readiness task history is not one completed attempt"
+            )
+
+    checkout_events = [
+        event for event in task_events if event["task_id"] == checkout_task_id
+    ]
+    checkout_result = "task.failed" if reconciled_effect else "task.completed"
+    expected_checkout_data = (
+        {"status": "failed", "disposition": "reconcile"}
+        if reconciled_effect
+        else {"status": "completed"}
+    )
+    checkout_effect_id = f"{checkout_task_id}:effect-checkout"
+    if (
+        [event["event_type"] for event in checkout_events]
+        != ["task.started", checkout_result]
+        or any(
+            event["attempt_id"] != f"{checkout_task_id}:attempt-1"
+            for event in checkout_events
+        )
+        or [event["data"] for event in checkout_events]
+        != [{"status": "started"}, expected_checkout_data]
+        or any(event["effect_id"] != checkout_effect_id for event in checkout_events)
+    ):
+        raise ActivationError(
+            "evidence export: checkout task history is not one dispatch attempt"
+        )
+    checkout_failure = checkout_events[-1]
+    if reconciled_effect:
+        if (
+            checkout_failure["failure_plane"] != "checkout"
+            or not isinstance(checkout_failure["error_class"], str)
+            or not ATOMIC_ID_RE.fullmatch(checkout_failure["error_class"])
+        ):
+            raise ActivationError(
+                "evidence export: reconciled checkout lacks its ambiguous failure"
+            )
+    elif (
+        checkout_failure["failure_plane"] is not None
+        or checkout_failure["error_class"] is not None
+    ):
+        raise ActivationError("evidence export: completed checkout carries a failure")
+
+    reconciliation_events = [
+        event
+        for event in task_events
+        if event["task_id"] == reconciliation_task_id
+    ]
+    if not reconciled_effect:
+        if reconciliation_events or reconciliation_task_id in tasks:
+            raise ActivationError(
+                "evidence export: receipt-recorded success contains reconciliation retries"
+            )
+        return
+    if not reconciliation_events:
+        raise ActivationError("evidence export: reconciled success lacks task history")
+
+    by_attempt: dict[int, list[Mapping[str, object]]] = {}
+    for event in reconciliation_events:
+        event_type = event["event_type"]
+        attempt_number = _task_attempt_number(event, reconciliation_task_id)
+        if (
+            attempt_number > reconciliation_attempt_limit
+            or event_type not in {"task.started", "task.failed", "task.completed"}
+            or event["node_id"] != "reconcile_if_ambiguous"
+            or event["effect_id"] != checkout_effect_id
+        ):
+            raise ActivationError(
+                "evidence export: reconciliation task exceeds its bounded retry contract"
+            )
+        if event_type == "task.started":
+            coherent = (
+                event["data"] == {"status": "started"}
+                and event["failure_plane"] is None
+                and event["error_class"] is None
+            )
+        elif event_type == "task.failed":
+            coherent = (
+                event["data"] == {"status": "failed", "disposition": "stop"}
+                and event["failure_plane"] == "checkout"
+                and isinstance(event["error_class"], str)
+                and ATOMIC_ID_RE.fullmatch(event["error_class"]) is not None
+            )
+        else:
+            coherent = (
+                event["data"] == {"status": "completed"}
+                and event["failure_plane"] is None
+                and event["error_class"] is None
+            )
+        if not coherent:
+            raise ActivationError(
+                "evidence export: reconciliation task result is incoherent"
+            )
+        by_attempt.setdefault(attempt_number, []).append(event)
+
+    reconciliation_state = tasks[reconciliation_task_id]
+    if not isinstance(reconciliation_state, Mapping):
+        raise ActivationError("evidence export: reconciliation task state is invalid")
+    final_attempt = reconciliation_state["attempt"]
+    if (
+        isinstance(final_attempt, bool)
+        or not isinstance(final_attempt, int)
+        or not 1 <= final_attempt <= reconciliation_attempt_limit
+        or sorted(by_attempt) != list(range(1, final_attempt + 1))
+    ):
+        raise ActivationError(
+            "evidence export: reconciliation attempts are not bounded and contiguous"
+        )
+    previous_attempt_end = 0
+    for attempt_number in range(1, final_attempt + 1):
+        attempt_events = by_attempt[attempt_number]
+        event_types = [
+            event["event_type"] for event in attempt_events
+        ]
+        attempt_sequences = [int(event["sequence"]) for event in attempt_events]
+        if attempt_number == final_attempt:
+            coherent = event_types == ["task.started", "task.completed"]
+        else:
+            # A durable RECONCILED ledger row can survive a crash before the task
+            # result/checkpoint write. Recovery may therefore leave an earlier
+            # started attempt open, but it may not invent or reorder a result.
+            coherent = event_types in (
+                ["task.started", "task.failed"],
+                ["task.started"],
+            )
+        if not coherent or attempt_sequences[0] <= previous_attempt_end:
+            raise ActivationError(
+                "evidence export: reconciliation task attempt sequence is incoherent"
+            )
+        previous_attempt_end = attempt_sequences[-1]
+
+    reconciled_events = [
+        event for event in events if event["event_type"] == "effect.reconciled"
+    ]
+    first_started = int(by_attempt[1][0]["sequence"])
+    final_completed = int(by_attempt[final_attempt][-1]["sequence"])
+    if (
+        len(reconciled_events) != 1
+        or not (
+            first_started
+            < int(reconciled_events[0]["sequence"])
+            < final_completed
+        )
+    ):
+        raise ActivationError(
+            "evidence export: reconciliation task does not enclose its durable result"
+        )
+
+
 def _validate_success_controls(
     final_state: Mapping[str, object],
+    events: Sequence[Mapping[str, object]],
     run_id: str,
     *,
     allow_completed_budget_failure: bool = False,
@@ -546,26 +743,6 @@ def _validate_success_controls(
         or not RFC3339_UTC_RE.fullmatch(approval["decision_time"])
     ):
         raise ActivationError("evidence export: approval is not a fixture APPROVED decision")
-
-    required_tasks = {
-        f"{run_id}:readiness:0",
-        f"{run_id}:readiness:1",
-        f"{run_id}:readiness:2",
-        f"{run_id}:checkout_effect:0",
-    }
-    allowed_tasks = required_tasks | {f"{run_id}:reconcile_if_ambiguous:0"}
-    tasks = final_state["tasks"]
-    if not isinstance(tasks, dict) or not required_tasks.issubset(tasks) or not set(tasks) <= allowed_tasks:
-        raise ActivationError("evidence export: tasks do not contain the four required healthy tasks")
-    for task_id, task in tasks.items():
-        closed = _require_closed(task, {"status", "attempt"}, f"tasks[{task_id}]")
-        expected_status = (
-            "failed"
-            if reconciled_effect and task_id == f"{run_id}:checkout_effect:0"
-            else "completed"
-        )
-        if closed["status"] != expected_status or closed["attempt"] != 1:
-            raise ActivationError(f"evidence export: tasks[{task_id}] is not completed once")
 
     readiness = final_state["readiness"]
     expected_services = {"checkout", "payments", "inventory"}
@@ -606,6 +783,49 @@ def _validate_success_controls(
     }
     if any(budgets[kind]["consumed"] != consumed for kind, consumed in required_consumption.items()):
         raise ActivationError("evidence export: budgets do not prove healthy fixture consumption")
+
+    required_tasks = {
+        f"{run_id}:readiness:0",
+        f"{run_id}:readiness:1",
+        f"{run_id}:readiness:2",
+        f"{run_id}:checkout_effect:0",
+    }
+    reconciliation_task_id = f"{run_id}:reconcile_if_ambiguous:0"
+    expected_tasks = required_tasks | (
+        {reconciliation_task_id} if reconciled_effect else set()
+    )
+    tasks = final_state["tasks"]
+    if not isinstance(tasks, dict) or set(tasks) != expected_tasks:
+        raise ActivationError(
+            "evidence export: tasks do not contain the exact successful task set"
+        )
+    reconciliation_attempt_limit = budgets["attempts"]["limit"]
+    for task_id, task in tasks.items():
+        closed = _require_closed(task, {"status", "attempt"}, f"tasks[{task_id}]")
+        expected_status = (
+            "failed"
+            if reconciled_effect and task_id == f"{run_id}:checkout_effect:0"
+            else "completed"
+        )
+        if closed["status"] != expected_status:
+            raise ActivationError(f"evidence export: tasks[{task_id}] status is invalid")
+        if task_id != reconciliation_task_id and closed["attempt"] != 1:
+            raise ActivationError(f"evidence export: tasks[{task_id}] retried unexpectedly")
+        if task_id == reconciliation_task_id and (
+            isinstance(closed["attempt"], bool)
+            or not isinstance(closed["attempt"], int)
+            or not 1 <= closed["attempt"] <= reconciliation_attempt_limit
+        ):
+            raise ActivationError(
+                "evidence export: reconciliation task attempt exceeds its runtime limit"
+            )
+    _validate_success_task_history(
+        tasks,
+        events,
+        run_id,
+        reconciled_effect=reconciled_effect,
+        reconciliation_attempt_limit=reconciliation_attempt_limit,
+    )
 
     cancellation = _require_closed(
         final_state["cancellation"],
@@ -1361,11 +1581,7 @@ def _validate_effect_ledger(
             closed["sequence"] != sequence
             or closed["effect_id"] != effect_id
             or closed["task_id"] != task_id
-            or not isinstance(closed["attempt_id"], str)
-            or not re.fullmatch(
-                rf"{re.escape(task_id)}:attempt-[1-9][0-9]*",
-                closed["attempt_id"],
-            )
+            or closed["attempt_id"] != f"{task_id}:attempt-1"
             or closed["replay_id"] != f"{run_id}:replay-0"
             or closed["idempotency_key"] != idempotency_key
             or not isinstance(closed["payload_hash"], str)
@@ -1642,6 +1858,7 @@ def _validate_runner_semantics(
     if exit_code == 0 or post_effect_budget_failure:
         _validate_success_controls(
             final_state,
+            events,
             run_id,
             allow_completed_budget_failure=post_effect_budget_failure,
             reconciled_effect=final_effect["effect_state"] == "RECONCILED",
