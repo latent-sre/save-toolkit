@@ -1020,6 +1020,7 @@ def build_command(
     enable_snapshot_reads: bool = False,
     required_reference_paths: tuple[str, ...] = (),
     denied_probe_path: Path | None = None,
+    reasoning_effort: str | None = None,
 ) -> list[str]:
     return engine_adapters.ClaudeNativeAdapter().build_command(
         scenario=scenario,
@@ -1027,6 +1028,7 @@ def build_command(
         plugin_root=plugin_root,
         qualified_target=qualified_target(scenario["target"], plugin_root),
         model=model,
+        reasoning_effort=reasoning_effort,
         enable_snapshot_reads=enable_snapshot_reads,
         required_reference_paths=required_reference_paths,
         denied_probe_path=denied_probe_path,
@@ -1152,6 +1154,8 @@ def run_agent(
     plugin_root: Path = ROOT,
     required_references: tuple[str, ...] | None = None,
     denied_probe_path: Path | None = None,
+    reasoning_effort: str | None = None,
+    accepted_resolved_model: str | None = None,
 ) -> TrialExecution:
     references = (
         reference_requirements(scenario)
@@ -1178,6 +1182,7 @@ def run_agent(
         enable_snapshot_reads=enable_snapshot_reads,
         required_reference_paths=references,
         denied_probe_path=denied_probe_path,
+        reasoning_effort=reasoning_effort,
     )
     started = time.monotonic()
     try:
@@ -1225,6 +1230,10 @@ def run_agent(
     boundary_proven = False
     try:
         parsed = parse_stream_trace(proc.stdout)
+        if accepted_resolved_model is not None and parsed.model != accepted_resolved_model:
+            raise clean_room.RunnerFailed(
+                "Claude resolved model does not match the accepted resolved-model identity"
+            )
         boundary_options: dict[str, object] = {"expected_tools": expected_tools, "optional_tools": optional_tools}
         if enable_snapshot_reads:
             boundary_options["callable_read_tools"] = engine_adapters.READ_TOOLS
@@ -1259,7 +1268,8 @@ def run_agent(
             parsed_trace=parsed,
             policy_sha256=(
                 engine_adapters.ClaudeNativeAdapter().policy_sha256(
-                    enable_snapshot_reads=enable_snapshot_reads
+                    enable_snapshot_reads=enable_snapshot_reads,
+                    reasoning_effort=reasoning_effort,
                 )
                 if boundary_proven else None
             ),
@@ -1283,7 +1293,8 @@ def run_agent(
             parsed_trace=parsed,
             policy_sha256=(
                 engine_adapters.ClaudeNativeAdapter().policy_sha256(
-                    enable_snapshot_reads=enable_snapshot_reads
+                    enable_snapshot_reads=enable_snapshot_reads,
+                    reasoning_effort=reasoning_effort,
                 )
                 if boundary_proven else None
             ),
@@ -1300,7 +1311,8 @@ def run_agent(
         proc.returncode,
         duration,
         policy_sha256=engine_adapters.ClaudeNativeAdapter().policy_sha256(
-            enable_snapshot_reads=enable_snapshot_reads
+            enable_snapshot_reads=enable_snapshot_reads,
+            reasoning_effort=reasoning_effort,
         ),
         expected_canaries=tuple(sorted(expected_canaries.values())),
         observed_canaries=tuple(
@@ -1324,6 +1336,8 @@ def run_codex_agent(
     required_references: tuple[str, ...],
     timeout: int,
     model: str,
+    accepted_resolved_model: str | None = None,
+    reasoning_effort: str | None = None,
     codex_bin: str,
     env: Mapping[str, str] | None = None,
 ) -> TrialExecution:
@@ -1358,6 +1372,7 @@ def run_codex_agent(
             bundle_root=bundle.root,
             response_schema=bundle.root / "response-schema.json",
             model=model,
+            reasoning_effort=reasoning_effort,
         )
         try:
             proc = subprocess.run(
@@ -1413,7 +1428,12 @@ def run_codex_agent(
                 **evidence,
             )
         try:
-            trace = adapter.parse_trace(proc.stdout, requested_model=model)
+            trace = adapter.parse_trace(
+                proc.stdout,
+                requested_model=model,
+                accepted_resolved_model=accepted_resolved_model,
+                requested_reasoning_effort=reasoning_effort,
+            )
         except engine_adapters.AdapterError as exc:
             raise InconclusiveTrial(
                 str(exc),
@@ -1990,6 +2010,39 @@ def plugin_digest(root: Path = ROOT) -> str:
     return _sha256_paths(files, base=root)
 
 
+def ignored_plugin_inputs(root: Path = ROOT) -> tuple[str, ...]:
+    """Return ignored files below measured roots so they cannot masquerade as clean inputs."""
+
+    argv = [
+            "git",
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "-z",
+            "--",
+            *PLUGIN_INPUT_PATHS,
+            *OPTIONAL_PLUGIN_INPUT_PATHS,
+        ]
+    proc = subprocess.run(
+        argv,
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        encoding="utf-8",
+        errors="strict",
+    )
+    if proc.returncode != 0:
+        raise clean_room.RunnerFailed(
+            f"provenance command failed rc={proc.returncode}: {' '.join(argv)}: "
+            f"{proc.stderr.strip()[:300]}"
+        )
+    return tuple(
+        sorted(path.replace("\\", "/") for path in proc.stdout.split("\0") if path)
+    )
+
+
 def eval_suite_digest(root: Path = EVAL_ROOT) -> str:
     inputs = _files_under(*EVAL_INPUT_PATHS, root=root)
     inputs.extend(_files_under(*EVAL_SUPPORT_INPUT_PATHS, root=root.parent))
@@ -2165,6 +2218,7 @@ def collect_provenance(
         *PLUGIN_INPUT_PATHS,
         *OPTIONAL_PLUGIN_INPUT_PATHS,
     ])
+    ignored_inputs = ignored_plugin_inputs(ROOT)
     snapshot_digest = plugin_digest(plugin_root)
     workspace_digest = plugin_digest(ROOT)
     if workspace_digest != snapshot_digest:
@@ -2184,7 +2238,8 @@ def collect_provenance(
         "plugin_version": manifest.get("version"),
         "plugin_commit": required_command_text(["git", "rev-parse", "HEAD"]),
         "workspace_dirty": bool(status),
-        "plugin_inputs_dirty": bool(plugin_status),
+        "plugin_inputs_dirty": bool(plugin_status or ignored_inputs),
+        "ignored_plugin_inputs": list(ignored_inputs),
         "plugin_manifest_sha256": _sha256_file(manifest_path),
         "plugin_source_sha256": snapshot_digest,
         "plugin_workspace_source_sha256": workspace_digest,
@@ -2420,6 +2475,7 @@ def main() -> int:
                             enable_snapshot_reads=bool(planned_references),
                             required_reference_paths=planned_references,
                             denied_probe_path=denied_probe_path,
+                            reasoning_effort=(profile.reasoning_effort if profile else None),
                         )
                     else:
                         planned_command = [runtime_bin, "exec", "<ephemeral-resolved-context>"]
@@ -2467,6 +2523,8 @@ def main() -> int:
                                 plugin_root=plugin_root,
                                 required_references=planned_references,
                                 denied_probe_path=denied_probe_path,
+                                reasoning_effort=(profile.reasoning_effort if profile else None),
+                                accepted_resolved_model=(profile.resolved_model if profile else None),
                             )
                         else:
                             if profile is None:
@@ -2482,6 +2540,8 @@ def main() -> int:
                                 ),
                                 timeout=trial_timeout,
                                 model=profile.model,
+                                accepted_resolved_model=profile.resolved_model,
+                                reasoning_effort=profile.reasoning_effort,
                                 codex_bin=runtime_bin,
                                 env=env,
                             )
@@ -2507,6 +2567,9 @@ def main() -> int:
                             "duration_seconds": execution.duration_seconds,
                             "exit_code": execution.returncode,
                             "resolved_model": execution.parsed.model,
+                            "reasoning_effort": (
+                                profile.reasoning_effort if profile is not None else None
+                            ),
                             "session_id": execution.parsed.session_id,
                             "total_cost_usd": execution.parsed.total_cost_usd,
                             "completed_invocations": {
@@ -2570,6 +2633,9 @@ def main() -> int:
                             "duration_seconds": getattr(exc, "duration_seconds", None),
                             "requested_model": getattr(exc, "requested_model", args.model),
                             "resolved_model": getattr(exc, "resolved_model", None),
+                            "reasoning_effort": (
+                                profile.reasoning_effort if profile is not None else None
+                            ),
                             "model_executed": getattr(exc, "model_executed", False),
                             "session_id": (
                                 parsed_evidence.session_id if parsed_evidence is not None else None
@@ -2638,6 +2704,16 @@ def main() -> int:
                     "\n!! WARNING: this batch mixed resolved models "
                     f"({', '.join(models_observed)}); it mixes measurement conditions and must "
                     "not be diffed as a single baseline. Pin --model for a comparable run."
+                )
+            if (
+                profile is not None
+                and profile.resolved_model is not None
+                and models_observed
+                and models_observed != [profile.resolved_model]
+            ):
+                integrity_errors.append(
+                    "batch resolved model does not match the accepted execution profile identity: "
+                    f"expected={profile.resolved_model!r} observed={models_observed}"
                 )
             if integrity_errors:
                 overall = "INCONCLUSIVE"

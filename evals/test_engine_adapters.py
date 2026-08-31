@@ -147,9 +147,10 @@ class CodexResolvedContextAdapterTests(unittest.TestCase):
             command = self.adapter.build_command(
                 executable="codex",
                 bundle_root=root,
-                response_schema=schema,
-                model="gpt-5.6-terra",
-            )
+            response_schema=schema,
+            model="gpt-5.6-terra",
+            reasoning_effort="high",
+        )
         for flag in (
             "--ephemeral", "--ignore-user-config", "--ignore-rules", "--strict-config", "--json"
         ):
@@ -157,6 +158,7 @@ class CodexResolvedContextAdapterTests(unittest.TestCase):
         self.assertEqual("read-only", command[command.index("--sandbox") + 1])
         self.assertIn('approval_policy="never"', command)
         self.assertIn("shell_environment_policy.inherit=none", command)
+        self.assertIn('model_reasoning_effort="high"', command)
         self.assertEqual("-", command[-1])
         self.assertNotIn("--add-dir", command)
         self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", command)
@@ -188,11 +190,10 @@ class CodexResolvedContextAdapterTests(unittest.TestCase):
             {
                 "type": "thread.started",
                 "thread_id": "private",
-                "model": "gpt-5.6-terra-20260801",
+                "model": "gpt-5.6-terra",
                 "effective_policy": engine_adapters.CODEX_EFFECTIVE_POLICY,
             },
             {"type": "turn.started"},
-            {"type": "item.completed", "item": {"type": "agent_message", "text": "first"}},
             {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps({
                 "response": "final", "reference_canaries": []
             })}},
@@ -204,7 +205,7 @@ class CodexResolvedContextAdapterTests(unittest.TestCase):
         )
         self.assertTrue(trace.complete)
         self.assertEqual("final", trace.response)
-        self.assertEqual("gpt-5.6-terra-20260801", trace.resolved_model)
+        self.assertEqual("gpt-5.6-terra", trace.resolved_model)
         self.assertRegex(trace.policy_sha256, r"^[0-9a-f]{64}$")
         self.assertEqual({"input_tokens": 10, "output_tokens": 4}, trace.usage)
 
@@ -213,9 +214,10 @@ class CodexResolvedContextAdapterTests(unittest.TestCase):
             {
                 "type": "thread.started",
                 "thread_id": "private",
-                "model": "gpt-5.6-terra-20260801",
+                "model": "gpt-5.6-terra",
                 "effective_policy": engine_adapters.CODEX_EFFECTIVE_POLICY,
             },
+            {"type": "turn.started"},
             {"type": "item.completed", "item": {"type": "agent_message", "text": "plain text"}},
             {"type": "turn.completed", "usage": {}},
         ]
@@ -234,13 +236,14 @@ class CodexResolvedContextAdapterTests(unittest.TestCase):
             },
         }
         completed = {"type": "turn.completed", "usage": {}}
+        turn_started = {"type": "turn.started"}
         for started, expected in (
             (
                 {"type": "thread.started", "effective_policy": engine_adapters.CODEX_EFFECTIVE_POLICY},
                 "resolved model",
             ),
             (
-                {"type": "thread.started", "model": "gpt-5.6-terra-20260801"},
+                {"type": "thread.started", "model": "gpt-5.6-terra"},
                 "effective ambient policy",
             ),
         ):
@@ -248,7 +251,91 @@ class CodexResolvedContextAdapterTests(unittest.TestCase):
                 engine_adapters.AdapterError, expected
             ):
                 self.adapter.parse_trace(
-                    "\n".join(json.dumps(event) for event in (started, final, completed)),
+                    "\n".join(json.dumps(event) for event in (started, turn_started, final, completed)),
+                    requested_model="gpt-5.6-terra",
+                )
+
+    def test_resolved_model_must_match_the_requested_model(self) -> None:
+        events = [
+            {
+                "type": "thread.started",
+                "model": "gpt-5.6-sol",
+                "effective_policy": engine_adapters.CODEX_EFFECTIVE_POLICY,
+            },
+            {"type": "turn.started"},
+            {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps({
+                "response": "final", "reference_canaries": []
+            })}},
+            {"type": "turn.completed", "usage": {}},
+        ]
+        with self.assertRaisesRegex(engine_adapters.AdapterError, "resolved model"):
+            self.adapter.parse_trace(
+                "\n".join(json.dumps(event) for event in events),
+                requested_model="gpt-5.6-terra",
+            )
+
+    def test_trace_binds_accepted_resolved_model_and_reasoning_effort(self) -> None:
+        def rendered(reasoning_effort: str | None) -> str:
+            started = {
+                "type": "thread.started",
+                "model": "gpt-5.6-terra-20260801",
+                "effective_policy": engine_adapters.CODEX_EFFECTIVE_POLICY,
+            }
+            if reasoning_effort is not None:
+                started["reasoning_effort"] = reasoning_effort
+            events = [
+                started,
+                {"type": "turn.started"},
+                {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps({
+                    "response": "final", "reference_canaries": []
+                })}},
+                {"type": "turn.completed", "usage": {}},
+            ]
+            return "\n".join(json.dumps(event) for event in events)
+
+        trace = self.adapter.parse_trace(
+            rendered("high"),
+            requested_model="gpt-5.6-terra",
+            accepted_resolved_model="gpt-5.6-terra-20260801",
+            requested_reasoning_effort="high",
+        )
+        self.assertEqual("gpt-5.6-terra-20260801", trace.resolved_model)
+        for observed in (None, "low"):
+            with self.subTest(observed=observed), self.assertRaisesRegex(
+                engine_adapters.AdapterError, "reasoning-effort"
+            ):
+                self.adapter.parse_trace(
+                    rendered(observed),
+                    requested_model="gpt-5.6-terra",
+                    accepted_resolved_model="gpt-5.6-terra-20260801",
+                    requested_reasoning_effort="high",
+                )
+
+    def test_single_turn_trace_requires_ordered_start_and_terminal_events(self) -> None:
+        started = {
+            "type": "thread.started",
+            "model": "gpt-5.6-terra",
+            "effective_policy": engine_adapters.CODEX_EFFECTIVE_POLICY,
+        }
+        turn_started = {"type": "turn.started"}
+        final = {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps({
+            "response": "final", "reference_canaries": []
+        })}}
+        completed = {"type": "turn.completed", "usage": {}}
+        malformed = (
+            (started, final, completed),
+            (started, final, turn_started, completed),
+            (completed, started, turn_started, final),
+            (started, turn_started, {"type": "turn.started"}, final, completed),
+            (started, turn_started, final, completed, {"type": "item.completed", "item": {"type": "note"}}),
+            (started, turn_started, final, final, completed),
+        )
+        for events in malformed:
+            with self.subTest(events=events), self.assertRaisesRegex(
+                engine_adapters.AdapterError, "single-turn|incomplete"
+            ):
+                self.adapter.parse_trace(
+                    "\n".join(json.dumps(event) for event in events),
                     requested_model="gpt-5.6-terra",
                 )
 

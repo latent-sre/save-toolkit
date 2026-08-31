@@ -49,10 +49,28 @@ class ExecutionProfileTests(unittest.TestCase):
             },
         }
 
+    def _valid_v2(self) -> dict[str, object]:
+        value = self._valid()
+        value["schema_version"] = "eval-execution-profile/v2"
+        value["comparison"] = {
+            **value["comparison"],
+            "resolved_models": {
+                "claude-plugin": "claude-sonnet-5",
+                "codex-cli": "gpt-5.6-terra",
+            },
+            "reasoning_efforts": {
+                "claude-plugin": "high",
+                "codex-cli": "high",
+            },
+        }
+        value["resolved_model"] = "gpt-5.6-terra"
+        value["reasoning_effort"] = "high"
+        return value
+
     def test_valid_profile_is_digest_bound(self) -> None:
-        profile = execution_profiles.validate_profile(self._valid(), require_approval=True)
+        profile = execution_profiles.validate_profile(self._valid_v2(), require_approval=True)
         self.assertRegex(profile.sha256, r"^[0-9a-f]{64}$")
-        changed = self._valid()
+        changed = self._valid_v2()
         changed["timeout_s"] = 181
         self.assertNotEqual(
             profile.sha256,
@@ -70,11 +88,38 @@ class ExecutionProfileTests(unittest.TestCase):
             execution_profiles.validate_profile(value)
 
     def test_live_profile_requires_explicit_approval(self) -> None:
-        value = self._valid()
+        value = self._valid_v2()
         value["approval"] = None
         execution_profiles.validate_profile(value, require_approval=False)
         with self.assertRaisesRegex(execution_profiles.ProfileError, "approval"):
             execution_profiles.validate_profile(value, require_approval=True)
+
+    def test_v1_remains_readable_but_cannot_authorize_new_live_execution(self) -> None:
+        execution_profiles.validate_profile(self._valid(), require_approval=False)
+        with self.assertRaisesRegex(execution_profiles.ProfileError, "v2"):
+            execution_profiles.validate_profile(self._valid(), require_approval=True)
+
+    def test_v2_binds_requested_resolved_model_and_reasoning_effort(self) -> None:
+        profile = execution_profiles.validate_profile(self._valid_v2(), require_approval=True)
+        self.assertEqual("gpt-5.6-terra", profile.model)
+        self.assertEqual("gpt-5.6-terra", profile.resolved_model)
+        self.assertEqual("high", profile.reasoning_effort)
+        for field, value in (
+            ("resolved_model", "gpt-5.6-sol"),
+            ("reasoning_effort", "low"),
+        ):
+            changed = self._valid_v2()
+            changed[field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(
+                execution_profiles.ProfileError, "matrix entry"
+            ):
+                execution_profiles.validate_profile(changed)
+
+        unsafe = self._valid_v2()
+        unsafe["reasoning_effort"] = 'high" --config unsafe=true'
+        unsafe["comparison"]["reasoning_efforts"]["codex-cli"] = unsafe["reasoning_effort"]
+        with self.assertRaisesRegex(execution_profiles.ProfileError, "bounded lowercase"):
+            execution_profiles.validate_profile(unsafe)
 
     def test_approval_timestamp_must_be_a_real_utc_instant(self) -> None:
         value = self._valid()
@@ -89,9 +134,10 @@ class ExecutionProfileTests(unittest.TestCase):
         prompt, and a discovery scenario must reach the model byte-for-byte, so a discovery profile
         would silently measure a different prompt than the one authored.
         """
-        value = self._valid()
+        value = self._valid_v2()
         value["engine"] = "claude-plugin"
         value["model"] = "sonnet"
+        value["resolved_model"] = "claude-sonnet-5"
         profile = execution_profiles.validate_profile(value, require_approval=True)
 
         for target in (
@@ -169,8 +215,21 @@ class ExecutionProfileTests(unittest.TestCase):
         )
         catalog = json.loads((root / "schemas/catalog-v1.json").read_text(encoding="utf-8"))
         entry = next(item for item in catalog["schemas"] if item["id"] == "eval-execution-profile-v1")
-        self.assertEqual(schema["properties"]["schema_version"]["const"], execution_profiles.SCHEMA_VERSION)
+        self.assertEqual(
+            schema["properties"]["schema_version"]["const"],
+            execution_profiles.SCHEMA_VERSION_V1,
+        )
         self.assertEqual(entry["validator"], "evals/execution_profiles.py")
+
+        schema_v2 = json.loads(
+            (root / "schemas/eval-execution-profile-v2.schema.json").read_text(encoding="utf-8")
+        )
+        entry_v2 = next(item for item in catalog["schemas"] if item["id"] == "eval-execution-profile-v2")
+        self.assertEqual(
+            schema_v2["properties"]["schema_version"]["const"],
+            execution_profiles.SCHEMA_VERSION_V2,
+        )
+        self.assertEqual(entry_v2["validator"], "evals/execution_profiles.py")
 
 
 if __name__ == "__main__":

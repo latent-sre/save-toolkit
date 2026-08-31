@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -1574,6 +1575,24 @@ class ArtifactTests(unittest.TestCase):
         self.assertIn("scripts/guard-session-preflight.py", run_evals.OPTIONAL_PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/guard-session-preflight-hook.sh", run_evals.OPTIONAL_PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/fleet_frontmatter.py", run_evals.EVAL_SUPPORT_INPUT_PATHS)
+
+    def test_ignored_file_under_measured_root_is_a_dirty_candidate_input(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "agents").mkdir()
+            (root / ".gitignore").write_text("*.pyc\n", encoding="utf-8")
+            (root / "agents" / "agent.md").write_text("tracked\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(
+                ["git", "add", ".gitignore", "agents/agent.md"], cwd=root, check=True
+            )
+            ignored = root / "agents" / "helper.pyc"
+            ignored.write_bytes(b"ignored measured bytes")
+
+            self.assertEqual(
+                run_evals.ignored_plugin_inputs(root),
+                ("agents/helper.pyc",),
+            )
 
     def test_required_command_failure_does_not_look_clean(self) -> None:
         failed = mock.Mock(returncode=128, stdout="", stderr="not a git repository")
