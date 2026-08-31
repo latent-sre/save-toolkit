@@ -232,7 +232,8 @@ candidate. Do not start a duplicate implementation or schedule GraphRAG.
 Microsoft Agent Framework + AutoGen GraphFlow + A2A shape, autonomous work through final
 verification, and local green-boundary commits. Push and pull-request publication remain behind the
 final acceptance packet. The local implementation and complete mission transaction are green;
-independent exact-revision review and verification remain before owner acceptance.
+exact-revision host, pinned-image, full six-case lifecycle, and cleanup verification are green at
+the current local candidate. Independent correctness/security review and owner acceptance remain.
 
 **Owner:** `software-engineer` owns the deterministic runtime, activation, cases, evidence, and
 tests. Save Toolkit maintainers accept or reject the exact final revision. Independent reviewers
@@ -253,7 +254,9 @@ framework and avoiding both training-memory design and unnecessary human interac
 official documentation and upstream source establish Agent Framework workflow checkpoint/HITL and
 A2A integration, AutoGen GraphFlow fan-out/join/cycle/save-load behavior (with an experimental API
 warning), and A2A v1 Agent Card/task/stream/artifact/cancel contracts. The living local interface is
-[`autogen-a2a-sandbox/contract.md`](../autogen-a2a-sandbox/contract.md).
+[`autogen-a2a-sandbox/contract.md`](../autogen-a2a-sandbox/contract.md). Current local execution is
+recorded in the
+[`exact-revision verification`](reviews/2026-08-30-autogen-a2a-exact-revision-verification.md).
 
 **Prerequisites:** The runtime is a synthetic local Docker experiment permitted by `stack-profile`;
 it does not select a production platform. First prove in one pinned Python 3.12 image that the exact
@@ -280,9 +283,9 @@ container component tests, host tests, `git diff --check`, Gate A, independent e
 correctness/security review, and independent exact-revision verification pass with evidence scoped
 to what each check exercised. No result claims production readiness.
 
-**Next action:** Bind independent correctness, security, and verification evidence to the final
-local candidate, resolve any reportable findings, then present the exact acceptance packet. Do not
-push or open a pull request before the owner accepts that packet.
+**Next action:** Obtain independent correctness and security review of the exact local candidate,
+resolve any reportable findings, rerun affected verification if its bytes change, then present the
+exact acceptance packet. Do not push or open a pull request before the owner accepts that packet.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
