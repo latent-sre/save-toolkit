@@ -28,7 +28,7 @@ Assess and report; change nothing. This skill is discoverable because its contra
 
 ## Optional resolved context
 
-When a compatible generic resolver implementing `sre-context-resolver/v1alpha1.0` is available, a
+When a compatible generic resolver implementing `sre-context-resolver/v1alpha1.4` is available, a
 caller may resolve [this skill's context requirements](./context-requirements.yaml) for an explicit
 team, service, and environment selection. The resolved bundle is evidence-routing input only: its
 validity does not establish readiness, authorize an effect, or permit an implicit environment

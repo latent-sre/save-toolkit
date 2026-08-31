@@ -122,7 +122,7 @@ The 34 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
 - **Change gates** — `merge-gate`, `release-gate`, `production-change-gate`
 - **Incident and operations** — `incident-investigation`, `investigation-depth`, `root-cause`, `incident-command`, `postmortem`, `runbook`,
   `incident-drill` (explicit-only game day against the fleet itself),
-  `operational-learning`, `service-readiness-audit`, `service-lifecycle`
+  `operational-learning`, `service-readiness-audit`, `service-lifecycle`, `service-retirement`
 - **Observability** — `obs-logs`, `obs-metrics`, `obs-traces`, `obs-dashboards`, `obs-alerting`,
   `obs-pipeline`
 - **The fleet itself and the graphs it designs** — `agent-authoring`, `agent-security`,
