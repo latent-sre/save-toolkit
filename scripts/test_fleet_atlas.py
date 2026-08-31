@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -496,6 +499,32 @@ class DetectorTests(unittest.TestCase):
 class ViewAndDriftTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
+        cls._temporary = tempfile.TemporaryDirectory()
+        cls.root = Path(cls._temporary.name) / "repository"
+        shutil.copytree(
+            ROOT,
+            cls.root,
+            ignore=shutil.ignore_patterns(".git", ".worktrees", "__pycache__"),
+        )
+        subprocess.run(["git", "init", "-q"], cwd=cls.root, check=True)
+        subprocess.run(
+            ["git", "config", "core.autocrlf", "false"], cwd=cls.root, check=True
+        )
+        subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A"],
+            cwd=cls.root,
+            check=True,
+        )
+        subprocess.run(
+            [
+                "git", "-c", "user.email=t@t", "-c", "user.name=t",
+                "commit", "-q", "-m", "fixture",
+            ],
+            cwd=cls.root,
+            check=True,
+        )
+        cls._original_fleet_root = fleet_atlas.ROOT
+        fleet_atlas.ROOT = cls.root
         # unittest's default test-method ordering is alphabetical, which runs
         # test_a_renamed_reference_... before test_build_is_deterministic_..., yet the former calls
         # `check` and expects a baseline docs/fleet-atlas/generated/ to already exist and match HEAD.
@@ -505,16 +534,27 @@ class ViewAndDriftTests(unittest.TestCase):
         if result != 0:
             raise RuntimeError(f"fleet_atlas build failed with exit code {result}")
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        fleet_atlas.ROOT = cls._original_fleet_root
+        cls._temporary.cleanup()
+
     def test_build_is_deterministic_and_check_passes_after_build(self) -> None:
         self.assertEqual(fleet_atlas.main(["build"]), 0)
-        first = {p.name: p.read_bytes() for p in (ROOT / "docs/fleet-atlas/generated").iterdir()}
+        first = {
+            p.name: p.read_bytes()
+            for p in (self.root / "docs/fleet-atlas/generated").iterdir()
+        }
         self.assertEqual(fleet_atlas.main(["build"]), 0)
-        second = {p.name: p.read_bytes() for p in (ROOT / "docs/fleet-atlas/generated").iterdir()}
+        second = {
+            p.name: p.read_bytes()
+            for p in (self.root / "docs/fleet-atlas/generated").iterdir()
+        }
         self.assertEqual(first, second)
         self.assertEqual(fleet_atlas.main(["check"]), 0)
 
     def test_every_generated_markdown_has_the_banner_and_respects_caps(self) -> None:
-        for path in (ROOT / "docs/fleet-atlas/generated").glob("*.md"):
+        for path in (self.root / "docs/fleet-atlas/generated").glob("*.md"):
             text = path.read_bytes()
             self.assertTrue(text.startswith(fleet_atlas_views.BANNER.encode()), path.name)
             self.assertNotIn(b"\r\n", text, path.name)
@@ -523,14 +563,14 @@ class ViewAndDriftTests(unittest.TestCase):
 
     def test_no_timestamps_or_absolute_paths_in_generated_output(self) -> None:
         import re
-        for path in (ROOT / "docs/fleet-atlas/generated").iterdir():
+        for path in (self.root / "docs/fleet-atlas/generated").iterdir():
             text = path.read_text(encoding="utf-8")
             self.assertIsNone(re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", text), path.name)
-            self.assertNotIn(str(ROOT), text, path.name)
+            self.assertNotIn(str(self.root), text, path.name)
             self.assertNotIn("F:\\", text, path.name)
 
     def test_check_detects_a_drifted_view_and_a_timestamp(self) -> None:
-        view = ROOT / "docs/fleet-atlas/generated/INDEX.md"
+        view = self.root / "docs/fleet-atlas/generated/INDEX.md"
         original = view.read_bytes()
         try:
             view.write_bytes(original + b"\nextra line\n")
@@ -540,20 +580,21 @@ class ViewAndDriftTests(unittest.TestCase):
         self.assertEqual(fleet_atlas.main(["check"]), 0)
 
     def test_manifest_hashes_every_generated_file(self) -> None:
-        manifest = json.loads((ROOT / "docs/fleet-atlas/generated/manifest.json").read_text(encoding="utf-8"))
-        names = {p.name for p in (ROOT / "docs/fleet-atlas/generated").iterdir()} - {"manifest.json"}
+        generated = self.root / "docs/fleet-atlas/generated"
+        manifest = json.loads((generated / "manifest.json").read_text(encoding="utf-8"))
+        names = {p.name for p in generated.iterdir()} - {"manifest.json"}
         self.assertEqual(set(manifest["files"]), names)
         for name, digest in manifest["files"].items():
-            actual = hashlib.sha256((ROOT / "docs/fleet-atlas/generated" / name).read_bytes()).hexdigest()
+            actual = hashlib.sha256((generated / name).read_bytes()).hexdigest()
             self.assertEqual(digest, f"sha256:{actual}")
 
     def test_a_renamed_reference_turns_its_edge_unknown_and_reds_check(self) -> None:
-        ref = ROOT / "skills/stack-profile/references/copilot-models.md"
+        ref = self.root / "skills/stack-profile/references/copilot-models.md"
         moved = ref.with_name("copilot-models.renamed.md")
         try:
             ref.rename(moved)
             self.assertEqual(fleet_atlas.main(["check"]), 1)
-            graph = fleet_atlas.build_graph(ROOT)
+            graph = fleet_atlas.build_graph(self.root)
             self.assertTrue(any(u.code == "extract.skill-link-unresolved" and "copilot-models.md" in u.message for u in graph.unknowns))
         finally:
             moved.rename(ref)
