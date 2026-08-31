@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import sys
@@ -22,6 +23,9 @@ FOLDED_HEADER = (
     "| Batch | Verdict | Model | Candidate | Input state | Workspace dirty | Input SHA-256 | "
     "Scenario count | Scenarios |"
 )
+# SHA-256 over the 69 source-derived rows, each normalized as nine tab-separated cells plus LF,
+# in historical packet order. The source tree is 91a4e92aacda8508ed03173eebe62138520b4cbc.
+FOLDED_SOURCE_ROWS_SHA256 = "b0a2d73745e564963a7b1ac0cc539e30de6423e3d555dae7fc20ab22b4867cf2"
 
 
 def _read(path: Path) -> tuple[str | None, str | None]:
@@ -31,11 +35,18 @@ def _read(path: Path) -> tuple[str | None, str | None]:
         return None, str(exc)
 
 
-def _check_folded_index(root: Path) -> list[str]:
+def _folded_rows_digest(rows: list[list[str]]) -> str:
+    payload = "".join("\t".join(row) + "\n" for row in rows).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _check_folded_index(root: Path, *, expected_rows_sha256: str | None = None) -> list[str]:
     """Require every folded row to retain exact identity and its declared scenarios."""
 
     path = root / FOLDED_INDEX
     if not path.is_file():
+        if expected_rows_sha256 is not None:
+            return [f"{FOLDED_INDEX.as_posix()}: missing folded historical index"]
         return []
     text, error = _read(path)
     if error:
@@ -56,6 +67,7 @@ def _check_folded_index(root: Path) -> list[str]:
         )
 
     seen: set[str] = set()
+    normalized_rows: list[list[str]] = []
     row_count = 0
     for number, line in enumerate(text.splitlines(), start=1):
         batch_match = BATCH_ID_RE.search(line)
@@ -70,6 +82,7 @@ def _check_folded_index(root: Path) -> list[str]:
                 f"found {len(cells)}"
             )
             continue
+        normalized_rows.append(cells)
         if batch in seen:
             failures.append(f"{FOLDED_INDEX.as_posix()}:{number}: duplicate folded batch {batch}")
         seen.add(batch)
@@ -125,13 +138,21 @@ def _check_folded_index(root: Path) -> list[str]:
             f"{FOLDED_INDEX.as_posix()}: declares {declared} folded packets but contains "
             f"{row_count} rows"
         )
+    if expected_rows_sha256 is not None and len(normalized_rows) == row_count:
+        observed = _folded_rows_digest(normalized_rows)
+        if observed != expected_rows_sha256:
+            failures.append(
+                f"{FOLDED_INDEX.as_posix()}: normalized rows do not match the source-derived "
+                f"SHA-256; expected {expected_rows_sha256}, observed {observed}"
+            )
     return failures
 
 
 def check(root: Path = ROOT) -> list[str]:
     """Return folded-index defects and unresolved live-roadmap batches below *root*."""
 
-    failures = _check_folded_index(root)
+    expected_rows_sha256 = FOLDED_SOURCE_ROWS_SHA256 if root.resolve() == ROOT else None
+    failures = _check_folded_index(root, expected_rows_sha256=expected_rows_sha256)
     roadmap_path = root / ROADMAP
     roadmap, error = _read(roadmap_path)
     if error:

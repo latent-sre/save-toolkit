@@ -12,8 +12,12 @@ Packets the live roadmap already names by path or batch ID are **not** folded he
 69 sealed packets folded. Recover a full packet with
 `git show 91a4e92aacda8508ed03173eebe62138520b4cbc:docs/reviews/YYYY-MM-DD-eval-<batch>.md`.
 
-
-For the 63 classic packets, **Input state** is the packet's `Plugin inputs dirty`, **Workspace dirty** is preserved separately, and **Input SHA-256** is its `Plugin-source SHA-256`. For the six claim-scoped packets, **Input state** is `Candidate clean`, **Workspace dirty** is `n/a`, and **Input SHA-256** is the `Candidate-input SHA-256`. Candidate and digest values bind each result to the exact evaluated bytes; scenario names are ordered, unique values from the packet's Scenario summary or Claim outcomes table.
+For the 63 classic packets, **Input state** is the packet's `Plugin inputs dirty`, **Workspace
+dirty** is preserved separately, and **Input SHA-256** is its `Plugin-source SHA-256`. For the six
+claim-scoped packets, **Input state** is `Candidate clean`, **Workspace dirty** is `n/a`, and
+**Input SHA-256** is the `Candidate-input SHA-256`. Candidate and digest values bind each result to
+the exact evaluated bytes; scenario names are ordered, unique values from the packet's Scenario
+summary or Claim outcomes table.
 
 | Batch | Verdict | Model | Candidate | Input state | Workspace dirty | Input SHA-256 | Scenario count | Scenarios |
 |---|---|---|---|---|---|---|---:|---|

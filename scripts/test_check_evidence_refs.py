@@ -103,6 +103,19 @@ class EvidenceReferenceTests(unittest.TestCase):
             failures,
         )
 
+    def test_source_bound_validation_rejects_a_missing_folded_index(self) -> None:
+        root = self.make_root()
+
+        failures = check_evidence_refs._check_folded_index(
+            root,
+            expected_rows_sha256="0" * 64,
+        )
+
+        self.assertEqual(
+            ["docs/reviews/2026-08-30-folded-eval-index.md: missing folded historical index"],
+            failures,
+        )
+
     def test_folded_index_rejects_an_incomplete_scenario_list(self) -> None:
         root = self._write_folded_index(
             "1 sealed packets folded.\n\n"
@@ -163,6 +176,66 @@ class EvidenceReferenceTests(unittest.TestCase):
         )
 
         self.assertEqual([], check_evidence_refs._check_folded_index(root))
+
+    def test_folded_index_rejects_a_wrong_but_full_candidate(self) -> None:
+        valid_cells = [
+            f"`{BATCH}`",
+            "PASS",
+            "sonnet",
+            f"`{FULL_CANDIDATE}`",
+            "plugin dirty: false",
+            "false",
+            f"`{INPUT_SHA256}`",
+            "1",
+            "case-one",
+        ]
+        expected = check_evidence_refs._folded_rows_digest([valid_cells])
+        wrong_cells = list(valid_cells)
+        wrong_cells[3] = f"`{'f' * 40}`"
+        root = self._write_folded_index(
+            "1 sealed packets folded.\n\n"
+            + FOLDED_HEADER
+            + "| "
+            + " | ".join(wrong_cells)
+            + " |\n"
+        )
+
+        failures = check_evidence_refs._check_folded_index(
+            root,
+            expected_rows_sha256=expected,
+        )
+
+        self.assertTrue(any("source-derived SHA-256" in failure for failure in failures), failures)
+
+    def test_folded_index_rejects_an_omission_even_when_count_is_updated(self) -> None:
+        valid_cells = [
+            f"`{BATCH}`",
+            "PASS",
+            "sonnet",
+            f"`{FULL_CANDIDATE}`",
+            "plugin dirty: false",
+            "false",
+            f"`{INPUT_SHA256}`",
+            "2",
+            "case-one, case-two",
+        ]
+        expected = check_evidence_refs._folded_rows_digest([valid_cells])
+        incomplete_cells = list(valid_cells)
+        incomplete_cells[7:] = ["1", "case-one"]
+        root = self._write_folded_index(
+            "1 sealed packets folded.\n\n"
+            + FOLDED_HEADER
+            + "| "
+            + " | ".join(incomplete_cells)
+            + " |\n"
+        )
+
+        failures = check_evidence_refs._check_folded_index(
+            root,
+            expected_rows_sha256=expected,
+        )
+
+        self.assertTrue(any("source-derived SHA-256" in failure for failure in failures), failures)
 
     def test_live_folded_index_retains_exact_candidates_and_complete_scenarios(self) -> None:
         index = (
