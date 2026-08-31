@@ -136,10 +136,14 @@ the effect ledger extends exactly `PREPARED -> DISPATCHED -> UNKNOWN -> RECONCIL
 Only the read-only `reconcile_if_ambiguous:0` receipt lookup may use more than one task attempt, and
 only after the same checkout effect is durably `UNKNOWN`. Its attempt ordinals start at one, remain
 contiguous, and may not exceed the runtime's `budgets.attempts.limit`; the final attempt completes.
-An earlier started attempt may lack a task result only when the durable ledger/event evidence already
-proves `RECONCILED`, covering a crash between the ledger append and task/checkpoint persistence.
-Readiness and checkout-effect tasks remain attempt one, checkout dispatch consumption remains exactly
-one, and reconciliation never redispatches, replays, or widens effect authority.
+Reconciliation starts only after the checkout `effect.unknown`, checkout `task.failed`, and the
+snapshot-required `effect.replay_refused`, in that order. Every prior attempt is exactly
+`task.started -> effect.replay_refused -> task.failed`, with one matching refusal. The final attempt
+encloses the single `effect.reconciled` between its start and completion. If a crash occurs after the
+ledger transition but before task/checkpoint persistence, recovery completes that same open attempt;
+it does not invent a later ordinal. Readiness and checkout-effect tasks remain attempt one, checkout
+dispatch consumption remains exactly one, and reconciliation never redispatches, replays, or widens
+effect authority.
 
 ### Boundary event oracle
 

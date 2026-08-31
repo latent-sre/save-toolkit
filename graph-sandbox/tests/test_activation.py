@@ -950,9 +950,9 @@ class ActivationTests(unittest.TestCase):
         self,
         root: Path,
         *,
-        recovered_incomplete_attempt: bool = False,
+        final_reconciliation_attempt: int = 2,
     ) -> Path:
-        """Shape runner output for one failed reconciliation lookup, then success."""
+        """Shape runner output for bounded failed lookups followed by success."""
 
         run_dir = self.write_runner_evidence(root)
         state_path = run_dir / "final-state.json"
@@ -972,7 +972,10 @@ class ActivationTests(unittest.TestCase):
         effect_id = f"{checkout_task_id}:effect-checkout"
         checkout_receipt = state["receipts"][effect_id]
         state["tasks"][checkout_task_id] = {"status": "failed", "attempt": 1}
-        state["tasks"][reconcile_task_id] = {"status": "completed", "attempt": 2}
+        state["tasks"][reconcile_task_id] = {
+            "status": "completed",
+            "attempt": final_reconciliation_attempt,
+        }
 
         unknown_record = copy.deepcopy(effects[-1])
         unknown_record.update(
@@ -1044,6 +1047,7 @@ class ActivationTests(unittest.TestCase):
         snapshot_replay_refused.update(
             {
                 "event_type": "effect.replay_refused",
+                "node_id": "checkout_effect",
                 "failure_plane": "graph-control",
                 "error_class": "automatic_replay_forbidden",
                 "data": {
@@ -1110,12 +1114,26 @@ class ActivationTests(unittest.TestCase):
                 },
             }
         )
-        first_attempt_tail = (
-            [effect_reconciled]
-            if recovered_incomplete_attempt
-            else [
-                retry_replay_refused,
-                reconciliation_task_event("task.failed", 1),
+        reconciliation_history: list[dict[str, object]] = []
+        for attempt in range(1, final_reconciliation_attempt):
+            reconciliation_history.extend(
+                [
+                    reconciliation_task_event("task.started", attempt),
+                    copy.deepcopy(retry_replay_refused),
+                    reconciliation_task_event("task.failed", attempt),
+                ]
+            )
+        reconciliation_history.extend(
+            [
+                reconciliation_task_event(
+                    "task.started",
+                    final_reconciliation_attempt,
+                ),
+                effect_reconciled,
+                reconciliation_task_event(
+                    "task.completed",
+                    final_reconciliation_attempt,
+                ),
             ]
         )
         events = [
@@ -1125,11 +1143,7 @@ class ActivationTests(unittest.TestCase):
             effect_unknown,
             checkout_failed,
             snapshot_replay_refused,
-            reconciliation_task_event("task.started", 1),
-            *first_attempt_tail,
-            reconciliation_task_event("task.started", 2),
-            *([] if recovered_incomplete_attempt else [effect_reconciled]),
-            reconciliation_task_event("task.completed", 2),
+            *reconciliation_history,
             terminal,
         ]
         for sequence, event in enumerate(events, start=1):
@@ -1186,7 +1200,7 @@ class ActivationTests(unittest.TestCase):
             staging.mkdir()
             self.write_reconciled_retry_evidence(
                 staging,
-                recovered_incomplete_attempt=True,
+                final_reconciliation_attempt=1,
             )
 
             final = verify_and_publish_evidence(
@@ -1216,18 +1230,59 @@ class ActivationTests(unittest.TestCase):
                     for event in events
                     if event["task_id"] == reconciliation_task_id
                 ],
-                ["task.started", "task.started", "task.completed"],
+                ["task.started", "task.completed"],
             )
+
+    def test_reconciled_success_accepts_attempt_limit_and_rejects_attempt_nine(
+        self,
+    ) -> None:
+        for final_attempt, should_publish in ((8, True), (9, False)):
+            with self.subTest(final_attempt=final_attempt), tempfile.TemporaryDirectory() as temporary:
+                evidence_root = Path(temporary)
+                staging = evidence_root / ".mission-healthy-001.export"
+                staging.mkdir()
+                self.write_reconciled_retry_evidence(
+                    staging,
+                    final_reconciliation_attempt=final_attempt,
+                )
+
+                def publish() -> Path:
+                    return verify_and_publish_evidence(
+                        staging,
+                        evidence_root=evidence_root,
+                        run_id=CASE_ID,
+                        case_id=CASE_ID,
+                        case_digest=CASE_DIGEST,
+                        source_revision=SOURCE_REVISION,
+                        exit_code=0,
+                        validated_compose=b"{}\n",
+                        verification=self.host_verification(),
+                        commands=self.command_journal(),
+                        runner_state={
+                            "Status": "exited",
+                            "ExitCode": 0,
+                            "OOMKilled": False,
+                        },
+                    )
+
+                if should_publish:
+                    final = publish()
+                    state = json.loads(
+                        (final / "final-state.json").read_text(encoding="utf-8")
+                    )
+                    self.assertEqual(
+                        state["tasks"][f"{CASE_ID}:reconcile_if_ambiguous:0"][
+                            "attempt"
+                        ],
+                        8,
+                    )
+                else:
+                    with self.assertRaisesRegex(ActivationError, "runtime limit"):
+                        publish()
 
     def test_success_oracle_rejects_out_of_contract_task_retries(self) -> None:
         reconciliation_task_id = f"{CASE_ID}:reconcile_if_ambiguous:0"
         checkout_task_id = f"{CASE_ID}:checkout_effect:0"
-
-        def over_ceiling(run_dir: Path) -> None:
-            state_path = run_dir / "final-state.json"
-            state = json.loads(state_path.read_text(encoding="utf-8"))
-            state["tasks"][reconciliation_task_id]["attempt"] = 9
-            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
 
         def noncontiguous(run_dir: Path) -> None:
             state_path = run_dir / "final-state.json"
@@ -1301,13 +1356,256 @@ class ActivationTests(unittest.TestCase):
             state["budgets"]["attempts"]["consumed"] = 2
             state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
 
+        def invented_recovery_ordinal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            reconciled = next(
+                event for event in events if event["event_type"] == "effect.reconciled"
+            )
+            started_first = next(
+                event
+                for event in events
+                if event["event_type"] == "task.started"
+                and event["attempt_id"] == f"{reconciliation_task_id}:attempt-1"
+            )
+            events = [
+                event
+                for event in events
+                if event is not reconciled
+                and not (
+                    event["event_type"] == "task.failed"
+                    and event["attempt_id"]
+                    == f"{reconciliation_task_id}:attempt-1"
+                )
+                and not (
+                    event["event_type"] == "effect.replay_refused"
+                    and event["node_id"] == "reconcile_if_ambiguous"
+                )
+            ]
+            events.insert(events.index(started_first) + 1, reconciled)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def duplicate_reconciliation_completion(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            first_result = next(
+                event
+                for event in events
+                if event["event_type"] == "task.failed"
+                and event["attempt_id"] == f"{reconciliation_task_id}:attempt-1"
+            )
+            first_result.update(
+                {
+                    "event_type": "task.completed",
+                    "failure_plane": None,
+                    "error_class": None,
+                    "data": {"status": "completed"},
+                }
+            )
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def omitted_retry_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            events = [
+                event
+                for event in events
+                if not (
+                    event["event_type"] == "effect.replay_refused"
+                    and event["node_id"] == "reconcile_if_ambiguous"
+                )
+            ]
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def duplicated_retry_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["node_id"] == "reconcile_if_ambiguous"
+            )
+            events.insert(events.index(refusal) + 1, copy.deepcopy(refusal))
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def out_of_order_retry_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["node_id"] == "reconcile_if_ambiguous"
+            )
+            started = next(
+                event
+                for event in events
+                if event["event_type"] == "task.started"
+                and event["attempt_id"] == f"{reconciliation_task_id}:attempt-1"
+            )
+            events.remove(refusal)
+            events.insert(events.index(started), refusal)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def mismatched_retry_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["node_id"] == "reconcile_if_ambiguous"
+            )
+            refusal["error_class"] = "different_gateway_failure"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def checkout_failure_before_unknown(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            unknown = next(
+                event for event in events if event["event_type"] == "effect.unknown"
+            )
+            checkout_failed = next(
+                event
+                for event in events
+                if event["event_type"] == "task.failed"
+                and event["task_id"] == checkout_task_id
+            )
+            events.remove(checkout_failed)
+            events.insert(events.index(unknown), checkout_failed)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def snapshot_refusal_before_checkout_failure(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            snapshot_refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["data"].get("reason_class")
+                == "reconciliation_snapshot_required"
+            )
+            checkout_failed = next(
+                event
+                for event in events
+                if event["event_type"] == "task.failed"
+                and event["task_id"] == checkout_task_id
+            )
+            events.remove(snapshot_refusal)
+            events.insert(events.index(checkout_failed), snapshot_refusal)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def reconciliation_before_snapshot_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            snapshot_refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["data"].get("reason_class")
+                == "reconciliation_snapshot_required"
+            )
+            started = next(
+                event
+                for event in events
+                if event["event_type"] == "task.started"
+                and event["attempt_id"] == f"{reconciliation_task_id}:attempt-1"
+            )
+            events.remove(started)
+            events.insert(events.index(snapshot_refusal), started)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
         cases = (
-            (over_ceiling, "runtime limit"),
             (noncontiguous, "bounded and contiguous"),
             (unrelated_retry, "unrelated task event"),
             (retried_checkout_dispatch, "retried unexpectedly"),
             (retried_effect_ledger, "effect ledger identity"),
             (consumed_reconciliation_attempt, "healthy fixture consumption"),
+            (invented_recovery_ordinal, "attempt sequence"),
+            (duplicate_reconciliation_completion, "attempt sequence"),
+            (omitted_retry_refusal, "retry refusal"),
+            (duplicated_retry_refusal, "retry refusal"),
+            (out_of_order_retry_refusal, "retry refusal"),
+            (mismatched_retry_refusal, "retry refusal"),
+            (checkout_failure_before_unknown, "entry sequence"),
+            (snapshot_refusal_before_checkout_failure, "entry sequence"),
+            (reconciliation_before_snapshot_refusal, "entry sequence"),
         )
         for mutate, message in cases:
             with self.subTest(mutate=mutate.__name__), tempfile.TemporaryDirectory() as temporary:

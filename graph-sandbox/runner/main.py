@@ -23,7 +23,7 @@ from runner.checkpoints import (
 )
 from runner.effects import EffectLedger, reconcile_effect_transition_events
 from runner.events import BoundaryEventStore
-from runner.evidence import EvidenceExporter
+from runner.evidence import EvidenceExporter, ExistingSnapshotInvalid, validate_unknown_snapshot
 from runner.fixtures import load_case
 from runner.gateway import HttpGateway, ServiceOrigins
 from runner.graph import (
@@ -542,6 +542,22 @@ def run(environment: Mapping[str, str] | None = None) -> int:
         approval_fixture=config.approval_fixture,
         wall_time_elapsed_ms=wall_budget.elapsed_ms,
     )
+    unknown_snapshot_dir = config.evidence_dir / f"{config.run_id}-unknown"
+    if unknown_snapshot_dir.is_symlink():
+        raise ExistingSnapshotInvalid(
+            "existing UNKNOWN snapshot is not a regular directory"
+        )
+    unknown_snapshot_exists = unknown_snapshot_dir.exists()
+    if unknown_snapshot_exists:
+        validate_unknown_snapshot(
+            unknown_snapshot_dir,
+            run_id=config.run_id,
+            case_id=config.case_id,
+            case_digest=config.case_digest,
+            source_revision=config.source_revision,
+            thread_id=state["thread_id"],
+            trusted_checkout=state["checkout"],
+        )
     ensure_run_started_events(events, state)
     reconcile_effect_transition_events(ledger, events, state)
     try:
@@ -598,17 +614,18 @@ def run(environment: Mapping[str, str] | None = None) -> int:
                         or _latest_completed_resume_source(events)
                     ),
                 )
-                _export_evidence(
-                    config,
-                    state=provisional_state,
-                    events=events,
-                    ledger=ledger,
-                    checkpoint_lineage=provisional_lineage,
-                    started_at=started_at,
-                    ended_at=provisional_ended_at,
-                    directory_name=f"{config.run_id}-unknown",
-                    event_records=provisional_events,
-                )
+                if not unknown_snapshot_exists:
+                    _export_evidence(
+                        config,
+                        state=provisional_state,
+                        events=events,
+                        ledger=ledger,
+                        checkpoint_lineage=provisional_lineage,
+                        started_at=started_at,
+                        ended_at=provisional_ended_at,
+                        directory_name=f"{config.run_id}-unknown",
+                        event_records=provisional_events,
+                    )
                 with _run_deadline(max(0.001, wall_budget.remaining_ms() / 1000)):
                     execution = _execute_graph(
                         graph,
@@ -625,7 +642,11 @@ def run(environment: Mapping[str, str] | None = None) -> int:
                 checkpointer,
                 state["thread_id"],
                 fingerprint,
-                execution.resume_source_checkpoint_id or recovered_resume_source,
+                (
+                    execution.resume_source_checkpoint_id
+                    or recovered_resume_source
+                    or _latest_completed_resume_source(events)
+                ),
             )
     except CheckpointIncompatible as exc:
         events.emit(

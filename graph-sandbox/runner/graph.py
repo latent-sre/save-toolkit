@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -14,7 +15,12 @@ from runner.controls import BudgetExhausted, consume_budget, transition_cancella
 from runner.effects import EffectLedger, ReplayRefused, derive_idempotency_key
 from runner.events import BoundaryEventStore
 from runner.gateway import AmbiguousDispatch, CheckoutFailure, GatewayUnavailable
-from runner.models import GraphState, SandboxCase, remove_pending_effects
+from runner.models import (
+    GraphState,
+    SandboxCase,
+    remove_pending_effects,
+    update_retry_task,
+)
 from runner.validation import require_closed_mapping
 
 
@@ -103,6 +109,141 @@ def _payload_hash(checkout: Mapping[str, object]) -> str:
     }
     encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("ascii")
     return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True)
+class ReconciliationTaskHistory:
+    latest_attempt: int
+    open_attempt: int | None
+    completed_attempt: int | None
+    exhausted: bool
+    latest_started_sequence: int | None
+    completed_sequence: int | None
+
+
+def _reconciliation_task_history(
+    events: BoundaryEventStore,
+    task_id: str,
+    effect_id: str,
+    attempt_limit: int,
+) -> ReconciliationTaskHistory:
+    by_attempt: dict[int, list[Mapping[str, object]]] = {}
+    for event in events.project():
+        if event.get("task_id") != task_id:
+            continue
+        event_type = event.get("event_type")
+        if event_type not in {
+            "task.started",
+            "task.failed",
+            "task.completed",
+            "task.retry_exhausted",
+        }:
+            raise RuntimeError("reconciliation task history contains an invalid event")
+        attempt_id = event.get("attempt_id")
+        match = (
+            re.fullmatch(rf"{re.escape(task_id)}:attempt-([1-9][0-9]*)", attempt_id)
+            if isinstance(attempt_id, str)
+            else None
+        )
+        if match is None:
+            raise RuntimeError("reconciliation task history has invalid attempt identity")
+        by_attempt.setdefault(int(match.group(1)), []).append(event)
+
+    if not by_attempt:
+        return ReconciliationTaskHistory(0, None, None, False, None, None)
+    exhausted_events = by_attempt.pop(attempt_limit + 1, [])
+    exhausted = bool(exhausted_events)
+    if exhausted and (
+        len(exhausted_events) != 1
+        or exhausted_events[0]["event_type"] != "task.retry_exhausted"
+        or exhausted_events[0]["data"]
+        != {"status": "exhausted", "attempts": attempt_limit}
+        or exhausted_events[0]["node_id"] != "reconcile_if_ambiguous"
+        or exhausted_events[0]["effect_id"] != effect_id
+        or exhausted_events[0]["failure_plane"] != "graph-control"
+        or exhausted_events[0]["error_class"]
+        != "reconciliation_attempts_exhausted"
+    ):
+        raise RuntimeError("reconciliation task history has invalid exhaustion")
+    if any(attempt > attempt_limit for attempt in by_attempt):
+        raise RuntimeError("reconciliation task history exceeds its attempt ceiling")
+    latest_attempt = max(by_attempt, default=0)
+    if sorted(by_attempt) != list(range(1, latest_attempt + 1)):
+        raise RuntimeError("reconciliation task history is not contiguous")
+
+    open_attempts: list[int] = []
+    completed_attempts: list[int] = []
+    previous_attempt_end = 0
+    for attempt in range(1, latest_attempt + 1):
+        attempt_events = by_attempt[attempt]
+        sequences = [int(event["sequence"]) for event in attempt_events]
+        if sequences != sorted(sequences) or sequences[0] <= previous_attempt_end:
+            raise RuntimeError("reconciliation task history is out of order")
+        previous_attempt_end = sequences[-1]
+        event_types = [event["event_type"] for event in attempt_events]
+        if any(
+            event["node_id"] != "reconcile_if_ambiguous"
+            or event["effect_id"] != effect_id
+            for event in attempt_events
+        ):
+            raise RuntimeError("reconciliation task history has invalid lineage")
+        started = attempt_events[0]
+        if (
+            started["event_type"] != "task.started"
+            or started["data"] != {"status": "started"}
+            or started["failure_plane"] is not None
+            or started["error_class"] is not None
+        ):
+            raise RuntimeError("reconciliation task history has invalid start")
+        if event_types == ["task.started"]:
+            open_attempts.append(attempt)
+        elif event_types == ["task.started", "task.failed"]:
+            failure = attempt_events[-1]
+            if (
+                failure["data"] != {"status": "failed", "disposition": "stop"}
+                or failure["failure_plane"] != "checkout"
+                or not isinstance(failure["error_class"], str)
+            ):
+                raise RuntimeError("reconciliation task history has invalid failure")
+        elif event_types == ["task.started", "task.completed"]:
+            completion = attempt_events[-1]
+            if (
+                completion["data"] != {"status": "completed"}
+                or completion["failure_plane"] is not None
+                or completion["error_class"] is not None
+            ):
+                raise RuntimeError(
+                    "reconciliation task history has invalid completion"
+                )
+            completed_attempts.append(attempt)
+        else:
+            raise RuntimeError("reconciliation task history has an invalid result sequence")
+    if (
+        len(completed_attempts) > 1
+        or (completed_attempts and completed_attempts[0] != latest_attempt)
+        or (
+            exhausted
+            and (
+                completed_attempts
+                or open_attempts
+                or latest_attempt != attempt_limit
+                or int(exhausted_events[0]["sequence"]) <= previous_attempt_end
+            )
+        )
+    ):
+        raise RuntimeError("reconciliation task history has conflicting completion")
+    return ReconciliationTaskHistory(
+        latest_attempt,
+        open_attempts[-1] if open_attempts else None,
+        completed_attempts[0] if completed_attempts else None,
+        exhausted,
+        int(by_attempt[latest_attempt][0]["sequence"]),
+        (
+            int(by_attempt[completed_attempts[0]][-1]["sequence"])
+            if completed_attempts
+            else None
+        ),
+    )
 
 
 def _receipt_updates(
@@ -550,6 +691,8 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
         return "checkout_effect" if state["approval"]["status"] == "APPROVED" else "terminal"
 
     def after_checkout(state: GraphState) -> str:
+        if not state.get("pending_effects"):
+            return "terminal"
         checkout_fixture = cast(
             Mapping[str, Mapping[str, str]],
             dependencies.case["service_fixtures"],
@@ -561,6 +704,139 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
     def checkout_effect(state: GraphState) -> GraphState:
         effect_id = _checkout_effect_id(state)
         task_id = f"{state['run_id']}:checkout_effect:0"
+        current = dependencies.ledger.current(effect_id)
+        if current is not None and current["effect_state"] == "UNKNOWN":
+            attempt_id = f"{task_id}:attempt-1"
+            if (
+                current["task_id"] != task_id
+                or current["attempt_id"] != attempt_id
+                or current["replay_id"]
+                != f"{state['run_id']}:replay-{state['replay_number']}"
+                or current.get("receipt") is not None
+            ):
+                raise RuntimeError(
+                    "durable UNKNOWN checkout disagrees with its original attempt"
+                )
+            task_events = [
+                event
+                for event in dependencies.events.project()
+                if event["task_id"] == task_id
+                and event["event_type"]
+                in {"task.started", "task.failed", "task.completed"}
+            ]
+            if (
+                not task_events
+                or task_events[0]["event_type"] != "task.started"
+                or task_events[0]["attempt_id"] != attempt_id
+                or task_events[0]["data"] != {"status": "started"}
+                or any(event["event_type"] == "task.completed" for event in task_events)
+                or len(
+                    [
+                        event
+                        for event in task_events
+                        if event["event_type"] == "task.started"
+                    ]
+                )
+                != 1
+            ):
+                raise RuntimeError(
+                    "durable UNKNOWN checkout lacks its original task start"
+                )
+            failed_events = [
+                event
+                for event in task_events
+                if event["event_type"] == "task.failed"
+            ]
+            if len(failed_events) > 1 or (
+                failed_events
+                and (
+                    failed_events[0]["attempt_id"] != attempt_id
+                    or failed_events[0]["data"]
+                    != {"status": "failed", "disposition": "reconcile"}
+                    or failed_events[0]["failure_plane"] != "checkout"
+                    or failed_events[0]["error_class"]
+                    != current.get("reason_class")
+                )
+            ):
+                raise RuntimeError(
+                    "durable UNKNOWN checkout has conflicting task failure"
+                )
+            if not failed_events:
+                reason_class = current.get("reason_class")
+                if not isinstance(reason_class, str):
+                    raise RuntimeError(
+                        "durable UNKNOWN checkout lacks its reason class"
+                    )
+                dependencies.events.emit(
+                    "task.failed",
+                    state,
+                    {"status": "failed", "disposition": "reconcile"},
+                    node_id="checkout_effect",
+                    task_id=task_id,
+                    attempt_id=attempt_id,
+                    effect_id=effect_id,
+                    failure_plane="checkout",
+                    error_class=reason_class,
+                )
+            replay_events = [
+                event
+                for event in dependencies.events.project()
+                if event["event_type"] == "effect.replay_refused"
+                and event["effect_id"] == effect_id
+            ]
+            if len(replay_events) > 1:
+                raise RuntimeError(
+                    "durable UNKNOWN checkout has duplicate replay refusal"
+                )
+            if not replay_events:
+                dependencies.events.emit(
+                    "effect.replay_refused",
+                    state,
+                    {
+                        "effect_class": "checkout",
+                        "effect_state": "UNKNOWN",
+                        "reason_class": "reconciliation_snapshot_required",
+                    },
+                    node_id="checkout_effect",
+                    task_id=task_id,
+                    attempt_id=attempt_id,
+                    effect_id=effect_id,
+                    failure_plane="graph-control",
+                    error_class="automatic_replay_forbidden",
+                )
+            elif (
+                replay_events[0]["task_id"] != task_id
+                or replay_events[0]["attempt_id"] != attempt_id
+                or replay_events[0]["data"]
+                != {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "reconciliation_snapshot_required",
+                }
+                or replay_events[0]["failure_plane"] != "graph-control"
+                or replay_events[0]["error_class"]
+                != "automatic_replay_forbidden"
+            ):
+                raise RuntimeError(
+                    "durable UNKNOWN checkout has invalid replay refusal"
+                )
+            budgets = {
+                key: dict(counter) for key, counter in state["budgets"].items()
+            }
+            attempt_budget = budgets["attempts"]
+            if attempt_budget["consumed"] not in {0, 1}:
+                raise RuntimeError(
+                    "durable UNKNOWN checkout has invalid attempt budget"
+                )
+            attempt_budget["consumed"] = 1
+            return {
+                "budgets": budgets,
+                "pending_effects": [effect_id],
+                "checkout_status": "UNKNOWN",
+                "phase": "RECONCILING",
+                "outcome": "UNKNOWN",
+                "tasks": {task_id: {"status": "failed", "attempt": 1}},
+            }
         attempt_number = dependencies.events.next_attempt_number(task_id)
         attempt_id = f"{task_id}:attempt-{attempt_number}"
         request_id = hashlib.sha256(attempt_id.encode("ascii")).hexdigest()
@@ -617,7 +893,6 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
             effect_id=effect_id,
         )
 
-        current = dependencies.ledger.current(effect_id)
         if current is not None:
             if current["effect_state"] in {"RECEIPT_RECORDED", "RECONCILED"}:
                 receipt = cast(Mapping[str, object], current["receipt"])
@@ -898,9 +1173,161 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
     def reconcile_if_ambiguous(state: GraphState) -> GraphState:
         effect_id = _checkout_effect_id(state)
         task_id = f"{state['run_id']}:reconcile_if_ambiguous:0"
-        attempt_number = dependencies.events.next_attempt_number(task_id)
-        attempt_id = f"{task_id}:attempt-{attempt_number}"
         replay_id = f"{state['run_id']}:replay-{state['replay_number']}"
+        attempt_limit = state["budgets"]["attempts"]["limit"]
+        history = _reconciliation_task_history(
+            dependencies.events,
+            task_id,
+            effect_id,
+            attempt_limit,
+        )
+        current = dependencies.ledger.current(effect_id)
+        reconciled_events = [
+            event
+            for event in dependencies.events.project()
+            if event["event_type"] == "effect.reconciled"
+            and event["effect_id"] == effect_id
+        ]
+        if len(reconciled_events) > 1:
+            raise RuntimeError("reconciled effect has duplicate boundary events")
+        reconciled_event = reconciled_events[0] if reconciled_events else None
+        if current is not None and current["effect_state"] == "RECONCILED":
+            receipt = current.get("receipt")
+            if not isinstance(receipt, Mapping):
+                raise RuntimeError("completed checkout effect lacks a durable receipt")
+            if history.exhausted:
+                raise RuntimeError(
+                    "reconciliation task history exhausted before durable completion"
+                )
+            if reconciled_event is not None and (
+                reconciled_event["node_id"] != "reconcile_if_ambiguous"
+                or reconciled_event["task_id"] != current["task_id"]
+                or reconciled_event["attempt_id"] != current["attempt_id"]
+                or reconciled_event["replay_id"] != current["replay_id"]
+                or reconciled_event["data"]
+                != {
+                    "effect_class": "checkout",
+                    "effect_state": "RECONCILED",
+                    "authoritative_result_id": receipt.get(
+                        "authoritative_result_id"
+                    ),
+                }
+                or reconciled_event["failure_plane"] is not None
+                or reconciled_event["error_class"] is not None
+            ):
+                raise RuntimeError(
+                    "reconciled effect boundary event disagrees with its durable ledger"
+                )
+            if history.completed_attempt is not None:
+                completed_attempt = history.completed_attempt
+                if (
+                    reconciled_event is None
+                    or history.latest_started_sequence is None
+                    or history.completed_sequence is None
+                    or not history.latest_started_sequence
+                    < int(reconciled_event["sequence"])
+                    < history.completed_sequence
+                ):
+                    raise RuntimeError(
+                        "completed reconciliation task does not enclose its durable effect"
+                    )
+            elif (
+                history.open_attempt == history.latest_attempt
+                and history.open_attempt is not None
+                and history.latest_started_sequence is not None
+            ):
+                completed_attempt = history.open_attempt
+                completed_attempt_id = f"{task_id}:attempt-{completed_attempt}"
+                if reconciled_event is None:
+                    reconciled_event = dependencies.events.emit(
+                        "effect.reconciled",
+                        state,
+                        {
+                            "effect_class": "checkout",
+                            "effect_state": "RECONCILED",
+                            "authoritative_result_id": receipt[
+                                "authoritative_result_id"
+                            ],
+                        },
+                        node_id="reconcile_if_ambiguous",
+                        task_id=cast(str, current["task_id"]),
+                        attempt_id=cast(str, current["attempt_id"]),
+                        effect_id=effect_id,
+                    )
+                if int(reconciled_event["sequence"]) <= history.latest_started_sequence:
+                    raise RuntimeError(
+                        "reconciled effect precedes its recovery task attempt"
+                    )
+                dependencies.events.emit(
+                    "task.completed",
+                    state,
+                    {"status": "completed"},
+                    node_id="reconcile_if_ambiguous",
+                    task_id=task_id,
+                    attempt_id=completed_attempt_id,
+                    effect_id=effect_id,
+                )
+            else:
+                raise RuntimeError(
+                    "reconciliation task history lacks the durable ledger attempt"
+                )
+            return {
+                "receipts": _receipt_updates(state, effect_id, receipt),
+                "pending_effects": remove_pending_effects(effect_id),
+                "checkout_status": "COMPLETE",
+                "phase": "FINALIZING",
+                "outcome": None,
+                "tasks": update_retry_task(
+                    task_id,
+                    status="completed",
+                    attempt=completed_attempt,
+                ),
+            }
+        if reconciled_event is not None:
+            raise RuntimeError(
+                "reconciled effect boundary event lacks a durable ledger transition"
+            )
+        if history.completed_attempt is not None:
+            raise RuntimeError(
+                "reconciliation task history completed without a reconciled ledger"
+            )
+        if history.exhausted:
+            return {
+                "phase": "TERMINAL",
+                "outcome": "UNKNOWN",
+                "checkout_status": "UNKNOWN",
+                "failure": {
+                    "plane": "graph-control",
+                    "error_class": "reconciliation_attempts_exhausted",
+                    "retryable": False,
+                    "disposition": "stop",
+                },
+            }
+        attempt_number = history.latest_attempt + 1
+        attempt_id = f"{task_id}:attempt-{attempt_number}"
+        if attempt_number > attempt_limit:
+            dependencies.events.emit(
+                "task.retry_exhausted",
+                state,
+                {"status": "exhausted", "attempts": attempt_limit},
+                node_id="reconcile_if_ambiguous",
+                task_id=task_id,
+                attempt_id=attempt_id,
+                effect_id=effect_id,
+                failure_plane="graph-control",
+                error_class="reconciliation_attempts_exhausted",
+            )
+            return {
+                "phase": "TERMINAL",
+                "outcome": "UNKNOWN",
+                "checkout_status": "UNKNOWN",
+                "failure": {
+                    "plane": "graph-control",
+                    "error_class": "reconciliation_attempts_exhausted",
+                    "retryable": False,
+                    "disposition": "stop",
+                },
+            }
         dependencies.events.emit(
             "task.started",
             state,
@@ -910,7 +1337,6 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
             attempt_id=attempt_id,
             effect_id=effect_id,
         )
-        current = dependencies.ledger.current(effect_id)
         if current is None or current["effect_state"] != "UNKNOWN":
             dependencies.events.emit(
                 "task.completed",
@@ -923,7 +1349,11 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
             )
             return {
                 "phase": "FINALIZING",
-                "tasks": {task_id: {"status": "completed", "attempt": attempt_number}},
+                "tasks": update_retry_task(
+                    task_id,
+                    status="completed",
+                    attempt=attempt_number,
+                ),
             }
         known_receipts: dict[str, Mapping[str, object]] = {}
         authoritative_outcome: str | None = None
@@ -967,10 +1397,14 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
                 error_class=exc.error_class,
             )
             return {
-                "phase": "TERMINAL",
+                "phase": "RECONCILING",
                 "outcome": "UNKNOWN",
                 "checkout_status": "UNKNOWN",
-                "tasks": {task_id: {"status": "failed", "attempt": attempt_number}},
+                "tasks": update_retry_task(
+                    task_id,
+                    status="failed",
+                    attempt=attempt_number,
+                ),
             }
         if receipt is None:
             unavailable_class: str | None = None
@@ -1022,9 +1456,11 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
                     "outcome": "FAILED",
                     "checkout_status": "FAILED",
                     "pending_effects": remove_pending_effects(effect_id),
-                    "tasks": {
-                        task_id: {"status": "failed", "attempt": attempt_number}
-                    },
+                    "tasks": update_retry_task(
+                        task_id,
+                        status="failed",
+                        attempt=attempt_number,
+                    ),
                     "failure": {
                         "plane": "checkout",
                         "error_class": "authoritative_not_committed",
@@ -1060,7 +1496,11 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
                 "phase": "TERMINAL",
                 "outcome": "UNKNOWN",
                 "checkout_status": "UNKNOWN",
-                "tasks": {task_id: {"status": "failed", "attempt": attempt_number}},
+                "tasks": update_retry_task(
+                    task_id,
+                    status="failed",
+                    attempt=attempt_number,
+                ),
                 "receipts": _known_target_receipt_updates(state, known_receipts),
             }
         reconciled = dependencies.ledger.reconcile(
@@ -1097,8 +1537,17 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
             "checkout_status": "COMPLETE",
             "phase": "FINALIZING",
             "outcome": None,
-            "tasks": {task_id: {"status": "completed", "attempt": attempt_number}},
+            "tasks": update_retry_task(
+                task_id,
+                status="completed",
+                attempt=attempt_number,
+            ),
         }
+
+    def after_reconciliation(state: GraphState) -> str:
+        if state.get("phase") == "RECONCILING" and state.get("pending_effects"):
+            return "reconcile_after_snapshot"
+        return "terminal"
 
     def terminal(state: GraphState) -> GraphState:
         effect_id = _checkout_effect_id(state)
@@ -1207,10 +1656,14 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
     builder.add_conditional_edges(
         "checkout_effect",
         after_checkout,
-        ["reconcile_if_ambiguous", "reconcile_after_snapshot"],
+        ["reconcile_if_ambiguous", "reconcile_after_snapshot", "terminal"],
     )
     builder.add_edge("reconcile_if_ambiguous", "terminal")
-    builder.add_edge("reconcile_after_snapshot", "terminal")
+    builder.add_conditional_edges(
+        "reconcile_after_snapshot",
+        after_reconciliation,
+        ["reconcile_after_snapshot", "terminal"],
+    )
     builder.add_edge("terminal", END)
     return builder.compile(
         checkpointer=checkpointer,

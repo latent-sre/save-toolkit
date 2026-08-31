@@ -681,6 +681,20 @@ def _validate_success_task_history(
         raise ActivationError(
             "evidence export: reconciliation attempts are not bounded and contiguous"
         )
+    retry_refusals = [
+        event
+        for event in events
+        if event["event_type"] == "effect.replay_refused"
+        and (
+            event["node_id"] == "reconcile_if_ambiguous"
+            or (
+                isinstance(event["data"], Mapping)
+                and event["data"].get("reason_class")
+                == "reconciliation_unavailable"
+            )
+        )
+    ]
+    matched_retry_refusal_sequences: list[int] = []
     previous_attempt_end = 0
     for attempt_number in range(1, final_attempt + 1):
         attempt_events = by_attempt[attempt_number]
@@ -691,34 +705,122 @@ def _validate_success_task_history(
         if attempt_number == final_attempt:
             coherent = event_types == ["task.started", "task.completed"]
         else:
-            # A durable RECONCILED ledger row can survive a crash before the task
-            # result/checkpoint write. Recovery may therefore leave an earlier
-            # started attempt open, but it may not invent or reorder a result.
-            coherent = event_types in (
-                ["task.started", "task.failed"],
-                ["task.started"],
-            )
+            coherent = event_types == ["task.started", "task.failed"]
         if not coherent or attempt_sequences[0] <= previous_attempt_end:
             raise ActivationError(
                 "evidence export: reconciliation task attempt sequence is incoherent"
             )
+        if attempt_number != final_attempt:
+            failed = attempt_events[-1]
+            refusal_candidates = [
+                event
+                for event in retry_refusals
+                if attempt_sequences[0]
+                < int(event["sequence"])
+                < attempt_sequences[-1]
+            ]
+            if len(refusal_candidates) != 1:
+                raise ActivationError(
+                    "evidence export: reconciliation retry refusal is missing or duplicated"
+                )
+            refusal = refusal_candidates[0]
+            if (
+                refusal["node_id"] != "reconcile_if_ambiguous"
+                or refusal["task_id"] is not None
+                or refusal["attempt_id"] is not None
+                or refusal["effect_id"] != checkout_effect_id
+                or refusal["failure_plane"] != failed["failure_plane"]
+                or refusal["error_class"] != failed["error_class"]
+                or refusal["data"]
+                != {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "reconciliation_unavailable",
+                }
+            ):
+                raise ActivationError(
+                    "evidence export: reconciliation retry refusal identity is invalid"
+                )
+            matched_retry_refusal_sequences.append(int(refusal["sequence"]))
         previous_attempt_end = attempt_sequences[-1]
+    if [int(event["sequence"]) for event in retry_refusals] != (
+        matched_retry_refusal_sequences
+    ):
+        raise ActivationError(
+            "evidence export: reconciliation retry refusal is out of order"
+        )
 
     reconciled_events = [
         event for event in events if event["event_type"] == "effect.reconciled"
     ]
-    first_started = int(by_attempt[1][0]["sequence"])
+    final_started = int(by_attempt[final_attempt][0]["sequence"])
     final_completed = int(by_attempt[final_attempt][-1]["sequence"])
     if (
         len(reconciled_events) != 1
         or not (
-            first_started
+            final_started
             < int(reconciled_events[0]["sequence"])
             < final_completed
         )
     ):
         raise ActivationError(
             "evidence export: reconciliation task does not enclose its durable result"
+        )
+
+    unknown_events = [
+        event
+        for event in events
+        if event["event_type"] == "effect.unknown"
+        and event["effect_id"] == checkout_effect_id
+    ]
+    snapshot_refusals = [
+        event
+        for event in events
+        if event["event_type"] == "effect.replay_refused"
+        and isinstance(event["data"], Mapping)
+        and event["data"].get("reason_class")
+        == "reconciliation_snapshot_required"
+    ]
+    if len(unknown_events) != 1 or len(snapshot_refusals) != 1:
+        raise ActivationError(
+            "evidence export: reconciliation entry sequence is incomplete"
+        )
+    snapshot_refusal = snapshot_refusals[0]
+    if (
+        snapshot_refusal["node_id"] != "checkout_effect"
+        or snapshot_refusal["task_id"] != checkout_task_id
+        or snapshot_refusal["attempt_id"]
+        != f"{checkout_task_id}:attempt-1"
+        or snapshot_refusal["effect_id"] != checkout_effect_id
+        or snapshot_refusal["failure_plane"] != "graph-control"
+        or snapshot_refusal["error_class"] != "automatic_replay_forbidden"
+        or snapshot_refusal["data"]
+        != {
+            "effect_class": "checkout",
+            "effect_state": "UNKNOWN",
+            "reason_class": "reconciliation_snapshot_required",
+        }
+        or not (
+            int(unknown_events[0]["sequence"])
+            < int(checkout_failure["sequence"])
+            < int(snapshot_refusal["sequence"])
+            < int(by_attempt[1][0]["sequence"])
+        )
+    ):
+        raise ActivationError(
+            "evidence export: reconciliation entry sequence is invalid"
+        )
+    all_refusal_sequences = [
+        int(event["sequence"])
+        for event in events
+        if event["event_type"] == "effect.replay_refused"
+    ]
+    expected_refusal_sequences = sorted(
+        [int(snapshot_refusal["sequence"]), *matched_retry_refusal_sequences]
+    )
+    if all_refusal_sequences != expected_refusal_sequences:
+        raise ActivationError(
+            "evidence export: reconciled success contains an unexpected replay refusal"
         )
 
 

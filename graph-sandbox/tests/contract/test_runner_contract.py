@@ -26,9 +26,11 @@ from runner.models import (
     CONTRACT_VERSION,
     merge_ordered_unique,
     merge_pending_effects,
+    merge_task_states,
     merge_unique_maps,
     new_run_state,
     remove_pending_effects,
+    update_retry_task,
 )
 
 
@@ -146,6 +148,60 @@ class ReducerContractTests(unittest.TestCase):
             merge_unique_maps(
                 {"task-1": {"status": "started"}},
                 {"task-1": {"status": "completed"}},
+            )
+
+    def test_retry_task_update_allows_only_monotonic_failed_replacement(self) -> None:
+        failed_once = {"task-1": {"status": "failed", "attempt": 1}}
+        failed_twice = merge_task_states(
+            failed_once,
+            update_retry_task("task-1", status="failed", attempt=2),
+        )
+        completed = merge_task_states(
+            failed_twice,
+            update_retry_task("task-1", status="completed", attempt=3),
+        )
+
+        self.assertEqual(
+            completed,
+            {"task-1": {"status": "completed", "attempt": 3}},
+        )
+        self.assertEqual(
+            merge_task_states(completed, copy.deepcopy(completed)),
+            completed,
+        )
+        self.assertEqual(
+            failed_once,
+            {"task-1": {"status": "failed", "attempt": 1}},
+        )
+
+    def test_retry_task_update_rejects_skips_regressions_and_completed_rewrites(
+        self,
+    ) -> None:
+        cases = (
+            (
+                {"task-1": {"status": "failed", "attempt": 1}},
+                update_retry_task("task-1", status="completed", attempt=3),
+            ),
+            (
+                {"task-1": {"status": "failed", "attempt": 2}},
+                update_retry_task("task-1", status="completed", attempt=1),
+            ),
+            (
+                {"task-1": {"status": "completed", "attempt": 1}},
+                update_retry_task("task-1", status="completed", attempt=2),
+            ),
+        )
+        for left, right in cases:
+            with self.subTest(left=left, right=right), self.assertRaisesRegex(
+                ValueError,
+                "invalid retry task replacement",
+            ):
+                merge_task_states(left, right)
+
+        with self.assertRaisesRegex(ValueError, "conflicting reducer value"):
+            merge_task_states(
+                {"task-1": {"status": "failed", "attempt": 1}},
+                {"task-1": {"status": "completed", "attempt": 2}},
             )
 
     def test_ordered_unique_reducer_preserves_first_seen_order(self) -> None:
