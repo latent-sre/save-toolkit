@@ -658,6 +658,46 @@ class ReviewFindingTests(unittest.TestCase):
         problems = build_probe.validate_scenario(spec)
         self.assertTrue(any("reviewed service image" in p for p in problems), problems)
 
+    def test_service_runtime_files_and_wait_probe_are_fail_closed(self) -> None:
+        image = (
+            "prom/prometheus:v3.14.0-distroless@sha256:"
+            "50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
+        )
+        base = {
+            "name": "prometheus",
+            "image": image,
+            "port": 9090,
+            "files": {"prometheus.yml": "global:\n  scrape_interval: 1s\n"},
+            "mounts": [{
+                "source": "prometheus.yml",
+                "target": "/etc/prometheus/prometheus.yml",
+                "read_only": True,
+            }],
+            "command": ["--config.file=/etc/prometheus/prometheus.yml"],
+            "wait_for": {
+                "path": "/api/v1/query?query=up",
+                "pointer": "data/result",
+                "nonempty": True,
+            },
+        }
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [base]
+        self.assertEqual([], build_probe.validate_scenario(spec))
+
+        for mutation, expected in (
+            ({"name": "../prometheus"}, "canonical name"),
+            ({"mounts": [{"source": "missing.yml", "target": "/etc/x", "read_only": True}]}, "declared service file"),
+            ({"mounts": [{"source": "prometheus.yml", "target": "etc/x", "read_only": True}]}, "absolute container path"),
+            ({"command": "--config.file=/etc/x"}, "command must be a string list"),
+            ({"wait_for": {"path": "/api/v1/query"}}, "wait_for needs"),
+        ):
+            bad = json.loads(json.dumps(TINY_SPEC))
+            bad_service = json.loads(json.dumps(base))
+            bad_service.update(mutation)
+            bad["fixture"]["services"] = [bad_service]
+            problems = build_probe.validate_scenario(bad)
+            self.assertTrue(any(expected in problem for problem in problems), problems)
+
     def test_missing_docker_executable_is_service_unavailable(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
         spec["fixture"]["services"] = [{
@@ -722,9 +762,59 @@ class ReviewFindingTests(unittest.TestCase):
              mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
             services = build_probe.start_services(spec)
             build_probe.stop_services(services)
-        argv = calls[0]
+        argv = next(call for call in calls if call[1] == "run")
         for expected in ("--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "--memory"):
             self.assertIn(expected, argv)
+
+    def test_service_containers_share_one_internal_network_and_mount_only_declared_files(self) -> None:
+        prometheus_image = (
+            "prom/prometheus:v3.14.0-distroless@sha256:"
+            "50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
+        )
+        grafana_image = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [
+            {
+                "name": "prometheus", "image": prometheus_image, "port": 9090,
+                "files": {"prometheus.yml": "global:\n  scrape_interval: 1s\n"},
+                "mounts": [{"source": "prometheus.yml", "target": "/etc/prometheus/prometheus.yml", "read_only": True}],
+                "command": ["--config.file=/etc/prometheus/prometheus.yml"],
+                "wait_for": {"path": "/api/v1/query?query=up", "pointer": "data/result", "nonempty": True},
+            },
+            {"name": "grafana", "image": grafana_image, "port": 3000},
+        ]
+        calls = []
+
+        def docker_run(command, **_kwargs):
+            calls.append(command)
+            if command[1:3] == ["network", "create"]:
+                return subprocess.CompletedProcess(command, 0, "network-id\n", "")
+            if command[1] == "run":
+                return subprocess.CompletedProcess(command, 0, f"container-{len(calls)}\n", "")
+            if command[1] == "port":
+                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        responses = [(200, {}), (200, {"data": {"result": [{"value": [1, "1"]}]}}), (200, {})]
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
+             mock.patch.object(build_probe, "_service_request", side_effect=responses), \
+             mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
+            services = build_probe.start_services(spec)
+            config_root = services[0].config_root
+            build_probe.stop_services(services)
+
+        network_create = next(call for call in calls if call[1:3] == ["network", "create"])
+        self.assertIn("--internal", network_create)
+        runs = [call for call in calls if call[1] == "run"]
+        self.assertEqual(2, len(runs))
+        networks = [call[call.index("--network") + 1] for call in runs]
+        self.assertEqual(1, len(set(networks)))
+        self.assertIn("prometheus", runs[0])
+        mount = runs[0][runs[0].index("--mount") + 1]
+        self.assertIn("target=/etc/prometheus/prometheus.yml", mount)
+        self.assertIn("readonly", mount)
+        self.assertFalse(config_root.exists(), "service runtime files are disposable")
+        self.assertTrue(any(call[1:3] == ["network", "rm"] for call in calls), calls)
 
     def test_service_url_is_resolved_for_post_run_commands(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))

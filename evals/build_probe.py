@@ -49,6 +49,7 @@ import fnmatch
 import json
 import os
 import re
+import secrets
 import shlex
 import shutil
 import stat
@@ -75,6 +76,7 @@ DEFAULT_GITIGNORE = "__pycache__/\n*.pyc\n.pytest_cache/\n"
 GIT_IDENTITY = ("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid")
 TRUSTED_SERVICE_IMAGES = frozenset({
     "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
+    "prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a",
 })
 
 
@@ -118,6 +120,10 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
         for service in fixture.get("services") or []:
             if not isinstance(service, dict) or not service.get("name") or not service.get("image"):
                 problems.append(f"{where}: each service needs a name and an image")
+                continue
+            name = str(service["name"])
+            if re.fullmatch(r"[a-z][a-z0-9-]{0,62}", name) is None:
+                problems.append(f"{where}: service {name!r} needs a canonical name")
             elif "@sha256:" not in str(service["image"]):
                 problems.append(f"{where}: service {service['name']!r} image must be pinned by digest")
             elif str(service["image"]) not in TRUSTED_SERVICE_IMAGES:
@@ -125,6 +131,40 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                     f"{where}: service {service['name']!r} must use a reviewed service image; "
                     f"allowed: {sorted(TRUSTED_SERVICE_IMAGES)}"
                 )
+            files = service.get("files") or {}
+            if not isinstance(files, dict) or any(
+                not isinstance(path, str) or not isinstance(content, str)
+                or Path(path).is_absolute() or ".." in Path(path).parts
+                for path, content in (files.items() if isinstance(files, dict) else [])
+            ):
+                problems.append(f"{where}: service {name!r} files must be relative path -> text mappings")
+                files = {}
+            mounts = service.get("mounts") or []
+            if not isinstance(mounts, list):
+                problems.append(f"{where}: service {name!r} mounts must be a list")
+                mounts = []
+            for mount in mounts:
+                if not isinstance(mount, dict) or set(mount) != {"source", "target", "read_only"}:
+                    problems.append(f"{where}: service {name!r} mount needs source, target, and read_only")
+                    continue
+                if mount["source"] not in files:
+                    problems.append(f"{where}: service {name!r} mount source must name a declared service file")
+                target = str(mount["target"])
+                if not target.startswith("/") or ".." in target.split("/"):
+                    problems.append(f"{where}: service {name!r} mount target must be an absolute container path")
+                if mount["read_only"] is not True:
+                    problems.append(f"{where}: service {name!r} runtime file mounts must be read_only")
+            command = service.get("command") or []
+            if not isinstance(command, list) or not all(isinstance(item, str) and item for item in command):
+                problems.append(f"{where}: service {name!r} command must be a string list")
+            wait_for = service.get("wait_for")
+            if wait_for is not None and (
+                not isinstance(wait_for, dict)
+                or not isinstance(wait_for.get("path"), str)
+                or not isinstance(wait_for.get("pointer"), str)
+                or not ({"nonempty", "equals"} & set(wait_for))
+            ):
+                problems.append(f"{where}: service {name!r} wait_for needs path, pointer, and nonempty or equals")
     checks = spec.get("checks")
     if not isinstance(checks, list) or not checks:
         problems.append(f"{where}: checks must be a non-empty list")
@@ -160,6 +200,8 @@ class Service:
     snapshots: dict = field(default_factory=dict)
     agent_url: str = ""
     requests: list[dict] = field(default_factory=list)
+    network_name: str = ""
+    config_root: Path | None = None
     proxy: object | None = field(default=None, repr=False)
     proxy_thread: object | None = field(default=None, repr=False)
 
@@ -290,29 +332,63 @@ def start_services(spec: dict, docker: str = "docker") -> list[Service]:
     A service that will not start, become ready, seed, snapshot, or start its audit proxy is harness
     breakage: the caller turns it into INCONCLUSIVE rather than a verdict about the agent.
     """
+    declared_services = spec["fixture"].get("services") or []
+    if not declared_services:
+        return []
     started: list[Service] = []
+    network_name = "save-toolkit-probe-" + secrets.token_hex(6)
+    network_created = False
+    pending_config_root: Path | None = None
     try:
-        for declared in spec["fixture"].get("services") or []:
+        network = _run_docker([docker, "network", "create", "--driver", "bridge", "--internal", network_name])
+        if network.returncode != 0:
+            raise ServiceUnavailable(f"docker network create failed: {network.stderr.strip()[:300]}")
+        network_created = True
+        for declared in declared_services:
             image = str(declared["image"])
             if "@sha256:" not in image:
                 raise ServiceUnavailable(f"service image must be pinned by digest, got {image!r}")
             if image not in TRUSTED_SERVICE_IMAGES:
                 raise ServiceUnavailable(f"service image has not been reviewed for this harness: {image!r}")
+            name = str(declared["name"])
+            if re.fullmatch(r"[a-z][a-z0-9-]{0,62}", name) is None:
+                raise ServiceUnavailable(f"service needs a canonical name, got {name!r}")
+            pending_config_root = Path(tempfile.mkdtemp(prefix=f"build-probe-{name}-"))
+            for relative, content in (declared.get("files") or {}).items():
+                target = pending_config_root / str(relative)
+                if target.is_absolute() and not target.resolve().is_relative_to(pending_config_root.resolve()):
+                    raise ServiceUnavailable(f"service file escapes its disposable root: {relative!r}")
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(str(content), encoding="utf-8")
             command = [
                 docker, "run", "-d", "--rm",
                 "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                 "--pids-limit", "512", "--memory", "2g",
+                "--network", network_name, "--network-alias", name,
                 "-p", f"127.0.0.1:0:{int(declared.get('port', 80))}",
             ]
             for key, value in (declared.get("env") or {}).items():
                 command += ["-e", f"{key}={value}"]
+            for mount in declared.get("mounts") or []:
+                source = (pending_config_root / str(mount["source"])).resolve()
+                if not source.is_relative_to(pending_config_root.resolve()) or not source.is_file():
+                    raise ServiceUnavailable(f"service mount source is not a declared runtime file: {mount['source']!r}")
+                option = f"type=bind,source={source},target={mount['target']}"
+                if mount.get("read_only") is True:
+                    option += ",readonly"
+                command += ["--mount", option]
             command.append(image)
+            command.extend(str(item) for item in (declared.get("command") or []))
             run = _run_docker(command)
             if run.returncode != 0:
                 raise ServiceUnavailable(f"{declared['name']}: docker run failed: {run.stderr.strip()[:300]}")
             container_id = run.stdout.strip()
-            service = Service(str(declared["name"]), image, container_id, "", declared.get("auth"))
+            service = Service(
+                name, image, container_id, "", declared.get("auth"),
+                network_name=network_name, config_root=pending_config_root,
+            )
             started.append(service)
+            pending_config_root = None
             port_result = _run_docker([docker, "port", container_id, f"{int(declared.get('port', 80))}/tcp"])
             mapped = port_result.stdout.strip()
             if not mapped:
@@ -329,6 +405,22 @@ def start_services(spec: dict, docker: str = "docker") -> list[Service]:
                 time.sleep(2)
             else:
                 raise ServiceUnavailable(f"{service.name}: never became ready at {ready_path}")
+            wait_for = declared.get("wait_for")
+            if wait_for:
+                while time.time() < deadline:
+                    status, payload = _service_request(service, str(wait_for["path"]), timeout=5)
+                    found = _pointer(payload, str(wait_for["pointer"])) if status == 200 else None
+                    if (
+                        (wait_for.get("nonempty") is True and bool(found))
+                        or ("equals" in wait_for and found == wait_for["equals"])
+                    ):
+                        break
+                    time.sleep(2)
+                else:
+                    raise ServiceUnavailable(
+                        f"{service.name}: readiness data never appeared at {wait_for['path']} "
+                        f"pointer {wait_for['pointer']}"
+                    )
             for step in declared.get("seed") or []:
                 status, payload = _service_request(service, str(step["path"]), str(step.get("method", "POST")), step.get("json"))
                 if status == 0 or status >= 400:
@@ -342,10 +434,15 @@ def start_services(spec: dict, docker: str = "docker") -> list[Service]:
         return started
     except Exception:
         stop_services(started, docker)
+        if pending_config_root is not None:
+            shutil.rmtree(pending_config_root, ignore_errors=True)
+        if network_created and not started:
+            _run_docker([docker, "network", "rm", network_name])
         raise
 
 
 def stop_services(services: list[Service], docker: str = "docker") -> None:
+    networks = {service.network_name for service in services if service.network_name}
     for service in services:
         if service.proxy is not None:
             with contextlib.suppress(OSError):
@@ -355,6 +452,11 @@ def stop_services(services: list[Service], docker: str = "docker") -> None:
             subprocess.run([docker, "stop", "-t", "2", service.container_id], capture_output=True)
         except OSError:
             pass
+        if service.config_root is not None:
+            shutil.rmtree(service.config_root, ignore_errors=True)
+    for network_name in sorted(networks):
+        with contextlib.suppress(ServiceUnavailable):
+            _run_docker([docker, "network", "rm", network_name])
 
 
 class ServiceUnavailable(RuntimeError):
