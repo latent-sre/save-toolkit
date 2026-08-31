@@ -154,5 +154,5 @@ ordinary PR evidence.
 
 Start with [AGENTS.md](AGENTS.md) (the fleet guide, loaded into every session),
 [CONTRIBUTING.md](CONTRIBUTING.md) (authoring, verification, and promotion policy), and
-[`docs/rules.md`](docs/rules.md) (the must-follow index). Live and deferred work is tracked
+[`docs/rules.md`](docs/rules.md) (the conditional rule map). Live and deferred work is tracked
 solely in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).

@@ -17,11 +17,12 @@ def compact(text: str) -> str:
     return " ".join(text.split())
 
 
-def rules_match_gcp_boundary(text: str) -> bool:
+def stack_profile_preserves_gcp_boundary(text: str) -> bool:
     return all(
         (
-            "GCP migration is approved and in progress" in text,
-            "landing runtime is decision-pending" in text,
+            "GCP migration is in progress" in text,
+            "GCP is an approved target" in text,
+            "landing runtime is **decision-pending**" in text,
             "No self-managed Kubernetes" in text,
             "GCP under evaluation for late 2026 is not a target today" not in text,
             "do not suggest Kubernetes, cloud-managed services" not in text,
@@ -205,9 +206,9 @@ def gorouter_keepalive_is_scoped(text: str) -> bool:
 
 
 class PlatformSkillContractTests(unittest.TestCase):
-    def test_rules_match_the_canonical_gcp_migration_boundary(self) -> None:
-        rules = read("docs/rules.md")
-        self.assertTrue(rules_match_gcp_boundary(rules))
+    def test_stack_profile_preserves_the_gcp_migration_boundary(self) -> None:
+        profile = read("skills/stack-profile/SKILL.md")
+        self.assertTrue(stack_profile_preserves_gcp_boundary(profile))
 
     def test_cloud_run_revision_guidance_preserves_existing_traffic_policy(self) -> None:
         skill = read("skills/gcp-ops/SKILL.md")
@@ -259,7 +260,7 @@ class PlatformSkillContractTests(unittest.TestCase):
         self.assertTrue(alloy_docker_validation_is_bounded(reference))
 
     def test_general_docker_verification_policy_preserves_authority_and_evidence_boundaries(self) -> None:
-        self.assertTrue(docker_verification_policy_is_bounded(read("AGENTS.md")))
+        self.assertTrue(docker_verification_policy_is_bounded(read("docs/docker-verification.md")))
 
     def test_scribe_and_postmortem_skill_agree_on_evidence_selected_causal_analysis(self) -> None:
         scribe = read("agents/scribe.md")
@@ -300,9 +301,9 @@ class PlatformSkillContractTests(unittest.TestCase):
     def test_contract_oracles_reject_named_regressions(self) -> None:
         cases = (
             (
-                rules_match_gcp_boundary,
-                read("docs/rules.md").replace(
-                    "GCP migration is approved and in progress",
+                stack_profile_preserves_gcp_boundary,
+                read("skills/stack-profile/SKILL.md").replace(
+                    "GCP migration is in progress",
                     "GCP under evaluation for late 2026 is not a target today",
                     1,
                 ),
@@ -417,12 +418,14 @@ class PlatformSkillContractTests(unittest.TestCase):
             ),
             (
                 docker_verification_policy_is_bounded,
-                read("AGENTS.md").replace("`--network none` by default", "the default network", 1),
+                read("docs/docker-verification.md").replace(
+                    "`--network none` by default", "the default network", 1
+                ),
                 "network-enabled general Docker verification",
             ),
             (
                 docker_verification_policy_is_bounded,
-                read("AGENTS.md").replace(
+                read("docs/docker-verification.md").replace(
                     "already has Bash\nor execute authority",
                     "can request execution after selecting Docker",
                     1,

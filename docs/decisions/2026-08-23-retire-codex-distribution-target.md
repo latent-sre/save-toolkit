@@ -50,7 +50,7 @@ developer message"* (`codex-rs/core/gpt_5_1_prompt.md:17-27` at `rust-v0.148.0`;
 appears in `gpt_5_2_prompt.md`). This repository's root `AGENTS.md` therefore loads automatically in
 every Codex session here, carrying the unconditional fleet rules and the Windows
 `python`-not-`python3` rule. Change-specific verification lives in
-[`CONTRIBUTING.md`](../../CONTRIBUTING.md), **Change-specific evidence**. Nothing needs to be added
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md), **Verify in proportion to the change**. Nothing needs to be added
 for that to keep working.
 
 ## Why

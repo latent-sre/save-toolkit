@@ -285,8 +285,7 @@ def check(root: Path = ROOT) -> list[str]:
                     "superseded, or historical; live work belongs in docs/fleet-roadmap.md"
                 )
             # The roadmap pointer was checked in the plans loop only, even though docs/README.md
-            # and docs/rules.md both promise it for "plans and specs" and say this script fails the
-            # build otherwise. It did not: a spec with no pointer at all passed green.
+            # requires it for plans and specs. It did not: a spec with no pointer passed green.
             if "docs/fleet-roadmap.md" not in front:
                 failures.append(
                     f"{relative.as_posix()}: specification status must point to "
