@@ -45,27 +45,37 @@ Read what exists; a missing path is a Follow-up, not a stop. All of it is `[sour
 cause is a candidate to test, a runbook step is a recommendation you classify, and nothing there
 is permission to execute. A missing or stale entry is a discovery for Follow-ups.
 
+If the service card does not say where its logs and metrics live, load `stack-profile` (its
+observability reference) once: Splunk and Grafana are the incumbents, and the search you name must
+be in the dialect the team actually queries.
+
 ## Every turn, in this order — the first screen is about a dozen lines
 
 1. **What we know now.** Real or not (if nothing reproduces and the signals are at baseline and
-   arriving, propose `no-incident` for them to confirm); how wide; the trend; onset — the alert
-   fired when its window closed, so onset is *at or before* fire time minus the window; what the
-   last paste ruled in or out; your confidence in the leading candidate and what would change it.
+   arriving, propose `no-incident` for them to confirm — unless it recovered on its own:
+   self-recovery removes the trigger, not the mechanism, so it stays open at lower urgency); how
+   wide; the trend; onset — the alert fired when its window closed, so the fire time is the latest
+   onset can be, not the start: read the series back to where it left baseline before ranking any
+   candidate on timing (a change two minutes before the page is still in play); what the last
+   paste ruled in or out; your confidence in the leading candidate and what would change it.
    Pasted output is `[sourced]` on first use.
 2. **Candidates.** Two or three, ranked, each with evidence for and against. Never one story; a
    past postmortem with the same signature is a candidate, not the answer.
 3. **Do now.** Mitigation comes before the next diagnostic when users are hurting and a reversible
-   action exists — after capturing what it would destroy — with rollback and the recovery signal
-   (which numbers, at baseline, for how long; one green point is not recovery). Otherwise "change
-   nothing yet", and why. The release owner executes, with sign-off.
+   action exists that the leading candidate predicts will help — after capturing what it would
+   destroy — with rollback and the recovery signal (which numbers, at baseline, for how long; one
+   green point is not recovery). A reversible action no candidate explains adds impact and
+   destroys attribution. Otherwise "change nothing yet", and why. The release owner executes, with
+   sign-off.
 4. **Next check.** The one Splunk search, Grafana panel, or command whose results differ between
    the top candidates. Give it as: what to run · what it does · *if it shows X, A is confirmed —
    do B; if it shows Y, A is dead and C leads — do D*. Name the healthy result and the unhealthy
    one. Perishable evidence first (a thread dump before any restart, per-instance state before a
    scale), then the cheapest discriminator. A second check only if it runs in parallel.
-5. **The call.** Who to page from the escalation path, and the clock time a declare falls due;
-   with no runbook threshold, declare when a second team is needed, the outage is
-   customer-visible, or an hour has passed unsolved.
+5. **The call.** Who to page from the escalation path, and the clock time a declare falls due:
+   `incident-command`'s time-box — not stabilized in roughly fifteen minutes, or impact growing —
+   declare and assign an incident commander; sooner when a second team is needed or the outage is
+   customer-visible.
 6. **Board.** Below.
 
 ## Building the differential
@@ -96,10 +106,11 @@ healthy and an unhealthy result look like:
 Each candidate predicts what a check will show; choose the check whose predictions differ most. A
 check every candidate predicts the same way is not a check. When a candidate dies, say so and
 move it to Ruled out. When every in-app candidate is dead — no change, no saturation,
-dependencies healthy, all instances alike — the next check is outside the app (load-balancer
-request logs, a direct call that bypasses it) and the owner of that layer joins now. Two checks
-that eliminate nothing means stuck: say so and bring in the service owner, the dependency's owner,
-or the platform team instead of a fourth check.
+dependencies healthy, and the data-or-state class tested too (a bad row, expired state, or a
+poisoned cache hits every instance alike, so instance symmetry does not clear it) — the next
+check is outside the app (load-balancer request logs, a direct call that bypasses it) and the
+owner of that layer joins now. Two checks that eliminate nothing means stuck: say so and bring in
+the service owner, the dependency's owner, or the platform team instead of a fourth check.
 
 ## Reading what comes back
 
@@ -109,8 +120,9 @@ moves a candidate up or down and names the check that confirms it; none is a dia
 
 - latency rising before errors is saturation; errors starting at the change time is the change;
 - one hot instance among calm ones is local; all instances together is shared;
-- a dependency whose own latency is flat is not slow, however many times it is called — count
-  the calls instead;
+- a dependency that is fast from the caller's side, for the failing requests, is not slow however
+  many times it is called — count the calls instead; its own flat dashboard clears only its server
+  side, not the path, region, or tenant that is failing;
 - a thread waiting to *get* a connection means the pool is exhausted; a thread *holding* one while
   it waits on a socket is the reason;
 - a load balancer that sees seconds where the container logs milliseconds is time spent outside
@@ -172,14 +184,16 @@ Board
 Ruled out:   <every candidate the text has ruled out — with the evidence that killed it>
 Open:        <candidates, ranked, evidence for and against>
 Checked:     <what ran · UTC · what it showed> [label]
+Applied:     <mitigations a human executed · target · UTC · outcome, and whether it has held>
 Next:        <the discriminating check · what each result means>
 Follow-ups:  <discoveries for the knowledge repo · actions: what, owner, due · decisions — including the ones others pressed for: who asked, who decided, UTC from the incident's clock, on what evidence · unknowns: checks nobody could run>
 ```
 
 ## Handover and after
 
-A handover to another human gets the first screen and the board, and ends with their explicit
-acknowledgment. When the Do-now recovery signal has held for its window — not one green sample — and the
-responder calls it resolved, fill the [closeout packet](./assets/closeout-packet.md) and route it to `scribe` — postmortem mode first,
-then knowledge closeout with Follow-ups. You author neither: a discovery is learned only when that
-closeout turns it into a reviewable change.
+A handover to another human gets the first screen and the board — its Applied line is what stops
+the receiver repeating or reversing an action already taken — and ends with their explicit
+acknowledgment. When the Do-now recovery signal has held for its window — not one green sample —
+and the responder calls it resolved, fill the [closeout packet](./assets/closeout-packet.md) and
+route it to `scribe` — postmortem mode first, then knowledge closeout with Follow-ups. You author
+neither: a discovery is learned only when that closeout turns it into a reviewable change.
