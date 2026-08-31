@@ -235,8 +235,8 @@ final acceptance packet. The local implementation and complete mission transacti
 independent exact-revision review and verification remain before owner acceptance.
 
 **Owner:** `software-engineer` owns the deterministic runtime, activation, cases, evidence, and
-tests. `latent-sre` accepts or rejects the exact final revision. Independent reviewers and the
-verifier do not approve their own changes. No component gains production authority.
+tests. Save Toolkit maintainers accept or reject the exact final revision. Independent reviewers
+and the verifier do not approve their own changes. No component gains production authority.
 
 **Outcome:** A hardened, offline, two-container sandbox proves a Microsoft Agent Framework workflow
 can discover and consume a real streamed A2A v1 task from an AutoGen AgentChat GraphFlow worker.
