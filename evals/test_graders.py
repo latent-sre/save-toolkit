@@ -1531,7 +1531,6 @@ _ROUTING_ONLY_DISCOVERY_SCENARIOS = (
     + _BATCH1_DISCOVERY_ROUTING_ONLY
     + ("discovery-service-readiness-audit.yaml",)
     + ("discovery-investigation-depth-first-response.yaml",)
-    + ("discovery-incident-investigation-defers-incident-command.yaml",)
 )
 
 # GRADER-003: the three agent-authoring POSITIVES. Unlike the near misses above these keep their
@@ -1851,10 +1850,6 @@ _AGENT_AUTHORING_DIRECT_CONTRACTS = {
 }
 
 _ROUTING_ONLY_SANITY_RESPONSES = {
-    "discovery-incident-investigation-defers-incident-command.yaml": (
-        "This request is declaration and communications work, so route it to incident-command; "
-        "do not start a technical investigation the caller explicitly excluded."
-    ),
     "discovery-investigation-depth-first-response.yaml": (
         "This is an untriaged alert, so it starts in first-response mode: confirm real user impact, "
         "read the golden signals read-only, and escalate only on that mode's predicate."
@@ -1891,6 +1886,11 @@ _ROUTING_ONLY_SANITY_RESPONSES = {
 }
 
 _INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES = {
+    "discovery-incident-investigation-defers-incident-command.yaml": (
+        "Route this declaration to incident-command. Provisional severity: P1. Incident commander: "
+        "Morgan. Next update: 15:20 UTC. Do not start the excluded technical investigation.",
+        "Route this declaration to incident-command; the technical investigation remains excluded.",
+    ),
     "discovery-incident-investigation-walk-me-through.yaml": (
         "Candidate 1 is a deploy regression because the 13:50 deploy precedes the 14:20 onset; "
         "candidate 2 is dependency saturation. Next check: compare the pre/post-deploy revision "

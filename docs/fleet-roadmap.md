@@ -228,12 +228,14 @@ candidate. Do not start a duplicate implementation or schedule GraphRAG.
 
 ### GRAPH-005 — AutoGen GraphFlow + A2A canary-evidence sandbox
 
-**Status:** `active` (2026-08-30). The owner approved a new drill, the recommended combined
+**Status:** `active` (2026-08-31). The owner approved a new drill, the recommended combined
 Microsoft Agent Framework + AutoGen GraphFlow + A2A shape, autonomous work through final
-verification, and local green-boundary commits. Push and pull-request publication remain behind the
-final acceptance packet. The local implementation and complete mission transaction are green;
-exact-revision host, pinned-image, full six-case lifecycle, and cleanup verification are green at
-the current local candidate. Independent correctness/security review and owner acceptance remain.
+verification, and local green-boundary commits. On 2026-08-31 the owner separately authorized
+publication of the updated branch for review; that is not acceptance or merge approval. The local
+implementation and complete mission transaction were green at runtime-tested revision `ede57417`.
+The current candidate retains byte-identical sandbox code and has fresh host/component evidence,
+but its exact-revision image, full six-case lifecycle, and cleanup verification have not been rerun.
+Independent correctness/security review and owner acceptance remain.
 
 **Owner:** `software-engineer` owns the deterministic runtime, activation, cases, evidence, and
 tests. Save Toolkit maintainers accept or reject the exact final revision. Independent reviewers
@@ -254,9 +256,9 @@ framework and avoiding both training-memory design and unnecessary human interac
 official documentation and upstream source establish Agent Framework workflow checkpoint/HITL and
 A2A integration, AutoGen GraphFlow fan-out/join/cycle/save-load behavior (with an experimental API
 warning), and A2A v1 Agent Card/task/stream/artifact/cancel contracts. The living local interface is
-[`autogen-a2a-sandbox/contract.md`](../autogen-a2a-sandbox/contract.md). Current local execution is
-recorded in the
-[`exact-revision verification`](reviews/2026-08-30-autogen-a2a-exact-revision-verification.md).
+[`autogen-a2a-sandbox/contract.md`](../autogen-a2a-sandbox/contract.md). Prior exact runtime
+execution is recorded in the
+[`ede57417 verification`](reviews/2026-08-30-autogen-a2a-exact-revision-verification.md).
 
 **Prerequisites:** The runtime is a synthetic local Docker experiment permitted by `stack-profile`;
 it does not select a production platform. First prove in one pinned Python 3.12 image that the exact
@@ -283,9 +285,11 @@ container component tests, host tests, `git diff --check`, Gate A, independent e
 correctness/security review, and independent exact-revision verification pass with evidence scoped
 to what each check exercised. No result claims production readiness.
 
-**Next action:** Obtain independent correctness and security review of the exact local candidate,
-resolve any reportable findings, rerun affected verification if its bytes change, then present the
-exact acceptance packet. Do not push or open a pull request before the owner accepts that packet.
+**Next action:** Resolve independent correctness/security findings and rerun affected checks, then
+push the exact reviewed branch under the owner's 2026-08-31 publication authorization. Before a
+pull request or acceptance decision, run the exact candidate's pinned-image and six-case lifecycle
+with cleanup evidence and present the exact acceptance packet. Publication alone does not promote
+the candidate.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 

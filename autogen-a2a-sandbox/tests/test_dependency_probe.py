@@ -44,6 +44,22 @@ class DependencyProbeTests(unittest.TestCase):
             },
         )
 
+    def test_runtime_dependencies_match_the_repository_pin_set(self) -> None:
+        sandbox_pins = {
+            line
+            for line in (SANDBOX_ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+            if line and not line.startswith("#")
+        }
+        repository_pins = {
+            line
+            for line in (SANDBOX_ROOT.parent / "requirements-dev.txt")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if line and not line.startswith("#")
+        }
+
+        self.assertEqual(set(), sandbox_pins - repository_pins)
+
     def test_report_contract_accepts_exact_expected_shape(self) -> None:
         report = {
             "distributions": EXPECTED_DISTRIBUTIONS.copy(),
