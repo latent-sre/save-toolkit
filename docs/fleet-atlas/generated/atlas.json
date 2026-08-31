@@ -320,8 +320,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:7988807514097646382f0e68faf63772119aadbb1ddae7707476cefe17158bd9",
           "lines": [
-            117,
-            117
+            181,
+            181
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -1069,6 +1069,17 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:DRILL-001",
       "target": "review:2026-08-29-graph-002-exact-revision-verification"
+    },
+    {
+      "attrs": {
+        "via": "comment"
+      },
+      "class": "STATIC_INFERRED",
+      "evidence": [],
+      "id": "edge:0ad3cbb423715230",
+      "kind": "cites",
+      "source": "scenario:discovery-fleet-atlas-repository-relationships",
+      "target": "roadmap-item:HOST-003"
     },
     {
       "attrs": {
@@ -3238,8 +3249,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:29218ad0094065b5a5afef492d9e9ca491093c7c5f0cd24aef1fbad37d531aab",
           "lines": [
-            229,
-            229
+            293,
+            293
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -12946,6 +12957,28 @@
     },
     {
       "attrs": {
+        "mode": "discovery"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.scenario-target",
+          "excerptHash": "sha256:dc7109a476fe578ab9f325398483d31f6827a3fb96b44aab2aac1ef9f7da0709",
+          "lines": [
+            5,
+            5
+          ],
+          "path": "evals/scenarios/discovery-fleet-atlas-repository-relationships.yaml"
+        }
+      ],
+      "id": "edge:6e92271bc3f49c55",
+      "kind": "verified_by",
+      "source": "skill:fleet-atlas",
+      "target": "scenario:discovery-fleet-atlas-repository-relationships"
+    },
+    {
+      "attrs": {
         "batch": "20260830T072838Z-573c9de8"
       },
       "class": "STATIC_EXTRACTED",
@@ -14704,6 +14737,17 @@
       "target": "review:2026-08-26-exercise-terra-grader-transfer-candidate"
     },
     {
+      "attrs": {
+        "via": "generate_platform_adapters.expected_outputs"
+      },
+      "class": "CONTRACT_RESOLVED",
+      "evidence": [],
+      "id": "edge:7d8960431eecce33",
+      "kind": "generated_from",
+      "source": "generated-projection:platforms/copilot/skills/fleet-atlas/SKILL.md",
+      "target": "skill:fleet-atlas"
+    },
+    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -15804,6 +15848,17 @@
       "kind": "loads_when",
       "source": "skill:obs-logs",
       "target": "reference:obs-logs/spl.md"
+    },
+    {
+      "attrs": {
+        "via": "comment"
+      },
+      "class": "STATIC_INFERRED",
+      "evidence": [],
+      "id": "edge:87b478e716d30039",
+      "kind": "cites",
+      "source": "scenario:discovery-fleet-atlas-repository-relationships",
+      "target": "roadmap-item:EVAL-003"
     },
     {
       "attrs": {
@@ -18174,8 +18229,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:e75784f771967a23c46dc567d6cec3aa5606ff9e24a6cd9113cb2ba7ee5c222c",
           "lines": [
-            593,
-            593
+            657,
+            657
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -23823,8 +23878,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:b25aab93cb6cee52ccde808b7274bd7589d08501c9d76171ab877fa29de374bf",
           "lines": [
-            445,
-            445
+            509,
+            509
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -25037,6 +25092,28 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:VERIFY-001",
       "target": "review:2026-08-26-exercise-terra-drill-001-acceptance"
+    },
+    {
+      "attrs": {
+        "mode": "direct"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.scenario-target",
+          "excerptHash": "sha256:dc7109a476fe578ab9f325398483d31f6827a3fb96b44aab2aac1ef9f7da0709",
+          "lines": [
+            5,
+            5
+          ],
+          "path": "evals/scenarios/fleet-atlas-query-contract.yaml"
+        }
+      ],
+      "id": "edge:dcd79356544828c0",
+      "kind": "verified_by",
+      "source": "skill:fleet-atlas",
+      "target": "scenario:fleet-atlas-query-contract"
     },
     {
       "attrs": {},
@@ -26718,6 +26795,17 @@
       "target": "skill:pcf-deploy"
     },
     {
+      "attrs": {
+        "via": "comment"
+      },
+      "class": "STATIC_INFERRED",
+      "evidence": [],
+      "id": "edge:ec9f2505e7f25813",
+      "kind": "cites",
+      "source": "scenario:fleet-atlas-query-contract",
+      "target": "roadmap-item:EVAL-003"
+    },
+    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -27665,8 +27753,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:ed8ef450691cba08c409ebbfe5e45e4cd23c1d2c4bbf07d64786faae30fdaf20",
           "lines": [
-            391,
-            391
+            455,
+            455
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -29023,12 +29111,12 @@
   ],
   "kind": "FleetAtlas",
   "metadata": {
-    "dirty": true,
-    "edgeCount": 1540,
-    "nodeCount": 876,
+    "dirty": false,
+    "edgeCount": 1546,
+    "nodeCount": 880,
     "repository": "graph-004",
-    "revision": "ab8868d309aa1eab2904ca5624d6b18d01281440",
-    "treeDigest": "sha256:fbc6b61469c22812c77331eaf8d44fe4da08d8692fa40a35adb0323e20871c05",
+    "revision": "5ef32b1e5cc156ec65959d233a0cd2a21871de50",
+    "treeDigest": "sha256:f04f6152d8ab388e2b7fc47dff785c48847bf91940ca684f879887576cc040de",
     "unknownCount": 32
   },
   "nodes": [
@@ -31525,6 +31613,18 @@
       "id": "generated-projection:platforms/copilot/skills/eng-ladder/references/principal.md",
       "name": "platforms/copilot/skills/eng-ladder/references/principal.md",
       "path": "platforms/copilot/skills/eng-ladder/references/principal.md",
+      "state": "generated",
+      "type": "generated-projection"
+    },
+    {
+      "attrs": {
+        "bytes": 4281
+      },
+      "authority": "generated",
+      "evidence": [],
+      "id": "generated-projection:platforms/copilot/skills/fleet-atlas/SKILL.md",
+      "name": "platforms/copilot/skills/fleet-atlas/SKILL.md",
+      "path": "platforms/copilot/skills/fleet-atlas/SKILL.md",
       "state": "generated",
       "type": "generated-projection"
     },
@@ -43815,6 +43915,34 @@
       "attrs": {
         "expect": "fire",
         "expected_alternative": "",
+        "file": "evals/scenarios/discovery-fleet-atlas-repository-relationships.yaml",
+        "mode": "discovery",
+        "split": "calibration",
+        "threshold": null
+      },
+      "authority": "live-contract",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.scenario",
+          "excerptHash": "sha256:f4cabeda63543fcaa5c8e274acbe09cb2e32072bbc8bed94c057ae4b34dc35b7",
+          "lines": [
+            1,
+            1
+          ],
+          "path": "evals/scenarios/discovery-fleet-atlas-repository-relationships.yaml"
+        }
+      ],
+      "id": "scenario:discovery-fleet-atlas-repository-relationships",
+      "name": "discovery-fleet-atlas-repository-relationships",
+      "path": "evals/scenarios/discovery-fleet-atlas-repository-relationships.yaml",
+      "state": "live",
+      "type": "scenario"
+    },
+    {
+      "attrs": {
+        "expect": "fire",
+        "expected_alternative": "",
         "file": "evals/scenarios/discovery-frontend-craft-blocks-mantine-tailwind.yaml",
         "mode": "discovery",
         "split": "regression",
@@ -45467,6 +45595,34 @@
       "attrs": {
         "expect": "",
         "expected_alternative": "",
+        "file": "evals/scenarios/fleet-atlas-query-contract.yaml",
+        "mode": "direct",
+        "split": "calibration",
+        "threshold": null
+      },
+      "authority": "live-contract",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.scenario",
+          "excerptHash": "sha256:f4cabeda63543fcaa5c8e274acbe09cb2e32072bbc8bed94c057ae4b34dc35b7",
+          "lines": [
+            1,
+            1
+          ],
+          "path": "evals/scenarios/fleet-atlas-query-contract.yaml"
+        }
+      ],
+      "id": "scenario:fleet-atlas-query-contract",
+      "name": "fleet-atlas-query-contract",
+      "path": "evals/scenarios/fleet-atlas-query-contract.yaml",
+      "state": "live",
+      "type": "scenario"
+    },
+    {
+      "attrs": {
+        "expect": "",
+        "expected_alternative": "",
         "file": "evals/scenarios/incident-command-clock-declares-despite-progress.yaml",
         "mode": "direct",
         "split": "calibration",
@@ -46399,6 +46555,31 @@
       "id": "skill:eng-ladder",
       "name": "eng-ladder",
       "path": "skills/eng-ladder/SKILL.md",
+      "state": "live",
+      "type": "skill"
+    },
+    {
+      "attrs": {
+        "bytes": 4046,
+        "description": "Query the repository's revision-bound fleet knowledge atlas for canonical rule sources, ownership, skill reference loading, decision supersession, roadmap dependencies, verification and evidence links, generated provenance, or recorded state. Triggers: 'what owns this fleet capability', 'what does this roadmap item depend on', 'which source generated this adapter', 'what verifies this skill'. Not for source-code dependency graphs, GraphRAG, workflow design, public research, or changing canonical fleet artifacts.",
+        "manual_only": false
+      },
+      "authority": "canonical",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.skill-frontmatter",
+          "excerptHash": "sha256:cb3f91d54eee30e53e35b2b99905f70f169ed549fd78909d3dac2defc9ed8d3b",
+          "lines": [
+            1,
+            1
+          ],
+          "path": "skills/fleet-atlas/SKILL.md"
+        }
+      ],
+      "id": "skill:fleet-atlas",
+      "name": "fleet-atlas",
+      "path": "skills/fleet-atlas/SKILL.md",
       "state": "live",
       "type": "skill"
     },
