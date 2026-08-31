@@ -504,6 +504,22 @@ class LiveDocLinkTests(unittest.TestCase):
 class LiveOperatorDocTests(unittest.TestCase):
     """Current-tense operator docs must not reintroduce retired live names or python3 commands."""
 
+    def test_sister_lab_inputs_keep_source_repository_coordinates(self) -> None:
+        expected = {
+            "2026-07-31-local-external-research-separation.md": (
+                "- Sister-lab input: "
+                "`latent-sre/sde-agents@f4741c778a825a6353cc99e969f4ed05755aa574`"
+            ),
+            "2026-07-31-multi-platform-plugin-packaging.md": (
+                "- Sister-lab input: "
+                "`latent-sre/sde-agents@d50eda62c4fec083f5a5b0b3980f845d7ae0d8a1`"
+            ),
+        }
+        for name, coordinate in expected.items():
+            with self.subTest(name=name):
+                text = (ROOT / "docs" / "decisions" / name).read_text(encoding="utf-8")
+                self.assertIn(coordinate, text)
+
     def test_live_tree_operator_docs_are_clean(self) -> None:
         self.assertEqual([], check_links._check_live_operator_docs(ROOT))
 
@@ -587,6 +603,24 @@ class LiveOperatorDocTests(unittest.TestCase):
             )
             failures = check_links._check_live_operator_docs(root)
         self.assertTrue(any("latent-sre" in item and "live owner" in item for item in failures), failures)
+
+    def test_historical_latent_sre_owner_is_not_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "The former decision owner was `latent-sre`.\n",
+                encoding="utf-8",
+            )
+            self.assertEqual([], check_links._check_live_operator_docs(root))
+
+    def test_latent_sre_github_organization_prose_is_not_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "The GitHub organization slug is `latent-sre`.\n",
+                encoding="utf-8",
+            )
+            self.assertEqual([], check_links._check_live_operator_docs(root))
 
     def test_marketplace_install_coordinate_is_not_flagged(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

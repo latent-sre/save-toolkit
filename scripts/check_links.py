@@ -106,6 +106,17 @@ LATENT_SRE_COORDINATE_RE = re.compile(
     r"|latent-sre/sre-context"
     r"|latent-sre/save-toolkit"
 )
+LATENT_SRE_LIVE_OWNER_RE = re.compile(
+    r"(?:\b(?:decision|repository|release|merge|approval|schema|contract)?\s*"
+    r"(?:owners?|maintainers?|authority)\b[^;.!?]{0,120}\blatent-sre\b"
+    r"|\blatent-sre\b[^;.!?]{0,120}\b(?:owns?|maintains?|accepts?|approves?|authorizes?)\b"
+    r"|\b(?:owned|maintained)\s+by\s+`?latent-sre`?\b)",
+    re.IGNORECASE,
+)
+LATENT_SRE_HISTORICAL_RE = re.compile(
+    r"\b(?:former(?:ly)?|historical|retired|superseded|previous(?:ly)?)\b",
+    re.IGNORECASE,
+)
 SDE_AGENTS_RE = re.compile(r"(?<![A-Za-z0-9-])sde-agents(?![A-Za-z0-9-])")
 PLUGIN_SOURCE_ROOTS = (Path("skills"), Path("agents"), Path("commands"), Path("evals/scenarios"))
 RETIRED_AS_LIVE_HISTORICAL_RE = re.compile(
@@ -221,9 +232,14 @@ def _check_live_operator_docs(root: Path) -> list[str]:
                     for coord in LATENT_SRE_COORDINATE_RE.finditer(line)
                 ):
                     continue
+                clause = _clause_containing(line, match.start())
+                if LATENT_SRE_HISTORICAL_RE.search(clause):
+                    continue
+                if not LATENT_SRE_LIVE_OWNER_RE.search(clause):
+                    continue
                 failures.append(
                     f"{relative}:{number}: 'latent-sre' presented as a live owner; keep it "
-                    "only as a GitHub/marketplace coordinate"
+                    "only as historical context or a GitHub/marketplace coordinate"
                 )
     return failures
 
