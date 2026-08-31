@@ -11,6 +11,7 @@ from typing import Annotated, Any, Literal
 import httpx
 from fastapi import FastAPI, Header, Query
 from pydantic import Field, ValidationError
+from starlette.responses import Response
 
 from sandbox_services.common import (
     IDENTITY_PATTERN,
@@ -73,6 +74,25 @@ class CompletedCheckout(StrictModel):
     payment_receipt: TargetReceipt
     inventory_receipt: TargetReceipt
     replayed: bool
+
+
+class CommitResponseLost(Response):
+    """Commit the complete checkout result, then lose the response."""
+
+    media_type = "application/json"
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", b"1"),
+                ],
+            }
+        )
+        raise RuntimeError("synthetic_checkout_response_lost_after_commit")
 
 
 class TargetFailure(Exception):
@@ -290,6 +310,8 @@ def create_app(
                 request_digest,
                 completed.model_dump(mode="json"),
             )
+            if selected.effect_fixture == "ambiguous_after_commit":
+                return CommitResponseLost()
             return recorded_success
 
     @app.get("/checkout/receipt")

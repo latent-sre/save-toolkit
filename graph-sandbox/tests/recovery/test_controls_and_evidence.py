@@ -102,6 +102,5 @@ class EvidenceExportTests(unittest.TestCase):
             checksum_text = (exporter.run_dir / "checksums.sha256").read_text(encoding="utf-8")
             self.assertNotIn("checksums.sha256", checksum_text)
 
-
 if __name__ == "__main__":
     unittest.main()

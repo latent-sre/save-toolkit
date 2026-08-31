@@ -101,6 +101,66 @@ def merge_unique_maps(left: dict[str, T], right: dict[str, T]) -> dict[str, T]:
     return merged
 
 
+class TaskStateUpdate(dict[str, dict[str, object]]):
+    """Reducer input authorizing one monotonic retry-state replacement."""
+
+    def __init__(
+        self,
+        task_id: str,
+        value: dict[str, object],
+    ) -> None:
+        super().__init__({task_id: value})
+        self.replacement_task_id = task_id
+
+
+def merge_task_states(
+    left: dict[str, dict[str, object]],
+    right: dict[str, dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    merged = deepcopy(left)
+    replacement_task_id = (
+        right.replacement_task_id
+        if isinstance(right, TaskStateUpdate)
+        else None
+    )
+    for task_id, value in right.items():
+        if task_id not in merged or merged[task_id] == value:
+            merged[task_id] = deepcopy(value)
+            continue
+        if task_id != replacement_task_id:
+            raise ValueError(f"conflicting reducer value for {task_id}")
+        previous = merged[task_id]
+        previous_attempt = previous.get("attempt")
+        next_attempt = value.get("attempt")
+        if (
+            set(previous) != {"status", "attempt"}
+            or set(value) != {"status", "attempt"}
+            or previous.get("status") != "failed"
+            or value.get("status") not in {"failed", "completed"}
+            or isinstance(previous_attempt, bool)
+            or not isinstance(previous_attempt, int)
+            or isinstance(next_attempt, bool)
+            or not isinstance(next_attempt, int)
+            or next_attempt != previous_attempt + 1
+        ):
+            raise ValueError(
+                f"invalid retry task replacement for {task_id}"
+            )
+        merged[task_id] = deepcopy(value)
+    return merged
+
+
+def update_retry_task(
+    task_id: str,
+    *,
+    status: Literal["failed", "completed"],
+    attempt: int,
+) -> TaskStateUpdate:
+    if isinstance(attempt, bool) or not isinstance(attempt, int) or attempt < 1:
+        raise ValueError("retry task attempt must be a positive integer")
+    return TaskStateUpdate(task_id, {"status": status, "attempt": attempt})
+
+
 def merge_ordered_unique(left: list[T], right: list[T]) -> list[T]:
     """Merge parallel ordered values, accepting identical duplicates once."""
 
@@ -143,7 +203,7 @@ class GraphState(TypedDict, total=False):
     checkout: CheckoutInput
     checkout_status: Literal["NOT_STARTED", "COMPLETE", "FAILED", "UNKNOWN"]
     approval: ApprovalState
-    tasks: Annotated[dict[str, dict[str, object]], merge_unique_maps]
+    tasks: Annotated[dict[str, dict[str, object]], merge_task_states]
     receipts: Annotated[dict[str, dict[str, object]], merge_unique_maps]
     pending_effects: Annotated[list[str], merge_pending_effects]
     readiness: Annotated[dict[str, ReadinessResult], merge_unique_maps]
