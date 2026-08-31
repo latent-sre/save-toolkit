@@ -2759,6 +2759,276 @@ class ActivationTests(unittest.TestCase):
             self.assertEqual(list(root.glob(".*claim.json")), [])
             self.assertEqual(list(root.glob(".*lease")), [])
 
+    def run_activation_with_mocked_preflight(
+        self,
+        args: object,
+        *,
+        docker: mock.Mock,
+        sandbox_case: object,
+        runner,
+    ) -> tuple[int, str]:
+        root = args.evidence_root
+        context = ContextIdentity(
+            "desktop-linux",
+            "npipe:////./pipe/docker",
+            "f" * 64,
+        )
+        layout = RepositoryLayout(
+            root,
+            root,
+            root / "compose.yaml",
+            root / "build.yaml",
+            root / "lock.json",
+        )
+        output = StringIO()
+        with (
+            mock.patch("activate.trusted_layout", return_value=layout),
+            mock.patch("activate.validate_local_context", return_value=context),
+            mock.patch("activate._runtime_revision_is_exact"),
+            mock.patch("activate.load_sandbox_case", return_value=sandbox_case),
+            mock.patch(
+                "activate._load_json",
+                return_value={
+                    "images": {
+                        "runner": {
+                            "base_reference": "python@sha256:" + "a" * 64,
+                            "image_id": "sha256:" + "b" * 64,
+                        },
+                        "services": {"image_id": "sha256:" + "c" * 64},
+                    }
+                },
+            ),
+            mock.patch("activate.render_compose", return_value={}),
+            mock.patch("activate.DockerCLI", return_value=docker),
+            mock.patch("activate.validate_preflight"),
+            redirect_stdout(output),
+        ):
+            exit_code = activate_runtime(
+                args,
+                runner=runner,
+                environ={"PATH": "safe"},
+            )
+        return exit_code, output.getvalue()
+
+    def test_runner_error_boundary_preserves_post_effect_and_cleans_pre_effect(
+        self,
+    ) -> None:
+        cases = (
+            ("post-effect-value-error", 1, 126, "PRESERVED"),
+            ("pre-effect-configuration-error", 64, 64, None),
+        )
+        for error_class, runner_exit, expected_exit, expected_phase in cases:
+            with self.subTest(error_class=error_class), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                run_id = f"round2-{error_class}"
+                args = type(
+                    "Args",
+                    (),
+                    {
+                        "operation": "fresh",
+                        "docker_context": "desktop-linux",
+                        "source_revision": SOURCE_REVISION,
+                        "run_id": run_id,
+                        "evidence_root": root,
+                        "case_id": CASE_ID,
+                        "approval_fixture": "APPROVED",
+                    },
+                )()
+                sandbox_case = type(
+                    "Case",
+                    (),
+                    {"case_id": CASE_ID, "digest": CASE_DIGEST},
+                )()
+                expected_resources = expected_resource_records(run_id, SOURCE_REVISION)
+                resources_exist = False
+                calls: list[list[str]] = []
+                docker = mock.Mock()
+                docker.status.return_value = type(
+                    "Status",
+                    (),
+                    {
+                        "engine_version": "29",
+                        "compose_version": "5",
+                        "os_type": "linux",
+                    },
+                )()
+
+                def resource_state(*_arguments) -> ResourceState:
+                    return ResourceState(expected_resources if resources_exist else ())
+
+                docker.resource_state.side_effect = resource_state
+
+                def runner(arguments, *, environment, timeout_seconds, stdin=None):
+                    nonlocal resources_exist
+                    arguments = list(arguments)
+                    calls.append(arguments)
+                    if "up" in arguments:
+                        resources_exist = True
+                        return subprocess.CompletedProcess(
+                            arguments,
+                            runner_exit,
+                            stdout="",
+                            stderr=error_class,
+                        )
+                    if "stop" in arguments:
+                        return completed(arguments)
+                    if "down" in arguments:
+                        resources_exist = False
+                        return completed(arguments)
+                    self.fail(f"unexpected activation command: {arguments}")
+
+                exit_code, output = self.run_activation_with_mocked_preflight(
+                    args,
+                    docker=docker,
+                    sandbox_case=sandbox_case,
+                    runner=runner,
+                )
+
+                self.assertEqual(exit_code, expected_exit)
+                claim_path = root / f".{run_id}.claim.json"
+                if expected_phase is None:
+                    self.assertFalse(claim_path.exists())
+                    self.assertFalse(resources_exist)
+                    self.assertIn("activation_terminal_rejection", output)
+                    teardown = next(call for call in calls if "down" in call)
+                    self.assertIn("--volumes", teardown)
+                    self.assertFalse(any("stop" in call for call in calls))
+                else:
+                    claim = json.loads(claim_path.read_text(encoding="utf-8"))
+                    self.assertEqual(claim["phase"], expected_phase)
+                    self.assertTrue(claim["runner_existed"])
+                    self.assertEqual(
+                        claim["observed_resources"],
+                        sorted(
+                            f"{record.kind}:{record.name}"
+                            for record in expected_resources
+                        ),
+                    )
+                    self.assertTrue(resources_exist)
+                    self.assertIn("activation_resume_required", output)
+                    self.assertTrue(any("stop" in call for call in calls))
+                    self.assertFalse(any("down" in call for call in calls))
+                self.assertFalse(
+                    any(
+                        "ps" in call or "inspect" in call or "cp" in call
+                        for call in calls
+                    )
+                )
+                self.assertFalse((root / run_id).exists())
+
+    def test_reconciliation_exhaustion_preserves_across_repeated_resume(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run_id = "round2-reconciliation-exhausted"
+            args = type(
+                "Args",
+                (),
+                {
+                    "operation": "resume",
+                    "docker_context": "desktop-linux",
+                    "source_revision": SOURCE_REVISION,
+                    "run_id": run_id,
+                    "evidence_root": root,
+                    "case_id": CASE_ID,
+                    "approval_fixture": "APPROVED",
+                },
+            )()
+            context = ContextIdentity(
+                "desktop-linux",
+                "npipe:////./pipe/docker",
+                "f" * 64,
+            )
+            compose_digest = hashlib.sha256(b"{}\n").hexdigest()
+            expected_resources = expected_resource_records(run_id, SOURCE_REVISION)
+            resource_keys = tuple(
+                sorted(f"{record.kind}:{record.name}" for record in expected_resources)
+            )
+            claim = RunClaim.acquire(
+                "fresh",
+                root,
+                run_id,
+                SOURCE_REVISION,
+                context.fingerprint,
+                CASE_ID,
+                CASE_DIGEST,
+                "APPROVED",
+                compose_digest,
+            )
+            claim.transition("RUNNING")
+            claim.record_resources(resource_keys, runner_existed=True)
+            claim.transition("PRESERVED")
+            sandbox_case = type(
+                "Case",
+                (),
+                {
+                    "case_id": CASE_ID,
+                    "digest": CASE_DIGEST,
+                    "service_fixtures": {
+                        "checkout": {"effect": "ambiguous_after_commit"}
+                    },
+                },
+            )()
+            docker = mock.Mock()
+            docker.status.return_value = type(
+                "Status",
+                (),
+                {
+                    "engine_version": "29",
+                    "compose_version": "5",
+                    "os_type": "linux",
+                },
+            )()
+            docker.resource_state.return_value = ResourceState(expected_resources)
+            calls: list[list[str]] = []
+
+            def runner(arguments, *, environment, timeout_seconds, stdin=None):
+                arguments = list(arguments)
+                calls.append(arguments)
+                if "up" in arguments:
+                    return subprocess.CompletedProcess(
+                        arguments,
+                        1,
+                        stdout="",
+                        stderr="reconciliation_attempts_exhausted",
+                    )
+                if "stop" in arguments:
+                    return completed(arguments)
+                self.fail(f"exhausted reconciliation must preserve: {arguments}")
+
+            outputs = []
+            for _resume in range(2):
+                exit_code, output = self.run_activation_with_mocked_preflight(
+                    args,
+                    docker=docker,
+                    sandbox_case=sandbox_case,
+                    runner=runner,
+                )
+                self.assertEqual(exit_code, 126)
+                outputs.append(json.loads(output))
+                persisted = json.loads(claim.path.read_text(encoding="utf-8"))
+                self.assertEqual(persisted["phase"], "PRESERVED")
+                self.assertTrue(persisted["runner_existed"])
+                self.assertEqual(persisted["observed_resources"], list(resource_keys))
+
+            self.assertEqual(
+                [event["event"] for event in outputs],
+                ["activation_resume_required", "activation_resume_required"],
+            )
+            self.assertEqual(sum("up" in call for call in calls), 2)
+            self.assertEqual(sum("stop" in call for call in calls), 2)
+            self.assertFalse(
+                any(
+                    "down" in call
+                    or "ps" in call
+                    or "inspect" in call
+                    or "cp" in call
+                    for call in calls
+                )
+            )
+            self.assertFalse((root / run_id).exists())
+
     def test_preserved_activation_retains_claim_and_prints_exact_resume_handoff(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

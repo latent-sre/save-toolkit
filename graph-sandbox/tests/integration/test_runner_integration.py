@@ -3,9 +3,11 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import sqlite3
 import tempfile
 import unittest
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
@@ -438,6 +440,27 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
             error_class=error_class,
         )
 
+    @staticmethod
+    def emit_reconciliation_refusal(
+        events: BoundaryEventStore,
+        state: GraphState,
+        *,
+        error_class: str = "receipt_transport_failure",
+    ) -> None:
+        events.emit(
+            "effect.replay_refused",
+            state,
+            {
+                "effect_class": "checkout",
+                "effect_state": "UNKNOWN",
+                "reason_class": "reconciliation_unavailable",
+            },
+            node_id="reconcile_if_ambiguous",
+            effect_id=f"{state['run_id']}:checkout_effect:0:effect-checkout",
+            failure_plane="checkout",
+            error_class=error_class,
+        )
+
     def prepare_attempt_eight_reconciled_crash(
         self,
         root: Path,
@@ -462,6 +485,7 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
         ) = self.prepare_unknown_snapshot(root, run_id)
         for attempt in range(1, state["budgets"]["attempts"]["limit"]):
             self.emit_reconciliation_task_event(events, state, "task.started", attempt)
+            self.emit_reconciliation_refusal(events, state)
             self.emit_reconciliation_task_event(events, state, "task.failed", attempt)
         final_attempt = state["budgets"]["attempts"]["limit"]
         self.emit_reconciliation_task_event(
@@ -507,15 +531,30 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
 
     @staticmethod
     def validate_unknown_bundle(config: RunnerConfig, state: GraphState) -> None:
-        validate_unknown_snapshot(
-            config.evidence_dir / f"{config.run_id}-unknown",
-            run_id=config.run_id,
-            case_id=config.case_id,
-            case_digest=config.case_digest,
-            source_revision=config.source_revision,
-            thread_id=state["thread_id"],
-            trusted_checkout=state["checkout"],
+        fingerprint = CheckpointFingerprint.current(config.source_revision)
+        events = BoundaryEventStore(
+            config.effect_ledger_db.with_name("events.sqlite3")
         )
+        ledger = EffectLedger(config.effect_ledger_db)
+        with CheckpointStore(config.checkpoint_db, fingerprint) as checkpointer:
+            lineage = _checkpoint_lineage(
+                checkpointer,
+                state["thread_id"],
+                fingerprint,
+                None,
+            )
+            validate_unknown_snapshot(
+                config.evidence_dir / f"{config.run_id}-unknown",
+                run_id=config.run_id,
+                case_id=config.case_id,
+                case_digest=config.case_digest,
+                source_revision=config.source_revision,
+                thread_id=state["thread_id"],
+                trusted_checkout=state["checkout"],
+                live_events=events,
+                live_ledger=ledger,
+                live_saver_checkpoint_ids=lineage["saver_checkpoint_ids"],
+            )
 
     def test_checkout_unknown_snapshot_resumes_to_reconciled_without_redispatch(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -729,6 +768,146 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
                 ):
                     self.validate_unknown_bundle(config, state)
 
+    def test_existing_unknown_snapshot_must_match_live_durable_prefixes(self) -> None:
+        cases = (
+            ("omit_readiness", "readiness task|live event prefix"),
+            ("omit_approval", "live event prefix"),
+            ("omit_join", "live event prefix"),
+            ("reorder_join", "live event prefix"),
+            ("live_event_mismatch", "live event prefix"),
+            ("live_effect_mismatch", "live effect prefix"),
+            ("live_checkpoint_mismatch", "live checkpoint prefix"),
+        )
+        for mutation, diagnostic in cases:
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                (
+                    config,
+                    state,
+                    gateway,
+                    ledger,
+                    events,
+                    graph_config,
+                    fingerprint,
+                ) = self.prepare_unknown_snapshot(
+                    root,
+                    f"live-prefix-{mutation.replace('_', '-')}-001",
+                )
+                unknown_dir = config.evidence_dir / f"{config.run_id}-unknown"
+                runtime_config = config
+                if mutation.startswith("omit_") or mutation == "reorder_join":
+                    snapshot_events = [
+                        json.loads(line)
+                        for line in (unknown_dir / "events.jsonl")
+                        .read_text(encoding="utf-8")
+                        .splitlines()
+                    ]
+                    if mutation.startswith("omit_"):
+                        omitted_types = {
+                            "omit_readiness": {"task.started", "task.completed"},
+                            "omit_approval": {"approval.requested"},
+                            "omit_join": {"edge.join_satisfied"},
+                        }[mutation]
+                        snapshot_events = [
+                            event
+                            for event in snapshot_events
+                            if not (
+                                event["event_type"] in omitted_types
+                                and (
+                                    mutation != "omit_readiness"
+                                    or str(event.get("task_id", "")).endswith(
+                                        ":readiness:0"
+                                    )
+                                )
+                            )
+                        ]
+                    else:
+                        join_index = next(
+                            index
+                            for index, event in enumerate(snapshot_events)
+                            if event["event_type"] == "edge.join_satisfied"
+                        )
+                        budget_index = next(
+                            index
+                            for index, event in enumerate(snapshot_events)
+                            if event["event_type"] == "budget.observed"
+                        )
+                        snapshot_events[join_index], snapshot_events[budget_index] = (
+                            snapshot_events[budget_index],
+                            snapshot_events[join_index],
+                        )
+                    for sequence, event in enumerate(snapshot_events, start=1):
+                        event["sequence"] = sequence
+                        event["event_id"] = f"{config.run_id}:{sequence:08d}"
+                    exporter = EvidenceExporter(
+                        config.evidence_dir,
+                        config.run_id,
+                        directory_name=f"{config.run_id}-unknown",
+                    )
+                    exporter.write_jsonl("events.jsonl", snapshot_events)
+                    exporter.write_checksums()
+                elif mutation == "live_event_mismatch":
+                    approval_event = next(
+                        event
+                        for event in events.project()
+                        if event["event_type"] == "approval.requested"
+                    )
+                    approval_event["data"]["approval_status"] = "CORRUPTED"
+                    with sqlite3.connect(events.path) as connection:
+                        connection.execute(
+                            "UPDATE boundary_events SET record_json = ? WHERE sequence = ?",
+                            (
+                                json.dumps(
+                                    approval_event,
+                                    sort_keys=True,
+                                    separators=(",", ":"),
+                                ),
+                                approval_event["sequence"],
+                            ),
+                        )
+                elif mutation == "live_effect_mismatch":
+                    with sqlite3.connect(config.effect_ledger_db) as connection:
+                        connection.execute(
+                            "UPDATE effect_transitions SET reason_class = ? "
+                            "WHERE effect_state = 'UNKNOWN'",
+                            ("live_store_mismatch",),
+                        )
+                else:
+                    runtime_config = replace(
+                        config,
+                        checkpoint_db=root / "mismatched-checkpoints.sqlite3",
+                    )
+
+                with (
+                    mock.patch(
+                        "runner.main.RunnerConfig.from_environment",
+                        return_value=runtime_config,
+                    ),
+                    mock.patch("runner.main.HttpGateway", return_value=gateway),
+                    mock.patch(
+                        "runner.main._run_deadline",
+                        side_effect=lambda _seconds: nullcontext(),
+                    ),
+                    self.assertRaisesRegex(ExistingSnapshotInvalid, diagnostic),
+                ):
+                    run({})
+
+                with CheckpointStore(config.checkpoint_db, fingerprint) as checkpointer:
+                    graph = build_graph(
+                        RunnerDependencies(
+                            gateway=gateway,
+                            ledger=ledger,
+                            events=events,
+                            case=load_case(config.case_path),
+                        ),
+                        checkpointer,
+                    )
+                    self.assertEqual(
+                        graph.get_state(graph_config).next,
+                        ("reconcile_after_snapshot",),
+                    )
+                self.assertEqual(gateway.receipt_lookups, 0)
+
     def test_temporary_reconciliation_failure_remains_resumable_without_redispatch(
         self,
     ) -> None:
@@ -802,6 +981,283 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
             self.assertEqual(gateway.checkout_calls, 1)
             self.assertEqual(gateway.receipt_lookups, 2)
 
+    def test_open_reconciliation_start_reuses_the_same_attempt_for_lookup(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (
+                config,
+                state,
+                gateway,
+                _ledger,
+                events,
+                _graph_config,
+                _fingerprint,
+            ) = self.prepare_unknown_snapshot(
+                root,
+                "open-reconciliation-start-001",
+            )
+            self.emit_reconciliation_task_event(
+                events,
+                state,
+                "task.started",
+                1,
+            )
+            with (
+                mock.patch(
+                    "runner.main.RunnerConfig.from_environment",
+                    return_value=config,
+                ),
+                mock.patch("runner.main.HttpGateway", return_value=gateway),
+                mock.patch(
+                    "runner.main._run_deadline",
+                    side_effect=lambda _seconds: nullcontext(),
+                ),
+            ):
+                self.assertEqual(run({}), 0)
+
+            task_id = f"{state['run_id']}:reconcile_if_ambiguous:0"
+            task_events = [
+                event
+                for event in events.project()
+                if event["task_id"] == task_id
+            ]
+            self.assertEqual(
+                [event["event_type"] for event in task_events],
+                ["task.started", "task.completed"],
+            )
+            self.assertTrue(
+                all(
+                    event["attempt_id"] == f"{task_id}:attempt-1"
+                    for event in task_events
+                )
+            )
+            completed = json.loads(
+                (
+                    config.evidence_dir
+                    / f"{config.run_id}-reconciled"
+                    / "final-state.json"
+                ).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                completed["tasks"][task_id],
+                {"status": "completed", "attempt": 1},
+            )
+            self.assertEqual(gateway.receipt_lookups, 1)
+            self.assertEqual(gateway.checkout_calls, 1)
+
+    def test_open_reconciliation_refusal_closes_before_the_next_lookup(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (
+                config,
+                state,
+                gateway,
+                ledger,
+                events,
+                graph_config,
+                fingerprint,
+            ) = self.prepare_unknown_snapshot(
+                root,
+                "open-reconciliation-refusal-001",
+            )
+            self.emit_reconciliation_task_event(events, state, "task.started", 1)
+            self.emit_reconciliation_refusal(events, state)
+            with CheckpointStore(root / "checkpoints.sqlite3", fingerprint) as checkpointer:
+                graph = build_graph(
+                    RunnerDependencies(
+                        gateway=gateway,
+                        ledger=ledger,
+                        events=events,
+                        case=load_case(
+                            Path("/app/cases/checkout-ambiguous-after-commit-001.json")
+                        ),
+                    ),
+                    checkpointer,
+                )
+                closed = _execute_graph(
+                    graph,
+                    state,
+                    events,
+                    "APPROVED",
+                    advance_reconciliation_snapshot=True,
+                )
+                self.assertTrue(closed.reconciliation_snapshot_pending)
+                self.assertEqual(gateway.receipt_lookups, 0)
+
+            with (
+                mock.patch(
+                    "runner.main.RunnerConfig.from_environment",
+                    return_value=config,
+                ),
+                mock.patch("runner.main.HttpGateway", return_value=gateway),
+                mock.patch(
+                    "runner.main._run_deadline",
+                    side_effect=lambda _seconds: nullcontext(),
+                ),
+            ):
+                self.assertEqual(run({}), 0)
+
+            task_id = f"{state['run_id']}:reconcile_if_ambiguous:0"
+            task_events = [
+                event
+                for event in events.project()
+                if event["task_id"] == task_id
+            ]
+            self.assertEqual(
+                [event["event_type"] for event in task_events],
+                ["task.started", "task.failed", "task.started", "task.completed"],
+            )
+            completed = json.loads(
+                (
+                    config.evidence_dir
+                    / f"{config.run_id}-reconciled"
+                    / "final-state.json"
+                ).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                completed["tasks"][task_id],
+                {"status": "completed", "attempt": 2},
+            )
+            self.assertEqual(gateway.receipt_lookups, 1)
+            self.assertEqual(gateway.checkout_calls, 1)
+
+    def test_reconciliation_history_rejects_multiple_or_nonlatest_open_attempts(
+        self,
+    ) -> None:
+        for malformed in ("multiple", "nonlatest"):
+            with self.subTest(malformed=malformed), tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                (
+                    _config,
+                    state,
+                    gateway,
+                    ledger,
+                    events,
+                    graph_config,
+                    fingerprint,
+                ) = self.prepare_unknown_snapshot(
+                    root,
+                    f"{malformed}-open-reconciliation-001",
+                )
+                self.emit_reconciliation_task_event(events, state, "task.started", 1)
+                self.emit_reconciliation_task_event(events, state, "task.started", 2)
+                if malformed == "nonlatest":
+                    self.emit_reconciliation_refusal(events, state)
+                    self.emit_reconciliation_task_event(events, state, "task.failed", 2)
+                with CheckpointStore(
+                    root / "checkpoints.sqlite3",
+                    fingerprint,
+                ) as checkpointer:
+                    graph = build_graph(
+                        RunnerDependencies(
+                            gateway=gateway,
+                            ledger=ledger,
+                            events=events,
+                            case=load_case(
+                                Path(
+                                    "/app/cases/checkout-ambiguous-after-commit-001.json"
+                                )
+                            ),
+                        ),
+                        checkpointer,
+                    )
+                    with self.assertRaisesRegex(
+                        RuntimeError,
+                        "reconciliation task history",
+                    ):
+                        _execute_graph(
+                            graph,
+                            state,
+                            events,
+                            "APPROVED",
+                            advance_reconciliation_snapshot=True,
+                        )
+                    self.assertEqual(
+                        graph.get_state(graph_config).next,
+                        ("reconcile_after_snapshot",),
+                    )
+                self.assertEqual(gateway.receipt_lookups, 0)
+
+    def test_post_effect_retry_reducer_conflict_is_not_configuration_rejection(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (
+                config,
+                state,
+                gateway,
+                ledger,
+                events,
+                graph_config,
+                fingerprint,
+            ) = self.prepare_unknown_snapshot(
+                root,
+                "post-effect-reducer-conflict-001",
+            )
+            with CheckpointStore(config.checkpoint_db, fingerprint) as checkpointer:
+                graph = build_graph(
+                    RunnerDependencies(
+                        gateway=gateway,
+                        ledger=ledger,
+                        events=events,
+                        case=load_case(config.case_path),
+                    ),
+                    checkpointer,
+                )
+                with mock.patch.object(
+                    gateway,
+                    "get_checkout_receipt",
+                    side_effect=GatewayUnavailable(
+                        "checkout",
+                        "receipt_transport_failure",
+                    ),
+                ):
+                    failed = _execute_graph(
+                        graph,
+                        state,
+                        events,
+                        "APPROVED",
+                        advance_reconciliation_snapshot=True,
+                    )
+                self.assertTrue(failed.reconciliation_snapshot_pending)
+
+            def conflicting_task_update(
+                task_id: str,
+                *,
+                status: str,
+                attempt: int,
+            ) -> dict[str, dict[str, object]]:
+                return {task_id: {"status": status, "attempt": attempt}}
+
+            with (
+                mock.patch(
+                    "runner.main.RunnerConfig.from_environment",
+                    return_value=config,
+                ),
+                mock.patch("runner.main.HttpGateway", return_value=gateway),
+                mock.patch(
+                    "runner.main._run_deadline",
+                    side_effect=lambda _seconds: nullcontext(),
+                ),
+                mock.patch(
+                    "runner.graph.update_retry_task",
+                    side_effect=conflicting_task_update,
+                ),
+                self.assertRaisesRegex(ValueError, "conflicting reducer value"),
+            ):
+                run({})
+
+            effect_id = f"{config.run_id}:checkout_effect:0:effect-checkout"
+            self.assertEqual(ledger.current(effect_id)["effect_state"], "RECONCILED")
+            self.assertFalse(
+                (config.evidence_dir / f"{config.run_id}-reconciled").exists()
+            )
+            self.assertTrue(config.checkpoint_db.is_file())
+            self.assertTrue(
+                (config.evidence_dir / f"{config.run_id}-unknown").is_dir()
+            )
+
     def test_non_timeline_reconciliation_failure_remains_terminal(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -862,31 +1318,27 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            case = load_case(Path("/app/cases/checkout-ambiguous-after-commit-001.json"))
-            state = new_run_state(
-                case,
-                run_id="reconciliation-attempt-ceiling-001",
-                source_revision=REVISION,
-                case_digest=CASE_DIGEST,
+            (
+                config,
+                state,
+                checkout_gateway,
+                ledger,
+                events,
+                graph_config,
+                fingerprint,
+            ) = self.prepare_unknown_snapshot(
+                root,
+                "reconciliation-attempt-ceiling-001",
             )
             gateway = UnavailableAfterLostResponseGateway()
-            events = BoundaryEventStore(root / "events.sqlite3")
             dependencies = RunnerDependencies(
                 gateway=gateway,
-                ledger=EffectLedger(root / "effects.sqlite3"),
+                ledger=ledger,
                 events=events,
-                case=case,
+                case=load_case(config.case_path),
             )
-            graph_config = {"configurable": {"thread_id": state["thread_id"]}}
-
-            with CheckpointStore(
-                root / "checkpoints.sqlite3",
-                CheckpointFingerprint.current(REVISION),
-            ) as checkpointer:
+            with CheckpointStore(config.checkpoint_db, fingerprint) as checkpointer:
                 graph = build_graph(dependencies, checkpointer)
-                self.assertIn("__interrupt__", graph.invoke(state, graph_config))
-                pending = _execute_graph(graph, state, events, "APPROVED")
-                self.assertTrue(pending.reconciliation_snapshot_pending)
                 attempt_limit = state["budgets"]["attempts"]["limit"]
                 for _attempt in range(attempt_limit):
                     pending = _execute_graph(
@@ -897,22 +1349,56 @@ class RunnerGraphIntegrationTests(unittest.TestCase):
                         advance_reconciliation_snapshot=True,
                     )
                     self.assertTrue(pending.reconciliation_snapshot_pending)
-                exhausted = _execute_graph(
-                    graph,
-                    state,
-                    events,
-                    "APPROVED",
-                    advance_reconciliation_snapshot=True,
-                )
 
-            self.assertFalse(exhausted.reconciliation_snapshot_pending)
-            self.assertEqual(exhausted.state["outcome"], "UNKNOWN")
+            unknown_dir = config.evidence_dir / f"{config.run_id}-unknown"
+            unknown_bytes = {
+                path.relative_to(unknown_dir).as_posix(): path.read_bytes()
+                for path in unknown_dir.rglob("*")
+                if path.is_file()
+            }
+            for resume_number in (1, 2):
+                with (
+                    self.subTest(resume_number=resume_number),
+                    mock.patch(
+                        "runner.main.RunnerConfig.from_environment",
+                        return_value=config,
+                    ),
+                    mock.patch("runner.main.HttpGateway", return_value=gateway),
+                    mock.patch(
+                        "runner.main._run_deadline",
+                        side_effect=lambda _seconds: nullcontext(),
+                    ),
+                    self.assertRaisesRegex(
+                        RuntimeError,
+                        "reconciliation attempts exhausted",
+                    ),
+                ):
+                    run({})
+                with CheckpointStore(config.checkpoint_db, fingerprint) as checkpointer:
+                    graph = build_graph(dependencies, checkpointer)
+                    self.assertEqual(
+                        graph.get_state(graph_config).next,
+                        ("reconcile_after_snapshot",),
+                    )
+
             self.assertEqual(
-                exhausted.state["budgets"]["attempts"],
+                pending.state["budgets"]["attempts"],
                 {"limit": attempt_limit, "consumed": 1},
             )
-            self.assertEqual(gateway.checkout_calls, 1)
+            self.assertEqual(checkout_gateway.checkout_calls, 1)
+            self.assertEqual(gateway.checkout_calls, 0)
             self.assertEqual(gateway.receipt_lookups, attempt_limit)
+            self.assertEqual(
+                {
+                    path.relative_to(unknown_dir).as_posix(): path.read_bytes()
+                    for path in unknown_dir.rglob("*")
+                    if path.is_file()
+                },
+                unknown_bytes,
+            )
+            self.assertFalse(
+                (config.evidence_dir / f"{config.run_id}-reconciled").exists()
+            )
             retry_exhausted = [
                 event
                 for event in events.project()

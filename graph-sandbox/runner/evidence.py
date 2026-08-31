@@ -5,11 +5,11 @@ import json
 import os
 import re
 import tempfile
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 
-from runner.effects import derive_idempotency_key
-from runner.events import EVENT_DATA_SCHEMAS
+from runner.effects import EffectLedger, derive_idempotency_key
+from runner.events import BoundaryEventStore, EVENT_DATA_SCHEMAS
 from runner.models import (
     CHECKPOINT_LINEAGE_VERSION,
     CONTRACT_VERSION,
@@ -539,6 +539,9 @@ def validate_unknown_snapshot(
     source_revision: str,
     thread_id: str,
     trusted_checkout: Mapping[str, object],
+    live_events: BoundaryEventStore,
+    live_ledger: EffectLedger,
+    live_saver_checkpoint_ids: Sequence[str],
 ) -> None:
     """Fail closed before resuming from an already-exported UNKNOWN snapshot."""
 
@@ -814,6 +817,32 @@ def validate_unknown_snapshot(
         source_revision=source_revision,
         thread_id=thread_id,
     )
+    snapshot_event_prefix = events[:-1]
+    durable_events = live_events.project()
+    if (
+        len(durable_events) < len(snapshot_event_prefix)
+        or durable_events[: len(snapshot_event_prefix)] != snapshot_event_prefix
+    ):
+        raise ExistingSnapshotInvalid(
+            "existing UNKNOWN snapshot live event prefix mismatch"
+        )
+    durable_effects = live_ledger.project()
+    if len(durable_effects) < len(effects) or durable_effects[: len(effects)] != effects:
+        raise ExistingSnapshotInvalid(
+            "existing UNKNOWN snapshot live effect prefix mismatch"
+        )
+    snapshot_checkpoint_ids = lineage["saver_checkpoint_ids"]
+    live_checkpoint_ids = list(live_saver_checkpoint_ids)
+    if (
+        not all(isinstance(value, str) and value for value in live_checkpoint_ids)
+        or len(live_checkpoint_ids) != len(set(live_checkpoint_ids))
+        or len(live_checkpoint_ids) < len(snapshot_checkpoint_ids)
+        or live_checkpoint_ids[: len(snapshot_checkpoint_ids)]
+        != snapshot_checkpoint_ids
+    ):
+        raise ExistingSnapshotInvalid(
+            "existing UNKNOWN snapshot live checkpoint prefix mismatch"
+        )
 
 
 class EvidenceExporter:

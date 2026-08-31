@@ -493,7 +493,12 @@ def _export_evidence(
 
 
 def run(environment: Mapping[str, str] | None = None) -> int:
-    config = RunnerConfig.from_environment(environment)
+    try:
+        config = RunnerConfig.from_environment(environment)
+    except ConfigurationError:
+        raise
+    except ValueError as exc:
+        raise ConfigurationError("invalid runner configuration") from exc
     try:
         case_bytes = config.case_path.read_bytes()
     except OSError as exc:
@@ -501,15 +506,21 @@ def run(environment: Mapping[str, str] | None = None) -> int:
     observed_case_digest = hashlib.sha256(case_bytes).hexdigest()
     if observed_case_digest != config.case_digest:
         raise ConfigurationError("CASE_DIGEST does not match the selected immutable case")
-    sandbox_case = load_case(config.case_path)
+    try:
+        sandbox_case = load_case(config.case_path)
+    except ValueError as exc:
+        raise ConfigurationError(f"invalid immutable case: {exc}") from exc
     if sandbox_case["case_id"] != config.case_id:
         raise ConfigurationError("CASE_ID does not match the selected immutable case")
-    state = new_run_state(
-        sandbox_case,
-        run_id=config.run_id,
-        source_revision=config.source_revision,
-        case_digest=config.case_digest,
-    )
+    try:
+        state = new_run_state(
+            sandbox_case,
+            run_id=config.run_id,
+            source_revision=config.source_revision,
+            case_digest=config.case_digest,
+        )
+    except ValueError as exc:
+        raise ConfigurationError("invalid run identity for immutable case") from exc
     wall_budget = DurableWallTimeBudget.acquire(
         config.checkpoint_db.with_name("wall-time-budget.sqlite3"),
         run_id=config.run_id,
@@ -548,20 +559,32 @@ def run(environment: Mapping[str, str] | None = None) -> int:
             "existing UNKNOWN snapshot is not a regular directory"
         )
     unknown_snapshot_exists = unknown_snapshot_dir.exists()
-    if unknown_snapshot_exists:
-        validate_unknown_snapshot(
-            unknown_snapshot_dir,
-            run_id=config.run_id,
-            case_id=config.case_id,
-            case_digest=config.case_digest,
-            source_revision=config.source_revision,
-            thread_id=state["thread_id"],
-            trusted_checkout=state["checkout"],
-        )
-    ensure_run_started_events(events, state)
-    reconcile_effect_transition_events(ledger, events, state)
     try:
         with CheckpointStore(config.checkpoint_db, fingerprint) as checkpointer:
+            if unknown_snapshot_exists:
+                live_lineage = _checkpoint_lineage(
+                    checkpointer,
+                    state["thread_id"],
+                    fingerprint,
+                    None,
+                )
+                validate_unknown_snapshot(
+                    unknown_snapshot_dir,
+                    run_id=config.run_id,
+                    case_id=config.case_id,
+                    case_digest=config.case_digest,
+                    source_revision=config.source_revision,
+                    thread_id=state["thread_id"],
+                    trusted_checkout=state["checkout"],
+                    live_events=events,
+                    live_ledger=ledger,
+                    live_saver_checkpoint_ids=cast(
+                        list[str],
+                        live_lineage["saver_checkpoint_ids"],
+                    ),
+                )
+            ensure_run_started_events(events, state)
+            reconcile_effect_transition_events(ledger, events, state)
             recovered_resume_source = reconcile_interrupted_checkpoint_events(
                 checkpointer,
                 events,
@@ -698,7 +721,7 @@ def run(environment: Mapping[str, str] | None = None) -> int:
 def main() -> None:
     try:
         exit_code = run()
-    except (ConfigurationError, ValueError) as exc:
+    except ConfigurationError as exc:
         print(
             json.dumps(
                 {"event": "graph_runner_rejected", "error_class": type(exc).__name__},

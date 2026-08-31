@@ -119,6 +119,11 @@ class ReconciliationTaskHistory:
     exhausted: bool
     latest_started_sequence: int | None
     completed_sequence: int | None
+    open_refusal_error_class: str | None
+
+
+class ReconciliationAttemptsExhausted(RuntimeError):
+    pass
 
 
 def _reconciliation_task_history(
@@ -128,7 +133,8 @@ def _reconciliation_task_history(
     attempt_limit: int,
 ) -> ReconciliationTaskHistory:
     by_attempt: dict[int, list[Mapping[str, object]]] = {}
-    for event in events.project():
+    projected = events.project()
+    for event in projected:
         if event.get("task_id") != task_id:
             continue
         event_type = event.get("event_type")
@@ -150,7 +156,7 @@ def _reconciliation_task_history(
         by_attempt.setdefault(int(match.group(1)), []).append(event)
 
     if not by_attempt:
-        return ReconciliationTaskHistory(0, None, None, False, None, None)
+        return ReconciliationTaskHistory(0, None, None, False, None, None, None)
     exhausted_events = by_attempt.pop(attempt_limit + 1, [])
     exhausted = bool(exhausted_events)
     if exhausted and (
@@ -173,6 +179,16 @@ def _reconciliation_task_history(
 
     open_attempts: list[int] = []
     completed_attempts: list[int] = []
+    refusal_events = [
+        event
+        for event in projected
+        if event["event_type"] == "effect.replay_refused"
+        and event["node_id"] == "reconcile_if_ambiguous"
+        and event["effect_id"] == effect_id
+        and event["data"].get("reason_class") == "reconciliation_unavailable"
+    ]
+    used_refusal_sequences: set[int] = set()
+    open_refusal_error_class: str | None = None
     previous_attempt_end = 0
     for attempt in range(1, latest_attempt + 1):
         attempt_events = by_attempt[attempt]
@@ -205,6 +221,28 @@ def _reconciliation_task_history(
                 or not isinstance(failure["error_class"], str)
             ):
                 raise RuntimeError("reconciliation task history has invalid failure")
+            matching_refusals = [
+                refusal
+                for refusal in refusal_events
+                if sequences[0] < int(refusal["sequence"]) < sequences[-1]
+            ]
+            if (
+                len(matching_refusals) != 1
+                or matching_refusals[0]["task_id"] is not None
+                or matching_refusals[0]["attempt_id"] is not None
+                or matching_refusals[0]["failure_plane"] != "checkout"
+                or matching_refusals[0]["error_class"] != failure["error_class"]
+                or matching_refusals[0]["data"]
+                != {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "reconciliation_unavailable",
+                }
+            ):
+                raise RuntimeError(
+                    "reconciliation task history lacks its retry refusal"
+                )
+            used_refusal_sequences.add(int(matching_refusals[0]["sequence"]))
         elif event_types == ["task.started", "task.completed"]:
             completion = attempt_events[-1]
             if (
@@ -218,6 +256,46 @@ def _reconciliation_task_history(
             completed_attempts.append(attempt)
         else:
             raise RuntimeError("reconciliation task history has an invalid result sequence")
+    if len(open_attempts) > 1 or (
+        open_attempts and open_attempts[0] != latest_attempt
+    ):
+        raise RuntimeError(
+            "reconciliation task history has multiple or non-latest open attempts"
+        )
+    if open_attempts:
+        open_start = int(by_attempt[open_attempts[0]][0]["sequence"])
+        open_refusals = [
+            refusal
+            for refusal in refusal_events
+            if int(refusal["sequence"]) > open_start
+        ]
+        if len(open_refusals) > 1:
+            raise RuntimeError(
+                "reconciliation task history has duplicate open refusal"
+            )
+        if open_refusals:
+            refusal = open_refusals[0]
+            if (
+                refusal["task_id"] is not None
+                or refusal["attempt_id"] is not None
+                or refusal["failure_plane"] != "checkout"
+                or not isinstance(refusal["error_class"], str)
+                or refusal["data"]
+                != {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "reconciliation_unavailable",
+                }
+            ):
+                raise RuntimeError(
+                    "reconciliation task history has invalid open refusal"
+                )
+            open_refusal_error_class = cast(str, refusal["error_class"])
+            used_refusal_sequences.add(int(refusal["sequence"]))
+    if used_refusal_sequences != {
+        int(refusal["sequence"]) for refusal in refusal_events
+    }:
+        raise RuntimeError("reconciliation task history has an unbound refusal")
     if (
         len(completed_attempts) > 1
         or (completed_attempts and completed_attempts[0] != latest_attempt)
@@ -243,6 +321,7 @@ def _reconciliation_task_history(
             if completed_attempts
             else None
         ),
+        open_refusal_error_class,
     )
 
 
@@ -1292,19 +1371,48 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
                 "reconciliation task history completed without a reconciled ledger"
             )
         if history.exhausted:
+            raise ReconciliationAttemptsExhausted(
+                "reconciliation attempts exhausted"
+            )
+        reuse_open_attempt = (
+            current is not None
+            and current["effect_state"] == "UNKNOWN"
+            and history.open_attempt is not None
+        )
+        if history.open_attempt is not None and not reuse_open_attempt:
+            raise RuntimeError(
+                "open reconciliation attempt lacks an UNKNOWN durable effect"
+            )
+        attempt_number = (
+            history.open_attempt
+            if reuse_open_attempt
+            else history.latest_attempt + 1
+        )
+        if attempt_number is None:
+            raise RuntimeError("reconciliation attempt identity is missing")
+        attempt_id = f"{task_id}:attempt-{attempt_number}"
+        if reuse_open_attempt and history.open_refusal_error_class is not None:
+            dependencies.events.emit(
+                "task.failed",
+                state,
+                {"status": "failed", "disposition": "stop"},
+                node_id="reconcile_if_ambiguous",
+                task_id=task_id,
+                attempt_id=attempt_id,
+                effect_id=effect_id,
+                failure_plane="checkout",
+                error_class=history.open_refusal_error_class,
+            )
             return {
-                "phase": "TERMINAL",
+                "phase": "RECONCILING",
                 "outcome": "UNKNOWN",
                 "checkout_status": "UNKNOWN",
-                "failure": {
-                    "plane": "graph-control",
-                    "error_class": "reconciliation_attempts_exhausted",
-                    "retryable": False,
-                    "disposition": "stop",
-                },
+                "tasks": update_retry_task(
+                    task_id,
+                    status="failed",
+                    attempt=attempt_number,
+                ),
             }
-        attempt_number = history.latest_attempt + 1
-        attempt_id = f"{task_id}:attempt-{attempt_number}"
         if attempt_number > attempt_limit:
             dependencies.events.emit(
                 "task.retry_exhausted",
@@ -1317,26 +1425,19 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
                 failure_plane="graph-control",
                 error_class="reconciliation_attempts_exhausted",
             )
-            return {
-                "phase": "TERMINAL",
-                "outcome": "UNKNOWN",
-                "checkout_status": "UNKNOWN",
-                "failure": {
-                    "plane": "graph-control",
-                    "error_class": "reconciliation_attempts_exhausted",
-                    "retryable": False,
-                    "disposition": "stop",
-                },
-            }
-        dependencies.events.emit(
-            "task.started",
-            state,
-            {"status": "started"},
-            node_id="reconcile_if_ambiguous",
-            task_id=task_id,
-            attempt_id=attempt_id,
-            effect_id=effect_id,
-        )
+            raise ReconciliationAttemptsExhausted(
+                "reconciliation attempts exhausted"
+            )
+        if not reuse_open_attempt:
+            dependencies.events.emit(
+                "task.started",
+                state,
+                {"status": "started"},
+                node_id="reconcile_if_ambiguous",
+                task_id=task_id,
+                attempt_id=attempt_id,
+                effect_id=effect_id,
+            )
         if current is None or current["effect_state"] != "UNKNOWN":
             dependencies.events.emit(
                 "task.completed",

@@ -145,6 +145,13 @@ it does not invent a later ordinal. Readiness and checkout-effect tasks remain a
 dispatch consumption remains exactly one, and reconciliation never redispatches, replays, or widens
 effect authority.
 
+If the next reconciliation attempt would exceed the bound, the runner records one
+`task.retry_exhausted` and exits nonterminal before another lookup, graph advancement, terminal
+event, or reconciled export. The pending checkpoint and UNKNOWN snapshot remain an operator handoff;
+activation preserves the claim and run-scoped resources without `down --volumes`. Repeating resume
+does not add another lookup or exhaustion event and remains preserved. Attempt exhaustion is not a
+publishable terminal `UNKNOWN` timeline.
+
 ### Boundary event oracle
 
 Every `graph-boundary-event/v2` record has exactly: `event_version`, `event_type`, `event_id`,
@@ -195,6 +202,8 @@ absent, duplicate, overlapping, unpaired, or unrelated IDs reject publication.
   effect budget overrun.
 - `UNKNOWN`: no completed checkout receipt exists and the checkout effect may not end merely
   `PREPARED` or `DISPATCHED`; it ends `UNKNOWN` or replay-refused with a reconciliation identity.
+- Reconciliation-attempt exhaustion is a nonterminal preserved operator handoff, not an `UNKNOWN`
+  evidence outcome. No terminal bundle is published from the exhausted checkpoint.
 - Other failure/inconclusive outcomes cannot contain false-success receipts or authoritative result
   IDs. Exit 0 means `SUCCEEDED`; exit 2 means a validated non-success terminal outcome.
 
@@ -232,9 +241,11 @@ If the resource subset cannot be proved, preservation returns 125 and retains re
 | 126 | nonterminal runner exit or post-launch host/export/publish/cleanup fault; state is preserved |
 | 130 | operator interruption; stop succeeded and state is preserved |
 
-Exit 64 is a terminal pre-effect runner rejection and permits bounded teardown. No post-launch
-exception may bypass the preservation funnel. Cleanup failure after publication retains the claim
-in `PUBLISHED`; resume performs cleanup only and never reruns the graph.
+Exit 64 is a terminal pre-effect runner rejection and permits bounded teardown. A post-effect runner
+inconsistency exits nonterminal and is preserved; only an explicit pre-effect configuration
+rejection maps to 64. No post-launch exception may bypass the preservation funnel. Cleanup failure
+after publication retains the claim in `PUBLISHED`; resume performs cleanup only and never reruns
+the graph.
 
 ## Commands
 

@@ -9,6 +9,7 @@ from unittest import mock
 from datetime import UTC, datetime
 from pathlib import Path
 
+import runner.main as runner_main
 from runner.budgets import DurableWallTimeBudget
 from runner.controls import BudgetExhausted, consume_budget
 from runner.events import BoundaryEventStore, EventContractError
@@ -21,7 +22,7 @@ from runner.gateway import (
     derive_child_idempotency_key,
     validate_checkout_receipt,
 )
-from runner.main import RunnerConfig
+from runner.main import ConfigurationError, RunnerConfig
 from runner.models import (
     CONTRACT_VERSION,
     merge_ordered_unique,
@@ -124,6 +125,60 @@ class RunnerConfigurationContractTests(unittest.TestCase):
         self.assertEqual(config.run_id, "run-healthy-001")
         self.assertEqual(config.case_id, "mission-healthy-001")
         self.assertEqual(config.case_path, Path("/app/cases/mission-healthy-001.json"))
+
+    def test_only_explicit_configuration_errors_map_to_exit_64(self) -> None:
+        with (
+            mock.patch.object(
+                runner_main,
+                "run",
+                side_effect=ConfigurationError("pre-effect rejection"),
+            ),
+            self.assertRaises(SystemExit) as rejected,
+        ):
+            runner_main.main()
+        self.assertEqual(rejected.exception.code, 64)
+
+        with (
+            mock.patch.object(
+                runner_main,
+                "run",
+                side_effect=ValueError("post-effect state conflict"),
+            ),
+            self.assertRaisesRegex(ValueError, "post-effect state conflict"),
+        ):
+            runner_main.main()
+
+    def test_invalid_case_contract_is_classified_as_configuration_error(self) -> None:
+        case_path = Path("/app/cases/mission-healthy-001.json")
+        config = RunnerConfig(
+            checkout_url="http://checkout:8080",
+            payments_url="http://payments:8081",
+            inventory_url="http://inventory:8082",
+            checkpoint_db=Path("/state/checkpoints.sqlite3"),
+            effect_ledger_db=Path("/state/effects.sqlite3"),
+            evidence_dir=Path("/evidence"),
+            run_id="invalid-case-contract-001",
+            source_revision=REVISION,
+            case_id="mission-healthy-001",
+            case_digest=hashlib.sha256(case_path.read_bytes()).hexdigest(),
+            run_timeout_seconds=300,
+            approval_fixture="APPROVED",
+            case_path=case_path,
+        )
+        with (
+            mock.patch.object(
+                runner_main.RunnerConfig,
+                "from_environment",
+                return_value=config,
+            ),
+            mock.patch.object(
+                runner_main,
+                "load_case",
+                side_effect=ValueError("invalid immutable case"),
+            ),
+            self.assertRaisesRegex(ConfigurationError, "invalid immutable case"),
+        ):
+            runner_main.run({})
 
 
 class ReducerContractTests(unittest.TestCase):
