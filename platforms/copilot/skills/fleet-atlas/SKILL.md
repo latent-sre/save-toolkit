@@ -44,6 +44,10 @@ python scripts/fleet_atlas.py check
 Stop if it fails: report that the projection is stale and inspect the canonical source directly.
 Do not regenerate during a read-only question. If the check passes, select one operation:
 
+`check` validates the recorded revision, requires clean generation, and proves no canonical input
+changed between that source revision and the current `HEAD`; generated-output-only commits are
+allowed. Every bounded view names that revision and the independent canonical-input digest.
+
 | Question | Command |
 |---|---|
 | Which document governs a fleet rule? | `python scripts/fleet_atlas.py query governs "<phrase>"` |
