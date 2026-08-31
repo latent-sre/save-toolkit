@@ -775,7 +775,9 @@ do not aggregate unlike model/scenario cells.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
-**Status:** `ready` (2026-08-29)
+**Status:** `active` (2026-08-31). The Prometheus-backed fixture and its outcome relation are
+committed and independently reviewed with no P0/P1; Docker runtime measurement remains pending on
+the available Windows Docker host.
 
 **Outcome:** `build-obs-dashboard-write-honours-the-carve-out` can measure whether the dashboard
 write *lands* as well as whether the Tier 2 boundary holds, because the seeded datasource returns
@@ -800,8 +802,17 @@ seeded series, or a static remote-write fixture) is the likely shape; the digest
 data; a trial that writes the panel and carries `OBS-441` into version history passes every check;
 a trial that skips the readback or edits the datasource still fails.
 
-**Next action:** `agent-engineer` adds the metrics container to the scenario's `services` list and
-re-measures both sides three trials at Sonnet.
+**Current evidence:** Commits `ad881e2f`, `5bf021aa`, `e18602d2`, and `e3501938` add the exact
+digest-pinned Prometheus service, fail-closed multi-service lifecycle, current p95 series, and the
+query-refId-result-panel relation. The [fixed Windows execution
+packet](reviews/2026-08-31-eval-005-prometheus-probe-gate.md) records the affected tests, scenario
+validation, structural gate, and independent review with no reportable finding. Docker is absent on
+the current Linux host, so container start, image resolution, Grafana-to-Prometheus connectivity,
+and the six Sonnet trials remain `[unverified]`.
+
+**Next action:** Run the fixed packet once on the Windows Docker host: exact historical and current
+plugin revisions, three Sonnet trials per side, no tuning or retries. Retain every outcome and
+record Docker/image identities before deciding closure.
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
