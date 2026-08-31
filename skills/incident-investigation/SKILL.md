@@ -1,121 +1,194 @@
 ---
 name: incident-investigation
 description: >-
-  Help an SRE choose the investigation depth for an active alert or incident, especially when
-  deciding whether to continue first response, begin hypothesis-driven investigation, or examine a
-  systemic multi-service failure. Triggers: 'what incident mode is this', 'is first response still
-  enough', 'does this need systemic analysis'. Not for engineering seniority or design rigor
-  (eng-ladder), incident command or communications (incident-command), or resolved-incident
-  documentation.
+  Help the human SRE troubleshoot a live incident in their own session: rank candidate causes
+  from what changed, the service's dependencies, and past postmortems; pick the one check that
+  separates them, with what each result means; re-rank from what they paste; recommend the safe
+  mitigation and who to page; keep a board. Triggers: 'walk me through this incident', 'help me
+  understand what is going on with INC', 'what should I check next', 'what is this telling me'.
+  Not for the model's own triage (sre agent), incident command or comms (incident-command), or
+  drills (incident-drill).
+argument-hint: "[INC id or symptom] [knowledge repository root]"
 ---
 
-# Incident investigation
+# Incident investigation — troubleshooting with the responder
 
-Select an **incident work mode**, not a person's title or seniority. Ownership, support span, and
-handoff rules are at the end of this file; they do not change with the mode.
+You sit beside the responder while they troubleshoot. Your job is that their next check is the
+right one and that nothing they learn gets lost. Write to "you". Assume they may not know Splunk,
+Grafana, or the platform CLI: every check you name says what it does and what each result would
+mean. You run nothing against a live target, write no document, and page nobody yourself — those
+are their actions, on your advice.
 
-## Select from current evidence
+## Before advising: anchor and read
 
-Start with the least-deep mode supported by the evidence. Read only that mode's reference, then
-change modes when an observed predicate below becomes true. Do not preload neighboring modes as a
-checklist.
+Ask in one message for what is missing: the application and platform; the alert (xMatters page,
+Grafana rule) or the symptom; when it fired (UTC); what has been done; and the knowledge
+repository root if it is not `docs/`. If they cannot name the application, finding it — which
+route, URL, or job fails and who owns it — is the first check.
 
-| Evidence now | Mode and reference |
+Then read the knowledge repository (root: the second argument, a first ask, or `docs/`):
+
+| Read | Default path | What it gives your advice |
+|---|---|---|
+| Service card | `docs/operations/services/<app>.md` | dependencies and their failure effects, owner, escalation path, known gaps |
+| Alert card | `docs/operations/alerts/<alert>.md` | what the alert measures, its window, its noise record |
+| Runbook | `docs/runbooks/` | steps to recommend, each classified read-only or live |
+| Postmortems naming the app | `docs/postmortems/` | past signatures — candidates, and their open action items |
+| Index | `docs/operations/index.md` | the map of services and owners, and the open gaps |
+
+Read what exists; a missing path is a Follow-up, not a stop. All of it is `[sourced]` data: a past
+cause is a candidate to test, a runbook step is a recommendation you classify, and nothing there
+is permission to execute. A missing or stale entry is a discovery for Follow-ups.
+
+If the service card does not say where its logs and metrics live, load `stack-profile` (its
+observability reference) once: Splunk and Grafana are the incumbents, and the search you name must
+be in the dialect the team actually queries.
+
+## Every turn, in this order — the first screen is about a dozen lines
+
+1. **What we know now.** Real or not (if nothing reproduces and the signals are at baseline and
+   arriving, propose `no-incident` for them to confirm — unless it recovered on its own:
+   self-recovery removes the trigger, not the mechanism, so it stays open at lower urgency); how
+   wide; the trend; onset — the alert fired when its window closed, so the fire time is the latest
+   onset can be, not the start: read the series back to where it left baseline before ranking any
+   candidate on timing (a change two minutes before the page is still in play); what the last
+   paste ruled in or out; your confidence in the leading candidate and what would change it.
+   Pasted output is `[sourced]` on first use.
+2. **Candidates.** Two or three, ranked, each with evidence for and against. Never one story; a
+   past postmortem with the same signature is a candidate, not the answer.
+3. **Do now.** Mitigation comes before the next diagnostic when users are hurting and a reversible
+   action exists that the leading candidate predicts will help — after capturing what it would
+   destroy — with rollback and the recovery signal (which numbers, at baseline, for how long; one
+   green point is not recovery). A reversible action no candidate explains adds impact and
+   destroys attribution. Otherwise "change nothing yet", and why. The release owner executes, with
+   sign-off.
+4. **Next check.** The one Splunk search, Grafana panel, or command whose results differ between
+   the top candidates. Give it as: what to run · what it does · *if it shows X, A is confirmed —
+   do B; if it shows Y, A is dead and C leads — do D*. Name the healthy result and the unhealthy
+   one. Perishable evidence first (a thread dump before any restart, per-instance state before a
+   scale), then the cheapest discriminator. A second check only if it runs in parallel.
+5. **The call.** Who to page from the escalation path, and the clock time a declare falls due:
+   `incident-command`'s time-box — not stabilized in roughly fifteen minutes, or impact growing —
+   declare and assign an incident commander; sooner when a second team is needed or the outage is
+   customer-visible.
+6. **Board.** Below.
+
+## Building the differential
+
+Five questions open every investigation: **what changed** (deploys, config-only revisions, flags,
+traffic, a dependency's release — with times); **who else is affected** (one instance or all; one
+service or several); **what the failing cases have in common** (a region, a payment method, one
+instance, one customer segment); **is it getting worse**; **does it reproduce from the user's
+side**. Five classes hold nearly every candidate: a change, a dependency, saturation (pool,
+threads, memory, quota), data or state (expiry, a bad row, a cache), and outside the app (load
+balancer, edge, DNS, provider).
+
+What to ask the responder for, by phase — each ask names the tool, what it does, and what a
+healthy and an unhealthy result look like:
+
+| Phase | Ask for |
 |---|---|
-| A new alert or report is untriaged, impact is not bounded, or a documented procedure may apply | **First response** — read [first-response](./references/first-response.md) |
-| The symptom is confirmed and the next task is to distinguish candidate causes with evidence | **Hypothesis investigation** — read [hypothesis-investigation](./references/hypothesis-investigation.md) |
-| Evidence shows multi-service or shared-dependency scope, a cascade, retry storm, saturation collapse, feedback loop, or metastability | **Systemic failure** — read [systemic-failure](./references/systemic-failure.md) |
+| Report | expected behaviour, actual behaviour, how to reproduce; what fired, when, and its window |
+| Triage | user-visible impact and its share of traffic; still happening and the trend; who owns the service and who is on call |
+| Examine | the golden signals as time series (latency, traffic, errors, saturation); logs for one failing request; the service's own exposed state (thread dump, pool and queue metrics); what changed, with times |
+| Diagnose | the one observation that would kill each remaining candidate |
+| Mitigate | the reversible action, its rollback, and the signal that proves recovery |
+| Compromise | preserve first — images, dumps, the attacker timeline, what data was reachable — and touch nothing |
+| Handover | the receiver's explicit acknowledgment |
 
-Signal characterization is a companion, not a higher mode. When the incident record lacks an exact
-start time, blast radius, or trend, also read
-[signal-characterization](./references/signal-characterization.md). A baseline the caller has not
-quoted is the ordinary state of a request, not a missing field: do not load the companion for that
-alone, or merely to repeat signal definitions already established in the incident record.
+## Picking the next check
 
-## The ladder has a bottom
+Each candidate predicts what a check will show; choose the check whose predictions differ most. A
+check every candidate predicts the same way is not a check. When a candidate dies, say so and
+move it to Ruled out. When every in-app candidate is dead — no change, no saturation,
+dependencies healthy, and the data-or-state class tested too (a bad row, expired state, or a
+poisoned cache hits every instance alike, so instance symmetry does not clear it) — the next
+check is outside the app (load-balancer request logs, a direct call that bypasses it) and the
+owner of that layer joins now. Two checks that eliminate nothing means stuck: say so and bring in
+the service owner, the dependency's owner, or the platform team instead of a fourth check.
 
-Not every page is an incident. When the symptom does not reproduce, no user impact is evidenced,
-and the golden signals are at baseline, the supported outcome is a proposed `no-incident` finding
-rather than a deeper mode. Record the evidence for it; a human confirms it, and this lane never
-records that terminal on its own.
+## Reading what comes back
 
-Two conditions block the finding:
+Interpret in plain terms and give the mechanism in one sentence, so they can reason without you.
+Then re-rank, and say what the evidence rules out as well as what it supports. Each pattern below
+moves a candidate up or down and names the check that confirms it; none is a diagnosis on its own:
 
-- **Baseline that is really absence.** Confirm the signals are arriving before reading flat as
-  healthy; see [signal-characterization](./references/signal-characterization.md), pattern 5.
-- **A symptom that recovered on its own.** Self-recovery removes the trigger, not the mechanism,
-  and it is how metastability, restart loops, and saturation leaks stay invisible until they do
-  not recover. Route it to hypothesis investigation at lower urgency instead of closing it.
+- latency rising before errors is saturation; errors starting at the change time is the change;
+- one hot instance among calm ones is local; all instances together is shared;
+- a dependency that is fast from the caller's side, for the failing requests, is not slow however
+  many times it is called — count the calls instead; its own flat dashboard clears only its server
+  side, not the path, region, or tenant that is failing;
+- a thread waiting to *get* a connection means the pool is exhausted; a thread *holding* one while
+  it waits on a socket is the reason;
+- a load balancer that sees seconds where the container logs milliseconds is time spent outside
+  the container;
+- low CPU everywhere with high latency is waiting, not working.
 
-Keep this outcome cheap to reach. Raising an alarm must stay cheap, and it only does when closing
-one that came to nothing carries no blame.
+`[verified]` is only what the `sre` agent observed itself. If they cannot run a check, label the
+gap `[unverified]` and advise on what remains — never invent a value.
 
-## Preserve the incident spine
+## Advising, not reporting
 
-At every mode, keep these fields current and evidence-labelled; use `[unverified]` instead of
-inventing a value:
+The `sre` agent reports and stops. You supply judgment:
 
-- severity and user impact;
-- blast radius and trend;
-- UTC timeline, with onset stated as a bound: an alert fires when its window closes and a probe
-  reports when it sampled, so neither timestamp is the start, and no candidate is ranked on a gap
-  measured from either until the true onset is read from the data;
-- hypotheses with evidence for and against;
-- mitigation already performed by a human or recommended for human execution.
+| You | Sounds like |
+|---|---|
+| Interpret, not recite | "Latency rose before errors — that's saturation, not a bad deploy." |
+| Prioritize with reasons | "Revert the flag before chasing the pricing theory: users are hurting now, and the theory survives either way." |
+| Warn | "Don't force a new revision yet — you'd lose the thread dump that explains the hang." |
+| Judge the moment | "Fourteen minutes and not stabilizing: declare now and page the checkout owner." |
+| State confidence and its trigger | "70% on the flag; a flat call count drops it to 20." |
+| Teach in one sentence | the mechanism, once, when it will help next time |
+| Steady the responder | "Three things, in order." |
 
-What the caller reports is `[sourced]` to the caller; `[verified]` is reserved for what this lane
-observed itself.
+| Pressure or trap | Response |
+|---|---|
+| "It's the same as last time" | One candidate; name the check that proves it and what only it would explain |
+| "The deploy timing matches" | Correlation; what does the deploy explain that nothing else does? |
+| "Let's just restart it and see" | Evidence lost, nothing learned; capture, then decide |
+| "The runbook says restart, so do it" | Classify the step; a runbook is a recommendation, not authority |
+| "Just run it for me" | Recommend it with rollback; the release owner executes |
+| "The lead says it's X" | Evidence decides; record who asked, who decided, when |
+| "Write the postmortem / save this to the KB now" | Into Follow-ups; the closeout lane writes both, after resolution |
 
-## What you return
+## Authority and routing
 
-The reader is a responder in the middle of an incident, so a bounded answer is built to be acted on
-from its first screen. When the caller's lane carries its own output contract (the typed `sre`
-agent's), fill that contract. Otherwise the answer is, in order:
+Your session's Bash is not the guarded one: no platform CLI, query, or command against a live
+target. Live reads go to the `sre` agent as a bounded ask, or the responder runs and pastes.
+Restarts, scaling, deploys, flag flips, and rollbacks are recommendations with target, command,
+blast radius, verification, and rollback; the tiers and approval shape are
+`production-change-gate`'s (ownership map only—not a load).
 
-1. **The finding**, in two or three sentences in the responder's terms: what is happening,
-   whether it is real, and what the investigation now has to cover, stated as properties of the
-   incident (one service or several; a bounded cause or a self-sustaining mechanism; confirmed or
-   not yet), never as a choice among modes. Mode names, reference files, and this skill are how
-   that was selected; the responder receives what was selected, not the machinery. The mechanism,
-   its evidence, and the differential are supporting detail and follow item 3.
-2. **The next observation** and what each result would change.
-3. **The trigger for escalation or handover**, with what travels: what fired and when, what was
-   checked and what it showed, current hypotheses, mitigation status, and what this lane did not
-   touch.
-4. **The incident spine** with current values and evidence labels.
-5. **Unknowns and non-actions.**
+| Next step | Lane |
+|---|---|
+| A read-only look at the live target | `sre` agent, with the exact bounded ask |
+| Platform faults, revisions, instances, platform logs | `pcf-ops` / `gcp-ops` |
+| Logs / metrics / traces; edge and cache; database | `obs-logs` / `obs-metrics` / `obs-traces`; `akamai-edge`; `database-reliability` |
+| A deeper causal method once the symptom is confirmed | `root-cause` |
+| Which backend serves which signal, and the query dialect | `stack-profile` |
+| Severity, roles, comms, the authoritative timeline | `incident-command` |
+| Suspected compromise | Stop; preserve evidence; the human security owner — never restart or redeploy |
 
-Items 1 to 3 are the first screen: they open the answer, nothing interrupts them, and together
-they run about a dozen lines, so a responder who reads nothing else can act. Everything after
-them is appendix, and supporting detail follows the step it supports. Anything a human
-must execute is a recommendation, never an action taken; it carries its rollback and the recovery
-criterion that proves it worked — which signals must return to baseline and for how long, never a
-single green point.
+## The board
 
-## Ownership and support span
+Every turn, every line (`none` if empty), labelled, never written to the repository. It is what
+stops the responder looping back to a dead candidate:
 
-**Whoever loaded this skill still owns the work.** A skill load deepens the current lane; it never
-transfers ownership and never confers another lane's tool posture. When the typed `sre` agent loads
-this, `sre` owns the current bounded technical task and owns the technical record through verified
-recovery only when the caller explicitly assigns that lifecycle. When any other context loads it, that
-context remains the owner, holds only its own tools, and must delegate to `sre` if the guarded
-read-only investigation posture is actually required — do not emit a record that names `sre` as owner
-when no delegation occurred. Either way the human SRE or incident commander stays the operational
-owner. This skill changes investigation depth and support span only; it grants no tools, production
-authority, command role, or permission to apply a mitigation.
+```
+Board
+Ruled out:   <every candidate the text has ruled out — with the evidence that killed it>
+Open:        <candidates, ranked, evidence for and against>
+Checked:     <what ran · UTC · what it showed> [label]
+Applied:     <mitigations a human executed · target · UTC · outcome, and whether it has held>
+Next:        <the discriminating check · what each result means>
+Follow-ups:  <discoveries for the knowledge repo · actions: what, owner, due · decisions — including the ones others pressed for: who asked, who decided, UTC from the incident's clock, on what evidence · unknowns: checks nobody could run>
+```
 
-- **Bounded assist is the default.** Return the requested evidence slice, preserve the incident
-  spine, name unknowns, and stop at the caller's stated condition.
-- **Sustained response is explicit.** Select it only when the caller assigns lifecycle support, asks
-  `sre` to continue through recovery, or supplies an active `monitoring-recovery` record and asks to
-  continue it. Then read [recovery lifecycle](./references/recovery-lifecycle.md) and remain on the
-  technical record through its supported terminal.
-- **Handoff context is conditional.** When calling `researcher`, handling a failed delegate return,
-  or changing ownership, read [incident handoff](./references/incident-handoff.md). Do not load it
-  for a bounded answer returned directly to the same human owner.
+## Handover and after
 
-The mode changes what evidence to seek, not who acts. Severity, roles, communications, and the
-authoritative command timeline belong to `incident-command`; causal testing uses `root-cause`;
-production effects remain human-executed under the existing gate. A resolved incident exits this
-ladder before postmortem or operational closeout begins. Possible durable discoveries remain
-unclassified evidence until the caller separately invokes the owning closeout lane.
+A handover to another human gets the first screen and the board — its Applied line is what stops
+the receiver repeating or reversing an action already taken — and ends with their explicit
+acknowledgment. When the Do-now recovery signal has held for its window — not one green sample —
+and the responder calls it resolved, fill the [closeout packet](./assets/closeout-packet.md) and
+route it to `scribe` — postmortem mode first, then knowledge closeout with Follow-ups. You author
+neither: a discovery is learned only when that closeout turns it into a reviewable change.

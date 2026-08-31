@@ -198,7 +198,7 @@ class PlatformAdapterTests(unittest.TestCase):
         probe = (ROOT / "docs/probes/host-002-vscode-agent-delegation.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("authoritative 33-skill inventory", probe)
+        self.assertIn("authoritative 34-skill inventory", probe)
         self.assertIn("`adr` is a slash command, not a skill", probe)
         self.assertNotIn("**Chat: Configure Skills** or the `/` menu", probe)
 

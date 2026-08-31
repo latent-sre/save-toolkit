@@ -28,5 +28,9 @@
     "status": "available",
     "max_usd": 2
   },
-  "approval": null
+  "approval": {
+    "approved_by": "latent-sre",
+    "approved_at": "2026-08-31T04:50:47Z",
+    "budget_id": "grader-008-sre-progressive-object-2026-08-31"
+  }
 }

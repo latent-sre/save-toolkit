@@ -1,10 +1,10 @@
 schema_version: 1
-id: incident-investigation-flat-signals-are-not-health
+id: investigation-depth-flat-signals-are-not-health
 mode: direct
 split: calibration
 target:
   kind: skill
-  name: incident-investigation
+  name: investigation-depth
 prompt: |
   The payments latency alert fired at 03:14 UTC and has not re-fired. Every dashboard panel for
   payments reads flat and normal across the whole window — latency, error rate, traffic, saturation,

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.parse
 from pathlib import Path
 from unittest import mock
 
@@ -658,6 +659,48 @@ class ReviewFindingTests(unittest.TestCase):
         problems = build_probe.validate_scenario(spec)
         self.assertTrue(any("reviewed service image" in p for p in problems), problems)
 
+    def test_service_runtime_files_and_wait_probe_are_fail_closed(self) -> None:
+        image = (
+            "prom/prometheus:v3.14.0-distroless@sha256:"
+            "50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
+        )
+        base = {
+            "name": "prometheus",
+            "image": image,
+            "port": 9090,
+            "files": {"prometheus.yml": "global:\n  scrape_interval: 1s\n"},
+            "mounts": [{
+                "source": "prometheus.yml",
+                "target": "/etc/prometheus/prometheus.yml",
+                "read_only": True,
+            }],
+            "command": ["--config.file=/etc/prometheus/prometheus.yml"],
+            "wait_for": {
+                "path": "/api/v1/query?query=up",
+                "pointer": "data/result",
+                "nonempty": True,
+            },
+        }
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [base]
+        self.assertEqual([], build_probe.validate_scenario(spec))
+
+        for mutation, expected in (
+            ({"name": "../prometheus"}, "canonical name"),
+            ({"mounts": [{"source": "missing.yml", "target": "/etc/x", "read_only": True}]}, "declared service file"),
+            ({"mounts": [{"source": "prometheus.yml", "target": "etc/x", "read_only": True}]}, "absolute container path"),
+            ({"command": "--config.file=/etc/x"}, "command must be a string list"),
+            ({"wait_for": {"path": "/api/v1/query"}}, "wait_for needs"),
+            ({"wait_for": {"path": "/api/v1/query", "pointer": "data/result", "nonempty": False}}, "wait_for needs"),
+            ({"wait_for": {"path": "/api/v1/query", "pointer": "data/result", "equals": None}}, "wait_for needs"),
+        ):
+            bad = json.loads(json.dumps(TINY_SPEC))
+            bad_service = json.loads(json.dumps(base))
+            bad_service.update(mutation)
+            bad["fixture"]["services"] = [bad_service]
+            problems = build_probe.validate_scenario(bad)
+            self.assertTrue(any(expected in problem for problem in problems), problems)
+
     def test_missing_docker_executable_is_service_unavailable(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
         spec["fixture"]["services"] = [{
@@ -722,9 +765,72 @@ class ReviewFindingTests(unittest.TestCase):
              mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
             services = build_probe.start_services(spec)
             build_probe.stop_services(services)
-        argv = calls[0]
+        argv = next(call for call in calls if call[1] == "run")
         for expected in ("--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "--memory"):
             self.assertIn(expected, argv)
+
+    def test_service_containers_share_one_internal_network_and_mount_only_declared_files(self) -> None:
+        prometheus_image = (
+            "prom/prometheus:v3.14.0-distroless@sha256:"
+            "50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
+        )
+        grafana_image = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [
+            {
+                "name": "prometheus", "image": prometheus_image, "port": 9090,
+                "files": {"prometheus.yml": "global:\n  scrape_interval: 1s\n"},
+                "mounts": [{"source": "prometheus.yml", "target": "/etc/prometheus/prometheus.yml", "read_only": True}],
+                "command": ["--config.file=/etc/prometheus/prometheus.yml"],
+                "wait_for": {"path": "/api/v1/query?query=up", "pointer": "data/result", "nonempty": True},
+            },
+            {"name": "grafana", "image": grafana_image, "port": 3000},
+        ]
+        calls = []
+
+        def docker_run(command, **_kwargs):
+            calls.append(command)
+            if command[1:3] == ["network", "create"]:
+                return subprocess.CompletedProcess(command, 0, "network-id\n", "")
+            if command[1] == "run":
+                return subprocess.CompletedProcess(command, 0, f"container-{len(calls)}\n", "")
+            if command[1] == "port":
+                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        responses = [(200, {}), (200, {"data": {"result": [{"value": [1, "1"]}]}}), (200, {})]
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
+             mock.patch.object(build_probe, "_service_request", side_effect=responses), \
+             mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
+            services = build_probe.start_services(spec)
+            config_root = services[0].config_root
+            build_probe.stop_services(services)
+
+        network_create = next(call for call in calls if call[1:3] == ["network", "create"])
+        self.assertIn("--internal", network_create)
+        runs = [call for call in calls if call[1] == "run"]
+        self.assertEqual(2, len(runs))
+        networks = [call[call.index("--network") + 1] for call in runs]
+        self.assertEqual(1, len(set(networks)))
+        self.assertIn("prometheus", runs[0])
+        mount = runs[0][runs[0].index("--mount") + 1]
+        self.assertIn("target=/etc/prometheus/prometheus.yml", mount)
+        self.assertIn("readonly", mount)
+        self.assertFalse(config_root.exists(), "service runtime files are disposable")
+        self.assertTrue(any(call[1:3] == ["network", "rm"] for call in calls), calls)
+
+    def test_service_cleanup_failures_are_instrument_errors(self) -> None:
+        service = build_probe.Service(
+            "grafana", "image@sha256:" + "0" * 64, "container-id", "http://127.0.0.1:32123",
+            network_name="probe-network",
+        )
+
+        def docker_run(command, **_kwargs):
+            return subprocess.CompletedProcess(command, 1, "", "still attached")
+
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run):
+            with self.assertRaisesRegex(build_probe.ServiceUnavailable, "docker stop.*network rm"):
+                build_probe.stop_services([service])
 
     def test_service_url_is_resolved_for_post_run_commands(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
@@ -793,6 +899,67 @@ class ReviewFindingTests(unittest.TestCase):
         service.requests[1]["request"]["overwrite"] = False
         service.requests[1]["request"]["dashboard"]["version"] = 6
         self.assertFalse(build_probe.check_grafana_dashboard_write(ctx, check)[0])
+
+    def test_grafana_query_contract_requires_real_p95_data_before_the_write(self) -> None:
+        ws = build_probe.seed_workspace(TINY_SPEC, self.root / "ws-grafana-query")
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        ctx = _ctx(TINY_SPEC, ws)
+        ctx.services = [service]
+        check = {
+            "service": "grafana",
+            "write_path": "/api/dashboards/db",
+            "metric": "checkout_request_duration_seconds_bucket",
+            "function": "histogram_quantile",
+        }
+        service.requests = [
+            {
+                "method": "POST", "path": "/api/ds/query", "status": 200,
+                "request": {"queries": [{"refId": "A", "expr": "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"}]},
+                "response": {"results": {"A": {"status": 200, "frames": [{"data": {"values": [[1], [0.2]]}}]}}},
+            },
+            {
+                "method": "POST", "path": "/api/dashboards/db", "status": 200,
+                "request": {"dashboard": {"panels": [{
+                    "title": "p95 checkout latency",
+                    "targets": [{"refId": "A", "expr": "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"}],
+                }]}},
+                "response": {},
+            },
+        ]
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        service.requests.reverse()
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "a query after the write is not preflight")
+        write = service.requests[0]
+        p95 = "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"
+        service.requests = [
+            {
+                "method": "POST", "path": "/api/ds/query", "status": 200,
+                "request": {"queries": [{"refId": "A", "expr": p95}, {"refId": "B", "expr": "up"}]},
+                "response": {"results": {
+                    "A": {"status": 200, "frames": []},
+                    "B": {"status": 200, "frames": [{"data": {"values": [[1], [1]]}}]},
+                }},
+            },
+            write,
+        ]
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "unrelated batch data cannot clear a red p95 refId")
+        service.requests[0]["response"]["results"]["A"]["frames"] = [{"data": {"values": [[1], [0.2]]}}]
+        write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95 + " + 1"
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "the successful query must equal the persisted panel target")
+        write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95
+        service.requests = [
+            {
+                "method": "GET",
+                "path": "/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(p95),
+                "status": 200,
+                "request": None,
+                "response": {"status": "success", "data": {"result": [{"value": [1, "0.2"]}]}},
+            },
+            write,
+        ]
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        service.requests[0]["response"]["data"]["result"] = []
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "proxy success without series data is not proof")
 
     def test_post_run_service_transport_failure_is_inconclusive(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))

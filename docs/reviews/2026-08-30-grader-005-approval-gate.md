@@ -1,8 +1,8 @@
 # GRADER-005 native frontend posture remeasurement gate
 
-> **Status:** `[verified static]` The code-side grader repair is an ancestor of the exact candidate
-> and the native execution profile validates offline. **Human gate:** the profile intentionally
-> carries `"approval": null`; no live model call or spend is authorized.
+> **Status:** `[verified consumed]` The code-side grader repair is an ancestor of the exact
+> candidate. The approved profile executed once as batch `20260831T052440Z-c13a16f0`; its bounded
+> report is retained and the packet authorizes no retry. [Closure](2026-08-31-grader-005-closure.md).
 
 ## Exact candidate and settled repair
 
@@ -48,7 +48,7 @@ and a content red is not permission to tune the route.
    retained response against the already pinned controls, and return any proposed change to a new
    red-first owner decision.
 
-## Command after explicit approval
+## Executed command
 
 From a clean detached checkout of the exact candidate, with the separately approved profile passed
 by absolute path:
@@ -61,14 +61,16 @@ Capture the sealed summary and result envelope through `scripts/capture_measurem
 before any closure claim, then rerun `test_graders.py`, `run_evals.py --validate`, generator check,
 and Gate A.
 
-## Approval text needed
+## Recorded approval
 
-A sufficient authorization is:
+Commit `82fb2784` records approver `latent-sre`, UTC `2026-08-31T04:50:47Z`, and budget ID
+`grader-005-frontend-posture-2026-08-31`. The approved values are:
 
 > I approve GRADER-005 profile `grader-005-frontend-posture` for exact candidate
 > `54f1c8d0ddbc17545f644fdd2568a36c8471454c`, requested model `sonnet`, the three named scenarios
 > at three trials each (nine calls maximum), 600 seconds per trial, 7,200 seconds total, and USD
-> 4.00 maximum. Budget ID: `grader-005-frontend-posture-2026-08-30`.
+> 4.00 maximum. Budget ID: `grader-005-frontend-posture-2026-08-31`.
 
-Until that approval is received and recorded with a UTC timestamp, GRADER-005 remains at the human
-gate and no live command runs.
+The profile is consumed. The batch resolved `claude-sonnet-5`, completed all nine planned trials in
+504.66 seconds for USD 1.2770608, and returned aggregate FAIL. That terminal result is retained; do
+not rerun, tune, or overwrite it.

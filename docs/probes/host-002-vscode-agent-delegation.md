@@ -78,10 +78,10 @@ Get-ChildItem platforms/copilot/skills -Directory | Select-Object -ExpandPropert
 ```
 
 In the neutral workspace, record every Save Toolkit agent shown by the agent picker. Use **Chat:
-Configure Skills** as the authoritative 33-skill inventory and record every plugin-prefixed Save
+Configure Skills** as the authoritative 34-skill inventory and record every plugin-prefixed Save
 Toolkit skill there. Record exact expected/observed counts, missing names, extra names, and duplicate
 names. The `/` menu may colocate plugin commands with skills: `adr` is a slash command, not a skill,
-so record it separately and do not count it as a 34th skill. Success requires every generated agent
+so record it separately and do not count it as a 35th skill. Success requires every generated agent
 and skill exactly once. A workspace copy, a bare filename, or a manually copied agent without its
 skills is not plugin-discovery evidence.
 

@@ -604,8 +604,9 @@ line wrap that splits a pinned phrase disables the mutation without failing the 
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
-**Status:** `ready` (2026-08-30). The material route/evaluator-change trigger fired and the fixed
-packet is prepared at its human approval gate; no remeasurement or spend has started.
+**Status:** `decision-needed` (2026-08-31). The original and one approved replacement packet are
+both consumed INCONCLUSIVE evidence. The replacement exhausted its fixed one-run allowance after
+the subscriber OAuth session expired before any trial resolved a model.
 
 **Owner:** Save Toolkit maintainers
 
@@ -625,24 +626,40 @@ introduced at `f1afd574`; the service-readiness route and lifecycle vocabulary c
 the item's own trigger. Use a clean exact plugin revision and predeclare model, timeout, trials,
 threshold, selected scenarios, and spend ceiling before measurement.
 
-**Prepared gate:** The
+**Executed gate:** The
 [`ROUTE-003 approval packet`](reviews/2026-08-30-route-003-approval-gate.md) binds exact plugin
 candidate `38dbdf70722c2167ce2c404297ccb4ccc3f5da8f`, requested model `sonnet`, the exact
 `discovery-agent-authoring-workflow-graph` and `discovery-service-readiness-audit` scenario IDs,
 three trials each, their scenario-owned 0.66 and 1.0 thresholds, 600 seconds per trial, 7,200 seconds
-total, USD 4.00 maximum, and one no-tuning/no-retry batch. The execution profile validates offline
-with approval null. This preparation makes no model call and spends nothing.
+total, USD 4.00 maximum, and one no-tuning/no-retry batch. Profile approval was recorded in
+`82fb2784`; batch [`20260831T045127Z-b6efb49b`](reviews/2026-08-31-eval-20260831T045127Z-b6efb49b.md)
+then ran once on Claude Code 2.1.251. Every trial ended `rc=1` after ten `api_retry` events; bounded
+diagnostics classify the final provider response as `server_error`. No trial resolved a model or
+produced gradeable routing evidence. Local subscriber authentication remained valid, and the
+[official service feed](https://status.claude.com/api/v2/incidents.json) recorded no incident in the
+run window; the cause remains `[unverified]`.
 
 **Acceptance:** The workflow-graph and service-readiness cases each meet their declared threshold on
 the exact candidate under the predeclared conditions, with no overlapping regression loss. A failed
 or inconclusive batch remains evidence; it does not authorize prompt edits or retries without a
 separately accepted fleet failure and candidate budget.
 
-**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
-budget ID. If approved, add the approver and UTC timestamp to that profile, execute it once from a
-clean detached checkout of the bound candidate with `--require-clean-plugin`, and retain
-failures/timeouts as evidence. Do not retry unchanged bytes merely to turn timeouts green or move
-reference-dependent behavior graders into discovery.
+**Replacement gate:** The
+[`2026-08-31 replacement packet`](reviews/2026-08-31-route-003-grader-008-replacement-gate.md)
+binds the unchanged exact candidate and conditions under new profile
+`route-003-discovery-reliability-replacement-1`. The conclusive GRADER-005 batch is the named
+runtime-recovery evidence; owner approval was recorded separately before execution.
+
+Owner approval was recorded at `2026-08-31T11:44:14Z`. Replacement batch
+[`20260831T114601Z-72bffc6d`](reviews/2026-08-31-eval-20260831T114601Z-72bffc6d.md) then executed
+all six planned calls once on the exact candidate. Every trial ended before model resolution with
+`OAuth session expired and could not be refreshed`; the sealed batch is `INCONCLUSIVE`, with
+integrity `PASS` and no trustworthy cost amount available.
+
+**Next action:** After authentication is restored, the owner decides whether the two consumed
+inconclusive attempts are sufficient to dispose the measurement or whether a newly designed,
+separately approved campaign is warranted. Do not reuse either consumed profile, tune unchanged
+bytes, or move reference-dependent behavior graders into discovery.
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
@@ -698,54 +715,11 @@ affected scenarios remains owed.
 `agent-direct-sre-records-unknown-recovery-progress` on the exact accepted candidate. Do not tune
 the grader from the Terra responses or relabel those probes as native closure evidence.
 
-### GRADER-005 — posture graders for gate-shaped contracts
-
-**Status:** `ready` (2026-08-30). The `gate_posture` repair is merged into the exact candidate and
-the three native frontend remeasurements are prepared at the human approval gate; no live run or
-spend has started.
-
-**Outcome:** A discovery or direct grader can tell "names the rule" from "enforces the rule" for a
-scenario whose contract is a gate, so a green on `render-is-not-verification` means the response
-blocked the merge rather than mentioned a browser pass.
-
-**Source:** The no-skill pressure control in the
-[`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md): with no skill
-loaded, Opus satisfied every `contains_any` group on all three `frontend-craft` discovery scenarios
-while writing "not me blocking the merge"; Sonnet satisfied the flash group and wrote "no objection
-to merging".
-
-**Prerequisites:** The control transcripts (kept in the gitignored eval workspace and quoted in the
-review) serve as the rejected fixtures; a with-skill response that blocks is the passing fixture.
-Follow the fixture convention in `evals/test_graders.py` and the red-first discipline.
-
-**Acceptance:** A grader shape for the three `frontend-craft` scenarios rejects both control replies
-and accepts the blocking replies, without a bare negative regex that false-reds correct denials;
-the shape is documented for reuse by any gate-shaped contract; the three scenarios are re-measured
-on an accepted candidate revision.
-
-**Current evidence:** The
-[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records the red-first controls, transfer forms, named `gate_posture` grader, and green offline suite.
-The three discovery scenarios have not been rerun on the exact merged revision, so the item is not
-closure-ready.
-
-**Prepared gate:** The
-[`GRADER-005 approval packet`](reviews/2026-08-30-grader-005-approval-gate.md) binds exact candidate
-`54f1c8d0ddbc17545f644fdd2568a36c8471454c`, `sonnet`, the three exact frontend discovery IDs,
-three trials each at their unchanged 1.0 thresholds, 600 seconds per trial, 7,200 seconds total,
-USD 4.00 maximum, a clean detached checkout, and one no-tuning/no-retry batch. Commits `dcf7852f`
-and `7c92c5ac` are ancestors. The profile validates with approval null; preparation makes no model
-call and spends nothing.
-
-**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
-budget ID. If approved, record approver/timestamp in the profile and run it once from the bound clean
-revision. Retain failures/timeouts and do not change prompts, thresholds, routing description, or
-grader under this authorization.
-
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
-**Status:** `ready` (2026-08-30). The object-bound grader is merged into the exact candidate and its
-one native remeasurement is prepared at the human approval gate; no live run or spend has started.
+**Status:** `ready` (2026-08-31). The object-bound grader remains green offline, the original
+packet remains consumed INCONCLUSIVE evidence, and the fixed replacement profile is approved but
+unstarted. Execution is waiting for subscriber authentication to be refreshed.
 
 **Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
 execution claim, while `I'm applying the rollback` and every other present-progressive claim about
@@ -768,27 +742,34 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records the reproduced false positive and the named, object-bound replacement. The affected
-direct scenario has not been rerun on the exact merged revision.
+records the reproduced false positive and the named, object-bound replacement. Native batch
+[`20260831T051130Z-d1887391`](reviews/2026-08-31-eval-20260831T051130Z-d1887391.md) ran once on the
+exact candidate and Claude Code 2.1.251, but every trial exhausted provider retries and ended
+`server_error` before resolving a model or producing a gradeable response.
 
 **Prepared gate:** The
 [`GRADER-008 approval packet`](reviews/2026-08-30-grader-008-approval-gate.md) binds exact candidate
 `7d9aa18c4efb223060b27685d0dd0be4e8590059`, `sonnet`,
 `agent-direct-sre-readonly-triage`, three trials at its unchanged 1.0 threshold, 600 seconds per
 trial, 2,400 seconds total, USD 2.00 maximum, a clean detached checkout, and one no-tuning/no-retry
-batch. Repair `dcf7852f` is an ancestor. The profile validates with approval null; preparation
-makes no model call and spends nothing.
+batch. Repair `dcf7852f` is an ancestor. Approval commit `82fb2784` recorded the owner, UTC
+timestamp, and budget ID before the terminal batch.
 
-**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
-budget ID. If approved, record approver/timestamp in the profile and run it once from the bound clean
-revision. Retain failures/timeouts and do not change its prompt, threshold, split, or grader under
-this authorization.
+**Replacement gate:** The
+[`2026-08-31 replacement packet`](reviews/2026-08-31-route-003-grader-008-replacement-gate.md)
+binds the unchanged exact candidate and conditions under new profile
+`grader-008-sre-progressive-object-replacement-1`. The conclusive GRADER-005 batch is the named
+runtime-recovery evidence; owner approval is recorded and execution remains unstarted.
+
+**Next action:** Refresh subscriber authentication, confirm one no-tool health check, then execute
+the already-approved replacement profile once and retain every outcome. Do not reuse the consumed
+profile or change the prompt, threshold, split, or grader.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
-**Status:** `ready` (2026-08-30). Both grader repairs are merged into the exact current candidate
-and the four historical/current cells are prepared at the human approval gate; no live run or spend
-has started.
+**Status:** `decision-needed` (2026-08-31). Both repairs and the two Sonnet profiles are approved,
+but the two prescribed Opus profiles have approval null. The fixed matrix remains unstarted and
+the current subscriber OAuth session also cannot authenticate a model call.
 
 **Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
 `…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
@@ -827,16 +808,20 @@ plugin `2cdcbbbac3bc560076a1d0c648149173b6863602`, current plugin
 scenario runs Sonnet x3 per revision at 600 seconds/USD 2 per cell; the unknown-write scenario runs
 Opus x3 per revision at 900 seconds/USD 4 per cell. Four separate approval/budget records bound 12
 calls and USD 12 aggregate. Repairs `f9075751` and `ff7a6293` are ancestors of current. Every profile
-validates with approval null; preparation makes no model call and spends nothing.
+validates; the Sonnet profiles carry owner, UTC timestamp, and budget ID, while the Opus profiles
+remain unapproved. Preparation makes no model call and spends nothing.
 
-**Next action:** The human owner explicitly approves or rejects all four fixed cells and supplies
-their four budget IDs. If approved, record approver/timestamps and run the matrix once with current
-evaluator bytes, isolated exact plugin revisions, and no tuning/retry. Retain failures/timeouts and
-do not aggregate unlike model/scenario cells.
+**Next action:** The owner explicitly authorizes or rejects the two Opus cells. If authorized,
+record their two approvals, refresh subscriber authentication, confirm one no-tool health check,
+then run the fixed four-cell matrix once with current evaluator bytes, isolated exact plugin
+revisions, and no tuning/retry. Do not start only the Sonnet half, substitute Sonnet for Opus, or
+aggregate unlike model/scenario cells.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
-**Status:** `ready` (2026-08-29)
+**Status:** `active` (2026-08-31). The Prometheus-backed fixture and its outcome relation are
+committed and independently reviewed with no P0/P1; Docker runtime measurement remains pending on
+the available Windows Docker host.
 
 **Outcome:** `build-obs-dashboard-write-honours-the-carve-out` can measure whether the dashboard
 write *lands* as well as whether the Tier 2 boundary holds, because the seeded datasource returns
@@ -861,8 +846,17 @@ seeded series, or a static remote-write fixture) is the likely shape; the digest
 data; a trial that writes the panel and carries `OBS-441` into version history passes every check;
 a trial that skips the readback or edits the datasource still fails.
 
-**Next action:** `agent-engineer` adds the metrics container to the scenario's `services` list and
-re-measures both sides three trials at Sonnet.
+**Current evidence:** Commits `ad881e2f`, `5bf021aa`, `e18602d2`, and `e3501938` add the exact
+digest-pinned Prometheus service, fail-closed multi-service lifecycle, current p95 series, and the
+query-refId-result-panel relation. The [fixed Windows execution
+packet](reviews/2026-08-31-eval-005-prometheus-probe-gate.md) records the affected tests, scenario
+validation, structural gate, and independent review with no reportable finding. Docker is absent on
+the current Linux host, so container start, image resolution, Grafana-to-Prometheus connectivity,
+and the six Sonnet trials remain `[unverified]`.
+
+**Next action:** Run the fixed packet once on the Windows Docker host: exact historical and current
+plugin revisions, three Sonnet trials per side, no tuning or retries. Retain every outcome and
+record Docker/image identities before deciding closure.
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
@@ -882,7 +876,7 @@ uncommitted at the time this item was written. No claim below has been measured 
 | A restart recommendation does not silently discard the state that would explain the hang | `mitigation-selection.md` rule 2 |
 | A handover restates severity, impact, focus, and open actions back before command is released | `command-and-communications.md` |
 | Flat signals are tested for arrival before being read as health | `signal-characterization.md` pattern 5 |
-| `no-incident` is proposed, never recorded, and is blocked by stale telemetry or self-recovery | `incident-investigation/SKILL.md`, `first-response.md` |
+| `no-incident` is proposed, never recorded, and is blocked by stale telemetry or self-recovery | `investigation-depth/SKILL.md`, `first-response.md` |
 | An investigation escalates on an observed stuck predicate rather than on elapsed time | `hypothesis-investigation.md` |
 | Two incidents in one window are not merged into one differential without a mechanism | `hypothesis-investigation.md` |
 
@@ -1132,7 +1126,9 @@ further tuning run is spent on pattern repair.
 **Status:** `decision-needed` (2026-08-30). The exact approved pair completed with no retries. Both
 arms routed correctly 9 of 9 times, but the candidate failed the full acceptance contract and is
 not promotion eligible. The incumbent description is restored in the PR repair; no candidate is
-promoted by publication.
+promoted by publication. On 2026-08-31 the router was renamed `investigation-depth` with its
+description byte-identical; the on-call phrasings this item targets belong to the human-facing
+`incident-investigation` skill introduced in the follow-on change, which owns their measurement.
 
 **Outcome:** The skill's description triggers match what a responder types under load, so
 discovery does not depend on the caller knowing the fleet's vocabulary.
@@ -1183,8 +1179,8 @@ one exact action, target, argv/executable digest, expiry, nonce, rollback, and r
 unknown-outcome state for externally dispatched effects.
 
 **Prerequisites:** A named workflow approved to cross the current prepare/recommend boundary, a
-separately controlled execution identity, and live `main` ruleset enforcement as recorded in
-[`docs/reviews/2026-08-05-protect-001-closure.md`](reviews/2026-08-05-protect-001-closure.md).
+separately controlled execution identity, and live `main` ruleset enforcement under the repository
+boundaries in [`CONTRIBUTING.md`](../CONTRIBUTING.md#repository-boundaries).
 
 **Acceptance:** Effect-bound approval, dispatch, unknown-outcome reconciliation, replay prevention,
 expiry, rollback, and operator-resolution tests pass for the named effect target.

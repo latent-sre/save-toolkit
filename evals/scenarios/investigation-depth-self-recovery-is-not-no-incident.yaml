@@ -1,10 +1,10 @@
 schema_version: 1
-id: incident-investigation-self-recovery-is-not-no-incident
+id: investigation-depth-self-recovery-is-not-no-incident
 mode: direct
 split: calibration
 target:
   kind: skill
-  name: incident-investigation
+  name: investigation-depth
 prompt: |
   Overnight the orders worker stopped consuming for eleven minutes, then started again on its own
   with no human action. Memory climbed to the instance limit just before it stopped and reset right

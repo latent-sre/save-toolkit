@@ -61,5 +61,5 @@ dispatches typed `observability-engineer` for detection changes and typed `scrib
 postmortem, operating guidance, and learning dispositions. Neither next-phase lane confirms live
 incident recovery or starts work while the SRE loop is active.
 
-Ownership map only—not a load: `incident-investigation` owns investigation-depth selection, and `postmortem`
+Ownership map only—not a load: `investigation-depth` owns investigation-depth selection, and `postmortem`
 owns the durable retrospective method.

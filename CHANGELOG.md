@@ -7,6 +7,15 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Added `incident-investigation`, the human-facing troubleshooting advisor a responder runs in
+  their own session. Every turn puts the loop on the first screen: what is known now, two or three
+  ranked candidate causes with evidence for and against, the one check whose results separate them
+  with what each result would mean, the reversible mitigation when users are hurting, who to page
+  and when, and a board (ruled out, open, checked, next, follow-ups) that stops the responder
+  looping back to a dead candidate. It reads the knowledge repository (service and alert cards,
+  runbook, postmortems, index) as `[sourced]` data, names no platform CLI, runs nothing against a
+  live target, writes no document, and at resolution fills a closeout packet routed to `scribe`
+  for the postmortem and knowledge closeout.
 - Added and closed the bounded `GRAPH-003` operating layer for the accepted offline
   `checkout-payments-timeout-drill/v1` graph. Existing metrics, logs, alerting, and runbook skills
   now carry graph-specific indicator, failure-plane, one-page, and response references; a
@@ -49,6 +58,12 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Renamed the evidence-selected incident-depth router skill `incident-investigation` to
+  `investigation-depth`. Its body, description, references, and canary tokens are byte-identical
+  apart from the frontmatter `name`; the `sre` agent, `incident-command`, `eng-ladder`, the fleet
+  validator, graph-contract and canary tests, the nine scenarios and four profiles that named it,
+  and the generated adapters follow the rename. The `incident-investigation` name is reserved for
+  the human-facing incident skill introduced in the follow-on change.
 - Pinned VS Code beta packaging to the supported selector-based Copilot plugin format: the platform
   validator now rejects an Agent Plugins 1.0 `$schema` unless the component layout is deliberately
   migrated, and the quickstart documents source, Copilot CLI marketplace, and isolated-local plugin
