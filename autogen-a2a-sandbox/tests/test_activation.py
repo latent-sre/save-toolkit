@@ -12,6 +12,7 @@ from contextlib import redirect_stderr
 from io import StringIO
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -783,6 +784,73 @@ class HostEvidenceValidationTests(unittest.TestCase):
             bound["daemon_id"], "78e193b6-71a1-4a60-9ec0-16e94dd22f62"
         )
         self.assertEqual(bound["run_id"], runtime_terminal["run_id"])
+
+    def test_fresh_exit2_publishes_host_bound_terminal_evidence(self) -> None:
+        image_id = "sha256:" + "a" * 64
+        daemon_id = "78e193b6-71a1-4a60-9ec0-16e94dd22f62"
+        revision = "1" * 40
+        cases = (
+            ("input-required", "unresolved-contradiction-001"),
+            ("canceled", "slow-analysis-cancel-001"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+            for status, case_id in cases:
+                with self.subTest(status=status):
+                    run_id = f"terminal-{status}"
+                    runtime_terminal = {
+                        "runtime_evidence_version": "autogen-a2a-runtime-evidence/v1",
+                        "status": status,
+                        "run_id": run_id,
+                        "source_revision": revision,
+                        "case_id": case_id,
+                    }
+                    with (
+                        patch.object(self.module, "_resolve_image", return_value=image_id),
+                        patch.object(self.module, "_require_resources_absent"),
+                        patch.object(self.module, "_render_compose", return_value=b"{}"),
+                        patch.object(
+                            self.module,
+                            "_compose_up",
+                            return_value=SimpleNamespace(
+                                returncode=self.module.EXIT_TERMINAL
+                            ),
+                        ),
+                        patch.object(
+                            self.module,
+                            "_orchestrator_container",
+                            return_value="orchestrator-container",
+                        ),
+                        patch.object(
+                            self.module,
+                            "_copy_container_bytes",
+                            return_value=b"{}",
+                        ),
+                        patch.object(
+                            self.module,
+                            "_validate_runtime_terminal",
+                            return_value=runtime_terminal,
+                        ),
+                        patch.object(self.module, "_compose_down"),
+                        patch.object(self.module, "_verify_full_cleanup"),
+                    ):
+                        exit_code = self.module._fresh(
+                            SANDBOX_ROOT,
+                            "desktop-linux",
+                            revision,
+                            run_id,
+                            case_id,
+                            evidence_root,
+                            daemon_id,
+                        )
+
+                    self.assertEqual(exit_code, self.module.EXIT_TERMINAL)
+                    published = json.loads(
+                        (evidence_root / run_id / "runtime-terminal.json").read_bytes()
+                    )
+                    self.assertEqual(published["status"], status)
+                    self.assertEqual(published["image_id"], image_id)
+                    self.assertEqual(published["daemon_id"], daemon_id)
 
     def _create_stage(self, root: Path):
         contracts, _runtime = self.module._validation_modules()
