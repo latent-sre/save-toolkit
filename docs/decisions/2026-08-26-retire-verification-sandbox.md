@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-26
 - **Status:** Accepted
-- **Decision owner:** `latent-sre`
+- **Decision owner:** Save Toolkit maintainers
 - **Supersedes:** `docs/verification-sandbox.md`, the live reference contract that governed
   `scripts/verification_sandbox.py`. That document and both of its files are deleted here. The
   Docker-backed local verification policy in [`AGENTS.md`](../../AGENTS.md) is **not** superseded:

@@ -87,7 +87,7 @@ data/cost boundary and the remaining guarantees can be proven.
 
 **Status:** `active` (2026-08-30)
 
-**Owner:** `latent-sre` owns the architecture decision and acceptance of the exact generic-alpha
+**Owner:** Save Toolkit maintainers own the architecture decision and acceptance of the exact generic-alpha
 revision. `agent-engineer` owns consumer context-requirement semantics for agents/skills;
 `software-engineer` owns any later resolver, validator, or onboarding-tool implementation. A team
 owner becomes accountable for values and operational documents only when that team separately opts
@@ -189,8 +189,8 @@ in progress. No pull request exists and no candidate is accepted or merged.
 
 **Owner:** `software-engineer` owns the generator, schema, catalog entry, drift check, and tests;
 `agent-engineer` owns the `fleet-atlas` skill and scenarios; `repository-investigator`,
-`agent-engineer`, `scribe`, and the human owner are read-only consumers; `latent-sre` accepts
-findings and the exact candidate revision. No new agent or authority over another contract's edge.
+`agent-engineer`, `scribe`, and the human owner are read-only consumers; Save Toolkit
+maintainers accept findings and the exact candidate revision. No new agent or authority over another contract's edge.
 
 **Outcome:** A deterministic static atlas answers, with `path:line` provenance and an exact source
 revision, which artifact is canonical for a rule, which agent or skill owns a capability, which
@@ -396,7 +396,7 @@ enforcement from source alone, substitute a prompt-file override, or populate
 **Status:** `active` (2026-08-26). The architecture and offline implementation are accepted; no
 model execution is authorized.
 
-**Owner:** `latent-sre` owns the architecture, evidence/security contracts, live-run budgets, and
+**Owner:** Save Toolkit maintainers own the architecture, evidence/security contracts, live-run budgets, and
 acceptance of an exact revision. `agent-engineer` owns the claim vocabulary, scenarios, graders, and
 reference canaries. `software-engineer` owns the runner, adapters, isolation, schemas, and tests.
 Neither implementation owner promotes its own result.
@@ -604,7 +604,7 @@ line wrap that splits a pinned phrase disables the mutation without failing the 
 **Status:** `ready` (2026-08-30). The material route/evaluator-change trigger fired and the fixed
 packet is prepared at its human approval gate; no remeasurement or spend has started.
 
-**Owner:** `latent-sre`
+**Owner:** Save Toolkit maintainers
 
 **Outcome:** The two positive discovery routes left inconclusive by Batch 1 have reproducible,
 model-labelled reliability evidence before either is promoted into a stronger routing claim.

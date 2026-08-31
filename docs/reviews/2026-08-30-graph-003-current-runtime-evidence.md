@@ -128,10 +128,12 @@ one error); the named test passes alone on that base. This item neither changes 
 
 - `[unverified]` Current evidence does not inject a model/fixture failure, checkpoint write or
   resume failure, cancellation, or budget exhaustion.
-- `[verified static]` Focused evaluator regressions prove that a monotonic same-run snapshot can
-  advance the same uncertain effect from `UNKNOWN` to `RECONCILED`, while unrelated success and
-  unsupported duplicate-run snapshots cannot clear it. `[unverified]` No current host exercise
-  demonstrates that reconciliation transition.
+- `[verified static at this record's runtime revision]` Focused evaluator regressions prove that a
+  monotonic same-run snapshot can advance the same uncertain effect from `UNKNOWN` to `RECONCILED`,
+  while unrelated success and unsupported duplicate-run snapshots cannot clear it. A later exact-
+  revision candidate now supplies the formerly missing host exercise; see the
+  [same-effect reconciliation proof](2026-08-30-graph-sandbox-reconciliation-proof.md). That
+  follow-up does not retroactively change this record's runtime matrix.
 - `[unverified]` Notification delivery, production ingestion, retention, SLOs, provider behavior,
   credentials, cross-host persistence/recovery, and any production graph remain outside scope.
 - The raw bundles remain operator-local. This committed record and the bounded host-exercise

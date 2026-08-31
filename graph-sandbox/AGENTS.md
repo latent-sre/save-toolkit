@@ -51,6 +51,9 @@ runtime decision, and the live roadmap remain authoritative.
   capabilities, `no-new-privileges`, bounded CPU, memory, PIDs, and execution time.
 - Treat retries as re-execution, never exactly-once delivery. Consumer idempotency, receipts,
   reconciliation, and explicit `UNKNOWN` own effect safety.
+- `checkout-ambiguous-after-commit-001` publishes the sole supported reconciliation timeline at
+  `<evidence-root>/<run-id>/{unknown,reconciled}`. Both snapshots come from one activation and one
+  checkout dispatch; do not synthesize either directory or run Compose directly.
 - Evidence events follow the GRAPH-003 boundary vocabulary; unique identities stay out of metric
   labels. Prompts, credentials, authorization headers, raw payloads, and raw exception bodies do
   not enter normal telemetry.

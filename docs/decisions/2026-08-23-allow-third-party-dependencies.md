@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-23
 - **Status:** Accepted
-- **Decision owner:** `latent-sre`
+- **Decision owner:** Save Toolkit maintainers
 - **Supersedes:** the "Standard library only" Hard rules bullet (AGENTS.md) and its
   `docs/rules.md` index row, in full — including the PyYAML and blanket new-dependency bans.
 

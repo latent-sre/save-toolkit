@@ -34,7 +34,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   fan-out/fan-in, scheduling and admission, retries, effects with idempotency keys and an explicit
   `UNKNOWN` outcome, approvals, durability, cancellation, termination, taint, and graph-level
   evals — with six predicate-keyed references and a fourteen-section artifact template.
-  `prompt-engineer` now routes executable-graph design there; `agent-authoring` keeps the
+  Then-`prompt-engineer` (now `agent-engineer`) routes executable-graph design there; `agent-authoring` keeps the
   roster/delegation graph and excludes the executable contract. Five routing scenarios cover the
   positive case and the roster, code-graph, runtime-implementation, and runtime-selection near
   misses. No runtime, schema, or validator is selected or added.
@@ -135,7 +135,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 - Assessed merging `agent-authoring` and `agent-security`; kept them separate and recorded why. The
   bundles share no distinctive vocabulary (trifecta, prompt injection, Rule of Two, tool absence all
   appear zero times in `agent-authoring`), `artifact.md` already declares `agent-security` the owner
-  of the independent threat review, and `prompt-engineer` composes them on a predicate rather than
+  of the independent threat review, and then-`prompt-engineer` composed them on a predicate rather than
   needing one file. Merging would push the always-loaded body to roughly 4.5k tokens against a 5k
   budget, and collapse eight routing scenarios including three deferral contracts.
 - Refreshed `ci-actions` on `actions/checkout` fork-checkout refusal: the behavior shipped in v7.0.0
@@ -146,7 +146,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   than a fix. Added the two routing scenarios `ci-actions` lacked, one of them the pwn-request
   request that a helpful assistant would otherwise fulfil, and gave `agent-security` and `ci-actions`
   the `argument-hint` the rest of the fleet carries.
-- Corrected the README roster's `Routing` column for `observability-engineer` and `prompt-engineer`,
+- Corrected the README roster's `Routing` column for `observability-engineer` and then-`prompt-engineer`,
   which mixed real `Agent(...)` delegation edges with handoffs the caller must dispatch. Both agent
   bodies state the constraint explicitly ("this role cannot invoke `software-engineer`; the
   recommendation returns to the caller"), and the `sre` row already modelled the distinction, so the
@@ -181,7 +181,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   ([ADR](docs/decisions/2026-08-26-agent-engineer-rename.md)). No routing comparison was run —
   the decision rests on human legibility, as its predecessor did, and the prior rename's measured tie
   is the only evidence that a name change of this kind does not move automatic routing. Retiring the
-  name also removes one of the three role-name collisions with the sibling `sde-agents` fleet.
+  name also removes one of the three role-name collisions with another installed agent suite.
 - Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
   implementation, testing, and operations-tooling lane. This is a breaking address change from
   `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are
@@ -206,8 +206,8 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   the projections cannot reach copies already written into a Codex home, and the marker-aware
   installer that owned them is removed here. The ADR's *Migration* section carries the exact
   cleanup — match the whole first line against the `save-toolkit`/`sre-agents` markers, never a
-  filename or prefix, because a sibling fleet's `sde-agents` marker differs by one character and
-  shares three role names.
+  filename or prefix, because another installed suite's marker can differ by one character and
+  share three role names.
 
 ## [0.1.0] - 2026-08-11
 

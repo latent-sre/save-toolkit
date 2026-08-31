@@ -93,8 +93,32 @@ PYTHON3_PROHIBITION_RE = re.compile(
     re.IGNORECASE,
 )
 RETIRED_AS_LIVE_RE = re.compile(
-    r"(?<![A-Za-z0-9-])(prompt-engineer|sde|verification-sandbox)(?![A-Za-z0-9-])"
+    r"(?<![A-Za-z0-9-])(sde-agents|prompt-engineer|sde|verification-sandbox)(?![A-Za-z0-9-])"
 )
+# GitHub org / marketplace slug / schema stem. Allowed as a coordinate, not as a live owner.
+LATENT_SRE_RE = re.compile(r"(?<![A-Za-z0-9-])latent-sre(?![A-Za-z0-9-])")
+LATENT_SRE_COORDINATE_RE = re.compile(
+    r"https?://github\.com/latent-sre"
+    r"|git@github\.com:latent-sre"
+    r"|save-toolkit@latent-sre"
+    r"|marketplace add latent-sre/"
+    r"|com\.latent-sre"
+    r"|latent-sre/sre-context"
+    r"|latent-sre/save-toolkit"
+)
+LATENT_SRE_LIVE_OWNER_RE = re.compile(
+    r"(?:\b(?:decision|repository|release|merge|approval|schema|contract)?\s*"
+    r"(?:owners?|maintainers?|authority)\b[^;.!?]{0,120}\blatent-sre\b"
+    r"|\blatent-sre\b[^;.!?]{0,120}\b(?:owns?|maintains?|accepts?|approves?|authorizes?)\b"
+    r"|\b(?:owned|maintained)\s+by\s+`?latent-sre`?\b)",
+    re.IGNORECASE,
+)
+LATENT_SRE_HISTORICAL_RE = re.compile(
+    r"\b(?:former(?:ly)?|historical|retired|superseded|previous(?:ly)?)\b",
+    re.IGNORECASE,
+)
+SDE_AGENTS_RE = re.compile(r"(?<![A-Za-z0-9-])sde-agents(?![A-Za-z0-9-])")
+PLUGIN_SOURCE_ROOTS = (Path("skills"), Path("agents"), Path("commands"), Path("evals/scenarios"))
 RETIRED_AS_LIVE_HISTORICAL_RE = re.compile(
     r"retir|supersed|deleted|historical|formerly|renamed|old name|was `sde`|"
     r"current names?:",
@@ -194,7 +218,7 @@ def _check_live_operator_docs(root: Path) -> list[str]:
                     "use `python` or `py -3` (never the Windows Store stub)"
                 )
             for match in RETIRED_AS_LIVE_RE.finditer(line):
-                if RETIRED_AS_LIVE_HISTORICAL_RE.search(
+                if match.group(1) != "sde-agents" and RETIRED_AS_LIVE_HISTORICAL_RE.search(
                     _clause_containing(line, match.start())
                 ):
                     continue
@@ -202,6 +226,47 @@ def _check_live_operator_docs(root: Path) -> list[str]:
                     f"{relative}:{number}: retired name {match.group(1)!r} presented as a "
                     "live identity; use the current name or mark the sentence historical"
                 )
+            for match in LATENT_SRE_RE.finditer(line):
+                if any(
+                    coord.start() <= match.start() < coord.end()
+                    for coord in LATENT_SRE_COORDINATE_RE.finditer(line)
+                ):
+                    continue
+                clause = _clause_containing(line, match.start())
+                if LATENT_SRE_HISTORICAL_RE.search(clause):
+                    continue
+                if not LATENT_SRE_LIVE_OWNER_RE.search(clause):
+                    continue
+                failures.append(
+                    f"{relative}:{number}: 'latent-sre' presented as a live owner; keep it "
+                    "only as historical context or a GitHub/marketplace coordinate"
+                )
+    return failures
+
+
+def _check_plugin_source_forbidden_names(root: Path) -> list[str]:
+    """Reject the purged sister-fleet token in LLM-facing plugin sources."""
+
+    root = Path(root).resolve()
+    failures: list[str] = []
+    for relative in PLUGIN_SOURCE_ROOTS:
+        base = root / relative
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*")):
+            if not path.is_file() or path.suffix not in {".md", ".yaml", ".yml"}:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                failures.append(f"{path.relative_to(root).as_posix()}: cannot read UTF-8: {exc}")
+                continue
+            rel = path.relative_to(root).as_posix()
+            for number, line in enumerate(text.splitlines(), start=1):
+                if SDE_AGENTS_RE.search(line):
+                    failures.append(
+                        f"{rel}:{number}: forbidden name 'sde-agents' in plugin source"
+                    )
     return failures
 ALLOWED_KEYS = {
     "name",
@@ -539,6 +604,7 @@ def check(root: Path = ROOT) -> list[str]:
     # is anchor-only and cross-repo links, which `_check_markdown` already ignores.
     failures.extend(_check_live_doc_links(root))
     failures.extend(_check_live_operator_docs(root))
+    failures.extend(_check_plugin_source_forbidden_names(root))
     command_root = root / "commands"
     if command_root.is_dir():
         for command in sorted(command_root.glob("*.md")):

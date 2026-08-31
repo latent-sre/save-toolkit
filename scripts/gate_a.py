@@ -49,7 +49,7 @@ STRUCTURAL_STEPS = [
         None,
     ),
     (
-        "Live roadmap measurement batches resolve to durable evidence",
+        "Durable eval evidence references and folded index",
         ["scripts/check_evidence_refs.py"],
         None,
     ),
