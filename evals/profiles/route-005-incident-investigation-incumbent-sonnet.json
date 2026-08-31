@@ -17,9 +17,9 @@
     "deterministic_grader_result"
   ],
   "scenario_ids": [
-    "discovery-incident-investigation-first-response",
-    "discovery-incident-investigation-systemic-failure",
-    "discovery-incident-investigation-defers-engineering-altitude"
+    "discovery-investigation-depth-first-response",
+    "discovery-investigation-depth-systemic-failure",
+    "discovery-investigation-depth-defers-engineering-altitude"
   ],
   "required_references": {},
   "model": "sonnet",

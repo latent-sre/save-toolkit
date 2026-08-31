@@ -49,6 +49,12 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Renamed the evidence-selected incident-depth router skill `incident-investigation` to
+  `investigation-depth`. Its body, description, references, and canary tokens are byte-identical
+  apart from the frontmatter `name`; the `sre` agent, `incident-command`, `eng-ladder`, the fleet
+  validator, graph-contract and canary tests, the nine scenarios and four profiles that named it,
+  and the generated adapters follow the rename. The `incident-investigation` name is reserved for
+  the human-facing incident skill introduced in the follow-on change.
 - Pinned VS Code beta packaging to the supported selector-based Copilot plugin format: the platform
   validator now rejects an Agent Plugins 1.0 `$schema` unless the component layout is deliberately
   migrated, and the quickstart documents source, Copilot CLI marketplace, and isolated-local plugin

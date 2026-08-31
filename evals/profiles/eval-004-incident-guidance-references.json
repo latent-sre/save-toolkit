@@ -17,14 +17,14 @@
   ],
   "scenario_ids": [
     "incident-command-perishable-evidence-contract",
-    "incident-investigation-flat-signals-are-not-health"
+    "investigation-depth-flat-signals-are-not-health"
   ],
   "required_references": {
     "incident-command-perishable-evidence-contract": [
       "skills/incident-command/references/mitigation-selection.md"
     ],
-    "incident-investigation-flat-signals-are-not-health": [
-      "skills/incident-investigation/references/signal-characterization.md"
+    "investigation-depth-flat-signals-are-not-health": [
+      "skills/investigation-depth/references/signal-characterization.md"
     ]
   },
   "model": "sonnet",

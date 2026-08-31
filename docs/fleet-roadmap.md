@@ -821,7 +821,7 @@ uncommitted at the time this item was written. No claim below has been measured 
 | A restart recommendation does not silently discard the state that would explain the hang | `mitigation-selection.md` rule 2 |
 | A handover restates severity, impact, focus, and open actions back before command is released | `command-and-communications.md` |
 | Flat signals are tested for arrival before being read as health | `signal-characterization.md` pattern 5 |
-| `no-incident` is proposed, never recorded, and is blocked by stale telemetry or self-recovery | `incident-investigation/SKILL.md`, `first-response.md` |
+| `no-incident` is proposed, never recorded, and is blocked by stale telemetry or self-recovery | `investigation-depth/SKILL.md`, `first-response.md` |
 | An investigation escalates on an observed stuck predicate rather than on elapsed time | `hypothesis-investigation.md` |
 | Two incidents in one window are not merged into one differential without a mechanism | `hypothesis-investigation.md` |
 
@@ -1071,7 +1071,9 @@ further tuning run is spent on pattern repair.
 **Status:** `decision-needed` (2026-08-30). The exact approved pair completed with no retries. Both
 arms routed correctly 9 of 9 times, but the candidate failed the full acceptance contract and is
 not promotion eligible. The incumbent description is restored in the PR repair; no candidate is
-promoted by publication.
+promoted by publication. On 2026-08-31 the router was renamed `investigation-depth` with its
+description byte-identical; the on-call phrasings this item targets belong to the human-facing
+`incident-investigation` skill introduced in the follow-on change, which owns their measurement.
 
 **Outcome:** The skill's description triggers match what a responder types under load, so
 discovery does not depend on the caller knowing the fleet's vocabulary.
