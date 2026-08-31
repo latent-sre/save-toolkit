@@ -40,6 +40,11 @@ version, stop condition, and both requested policy contracts; the reducer refuse
 digests differ.
 The parent bootstrap copies that profile into the frozen evaluator before starting the child. A live
 run refuses `approval: null`; preparing or validating a profile does not call a model.
+To measure an older candidate with the current contract, run the accepted evaluator checkout and
+pass both `--plugin-root <CANDIDATE_CHECKOUT>` and `--expect-plugin-commit <FULL_40_CHAR_OID>`.
+The parent binds that candidate root into the frozen child, and provenance rejects a different HEAD
+before querying the model CLI version. This keeps evaluator bytes separate from measured plugin
+bytes; do not run an older candidate's bundled evaluator merely because its checkout is the subject.
 
 Both adapters emit [`eval-result-envelope/v1`](../schemas/eval-result-envelope-v1.schema.json)
 beside the legacy private summary when a profile is used. The envelope binds the exact candidate

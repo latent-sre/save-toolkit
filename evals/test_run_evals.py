@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import shutil
@@ -347,6 +348,28 @@ class InvocationPlanTests(unittest.TestCase):
                 self.assertEqual(frozen.read_bytes(), source.read_bytes())
                 source.write_text("{}\n", encoding="utf-8")
                 self.assertNotEqual(frozen.read_bytes(), source.read_bytes())
+
+    def test_explicit_plugin_root_is_forwarded_to_the_frozen_evaluator(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            candidate = Path(td) / "candidate"
+            candidate.mkdir()
+            observed: dict[str, object] = {}
+
+            def child(argv, *, cwd, env, check):
+                observed["argv"] = argv
+                observed["env"] = env
+                return mock.Mock(returncode=0)
+
+            with mock.patch.object(run_evals.subprocess, "run", side_effect=child):
+                self.assertEqual(
+                    0,
+                    run_evals.run_from_frozen_eval(
+                        ["--run", "--plugin-root", str(candidate)]
+                    ),
+                )
+
+            self.assertEqual(str(candidate.resolve()), observed["env"]["FLEET_ROOT"])
+            self.assertIn("--plugin-root", observed["argv"])
 
     def test_forged_snapshot_marker_cannot_bypass_bootstrap(self) -> None:
         with mock.patch.dict(
@@ -1605,6 +1628,36 @@ class ArtifactTests(unittest.TestCase):
             with self.assertRaises(clean_room.RunnerFailed):
                 run_evals.required_command_text(["git", "status"])
 
+    def test_expected_plugin_commit_mismatch_blocks_before_cli_version(self) -> None:
+        observed: list[tuple[str, ...]] = []
+
+        def command(argv, cwd=run_evals.ROOT):
+            observed.append(tuple(argv))
+            if argv[:3] == ["git", "rev-parse", "HEAD"]:
+                return "b" * 40
+            if argv[-1] == "--version":
+                self.fail("runtime version must not be queried after candidate mismatch")
+            return ""
+
+        with (
+            mock.patch.object(run_evals, "required_command_text", side_effect=command),
+            mock.patch.object(run_evals, "ignored_plugin_inputs", return_value=()),
+            mock.patch.object(run_evals, "plugin_digest", return_value="a" * 64),
+            mock.patch.object(run_evals, "plugin_manifest", return_value={"name": "test"}),
+            mock.patch.object(run_evals, "_sha256_file", return_value="a" * 64),
+        ):
+            with self.assertRaisesRegex(clean_room.RunnerFailed, "does not match"):
+                run_evals.collect_provenance(
+                    "sonnet",
+                    run_evals.ROOT,
+                    "claude",
+                    run_evals.ROOT,
+                    "a" * 64,
+                    expected_plugin_commit="c" * 40,
+                )
+
+        self.assertIn(("git", "rev-parse", "HEAD"), observed)
+
     def test_storage_failure_is_an_instrument_error(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "result.json"
@@ -1768,6 +1821,101 @@ class AggregateVerdictTests(unittest.TestCase):
         self.assertTrue(run_evals.profile_stops_after_state(profile, "INCONCLUSIVE"))
         self.assertFalse(run_evals.profile_stops_after_state(profile, "FAIL"))
         self.assertFalse(run_evals.profile_stops_after_state(profile, "PASS"))
+
+    def test_first_inconclusive_stops_the_campaign_loop_before_a_second_model_call(self) -> None:
+        profile = {
+            "schema_version": "eval-execution-profile/v2",
+            "id": "first-inconclusive-test",
+            "comparison": {
+                "id": "first-inconclusive-test",
+                "models": {"claude-plugin": "sonnet", "codex-cli": "not-run"},
+                "resolved_models": {
+                    "claude-plugin": "claude-sonnet-5",
+                    "codex-cli": "not-run",
+                },
+                "reasoning_efforts": {"claude-plugin": "high", "codex-cli": "not-run"},
+            },
+            "engine": "claude-plugin",
+            "claims": ["behavioral_contract", "deterministic_grader_result"],
+            "scenario_ids": ["agent-direct-sre-readonly-triage"],
+            "required_references": {},
+            "model": "sonnet",
+            "resolved_model": "claude-sonnet-5",
+            "reasoning_effort": "high",
+            "stop_condition": "first-inconclusive",
+            "trials": 3,
+            "timeout_s": 600,
+            "total_timeout_s": 2400,
+            "cost_budget": {"status": "available", "max_usd": 2},
+            "approval": {
+                "approved_by": "test-owner",
+                "approved_at": "2026-08-31T12:00:00Z",
+                "budget_id": "test-budget",
+            },
+        }
+        scenario = next(
+            item
+            for item in run_evals.load_scenarios()
+            if item["id"] == "agent-direct-sre-readonly-triage"
+        )
+        digest = "a" * 64
+        provenance = {
+            "run_id": "20260831T120000Z-testloop",
+            "started_at": "2026-08-31T12:00:00+00:00",
+            "engine": "claude-plugin",
+            "runtime_cli_version": "claude test",
+            "requested_model": "sonnet",
+            "namespace": "test namespace",
+            "plugin_commit": "b" * 40,
+            "plugin_inputs_dirty": False,
+            "plugin_source_sha256": digest,
+            "eval_suite_sha256": digest,
+        }
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            profile_path = root / "profile.json"
+            profile_path.write_text(json.dumps(profile), encoding="utf-8")
+            argv = [
+                "run_evals.py", "--run", "--profile", str(profile_path),
+                "--results-dir", str(root / "results"),
+            ]
+            first_inconclusive = run_evals.InconclusiveTrial(
+                "first trial lacks runtime evidence",
+                command=("claude",),
+                duration_seconds=0.1,
+                requested_model="sonnet",
+            )
+            with (
+                mock.patch.object(run_evals.sys, "argv", argv),
+                mock.patch.object(run_evals, "is_frozen_eval_process", return_value=True),
+                mock.patch.object(run_evals, "load_stable_suite", return_value=([scenario], digest)),
+                mock.patch.object(run_evals, "validate", return_value=[]),
+                mock.patch.object(run_evals.shutil, "which", return_value="claude"),
+                mock.patch.object(
+                    run_evals, "frozen_plugin_snapshot",
+                    return_value=contextlib.nullcontext(run_evals.ROOT),
+                ),
+                mock.patch.object(
+                    run_evals.clean_room, "neutral_workspace",
+                    return_value=contextlib.nullcontext(root / "workspace"),
+                ),
+                mock.patch.object(
+                    run_evals.clean_room, "clean_env",
+                    return_value=contextlib.nullcontext({}),
+                ),
+                mock.patch.object(run_evals, "collect_provenance", return_value=provenance),
+                mock.patch.object(run_evals, "plugin_digest", return_value=digest),
+                mock.patch.object(run_evals, "eval_suite_digest", return_value=digest),
+                mock.patch.object(run_evals, "run_agent", side_effect=first_inconclusive) as runner,
+                mock.patch.object(run_evals.eval_evidence, "build_envelope", return_value={}),
+                mock.patch.object(
+                    run_evals, "persist_summary_and_evidence",
+                    return_value=(root / "summary.json", root / "evidence.md"),
+                ),
+            ):
+                self.assertEqual(2, run_evals.main())
+
+        runner.assert_called_once()
 
     def test_not_fire_threshold_is_clamped_to_full(self) -> None:
         not_fire = {"mode": "discovery", "routing": {"expect": "not_fire"}}

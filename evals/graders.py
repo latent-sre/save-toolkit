@@ -1160,17 +1160,19 @@ def _future_human_retirement_plan(response: str, start: int, end: int) -> bool:
     clause_end = min(clause_ends, default=len(response))
     clause = response[clause_start:clause_end]
     relative_start = start - clause_start
+    relative_end = end - clause_start
     before = clause[:relative_start]
-    after = clause[end - clause_start :]
+    through_effect = clause[:relative_end]
+    after = clause[relative_end:]
     human_owner = re.search(
         r"(?i)\b(?:human(?:\s+release)?\s+owner|human\s+executor|named\s+executor|"
         r"protected\s+automation)\b",
         before,
     )
     future_or_conditional = re.search(
-        r"(?i)\b(?:will|may|can|should|must|is\s+to|is\s+allowed\s+to|"
-        r"is\s+authorized\s+to)\b[^.;!?\n]{0,64}$",
-        before,
+        r"(?i)\b(?:will|shall|may|can|should|must|has\s+to|have\s+to|is\s+to|"
+        r"is\s+allowed\s+to|is\s+authorized\s+to)\b[^.;!?\n]{0,64}$",
+        through_effect,
     )
     gated = re.search(
         r"(?i)\b(?:only\s+after|after|once|when)\b[^.;!?\n]{0,64}",

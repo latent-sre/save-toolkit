@@ -85,6 +85,7 @@ DENIED_TOOLS = (
     "RemoteTrigger,ScheduleWakeup,Workflow,TaskCreate,TaskUpdate,TaskStop,Monitor"
 )
 SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+FULL_GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
 PLUGIN_INPUT_PATHS = (
     "agents", "skills", "commands", "hooks", ".claude-plugin/plugin.json",
     "scripts/fleet_frontmatter.py",
@@ -136,6 +137,13 @@ def positive_timeout(value: str) -> int:
     if timeout < 1:
         raise argparse.ArgumentTypeError(f"must be >= 1, got {timeout}")
     return timeout
+
+
+def full_git_oid(value: str) -> str:
+    normalized = value.lower()
+    if FULL_GIT_OID_RE.fullmatch(normalized) is None:
+        raise argparse.ArgumentTypeError("must be a full 40-character Git object ID")
+    return normalized
 
 
 def bounded_threshold(value: str) -> float:
@@ -2140,14 +2148,36 @@ def freeze_profile_argument(argv: list[str], snapshot_root: Path) -> list[str]:
     return rewritten
 
 
+def plugin_root_argument(argv: list[str]) -> Path | None:
+    """Resolve the one explicit measured-plugin root before the frozen child imports."""
+
+    matches: list[str] = []
+    for index, argument in enumerate(argv):
+        if argument == "--plugin-root":
+            if index + 1 >= len(argv):
+                raise clean_room.RunnerFailed("--plugin-root requires a path")
+            matches.append(argv[index + 1])
+        elif argument.startswith("--plugin-root="):
+            matches.append(argument.partition("=")[2])
+    if len(matches) > 1:
+        raise clean_room.RunnerFailed("--plugin-root may be supplied only once")
+    if not matches:
+        return None
+    root = Path(matches[0]).resolve()
+    if not root.is_dir() or _is_reparse_point(root):
+        raise clean_room.RunnerFailed("--plugin-root must be an ordinary directory")
+    return root
+
+
 def run_from_frozen_eval(argv: list[str]) -> int:
     """Bootstrap a live run from frozen harness/scenario bytes, not the mutable checkout."""
     try:
         with frozen_eval_snapshot() as snapshot_root:
             frozen_argv = freeze_profile_argument(argv, snapshot_root)
+            measured_plugin_root = plugin_root_argument(argv) or ROOT
             env = os.environ.copy()
             env[EVAL_SNAPSHOT_ROOT_ENV] = str(snapshot_root)
-            env["FLEET_ROOT"] = str(ROOT)
+            env["FLEET_ROOT"] = str(measured_plugin_root)
             proc = subprocess.run(
                 [sys.executable, str(snapshot_root / "run_evals.py"), *frozen_argv],
                 cwd=Path.cwd(), env=env, check=False,
@@ -2231,6 +2261,7 @@ def collect_provenance(
     conditions: dict | None = None,
     *,
     engine_name: str = "claude-plugin",
+    expected_plugin_commit: str | None = None,
 ) -> dict:
     manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
     manifest = plugin_manifest(plugin_root)
@@ -2247,6 +2278,12 @@ def collect_provenance(
         raise clean_room.RunnerFailed(
             "plugin workspace changed after the frozen execution snapshot was created"
         )
+    plugin_commit = required_command_text(["git", "rev-parse", "HEAD"])
+    if expected_plugin_commit is not None and plugin_commit != expected_plugin_commit:
+        raise clean_room.RunnerFailed(
+            "measured plugin revision does not match --expect-plugin-commit: "
+            f"expected={expected_plugin_commit} observed={plugin_commit}"
+        )
     runtime_version = required_command_text([claude_bin, "--version"])
     provenance = {
         "run_id": datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8],
@@ -2258,7 +2295,8 @@ def collect_provenance(
         "requested_model": model,
         "plugin_name": manifest["name"],
         "plugin_version": manifest.get("version"),
-        "plugin_commit": required_command_text(["git", "rev-parse", "HEAD"]),
+        "plugin_commit": plugin_commit,
+        "expected_plugin_commit": expected_plugin_commit,
         "workspace_dirty": bool(status),
         "plugin_inputs_dirty": measured_plugin_inputs_dirty(plugin_status, ignored_inputs),
         "ignored_plugin_inputs": list(ignored_inputs),
@@ -2322,7 +2360,27 @@ def main() -> int:
     )
     parser.add_argument("--results-dir", type=Path, default=ROOT / ".eval-runs")
     parser.add_argument("--require-clean-plugin", action="store_true", help="refuse if plugin inputs differ from HEAD")
+    parser.add_argument(
+        "--plugin-root",
+        type=Path,
+        help="candidate plugin checkout to measure with this evaluator revision",
+    )
+    parser.add_argument(
+        "--expect-plugin-commit",
+        type=full_git_oid,
+        help="full candidate Git object ID required at --plugin-root before model execution",
+    )
     args = parser.parse_args()
+
+    if args.plugin_root is not None and args.plugin_root.resolve() != ROOT:
+        print("run_evals: frozen child plugin root does not match --plugin-root", file=sys.stderr)
+        return 2 if args.run else 3
+    if args.run and args.plugin_root is not None and args.expect_plugin_commit is None:
+        print(
+            "run_evals: --plugin-root requires --expect-plugin-commit for live execution",
+            file=sys.stderr,
+        )
+        return 2
 
     try:
         scenarios, suite_sha256 = load_stable_suite()
@@ -2462,6 +2520,7 @@ def main() -> int:
                 args.model, workspace, runtime_bin, plugin_root, suite_sha256,
                 measurement_conditions(args),
                 engine_name=engine_name,
+                expected_plugin_commit=args.expect_plugin_commit,
             )
             if args.require_clean_plugin and provenance["plugin_inputs_dirty"]:
                 print("run_evals: plugin inputs differ from HEAD; refusing publishable baseline", file=sys.stderr)
