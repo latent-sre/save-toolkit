@@ -6,13 +6,13 @@ status: active
 alert_names: [GraphSandboxRunNeedsAction]
 owner: observability-engineer
 severity: page
-source_revision: save-toolkit@a6968e821dd5e9449bdfa6f4005b0119081da3e9
+source_revision: save-toolkit@10292e5844ac0e31a07caeacfb4da52dc8c3bb87
 last_reviewed: null
 last_verified: 2026-08-30
 verification_evidence:
   - docs/reviews/2026-08-30-exercise-graph-003-current-runtime.md
   - docs/reviews/2026-08-30-graph-003-current-runtime-evidence.md
-version: 2
+version: 3
 ---
 
 # Runbook: synthetic graph run needs action
@@ -23,9 +23,11 @@ Handle `GraphSandboxRunNeedsAction` for `checkout-payments-timeout-drill/v1` run
 offline `graph-sandbox/v1` Docker lab. Do not use this runbook for a production workflow, a live
 customer effect, a provider-backed model run, or direct Docker Compose operation.
 
-The frontmatter `source_revision` binds the runbook and evaluator bytes. Each supplied evidence
-bundle retains its separate sandbox runtime `source_revision`; the cited verification evidence
-states which runtime revision and cases were exercised.
+The frontmatter `source_revision` binds the executable sandbox runtime, alert evaluator, and runtime
+contract used by the commands below. It does not bind this later runbook document or claim that the
+commands were live-rehearsed. Each supplied evidence bundle retains its separate sandbox runtime
+`source_revision`; the cited `last_verified` evidence states which runtime revision and cases were
+actually exercised.
 
 ## Trigger
 
@@ -36,13 +38,13 @@ dashboard or notification route in this phase.
 ## Prerequisites
 
 - Access: local read access to the published evidence bundle; no credentials.
-- Tools: Python 3.12 and the repository revision in `source_revision`, or a reviewed descendant
-  containing identical evaluator bytes.
+- Tools: Python 3.12 and the executable runtime, evaluator, and contract at the repository revision
+  in `source_revision`, or a reviewed descendant containing byte-identical relevant artifacts.
 - Authority: inspection only. Do not replay an effect, raise a budget, self-approve, or operate a
   production target.
 - Stop if evidence validation fails, the bundle names another contract, its runtime revision is not
   covered by the cited verification evidence, or the target is not the offline synthetic lab. The
-  bundle's runtime revision is not expected to equal the runbook/tool `source_revision`.
+  bundle's runtime revision is not expected to equal the executable-artifact `source_revision`.
 
 ## Triage / first checks
 
@@ -98,8 +100,11 @@ dashboard or notification route in this phase.
 
 Supply the fault bundle and a later recovery bundle to the evaluator. Resolved means the latest run
 is `SUCCEEDED`, the evaluator reports zero unresolved effects, and it records
-`FIRING->RESOLVED`. On 2026-08-30, readiness failure followed by a healthy mission met this check;
-ambiguous effect followed by the same healthy mission correctly remained firing.
+`FIRING->RESOLVED`. At the executable-artifact revision in `source_revision`, focused evaluator unit
+tests cover the v2 same-run `UNKNOWN` to `RECONCILED` timeline. This is unit evidence, not a live
+Docker rehearsal. The unchanged `last_verified` evidence is the 2026-08-30 version-1 drill:
+readiness failure followed by a healthy mission met the resolved check, while ambiguous effect
+followed by the same healthy mission correctly remained firing.
 
 ## Rollback / cleanup
 
@@ -136,6 +141,8 @@ pager route.
 
 ## References
 
-- Exact runtime contract: https://github.com/latent-sre/save-toolkit/blob/964e9a4aca83c138dc2b5a483b2192422d5e361e/graph-sandbox/contract.md
-- Accepted telemetry handoff: https://github.com/latent-sre/save-toolkit/blob/964e9a4aca83c138dc2b5a483b2192422d5e361e/docs/decisions/2026-08-26-graph-003-observability-preparation.md
-- Bound evaluator: https://github.com/latent-sre/save-toolkit/blob/a6968e821dd5e9449bdfa6f4005b0119081da3e9/skills/obs-alerting/scripts/graph_sandbox_alerts.py
+- Bound activation tool: https://github.com/latent-sre/save-toolkit/blob/10292e5844ac0e31a07caeacfb4da52dc8c3bb87/graph-sandbox/activate.py
+- Bound sandbox runner: https://github.com/latent-sre/save-toolkit/blob/10292e5844ac0e31a07caeacfb4da52dc8c3bb87/graph-sandbox/runner/main.py
+- Exact runtime contract: https://github.com/latent-sre/save-toolkit/blob/10292e5844ac0e31a07caeacfb4da52dc8c3bb87/graph-sandbox/contract.md
+- Accepted telemetry handoff: https://github.com/latent-sre/save-toolkit/blob/10292e5844ac0e31a07caeacfb4da52dc8c3bb87/docs/decisions/2026-08-26-graph-003-observability-preparation.md
+- Bound evaluator: https://github.com/latent-sre/save-toolkit/blob/10292e5844ac0e31a07caeacfb4da52dc8c3bb87/skills/obs-alerting/scripts/graph_sandbox_alerts.py
