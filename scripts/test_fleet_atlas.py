@@ -331,7 +331,6 @@ class ExtractEvidenceTests(unittest.TestCase):
                          "check_evidence_refs is green, so every cited batch must resolve")
 
     def test_owners_and_capabilities(self) -> None:
-        self.assertEqual(self.graph.nodes["owner:latent-sre"].attrs["kind"], "human")
         self.assertEqual(self.graph.nodes["owner:software-engineer"].attrs["kind"], "agent")
         caps = [e for e in self.graph.edges.values() if e.kind == "owns" and e.source == "agent:sre"]
         self.assertTrue(caps and all(e.cls == "STATIC_INFERRED" for e in caps))
@@ -348,6 +347,7 @@ class ExtractEvidenceTests(unittest.TestCase):
             if n.type == "owner" and n.attrs["kind"] == "human"
         }
         self.assertEqual(humans & components, set(), f"components typed as human owners: {humans & components}")
+        self.assertNotIn("fleet-atlas", humans, "a not-yet-created skill is still not a human")
 
     def test_no_unknown_reports_a_synthetic_fixture_path_as_stale(self) -> None:
         """Test files build temp repositories; their paths are not stale repository pins.
@@ -568,6 +568,7 @@ class ViewAndDriftTests(unittest.TestCase):
             self.assertIsNone(re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", text), path.name)
             self.assertNotIn(str(self.root), text, path.name)
             self.assertNotIn("F:\\", text, path.name)
+            self.assertTrue(all(line == line.rstrip() for line in text.splitlines()), path.name)
 
     def test_check_detects_a_drifted_view_and_a_timestamp(self) -> None:
         view = self.root / "docs/fleet-atlas/generated/INDEX.md"

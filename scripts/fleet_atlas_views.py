@@ -141,7 +141,7 @@ def render_views(document: dict) -> dict[str, str]:
 
     lines = _head(document, "Roadmap dependency map")
     for n in sorted((n for n in document["nodes"] if n["type"] == "roadmap-item"), key=lambda n: n["id"]):
-        lines.append(f"{n['id']} | {n['state']} | {n['attrs'].get('status', n['attrs'].get('closed', ''))} | {n['attrs'].get('owner', '')[:60]}")
+        lines.append(f"{n['id']} | {n['state']} | {n['attrs'].get('status', n['attrs'].get('closed', ''))} | {n['attrs'].get('owner', '')[:60]}".rstrip())
     for e in _edges(document, "depends_on"):
         lines.append(f"{e['source']} | depends_on | {e['target']} | {e['class']} ({e['attrs'].get('field', '')}) | {_where(e)}")
     views["roadmap-dependency-map.md"] = _cap(lines, VIEW_CAP)
@@ -157,7 +157,7 @@ def render_views(document: dict) -> dict[str, str]:
     views["contradictions-and-stale-evidence.md"] = _cap(lines, VIEW_CAP)
 
     def mermaid(kind: str) -> str:
-        body = [BANNER.replace("<!--", "%%").replace("-->", ""), "graph LR"]
+        body = [BANNER.replace("<!--", "%%").replace("-->", "").rstrip(), "graph LR"]
         for e in _edges(document, kind):
             a = MERMAID_SAFE.sub("_", e["source"].split(":", 1)[1])
             b = MERMAID_SAFE.sub("_", e["target"].split(":", 1)[1])

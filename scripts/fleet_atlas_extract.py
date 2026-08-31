@@ -605,8 +605,14 @@ def extract_owners(root: Path, graph: Graph) -> None:
         # `stack-profile` were both classified as humans before this filter. A name that is neither
         # an agent nor a known component is treated as human, which is the only remaining reading.
         components = {node.name for node in graph.nodes.values() if node.type in ("skill", "command")}
-        for name in sorted(set(re.findall(r"`([a-z][a-z0-9-]+)`", owner_field))):
+        owner_mentions = {
+            match.group(1): owner_field[match.end() :].lstrip()
+            for match in re.finditer(r"`([a-z][a-z0-9-]+)`", owner_field)
+        }
+        for name, suffix in sorted(owner_mentions.items()):
             if name in components and name not in agents:
+                continue
+            if name not in agents and re.match(r"(?:skill|command)\b", suffix):
                 continue
             if name not in agents and f"owner:{name}" not in graph.nodes:
                 graph.add_node(Node(f"owner:{name}", "owner", name, "external", None, "live", {"kind": "human"}, []))
