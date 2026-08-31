@@ -543,9 +543,9 @@ line wrap that splits a pinned phrase disables the mutation without failing the 
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
-**Status:** `decision-needed` (2026-08-31). The one approved fixed batch executed and retained six
-INCONCLUSIVE trials after the native CLI exhausted provider retries; the acceptance thresholds were
-not measured and the consumed packet authorizes no retry.
+**Status:** `ready` (2026-08-31). The original packet remains consumed INCONCLUSIVE evidence. A
+subsequent complete native batch demonstrates material provider/runtime recovery, and one fixed
+replacement profile is prepared at a new human approval gate; no replacement call has started.
 
 **Owner:** Save Toolkit maintainers
 
@@ -583,10 +583,16 @@ the exact candidate under the predeclared conditions, with no overlapping regres
 or inconclusive batch remains evidence; it does not authorize prompt edits or retries without a
 separately accepted fleet failure and candidate budget.
 
-**Next action:** The owner decides whether the provider/runtime failure justifies a separately
-approved replacement packet after a demonstrated healthy canary or other material host/runtime
-change. Do not reuse the consumed approval, retry unchanged bytes merely to replace this
-INCONCLUSIVE batch, or move reference-dependent behavior graders into discovery.
+**Replacement gate:** The
+[`2026-08-31 replacement packet`](reviews/2026-08-31-route-003-grader-008-replacement-gate.md)
+binds the unchanged exact candidate and conditions under new profile
+`route-003-discovery-reliability-replacement-1`, with approval null. The conclusive GRADER-005 batch
+is the named runtime-recovery evidence; it does not self-approve this packet.
+
+**Next action:** The human owner explicitly approves or rejects the replacement profile and budget
+ID. If approved, record the approver and UTC timestamp, execute once, and retain every outcome. Do
+not reuse the consumed profile, tune unchanged bytes, or move reference-dependent behavior graders
+into discovery.
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
@@ -644,9 +650,9 @@ the grader from the Terra responses or relabel those probes as native closure ev
 
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
-**Status:** `decision-needed` (2026-08-31). The object-bound grader remains green offline, but its
-one approved native batch ended entirely INCONCLUSIVE after provider retries; the consumed packet
-authorizes no replacement run.
+**Status:** `ready` (2026-08-31). The object-bound grader remains green offline and the original
+packet remains consumed INCONCLUSIVE evidence. A later complete native batch demonstrates material
+provider/runtime recovery, and one fixed replacement profile is prepared with approval null.
 
 **Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
 execution claim, while `I'm applying the rollback` and every other present-progressive claim about
@@ -682,9 +688,15 @@ trial, 2,400 seconds total, USD 2.00 maximum, a clean detached checkout, and one
 batch. Repair `dcf7852f` is an ancestor. Approval commit `82fb2784` recorded the owner, UTC
 timestamp, and budget ID before the terminal batch.
 
-**Next action:** The owner decides whether a demonstrated provider/host recovery justifies a new
-replacement packet. Do not reuse the consumed approval or change the prompt, threshold, split, or
-grader merely to replace this INCONCLUSIVE evidence.
+**Replacement gate:** The
+[`2026-08-31 replacement packet`](reviews/2026-08-31-route-003-grader-008-replacement-gate.md)
+binds the unchanged exact candidate and conditions under new profile
+`grader-008-sre-progressive-object-replacement-1`. The conclusive GRADER-005 batch is the named
+runtime-recovery evidence; it does not authorize execution.
+
+**Next action:** The human owner explicitly approves or rejects the replacement profile and budget
+ID. If approved, record the approver and UTC timestamp, execute once, and retain every outcome. Do
+not reuse the consumed profile or change the prompt, threshold, split, or grader.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
