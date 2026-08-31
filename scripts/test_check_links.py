@@ -155,6 +155,42 @@ class LinkCheckerTests(Fixture):
                 failures = check_links.check(self.root)
                 self.assertTrue(failures, label)
 
+    def test_skill_name_over_64_characters_is_rejected(self):
+        name = "a" * 65
+        frontmatter = CLEAN_FRONTMATTER.replace("probe-skill", name)
+        self.write(f"skills/{name}/SKILL.md", frontmatter + "\n# Probe\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any("name exceeds 64 characters" in item for item in failures),
+            failures,
+        )
+
+    def test_skill_compatibility_over_500_characters_is_rejected(self):
+        frontmatter = CLEAN_FRONTMATTER.replace(
+            'argument-hint: "[the probe]"',
+            'argument-hint: "[the probe]"\ncompatibility: "' + "x" * 501 + '"',
+        )
+        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any("compatibility exceeds 500 characters" in item for item in failures),
+            failures,
+        )
+
+    def test_skill_compatibility_block_scalar_cannot_bypass_length_gate(self):
+        frontmatter = CLEAN_FRONTMATTER.replace(
+            'argument-hint: "[the probe]"',
+            'argument-hint: "[the probe]"\ncompatibility: |-\n  x\n'
+            + "  \n" * 501
+            + "  y",
+        )
+        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any("compatibility must use a single-line scalar" in item for item in failures),
+            failures,
+        )
+
     def test_manual_only_control_is_required_inside_frontmatter_and_cannot_widen(self):
         manual_frontmatter = CLEAN_FRONTMATTER.replace(
             "name: probe-skill", "name: service-lifecycle"
@@ -468,8 +504,27 @@ class LiveDocLinkTests(unittest.TestCase):
 class LiveOperatorDocTests(unittest.TestCase):
     """Current-tense operator docs must not reintroduce retired live names or python3 commands."""
 
+    def test_sister_lab_inputs_keep_source_repository_coordinates(self) -> None:
+        expected = {
+            "2026-07-31-local-external-research-separation.md": (
+                "- Sister-lab input: "
+                "`latent-sre/sde-agents@f4741c778a825a6353cc99e969f4ed05755aa574`"
+            ),
+            "2026-07-31-multi-platform-plugin-packaging.md": (
+                "- Sister-lab input: "
+                "`latent-sre/sde-agents@d50eda62c4fec083f5a5b0b3980f845d7ae0d8a1`"
+            ),
+        }
+        for name, coordinate in expected.items():
+            with self.subTest(name=name):
+                text = (ROOT / "docs" / "decisions" / name).read_text(encoding="utf-8")
+                self.assertIn(coordinate, text)
+
     def test_live_tree_operator_docs_are_clean(self) -> None:
         self.assertEqual([], check_links._check_live_operator_docs(ROOT))
+
+    def test_live_tree_plugin_sources_forbid_sde_agents(self) -> None:
+        self.assertEqual([], check_links._check_plugin_source_forbidden_names(ROOT))
 
     def test_python3_operator_command_is_flagged(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -538,6 +593,71 @@ class LiveOperatorDocTests(unittest.TestCase):
             )
             failures = check_links._check_live_operator_docs(root)
         self.assertTrue(any("'sde'" in item for item in failures), failures)
+
+    def test_owner_role_latent_sre_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "**Owner:** `latent-sre` owns acceptance.\n",
+                encoding="utf-8",
+            )
+            failures = check_links._check_live_operator_docs(root)
+        self.assertTrue(any("latent-sre" in item and "live owner" in item for item in failures), failures)
+
+    def test_historical_latent_sre_owner_is_not_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "The former decision owner was `latent-sre`.\n",
+                encoding="utf-8",
+            )
+            self.assertEqual([], check_links._check_live_operator_docs(root))
+
+    def test_latent_sre_github_organization_prose_is_not_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "The GitHub organization slug is `latent-sre`.\n",
+                encoding="utf-8",
+            )
+            self.assertEqual([], check_links._check_live_operator_docs(root))
+
+    def test_marketplace_install_coordinate_is_not_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "claude plugin install save-toolkit@latent-sre\n",
+                encoding="utf-8",
+            )
+            self.assertEqual([], check_links._check_live_operator_docs(root))
+
+    def test_github_url_coordinate_is_not_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "Clone https://github.com/latent-sre/save-toolkit\n",
+                encoding="utf-8",
+            )
+            self.assertEqual([], check_links._check_live_operator_docs(root))
+
+    def test_sde_agents_token_is_flagged_even_when_historical(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "README.md").write_text(
+                "The retired sibling `sde-agents` fleet is historical.\n",
+                encoding="utf-8",
+            )
+            failures = check_links._check_live_operator_docs(root)
+        self.assertTrue(any("sde-agents" in item for item in failures), failures)
+
+    def test_sde_agents_in_plugin_source_is_flagged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skill = root / "skills" / "probe"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("Do not copy the sde-agents roster.\n", encoding="utf-8")
+            failures = check_links._check_plugin_source_forbidden_names(root)
+        self.assertTrue(any("sde-agents" in item for item in failures), failures)
 
 
 class EscapingLinkTests(unittest.TestCase):

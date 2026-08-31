@@ -2,7 +2,7 @@
 
 - Date: 2026-08-25
 - Status: Accepted
-- Decision owner: `latent-sre`
+- Decision owner: Save Toolkit maintainers
 
 ## Context
 

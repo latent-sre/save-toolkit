@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "evidence_id": "ev_7a33b21dbe044500bd7efc0a1dfb1f99",
+  "producer": {
+    "name": "hawkins",
+    "role": "human-authorized Codex-driven VS Code probe operator"
+  },
+  "context": {
+    "run_id": "host-002-20260830-vscode-plugin-delegation",
+    "task_id": "HOST-002",
+    "attempt_id": "synthetic-allowed-child"
+  },
+  "target": {
+    "root": "F:\\repos\\sre-agents\\.worktrees\\vscode-copilot-beta-readiness",
+    "revision": "0c6c4dc24c5fa88f3927dc33ba6609d23c54ba33",
+    "tree_digest": "5fa582179e4ac5c91c4636cc1a1ae60d76e8cd59aec863d761abaaba58bf2d6f"
+  },
+  "criterion": "The synthetic coordinator can invoke its declared host002-allowed child through an actual agent tool call and return the child's fixed marker.",
+  "status": "pass",
+  "started_at": "2026-08-30T15:34:00Z",
+  "ended_at": "2026-08-30T15:35:59Z",
+  "command": null,
+  "source": {
+    "kind": "human_ui_observation",
+    "ui_driver": "Codex computer use under explicit human authorization",
+    "step": "Step 5 - paired enforcement canary, allowed arm",
+    "vscode_version": "1.135.0",
+    "vscode_commit": "08d4889f9ec4a1685d257b9b95de036c8e1ce1e5",
+    "selected_models": {
+      "initial": "MAI-Code-1.1-Flash"
+    },
+    "observed_outcome": "With host002-coordinator selected, VS Code displayed the child tool call Host002-allowed: Invoke the requested child agent and follow its own instructions. The attributed child result was HOST002_ALLOWED_CHILD_COMPLETED."
+  },
+  "environment": {
+    "os": "Microsoft Windows 11 Pro build 26200",
+    "architecture": "x64",
+    "copilot_account_scope": "unavailable - not recorded during the run"
+  },
+  "isolation": {
+    "workspace": "copied committed fixture in a temporary directory outside the repository; disposable VS Code profile",
+    "network": "one authenticated GitHub Copilot model request; no repository fetch or production traffic",
+    "live_systems_touched": "none"
+  },
+  "artifacts": [
+    {
+      "path": "docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md",
+      "sha256": "d13ae77f00cf4528f8742fcaf5d8cb5d4986f9f6eb99d6573e56da739880c8cf",
+      "size": 12573
+    },
+    {
+      "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-allowed.agent.md",
+      "sha256": "ac04e42e23204b64191d1fc5346e75d2841eb09d184c1486202db9ad2411b131",
+      "size": 227
+    },
+    {
+      "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-coordinator.agent.md",
+      "sha256": "63e19a58f8574265001b56e3b5cba6ae1d02991d3cd9a321e1da36333f839f15",
+      "size": 450
+    },
+    {
+      "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-forbidden.agent.md",
+      "sha256": "04b80313b981e16aa587ad2111096ae6875fb8c439b4b6e20a5842c260a384e3",
+      "size": 232
+    }
+  ],
+  "limitations": [
+    "Copilot account or entitlement scope was not recorded during the run; successful authentication does not identify it.",
+    "This arm proves one permitted workspace-defined child call only; it does not prove plugin-provided delegation or rejection of a forbidden child.",
+    "Generic Session Start and tool warning indicators appeared but did not block the tool call; they were not expanded."
+  ]
+}

@@ -1,6 +1,9 @@
 # Skill portability — which frontmatter survives off Claude Code
 
-[doc-checked 2026-08-05] A skill has two audiences. The portable Agent Skills specification
+[doc-checked 2026-08-30] Checked against the current
+[VS Code Agent Skills](https://code.visualstudio.com/docs/agent-customization/agent-skills) and
+[Agent Plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins) contracts.
+A skill has two audiences. The portable Agent Skills specification
 accepts six fields; Claude Code accepts those plus a Claude-only set. A Claude-only field is
 **rejected** by Anthropic's packaging script when publishing to the portable spec, and silently
 dropped by a host that ignores it. This fleet ships a Claude plugin *and* generates Copilot/VS Code
@@ -22,7 +25,7 @@ adapters; the generator absorbs the difference, and this file maps what it has t
 | `name` | Lowercase letters, numbers, hyphens; ≤64 chars; no reserved words |
 | `description` | The trigger. Non-empty; ≤1,024 chars in the spec |
 | `license` | Accepted, not acted on by Claude Code |
-| `compatibility` | Environment requirements; ≤500 chars |
+| `compatibility` | Environment requirements; ≤500 chars. This fleet requires one single-line scalar so the local gate measures the value exactly without a full YAML implementation |
 | `metadata` | Free-form object for your own tooling; Claude Code ignores it |
 | `allowed-tools` | Grants (pre-approves) tools while the skill is active |
 
@@ -51,7 +54,7 @@ restricting field is a default there.
 | Host / spec | Limit | Scope |
 |---|---|---|
 | GitHub Copilot custom agents [doc-checked 2026-08-24] | 30,000 characters of Markdown below one `.agent.md` frontmatter | Per generated profile, including its host contract — not an aggregate fleet budget, not a skill-body limit; "character" semantics `[unverified]` (GitHub does not define code points vs UTF-16 units), so report the official contract and the counting semantics separately |
-| Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators; not equivalent to this repository's 7,500-byte candidate screen |
+| Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators; not equivalent to this repository's 7,800-byte candidate screen |
 | VS Code | No matching body-length check in public source | — |
 
 ## What the generated adapters do
@@ -63,6 +66,9 @@ restricting field is a default there.
   adapter. Stating a difference is not claiming a control: the omitted `execute` narrows a default
   the user can override and the picker can rewrite — read the VS Code limit in `AGENTS.md` before
   citing it as authority. A fleet control is only as strong as the host it is proven on.
+- The root manifest intentionally uses the selector-based Copilot format to point at
+  `platforms/copilot/skills/`. Adding the Agent Plugins 1.0 `$schema` would instead make `skills/`
+  the portable discovery root and is a coordinated layout migration, not a metadata-only edit.
 
 ## Checking a skill before publishing to the portable spec
 

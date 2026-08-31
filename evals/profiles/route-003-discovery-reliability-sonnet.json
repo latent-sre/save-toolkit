@@ -1,0 +1,33 @@
+{
+  "schema_version": "eval-execution-profile/v1",
+  "id": "route-003-discovery-reliability",
+  "comparison": {
+    "id": "route-003-discovery-reliability",
+    "models": {
+      "claude-plugin": "sonnet",
+      "codex-cli": "not-run"
+    }
+  },
+  "engine": "claude-plugin",
+  "claims": [
+    "candidate_snapshot_integrity",
+    "native_plugin_loaded",
+    "native_component_invoked",
+    "behavioral_contract",
+    "deterministic_grader_result"
+  ],
+  "scenario_ids": [
+    "discovery-agent-authoring-workflow-graph",
+    "discovery-service-readiness-audit"
+  ],
+  "required_references": {},
+  "model": "sonnet",
+  "trials": 3,
+  "timeout_s": 600,
+  "total_timeout_s": 7200,
+  "cost_budget": {
+    "status": "available",
+    "max_usd": 4
+  },
+  "approval": null
+}

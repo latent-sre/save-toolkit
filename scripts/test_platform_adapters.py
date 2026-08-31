@@ -161,6 +161,82 @@ class PlatformAdapterTests(unittest.TestCase):
         ])
         self.assertNotIn("agent", self._copilot_tools("scribe"))
 
+    def test_vscode_agent_delegation_probe_pins_allowed_and_forbidden_children(self) -> None:
+        fixture = ROOT / "docs/probes/fixtures/host-002-agent-delegation/.github/agents"
+        expected = {
+            "host002-allowed.agent.md",
+            "host002-coordinator.agent.md",
+            "host002-forbidden.agent.md",
+        }
+        self.assertEqual(expected, {path.name for path in fixture.glob("*.agent.md")})
+
+        def json_field(path: Path, key: str) -> object:
+            frontmatter = path.read_text(encoding="utf-8").split("---", 2)[1]
+            prefix = f"{key}: "
+            return json.loads(
+                next(line[len(prefix):] for line in frontmatter.splitlines() if line.startswith(prefix))
+            )
+
+        coordinator = fixture / "host002-coordinator.agent.md"
+        self.assertEqual(["agent"], json_field(coordinator, "tools"))
+        self.assertEqual(["host002-allowed"], json_field(coordinator, "agents"))
+
+        markers = {
+            "host002-allowed.agent.md": "HOST002_ALLOWED_CHILD_COMPLETED",
+            "host002-forbidden.agent.md": "HOST002_FORBIDDEN_CHILD_RAN",
+        }
+        for filename, marker in markers.items():
+            child = fixture / filename
+            with self.subTest(child=filename):
+                self.assertEqual([], json_field(child, "tools"))
+                self.assertIs(json_field(child, "user-invocable"), False)
+                body = child.read_text(encoding="utf-8").split("---", 2)[2]
+                self.assertIn(marker, body)
+                self.assertNotIn(next(value for value in markers.values() if value != marker), body)
+
+    def test_vscode_probe_does_not_count_the_adr_command_as_a_skill(self) -> None:
+        probe = (ROOT / "docs/probes/host-002-vscode-agent-delegation.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("authoritative 33-skill inventory", probe)
+        self.assertIn("`adr` is a slash command, not a skill", probe)
+        self.assertNotIn("**Chat: Configure Skills** or the `/` menu", probe)
+
+    def test_vscode_probe_binds_account_scope_and_model_attempts(self) -> None:
+        probe = (ROOT / "docs/probes/host-002-vscode-agent-delegation.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("`environment.copilot_account_scope`", probe)
+        self.assertIn("`source.selected_models`", probe)
+
+        evidence_root = ROOT / "docs/reviews/evidence/host-002"
+        evidence_names = (
+            "2026-08-30-agent-discovery.json",
+            "2026-08-30-plugin-registration.json",
+            "2026-08-30-real-plugin-delegation.json",
+            "2026-08-30-skill-discovery.json",
+            "2026-08-30-synthetic-allowed.json",
+            "2026-08-30-synthetic-forbidden.json",
+        )
+        envelopes = {
+            name: json.loads((evidence_root / name).read_text(encoding="utf-8"))
+            for name in evidence_names
+        }
+        for name, envelope in envelopes.items():
+            with self.subTest(evidence=name, field="copilot_account_scope"):
+                self.assertTrue(envelope["environment"]["copilot_account_scope"].strip())
+
+        expected_attempts = {
+            "2026-08-30-real-plugin-delegation.json": {"initial", "retry"},
+            "2026-08-30-synthetic-allowed.json": {"initial"},
+            "2026-08-30-synthetic-forbidden.json": {"initial"},
+        }
+        for name, attempts in expected_attempts.items():
+            with self.subTest(evidence=name, field="selected_models"):
+                selected_models = envelopes[name]["source"]["selected_models"]
+                self.assertEqual(attempts, set(selected_models))
+                self.assertTrue(all(value.strip() for value in selected_models.values()))
+
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
         self.assertEqual(["read", "search"], self._copilot_tools("repository-investigator"))
         self.assertEqual(["web"], self._copilot_tools("researcher"))
@@ -203,6 +279,35 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_platform_manifests_agree(self) -> None:
         self.assertEqual([], adapters.validate_platform_contracts(ROOT))
+
+    def test_copilot_manifest_cannot_declare_schema_before_layout_migration(self) -> None:
+        """The Agent Plugins schema is a format discriminator, not inert metadata.
+
+        Under Agent Plugins 1.0, skills are discovered from the root ``skills/`` directory and
+        Copilot-specific agents and hooks live under ``com.github.copilot/``.  This fleet instead
+        uses the supported legacy Copilot manifest selectors for generated host adapters.  Adding
+        the new schema while retaining those selectors would make a plausible-looking manifest
+        load the wrong component layout.
+        """
+
+        schemas = (
+            "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+            "https://agent-plugins.org/schemas/future/plugin.schema.json",
+        )
+        for schema in schemas:
+            with self.subTest(schema=schema), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve()
+                self._copy_platform_contract_files(root)
+                target = root / "plugin.json"
+                manifest = json.loads(target.read_text(encoding="utf-8"))
+                manifest["$schema"] = schema
+                target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
+                failures = adapters.validate_platform_contracts(root)
+
+                self.assertTrue(
+                    any("selector-based Copilot format" in failure for failure in failures),
+                    failures,
+                )
 
     def test_each_platform_manifest_is_required(self) -> None:
         manifests = (

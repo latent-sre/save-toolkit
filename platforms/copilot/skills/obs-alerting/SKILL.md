@@ -77,6 +77,7 @@ Read only the row needed for the task:
 | Alert storm, event correlation, deduplication, or Moogsoft | [Moogsoft correlation](./references/moogsoft.md) |
 | Synthetic test, DNS, BGP, path, or external reachability | [ThousandEyes synthetics](./references/thousandeyes.md) |
 | Calculate budget status or a permitted burn-rate pair | [error_budget.py](./scripts/error_budget.py) |
+| The synthetic graph runtime's one page and fire/resolve evidence | [graph-sandbox alert](./references/graph-sandbox.md) and [evaluator](./scripts/graph_sandbox_alerts.py) |
 
 ## Scheduled work — alert on staleness, not errors
 

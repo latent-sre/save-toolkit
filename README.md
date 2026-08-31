@@ -9,6 +9,41 @@ deterministic generator, never edited by hand.
 > **Pre-release (0.1.0).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
 
+## How it works
+
+Save Toolkit is a host-loaded control layer, not a background orchestrator. The host supplies the
+model and executes tools; the plugin supplies the specialist roles, reusable methods, routing, and
+authority boundaries.
+
+```text
+agents/ + skills/ (canonical)
+  |-- Claude Code reads them directly
+  `-- generator -> .github/agents/ + platforms/copilot/skills/ -> VS Code/Copilot
+```
+
+- An **agent** owns a lane with a distinct prompt, tool posture, and return contract.
+- A **skill** adds a method or checklist without changing the current owner.
+- **Model delegation** uses the host's subagent tool to give a bounded task to a named child, which
+  returns its result to the caller. Canonical Claude `Agent(target, ...)` grants become VS Code's
+  `agent` tool plus the parent's `agents:` allowlist.
+- A VS Code **handoff** is a separate human-selected ownership transition from `handoffs:`. It keeps
+  relevant conversation context but does not grant approval or model-delegation authority.
+- Production-facing or materially irreversible effects remain human decisions. The one narrow
+  exception is an invoked [`observability-engineer`](agents/observability-engineer.md#change-authority)
+  applying only Grafana dashboard or folder writes under its complete change-authority rule; a
+  handoff alone does not activate that exception.
+
+### Host guarantees and limits
+
+A field present in an agent file proves what the plugin requested, not what every host enforces.
+Treat these as build-bound evidence, and rerun the linked probe after host upgrades.
+
+| Host surface | Contract shipped | Current evidence boundary |
+|---|---|---|
+| Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
+| VS Code 1.135.0 (`08d4889f`) | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-08-30, plugin registration, 8 agents, 33 skills, the separate ADR prompt, and a synthetic allowed child passed. A forbidden child still ran, the real `software-engineer` -> `reviewer` call was inconclusive, and the separate hook canary was not run. See the [live transcript](docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md) |
+| First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the [HOST-002 probe](docs/probes/host-002-vscode-agent-delegation.md) passes on that exact build |
+
 ## Quickstart
 
 **Claude Code** (pre-release install from `main`):
@@ -18,10 +53,34 @@ claude plugin marketplace add latent-sre/save-toolkit
 claude plugin install save-toolkit@latent-sre
 ```
 
-**VS Code / Copilot Chat:** open this repository as the workspace — agents are discovered from
-`.github/agents/` automatically, and [`.vscode/settings.json`](.vscode/settings.json) registers the
-skill projection. For other workspaces install at user level (`~/.copilot/agents/`,
-`~/.copilot/skills/`); copied agent files arrive without their skills.
+**VS Code / Copilot Chat (beta plugin):** confirm `chat.plugins.enabled` is on, run
+**Chat: Install Plugin From Source**, and enter `https://github.com/latent-sre/save-toolkit`.
+VS Code clones the repository and loads the generated agents and skills selected by the root
+[`plugin.json`](plugin.json). Alternatively, install the same marketplace through GitHub Copilot
+CLI; VS Code automatically discovers Copilot CLI-installed plugins:
+
+```sh
+copilot plugin marketplace add latent-sre/save-toolkit
+copilot plugin install save-toolkit@latent-sre
+```
+
+For an unpublished local branch, use an isolated VS Code profile and register the branch worktree
+with `chat.pluginLocations` instead:
+
+```json
+{
+  "chat.pluginLocations": {
+    "/absolute/path/to/save-toolkit": true
+  }
+}
+```
+
+Open a neutral test workspace for that plugin check; opening this repository itself also discovers
+`.github/agents/` as workspace agents and can hide duplicate-install mistakes. Opening the repository
+without installing the plugin remains a checkout-only development path:
+[`.vscode/settings.json`](.vscode/settings.json) registers the generated skill projection.
+The exact beta discovery and agent-to-agent procedure is the
+[`HOST-002 VS Code plugin probe`](docs/probes/host-002-vscode-agent-delegation.md).
 
 **Codex:** the fleet is not distributed to Codex. Codex working *in* this repository picks up the
 root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs
@@ -80,6 +139,7 @@ stub):
 ```sh
 python scripts/gate_a.py                                # the whole structural gate
 python scripts/generate_platform_adapters.py --write    # after any canonical edit
+python scripts/test_platform_adapters.py                 # Copilot projection + plugin contract
 claude plugin validate . --strict                       # Claude platform contract
 python scripts/fleet_doctor.py                          # repo + installed-host health, read-only
 ```

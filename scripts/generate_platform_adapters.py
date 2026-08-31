@@ -577,6 +577,12 @@ def validate_platform_contracts(root: Path) -> list[str]:
             failures.append(str(exc))
     if len(manifests) == len(paths):
         claude, copilot = manifests
+        if "$schema" in copilot:
+            failures.append(
+                "plugin.json: selector-based Copilot format must not declare $schema without "
+                "migrating skills to skills/ and Copilot-specific components to "
+                "com.github.copilot/"
+            )
         for field in IDENTITY_FIELDS:
             if copilot.get(field) != claude.get(field):
                 failures.append(f"{paths[1]}: identity field {field!r} differs from Claude manifest")

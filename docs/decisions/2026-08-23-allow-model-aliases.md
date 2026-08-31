@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-23
 - **Status:** Accepted
-- **Decision owner:** `latent-sre`
+- **Decision owner:** Save Toolkit maintainers
 - **Supersedes:** the "No `model:` pins" Hard rules bullet in AGENTS.md and its `docs/rules.md`
   index row, replacing a blanket ban with a narrowed one.
 

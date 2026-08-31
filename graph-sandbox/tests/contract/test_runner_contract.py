@@ -9,6 +9,7 @@ from unittest import mock
 from datetime import UTC, datetime
 from pathlib import Path
 
+import runner.main as runner_main
 from runner.budgets import DurableWallTimeBudget
 from runner.controls import BudgetExhausted, consume_budget
 from runner.events import BoundaryEventStore, EventContractError
@@ -21,14 +22,16 @@ from runner.gateway import (
     derive_child_idempotency_key,
     validate_checkout_receipt,
 )
-from runner.main import RunnerConfig
+from runner.main import ConfigurationError, RunnerConfig
 from runner.models import (
     CONTRACT_VERSION,
     merge_ordered_unique,
     merge_pending_effects,
+    merge_task_states,
     merge_unique_maps,
     new_run_state,
     remove_pending_effects,
+    update_retry_task,
 )
 
 
@@ -123,6 +126,60 @@ class RunnerConfigurationContractTests(unittest.TestCase):
         self.assertEqual(config.case_id, "mission-healthy-001")
         self.assertEqual(config.case_path, Path("/app/cases/mission-healthy-001.json"))
 
+    def test_only_explicit_configuration_errors_map_to_exit_64(self) -> None:
+        with (
+            mock.patch.object(
+                runner_main,
+                "run",
+                side_effect=ConfigurationError("pre-effect rejection"),
+            ),
+            self.assertRaises(SystemExit) as rejected,
+        ):
+            runner_main.main()
+        self.assertEqual(rejected.exception.code, 64)
+
+        with (
+            mock.patch.object(
+                runner_main,
+                "run",
+                side_effect=ValueError("post-effect state conflict"),
+            ),
+            self.assertRaisesRegex(ValueError, "post-effect state conflict"),
+        ):
+            runner_main.main()
+
+    def test_invalid_case_contract_is_classified_as_configuration_error(self) -> None:
+        case_path = Path("/app/cases/mission-healthy-001.json")
+        config = RunnerConfig(
+            checkout_url="http://checkout:8080",
+            payments_url="http://payments:8081",
+            inventory_url="http://inventory:8082",
+            checkpoint_db=Path("/state/checkpoints.sqlite3"),
+            effect_ledger_db=Path("/state/effects.sqlite3"),
+            evidence_dir=Path("/evidence"),
+            run_id="invalid-case-contract-001",
+            source_revision=REVISION,
+            case_id="mission-healthy-001",
+            case_digest=hashlib.sha256(case_path.read_bytes()).hexdigest(),
+            run_timeout_seconds=300,
+            approval_fixture="APPROVED",
+            case_path=case_path,
+        )
+        with (
+            mock.patch.object(
+                runner_main.RunnerConfig,
+                "from_environment",
+                return_value=config,
+            ),
+            mock.patch.object(
+                runner_main,
+                "load_case",
+                side_effect=ValueError("invalid immutable case"),
+            ),
+            self.assertRaisesRegex(ConfigurationError, "invalid immutable case"),
+        ):
+            runner_main.run({})
+
 
 class ReducerContractTests(unittest.TestCase):
     def test_unique_map_accepts_identical_duplicate_without_mutating_inputs(self) -> None:
@@ -146,6 +203,60 @@ class ReducerContractTests(unittest.TestCase):
             merge_unique_maps(
                 {"task-1": {"status": "started"}},
                 {"task-1": {"status": "completed"}},
+            )
+
+    def test_retry_task_update_allows_only_monotonic_failed_replacement(self) -> None:
+        failed_once = {"task-1": {"status": "failed", "attempt": 1}}
+        failed_twice = merge_task_states(
+            failed_once,
+            update_retry_task("task-1", status="failed", attempt=2),
+        )
+        completed = merge_task_states(
+            failed_twice,
+            update_retry_task("task-1", status="completed", attempt=3),
+        )
+
+        self.assertEqual(
+            completed,
+            {"task-1": {"status": "completed", "attempt": 3}},
+        )
+        self.assertEqual(
+            merge_task_states(completed, copy.deepcopy(completed)),
+            completed,
+        )
+        self.assertEqual(
+            failed_once,
+            {"task-1": {"status": "failed", "attempt": 1}},
+        )
+
+    def test_retry_task_update_rejects_skips_regressions_and_completed_rewrites(
+        self,
+    ) -> None:
+        cases = (
+            (
+                {"task-1": {"status": "failed", "attempt": 1}},
+                update_retry_task("task-1", status="completed", attempt=3),
+            ),
+            (
+                {"task-1": {"status": "failed", "attempt": 2}},
+                update_retry_task("task-1", status="completed", attempt=1),
+            ),
+            (
+                {"task-1": {"status": "completed", "attempt": 1}},
+                update_retry_task("task-1", status="completed", attempt=2),
+            ),
+        )
+        for left, right in cases:
+            with self.subTest(left=left, right=right), self.assertRaisesRegex(
+                ValueError,
+                "invalid retry task replacement",
+            ):
+                merge_task_states(left, right)
+
+        with self.assertRaisesRegex(ValueError, "conflicting reducer value"):
+            merge_task_states(
+                {"task-1": {"status": "failed", "attempt": 1}},
+                {"task-1": {"status": "completed", "attempt": 2}},
             )
 
     def test_ordered_unique_reducer_preserves_first_seen_order(self) -> None:
@@ -188,6 +299,14 @@ class StateAndBudgetContractTests(unittest.TestCase):
         self.assertEqual(state["replay_number"], 0)
         self.assertEqual(state["phase"], "ADMISSION")
         self.assertIsNone(state["outcome"])
+
+    def test_checkout_ambiguous_after_commit_case_is_runner_accepted(self) -> None:
+        case = load_case(Path("/app/cases/checkout-ambiguous-after-commit-001.json"))
+
+        self.assertEqual(
+            case["service_fixtures"]["checkout"]["effect"],
+            "ambiguous_after_commit",
+        )
 
     def test_budget_consumption_returns_partial_copy(self) -> None:
         state = new_run_state(

@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "evidence_id": "ev_1f3b92a0d8bb4d60a4cff285d5da5df3",
+  "producer": {
+    "name": "hawkins",
+    "role": "human-authorized Codex-driven VS Code probe operator"
+  },
+  "context": {
+    "run_id": "host-002-20260830-vscode-plugin-delegation",
+    "task_id": "HOST-002",
+    "attempt_id": "skill-discovery"
+  },
+  "target": {
+    "root": "F:\\repos\\sre-agents\\.worktrees\\vscode-copilot-beta-readiness",
+    "revision": "0c6c4dc24c5fa88f3927dc33ba6609d23c54ba33",
+    "tree_digest": "5fa582179e4ac5c91c4636cc1a1ae60d76e8cd59aec863d761abaaba58bf2d6f"
+  },
+  "criterion": "Chat Customizations discovers each of the exact candidate's 33 plugin skills exactly once and keeps the adr prompt outside the skill inventory.",
+  "status": "pass",
+  "started_at": "2026-08-30T15:11:37Z",
+  "ended_at": "2026-08-30T15:47:59Z",
+  "command": null,
+  "source": {
+    "kind": "human_ui_observation",
+    "ui_driver": "Codex computer use under explicit human authorization",
+    "step": "Step 3 - prove skill discovery and record the command separately",
+    "vscode_version": "1.135.0",
+    "vscode_commit": "08d4889f9ec4a1685d257b9b95de036c8e1ce1e5",
+    "observed_outcome": "Chat Customizations > Skills showed Plugins 33 items. Reading the complete plugin section through the Built-in heading produced an exact set match with platforms/copilot/skills: expected 33, observed 33, missing 0, extra 0, duplicates 0. The explicit-only incident-drill, pcf-deploy, and service-lifecycle skills were present. Chat Customizations > Prompts separately showed save-toolkit:adr as one plugin prompt."
+  },
+  "environment": {
+    "os": "Microsoft Windows 11 Pro build 26200",
+    "architecture": "x64",
+    "copilot_account_scope": "unavailable - not recorded during the run"
+  },
+  "isolation": {
+    "workspace": "neutral workspace and disposable VS Code user-data/extensions directories",
+    "network": "authenticated GitHub Copilot session only; no repository fetch or production traffic",
+    "live_systems_touched": "none"
+  },
+  "artifacts": [
+    {
+      "path": "docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md",
+      "sha256": "d13ae77f00cf4528f8742fcaf5d8cb5d4986f9f6eb99d6573e56da739880c8cf",
+      "size": 12573
+    },
+    {
+      "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-allowed.agent.md",
+      "sha256": "ac04e42e23204b64191d1fc5346e75d2841eb09d184c1486202db9ad2411b131",
+      "size": 227
+    },
+    {
+      "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-coordinator.agent.md",
+      "sha256": "63e19a58f8574265001b56e3b5cba6ae1d02991d3cd9a321e1da36333f839f15",
+      "size": 450
+    },
+    {
+      "path": "docs/probes/fixtures/host-002-agent-delegation/.github/agents/host002-forbidden.agent.md",
+      "sha256": "04b80313b981e16aa587ad2111096ae6875fb8c439b4b6e20a5842c260a384e3",
+      "size": 232
+    }
+  ],
+  "limitations": [
+    "Copilot account or entitlement scope was not recorded during the run; successful authentication does not identify it.",
+    "Discovery proves registration and visibility only; it does not prove automatic skill triggering or body behavior.",
+    "The slash-menu suggestion path was not used as inventory evidence because prompts and skills can be colocated there."
+  ]
+}

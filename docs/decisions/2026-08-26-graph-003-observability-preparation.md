@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-26
 - **Status:** Accepted
-- **Decision owner:** `latent-sre`
+- **Decision owner:** Save Toolkit maintainers
 - **Current state (2026-08-30):** `GRAPH-002` closed; `graph-sandbox/v1` is the accepted runtime.
   This record still governs the producer/consumer telemetry handoff. Context below was written
   before that closeout and does not claim the graph is unimplemented today.

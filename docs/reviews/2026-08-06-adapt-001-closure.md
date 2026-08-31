@@ -8,21 +8,20 @@
 
 ## What was delivered
 
-All five sub-items landed with tests. Sub-items (3), (4), and (5) closed in the
-[sibling-repo adaptation pass](2026-08-05-sde-agents-adaptation.md); this closure covers the two
-learning-system sub-items that remained.
+All five sub-items landed with tests. This closure covers the two learning-system sub-items that
+remained after the rest of ADAPT-001 merged in the same pull request.
 
 | Sub-item | Delivered as |
 |---|---|
 | (1) Drift watch over pending packets | [`packet_drift.py`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/skills/operational-learning/scripts/packet_drift.py) + [`test_packet_drift.py`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/scripts/test_packet_drift.py) (24 tests) |
 | (2) Forward freshness deadlines | [`knowledge-update-v3.schema.json`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/skills/operational-learning/assets/knowledge-update-v3.schema.json), validator support, [`migrate_v2_to_v3.py`](https://github.com/latent-sre/save-toolkit/blob/2c71fe94e2281be69dfd65756a6108181afb60a0/skills/operational-learning/scripts/migrate_v2_to_v3.py), catalog entry `current` |
 
-**Adaptation note.** The sibling's `ledger_drift.py` scans a committed candidate store and derives a
+**Adaptation note.** An external `ledger_drift.py` scans a committed candidate store and derives a
 baseline with `git log --first-parent`. This fleet deliberately never ported that store, and its
 `proposed`/`blocked` dispositions are validated as *pathless* handoffs, so there was no `destination`
 field to watch. The port therefore takes packets as arguments and watches their `repository` evidence
-locators against the exact `target.revision` the packet already pins — a stricter baseline than the
-sibling could derive.
+locators against the exact `target.revision` the packet already pins — a stricter baseline than a
+store-wide first-parent scan.
 
 ## Acceptance evidence
 

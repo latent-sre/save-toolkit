@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-26
 - **Status:** Accepted
-- **Decision owner:** `latent-sre`
+- **Decision owner:** Save Toolkit maintainers
 - **Current state (2026-08-30):** `GRAPH-002` closed into
   [`roadmap-closed.md`](../roadmap-closed.md). This record still governs the
   `graph-sandbox/v1` runtime choice. Remaining graph operations work is `GRAPH-003`

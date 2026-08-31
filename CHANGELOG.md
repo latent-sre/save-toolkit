@@ -7,6 +7,13 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Added and closed the bounded `GRAPH-003` operating layer for the accepted offline
+  `checkout-payments-timeout-drill/v1` graph. Existing metrics, logs, alerting, and runbook skills
+  now carry graph-specific indicator, failure-plane, one-page, and response references; a
+  pure-standard-library evaluator proves readiness fire/healthy resolve and preserves an unresolved
+  `UNKNOWN` effect across unrelated success. Current exact-revision Docker evidence covers eight
+  injected cases plus recovery. A discovery near-miss keeps live graph impact with `sre`; no
+  dashboard, notification route, pager, credential, production target, or new authority is added.
 - Added `incident-investigation`, a dedicated evidence-selected incident-depth router for first
   response, hypothesis investigation, systemic failure, and optional signal characterization, with
   the sustained-recovery lifecycle and the handoff packet as predicate-loaded references. The `sre`
@@ -27,7 +34,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   fan-out/fan-in, scheduling and admission, retries, effects with idempotency keys and an explicit
   `UNKNOWN` outcome, approvals, durability, cancellation, termination, taint, and graph-level
   evals — with six predicate-keyed references and a fourteen-section artifact template.
-  `prompt-engineer` now routes executable-graph design there; `agent-authoring` keeps the
+  Then-`prompt-engineer` (now `agent-engineer`) routes executable-graph design there; `agent-authoring` keeps the
   roster/delegation graph and excludes the executable contract. Five routing scenarios cover the
   positive case and the roster, code-graph, runtime-implementation, and runtime-selection near
   misses. No runtime, schema, or validator is selected or added.
@@ -42,6 +49,24 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Pinned VS Code beta packaging to the supported selector-based Copilot plugin format: the platform
+  validator now rejects an Agent Plugins 1.0 `$schema` unless the component layout is deliberately
+  migrated, and the quickstart documents source, Copilot CLI marketplace, and isolated-local plugin
+  installation separately from checkout-only agent discovery.
+- Added a pinned VS Code agent-to-agent beta fixture and probe that separates complete plugin
+  discovery, a real allowed fleet edge, a synthetic allowed child, and explicit forbidden-child
+  rejection, while keeping the `adr` slash command out of the 33-skill inventory. Model-visible
+  filtering and human-selected handoff buttons no longer count as proof of model-driven delegation
+  enforcement.
+- Added the missing portable skill-metadata gates: names stop at 64 characters and optional
+  `compatibility` text must be a single-line scalar stopping at 500, so an invalid or
+  normalization-bypassing generated skill cannot pass locally and then disappear silently in
+  Copilot.
+- Raised SKILL-001's advisory Phase 2 entrypoint screen from 7,500 to 7,800 immutable bytes and
+  remeasured the exact campaign head through Git objects. The six undispositioned slices are
+  unchanged; `gcp-ops` and `incident-investigation` are below the new screen while `obs-alerting`
+  remains above after its GRAPH-003 reference link. The screen still selects evidence checkpoints
+  only—size alone is not a finding or permission to cut content.
 - Closed `GRAPH-002` after owner acceptance of the repository-integrated `graph-sandbox/v1`
   candidate at merge commit `4a745fb311ad7df83ec6aeaf3268356ce4780db5` (PR #193). This accepts only
   the offline `checkout-payments-timeout-drill/v1` implementation; GRAPH-003, live Terra execution,
@@ -110,7 +135,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 - Assessed merging `agent-authoring` and `agent-security`; kept them separate and recorded why. The
   bundles share no distinctive vocabulary (trifecta, prompt injection, Rule of Two, tool absence all
   appear zero times in `agent-authoring`), `artifact.md` already declares `agent-security` the owner
-  of the independent threat review, and `prompt-engineer` composes them on a predicate rather than
+  of the independent threat review, and then-`prompt-engineer` composed them on a predicate rather than
   needing one file. Merging would push the always-loaded body to roughly 4.5k tokens against a 5k
   budget, and collapse eight routing scenarios including three deferral contracts.
 - Refreshed `ci-actions` on `actions/checkout` fork-checkout refusal: the behavior shipped in v7.0.0
@@ -121,7 +146,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   than a fix. Added the two routing scenarios `ci-actions` lacked, one of them the pwn-request
   request that a helpful assistant would otherwise fulfil, and gave `agent-security` and `ci-actions`
   the `argument-hint` the rest of the fleet carries.
-- Corrected the README roster's `Routing` column for `observability-engineer` and `prompt-engineer`,
+- Corrected the README roster's `Routing` column for `observability-engineer` and then-`prompt-engineer`,
   which mixed real `Agent(...)` delegation edges with handoffs the caller must dispatch. Both agent
   bodies state the constraint explicitly ("this role cannot invoke `software-engineer`; the
   recommendation returns to the caller"), and the `sre` row already modelled the distinction, so the
@@ -156,7 +181,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   ([ADR](docs/decisions/2026-08-26-agent-engineer-rename.md)). No routing comparison was run —
   the decision rests on human legibility, as its predecessor did, and the prior rename's measured tie
   is the only evidence that a name change of this kind does not move automatic routing. Retiring the
-  name also removes one of the three role-name collisions with the sibling `sde-agents` fleet.
+  name also removes one of the three role-name collisions with another installed agent suite.
 - Renamed the `sde` agent to `software-engineer` so the public component name reflects its full
   implementation, testing, and operations-tooling lane. This is a breaking address change from
   `save-toolkit:sde` to `save-toolkit:software-engineer`; tool authority and delegation are
@@ -181,8 +206,8 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   the projections cannot reach copies already written into a Codex home, and the marker-aware
   installer that owned them is removed here. The ADR's *Migration* section carries the exact
   cleanup — match the whole first line against the `save-toolkit`/`sre-agents` markers, never a
-  filename or prefix, because a sibling fleet's `sde-agents` marker differs by one character and
-  shares three role names.
+  filename or prefix, because another installed suite's marker can differ by one character and
+  share three role names.
 
 ## [0.1.0] - 2026-08-11
 

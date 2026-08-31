@@ -39,11 +39,12 @@ schema mismatch fails before launch:
 
 1. `mission-healthy-001`
 2. `checkout-readiness-failure-001`
-3. `payments-latency-001`
-4. `payments-http-error-001`
-5. `payments-ambiguous-after-commit-001`
-6. `inventory-http-error-after-payment-001`
-7. `duplicate-effect-001`
+3. `checkout-ambiguous-after-commit-001`
+4. `payments-latency-001`
+5. `payments-http-error-001`
+6. `payments-ambiguous-after-commit-001`
+7. `inventory-http-error-after-payment-001`
+8. `duplicate-effect-001`
 
 The closed document shape is:
 
@@ -120,6 +121,37 @@ contains payment and inventory receipts. Host publication adds `commands.jsonl`,
 run ID, case ID, case digest, thread ID, outcome, authoritative result ID, timestamps, and artifact
 inventory. `final-state.json` carries the same lineage and the closed terminal graph state.
 
+The checkout-level ambiguous-after-commit case is the one bounded exception to the ordinary
+single-bundle layout. The runner reaches a durable static reconciliation breakpoint after recording
+`UNKNOWN`, exports a provisional terminal projection without adding that terminal event to the
+durable event store, resumes from the recorded checkpoint, observes the target-owned checkout
+receipt, and transitions that same effect to `RECONCILED`. It exports two independently checksummed
+bundles. Activation validates both against the same exited runner and atomically publishes them as
+`<evidence-root>/<run-id>/{unknown,reconciled}`. Host verification v2 identifies each bundle's
+`snapshot_role`; `exit_code` remains the semantic bundle result (`2` then `0`), while
+`runner_container_exit` truthfully records the single final runner exit. The later event history
+extends the earlier durable prefix after excluding only the provisional terminal projection, and
+the effect ledger extends exactly `PREPARED -> DISPATCHED -> UNKNOWN -> RECONCILED`.
+
+Only the read-only `reconcile_if_ambiguous:0` receipt lookup may use more than one task attempt, and
+only after the same checkout effect is durably `UNKNOWN`. Its attempt ordinals start at one, remain
+contiguous, and may not exceed the runtime's `budgets.attempts.limit`; the final attempt completes.
+Reconciliation starts only after the checkout `effect.unknown`, checkout `task.failed`, and the
+snapshot-required `effect.replay_refused`, in that order. Every prior attempt is exactly
+`task.started -> effect.replay_refused -> task.failed`, with one matching refusal. The final attempt
+encloses the single `effect.reconciled` between its start and completion. If a crash occurs after the
+ledger transition but before task/checkpoint persistence, recovery completes that same open attempt;
+it does not invent a later ordinal. Readiness and checkout-effect tasks remain attempt one, checkout
+dispatch consumption remains exactly one, and reconciliation never redispatches, replays, or widens
+effect authority.
+
+If the next reconciliation attempt would exceed the bound, the runner records one
+`task.retry_exhausted` and exits nonterminal before another lookup, graph advancement, terminal
+event, or reconciled export. The pending checkpoint and UNKNOWN snapshot remain an operator handoff;
+activation preserves the claim and run-scoped resources without `down --volumes`. Repeating resume
+does not add another lookup or exhaustion event and remains preserved. Attempt exhaustion is not a
+publishable terminal `UNKNOWN` timeline.
+
 ### Boundary event oracle
 
 Every `graph-boundary-event/v2` record has exactly: `event_version`, `event_type`, `event_id`,
@@ -170,6 +202,8 @@ absent, duplicate, overlapping, unpaired, or unrelated IDs reject publication.
   effect budget overrun.
 - `UNKNOWN`: no completed checkout receipt exists and the checkout effect may not end merely
   `PREPARED` or `DISPATCHED`; it ends `UNKNOWN` or replay-refused with a reconciliation identity.
+- Reconciliation-attempt exhaustion is a nonterminal preserved operator handoff, not an `UNKNOWN`
+  evidence outcome. No terminal bundle is published from the exhausted checkpoint.
 - Other failure/inconclusive outcomes cannot contain false-success receipts or authoritative result
   IDs. Exit 0 means `SUCCEEDED`; exit 2 means a validated non-success terminal outcome.
 
@@ -207,9 +241,11 @@ If the resource subset cannot be proved, preservation returns 125 and retains re
 | 126 | nonterminal runner exit or post-launch host/export/publish/cleanup fault; state is preserved |
 | 130 | operator interruption; stop succeeded and state is preserved |
 
-Exit 64 is a terminal pre-effect runner rejection and permits bounded teardown. No post-launch
-exception may bypass the preservation funnel. Cleanup failure after publication retains the claim
-in `PUBLISHED`; resume performs cleanup only and never reruns the graph.
+Exit 64 is a terminal pre-effect runner rejection and permits bounded teardown. A post-effect runner
+inconsistency exits nonterminal and is preserved; only an explicit pre-effect configuration
+rejection maps to 64. No post-launch exception may bypass the preservation funnel. Cleanup failure
+after publication retains the claim in `PUBLISHED`; resume performs cleanup only and never reruns
+the graph.
 
 ## Commands
 

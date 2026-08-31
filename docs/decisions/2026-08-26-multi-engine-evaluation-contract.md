@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-26
 - **Status:** Accepted 2026-08-26
-- **Decision owner:** `latent-sre`
+- **Decision owner:** Save Toolkit maintainers
 - **Roadmap item:** [`EVAL-003`](../fleet-roadmap.md#eval-003--add-claim-scoped-claude-and-codex-evaluation-engines)
 - **Does not supersede:**
   [`2026-08-23-retire-codex-distribution-target.md`](2026-08-23-retire-codex-distribution-target.md),
@@ -299,7 +299,7 @@ weakening the prior Claude boundary. No production system or data migration exis
 
 ## Approval
 
-`latent-sre` accepted this ADR on 2026-08-26. The approval covers the architecture and offline
+Save Toolkit maintainers accepted this ADR on 2026-08-26. The approval covers the architecture and offline
 implementation only, including the claim matrix, separate `eval-result-envelope/v1`, HOST-003
 snapshot-scoped read boundary, and subscriber-session Codex adapter. It does **not** approve any
 model call, paid campaign, push, merge, release, or promotion. The first live Claude or Codex run

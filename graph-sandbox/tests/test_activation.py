@@ -22,6 +22,9 @@ from activate import (  # noqa: E402
     ActivationError,
     RunClaim,
     _command_payload,
+    _requires_reconciliation_timeline,
+    _validate_published_run,
+    _validate_reconciliation_pair,
     activate_runtime,
     cleanup_published_resources,
     execute_validated_compose,
@@ -551,6 +554,91 @@ class SnapshotTests(unittest.TestCase):
 
 
 class ActivationTests(unittest.TestCase):
+    def test_reconciliation_timeline_requires_approved_checkout_fixture(self) -> None:
+        sandbox_case = type(
+            "Case",
+            (),
+            {
+                "service_fixtures": {
+                    "checkout": {"effect": "ambiguous_after_commit"}
+                }
+            },
+        )()
+
+        self.assertTrue(_requires_reconciliation_timeline(sandbox_case, "APPROVED"))
+        self.assertFalse(_requires_reconciliation_timeline(sandbox_case, "REJECTED"))
+        self.assertFalse(_requires_reconciliation_timeline(sandbox_case, "TIMEOUT"))
+
+    def test_reconciliation_pair_rejects_divergent_runtime_histories(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            unknown = root / "unknown"
+            reconciled = root / "reconciled"
+            unknown.mkdir()
+            reconciled.mkdir()
+            immutable = {
+                "run_id": "reconcile-001",
+                "case_id": "checkout-ambiguous-after-commit-001",
+                "case_digest": "a" * 64,
+                "source_revision": "b" * 40,
+                "thread_id": "checkout-payments-timeout-drill-v1:reconcile-001",
+                "started_at": "2026-08-30T12:00:00.000Z",
+            }
+            unknown_manifest = {
+                **immutable,
+                "outcome": "UNKNOWN",
+                "ended_at": "2026-08-30T12:00:01.000Z",
+            }
+            reconciled_manifest = {
+                **immutable,
+                "outcome": "SUCCEEDED",
+                "ended_at": "2026-08-30T12:00:02.000Z",
+            }
+            event_prefix = {"sequence": 1, "event_type": "effect.unknown"}
+            (unknown / "events.jsonl").write_text(
+                json.dumps(event_prefix) + "\n" + json.dumps({"sequence": 2, "event_type": "run.terminal"}) + "\n",
+                encoding="utf-8",
+            )
+            (reconciled / "events.jsonl").write_text(
+                json.dumps(event_prefix) + "\n" + json.dumps({"sequence": 2, "event_type": "effect.reconciled"}) + "\n" + json.dumps({"sequence": 3, "event_type": "run.terminal"}) + "\n",
+                encoding="utf-8",
+            )
+            unknown_effects = [
+                {"sequence": 1, "effect_id": "reconcile-001:effect", "effect_state": "UNKNOWN"}
+            ]
+            reconciled_effects = [
+                *unknown_effects,
+                {"sequence": 2, "effect_id": "reconcile-001:effect", "effect_state": "RECONCILED"},
+            ]
+            (unknown / "effects.jsonl").write_text(
+                "".join(json.dumps(record) + "\n" for record in unknown_effects),
+                encoding="utf-8",
+            )
+            (reconciled / "effects.jsonl").write_text(
+                "".join(json.dumps(record) + "\n" for record in reconciled_effects),
+                encoding="utf-8",
+            )
+
+            _validate_reconciliation_pair(
+                unknown,
+                reconciled,
+                unknown_manifest,
+                reconciled_manifest,
+            )
+            divergent = {"sequence": 1, "event_type": "effect.dispatched"}
+            (reconciled / "events.jsonl").write_text(
+                json.dumps(divergent) + "\n" + json.dumps({"sequence": 2, "event_type": "effect.reconciled"}) + "\n" + json.dumps({"sequence": 3, "event_type": "run.terminal"}) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ActivationError, "event history"):
+                _validate_reconciliation_pair(
+                    unknown,
+                    reconciled,
+                    unknown_manifest,
+                    reconciled_manifest,
+                )
+
     @staticmethod
     def host_verification() -> dict[str, object]:
         return {
@@ -716,6 +804,7 @@ class ActivationTests(unittest.TestCase):
             ("approval.approved", {"request_id": "approval-mission-healthy-001", "approval_status": "APPROVED", "actor_class": "fixture-operator"}, None, None),
             ("checkpoint.write_started", {"operation": "write"}, "checkpoint-001", None),
             ("checkpoint.write_completed", {"operation": "write", "result": "recorded"}, "checkpoint-001", None),
+            ("task.started", {"status": "started"}, None, effect_id),
             ("effect.prepared", {"effect_class": "checkout", "effect_state": "PREPARED"}, None, effect_id),
             ("effect.dispatched", {"effect_class": "checkout", "effect_state": "DISPATCHED"}, None, effect_id),
             (
@@ -723,6 +812,14 @@ class ActivationTests(unittest.TestCase):
                 {"effect_class": "checkout", "effect_state": "RECEIPT_RECORDED", "authoritative_result_id": "result-001"}
                 if outcome == "SUCCEEDED"
                 else {"effect_class": "checkout", "effect_state": "UNKNOWN", "reason_class": "synthetic_failure"},
+                None,
+                effect_id,
+            ),
+            (
+                "task.completed" if outcome == "SUCCEEDED" else "task.failed",
+                {"status": "completed"}
+                if outcome == "SUCCEEDED"
+                else {"status": "failed", "disposition": "stop"},
                 None,
                 effect_id,
             ),
@@ -742,7 +839,7 @@ class ActivationTests(unittest.TestCase):
                 task_id = f"mission-healthy-001:readiness:{ordinal}"
                 attempt_id = f"{task_id}:attempt-1"
                 readiness_task_event += 1
-            elif event_type.startswith("effect."):
+            elif event_effect_id is not None:
                 task_id = "mission-healthy-001:checkout_effect:0"
                 attempt_id = f"{task_id}:attempt-1"
             events.append(
@@ -848,6 +945,756 @@ class ActivationTests(unittest.TestCase):
                 checksum_lines.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative}\n")
         (run_dir / "checksums.sha256").write_text("".join(checksum_lines), encoding="ascii")
         return run_dir
+
+    def write_reconciled_retry_evidence(
+        self,
+        root: Path,
+        *,
+        final_reconciliation_attempt: int = 2,
+    ) -> Path:
+        """Shape runner output for bounded failed lookups followed by success."""
+
+        run_dir = self.write_runner_evidence(root)
+        state_path = run_dir / "final-state.json"
+        events_path = run_dir / "events.jsonl"
+        effects_path = run_dir / "effects.jsonl"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        events = [
+            json.loads(line)
+            for line in events_path.read_text(encoding="utf-8").splitlines()
+        ]
+        effects = [
+            json.loads(line)
+            for line in effects_path.read_text(encoding="utf-8").splitlines()
+        ]
+        checkout_task_id = "mission-healthy-001:checkout_effect:0"
+        reconcile_task_id = "mission-healthy-001:reconcile_if_ambiguous:0"
+        effect_id = f"{checkout_task_id}:effect-checkout"
+        checkout_receipt = state["receipts"][effect_id]
+        state["tasks"][checkout_task_id] = {"status": "failed", "attempt": 1}
+        state["tasks"][reconcile_task_id] = {
+            "status": "completed",
+            "attempt": final_reconciliation_attempt,
+        }
+
+        unknown_record = copy.deepcopy(effects[-1])
+        unknown_record.update(
+            {
+                "effect_state": "UNKNOWN",
+                "reason_class": "ambiguous_after_commit",
+                "receipt": None,
+            }
+        )
+        reconciled_record = copy.deepcopy(unknown_record)
+        reconciled_record.update(
+            {
+                "sequence": 4,
+                "effect_state": "RECONCILED",
+                "time_utc": "2026-08-29T12:00:01.004Z",
+                "reason_class": None,
+                "receipt": checkout_receipt,
+            }
+        )
+        effects = [*effects[:2], unknown_record, reconciled_record]
+
+        checkout_started = next(
+            event
+            for event in events
+            if event["event_type"] == "task.started"
+            and event["task_id"] == checkout_task_id
+        )
+        checkout_completed = next(
+            event
+            for event in events
+            if event["event_type"] == "task.completed"
+            and event["task_id"] == checkout_task_id
+        )
+        prepared = next(event for event in events if event["event_type"] == "effect.prepared")
+        dispatched = next(
+            event for event in events if event["event_type"] == "effect.dispatched"
+        )
+        receipt_recorded = next(
+            event
+            for event in events
+            if event["event_type"] == "effect.receipt_recorded"
+        )
+        terminal = copy.deepcopy(events[-1])
+        prefix = events[: events.index(checkout_started) + 1]
+
+        effect_unknown = copy.deepcopy(receipt_recorded)
+        effect_unknown.update(
+            {
+                "event_type": "effect.unknown",
+                "failure_plane": "checkout",
+                "error_class": "ambiguous_after_commit",
+                "data": {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "ambiguous_after_commit",
+                },
+            }
+        )
+        checkout_failed = copy.deepcopy(checkout_completed)
+        checkout_failed.update(
+            {
+                "event_type": "task.failed",
+                "failure_plane": "checkout",
+                "error_class": "ambiguous_after_commit",
+                "data": {"status": "failed", "disposition": "reconcile"},
+            }
+        )
+        snapshot_replay_refused = copy.deepcopy(effect_unknown)
+        snapshot_replay_refused.update(
+            {
+                "event_type": "effect.replay_refused",
+                "node_id": "checkout_effect",
+                "failure_plane": "graph-control",
+                "error_class": "automatic_replay_forbidden",
+                "data": {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "reconciliation_snapshot_required",
+                },
+            }
+        )
+
+        def reconciliation_task_event(
+            event_type: str,
+            attempt: int,
+        ) -> dict[str, object]:
+            event = copy.deepcopy(
+                checkout_started if event_type == "task.started" else checkout_completed
+            )
+            event.update(
+                {
+                    "event_type": event_type,
+                    "node_id": "reconcile_if_ambiguous",
+                    "task_id": reconcile_task_id,
+                    "attempt_id": f"{reconcile_task_id}:attempt-{attempt}",
+                    "effect_id": effect_id,
+                    "failure_plane": "checkout" if event_type == "task.failed" else None,
+                    "error_class": "gateway_unavailable"
+                    if event_type == "task.failed"
+                    else None,
+                    "data": (
+                        {"status": "failed", "disposition": "stop"}
+                        if event_type == "task.failed"
+                        else {"status": event_type.removeprefix("task.")}
+                    ),
+                }
+            )
+            return event
+
+        retry_replay_refused = copy.deepcopy(effect_unknown)
+        retry_replay_refused.update(
+            {
+                "event_type": "effect.replay_refused",
+                "node_id": "reconcile_if_ambiguous",
+                "task_id": None,
+                "attempt_id": None,
+                "failure_plane": "checkout",
+                "error_class": "gateway_unavailable",
+                "data": {
+                    "effect_class": "checkout",
+                    "effect_state": "UNKNOWN",
+                    "reason_class": "reconciliation_unavailable",
+                },
+            }
+        )
+        effect_reconciled = copy.deepcopy(receipt_recorded)
+        effect_reconciled.update(
+            {
+                "event_type": "effect.reconciled",
+                "data": {
+                    "effect_class": "checkout",
+                    "effect_state": "RECONCILED",
+                    "authoritative_result_id": checkout_receipt[
+                        "authoritative_result_id"
+                    ],
+                },
+            }
+        )
+        reconciliation_history: list[dict[str, object]] = []
+        for attempt in range(1, final_reconciliation_attempt):
+            reconciliation_history.extend(
+                [
+                    reconciliation_task_event("task.started", attempt),
+                    copy.deepcopy(retry_replay_refused),
+                    reconciliation_task_event("task.failed", attempt),
+                ]
+            )
+        reconciliation_history.extend(
+            [
+                reconciliation_task_event(
+                    "task.started",
+                    final_reconciliation_attempt,
+                ),
+                effect_reconciled,
+                reconciliation_task_event(
+                    "task.completed",
+                    final_reconciliation_attempt,
+                ),
+            ]
+        )
+        events = [
+            *prefix,
+            prepared,
+            dispatched,
+            effect_unknown,
+            checkout_failed,
+            snapshot_replay_refused,
+            *reconciliation_history,
+            terminal,
+        ]
+        for sequence, event in enumerate(events, start=1):
+            event["sequence"] = sequence
+            event["event_id"] = f"mission-healthy-001:{sequence:08d}"
+
+        state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+        events_path.write_text(
+            "".join(json.dumps(event) + "\n" for event in events),
+            encoding="utf-8",
+        )
+        effects_path.write_text(
+            "".join(json.dumps(record) + "\n" for record in effects),
+            encoding="utf-8",
+        )
+        self._rewrite_checksums(run_dir)
+        return run_dir
+
+    def test_reconciled_success_accepts_bounded_failed_lookup_then_success(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+            staging = evidence_root / ".mission-healthy-001.export"
+            staging.mkdir()
+            self.write_reconciled_retry_evidence(staging)
+
+            final = verify_and_publish_evidence(
+                staging,
+                evidence_root=evidence_root,
+                run_id=CASE_ID,
+                case_id=CASE_ID,
+                case_digest=CASE_DIGEST,
+                source_revision=SOURCE_REVISION,
+                exit_code=0,
+                validated_compose=b"{}\n",
+                verification=self.host_verification(),
+                commands=self.command_journal(),
+                runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
+            )
+
+            state = json.loads(
+                (final / "final-state.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                state["tasks"][f"{CASE_ID}:reconcile_if_ambiguous:0"],
+                {"status": "completed", "attempt": 2},
+            )
+
+    def test_reconciled_success_rejects_result_before_final_attempt_start(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+            staging = evidence_root / ".mission-healthy-001.export"
+            staging.mkdir()
+            run_dir = self.write_reconciled_retry_evidence(staging)
+            state = json.loads(
+                (run_dir / "final-state.json").read_text(encoding="utf-8")
+            )
+            reconciliation_task_id = f"{CASE_ID}:reconcile_if_ambiguous:0"
+            final_attempt = state["tasks"][reconciliation_task_id]["attempt"]
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            reconciled = next(
+                event for event in events if event["event_type"] == "effect.reconciled"
+            )
+            final_started = next(
+                event
+                for event in events
+                if event["event_type"] == "task.started"
+                and event["attempt_id"]
+                == f"{reconciliation_task_id}:attempt-{final_attempt}"
+            )
+            events.remove(reconciled)
+            events.insert(events.index(final_started), reconciled)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+            self._rewrite_checksums(run_dir)
+
+            with self.assertRaisesRegex(
+                ActivationError,
+                "reconciliation task does not enclose its durable result",
+            ):
+                verify_and_publish_evidence(
+                    staging,
+                    evidence_root=evidence_root,
+                    run_id=CASE_ID,
+                    case_id=CASE_ID,
+                    case_digest=CASE_DIGEST,
+                    source_revision=SOURCE_REVISION,
+                    exit_code=0,
+                    validated_compose=b"{}\n",
+                    verification=self.host_verification(),
+                    commands=self.command_journal(),
+                    runner_state={
+                        "Status": "exited",
+                        "ExitCode": 0,
+                        "OOMKilled": False,
+                    },
+                )
+
+    def test_reconciled_success_accepts_recovered_open_reconciliation_attempt(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+            staging = evidence_root / ".mission-healthy-001.export"
+            staging.mkdir()
+            self.write_reconciled_retry_evidence(
+                staging,
+                final_reconciliation_attempt=1,
+            )
+
+            final = verify_and_publish_evidence(
+                staging,
+                evidence_root=evidence_root,
+                run_id=CASE_ID,
+                case_id=CASE_ID,
+                case_digest=CASE_DIGEST,
+                source_revision=SOURCE_REVISION,
+                exit_code=0,
+                validated_compose=b"{}\n",
+                verification=self.host_verification(),
+                commands=self.command_journal(),
+                runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
+            )
+
+            events = [
+                json.loads(line)
+                for line in (final / "events.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            reconciliation_task_id = f"{CASE_ID}:reconcile_if_ambiguous:0"
+            self.assertEqual(
+                [
+                    event["event_type"]
+                    for event in events
+                    if event["task_id"] == reconciliation_task_id
+                ],
+                ["task.started", "task.completed"],
+            )
+
+    def test_reconciled_success_accepts_attempt_limit_and_rejects_attempt_nine(
+        self,
+    ) -> None:
+        for final_attempt, should_publish in ((8, True), (9, False)):
+            with self.subTest(final_attempt=final_attempt), tempfile.TemporaryDirectory() as temporary:
+                evidence_root = Path(temporary)
+                staging = evidence_root / ".mission-healthy-001.export"
+                staging.mkdir()
+                self.write_reconciled_retry_evidence(
+                    staging,
+                    final_reconciliation_attempt=final_attempt,
+                )
+
+                def publish() -> Path:
+                    return verify_and_publish_evidence(
+                        staging,
+                        evidence_root=evidence_root,
+                        run_id=CASE_ID,
+                        case_id=CASE_ID,
+                        case_digest=CASE_DIGEST,
+                        source_revision=SOURCE_REVISION,
+                        exit_code=0,
+                        validated_compose=b"{}\n",
+                        verification=self.host_verification(),
+                        commands=self.command_journal(),
+                        runner_state={
+                            "Status": "exited",
+                            "ExitCode": 0,
+                            "OOMKilled": False,
+                        },
+                    )
+
+                if should_publish:
+                    final = publish()
+                    state = json.loads(
+                        (final / "final-state.json").read_text(encoding="utf-8")
+                    )
+                    self.assertEqual(
+                        state["tasks"][f"{CASE_ID}:reconcile_if_ambiguous:0"][
+                            "attempt"
+                        ],
+                        8,
+                    )
+                else:
+                    with self.assertRaisesRegex(ActivationError, "runtime limit"):
+                        publish()
+
+    def test_success_oracle_rejects_out_of_contract_task_retries(self) -> None:
+        reconciliation_task_id = f"{CASE_ID}:reconcile_if_ambiguous:0"
+        checkout_task_id = f"{CASE_ID}:checkout_effect:0"
+
+        def noncontiguous(run_dir: Path) -> None:
+            state_path = run_dir / "final-state.json"
+            events_path = run_dir / "events.jsonl"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["tasks"][reconciliation_task_id]["attempt"] = 3
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            for event in events:
+                if event["attempt_id"] == f"{reconciliation_task_id}:attempt-2":
+                    event["attempt_id"] = f"{reconciliation_task_id}:attempt-3"
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def unrelated_retry(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            unrelated = copy.deepcopy(
+                next(
+                    event
+                    for event in events
+                    if event["task_id"] == reconciliation_task_id
+                    and event["event_type"] == "task.started"
+                )
+            )
+            unrelated_task_id = f"{CASE_ID}:unrelated:0"
+            unrelated.update(
+                {
+                    "task_id": unrelated_task_id,
+                    "attempt_id": f"{unrelated_task_id}:attempt-2",
+                }
+            )
+            events.insert(-1, unrelated)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def retried_checkout_dispatch(run_dir: Path) -> None:
+            state_path = run_dir / "final-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["tasks"][checkout_task_id]["attempt"] = 2
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+
+        def retried_effect_ledger(run_dir: Path) -> None:
+            effects_path = run_dir / "effects.jsonl"
+            effects = [
+                json.loads(line)
+                for line in effects_path.read_text(encoding="utf-8").splitlines()
+            ]
+            effects[0]["attempt_id"] = f"{checkout_task_id}:attempt-2"
+            effects_path.write_text(
+                "".join(json.dumps(record) + "\n" for record in effects),
+                encoding="utf-8",
+            )
+
+        def consumed_reconciliation_attempt(run_dir: Path) -> None:
+            state_path = run_dir / "final-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["budgets"]["attempts"]["consumed"] = 2
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+
+        def invented_recovery_ordinal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            reconciled = next(
+                event for event in events if event["event_type"] == "effect.reconciled"
+            )
+            started_first = next(
+                event
+                for event in events
+                if event["event_type"] == "task.started"
+                and event["attempt_id"] == f"{reconciliation_task_id}:attempt-1"
+            )
+            events = [
+                event
+                for event in events
+                if event is not reconciled
+                and not (
+                    event["event_type"] == "task.failed"
+                    and event["attempt_id"]
+                    == f"{reconciliation_task_id}:attempt-1"
+                )
+                and not (
+                    event["event_type"] == "effect.replay_refused"
+                    and event["node_id"] == "reconcile_if_ambiguous"
+                )
+            ]
+            events.insert(events.index(started_first) + 1, reconciled)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def duplicate_reconciliation_completion(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            first_result = next(
+                event
+                for event in events
+                if event["event_type"] == "task.failed"
+                and event["attempt_id"] == f"{reconciliation_task_id}:attempt-1"
+            )
+            first_result.update(
+                {
+                    "event_type": "task.completed",
+                    "failure_plane": None,
+                    "error_class": None,
+                    "data": {"status": "completed"},
+                }
+            )
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def omitted_retry_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            events = [
+                event
+                for event in events
+                if not (
+                    event["event_type"] == "effect.replay_refused"
+                    and event["node_id"] == "reconcile_if_ambiguous"
+                )
+            ]
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def duplicated_retry_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["node_id"] == "reconcile_if_ambiguous"
+            )
+            events.insert(events.index(refusal) + 1, copy.deepcopy(refusal))
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def out_of_order_retry_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["node_id"] == "reconcile_if_ambiguous"
+            )
+            started = next(
+                event
+                for event in events
+                if event["event_type"] == "task.started"
+                and event["attempt_id"] == f"{reconciliation_task_id}:attempt-1"
+            )
+            events.remove(refusal)
+            events.insert(events.index(started), refusal)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def mismatched_retry_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["node_id"] == "reconcile_if_ambiguous"
+            )
+            refusal["error_class"] = "different_gateway_failure"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def checkout_failure_before_unknown(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            unknown = next(
+                event for event in events if event["event_type"] == "effect.unknown"
+            )
+            checkout_failed = next(
+                event
+                for event in events
+                if event["event_type"] == "task.failed"
+                and event["task_id"] == checkout_task_id
+            )
+            events.remove(checkout_failed)
+            events.insert(events.index(unknown), checkout_failed)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def snapshot_refusal_before_checkout_failure(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            snapshot_refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["data"].get("reason_class")
+                == "reconciliation_snapshot_required"
+            )
+            checkout_failed = next(
+                event
+                for event in events
+                if event["event_type"] == "task.failed"
+                and event["task_id"] == checkout_task_id
+            )
+            events.remove(snapshot_refusal)
+            events.insert(events.index(checkout_failed), snapshot_refusal)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        def reconciliation_before_snapshot_refusal(run_dir: Path) -> None:
+            events_path = run_dir / "events.jsonl"
+            events = [
+                json.loads(line)
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            ]
+            snapshot_refusal = next(
+                event
+                for event in events
+                if event["event_type"] == "effect.replay_refused"
+                and event["data"].get("reason_class")
+                == "reconciliation_snapshot_required"
+            )
+            started = next(
+                event
+                for event in events
+                if event["event_type"] == "task.started"
+                and event["attempt_id"] == f"{reconciliation_task_id}:attempt-1"
+            )
+            events.remove(started)
+            events.insert(events.index(snapshot_refusal), started)
+            for sequence, event in enumerate(events, start=1):
+                event["sequence"] = sequence
+                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
+            events_path.write_text(
+                "".join(json.dumps(event) + "\n" for event in events),
+                encoding="utf-8",
+            )
+
+        cases = (
+            (noncontiguous, "bounded and contiguous"),
+            (unrelated_retry, "unrelated task event"),
+            (retried_checkout_dispatch, "retried unexpectedly"),
+            (retried_effect_ledger, "effect ledger identity"),
+            (consumed_reconciliation_attempt, "healthy fixture consumption"),
+            (invented_recovery_ordinal, "attempt sequence"),
+            (duplicate_reconciliation_completion, "attempt sequence"),
+            (omitted_retry_refusal, "retry refusal"),
+            (duplicated_retry_refusal, "retry refusal"),
+            (out_of_order_retry_refusal, "retry refusal"),
+            (mismatched_retry_refusal, "retry refusal"),
+            (checkout_failure_before_unknown, "entry sequence"),
+            (snapshot_refusal_before_checkout_failure, "entry sequence"),
+            (reconciliation_before_snapshot_refusal, "entry sequence"),
+        )
+        for mutate, message in cases:
+            with self.subTest(mutate=mutate.__name__), tempfile.TemporaryDirectory() as temporary:
+                evidence_root = Path(temporary)
+                staging = evidence_root / ".mission-healthy-001.export"
+                staging.mkdir()
+                run_dir = self.write_reconciled_retry_evidence(staging)
+                mutate(run_dir)
+                self._rewrite_checksums(run_dir)
+
+                with self.assertRaisesRegex(ActivationError, message):
+                    verify_and_publish_evidence(
+                        staging,
+                        evidence_root=evidence_root,
+                        run_id=CASE_ID,
+                        case_id=CASE_ID,
+                        case_digest=CASE_DIGEST,
+                        source_revision=SOURCE_REVISION,
+                        exit_code=0,
+                        validated_compose=b"{}\n",
+                        verification=self.host_verification(),
+                        commands=self.command_journal(),
+                        runner_state={
+                            "Status": "exited",
+                            "ExitCode": 0,
+                            "OOMKilled": False,
+                        },
+                    )
 
     def test_host_verifies_adds_metadata_rechecksums_and_atomically_publishes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1973,6 +2820,276 @@ class ActivationTests(unittest.TestCase):
             self.assertEqual(list(root.glob(".*claim.json")), [])
             self.assertEqual(list(root.glob(".*lease")), [])
 
+    def run_activation_with_mocked_preflight(
+        self,
+        args: object,
+        *,
+        docker: mock.Mock,
+        sandbox_case: object,
+        runner,
+    ) -> tuple[int, str]:
+        root = args.evidence_root
+        context = ContextIdentity(
+            "desktop-linux",
+            "npipe:////./pipe/docker",
+            "f" * 64,
+        )
+        layout = RepositoryLayout(
+            root,
+            root,
+            root / "compose.yaml",
+            root / "build.yaml",
+            root / "lock.json",
+        )
+        output = StringIO()
+        with (
+            mock.patch("activate.trusted_layout", return_value=layout),
+            mock.patch("activate.validate_local_context", return_value=context),
+            mock.patch("activate._runtime_revision_is_exact"),
+            mock.patch("activate.load_sandbox_case", return_value=sandbox_case),
+            mock.patch(
+                "activate._load_json",
+                return_value={
+                    "images": {
+                        "runner": {
+                            "base_reference": "python@sha256:" + "a" * 64,
+                            "image_id": "sha256:" + "b" * 64,
+                        },
+                        "services": {"image_id": "sha256:" + "c" * 64},
+                    }
+                },
+            ),
+            mock.patch("activate.render_compose", return_value={}),
+            mock.patch("activate.DockerCLI", return_value=docker),
+            mock.patch("activate.validate_preflight"),
+            redirect_stdout(output),
+        ):
+            exit_code = activate_runtime(
+                args,
+                runner=runner,
+                environ={"PATH": "safe"},
+            )
+        return exit_code, output.getvalue()
+
+    def test_runner_error_boundary_preserves_post_effect_and_cleans_pre_effect(
+        self,
+    ) -> None:
+        cases = (
+            ("post-effect-value-error", 1, 126, "PRESERVED"),
+            ("pre-effect-configuration-error", 64, 64, None),
+        )
+        for error_class, runner_exit, expected_exit, expected_phase in cases:
+            with self.subTest(error_class=error_class), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                run_id = f"round2-{error_class}"
+                args = type(
+                    "Args",
+                    (),
+                    {
+                        "operation": "fresh",
+                        "docker_context": "desktop-linux",
+                        "source_revision": SOURCE_REVISION,
+                        "run_id": run_id,
+                        "evidence_root": root,
+                        "case_id": CASE_ID,
+                        "approval_fixture": "APPROVED",
+                    },
+                )()
+                sandbox_case = type(
+                    "Case",
+                    (),
+                    {"case_id": CASE_ID, "digest": CASE_DIGEST},
+                )()
+                expected_resources = expected_resource_records(run_id, SOURCE_REVISION)
+                resources_exist = False
+                calls: list[list[str]] = []
+                docker = mock.Mock()
+                docker.status.return_value = type(
+                    "Status",
+                    (),
+                    {
+                        "engine_version": "29",
+                        "compose_version": "5",
+                        "os_type": "linux",
+                    },
+                )()
+
+                def resource_state(*_arguments) -> ResourceState:
+                    return ResourceState(expected_resources if resources_exist else ())
+
+                docker.resource_state.side_effect = resource_state
+
+                def runner(arguments, *, environment, timeout_seconds, stdin=None):
+                    nonlocal resources_exist
+                    arguments = list(arguments)
+                    calls.append(arguments)
+                    if "up" in arguments:
+                        resources_exist = True
+                        return subprocess.CompletedProcess(
+                            arguments,
+                            runner_exit,
+                            stdout="",
+                            stderr=error_class,
+                        )
+                    if "stop" in arguments:
+                        return completed(arguments)
+                    if "down" in arguments:
+                        resources_exist = False
+                        return completed(arguments)
+                    self.fail(f"unexpected activation command: {arguments}")
+
+                exit_code, output = self.run_activation_with_mocked_preflight(
+                    args,
+                    docker=docker,
+                    sandbox_case=sandbox_case,
+                    runner=runner,
+                )
+
+                self.assertEqual(exit_code, expected_exit)
+                claim_path = root / f".{run_id}.claim.json"
+                if expected_phase is None:
+                    self.assertFalse(claim_path.exists())
+                    self.assertFalse(resources_exist)
+                    self.assertIn("activation_terminal_rejection", output)
+                    teardown = next(call for call in calls if "down" in call)
+                    self.assertIn("--volumes", teardown)
+                    self.assertFalse(any("stop" in call for call in calls))
+                else:
+                    claim = json.loads(claim_path.read_text(encoding="utf-8"))
+                    self.assertEqual(claim["phase"], expected_phase)
+                    self.assertTrue(claim["runner_existed"])
+                    self.assertEqual(
+                        claim["observed_resources"],
+                        sorted(
+                            f"{record.kind}:{record.name}"
+                            for record in expected_resources
+                        ),
+                    )
+                    self.assertTrue(resources_exist)
+                    self.assertIn("activation_resume_required", output)
+                    self.assertTrue(any("stop" in call for call in calls))
+                    self.assertFalse(any("down" in call for call in calls))
+                self.assertFalse(
+                    any(
+                        "ps" in call or "inspect" in call or "cp" in call
+                        for call in calls
+                    )
+                )
+                self.assertFalse((root / run_id).exists())
+
+    def test_reconciliation_exhaustion_preserves_across_repeated_resume(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run_id = "round2-reconciliation-exhausted"
+            args = type(
+                "Args",
+                (),
+                {
+                    "operation": "resume",
+                    "docker_context": "desktop-linux",
+                    "source_revision": SOURCE_REVISION,
+                    "run_id": run_id,
+                    "evidence_root": root,
+                    "case_id": CASE_ID,
+                    "approval_fixture": "APPROVED",
+                },
+            )()
+            context = ContextIdentity(
+                "desktop-linux",
+                "npipe:////./pipe/docker",
+                "f" * 64,
+            )
+            compose_digest = hashlib.sha256(b"{}\n").hexdigest()
+            expected_resources = expected_resource_records(run_id, SOURCE_REVISION)
+            resource_keys = tuple(
+                sorted(f"{record.kind}:{record.name}" for record in expected_resources)
+            )
+            claim = RunClaim.acquire(
+                "fresh",
+                root,
+                run_id,
+                SOURCE_REVISION,
+                context.fingerprint,
+                CASE_ID,
+                CASE_DIGEST,
+                "APPROVED",
+                compose_digest,
+            )
+            claim.transition("RUNNING")
+            claim.record_resources(resource_keys, runner_existed=True)
+            claim.transition("PRESERVED")
+            sandbox_case = type(
+                "Case",
+                (),
+                {
+                    "case_id": CASE_ID,
+                    "digest": CASE_DIGEST,
+                    "service_fixtures": {
+                        "checkout": {"effect": "ambiguous_after_commit"}
+                    },
+                },
+            )()
+            docker = mock.Mock()
+            docker.status.return_value = type(
+                "Status",
+                (),
+                {
+                    "engine_version": "29",
+                    "compose_version": "5",
+                    "os_type": "linux",
+                },
+            )()
+            docker.resource_state.return_value = ResourceState(expected_resources)
+            calls: list[list[str]] = []
+
+            def runner(arguments, *, environment, timeout_seconds, stdin=None):
+                arguments = list(arguments)
+                calls.append(arguments)
+                if "up" in arguments:
+                    return subprocess.CompletedProcess(
+                        arguments,
+                        1,
+                        stdout="",
+                        stderr="reconciliation_attempts_exhausted",
+                    )
+                if "stop" in arguments:
+                    return completed(arguments)
+                self.fail(f"exhausted reconciliation must preserve: {arguments}")
+
+            outputs = []
+            for _resume in range(2):
+                exit_code, output = self.run_activation_with_mocked_preflight(
+                    args,
+                    docker=docker,
+                    sandbox_case=sandbox_case,
+                    runner=runner,
+                )
+                self.assertEqual(exit_code, 126)
+                outputs.append(json.loads(output))
+                persisted = json.loads(claim.path.read_text(encoding="utf-8"))
+                self.assertEqual(persisted["phase"], "PRESERVED")
+                self.assertTrue(persisted["runner_existed"])
+                self.assertEqual(persisted["observed_resources"], list(resource_keys))
+
+            self.assertEqual(
+                [event["event"] for event in outputs],
+                ["activation_resume_required", "activation_resume_required"],
+            )
+            self.assertEqual(sum("up" in call for call in calls), 2)
+            self.assertEqual(sum("stop" in call for call in calls), 2)
+            self.assertFalse(
+                any(
+                    "down" in call
+                    or "ps" in call
+                    or "inspect" in call
+                    or "cp" in call
+                    for call in calls
+                )
+            )
+            self.assertFalse((root / run_id).exists())
+
     def test_preserved_activation_retains_claim_and_prints_exact_resume_handoff(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -2239,6 +3356,93 @@ class ActivationTests(unittest.TestCase):
             cleanup.assert_called_once()
             execute.assert_not_called()
             self.assertFalse((root / f".{CASE_ID}.claim.json").exists())
+
+    def test_resume_revalidates_a_published_reconciliation_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            final = root / CASE_ID
+            unknown = final / "unknown"
+            reconciled = final / "reconciled"
+            unknown.mkdir(parents=True)
+            reconciled.mkdir()
+            immutable = {
+                "run_id": CASE_ID,
+                "case_id": CASE_ID,
+                "case_digest": CASE_DIGEST,
+                "source_revision": SOURCE_REVISION,
+                "thread_id": f"checkout-payments-timeout-drill-v1:{CASE_ID}",
+                "started_at": "2026-08-30T12:00:00.000Z",
+            }
+            unknown_manifest = {
+                **immutable,
+                "outcome": "UNKNOWN",
+                "ended_at": "2026-08-30T12:00:01.000Z",
+            }
+            reconciled_manifest = {
+                **immutable,
+                "outcome": "SUCCEEDED",
+                "ended_at": "2026-08-30T12:00:02.000Z",
+            }
+            for directory, manifest in (
+                (unknown, unknown_manifest),
+                (reconciled, reconciled_manifest),
+            ):
+                (directory / "manifest.json").write_text(
+                    json.dumps(manifest) + "\n",
+                    encoding="utf-8",
+                )
+            (unknown / "events.jsonl").write_text(
+                json.dumps({"sequence": 1, "event_type": "effect.unknown"})
+                + "\n"
+                + json.dumps({"sequence": 2, "event_type": "run.terminal"})
+                + "\n",
+                encoding="utf-8",
+            )
+            (reconciled / "events.jsonl").write_text(
+                json.dumps({"sequence": 1, "event_type": "effect.dispatched"})
+                + "\n"
+                + json.dumps({"sequence": 2, "event_type": "effect.reconciled"})
+                + "\n"
+                + json.dumps({"sequence": 3, "event_type": "run.terminal"})
+                + "\n",
+                encoding="utf-8",
+            )
+
+            # Each child passes its independent bundle check; only the pair check can
+            # detect that the reconciled history does not extend the UNKNOWN history.
+            with (
+                mock.patch("activate._validate_published_bundle") as validate_bundle,
+                mock.patch(
+                    "activate._validate_reconciliation_pair",
+                    wraps=_validate_reconciliation_pair,
+                ) as validate_pair,
+                self.assertRaisesRegex(ActivationError, "event history"),
+            ):
+                _validate_published_run(
+                    final,
+                    evidence_root=root,
+                    run_id=CASE_ID,
+                    case_id=CASE_ID,
+                    case_digest=CASE_DIGEST,
+                    source_revision=SOURCE_REVISION,
+                    compose_digest=hashlib.sha256(b"{}\n").hexdigest(),
+                    context_fingerprint="f" * 64,
+                    reconciliation_timeline=True,
+                )
+
+            self.assertEqual(
+                [
+                    (call.args[0], call.kwargs["snapshot_role"])
+                    for call in validate_bundle.call_args_list
+                ],
+                [(unknown, "UNKNOWN"), (reconciled, "RECONCILED")],
+            )
+            validate_pair.assert_called_once_with(
+                unknown,
+                reconciled,
+                unknown_manifest,
+                reconciled_manifest,
+            )
 
     def test_timeout_stops_without_volumes_and_returns_resume_exit(self) -> None:
         calls: list[list[str]] = []
@@ -2517,6 +3721,79 @@ class ActivationTests(unittest.TestCase):
         self.assertEqual(commands[0][commands[0].index("--pull") + 1], "never")
         self.assertTrue(any("down" in command and "--volumes" in command for command in commands))
         self.assertEqual(len(revalidations), 5)
+
+    def test_reconciliation_timeline_validates_and_publishes_both_snapshots(self) -> None:
+        calls: list[list[str]] = []
+        payload = b'{"name":"validated"}\n'
+
+        def runner(arguments, *, environment, timeout_seconds, stdin=None):
+            arguments = list(arguments)
+            calls.append(arguments)
+            if "up" in arguments:
+                return completed(arguments)
+            if "ps" in arguments:
+                return completed(arguments, "a" * 64 + "\n")
+            if arguments[3:5] == ["container", "inspect"]:
+                return completed(
+                    arguments,
+                    json.dumps({"Status": "exited", "ExitCode": 0, "OOMKilled": False}),
+                )
+            if arguments[3:5] == ["container", "cp"]:
+                staging = Path(arguments[-1])
+                (staging / f"{CASE_ID}-unknown").mkdir()
+                (staging / f"{CASE_ID}-reconciled").mkdir()
+                return completed(arguments)
+            if "down" in arguments:
+                return completed(arguments)
+            self.fail(f"unexpected lifecycle command: {arguments}")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence_root = Path(temporary)
+
+            def validated(staging, **kwargs):
+                directory_name = kwargs["directory_name"]
+                return evidence_root, Path(staging), Path(staging) / directory_name, {
+                    "outcome": kwargs["snapshot_role"]
+                }
+
+            final_parent = evidence_root / CASE_ID
+            final_unknown = final_parent / "unknown"
+            final_reconciled = final_parent / "reconciled"
+            with (
+                mock.patch("activate._validated_staged_run", side_effect=validated) as validate,
+                mock.patch("activate._validate_reconciliation_pair") as validate_pair,
+                mock.patch(
+                    "activate._publish_staged_timeline",
+                    return_value=(final_unknown, final_reconciled),
+                ) as publish,
+                mock.patch("activate._refresh_published_commands") as refresh,
+            ):
+                result = execute_validated_compose(
+                    payload,
+                    docker_context="desktop-linux",
+                    project_name=project_scope(CASE_ID),
+                    evidence_root=evidence_root,
+                    run_id=CASE_ID,
+                    source_revision=SOURCE_REVISION,
+                    verification=self.host_verification(),
+                    runner=runner,
+                    environment={"PATH": "safe"},
+                    revalidate=lambda: None,
+                    reconciliation_timeline=True,
+                )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(
+                [(call.kwargs["snapshot_role"], call.kwargs["exit_code"]) for call in validate.call_args_list],
+                [("UNKNOWN", 2), ("RECONCILED", 0)],
+            )
+            publish.assert_called_once()
+            validate_pair.assert_called_once()
+            self.assertEqual(
+                [call.args[0] for call in refresh.call_args_list],
+                [final_unknown, final_reconciled],
+            )
+            self.assertTrue(any("down" in command and "--volumes" in command for command in calls))
 
     def test_context_change_after_up_blocks_every_later_docker_effect(self) -> None:
         calls: list[list[str]] = []
