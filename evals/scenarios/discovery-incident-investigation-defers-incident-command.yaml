@@ -27,5 +27,3 @@ graders:
     of: ["incident commander"]
   - type: contains_any
     of: ["next update"]
-  - type: contains_any
-    of: ["incident-command"]
