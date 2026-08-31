@@ -1,0 +1,26 @@
+schema_version: 1
+id: fleet-atlas-query-contract
+mode: direct
+split: calibration
+target:
+  kind: skill
+  name: fleet-atlas
+prompt: |
+  Use the fleet atlas to answer what EVAL-003 depends on. Show the freshness check and bounded query
+  you use, distinguish enforced or extracted edges from inferred ones, and cite the canonical
+  path:line returned by the result. Do not regenerate or edit the atlas.
+success_criteria:
+  - Runs or recommends the read-only freshness check before the bounded dependency query
+  - Preserves the returned provenance class and cites canonical path:line evidence
+  - Does not build, regenerate, or edit the projection
+graders:
+  - type: regex
+    pattern: '(?i)python\s+scripts/fleet_atlas\.py\s+check'
+  - type: regex
+    pattern: '(?i)python\s+scripts/fleet_atlas\.py\s+query\s+depends-on\s+EVAL-003'
+  - type: contains_any
+    of: ["CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED"]
+  - type: regex
+    pattern: '(?i)\b(?:AGENTS|CONTRIBUTING|README|docs|skills|agents|evals|scripts)/?[^\s:]*:\d+\b'
+  - type: not_regex
+    pattern: '(?i)fleet_atlas\.py\s+build|regenerat(?:e|ed|ing)\s+(?:the\s+)?atlas|edit(?:ed|ing)?\s+(?:the\s+)?(?:generated\s+)?(?:atlas|projection)'

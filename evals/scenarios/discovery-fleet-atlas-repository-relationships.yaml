@@ -1,0 +1,28 @@
+schema_version: 1
+id: discovery-fleet-atlas-repository-relationships
+mode: discovery
+split: calibration
+target:
+  kind: skill
+  name: fleet-atlas
+prompt: |
+  In this Save Toolkit checkout, tell me which roadmap items depend on HOST-003, who owns EVAL-003,
+  and which canonical source generated
+  platforms/copilot/skills/stack-profile/references/copilot-models.md. Use the repository's bounded
+  fleet relationship index and preserve its provenance classes. This is not a source-code import
+  graph or public research request, and do not regenerate anything.
+routing:
+  expect: fire
+success_criteria:
+  - Routes a bounded repository ownership, dependency, and generated-provenance question to fleet-atlas
+  - Checks atlas freshness, uses bounded queries, and preserves canonical source evidence and provenance classes
+  - Does not regenerate the atlas or treat a generated projection as authority
+graders:
+  - type: contains_any
+    of: ["fleet_atlas.py check", "fleet atlas freshness", "atlas freshness", "freshness check"]
+  - type: contains_all
+    of: ["depends-on", "owner-of", "generated-from"]
+  - type: contains_any
+    of: ["CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED", "canonical source"]
+  - type: not_regex
+    pattern: '(?i)fleet_atlas\.py\s+build|generated (?:atlas|projection) (?:is|as) (?:the )?(?:canonical|authority)'

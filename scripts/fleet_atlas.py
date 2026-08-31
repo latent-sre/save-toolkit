@@ -336,17 +336,199 @@ def cmd_check(root: Path) -> int:
     return 0 if not failures else 1
 
 
+QUERY_VERBS = (
+    "governs", "owner-of", "loads-for", "supersedes", "depends-on", "blocks",
+    "verified-by", "evidence-for", "generated-from", "state",
+)
+QUERY_LIMIT = 20
+
+
+def _node_summary(node: dict[str, object]) -> dict[str, object]:
+    return {
+        key: node.get(key)
+        for key in ("id", "type", "name", "authority", "path", "state", "attrs", "evidence")
+    }
+
+
+def _node_matches(node: dict[str, object], term: str) -> bool:
+    needle = term.casefold()
+    values = (node.get("id"), node.get("name"), node.get("path"))
+    return any(needle in str(value).casefold() for value in values if value is not None)
+
+
+def _matching_nodes(
+    document: dict[str, object], term: str, *, node_type: str | None = None
+) -> list[dict[str, object]]:
+    nodes = [
+        node for node in document["nodes"]  # type: ignore[index]
+        if isinstance(node, dict) and (node_type is None or node.get("type") == node_type)
+    ]
+    needle = term.casefold()
+    exact = [
+        node for node in nodes
+        if any(
+            needle == str(node.get(field)).casefold()
+            for field in ("id", "name", "path")
+            if node.get(field) is not None
+        )
+    ]
+    return exact or [node for node in nodes if _node_matches(node, term)]
+
+
+def _edge_summary(
+    edge: dict[str, object], nodes: dict[str, dict[str, object]]
+) -> dict[str, object]:
+    return {
+        "resultType": "edge",
+        **edge,
+        "sourceNode": _node_summary(nodes[str(edge["source"])]),
+        "targetNode": _node_summary(nodes[str(edge["target"])]),
+    }
+
+
+def query_document(
+    document: dict[str, object], verb: str, terms: list[str]
+) -> tuple[list[dict[str, object]], bool]:
+    if verb not in QUERY_VERBS:
+        raise ValueError(f"unknown query verb {verb!r}")
+    if not terms or any(not term.strip() for term in terms):
+        raise ValueError("query terms must be non-empty")
+    if verb == "loads-for" and len(terms) < 2:
+        raise ValueError("loads-for requires a skill and a predicate")
+
+    node_list = [node for node in document["nodes"] if isinstance(node, dict)]  # type: ignore[index]
+    edge_list = [edge for edge in document["edges"] if isinstance(edge, dict)]  # type: ignore[index]
+    nodes = {str(node["id"]): node for node in node_list}
+    results: list[dict[str, object]] = []
+
+    if verb == "governs":
+        phrase = " ".join(terms).casefold()
+        matched = [
+            node for node in node_list
+            if node.get("type") == "rule"
+            and phrase in json.dumps(node, sort_keys=True).casefold()
+        ]
+        matched_ids = {str(node["id"]) for node in matched}
+        results.extend({"resultType": "node", **_node_summary(node)} for node in matched)
+        results.extend(
+            _edge_summary(edge, nodes) for edge in edge_list
+            if edge.get("kind") == "governed_by" and edge.get("source") in matched_ids
+        )
+    elif verb == "state":
+        results.extend(
+            {"resultType": "node", **_node_summary(node)}
+            for node in _matching_nodes(document, " ".join(terms))
+        )
+    else:
+        term = terms[0]
+        matched_ids = {str(node["id"]) for node in _matching_nodes(document, term)}
+        if verb == "loads-for":
+            predicate = " ".join(terms[1:]).casefold()
+            skill_ids = {
+                str(node["id"])
+                for node in _matching_nodes(document, term, node_type="skill")
+            }
+            selected = [
+                edge for edge in edge_list
+                if edge.get("kind") == "loads_when"
+                and edge.get("source") in skill_ids
+                and predicate in json.dumps(edge.get("attrs", {}), sort_keys=True).casefold()
+            ]
+        elif verb == "owner-of":
+            selected = [
+                edge for edge in edge_list
+                if edge.get("kind") == "owns" and edge.get("target") in matched_ids
+            ]
+        elif verb == "supersedes":
+            selected = [
+                edge for edge in edge_list
+                if edge.get("kind") == "supersedes"
+                and (edge.get("source") in matched_ids or edge.get("target") in matched_ids)
+            ]
+        elif verb == "depends-on":
+            selected = [
+                edge for edge in edge_list
+                if edge.get("kind") == "depends_on" and edge.get("source") in matched_ids
+            ]
+        elif verb == "blocks":
+            selected = [
+                edge for edge in edge_list
+                if edge.get("kind") == "depends_on" and edge.get("target") in matched_ids
+            ]
+        elif verb == "verified-by":
+            selected = [
+                edge for edge in edge_list
+                if edge.get("kind") == "verified_by" and edge.get("source") in matched_ids
+            ]
+        elif verb == "evidence-for":
+            selected = [
+                edge for edge in edge_list
+                if edge.get("kind") == "evidenced_by" and edge.get("source") in matched_ids
+            ]
+        else:  # generated-from
+            selected = [
+                edge for edge in edge_list
+                if edge.get("kind") == "generated_from" and edge.get("source") in matched_ids
+            ]
+        results.extend(_edge_summary(edge, nodes) for edge in selected)
+
+    results.sort(key=lambda item: (str(item.get("resultType")), str(item.get("id"))))
+    return results[:QUERY_LIMIT], len(results) > QUERY_LIMIT
+
+
+def cmd_query(root: Path, verb: str, terms: list[str]) -> int:
+    path = root / OUTPUT / "atlas.json"
+    if not path.is_file():
+        print("fleet_atlas query: generated atlas is missing; run build", file=sys.stderr)
+        return 1
+    try:
+        document = json.loads(path.read_bytes())
+    except (json.JSONDecodeError, UnicodeError):
+        print("fleet_atlas query: generated atlas is not valid JSON", file=sys.stderr)
+        return 1
+    if not isinstance(document, dict) or document.get("apiVersion") != API_VERSION:
+        print("fleet_atlas query: generated atlas has the wrong contract", file=sys.stderr)
+        return 1
+    metadata = document.get("metadata")
+    if not isinstance(metadata, dict) or metadata.get("treeDigest") != input_digest(root):
+        print("fleet_atlas query: generated atlas is stale; run check", file=sys.stderr)
+        return 1
+    try:
+        results, truncated = query_document(document, verb, terms)
+    except ValueError as exc:
+        print(f"fleet_atlas query: {exc}", file=sys.stderr)
+        return 2
+    record = {
+        "apiVersion": "save-toolkit/fleet-atlas-query-result/v1",
+        "query": {"verb": verb, "terms": terms},
+        "atlas": {
+            key: metadata.get(key)
+            for key in ("revision", "dirty", "treeDigest")
+        },
+        "count": len(results),
+        "truncated": truncated,
+        "results": results,
+    }
+    print(json.dumps(record, indent=2, sort_keys=True))
+    return 0 if results else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=ROOT)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("build", help="regenerate docs/fleet-atlas/generated/")
     sub.add_parser("check", help="regenerate in memory and compare with the committed output")
+    query = sub.add_parser("query", help="query the committed, current fleet atlas")
+    query.add_argument("verb", choices=QUERY_VERBS)
+    query.add_argument("terms", nargs="+")
     args = parser.parse_args(argv)
     if args.command == "build":
         return cmd_build(args.root.resolve())
     if args.command == "check":
         return cmd_check(args.root.resolve())
+    if args.command == "query":
+        return cmd_query(args.root.resolve(), args.verb, args.terms)
     return 2
 
 

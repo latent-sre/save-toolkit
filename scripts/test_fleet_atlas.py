@@ -76,6 +76,70 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(entry[0]["status"], "active")
 
 
+class QueryTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.document = fleet_atlas.snapshot(ROOT, fleet_atlas.build_graph(ROOT))
+
+    def test_each_operator_query_has_a_grounded_answer(self) -> None:
+        queries = (
+            ("governs", ["tool absence"], "governed_by"),
+            ("owner-of", ["EVAL-003"], "owns"),
+            ("loads-for", ["backend-craft", "authenticating"], "loads_when"),
+            (
+                "supersedes",
+                ["2026-08-22-agent-discovery-calibration"],
+                "supersedes",
+            ),
+            ("depends-on", ["EVAL-003"], "depends_on"),
+            ("blocks", ["HOST-003"], "depends_on"),
+            ("verified-by", ["obs-dashboards/http-api.md"], "verified_by"),
+            ("evidence-for", ["SWEEP-001"], "evidenced_by"),
+            (
+                "generated-from",
+                ["platforms/copilot/skills/stack-profile/references/copilot-models.md"],
+                "generated_from",
+            ),
+        )
+        for verb, terms, expected_kind in queries:
+            with self.subTest(verb=verb):
+                results, truncated = fleet_atlas.query_document(
+                    self.document, verb, terms
+                )
+                self.assertIsInstance(truncated, bool)
+                edges = [item for item in results if item["resultType"] == "edge"]
+                self.assertTrue(edges, f"{verb} returned no cited edge")
+                self.assertTrue(any(edge["kind"] == expected_kind for edge in edges))
+                self.assertTrue(
+                    all(edge["sourceNode"] and edge["targetNode"] for edge in edges)
+                )
+
+        states, truncated = fleet_atlas.query_document(
+            self.document, "state", ["EVAL-003"]
+        )
+        self.assertFalse(truncated)
+        self.assertEqual(
+            [(item["id"], item["state"]) for item in states],
+            [("roadmap-item:EVAL-003", "live")],
+        )
+
+    def test_query_results_are_bounded(self) -> None:
+        document = {
+            "nodes": [
+                {
+                    "id": f"rule:{index}", "type": "rule", "name": "bounded demo",
+                    "authority": "live-contract", "path": "docs/rules.md", "state": "live",
+                    "attrs": {}, "evidence": [],
+                }
+                for index in range(fleet_atlas.QUERY_LIMIT + 2)
+            ],
+            "edges": [],
+        }
+        results, truncated = fleet_atlas.query_document(document, "governs", ["demo"])
+        self.assertTrue(truncated)
+        self.assertEqual(len(results), fleet_atlas.QUERY_LIMIT)
+
+
 import fleet_atlas_extract  # noqa: E402
 
 

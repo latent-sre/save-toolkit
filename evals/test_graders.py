@@ -3263,6 +3263,57 @@ def test_skill_audit_scenarios_reject_echo_and_incomplete_answers() -> None:
         )
 
 
+_FLEET_ATLAS_CASES = {
+    "discovery-fleet-atlas-repository-relationships.yaml": (
+        "The fleet atlas freshness check passed with `python scripts/fleet_atlas.py check`. I used "
+        "`query blocks HOST-003`, `query owner-of EVAL-003`, and `query generated-from "
+        "platforms/copilot/skills/stack-profile/references/copilot-models.md`. The returned "
+        "STATIC_INFERRED and STATIC_EXTRACTED relationships point back to the canonical source "
+        "at docs/fleet-roadmap.md:343 and skills/stack-profile/references/copilot-models.md:1.",
+        "The relationship index says HOST-003, EVAL-003, and the Copilot model file are connected. "
+        "The generated projection is authoritative, so no source citation or freshness check is "
+        "needed.",
+    ),
+    "fleet-atlas-query-contract.yaml": (
+        "`python scripts/fleet_atlas.py check` passed. I then ran "
+        "`python scripts/fleet_atlas.py query depends-on EVAL-003`. The result is a "
+        "STATIC_INFERRED edge to HOST-003, cited at docs/fleet-roadmap.md:343; it is an inferred "
+        "mention rather than a CONTRACT_RESOLVED prerequisite.",
+        "`python scripts/fleet_atlas.py check` passed, followed by "
+        "`python scripts/fleet_atlas.py query depends-on EVAL-003`. EVAL-003 has dependencies.",
+    ),
+}
+
+
+def test_fleet_atlas_scenarios_reject_echo_and_incomplete_answers() -> None:
+    try:
+        import yaml  # noqa: F401
+    except ModuleNotFoundError:
+        check(False, "PyYAML required for fleet-atlas scenario tests (`pip install pyyaml`)")
+        return
+
+    for filename, (compliant, incomplete) in _FLEET_ATLAS_CASES.items():
+        scenario = _load_scenario(filename)
+        grader_specs = scenario["graders"]
+        prompt = scenario["prompt"]
+        check(
+            not grade_all(grader_specs, prompt),
+            f"{filename}: raw prompt echo is REJECTED by the full grader set",
+        )
+        check(
+            not grade_all(grader_specs, " ".join(prompt.split())),
+            f"{filename}: whitespace-normalized prompt echo is REJECTED",
+        )
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: curated compliant response passes the full grader set",
+        )
+        check(
+            not grade_all(grader_specs, incomplete),
+            f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
+        )
+
+
 # Scenarios that predate the fixture convention and are inherited without adversarial controls.
 # Recorded rather than silently skipped, so the list is visible and can only shrink: a NEW scenario
 # must be registered in a fixture table, not appended here.
@@ -3367,6 +3418,7 @@ def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
         | set(_OBSERVABILITY_ENGINEER_DIRECT_FIXTURES)
         | set(_SCRIBE_CHECKOUT_BINDING_FIXTURES)
         | set(_HANDOFF_DIRECT_FIXTURES)
+        | set(_FLEET_ATLAS_CASES)
         # _INCIDENT_COMMAND_INCOMPLETE_RESPONSES is keyed by prose label, not filename, so it is
         # deliberately not unioned here -- the scenario it guards is named directly instead. The
         # key-validation check above is what surfaced that; it caught 13 junk keys on its first run.
