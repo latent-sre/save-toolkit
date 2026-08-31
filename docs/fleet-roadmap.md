@@ -644,9 +644,9 @@ the grader from the Terra responses or relabel those probes as native closure ev
 
 ### GRADER-005 — posture graders for gate-shaped contracts
 
-**Status:** `ready` (2026-08-30). The `gate_posture` repair is merged into the exact candidate and
-the three native frontend remeasurements are prepared at the human approval gate; no live run or
-spend has started.
+**Status:** `blocked` (2026-08-31). The fixed Sonnet profile is approved but unconsumed. Execution
+is held after two preceding native packets on this host ended exclusively in retried provider
+`server_error` responses; spending this nine-call packet cannot currently produce gradeable evidence.
 
 **Outcome:** A discovery or direct grader can tell "names the rule" from "enforces the rule" for a
 scenario whose contract is a gate, so a green on `render-is-not-verification` means the response
@@ -678,18 +678,19 @@ closure-ready.
 `54f1c8d0ddbc17545f644fdd2568a36c8471454c`, `sonnet`, the three exact frontend discovery IDs,
 three trials each at their unchanged 1.0 thresholds, 600 seconds per trial, 7,200 seconds total,
 USD 4.00 maximum, a clean detached checkout, and one no-tuning/no-retry batch. Commits `dcf7852f`
-and `7c92c5ac` are ancestors. The profile validates with approval null; preparation makes no model
-call and spends nothing.
+and `7c92c5ac` are ancestors. Approval commit `82fb2784` records the human owner, UTC timestamp,
+and budget ID `grader-005-frontend-posture-2026-08-31`; no call from this profile has started.
 
-**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
-budget ID. If approved, record approver/timestamp in the profile and run it once from the bound clean
-revision. Retain failures/timeouts and do not change prompts, thresholds, routing description, or
-grader under this authorization.
+**Next action:** After a material provider/host recovery signal, run the already-approved profile
+once from the bound clean revision. Retain every outcome and do not change prompts, thresholds,
+routing description, or grader under this authorization. Do not spend it while the repeated
+`server_error` condition persists.
 
 ### GRADER-008 — the progressive-tense execution grader fires on a non-production object
 
-**Status:** `ready` (2026-08-30). The object-bound grader is merged into the exact candidate and its
-one native remeasurement is prepared at the human approval gate; no live run or spend has started.
+**Status:** `decision-needed` (2026-08-31). The object-bound grader remains green offline, but its
+one approved native batch ended entirely INCONCLUSIVE after provider retries; the consumed packet
+authorizes no replacement run.
 
 **Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
 execution claim, while `I'm applying the rollback` and every other present-progressive claim about
@@ -712,21 +713,22 @@ existing must-fail cases still fail, and the affected scenarios are re-run on th
 
 **Current evidence:** The
 [`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records the reproduced false positive and the named, object-bound replacement. The affected
-direct scenario has not been rerun on the exact merged revision.
+records the reproduced false positive and the named, object-bound replacement. Native batch
+[`20260831T051130Z-d1887391`](reviews/2026-08-31-eval-20260831T051130Z-d1887391.md) ran once on the
+exact candidate and Claude Code 2.1.251, but every trial exhausted provider retries and ended
+`server_error` before resolving a model or producing a gradeable response.
 
 **Prepared gate:** The
 [`GRADER-008 approval packet`](reviews/2026-08-30-grader-008-approval-gate.md) binds exact candidate
 `7d9aa18c4efb223060b27685d0dd0be4e8590059`, `sonnet`,
 `agent-direct-sre-readonly-triage`, three trials at its unchanged 1.0 threshold, 600 seconds per
 trial, 2,400 seconds total, USD 2.00 maximum, a clean detached checkout, and one no-tuning/no-retry
-batch. Repair `dcf7852f` is an ancestor. The profile validates with approval null; preparation
-makes no model call and spends nothing.
+batch. Repair `dcf7852f` is an ancestor. Approval commit `82fb2784` recorded the owner, UTC
+timestamp, and budget ID before the terminal batch.
 
-**Next action:** The human owner explicitly approves or rejects the fixed packet and supplies its
-budget ID. If approved, record approver/timestamp in the profile and run it once from the bound clean
-revision. Retain failures/timeouts and do not change its prompt, threshold, split, or grader under
-this authorization.
+**Next action:** The owner decides whether a demonstrated provider/host recovery justifies a new
+replacement packet. Do not reuse the consumed approval or change the prompt, threshold, split, or
+grader merely to replace this INCONCLUSIVE evidence.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 

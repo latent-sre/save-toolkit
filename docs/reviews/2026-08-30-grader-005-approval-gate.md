@@ -1,8 +1,9 @@
 # GRADER-005 native frontend posture remeasurement gate
 
-> **Status:** `[verified static]` The code-side grader repair is an ancestor of the exact candidate
-> and the native execution profile validates offline. **Human gate:** the profile intentionally
-> carries `"approval": null`; no live model call or spend is authorized.
+> **Status:** `[verified static; execution held]` The code-side grader repair is an ancestor of the
+> exact candidate and the native execution profile is approved and validates offline. No call from
+> this profile has started. Execution is held while the current host/provider path returns only
+> retried `server_error` results for the preceding fixed packets.
 
 ## Exact candidate and settled repair
 
@@ -48,7 +49,7 @@ and a content red is not permission to tune the route.
    retained response against the already pinned controls, and return any proposed change to a new
    red-first owner decision.
 
-## Command after explicit approval
+## Command after provider/host recovery
 
 From a clean detached checkout of the exact candidate, with the separately approved profile passed
 by absolute path:
@@ -61,14 +62,15 @@ Capture the sealed summary and result envelope through `scripts/capture_measurem
 before any closure claim, then rerun `test_graders.py`, `run_evals.py --validate`, generator check,
 and Gate A.
 
-## Approval text needed
+## Recorded approval
 
-A sufficient authorization is:
+Commit `82fb2784` records approver `latent-sre`, UTC `2026-08-31T04:50:47Z`, and budget ID
+`grader-005-frontend-posture-2026-08-31`. The approved values are:
 
 > I approve GRADER-005 profile `grader-005-frontend-posture` for exact candidate
 > `54f1c8d0ddbc17545f644fdd2568a36c8471454c`, requested model `sonnet`, the three named scenarios
 > at three trials each (nine calls maximum), 600 seconds per trial, 7,200 seconds total, and USD
-> 4.00 maximum. Budget ID: `grader-005-frontend-posture-2026-08-30`.
+> 4.00 maximum. Budget ID: `grader-005-frontend-posture-2026-08-31`.
 
-Until that approval is received and recorded with a UTC timestamp, GRADER-005 remains at the human
-gate and no live command runs.
+The profile remains unconsumed. Do not start it until the repeated provider `server_error` condition
+has materially changed; then run it once without tuning or retries.
