@@ -706,9 +706,9 @@ profile or change the prompt, threshold, split, or grader.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
-**Status:** `ready` (2026-08-31). Both repairs and all four profiles—including the two prescribed
-Opus cells—are approved. The fixed matrix remains unstarted because the current subscriber OAuth
-session cannot authenticate a model call.
+**Status:** `decision-needed` (2026-08-31). Both repairs and the two Sonnet profiles are approved,
+but the two prescribed Opus profiles have approval null. The fixed matrix remains unstarted and
+the current subscriber OAuth session also cannot authenticate a model call.
 
 **Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
 `…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
@@ -747,13 +747,14 @@ plugin `2cdcbbbac3bc560076a1d0c648149173b6863602`, current plugin
 scenario runs Sonnet x3 per revision at 600 seconds/USD 2 per cell; the unknown-write scenario runs
 Opus x3 per revision at 900 seconds/USD 4 per cell. Four separate approval/budget records bound 12
 calls and USD 12 aggregate. Repairs `f9075751` and `ff7a6293` are ancestors of current. Every profile
-validates with owner, UTC timestamp, and budget ID recorded; preparation makes no model call and
-spends nothing.
+validates; the Sonnet profiles carry owner, UTC timestamp, and budget ID, while the Opus profiles
+remain unapproved. Preparation makes no model call and spends nothing.
 
-**Next action:** Refresh subscriber authentication, confirm one no-tool health check, then run the
-approved four-cell matrix once with current evaluator bytes, isolated exact plugin revisions, and
-no tuning/retry. Do not start only the Sonnet half, substitute Sonnet for Opus, or aggregate unlike
-model/scenario cells.
+**Next action:** The owner explicitly authorizes or rejects the two Opus cells. If authorized,
+record their two approvals, refresh subscriber authentication, confirm one no-tool health check,
+then run the fixed four-cell matrix once with current evaluator bytes, isolated exact plugin
+revisions, and no tuning/retry. Do not start only the Sonnet half, substitute Sonnet for Opus, or
+aggregate unlike model/scenario cells.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
