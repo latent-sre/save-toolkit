@@ -80,7 +80,7 @@ Capture all four sealed summaries and result envelopes through
 `scripts/capture_measurement_evidence.py` before any closure claim. Then rerun `test_graders.py`,
 `run_evals.py --validate`, generator check, and Gate A on the current branch.
 
-## Approval contract (satisfied)
+## Approval contract (partially satisfied)
 
 A sufficient authorization is:
 
