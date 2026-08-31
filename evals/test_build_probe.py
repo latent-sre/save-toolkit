@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.parse
 from pathlib import Path
 from unittest import mock
 
@@ -945,6 +946,20 @@ class ReviewFindingTests(unittest.TestCase):
         service.requests[0]["response"]["results"]["A"]["frames"] = [{"data": {"values": [[1], [0.2]]}}]
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95 + " + 1"
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "the successful query must equal the persisted panel target")
+        write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95
+        service.requests = [
+            {
+                "method": "GET",
+                "path": "/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(p95),
+                "status": 200,
+                "request": None,
+                "response": {"status": "success", "data": {"result": [{"value": [1, "0.2"]}]}},
+            },
+            write,
+        ]
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        service.requests[0]["response"]["data"]["result"] = []
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "proxy success without series data is not proof")
 
     def test_post_run_service_transport_failure_is_inconclusive(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
