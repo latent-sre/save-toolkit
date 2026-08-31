@@ -55,10 +55,9 @@ Do not regenerate during a read-only question. If the check passes, select one o
 An exit status of `1` means no bounded answer or a stale/missing atlas, not proof that the
 relationship does not exist. Narrow an ambiguous term before drawing a conclusion.
 
-Without execute authority, read
-[`docs/fleet-atlas/generated/INDEX.md`](../../docs/fleet-atlas/generated/INDEX.md), then only the
-one named generated view needed for the question. If no trusted handoff says `check` passed on the
-current inputs, label freshness `[unverified]` and verify the cited canonical `path:line` directly.
+Without execute authority, read `docs/fleet-atlas/generated/INDEX.md`, then only the one named
+generated view needed for the question. If no trusted handoff says `check` passed on the current
+inputs, label freshness `[unverified]` and verify the cited canonical `path:line` directly.
 
 ## Return
 
