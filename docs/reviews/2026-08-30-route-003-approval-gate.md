@@ -1,8 +1,8 @@
 # ROUTE-003 native discovery reliability approval gate
 
-> **Status:** `[verified static]` The fixed execution packet is prepared and validates offline.
-> **Human gate:** no live model call or spend is authorized; the profile intentionally carries
-> `"approval": null`.
+> **Status:** `[verified terminal evidence]` The fixed execution packet was approved, executed once,
+> and consumed by INCONCLUSIVE provider results. It authorizes no retry. Bounded evidence:
+> [`20260831T045127Z-b6efb49b`](2026-08-31-eval-20260831T045127Z-b6efb49b.md).
 
 ## Exact candidate and purpose
 
@@ -53,7 +53,7 @@ no required reference is injected into either prompt.
 5. Before closure, rerun the unpaid deterministic overlap checks (`run_evals.py --validate`,
    `test_graders.py`, generator check, and Gate A). They prove suite integrity, not native routing.
 
-## Command after explicit approval
+## Executed command
 
 From a clean detached checkout of the exact candidate:
 
@@ -64,15 +64,16 @@ python evals/run_evals.py --run --profile <ABSOLUTE_APPROVED_PROFILE_PATH> --res
 The resulting sealed summary and `eval-result-envelope-v1.json` must be captured through
 `scripts/capture_measurement_evidence.py` before any closure claim.
 
-## Approval text needed
+## Consumed approval
 
-The owner must explicitly approve all fixed fields and provide the budget identity. A sufficient
-authorization is:
+The owner authorized Sonnet execution within the per-item call ceiling. Commit `82fb2784` recorded
+approver `latent-sre`, UTC `2026-08-31T04:50:47Z`, and budget ID
+`route-003-discovery-reliability-2026-08-31` in the profile. The executed values were:
 
 > I approve ROUTE-003 profile `route-003-discovery-reliability` for exact candidate
 > `38dbdf70722c2167ce2c404297ccb4ccc3f5da8f`, requested model `sonnet`, three trials for each of the
 > two named scenarios (six calls maximum), 600 seconds per trial, 7,200 seconds total, and USD 4.00
-> maximum. Budget ID: `route-003-discovery-reliability-2026-08-30`.
+> maximum. Budget ID: `route-003-discovery-reliability-2026-08-31`.
 
-Until that approval is received and written into the profile with its UTC timestamp, ROUTE-003
-stays at the human gate and no live command runs.
+That approval was consumed by the one terminal batch. A replacement requires a new explicit packet
+and must not rewrite, overwrite, or discard the retained INCONCLUSIVE evidence.

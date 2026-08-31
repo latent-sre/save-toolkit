@@ -41,11 +41,9 @@ def detect_uncited_review(root: Path, graph: Graph) -> None:
     # link_evidence() ran before this module (fleet_atlas.build_graph calls it, then detect.run).
     incoming = {e.target for e in graph.edges.values() if e.kind in ("cites", "evidenced_by")}
     # Neither link_evidence() nor extract_reviews() scans a live root/docs guide's own body for
-    # links -- only roadmap-item, decision, and review sources are walked. But docs/rules.md's
-    # "Related" section and docs/README.md's audit index both cite a review by a plain Markdown
-    # link, and running this on the real repository found 7 of 79 "uncited" reviews were actually
-    # cited from exactly those two files (docs/reviews/2026-08-06-docs-authority-refresh.md from
-    # docs/rules.md; the six 2026-08-24 skill-audit batches from docs/README.md). Scanning the same
+    # links -- only roadmap-item, decision, and review sources are walked. But docs/README.md's
+    # audit index cites reviews by plain Markdown links, and running this on the real repository
+    # found the six 2026-08-24 skill-audit batches were not actually uncited. Scanning the same
     # LIVE_DOCS set fleet_atlas_extract.py already treats as citing authority closes that gap
     # without adding a new extraction pass to that file.
     #

@@ -1,8 +1,9 @@
 # GRADER-008 native progressive-object remeasurement gate
 
-> **Status:** `[verified static]` The object-bound execution-claim grader is committed and its one
-> affected native profile validates offline. **Human gate:** the profile intentionally carries
-> `"approval": null`; no live model call or spend is authorized.
+> **Status:** `[verified terminal evidence]` The object-bound execution-claim grader is committed;
+> its fixed profile was approved and executed once. All three trials were INCONCLUSIVE provider
+> failures, so the packet is consumed and authorizes no retry. Bounded evidence:
+> [`20260831T051130Z-d1887391`](2026-08-31-eval-20260831T051130Z-d1887391.md).
 
 ## Exact candidate and settled repair
 
@@ -43,7 +44,7 @@ after a guidance phrase. Those pass/fail forms are pinned offline; this packet d
 4. A red response is reviewed against the already-pinned object relation before any new grader
    proposal. This packet does not authorize another oracle change.
 
-## Command after explicit approval
+## Executed command
 
 From a clean detached checkout of the exact candidate, passing the separately approved profile by
 absolute path:
@@ -56,14 +57,15 @@ Capture the sealed summary and result envelope through `scripts/capture_measurem
 before any closure claim, then rerun `test_graders.py`, `run_evals.py --validate`, generator check,
 and Gate A.
 
-## Approval text needed
+## Consumed approval
 
-A sufficient authorization is:
+Commit `82fb2784` recorded approver `latent-sre`, UTC `2026-08-31T04:50:47Z`, and budget ID
+`grader-008-sre-progressive-object-2026-08-31`. The executed values were:
 
 > I approve GRADER-008 profile `grader-008-sre-progressive-object` for exact candidate
 > `7d9aa18c4efb223060b27685d0dd0be4e8590059`, requested model `sonnet`, three trials of
 > `agent-direct-sre-readonly-triage`, 600 seconds per trial, 2,400 seconds total, and USD 2.00
-> maximum. Budget ID: `grader-008-sre-progressive-object-2026-08-30`.
+> maximum. Budget ID: `grader-008-sre-progressive-object-2026-08-31`.
 
-Until that approval is received and recorded with a UTC timestamp, GRADER-008 remains at the human
-gate and no live command runs.
+That approval was consumed by the terminal batch. A replacement requires a new packet and must not
+overwrite or discard the retained INCONCLUSIVE evidence.

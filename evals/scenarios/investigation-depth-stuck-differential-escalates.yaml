@@ -1,10 +1,10 @@
 schema_version: 1
-id: incident-investigation-stuck-differential-escalates
+id: investigation-depth-stuck-differential-escalates
 mode: direct
 split: calibration
 target:
   kind: skill
-  name: incident-investigation
+  name: investigation-depth
 prompt: |
   Confirmed symptom on the orders API, cause unknown. We built a differential of four candidates and
   have eliminated all four. The last two rounds of tests eliminated nothing new and did not change

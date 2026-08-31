@@ -1,0 +1,37 @@
+{
+  "schema_version": "eval-execution-profile/v1",
+  "id": "route-003-discovery-reliability-replacement-1",
+  "comparison": {
+    "id": "route-003-discovery-reliability",
+    "models": {
+      "claude-plugin": "sonnet",
+      "codex-cli": "not-run"
+    }
+  },
+  "engine": "claude-plugin",
+  "claims": [
+    "candidate_snapshot_integrity",
+    "native_plugin_loaded",
+    "native_component_invoked",
+    "behavioral_contract",
+    "deterministic_grader_result"
+  ],
+  "scenario_ids": [
+    "discovery-agent-authoring-workflow-graph",
+    "discovery-service-readiness-audit"
+  ],
+  "required_references": {},
+  "model": "sonnet",
+  "trials": 3,
+  "timeout_s": 600,
+  "total_timeout_s": 7200,
+  "cost_budget": {
+    "status": "available",
+    "max_usd": 4
+  },
+  "approval": {
+    "approved_by": "latent-sre",
+    "approved_at": "2026-08-31T11:44:14Z",
+    "budget_id": "route-003-discovery-reliability-replacement-1-2026-08-31"
+  }
+}

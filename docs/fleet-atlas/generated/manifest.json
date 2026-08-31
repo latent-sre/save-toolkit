@@ -1,15 +1,15 @@
 {
   "apiVersion": "save-toolkit/fleet-atlas-manifest/v1",
   "files": {
-    "INDEX.md": "sha256:2d92f520959ad1901f9c4d383533bfd3fa31f116e7b5d481e47a4f032f9fde58",
-    "atlas.json": "sha256:eca0be42cbe9d915675947a3adb2fc2b9d7ce53920cd35bb1cd3d37753066c3c",
-    "capability-owner-map.md": "sha256:9e247ee3aa432220e8114af245e56476887be015268e4b0bab64bf57a7a6b6c3",
-    "claim-to-eval-map.md": "sha256:a58040ff13dc57554df8d91e096435c20da4715dfd3c20263ae86a6e5a2f150d",
-    "contradictions-and-stale-evidence.md": "sha256:c572b6bb5791e78e2f9da78aa1f1ee129e2e698a4698490369102effe6fb3960",
-    "decision-supersession-map.md": "sha256:e8b01cc22ea2fed6339d45d76c680a53ed102448d43ecce6e3f75544ca5a7c19",
+    "INDEX.md": "sha256:918978f9b2541eb8508108b9e65b15f0065a68ea9f54931797b6d8b76c43712f",
+    "atlas.json": "sha256:77abb54c5ceb8412d518977977507b4dc014218e1f8b48e3e935709cde401763",
+    "capability-owner-map.md": "sha256:d7f711955cc8ee7393014969e1c836ec5b55b65824d0c00d8b1e12b11e29cba4",
+    "claim-to-eval-map.md": "sha256:1f0b83247f0417b263624c84ef2439b69169550f19a893b639a66743e90c933a",
+    "contradictions-and-stale-evidence.md": "sha256:1e2349a32cf875843ed84e5b061234c15addc253031be9cbe4aabddfbd2c6f4e",
+    "decision-supersession-map.md": "sha256:c0c71a952ccc83407238951f1dbeefdb73d4700f45c65a4e5fc66fdb1bd27ff0",
     "delegation.mmd": "sha256:5144a10d26ef6db4a9a7ebf9e3fb3560b10278c54d01ae3439a55b96cf37c3e6",
-    "roadmap-dependency-map.md": "sha256:88e9b826163063ad50ec267f6fe303d78509125f4c7f9403be2fe2e4cc853353",
-    "roadmap-dependency-map.mmd": "sha256:0510026398aa9b5600580fe4776a18b1f5f013e8c5737823b44a6d1da818ef67",
-    "skill-reference-loading-map.md": "sha256:5f54db32639266a98e5bbd767f0b084c176f5e1bec953b475610b56c6a9c2f9f"
+    "roadmap-dependency-map.md": "sha256:9dc87bb40cc64b14e154c0a670e23ebfecd2bc578259fe617547e0b580884d72",
+    "roadmap-dependency-map.mmd": "sha256:96a2214ac9ea6644267f1212243b633579c8e7b1a20ce5e0ef322e41d379a37e",
+    "skill-reference-loading-map.md": "sha256:b9fc1c77468858ef1b566dc51a35166f69d500e7f530cad062fa8bd41da72b69"
   }
 }

@@ -1,10 +1,10 @@
 schema_version: 1
-id: incident-investigation-mode-selection-contract
+id: investigation-depth-mode-selection-contract
 mode: direct
 split: calibration
 target:
   kind: skill
-  name: incident-investigation
+  name: investigation-depth
 prompt: |
   Evidence so far: the checkout latency alert is confirmed real from the synthetic test, the blast
   radius is one app in one region, the start time is 14:12 UTC and a config change landed at

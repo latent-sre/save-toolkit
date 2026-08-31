@@ -1,10 +1,10 @@
 schema_version: 1
-id: discovery-incident-investigation-defers-engineering-altitude
+id: discovery-investigation-depth-defers-engineering-altitude
 mode: discovery
 split: regression
 target:
   kind: skill
-  name: incident-investigation
+  name: investigation-depth
 prompt: |
   Review the design altitude for a planned API migration that spans three engineering teams and
   creates a compatibility contract we must deliver and support during the next 12 months. Tell me

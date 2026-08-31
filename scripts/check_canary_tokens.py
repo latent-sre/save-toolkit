@@ -37,7 +37,7 @@ TOKEN = re.compile(r"\bq_[a-z0-9_]{3,}\b")
 REQUIRED_GLOBS = (
     "obs-*/references/*.md",
     "akamai-edge/references/*.md",
-    "incident-investigation/references/*.md",
+    "investigation-depth/references/*.md",
     "incident-command/references/*.md",
 )
 

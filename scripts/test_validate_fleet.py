@@ -761,8 +761,8 @@ class FleetValidatorTests(unittest.TestCase):
     def test_sre_conditional_handoff_rejects_a_negated_pointer(self) -> None:
         failures = self._agents_with_mutation(
             "sre.md",
-            "read `incident-investigation`'s incident-handoff reference before forming the packet",
-            "do not read `incident-investigation`'s incident-handoff reference before forming the packet",
+            "read `investigation-depth`'s incident-handoff reference before forming the packet",
+            "do not read `investigation-depth`'s incident-handoff reference before forming the packet",
         )
         self.assertIn("missing handoff contract", "\n".join(failures))
 
@@ -896,14 +896,13 @@ class FleetValidatorTests(unittest.TestCase):
     def test_roster_adding_a_phantom_edge_is_rejected(self) -> None:
         # scribe holds no Agent grant at all; a rendered edge out of it is a phantom the enforced
         # graph forbids.
+        source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        scribe_row = next(line for line in source.splitlines() if line.startswith("| `scribe` |"))
+        phantom_row = scribe_row.removesuffix(" — |") + " `researcher` |"
         with tempfile.TemporaryDirectory() as temporary:
             root = self._roster_root(
                 temporary,
-                lambda t: t.replace(
-                    "no Bash, web, or delegation**; terminal | — |",
-                    "no Bash, web, or delegation**; terminal | `researcher` |",
-                    1,
-                ),
+                lambda text: text.replace(scribe_row, phantom_row, 1),
             )
             failures = validate_fleet.validate_roster_graph(root)
         self.assertTrue(any("'scribe'" in f for f in failures), failures)

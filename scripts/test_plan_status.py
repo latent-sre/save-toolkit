@@ -211,6 +211,13 @@ class SpecPointerAndDecisionStatusTests(unittest.TestCase):
     def test_live_tree_passes(self) -> None:
         self.assertEqual([], check_plan_status.check())
 
+    def test_absent_round_directories_are_an_empty_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = _skeleton(Path(temporary))
+            (root / check_plan_status.PLAN_ROOT).rmdir()
+            (root / check_plan_status.SPEC_ROOT).rmdir()
+            self.assertEqual([], check_plan_status.check(root))
+
     def test_a_spec_without_a_roadmap_pointer_is_flagged(self) -> None:
         """The pointer was enforced in the plans loop only; a spec could omit it and pass green.
 

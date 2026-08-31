@@ -237,9 +237,7 @@ def check(root: Path = ROOT) -> list[str]:
         failures.extend(_roadmap_item_failures(roadmap))
 
     plan_dir = root / PLAN_ROOT
-    if not plan_dir.is_dir():
-        failures.append(f"{PLAN_ROOT.as_posix()}: missing plan archive")
-    else:
+    if plan_dir.is_dir():
         for path in sorted(plan_dir.glob("*.md")):
             relative = path.relative_to(root)
             text, read_error = _read(root, relative)
@@ -265,9 +263,7 @@ def check(root: Path = ROOT) -> list[str]:
                 )
 
     spec_dir = root / SPEC_ROOT
-    if not spec_dir.is_dir():
-        failures.append(f"{SPEC_ROOT.as_posix()}: missing specification archive")
-    else:
+    if spec_dir.is_dir():
         for path in sorted(spec_dir.glob("*.md")):
             relative = path.relative_to(root)
             text, read_error = _read(root, relative)
@@ -285,8 +281,7 @@ def check(root: Path = ROOT) -> list[str]:
                     "superseded, or historical; live work belongs in docs/fleet-roadmap.md"
                 )
             # The roadmap pointer was checked in the plans loop only, even though docs/README.md
-            # and docs/rules.md both promise it for "plans and specs" and say this script fails the
-            # build otherwise. It did not: a spec with no pointer at all passed green.
+            # requires it for plans and specs. It did not: a spec with no pointer passed green.
             if "docs/fleet-roadmap.md" not in front:
                 failures.append(
                     f"{relative.as_posix()}: specification status must point to "

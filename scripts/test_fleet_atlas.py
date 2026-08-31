@@ -83,7 +83,7 @@ class QueryTests(unittest.TestCase):
 
     def test_each_operator_query_has_a_grounded_answer(self) -> None:
         queries = (
-            ("governs", ["tool absence"], "governed_by"),
+            ("governs", ["eval runner"], "governed_by"),
             ("owner-of", ["EVAL-003"], "owns"),
             ("loads-for", ["backend-craft", "authenticating"], "loads_when"),
             (
@@ -345,9 +345,11 @@ class ExtractGovernanceTests(unittest.TestCase):
             if e.kind == "supersedes" and e.attrs.get("relation") == "disposes" and e.source == calibration.id
         ]
         self.assertEqual([e.target for e in disposals], ["roadmap-item:EVAL-002"])
-        conformance = self.graph.nodes["decision:2026-08-01-local-sol-conformance"]
-        self.assertEqual(conformance.state, "historical")
-        self.assertTrue(any(u.code == "extract.supersedes-unresolved" for u in self.graph.unknowns))
+        self.assertNotIn("decision:2026-08-01-local-sol-conformance", self.graph.nodes)
+        self.assertFalse(any(
+            u.path == "docs/decisions/2026-08-01-local-sol-conformance.md"
+            for u in self.graph.unknowns
+        ))
 
 
 import check_evidence_refs  # noqa: E402
@@ -497,16 +499,14 @@ class DetectorTests(unittest.TestCase):
         self.assertEqual(cited & uncited, set(), "a cited review must never be reported uncited")
 
     def test_uncited_review_detector_also_scans_live_doc_citations(self) -> None:
-        """docs/rules.md's "Related" section cites a review that no roadmap item or decision does.
+        """docs/README.md cites retained audit evidence outside roadmap and decision records.
 
         link_evidence() and extract_reviews() only walk roadmap-item/decision/review sources for
         citations, not a live root/docs guide's own body. Without also scanning that guide,
-        docs/reviews/2026-08-06-docs-authority-refresh.md -- cited only from docs/rules.md's
-        "Related" section -- was wrongly reported uncited: a real false positive found by spot-
-        checking the real-repository yield of this detector, not a hypothetical.
+        the retained full-skill audit packets would be wrongly reported uncited.
         """
         uncited = {u.path for u in self.graph.unknowns if u.code == "stale.review-uncited"}
-        self.assertNotIn("docs/reviews/2026-08-06-docs-authority-refresh.md", uncited)
+        self.assertNotIn("docs/reviews/2026-08-24-full-skill-audit-batch-1.md", uncited)
 
     def test_retired_name_detector_fires_on_prose_but_respects_the_filename_carve_out(self) -> None:
         import tempfile

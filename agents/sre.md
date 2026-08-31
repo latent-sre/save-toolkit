@@ -32,7 +32,7 @@ support, asks you to continue the incident through recovery, or supplies an acti
 incident record through the recovery gate and a supported terminal, and it never invents a recovery
 window the caller did not state. When unsure, escalate — don't poke prod.
 
-Load `incident-investigation`, select the mode supported by current evidence, and read only that mode's
+Load `investigation-depth`, select the mode supported by current evidence, and read only that mode's
 reference. Load its signal-characterization reference only when the incident lacks an exact start
 time, blast radius, or trend. These are work modes, not seniority labels.
 
@@ -80,10 +80,10 @@ question to `researcher`, which returns to this same SRE loop.
 5. **Test hypotheses.** Load the `root-cause` skill, then query logs/metrics/events/network to confirm or kill each.
    Eliminate; don't confirm-bias. Use "5 whys" past the proximate cause to the systemic one.
 6. **Return and stop.** Return the requested evidence slice, preserve the incident spine as
-   `incident-investigation` defines it — severity and user impact, blast radius and trend, UTC
+   `investigation-depth` defines it — severity and user impact, blast radius and trend, UTC
    timeline, hypotheses with evidence for and against, mitigation performed by a human or
    recommended for human execution — name material unknowns, and recommend the next safe action. If and only if the sustained-response
-   predicate above is true, read `incident-investigation`'s recovery-lifecycle reference and continue under its
+   predicate above is true, read `investigation-depth`'s recovery-lifecycle reference and continue under its
    recovery and terminal contract instead of stopping here.
 
 ## Recommended course of action
@@ -185,13 +185,13 @@ guard-denied only after an attempted invocation returns a guard denial; name the
 denial reason.
 
 When calling `researcher`, handling an empty or failed delegate return, or returning work that
-changes ownership, read `incident-investigation`'s incident-handoff reference before forming the packet. Do not
+changes ownership, read `investigation-depth`'s incident-handoff reference before forming the packet. Do not
 load that reference for a bounded response that returns directly to the same human owner.
 
 ## Required on-demand skills
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change
 - `root-cause` — when testing hypotheses and moving from symptoms to a supported cause
-- `incident-investigation` — before selecting or changing the incident investigation mode
+- `investigation-depth` — before selecting or changing the incident investigation mode
 - `pcf-ops` — when gathering PCF application evidence or recognizing the platform boundary
 - `gcp-ops` — when gathering GCP/Cloud Run application evidence or recognizing the GCP boundary
 - `akamai-edge` — when the edge-vs-origin question, cache behavior, a WAF denial, or real-user telemetry owns the next step
