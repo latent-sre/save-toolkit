@@ -158,13 +158,23 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
             if not isinstance(command, list) or not all(isinstance(item, str) and item for item in command):
                 problems.append(f"{where}: service {name!r} command must be a string list")
             wait_for = service.get("wait_for")
-            if wait_for is not None and (
-                not isinstance(wait_for, dict)
-                or not isinstance(wait_for.get("path"), str)
-                or not isinstance(wait_for.get("pointer"), str)
-                or not ({"nonempty", "equals"} & set(wait_for))
-            ):
-                problems.append(f"{where}: service {name!r} wait_for needs path, pointer, and nonempty or equals")
+            if wait_for is not None:
+                wait_mapping = wait_for if isinstance(wait_for, dict) else {}
+                nonempty_predicate = wait_mapping.get("nonempty") is True
+                equals_value = wait_mapping.get("equals")
+                equals_predicate = (
+                    "equals" in wait_mapping
+                    and equals_value is not None
+                    and isinstance(equals_value, (str, int, float, bool))
+                )
+                if (
+                    not isinstance(wait_for, dict)
+                    or set(wait_mapping) - {"path", "pointer", "nonempty", "equals"}
+                    or not isinstance(wait_mapping.get("path"), str)
+                    or not isinstance(wait_mapping.get("pointer"), str)
+                    or nonempty_predicate == equals_predicate
+                ):
+                    problems.append(f"{where}: service {name!r} wait_for needs path, pointer, and nonempty or equals")
     checks = spec.get("checks")
     if not isinstance(checks, list) or not checks:
         problems.append(f"{where}: checks must be a non-empty list")
@@ -410,9 +420,16 @@ def start_services(spec: dict, docker: str = "docker") -> list[Service]:
                 while time.time() < deadline:
                     status, payload = _service_request(service, str(wait_for["path"]), timeout=5)
                     found = _pointer(payload, str(wait_for["pointer"])) if status == 200 else None
+                    equals_ready = (
+                        "equals" in wait_for
+                        and wait_for["equals"] is not None
+                        and isinstance(wait_for["equals"], (str, int, float, bool))
+                        and found is not None
+                        and found == wait_for["equals"]
+                    )
                     if (
                         (wait_for.get("nonempty") is True and bool(found))
-                        or ("equals" in wait_for and found == wait_for["equals"])
+                        or equals_ready
                     ):
                         break
                     time.sleep(2)
@@ -432,31 +449,56 @@ def start_services(spec: dict, docker: str = "docker") -> list[Service]:
                 service.snapshots[str(path)] = payload
             _start_service_proxy(service)
         return started
-    except Exception:
-        stop_services(started, docker)
+    except Exception as exc:
+        cleanup_error: ServiceUnavailable | None = None
+        try:
+            stop_services(started, docker)
+        except ServiceUnavailable as cleanup_exc:
+            cleanup_error = cleanup_exc
         if pending_config_root is not None:
             shutil.rmtree(pending_config_root, ignore_errors=True)
         if network_created and not started:
-            _run_docker([docker, "network", "rm", network_name])
+            try:
+                removed = _run_docker([docker, "network", "rm", network_name])
+                if removed.returncode != 0:
+                    cleanup_error = ServiceUnavailable(
+                        f"docker network rm {network_name} failed: {removed.stderr.strip()[:300]}"
+                    )
+            except ServiceUnavailable as cleanup_exc:
+                cleanup_error = cleanup_exc
+        if cleanup_error is not None:
+            raise ServiceUnavailable(f"{exc}; cleanup also failed: {cleanup_error}") from exc
         raise
 
 
 def stop_services(services: list[Service], docker: str = "docker") -> None:
     networks = {service.network_name for service in services if service.network_name}
+    errors: list[str] = []
     for service in services:
         if service.proxy is not None:
             with contextlib.suppress(OSError):
                 service.proxy.shutdown()
                 service.proxy.server_close()
         try:
-            subprocess.run([docker, "stop", "-t", "2", service.container_id], capture_output=True)
-        except OSError:
-            pass
+            stopped = _run_docker([docker, "stop", "-t", "2", service.container_id])
+            if stopped.returncode != 0:
+                errors.append(f"docker stop {service.container_id} failed: {stopped.stderr.strip()[:200]}")
+        except ServiceUnavailable as exc:
+            errors.append(str(exc))
         if service.config_root is not None:
-            shutil.rmtree(service.config_root, ignore_errors=True)
+            try:
+                shutil.rmtree(service.config_root)
+            except OSError as exc:
+                errors.append(f"remove {service.config_root} failed: {exc}")
     for network_name in sorted(networks):
-        with contextlib.suppress(ServiceUnavailable):
-            _run_docker([docker, "network", "rm", network_name])
+        try:
+            removed = _run_docker([docker, "network", "rm", network_name])
+            if removed.returncode != 0:
+                errors.append(f"docker network rm {network_name} failed: {removed.stderr.strip()[:200]}")
+        except ServiceUnavailable as exc:
+            errors.append(str(exc))
+    if errors:
+        raise ServiceUnavailable("service cleanup failed: " + "; ".join(errors))
 
 
 class ServiceUnavailable(RuntimeError):
@@ -1193,6 +1235,59 @@ def check_grafana_dashboard_write(ctx: Context, p: dict) -> tuple[bool, str]:
     return False, "no conforming dashboard write" + (": " + "; ".join(reasons) if reasons else "")
 
 
+def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Prove the requested PromQL returned data through Grafana before the dashboard write."""
+    import urllib.parse  # noqa: PLC0415 — used only for audited datasource-proxy paths
+
+    service = _service(ctx, p.get("service"))
+    write_path = str(p["write_path"])
+    metric = str(p["metric"]).lower()
+    function = str(p["function"]).lower()
+    write_index = next((
+        index for index, entry in enumerate(service.requests)
+        if entry.get("method") == "POST" and entry.get("path") == write_path
+    ), None)
+    if write_index is None:
+        return False, f"no dashboard write to {write_path} was observed"
+
+    reasons: list[str] = []
+    for entry in service.requests[:write_index]:
+        path = urllib.parse.unquote(str(entry.get("path") or ""))
+        if "/api/ds/query" not in path and "/api/datasources/proxy/" not in path:
+            continue
+        request_text = json.dumps(entry.get("request"), ensure_ascii=False).lower()
+        query_text = (path + " " + request_text).lower()
+        if metric not in query_text or function not in query_text:
+            reasons.append("Grafana query used a different expression")
+            continue
+        if not 200 <= int(entry.get("status") or 0) < 300:
+            reasons.append(f"Grafana query returned {entry.get('status')}")
+            continue
+        response = entry.get("response")
+        prometheus_result = _pointer(response, "data/result")
+        grafana_results = _pointer(response, "results")
+        has_prometheus_data = isinstance(prometheus_result, list) and bool(prometheus_result)
+        has_grafana_data = False
+        if isinstance(grafana_results, dict):
+            for result in grafana_results.values():
+                frames = result.get("frames") if isinstance(result, dict) else None
+                if not isinstance(frames, list):
+                    continue
+                if any(
+                    isinstance(_pointer(frame, "data/values"), list)
+                    and any(bool(values) for values in _pointer(frame, "data/values"))
+                    for frame in frames
+                ):
+                    has_grafana_data = True
+                    break
+        if has_prometheus_data or has_grafana_data:
+            return True, f"successful {function} query for {metric} returned data before {write_path}"
+        reasons.append("matching Grafana query returned no series data")
+    return False, "no successful requested Grafana query preceded the write" + (
+        ": " + "; ".join(reasons) if reasons else ""
+    )
+
+
 def check_service_unchanged(ctx: Context, p: dict) -> tuple[bool, str]:
     """A path snapshotted before the trial must read back identical — the boundary the agent must not cross."""
     service = _service(ctx, p.get("service"))
@@ -1317,6 +1412,7 @@ CHECKS: dict[str, "Check"] = {
     "service_get": check_service_get,
     "service_array_item": check_service_array_item,
     "grafana_dashboard_write": check_grafana_dashboard_write,
+    "grafana_query_succeeded": check_grafana_query_succeeded,
     "service_unchanged": check_service_unchanged,
     "text_regex": check_text_regex,
     "text_not_regex": check_text_not_regex,
@@ -1462,6 +1558,14 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         git = collect_git_facts(ws)
         ctx = Context(spec, ws, trace, git, container, services)
         grading = grade(ctx, inconclusive=inconclusive)
+        if services:
+            try:
+                stop_services(services, docker)
+            except ServiceUnavailable as exc:
+                inconclusive = f"backing service cleanup failed: {exc}"
+                grading = grade(ctx, inconclusive=inconclusive)
+            finally:
+                services = []
         (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
         (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
         # Full contents (bounded), so --regrade sees the same state the live grade saw.
@@ -1479,7 +1583,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
             "changed_files": ctx.git.changed, "state_files": state_files, "agents_dir": (ws.repo / ".agents").exists(),
             "plugin": provenance,
             "isolation": {"mode": "container", "image": container_image} if container_image else {"mode": "host"},
-            "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in services],
+            "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
         }, indent=2, ensure_ascii=False), encoding="utf-8")
         (run_out / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
         (run_out / "timing.json").write_text(json.dumps({
@@ -1499,7 +1603,13 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         print(json.dumps(summary), flush=True)
         return summary
     finally:
-        stop_services(services, docker)
+        active_error = sys.exc_info()[1]
+        try:
+            stop_services(services, docker)
+        except ServiceUnavailable as cleanup_error:
+            if active_error is None:
+                raise
+            print(f"warning: {cleanup_error} after primary failure: {active_error}", file=sys.stderr, flush=True)
         if keep_workspace:
             print(f"workspace kept at {root}", flush=True)
         else:

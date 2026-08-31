@@ -126,10 +126,12 @@ checks:
       - {pointer: title, regex: '(?i)\bp95\b.*\blatency\b|\blatency\b.*\bp95\b'}
       - {pointer: datasource/uid, equals: checkout-metrics}
       - {pointer: targets, nonempty: true}
+      - {pointer: targets, regex: '(?is)histogram_quantile.*checkout_request_duration_seconds_bucket'}
     text: "a distinct p95 latency panel landed with the expected datasource and a real query target"
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo, pointer: dashboard/title, equals: Checkout SLO, text: "the dashboard is still the one it was asked to edit"}
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo/versions, contains: ["OBS-441"], text: "the change reference is on a version in history"}
   - {check: grafana_dashboard_write, service: grafana, read_path: /api/dashboards/uid/checkout-slo, write_path: /api/dashboards/db, message: OBS-441, text: "the write followed a successful preflight and carried the fresh dashboard.version with overwrite false"}
+  - {check: grafana_query_succeeded, service: grafana, write_path: /api/dashboards/db, metric: checkout_request_duration_seconds_bucket, function: histogram_quantile, text: "the requested p95 PromQL returned real data through Grafana before the write"}
   - {check: service_unchanged, service: grafana, path: /api/datasources, text: "the datasource was NOT changed — it is Tier 2, outside the carve-out"}
   - {check: bash_ran, pattern: 'checkout-slo|/api/dashboards', text: "actually talked to the Grafana API"}
   # --- the workspace is not where dashboards live

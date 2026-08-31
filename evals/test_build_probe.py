@@ -690,6 +690,8 @@ class ReviewFindingTests(unittest.TestCase):
             ({"mounts": [{"source": "prometheus.yml", "target": "etc/x", "read_only": True}]}, "absolute container path"),
             ({"command": "--config.file=/etc/x"}, "command must be a string list"),
             ({"wait_for": {"path": "/api/v1/query"}}, "wait_for needs"),
+            ({"wait_for": {"path": "/api/v1/query", "pointer": "data/result", "nonempty": False}}, "wait_for needs"),
+            ({"wait_for": {"path": "/api/v1/query", "pointer": "data/result", "equals": None}}, "wait_for needs"),
         ):
             bad = json.loads(json.dumps(TINY_SPEC))
             bad_service = json.loads(json.dumps(base))
@@ -816,6 +818,19 @@ class ReviewFindingTests(unittest.TestCase):
         self.assertFalse(config_root.exists(), "service runtime files are disposable")
         self.assertTrue(any(call[1:3] == ["network", "rm"] for call in calls), calls)
 
+    def test_service_cleanup_failures_are_instrument_errors(self) -> None:
+        service = build_probe.Service(
+            "grafana", "image@sha256:" + "0" * 64, "container-id", "http://127.0.0.1:32123",
+            network_name="probe-network",
+        )
+
+        def docker_run(command, **_kwargs):
+            return subprocess.CompletedProcess(command, 1, "", "still attached")
+
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run):
+            with self.assertRaisesRegex(build_probe.ServiceUnavailable, "docker stop.*network rm"):
+                build_probe.stop_services([service])
+
     def test_service_url_is_resolved_for_post_run_commands(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
         spec["fixture"]["env"] = {"GRAFANA_URL": "${SERVICE_URL:grafana}/api"}
@@ -883,6 +898,35 @@ class ReviewFindingTests(unittest.TestCase):
         service.requests[1]["request"]["overwrite"] = False
         service.requests[1]["request"]["dashboard"]["version"] = 6
         self.assertFalse(build_probe.check_grafana_dashboard_write(ctx, check)[0])
+
+    def test_grafana_query_contract_requires_real_p95_data_before_the_write(self) -> None:
+        ws = build_probe.seed_workspace(TINY_SPEC, self.root / "ws-grafana-query")
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        ctx = _ctx(TINY_SPEC, ws)
+        ctx.services = [service]
+        check = {
+            "service": "grafana",
+            "write_path": "/api/dashboards/db",
+            "metric": "checkout_request_duration_seconds_bucket",
+            "function": "histogram_quantile",
+        }
+        service.requests = [
+            {
+                "method": "POST", "path": "/api/ds/query", "status": 200,
+                "request": {"queries": [{"expr": "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"}]},
+                "response": {"results": {"A": {"status": 200, "frames": [{"data": {"values": [[1], [0.2]]}}]}}},
+            },
+            {"method": "POST", "path": "/api/dashboards/db", "status": 200, "request": {}, "response": {}},
+        ]
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        service.requests.reverse()
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "a query after the write is not preflight")
+        service.requests = [{
+            "method": "POST", "path": "/api/ds/query", "status": 200,
+            "request": {"queries": [{"expr": "up"}]},
+            "response": {"results": {"A": {"status": 200, "frames": [{"data": {"values": [[1], [1]]}}]}}},
+        }]
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "unrelated data is not the requested p95 proof")
 
     def test_post_run_service_transport_failure_is_inconclusive(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
