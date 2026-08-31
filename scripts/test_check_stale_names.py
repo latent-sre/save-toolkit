@@ -92,7 +92,7 @@ class StaleNamesTest(unittest.TestCase):
         self.assertIn(
             "sre-ladder",
             check_stale_names.STALE,
-            "the incident-mode router is `incident-investigation`; `sre-ladder` stays retired",
+            "the incident-mode router is `investigation-depth`; `sre-ladder` stays retired",
         )
 
     def test_a_path_or_md_reference_is_exempt(self) -> None:

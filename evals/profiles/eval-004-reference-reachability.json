@@ -19,8 +19,8 @@
     "incident-command-perishable-evidence-contract",
     "incident-command-handover-readback",
     "incident-command-clock-declares-despite-progress",
-    "incident-investigation-flat-signals-are-not-health",
-    "incident-investigation-stuck-differential-escalates"
+    "investigation-depth-flat-signals-are-not-health",
+    "investigation-depth-stuck-differential-escalates"
   ],
   "required_references": {
     "incident-command-perishable-evidence-contract": [
@@ -33,11 +33,11 @@
       "skills/incident-command/references/command-and-communications.md",
       "skills/incident-command/references/severity-and-declaration.md"
     ],
-    "incident-investigation-flat-signals-are-not-health": [
-      "skills/incident-investigation/references/signal-characterization.md"
+    "investigation-depth-flat-signals-are-not-health": [
+      "skills/investigation-depth/references/signal-characterization.md"
     ],
-    "incident-investigation-stuck-differential-escalates": [
-      "skills/incident-investigation/references/hypothesis-investigation.md"
+    "investigation-depth-stuck-differential-escalates": [
+      "skills/investigation-depth/references/hypothesis-investigation.md"
     ]
   },
   "model": "sonnet",

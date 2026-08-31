@@ -51,12 +51,12 @@ NON_DELEGATION_DISCLAIMERS = (
     "caller must invoke",
 )
 CONDITIONAL_HANDOFF_CONTRACTS = {
-    "sre": Path("skills/incident-investigation/references/incident-handoff.md"),
+    "sre": Path("skills/investigation-depth/references/incident-handoff.md"),
 }
 CONDITIONAL_HANDOFF_POINTERS = {
     "sre": (
         "When calling `researcher`, handling an empty or failed delegate return, or returning work "
-        "that changes ownership, read `incident-investigation`'s incident-handoff reference before forming the "
+        "that changes ownership, read `investigation-depth`'s incident-handoff reference before forming the "
         "packet. Do not load that reference for a bounded response that returns directly to the "
         "same human owner."
     ),

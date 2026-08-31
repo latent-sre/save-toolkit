@@ -1,10 +1,10 @@
 schema_version: 1
-id: discovery-incident-investigation-systemic-failure
+id: discovery-investigation-depth-systemic-failure
 mode: discovery
 split: regression
 target:
   kind: skill
-  name: incident-investigation
+  name: investigation-depth
 prompt: |
   I am the SRE helping with an active checkout incident. Checkout, payments, and auth are all
   degrading through a shared request path; retry volume and queue saturation keep rising even
