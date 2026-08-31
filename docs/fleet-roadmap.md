@@ -183,12 +183,13 @@ values are required and no real team is onboarded.
 
 ### GRAPH-004 — `fleet-atlas`: a revision-bound knowledge graph over fleet artifacts
 
-**Status:** `active` (2026-08-30). The owner accepted the fleet-knowledge scope. Seven of ten
-planned slices are committed and pushed on `work/graph-004-fleet-atlas` at `84e11244`: model and
-schema, canonical extraction, contract-cited edges, governance extraction, evidence linking,
-detectors, and the views with their drift gate. The query layer, the consumer skill with its
-scenarios, and an optional read-only external probe remain. No pull request exists and no candidate
-is accepted or merged.
+**Status:** `active` (2026-08-30). The owner accepted the fleet-knowledge scope. Nine implementation
+slices are committed on `work/graph-004-fleet-atlas`: model and schema, canonical extraction,
+contract-cited edges, governance extraction, evidence linking, detectors, views with their drift
+gate, the bounded query layer, and the `fleet-atlas` consumer skill with calibration scenarios.
+The originally listed read-only external probe is optional and deferred until a named public source
+or consumer requires it; it is not an acceptance prerequisite. No pull request exists and no
+candidate is accepted or merged.
 
 **Owner:** `software-engineer` owns the generator, schema, catalog entry, drift check, and tests;
 `agent-engineer` owns the `fleet-atlas` skill and scenarios; `repository-investigator`,
@@ -226,12 +227,10 @@ bounded index/detail views cite revision and source; positive discovery and dire
 contradiction scenarios pass while existing code-graph and roster-graph near misses remain green;
 Gate A and independent exact-revision review pass. Generated findings never edit canonical truth.
 
-**Next action:** Finish the three remaining slices on `work/graph-004-fleet-atlas` — the query
-layer with a pinned golden answer per operator question, the consumer skill with its discovery and
-direct scenarios plus regenerated adapters, and the optional read-only external probe whose output
-never enters the deterministic baseline. Then run the focused atlas, mutation, and component checks
-plus Gate A on the exact revision, obtain independent review, and open one review path for that
-candidate. Do not start a duplicate implementation or schedule GraphRAG.
+**Next action:** Run the focused atlas and mutation-backed drift/unknown checks plus Gate A on the
+clean integrated candidate, obtain exact-revision independent review, and open one review path only
+after resolving material findings. Do not build the deferred external probe without a named public
+source or consumer, start a duplicate implementation, or schedule GraphRAG.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
