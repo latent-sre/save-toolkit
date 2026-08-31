@@ -259,7 +259,7 @@ class PlatformSkillContractTests(unittest.TestCase):
         self.assertTrue(alloy_docker_validation_is_bounded(reference))
 
     def test_general_docker_verification_policy_preserves_authority_and_evidence_boundaries(self) -> None:
-        self.assertTrue(docker_verification_policy_is_bounded(read("AGENTS.md")))
+        self.assertTrue(docker_verification_policy_is_bounded(read("docs/docker-verification.md")))
 
     def test_scribe_and_postmortem_skill_agree_on_evidence_selected_causal_analysis(self) -> None:
         scribe = read("agents/scribe.md")
@@ -417,12 +417,14 @@ class PlatformSkillContractTests(unittest.TestCase):
             ),
             (
                 docker_verification_policy_is_bounded,
-                read("AGENTS.md").replace("`--network none` by default", "the default network", 1),
+                read("docs/docker-verification.md").replace(
+                    "`--network none` by default", "the default network", 1
+                ),
                 "network-enabled general Docker verification",
             ),
             (
                 docker_verification_policy_is_bounded,
-                read("AGENTS.md").replace(
+                read("docs/docker-verification.md").replace(
                     "already has Bash\nor execute authority",
                     "can request execution after selecting Docker",
                     1,

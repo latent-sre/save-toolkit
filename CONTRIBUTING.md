@@ -27,6 +27,9 @@ Before changing frontmatter, tool authority, delegation, or guard wiring, read t
 [`agent-authoring` frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md).
 On Windows use `python` or `py -3`, not the `python3` Store stub.
 
+Prefer `rg`. [`.ignore`](.ignore) hides generated projections, so use `--no-ignore` to inspect them;
+use `--hidden` for dot-directories such as `.github/` workflows.
+
 ## 3. Verify in proportion to the change
 
 Run the smallest check that exercises the changed behavior. A new contract needs one focused test

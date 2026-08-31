@@ -5,7 +5,7 @@
 - **Decision owner:** Save Toolkit maintainers
 - **Supersedes:** `docs/verification-sandbox.md`, the live reference contract that governed
   `scripts/verification_sandbox.py`. That document and both of its files are deleted here. The
-  Docker-backed local verification policy in [`AGENTS.md`](../../AGENTS.md) is **not** superseded:
+  [Docker-backed local verification policy](../docker-verification.md) is **not** superseded:
   it permits a lane with existing execute authority to run a pinned image directly, which is what
   the fleet actually does.
 
@@ -65,7 +65,7 @@ consumer, then carried as maintenance. The owner directed removal on 2026-08-26.
 
 ## Reopen trigger
 
-A named consumer requires an execution boundary stronger than the `AGENTS.md` Docker policy — one
+A named consumer requires an execution boundary stronger than the Docker verification policy — one
 that must refuse to run against bytes whose digest was not preapproved, and must emit typed
 `inconclusive` evidence when the source changes mid-run. Restore from history at that point rather
 than rewriting it.

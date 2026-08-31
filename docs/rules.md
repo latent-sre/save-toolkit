@@ -14,9 +14,9 @@ authoritative?*
 
 | Rule | Primary source |
 |---|---|
-| Gate A (`scripts/gate_a.py`) must pass before a push; it is structural only and runs no component tests or evals | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring; [`AGENTS.md`](../AGENTS.md) |
-| On Windows use `python` / `py -3`, never bare `python3` (Store stub) | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring and `preflight()`; restated in [`AGENTS.md`](../AGENTS.md) |
-| Third-party deps allowed, pinned in `requirements-dev.txt`; the first Gate A-path import of one ships the CI install steps in the same PR. **`scripts/readonly-guard.py` is exempt and stays stdlib-only** — the hook runs it `python -I -S` with no site packages, so an import error there denies all guarded Bash | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-third-party-dependencies.md) |
+| Gate A (`scripts/gate_a.py`) must pass before a push; it is structural only and runs no component tests or evals | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring; [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| On Windows use `python` / `py -3`, never bare `python3` (Store stub) | [`scripts/gate_a.py`](../scripts/gate_a.py) docstring and `preflight()`; [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Third-party deps allowed, pinned in `requirements-dev.txt`; the first Gate A-path import of one ships the CI install steps in the same PR. **`scripts/readonly-guard.py` is exempt and stays stdlib-only** — the hook runs it `python -I -S` with no site packages, so an import error there denies all guarded Bash | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-third-party-dependencies.md); `gate_a.py` docstring |
 | Canonical authored source is `agents/`, `skills/`, and `commands/` only | [`2026-07-31-multi-platform-plugin-packaging.md`](decisions/2026-07-31-multi-platform-plugin-packaging.md) |
 | After canonical edits are complete and before push, run `generate_platform_adapters.py --write` and commit projections with source | [`CONTRIBUTING.md`](../CONTRIBUTING.md) source-of-truth workflow |
 | Never hand-edit generated roots: `.github/agents/`, `platforms/copilot/skills/` | [`AGENTS.md`](../AGENTS.md) Hard rules |
@@ -43,7 +43,7 @@ authoritative?*
 | Mutation testing is optional and single-module; a survivor count is a diagnostic lead, not a finding or backlog | [`mutation_guard.py`](../scripts/mutation_guard.py) docstring and CLI boundary |
 | Description edits that change routing content need after-change clean-room runs of the scenarios targeting the component; pure rewording needs none | [`CONTRIBUTING.md`](../CONTRIBUTING.md) proportional verification table |
 | Preserve unrelated work and published history; use a branch or worktree only when isolation is needed, and compare a publishing branch with current `origin/main` | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| Probe and schema contracts: published schemas are immutable; runtime probes use evidence envelopes (`skip`/`inconclusive`, never fake `pass`); Docker-backed verification pins an exact image and runs `--rm --network none`, and probe success grants no production authority | [`schema-compatibility.md`](schema-compatibility.md); [`AGENTS.md`](../AGENTS.md) |
+| Probe and schema contracts: published schemas are immutable; runtime probes use evidence envelopes (`skip`/`inconclusive`, never fake `pass`); Docker-backed verification pins an exact image and runs `--rm --network none`, and probe success grants no production authority | [`schema-compatibility.md`](schema-compatibility.md); [`docker-verification.md`](docker-verification.md) |
 
 ## 2. Agent authority / tooling
 
@@ -62,7 +62,7 @@ authoritative?*
 | Guard is a command filter, not a sandbox; OS least privilege remains load-bearing | [`readonly-guard.py`](../scripts/readonly-guard.py) |
 | Canonical Claude `Agent(target)` grants enforce on the main thread only; generated VS Code `agents:` enforcement remains host/build-specific | Frontmatter reference; [`AGENTS.md`](../AGENTS.md); `HOST-002` |
 | Generated VS Code handoffs are a separate human-selected local ownership graph, always `send: true` so one click starts the receiver; the click changes ownership but is not approval, the generator owns the map, tests pin every edge, write-capable receivers re-check approval and target binding, and `researcher` remains a sanitized subagent call | `generate_platform_adapters.py`; `test_platform_adapters.py`; [`AGENTS.md`](../AGENTS.md) |
-| `model:` on an agent must be a generation alias (`haiku`/`sonnet`/`opus`/`fable`/`inherit`), never a full ID; default is to inherit the session model | [`AGENTS.md`](../AGENTS.md) Hard rules; [ADR](decisions/2026-08-23-allow-model-aliases.md); `validate_fleet.py` |
+| `model:` on an agent must be a generation alias (`haiku`/`sonnet`/`opus`/`fable`/`inherit`), never a full ID; default is to inherit the session model | [ADR](decisions/2026-08-23-allow-model-aliases.md); `validate_fleet.py` |
 | Copilot model ordered list lives only in `stack-profile`, never in agent files | [`stack-profile/SKILL.md`](../skills/stack-profile/SKILL.md) |
 | Never set `memory` on read-only / external-only agents (auto-enables write tools) | Frontmatter reference |
 | Exact MCP grants only (no silent server-wide wildcards) | Frontmatter reference; packaging ADR |
