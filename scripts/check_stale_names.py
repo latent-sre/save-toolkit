@@ -45,7 +45,7 @@ STALE = (
     "handoff-protocol", "route-request", "adr-template", "runbook-template",
     "bamboo-to-actions-migration", "sde-fullstack", "homelab-platform",
     "principal-engineer", "distinguished-architect", "multi-agent-architect",
-    "prompt-craft", "sre-tool", "service-onboard", "lab-audit",
+    "prompt-craft", "sre-tool", "service-onboard", "lab-audit", "sde-agents",
     # `craft` (the skill) retired into `language-idiom` but is NOT listed here, deliberately: it is
     # ordinary English, and the boundary regex would flag legitimate prose ("# Frontend craft",
     # "reads as noise rather than craft" — 19 such hits when probed). This is exactly why common

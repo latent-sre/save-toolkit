@@ -49,9 +49,10 @@ import unfinished work from them.
 
 Sealed eval packets that no live document cited were folded into
 [`2026-08-30-folded-eval-index.md`](reviews/2026-08-30-folded-eval-index.md). That index keeps the
-batch IDs, verdicts, models, candidates, and scenario names; the full packets remain in git history.
-Packets the live roadmap already names stay as their original files. The index is historical
-evidence, not a task list.
+batch IDs, verdicts, models, full candidate object IDs, input clean/dirty state, input SHA-256
+digests, and complete scenario names and counts; the full packets remain in git history. Packets
+the live roadmap already names stay as their original files. The index is historical evidence, not
+a task list.
 
 ## Rules
 
