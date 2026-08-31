@@ -1250,39 +1250,85 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
     if write_index is None:
         return False, f"no dashboard write to {write_path} was observed"
 
+    write = service.requests[write_index]
+
+    def normalized(expression: str) -> str:
+        return re.sub(r"\s+", "", expression).lower()
+
+    def persisted_on_p95_panel(expression: str) -> bool:
+        body = write.get("request")
+        dashboard = body.get("dashboard") if isinstance(body, dict) else None
+        panels = dashboard.get("panels") if isinstance(dashboard, dict) else None
+        if not isinstance(panels, list):
+            return False
+        expected = normalized(expression)
+        for panel in panels:
+            if not isinstance(panel, dict) or not re.search(r"(?i)\bp95\b.*\blatency\b|\blatency\b.*\bp95\b", str(panel.get("title") or "")):
+                continue
+            targets = panel.get("targets")
+            if isinstance(targets, list) and any(
+                isinstance(target, dict)
+                and isinstance(target.get("expr"), str)
+                and normalized(target["expr"]) == expected
+                for target in targets
+            ):
+                return True
+        return False
+
+    def frames_have_data(result: object) -> bool:
+        frames = result.get("frames") if isinstance(result, dict) else None
+        if not isinstance(frames, list):
+            return False
+        return any(
+            isinstance(_pointer(frame, "data/values"), list)
+            and any(bool(values) for values in _pointer(frame, "data/values"))
+            for frame in frames
+        )
+
     reasons: list[str] = []
     for entry in service.requests[:write_index]:
         path = urllib.parse.unquote(str(entry.get("path") or ""))
         if "/api/ds/query" not in path and "/api/datasources/proxy/" not in path:
             continue
-        request_text = json.dumps(entry.get("request"), ensure_ascii=False).lower()
-        query_text = (path + " " + request_text).lower()
-        if metric not in query_text or function not in query_text:
-            reasons.append("Grafana query used a different expression")
-            continue
         if not 200 <= int(entry.get("status") or 0) < 300:
             reasons.append(f"Grafana query returned {entry.get('status')}")
             continue
         response = entry.get("response")
-        prometheus_result = _pointer(response, "data/result")
-        grafana_results = _pointer(response, "results")
-        has_prometheus_data = isinstance(prometheus_result, list) and bool(prometheus_result)
-        has_grafana_data = False
-        if isinstance(grafana_results, dict):
-            for result in grafana_results.values():
-                frames = result.get("frames") if isinstance(result, dict) else None
-                if not isinstance(frames, list):
+        if "/api/ds/query" in path:
+            request = entry.get("request")
+            queries = request.get("queries") if isinstance(request, dict) else None
+            results = _pointer(response, "results")
+            if not isinstance(queries, list) or not isinstance(results, dict):
+                reasons.append("Grafana batch response could not be bound to query refIds")
+                continue
+            for query in queries:
+                expression = query.get("expr") if isinstance(query, dict) else None
+                ref_id = query.get("refId") if isinstance(query, dict) else None
+                if not isinstance(expression, str) or metric not in expression.lower() or function not in expression.lower():
                     continue
-                if any(
-                    isinstance(_pointer(frame, "data/values"), list)
-                    and any(bool(values) for values in _pointer(frame, "data/values"))
-                    for frame in frames
-                ):
-                    has_grafana_data = True
-                    break
-        if has_prometheus_data or has_grafana_data:
-            return True, f"successful {function} query for {metric} returned data before {write_path}"
-        reasons.append("matching Grafana query returned no series data")
+                result = results.get(str(ref_id)) if isinstance(ref_id, str) else None
+                if not frames_have_data(result):
+                    reasons.append(f"requested Grafana query refId {ref_id!r} returned no series data")
+                    continue
+                if not persisted_on_p95_panel(expression):
+                    reasons.append("successful Grafana query was not the expression persisted on the p95 panel")
+                    continue
+                return True, f"successful {function} query refId {ref_id} for {metric} matched the persisted panel"
+            if not any(metric in str(query).lower() and function in str(query).lower() for query in queries):
+                reasons.append("Grafana batch used a different expression")
+            continue
+
+        query_values = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query).get("query") or []
+        expression = query_values[0] if len(query_values) == 1 else None
+        prometheus_result = _pointer(response, "data/result")
+        if not isinstance(expression, str) or metric not in expression.lower() or function not in expression.lower():
+            reasons.append("Grafana datasource proxy used a different expression")
+        elif not isinstance(prometheus_result, list) or not prometheus_result:
+            reasons.append("requested datasource-proxy query returned no series data")
+        elif not persisted_on_p95_panel(expression):
+            reasons.append("successful datasource-proxy query was not persisted on the p95 panel")
+        else:
+            return True, f"successful {function} proxy query for {metric} matched the persisted panel"
     return False, "no successful requested Grafana query preceded the write" + (
         ": " + "; ".join(reasons) if reasons else ""
     )

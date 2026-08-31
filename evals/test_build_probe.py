@@ -913,20 +913,38 @@ class ReviewFindingTests(unittest.TestCase):
         service.requests = [
             {
                 "method": "POST", "path": "/api/ds/query", "status": 200,
-                "request": {"queries": [{"expr": "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"}]},
+                "request": {"queries": [{"refId": "A", "expr": "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"}]},
                 "response": {"results": {"A": {"status": 200, "frames": [{"data": {"values": [[1], [0.2]]}}]}}},
             },
-            {"method": "POST", "path": "/api/dashboards/db", "status": 200, "request": {}, "response": {}},
+            {
+                "method": "POST", "path": "/api/dashboards/db", "status": 200,
+                "request": {"dashboard": {"panels": [{
+                    "title": "p95 checkout latency",
+                    "targets": [{"refId": "A", "expr": "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"}],
+                }]}},
+                "response": {},
+            },
         ]
         self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
         service.requests.reverse()
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "a query after the write is not preflight")
-        service.requests = [{
-            "method": "POST", "path": "/api/ds/query", "status": 200,
-            "request": {"queries": [{"expr": "up"}]},
-            "response": {"results": {"A": {"status": 200, "frames": [{"data": {"values": [[1], [1]]}}]}}},
-        }]
-        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "unrelated data is not the requested p95 proof")
+        write = service.requests[0]
+        p95 = "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"
+        service.requests = [
+            {
+                "method": "POST", "path": "/api/ds/query", "status": 200,
+                "request": {"queries": [{"refId": "A", "expr": p95}, {"refId": "B", "expr": "up"}]},
+                "response": {"results": {
+                    "A": {"status": 200, "frames": []},
+                    "B": {"status": 200, "frames": [{"data": {"values": [[1], [1]]}}]},
+                }},
+            },
+            write,
+        ]
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "unrelated batch data cannot clear a red p95 refId")
+        service.requests[0]["response"]["results"]["A"]["frames"] = [{"data": {"values": [[1], [0.2]]}}]
+        write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95 + " + 1"
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "the successful query must equal the persisted panel target")
 
     def test_post_run_service_transport_failure_is_inconclusive(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
