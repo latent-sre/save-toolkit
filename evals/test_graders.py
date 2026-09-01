@@ -3914,7 +3914,10 @@ def test_no_scenario_accepts_its_own_prompt() -> None:
         # behavioral contract belongs to a direct evaluation, because grading a deferral on the
         # ALTERNATIVE lane's vocabulary was measured to go red on correct answers. Such a
         # scenario cannot separate an answer from an echo, and is not supposed to.
-        if path.name in _ROUTING_ONLY_DISCOVERY_SCENARIOS or path.name in _WGE_DISCOVERY_ROUTING_ONLY:
+        if (
+            path.name in _ROUTING_ONLY_DISCOVERY_SCENARIOS
+            or path.name in _WGE_DISCOVERY_ROUTING_ONLY
+        ):
             continue
         check(
             not grade_all(specs, prompt),

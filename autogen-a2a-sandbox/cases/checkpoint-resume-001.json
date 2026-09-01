@@ -1,0 +1,44 @@
+{
+  "case_version": "canary-evidence-case/v1",
+  "case_id": "checkpoint-resume-001",
+  "candidate": {
+    "service": "synthetic-catalog-api",
+    "candidate_revision": "6666666666666666666666666666666666666666",
+    "rollback_revision": "0000000000000000000000000000000000000000"
+  },
+  "evidence": {
+    "slo": {
+      "observed_at": "2026-08-30T12:00:00Z",
+      "age_seconds": 15,
+      "freshness_limit_seconds": 60,
+      "baseline_error_ppm": 1000,
+      "canary_error_ppm": 1100,
+      "burn_rate_milli": 800
+    },
+    "deployment": {
+      "observed_at": "2026-08-30T12:00:00Z",
+      "age_seconds": 10,
+      "freshness_limit_seconds": 60,
+      "candidate_only_change": true,
+      "rollback_ready": true,
+      "configuration_drift": false
+    },
+    "dependency": {
+      "observed_at": "2026-08-30T12:00:00Z",
+      "age_seconds": 10,
+      "freshness_limit_seconds": 60,
+      "baseline_impacted": false,
+      "canary_impacted": false
+    }
+  },
+  "reconciliation": null,
+  "fault": {
+    "slow_analyzer": null,
+    "checkpoint_pause": true
+  },
+  "expected": {
+    "a2a_state": "completed",
+    "recommendation": "ADVANCE_CANARY",
+    "reconciliation_attempts": 0
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "case_version": "canary-evidence-case/v1",
+  "case_id": "unresolved-contradiction-001",
+  "candidate": {
+    "service": "synthetic-catalog-api",
+    "candidate_revision": "4444444444444444444444444444444444444444",
+    "rollback_revision": "0000000000000000000000000000000000000000"
+  },
+  "evidence": {
+    "slo": {
+      "observed_at": "2026-08-30T12:00:00Z",
+      "age_seconds": 15,
+      "freshness_limit_seconds": 60,
+      "baseline_error_ppm": 1000,
+      "canary_error_ppm": 1050,
+      "burn_rate_milli": 750
+    },
+    "deployment": {
+      "observed_at": "2026-08-30T12:00:00Z",
+      "age_seconds": 10,
+      "freshness_limit_seconds": 60,
+      "candidate_only_change": true,
+      "rollback_ready": true,
+      "configuration_drift": false
+    },
+    "dependency": {
+      "observed_at": "2026-08-30T12:00:00Z",
+      "age_seconds": 10,
+      "freshness_limit_seconds": 60,
+      "baseline_impacted": false,
+      "canary_impacted": true
+    }
+  },
+  "reconciliation": {
+    "slo": {
+      "observed_at": "2026-08-30T12:01:00Z",
+      "age_seconds": 5,
+      "freshness_limit_seconds": 60,
+      "baseline_error_ppm": 1000,
+      "canary_error_ppm": 1050,
+      "burn_rate_milli": 750
+    },
+    "deployment": {
+      "observed_at": "2026-08-30T12:01:00Z",
+      "age_seconds": 5,
+      "freshness_limit_seconds": 60,
+      "candidate_only_change": true,
+      "rollback_ready": true,
+      "configuration_drift": false
+    },
+    "dependency": {
+      "observed_at": "2026-08-30T12:01:00Z",
+      "age_seconds": 5,
+      "freshness_limit_seconds": 60,
+      "baseline_impacted": false,
+      "canary_impacted": true
+    }
+  },
+  "fault": {
+    "slow_analyzer": null,
+    "checkpoint_pause": false
+  },
+  "expected": {
+    "a2a_state": "input-required",
+    "recommendation": null,
+    "reconciliation_attempts": 1
+  }
+}
