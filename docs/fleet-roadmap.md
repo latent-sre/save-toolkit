@@ -322,7 +322,7 @@ budget. The public v1 schema and CLI remain compatible until a measured cutover 
 
 **Source:** The accepted GRAPH-004 scope remains in the
 [`fleet-atlas` decision packet](reviews/2026-08-30-graph-004-fleet-atlas-decision.md). On PR #205,
-exact-head review of `d0e83c2fbb1ece9f8a0472d95e440fd6bfc0e2c5` reported eleven unresolved
+exact-head review of `d0e83c2fbb1ece9f8a0472d95e440fd6bfc0e2c5` reported ten unresolved
 findings after earlier repair rounds. They cluster at four design boundaries: path/type identity
 resolution; claim-to-evidence completeness; provenance/freshness validation; and bounded query/view
 rendering. Green component and structural checks did not exercise those invariants, so another
