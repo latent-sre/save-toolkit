@@ -268,8 +268,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:28a118fa05ce6cd40ba51de6a02d65f34afdc3a5cf8b2779c702ca2f0a18c45e",
           "lines": [
-            356,
-            356
+            359,
+            359
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -15688,8 +15688,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:2c670c4dae16d092c443914f276973129b89cf94adbd47e051a283dfd1436648",
           "lines": [
-            891,
-            891
+            894,
+            894
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -18297,8 +18297,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:29218ad0094065b5a5afef492d9e9ca491093c7c5f0cd24aef1fbad37d531aab",
           "lines": [
-            376,
-            376
+            379,
+            379
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -20740,8 +20740,8 @@
     "edgeCount": 969,
     "nodeCount": 814,
     "repository": "latent-sre/save-toolkit",
-    "revision": "4d02e870e90408bc01c1b8c60440c12db6b3022d",
-    "treeDigest": "sha256:9b6990029932719d01d471f27b0ca24b632c557f297fd116d5e86ec5e4ea3cc7",
+    "revision": "54ba75c651ae6a0d6fa541292652fdedfe24d02b",
+    "treeDigest": "sha256:b9093d704099ca006bea70940861e8562d11bc445f131bd0676e34293a1f0c14",
     "unknownCount": 7
   },
   "nodes": [
