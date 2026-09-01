@@ -1887,8 +1887,9 @@ _ROUTING_ONLY_SANITY_RESPONSES = {
 
 _INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES = {
     "discovery-incident-investigation-defers-incident-command.yaml": (
-        "Route this declaration to incident-command. Provisional severity: P1. Incident commander: "
-        "Morgan. Next update: 15:20 UTC. Do not start the excluded technical investigation.",
+        "Incident declared. Route this declaration to incident-command. Provisional severity: P1. "
+        "Incident commander: Morgan. Next update: 15:20 UTC. Do not start the excluded technical "
+        "investigation.",
         "Route this declaration to incident-command; the technical investigation remains excluded.",
     ),
     "discovery-incident-investigation-walk-me-through.yaml": (
@@ -1903,14 +1904,6 @@ _INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES = {
         "distribution means leaked or stuck holders are ruled out.",
         "The pool is saturated and requests are waiting. Next check: inspect connection holders.",
     ),
-}
-
-# Current main deliberately grades the declaration response on these three operational fields.
-# Its prompt names all three, so exact-main compatibility cannot also satisfy the newer universal
-# prompt-echo rejection rule. Keep this exception narrow: the paired fixture still proves that a
-# complete response passes and an operationally incomplete response fails.
-_MAIN_PROMPT_ECHO_COMPATIBILITY_EXCEPTIONS = {
-    "discovery-incident-investigation-defers-incident-command.yaml",
 }
 
 _INCIDENT_COMMAND_DISCOVERY_RESPONSE = (
@@ -3793,7 +3786,6 @@ def test_no_scenario_accepts_its_own_prompt() -> None:
         if (
             path.name in _ROUTING_ONLY_DISCOVERY_SCENARIOS
             or path.name in _WGE_DISCOVERY_ROUTING_ONLY
-            or path.name in _MAIN_PROMPT_ECHO_COMPATIBILITY_EXCEPTIONS
         ):
             continue
         check(
@@ -3829,11 +3821,10 @@ def test_incident_investigation_discovery_fixtures_discriminate() -> None:
     for filename, (compliant, incomplete) in _INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES.items():
         scenario = _load_scenario(filename)
         grader_specs = scenario["graders"]
-        if filename not in _MAIN_PROMPT_ECHO_COMPATIBILITY_EXCEPTIONS:
-            check(
-                not grade_all(grader_specs, scenario["prompt"]),
-                f"{filename}: raw prompt echo is REJECTED",
-            )
+        check(
+            not grade_all(grader_specs, scenario["prompt"]),
+            f"{filename}: raw prompt echo is REJECTED",
+        )
         check(
             grade_all(grader_specs, compliant),
             f"{filename}: curated compliant response passes",

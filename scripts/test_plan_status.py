@@ -218,6 +218,23 @@ class SpecPointerAndDecisionStatusTests(unittest.TestCase):
             (root / check_plan_status.SPEC_ROOT).rmdir()
             self.assertEqual([], check_plan_status.check(root))
 
+    def test_round_archive_paths_must_be_directories_when_present(self) -> None:
+        for archive in (check_plan_status.PLAN_ROOT, check_plan_status.SPEC_ROOT):
+            with self.subTest(archive=archive), tempfile.TemporaryDirectory() as temporary:
+                root = _skeleton(Path(temporary))
+                archive_path = root / archive
+                archive_path.rmdir()
+                archive_path.write_text("not a directory\n", encoding="utf-8")
+                failures = check_plan_status.check(root)
+                self.assertTrue(
+                    any(
+                        failure.startswith(f"{archive.as_posix()}:")
+                        and "must be a directory" in failure
+                        for failure in failures
+                    ),
+                    failures,
+                )
+
     def test_a_spec_without_a_roadmap_pointer_is_flagged(self) -> None:
         """The pointer was enforced in the plans loop only; a spec could omit it and pass green.
 

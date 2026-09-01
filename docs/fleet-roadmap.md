@@ -233,8 +233,9 @@ Microsoft Agent Framework + AutoGen GraphFlow + A2A shape, autonomous work throu
 verification, and local green-boundary commits. On 2026-08-31 the owner separately authorized
 publication of the updated branch for review; that is not acceptance or merge approval. The local
 implementation and complete mission transaction were green at runtime-tested revision `ede57417`.
-The current candidate retains byte-identical sandbox code and has fresh host/component evidence,
-but its exact-revision image, full six-case lifecycle, and cleanup verification have not been rerun.
+The current candidate has fresh host/component evidence against the mounted repaired source, but it
+differs from the runtime-tested revision; its exact-revision image, full six-case lifecycle, and
+cleanup verification have not been rerun.
 Independent correctness/security review and owner acceptance remain.
 
 **Owner:** `software-engineer` owns the deterministic runtime, activation, cases, evidence, and

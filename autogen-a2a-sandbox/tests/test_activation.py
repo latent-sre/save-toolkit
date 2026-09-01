@@ -1632,6 +1632,27 @@ class RuntimeStateValidationTests(unittest.TestCase):
                             artifact_id="release-recommendation:mission-healthy-001",
                         )
 
+    def test_workflow_observation_cannot_claim_a2a_protocol_fields(self) -> None:
+        timeline = self.pending["a2a"]["event_timeline"]
+        protocol_fields = {
+            "task_id": "task-1",
+            "context_id": "context-1",
+            "a2a_state": "working",
+            "artifact_id": "release-recommendation:mission-healthy-001",
+        }
+        for field, value in protocol_fields.items():
+            with self.subTest(field=field):
+                mutation = copy.deepcopy(timeline)
+                mutation["events"][0][field] = value
+                with self.assertRaisesRegex(Exception, "workflow working"):
+                    self.module.validate_persisted_event_timeline(
+                        mutation,
+                        task_id="task-1",
+                        context_id="context-1",
+                        terminal_state="completed",
+                        artifact_id="release-recommendation:mission-healthy-001",
+                    )
+
     def test_pending_state_rejects_second_analysis_and_stale_artifact(self) -> None:
         for path, value in (
             (("analysis_invocations",), 2),
