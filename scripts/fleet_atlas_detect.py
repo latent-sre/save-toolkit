@@ -85,7 +85,10 @@ def detect_retired_name(root: Path, graph: Graph) -> None:
     exempt = check_stale_names._filename_exempt_names(root)
     seen_paths: set[str] = set()
     for node in sorted(graph.nodes.values(), key=lambda n: n.id):
-        if node.authority != "canonical" or not node.path or not node.path.endswith(".md"):
+        if not node.path or not any(
+            Path(node.path).is_relative_to(scanned_root)
+            for scanned_root in check_stale_names.SCANNED_ROOTS
+        ):
             continue
         if node.path in seen_paths:
             continue

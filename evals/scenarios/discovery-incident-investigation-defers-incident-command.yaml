@@ -21,9 +21,11 @@ success_criteria:
 # A trigger phrase shared with the advisor ("walk me through") appears deliberately: the request is
 # command and comms, which the advisor's description hands to incident-command.
 graders:
-  - type: contains_any
-    of: ["provisional", "severity", "P1", "P2"]
-  - type: contains_any   # never bare "IC": case-insensitive substring would match "service"
-    of: ["incident commander"]
-  - type: contains_any
-    of: ["next update"]
+  - type: contains_all
+    of: ["incident-command", "P1"]
+  - type: regex
+    pattern: '(?i)\bincident commander\s*:\s*[A-Za-z][A-Za-z .''-]{1,60}'
+  - type: regex
+    pattern: '(?i)\b(?:communications|comms)(?:/timeline)? owner\s*:\s*[A-Za-z][A-Za-z .''-]{1,60}'
+  - type: regex
+    pattern: '(?i)\bnext update\s*:\s*(?:[01]?\d|2[0-3]):[0-5]\d\s*UTC\b'

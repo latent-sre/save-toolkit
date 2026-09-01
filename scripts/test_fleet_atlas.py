@@ -182,6 +182,24 @@ class QueryTests(unittest.TestCase):
             for item in results
         ))
 
+    def test_a_bare_path_literal_is_not_used_as_verification_evidence(self) -> None:
+        results, truncated = fleet_atlas.query_document(
+            self.document, "verified-by", ["docs/rules.md"]
+        )
+        self.assertFalse(truncated)
+        edges = [
+            item for item in results
+            if item.get("target") == "test:scripts/test_fleet_atlas.py"
+        ]
+        self.assertTrue(edges, "this file later reads and validates docs/rules.md")
+        self.assertTrue(all(edge["attrs"].get("via") == "file-read" for edge in edges))
+        self.assertTrue(all(
+            evidence["detector"] == "extract.test-file-read"
+            and evidence["lines"] != [35, 35]
+            for edge in edges
+            for evidence in edge["evidence"]
+        ))
+
 
 import fleet_atlas_extract  # noqa: E402
 
@@ -466,13 +484,13 @@ class ExtractEvidenceTests(unittest.TestCase):
             for e in self.graph.edges.values()
         ))
 
-    def test_shared_file_literals_verify_the_document_not_an_arbitrary_semantic_node(self) -> None:
+    def test_fixture_writes_do_not_claim_to_verify_the_roadmap(self) -> None:
         sources = {
             edge.source for edge in self.graph.edges.values()
             if edge.kind == "verified_by"
             and edge.target == "test:scripts/test_plan_status.py"
         }
-        self.assertIn("document:docs/fleet-roadmap.md", sources)
+        self.assertNotIn("document:docs/fleet-roadmap.md", sources)
         self.assertFalse(any(source.startswith("roadmap-item:") for source in sources))
 
     def test_roadmap_evidence_links_and_batches_resolve(self) -> None:
@@ -502,8 +520,15 @@ class ExtractEvidenceTests(unittest.TestCase):
         for node in (node for node in self.graph.nodes.values() if node.type == "decision"):
             with self.subTest(node=node.id):
                 lines = (ROOT / node.path).read_text(encoding="utf-8").splitlines()
-                cited = lines[node.evidence[0].lines[0] - 1]
-                self.assertIn("Status", cited)
+                cited = [
+                    lines[evidence.lines[0] - 1]
+                    for evidence in node.evidence
+                ]
+                self.assertTrue(any("Status" in line for line in cited), cited)
+                if node.attrs["date"]:
+                    self.assertTrue(
+                        any(node.attrs["date"] in line for line in cited), cited
+                    )
 
     def test_owners_and_capabilities(self) -> None:
         self.assertEqual(self.graph.nodes["owner:software-engineer"].attrs["kind"], "agent")
@@ -592,6 +617,7 @@ class ExtractEvidenceTests(unittest.TestCase):
 
 
 import fleet_atlas_detect  # noqa: E402
+import check_stale_names  # noqa: E402
 
 
 def _write_minimal_fixture(root: Path) -> None:
@@ -710,6 +736,36 @@ class DetectorTests(unittest.TestCase):
             exempt_graph = fleet_atlas.build_graph(root)
             exempt_hits = [u for u in exempt_graph.unknowns if u.code == "stale.retired-name"]
             self.assertEqual(exempt_hits, [], "a link to a surviving retired-name filename is not a stale mention")
+
+    def test_retired_name_detector_scans_live_contract_scenarios(self) -> None:
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_minimal_fixture(root)
+            scenario = root / "evals/scenarios/retired-name.yaml"
+            scenario.write_text(
+                "schema_version: 1\n"
+                "id: retired-name\n"
+                "mode: direct\n"
+                "split: regression\n"
+                "target:\n"
+                "  kind: skill\n"
+                "  name: backend-craft\n"
+                "prompt: Ask prompt-engineer for help.\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            subprocess.run(["git", "add", scenario], cwd=root, check=True)
+            self.assertTrue(check_stale_names.check(root))
+            graph = fleet_atlas.build_graph(root)
+            hits = [
+                unknown for unknown in graph.unknowns
+                if unknown.code == "stale.retired-name"
+                and unknown.path == "evals/scenarios/retired-name.yaml"
+            ]
+            self.assertTrue(hits, "atlas must mirror the hard stale-name checker for scenarios")
 
     def test_delegation_mismatch_detector_fires_when_the_roster_disagrees_with_the_enforced_graph(self) -> None:
         import tempfile
@@ -899,6 +955,37 @@ class ViewAndDriftTests(unittest.TestCase):
             atlas_path.write_bytes(original_atlas)
             manifest_path.write_text('{"bad": true}\n', encoding="utf-8")
             self.assertEqual(fleet_atlas.main(["check"]), 1)
+        finally:
+            atlas_path.write_bytes(original_atlas)
+            manifest_path.write_bytes(original_manifest)
+
+    def test_query_rejects_tampered_atlas_even_with_a_matching_manifest(self) -> None:
+        generated = self.root / "docs/fleet-atlas/generated"
+        atlas_path = generated / "atlas.json"
+        manifest_path = generated / "manifest.json"
+        original_atlas = atlas_path.read_bytes()
+        original_manifest = manifest_path.read_bytes()
+        try:
+            atlas = json.loads(original_atlas)
+            atlas["nodes"][0]["name"] = "FABRICATED-NODE"
+            atlas_path.write_text(
+                json.dumps(atlas, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            manifest_path.write_text(
+                json.dumps(fleet_atlas.manifest({
+                    path.name: path.read_bytes()
+                    for path in generated.iterdir()
+                    if path.name != "manifest.json"
+                }), indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            self.assertEqual(
+                fleet_atlas.main(["query", "state", "FABRICATED-NODE"]),
+                1,
+            )
         finally:
             atlas_path.write_bytes(original_atlas)
             manifest_path.write_bytes(original_manifest)

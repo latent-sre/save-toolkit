@@ -370,7 +370,7 @@ def manifest_failures(files: dict[str, bytes]) -> list[str]:
     return [] if recorded == actual else ["manifest.json does not match the generated file set and hashes"]
 
 
-def cmd_check(root: Path) -> int:
+def projection_failures(root: Path) -> list[str]:
     sys.path.insert(0, str(root / "scripts"))
     import fleet_atlas_cite  # noqa: E402
 
@@ -380,10 +380,7 @@ def cmd_check(root: Path) -> int:
         path.name: path.read_bytes() for path in sorted(out.iterdir()) if path.is_file()
     } if out.is_dir() else {}
     if not committed_files:
-        print(f"fleet_atlas check: {OUTPUT.as_posix()} is missing; run "
-              "`python scripts/fleet_atlas.py build`", file=sys.stderr)
-        print("fleet_atlas check: FAIL (1)")
-        return 1
+        return [f"{OUTPUT.as_posix()} is missing; run `python scripts/fleet_atlas.py build`"]
     try:
         committed_document = json.loads(committed_files.get("atlas.json", b""))
     except (json.JSONDecodeError, UnicodeError):
@@ -400,6 +397,11 @@ def cmd_check(root: Path) -> int:
         if committed.get(name) != expected.get(name):
             failures.append(f"drift: {name}")
     failures.extend(fleet_atlas_cite.parity_failures(root, json.loads(expected["atlas.json"])))
+    return sorted(set(failures))
+
+
+def cmd_check(root: Path) -> int:
+    failures = projection_failures(root)
     for failure in sorted(set(failures)):
         print(f"fleet_atlas check: {failure}", file=sys.stderr)
     print("fleet_atlas check: " + ("PASS" if not failures else f"FAIL ({len(set(failures))})"))
@@ -574,6 +576,9 @@ def cmd_query(root: Path, verb: str, terms: list[str]) -> int:
         or provenance_failures(root, metadata)
     ):
         print("fleet_atlas query: generated atlas is stale; run check", file=sys.stderr)
+        return 1
+    if projection_failures(root):
+        print("fleet_atlas query: generated atlas does not match canonical inputs; run check", file=sys.stderr)
         return 1
     try:
         results, truncated = query_document(document, verb, terms)

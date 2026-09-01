@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 import sys
 from pathlib import Path
@@ -418,11 +419,17 @@ def extract_decisions(root: Path, graph: Graph) -> None:
         state = _decision_state(marker) if marker else "historical"
         date = DATE_RE.search(head)
         node_id = f"decision:{path.stem}"
+        evidence = [cite(root, relative, status_line, status_line,
+                         "extract.decision-status", "STATIC_EXTRACTED")]
+        if date:
+            date_line = find_line(root, relative, date.group(1))
+            if date_line != status_line:
+                evidence.append(cite(root, relative, date_line, date_line,
+                                     "extract.decision-date", "STATIC_EXTRACTED"))
         graph.add_node(Node(node_id, "decision", path.stem,
                             "live-contract" if state == "live" else "historical-evidence", relative, state,
                             {"date": date.group(1) if date else "", "status_text": status_value[:200]},
-                            [cite(root, relative, status_line, status_line,
-                                  "extract.decision-status", "STATIC_EXTRACTED")]))
+                            evidence))
         for item_id in DISPOSES_RE.findall(head):
             target = f"roadmap-item:{item_id}"
             if target in graph.nodes:
@@ -459,7 +466,9 @@ import json  # noqa: E402
 from check_evidence_refs import BATCH_ID_RE  # noqa: E402
 
 EVAL_DOC_RE = re.compile(r"-eval-(\d{8}T\d{6}Z-[0-9a-f]{8})\.md$")
-LITERAL_RE = re.compile(r"[\"']((?:agents|skills|docs|evals|commands|hooks|schemas|scripts)/[A-Za-z0-9._/-]+)[\"']")
+REPOSITORY_PATH_RE = re.compile(
+    r"^(?:agents|skills|docs|evals|commands|hooks|schemas|scripts)/[A-Za-z0-9._/-]+$"
+)
 LANE_SLUG_RE = re.compile(r"[^a-z0-9]+")
 def _scenario_scalar(value: str):
     value = value.strip()
@@ -645,6 +654,63 @@ def extract_scenarios(root: Path, graph: Graph) -> None:
                                           "extract.scenario-roadmap-comment", "STATIC_INFERRED")]))
 
 
+def _repository_paths(expression: ast.AST) -> set[str]:
+    return {
+        node.value
+        for node in ast.walk(expression)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and REPOSITORY_PATH_RE.fullmatch(node.value)
+    }
+
+
+def _read_mode(call: ast.Call) -> str:
+    if isinstance(call.func, ast.Name):
+        positional = call.args[1] if len(call.args) > 1 else None
+    else:
+        positional = call.args[0] if call.args else None
+    mode = positional.value if isinstance(positional, ast.Constant) and isinstance(positional.value, str) else "r"
+    for keyword in call.keywords:
+        if keyword.arg == "mode" and isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
+            mode = keyword.value.value
+    return mode
+
+
+def _test_file_reads(text: str) -> list[tuple[str, int]]:
+    """Return explicit repository-file reads, excluding ambiguous string mentions and writes."""
+    tree = ast.parse(text)
+    read_helpers = {
+        function.name
+        for function in (node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
+        if function.args.args
+        and any(
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr in {"read_text", "read_bytes"}
+            and any(
+                isinstance(part, ast.Name) and part.id == function.args.args[0].arg
+                for part in ast.walk(call.func.value)
+            )
+            for call in (node for node in ast.walk(function) if isinstance(node, ast.Call))
+        )
+    }
+    reads: set[tuple[str, int]] = set()
+    for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
+        expression: ast.AST | None = None
+        if isinstance(call.func, ast.Attribute) and call.func.attr in {"read_text", "read_bytes"}:
+            expression = call.func.value
+        elif isinstance(call.func, ast.Name) and call.func.id == "open" and call.args:
+            if not any(flag in _read_mode(call) for flag in "wax"):
+                expression = call.args[0]
+        elif isinstance(call.func, ast.Attribute) and call.func.attr == "open":
+            if not any(flag in _read_mode(call) for flag in "wax"):
+                expression = call.func.value
+        elif isinstance(call.func, ast.Name) and call.func.id in read_helpers and call.args:
+            expression = call.args[0]
+        if expression is not None:
+            reads.update((relative, call.lineno) for relative in _repository_paths(expression))
+    return sorted(reads)
+
+
 def extract_tests(root: Path, graph: Graph) -> None:
     index = _path_index(graph)
     for path in _tracked(
@@ -655,30 +721,19 @@ def extract_tests(root: Path, graph: Graph) -> None:
         node_id = f"test:{relative}"
         graph.add_node(Node(node_id, "test", relative, "canonical", relative, "live", {},
                             [cite(root, relative, 1, 1, "extract.test-file", "STATIC_EXTRACTED")]))
-        # Deduplicate per (target, node_id): the same literal path is often quoted on multiple
-        # lines within one test file (e.g. a fixture read several times), and edge_id() below does
-        # not fold in the line number, so a second occurrence would collide with the first edge's
-        # id. Recording the first citing line is sufficient -- the claim is "this test reads that
-        # path", not "on every one of these lines".
+        # A quoted path is not verification by itself: it may be a stable-id input, an expected
+        # message, or a synthetic fixture destination. Only explicit reads are strong enough to
+        # emit verified_by; ambiguous mentions remain absent rather than becoming false evidence.
         seen: set[str] = set()
-        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            for literal in LITERAL_RE.findall(line):
-                target = index.get(literal)
-                if target:
-                    if target in seen:
-                        continue
-                    seen.add(target)
-                    graph.add_edge(Edge(edge_id("verified_by", target, node_id), target, node_id, "verified_by",
-                                        "STATIC_EXTRACTED", {"via": "string-literal"},
-                                        [cite(root, relative, line_no, line_no, "extract.test-literal", "STATIC_EXTRACTED")]))
-                # A literal resolving to no node is deliberately not reported. It cannot be told
-                # apart statically from a synthetic fixture path: these suites build temp
-                # repositories containing skills/thing/scripts/converter.py and
-                # skills/incident-command/references/severity.md, which exist only inside a
-                # TemporaryDirectory. Reporting them as stale produced 143 findings with no true
-                # positive, which would bury real contradictions in the stale-evidence view.
-                # Telling a stale pin from a fixture needs scope analysis this extractor does not
-                # do, so the honest output is the pin edges alone.
+        for literal, line_no in _test_file_reads(path.read_text(encoding="utf-8")):
+            target = index.get(literal)
+            if not target or target in seen:
+                continue
+            seen.add(target)
+            graph.add_edge(Edge(edge_id("verified_by", target, node_id), target, node_id, "verified_by",
+                                "STATIC_EXTRACTED", {"via": "file-read"},
+                                [cite(root, relative, line_no, line_no,
+                                      "extract.test-file-read", "STATIC_EXTRACTED")]))
 
 
 def extract_schemas(root: Path, graph: Graph) -> None:
