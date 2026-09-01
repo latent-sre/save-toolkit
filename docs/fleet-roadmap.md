@@ -619,8 +619,11 @@ remain. No deterministic test or backend discovery scenario was removed. Evidenc
 references unchanged at 32,843 bytes, description byte-identical. Five no-skill Terra probes
 supplied nine of ten alert-review behaviors in every run; all five omitted the fleet's exact burn
 definition, so `observed bad fraction / allowed bad fraction` remains explicit while generic SLI
-and worked-window recitation was cut. No test or eval was removed. Exact-commit native discovery
-evidence remains pending before PR. Current evidence is in the
+and worked-window recitation was cut. No test or eval was removed. An exact integrated-candidate
+native run routed 3/3 but scored 0/3 against an invalid route oracle: the prompt supplied no route,
+two responses named one in Markdown, and the regex rejected both. The offline repair supplies fixed
+fictional route/runbook values and still rejects placeholders; fresh exact-revision native evidence
+remains pending before PR. Current evidence is in the
 [`obs-alerting disposition`](reviews/2026-09-01-skill-001-obs-alerting.md).
 
 `obs-dashboards` — accepted router candidate with a probe-backed recitation and reference cut on
@@ -631,8 +634,13 @@ fleet-required `${datasource}` form and evidence labels, and two asserted the ol
 instead of the QA-observed Grafana 13.1 legacy 409. The dashboard-only authority, target discovery,
 stored-version/status traps, concurrency, UNKNOWN reconciliation, query/render/history proof, and
 evidence contract remain. No test or eval was removed; the existing discovery scenario gained a
-focused readback-language fixture. Exact-commit live build/discovery evidence remains pending before
-PR. Current evidence is in the
+focused readback-language fixture. The exact `dcf3bed4` native run routed 3/3, passed UNKNOWN 3/3,
+and scored dashboard discovery 0/3; its two build trials were INCONCLUSIVE because Docker exposed no
+port from the internal service network and the runner incorrectly launched Claude after that
+failure. The offline [eval repair](reviews/2026-09-01-skill-001-obs-eval-repair.md) now aligns the
+tool-less prompt, accepts bounded readback equivalents, uses fixed-target relays while keeping
+services internal, and stops before model launch on fixture failure. Fresh exact-revision live
+build/discovery evidence remains pending before PR. Current skill evidence is in the
 [`obs-dashboards disposition`](reviews/2026-09-01-skill-001-obs-dashboards.md).
 
 **Phase 2 screen:** `[verified]` The screen is 7,800 immutable bytes (owner decision, 2026-08-30;
@@ -688,9 +696,10 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Commit the integrated `obs-alerting`/`obs-dashboards` candidate, run the separately
-approved exact-commit evals, and publish the PR only after those results are dispositioned. Do not
-start another slice while this integration is open. After that gate, three untouched entrypoints
+**Next action:** Commit the integrated eval repair on the existing branch, then obtain separate
+approval for a fresh exact-revision native/build run. Publish the PR only after those results are
+dispositioned; the `dcf3bed4` FAIL/INCONCLUSIVE batch is not promotion evidence. Do not start another
+slice while this integration is open. After that gate, three untouched entrypoints
 remain from the exact 7,800-byte screen: `runbook`, `incident-drill`, and
 `workflow-graph-engineering`. `runbook` is the next read-only evidence/recommendation checkpoint;
 no byte edit begins until the owner accepts it. `incident-drill` is explicit-invocation only and its references are drill packs;

@@ -6,15 +6,16 @@ target:
   kind: skill
   name: obs-dashboards
 prompt: |
-  Add a p99 request-latency panel to the existing "Checkout / Health" dashboard (uid checkout-health)
-  on our self-managed Grafana 13.1 and apply the change over the HTTP API yourself. Show the panel
-  JSON with its PromQL, the exact read and write calls, how you avoid clobbering someone else's
-  concurrent save, how you verify the write landed, and what record of the change survives afterwards. This is a
-    dashboard edit, not alert design and not incident triage.
+  Prepare the exact execution procedure for adding a p99 request-latency panel to the existing
+  "Checkout / Health" dashboard (uid checkout-health) on self-managed Grafana 13.1. This discovery
+  case has no HTTP or file tools, so do not claim the live change was applied. Mark the procedure
+  [unverified] and show the panel JSON with its PromQL, the exact read and write calls, how an
+  operator avoids clobbering someone else's concurrent save, how they verify the write landed, and
+  what record survives afterwards. This is a dashboard edit, not alert design or incident triage.
 routing:
   expect: fire
 success_criteria:
-  - Routes a live dashboard edit to the dashboards lane rather than metrics, alerting, or sre
+  - Routes a dashboard-edit procedure to the dashboards lane rather than metrics, alerting, or sre
   - Reads before writing, pins the version it read, refuses overwrite, and verifies after the call
   - Records the change in the save message, the only durable trace of an instance-only write
 graders:
@@ -33,8 +34,9 @@ graders:
   # omitted"; `contains_any: [409, 412]` passed on "ignore the 409"; `contains_any: [message,
   # version history]` passed on "no save message/version history". Presence of a word is not the
   # posture. The replacements below name the concurrency token and use ADJACENCY - the conflict code
-  # and the re-read must land within ~160 chars of each other - which a "just ignore it" answer
-  # cannot produce. Measured against three fixtures: the wrong answer above goes red on five of
+  # and the next read must land within ~160 chars of each other - which a "just ignore it" answer
+  # cannot produce. Re-read, re-fetch, re-GET, and "GET ... again" are equivalent spellings.
+  # Measured against three fixtures: the wrong answer above goes red on five of
   # these, a correct answer green, and a correct answer that *names* the anti-pattern ("never set
   # overwrite: true") also green.
   # A `not_regex` on `overwrite: true` was designed and REJECTED: it false-reds that third fixture,
@@ -43,11 +45,11 @@ graders:
   - type: regex
     pattern: '(metadata\.)?resourceVersion|dashboard\.version|overwrite["'' ]*[:=]["'' ]*false'
   - type: regex
-    pattern: '(409|conflict)[\s\S]{0,160}?(re-?read|re-?fetch)|(re-?read|re-?fetch)[\s\S]{0,160}?(409|conflict)'
+    pattern: '(409|conflict)[\s\S]{0,160}?(?:re-?(?:read|fetch|get)|get\b[^\n]{0,80}\bagain)|(?:re-?(?:read|fetch|get)|get\b[^\n]{0,80}\bagain)[\s\S]{0,160}?(409|conflict)'
   - type: not_regex
     pattern: 'diff (is )?(omitted|skipped|not shown)|diff omitted'
   - type: regex
-    pattern: 'read .{0,12}back|re-?read after|after\.json|(?:verify|confirm)[\s\S]{0,100}?(?:fresh read|re-?read)'
+    pattern: 'read .{0,12}back|re-?read after|after\.json|(?:verify|confirm)[\s\S]{0,100}?(?:fresh read|re-?read|get\b[^\n]{0,100}?(?:dashboard|checkout-health))|(?:get|fetch)\b[^\n]{0,140}\bagain[^\n]{0,80}\b(?:confirm|verify)'
   - type: regex
     pattern: '(grafana\.app/message|save message|message)[\s\S]{0,200}?(version history|/versions)'
   - type: not_regex

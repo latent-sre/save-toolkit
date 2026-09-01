@@ -1268,6 +1268,21 @@ _OBS_DASHBOARD_DISCOVERY_CORRECT = (
     "version history records it. Verify the result with a fresh read, then run the changed query "
     "on a real window and inspect the rendered panel when available. [unverified] until applied."
 )
+_OBS_DASHBOARD_DISCOVERY_REGET = _OBS_DASHBOARD_DISCOVERY_CORRECT.replace(
+    "On a 409 conflict, re-read and re-diff",
+    "On a 409 conflict, re-GET and re-diff",
+).replace(
+    "Verify the result with a fresh read",
+    "GET /api/dashboards/uid/checkout-health again after the write and confirm the panel is present",
+)
+_OBS_DASHBOARD_DISCOVERY_VERIFY_GET = _OBS_DASHBOARD_DISCOVERY_CORRECT.replace(
+    "Verify the result with a fresh read",
+    "Verify the write landed:\nGET /api/dashboards/uid/checkout-health\nConfirm the panel is present",
+)
+_OBS_DASHBOARD_DISCOVERY_QUERY_GET_ONLY = _OBS_DASHBOARD_DISCOVERY_CORRECT.replace(
+    "Verify the result with a fresh read",
+    "Verify only the query with GET /api/ds/query",
+)
 
 
 _ROUTING_PROMPT_ECHO_CASES = {
@@ -1333,9 +1348,9 @@ _ROUTING_PROMPT_ECHO_CASES = {
         "Splunk saved search [unverified]: `cron_schedule = */5 * * * *`, "
         "`dispatch.earliest_time = -5m`, `dispatch.latest_time = now`, `alert.suppress = 1`, "
         "`alert.suppress.period = 30m`, and `alert.suppress.fields = service,alert_type`. Append "
-        "`| lookup instructions_lookup alert_type OUTPUT runbook_url`. Notification route: "
-        "checkout-primary pager. Force the alert to fire, resolve, throttle, and confirm notification "
-        "delivery."
+        "`| lookup instructions_lookup alert_type OUTPUT runbook_url`. Runbook link: "
+        "runbooks/checkout-5xx.md. Notification route: checkout-primary pager. Force the alert to "
+        "fire, resolve, throttle, and confirm notification delivery."
     ),
     "discovery-obs-dashboards-edit-live.yaml": _OBS_DASHBOARD_DISCOVERY_CORRECT,
     "discovery-obs-logs-defers-obs-alerting.yaml": (
@@ -1360,9 +1375,10 @@ _BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS = {
     "discovery-akamai-edge-defers-active-incident.yaml": _SRE_INCIDENT_INCOMPLETE_ANSWER,
     "discovery-gcp-ops-defers-active-incident.yaml": _SRE_INCIDENT_INCOMPLETE_ANSWER,
     "discovery-gcp-ops-cloud-run-startup.yaml": _GCP_CLOUD_RUN_ADVISORY_ONLY_ANSWER,
-    "discovery-obs-dashboards-edit-live.yaml": _OBS_DASHBOARD_DISCOVERY_CORRECT.replace(
-        "Verify the result with a fresh read, then run the changed query on a real window and "
-        "inspect the rendered panel when available. ",
+    "discovery-obs-dashboards-edit-live.yaml": _OBS_DASHBOARD_DISCOVERY_REGET.replace(
+        "GET /api/dashboards/uid/checkout-health again after the write and confirm the panel is "
+        "present, then run the changed query on a real window and inspect the rendered panel when "
+        "available. ",
         "The write call returned success. ",
     ),
 }
@@ -1371,6 +1387,7 @@ _CANONICAL_ROUTING_ANSWER_VARIANTS = {
     "discovery-akamai-edge-defers-active-incident.yaml": _SRE_CANONICAL_MARKDOWN_ANSWER,
     "discovery-gcp-ops-defers-active-incident.yaml": _SRE_CANONICAL_MARKDOWN_ANSWER,
     "discovery-gcp-ops-cloud-run-startup.yaml": _GCP_CLOUD_RUN_EQUIVALENT_ANSWER,
+    "discovery-obs-dashboards-edit-live.yaml": _OBS_DASHBOARD_DISCOVERY_REGET,
 }
 
 _OBS_DISCOVERY_ROUTING_ONLY = (
@@ -3065,6 +3082,15 @@ def test_routing_graders_accept_canonical_contract_variants() -> None:
             grade_all(grader_specs, compliant),
             f"{filename}: canonical behavior-complete response variant passes",
         )
+    dashboard_graders = _load_graders("discovery-obs-dashboards-edit-live.yaml")
+    check(
+        grade_all(dashboard_graders, _OBS_DASHBOARD_DISCOVERY_VERIFY_GET),
+        "dashboard discovery accepts an explicit verify section followed by the post-write GET",
+    )
+    check(
+        not grade_all(dashboard_graders, _OBS_DASHBOARD_DISCOVERY_QUERY_GET_ONLY),
+        "dashboard discovery does not confuse a query GET with dashboard readback",
+    )
 
 
 def test_routing_batch1_scenarios_reject_echoes_and_incomplete() -> None:
@@ -4075,6 +4101,21 @@ def test_obs_behavior_contracts_are_bounded_and_not_duplicated() -> None:
                     ),
                 ),
                 f"{filename}: equivalent throttle-scope wording passes",
+            )
+            markdown_route = compliant.replace(
+                "Notification route: checkout-primary pager",
+                "**Notification route**\n\n- **Primary:** checkout-primary pager",
+            )
+            check(
+                grade_all(grader_specs, markdown_route),
+                f"{filename}: Markdown route layout with the supplied fixture name passes",
+            )
+            check(
+                not grade_all(
+                    grader_specs,
+                    markdown_route.replace("checkout-primary pager", "<TBD>"),
+                ),
+                f"{filename}: placeholder route remains rejected",
             )
         if filename == "discovery-obs-traces-cloud-trace.yaml":
             check(

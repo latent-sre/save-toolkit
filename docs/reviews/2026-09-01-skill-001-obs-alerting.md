@@ -44,5 +44,10 @@ identity were unavailable; they are not native-plugin discovery or promotion evi
 
 The candidate was generated into the Copilot projection and passed its focused checks before
 integration. The combined branch subsequently passed all 39 active component entrypoints and Gate A
-8/8. No live alert, notification route, credential, push, or PR was changed by this disposition.
-Human acceptance of the exact PR revision remains the promotion gate.
+8/8. A later exact-candidate native batch routed all three discovery trials to `obs-alerting` but
+scored 0/3 because the prompt supplied no route while the grader demanded one and rejected two
+Markdown-formatted named routes. That no-go remains authoritative; an offline repair now supplies
+fixed fictional route/runbook values and preserves placeholder rejection. See the
+[eval repair](2026-09-01-skill-001-obs-eval-repair.md). No live alert, notification route,
+credential, push, or PR was changed by this disposition. Human acceptance of the exact PR revision
+remains the promotion gate.

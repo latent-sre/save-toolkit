@@ -7,9 +7,10 @@ target:
   name: obs-alerting
 prompt: |
   Design a Splunk saved-search paging alert for sustained checkout 5xx errors. Give a concrete
-  search window and schedule pairing; define a finite throttle period and scope; name the
-  notification route and runbook link; and describe the fire, delivery, and resolve test. Use any
-  clear format. This is steady-state alert design; no alert is currently firing.
+  search window and schedule pairing; define a finite throttle period and scope; and describe the
+  fire, delivery, and resolve test. Use the supplied fictional fixture values exactly: notification
+  route `checkout-primary pager` and runbook link `runbooks/checkout-5xx.md`. They are eval inputs,
+  not live endpoints. Use any clear format. This is steady-state alert design; no alert is firing.
 routing:
   expect: fire
 success_criteria:
@@ -24,10 +25,10 @@ graders:
     pattern: '(?:alert\.suppress\.period\s*=\s*|\b(?:throttl|suppress)\w*\b[^\n]{0,50})[1-9]\d*\s*(?:m|min|minutes)\b'
   - type: contains_any
     of: ["alert.suppress.fields", "throttle-by field", "throttle key", "suppression key", "throttle per", "suppress per", "per service", "per route"]
-  - type: contains_any
-    of: ["runbook URL", "runbook link", "runbook:", "runbook_url"]
-  - type: regex
-    pattern: '\b(?:notification route|pager(?: route)?|webhook(?: route)?)\s*(?::|=|is)\s*(?!<|tbd\b|unknown\b|unverified\b|configured\b|named\b)[a-z0-9][^\n.]{2,79}\b'
+  - type: contains_all
+    of: ["runbooks/checkout-5xx.md"]
+  - type: contains_all
+    of: ["checkout-primary pager"]
   - type: contains_all
     of: ["fire", "resolve"]
   - type: regex

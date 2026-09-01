@@ -119,13 +119,17 @@ Fresh focused evidence on the candidate:
 - `scripts/run_component_tests.py` — 39/39 active component entrypoints in 100 seconds.
 - `scripts/gate_a.py` — PASS, 8/8 structural steps.
 
-The exact-commit live build/discovery evals remain `[unverified]` until the separately approved
-post-commit profile runs.
+The separately approved post-commit native batch on exact candidate `dcf3bed4` routed all six
+discovery trials correctly and passed the direct UNKNOWN-write contract 3/3, but the dashboard
+discovery contract scored 0/3. Two build trials were INCONCLUSIVE because Docker exposed no port
+from the internal fixture network. The result is a no-go, not promotion evidence. Subsequent
+offline work repaired the invalid tool-less prompt/grader boundary and the fail-open fixture path;
+fresh exact-revision live evidence remains `[unverified]`. See the
+[eval repair](2026-09-01-skill-001-obs-eval-repair.md).
 
 ## Non-actions and next gate
 
-No native Claude/Codex eval, push, or PR was performed in this disposition. Post-commit live
-evaluation must use an approved v2 execution profile binding the exact commit, resolved model,
-reasoning setting, both dashboard scenarios, trials, per-trial/total timeouts, unavailable-cost
-record, and bounded stop condition. Human acceptance of the exact PR revision remains the only
-promotion decision.
+No push or PR was performed. Any replacement live evaluation must use a newly approved v2 profile
+binding the new exact commit, resolved model, reasoning setting, dashboard scenarios, trials,
+per-trial/total timeouts, cost representation, and bounded stop condition. Human acceptance of the
+exact PR revision remains the only promotion decision.

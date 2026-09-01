@@ -78,6 +78,41 @@ TRUSTED_SERVICE_IMAGES = frozenset({
     "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
     "prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a",
 })
+SERVICE_RELAY_IMAGE = (
+    "python:3.12.10-slim-bookworm@sha256:"
+    "97983fa8cc88343512862c62307159a82261c3528dc025f79e5a3f7af43e50b4"
+)
+SERVICE_RELAY_PORT = 8080
+SERVICE_RELAY_SCRIPT = r"""
+import select
+import socket
+import socketserver
+import sys
+
+target = (sys.argv[1], int(sys.argv[2]))
+
+class Relay(socketserver.BaseRequestHandler):
+    def handle(self):
+        with socket.create_connection(target, timeout=30) as upstream:
+            peers = [self.request, upstream]
+            while True:
+                readable, _, _ = select.select(peers, [], [], 60)
+                if not readable:
+                    return
+                for source in readable:
+                    data = source.recv(65536)
+                    if not data:
+                        return
+                    destination = upstream if source is self.request else self.request
+                    destination.sendall(data)
+
+class Server(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+with Server(("0.0.0.0", 8080), Relay) as server:
+    server.serve_forever()
+"""
 
 
 # --------------------------------------------------------------------------- scenario specs
@@ -214,6 +249,7 @@ class Service:
     config_root: Path | None = None
     proxy: object | None = field(default=None, repr=False)
     proxy_thread: object | None = field(default=None, repr=False)
+    relay_container_id: str = ""
 
 
 def _service_request(service: Service, path: str, method: str = "GET", body: dict | None = None,
@@ -375,7 +411,6 @@ def start_services(spec: dict, docker: str = "docker") -> list[Service]:
                 "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                 "--pids-limit", "512", "--memory", "2g",
                 "--network", network_name, "--network-alias", name,
-                "-p", f"127.0.0.1:0:{int(declared.get('port', 80))}",
             ]
             for key, value in (declared.get("env") or {}).items():
                 command += ["-e", f"{key}={value}"]
@@ -399,7 +434,36 @@ def start_services(spec: dict, docker: str = "docker") -> list[Service]:
             )
             started.append(service)
             pending_config_root = None
-            port_result = _run_docker([docker, "port", container_id, f"{int(declared.get('port', 80))}/tcp"])
+            # Docker Desktop 29 suppresses host publication for containers on an --internal
+            # network. Keep the service isolated and publish only a fixed-target TCP relay. The
+            # relay has no target-selection input: every connection goes to this declared service.
+            relay_command = [
+                docker, "run", "-d", "--rm",
+                "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+                "--pids-limit", "64", "--memory", "64m", "--read-only",
+                "--user", "65534:65534",
+                "-p", f"127.0.0.1::{SERVICE_RELAY_PORT}",
+                SERVICE_RELAY_IMAGE,
+                "python", "-I", "-S", "-B", "-c", SERVICE_RELAY_SCRIPT,
+                name, str(int(declared.get("port", 80))),
+            ]
+            relay_run = _run_docker(relay_command)
+            if relay_run.returncode != 0:
+                raise ServiceUnavailable(
+                    f"{service.name}: relay docker run failed: {relay_run.stderr.strip()[:300]}"
+                )
+            service.relay_container_id = relay_run.stdout.strip()
+            connected = _run_docker([
+                docker, "network", "connect", "--alias", f"relay-{name}", network_name,
+                service.relay_container_id,
+            ])
+            if connected.returncode != 0:
+                raise ServiceUnavailable(
+                    f"{service.name}: relay network connect failed: {connected.stderr.strip()[:300]}"
+                )
+            port_result = _run_docker([
+                docker, "port", service.relay_container_id, f"{SERVICE_RELAY_PORT}/tcp",
+            ])
             mapped = port_result.stdout.strip()
             if not mapped:
                 raise ServiceUnavailable(
@@ -479,12 +543,15 @@ def stop_services(services: list[Service], docker: str = "docker") -> None:
             with contextlib.suppress(OSError):
                 service.proxy.shutdown()
                 service.proxy.server_close()
-        try:
-            stopped = _run_docker([docker, "stop", "-t", "2", service.container_id])
-            if stopped.returncode != 0:
-                errors.append(f"docker stop {service.container_id} failed: {stopped.stderr.strip()[:200]}")
-        except ServiceUnavailable as exc:
-            errors.append(str(exc))
+        for container_id in (service.relay_container_id, service.container_id):
+            if not container_id:
+                continue
+            try:
+                stopped = _run_docker([docker, "stop", "-t", "2", container_id])
+                if stopped.returncode != 0:
+                    errors.append(f"docker stop {container_id} failed: {stopped.stderr.strip()[:200]}")
+            except ServiceUnavailable as exc:
+                errors.append(str(exc))
         if service.config_root is not None:
             try:
                 shutil.rmtree(service.config_root)
@@ -1565,18 +1632,41 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         container = None
         if container_image:
             container = ContainerMode(container_image, write_container_wrapper(ws, plugin_root, spec, container_image, docker), docker)
-        command = build_command(executable, plugin_root, f"save-toolkit:{spec['agent']}", spec["prompt"], model)
         trace_path = run_out / "stdout.jsonl"
         started = time.time()
-        make_env = env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
-        with make_env() as base_env:
-            env = child_env(base_env, ws, spec, container, services)
-            with open(trace_path, "w", encoding="utf-8") as out, open(run_out / "stderr.txt", "w", encoding="utf-8") as err:
-                try:
-                    proc = subprocess.run(command, cwd=str(ws.repo), env=env, stdout=out, stderr=err, timeout=timeout)
-                    returncode = proc.returncode
-                except subprocess.TimeoutExpired:
-                    returncode, inconclusive = None, f"timed out after {timeout}s"
+        returncode = None
+        if inconclusive is None:
+            command = build_command(
+                executable,
+                plugin_root,
+                f"save-toolkit:{spec['agent']}",
+                spec["prompt"],
+                model,
+            )
+            make_env = env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
+            with make_env() as base_env:
+                env = child_env(base_env, ws, spec, container, services)
+                with open(trace_path, "w", encoding="utf-8") as out, open(
+                    run_out / "stderr.txt", "w", encoding="utf-8"
+                ) as err:
+                    try:
+                        proc = subprocess.run(
+                            command,
+                            cwd=str(ws.repo),
+                            env=env,
+                            stdout=out,
+                            stderr=err,
+                            timeout=timeout,
+                        )
+                        returncode = proc.returncode
+                    except subprocess.TimeoutExpired:
+                        inconclusive = f"timed out after {timeout}s"
+        else:
+            # A missing fixture target cannot be repaired by the model. Starting it here would
+            # spend a call with unresolved service placeholders and could make a tool-bearing
+            # agent discover or mutate an unrelated host service.
+            trace_path.write_text("", encoding="utf-8")
+            (run_out / "stderr.txt").write_text("", encoding="utf-8")
         elapsed = time.time() - started
         trace = parse_trace(trace_path) if trace_path.exists() else TraceSummary()
         if inconclusive is None and not trace.has_result:
