@@ -12,7 +12,7 @@ sources or the generated host adapters.
 | Live tracker | [`fleet-roadmap.md`](fleet-roadmap.md) | The **only** owner of unfinished, blocked, and deferred work. Nothing else adds work to the queue. It states what is still owed and cites its evidence rather than restating it |
 | Closed-item register | [`roadmap-closed.md`](roadmap-closed.md) | The disposition of every item that has left the live tracker. Historical evidence, never a task list; a row closed by owner disposition states its own reopen condition |
 | Decisions (ADRs) | [`decisions/`](decisions) | An **accepted** record governs its decision, names what lost, and states its reopen trigger; a proposed record carries no implementation authority. Never an execution checklist |
-| Round plans and specs | `superpowers/plans/`, `superpowers/specs/` | The directories exist only during a round; the closing PR deletes the plan/spec and empty directories disappear while Git history keeps the payload. While a file is present it needs a `Status:` banner (`implemented`, `superseded`, or `historical`) and a pointer back to `fleet-roadmap.md`, which `check_plan_status.py` enforces |
+| Round plans and specs | `superpowers/plans/`, `superpowers/specs/` | The directories exist only during a round; the closing PR deletes the plan/spec and empty directories disappear while Git history keeps the payload. While a file is present it needs a `Status:` banner (`implemented`, `superseded`, or `historical`) and a pointer back to `fleet-roadmap.md` |
 | Roadmap-linked probe instruments | [`probes/`](probes) | Blank, repeatable procedures that are operational only while an active roadmap item links them. They are neither evidence nor a second task list; completed results live in validated evidence envelopes and dated review packets |
 | Closure evidence | [`reviews/`](reviews) | Historical evidence of what a round landed and how it was verified. Never a task list |
 | Live reference contracts | [`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md) | Current, governing contracts — not dated snapshots. The conditional rule map routes contributors to the owning source without restating it; schema-compatibility versions the machine-readable contracts in [`../schemas/catalog-v1.json`](../schemas/catalog-v1.json). Both are linked from root docs and stay current with the fleet they describe |
@@ -58,18 +58,13 @@ a task list.
 
 1. **The roadmap is the single live tracker.** A review or decision record owns detailed rationale;
    it never independently proves that work is still open.
-2. **`check_plan_status.py` enforces the single-live-roadmap discipline mechanically.** It requires
-   the roadmap to declare itself the only unfinished-work registry, rejects volatile pass-counts in
-   its evidence blocks, and fails any plan or spec that lacks a historical status banner or a pointer
-   back to the roadmap. It does not read this map — treat the map as the human-facing statement of
-   the same discipline the script enforces.
-3. **A plan retires to a short outcome record when its round finishes.** Its lasting decisions and
+2. **A plan retires to a short outcome record when its round finishes.** Its lasting decisions and
    evidence move to `reviews/` (or a decision record); git history keeps the exact execution payload.
    A plan file left lying around after its round is how a finished task keeps reading as pending work.
-4. **When a file moves or is consolidated, update every tracked reference in the same commit** —
+3. **When a file moves or is consolidated, update every tracked reference in the same commit** —
    root docs, decision records, and the roadmap all count. A dangling pointer is a silent defect.
-5. **GitHub issues are evidence-bound intake, not a second tracker.** An issue adds work only when
+4. **GitHub issues are evidence-bound intake, not a second tracker.** An issue adds work only when
    the roadmap imports it and names the source issue; an un-imported issue is field evidence awaiting
    triage. Letting the two lists drift is how the same work gets tracked twice or dropped once.
-6. **Agent and skill definitions stay canonical in `agents/` and `skills/`.** Documentation and
+5. **Agent and skill definitions stay canonical in `agents/` and `skills/`.** Documentation and
    generated host adapters never override them.

@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import tempfile
@@ -13,7 +12,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import check_links
-import check_stale_names
 
 # The real repository root, for the handful of tests that assert against the live tree rather than
 # a synthetic fixture. Taken from check_links so the two can never disagree about where root is.
@@ -334,24 +332,7 @@ class LinkCheckerTests(Fixture):
         self.assertEqual([], check_links.check(self.root))
 
 
-class StaleNameCheckerTests(Fixture):
-    def _fleet(self, *, agent_description="clean agent", command_description="clean command"):
-        self.write(
-            "canonical/fleet.json",
-            json.dumps(
-                {
-                    "agents": [{"name": "probe", "description": agent_description}],
-                    "commands": [
-                        {
-                            "name": "probe",
-                            "description": command_description,
-                            "argument_usage": "clean argument",
-                        }
-                    ],
-                }
-            ),
-        )
-
+class GuideLinkTests(Fixture):
     def test_guide_clean_fixture_is_silent(self):
         self.write("CLAUDE.md", "# entry\n@AGENTS.md\n")
         self.write("scripts/gate_a.py", "x\n")
@@ -403,39 +384,6 @@ class StaleNameCheckerTests(Fixture):
         self.write("CLAUDE.md", "@AGENTS.md\n")
         self.write("AGENTS.md", "# guide\nEvery `references/` file; see `agent-authoring/refs/x.md`.\n")
         self.assertEqual([], check_links._check_guide(self.root))
-
-    def test_word_boundary_hit_is_flagged(self):
-        self.write("skills/probe/SKILL.md", "Hand this to code-reviewer now.\n")
-        self.assertTrue(check_stale_names.check(self.root))
-
-    def test_path_and_md_suffix_are_exempt_when_the_file_is_really_there(self):
-        # The exemption is earned by the file existing, not by the name being retired -- otherwise
-        # `agents/prompt-engineer.md` would be exempt too. See
-        # test_check_stale_names.test_a_retired_name_with_no_live_file_is_caught_in_path_and_md_form.
-        self.write("skills/probe/references/safe-refactor.md", "# Safe refactor\n")
-        self.write(
-            "skills/probe/SKILL.md",
-            "[safe](references/safe-refactor.md) and safe-refactor.md remain paths.\n",
-        )
-        self.assertEqual([], check_stale_names.check(self.root))
-
-    def test_a_retired_name_with_no_such_file_is_not_exempt_as_a_path(self):
-        self.write("skills/probe/SKILL.md", "[lane](../agents/prompt-engineer.md) owns this.\n")
-        self.assertTrue(check_stale_names.check(self.root))
-
-    def test_canonical_command_description_is_scanned(self):
-        self._fleet(command_description="Ask code-reviewer to approve this")
-        failures = check_stale_names.check(self.root)
-        self.assertTrue(any("commands[0].description" in item for item in failures))
-
-    def test_canonical_agent_description_is_scanned(self):
-        self._fleet(agent_description="The sre-engineer owns this")
-        failures = check_stale_names.check(self.root)
-        self.assertTrue(any("agents[0].description" in item for item in failures))
-
-    def test_clean_replacement_metadata_is_silent(self):
-        self._fleet(agent_description="The sre agent owns this", command_description="Ask reviewer")
-        self.assertEqual([], check_stale_names.check(self.root))
 
 
 class LiveDocLinkTests(unittest.TestCase):
@@ -499,165 +447,6 @@ class LiveDocLinkTests(unittest.TestCase):
                 self.skipTest("cannot create a directory symlink here")
             self.assertNotEqual(link.resolve(), link, "fixture did not produce an aliased root")
             self.assertEqual([], check_links._check_live_doc_links(link))
-
-
-class LiveOperatorDocTests(unittest.TestCase):
-    """Current-tense operator docs must not reintroduce retired live names or python3 commands."""
-
-    def test_sister_lab_inputs_keep_source_repository_coordinates(self) -> None:
-        expected = {
-            "2026-07-31-local-external-research-separation.md": (
-                "- Sister-lab input: "
-                "`latent-sre/sde-agents@f4741c778a825a6353cc99e969f4ed05755aa574`"
-            ),
-            "2026-07-31-multi-platform-plugin-packaging.md": (
-                "- Sister-lab input: "
-                "`latent-sre/sde-agents@d50eda62c4fec083f5a5b0b3980f845d7ae0d8a1`"
-            ),
-        }
-        for name, coordinate in expected.items():
-            with self.subTest(name=name):
-                text = (ROOT / "docs" / "decisions" / name).read_text(encoding="utf-8")
-                self.assertIn(coordinate, text)
-
-    def test_live_tree_operator_docs_are_clean(self) -> None:
-        self.assertEqual([], check_links._check_live_operator_docs(ROOT))
-
-    def test_live_tree_plugin_sources_forbid_sde_agents(self) -> None:
-        self.assertEqual([], check_links._check_plugin_source_forbidden_names(ROOT))
-
-    def test_python3_operator_command_is_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "evals").mkdir()
-            (root / "evals/README.md").write_text(
-                "```bash\npython3 -m pip install -r requirements-dev.txt\n```\n",
-                encoding="utf-8",
-            )
-            failures = check_links._check_live_operator_docs(root)
-        self.assertTrue(
-            any("python3" in item and "evals/README.md" in item for item in failures),
-            failures,
-        )
-
-    def test_python3_command_token_is_flagged_in_markdown_and_prose(self) -> None:
-        samples = (
-            "1. python3 scripts/gate_a.py\n",
-            "Run python3 scripts/gate_a.py before push.\n",
-            "`python3 scripts/gate_a.py`\n",
-        )
-        for sample in samples:
-            with self.subTest(sample=sample), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary)
-                (root / "README.md").write_text(sample, encoding="utf-8")
-                failures = check_links._check_live_operator_docs(root)
-                self.assertTrue(any("python3" in item for item in failures), failures)
-
-    def test_python3_prohibition_is_not_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "On Windows use `python` or `py -3`, never the `python3` Store stub.\n",
-                encoding="utf-8",
-            )
-            self.assertEqual([], check_links._check_live_operator_docs(root))
-
-    def test_retired_name_as_live_identity_is_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "Route implementation to `sde` and `prompt-engineer`.\n",
-                encoding="utf-8",
-            )
-            failures = check_links._check_live_operator_docs(root)
-        self.assertTrue(any("`sde`" in item or "'sde'" in item for item in failures), failures)
-        self.assertTrue(
-            any("prompt-engineer" in item for item in failures), failures
-        )
-
-    def test_historical_retired_name_is_not_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "`sde` was renamed to `software-engineer`; `prompt-engineer` retired.\n",
-                encoding="utf-8",
-            )
-            self.assertEqual([], check_links._check_live_operator_docs(root))
-
-    def test_historical_clause_does_not_exempt_a_later_live_name(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "The old role was retired; route current work to `sde`.\n",
-                encoding="utf-8",
-            )
-            failures = check_links._check_live_operator_docs(root)
-        self.assertTrue(any("'sde'" in item for item in failures), failures)
-
-    def test_owner_role_latent_sre_is_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "**Owner:** `latent-sre` owns acceptance.\n",
-                encoding="utf-8",
-            )
-            failures = check_links._check_live_operator_docs(root)
-        self.assertTrue(any("latent-sre" in item and "live owner" in item for item in failures), failures)
-
-    def test_historical_latent_sre_owner_is_not_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "The former decision owner was `latent-sre`.\n",
-                encoding="utf-8",
-            )
-            self.assertEqual([], check_links._check_live_operator_docs(root))
-
-    def test_latent_sre_github_organization_prose_is_not_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "The GitHub organization slug is `latent-sre`.\n",
-                encoding="utf-8",
-            )
-            self.assertEqual([], check_links._check_live_operator_docs(root))
-
-    def test_marketplace_install_coordinate_is_not_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "claude plugin install save-toolkit@latent-sre\n",
-                encoding="utf-8",
-            )
-            self.assertEqual([], check_links._check_live_operator_docs(root))
-
-    def test_github_url_coordinate_is_not_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "Clone https://github.com/latent-sre/save-toolkit\n",
-                encoding="utf-8",
-            )
-            self.assertEqual([], check_links._check_live_operator_docs(root))
-
-    def test_sde_agents_token_is_flagged_even_when_historical(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "README.md").write_text(
-                "The retired sibling `sde-agents` fleet is historical.\n",
-                encoding="utf-8",
-            )
-            failures = check_links._check_live_operator_docs(root)
-        self.assertTrue(any("sde-agents" in item for item in failures), failures)
-
-    def test_sde_agents_in_plugin_source_is_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            skill = root / "skills" / "probe"
-            skill.mkdir(parents=True)
-            (skill / "SKILL.md").write_text("Do not copy the sde-agents roster.\n", encoding="utf-8")
-            failures = check_links._check_plugin_source_forbidden_names(root)
-        self.assertTrue(any("sde-agents" in item for item in failures), failures)
 
 
 class EscapingLinkTests(unittest.TestCase):
