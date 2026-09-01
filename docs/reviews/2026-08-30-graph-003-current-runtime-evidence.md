@@ -130,10 +130,12 @@ one error); the named test passes alone on that base. This item neither changes 
   resume failure, cancellation, or budget exhaustion.
 - `[verified static at this record's runtime revision]` Focused evaluator regressions prove that a
   monotonic same-run snapshot can advance the same uncertain effect from `UNKNOWN` to `RECONCILED`,
-  while unrelated success and unsupported duplicate-run snapshots cannot clear it. A later exact-
-  revision candidate now supplies the formerly missing host exercise; see the
+  while unrelated success and unsupported duplicate-run snapshots cannot clear it. Post-closure PR
+  [#197](https://github.com/latent-sre/save-toolkit/pull/197) later supplied the separately bounded
+  host exercise; see the
   [same-effect reconciliation proof](2026-08-30-graph-sandbox-reconciliation-proof.md). That
-  follow-up does not retroactively change this record's runtime matrix.
+  merged follow-up strengthens the evidence but neither reopens GRAPH-003 nor retroactively changes
+  this record's runtime matrix.
 - `[unverified]` Notification delivery, production ingestion, retention, SLOs, provider behavior,
   credentials, cross-host persistence/recovery, and any production graph remain outside scope.
 - The raw bundles remain operator-local. This committed record and the bounded host-exercise
