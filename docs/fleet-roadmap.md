@@ -546,7 +546,7 @@ Codex claims or treat read-only execution as proof of bundle-only reads.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
-**Status:** `active` (2026-08-30). Phase 1 is closed as evidence; Phase 2 is the live work, one
+**Status:** `active` (2026-09-01). Phase 1 is closed as evidence; Phase 2 is the live work, one
 skill per slice, and its method changed on 2026-08-27: probe before routing.
 
 **Outcome:** No skill spends a caller's context on detail the call did not need, and no skill
@@ -605,6 +605,15 @@ against a 1/3 previous-revision baseline on exact base `2a04d357`, same CLI and 
 dominant caller-fence failure, routing 6/6 — pre-existing content-contract instability, filed as
 `EVAL-006`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
 
+`backend-craft` — confirmed router with a recitation cut and persistence-contract correction on
+branch `work/skill-001-backend-craft`, exact accepted candidate
+`7b4badd1bdce795edbeb2d1297876df6dac495b3`: 11,123 → 10,131 immutable entrypoint bytes (-8.9%),
+references 29,198 → 30,182, description byte-identical. Every affected loaded path is smaller. Two
+no-skill probes reproduced most generic backend mechanics but both omitted circuit breaking under
+upstream-client pressure, so the exact error, persistent-failure, authority, and routing contracts
+remain. No deterministic test or backend discovery scenario was removed. Evidence is in the
+[`backend-craft disposition`](reviews/2026-09-01-skill-001-backend-craft.md).
+
 **Phase 2 screen:** `[verified]` The screen is 7,800 immutable bytes (owner decision, 2026-08-30;
 7,500 from 2026-08-27, 5,000 before that). On exact campaign revision
 `a253f2ea84c945c227609402782e26e215a80416`, 33 entrypoints total 226,264 immutable bytes. After
@@ -658,16 +667,14 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** The remaining candidate set is the same six undispositioned entrypoints at or above
-the 7,800-byte screen. No next slice is in progress and no `backend-craft` Phase 2 branch exists.
-At the next one-item evidence/recommendation checkpoint, select whether `backend-craft` is the next
-slice; only after owner approval create a refreshed branch and run its clean-room checkpoint. Then,
-one per approved slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
-recitation), `obs-dashboards` and `runbook` (large, with live-write authority text and a worked
-exemplar to retain explicitly), `incident-drill` (explicit-invocation only; its references are drill
-packs), and `workflow-graph-engineering` (its own review already records why the entrypoint stays
-long — commit that as its disposition after a checkpoint). Skills below the screen owe no
-disposition. The exact refresh evidence is in
+**Next action:** Five undispositioned entrypoints remain at or above the 7,800-byte screen:
+`obs-alerting`, `obs-dashboards`, `runbook`, `incident-drill`, and `workflow-graph-engineering`.
+`obs-alerting` is selected for the next read-only evidence/recommendation checkpoint; no byte edit
+begins until the owner accepts that checkpoint. Then process one approved slice at a time:
+`obs-dashboards` and `runbook` carry live-write authority text and a worked exemplar to retain;
+`incident-drill` is explicit-invocation only and its references are drill packs; and
+`workflow-graph-engineering` already records why its entrypoint stays long, so commit that as its
+disposition after a checkpoint. Skills below the screen owe no disposition. The exact refresh evidence is in
 [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md). Do not requeue a
 Phase 1 skill or rewrite discovery descriptions.
 
