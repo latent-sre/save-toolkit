@@ -20630,8 +20630,8 @@
     "edgeCount": 964,
     "nodeCount": 809,
     "repository": "latent-sre/save-toolkit",
-    "revision": "a3767082f6bbbbc96a59466dcd95aa8ff033df89",
-    "treeDigest": "sha256:a820fbb03cad00e89379cc05ea5157382d18eb6079dfee880049465846b33682",
+    "revision": "0ef7fe0c8b360868c38e00f95018356328dbe886",
+    "treeDigest": "sha256:f6bc3e92d1f7f03510597f27cdd43d3f5e40912eed8b0360d1be60120d28006f",
     "unknownCount": 7
   },
   "nodes": [
