@@ -22,7 +22,7 @@ success_criteria:
 # command and comms, which the advisor's description hands to incident-command.
 graders:
   - type: contains_all
-    of: ["incident-command", "P1"]
+    of: ["incident declared", "incident-command", "P1"]
   - type: regex
     pattern: '(?i)\bincident commander\s*:\s*[A-Za-z][A-Za-z .''-]{1,60}'
   - type: regex

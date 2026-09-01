@@ -1887,9 +1887,9 @@ _ROUTING_ONLY_SANITY_RESPONSES = {
 
 _INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES = {
     "discovery-incident-investigation-defers-incident-command.yaml": (
-        "Route this declaration to incident-command. Provisional severity: P1. Incident commander: "
-        "Morgan. Communications owner: Casey. Next update: 15:20 UTC. Do not start the excluded "
-        "technical investigation.",
+        "Incident declared. Route this declaration to incident-command. Provisional severity: P1. "
+        "Incident commander: Morgan. Communications owner: Casey. Next update: 15:20 UTC. Do not "
+        "start the excluded technical investigation.",
         "Route this declaration to incident-command; the technical investigation remains excluded.",
     ),
     "discovery-incident-investigation-walk-me-through.yaml": (
