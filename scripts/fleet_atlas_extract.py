@@ -18,6 +18,7 @@ from fleet_atlas import Edge, Graph, Node, Unknown, cite, stable_id  # noqa: E40
 GRANT_RE = re.compile(r"Agent\(([^)]+)\)")
 SEPARATOR_RE = re.compile(r"^\|\s*:?-{3,}")
 REFERENCE_LINK_RE = re.compile(r"\]\((?:\./)?references/([A-Za-z0-9._/-]+\.md)\)")
+LINK_TARGET_RE = re.compile(r"\]\(([^)]+)\)")
 BUNDLE_DIRS = ("scripts", "assets", "templates")
 
 
@@ -284,11 +285,17 @@ def extract_documents(root: Path, graph: Graph) -> None:
 def extract_rules(root: Path, graph: Graph) -> None:
     relative = "docs/rules.md"
     section = ""
-    for line_no, line in enumerate((root / relative).read_text(encoding="utf-8").splitlines(), start=1):
+    lines = (root / relative).read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        line_no = index + 1
         if line.startswith("## "):
             section = line[3:].strip()
             continue
-        if not line.startswith("| ") or line.startswith("| Rule") or SEPARATOR_RE.match(line):
+        if (
+            not line.startswith("| ")
+            or SEPARATOR_RE.match(line)
+            or (index + 1 < len(lines) and SEPARATOR_RE.match(lines[index + 1]))
+        ):
             continue
         cells = _cells(line)
         if len(cells) < 2:
@@ -298,7 +305,7 @@ def extract_rules(root: Path, graph: Graph) -> None:
         graph.add_node(Node(rule_id, "rule", statement[:80], "live-contract", relative, "live",
                             {"section": section, "statement": statement, "source_text": _plain(source_cell)},
                             [cite(root, relative, line_no, line_no, "extract.rules-row", "STATIC_EXTRACTED")]))
-        links = [m.group(2) for m in LINK_RE.finditer(source_cell)]
+        links = LINK_TARGET_RE.findall(source_cell)
         if not links:
             graph.add_unknown(Unknown("extract.rule-source-unlinked",
                                       f"{relative}:{line_no} names its source in prose only: {_plain(source_cell)[:80]}",
@@ -406,6 +413,7 @@ def extract_decisions(root: Path, graph: Graph) -> None:
         text = path.read_text(encoding="utf-8")
         head = "\n".join(text.splitlines()[:14])
         status_value = check_plan_status._status_value(text, lines=14) or ""
+        status_line = _decision_status_line(text)
         marker = check_plan_status._status_state(status_value) if status_value else ""
         state = _decision_state(marker) if marker else "historical"
         date = DATE_RE.search(head)
@@ -413,7 +421,8 @@ def extract_decisions(root: Path, graph: Graph) -> None:
         graph.add_node(Node(node_id, "decision", path.stem,
                             "live-contract" if state == "live" else "historical-evidence", relative, state,
                             {"date": date.group(1) if date else "", "status_text": status_value[:200]},
-                            [cite(root, relative, 1, 1, "extract.decision-status", "STATIC_EXTRACTED")]))
+                            [cite(root, relative, status_line, status_line,
+                                  "extract.decision-status", "STATIC_EXTRACTED")]))
         for item_id in DISPOSES_RE.findall(head):
             target = f"roadmap-item:{item_id}"
             if target in graph.nodes:
@@ -432,7 +441,7 @@ def extract_decisions(root: Path, graph: Graph) -> None:
             # Prose supersession stays UNKNOWN with its text preserved; resolving it needs a
             # structured target field in the ADR convention, not a cleverer scan here.
             resolved = None
-            for raw in [m.group(2) for m in LINK_RE.finditer(line)]:
+            for raw in LINK_TARGET_RE.findall(line):
                 resolved = _resolve_link(root, relative, raw) or resolved
             if resolved:
                 target = ensure_document(root, graph, resolved)
@@ -504,8 +513,38 @@ def parse_scenario_header(text: str) -> dict[str, object]:
     return result
 
 
+def _decision_status_line(text: str) -> int:
+    for line_no, raw_line in enumerate(text.splitlines()[:14], start=1):
+        line = raw_line.strip()
+        if line.startswith(">"):
+            line = line[1:].strip()
+        if line[:2] in ("- ", "* ", "+ "):
+            line = line[2:].strip()
+        line = line.replace("**", "").strip()
+        if re.fullmatch(r"(?i)status\s*:\s*(.+)", line):
+            return line_no
+    return 1
+
+
 def _path_index(graph: Graph) -> dict[str, str]:
-    return {node.path: node.id for node in graph.nodes.values() if node.path}
+    grouped: dict[str, list[Node]] = {}
+    for node in graph.nodes.values():
+        if node.path:
+            grouped.setdefault(node.path, []).append(node)
+    result: dict[str, str] = {}
+    file_level_priority = {
+        "document": 0, "validator": 1, "schema": 2, "agent": 3, "skill": 3,
+        "reference": 3, "bundle-file": 3, "command": 3, "decision": 3,
+        "review": 3, "scenario": 3, "probe": 3, "generated-projection": 3,
+        "schema-projection": 3,
+    }
+    for path, nodes in grouped.items():
+        candidates = [node for node in nodes if node.type in file_level_priority]
+        if candidates:
+            result[path] = min(candidates, key=lambda node: (file_level_priority[node.type], node.id)).id
+        elif len(nodes) == 1:
+            result[path] = nodes[0].id
+    return result
 
 
 def extract_reviews(root: Path, graph: Graph) -> None:
@@ -526,8 +565,8 @@ def extract_reviews(root: Path, graph: Graph) -> None:
     index = _path_index(graph)
     for node in [n for n in graph.nodes.values() if n.type == "review"]:
         for line_no, line in enumerate((root / node.path).read_text(encoding="utf-8").splitlines(), start=1):
-            for match in LINK_RE.finditer(line):
-                resolved = _resolve_link(root, node.path, match.group(2))
+            for raw in LINK_TARGET_RE.findall(line):
+                resolved = _resolve_link(root, node.path, raw)
                 target = index.get(resolved) if resolved else None
                 if target and target != node.id:
                     graph.add_edge(Edge(edge_id("cites", node.id, target, str(line_no)), node.id, target, "cites",
@@ -682,8 +721,8 @@ def extract_probes(root: Path, graph: Graph) -> None:
     roadmap = (root / roadmap_relative).read_text(encoding="utf-8")
     linked_targets = {
         resolved
-        for match in LINK_RE.finditer(roadmap)
-        if (resolved := _resolve_link(root, roadmap_relative, match.group(2))) is not None
+        for raw in LINK_TARGET_RE.findall(roadmap)
+        if (resolved := _resolve_link(root, roadmap_relative, raw)) is not None
     }
     for path in _tracked(root, (root / "docs/probes").glob("*")):
         relative = path.relative_to(root).as_posix()
@@ -773,11 +812,11 @@ def extract_owners(root: Path, graph: Graph) -> None:
 
 def link_evidence(root: Path, graph: Graph) -> None:
     index = _path_index(graph)
-    by_batch: dict[str, str] = {}
+    by_batch: dict[str, set[str]] = {}
     for node in graph.nodes.values():
         if node.type == "review":
             for batch in node.attrs.get("batches", []):
-                by_batch.setdefault(batch, node.id)
+                by_batch.setdefault(batch, set()).add(node.id)
     sources = [n for n in graph.nodes.values() if n.type in ("roadmap-item", "decision") and n.path]
     for node in sources:
         text = (root / node.path).read_text(encoding="utf-8")
@@ -804,8 +843,8 @@ def link_evidence(root: Path, graph: Graph) -> None:
         seen_batches: set[tuple[str, str]] = set()
         for line_no in span:
             line = lines[line_no - 1] if line_no - 1 < len(lines) else ""
-            for match in LINK_RE.finditer(line):
-                resolved = _resolve_link(root, node.path, match.group(2))
+            for raw in LINK_TARGET_RE.findall(line):
+                resolved = _resolve_link(root, node.path, raw)
                 target = index.get(resolved) if resolved else None
                 if target and target.startswith(("review:", "decision:")) and target != node.id and target not in seen_links:
                     seen_links.add(target)
@@ -813,8 +852,8 @@ def link_evidence(root: Path, graph: Graph) -> None:
                                         "STATIC_EXTRACTED", {},
                                         [cite(root, node.path, line_no, line_no, "extract.evidence-link", "STATIC_EXTRACTED")]))
             for batch in BATCH_ID_RE.findall(line):
-                target = by_batch.get(batch)
-                if target is None:
+                targets = by_batch.get(batch, set())
+                if not targets:
                     # check_evidence_refs.check() only requires a durable review for batches cited
                     # in docs/fleet-roadmap.md (its `cited` set comes solely from ROADMAP text) --
                     # it never reads docs/decisions/*.md. A decision may cite a batch as inline
@@ -827,7 +866,9 @@ def link_evidence(root: Path, graph: Graph) -> None:
                     if node.type == "roadmap-item":
                         graph.add_unknown(Unknown("extract.batch-unresolved", f"{node.path}:{line_no} cites batch {batch} with no review",
                                                   node.path, "check_evidence_refs owns the hard failure"))
-                elif (target, batch) not in seen_batches:
+                for target in sorted(targets):
+                    if (target, batch) in seen_batches:
+                        continue
                     seen_batches.add((target, batch))
                     graph.add_edge(Edge(edge_id("evidenced_by", node.id, target, batch), node.id, target, "evidenced_by",
                                         "STATIC_EXTRACTED", {"batch": batch},

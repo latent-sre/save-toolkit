@@ -162,6 +162,15 @@ class QueryTests(unittest.TestCase):
         self.assertTrue(truncated)
         self.assertEqual(len(results), fleet_atlas.QUERY_LIMIT)
 
+    def test_governs_matches_rule_content_not_serialized_metadata(self) -> None:
+        for phrase in ("STATIC_EXTRACTED", "live-contract", "extract.rules-row"):
+            with self.subTest(phrase=phrase):
+                results, truncated = fleet_atlas.query_document(
+                    self.document, "governs", [phrase]
+                )
+                self.assertFalse(truncated)
+                self.assertEqual(results, [])
+
     def test_schema_validation_test_is_returned_by_verified_by_query(self) -> None:
         results, truncated = fleet_atlas.query_document(
             self.document, "verified-by", ["fleet-atlas-v1"]
@@ -326,12 +335,19 @@ class ExtractGovernanceTests(unittest.TestCase):
         cls.graph = fleet_atlas.build_graph(ROOT)
 
     def test_every_rules_row_is_a_rule_node_with_a_governed_by_edge_or_an_unknown(self) -> None:
+        lines = (ROOT / "docs/rules.md").read_text(encoding="utf-8").splitlines()
         rows = [
-            line for line in (ROOT / "docs/rules.md").read_text(encoding="utf-8").splitlines()
-            if line.startswith("| ") and not line.startswith("| Rule") and not line.startswith("|---")
+            line for index, line in enumerate(lines)
+            if line.startswith("| ")
+            and not fleet_atlas_extract.SEPARATOR_RE.match(line)
+            and not (
+                index + 1 < len(lines)
+                and fleet_atlas_extract.SEPARATOR_RE.match(lines[index + 1])
+            )
         ]
         rules = [n for n in self.graph.nodes.values() if n.type == "rule"]
         self.assertEqual(len(rules), len(rows))
+        self.assertNotIn("Change", {node.name for node in rules})
         governed = {e.source for e in self.graph.edges.values() if e.kind == "governed_by"}
         unlinked = {u.path for u in self.graph.unknowns if u.code == "extract.rule-source-unlinked"}
         for rule in rules:
@@ -450,11 +466,44 @@ class ExtractEvidenceTests(unittest.TestCase):
             for e in self.graph.edges.values()
         ))
 
+    def test_shared_file_literals_verify_the_document_not_an_arbitrary_semantic_node(self) -> None:
+        sources = {
+            edge.source for edge in self.graph.edges.values()
+            if edge.kind == "verified_by"
+            and edge.target == "test:scripts/test_plan_status.py"
+        }
+        self.assertIn("document:docs/fleet-roadmap.md", sources)
+        self.assertFalse(any(source.startswith("roadmap-item:") for source in sources))
+
     def test_roadmap_evidence_links_and_batches_resolve(self) -> None:
         edges = [e for e in self.graph.edges.values() if e.kind == "evidenced_by" and e.source == "roadmap-item:SKILL-001"]
         self.assertTrue(any(e.target == "review:2026-08-29-skill-001-gcp-ops" for e in edges))
         self.assertFalse([u for u in self.graph.unknowns if u.code == "extract.batch-unresolved"],
                          "check_evidence_refs is green, so every cited batch must resolve")
+        eval_005 = [
+            edge for edge in self.graph.edges.values()
+            if edge.kind == "evidenced_by" and edge.source == "roadmap-item:EVAL-005"
+        ]
+        self.assertTrue(any(
+            edge.target == "review:2026-08-31-eval-005-prometheus-probe-gate"
+            for edge in eval_005
+        ))
+
+    def test_batch_ids_link_every_durable_review_that_carries_them(self) -> None:
+        batch = "20260828T174200Z-47698407"
+        targets = {
+            edge.target for edge in self.graph.edges.values()
+            if edge.kind == "evidenced_by" and edge.attrs.get("batch") == batch
+        }
+        self.assertIn("review:2026-08-28-build-probe-sre", targets)
+        self.assertIn("review:2026-08-28-eval-20260828T174200Z-47698407", targets)
+
+    def test_decision_state_evidence_cites_the_status_field(self) -> None:
+        for node in (node for node in self.graph.nodes.values() if node.type == "decision"):
+            with self.subTest(node=node.id):
+                lines = (ROOT / node.path).read_text(encoding="utf-8").splitlines()
+                cited = lines[node.evidence[0].lines[0] - 1]
+                self.assertIn("Status", cited)
 
     def test_owners_and_capabilities(self) -> None:
         self.assertEqual(self.graph.nodes["owner:software-engineer"].attrs["kind"], "agent")
@@ -605,6 +654,7 @@ class DetectorTests(unittest.TestCase):
         self.assertNotIn("docs/reviews/2026-08-24-full-skill-audit-batch-1.md", uncited)
         self.assertNotIn("docs/reviews/2026-08-20-route001-linux-canary.md", uncited)
         self.assertNotIn("docs/reviews/2026-08-26-three-pass-skill-audit.md", uncited)
+        self.assertNotIn("docs/reviews/2026-08-25-grader-003-verification-batch.md", uncited)
 
     def test_retired_name_detector_fires_on_prose_but_respects_the_filename_carve_out(self) -> None:
         import tempfile
@@ -783,6 +833,21 @@ class ViewAndDriftTests(unittest.TestCase):
             ))
         finally:
             scratch.unlink(missing_ok=True)
+
+    def test_digest_includes_extractor_dependencies_and_discovered_live_guides(self) -> None:
+        relative = {path.relative_to(self.root).as_posix() for path in fleet_atlas.canonical_inputs(self.root)}
+        expected = {
+            "CHANGELOG.md",
+            "evals/README.md",
+            "scripts/check_evidence_refs.py",
+            "scripts/check_links.py",
+            "scripts/check_plan_status.py",
+            "scripts/check_stale_names.py",
+            "scripts/fleet_frontmatter.py",
+            "scripts/generate_platform_adapters.py",
+            "scripts/validate_fleet.py",
+        }
+        self.assertEqual(expected - relative, set())
 
     def test_check_rejects_dirty_provenance_and_a_bad_manifest(self) -> None:
         generated = self.root / "docs/fleet-atlas/generated"

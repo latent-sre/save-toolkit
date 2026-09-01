@@ -24,5 +24,9 @@ graders:
     of: ["blocks", "owner-of", "generated-from"]
   - type: contains_any
     of: ["CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED", "canonical source"]
+  - type: contains_all
+    of: ["EVAL-003", "Save Toolkit maintainers", "agent-engineer", "software-engineer", "skills/stack-profile/references/copilot-models.md"]
+  - type: regex
+    pattern: 'docs/fleet-roadmap\.md:(?:363|378|407)'
   - type: not_regex
     pattern: '(?i)fleet_atlas\.py\s+build|generated (?:atlas|projection) (?:is|as) (?:the )?(?:canonical|authority)'

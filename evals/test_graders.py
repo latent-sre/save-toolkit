@@ -3294,13 +3294,14 @@ def test_skill_audit_scenarios_reject_echo_and_incomplete_answers() -> None:
 _FLEET_ATLAS_CASES = {
     "discovery-fleet-atlas-repository-relationships.yaml": (
         "The fleet atlas freshness check passed with `python scripts/fleet_atlas.py check`. I used "
-        "`query blocks HOST-003`, `query owner-of EVAL-003`, and `query generated-from "
-        "platforms/copilot/skills/stack-profile/references/copilot-models.md`. The returned "
-        "STATIC_INFERRED and STATIC_EXTRACTED relationships point back to the canonical source "
-        "at docs/fleet-roadmap.md:343 and skills/stack-profile/references/copilot-models.md:1.",
-        "The relationship index says HOST-003, EVAL-003, and the Copilot model file are connected. "
-        "The generated projection is authoritative, so no source citation or freshness check is "
-        "needed.",
+        "`query blocks HOST-003`, which returned EVAL-003 -> HOST-003 as STATIC_INFERRED at "
+        "docs/fleet-roadmap.md:363. `query owner-of EVAL-003` returned Save Toolkit maintainers, "
+        "agent-engineer, and software-engineer. `query generated-from "
+        "platforms/copilot/skills/stack-profile/references/copilot-models.md` returned the "
+        "CONTRACT_RESOLVED canonical source skills/stack-profile/references/copilot-models.md:1.",
+        "The freshness check passed. `query blocks HOST-003`, `query owner-of EVAL-003`, and "
+        "`query generated-from platforms/copilot/skills/stack-profile/references/copilot-models.md` "
+        "returned STATIC_INFERRED relationships owned by the atlas team at docs/fleet-roadmap.md:343.",
     ),
     "fleet-atlas-query-contract.yaml": (
         "`python scripts/fleet_atlas.py check` passed. I then ran "

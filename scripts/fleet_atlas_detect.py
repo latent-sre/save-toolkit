@@ -47,25 +47,14 @@ def detect_uncited_review(root: Path, graph: Graph) -> None:
     # LIVE_DOCS set fleet_atlas_extract.py already treats as citing authority closes that gap
     # without adding a new extraction pass to that file.
     #
-    # Known remaining gap, deliberately not closed here: docs/roadmap-closed.md's disposition rows
-    # also cite closure evidence (extract_closed_register() reads the file for historical
-    # roadmap-item rows but never calls ensure_document() on the file itself, so it gets no node and
-    # link_evidence() never walks it). Adding it to this scan was tried and measured zero effect on
-    # this repository's real yield (72 before and after) -- its one relevant citation,
-    # docs/reviews/2026-08-25-grader-003-verification-batch.md from the SKILLS-003 row, uses a
-    # nested-bracket label ([`[verified]` 62/62 ...](reviews/...)) that check_links.LINK_RE's
-    # `\[([^\]]*)\]\(([^)]+)\)` cannot parse at all: the inner `]` from "[verified]" ends the
-    # `[^\]]*` capture before the real link boundary, so the match fails regardless of which document
-    # contains it. That is a limitation of the shared LINK_RE the whole atlas already depends on, not
-    # something this detector's scan set can fix, so docs/roadmap-closed.md was left out rather than
-    # added for no measured benefit.
     index = {node.path: node.id for node in graph.nodes.values() if node.path}
-    for relative in sorted(fleet_atlas_extract.live_guide_paths(root)):
+    guide_paths = fleet_atlas_extract.live_guide_paths(root) | {"docs/roadmap-closed.md"}
+    for relative in sorted(guide_paths):
         path = root / relative
         if not path.is_file():
             continue
-        for match in fleet_atlas_extract.LINK_RE.finditer(path.read_text(encoding="utf-8")):
-            resolved = fleet_atlas_extract._resolve_link(root, relative, match.group(2))
+        for raw in fleet_atlas_extract.LINK_TARGET_RE.findall(path.read_text(encoding="utf-8")):
+            resolved = fleet_atlas_extract._resolve_link(root, relative, raw)
             target = index.get(resolved) if resolved else None
             if target and target.startswith("review:"):
                 incoming.add(target)

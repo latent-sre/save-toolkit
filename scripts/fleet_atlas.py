@@ -176,10 +176,27 @@ def git_revision(root: Path) -> tuple[str, bool]:
     return head, bool(status.strip())
 
 
-CANONICAL_INPUTS = ("agents", "skills", "commands", "docs/rules.md", "docs/fleet-roadmap.md", "docs/roadmap-closed.md",
-                    "docs/decisions", "docs/reviews", "docs/probes", "evals/scenarios", "evals/build-scenarios", "schemas",
-                    "hooks", "AGENTS.md", "CONTRIBUTING.md", "README.md", "docs/README.md", "docs/schema-compatibility.md")
-CANONICAL_GLOBS = ("scripts/fleet_atlas*.py", "scripts/test_*.py", "evals/test_*.py")
+EXTRACTOR_DEPENDENCIES = (
+    "scripts/check_evidence_refs.py",
+    "scripts/check_links.py",
+    "scripts/check_plan_status.py",
+    "scripts/check_stale_names.py",
+    "scripts/evidence_envelope.py",
+    "scripts/fleet_frontmatter.py",
+    "scripts/generate_platform_adapters.py",
+    "scripts/validate_fleet.py",
+    "evals/engine_contract.py",
+    "evals/execution_profiles.py",
+)
+CANONICAL_INPUTS = (
+    "agents", "skills", "commands", "docs/rules.md", "docs/fleet-roadmap.md", "docs/roadmap-closed.md",
+    "docs/decisions", "docs/reviews", "docs/probes", "evals/scenarios", "evals/build-scenarios", "schemas",
+    "hooks", "AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "README.md", "docs/README.md",
+    "docs/schema-compatibility.md", *EXTRACTOR_DEPENDENCIES,
+)
+CANONICAL_GLOBS = (
+    "scripts/fleet_atlas*.py", "scripts/test_*.py", "evals/test_*.py", "**/README.md", "**/CHANGELOG.md",
+)
 
 
 def tracked_relative_paths(root: Path) -> set[str]:
@@ -201,6 +218,7 @@ def _matches_canonical(relative: str) -> bool:
         (path.parent.as_posix() == "scripts" and path.name.startswith("fleet_atlas") and path.suffix == ".py")
         or (path.parent.as_posix() == "scripts" and path.name.startswith("test_") and path.suffix == ".py")
         or (path.parent.as_posix() == "evals" and path.name.startswith("test_") and path.suffix == ".py")
+        or (path.name in {"README.md", "CHANGELOG.md"} and not relative.startswith("docs/reviews/"))
     )
 
 
@@ -457,7 +475,15 @@ def query_document(
         matched = [
             node for node in node_list
             if node.get("type") == "rule"
-            and phrase in json.dumps(node, sort_keys=True).casefold()
+            and phrase in "\n".join(
+                str(value)
+                for value in (
+                    node.get("name", ""),
+                    (node.get("attrs") or {}).get("section", ""),
+                    (node.get("attrs") or {}).get("statement", ""),
+                    (node.get("attrs") or {}).get("source_text", ""),
+                )
+            ).casefold()
         ]
         matched_ids = {str(node["id"]) for node in matched}
         results.extend({"resultType": "node", **_node_summary(node)} for node in matched)
