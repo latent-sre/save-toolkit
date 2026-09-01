@@ -20873,8 +20873,8 @@
     "edgeCount": 975,
     "nodeCount": 815,
     "repository": "latent-sre/save-toolkit",
-    "revision": "4bbe97273940383646d7a4b0a98328652b42f05e",
-    "treeDigest": "sha256:4adf7f32d986b3448e22e58364f7d7ea85fb2d11fc60689964f795759aff2e70",
+    "revision": "f3571e43c054001d06bd223a7431acd54021be73",
+    "treeDigest": "sha256:1f1654335157744ae72824fe471a5e941ef849d580167e2353e8ae1a27a949e5",
     "unknownCount": 7
   },
   "nodes": [
@@ -35000,7 +35000,7 @@
         {
           "class": "CONTRACT_RESOLVED",
           "detector": "check_plan_status.roadmap_field",
-          "excerptHash": "sha256:aaa63419dcded929931f59e848e5235d9df87c16f40bab8190d7002d54761899",
+          "excerptHash": "sha256:79dc5f5037784b3c99e3691ce5c4c0ead34beb3e81189b90f563f0dc322e1e92",
           "lines": [
             323,
             329
