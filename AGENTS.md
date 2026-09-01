@@ -82,8 +82,8 @@ The last column is the validated Claude model-delegation graph. VS Code handoffs
 
 - Pin third-party dependencies in `requirements-dev.txt`. `scripts/readonly-guard.py` stays
   standard-library-only under `python -I -S`. The first third-party Gate A import updates both CI
-  validation jobs and `gate_a.py` documentation in the same change; tests keep a bare `python`
-  unittest entrypoint.
+  validation jobs and `gate_a.py` documentation in the same change; tests run under
+  `python -m pytest`.
 - Generated adapters are never sources. Edit canonical source or the generator, regenerate after
   canonical edits, and never hand-edit generated roots.
 - Plugin agents ignore `hooks:`, `mcpServers:`, `permissionMode:`, and unknown frontmatter keys. The

@@ -58,6 +58,17 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Removed eval-harness doctrine from all eight agent bodies: the run/attempt and resolved-model
+  identity rules, the two matching handoff-packet slots, the absent-versus-guard-denied rule, and
+  the failed-delegate paragraph (kept as one sentence in the three delegating lanes). No runtime
+  user supplies a run ID; the evidence-label triad, taint rules, and handoff packets are unchanged.
+- Gate A now runs two structural validators, `check_links.py` and `validate_fleet.py`, instead of
+  eight. `check_links.py` keeps frontmatter grammar and link containment and drops its prose-style
+  rules; `validate_fleet.py` keeps the tools-authority matrix, delegation graph, guard wiring, and
+  handoff and evidence anchors and drops the scribe-bundle phrase regexes.
+- Component tests run under `python -m pytest` (pinned in `requirements-dev.txt`, configured by
+  `pytest.ini` over `scripts/` and `evals/`); the CI component-tests job calls it directly. Test
+  files remain plain `unittest` modules and still run individually.
 - Renamed the evidence-selected incident-depth router skill `incident-investigation` to
   `investigation-depth`. Its body, description, references, and canary tokens are byte-identical
   apart from the frontmatter `name`; the `sre` agent, `incident-command`, `eng-ladder`, the fleet
@@ -207,6 +218,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Removed
 
+- Removed the document-convention gates and their tests: `check_plan_status.py`,
+  `check_evidence_refs.py`, `check_stale_names.py`, `check_canary_tokens.py`,
+  `check_query_catalog.py`, `check_test_layout.py`, the sequential `run_component_tests.py`, and
+  the three graph-contract tests that asserted the deleted agent doctrine by substring. Canary
+  tokens inside references stay; `run_evals.py` still reads them at runtime.
 - Retired the unpublished repository-specific release workflow, request and workflow contracts,
   release-only tests, and release runbook; no immutable release channel had been activated.
 - Retired the standalone multi-host lifecycle probe and focused suite because no workflow, CI job,
