@@ -256,7 +256,10 @@ class ExtractCanonicalTests(unittest.TestCase):
 
     def test_manual_only_skills_are_flagged(self) -> None:
         manual = {n.name for n in self.graph.nodes.values() if n.type == "skill" and n.attrs["manual_only"]}
-        self.assertEqual(manual, {"incident-drill", "pcf-deploy", "service-lifecycle"})
+        self.assertEqual(
+            manual,
+            {"incident-drill", "pcf-deploy", "service-lifecycle", "service-retirement"},
+        )
 
     def test_agent_grants_are_recorded_but_not_yet_edges(self) -> None:
         engineer = self.graph.nodes["agent:software-engineer"]
