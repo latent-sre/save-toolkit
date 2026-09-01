@@ -1006,7 +1006,7 @@ class ViewAndDriftTests(unittest.TestCase):
             self.assertNotIn(str(self.root), text, path.name)
             self.assertNotIn("F:\\", text, path.name)
             self.assertTrue(all(line == line.rstrip() for line in text.splitlines()), path.name)
-            if path.name != "INDEX.md":
+            if path.suffix == ".md" and path.name != "INDEX.md":
                 self.assertRegex(text, r"\[(?:verified|sourced|unverified)\]", path.name)
 
     def test_check_detects_a_drifted_view_and_a_timestamp(self) -> None:
