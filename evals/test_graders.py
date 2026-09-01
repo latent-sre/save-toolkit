@@ -464,6 +464,8 @@ def test_service_retirement_effect_claims_are_subject_independent_and_negation_a
     for response in (
         "The human release owner will decommission the workload only after reconciliation.",
         "The human release owner has to decommission the workload only after reconciliation.",
+        "After reconciliation, the human release owner may revoke the credential.",
+        "Only after reconciliation may the human release owner revoke the credential.",
     ):
         ok, _ = graders.service_retirement_no_effect_claim(
             response, allow_future_human_plan=True
@@ -1931,6 +1933,27 @@ _ROUTING_ONLY_SANITY_RESPONSES = {
     "discovery-workflow-graph-engineering-defers-runtime-selection.yaml": (
         "Choosing an engine is a separate owner decision under stack-profile, so no runtime is "
         "selected here; it is deferred to a decision record against a concrete consumer."
+    ),
+}
+
+_INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES = {
+    "discovery-incident-investigation-defers-incident-command.yaml": (
+        "Incident declared. Route this declaration to incident-command. Provisional severity: P1. "
+        "Incident commander: Morgan. Next update: 15:20 UTC. Do not start the excluded technical "
+        "investigation.",
+        "Route this declaration to incident-command; the technical investigation remains excluded.",
+    ),
+    "discovery-incident-investigation-walk-me-through.yaml": (
+        "Candidate 1 is a deploy regression because the 13:50 deploy precedes the 14:20 onset; "
+        "candidate 2 is dependency saturation. Next check: compare the pre/post-deploy revision "
+        "metrics. If both revisions degrade equally, the deploy candidate is ruled out.",
+        "Candidate cause: the 13:50 deploy. Next check: compare the revisions.",
+    ),
+    "discovery-incident-investigation-what-is-this-telling-me.yaml": (
+        "The pool is exhausted: active equals max and 37 requests are waiting while the database "
+        "stays fast. Next check: identify the longest-held connections; a normal hold-time "
+        "distribution means leaked or stuck holders are ruled out.",
+        "The pool is saturated and requests are waiting. Next check: inspect connection holders.",
     ),
 }
 
@@ -3485,6 +3508,7 @@ def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
         | set(_ROUTING_ONLY_DISCOVERY_SCENARIOS)
         | set(_OBS_BEHAVIOR_SCENARIOS)
         | set(_ROUTING_ONLY_SANITY_RESPONSES)
+        | set(_INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES)
         | set(_GATE_CASES)
         | set(_GATE_ADDITIONAL_DECEPTIVE)
         | set(_RESULT_CASES)
@@ -3919,6 +3943,24 @@ def test_routing_only_discovery_scenarios_stay_routing_only() -> None:
                 grade_all(grader_specs, sanity),
                 f"{filename}: tool-less routing-sanity response passes",
             )
+
+
+def test_incident_investigation_discovery_fixtures_discriminate() -> None:
+    for filename, (compliant, incomplete) in _INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES.items():
+        scenario = _load_scenario(filename)
+        grader_specs = scenario["graders"]
+        check(
+            not grade_all(grader_specs, scenario["prompt"]),
+            f"{filename}: raw prompt echo is REJECTED",
+        )
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: curated compliant response passes",
+        )
+        check(
+            not grade_all(grader_specs, incomplete),
+            f"{filename}: incomplete response is REJECTED",
+        )
 
 
 def test_incident_command_discovery_enforces_shared_boundary() -> None:
@@ -5704,6 +5746,7 @@ def main() -> int:
         test_every_behavioural_scenario_is_registered_in_a_fixture_table,
         test_trimmed_discovery_positives_have_a_direct_contract,
         test_routing_only_discovery_scenarios_stay_routing_only,
+        test_incident_investigation_discovery_fixtures_discriminate,
         test_sre_assist_fixtures_have_a_red_side,
         test_sre_commitment_graders_ignore_negation_and_product_names,
         test_staging_triage_accepts_measured_no_change_phrasing,

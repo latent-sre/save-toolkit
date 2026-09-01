@@ -1118,8 +1118,8 @@ one exact action, target, argv/executable digest, expiry, nonce, rollback, and r
 unknown-outcome state for externally dispatched effects.
 
 **Prerequisites:** A named workflow approved to cross the current prepare/recommend boundary, a
-separately controlled execution identity, and live `main` ruleset enforcement as recorded in
-[`docs/reviews/2026-08-05-protect-001-closure.md`](reviews/2026-08-05-protect-001-closure.md).
+separately controlled execution identity, and live `main` ruleset enforcement under the repository
+boundaries in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 **Acceptance:** Effect-bound approval, dispatch, unknown-outcome reconciliation, replay prevention,
 expiry, rollback, and operator-resolution tests pass for the named effect target.

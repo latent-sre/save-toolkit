@@ -78,7 +78,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["approved_by", "approved_at", "budget_id"],
+          "required": ["approved_by", "approved_at", "budget_id", "eval_suite_sha256"],
           "properties": {
             "approved_by": { "type": "string", "minLength": 1 },
             "approved_at": {
@@ -86,7 +86,11 @@
               "format": "date-time",
               "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
             },
-            "budget_id": { "type": "string", "minLength": 1 }
+            "budget_id": { "type": "string", "minLength": 1 },
+            "eval_suite_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
           }
         }
       ]

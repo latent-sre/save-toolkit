@@ -73,6 +73,7 @@ class ExecutionProfileTests(unittest.TestCase):
         value["resolved_model"] = "gpt-5.6-terra"
         value["reasoning_effort"] = "high"
         value["stop_condition"] = "first-inconclusive"
+        value["approval"]["eval_suite_sha256"] = "a" * 64
         return value
 
     def test_valid_profile_is_digest_bound(self) -> None:
@@ -101,6 +102,21 @@ class ExecutionProfileTests(unittest.TestCase):
         execution_profiles.validate_profile(value, require_approval=False)
         with self.assertRaisesRegex(execution_profiles.ProfileError, "approval"):
             execution_profiles.validate_profile(value, require_approval=True)
+
+    def test_v2_approval_binds_exact_eval_suite_bytes(self) -> None:
+        value = self._valid_v2()
+        profile = execution_profiles.validate_profile(value, require_approval=True)
+        self.assertEqual("a" * 64, profile.approval["eval_suite_sha256"])
+
+        missing = self._valid_v2()
+        del missing["approval"]["eval_suite_sha256"]
+        with self.assertRaisesRegex(execution_profiles.ProfileError, "eval_suite_sha256"):
+            execution_profiles.validate_profile(missing, require_approval=True)
+
+        invalid = self._valid_v2()
+        invalid["approval"]["eval_suite_sha256"] = "not-a-digest"
+        with self.assertRaisesRegex(execution_profiles.ProfileError, "eval_suite_sha256"):
+            execution_profiles.validate_profile(invalid, require_approval=True)
 
     def test_v1_remains_readable_but_cannot_authorize_new_live_execution(self) -> None:
         execution_profiles.validate_profile(self._valid(), require_approval=False)

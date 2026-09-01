@@ -237,9 +237,9 @@ def check(root: Path = ROOT) -> list[str]:
         failures.extend(_roadmap_item_failures(roadmap))
 
     plan_dir = root / PLAN_ROOT
-    if not plan_dir.is_dir():
-        failures.append(f"{PLAN_ROOT.as_posix()}: missing plan archive")
-    else:
+    if plan_dir.exists() and not plan_dir.is_dir():
+        failures.append(f"{PLAN_ROOT.as_posix()}: archive path must be a directory")
+    elif plan_dir.is_dir():
         for path in sorted(plan_dir.glob("*.md")):
             relative = path.relative_to(root)
             text, read_error = _read(root, relative)
@@ -265,9 +265,9 @@ def check(root: Path = ROOT) -> list[str]:
                 )
 
     spec_dir = root / SPEC_ROOT
-    if not spec_dir.is_dir():
-        failures.append(f"{SPEC_ROOT.as_posix()}: missing specification archive")
-    else:
+    if spec_dir.exists() and not spec_dir.is_dir():
+        failures.append(f"{SPEC_ROOT.as_posix()}: archive path must be a directory")
+    elif spec_dir.is_dir():
         for path in sorted(spec_dir.glob("*.md")):
             relative = path.relative_to(root)
             text, read_error = _read(root, relative)

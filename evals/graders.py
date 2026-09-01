@@ -1176,7 +1176,7 @@ def _future_human_retirement_plan(response: str, start: int, end: int) -> bool:
     )
     gated = re.search(
         r"(?i)\b(?:only\s+after|after|once|when)\b[^.;!?\n]{0,64}",
-        after,
+        clause,
     )
     return bool(human_owner and future_or_conditional and gated)
 

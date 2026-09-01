@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -458,6 +459,7 @@ class InvocationPlanTests(unittest.TestCase):
                     "approved_by": "test-owner",
                     "approved_at": "2026-08-31T12:00:00Z",
                     "budget_id": "offline-historical-boundary-test",
+                    "eval_suite_sha256": run_evals.eval_suite_digest(),
                 },
             }
             profile_path = root / "profile.json"
@@ -1805,6 +1807,70 @@ class ArtifactTests(unittest.TestCase):
 
 
 class AggregateVerdictTests(unittest.TestCase):
+    def test_approved_eval_suite_mismatch_blocks_before_cli_lookup(self) -> None:
+        profile = {
+            "schema_version": "eval-execution-profile/v2",
+            "id": "approved-suite-mismatch",
+            "comparison": {
+                "id": "approved-suite-mismatch",
+                "models": {"claude-plugin": "sonnet", "codex-cli": "not-run"},
+                "resolved_models": {
+                    "claude-plugin": "claude-sonnet-5",
+                    "codex-cli": "not-run",
+                },
+                "reasoning_efforts": {
+                    "claude-plugin": "high",
+                    "codex-cli": "not-run",
+                },
+            },
+            "engine": "claude-plugin",
+            "claims": ["behavioral_contract", "deterministic_grader_result"],
+            "scenario_ids": ["agent-direct-sre-readonly-triage"],
+            "required_references": {},
+            "model": "sonnet",
+            "resolved_model": "claude-sonnet-5",
+            "reasoning_effort": "high",
+            "stop_condition": "first-inconclusive",
+            "trials": 2,
+            "timeout_s": 60,
+            "total_timeout_s": 120,
+            "cost_budget": {"status": "available", "max_usd": 1},
+            "approval": {
+                "approved_by": "test-owner",
+                "approved_at": "2026-08-31T12:00:00Z",
+                "budget_id": "test-budget",
+                "eval_suite_sha256": "b" * 64,
+            },
+        }
+        scenario = next(
+            item
+            for item in run_evals.load_scenarios()
+            if item["id"] == "agent-direct-sre-readonly-triage"
+        )
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "profile.json"
+            path.write_text(json.dumps(profile), encoding="utf-8")
+            stderr = io.StringIO()
+            with (
+                mock.patch.object(
+                    run_evals.sys,
+                    "argv",
+                    ["run_evals.py", "--run", "--profile", str(path)],
+                ),
+                mock.patch.object(
+                    run_evals, "load_stable_suite", return_value=([scenario], "a" * 64)
+                ),
+                mock.patch.object(run_evals, "validate", return_value=[]),
+                mock.patch.object(run_evals.shutil, "which") as runtime_lookup,
+                mock.patch.object(run_evals.subprocess, "run") as child,
+                contextlib.redirect_stderr(stderr),
+            ):
+                self.assertEqual(2, run_evals.main())
+
+        self.assertIn("approved eval suite", stderr.getvalue())
+        runtime_lookup.assert_not_called()
+        child.assert_not_called()
+
     def test_codex_main_blocks_before_any_cli_subprocess(self) -> None:
         profile = {
             "schema_version": "eval-execution-profile/v2",
@@ -1831,6 +1897,7 @@ class AggregateVerdictTests(unittest.TestCase):
                 "approved_by": "test-owner",
                 "approved_at": "2026-08-31T12:00:00Z",
                 "budget_id": "test-budget",
+                "eval_suite_sha256": run_evals.eval_suite_digest(),
             },
         }
         with tempfile.TemporaryDirectory() as td:
@@ -1969,6 +2036,7 @@ class AggregateVerdictTests(unittest.TestCase):
                 "approved_by": "test-owner",
                 "approved_at": "2026-08-31T12:00:00Z",
                 "budget_id": "test-budget",
+                "eval_suite_sha256": "a" * 64,
             },
         }
         scenario = next(

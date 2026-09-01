@@ -30,7 +30,8 @@ provenance; it does not authorize an effect or promote the subject it describes.
 
 `eval-execution-profile-v2` is current. It binds one engine, requested claims, selected scenarios,
 required references, requested and accepted resolved-model identity, reasoning effort, stop
-condition, trial count, time limits, cost-budget representation, and separate live-run approval.
+condition, trial count, time limits, cost-budget representation, and separate live-run approval to
+the exact frozen evaluator, grader, and scenario-suite bytes.
 `eval-execution-profile-v1` remains supported for retained historical evidence but cannot start a
 new model process. `evals/execution_profiles.py` is their semantic validator. A current profile
 with `approval: null` may be validated and reviewed offline, but cannot start a model process.

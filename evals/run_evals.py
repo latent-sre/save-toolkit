@@ -2449,6 +2449,8 @@ def main() -> int:
             return 2 if args.run else 3
         try:
             execution_profiles.validate_scenario_bindings(profile, selected)
+            if args.run:
+                execution_profiles.validate_approved_eval_suite(profile, suite_sha256)
         except execution_profiles.ProfileError as exc:
             print(f"run_evals: invalid execution profile: {exc}", file=sys.stderr)
             return 2 if args.run else 3

@@ -12,7 +12,7 @@ sources or the generated host adapters.
 | Live tracker | [`fleet-roadmap.md`](fleet-roadmap.md) | The **only** owner of unfinished, blocked, and deferred work. Nothing else adds work to the queue. It states what is still owed and cites its evidence rather than restating it |
 | Closed-item register | [`roadmap-closed.md`](roadmap-closed.md) | The disposition of every item that has left the live tracker. Historical evidence, never a task list; a row closed by owner disposition states its own reopen condition |
 | Decisions (ADRs) | [`decisions/`](decisions) | An **accepted** record governs its decision, names what lost, and states its reopen trigger; a proposed record carries no implementation authority. Never an execution checklist |
-| Round plans and specs | [`superpowers/plans/`](superpowers/plans), [`superpowers/specs/`](superpowers/specs) | The directories always exist; they are **empty between rounds**, because the round's closing PR deletes its plan and git history keeps the payload. While a file is present it needs a `Status:` banner (`implemented`, `superseded`, or `historical`) and a pointer back to `fleet-roadmap.md`, which `check_plan_status.py` enforces |
+| Round plans and specs | `superpowers/plans/`, `superpowers/specs/` | The directories exist only during a round; the closing PR deletes the plan/spec and empty directories disappear while Git history keeps the payload. While a file is present it needs a `Status:` banner (`implemented`, `superseded`, or `historical`) and a pointer back to `fleet-roadmap.md`, which `check_plan_status.py` enforces |
 | Roadmap-linked probe instruments | [`probes/`](probes) | Blank, repeatable procedures that are operational only while an active roadmap item links them. They are neither evidence nor a second task list; completed results live in validated evidence envelopes and dated review packets |
 | Closure evidence | [`reviews/`](reviews) | Historical evidence of what a round landed and how it was verified. Never a task list |
 | Live reference contracts | [`rules.md`](rules.md), [`schema-compatibility.md`](schema-compatibility.md) | Current, governing contracts — not dated snapshots. The conditional rule map routes contributors to the owning source without restating it; schema-compatibility versions the machine-readable contracts in [`../schemas/catalog-v1.json`](../schemas/catalog-v1.json). Both are linked from root docs and stay current with the fleet they describe |
@@ -23,7 +23,7 @@ Only [`fleet-roadmap.md`](fleet-roadmap.md), the **accepted** records under [`de
 and the live reference contracts ([`rules.md`](rules.md) and
 [`schema-compatibility.md`](schema-compatibility.md)) govern the current fleet.
 `probes/` contains no independent authority: an instrument is live only through the active roadmap
-item that links it. `superpowers/plans/` and `superpowers/specs/` are empty between rounds.
+item that links it. `superpowers/plans/` and `superpowers/specs/` are absent between rounds.
 `reviews/` holds closure evidence that a roadmap item, a decision record, a live doc, or a test
 still cites; a review nothing cites is removed the same way. [`roadmap-closed.md`](roadmap-closed.md)
 records where each retired item landed. Everything in both is history, not a task list. A historical file may retain a dated "open" section as evidence of what was believed

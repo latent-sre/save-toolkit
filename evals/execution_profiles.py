@@ -44,6 +44,7 @@ TIMESTAMP_RE = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$"
 )
 REASONING_EFFORT_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class ProfileError(ValueError):
@@ -325,12 +326,25 @@ def validate_profile(
     approval: dict[str, str] | None = None
     if raw_approval is not None:
         approved = _mapping(raw_approval, "profile.approval")
-        _exact(approved, {"approved_by", "approved_at", "budget_id"}, "profile.approval")
+        approval_fields = {"approved_by", "approved_at", "budget_id"}
+        if schema_version == SCHEMA_VERSION_V2:
+            approval_fields.add("eval_suite_sha256")
+        _exact(approved, approval_fields, "profile.approval")
         approval = {
             "approved_by": _string(approved["approved_by"], "profile.approval.approved_by"),
             "approved_at": _string(approved["approved_at"], "profile.approval.approved_at"),
             "budget_id": _string(approved["budget_id"], "profile.approval.budget_id"),
         }
+        if schema_version == SCHEMA_VERSION_V2:
+            suite_sha256 = _string(
+                approved["eval_suite_sha256"],
+                "profile.approval.eval_suite_sha256",
+            )
+            if SHA256_RE.fullmatch(suite_sha256) is None:
+                raise ProfileError(
+                    "profile.approval.eval_suite_sha256 must be a lowercase SHA-256 digest"
+                )
+            approval["eval_suite_sha256"] = suite_sha256
         if TIMESTAMP_RE.fullmatch(approval["approved_at"]) is None:
             raise ProfileError("profile.approval.approved_at must be an RFC3339 UTC timestamp")
         try:
@@ -379,6 +393,22 @@ def validate_profile(
         schema_version=str(schema_version),
         stop_condition=stop_condition,
     )
+
+
+def validate_approved_eval_suite(
+    profile: ExecutionProfile,
+    observed_sha256: str,
+) -> None:
+    """Require live evaluator/scenario/grader bytes to match the approved frozen suite."""
+
+    if profile.approval is None:
+        raise ProfileError("live model execution requires explicit profile approval")
+    expected_sha256 = profile.approval.get("eval_suite_sha256")
+    if expected_sha256 != observed_sha256:
+        raise ProfileError(
+            "approved eval suite digest does not match the frozen evaluator bytes: "
+            f"expected={expected_sha256!r} observed={observed_sha256!r}"
+        )
 
 
 def validate_scenario_bindings(
