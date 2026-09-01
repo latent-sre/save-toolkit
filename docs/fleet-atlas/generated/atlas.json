@@ -719,8 +719,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:b3c83114f78462f393ca6f279a0c14fd6bb62d823163f7d8259f215923e2d2c8",
           "lines": [
-            429,
-            429
+            489,
+            489
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -827,8 +827,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:d3d6484a377952644d498fbea011e916914b052ed41887481e043c77e25281a1",
           "lines": [
-            646,
-            646
+            706,
+            706
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -999,8 +999,8 @@
           "detector": "extract.roadmap-owner",
           "excerptHash": "sha256:8542b5d35d83a43110e178c72850c22ded13d969ac27bd43636ee64bcfc54869",
           "lines": [
-            414,
-            414
+            474,
+            474
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -1391,8 +1391,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:f82ec8d75ef88766bc7fe2ba98a1cbf119860d648a59047aa2df5abeeaebefeb",
           "lines": [
-            757,
-            757
+            817,
+            817
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -1515,8 +1515,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:5e4153ad4a98670e01281aa552aed98d1cb83bd9c18dd8d3ee81305862600311",
           "lines": [
-            377,
-            377
+            437,
+            437
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -1555,8 +1555,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:fef80530f5dd7c89c2a1af423510728fa358604b4bc298403aba12520b43dee8",
           "lines": [
-            790,
-            790
+            850,
+            850
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -2303,8 +2303,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:9999455226793e8723302af9faee7e444c2a8c581acd8cb2f4650286b89b68be",
           "lines": [
-            366,
-            366
+            426,
+            426
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -2607,8 +2607,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:8c76228dae964d8fbd171fcda79b127e8be7a91147da5d0c6c9ebe6296b4d579",
           "lines": [
-            665,
-            665
+            725,
+            725
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -2819,8 +2819,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:7fc4d3de98225b066bb09a6e66751d55cb981d9c9753eb9fcd284f363a53b6a0",
           "lines": [
-            378,
-            378
+            438,
+            438
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -2965,8 +2965,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:d3d6484a377952644d498fbea011e916914b052ed41887481e043c77e25281a1",
           "lines": [
-            646,
-            646
+            706,
+            706
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -3096,8 +3096,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:ec8d3dde362a538f4e1c3549888352e57b405150637c77ab449ac122bb349f62",
           "lines": [
-            541,
-            541
+            601,
+            601
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -3288,8 +3288,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:3cd3767d94f32348ea4b767c7ad93a42c4c17fd90ac15acea4dd6f4f0e697743",
           "lines": [
-            339,
-            339
+            399,
+            399
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -3586,8 +3586,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:f82ec8d75ef88766bc7fe2ba98a1cbf119860d648a59047aa2df5abeeaebefeb",
           "lines": [
-            757,
-            757
+            817,
+            817
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -4016,8 +4016,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:9fa22bc7661fe825948d25e220f3888c1a9963a5be63bb87afcaef508d46dea8",
           "lines": [
-            641,
-            641
+            701,
+            701
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -4036,8 +4036,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:12e5e2f03dc770119b73453dd1240e7bfa2f0225a6a0e1a87a608238ac6f4870",
           "lines": [
-            659,
-            659
+            719,
+            719
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -4080,8 +4080,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:9999455226793e8723302af9faee7e444c2a8c581acd8cb2f4650286b89b68be",
           "lines": [
-            366,
-            366
+            426,
+            426
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -4166,8 +4166,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:dc65138361de35f0d3dd1c0b8ca9ed56f91b55cd1e70df59c09a711e0d039856",
           "lines": [
-            955,
-            955
+            1015,
+            1015
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -4208,8 +4208,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:12e5e2f03dc770119b73453dd1240e7bfa2f0225a6a0e1a87a608238ac6f4870",
           "lines": [
-            770,
-            770
+            830,
+            830
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -4532,8 +4532,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:3de19888ab9c51890aadb19ae117a66f5e57920ed8cb84fb8f09112a4ea23e42",
           "lines": [
-            755,
-            755
+            815,
+            815
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -4658,8 +4658,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:ec8d3dde362a538f4e1c3549888352e57b405150637c77ab449ac122bb349f62",
           "lines": [
-            541,
-            541
+            601,
+            601
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -5087,8 +5087,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:406aa9a4da784a75c2f9b82e3b808c99f7d54cfddac1a14a76541744e58231d6",
           "lines": [
-            1060,
-            1060
+            1120,
+            1120
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -5195,8 +5195,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:f4ef9d6318a753e0294ac05a07b53247c3e82bb24cd658e2d76e5a7fc58fb265",
           "lines": [
-            500,
-            500
+            560,
+            560
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -5429,8 +5429,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:8f18aad4f1a96916ef82ff61ce178c047f8215fc9cd7066a93975cc5b5cbd58e",
           "lines": [
-            945,
-            945
+            1005,
+            1005
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -5833,8 +5833,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:04381fb708dc4fb9f5643d7448aa79bfd6e5ce9fc8b264e3a745815d81d90521",
           "lines": [
-            683,
-            683
+            743,
+            743
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -5853,8 +5853,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:a85d0e7648e991527348689c74436f5e7bd1e8bad71e776887c5c178b637d9a7",
           "lines": [
-            606,
-            606
+            666,
+            666
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -6363,8 +6363,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:0b7936fa02765edbff5eb1ff43761c4a493e8da931573b08664d22d5f858f45f",
           "lines": [
-            980,
-            980
+            1040,
+            1040
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -6385,8 +6385,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:511d1a00b0ef481a4006ae6ee279b752ecdd1ca5294cc14144c7f3b8d7e61b3e",
           "lines": [
-            946,
-            946
+            1006,
+            1006
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -6579,8 +6579,8 @@
           "detector": "extract.roadmap-owner",
           "excerptHash": "sha256:274d496c81c7319f2b12389f0316a7bb7f176f2ed967d4a46b9c872b931462a3",
           "lines": [
-            413,
-            413
+            473,
+            473
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -7049,8 +7049,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:469b29c635b63a47ee3482245610c768ee9b61014651df6403eb703b8f784c73",
           "lines": [
-            791,
-            791
+            851,
+            851
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -7239,8 +7239,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:a73de3435db78943443e35be64fa9bc37f6ebb81d209b3f41d90a2b2bb57bc75",
           "lines": [
-            1148,
-            1148
+            1208,
+            1208
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -7262,8 +7262,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:0c4be9165eee1b2e5057dcc08b2dbeb1da7cd6356412d60b1a19af170086bac2",
           "lines": [
-            772,
-            772
+            832,
+            832
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -7304,8 +7304,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:5e4153ad4a98670e01281aa552aed98d1cb83bd9c18dd8d3ee81305862600311",
           "lines": [
-            377,
-            377
+            437,
+            437
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -7540,8 +7540,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:016800abaafd52d9f76f686cc1838e7a5eded5821fcde0c69bfa5c055b7e806e",
           "lines": [
-            1165,
-            1165
+            1225,
+            1225
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -7646,8 +7646,8 @@
           "detector": "extract.roadmap-owner",
           "excerptHash": "sha256:80a7c5818658b809cd954ba05b6f4117a4d7b4c042081ccda39145ebd5846670",
           "lines": [
-            415,
-            415
+            475,
+            475
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -7732,8 +7732,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:8f18aad4f1a96916ef82ff61ce178c047f8215fc9cd7066a93975cc5b5cbd58e",
           "lines": [
-            945,
-            945
+            1005,
+            1005
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -7742,6 +7742,26 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:EVAL-006",
       "target": "review:2026-08-29-eval-20260829T204757Z-d42c7c7c"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-link",
+          "excerptHash": "sha256:d6cb03de11a903116b6141c87f34065d276e4301b51f37dc35bfb151eaa9d963",
+          "lines": [
+            324,
+            324
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:5c718ba52457cd09",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:GRAPH-006",
+      "target": "review:2026-08-30-graph-004-fleet-atlas-decision"
     },
     {
       "attrs": {
@@ -7902,8 +7922,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:aba0ad5b3008e353613dc9322df93785cef4a60bc2056b0314b98c09881a6e25",
           "lines": [
-            812,
-            812
+            872,
+            872
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -7946,8 +7966,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:dc65138361de35f0d3dd1c0b8ca9ed56f91b55cd1e70df59c09a711e0d039856",
           "lines": [
-            955,
-            955
+            1015,
+            1015
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -8032,8 +8052,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:46de06cf235620dca7ecda705fc59f1811470b2a7591a175f98f16a798a3704e",
           "lines": [
-            319,
-            319
+            379,
+            379
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -8096,8 +8116,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:77ef2aee982049f7b122918b01ae04b42015010a270b35692bf228ab1aeca9f4",
           "lines": [
-            338,
-            338
+            398,
+            398
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -8266,8 +8286,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:3326ffda1207a1be5b7209a08cc086292e9a344bcf80aa1c3044ddedbd006732",
           "lines": [
-            863,
-            863
+            923,
+            923
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -8372,8 +8392,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:857c506722b7e6dfc66a23cc72f899571fd19ce3b574440e7f5ee383c39c5958",
           "lines": [
-            706,
-            706
+            766,
+            766
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -8872,8 +8892,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:3ea76395356b676310815f09cd3b373d4b24cb7b23cefb3b3a836baa48ffbd12",
           "lines": [
-            328,
-            328
+            388,
+            388
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -8916,8 +8936,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:f82ec8d75ef88766bc7fe2ba98a1cbf119860d648a59047aa2df5abeeaebefeb",
           "lines": [
-            757,
-            757
+            817,
+            817
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -8958,8 +8978,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:0675ebe99cacf4f841824a6de24ff3c90ad4a0748c534242fc459bc87718021f",
           "lines": [
-            739,
-            739
+            799,
+            799
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -9240,8 +9260,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:d3d6484a377952644d498fbea011e916914b052ed41887481e043c77e25281a1",
           "lines": [
-            646,
-            646
+            706,
+            706
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -9350,8 +9370,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:7fc4d3de98225b066bb09a6e66751d55cb981d9c9753eb9fcd284f363a53b6a0",
           "lines": [
-            378,
-            378
+            438,
+            438
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -9370,8 +9390,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:616587bcb75ef16c4df80aeae11b3a8aab0205bc42ae3ac31d22586654e914a8",
           "lines": [
-            990,
-            990
+            1050,
+            1050
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -9476,8 +9496,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:88044cb9de2675987f6c0dd1489280da3601b4fedf6255e9db810137912f5db2",
           "lines": [
-            627,
-            627
+            687,
+            687
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -9620,8 +9640,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:d06e34a9b192855a2948dc023eb7e39372d16fddd9f088204f066fe595022ba7",
           "lines": [
-            1096,
-            1096
+            1156,
+            1156
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -9643,8 +9663,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:9f4464e7ebd772a2a06ec7c7ba99a0f2dcd2b1fbf40f0e3d0dce3cd0c6aa89de",
           "lines": [
-            1066,
-            1066
+            1126,
+            1126
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -9917,8 +9937,8 @@
           "detector": "extract.roadmap-owner",
           "excerptHash": "sha256:6bd53368bd7a14d18768930fcd01d91cc70dc26981453437619bfb1f7067c970",
           "lines": [
-            622,
-            622
+            682,
+            682
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -10099,6 +10119,29 @@
       "target": "document:docs/fleet-roadmap.md"
     },
     {
+      "attrs": {
+        "detector": "extract.roadmap-mention",
+        "field": "Source"
+      },
+      "class": "STATIC_INFERRED",
+      "evidence": [
+        {
+          "class": "STATIC_INFERRED",
+          "detector": "extract.roadmap-mention",
+          "excerptHash": "sha256:1f21558db9d08a0acb52213dbc680faf786d1b50294aaf8091d341dd3cd87c68",
+          "lines": [
+            323,
+            323
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:76e08b16bac7bc43",
+      "kind": "depends_on",
+      "source": "roadmap-item:GRAPH-006",
+      "target": "roadmap-item:GRAPH-004"
+    },
+    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -10130,8 +10173,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:8209e16d6cbaa5a73e20f1707f3b1369311a9aa4585f96aaedc01db19e184591",
           "lines": [
-            444,
-            444
+            504,
+            504
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -10216,8 +10259,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:484c60975b7169335e04c56a44d208a2b14ae2f2d9a0116531a2a6228154f304",
           "lines": [
-            524,
-            524
+            584,
+            584
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -10236,8 +10279,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:419fa38076ed71ef0610cbfe357c142fc82b2eb2096d0c8f0cde83e4a56b1088",
           "lines": [
-            268,
-            268
+            269,
+            269
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -10324,8 +10367,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:511d1a00b0ef481a4006ae6ee279b752ecdd1ca5294cc14144c7f3b8d7e61b3e",
           "lines": [
-            946,
-            946
+            1006,
+            1006
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -10708,8 +10751,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:4e6102f425eda1b61087b4d5cd95a7cb93874022600de2e24e0bcee0bb826285",
           "lines": [
-            916,
-            916
+            976,
+            976
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -11100,8 +11143,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:9999455226793e8723302af9faee7e444c2a8c581acd8cb2f4650286b89b68be",
           "lines": [
-            366,
-            366
+            426,
+            426
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -11487,8 +11530,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:cdc074e9ae0c008a6ebc0cc2fa462a0c9860a64c7b68765d0ea6bef931385b32",
           "lines": [
-            473,
-            473
+            533,
+            533
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -11704,8 +11747,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:4e88b42e887a9a04ca3c42b3d75af5b895a85ae9aed5b5a17b1731f98bc2ec0f",
           "lines": [
-            661,
-            661
+            721,
+            721
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -12051,8 +12094,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:c7feb8bb7ad6503fdf3352247cfa127cd387da95fbd8e229942870c8adba36be",
           "lines": [
-            944,
-            944
+            1004,
+            1004
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -12113,8 +12156,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:a14385e895b4fb9d512ca0a62a2f2f39c2519b9a9dc3226434466a6879d4f9ad",
           "lines": [
-            496,
-            496
+            556,
+            556
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -12179,8 +12222,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:0b7936fa02765edbff5eb1ff43761c4a493e8da931573b08664d22d5f858f45f",
           "lines": [
-            980,
-            980
+            1040,
+            1040
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -12199,8 +12242,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:722803964e35a906283b4c83dcb9d85f4ad5e72ee504878baa3dff6e3e4800d6",
           "lines": [
-            636,
-            636
+            696,
+            696
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -12277,6 +12320,28 @@
       "target": "reference:database-reliability/restore-drill.md"
     },
     {
+      "attrs": {
+        "field": "Owner"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.roadmap-owner",
+          "excerptHash": "sha256:dcf7049d32aa2cb9a86a6c828128421542f8337ace21483a5caaf8b75bb41ed9",
+          "lines": [
+            309,
+            309
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:98d0882bfb4633bd",
+      "kind": "owns",
+      "source": "owner:software-engineer",
+      "target": "roadmap-item:GRAPH-006"
+    },
+    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -12327,8 +12392,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:3de19888ab9c51890aadb19ae117a66f5e57920ed8cb84fb8f09112a4ea23e42",
           "lines": [
-            896,
-            896
+            956,
+            956
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -12985,8 +13050,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:420d6048f0d76736baae82aa4363b8485815529ec1c3c8dc210414e48e67b9e0",
           "lines": [
-            719,
-            719
+            779,
+            779
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -13007,8 +13072,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:8c76228dae964d8fbd171fcda79b127e8be7a91147da5d0c6c9ebe6296b4d579",
           "lines": [
-            665,
-            665
+            725,
+            725
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -13282,8 +13347,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:711689763d5bc90166d5684a76f505e7159c7d563f41705676f699826e0d40fa",
           "lines": [
-            331,
-            331
+            391,
+            391
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -13474,8 +13539,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:7fc4d3de98225b066bb09a6e66751d55cb981d9c9753eb9fcd284f363a53b6a0",
           "lines": [
-            378,
-            378
+            438,
+            438
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -13710,8 +13775,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:549d53e6e5937d9b921282d48d2273933502bac525bcc23c3fb404402e01779e",
           "lines": [
-            762,
-            762
+            822,
+            822
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -13944,8 +14009,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:ba42d18e839d017d07752c88c53255f49cadcd50504e2a93cc0322deb902608c",
           "lines": [
-            1162,
-            1162
+            1222,
+            1222
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -14160,8 +14225,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:2b72accd1d46da1264d009f3aeacee76ed1a22f48ad4a86e898ab35ee335d87c",
           "lines": [
-            631,
-            631
+            691,
+            691
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -14180,8 +14245,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:dc65138361de35f0d3dd1c0b8ca9ed56f91b55cd1e70df59c09a711e0d039856",
           "lines": [
-            955,
-            955
+            1015,
+            1015
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -14328,8 +14393,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:4e6102f425eda1b61087b4d5cd95a7cb93874022600de2e24e0bcee0bb826285",
           "lines": [
-            916,
-            916
+            976,
+            976
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -14388,8 +14453,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:fef80530f5dd7c89c2a1af423510728fa358604b4bc298403aba12520b43dee8",
           "lines": [
-            841,
-            841
+            901,
+            901
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -14518,8 +14583,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:616587bcb75ef16c4df80aeae11b3a8aab0205bc42ae3ac31d22586654e914a8",
           "lines": [
-            990,
-            990
+            1050,
+            1050
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -15182,8 +15247,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:5e4153ad4a98670e01281aa552aed98d1cb83bd9c18dd8d3ee81305862600311",
           "lines": [
-            377,
-            377
+            437,
+            437
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -15423,6 +15488,29 @@
     },
     {
       "attrs": {
+        "detector": "extract.roadmap-mention",
+        "field": "Next action"
+      },
+      "class": "STATIC_INFERRED",
+      "evidence": [
+        {
+          "class": "STATIC_INFERRED",
+          "detector": "extract.roadmap-mention",
+          "excerptHash": "sha256:a838c7ebf56772f012e2133e10761183c4e68ca4bd3965c37f6eea088c5ae8ff",
+          "lines": [
+            231,
+            231
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:c1a2f9c1019d5a55",
+      "kind": "depends_on",
+      "source": "roadmap-item:GRAPH-004",
+      "target": "roadmap-item:GRAPH-006"
+    },
+    {
+      "attrs": {
         "expected_alternative": "agent:sre"
       },
       "class": "STATIC_EXTRACTED",
@@ -15518,8 +15606,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:ec7b0c2994d7b96af77f2756084111c770092ba955ee7cf5f8945aea9cba345f",
           "lines": [
-            981,
-            981
+            1041,
+            1041
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -15666,8 +15754,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:d3d6484a377952644d498fbea011e916914b052ed41887481e043c77e25281a1",
           "lines": [
-            646,
-            646
+            706,
+            706
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -15882,8 +15970,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:fb3c0065f4b29e62f2a278cca4dfbd09ce56984a053c76e0b46dc7b0ad6dfeaa",
           "lines": [
-            495,
-            495
+            555,
+            555
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -15966,8 +16054,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:a73de3435db78943443e35be64fa9bc37f6ebb81d209b3f41d90a2b2bb57bc75",
           "lines": [
-            1093,
-            1093
+            1153,
+            1153
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -15988,8 +16076,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:33ad52c207419e921469a86a05bf8728df44eef87c4b03bd2c64f71f7b0329cb",
           "lines": [
-            628,
-            628
+            688,
+            688
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -16076,8 +16164,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:b742575890077eaa03e65e799bbbd03613c48a99e5957faa8bf316992c0f3da3",
           "lines": [
-            795,
-            795
+            855,
+            855
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -16160,8 +16248,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:1e85265f972a79b0108aa4216ac3805cb99506a9fa23a7fa5034640acbef9e75",
           "lines": [
-            954,
-            954
+            1014,
+            1014
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -16334,8 +16422,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:8c76228dae964d8fbd171fcda79b127e8be7a91147da5d0c6c9ebe6296b4d579",
           "lines": [
-            665,
-            665
+            725,
+            725
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -16344,6 +16432,29 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:ROUTE-003",
       "target": "review:2026-08-31-route-003-grader-008-replacement-gate"
+    },
+    {
+      "attrs": {
+        "detector": "extract.roadmap-mention",
+        "field": "Status"
+      },
+      "class": "STATIC_INFERRED",
+      "evidence": [
+        {
+          "class": "STATIC_INFERRED",
+          "detector": "extract.roadmap-mention",
+          "excerptHash": "sha256:6c815278906e36e083d50ea7fb7dcc23b63fde9d07c307a5ca7a3fdc707e7c29",
+          "lines": [
+            189,
+            189
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:cbbf6032ce8cd2df",
+      "kind": "depends_on",
+      "source": "roadmap-item:GRAPH-004",
+      "target": "roadmap-item:GRAPH-006"
     },
     {
       "attrs": {
@@ -16399,8 +16510,8 @@
           "detector": "check_plan_status.prerequisites",
           "excerptHash": "sha256:c2352502b7d01325ffa515cb3f3da9e0f3c7c3361d3ceb5d04510ebadc7c23c2",
           "lines": [
-            1048,
-            1048
+            1108,
+            1108
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -17039,8 +17150,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:d5972955072448d570e9967c79dad1e4e59bd00f4ad315bc139c459726f0085b",
           "lines": [
-            497,
-            497
+            557,
+            557
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -17103,8 +17214,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:33c4697a36b328aa3f0e00e5515e9fd426e941b0d1161126bd747d4cda0f2fe1",
           "lines": [
-            816,
-            816
+            876,
+            876
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -17320,8 +17431,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:aa129f6d20a891808ce25adc8696d8906e6e0521565e97a9ee1262c5f308a390",
           "lines": [
-            514,
-            514
+            574,
+            574
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -17342,8 +17453,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:f82ec8d75ef88766bc7fe2ba98a1cbf119860d648a59047aa2df5abeeaebefeb",
           "lines": [
-            757,
-            757
+            817,
+            817
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -17678,8 +17789,8 @@
           "detector": "extract.roadmap-owner",
           "excerptHash": "sha256:fcda9e19ec0c1929d759db8fcba657e70e7fc5d803592155525579360c651019",
           "lines": [
-            247,
-            247
+            248,
+            248
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -18215,8 +18326,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:3790c74c15e0fed76ed0cea5b51cc1f0189972853521c02d5ed733559e6ccbbb",
           "lines": [
-            743,
-            743
+            803,
+            803
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -18275,8 +18386,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:8e534126a3c95d557907eb96d9adf88a8801c436d4b3f700234a1e5abd8db9fb",
           "lines": [
-            506,
-            506
+            566,
+            566
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -18659,8 +18770,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:97c4107415971962f22a8d98d827f496b07b39fc864509d74669f6c0a71d06c6",
           "lines": [
-            740,
-            740
+            800,
+            800
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -18767,8 +18878,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:97c4107415971962f22a8d98d827f496b07b39fc864509d74669f6c0a71d06c6",
           "lines": [
-            740,
-            740
+            800,
+            800
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -19272,6 +19383,28 @@
     },
     {
       "attrs": {
+        "field": "Owner"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.roadmap-owner",
+          "excerptHash": "sha256:18b20e7dcacf7734604343ba2943f4891328389caebfef8b3298c1e60685508b",
+          "lines": [
+            310,
+            310
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:eea2781f04cd1b5a",
+      "kind": "owns",
+      "source": "owner:agent-engineer",
+      "target": "roadmap-item:GRAPH-006"
+    },
+    {
+      "attrs": {
         "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
@@ -19453,8 +19586,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:b742575890077eaa03e65e799bbbd03613c48a99e5957faa8bf316992c0f3da3",
           "lines": [
-            795,
-            795
+            855,
+            855
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -19564,8 +19697,8 @@
           "detector": "extract.roadmap-mention",
           "excerptHash": "sha256:6d75ed598c879672589118844831e13f7975866b43e9ea68ee3a345fceecc04b",
           "lines": [
-            696,
-            696
+            756,
+            756
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -20166,8 +20299,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:429214aa83954f5378b314be80f3408e5a9d1380aa0fbaa8ce8191d6b0c77be1",
           "lines": [
-            953,
-            953
+            1013,
+            1013
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -20230,8 +20363,8 @@
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:1e20fd948ca3e680a542fd70117c0ca932aba8f6f0d8eb29f2c944872132edb5",
           "lines": [
-            551,
-            551
+            611,
+            611
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -20358,8 +20491,8 @@
           "detector": "extract.evidence-batch",
           "excerptHash": "sha256:616587bcb75ef16c4df80aeae11b3a8aab0205bc42ae3ac31d22586654e914a8",
           "lines": [
-            990,
-            990
+            1050,
+            1050
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -20737,11 +20870,11 @@
   "kind": "FleetAtlas",
   "metadata": {
     "dirty": false,
-    "edgeCount": 969,
-    "nodeCount": 814,
+    "edgeCount": 975,
+    "nodeCount": 815,
     "repository": "latent-sre/save-toolkit",
-    "revision": "54ba75c651ae6a0d6fa541292652fdedfe24d02b",
-    "treeDigest": "sha256:b9093d704099ca006bea70940861e8562d11bc445f131bd0676e34293a1f0c14",
+    "revision": "4bbe97273940383646d7a4b0a98328652b42f05e",
+    "treeDigest": "sha256:4adf7f32d986b3448e22e58364f7d7ea85fb2d11fc60689964f795759aff2e70",
     "unknownCount": 7
   },
   "nodes": [
@@ -33344,8 +33477,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:a6791dd8ce0083354f4ab8b5aafe91cc97408e6aff293117e841546ce1a6d1f0",
           "lines": [
-            1182,
-            1182
+            1242,
+            1242
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33354,8 +33487,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:227d79129502c4644a71a9bd50e28620702762e646984286a3ef0b48d3a0fdc3",
           "lines": [
-            1196,
-            1197
+            1256,
+            1257
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33364,8 +33497,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:0a43195306e50434385e083760afdbe7edc6e54f14efa9ff289e8dd5e2de37ac",
           "lines": [
-            1202,
-            1203
+            1262,
+            1263
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33374,8 +33507,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:dae4a08ed743a43dd7af1190f76d10567be7652c183340747923e3fd152521e2",
           "lines": [
-            1186,
-            1187
+            1246,
+            1247
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33384,8 +33517,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:8a14dd4af9407be7f7b91350db218dc359e758f0793eb1fffb937e29e14894fe",
           "lines": [
-            1192,
-            1194
+            1252,
+            1254
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33394,8 +33527,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:35f0c964256943d6783b05aba8bfd4f9f96488f47d70dc9559d45dd29835f297",
           "lines": [
-            1199,
-            1200
+            1259,
+            1260
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33404,8 +33537,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:50deeff10a49392d71ef4c236b63774eb39442964eb67c48814584fc764a747e",
           "lines": [
-            1189,
-            1190
+            1249,
+            1250
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33414,8 +33547,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:ce4d54421dc014edc8c68cc764ad4f77be5183a4712554f0e0f1071efadd9147",
           "lines": [
-            1184,
-            1184
+            1244,
+            1244
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33498,8 +33631,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:c194f6ea69fc59cfac7c80a1243a23b22f7050dbded4a35c9450e8c46a6a57d4",
           "lines": [
-            408,
-            408
+            468,
+            468
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33508,8 +33641,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:d3cb058cb3f9d6d197c84882d45501827cf0837a69f11edb5ffd59656f4a9b63",
           "lines": [
-            452,
-            468
+            512,
+            528
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33518,8 +33651,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:d58109e92be9c59410f3e1138ec0e9ff44c1965bcdfba32bbd3aa2918994d770",
           "lines": [
-            442,
-            450
+            502,
+            510
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33528,8 +33661,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:01eb00e47b26b93f4757aae7163260d0730e80b95578921777f2778f1573f73f",
           "lines": [
-            476,
-            480
+            536,
+            540
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33538,8 +33671,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:7e512211ebfa9c7361289908f89f664e8d1006718ea13e87d4e42da55b3b5108",
           "lines": [
-            418,
-            423
+            478,
+            483
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33548,8 +33681,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:48b23fa7d0e2689168ca2a9aff23f54b343308b3d7663c4bf77cadb222208412",
           "lines": [
-            413,
-            416
+            473,
+            476
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33558,8 +33691,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:729f257bdc1abcb8f57f14c902b34acff8610cf069b1748a234480e52743abbb",
           "lines": [
-            433,
-            440
+            493,
+            500
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33568,8 +33701,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:40f2fc984618a84041cb9ee136cfde2ed9e548aeb4d4c165f6cbddd571d18f19",
           "lines": [
-            470,
-            474
+            530,
+            534
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33578,8 +33711,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:ae0f788157b388276f2f1dab6ad0131790664dfe98925756c632d1fb9de6ffba",
           "lines": [
-            425,
-            431
+            485,
+            491
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33588,8 +33721,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:bc1f43560b106c3307f7744993fddf314250b40c1314bc70469453e80c4c6942",
           "lines": [
-            410,
-            411
+            470,
+            471
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33622,8 +33755,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:21db53d8fb8d16ffde0fd7665ac33febdc7ceb4713c47bd2a5ec89338e2b904c",
           "lines": [
-            872,
-            872
+            932,
+            932
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33632,8 +33765,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:05071ece32d1c177856b3b3126d44401894e69b08d6b48e7c750f10e0802343d",
           "lines": [
-            906,
-            922
+            966,
+            982
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33642,8 +33775,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:097ef89ca5982ac742f9e3020d4a784d0c2332aab97c2bbd605d4ba7d54f1a17",
           "lines": [
-            894,
-            900
+            954,
+            960
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33652,8 +33785,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:5a9c527b50d138fcdb6007ed433afb2999da99f50b27c517bbfff04434be36cd",
           "lines": [
-            924,
-            931
+            984,
+            991
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33662,8 +33795,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:3cdd5df2e14419204a1df24eb6379494cf61a04f960e240b873d3cbc4816e509",
           "lines": [
-            876,
-            878
+            936,
+            938
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33672,8 +33805,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:f005122894077bb4b99f0dd3769a7f6e7a331aac34c43eabf4d4923095a4ea06",
           "lines": [
-            902,
-            904
+            962,
+            964
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33682,8 +33815,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:8ece8565e94d358f6fdc6482339b9b24cb95c2da46d8e8e81e78d2cd272ea18f",
           "lines": [
-            880,
-            892
+            940,
+            952
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33692,8 +33825,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:48d6dbfc169161dd0f6e62d708a74f917e35c785902524881fa17f37b7cc7169",
           "lines": [
-            874,
-            874
+            934,
+            934
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33726,8 +33859,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:1a6a471439ca81b77603e0f385cb3b0ec318cfd08fc170a8b489a755c7c66a6c",
           "lines": [
-            831,
-            831
+            891,
+            891
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33736,8 +33869,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:f534cff933ef1792496b72c477b840c6d6817bfec08bc1878a1b0ccec2ab34d2",
           "lines": [
-            856,
-            858
+            916,
+            918
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33746,8 +33879,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:5d6bf03be0901f714e8bfcdc95e2edc33cdd7fdfdd3b645e03120eab5deff0a7",
           "lines": [
-            860,
-            866
+            920,
+            926
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33756,8 +33889,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:10905d3f6d38ec900fc645910b94e1b8ae68fbe468c97885d9b7668e382027f0",
           "lines": [
-            868,
-            870
+            928,
+            930
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33766,8 +33899,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:3bbadc9b193a22e51e50ee04cf0e11579d844ab47bcb7ba50d6956b0e32f85d9",
           "lines": [
-            837,
-            839
+            897,
+            899
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33776,8 +33909,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:720d011a7964256d895cfe1efdffc4a75f049caa237ef32df2ba330b7a59b41a",
           "lines": [
-            851,
-            854
+            911,
+            914
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33786,8 +33919,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:6b0055dfa3595ecac7f8965e065a3eb526de270377475473e2bea7dadcc44e1c",
           "lines": [
-            841,
-            849
+            901,
+            909
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33796,8 +33929,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:dfc842f505f19294434bfc808a82c5c8a51b008fdce349a9fda2d3953f8a9a26",
           "lines": [
-            833,
-            835
+            893,
+            895
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33829,8 +33962,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:e4bd15bf079e2c7b6a94bf3c0055f14597fd3187fccc84ddc814b2cf63adfeb1",
           "lines": [
-            933,
-            933
+            993,
+            993
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33839,8 +33972,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:e039f738d9d3aa2de4287a233282b51eeff1dd1aa9521261b48f68c46abd34e6",
           "lines": [
-            970,
-            1014
+            1030,
+            1074
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33849,8 +33982,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:be9106d88e7ffd9e2c9a3e7776e849ea86e211c5b38ce7293a5da64f379636f9",
           "lines": [
-            1016,
-            1024
+            1076,
+            1084
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33859,8 +33992,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:c39e38de4ccbeedbcfe60b400322acbb0a9dc78ef923ba3a4639e8154269cac3",
           "lines": [
-            938,
-            940
+            998,
+            1000
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33869,8 +34002,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:8e043193d2f81703f337a6c3e39b07412dc376793ce8044cd835f7a73db94cdb",
           "lines": [
-            966,
-            968
+            1026,
+            1028
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33879,8 +34012,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:7f34de2ced6ff14b6e2e739daf257f926286036f1e3871cd163184b5271f3e22",
           "lines": [
-            942,
-            964
+            1002,
+            1024
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33889,8 +34022,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:dc0e17610af9b33f660f99740734904010d29927af2e6e5d07ecdabedf26b244",
           "lines": [
-            935,
-            936
+            995,
+            996
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33922,8 +34055,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:283047edf69e4c4c9021311ad18573bd3beeb97ab37fca8895eec50f8a30b919",
           "lines": [
-            1069,
-            1069
+            1129,
+            1129
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33932,8 +34065,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:251f49b19ff37affbe876c92739500ae6f2429a1a5bbb3076105fbe52c5b7c76",
           "lines": [
-            1124,
-            1127
+            1184,
+            1187
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33942,8 +34075,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:3b4bee0ecf2b11a30ab0a036be88ff049de14132bb45b00a16cca29bce8f7d94",
           "lines": [
-            1129,
-            1133
+            1189,
+            1193
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33952,8 +34085,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:503dfab5a90839a76bc3b7871626efa089f6541f8ca8ad374f495c4029172d3e",
           "lines": [
-            1073,
-            1075
+            1133,
+            1135
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33962,8 +34095,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:c46d133ff832488f403a0697d3994a4a1ce5ed294b86dd7c13730e5f43a0923c",
           "lines": [
-            1119,
-            1122
+            1179,
+            1182
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33972,8 +34105,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:43d8074141313b3e058a1685f2ed7de77daf8443ee9981f237e33b67650cdbec",
           "lines": [
-            1077,
-            1117
+            1137,
+            1177
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -33982,8 +34115,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:548d59a62a3da0cf79f8a7f4836a82c001fed95169d75b624e0d31736a388e10",
           "lines": [
-            1071,
-            1071
+            1131,
+            1131
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -34112,8 +34245,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:cb8a5820e0f87f08e861c5eb1ddd2323307ef7135551b23516980db2667d5a3a",
           "lines": [
-            699,
-            699
+            759,
+            759
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34122,8 +34255,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:9d1216431b2455eb973ea37f59cffc0fa91fad71c37d5d681221f5069866c1f9",
           "lines": [
-            714,
-            716
+            774,
+            776
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34132,8 +34265,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:8ba9b1c05cf683aae1b7dc92db6d745db3379c551e144f098249411a7d0eacad",
           "lines": [
-            718,
-            722
+            778,
+            782
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34142,8 +34275,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:2267132e8757e833b921e16b9b744c76bc0f186280917f91723c665b038a49f8",
           "lines": [
-            724,
-            727
+            784,
+            787
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34152,8 +34285,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:6bc88281f2f5fe1c5c1f96e3a51f0d783a2804c3de6599282f416ae1a9b05e79",
           "lines": [
-            703,
-            704
+            763,
+            764
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34162,8 +34295,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:b1c303172ee425ec5c1b528b0854ce0e61ce28b465beaad02d78b8b683644b91",
           "lines": [
-            712,
-            712
+            772,
+            772
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34172,8 +34305,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:f025c096a30fd1de05b42746ce23182d39ccdf882770365c9311d71144be2ba4",
           "lines": [
-            706,
-            710
+            766,
+            770
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34182,8 +34315,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:5b96b10660102291aa616b08e6fc919cc2662908a4ad535b1f06b0b786e1a6fe",
           "lines": [
-            701,
-            701
+            761,
+            761
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -34290,8 +34423,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:8a1a8f670caa86177df63c2e7c9cf4389589383c590caad6d7d4a4b87128e28c",
           "lines": [
-            729,
-            729
+            789,
+            789
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34300,8 +34433,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:7215d32b65ca503c9ef4c6b06822e43b295cab51073731a7936479c385104bb0",
           "lines": [
-            751,
-            752
+            811,
+            812
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34310,8 +34443,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:04bf1dd89328ebdd18f95cb4a15e1d58daf6be47ee44860631f272a6aabc7189",
           "lines": [
-            754,
-            759
+            814,
+            819
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34320,8 +34453,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:b9a253c77fec65f345ed8abbabffb8d5049b3775ac063253b331a337362ca198",
           "lines": [
-            775,
-            777
+            835,
+            837
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34330,8 +34463,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:6f07fa8adbcc0e1729f0fd20bb7c51fd95131513f02113b626290924b46f7e1b",
           "lines": [
-            735,
-            737
+            795,
+            797
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34340,8 +34473,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:2443d4c981a7bb7482f8644fa93d0cebf2ce2fe3557dc67196d4c5d09b668b47",
           "lines": [
-            761,
-            767
+            821,
+            827
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34350,8 +34483,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:7bb66848adcdeadf64f89f527d3cc2806900ef7c9eb57472511d3410cb63e1bf",
           "lines": [
-            747,
-            749
+            807,
+            809
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34360,8 +34493,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:f76c3a843d6587eacc59613832f4e174ece0f2d726ff93d96bc2be35b9bc5abf",
           "lines": [
-            769,
-            773
+            829,
+            833
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34370,8 +34503,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:6986e8e82e00265d834ada9a83fe1f6de529774196e19810f3d129bc370cbb15",
           "lines": [
-            739,
-            745
+            799,
+            805
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34380,8 +34513,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:38fde18d4ffb79ef869e87d5d5853473db238f85e69b03d62b84c8465450ea1e",
           "lines": [
-            731,
-            733
+            791,
+            793
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -34415,8 +34548,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:d6dc318a7c93617991e452c2f7f659c0506660a0338f27fb17e4415e12e30db5",
           "lines": [
-            779,
-            779
+            839,
+            839
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34425,8 +34558,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:f365efa941a509e6ef5a573b1c21dafb2cb8649226b873fffd0cdaa41cb1e4d4",
           "lines": [
-            804,
-            806
+            864,
+            866
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34435,8 +34568,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:ea570312103f3a0227d36050d0e6a8c6ac08dfd8efd5829894b1ffb15bfe5cc8",
           "lines": [
-            808,
-            813
+            868,
+            873
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34445,8 +34578,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:4c7fc1dc26a6371ca044057fcb2972e3b36028d14b451a9e51905db378d8de13",
           "lines": [
-            825,
-            829
+            885,
+            889
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34455,8 +34588,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:f5187ab67aa8d59a91fd85e3fce8ba9445d894120a56e29dd1245f64b7c30365",
           "lines": [
-            785,
-            788
+            845,
+            848
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34465,8 +34598,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:52c294aa8bcce91b4fa7c541a570844a60454c7dada2bf2ebbff70bbc8be473c",
           "lines": [
-            815,
-            823
+            875,
+            883
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34475,8 +34608,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:456ebb3290b639b908647d159eb7e6286bac50a7ac32f31977a3c91d2c474a29",
           "lines": [
-            799,
-            802
+            859,
+            862
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34485,8 +34618,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:7e92a9ebb395cfdd77582ec06aacebf757bb71555e8b337a7aac5e76e7bad737",
           "lines": [
-            790,
-            797
+            850,
+            857
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34495,8 +34628,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:cac841540f11963e1e68706bc000cb8dd0a8dff0fdd38b7d839356cf71c34ba5",
           "lines": [
-            781,
-            783
+            841,
+            843
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -34591,8 +34724,8 @@
           "Status"
         ],
         "owner": "`software-engineer` owns the generator, schema, catalog entry, drift check, and tests; `agent-engineer` owns the `fleet-atlas` skill and scenarios; `repository-investigator`, `agent-engineer`, `scribe",
-        "status": "active",
-        "status_text": "`active` (2026-08-30). The owner accepted the fleet-knowledge scope. Nine implementation slices are committed on `work/graph-004-fleet-atlas`: model and schema, canonical extraction, contract-cited ed"
+        "status": "blocked",
+        "status_text": "`blocked` (2026-08-31). The owner accepted the fleet-knowledge scope and published [PR #205](https://github.com/latent-sre/save-toolkit/pull/205), but successive exact-head reviews continued to find c"
       },
       "authority": "live-contract",
       "evidence": [
@@ -34619,10 +34752,10 @@
         {
           "class": "CONTRACT_RESOLVED",
           "detector": "check_plan_status.roadmap_field",
-          "excerptHash": "sha256:ad6866999649c8fef75699622d58de83e45d60944e22942b1029aa061fcca56a",
+          "excerptHash": "sha256:8f94c32a81250a46f2cc208846c77bdcfd8cd47cda823252a5790a26e098e280",
           "lines": [
             230,
-            233
+            234
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34669,7 +34802,7 @@
         {
           "class": "CONTRACT_RESOLVED",
           "detector": "check_plan_status.roadmap_field",
-          "excerptHash": "sha256:6c3310b7cefc00ea1df8bfe70ac623dee05842cafe45acf7bc0c365ef6202cd1",
+          "excerptHash": "sha256:0fcfbe5db9a95ecebfd39039c74213259156efcf3b16a1b24a066413ddcc4bd1",
           "lines": [
             186,
             192
@@ -34705,8 +34838,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:86f1530dd46f99f7824efa870e4303d671ae216545d2b79267229ea8b0b88cae",
           "lines": [
-            235,
-            235
+            236,
+            236
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34715,8 +34848,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:fe4fc33da3af90256e6812245315914eef8188591e3a3e54bfe85e82d972ab7c",
           "lines": [
-            276,
-            293
+            277,
+            294
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34725,8 +34858,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:718e8cc8f44eba096d43c83fbba7acf29a7ea8f6751abc5484b27b5a67d2d390",
           "lines": [
-            295,
-            299
+            296,
+            300
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34735,8 +34868,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:76d1526f6bf1cba2364c5328438e36d9d293882ccee1e0456120f9b8b2f778b3",
           "lines": [
-            251,
-            258
+            252,
+            259
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34745,8 +34878,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:5b3fa3175f0fe3fda9d7342bbc5754ce19dc84c17476989b0caf75ed5e601cb9",
           "lines": [
-            247,
-            249
+            248,
+            250
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34755,8 +34888,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:88f5ef8bd5349846ae3cefbba84789dc6621b4df62b0a27a16e6cb47048514d7",
           "lines": [
-            270,
-            274
+            271,
+            275
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34765,8 +34898,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:947bd1dc39847b4dbb09afdad72afcbfc59a6d7dd5094e250477743d34be94e8",
           "lines": [
-            260,
-            268
+            261,
+            269
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34775,14 +34908,118 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:1614e47dc07d16cd765ed15b22dc4886d3d6cad421eec2a2def002cf456dc06e",
           "lines": [
-            237,
-            245
+            238,
+            246
           ],
           "path": "docs/fleet-roadmap.md"
         }
       ],
       "id": "roadmap-item:GRAPH-005",
       "name": "GRAPH-005",
+      "path": "docs/fleet-roadmap.md",
+      "state": "live",
+      "type": "roadmap-item"
+    },
+    {
+      "attrs": {
+        "fields": [
+          "Acceptance",
+          "Next action",
+          "Outcome",
+          "Owner",
+          "Prerequisites",
+          "Source",
+          "Status"
+        ],
+        "owner": "`software-engineer` owns the replacement design implementation, compatibility harness, CLI, schema, generator, and tests; `agent-engineer` owns consumer-skill and scenario compatibility. The work rema",
+        "status": "ready",
+        "status_text": "`ready` (2026-08-31). The owner requested a full refactor disposition on PR #205 and a separate backlog item after repeated review cycles continued to expose correctness defects. This item records the"
+      },
+      "authority": "live-contract",
+      "evidence": [
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_item",
+          "excerptHash": "sha256:94cb1e096eaae8b97c5d04bc353aee60adb37953116a88a1bc355f10ab204227",
+          "lines": [
+            302,
+            302
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:ab7d7d0bb23d98f1815b70fbc2243ad55d2ccdccc38dc44fd9d9767822fe5bf5",
+          "lines": [
+            338,
+            353
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:7e28b23297a32567538c7c32cff3a7f7047665a3909be59c0379b330c87eedc7",
+          "lines": [
+            355,
+            359
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:3d453e30a421c7db254170953af59932ccffa7bb791f66062b79f7ab93dab8aa",
+          "lines": [
+            315,
+            321
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:b1af06873b91df60381871049023e287c78862f3a37820485f0a706ed5475128",
+          "lines": [
+            309,
+            313
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:4a3e9fdaedf8db9d5a7793662d6bb8a50a5206d225a3bbc14b0af2e07d0069b2",
+          "lines": [
+            331,
+            336
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:aaa63419dcded929931f59e848e5235d9df87c16f40bab8190d7002d54761899",
+          "lines": [
+            323,
+            329
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:c4ed4cf4877a94b815f34fe6ee0ee2666b48041830a1f9701e887a4450c1d2cc",
+          "lines": [
+            304,
+            307
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "roadmap-item:GRAPH-006",
+      "name": "GRAPH-006",
       "path": "docs/fleet-roadmap.md",
       "state": "live",
       "type": "roadmap-item"
@@ -34857,8 +35094,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:7239b4f71302bc0b3b9a8c1494ce08aad598cd8ccd4df8c1e76f2ccee55fd23c",
           "lines": [
-            301,
-            301
+            361,
+            361
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34867,8 +35104,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:3e1b44edff40807ce14f752f75fcdc1b5cb51ac7a1035ab36d060032694f4894",
           "lines": [
-            386,
-            394
+            446,
+            454
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34877,8 +35114,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:64e65bddcd69088876ac50326df5edd56d7057f466ac5c40a73b4578e4ccb403",
           "lines": [
-            317,
-            379
+            377,
+            439
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34887,8 +35124,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:d0a4572d04d5ea8f90905ca0a2fbbdbf8d3a72b9786c5327e54ca035503823f7",
           "lines": [
-            396,
-            406
+            456,
+            466
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34897,8 +35134,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:2eacb66f57d5d0c45571b84c27dfc4e19c0a53b4944c75736e755b57e88751d4",
           "lines": [
-            306,
-            308
+            366,
+            368
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34907,8 +35144,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:e7c6f953d5f7c9b2de3062f817cc535cdf733e199a76c733058f20ffe03d2534",
           "lines": [
-            381,
-            384
+            441,
+            444
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34917,8 +35154,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:87fa4c7ebde5700a0bf3ba6d4218af422a4fcb94e20c12f3ecd3f098fc63cf21",
           "lines": [
-            310,
-            315
+            370,
+            375
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -34927,8 +35164,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:5b0f34c9c6277e6fcd41038318ab530564197655521e83eecdd7dd2405721097",
           "lines": [
-            303,
-            304
+            363,
+            364
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -35032,8 +35269,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:dcd8569515e521e56e3aff27a76ecf6b35fe283ea96c90cdee3eb1512e37ef6a",
           "lines": [
-            1026,
-            1026
+            1086,
+            1086
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35042,8 +35279,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:9ebe840088d30d109d09e0cef83d7eecf646b4c18306274266bb3c6b95bcaa40",
           "lines": [
-            1051,
-            1063
+            1111,
+            1123
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35052,8 +35289,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:fcbbd90474d6166e85b061950fa8fb8057e3a0db3bc5620058d3f8b88faff193",
           "lines": [
-            1065,
-            1067
+            1125,
+            1127
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35062,8 +35299,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:566b41446c3aa9404d0d5454c884b1db08198b0257619eb7f427790857961896",
           "lines": [
-            1030,
-            1033
+            1090,
+            1093
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35072,8 +35309,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:de7a7a475d8622778916bdf6a45b229be7296af12171b14cf226eac879a38985",
           "lines": [
-            1046,
-            1049
+            1106,
+            1109
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35082,8 +35319,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:efbb49f5e2bd1861892f567bb7f590ac0bddcb35321b92b4cf13f17b78cb04a6",
           "lines": [
-            1035,
-            1044
+            1095,
+            1104
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35092,8 +35329,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:53b4c27769d3370153c029d484ac31acee4d73f0524b5efe708750b8d8c9bac6",
           "lines": [
-            1028,
-            1028
+            1088,
+            1088
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -35272,8 +35509,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:a257b4833191826f24c5728131d68dc554d378b9b0f991f5dcac9abd6782c9af",
           "lines": [
-            616,
-            616
+            676,
+            676
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35282,8 +35519,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:49ab4dfbf3432d729c5540a5e375430e2f88299c17b76244caf23eb7290192fe",
           "lines": [
-            653,
-            656
+            713,
+            716
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35292,8 +35529,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:e45a482fd2f4a45d4d95d4553b571b5fc5ccbae5874934d185a142656acf379b",
           "lines": [
-            640,
-            651
+            700,
+            711
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35302,8 +35539,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:29fb9fb4f07abfa322836d97c36f01a2f0025ae595ecd5f064d46ce1e233a293",
           "lines": [
-            670,
-            673
+            730,
+            733
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35312,8 +35549,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:5b6ff44c9f5f192d68e6ff003adf4df0faef5f70f24cca1a315c04300a211867",
           "lines": [
-            624,
-            625
+            684,
+            685
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35322,8 +35559,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:6bd53368bd7a14d18768930fcd01d91cc70dc26981453437619bfb1f7067c970",
           "lines": [
-            622,
-            622
+            682,
+            682
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35332,8 +35569,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:67032cd7365a3ce5f290609392c6bd8f643f965b23b88e0b37a673510fedf686",
           "lines": [
-            633,
-            638
+            693,
+            698
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35342,8 +35579,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:afac8757a04e275b496da491e26ddfe8360f742bacb585b5e2b7c576bd724303",
           "lines": [
-            658,
-            668
+            718,
+            728
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35352,8 +35589,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:49cf12b53bf5299a46b2ac62af9c88ccedd5d0757063ea45dae7bb511a7af2e4",
           "lines": [
-            627,
-            631
+            687,
+            691
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35362,8 +35599,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:fea369a0fe3282f96496837f5ae5d6ea37b15e645f4b596b676961e0fa63266c",
           "lines": [
-            618,
-            620
+            678,
+            680
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -35395,8 +35632,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:d36413cf2aaf5f9aaf9b69de3ee37c6e5c501e2bf812bc54c1a2b5f9274af95c",
           "lines": [
-            675,
-            675
+            735,
+            735
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35405,8 +35642,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:924189b3547a9424740426b8dfda7b6334e3578c18dee1dc70d7da5b58884412",
           "lines": [
-            692,
-            694
+            752,
+            754
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35415,8 +35652,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:14596f907fc11f64766f52600c530c08cece7bd4f898513dc9ecae2ffcd606d3",
           "lines": [
-            696,
-            697
+            756,
+            757
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35425,8 +35662,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:37d1ffe91e1258c8f1ff345021b5ddccc525c5edc6500914550f093466529047",
           "lines": [
-            679,
-            681
+            739,
+            741
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35435,8 +35672,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:a9cc3d0b95e31a6b54e39f32d7c4b5cc7d04959243015e13e3a1cccba44a79fd",
           "lines": [
-            689,
-            690
+            749,
+            750
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35445,8 +35682,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:a9b65cec568d7177244336f4b68e3113c7f97e2157d7f28efb9133682a68dc72",
           "lines": [
-            683,
-            687
+            743,
+            747
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35455,8 +35692,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:aad0c82decf898a04944f4d02b8e3ab56302c9d5c65f3e7c7e47811e1d8f7f99",
           "lines": [
-            677,
-            677
+            737,
+            737
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -35489,8 +35726,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:245b1908d9a5937a3f5812db41ad9f5c2795d16703b9a079316e236b9411a0b2",
           "lines": [
-            1135,
-            1135
+            1195,
+            1195
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35499,8 +35736,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:722a78d6224266ae5f93d4c11978022c0c7ede0ef9542f6f5bbc48e61f7e266d",
           "lines": [
-            1171,
-            1173
+            1231,
+            1233
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35509,8 +35746,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:fc2c0ca1d341f4ffc12919640abde8fd85400a682ba1ce014c41e2ea9a3c7cc3",
           "lines": [
-            1158,
-            1169
+            1218,
+            1229
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35519,8 +35756,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:6af23081f65251c2bb8e05761854d03fec9fea8f588944deb0afbedcccb9c8ab",
           "lines": [
-            1175,
-            1178
+            1235,
+            1238
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35529,8 +35766,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:ebdef0c4fa1bc0b958d91f7d36e26f0768fcb7dc3288f8ea3916e633ca68b3c7",
           "lines": [
-            1144,
-            1145
+            1204,
+            1205
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35539,8 +35776,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:8ee277e6173c3544cbe69b1a5a3bc73df89117ffadf98a11ac7fdf745e4a9e20",
           "lines": [
-            1154,
-            1156
+            1214,
+            1216
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35549,8 +35786,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:f7cc5b4cfc09820bcc8e0ea85d07b60d2ed0ef3691fb2699f6105972493fc80c",
           "lines": [
-            1147,
-            1152
+            1207,
+            1212
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35559,8 +35796,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:0ac3c36353e53ee2705113768cf78624fbc6c4d60f0f40d65ce9741eb30f9810",
           "lines": [
-            1137,
-            1142
+            1197,
+            1202
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -35616,8 +35853,8 @@
           "detector": "check_plan_status.roadmap_item",
           "excerptHash": "sha256:ef220491dd4394e9e73e751fd12d9fb9dec93263dec8ea304e8a92be762d7c81",
           "lines": [
-            482,
-            482
+            542,
+            542
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35626,8 +35863,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:a924fe37cb48a76f44548bf2f3c4fc99eaa5801e0f5136102a997117ae255f8b",
           "lines": [
-            586,
-            594
+            646,
+            654
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35636,8 +35873,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:d58d9b5170090fbc0682afce70c665db061d0a1f8b2db43a1210b2559bf86d91",
           "lines": [
-            596,
-            614
+            656,
+            674
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35646,8 +35883,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:5cfd375560a449dbf7a30e3972dce0fb985e98ad6829367ef0f81e3741befe9d",
           "lines": [
-            487,
-            492
+            547,
+            552
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35656,8 +35893,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:351db008144553b3cd4c024c0b34e99677f45fe0890b3f11c9cc0f0d595cdd7a",
           "lines": [
-            574,
-            584
+            634,
+            644
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35666,8 +35903,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:82d2e41546df51c925c73a552be5514c89a7b77b13149bff9f4d30ff8f284ebd",
           "lines": [
-            494,
-            572
+            554,
+            632
           ],
           "path": "docs/fleet-roadmap.md"
         },
@@ -35676,8 +35913,8 @@
           "detector": "check_plan_status.roadmap_field",
           "excerptHash": "sha256:950220bcf59899ab4d7a3b1b8e9957447b62f4a5a4236c3bd61a0991cac5a842",
           "lines": [
-            484,
-            485
+            544,
+            545
           ],
           "path": "docs/fleet-roadmap.md"
         }
